@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "e47e91a0-40f4-4084-895d-6530d4154de9"
+				"spark.autotune.trackingId": "e7145a5c-3db2-4ff8-ae7b-c54a0ac88277"
 			}
 		},
 		"metadata": {
@@ -52,17 +52,17 @@
 				"cell_type": "code",
 				"source": [
 					"raw_storage_container = 'abfss://odw-raw@pinsodwdatadevstorage.dfs.core.windows.net'\r\n",
-					"raw_storage_source_folder = 'iss'\r\n",
-					"raw_storage_source_name = 'inspector_raw'\r\n",
+					"raw_storage_source_folder = 'sap-load-tables'\r\n",
+					"raw_storage_source_name = 'vw-sap-hr-email-weekly'\r\n",
 					"workspace_storage_container = 'abfss://odw-workspace@pinsodwdatadevstorage.dfs.core.windows.net'\r\n",
-					"workspace_storage_temp_folder = 'iss'\r\n",
-					"workspace_storage_temp_name = 'inspector_raw'\r\n",
+					"workspace_storage_temp_folder = 'sap-load-tables'\r\n",
+					"workspace_storage_temp_name = 'vw-sap-hr-email-weekly'\r\n",
 					"standardised_storage_container = 'abfss://odw-standardised@pinsodwdatadevstorage.dfs.core.windows.net'\r\n",
-					"standardised_storage_delta_folder = 'iss'\r\n",
-					"standardised_storage_delta_table_name = 'inspector_raw'\r\n",
-					"delta_lake_table_key_column = 'Id'"
+					"standardised_storage_delta_folder = 'sap-load-tables'\r\n",
+					"standardised_storage_delta_table_name = 'vw-sap-hr-email-weekly'\r\n",
+					"delta_lake_table_key_column = 'Pers_No'"
 				],
-				"execution_count": 4
+				"execution_count": 46
 			},
 			{
 				"cell_type": "code",
@@ -83,7 +83,7 @@
 					"\r\n",
 					"raw_storage_folder_path = raw_storage_container   + '/' + raw_storage_source_folder + '/' + raw_storage_source_name\r\n",
 					"workspace_storage_folder_path = workspace_storage_container + '/' + workspace_storage_temp_folder + '/' + workspace_storage_temp_name\r\n",
-					"sourceColumnNames = 'Id,Title,Given_Names,Family_Name,Name,Address_Line_1,Address_Line_2,Town,County,Postcode,Phone_Number,Email_Address,Active_Status,Branch,Chart,Date_In,Date_Out,EO_Responsible,Grade,PINS_Staff_Number,Resource_Group,Staff,Trainee_Level,PDAC_ETL_Date'\r\n",
+					"sourceColumnNames = 'email_address,Pers_No,First_name,Last_name,Employee_No,CoCd,Company_Code,PA,Personnel_Area,PSubarea,Personnel_Subarea,Org_unit,Organizational_Unit,Organizational_key,Organizational_Key1,WorkC,Work_Contract,CT,Contract_Type,PS_group,Pay_Band_Description,FTE,Wk_hrs,Indicator_Part-Time_Employee,S,Employment_Status,Gender_Key,TRA_Start_Date,TRA_End_Date,TRA_Status,TRA_Grade,Prev_PersNo,ActR,Reason_for_Action,Position,Position1,Cost_Ctr,Cost_Centre,Civil_Service_Start,Date_to_Current_Job,Seniority_Date,Date_to_Subst_Grade,Pers_No_1,Name_of_Manager_OM,Manager_Position,Manager_Position_Text,Counter_Sign_Manager,Loc,Location,Org_Start_Date,Fix_Term_End_Date,Loan_Start_Date,Loan_End_Date,EEGrp,Employee_Group,Annual_salary,Curr,NI_number,Birth_date,Age_of_employee,EO,Ethnic_origin,NID,Rel,Religious_Denomination_Key,SxO,Wage_Type,Employee_Subgroup,LOA_Abs_Type,LOA_Absence_Type_Text,Scheme_reference,Pension_Scheme_Name,Disability_Code,Disability_Text,Disability_Code_Description,PArea,Payroll_Area,Assignment_Number,FTE_2,Report_MonthEnd_Date,PDAC_ETL_Date'\r\n",
 					"\r\n",
 					"sourceColumnNamesList = sourceColumnNames.split (\",\")\r\n",
 					"sourceStructString = StructType()\r\n",
@@ -96,7 +96,7 @@
 					"rawsourceDF.write.option(\"header\", \"true\").format('parquet').mode('overwrite').save(workspace_storage_folder_path)\r\n",
 					""
 				],
-				"execution_count": 2
+				"execution_count": 47
 			},
 			{
 				"cell_type": "code",
@@ -136,27 +136,9 @@
 					"\r\n",
 					"else:\r\n",
 					"    sourceParquetDF.write.format('delta').save(standardised_storage_delta_table_path)\r\n",
-					"    spark.sql(\"CREATE TABLE inspector_raw USING DELTA LOCATION '{0}'\".format(standardised_storage_delta_table_path))"
+					"    spark.sql(\"CREATE TABLE vw_sap_hr_email_weekly USING DELTA LOCATION '{0}'\".format(standardised_storage_delta_table_path))"
 				],
-				"execution_count": 8
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"spark.sql(\"CREATE TABLE inspector_raw USING DELTA LOCATION '{0}'\".format(standardised_storage_delta_table_path))"
-				],
-				"execution_count": 6
+				"execution_count": 49
 			},
 			{
 				"cell_type": "code",
@@ -177,7 +159,7 @@
 					"delta_table = DeltaTable.forPath(spark, standardised_storage_delta_table_path)\r\n",
 					"display(delta_table.history())"
 				],
-				"execution_count": 9
+				"execution_count": 50
 			},
 			{
 				"cell_type": "code",
@@ -198,9 +180,9 @@
 				},
 				"source": [
 					"%%sql\r\n",
-					"select * from default.inspector_raw "
+					"select * from default.vw_sap_hr_email_weekly"
 				],
-				"execution_count": 7
+				"execution_count": 51
 			},
 			{
 				"cell_type": "code",
