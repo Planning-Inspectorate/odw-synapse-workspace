@@ -1,0 +1,300 @@
+{
+	"name": "py_vw_SAP_HR_email_weekly_harmonised_layer1_transform",
+	"properties": {
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinsodwspark",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "a1c93694-403f-4281-a382-2ab782853279"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-odw-data-dev-rg/providers/Microsoft.Synapse/workspaces/pins-odw-data-dev-syn-ws/bigDataPools/pinsodwspark",
+				"name": "pinsodwspark",
+				"type": "Spark",
+				"endpoint": "https://pins-odw-data-dev-syn-ws.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinsodwspark",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.1",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"drop table if exists odw_workspace_db.sap_hr_layer1_harmonised;\r\n",
+					"create table odw_workspace_db.sap_hr_layer1_harmonised as \r\n",
+					"SELECT\r\n",
+					"        case LEFT( SHR.Pers_No, 2)\r\n",
+					"\t\twhen '50' then case char_length(SHR.Pers_No) \r\n",
+					"\t\t\twhen 6 then  SHR.Pers_No\r\n",
+					"\t\t\telse substring(cast( SHR.Pers_No as varchar(50)), 3, char_length(cast( SHR.Pers_No as varchar(50))))\r\n",
+					"\t\t\t\tend\r\n",
+					"\t\t\telse  SHR.Pers_No\r\n",
+					"\t\t\t\t\tend as PINS_Join_staff_number\r\n",
+					"        ,case when SHR.PS_group = 'BAND 1' and SHR.Contract_Type = 'Fixed Term Contract' then 'FTC-B1'\r\n",
+					"\t\t  when SHR.PS_group = 'BAND 2' and SHR.Contract_Type = 'Fixed Term Contract' then 'FTC-B2'\r\n",
+					"\t\t  when SHR.PS_group = 'BAND 3' and SHR.Contract_Type = 'Fixed Term Contract' then 'FTC-B3'\r\n",
+					"\t\t  when SHR.PS_group = 'BAND 1' and SHR.Contract_Type <> 'Fixed Term Contract' then 'B1'\r\n",
+					"\t\t  when SHR.PS_group = 'BAND 2' and SHR.Contract_Type <> 'Fixed Term Contract' then 'B2'\r\n",
+					"\t\t  when SHR.PS_group = 'BAND 3' and SHR.Contract_Type <> 'Fixed Term Contract' then 'B3'\r\n",
+					"\t\t  else SHR.PS_group end as PINS_join_grade\r\n",
+					"        ,Pers_No as pins_staff_number\r\n",
+					"        ,First_name  given_names\r\n",
+					"        ,Last_name family_name\r\n",
+					"        ,Employment_Status active_status\r\n",
+					"\t\t,ROUND(SHR.FTE,2) FTE\r\n",
+					"\t\t,case \r\n",
+					"              when SHR.Position1 = 'Inspector Manager' then 1 \r\n",
+					"             else 0 end as is_sgl\r\n",
+					"\t\t,case SHR.Work_Contract\r\n",
+					"\t        when 'Non-Sal. Inspec' then 'Non-Salaried Inspector'\r\n",
+					"\t        else SHR.Organizational_Unit\r\n",
+					"\t    end as resource_code\r\n",
+					"\t\t,case left(SHR.PS_group, 3)\r\n",
+					"\t\twhen 'FTC' then 'FTC'\r\n",
+					"\t\twhen 'NSI' then 'NSI'\r\n",
+					"\t\telse 'Salaried'\t\t\r\n",
+					"\t    end as emp_type          \t\r\n",
+					"\tFROM default.sap_hr as SHR\t;"
+				],
+				"execution_count": 15
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"drop table if exists odw_workspace_db.inspector_raw_layer1_harmonised;\r\n",
+					"create table odw_workspace_db.inspector_raw_layer1_harmonised as \r\n",
+					"SELECT\r\n",
+					"\t\tid\r\n",
+					"\t\t,case LEFT( r.PINS_Staff_Number, 2)\r\n",
+					"\t\twhen '50' then case char_length(r.PINS_Staff_Number) \r\n",
+					"\t\twhen 6 then  r.PINS_Staff_Number\r\n",
+					"\t\telse substring(cast( r.PINS_Staff_Number as varchar(50)), 3, char_length(cast( r.PINS_staff_Number as varchar(50))))\r\n",
+					"\t\t\tend\r\n",
+					"\t\telse  r.PINS_Staff_Number\r\n",
+					"\t\t\tend PINS_Join_staff_number\r\n",
+					"\t\t, r.Family_Name \r\n",
+					"\t\t,left(r.given_names\r\n",
+					"\t\t, case when instr(' ', r.Given_Names)=0 then char_length(r.Given_Names) else instr(' ', r.Given_Names)- 1 end) as JOIN_Last_Name\r\n",
+					"\t\t,r.Grade\r\n",
+					" FROM default.inspector_raw r\r\n",
+					" "
+				],
+				"execution_count": 16
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"drop table if exists odw_workspace_db.vw_SAP_HR_email_layer1_harmonised;\r\n",
+					"create table odw_workspace_db.vw_SAP_HR_email_layer1_harmonised as \r\n",
+					"SELECT\r\n",
+					"     CAST(REPLACE(LTRIM(REPLACE(S.Employee_No, '0', ' ')), ' ', '0') as int) PINS_Join_staff_number\r\n",
+					"\t ,email_address\r\n",
+					" FROM default.vw_SAP_HR_email S"
+				],
+				"execution_count": 17
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"drop table if exists odw_workspace_db.inspector_address_layer1_harmonised;\r\n",
+					"create table odw_workspace_db.inspector_address_layer1_harmonised as \r\n",
+					"SELECT\t\r\n",
+					"      Staff_Number as PINS_Join_staff_number\r\n",
+					"      ,Postal_Code inspector_postcode\r\n",
+					"      ,Start_Date date_in\r\n",
+					"      ,End_Date date_out\r\n",
+					"      ,Charting_Officer_for_Inspector\r\n",
+					"\t  ,concat(Street_and_House_Number, ' ',2nd_Address_Line,' ',City,' ',District,' ' ,Postal_Code,' ',Region) Inspector_Address\r\n",
+					"\t  ,Telephone_no Telephone_no\r\n",
+					"      ,Work_Mobile Work_Mobile\r\n",
+					" FROM default.inspector_address I\r\n",
+					" "
+				],
+				"execution_count": 18
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"drop table if exists odw_workspace_db.vw_SAP_HR_email_weekly_layer1_harmonised;\r\n",
+					"create table odw_workspace_db.vw_SAP_HR_email_weekly_layer1_harmonised as \r\n",
+					"SELECT\r\n",
+					"\t Pers_No as PINS_Join_staff_number\r\n",
+					"\t ,email_address\r\n",
+					" FROM default.vw_SAP_HR_email_weekly SW"
+				],
+				"execution_count": 19
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"drop table if exists odw_workspace_db.SAP_PINS_email_layer1_harmonised;\r\n",
+					"create table odw_workspace_db.SAP_PINS_email_layer1_harmonised as \r\n",
+					"SELECT \r\n",
+					"    Staff_Number\r\n",
+					"\t,Email_Address\r\n",
+					"  FROM default.SAP_PINS_email e2"
+				],
+				"execution_count": 20
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"create database if not exists odw_workspace_db"
+				],
+				"execution_count": 21
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					""
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
