@@ -3,8 +3,8 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "py_load_standardised_to_harmonised",
-				"type": "SynapseNotebook",
+				"name": "Lookup Get Notebooks",
+				"type": "Lookup",
 				"dependsOn": [],
 				"policy": {
 					"timeout": "7.00:00:00",
@@ -15,15 +15,69 @@
 				},
 				"userProperties": [],
 				"typeProperties": {
-					"notebook": {
-						"referenceName": "py_sap_hr_harmonised_layer1_transform",
-						"type": "NotebookReference"
+					"source": {
+						"type": "JsonSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true,
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "JsonReadSettings"
+						}
 					},
-					"snapshot": true,
-					"sparkPool": {
-						"referenceName": "pinsodwspark",
-						"type": "BigDataPoolReference"
+					"dataset": {
+						"referenceName": "dst_standardised_to_harmonised_pipeline_list",
+						"type": "DatasetReference"
 					}
+				}
+			},
+			{
+				"name": "ForEach Iterate All Notebooks",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Lookup Get Notebooks",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Lookup Get Notebooks').output.value",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "py_load_standardised_to_harmonised",
+							"type": "SynapseNotebook",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": {
+										"value": "@item().notebookName",
+										"type": "Expression"
+									},
+									"type": "NotebookReference"
+								},
+								"snapshot": true,
+								"sparkPool": {
+									"referenceName": "pinsodwspark",
+									"type": "BigDataPoolReference"
+								}
+							}
+						}
+					]
 				}
 			}
 		],
