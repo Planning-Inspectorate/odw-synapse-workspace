@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "f64e5021-9dfc-4d2f-9fae-5c2c086c72ea"
+				"spark.autotune.trackingId": "9a59c51e-b254-4c8a-b18e-4bbcf5df8f51"
 			}
 		},
 		"metadata": {
@@ -64,31 +64,28 @@
 					"drop table if exists odw_harmonised_db.inspector;\r\n",
 					"create table  odw_harmonised_db.inspector as \r\n",
 					"SELECT \r\n",
-					"case when inspector_raw.id is null then ROW_NUMBER() over (order by sap_hr.Pers_No,sap_hr.First_Name,sap_hr.Last Name) \r\n",
-					"else inspector_raw.id as source_id\r\n",
-					",sap_hr.PINS_join_grade as grade\r\n",
+					"case when inspector_raw.id is null then ROW_NUMBER() over (order by sap_hr.Pers_No,sap_hr.given_names,sap_hr.family_name) \r\n",
+					"else inspector_raw.id end as source_id \r\n",
 					",sap_hr.pins_staff_number\r\n",
 					",sap_hr.given_names\r\n",
 					",sap_hr.family_name\r\n",
+					",concat(sap_hr.given_names,' ',sap_hr.family_name) as inspector_name\r\n",
+					",inspector_address.inspector_postcode as inspector_postcode\r\n",
 					",sap_hr.active_status\r\n",
-					",sap_hr.FTE\r\n",
-					",sap_hr.is_sgl\r\n",
-					",sap_hr.resource_code\r\n",
-					",sap_hr.emp_type\r\n",
-					",inspector_address.inspector_postcode\r\n",
 					",inspector_address.date_in\r\n",
 					",inspector_address.date_out\r\n",
-					",inspector_address.Charting_Officer_for_Inspector\r\n",
+					",inspector_address.Charting_Officer_for_Inspector as eo_responsible\r\n",
+					",sap_hr.PINS_join_grade as grade\r\n",
+					",sap_hr.FTE as FTE\r\n",
 					",inspector_address.Inspector_Address\r\n",
 					",inspector_address.Telephone_no\r\n",
 					",inspector_address.Work_Mobile\r\n",
-					",inspector_raw.id\r\n",
-					",inspector_raw.Family_Name\r\n",
-					",inspector_raw.Grade\r\n",
-					",sap_pins_email.Staff_Number\r\n",
-					",sap_pins_email.Email_Address\r\n",
-					",vw_sap_hr_email.email_address\r\n",
-					",vw_sap_hr_email_weekly.email_address\r\n",
+					",sap_hr.is_sgl\r\n",
+					",case when (sap_hr.Work_Contract = 'Non-Sal. Inspec' and sap_hr.active_status = 'ACTIVE') then 'nsi.planning@planninginspectorate.gov.uk'\r\n",
+					"      else coalesce(vw_sap_hr_email.email_address, vw_sap_hr_email_weekly.email_address ,sap_pins_email.Email_Address, NULL) \r\n",
+					" end as pins_email_address\r\n",
+					",sap_hr.resource_code\r\n",
+					",sap_hr.emp_type\r\n",
 					" FROM \r\n",
 					" odw_workspace_db.sap_hr_layer1_harmonised sap_hr\r\n",
 					" LEFT OUTER JOIN\r\n",
@@ -109,7 +106,7 @@
 					" ON sap_hr.pins_staff_number = vw_sap_hr_email_weekly.PINS_Join_staff_number\r\n",
 					""
 				],
-				"execution_count": 5
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
@@ -123,16 +120,12 @@
 							"deleting": false
 						}
 					},
-					"microsoft": {
-						"language": "sparksql"
-					},
 					"collapsed": false
 				},
 				"source": [
-					"%%sql\r\n",
-					"create database odw_harmonised_db"
+					""
 				],
-				"execution_count": 1
+				"execution_count": 10
 			},
 			{
 				"cell_type": "code",
