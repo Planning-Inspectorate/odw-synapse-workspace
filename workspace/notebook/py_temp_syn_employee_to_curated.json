@@ -1,0 +1,176 @@
+{
+	"name": "py_temp_syn_employee_to_curated",
+	"properties": {
+		"folder": {
+			"name": "odw-curated"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinsodwspark",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "18ad4235-0145-4818-b459-e07a74e829a9"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-odw-data-dev-rg/providers/Microsoft.Synapse/workspaces/pins-odw-data-dev-syn-ws/bigDataPools/pinsodwspark",
+				"name": "pinsodwspark",
+				"type": "Spark",
+				"endpoint": "https://pins-odw-data-dev-syn-ws.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinsodwspark",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.1",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"tags": [
+						"parameters"
+					]
+				},
+				"source": [
+					"raw_storage_container = 'abfss://odw-raw@pinsodwdatadevstorage.dfs.core.windows.net'\r\n",
+					"raw_storage_source_folder = 'employee-syn'\r\n",
+					"raw_storage_source_name = 'employee-syn.csv'\r\n",
+					"workspace_storage_container = 'abfss://odw-workspace@pinsodwdatadevstorage.dfs.core.windows.net'\r\n",
+					"workspace_storage_temp_folder = 'employee-syn'\r\n",
+					"workspace_storage_temp_name = 'employee-syn'\r\n",
+					"curated_storage_container = 'abfss://odw-curated@pinsodwdatadevstorage.dfs.core.windows.net'\r\n",
+					"curated_storage_delta_folder = 'employee-syn'\r\n",
+					"curated_storage_delta_table_name = 'employee-syn'\r\n",
+					"delta_lake_table_key_column = 'Pers_No'\r\n",
+					"delta_lake_table_name = \"employee_syn\"\r\n",
+					"sourceColumnNames = 'Profession,Pers_No,Employee_Number,First_Name,Last_Name,PA,Personnel_Area,Personnel_SubArea,PSubArea,Org_unit,Organizational_Unit,Organizational_Key,Organizational_Key1,WorkC,Work_Contract,CT,Contract_Type,PS_Group,Pay_Band_Description,FTE,Wk_Hrs,Work_Schedule,Is_Part_Time,S,Employment_Status,Gender_Key,TRA_Start_Date,TRA_End_Date,TRA_Status,TRA_Grade,Prev_PersNo,ActR,Reason_For_Action,Position,Position1,Cost_Ctr,Cost_Centre,Civil_Service_Start,Date_To_Current_Job,Seniority_Date,Date_To_Subst_Grade,Pers_No_1,Name_of_Manager,Manager_Position,Manager_Position_Text,Counter_Sign_Manager,Loc,Location,Org_Start_Date,Fix_Term_End_Date,Loan_Start_Date,Loan_End_Date,EEGrp,Employee_Group,Annual_salary,Curr,NI_number,Birth_date,Age_of_employee,EO,Rel,Religious_Denomination_Key,SxO,Ethnic_origin,Disability_Code,Disability_Text,Disability_Code_Description,NID,Wage_Type,Employee_Subgroup,LOA_Abs_Type,LOA_Absence_Type_Text,Scheme_reference,Pension_Scheme_Name,PArea,Payroll_Area,Assignment_Number,Company_Code,CoCd,Email_Address,Address_Line_1,Address_Line_2,Town,County,Postcode,Phone_Number,Annual_Leave_Start,Active_Status,Is_Charting_Officer,Charting_Officer_ID,Grade,Is_Sub_Group_Leader,Is_APO,Is_APOM,FTE-Primary,FTE-Secondary,Location-Primary,Location-Secondary,Leaving_Date,Attribute10'"
+				],
+				"execution_count": 31
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"from pyspark.sql.types import *\r\n",
+					"\r\n",
+					"raw_storage_folder_path = raw_storage_container   + '/' + raw_storage_source_folder + '/' + raw_storage_source_name\r\n",
+					"workspace_storage_folder_path = workspace_storage_container + '/' + workspace_storage_temp_folder + '/' + workspace_storage_temp_name\r\n",
+					"\r\n",
+					"\r\n",
+					"sourceColumnNamesList = sourceColumnNames.split (\",\")\r\n",
+					"sourceStructString = StructType()\r\n",
+					"for sourceColumn in sourceColumnNamesList:\r\n",
+					"    sourceStructString.add(StructField(sourceColumn ,StringType(), True))\r\n",
+					"\r\n",
+					"\r\n",
+					"rawsourceDF=spark.read.option(\"delimiter\", \",\").option(\"header\", \"true\").schema(sourceStructString).csv(raw_storage_folder_path)\r\n",
+					"\r\n",
+					"rawsourceDF.write.option(\"header\", \"true\").format('parquet').mode('overwrite').save(workspace_storage_folder_path)\r\n",
+					""
+				],
+				"execution_count": 33
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"# Import modules\r\n",
+					"from delta.tables import DeltaTable\r\n",
+					"\r\n",
+					"\r\n",
+					"\r\n",
+					"curated_storage_delta_table_path = curated_storage_container + '/' + curated_storage_delta_folder + '/' + curated_storage_delta_table_name\r\n",
+					"\r\n",
+					"sourceParquetDF = spark.read.option(\"inferSchema\",\"true\").format('parquet').option(\"recursiveFileLookup\", \"true\").load(workspace_storage_folder_path)\r\n",
+					"\r\n",
+					"if (DeltaTable.isDeltaTable(spark,curated_storage_delta_table_path)):\r\n",
+					"    deltaTable = DeltaTable.forPath(spark,curated_storage_delta_table_path)\r\n",
+					"    # Merge new data into existing table\r\n",
+					"    deltaTable.alias(\"existing\").merge(\r\n",
+					"        source=sourceParquetDF.alias(\"updates\"),\r\n",
+					"        condition=\"existing.\" + delta_lake_table_key_column + \" = updates.\" + delta_lake_table_key_column  # We look for matches on the name column\r\n",
+					"    ).whenMatchedUpdateAll(\r\n",
+					"    ).whenNotMatchedInsertAll(\r\n",
+					"    ).execute()\r\n",
+					"\r\n",
+					"\r\n",
+					"\r\n",
+					"else:\r\n",
+					"    sourceParquetDF.write.format('delta').save(curated_storage_delta_table_path)\r\n",
+					"    spark.sql(\"CREATE TABLE {0} USING DELTA LOCATION '{1}'\".format(delta_lake_table_name,curated_storage_delta_table_path))"
+				],
+				"execution_count": 34
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"# Get all versions\r\n",
+					"delta_table = DeltaTable.forPath(spark, curated_storage_delta_table_path)\r\n",
+					"display(delta_table.history())"
+				],
+				"execution_count": 35
+			}
+		]
+	}
+}
