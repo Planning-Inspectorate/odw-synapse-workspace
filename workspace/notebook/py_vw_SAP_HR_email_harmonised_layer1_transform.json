@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d9a7950c-1b4c-4056-8e78-0df249ccee1b"
+				"spark.autotune.trackingId": "d0c365e6-822b-4c83-9cfb-3aca8cbb9242"
 			}
 		},
 		"metadata": {
@@ -78,6 +78,34 @@
 					" FROM default.vw_SAP_HR_email S"
 				],
 				"execution_count": 17
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					}
+				},
+				"source": [
+					"%%sql\r\n",
+					"merge into odw_config_db.pipeline_runs target\r\n",
+					"using (select 'vw_SAP_HR_email' as source_name , max(PDAC_ETL_Date ) as max_PDAC_ETL_Date from odw_workspace_db.sap_hr_layer1_harmonised ) updates\r\n",
+					"on target.sourceName=updates.source_name\r\n",
+					"WHEN MATCHED THEN\r\n",
+					"  UPDATE SET target.LastRun = updates.max_PDAC_ETL_Date\r\n",
+					"WHEN NOT MATCHED\r\n",
+					"  THEN INSERT (sourceName,LastRun) VALUES (source_name, max_PDAC_ETL_Date)"
+				],
+				"execution_count": null
 			}
 		]
 	}

@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "b31c4124-9206-49a1-976c-55a0dafeecdf"
+				"spark.autotune.trackingId": "1745455b-9f0b-4e2b-8f29-8f7eeaab754d"
 			}
 		},
 		"metadata": {
@@ -81,10 +81,38 @@
 					"\t  ,concat(Street_and_House_Number, ' ',2nd_Address_Line,' ',City,' ',District,' ' ,Postal_Code,' ',Region) Inspector_Address\r\n",
 					"\t  ,Telephone_no Telephone_no\r\n",
 					"      ,Work_Mobile Work_Mobile\r\n",
-					" FROM default.inspector_address I\r\n",
+					" FROM default.inspector_address \r\n",
 					" "
 				],
 				"execution_count": 18
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					}
+				},
+				"source": [
+					"%%sql\r\n",
+					"merge into odw_config_db.pipeline_runs target\r\n",
+					"using (select 'inspector_address' as source_name , max(PDAC_ETL_Date ) as max_PDAC_ETL_Date from odw_workspace_db.sap_hr_layer1_harmonised ) updates\r\n",
+					"on target.sourceName=updates.source_name\r\n",
+					"WHEN MATCHED THEN\r\n",
+					"  UPDATE SET target.LastRun = updates.max_PDAC_ETL_Date\r\n",
+					"WHEN NOT MATCHED\r\n",
+					"  THEN INSERT (sourceName,LastRun) VALUES (source_name, max_PDAC_ETL_Date)"
+				],
+				"execution_count": null
 			}
 		]
 	}
