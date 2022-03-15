@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "e2085373-e4b2-44a5-b536-8d7c58d229bc"
+				"spark.autotune.trackingId": "6439d909-c361-427a-a0d5-a0210d4a42f4"
 			}
 		},
 		"metadata": {
@@ -85,10 +85,40 @@
 					"\t\t,left(r.given_names\r\n",
 					"\t\t, case when instr(' ', r.Given_Names)=0 then char_length(r.Given_Names) else instr(' ', r.Given_Names)- 1 end) as JOIN_Last_Name\r\n",
 					"\t\t,r.Grade\r\n",
-					" FROM default.inspector_raw r\r\n",
+					"\t\t,r.PDAC_ETL_Date\r\n",
+					" FROM odw_standardised_db.inspector_raw r\r\n",
+					"where r.PDAC_ETL_Date > (select LastRun from odw_config_db.pipeline_runs where sourceName ='inspector_raw' )\t\r\n",
 					" "
 				],
 				"execution_count": 16
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					}
+				},
+				"source": [
+					"%%sql\r\n",
+					"merge into odw_config_db.pipeline_runs target\r\n",
+					"using (select 'inspector_raw' as source_name , max(PDAC_ETL_Date ) as max_PDAC_ETL_Date from odw_workspace_db.sap_hr_layer1_harmonised ) updates\r\n",
+					"on target.sourceName=updates.source_name\r\n",
+					"WHEN MATCHED THEN\r\n",
+					"  UPDATE SET target.LastRun = updates.max_PDAC_ETL_Date\r\n",
+					"WHEN NOT MATCHED\r\n",
+					"  THEN INSERT (sourceName,LastRun) VALUES (source_name, max_PDAC_ETL_Date)"
+				],
+				"execution_count": null
 			}
 		]
 	}

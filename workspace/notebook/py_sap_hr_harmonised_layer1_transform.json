@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "c715424f-1b86-4a01-9c38-a1f85eb4ee7d"
+				"spark.autotune.trackingId": "d7cb81f6-a562-4e4f-857b-0fe932fbd9a2"
 			}
 		},
 		"metadata": {
@@ -96,8 +96,10 @@
 					"\t\twhen 'FTC' then 'FTC'\r\n",
 					"\t\twhen 'NSI' then 'NSI'\r\n",
 					"\t\telse 'Salaried'\t\t\r\n",
-					"\t    end as emp_type          \t\r\n",
-					"\tFROM default.sap_hr as SHR\t;"
+					"\t    end as emp_type ,\r\n",
+					"\t\tPDAC_ETL_Date         \t\r\n",
+					"\tFROM odw_standardised_db.sap_hr as SHR\r\n",
+					"\twhere PDAC_ETL_Date > (select LastRun from odw_config_db.pipeline_runs where sourceName ='sap_hr' )\t;"
 				],
 				"execution_count": 2
 			},
@@ -112,10 +114,20 @@
 						"transient": {
 							"deleting": false
 						}
+					},
+					"microsoft": {
+						"language": "sparksql"
 					}
 				},
 				"source": [
-					""
+					"%%sql\r\n",
+					"merge into odw_config_db.pipeline_runs target\r\n",
+					"using (select 'sap_hr' as source_name , max(PDAC_ETL_Date ) as max_PDAC_ETL_Date from odw_workspace_db.sap_hr_layer1_harmonised ) updates\r\n",
+					"on target.sourceName=updates.source_name\r\n",
+					"WHEN MATCHED THEN\r\n",
+					"  UPDATE SET target.LastRun = updates.max_PDAC_ETL_Date\r\n",
+					"WHEN NOT MATCHED\r\n",
+					"  THEN INSERT (sourceName,LastRun) VALUES (source_name, max_PDAC_ETL_Date)"
 				],
 				"execution_count": null
 			}
