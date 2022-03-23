@@ -3,15 +3,22 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "=2.46.0"
+      version = "=2.98.0"
     }
+  }
+  backend "azurerm" {
+    resource_group_name  = "__terraform_state_resource_group_name__"
+    storage_account_name = "__terraform_state_storage_name__"
+    container_name       = "__terraform_state_container_name__"
+    key                  = "__terraform_state_state_name__"
+    use_msi              = true
   }
 }
 
 provider "azurerm" {
   features {}
 
-  subscription_id            = "1a4067df-ed97-4ff7-b07f-4cd13f92c8d5"
+  subscription_id            = "__subscription_id__"
   skip_provider_registration = true
 }
 
@@ -19,7 +26,7 @@ provider "azurerm" {
 data "azurerm_client_config" "current" {}
 
 data "azurerm_resource_group" "test" {
-  name = "RG-Lester-March"
+  name = "__resource_group_name__"
 }
 
 variable "common_tags" {
@@ -42,7 +49,7 @@ resource "random_string" "rid" {
 
 # Resource Group
 # resource "azurerm_resource_group" "dwh_poc" {
-#   name     = "pins-rg-odw-data-uks-dev"
+#   name     = "__resource_group_name__"
 #   location = "UK South"
 # }
 # Use new resource group instead of existing:
@@ -51,7 +58,7 @@ resource "random_string" "rid" {
 
 # Network
 resource "azurerm_virtual_network" "dwh_poc" {
-  name                = "pins-vnet-odw-data-uks-dev"
+  name                = "__virtual_network_name__"
   resource_group_name = data.azurerm_resource_group.test.name
   location            = data.azurerm_resource_group.test.location
   address_space       = ["10.0.0.0/16"]
@@ -59,7 +66,7 @@ resource "azurerm_virtual_network" "dwh_poc" {
 }
 
 resource "azurerm_subnet" "dwh_poc" {
-  name                 = "pins-vnet-odw-data-uks-dev"
+  name                 = "__subnet_name__"
   resource_group_name  = data.azurerm_resource_group.test.name
   virtual_network_name = azurerm_virtual_network.dwh_poc.name
   address_prefixes     = ["10.0.0.0/24"]
@@ -71,7 +78,7 @@ resource "azurerm_subnet" "dwh_poc" {
 
 # Key Vault
 resource "azurerm_key_vault" "dwh_poc" {
-  name                            = "pinskvodwdatauks${random_string.rid.id}"
+  name                            = "__key_vault_name__"
   resource_group_name             = data.azurerm_resource_group.test.name
   location                        = data.azurerm_resource_group.test.location
   tenant_id                       = data.azurerm_client_config.current.tenant_id
@@ -101,7 +108,7 @@ resource "azurerm_key_vault" "dwh_poc" {
 
 # Storage Account
 resource "azurerm_storage_account" "dwh_poc" {
-  name                     = "pinsodwdatauksdev01"
+  name                     = "__storage_account_name__"
   resource_group_name      = data.azurerm_resource_group.test.name
   location                 = data.azurerm_resource_group.test.location
   account_tier             = "Standard"
@@ -111,37 +118,107 @@ resource "azurerm_storage_account" "dwh_poc" {
   tags                     = var.common_tags
 }
 
-resource "azurerm_role_assignment" "storage_blob_data_contributor" {
-  scope                = data.azurerm_resource_group.test.id
+resource "azurerm_role_assignment" "storage_blob_data_contributor_administrators" {
+  scope                = azurerm_storage_account.dwh_poc.id
   role_definition_name = "Storage Blob Data Contributor"
-  principal_id         = data.azurerm_client_config.current.object_id
+  principal_id         = "__aad_administrator_group_id__"
+}
+
+resource "azurerm_role_assignment" "storage_blob_data_contributor_contributors" {
+  scope                = azurerm_storage_account.dwh_poc.id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = "__aad_contributor_group_id__"
+}
+
+resource "azurerm_role_assignment" "storage_blob_data_contributor_compute_operators" {
+  scope                = azurerm_storage_account.dwh_poc.id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = "__aad_computeoperator_group_id__"
 }
 
 resource "azurerm_storage_data_lake_gen2_filesystem" "dwh_poc" {
-  name               = "odw-workspace"
+  name               = "__storage_filesystem_name__"
   storage_account_id = azurerm_storage_account.dwh_poc.id
 }
 
 # Synapse Workspace
 resource "azurerm_synapse_workspace" "dwh_poc" {
-  name                                 = "pinssynws01"
+  name                                 = "__synapse_workspace_name__"
   resource_group_name                  = data.azurerm_resource_group.test.name
   location                             = data.azurerm_resource_group.test.location
   storage_data_lake_gen2_filesystem_id = azurerm_storage_data_lake_gen2_filesystem.dwh_poc.id
   sql_administrator_login              = "sqladminuser"
   sql_administrator_login_password     = "T3st!nG123"
+  managed_virtual_network_enabled      = true
   tags                                 = var.common_tags
 
   aad_admin {
-    login     = "pins-odw-data-dev-syn-ws-sqladmins"
-    object_id = "1c996957-30e4-40fe-b0b4-82d40f13c058"
+    login     = "__aad_administrator_group_name__"
+    object_id = "__aad_administrator_group_id__"
     tenant_id = data.azurerm_client_config.current.tenant_id
   }
+
+  sql_aad_admin {
+    login     = "__aad_sqladmin_group_name__"
+    object_id = "__aad_sqladmin_group_id__"
+    tenant_id = data.azurerm_client_config.current.tenant_id
+  }
+
+}
+
+resource "azurerm_synapse_firewall_rule" "dwh_poc_azure" {
+  name                 = "AllowAllWindowsAzureIps"
+  synapse_workspace_id = azurerm_synapse_workspace.dwh_poc.id
+  start_ip_address     = "0.0.0.0"
+  end_ip_address       = "0.0.0.0"
+}
+
+resource "azurerm_synapse_firewall_rule" "dwh_poc_all" {
+  name                 = "AllowAll"
+  synapse_workspace_id = azurerm_synapse_workspace.dwh_poc.id
+  start_ip_address     = "0.0.0.0"
+  end_ip_address       = "255.255.255.255"
+}
+
+resource "azurerm_synapse_role_assignment" "dwh_poc_administrator" {
+  synapse_workspace_id = azurerm_synapse_workspace.dwh_poc.id
+  role_name            = "Synapse Administrator"
+  principal_id         = "__aad_administrator_group_id__"
+
+  depends_on = [azurerm_synapse_firewall_rule.dwh_poc_all]
+}
+
+resource "azurerm_synapse_role_assignment" "dwh_poc_contributor" {
+  synapse_workspace_id = azurerm_synapse_workspace.dwh_poc.id
+  role_name            = "Synapse Contributor"
+  principal_id         = "__aad_contributor_group_id__"
+
+  depends_on = [azurerm_synapse_firewall_rule.dwh_poc_all]
+}
+
+resource "azurerm_synapse_role_assignment" "dwh_poc_computeoperator" {
+  synapse_workspace_id = azurerm_synapse_workspace.dwh_poc.id
+  role_name            = "Synapse Compute Operator"
+  principal_id         = "__aad_computeoperator_group_id__"
+
+  depends_on = [azurerm_synapse_firewall_rule.dwh_poc_all]
+}
+
+resource "azurerm_role_assignment" "storage_blob_data_contributor_managed_identity" {
+  scope                = azurerm_storage_account.dwh_poc.id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = azurerm_synapse_workspace.dwh_poc.identity[0].principal_id
+}
+
+resource "azurerm_role_assignment" "contributor_administrator" {
+  scope                = azurerm_synapse_workspace.dwh_poc.id
+  role_definition_name = "Contributor"
+  principal_id         = "__aad_administrator_group_id__"
 }
 
 # Synapse Spark Pool
 resource "azurerm_synapse_spark_pool" "dwh_poc" {
-  name                           = "sparkpool01"
+  name                           = "__synapse_sparkpool_name__"
   synapse_workspace_id           = azurerm_synapse_workspace.dwh_poc.id
   node_size_family               = "MemoryOptimized"
   node_size                      = "Small"
@@ -154,7 +231,7 @@ resource "azurerm_synapse_spark_pool" "dwh_poc" {
 
 # Synapse SQL Pool
 resource "azurerm_synapse_sql_pool" "dwh_poc" {
-  name                 = "sqlpool01"
+  name                 = "__dedicated_sqlpool_name__"
   synapse_workspace_id = azurerm_synapse_workspace.dwh_poc.id
   sku_name             = "DW100c"
   create_mode          = "Default"
