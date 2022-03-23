@@ -4,7 +4,7 @@ This repo contains all the artifacts for the PINS Operational Data Warehouse Pil
 * [Azure DevOps](devops/) - Azure DevOps pipeline configuration for build/release pipelines
 * [Azure Service Bus](servicebus/) - js code for publishing/consuming service bus topics
 * [Terraform](terraform/) - terraform templates used for generating ODW infrastructure as code
-
+* [Test Scripts](tests/) - scripts for generating synthetic data for testing purposes
 
 # Reference Documentation
 * Azure Data Landscape
