@@ -23,7 +23,8 @@ This repo contains all the artifacts for the PINS Operational Data Warehouse Pil
 The following steps outline how to get up and running with this repo on your own system:
 1.  Environment access
     1.  Github access - if you're reading this repo readme you probably already have this
-    2.  Azure Portal access - additional access is required to the Azure Portal and the corresponding [Azure Resources in each environment](#environments)
+    2.  Azure DevOps access to the [operational-data-warehouse](https://dev.azure.com/planninginspectorate/operational-data-warehouse) Azure DevOps project
+    3.  Azure Portal access - additional access is required to the Azure Portal and the corresponding [Azure Resources in each environment](#environments)
 2.  Application Installation - the following desktop applications are optional but provide advantages when working with some of the Azure resources - PINS Azure auth policy is to restrict access to PINS devices only so non-PINS devices will need to be whitelisted to use these
       1. Install [Visual Studio Code](https://code.visualstudio.com/) or equivalent IDE - for editing and commiting code artifacts
       2. Install [Azure Data Studio](https://docs.microsoft.com/en-us/sql/azure-data-studio) - for connecting to Azure SQL instances and managing/commiting data notebooks
