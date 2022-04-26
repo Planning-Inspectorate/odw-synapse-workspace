@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "49848234-7e8c-46b2-b6b5-4409504aa4ea"
+				"spark.autotune.trackingId": "d0ec619d-19f2-4846-87eb-88a6fc775892"
 			}
 		},
 		"metadata": {
@@ -46,7 +46,7 @@
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 28,
-				"automaticScaleJobs": false
+				"automaticScaleJobs": true
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -54,59 +54,13 @@
 			{
 				"cell_type": "code",
 				"metadata": {
-					"microsoft": {
-						"language": "sparksql"
-					},
 					"collapsed": false
 				},
 				"source": [
-					"%%sql\r\n",
-					"drop table if exists odw_harmonised_db.inspector;\r\n",
-					"create table  odw_harmonised_db.inspector as \r\n",
-					"SELECT \r\n",
-					"case when inspector_raw.id is null then ROW_NUMBER() over (order by sap_hr.Pers_No,sap_hr.given_names,sap_hr.family_name) \r\n",
-					"else inspector_raw.id end as source_id \r\n",
-					",sap_hr.pins_staff_number\r\n",
-					",sap_hr.given_names\r\n",
-					",sap_hr.family_name as family_names\r\n",
-					",concat(sap_hr.given_names,' ',sap_hr.family_name) as inspector_name\r\n",
-					",inspector_address.inspector_postcode as inspector_postcode\r\n",
-					",sap_hr.active_status\r\n",
-					",inspector_address.date_in\r\n",
-					",inspector_address.date_out\r\n",
-					",inspector_address.Charting_Officer_for_Inspector as eo_responsible\r\n",
-					",sap_hr.PINS_join_grade as grade\r\n",
-					",sap_hr.FTE as FTE\r\n",
-					",inspector_address.Inspector_Address\r\n",
-					",inspector_address.Telephone_no\r\n",
-					",inspector_address.Work_Mobile\r\n",
-					",sap_hr.is_sgl\r\n",
-					",case when (sap_hr.Work_Contract = 'Non-Sal. Inspec' and sap_hr.active_status = 'ACTIVE') then 'nsi.planning@planninginspectorate.gov.uk'\r\n",
-					"      else coalesce(vw_sap_hr_email.email_address, vw_sap_hr_email_weekly.email_address ,sap_pins_email.Email_Address, NULL) \r\n",
-					" end as pins_email_address\r\n",
-					",sap_hr.resource_code\r\n",
-					",sap_hr.emp_type\r\n",
-					" FROM \r\n",
-					" odw_workspace_db.sap_hr_layer1_harmonised sap_hr\r\n",
-					" LEFT OUTER JOIN\r\n",
-					" odw_workspace_db.inspector_address_layer1_harmonised inspector_address\r\n",
-					" ON sap_hr.pins_staff_number = inspector_address.PINS_Join_staff_number\r\n",
-					" LEFT OUTER JOIN\r\n",
-					" odw_workspace_db.inspector_raw_layer1_harmonised inspector_raw\r\n",
-					" ON sap_hr.pins_join_staff_number = inspector_raw.PINS_Join_staff_number\r\n",
-					" and sap_hr.PINS_join_grade = inspector_raw.Grade\r\n",
-					" LEFT OUTER JOIN\r\n",
-					" odw_workspace_db.sap_pins_email_layer1_harmonised sap_pins_email\r\n",
-					" ON sap_hr.PINS_Join_staff_number = sap_pins_email.Staff_Number\r\n",
-					" LEFT OUTER JOIN\r\n",
-					" odw_workspace_db.vw_sap_hr_email_layer1_harmonised vw_sap_hr_email\r\n",
-					" ON sap_hr.pins_staff_number = vw_sap_hr_email.PINS_Join_staff_number \r\n",
-					" LEFT OUTER JOIN\r\n",
-					" odw_workspace_db.vw_sap_hr_email_weekly_layer1_harmonised vw_sap_hr_email_weekly\r\n",
-					" ON sap_hr.pins_staff_number = vw_sap_hr_email_weekly.PINS_Join_staff_number\r\n",
-					""
+					"from notebookutils import mssparkutils\r\n",
+					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')"
 				],
-				"execution_count": 16
+				"execution_count": 104
 			},
 			{
 				"cell_type": "code",
@@ -122,9 +76,186 @@
 					}
 				},
 				"source": [
+					"raw_storage_container = 'n/a' + storage_account\n",
+					"raw_storage_source_folder = 'n/a'\n",
+					"raw_storage_source_name = 'n/a'\n",
+					"workspace_storage_container = 'abfss://odw-workspace@' + storage_account\n",
+					"workspace_storage_temp_folder = 'employee-syn'\n",
+					"workspace_storage_temp_name = 'employee-syn'\n",
+					"harmonised_storage_container = 'abfss://odw-harmonised@' + storage_account\n",
+					"harmonised_storage_delta_folder = 'inspector'\n",
+					"harmonised_storage_delta_table_name = 'inspector'\n",
+					"delta_lake_table_key_column = 'n/a'\n",
+					"delta_lake_table_name = \"inspector\"\n",
+					"delta_lake_database_name = \"odw_harmonised_db\"\n",
+					"sourceColumnNames = 'n/a'"
+				],
+				"execution_count": 105
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Import modules\n",
+					"from pyspark.sql.types import StructType, StructField, IntegerType, StringType ,DoubleType\n",
+					"from delta.tables import DeltaTable\n",
+					"harmonised_storage_delta_table_path = harmonised_storage_container + '/' + harmonised_storage_delta_folder + '/' + harmonised_storage_delta_table_name\n",
+					"\n",
+					"harmonisedInspectorSchema = StructType([\n",
+					"    StructField(\"source_id\", StringType(), True),\\\n",
+					"    StructField(\"pins_staff_number\", StringType(), False),\\\n",
+					"    StructField(\"given_names\", StringType(), False), \\\n",
+					"    StructField(\"family_names\", StringType(), False),\\\n",
+					"    StructField(\"inspector_name\", StringType(), False),\\\n",
+					"    StructField(\"inspector_postcode\", StringType(), False), \\\n",
+					"    StructField(\"active_status\", StringType(), False),\\\n",
+					"    StructField(\"date_in\", StringType(), False),\\\n",
+					"    StructField(\"date_out\", StringType(), False),\\\n",
+					"    StructField(\"eo_responsible\", StringType(), False),\\\n",
+					"    StructField(\"grade\", StringType(), False),\\\n",
+					"    StructField(\"FTE\", DoubleType(), False),\\\n",
+					"    StructField(\"Inspector_Address\", StringType(), False),\\\n",
+					"    StructField(\"Telephone_no\", StringType(), False),\\\n",
+					"    StructField(\"Work_Mobile\", StringType(), False),\\\n",
+					"    StructField(\"is_sgl\", IntegerType(), False),\\\n",
+					"    StructField(\"pins_email_address\", StringType(), False),\\\n",
+					"    StructField(\"resource_code\", StringType(), False),\\\n",
+					"    StructField(\"emp_type\", StringType(), False)\n",
+					"])\n",
+					"\n",
+					"# create delta table \n",
+					"\n",
+					"if not (DeltaTable.isDeltaTable(spark,harmonised_storage_delta_table_path)):\n",
+					"    harmonisationInspectordf = spark.createDataFrame([], harmonisedInspectorSchema)\n",
+					"    harmonisationInspectordf.write.option(\"mergeSchema\", \"true\").format('delta').mode('overwrite').save(harmonised_storage_delta_table_path)\n",
+					"    spark.sql(\"CREATE TABLE {0}.{1} USING DELTA LOCATION '{2}'\".format(delta_lake_database_name,delta_lake_table_name,harmonised_storage_delta_table_path))"
+				],
+				"execution_count": 107
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"merge into odw_harmonised_db.inspector target\n",
+					"using (SELECT \n",
+					"case when inspector_raw.id is null then ROW_NUMBER() over (order by sap_hr.Pers_No,sap_hr.given_names,sap_hr.family_name) \n",
+					"else inspector_raw.id end as source_id \n",
+					",sap_hr.pins_staff_number\n",
+					",sap_hr.given_names\n",
+					",sap_hr.family_name as family_names\n",
+					",concat(sap_hr.given_names,' ',sap_hr.family_name) as inspector_name\n",
+					",inspector_address.inspector_postcode as inspector_postcode\n",
+					",sap_hr.active_status\n",
+					",inspector_address.date_in\n",
+					",inspector_address.date_out\n",
+					",inspector_address.Charting_Officer_for_Inspector as eo_responsible\n",
+					",sap_hr.PINS_join_grade as grade\n",
+					",sap_hr.FTE as FTE\n",
+					",inspector_address.Inspector_Address\n",
+					",inspector_address.Telephone_no\n",
+					",inspector_address.Work_Mobile\n",
+					",sap_hr.is_sgl\n",
+					",case when (sap_hr.Work_Contract = 'Non-Sal. Inspec' and sap_hr.active_status = 'ACTIVE') then 'nsi.planning@planninginspectorate.gov.uk'\n",
+					"      else coalesce(vw_sap_hr_email.email_address, vw_sap_hr_email_weekly.email_address ,sap_pins_email.Email_Address, NULL) \n",
+					" end as pins_email_address\n",
+					",sap_hr.resource_code\n",
+					",sap_hr.emp_type\n",
+					" FROM \n",
+					" odw_workspace_db.sap_hr_layer1_harmonised sap_hr\n",
+					" LEFT OUTER JOIN\n",
+					" odw_workspace_db.inspector_address_layer1_harmonised inspector_address\n",
+					" ON sap_hr.pins_staff_number = inspector_address.PINS_Join_staff_number\n",
+					" LEFT OUTER JOIN\n",
+					" odw_workspace_db.inspector_raw_layer1_harmonised inspector_raw\n",
+					" ON sap_hr.pins_join_staff_number = inspector_raw.PINS_Join_staff_number\n",
+					" and sap_hr.PINS_join_grade = inspector_raw.Grade\n",
+					" LEFT OUTER JOIN\n",
+					" odw_workspace_db.sap_pins_email_layer1_harmonised sap_pins_email\n",
+					" ON sap_hr.PINS_Join_staff_number = sap_pins_email.Staff_Number\n",
+					" LEFT OUTER JOIN\n",
+					" odw_workspace_db.vw_sap_hr_email_layer1_harmonised vw_sap_hr_email\n",
+					" ON sap_hr.pins_staff_number = vw_sap_hr_email.PINS_Join_staff_number \n",
+					" LEFT OUTER JOIN\n",
+					" odw_workspace_db.vw_sap_hr_email_weekly_layer1_harmonised vw_sap_hr_email_weekly\n",
+					" ON sap_hr.pins_staff_number = vw_sap_hr_email_weekly.PINS_Join_staff_number ) updates\n",
+					"on target.source_id=updates.source_id\n",
+					"WHEN MATCHED THEN\n",
+					"  UPDATE SET *\n",
+					"WHEN NOT MATCHED\n",
+					"  THEN INSERT *\n",
+					"\n",
+					"\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 108
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"#%%sql\n",
+					"##--select * from odw_workspace_db.sap_hr_layer1_harmonised sap_hr\n",
+					"#--select * from odw_workspace_db.inspector_address_layer1_harmonised inspector_address\n",
+					"#--select * from odw_workspace_db.inspector_raw_layer1_harmonised inspector_raw\n",
+					"#select * from odw_workspace_db.sap_pins_email_layer1_harmonised sap_pins_email\n",
+					"#--select * from  odw_workspace_db.vw_sap_hr_email_layer1_harmonised vw_sap_hr_email\n",
+					"#--select * from  odw_workspace_db.vw_sap_hr_email_weekly_layer1_harmonised vw_sap_hr_email_weekly"
+				],
+				"execution_count": 121
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"spark.sql('select * from odw_workspace_db.sap_pins_email_layer1_harmonised').show()"
+				],
+				"execution_count": 119
 			}
 		]
 	}
