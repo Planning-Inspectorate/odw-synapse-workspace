@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5a481797-c9d6-4b3a-9f64-ae11eccf2a9f"
+				"spark.autotune.trackingId": "9bafaf72-c06e-4b08-a24d-5215183aa826"
 			}
 		},
 		"metadata": {
@@ -60,7 +60,7 @@
 					"from notebookutils import mssparkutils\r\n",
 					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')"
 				],
-				"execution_count": 52
+				"execution_count": 80
 			},
 			{
 				"cell_type": "code",
@@ -82,7 +82,7 @@
 					"workspace_storage_container = 'abfss://odw-workspace@' + storage_account\n",
 					"workspace_storage_temp_folder = 'employee-syn'\n",
 					"workspace_storage_temp_name = 'employee-syn'\n",
-					"harmonised_storage_container = 'abfss://odw-chris-test@' + storage_account\n",
+					"harmonised_storage_container = 'abfss://odw-harmonised@' + storage_account\n",
 					"harmonised_storage_delta_folder = 'inspector'\n",
 					"harmonised_storage_delta_table_name = 'inspector'\n",
 					"delta_lake_table_key_column = 'n/a'\n",
@@ -90,7 +90,34 @@
 					"delta_lake_database_name = \"odw_harmonised_db\"\n",
 					"sourceColumnNames = 'n/a'"
 				],
-				"execution_count": 53
+				"execution_count": 81
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"-- Database\n",
+					"create DATABASE odw_harmonised_db\n",
+					"LOCATION 'abfss://odw-harmonised@pinsodwdatadevstorage.dfs.core.windows.net/'\n",
+					"\n",
+					""
+				],
+				"execution_count": 88
 			},
 			{
 				"cell_type": "code",
@@ -140,7 +167,52 @@
 					"    harmonisationInspectordf.write.option(\"mergeSchema\", \"true\").format('delta').mode('overwrite').save(harmonised_storage_delta_table_path)\n",
 					"    spark.sql(\"CREATE TABLE {0}.{1} USING DELTA LOCATION '{2}'\".format(delta_lake_database_name,delta_lake_table_name,harmonised_storage_delta_table_path))"
 				],
-				"execution_count": 54
+				"execution_count": 90
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"print(delta_lake_database_name)\n",
+					"print(delta_lake_table_name)\n",
+					"print(harmonised_storage_delta_table_path)\n",
+					"print(\"CREATE TABLE {0}.{1} USING DELTA LOCATION '{2}'\".format(delta_lake_database_name,delta_lake_table_name,harmonised_storage_delta_table_path))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false,
+					"tags": []
+				},
+				"source": [
+					"%%sql\n",
+					"SELECT * from odw_harmonised_db.inspector"
+				],
+				"execution_count": 91
 			},
 			{
 				"cell_type": "code",
@@ -212,7 +284,7 @@
 					"\n",
 					""
 				],
-				"execution_count": 56
+				"execution_count": 92
 			}
 		]
 	}
