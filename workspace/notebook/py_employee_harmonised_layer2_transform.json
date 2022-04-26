@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "0386bb51-12ff-4e55-8773-dff7a14f73ee"
+				"spark.autotune.trackingId": "5a481797-c9d6-4b3a-9f64-ae11eccf2a9f"
 			}
 		},
 		"metadata": {
@@ -60,7 +60,7 @@
 					"from notebookutils import mssparkutils\r\n",
 					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')"
 				],
-				"execution_count": 28
+				"execution_count": 52
 			},
 			{
 				"cell_type": "code",
@@ -82,7 +82,7 @@
 					"workspace_storage_container = 'abfss://odw-workspace@' + storage_account\n",
 					"workspace_storage_temp_folder = 'employee-syn'\n",
 					"workspace_storage_temp_name = 'employee-syn'\n",
-					"harmonised_storage_container = 'abfss://odw-harmonised@' + storage_account\n",
+					"harmonised_storage_container = 'abfss://odw-chris-test@' + storage_account\n",
 					"harmonised_storage_delta_folder = 'inspector'\n",
 					"harmonised_storage_delta_table_name = 'inspector'\n",
 					"delta_lake_table_key_column = 'n/a'\n",
@@ -90,7 +90,7 @@
 					"delta_lake_database_name = \"odw_harmonised_db\"\n",
 					"sourceColumnNames = 'n/a'"
 				],
-				"execution_count": 29
+				"execution_count": 53
 			},
 			{
 				"cell_type": "code",
@@ -140,7 +140,7 @@
 					"    harmonisationInspectordf.write.option(\"mergeSchema\", \"true\").format('delta').mode('overwrite').save(harmonised_storage_delta_table_path)\n",
 					"    spark.sql(\"CREATE TABLE {0}.{1} USING DELTA LOCATION '{2}'\".format(delta_lake_database_name,delta_lake_table_name,harmonised_storage_delta_table_path))"
 				],
-				"execution_count": 30
+				"execution_count": 54
 			},
 			{
 				"cell_type": "code",
@@ -161,9 +161,8 @@
 				},
 				"source": [
 					"%%sql\n",
-					"INSERT INTO odw_harmonised_db.inspector \n",
-					"\n",
-					"SELECT \n",
+					"merge into odw_harmonised_db.inspector target\n",
+					"using (SELECT \n",
 					"case when inspector_raw.id is null then ROW_NUMBER() over (order by sap_hr.Pers_No,sap_hr.given_names,sap_hr.family_name) \n",
 					"else inspector_raw.id end as source_id \n",
 					",sap_hr.pins_staff_number\n",
@@ -203,10 +202,17 @@
 					" ON sap_hr.pins_staff_number = vw_sap_hr_email.PINS_Join_staff_number \n",
 					" LEFT OUTER JOIN\n",
 					" odw_workspace_db.vw_sap_hr_email_weekly_layer1_harmonised vw_sap_hr_email_weekly\n",
-					" ON sap_hr.pins_staff_number = vw_sap_hr_email_weekly.PINS_Join_staff_number\n",
+					" ON sap_hr.pins_staff_number = vw_sap_hr_email_weekly.PINS_Join_staff_number ) updates\n",
+					"on target.source_id=updates.source_id\n",
+					"WHEN MATCHED THEN\n",
+					"  UPDATE SET *\n",
+					"WHEN NOT MATCHED\n",
+					"  THEN INSERT *\n",
+					"\n",
+					"\n",
 					""
 				],
-				"execution_count": 11
+				"execution_count": 56
 			}
 		]
 	}
