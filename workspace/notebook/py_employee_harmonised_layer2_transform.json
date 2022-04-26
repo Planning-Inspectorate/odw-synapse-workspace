@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "8854a798-0c9d-4116-9fc4-a11fcc60c7f4"
+				"spark.autotune.trackingId": "5dc2bbf4-8f2c-4356-bb46-f5c47b1eea6c"
 			}
 		},
 		"metadata": {
@@ -87,6 +87,7 @@
 					"harmonised_storage_delta_table_name = 'inspector'\n",
 					"delta_lake_table_key_column = 'n/a'\n",
 					"delta_lake_table_name = \"inspector\"\n",
+					"delta_lake_database_name = \"odw_harmonised_db\"\n",
 					"sourceColumnNames = 'n/a'"
 				],
 				"execution_count": 9
@@ -105,10 +106,41 @@
 					}
 				},
 				"source": [
+					"# Import modules\n",
+					"from pyspark.sql.types import StructType, StructField, IntegerType, StringType ,DoubleType\n",
+					"from delta.tables import DeltaTable\n",
 					"harmonised_storage_delta_table_path = harmonised_storage_container + '/' + harmonised_storage_delta_folder + '/' + harmonised_storage_delta_table_name\n",
-					"#print(harmonised_storage_delta_table_path)"
+					"\n",
+					"harmonisedInspectorSchema = StructType([\n",
+					"    StructField(\"source_id\", StringType(), True),\\\n",
+					"    StructField(\"pins_staff_number\", StringType(), False),\\\n",
+					"    StructField(\"given_names\", StringType(), False), \\\n",
+					"    StructField(\"family_names\", StringType(), False),\\\n",
+					"    StructField(\"inspector_name\", StringType(), False),\\\n",
+					"    StructField(\"inspector_postcode\", StringType(), False), \\\n",
+					"    StructField(\"active_status\", StringType(), False),\\\n",
+					"    StructField(\"date_in\", StringType(), False),\\\n",
+					"    StructField(\"date_out\", StringType(), False),\\\n",
+					"    StructField(\"eo_responsible\", StringType(), False),\\\n",
+					"    StructField(\"grade\", StringType(), False),\\\n",
+					"    StructField(\"FTE\", DoubleType(), False),\\\n",
+					"    StructField(\"Inspector_Address\", StringType(), False),\\\n",
+					"    StructField(\"Telephone_no\", StringType(), False),\\\n",
+					"    StructField(\"Work_Mobile\", StringType(), False),\\\n",
+					"    StructField(\"is_sgl\", IntegerType(), False),\\\n",
+					"    StructField(\"pins_email_address\", StringType(), False),\\\n",
+					"    StructField(\"resource_code\", StringType(), False)\n",
+					"    StructField(\"emp_type\", StringType(), False)\n",
+					"])\n",
+					"\n",
+					"# create delta table \n",
+					"\n",
+					"if not (DeltaTable.isDeltaTable(spark,curated_storage_delta_table_path)):\n",
+					"    curatedInspectordf = spark.createDataFrame([], curatedInspectorSchema)\n",
+					"    curatedInspectordf.write.option(\"mergeSchema\", \"true\").format('delta').mode('overwrite').save(curated_storage_delta_table_path)\n",
+					"    spark.sql(\"CREATE TABLE {0}.{1} USING DELTA LOCATION '{2}'\".format(delta_lake_database_name,delta_lake_table_name,harmonised_storage_delta_table_path))"
 				],
-				"execution_count": 10
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
