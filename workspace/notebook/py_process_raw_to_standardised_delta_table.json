@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "472239d6-dd70-4d0b-817a-f22b56c1b018"
+				"spark.autotune.trackingId": "b240c4a8-e89d-4e25-b48e-75773b9725a9"
 			}
 		},
 		"metadata": {
@@ -111,19 +111,19 @@
 					"raw_storage_folder_path = raw_storage_container   + '/' + raw_storage_source_folder + '/' + raw_storage_source_name\r\n",
 					"workspace_storage_folder_path = workspace_storage_container + '/' + workspace_storage_temp_folder + '/' + workspace_storage_temp_name\r\n",
 					"\r\n",
+					"rawsourceDF=spark.read.options(header='True', inferSchema='True', delimiter='|').csv(raw_storage_folder_path)\r\n",
 					"\r\n",
-					"sourceColumnNamesList = sourceColumnNames.split (\",\")\r\n",
-					"sourceStructString = StructType()\r\n",
-					"for sourceColumn in sourceColumnNamesList:\r\n",
-					"    sourceStructString.add(StructField(sourceColumn ,StringType(), True))\r\n",
-					"\r\n",
-					"\r\n",
-					"rawsourceDF=spark.read.option(\"delimiter\", \"|\").option(\"header\", \"true\").schema(sourceStructString).csv(raw_storage_folder_path)\r\n",
+					"#Rename Columns with illegal Parquet characters\r\n",
+					"import re\r\n",
+					"cols=[re.sub(\"( |\\#|\\# |\\.|\\(|\\)|\\/)\",\"_\",i) for i in rawsourceDF.columns] # replace chars with _\r\n",
+					"cols=[re.sub(\"([\\_]{2,})\",\"_\",i) for i in cols] #replace consecutive _ with one _\r\n",
+					"cols=[re.sub(\"(\\_)$\",\"\",i) for i in cols] #remove trailing _\r\n",
+					"rawsourceDF=rawsourceDF.toDF(*cols)\r\n",
 					"\r\n",
 					"rawsourceDF.write.option(\"header\", \"true\").format('parquet').mode('overwrite').save(workspace_storage_folder_path)\r\n",
-					""
+					"#display(rawsourceDF)"
 				],
-				"execution_count": 8
+				"execution_count": 27
 			},
 			{
 				"cell_type": "code",
