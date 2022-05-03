@@ -170,37 +170,37 @@ resource "azurerm_synapse_workspace" "dwh_poc" {
 
 resource "azurerm_storage_container" "odw_config_db" {
   name                  = "odw_config"
-  storage_account_name  = azurerm_storage_account.odw_config_db.name
+  storage_account_name  = azurerm_storage_account.dwh_poc.name
   container_access_type = "private"
 }
 
 resource "azurerm_storage_container" "odw_curated_db" {
   name                  = "odw_curated"
-  storage_account_name  = azurerm_storage_account.odw_curated_db.name
+  storage_account_name  = azurerm_storage_account.dwh_poc.name
   container_access_type = "private"
 }
 
 resource "azurerm_storage_container" "odw_harmonised_db" {
   name                  = "odw_haromonised"
-  storage_account_name  = azurerm_storage_account.odw_harmonised_db.name
+  storage_account_name  = azurerm_storage_account.dwh_poc.name
   container_access_type = "private"
 }
 
 resource "azurerm_storage_container" "odw_raw_db" {
   name                  = "odw_raw"
-  storage_account_name  = azurerm_storage_account.odw_raw_db.name
+  storage_account_name  = azurerm_storage_account.dwh_poc.name
   container_access_type = "private"
 }
 
 resource "azurerm_storage_container" "odw_standardised_db" {
   name                  = "odw_standardised"
-  storage_account_name  = azurerm_storage_account.odw_standardised_db.name
+  storage_account_name  = azurerm_storage_account.dwh_poc.name
   container_access_type = "private"
 }
 
 resource "azurerm_storage_container" "odw_workspace_db" {
   name                  = "odw_workspace"
-  storage_account_name  = azurerm_storage_account.odw_workspace_db.name
+  storage_account_name  = azurerm_storage_account.dwh_poc.name
   container_access_type = "private"
 }
 
