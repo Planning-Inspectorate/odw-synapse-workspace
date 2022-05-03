@@ -166,7 +166,13 @@ resource "azurerm_synapse_workspace" "dwh_poc" {
 
 }
 
-# Lake database containers (test)
+# Lake database containers
+
+resource "azurerm_storage_container" "odw_curated" {
+  name                  = "odw_curated"
+  storage_account_name  = azurerm_storage_account.dwh_poc.name
+  container_access_type = "private"
+}
 
 # Synapse Firewall rules
 
