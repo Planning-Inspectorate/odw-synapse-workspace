@@ -168,13 +168,36 @@ resource "azurerm_synapse_workspace" "dwh_poc" {
 
 # Lake database containers
 
-resource "azurerm_storage_container" "odw_curated" {
+resource "azurerm_storage_container" "odw-curated" {
   name                  = "odw-curated"
   storage_account_name  = azurerm_storage_account.dwh_poc.name
   container_access_type = "private"
 }
 
-# Synapse Firewall rules
+resource "azurerm_storage_container" "odw-raw" {
+  name                  = "odw-raw"
+  storage_account_name  = azurerm_storage_account.dwh_poc.name
+  container_access_type = "private"
+}
+
+resource "azurerm_storage_container" "odw-standardised" {
+  name                  = "odw-standardised"
+  storage_account_name  = azurerm_storage_account.dwh_poc.name
+  container_access_type = "private"
+}
+
+resource "azurerm_storage_container" "odw-harmonised" {
+  name                  = "odw-harmonised"
+  storage_account_name  = azurerm_storage_account.dwh_poc.name
+  container_access_type = "private"
+}
+
+resource "azurerm_storage_container" "odw-config" {
+  name                  = "odw-config"
+  storage_account_name  = azurerm_storage_account.dwh_poc.name
+  container_access_type = "private"
+}
+
 
 resource "azurerm_synapse_firewall_rule" "dwh_poc_azure" {
   name                 = "AllowAllWindowsAzureIps"
