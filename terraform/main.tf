@@ -270,3 +270,21 @@ resource "azurerm_synapse_sql_pool" "dwh_poc" {
   create_mode          = "Default"
   collation            = "SQL_Latin1_General_CP1_CI_AS"
 }
+
+# Azure SQL Server
+
+resource "azurerm_mssql_server" "dwh_poc" {
+  name                         = "__sql_server_name__"
+  resource_group_name          = data.azurerm_resource_group.sbox.name
+  location                     = data.azurerm_resource_group.sbox.location
+  version                      = "12.0"
+  administrator_login          = "sqladmin"
+  administrator_login_password = "__sql_server_pwd__"
+  minimum_tls_version          = "1.2"
+
+  azuread_administrator {
+    login_username = "__aad_administrator_group_name__"
+    object_id      = "__aad_administrator_group_id__"
+  }
+  tags                = var.common_tags
+}
