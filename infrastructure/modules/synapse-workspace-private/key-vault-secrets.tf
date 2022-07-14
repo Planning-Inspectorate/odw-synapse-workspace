@@ -8,8 +8,7 @@ resource "azurerm_key_vault_secret" "synapse_sql_administrator_password" {
   lifecycle {
     ignore_changes = [
       expiration_date,
-      value,
-      version
+      value
     ]
   }
 }
@@ -24,8 +23,7 @@ resource "azurerm_key_vault_secret" "synapse_sql_administrator_username" {
   lifecycle {
     ignore_changes = [
       expiration_date,
-      value,
-      version
+      value
     ]
   }
 }
