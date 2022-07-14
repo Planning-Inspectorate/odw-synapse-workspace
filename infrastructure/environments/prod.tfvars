@@ -9,7 +9,7 @@ data_lake_storage_containers = [
   "odw-config"
 ]
 
-environment = "dev"
+environment = "prod"
 location    = "uk-south"
 
 key_vault_role_assignments = {}
