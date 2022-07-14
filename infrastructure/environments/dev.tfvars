@@ -9,14 +9,6 @@ data_lake_storage_containers = [
   "odw-config"
 ]
 
-# data_lake_storage_containers = [
-#   "odw-curated",
-#   "odw-raw",
-#   "odw-standardised",
-#   "odw-harmonised",
-#   "odw-config"
-# ]
-
 environment = "dev"
 location    = "uk-south"
 
@@ -61,7 +53,7 @@ synapse_sql_administrator_username = "synadmin"
 
 tags = {}
 
-vnet_base_cidr_block = "10.90.0.0/24"
+vnet_base_cidr_block = "10.70.0.0/24"
 vnet_subnets = [
   {
     "name" : "AzureBastionSubnet",
