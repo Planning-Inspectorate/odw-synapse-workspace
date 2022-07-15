@@ -1,9 +1,15 @@
+resource "random_string" "unique_id" {
+  length  = 6
+  upper   = false
+  special = false
+}
+
 resource "azurerm_storage_account" "synapse" {
   #checkov:skip=CKV_AZURE_35:   TODO: Set default network access to deny
   #checkov:skip=CKV2_AZURE_1:   TODO: Implement customer-managed keys for encryption
   #checkov:skip=CKV2_AZURE_8:   TODO: Set activity log container to private
   #checkov:skip=CKV2_AZURE_18:  TODO: Implement customer-managed keys for encryption
-  name                      = replace("pins-st-${local.resource_suffix}", "-", "")
+  name                      = replace("pins-st-${local.resource_suffix}-${random_string.unique_id.id}", "-", "")
   resource_group_name       = var.resource_group_name
   location                  = var.location
   account_tier              = var.data_lake_account_tier
