@@ -8,10 +8,9 @@ locals {
   tags = merge(
     var.tags,
     {
-      CreatedBy    = "Terraform"
-      DeployedDate = timestamp()
-      Environment  = var.environment
-      ServiceName  = local.service_name
+      CreatedBy   = "Terraform"
+      Environment = var.environment
+      ServiceName = local.service_name
     }
   )
 }
