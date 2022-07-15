@@ -8,10 +8,11 @@ param(
 )
 
 Try {
-  Import-Module 'Az.Network' -ErrorAction 'Stop'
+  Install-Module 'Az.Network' -ErrorAction 'Stop'
+  Import-Module 'Az.Network'
 
 } Catch {
-  Throw "Failed to import the necessary PowerShell module"
+  Throw "Failed to install the necessary PowerShell module"
 }
 
 Try {
