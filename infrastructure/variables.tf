@@ -92,10 +92,10 @@ variable "sql_pool_sku_name" {
   type        = string
 }
 
-# variable "synapse_aad_administrator" {
-#   description = "A map describing the username and Azure AD object ID for the Syanapse administrator account"
-#   type        = map(string)
-# }
+variable "synapse_aad_administrator" {
+  description = "A map describing the username and Azure AD object ID for the Syanapse administrator account"
+  type        = map(string)
+}
 
 variable "synapse_github_details" {
   default     = {}

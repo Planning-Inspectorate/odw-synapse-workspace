@@ -47,6 +47,7 @@ module "synapse_workspace_private" {
   sql_pool_enabled                      = var.sql_pool_enabled
   sql_pool_collation                    = var.sql_pool_collation
   sql_pool_sku_name                     = var.sql_pool_sku_name
+  synapse_aad_administrator             = var.synapse_aad_administrator
   synapse_private_endpoint_dns_zone_id  = module.synapse_common.synapse_private_dns_zone_id
   synapse_private_endpoint_subnet_name  = local.synapse_subnet_name
   synapse_private_endpoint_vnet_subnets = module.synapse_common.vnet_subnets
@@ -54,11 +55,6 @@ module "synapse_workspace_private" {
   synapse_github_enabled                = var.synapse_github_enabled
   synapse_sql_administrator_username    = var.synapse_sql_administrator_username
   synapse_role_assignments              = var.synapse_role_assignments
-
-  # synapse_aad_administrator = {
-  #   username  = ""
-  #   object_id = ""
-  # }
 
   depends_on = [
     module.synapse_common,
