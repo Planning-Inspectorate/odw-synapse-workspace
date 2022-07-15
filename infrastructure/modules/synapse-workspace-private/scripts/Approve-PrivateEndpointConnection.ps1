@@ -8,6 +8,13 @@ param(
 )
 
 Try {
+  Import-Module 'Az.Network' -ErrorAction 'Stop'
+
+} Catch {
+  Throw "Failed to import the necessary PowerShell module"
+}
+
+Try {
   $ResourceName = $ResourceId.Split("/")[-1]
 
   $EndTime = (Get-Date).AddSeconds(60)
