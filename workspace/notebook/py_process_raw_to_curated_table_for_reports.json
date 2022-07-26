@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "0afa8918-7a56-420d-bc1c-448cddbdd0f6"
+				"spark.autotune.trackingId": "3e5b1948-b661-45f6-a996-67e61685851a"
 			}
 		},
 		"metadata": {
@@ -144,20 +144,20 @@
 				},
 				"source": [
 					"# Import modules\r\n",
-					"from delta.tables import DeltaTable\r\n",
+					"from parquet.tables import ParquetTable\r\n",
 					"\r\n",
 					"\r\n",
 					"\r\n",
-					"standardised_storage_delta_table_path = standardised_storage_container + '/' + standardised_storage_delta_folder + '/' + standardised_storage_delta_table_name\r\n",
+					"curated_storage_parquet_table_path = curated_storage_container + '/' + curated_storage_parquet_folder + '/' + curated_storage_parquet_table_name\r\n",
 					"\r\n",
 					"sourceParquetDF = spark.read.option(\"inferSchema\",\"true\").format('parquet').option(\"recursiveFileLookup\", \"true\").load(workspace_storage_folder_path)\r\n",
 					"\r\n",
-					"if (DeltaTable.isDeltaTable(spark,standardised_storage_delta_table_path)):\r\n",
-					"    deltaTable = DeltaTable.forPath(spark,standardised_storage_delta_table_path)\r\n",
+					"if (ParquetTable.isParquetTable(spark,curated_storage_parquet_table_path)):\r\n",
+					"    parquetTable = ParquetTable.forPath(spark,curated_storage_parquet_table_path)\r\n",
 					"    # Merge new data into existing table\r\n",
-					"    deltaTable.alias(\"existing\").merge(\r\n",
+					"    parquetTable.alias(\"existing\").merge(\r\n",
 					"        source=sourceParquetDF.alias(\"updates\"),\r\n",
-					"        condition=\"existing.\" + delta_lake_table_key_column + \" = updates.\" + delta_lake_table_key_column  # We look for matches on the name column\r\n",
+					"        condition=\"existing.\" + parquet_lake_table_key_column + \" = updates.\" + parquet_lake_table_key_column  # We look for matches on the name column\r\n",
 					"    ).whenMatchedUpdateAll(\r\n",
 					"    ).whenNotMatchedInsertAll(\r\n",
 					"    ).execute()\r\n",
@@ -165,8 +165,8 @@
 					"\r\n",
 					"\r\n",
 					"else:\r\n",
-					"    sourceParquetDF.write.format('delta').save(standardised_storage_delta_table_path)\r\n",
-					"    spark.sql(\"CREATE TABLE {0}.{1} USING DELTA LOCATION '{2}'\".format(delta_lake_database_name,delta_lake_table_name,standardised_storage_delta_table_path))"
+					"    sourceParquetDF.write.format('parquet').save(curated_storage_parquet_table_path)\r\n",
+					"    spark.sql(\"CREATE TABLE {0}.{1} USING PARQUET LOCATION '{2}'\".format(parquet_lake_database_name,parquet_lake_table_name,curated_storage_parquet_table_path))"
 				],
 				"execution_count": 9
 			},
@@ -186,8 +186,8 @@
 				},
 				"source": [
 					"# Get all versions\r\n",
-					"delta_table = DeltaTable.forPath(spark, standardised_storage_delta_table_path)\r\n",
-					"display(delta_table.history())"
+					"parquet_table = ParquetTable.forPath(spark, curated_storage_parquet_table_path)\r\n",
+					"display(parquet_table.history())"
 				],
 				"execution_count": 10
 			}
