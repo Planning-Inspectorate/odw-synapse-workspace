@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "b53cccb6-07f1-475e-b259-d7d1a61211d5"
+				"spark.autotune.trackingId": "e262b1a9-781f-4487-87cd-13a73690426b"
 			}
 		},
 		"metadata": {
@@ -79,20 +79,13 @@
 					]
 				},
 				"source": [
-					"# https://web.azuresynapse.net/en/authoring/explore/linked/storageaccounts/pins-odw-data-dev-syn-ws-WorkspaceDefaultStorage-pinsodwdatadevstorage%2Fodw-raw?subFolderPath=&workspace=%2Fsubscriptions%2Fff442a29-fc06-4a13-8e3e-65fd5da513b3%2FresourceGroups%2Fpins-odw-data-dev-rg%2Fproviders%2FMicrosoft.Synapse%2Fworkspaces%2Fpins-odw-data-dev-syn-ws\r\n",
 					"\r\n",
 					"raw_storage_container = 'abfss://odw-raw@' + storage_account  \r\n",
 					"raw_storage_source_folder = 'appeal'\r\n",
 					"raw_storage_source_name = 'vw_AppealDetail.csv'\r\n",
-					"# workspace_storage_container = 'abfss://odw-workspace@' + storage_account\r\n",
-					"# workspace_storage_temp_folder = 'date'\r\n",
-					"# workspace_storage_temp_name = 'dim_date'\r\n",
 					"curated_storage_container = 'abfss://odw-curated@' + storage_account\r\n",
 					"curated_storage_folder = 'appeal'\r\n",
-					"curated_storage_table_name = 'vw_AppealDetail'\r\n",
-					"# parquet_lake_table_key_column = 'dim_appeal_key' # NEEDED ???\r\n",
-					"# parquet_lake_table_name = \"dim_appeal\"\r\n",
-					"# parquet_lake_database_name = 'odw_curated_db'"
+					"curated_storage_table_name = 'vw_AppealDetail'"
 				],
 				"execution_count": 37
 			},
@@ -116,9 +109,6 @@
 					"raw_storage_folder_path = raw_storage_container   + '/' + raw_storage_source_folder + '/' + raw_storage_source_name\r\n",
 					"curated_storage_folder_path = curated_storage_container + '/' + curated_storage_folder + '/' + curated_storage_table_name\r\n",
 					"\r\n",
-					"print(raw_storage_folder_path)\r\n",
-					"print(workspace_storage_folder_path)\r\n",
-					"\r\n",
 					"rawsourceDF=spark.read.options(header='True', inferSchema='True', delimiter='|').csv(raw_storage_folder_path)\r\n",
 					"\r\n",
 					"#Rename Columns with illegal Parquet characters\r\n",
@@ -128,71 +118,10 @@
 					"cols=[re.sub(\"(\\_)$\",\"\",i) for i in cols] #remove trailing _\r\n",
 					"rawsourceDF=rawsourceDF.toDF(*cols)\r\n",
 					"\r\n",
-					"print(cols)\r\n",
-					"\r\n",
 					"rawsourceDF.write.option(\"header\", \"true\").format('parquet').mode('overwrite').save(curated_storage_folder_path)\r\n",
 					"#display(rawsourceDF)"
 				],
 				"execution_count": 38
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"collapsed": false
-				},
-				"source": [
-					"# # Import modules\r\n",
-					"# from parquet.tables import ParquetTable\r\n",
-					"\r\n",
-					"# curated_storage_parquet_table_path = curated_storage_container + '/' + curated_storage_parquet_folder + '/' + curated_storage_parquet_table_name\r\n",
-					"\r\n",
-					"# sourceParquetDF = spark.read.option(\"inferSchema\",\"true\").format('parquet').option(\"recursiveFileLookup\", \"true\").load(workspace_storage_folder_path)\r\n",
-					"\r\n",
-					"# if (ParquetTable.isParquetTable(spark,curated_storage_parquet_table_path)):\r\n",
-					"#     parquetTable = ParquetTable.forPath(spark,curated_storage_parquet_table_path)\r\n",
-					"#     # Merge new data into existing table\r\n",
-					"#     parquetTable.alias(\"existing\").merge(\r\n",
-					"#         source=sourceParquetDF.alias(\"updates\"),\r\n",
-					"#         condition=\"existing.\" + parquet_lake_table_key_column + \" = updates.\" + parquet_lake_table_key_column  # We look for matches on the name column\r\n",
-					"#     ).whenMatchedUpdateAll(\r\n",
-					"#     ).whenNotMatchedInsertAll(\r\n",
-					"#     ).execute()\r\n",
-					"\r\n",
-					"# else:\r\n",
-					"#     sourceParquetDF.write.format('parquet').save(curated_storage_parquet_table_path)\r\n",
-					"#     spark.sql(\"CREATE TABLE {0}.{1} USING PARQUET LOCATION '{2}'\".format(parquet_lake_database_name,parquet_lake_table_name,curated_storage_parquet_table_path))"
-				],
-				"execution_count": 39
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"collapsed": false
-				},
-				"source": [
-					"# # Get all versions\r\n",
-					"# parquet_table = ParquetTable.forPath(spark, curated_storage_parquet_table_path)\r\n",
-					"# display(parquet_table.history())"
-				],
-				"execution_count": 40
 			}
 		]
 	}
