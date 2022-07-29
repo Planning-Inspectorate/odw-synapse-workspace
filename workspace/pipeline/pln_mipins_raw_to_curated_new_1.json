@@ -123,7 +123,6 @@
 								"secureOutput": false,
 								"secureInput": false
 							},
-							"userProperties": [],
 							"typeProperties": {
 								"notebook": {
 									"referenceName": "py_process_raw_to_curated_table_for_reports",
@@ -172,6 +171,61 @@
 									"referenceName": "pinsodwspark",
 									"type": "BigDataPoolReference"
 								}
+							}
+						},
+						{
+							"name": "Script1",
+							"type": "Script",
+							"dependsOn": [
+								{
+									"activity": "py_process_raw_to_curated_table_for_reports",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"linkedServiceName": {
+								"referenceName": "ls_sql_builtin",
+								"type": "LinkedServiceReference",
+								"parameters": {
+									"db_name": "odw_reporting_db"
+								}
+							},
+							"typeProperties": {
+								"scripts": [
+									{
+										"parameters": [
+											{
+												"name": "columns",
+												"type": "String",
+												"value": "",
+												"direction": "Input"
+											},
+											{
+												"name": "location",
+												"type": "String",
+												"value": "",
+												"direction": "Input"
+											},
+											{
+												"name": "TableName",
+												"type": "String",
+												"value": "",
+												"direction": "Input"
+											}
+										],
+										"type": "Query",
+										"text": "\nCREATE EXTERNAL TABLE @TableName (\n\t@columns\n\t)\n\tWITH (\n\tLOCATION = @location,\n\tDATA_SOURCE = [odw-curated_pinsodwdatadevstorage_dfs_core_windows_net],\n\tFILE_FORMAT = [SynapseParquetFormat]\n\t)"
+									}
+								]
 							}
 						}
 					]
