@@ -1,5 +1,5 @@
 locals {
-  module_name     = "synapse-common"
+  module_name     = "synapse-network"
   resource_suffix = "${var.service_name}-${var.environment}-${module.azure_region.location_short}"
 
   tags = merge(

@@ -1,8 +1,3 @@
-output "key_vault_id" {
-  description = "The ID of the Key Vault to be used by Synapse and other resources"
-  value       = azurerm_key_vault.synapse.id
-}
-
 output "synapse_private_dns_zone_id" {
   description = "The ID of the Private DNS Zone hosting privatelink.azuresynapse.net"
   value       = azurerm_private_dns_zone.synapse.id
