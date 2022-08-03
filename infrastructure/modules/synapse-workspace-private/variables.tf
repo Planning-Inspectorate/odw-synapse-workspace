@@ -27,9 +27,10 @@ variable "environment" {
   type        = string
 }
 
-variable "key_vault_id" {
-  description = "The ID of the Key Vault used by this module to store and retrieve secrets"
-  type        = string
+variable "key_vault_role_assignments" {
+  default     = {}
+  description = "The RBAC assignments to be applied to the Key Vault"
+  type        = map(string)
 }
 
 variable "purview_id" {

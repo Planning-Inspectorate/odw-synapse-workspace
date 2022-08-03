@@ -3,12 +3,6 @@ variable "environment" {
   type        = string
 }
 
-variable "key_vault_role_assignments" {
-  default     = {}
-  description = "The RBAC assignments to be applied to the Key Vault"
-  type        = map(string)
-}
-
 variable "network_watcher_enabled" {
   default     = false
   description = "Determines whether a Network Watcher resource will be deployed"
