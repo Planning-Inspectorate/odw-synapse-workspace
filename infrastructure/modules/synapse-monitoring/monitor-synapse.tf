@@ -3,7 +3,7 @@ resource "azurerm_monitor_diagnostic_setting" "synapse" {
   target_resource_id         = var.synapse_workspace_id
   log_analytics_workspace_id = azurerm_log_analytics_workspace.synapse.id
 
-  log {
+  metric {
     # Total number of pipeline runs that occurred/ended within a 1-minute window
     category = "IntegrationPipelineRunsEnded"
     enabled  = true
@@ -13,7 +13,7 @@ resource "azurerm_monitor_diagnostic_setting" "synapse" {
     }
   }
 
-  log {
+  metric {
     # Total number of activity runs that occurred/ended within a 1-minute window
     category = "IntegrationActivityRunsEnded"
     enabled  = true
@@ -23,7 +23,7 @@ resource "azurerm_monitor_diagnostic_setting" "synapse" {
     }
   }
 
-  log {
+  metric {
     # Total number of trigger runs that occurred/ended within a 1-minute window
     category = "IntegrationTriggerRunsEnded"
     enabled  = true
