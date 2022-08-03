@@ -24,16 +24,6 @@ variable "service_name" {
   type        = string
 }
 
-variable "synapse_diagnostic_settings" {
-  default = [
-    "Integration Pipeline Runs",
-    "Integration Activity Runs",
-    "Integration Trigger Runs"
-  ]
-  description = "A list of the Synapse Workspace diagnostic log settings to enable and collect"
-  type        = list(string)
-}
-
 variable "synapse_workspace_id" {
   description = "The ID of the Synapse Workspace from which to collect diagnostic logs"
   type        = string

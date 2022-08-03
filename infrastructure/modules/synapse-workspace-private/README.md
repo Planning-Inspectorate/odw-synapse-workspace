@@ -91,5 +91,7 @@ No requirements.
 
 ## Outputs
 
-No outputs.
+| Name | Description |
+|------|-------------|
+| <a name="output_synapse_workspace_id"></a> [synapse\_workspace\_id](#output\_synapse\_workspace\_id) | The ID of the Synapse Workspace |
 <!-- END OF PRE-COMMIT-TERRAFORM DOCS HOOK -->

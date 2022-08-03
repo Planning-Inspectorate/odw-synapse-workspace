@@ -62,3 +62,20 @@ module "synapse_workspace_private" {
 
   tags = local.tags
 }
+
+module "synapse_monitoring" {
+  source = "./modules/synapse-monitoring"
+
+  environment         = var.environment
+  resource_group_name = azurerm_resource_group.data.name
+  location            = module.azure_region.location_cli
+  service_name        = local.service_name
+
+  synapse_workspace_id = module.synapse_workspace_private.synapse_workspace_id
+
+  depends_on = [
+    module.synapse_workspace_private
+  ]
+
+  tags = local.tags
+}
