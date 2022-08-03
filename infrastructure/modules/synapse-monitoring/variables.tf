@@ -24,6 +24,18 @@ variable "service_name" {
   type        = string
 }
 
+variable "synapse_spark_pool_id" {
+  default     = null
+  description = "The ID of the Synapse Spark Pool from which to collect diagnostic logs"
+  type        = string
+}
+
+variable "synapse_sql_pool_id" {
+  default     = null
+  description = "The ID of the Synapse Dedicated SQL Pool from which to collect diagnostic logs"
+  type        = string
+}
+
 variable "synapse_workspace_id" {
   description = "The ID of the Synapse Workspace from which to collect diagnostic logs"
   type        = string
