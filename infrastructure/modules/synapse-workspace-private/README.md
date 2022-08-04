@@ -93,6 +93,7 @@ No requirements.
 
 | Name | Description |
 |------|-------------|
+| <a name="output_data_lake_account_id"></a> [data\_lake\_account\_id](#output\_data\_lake\_account\_id) | The ID of the Data Lake Storage Account |
 | <a name="output_synapse_spark_pool_id"></a> [synapse\_spark\_pool\_id](#output\_synapse\_spark\_pool\_id) | The ID of the Synapse Spark Pool |
 | <a name="output_synapse_sql_pool_id"></a> [synapse\_sql\_pool\_id](#output\_synapse\_sql\_pool\_id) | The ID of the Synapse SQL Pool |
 | <a name="output_synapse_workspace_id"></a> [synapse\_workspace\_id](#output\_synapse\_workspace\_id) | The ID of the Synapse Workspace |

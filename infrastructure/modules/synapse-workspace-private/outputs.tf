@@ -1,3 +1,8 @@
+output "data_lake_account_id" {
+  description = "The ID of the Data Lake Storage Account"
+  value       = azurerm_storage_account.synapse.id
+}
+
 output "synapse_spark_pool_id" {
   description = "The ID of the Synapse Spark Pool"
   value       = azurerm_synapse_spark_pool.synapse[0].id

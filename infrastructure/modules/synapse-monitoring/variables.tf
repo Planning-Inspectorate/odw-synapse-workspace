@@ -1,3 +1,8 @@
+variable "data_lake_account_id" {
+  description = "The ID of the Data Lake Storage Account from which to collect diagnostic logs"
+  type        = string
+}
+
 variable "environment" {
   description = "The name of the environment in which resources will be deployed"
   type        = string

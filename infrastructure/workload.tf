@@ -71,6 +71,7 @@ module "synapse_monitoring" {
   location            = module.azure_region.location_cli
   service_name        = local.service_name
 
+  data_lake_account_id  = module.synapse_workspace_private.data_lake_account_id
   synapse_spark_pool_id = module.synapse_workspace_private.synapse_spark_pool_id
   synapse_sql_pool_id   = module.synapse_workspace_private.synapse_sql_pool_id
   synapse_workspace_id  = module.synapse_workspace_private.synapse_workspace_id
