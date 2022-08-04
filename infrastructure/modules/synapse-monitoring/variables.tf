@@ -8,6 +8,11 @@ variable "environment" {
   type        = string
 }
 
+variable "key_vault_id" {
+  description = "The ID of the Key Vault from which to collect diagnostic logs"
+  type        = string
+}
+
 variable "resource_group_name" {
   description = "The name of the resource group into which resources will be deployed"
   type        = string
