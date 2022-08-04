@@ -8,6 +8,47 @@ resource "azurerm_monitor_diagnostic_setting" "synapse" {
     enabled  = true
 
     retention_policy {
+      days    = 0
+      enabled = false
+    }
+  }
+
+  log {
+    category = "BuiltinSqlReqsEnded"
+    enabled  = true
+
+    retention_policy {
+      days    = 0
+      enabled = false
+    }
+  }
+
+  log {
+    category = "GatewayApiRequests"
+    enabled  = true
+
+    retention_policy {
+      days    = 0
+      enabled = false
+    }
+  }
+
+  log {
+    category = "IntegrationActivityRuns"
+    enabled  = true
+
+    retention_policy {
+      days    = 0
+      enabled = false
+    }
+  }
+
+  log {
+    category = "IntegrationPipelineRuns"
+    enabled  = true
+
+    retention_policy {
+      days    = 0
       enabled = false
     }
   }

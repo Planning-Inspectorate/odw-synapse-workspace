@@ -9,7 +9,7 @@ resource "azurerm_monitor_diagnostic_setting" "data_lake" {
 
     retention_policy {
       days    = 0
-      enabled = true
+      enabled = false
     }
   }
 
@@ -19,7 +19,7 @@ resource "azurerm_monitor_diagnostic_setting" "data_lake" {
 
     retention_policy {
       days    = 0
-      enabled = true
+      enabled = false
     }
   }
 }

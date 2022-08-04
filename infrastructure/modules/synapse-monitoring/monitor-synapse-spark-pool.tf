@@ -11,7 +11,7 @@ resource "azurerm_monitor_diagnostic_setting" "synapse_spark_pool" {
 
     retention_policy {
       days    = 0
-      enabled = true
+      enabled = false
     }
   }
 
@@ -21,7 +21,7 @@ resource "azurerm_monitor_diagnostic_setting" "synapse_spark_pool" {
 
     retention_policy {
       days    = 0
-      enabled = true
+      enabled = false
     }
   }
 }

@@ -8,6 +8,27 @@ resource "azurerm_monitor_diagnostic_setting" "key_vault" {
     enabled  = true
 
     retention_policy {
+      days    = 0
+      enabled = false
+    }
+  }
+
+  log {
+    category = "AuditEvent"
+    enabled  = true
+
+    retention_policy {
+      days    = 0
+      enabled = false
+    }
+  }
+
+  log {
+    category = "AzurePolicyEvaluationDetails"
+    enabled  = true
+
+    retention_policy {
+      days    = 0
       enabled = false
     }
   }
