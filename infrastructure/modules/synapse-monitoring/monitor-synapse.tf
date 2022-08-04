@@ -52,4 +52,34 @@ resource "azurerm_monitor_diagnostic_setting" "synapse" {
       enabled = false
     }
   }
+
+  log {
+    category = "IntegrationTriggerRuns"
+    enabled  = true
+
+    retention_policy {
+      days    = 0
+      enabled = false
+    }
+  }
+
+  log {
+    category = "SQLSecurityAuditEvents"
+    enabled  = true
+
+    retention_policy {
+      days    = 0
+      enabled = false
+    }
+  }
+
+  log {
+    category = "SynapseRbacOperations"
+    enabled  = true
+
+    retention_policy {
+      days    = 0
+      enabled = false
+    }
+  }
 }
