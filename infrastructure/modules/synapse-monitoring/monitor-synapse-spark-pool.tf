@@ -6,11 +6,22 @@ resource "azurerm_monitor_diagnostic_setting" "synapse_spark_pool" {
   log_analytics_workspace_id = azurerm_log_analytics_workspace.synapse.id
 
   metric {
-    category = "AllMetrics"
+    category = "Apache Spark Pool"
     enabled  = true
 
     retention_policy {
-      enabled = false
+      days    = 0
+      enabled = true
+    }
+  }
+
+  log {
+    category = "BigDataPoolAppsEnded"
+    enabled  = true
+
+    retention_policy {
+      days    = 0
+      enabled = true
     }
   }
 }
