@@ -76,6 +76,7 @@ module "synapse_monitoring" {
   synapse_spark_pool_id = module.synapse_workspace_private.synapse_spark_pool_id
   synapse_sql_pool_id   = module.synapse_workspace_private.synapse_sql_pool_id
   synapse_workspace_id  = module.synapse_workspace_private.synapse_workspace_id
+  synapse_vnet_id       = module.synapse_network.vnet_id
 
   depends_on = [
     module.synapse_workspace_private

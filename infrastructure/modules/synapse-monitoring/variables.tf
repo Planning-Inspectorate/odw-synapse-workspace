@@ -51,6 +51,11 @@ variable "synapse_workspace_id" {
   type        = string
 }
 
+variable "synapse_vnet_id" {
+  description = "The ID of the Synapse Virtual network from which to collect diagnostic logs"
+  type        = string
+}
+
 variable "tags" {
   default     = {}
   description = "A collection of tags to assign to taggable resources"
