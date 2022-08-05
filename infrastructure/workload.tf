@@ -24,6 +24,28 @@ module "synapse_management" {
   tags = local.tags
 }
 
+module "bastion_host" {
+  source = "./modules/bastion-host"
+
+  environment         = var.environment
+  resource_group_name = azurerm_resource_group.data_management.name
+  location            = module.azure_region.location_cli
+  service_name        = local.service_name
+
+  bastion_vm_username         = var.bastion_vm_username
+  bastion_vm_size             = var.bastion_vm_size
+  key_vault_id                = module.synapse_management.key_vault_id
+  synapse_compute_subnet_name = local.compute_subnet_name
+  synapse_vnet_subnets        = module.synapse_network.vnet_subnets
+
+  depends_on = [
+    module.synapse_network,
+    module.synapse_management
+  ]
+
+  tags = local.tags
+}
+
 module "synapse_workspace_private" {
   source = "./modules/synapse-workspace-private"
 

@@ -28,6 +28,7 @@
 | Name | Source | Version |
 |------|--------|---------|
 | <a name="module_azure_region"></a> [azure\_region](#module\_azure\_region) | claranet/regions/azurerm | 5.1.0 |
+| <a name="module_bastion_host"></a> [bastion\_host](#module\_bastion\_host) | ./modules/bastion-host | n/a |
 | <a name="module_synapse_management"></a> [synapse\_management](#module\_synapse\_management) | ./modules/synapse-management | n/a |
 | <a name="module_synapse_monitoring"></a> [synapse\_monitoring](#module\_synapse\_monitoring) | ./modules/synapse-monitoring | n/a |
 | <a name="module_synapse_network"></a> [synapse\_network](#module\_synapse\_network) | ./modules/synapse-network | n/a |
@@ -46,6 +47,8 @@
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
+| <a name="input_bastion_vm_size"></a> [bastion\_vm\_size](#input\_bastion\_vm\_size) | The size of the Bastion jumpbox VM to be deployed | `string` | `"Standard_F2s_v2"` | no |
+| <a name="input_bastion_vm_username"></a> [bastion\_vm\_username](#input\_bastion\_vm\_username) | The Windows administrator username for the Bastion jumpbox VM | `string` | `"basadmin"` | no |
 | <a name="input_data_lake_account_tier"></a> [data\_lake\_account\_tier](#input\_data\_lake\_account\_tier) | The tier of the Synapse data lake Storage Account | `string` | `"Standard"` | no |
 | <a name="input_data_lake_replication_type"></a> [data\_lake\_replication\_type](#input\_data\_lake\_replication\_type) | The replication type for the Synapse data lake Storage Account | `string` | `"ZRS"` | no |
 | <a name="input_data_lake_role_assignments"></a> [data\_lake\_role\_assignments](#input\_data\_lake\_role\_assignments) | The RBAC assignments to be applied to the Synapse data lake Storage Account | `map(string)` | `{}` | no |

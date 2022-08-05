@@ -52,5 +52,6 @@ No requirements.
 
 | Name | Description |
 |------|-------------|
+| <a name="output_key_vault_id"></a> [key\_vault\_id](#output\_key\_vault\_id) | The ID of the Key Vault use for management secrets |
 | <a name="output_purview_id"></a> [purview\_id](#output\_purview\_id) | The ID of the Purview account to be used by Synapse and other resources |
 <!-- END OF PRE-COMMIT-TERRAFORM DOCS HOOK -->

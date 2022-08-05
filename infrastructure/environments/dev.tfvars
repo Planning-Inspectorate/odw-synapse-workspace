@@ -1,3 +1,6 @@
+bastion_vm_username = "basadmin"
+bastion_vm_size     = "Standard_F2s_v2"
+
 data_lake_account_tier     = "Standard"
 data_lake_replication_type = "GRS"
 data_lake_role_assignments = {
@@ -68,7 +71,7 @@ vnet_subnets = [
     "new_bits" : 2 # /26
   },
   {
-    "name" : null, # Reserved
+    "name" : "ComputeSubnet"
     "new_bits" : 2 # /26
   },
   {
