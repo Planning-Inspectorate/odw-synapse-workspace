@@ -1,3 +1,21 @@
+variable "bastion_host_enabled" {
+  default     = false
+  description = "Determines if a Bastion Host should be provisioned for management purposes"
+  type        = bool
+}
+
+variable "bastion_vm_username" {
+  default     = "basadmin"
+  description = "The Windows administrator username for the Bastion jumpbox VM"
+  type        = string
+}
+
+variable "bastion_vm_size" {
+  default     = "Standard_F2s_v2"
+  description = "The size of the Bastion jumpbox VM to be deployed"
+  type        = string
+}
+
 variable "data_lake_account_tier" {
   default     = "Standard"
   description = "The tier of the Synapse data lake Storage Account"
