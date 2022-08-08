@@ -12,4 +12,44 @@ resource "azurerm_monitor_diagnostic_setting" "service_bus_namespace" {
       enabled = false
     }
   }
+
+  log {
+    category = "ApplicationMetricsLogs"
+    enabled  = true
+
+    retention_policy {
+      days    = 0
+      enabled = false
+    }
+  }
+
+  log {
+    category = "OperationalLogs"
+    enabled  = true
+
+    retention_policy {
+      days    = 0
+      enabled = false
+    }
+  }
+
+  log {
+    category = "RuntimeAuditLogs"
+    enabled  = true
+
+    retention_policy {
+      days    = 0
+      enabled = false
+    }
+  }
+
+  log {
+    category = "VNetAndIPFilteringLogs"
+    enabled  = true
+
+    retention_policy {
+      days    = 0
+      enabled = false
+    }
+  }
 }
