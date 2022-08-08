@@ -13,7 +13,6 @@ resource "azurerm_network_interface" "jumpbox" {
 }
 
 resource "azurerm_windows_virtual_machine" "jumpbox" {
-  #checkov:skip=CKV_AZURE_151:  TODO: Enable VM encryption
   name                       = "bas-vm-${local.resource_suffix}"
   location                   = var.location
   resource_group_name        = var.resource_group_name
@@ -21,6 +20,7 @@ resource "azurerm_windows_virtual_machine" "jumpbox" {
   admin_username             = var.bastion_vm_username
   admin_password             = random_password.bastion_vm_admin_password.result
   allow_extension_operations = false
+  encryption_at_host_enabled = true
   computer_name              = "bastion-${random_string.unique_id.id}"
   network_interface_ids      = [azurerm_network_interface.jumpbox.id]
   provision_vm_agent         = false
