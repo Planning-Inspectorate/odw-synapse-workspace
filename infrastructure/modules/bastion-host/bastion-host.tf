@@ -8,7 +8,7 @@ resource "azurerm_public_ip" "bastion_host" {
   tags = local.tags
 }
 
-resource "azurerm_bastion_host" "synapse" {
+resource "azurerm_bastion_host" "bastion_host" {
   name                = "bas-${local.resource_suffix}"
   location            = var.location
   resource_group_name = var.resource_group_name
