@@ -106,14 +106,16 @@ module "synapse_monitoring" {
   location            = module.azure_region.location_cli
   service_name        = local.service_name
 
-  data_lake_account_id  = module.synapse_workspace_private.data_lake_account_id
-  key_vault_id          = module.synapse_workspace_private.key_vault_id
-  synapse_spark_pool_id = module.synapse_workspace_private.synapse_spark_pool_id
-  synapse_sql_pool_id   = module.synapse_workspace_private.synapse_sql_pool_id
-  synapse_workspace_id  = module.synapse_workspace_private.synapse_workspace_id
-  synapse_vnet_id       = module.synapse_network.vnet_id
+  data_lake_account_id     = module.synapse_workspace_private.data_lake_account_id
+  key_vault_id             = module.synapse_workspace_private.key_vault_id
+  service_bus_namespace_id = module.synapse_ingestion.service_bus_namespace_id
+  synapse_spark_pool_id    = module.synapse_workspace_private.synapse_spark_pool_id
+  synapse_sql_pool_id      = module.synapse_workspace_private.synapse_sql_pool_id
+  synapse_workspace_id     = module.synapse_workspace_private.synapse_workspace_id
+  synapse_vnet_id          = module.synapse_network.vnet_id
 
   depends_on = [
+    module.synapse_ingestion,
     module.synapse_workspace_private
   ]
 
