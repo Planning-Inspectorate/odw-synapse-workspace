@@ -1,3 +1,9 @@
+variable "bastion_host_enabled" {
+  default     = false
+  description = "Determines if a Bastion Host should be provisioned for management purposes"
+  type        = bool
+}
+
 variable "bastion_vm_username" {
   default     = "basadmin"
   description = "The Windows administrator username for the Bastion jumpbox VM"

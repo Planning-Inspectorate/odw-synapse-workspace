@@ -1,5 +1,6 @@
-bastion_vm_username = "basadmin"
-bastion_vm_size     = "Standard_F2s_v2"
+bastion_host_enabled = false
+bastion_vm_username  = "basadmin"
+bastion_vm_size      = "Standard_F2s_v2"
 
 data_lake_account_tier     = "Standard"
 data_lake_replication_type = "GRS"

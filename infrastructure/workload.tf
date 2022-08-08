@@ -25,6 +25,8 @@ module "synapse_management" {
 }
 
 module "bastion_host" {
+  count = var.bastion_host_enabled ? 1 : 0
+
   source = "./modules/bastion-host"
 
   environment         = var.environment

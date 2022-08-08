@@ -47,6 +47,7 @@
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
+| <a name="input_bastion_host_enabled"></a> [bastion\_host\_enabled](#input\_bastion\_host\_enabled) | Determines if a Bastion Host should be provisioned for management purposes | `bool` | `false` | no |
 | <a name="input_bastion_vm_size"></a> [bastion\_vm\_size](#input\_bastion\_vm\_size) | The size of the Bastion jumpbox VM to be deployed | `string` | `"Standard_F2s_v2"` | no |
 | <a name="input_bastion_vm_username"></a> [bastion\_vm\_username](#input\_bastion\_vm\_username) | The Windows administrator username for the Bastion jumpbox VM | `string` | `"basadmin"` | no |
 | <a name="input_data_lake_account_tier"></a> [data\_lake\_account\_tier](#input\_data\_lake\_account\_tier) | The tier of the Synapse data lake Storage Account | `string` | `"Standard"` | no |
