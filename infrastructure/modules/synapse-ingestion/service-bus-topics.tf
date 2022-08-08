@@ -7,6 +7,6 @@ resource "azurerm_servicebus_topic" "employee" {
   duplicate_detection_history_time_window = "P7D"
   enable_batched_operations               = true
   enable_partitioning                     = true
-  max_size_in_megabytes                   = 2048
+  max_size_in_megabytes                   = 1024
   requires_duplicate_detection            = true
 }
