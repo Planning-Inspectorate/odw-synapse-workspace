@@ -13,7 +13,7 @@ resource "azurerm_network_interface" "jumpbox" {
 }
 
 resource "azurerm_windows_virtual_machine" "jumpbox" {
-  #checkov:skip=CKV_AZURE_151:  TODO: Enable VM encryption
+  #checkov:skip=CKV_AZURE_151:  SKIP: Host encryption not enabled for subscription
   name                       = "bas-vm-${local.resource_suffix}"
   location                   = var.location
   resource_group_name        = var.resource_group_name

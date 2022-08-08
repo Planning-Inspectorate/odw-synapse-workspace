@@ -1,4 +1,4 @@
-bastion_host_enabled = true
+bastion_host_enabled = false
 bastion_vm_username  = "basadmin"
 bastion_vm_size      = "Standard_F2s_v2"
 
