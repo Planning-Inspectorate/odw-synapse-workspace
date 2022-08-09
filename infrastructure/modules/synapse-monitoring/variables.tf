@@ -39,6 +39,18 @@ variable "service_name" {
   type        = string
 }
 
+variable "spark_pool_enabled" {
+  default     = false
+  description = "Determines whether a Synapse-linked Spark pool is deployed and should be monitored"
+  type        = bool
+}
+
+variable "sql_pool_enabled" {
+  default     = false
+  description = "Determines whether a Synapse-linked dedicated SQL pool is deployed and should be monitored"
+  type        = bool
+}
+
 variable "synapse_spark_pool_id" {
   default     = null
   description = "The ID of the Synapse Spark Pool from which to collect diagnostic logs"
