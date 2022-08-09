@@ -1,5 +1,5 @@
 resource "azurerm_monitor_diagnostic_setting" "synapse_spark_pool" {
-  count = can(var.synapse_spark_pool_id) ? 1 : 0
+  count = var.spark_pool_enabled ? 1 : 0
 
   name                       = "SynapseSparkPool"
   target_resource_id         = var.synapse_spark_pool_id

@@ -1,5 +1,5 @@
 resource "azurerm_monitor_diagnostic_setting" "synapse_sql_pool" {
-  count = can(var.synapse_sql_pool_id) ? 1 : 0
+  count = var.sql_pool_enabled ? 1 : 0
 
   name                       = "SynapseDedicatedSqlPool"
   target_resource_id         = var.synapse_sql_pool_id
