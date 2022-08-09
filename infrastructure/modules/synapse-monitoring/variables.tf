@@ -29,6 +29,11 @@ variable "log_retention_days" {
   type        = number
 }
 
+variable "service_bus_namespace_id" {
+  description = "The ID of the Service Bus Namespace from which to collect diagnostic logs"
+  type        = string
+}
+
 variable "service_name" {
   description = "The short-format name of the overarching service being deployed"
   type        = string
