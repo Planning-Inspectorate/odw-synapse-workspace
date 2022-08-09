@@ -41,13 +41,13 @@ variable "service_name" {
 
 variable "spark_pool_enabled" {
   default     = false
-  description = "Determines whether a Synapse-linked Spark pool should be deployed"
+  description = "Determines whether a Synapse-linked Spark pool is deployed and should be monitored"
   type        = bool
 }
 
 variable "sql_pool_enabled" {
   default     = false
-  description = "Determines whether a Synapse-linked dedicated SQL pool should be deployed"
+  description = "Determines whether a Synapse-linked dedicated SQL pool is deployed and should be monitored"
   type        = bool
 }
 

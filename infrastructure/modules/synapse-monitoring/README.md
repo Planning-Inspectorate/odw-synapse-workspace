@@ -51,8 +51,8 @@ No requirements.
 | <a name="input_resource_group_name"></a> [resource\_group\_name](#input\_resource\_group\_name) | The name of the resource group into which resources will be deployed | `string` | n/a | yes |
 | <a name="input_service_bus_namespace_id"></a> [service\_bus\_namespace\_id](#input\_service\_bus\_namespace\_id) | The ID of the Service Bus Namespace from which to collect diagnostic logs | `string` | n/a | yes |
 | <a name="input_service_name"></a> [service\_name](#input\_service\_name) | The short-format name of the overarching service being deployed | `string` | n/a | yes |
-| <a name="input_spark_pool_enabled"></a> [spark\_pool\_enabled](#input\_spark\_pool\_enabled) | Determines whether a Synapse-linked Spark pool should be deployed | `bool` | `false` | no |
-| <a name="input_sql_pool_enabled"></a> [sql\_pool\_enabled](#input\_sql\_pool\_enabled) | Determines whether a Synapse-linked dedicated SQL pool should be deployed | `bool` | `false` | no |
+| <a name="input_spark_pool_enabled"></a> [spark\_pool\_enabled](#input\_spark\_pool\_enabled) | Determines whether a Synapse-linked Spark pool is deployed and should be monitored | `bool` | `false` | no |
+| <a name="input_sql_pool_enabled"></a> [sql\_pool\_enabled](#input\_sql\_pool\_enabled) | Determines whether a Synapse-linked dedicated SQL pool is deployed and should be monitored | `bool` | `false` | no |
 | <a name="input_synapse_spark_pool_id"></a> [synapse\_spark\_pool\_id](#input\_synapse\_spark\_pool\_id) | The ID of the Synapse Spark Pool from which to collect diagnostic logs | `string` | `null` | no |
 | <a name="input_synapse_sql_pool_id"></a> [synapse\_sql\_pool\_id](#input\_synapse\_sql\_pool\_id) | The ID of the Synapse Dedicated SQL Pool from which to collect diagnostic logs | `string` | `null` | no |
 | <a name="input_synapse_vnet_id"></a> [synapse\_vnet\_id](#input\_synapse\_vnet\_id) | The ID of the Synapse Virtual network from which to collect diagnostic logs | `string` | n/a | yes |
