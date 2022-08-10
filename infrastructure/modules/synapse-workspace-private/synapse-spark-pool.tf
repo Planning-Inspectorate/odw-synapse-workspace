@@ -1,7 +1,7 @@
 resource "azurerm_synapse_spark_pool" "synapse" {
   count = var.spark_pool_enabled ? 1 : 0
 
-  name                 = "spark${var.environment}"
+  name                 = "pinssynspodw"
   synapse_workspace_id = azurerm_synapse_workspace.synapse.id
   node_size_family     = "MemoryOptimized"
   node_size            = var.spark_pool_node_size

@@ -4,6 +4,11 @@ resource "azurerm_synapse_role_assignment" "synapse" {
   synapse_workspace_id = azurerm_synapse_workspace.synapse.id
   role_name            = each.key
   principal_id         = each.value
+
+  depends_on = [
+    azurerm_synapse_firewall_rule.allow_all,
+    azurerm_synapse_firewall_rule.allow_all_azure
+  ]
 }
 
 resource "azurerm_synapse_workspace_aad_admin" "synapse" {
@@ -11,4 +16,9 @@ resource "azurerm_synapse_workspace_aad_admin" "synapse" {
   object_id            = var.synapse_aad_administrator.object_id
   synapse_workspace_id = azurerm_synapse_workspace.synapse.id
   tenant_id            = data.azurerm_client_config.current.tenant_id
+
+  depends_on = [
+    azurerm_synapse_firewall_rule.allow_all,
+    azurerm_synapse_firewall_rule.allow_all_azure
+  ]
 }

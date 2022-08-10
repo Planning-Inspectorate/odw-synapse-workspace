@@ -11,6 +11,10 @@ resource "azurerm_key_vault_secret" "synapse_sql_administrator_password" {
       value
     ]
   }
+
+  depends_on = [
+    azurerm_role_assignment.key_vault_terraform
+  ]
 }
 
 resource "azurerm_key_vault_secret" "synapse_sql_administrator_username" {
@@ -26,4 +30,8 @@ resource "azurerm_key_vault_secret" "synapse_sql_administrator_username" {
       value
     ]
   }
+
+  depends_on = [
+    azurerm_role_assignment.key_vault_terraform
+  ]
 }

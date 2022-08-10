@@ -1,11 +1,11 @@
-# resource "time_sleep" "synapse_managed_private_endpoint_delay" {
-#   create_duration = "30s"
+resource "time_sleep" "synapse_managed_private_endpoint_delay" {
+  create_duration = "30s"
 
-#   depends_on = [
-#     azurerm_synapse_firewall_rule.allow_all_azure,
-#     azurerm_synapse_firewall_rule.allow_all
-#   ]
-# }
+  depends_on = [
+    azurerm_synapse_firewall_rule.allow_all_azure,
+    azurerm_synapse_firewall_rule.allow_all
+  ]
+}
 
 resource "azurerm_synapse_managed_private_endpoint" "data_lake" {
   name                 = "synapse-st-dfs--${azurerm_storage_account.synapse.name}"
@@ -13,9 +13,9 @@ resource "azurerm_synapse_managed_private_endpoint" "data_lake" {
   target_resource_id   = azurerm_storage_account.synapse.id
   subresource_name     = "dfs"
 
-  # depends_on = [
-  #   time_sleep.synapse_managed_private_endpoint_delay
-  # ]
+  depends_on = [
+    time_sleep.synapse_managed_private_endpoint_delay
+  ]
 }
 
 # resource "null_resource" "synapse_managed_private_endpoint_data_lake_approval" {
