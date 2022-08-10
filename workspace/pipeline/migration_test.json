@@ -34,61 +34,7 @@
 				}
 			},
 			{
-				"name": "ForEach1",
-				"type": "ForEach",
-				"dependsOn": [
-					{
-						"activity": "Lookup MiPINS table list",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"userProperties": [],
-				"typeProperties": {
-					"items": {
-						"value": "@activity('Lookup MiPINS table list').output.value",
-						"type": "Expression"
-					},
-					"activities": [
-						{
-							"name": "Lake_Database_Query",
-							"type": "SynapseNotebook",
-							"dependsOn": [],
-							"policy": {
-								"timeout": "7.00:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"notebook": {
-									"referenceName": "lake database query",
-									"type": "NotebookReference"
-								},
-								"parameters": {
-									"tablename": {
-										"value": {
-											"value": "@item().TableName",
-											"type": "Expression"
-										},
-										"type": "string"
-									}
-								},
-								"snapshot": true,
-								"sparkPool": {
-									"referenceName": "pinsodwspark",
-									"type": "BigDataPoolReference"
-								}
-							}
-						}
-					]
-				}
-			},
-			{
-				"name": "ForEach2",
+				"name": "Source and Lake Row Count",
 				"type": "ForEach",
 				"dependsOn": [
 					{
@@ -134,6 +80,46 @@
 										}
 									}
 								]
+							}
+						},
+						{
+							"name": "Lake_Database_Query",
+							"type": "SynapseNotebook",
+							"dependsOn": [
+								{
+									"activity": "SourceRowCount",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "lake database query",
+									"type": "NotebookReference"
+								},
+								"parameters": {
+									"sourcerowcount": {
+										"value": {
+											"value": "@activity('SourceRowCount').output.value",
+											"type": "Expression"
+										},
+										"type": "int"
+									}
+								},
+								"snapshot": true,
+								"sparkPool": {
+									"referenceName": "pinsodwspark",
+									"type": "BigDataPoolReference"
+								}
 							}
 						}
 					]
