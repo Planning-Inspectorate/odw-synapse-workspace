@@ -1,4 +1,5 @@
 # Synapse Workspace Private
+This module deploys a Synapse Workspace with private virtual network enabled. Private endpoints are established and provisioned in the chosen virtual network subnet. An optional Apache Spark pool and/or dedicated SQL pool may be provisioned as requied. Git-enabling the Synapse Workspace will cause the workspace to automatically pull in data pipelines, linked services, etc from the target repository.
 
 ### Table of Contents
 1. [Usage](#usage)
@@ -8,6 +9,53 @@
 5. [Outputs](#outputs)
 
 ## Usage
+The below module definition provides an example of usage. This module is designed to depend on the outputs from the associated `synapse_network` and `synapse_management` modules. These associate modules provision the Synapse virtual network components as well as Azure Purview.
+
+```
+module "synapse_workspace_private" {
+  source = "./modules/synapse-workspace-private"
+
+  environment         = "dev"
+  resource_group_name = azurerm_resource_group.data.name
+  location            = module.azure_region.location_cli
+  service_name        = "odw"
+
+  data_lake_account_tier                = "Standard"
+  data_lake_replication_type            = "GRS"
+  data_lake_role_assignments            = {}
+  data_lake_storage_containers          = ["odw-default"]
+  key_vault_role_assignments            = {}
+  purview_id                            = module.synapse_management.purview_id
+  spark_pool_enabled                    = true
+  spark_pool_max_node_count             = 12
+  spark_pool_min_node_count             = 3
+  spark_pool_node_size                  = "Small"
+  spark_pool_version                    = "2.4"
+  sql_pool_enabled                      = true
+  sql_pool_collation                    = "SQL_Latin1_General_CP1_CI_AS"
+  sql_pool_sku_name                     = "DW100c"
+  synapse_aad_administrator             = {}
+  synapse_private_endpoint_dns_zone_id  = module.synapse_network.synapse_private_dns_zone_id
+  synapse_private_endpoint_subnet_name  = "SynapseEndpointSubnet"
+  synapse_private_endpoint_vnet_subnets = module.synapse_network.vnet_subnets
+  synapse_github_details                = {}
+  synapse_github_enabled                = true
+  synapse_sql_administrator_username    = "synadmin"
+  synapse_role_assignments              = {}
+
+  depends_on = [
+    module.synapse_network,
+    module.synapse_management
+  ]
+
+  tags = local.tags
+}
+
+```
+
+| :scroll: Note |
+|----------|
+| This module can take >20 minutes to deploy. |
 
 <!-- BEGINNING OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
 ## Requirements

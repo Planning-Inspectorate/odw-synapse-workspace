@@ -1,4 +1,5 @@
-# Synapse Management
+# Bastion Host
+This module enables Azure Bastion and provisions a Windows virtual machine as a jumpbox into the internal virtual network.
 
 ### Table of Contents
 1. [Usage](#usage)
@@ -8,6 +9,36 @@
 5. [Outputs](#outputs)
 
 ## Usage
+The below module definition provides an example of usage. This module is designed to depend on the outputs from the associated `synapse_network` and `synapse_management` modules. These associate modules provision the Synapse virtual network and management Key Vault respectively, in-line with current Cloud Adoption Framework best-practice architecture.
+```
+module "bastion_host" {
+  count = var.bastion_host_enabled ? 1 : 0
+
+  source = "./modules/bastion-host"
+
+  environment         = "dev"
+  resource_group_name = azurerm_resource_group.data_management.name
+  location            = "uks"
+  service_name        = "odw"
+
+  bastion_vm_username         = "basadmin"
+  bastion_vm_size             = "Standard_F2s_v2"
+  key_vault_id                = module.synapse_management.key_vault_id
+  synapse_compute_subnet_name = "ComputeSubnet"
+  synapse_vnet_subnets        = module.synapse_network.vnet_subnets
+
+  depends_on = [
+    module.synapse_network,
+    module.synapse_management
+  ]
+
+  tags = local.tags
+}
+```
+
+| :scroll: Note |
+|----------|
+| The use of `count` allows the module to be optionally deployed. Azure Bastion is an expensive service and should be deployed and removed as required for development or troubleshooting. |
 
 <!-- BEGINNING OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
 ## Requirements
