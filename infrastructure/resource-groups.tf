@@ -5,7 +5,6 @@ resource "azurerm_resource_group" "data" {
   tags = local.tags
 }
 
-
 resource "azurerm_resource_group" "data_management" {
   name     = "pins-rg-datamgmt-${local.resource_suffix}"
   location = module.azure_region.location_cli
@@ -29,6 +28,15 @@ resource "azurerm_resource_group" "monitoring" {
 
 resource "azurerm_resource_group" "network" {
   name     = "pins-rg-network-${local.resource_suffix}"
+  location = module.azure_region.location_cli
+
+  tags = local.tags
+}
+
+resource "azurerm_resource_group" "sql_server" {
+  count = var.sql_server_enabled ? 1 : 0
+
+  name     = "pins-rg-sqlserver-${local.resource_suffix}"
   location = module.azure_region.location_cli
 
   tags = local.tags

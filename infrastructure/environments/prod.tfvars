@@ -37,6 +37,8 @@ sql_pool_collation = "SQL_Latin1_General_CP1_CI_AS"
 sql_pool_enabled   = true
 sql_pool_sku_name  = "DW100c"
 
+sql_server_enabled = false
+
 synapse_aad_administrator = {
   username  = "pins-odw-data-dev-syn-ws-sqladmins"
   object_id = "1c996957-30e4-40fe-b0b4-82d40f13c058"
