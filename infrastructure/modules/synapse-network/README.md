@@ -1,4 +1,5 @@
-# Synapse Common
+# Synapse Network
+This module deploys a virtual network and private DNS zone to enable the Synapse Workspace and associated resources to be deployed privately.
 
 ### Table of Contents
 1. [Usage](#usage)
@@ -8,6 +9,45 @@
 5. [Outputs](#outputs)
 
 ## Usage
+The below module definition provides an example of usage.
+
+```
+module "synapse_network" {
+  source = "./modules/synapse-network"
+
+  environment         = var.environment
+  resource_group_name = azurerm_resource_group.network.name
+  location            = module.azure_region.location_cli
+  service_name        = local.service_name
+
+  network_watcher_enabled = true
+  vnet_base_cidr_block    = "10.10.0.0/24"
+  vnet_subnets            = [
+    {
+      name     = "ManagementSubnet"
+      new_bits = 2
+    },
+    {
+      name     = "SynapseEndpointSubnet"
+      new_bits = 2
+    },
+    {
+      name     = null
+      new_bits = 2
+    },
+    {
+      name     = null
+      new_bits = 2
+    }
+  ]
+
+  tags = local.tags
+}
+```
+
+| :scroll: Note |
+|----------|
+| This module uses the HashiCorp `subnets` module to determine the subnet size CIDR ranges. |
 
 <!-- BEGINNING OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
 ## Requirements

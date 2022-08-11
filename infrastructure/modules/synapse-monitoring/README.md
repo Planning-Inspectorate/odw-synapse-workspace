@@ -1,4 +1,5 @@
 # Synapse Monitoring
+This module deploys a Log Analytics Workspace and enables diagnostic logging for several resource types including Synapse Workspace.
 
 ### Table of Contents
 1. [Usage](#usage)
@@ -8,6 +9,35 @@
 5. [Outputs](#outputs)
 
 ## Usage
+The below module definition provides an example of usage. This module is designed to depend on the outputs from the associated `synapse_workspace_private`, `synapse_ingestion`, and `synapse_network` modules. These associated modules provision the Synapse Workspace and associated infrastructure, the IDs of which are used in this module to enable diagnostic logging.
+
+```
+module "synapse_monitoring" {
+  source = "./modules/synapse-monitoring"
+
+  environment         = "dev"
+  resource_group_name = azurerm_resource_group.monitoring.name
+  location            = module.azure_region.location_cli
+  service_name        = "odw"
+
+  data_lake_account_id     = module.synapse_workspace_private.data_lake_account_id
+  key_vault_id             = module.synapse_workspace_private.key_vault_id
+  service_bus_namespace_id = module.synapse_ingestion.service_bus_namespace_id
+  spark_pool_enabled       = true
+  sql_pool_enabled         = true
+  synapse_spark_pool_id    = module.synapse_workspace_private.synapse_spark_pool_id
+  synapse_sql_pool_id      = module.synapse_workspace_private.synapse_sql_pool_id
+  synapse_workspace_id     = module.synapse_workspace_private.synapse_workspace_id
+  synapse_vnet_id          = module.synapse_network.vnet_id
+
+  depends_on = [
+    module.synapse_ingestion,
+    module.synapse_workspace_private
+  ]
+
+  tags = local.tags
+}
+```
 
 <!-- BEGINNING OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
 ## Requirements

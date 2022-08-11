@@ -1,4 +1,5 @@
 # Synapse Management
+This module provisions an Azure Purview account for data governance, and Key Vault for secret storage.
 
 ### Table of Contents
 1. [Usage](#usage)
@@ -8,6 +9,24 @@
 5. [Outputs](#outputs)
 
 ## Usage
+The below module definition provides an example of usage.
+
+```
+module "synapse_management" {
+  source = "./modules/synapse-management"
+
+  environment         = "dev"
+  resource_group_name = azurerm_resource_group.data_management.name
+  location            = module.azure_region.location_cli
+  service_name        = "odw"
+
+  tags = local.tags
+}
+```
+
+| :scroll: Note |
+|----------|
+| Due to the nature of the resource in this module, it has no dependencies. |
 
 <!-- BEGINNING OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
 ## Requirements

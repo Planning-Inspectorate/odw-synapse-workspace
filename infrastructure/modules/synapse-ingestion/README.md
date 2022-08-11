@@ -1,4 +1,5 @@
 # Synapse Ingestion
+This module provisions a Service Bus Namespace and Topic for publishing data to be consumed by external subscribers.
 
 ### Table of Contents
 1. [Usage](#usage)
@@ -8,6 +9,24 @@
 5. [Outputs](#outputs)
 
 ## Usage
+The below module definition provides an example of usage.
+
+```
+module "synapse_ingestion" {
+  source = "./modules/synapse-ingestion"
+
+  environment         = "dev"
+  resource_group_name = azurerm_resource_group.ingestion.name
+  location            = module.azure_region.location_cli
+  service_name        = "odw"
+
+  tags = local.tags
+}
+```
+
+| :scroll: Note |
+|----------|
+| The resources in this module are currently hardcoded and as such this module has no dependencies. |
 
 <!-- BEGINNING OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
 ## Requirements
