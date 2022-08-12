@@ -123,3 +123,20 @@ module "synapse_monitoring" {
 
   tags = local.tags
 }
+
+module "sql_server" {
+  count = var.sql_server_enabled ? 1 : 0
+
+  source = "./modules/sql-server"
+
+  environment         = var.environment
+  resource_group_name = azurerm_resource_group.sql_server[0].name
+  location            = module.azure_region.location_cli
+  service_name        = local.service_name
+
+  sql_server_aad_administrator = var.synapse_aad_administrator
+
+  depends_on = [
+    module.synapse_workspace_private
+  ]
+}

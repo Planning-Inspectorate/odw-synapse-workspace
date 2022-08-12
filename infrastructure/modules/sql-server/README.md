@@ -1,0 +1,83 @@
+# SQL Server
+This module provisions an Azure SQL Server.
+
+### Table of Contents
+1. [Usage](#usage)
+2. [Requirements](#requirements)
+3. [Providers](#Providers)
+4. [Inputs](#inputs)
+5. [Outputs](#outputs)
+
+## Usage
+The below module definition provides an example of usage.
+
+```
+module "sql_server" {
+  count = var.sql_server_enabled ? 1 : 0
+
+  source = "./modules/sql-server"
+
+  environment         = "dev"
+  resource_group_name = azurerm_resource_group.sql_server.name
+  location            = "uk-south"
+  service_name        = "odw"
+
+  sql_server_aad_administrator = {
+    username  = "sql-admins"
+    object_id = "00000000-0000-0000-0000-000000000000"
+  }
+
+  depends_on = [
+    module.synapse_workspace_private
+  ]
+}
+```
+
+| :scroll: Note |
+|----------|
+| The use of `count` allows the module to be optionally deployed. |
+
+<!-- BEGINNING OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
+## Requirements
+
+No requirements.
+
+## Providers
+
+| Name | Version |
+|------|---------|
+| <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) | 3.17.0 |
+| <a name="provider_random"></a> [random](#provider\_random) | 3.3.2 |
+
+## Modules
+
+| Name | Source | Version |
+|------|--------|---------|
+| <a name="module_azure_region"></a> [azure\_region](#module\_azure\_region) | claranet/regions/azurerm | 5.1.0 |
+
+## Resources
+
+| Name | Type |
+|------|------|
+| [azurerm_mssql_server.sql_server](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/mssql_server) | resource |
+| [azurerm_mssql_server_extended_auditing_policy.sql_server_auditing](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/mssql_server_extended_auditing_policy) | resource |
+| [azurerm_role_assignment.sql_server_auditing](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/role_assignment) | resource |
+| [azurerm_storage_account.sql_server_auditing](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/storage_account) | resource |
+| [random_string.unique_id](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/string) | resource |
+| [azurerm_client_config.current](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/data-sources/client_config) | data source |
+
+## Inputs
+
+| Name | Description | Type | Default | Required |
+|------|-------------|------|---------|:--------:|
+| <a name="input_environment"></a> [environment](#input\_environment) | The name of the environment in which resources will be deployed | `string` | n/a | yes |
+| <a name="input_location"></a> [location](#input\_location) | The short-format Azure region into which resources will be deployed | `string` | n/a | yes |
+| <a name="input_resource_group_name"></a> [resource\_group\_name](#input\_resource\_group\_name) | The name of the resource group into which resources will be deployed | `string` | n/a | yes |
+| <a name="input_service_name"></a> [service\_name](#input\_service\_name) | The short-format name of the overarching service being deployed | `string` | n/a | yes |
+| <a name="input_sql_server_aad_administrator"></a> [sql\_server\_aad\_administrator](#input\_sql\_server\_aad\_administrator) | A map describing the username and Azure AD object ID for the SQL administrator account | `map(string)` | n/a | yes |
+| <a name="input_tags"></a> [tags](#input\_tags) | A collection of tags to assign to taggable resources | `map(string)` | `{}` | no |
+
+## Outputs
+
+No outputs.
+<!-- END OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
