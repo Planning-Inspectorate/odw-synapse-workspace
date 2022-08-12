@@ -9,6 +9,33 @@ This module provisions an Azure SQL Server.
 5. [Outputs](#outputs)
 
 ## Usage
+The below module definition provides an example of usage.
+
+```
+module "sql_server" {
+  count = var.sql_server_enabled ? 1 : 0
+
+  source = "./modules/sql-server"
+
+  environment         = "dev"
+  resource_group_name = azurerm_resource_group.sql_server.name
+  location            = "uk-south"
+  service_name        = "odw"
+
+  sql_server_aad_administrator = {
+    username  = "sql-admins"
+    object_id = "00000000-0000-0000-0000-000000000000"
+  }
+
+  depends_on = [
+    module.synapse_workspace_private
+  ]
+}
+```
+
+| :scroll: Note |
+|----------|
+| The use of `count` allows the module to be optionally deployed. |
 
 <!-- BEGINNING OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
 ## Requirements
