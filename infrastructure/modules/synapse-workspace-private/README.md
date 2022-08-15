@@ -38,8 +38,6 @@ module "synapse_workspace_private" {
   synapse_private_endpoint_dns_zone_id  = module.synapse_network.synapse_private_dns_zone_id
   synapse_private_endpoint_subnet_name  = "SynapseEndpointSubnet"
   synapse_private_endpoint_vnet_subnets = module.synapse_network.vnet_subnets
-  synapse_github_details                = {}
-  synapse_github_enabled                = true
   synapse_sql_administrator_username    = "synadmin"
   synapse_role_assignments              = {}
 
@@ -130,8 +128,6 @@ No requirements.
 | <a name="input_sql_pool_enabled"></a> [sql\_pool\_enabled](#input\_sql\_pool\_enabled) | Determines whether a Synapse-linked dedicated SQL pool should be deployed | `bool` | `false` | no |
 | <a name="input_sql_pool_sku_name"></a> [sql\_pool\_sku\_name](#input\_sql\_pool\_sku\_name) | The SKU of the Synapse-linked dedicated SQL pool | `string` | `"DW100c"` | no |
 | <a name="input_synapse_aad_administrator"></a> [synapse\_aad\_administrator](#input\_synapse\_aad\_administrator) | A map describing the username and Azure AD object ID for the Syanapse administrator account | `map(string)` | n/a | yes |
-| <a name="input_synapse_github_details"></a> [synapse\_github\_details](#input\_synapse\_github\_details) | The GitHub repository details to establish a link with the Synapse Workspace | `map(string)` | `{}` | no |
-| <a name="input_synapse_github_enabled"></a> [synapse\_github\_enabled](#input\_synapse\_github\_enabled) | Determines whether a GitHub repository should be linked to the Synapse Workspace | `bool` | `false` | no |
 | <a name="input_synapse_private_endpoint_dns_zone_id"></a> [synapse\_private\_endpoint\_dns\_zone\_id](#input\_synapse\_private\_endpoint\_dns\_zone\_id) | The ID of the Private DNS Zone hosting privatelink.azuresynapse.net | `string` | n/a | yes |
 | <a name="input_synapse_private_endpoint_subnet_name"></a> [synapse\_private\_endpoint\_subnet\_name](#input\_synapse\_private\_endpoint\_subnet\_name) | The name of the subnet into which Synapse private endpoints should be deployed | `string` | `"SynapseEndpointSubnet"` | no |
 | <a name="input_synapse_private_endpoint_vnet_subnets"></a> [synapse\_private\_endpoint\_vnet\_subnets](#input\_synapse\_private\_endpoint\_vnet\_subnets) | A map of subnet names and IDs comprising the linked Virtual Network for private endpoint deployment | `map(string)` | n/a | yes |

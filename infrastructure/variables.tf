@@ -121,18 +121,6 @@ variable "synapse_aad_administrator" {
   type        = map(string)
 }
 
-variable "synapse_github_details" {
-  default     = {}
-  description = "The GitHub repository details to establish a link with the Synapse Workspace"
-  type        = map(string)
-}
-
-variable "synapse_github_enabled" {
-  default     = false
-  description = "Determines whether a GitHub repository should be linked to the Synapse Workspace"
-  type        = bool
-}
-
 variable "synapse_role_assignments" {
   default     = {}
   description = "The Synapse-specific RBAC assignments to be applied to the Synapse Workspace"
