@@ -34,6 +34,11 @@ variable "sql_server_administrator_username" {
   type        = string
 }
 
+variable "synapse_workspace_id" {
+  description = "The ID of the Synapse Workspace from which to collect diagnostic logs"
+  type        = string
+}
+
 variable "tags" {
   default     = {}
   description = "A collection of tags to assign to taggable resources"

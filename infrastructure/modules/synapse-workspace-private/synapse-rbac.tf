@@ -6,8 +6,7 @@ resource "azurerm_synapse_role_assignment" "synapse" {
   principal_id         = each.value
 
   depends_on = [
-    azurerm_synapse_firewall_rule.allow_all,
-    azurerm_synapse_firewall_rule.allow_all_azure
+    time_sleep.firewall_delay
   ]
 }
 
@@ -18,7 +17,6 @@ resource "azurerm_synapse_workspace_aad_admin" "synapse" {
   tenant_id            = data.azurerm_client_config.current.tenant_id
 
   depends_on = [
-    azurerm_synapse_firewall_rule.allow_all,
-    azurerm_synapse_firewall_rule.allow_all_azure
+    time_sleep.firewall_delay
   ]
 }

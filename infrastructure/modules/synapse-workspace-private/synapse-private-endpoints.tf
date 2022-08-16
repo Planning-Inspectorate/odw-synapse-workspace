@@ -1,12 +1,3 @@
-resource "time_sleep" "synapse_managed_private_endpoint_delay" {
-  create_duration = "30s"
-
-  depends_on = [
-    azurerm_synapse_firewall_rule.allow_all_azure,
-    azurerm_synapse_firewall_rule.allow_all
-  ]
-}
-
 resource "azurerm_synapse_managed_private_endpoint" "data_lake" {
   name                 = "synapse-st-dfs--${azurerm_storage_account.synapse.name}"
   synapse_workspace_id = azurerm_synapse_workspace.synapse.id
@@ -14,7 +5,7 @@ resource "azurerm_synapse_managed_private_endpoint" "data_lake" {
   subresource_name     = "dfs"
 
   depends_on = [
-    time_sleep.synapse_managed_private_endpoint_delay
+    time_sleep.firewall_delay
   ]
 }
 
