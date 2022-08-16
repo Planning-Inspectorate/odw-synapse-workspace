@@ -85,8 +85,6 @@ module "synapse_workspace_private" {
   synapse_private_endpoint_dns_zone_id  = module.synapse_network.synapse_private_dns_zone_id
   synapse_private_endpoint_subnet_name  = local.synapse_subnet_name
   synapse_private_endpoint_vnet_subnets = module.synapse_network.vnet_subnets
-  synapse_github_details                = var.synapse_github_details
-  synapse_github_enabled                = var.synapse_github_enabled
   synapse_sql_administrator_username    = var.synapse_sql_administrator_username
   synapse_role_assignments              = var.synapse_role_assignments
 

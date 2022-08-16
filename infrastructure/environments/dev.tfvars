@@ -46,14 +46,6 @@ synapse_aad_administrator = {
   object_id = "1c996957-30e4-40fe-b0b4-82d40f13c058"
 }
 
-synapse_github_enabled = true
-synapse_github_details = {
-  account_name    = "Planning-Inspectorate"
-  branch_name     = "main"
-  repository_name = "ODW-Service"
-  root_folder     = "/workspace"
-}
-
 synapse_sql_administrator_username = "synadmin"
 synapse_role_assignments = {
   "Synapse Administrator"    = "42523fcb-4a32-4910-8caa-4d310c7bfd55" # sulmarch@pinso365.onmicrosoft.com

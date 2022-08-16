@@ -11,17 +11,6 @@ resource "azurerm_synapse_workspace" "synapse" {
   sql_administrator_login_password     = random_password.synapse_sql_administrator_password.result
   storage_data_lake_gen2_filesystem_id = azurerm_storage_data_lake_gen2_filesystem.synapse.id
 
-  dynamic "github_repo" {
-    for_each = var.synapse_github_enabled ? [1] : []
-
-    content {
-      account_name    = var.synapse_github_details["account_name"]
-      branch_name     = var.synapse_github_details["branch_name"]
-      repository_name = var.synapse_github_details["repository_name"]
-      root_folder     = var.synapse_github_details["root_folder"]
-    }
-  }
-
   identity {
     type = "SystemAssigned"
   }

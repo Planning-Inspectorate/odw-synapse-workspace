@@ -107,12 +107,6 @@ variable "synapse_aad_administrator" {
   type        = map(string)
 }
 
-variable "synapse_github_details" {
-  default     = {}
-  description = "The GitHub repository details to establish a link with the Synapse Workspace"
-  type        = map(string)
-}
-
 variable "synapse_private_endpoint_dns_zone_id" {
   description = "The ID of the Private DNS Zone hosting privatelink.azuresynapse.net"
   type        = string
@@ -127,12 +121,6 @@ variable "synapse_private_endpoint_subnet_name" {
 variable "synapse_private_endpoint_vnet_subnets" {
   description = "A map of subnet names and IDs comprising the linked Virtual Network for private endpoint deployment"
   type        = map(string)
-}
-
-variable "synapse_github_enabled" {
-  default     = false
-  description = "Determines whether a GitHub repository should be linked to the Synapse Workspace"
-  type        = bool
 }
 
 variable "synapse_role_assignments" {

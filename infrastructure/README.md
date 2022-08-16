@@ -223,8 +223,6 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 | <a name="input_sql_pool_sku_name"></a> [sql\_pool\_sku\_name](#input\_sql\_pool\_sku\_name) | The SKU of the Synapse-linked dedicated SQL pool | `string` | `"DW100c"` | no |
 | <a name="input_sql_server_enabled"></a> [sql\_server\_enabled](#input\_sql\_server\_enabled) | Determins whether a SQL Server should be deployed | `string` | `false` | no |
 | <a name="input_synapse_aad_administrator"></a> [synapse\_aad\_administrator](#input\_synapse\_aad\_administrator) | A map describing the username and Azure AD object ID for the Syanapse administrator account | `map(string)` | n/a | yes |
-| <a name="input_synapse_github_details"></a> [synapse\_github\_details](#input\_synapse\_github\_details) | The GitHub repository details to establish a link with the Synapse Workspace | `map(string)` | `{}` | no |
-| <a name="input_synapse_github_enabled"></a> [synapse\_github\_enabled](#input\_synapse\_github\_enabled) | Determines whether a GitHub repository should be linked to the Synapse Workspace | `bool` | `false` | no |
 | <a name="input_synapse_role_assignments"></a> [synapse\_role\_assignments](#input\_synapse\_role\_assignments) | The Synapse-specific RBAC assignments to be applied to the Synapse Workspace | `map(string)` | `{}` | no |
 | <a name="input_synapse_sql_administrator_username"></a> [synapse\_sql\_administrator\_username](#input\_synapse\_sql\_administrator\_username) | The SQL administrator username for the Synapse Workspace | `string` | `"synadmin"` | no |
 | <a name="input_tags"></a> [tags](#input\_tags) | A collection of tags to assign to taggable resources | `map(string)` | `{}` | no |
