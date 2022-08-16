@@ -15,5 +15,11 @@ resource "azurerm_synapse_workspace" "synapse" {
     type = "SystemAssigned"
   }
 
+  lifecycle {
+    ignore_changes = [
+      github_repo
+    ]
+  }
+
   tags = local.tags
 }
