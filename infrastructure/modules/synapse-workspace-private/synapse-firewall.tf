@@ -11,3 +11,12 @@ resource "azurerm_synapse_firewall_rule" "allow_all" {
   start_ip_address     = "0.0.0.0"
   end_ip_address       = "255.255.255.255"
 }
+
+resource "time_sleep" "firewall_delay" {
+  create_duration = "30s"
+
+  depends_on = [
+    azurerm_synapse_firewall_rule.allow_all_azure,
+    azurerm_synapse_firewall_rule.allow_all
+  ]
+}
