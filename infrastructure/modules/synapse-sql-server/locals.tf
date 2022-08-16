@@ -1,5 +1,5 @@
 locals {
-  module_name     = "sql-server"
+  module_name     = "synapse-sql-server"
   resource_suffix = "${var.service_name}-${var.environment}-${module.azure_region.location_short}"
 
   tags = merge(
