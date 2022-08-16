@@ -17,7 +17,7 @@ data_lake_storage_containers = [
   "odw-config"
 ]
 
-environment = "preprod"
+environment = "test"
 location    = "uk-south"
 
 key_vault_role_assignments = {
