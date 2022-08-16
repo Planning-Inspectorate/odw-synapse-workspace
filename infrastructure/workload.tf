@@ -132,7 +132,9 @@ module "sql_server" {
   location            = module.azure_region.location_cli
   service_name        = local.service_name
 
-  sql_server_aad_administrator = var.synapse_aad_administrator
+  key_vault_id                      = module.synapse_workspace_private.key_vault_id
+  sql_server_aad_administrator      = var.synapse_aad_administrator
+  sql_server_administrator_username = var.sql_server_administrator_username
 
   depends_on = [
     module.synapse_workspace_private

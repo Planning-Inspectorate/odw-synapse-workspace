@@ -221,6 +221,7 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 | <a name="input_sql_pool_collation"></a> [sql\_pool\_collation](#input\_sql\_pool\_collation) | The collation of the Synapse-linked dedicated SQL pool | `string` | `"SQL_Latin1_General_CP1_CI_AS"` | no |
 | <a name="input_sql_pool_enabled"></a> [sql\_pool\_enabled](#input\_sql\_pool\_enabled) | Determines whether a Synapse-linked dedicated SQL pool should be deployed | `bool` | `false` | no |
 | <a name="input_sql_pool_sku_name"></a> [sql\_pool\_sku\_name](#input\_sql\_pool\_sku\_name) | The SKU of the Synapse-linked dedicated SQL pool | `string` | `"DW100c"` | no |
+| <a name="input_sql_server_administrator_username"></a> [sql\_server\_administrator\_username](#input\_sql\_server\_administrator\_username) | The SQL administrator username for the SQL Server | `string` | `"sqladmin"` | no |
 | <a name="input_sql_server_enabled"></a> [sql\_server\_enabled](#input\_sql\_server\_enabled) | Determins whether a SQL Server should be deployed | `string` | `false` | no |
 | <a name="input_synapse_aad_administrator"></a> [synapse\_aad\_administrator](#input\_synapse\_aad\_administrator) | A map describing the username and Azure AD object ID for the Syanapse administrator account | `map(string)` | n/a | yes |
 | <a name="input_synapse_role_assignments"></a> [synapse\_role\_assignments](#input\_synapse\_role\_assignments) | The Synapse-specific RBAC assignments to be applied to the Synapse Workspace | `map(string)` | `{}` | no |
