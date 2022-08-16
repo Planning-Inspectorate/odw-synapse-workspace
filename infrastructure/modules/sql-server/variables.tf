@@ -3,6 +3,11 @@ variable "environment" {
   type        = string
 }
 
+variable "key_vault_id" {
+  description = "The ID of the Key Vault to use for secret storage"
+  type        = string
+}
+
 variable "resource_group_name" {
   description = "The name of the resource group into which resources will be deployed"
   type        = string
@@ -21,6 +26,12 @@ variable "service_name" {
 variable "sql_server_aad_administrator" {
   description = "A map describing the username and Azure AD object ID for the SQL administrator account"
   type        = map(string)
+}
+
+variable "sql_server_administrator_username" {
+  default     = "sqladmin"
+  description = "The SQL administrator username for the SQL Server"
+  type        = string
 }
 
 variable "tags" {

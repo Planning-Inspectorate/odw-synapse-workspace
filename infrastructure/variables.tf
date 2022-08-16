@@ -121,6 +121,12 @@ variable "synapse_aad_administrator" {
   type        = map(string)
 }
 
+variable "sql_server_administrator_username" {
+  default     = "sqladmin"
+  description = "The SQL administrator username for the SQL Server"
+  type        = string
+}
+
 variable "synapse_role_assignments" {
   default     = {}
   description = "The Synapse-specific RBAC assignments to be applied to the Synapse Workspace"
