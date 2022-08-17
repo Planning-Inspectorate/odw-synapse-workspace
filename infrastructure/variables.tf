@@ -110,6 +110,12 @@ variable "sql_pool_sku_name" {
   type        = string
 }
 
+variable "sql_server_administrator_username" {
+  default     = "sqladmin"
+  description = "The SQL administrator username for the SQL Server"
+  type        = string
+}
+
 variable "sql_server_enabled" {
   default     = false
   description = "Determins whether a SQL Server should be deployed"
@@ -121,10 +127,10 @@ variable "synapse_aad_administrator" {
   type        = map(string)
 }
 
-variable "sql_server_administrator_username" {
-  default     = "sqladmin"
-  description = "The SQL administrator username for the SQL Server"
-  type        = string
+variable "synapse_data_exfiltration_enabled" {
+  default     = false
+  description = "Determines whether the Synapse Workspace should have data exfiltration protection enabled"
+  type        = bool
 }
 
 variable "synapse_role_assignments" {
