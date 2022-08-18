@@ -82,6 +82,7 @@ module "synapse_workspace_private" {
   sql_pool_collation                    = var.sql_pool_collation
   sql_pool_sku_name                     = var.sql_pool_sku_name
   synapse_aad_administrator             = var.synapse_aad_administrator
+  synapse_data_exfiltration_enabled     = var.synapse_data_exfiltration_enabled
   synapse_private_endpoint_dns_zone_id  = module.synapse_network.synapse_private_dns_zone_id
   synapse_private_endpoint_subnet_name  = local.synapse_subnet_name
   synapse_private_endpoint_vnet_subnets = module.synapse_network.vnet_subnets

@@ -107,6 +107,12 @@ variable "synapse_aad_administrator" {
   type        = map(string)
 }
 
+variable "synapse_data_exfiltration_enabled" {
+  default     = false
+  description = "Determines whether the Synapse Workspace should have data exfiltration protection enabled"
+  type        = bool
+}
+
 variable "synapse_private_endpoint_dns_zone_id" {
   description = "The ID of the Private DNS Zone hosting privatelink.azuresynapse.net"
   type        = string
