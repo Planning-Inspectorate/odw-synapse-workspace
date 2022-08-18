@@ -22,3 +22,8 @@ output "synapse_workspace_id" {
   description = "The ID of the Synapse Workspace"
   value       = azurerm_synapse_workspace.synapse.id
 }
+
+output "synapse_workspace_name" {
+  description = "The name of the Synapse Workspace"
+  value       = azurerm_synapse_workspace.synapse.name
+}
