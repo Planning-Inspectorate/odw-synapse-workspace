@@ -12,3 +12,18 @@ resource "azurerm_key_vault_secret" "bastion_vm_admin_password" {
     ]
   }
 }
+
+resource "azurerm_key_vault_secret" "bastion_vm_admin_username" {
+  content_type    = "text/plain"
+  key_vault_id    = var.key_vault_id
+  name            = "bastion-vm-admin-username"
+  value           = var.bastion_vm_username
+  expiration_date = timeadd(timestamp(), "867834h")
+
+  lifecycle {
+    ignore_changes = [
+      expiration_date,
+      value
+    ]
+  }
+}
