@@ -45,6 +45,7 @@ module "bastion_host" {
   location            = module.azure_region.location_cli
   service_name        = local.service_name
 
+  bastion_vm_image            = var.bastion_vm_image
   bastion_vm_username         = var.bastion_vm_username
   bastion_vm_size             = var.bastion_vm_size
   key_vault_id                = module.synapse_management.key_vault_id

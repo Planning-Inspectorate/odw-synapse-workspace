@@ -1,6 +1,12 @@
-bastion_host_enabled = false
+bastion_host_enabled = true
 bastion_vm_username  = "basadmin"
 bastion_vm_size      = "Standard_F2s_v2"
+bastion_vm_image = {
+  publisher = "microsoft-dsvm"
+  offer     = "dsvm-win-2019"
+  sku       = "winserver-2019"
+  version   = "latest"
+}
 
 data_lake_account_tier     = "Standard"
 data_lake_replication_type = "GRS"
