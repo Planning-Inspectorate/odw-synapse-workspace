@@ -8,6 +8,11 @@ output "key_vault_id" {
   value       = azurerm_key_vault.synapse.id
 }
 
+output "synapse_endpoints" {
+  description = "A list of connectivity endpoints associated with the Synapse Workspace"
+  value       = azurerm_synapse_workspace.synapse.connectivity_endpoints
+}
+
 output "synapse_spark_pool_id" {
   description = "The ID of the Synapse Spark Pool"
   value       = azurerm_synapse_spark_pool.synapse[0].id
