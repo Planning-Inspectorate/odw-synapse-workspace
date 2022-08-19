@@ -13,6 +13,11 @@ output "key_vault_uri" {
   value       = module.synapse_workspace_private.key_vault_uri
 }
 
+output "service_bus_namespace_name" {
+  description = "The name of the Service Bus Namespace"
+  value       = module.synapse_ingestion.service_bus_namespace_name
+}
+
 output "synapse_dsql_endpoint" {
   description = "The connectivity endpoint for the dedicated SQL pool"
   value       = module.synapse_workspace_private.synapse_endpoints["sql"]
