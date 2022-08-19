@@ -1,6 +1,12 @@
 bastion_host_enabled = false
 bastion_vm_username  = "basadmin"
 bastion_vm_size      = "Standard_F2s_v2"
+bastion_vm_image = {
+  publisher = "MicrosoftWindowsDesktop"
+  offer     = "windows-11"
+  sku       = "win11-21h2-ent"
+  version   = "latest"
+}
 
 data_lake_account_tier     = "Standard"
 data_lake_replication_type = "GRS"

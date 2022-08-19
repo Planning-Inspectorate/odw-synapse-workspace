@@ -4,6 +4,17 @@ variable "bastion_host_enabled" {
   type        = bool
 }
 
+variable "bastion_vm_image" {
+  default = {
+    publisher = "MicrosoftWindowsDesktop"
+    offer     = "windows-11"
+    sku       = "win11-21h2-ent"
+    version   = "latest"
+  }
+  description = "An object describing the image specification to use for the Bastion jumpbox VM"
+  type        = map(string)
+}
+
 variable "bastion_vm_username" {
   default     = "basadmin"
   description = "The Windows administrator username for the Bastion jumpbox VM"

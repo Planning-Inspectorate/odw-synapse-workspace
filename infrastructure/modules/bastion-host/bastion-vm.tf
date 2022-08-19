@@ -31,10 +31,10 @@ resource "azurerm_windows_virtual_machine" "jumpbox" {
   }
 
   source_image_reference {
-    publisher = "MicrosoftWindowsDesktop"
-    offer     = "windows-11"
-    sku       = "win11-21h2-ent"
-    version   = "latest"
+    publisher = var.bastion_vm_image["publisher"]
+    offer     = var.bastion_vm_image["offer"]
+    sku       = var.bastion_vm_image["sku"]
+    version   = var.bastion_vm_image["version"]
   }
 
   tags = local.tags
