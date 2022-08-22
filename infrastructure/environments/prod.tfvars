@@ -11,11 +11,12 @@ bastion_vm_image = {
 data_lake_account_tier     = "Standard"
 data_lake_replication_type = "GZRS"
 data_lake_role_assignments = {
-  "Storage Blob Data Contributor" = "1fa42635-5dc3-43bc-b5da-77578f3dabb7" # pins-odw-prod-administrators
-  "Storage Blob Data Contributor" = "5c56c7a0-6845-43e7-877c-c8dd527107a3" # pins-odw-prod-dataengineers
-  # d1761ac5-c65f-4b48-bee9-a2179b989adc # planninginspectorate-operational-data-warehouse-a82fd28d-5989-4e06-a0bb-1a5d859f9e0c
+  "Storage Blob Data Contributor" = [
+    "1fa42635-5dc3-43bc-b5da-77578f3dabb7", # pins-odw-prod-administrators
+    "5c56c7a0-6845-43e7-877c-c8dd527107a3", # pins-odw-prod-dataengineers
+    "d1761ac5-c65f-4b48-bee9-a2179b989adc"  # planninginspectorate-operational-data-warehouse-a82fd28d-5989-4e06-a0bb-1a5d859f9e0c
+  ]
 }
-
 data_lake_storage_containers = [
   "odw-curated",
   "odw-raw",
@@ -28,8 +29,12 @@ environment = "prod"
 location    = "uk-south"
 
 key_vault_role_assignments = {
-  "Key Vault Administrator"   = "1fa42635-5dc3-43bc-b5da-77578f3dabb7" # pins-odw-prod-administrators
-  "Key Vault Secrets Officer" = "5c56c7a0-6845-43e7-877c-c8dd527107a3" # pins-odw-preprod-dataengineers
+  "Key Vault Administrator" = [
+    "1fa42635-5dc3-43bc-b5da-77578f3dabb7" # pins-odw-prod-administrators
+  ],
+  "Key Vault Secrets Officer" = [
+    "5c56c7a0-6845-43e7-877c-c8dd527107a3" # pins-odw-preprod-dataengineers
+  ]
 }
 
 network_watcher_enabled = false
@@ -55,9 +60,16 @@ synapse_aad_administrator = {
 synapse_data_exfiltration_enabled  = true
 synapse_sql_administrator_username = "synadmin"
 synapse_role_assignments = {
-  "Synapse Administrator"    = "a2568721-f55c-4cbe-8cef-3d4fa2e1cee7" # pins-odw-data-prod-syn-ws-administrators
-  "Synapse Contributor"      = "76259388-176a-4db7-a5b7-db2861ef7220" # pins-odw-data-prod-syn-ws-contributors
-  "Synapse Compute Operator" = "df8e79ba-3f7b-457c-936a-dada88cb178a" # pins-odw-data-prod-syn-ws-computeoperators
+  "Synapse Administrator" = [
+    "a2568721-f55c-4cbe-8cef-3d4fa2e1cee7", # pins-odw-data-prod-syn-ws-administrators
+    "d1761ac5-c65f-4b48-bee9-a2179b989adc"  # planninginspectorate-operational-data-warehouse-a82fd28d-5989-4e06-a0bb-1a5d859f9e0c
+  ],
+  "Synapse Contributor" = [
+    "76259388-176a-4db7-a5b7-db2861ef7220" # pins-odw-data-prod-syn-ws-contributors
+  ],
+  "Synapse Compute Operator" = [
+    "df8e79ba-3f7b-457c-936a-dada88cb178a" # pins-odw-data-prod-syn-ws-computeoperators
+  ]
 }
 
 tags = {}
