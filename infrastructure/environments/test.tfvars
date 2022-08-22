@@ -23,8 +23,12 @@ environment = "test"
 location    = "uk-south"
 
 key_vault_role_assignments = {
-  "Key Vault Administrator"   = "8274feca-09ef-41b1-9b4e-5eedc3384df4" # pins-odw-preprod-administrators
-  "Key Vault Secrets Officer" = "7c906e1b-ffbb-44d3-89a1-6772b9c9c148" # pins-odw-preprod-dataengineers
+  "Key Vault Administrator" = [
+    "8274feca-09ef-41b1-9b4e-5eedc3384df4" # pins-odw-preprod-administrators
+  ],
+  "Key Vault Secrets Officer" = [
+    "7c906e1b-ffbb-44d3-89a1-6772b9c9c148" # pins-odw-preprod-dataengineers
+  ]
 }
 
 network_watcher_enabled = false
