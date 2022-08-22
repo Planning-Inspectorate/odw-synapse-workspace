@@ -54,10 +54,16 @@ synapse_aad_administrator = {
 synapse_data_exfiltration_enabled  = true
 synapse_sql_administrator_username = "synadmin"
 synapse_role_assignments = {
-  "Synapse Administrator"    = "be52cb0c-858f-4698-8c40-3a5ec793a2e3" # pins-odw-data-preprod-syn-ws-administrators
-  "Synapse Administrator"    = "f8c91c99-0817-4a02-9577-eddb0b3ebd29" # planninginspectorate-operational-data-warehouse-6b18ba9d-2399-48b5-a834-e0f267be122d
-  "Synapse Contributor"      = "d59a3e85-58db-4b70-8f88-3f4a4a82ee27" # pins-odw-data-preprod-syn-ws-contributors
-  "Synapse Compute Operator" = "f9c580cd-cab0-4c49-9f50-290194ade29e" # pins-odw-data-preprod-syn-ws-computeoperators
+  "Synapse Administrator" = [
+    "be52cb0c-858f-4698-8c40-3a5ec793a2e3", # pins-odw-data-preprod-syn-ws-administrators
+    "51432f9e-c5a2-468f-8421-5984d097d1f9"  # planninginspectorate-operational-data-warehouse-6b18ba9d-2399-48b5-a834-e0f267be122d
+  ],
+  "Synapse Contributor" = [
+    "d59a3e85-58db-4b70-8f88-3f4a4a82ee27" # pins-odw-data-preprod-syn-ws-contributors
+  ],
+  "Synapse Compute Operator" = [
+    "f9c580cd-cab0-4c49-9f50-290194ade29e" # pins-odw-data-preprod-syn-ws-computeoperators
+  ]
 }
 
 tags = {}
