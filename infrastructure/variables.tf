@@ -39,10 +39,10 @@ variable "data_lake_replication_type" {
   type        = string
 }
 
-variable "data_lake_rbac_blob_data_contributors" {
-  default     = []
-  description = "List of AAD principals to be assigned to the Storage Blob Data Contributor RBAC role for the data lake Storage Account"
-  type        = list(string)
+variable "data_lake_role_assignments" {
+  default     = {}
+  description = "An object mapping RBAC roles to principal IDs for the data lake Storage Account"
+  type        = map(list(string))
 }
 
 variable "data_lake_storage_containers" {
