@@ -5,8 +5,8 @@ variable "environment" {
 
 variable "key_vault_role_assignments" {
   default     = {}
-  description = "The RBAC assignments to be applied to the Key Vault"
-  type        = map(string)
+  description = "An object mapping RBAC roles to principal IDs for Key Vault"
+  type        = map(list(string))
 }
 
 variable "resource_group_name" {
