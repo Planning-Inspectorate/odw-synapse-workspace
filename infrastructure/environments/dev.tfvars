@@ -13,6 +13,7 @@ data_lake_replication_type = "GRS"
 data_lake_role_assignments = {
   "Storage Blob Data Contributor" = "ebcc4498-4abe-4457-8970-7fa08bf87543" # pins-odw-dev-administrators
   "Storage Blob Data Contributor" = "48bd5755-6d7d-4a17-b044-7522c54e9c7d" # pins-odw-dev-dataengineers
+  # b4dbfba4-b78b-4163-9b39-87ea03e2d5ed # planninginspectorate-operational-data-warehouse-ff442a29-fc06-4a13-8e3e-65fd5da513b3
 }
 
 data_lake_storage_containers = [

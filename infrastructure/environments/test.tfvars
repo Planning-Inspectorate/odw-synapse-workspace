@@ -8,7 +8,7 @@ data_lake_role_assignments = {
   "Storage Blob Data Contributor" = [
     "8274feca-09ef-41b1-9b4e-5eedc3384df4", # pins-odw-preprod-administrators
     "7c906e1b-ffbb-44d3-89a1-6772b9c9c148", # pins-odw-preprod-dataengineers
-    "f8c91c99-0817-4a02-9577-eddb0b3ebd29"  # planninginspectorate-operational-data-warehouse-6b18ba9d-2399-48b5-a834-e0f267be122d
+    "51432f9e-c5a2-468f-8421-5984d097d1f9"  # planninginspectorate-operational-data-warehouse-6b18ba9d-2399-48b5-a834-e0f267be122d
   ]
 }
 data_lake_storage_containers = [
