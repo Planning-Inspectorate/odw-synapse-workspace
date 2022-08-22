@@ -69,8 +69,8 @@ module "synapse_workspace_private" {
   service_name        = local.service_name
 
   data_lake_account_tier                = var.data_lake_account_tier
+  data_lake_rbac_blob_data_contributors = var.data_lake_rbac_blob_data_contributors
   data_lake_replication_type            = var.data_lake_replication_type
-  data_lake_role_assignments            = var.data_lake_role_assignments
   data_lake_storage_containers          = var.data_lake_storage_containers
   key_vault_role_assignments            = var.key_vault_role_assignments
   purview_id                            = module.synapse_management.purview_id

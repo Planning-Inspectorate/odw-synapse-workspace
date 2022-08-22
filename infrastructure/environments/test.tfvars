@@ -1,19 +1,19 @@
 bastion_host_enabled = false
 bastion_vm_username  = "basadmin"
 bastion_vm_size      = "Standard_F2s_v2"
-bastion_vm_image = {
-  publisher = "MicrosoftWindowsDesktop"
-  offer     = "windows-11"
-  sku       = "win11-21h2-ent"
-  version   = "latest"
-}
 
 data_lake_account_tier     = "Standard"
 data_lake_replication_type = "GRS"
-data_lake_role_assignments = {
-  "Storage Blob Data Contributor" = "8274feca-09ef-41b1-9b4e-5eedc3384df4" # pins-odw-preprod-administrators
-  "Storage Blob Data Contributor" = "7c906e1b-ffbb-44d3-89a1-6772b9c9c148" # pins-odw-preprod-dataengineers
-}
+# data_lake_role_assignments = {
+#   "Storage Blob Data Contributor" = "8274feca-09ef-41b1-9b4e-5eedc3384df4" # pins-odw-preprod-administrators
+#   "Storage Blob Data Contributor" = "7c906e1b-ffbb-44d3-89a1-6772b9c9c148" # pins-odw-preprod-dataengineers
+#   "Storage Blob Data Contributor" = "f8c91c99-0817-4a02-9577-eddb0b3ebd29" # planninginspectorate-operational-data-warehouse-6b18ba9d-2399-48b5-a834-e0f267be122d
+# }
+data_lake_rbac_blob_data_contributors = [
+  "8274feca-09ef-41b1-9b4e-5eedc3384df4", # pins-odw-preprod-administrators
+  "7c906e1b-ffbb-44d3-89a1-6772b9c9c148", # pins-odw-preprod-dataengineers
+  "f8c91c99-0817-4a02-9577-eddb0b3ebd29"  # planninginspectorate-operational-data-warehouse-6b18ba9d-2399-48b5-a834-e0f267be122d
+]
 
 data_lake_storage_containers = [
   "odw-curated",
@@ -55,6 +55,7 @@ synapse_data_exfiltration_enabled  = true
 synapse_sql_administrator_username = "synadmin"
 synapse_role_assignments = {
   "Synapse Administrator"    = "be52cb0c-858f-4698-8c40-3a5ec793a2e3" # pins-odw-data-preprod-syn-ws-administrators
+  "Synapse Administrator"    = "f8c91c99-0817-4a02-9577-eddb0b3ebd29" # planninginspectorate-operational-data-warehouse-6b18ba9d-2399-48b5-a834-e0f267be122d
   "Synapse Contributor"      = "d59a3e85-58db-4b70-8f88-3f4a4a82ee27" # pins-odw-data-preprod-syn-ws-contributors
   "Synapse Compute Operator" = "f9c580cd-cab0-4c49-9f50-290194ade29e" # pins-odw-data-preprod-syn-ws-computeoperators
 }

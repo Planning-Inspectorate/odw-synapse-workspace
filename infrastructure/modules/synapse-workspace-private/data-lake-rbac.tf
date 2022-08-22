@@ -1,9 +1,9 @@
 resource "azurerm_role_assignment" "data_lake" {
-  for_each = var.data_lake_role_assignments
+  for_each = toset(var.data_lake_rbac_blob_data_contributors)
 
   scope                = azurerm_storage_account.synapse.id
-  role_definition_name = each.key
-  principal_id         = each.value
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = each.key
 }
 
 resource "azurerm_role_assignment" "synapse_msi_data_lake" {
