@@ -142,4 +142,6 @@ module "synapse_sql_server" {
   depends_on = [
     module.synapse_workspace_private
   ]
+
+  tags = local.tags
 }

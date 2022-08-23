@@ -12,8 +12,8 @@ variable "data_lake_replication_type" {
 
 variable "data_lake_role_assignments" {
   default     = {}
-  description = "The RBAC assignments to be applied to the Synapse data lake Storage Account"
-  type        = map(string)
+  description = "An object mapping RBAC roles to principal IDs for the data lake Storage Account"
+  type        = map(list(string))
 }
 
 variable "data_lake_storage_containers" {
@@ -29,8 +29,8 @@ variable "environment" {
 
 variable "key_vault_role_assignments" {
   default     = {}
-  description = "The RBAC assignments to be applied to the Key Vault"
-  type        = map(string)
+  description = "An object mapping RBAC roles to principal IDs for Key Vault"
+  type        = map(list(string))
 }
 
 variable "purview_id" {
@@ -131,8 +131,8 @@ variable "synapse_private_endpoint_vnet_subnets" {
 
 variable "synapse_role_assignments" {
   default     = {}
-  description = "The Synapse-specific RBAC assignments to be applied to the Synapse Workspace"
-  type        = map(string)
+  description = "An object mapping RBAC roles to principal IDs for the Synapse Workspace"
+  type        = map(list(string))
 }
 
 variable "synapse_sql_administrator_username" {
