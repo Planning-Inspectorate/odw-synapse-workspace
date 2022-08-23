@@ -18,13 +18,18 @@ output "service_bus_namespace_name" {
   value       = module.synapse_ingestion.service_bus_namespace_name
 }
 
+output "synapse_dev_endpoint" {
+  description = "The development connectivity endpoint for the Synapse Workspace"
+  value       = module.synapse_workspace_private.synapse_endpoints["dev"]
+}
+
 output "synapse_dsql_endpoint" {
-  description = "The connectivity endpoint for the dedicated SQL pool"
+  description = "The dedicated SQL pool connectivity endpoint for the Synapse Workspace"
   value       = module.synapse_workspace_private.synapse_endpoints["sql"]
 }
 
 output "synapse_ssql_endpoint" {
-  description = "The connectivity endpoint for the serverless SQL pool"
+  description = "The serverless SQL pool connectivity endpoint for the Synapse Workspace"
   value       = module.synapse_workspace_private.synapse_endpoints["sqlOnDemand"]
 }
 
