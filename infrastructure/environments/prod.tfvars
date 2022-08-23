@@ -33,7 +33,7 @@ key_vault_role_assignments = {
     "1fa42635-5dc3-43bc-b5da-77578f3dabb7" # pins-odw-prod-administrators
   ],
   "Key Vault Secrets Officer" = [
-    "5c56c7a0-6845-43e7-877c-c8dd527107a3" # pins-odw-preprod-dataengineers
+    "5c56c7a0-6845-43e7-877c-c8dd527107a3" # pins-odw-prod-dataengineers
   ]
 }
 
