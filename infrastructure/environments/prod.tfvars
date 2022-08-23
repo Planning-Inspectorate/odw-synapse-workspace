@@ -2,9 +2,9 @@ bastion_host_enabled = false
 bastion_vm_username  = "basadmin"
 bastion_vm_size      = "Standard_F2s_v2"
 bastion_vm_image = {
-  publisher = "MicrosoftWindowsDesktop"
-  offer     = "windows-11"
-  sku       = "win11-21h2-ent"
+  publisher = "microsoft-dsvm"
+  offer     = "dsvm-win-2019"
+  sku       = "winserver-2019"
   version   = "latest"
 }
 
