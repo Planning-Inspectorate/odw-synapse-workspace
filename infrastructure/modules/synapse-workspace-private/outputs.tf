@@ -8,6 +8,11 @@ output "data_lake_dfs_endpoint" {
   value       = azurerm_storage_account.synapse.primary_dfs_endpoint
 }
 
+output "data_lake_managed_private_endpoint_name" {
+  description = "The name of the Synapse managed private endpoint connection to the Data Lake Storage Account"
+  value       = azurerm_synapse_managed_private_endpoint.data_lake.name
+}
+
 output "key_vault_id" {
   description = "The ID of the Key Vault"
   value       = azurerm_key_vault.synapse.id
