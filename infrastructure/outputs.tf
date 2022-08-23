@@ -1,3 +1,8 @@
+output "data_lake_account_id" {
+  description = "The ID of the Data Lake Storage Account"
+  value       = module.synapse_workspace_private.data_lake_account_id
+}
+
 output "data_lake_dfs_endpoint" {
   description = "The DFS endpoint URL of the Data Lake Storage Account"
   value       = module.synapse_workspace_private.data_lake_dfs_endpoint
