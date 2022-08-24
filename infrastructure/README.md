@@ -238,7 +238,6 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 |------|-------------|
 | <a name="output_data_lake_account_id"></a> [data\_lake\_account\_id](#output\_data\_lake\_account\_id) | The ID of the Data Lake Storage Account |
 | <a name="output_data_lake_dfs_endpoint"></a> [data\_lake\_dfs\_endpoint](#output\_data\_lake\_dfs\_endpoint) | The DFS endpoint URL of the Data Lake Storage Account |
-| <a name="output_data_lake_managed_private_endpoint_name"></a> [data\_lake\_managed\_private\_endpoint\_name](#output\_data\_lake\_managed\_private\_endpoint\_name) | The name of the Synapse managed private endpoint connection to the Data Lake Storage Account |
 | <a name="output_data_resource_group_name"></a> [data\_resource\_group\_name](#output\_data\_resource\_group\_name) | The name of the data application resource group |
 | <a name="output_key_vault_uri"></a> [key\_vault\_uri](#output\_key\_vault\_uri) | The URI of the Key Vault |
 | <a name="output_service_bus_namespace_name"></a> [service\_bus\_namespace\_name](#output\_service\_bus\_namespace\_name) | The name of the Service Bus Namespace |

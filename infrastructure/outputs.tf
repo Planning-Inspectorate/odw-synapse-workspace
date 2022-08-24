@@ -8,11 +8,6 @@ output "data_lake_dfs_endpoint" {
   value       = module.synapse_workspace_private.data_lake_dfs_endpoint
 }
 
-output "data_lake_managed_private_endpoint_name" {
-  description = "The name of the Synapse managed private endpoint connection to the Data Lake Storage Account"
-  value       = module.synapse_workspace_private.data_lake_managed_private_endpoint_name
-}
-
 output "data_resource_group_name" {
   description = "The name of the data application resource group"
   value       = azurerm_resource_group.data.name
