@@ -12,7 +12,6 @@ resource "azurerm_mssql_server" "sql_server" {
     azuread_authentication_only = false
     login_username              = var.sql_server_aad_administrator["username"]
     object_id                   = var.sql_server_aad_administrator["object_id"]
-    tenant_id                   = data.azurerm_client_config.current.tenant_id
   }
 
   identity {

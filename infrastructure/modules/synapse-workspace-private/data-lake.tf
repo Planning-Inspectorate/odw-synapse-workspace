@@ -1,8 +1,9 @@
+
 resource "azurerm_storage_account" "synapse" {
   #checkov:skip=CKV_AZURE_35:   TODO: Set default network access to deny
-  #checkov:skip=CKV2_AZURE_1:   TODO: Implement customer-managed keys for encryption
+  #checkov:skip=CKV2_AZURE_1:   SKIP: Microsoft managed keys are acceptable
   #checkov:skip=CKV2_AZURE_8:   TODO: Set activity log container to private
-  #checkov:skip=CKV2_AZURE_18:  TODO: Implement customer-managed keys for encryption
+  #checkov:skip=CKV2_AZURE_18:  SKIP: Microsoft managed keys are acceptable
   name                      = replace("pins-st-${local.resource_suffix}-${random_string.unique_id.id}", "-", "")
   resource_group_name       = var.resource_group_name
   location                  = var.location
@@ -46,7 +47,7 @@ resource "azurerm_storage_data_lake_gen2_filesystem" "synapse" {
 }
 
 resource "azurerm_storage_container" "synapse" {
-  #checkov:skip=CKV2_AZURE_21:  TODO: Set storage logging for blob service
+  #checkov:skip=CKV2_AZURE_21:  SKIP: Implemented in synapse-monitoring module
   for_each = toset(var.data_lake_storage_containers)
 
   name                  = each.key
