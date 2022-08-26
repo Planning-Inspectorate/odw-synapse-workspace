@@ -1,8 +1,8 @@
 resource "azurerm_storage_account" "sql_server_auditing" {
   #checkov:skip=CKV_AZURE_35:   TODO: Set default network access to deny
-  #checkov:skip=CKV2_AZURE_1:   TODO: Implement customer-managed keys for encryption
+  #checkov:skip=CKV2_AZURE_1:   SKIP: Microsoft managed keys are acceptable
   #checkov:skip=CKV2_AZURE_8:   TODO: Set activity log container to private
-  #checkov:skip=CKV2_AZURE_18:  TODO: Implement customer-managed keys for encryption
+  #checkov:skip=CKV2_AZURE_18:  SKIP: Microsoft managed keys are acceptable
   name                      = replace("pins-st-${local.resource_suffix}-${random_string.unique_id.id}", "-", "")
   location                  = var.location
   resource_group_name       = var.resource_group_name
