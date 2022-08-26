@@ -1,9 +1,3 @@
-resource "random_string" "unique_id" {
-  length  = 6
-  upper   = false
-  special = false
-}
-
 resource "azurerm_storage_account" "synapse" {
   #checkov:skip=CKV_AZURE_35:   TODO: Set default network access to deny
   #checkov:skip=CKV2_AZURE_1:   TODO: Implement customer-managed keys for encryption

@@ -64,9 +64,9 @@ No requirements.
 
 | Name | Version |
 |------|---------|
-| <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) | 3.16.0 |
+| <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) | 3.20.0 |
 | <a name="provider_random"></a> [random](#provider\_random) | 3.3.2 |
-| <a name="provider_time"></a> [time](#provider\_time) | 0.7.2 |
+| <a name="provider_time"></a> [time](#provider\_time) | 0.8.0 |
 
 ## Modules
 
