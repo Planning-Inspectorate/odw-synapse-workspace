@@ -9,18 +9,6 @@ resource "azurerm_synapse_managed_private_endpoint" "data_lake" {
   ]
 }
 
-# resource "null_resource" "synapse_managed_private_endpoint_data_lake_approval" {
-#   provisioner "local-exec" {
-#     command     = ".\\scripts\\Approve-PrivateEndpointConnection.ps1 -ResourceId \"${azurerm_storage_account.synapse.id}\""
-#     interpreter = ["pwsh", "-Command"]
-#     working_dir = path.module
-#   }
-
-#   depends_on = [
-#     azurerm_synapse_managed_private_endpoint.data_lake
-#   ]
-# }
-
 resource "azurerm_private_endpoint" "synapse_dedicated_sql_pool" {
   count = var.sql_pool_enabled ? 1 : 0
 
