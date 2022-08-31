@@ -74,6 +74,16 @@ resource "azurerm_monitor_diagnostic_setting" "synapse" {
   }
 
   log {
+    category = "SynapseLinkEvent"
+    enabled  = true
+
+    retention_policy {
+      days    = 0
+      enabled = false
+    }
+  }
+
+  log {
     category = "SynapseRbacOperations"
     enabled  = true
 
