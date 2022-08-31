@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "44e03b74-0394-4f5c-860e-c13fa36a68b4"
+				"spark.autotune.trackingId": "37cebc48-918c-4d4e-a324-a74dbcfd02b6"
 			}
 		},
 		"metadata": {
@@ -72,11 +72,56 @@
 					}
 				},
 				"source": [
+					"source_full_storage_account_name = \"pinsstodwdevuks9h80mb.blob.core.windows.net\"\r\n",
+					"spark.conf.set(f\"spark.storage.synapse.{source_full_storage_account_name}.linkedServiceName\", \"ls_storage\")\r\n",
+					"spark.conf.set(f\"fs.azure.account.oauth.provider.type.{source_full_storage_account_name}\", \"com.microsoft.azure.synapse.tokenlibrary.LinkedServiceBasedTokenProvider\")\r\n",
+					"\r\n",
+					"\r\n",
+					"df = spark.read.csv(\"abfss://temp-sap-hr-data@pinsstodwdevuks9h80mb.blob.core.windows.net/test.csv\")\r\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"import pyspark\r\n",
+					"query = f\"SELECT * FROM OPENROWSET( 'https://pinsstodwdevuks9h80mb.dfs.core.windows.net/temp-sap-hr-data/test.csv', FORMAT = 'CSV', PARSER_VERSION = '2.0', HEADER_ROW = TRUE) as r\"\r\n",
+					"\r\n",
+					"spark.sql(query)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
 					"from pyspark.sql import SparkSession\r\n",
 					"spark = SparkSession.builder.getOrCreate()\r\n",
 					"\r\n",
-					"source_full_storage_account_name = \"pinsstodwdevuks9h80mb.dfs.core.windows.net\"\r\n",
-					"spark.conf.set(f\"spark.storage.synapse.{source_full_storage_account_name}.ls_storage\", \"ls_storage\")\r\n",
+					"source_full_storage_account_name = \"pinsstodwdevuks9h80mb.blob.core.windows.net\"\r\n",
+					"spark.conf.set(f\"spark.storage.synapse.{source_full_storage_account_name}.linkedServiceName\", \"ls_storage\")\r\n",
 					"spark.conf.set(f\"fs.azure.account.oauth.provider.type.{source_full_storage_account_name}\", \"com.microsoft.azure.synapse.tokenlibrary.LinkedServiceBasedTokenProvider\")\r\n",
 					"\r\n",
 					"test_path = \"abfss://temp-sap-hr-data@pinsstodwdevuks9h80mb.dfs.core.windows.net/HR Absence Data 20220731.xlsx\"\r\n",
@@ -99,7 +144,7 @@
 					}
 				},
 				"source": [
-					"filestring = mssparkutils.credentials.getFullConnectionString('ls_storage').split(\"token=\")[1]"
+					""
 				],
 				"execution_count": null
 			},
@@ -135,14 +180,16 @@
 					}
 				},
 				"source": [
-					" import pandas as pd\r\n",
+					"filestring = mssparkutils.credentials.getFullConnectionString('pins-synw-odw-dev-uks').split(\"token=\")[1]\r\n",
+					"import pandas as pd\r\n",
 					"connstrraw = f'https://pinsstodwdevuks9h80mb.blob.core.windows.net/temp-sap-hr-data/HR Absence Data 20220731.xlsx?{filestring}'\r\n",
+					"print(connstrraw)\r\n",
 					"import urllib.parse\r\n",
 					"connstr = urllib.parse.quote(connstrraw)\r\n",
 					"ReadExcel=pd.read_excel(connstr)\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 71
 			},
 			{
 				"cell_type": "code",
@@ -206,7 +253,7 @@
 					"\r\n",
 					"df.show()"
 				],
-				"execution_count": 42
+				"execution_count": 65
 			},
 			{
 				"cell_type": "code",
@@ -223,12 +270,30 @@
 				},
 				"source": [
 					"mssparkutils.fs.mount( \r\n",
-					"    \"abfss://temp-sap-hr-data@pinsstodwdevuks9h80mb.dfs.core.windows.net\", \r\n",
+					"    \"abfss://temp-sap-hr-data@pinsstodwdevuks9h80mb.blob.core.windows.net\", \r\n",
 					"    \"/test\", \r\n",
 					"    {\"linkedService\":\"pins-synw-odw-dev-uks\"} \r\n",
 					") "
 				],
-				"execution_count": 40
+				"execution_count": 64
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"help('modules')"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
