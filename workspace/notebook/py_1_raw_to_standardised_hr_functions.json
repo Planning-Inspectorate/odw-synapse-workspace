@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5fc8db89-39b8-4ffd-b07e-097682bc36c5"
+				"spark.autotune.trackingId": "e2e32f82-b428-43ec-8912-4593a8c60d62"
 			}
 		},
 		"metadata": {
@@ -56,7 +56,7 @@
 				"source": [
 					"%run \"utils/functions_lib\""
 				],
-				"execution_count": 4
+				"execution_count": 37
 			},
 			{
 				"cell_type": "code",
@@ -74,22 +74,107 @@
 				"source": [
 					"class RawToStandardisedExcel():\r\n",
 					"\r\n",
-					"    def __init__(self, path, sheet_name, header_row):\r\n",
-					"        self.path = path\r\n",
-					"        self.sheet_name = sheet_name\r\n",
-					"        self.header_row = header_row\r\n",
+					"    def __init__(self, storage_acc: str, path: str, linked_service:str, sheet_name: str = None, header_row: int = None):\r\n",
+					"        \r\n",
+					"        ### storage account string e.g. example.dfs.core.windows.net\r\n",
+					"        if type(storage_acc) != str:\r\n",
+					"            raise TypeError(\"Storage account variable is not of type string, should be xxx.dfs.core.windows.net\")\r\n",
+					"        else:\r\n",
+					"            self.storage_acc = storage_acc\r\n",
+					"\r\n",
+					"        ### abfss path to file\r\n",
+					"        if type(path) != str:\r\n",
+					"            raise TypeError(\"File path variable is not of type string\")\r\n",
+					"        elif path.split('abfss://')[0] != '':\r\n",
+					"            raise ValueError(\"File path string is not of abfss:// type\")\r\n",
+					"        else:\r\n",
+					"            self.path = path\r\n",
+					"\r\n",
+					"        ### linked service\r\n",
+					"        if type(linked_service) != str:\r\n",
+					"            raise TypeError(\"Linked service variable is not of type string\")\r\n",
+					"        else:\r\n",
+					"            self.linked_service = linked_service\r\n",
+					"        \r\n",
+					"        ### sheet name \r\n",
+					"        if type(sheet_name) != str:\r\n",
+					"            raise TypeError(\"Sheet name variable is not of type string\")\r\n",
+					"        else:\r\n",
+					"            self.sheet_name = sheet_name\r\n",
+					"\r\n",
+					"        ### header_row\r\n",
+					"        if type(header_row) != int:\r\n",
+					"            raise TypeError(\"Header row variable is not of type int\")\r\n",
+					"        else:\r\n",
+					"            self.header_row = header_row\r\n",
+					"\r\n",
+					"        ### no df on initialisation\r\n",
 					"        self.df = None\r\n",
+					"        \r\n",
 					"    \r\n",
 					"    def ingest(self):\r\n",
-					"        self.df = ingest_excel_to_df(self.path, self.sheet_name, self.header_row)\r\n",
-					"\r\n",
-					"    def convert(self):\r\n",
 					"        from pyspark.sql import SparkSession\r\n",
 					"        spark = SparkSession.builder.getOrCreate()\r\n",
 					"\r\n",
-					"        self.df = spark.createDataFrame(self.df)\r\n",
+					"        self.df = spark.createDataFrame(ingest_excel_to_df(self.storage_acc, self.path, self.linked_service, self.sheet_name, self.header_row))\r\n",
 					"\r\n",
+					"    def convert(self):\r\n",
+					"        return None\r\n",
 					"\r\n",
+					""
+				],
+				"execution_count": 35
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"RawToStandardisedExcel('hello', 'abfss://hello', 'world', 3  )"
+				],
+				"execution_count": 38
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
 					""
 				],
 				"execution_count": null
