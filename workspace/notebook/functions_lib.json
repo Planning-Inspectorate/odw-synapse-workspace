@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "0b04888e-9e98-42c0-ad5f-32467007ef11"
+				"spark.autotune.trackingId": "7b099fe0-3925-4bb7-9ca5-f8516ae1b1d8"
 			}
 		},
 		"metadata": {
@@ -36,9 +36,18 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"def ingest_excel_to_df(filepath, sheet_name, header):\r\n",
+					"def ingest_excel_to_df(storage_acc, filepath, sheet_name, header):\r\n",
+					"\r\n",
+					"    ### initialising spark session and setting appopriate spark variables\r\n",
+					"    from pyspark.sql import SparkSession\r\n",
+					"    spark = SparkSession.builder.getOrCreate()\r\n",
+					"    source_full_storage_account_name = storage_acc\r\n",
+					"    spark.conf.set(f\"spark.storage.synapse.{source_full_storage_account_name}.linkedServiceName\", \"ls_storage\")\r\n",
+					"    spark.conf.set(f\"fs.azure.account.oauth.provider.type.{source_full_storage_account_name}\", \"com.microsoft.azure.synapse.tokenlibrary.LinkedServiceBasedTokenProvider\")\r\n",
+					"\r\n",
+					"    ### reading file with abfss file format\r\n",
 					"    import pandas as pd\r\n",
-					"    df = pd.read_excel(filepath, sheet_name=sheet_name, header=header)\r\n",
+					"    df = pd.read_excel(\"abfss://temp-sap-hr-data@pinsstodwdevuks9h80mb.dfs.core.windows.net/HR Absence Data 20220731.xlsx\")\r\n",
 					"    return df"
 				],
 				"execution_count": null
