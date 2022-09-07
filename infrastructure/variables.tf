@@ -22,6 +22,12 @@ variable "alert_group_synapse_recipients" {
   type        = list(string)
 }
 
+variable "alert_threshold_data_lake_capacity_bytes" {
+  default     = 1099511627776 # 1TiB
+  description = "The threshold at which to trigger an alert for exceeding Data Lake capacity in bytes"
+  type        = number
+}
+
 variable "bastion_host_enabled" {
   default     = false
   description = "Determines if a Bastion Host should be provisioned for management purposes"
