@@ -4,6 +4,9 @@ resource "azurerm_monitor_metric_alert" "synapse_pipeline_runs_failed" {
   scopes              = [var.synapse_workspace_id]
   description         = "Triggers an alert if any Synapse pipeline runs fail"
   enabled             = var.alert_group_synapse_enabled
+  frequency           = "PT1M"
+  severity            = 1
+  window_size         = "PT5M"
 
   criteria {
     metric_name      = "IntegrationPipelineRunsEnded"
