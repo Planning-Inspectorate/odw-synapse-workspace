@@ -1,7 +1,7 @@
 resource "azurerm_monitor_action_group" "platform_alerts" {
   name                = "pins-ag-platform-${local.resource_suffix}"
   resource_group_name = var.resource_group_name
-  short_name          = "ODW Alerts"
+  short_name          = "ODW Platform"
   enabled             = var.alert_group_platform_enabled
 
   dynamic "email_receiver" {
@@ -21,7 +21,7 @@ resource "azurerm_monitor_action_group" "platform_alerts" {
 resource "azurerm_monitor_action_group" "synapse_alerts" {
   name                = "pins-ag-synapse-${local.resource_suffix}"
   resource_group_name = var.resource_group_name
-  short_name          = "ODW Alerts"
+  short_name          = "ODW Synapse"
   enabled             = var.alert_group_synapse_enabled
 
   dynamic "email_receiver" {
