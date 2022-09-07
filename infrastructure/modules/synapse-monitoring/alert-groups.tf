@@ -5,11 +5,12 @@ resource "azurerm_monitor_action_group" "platform_alerts" {
   enabled             = var.alert_group_platform_enabled
 
   dynamic "email_receiver" {
-    for_each = var.alert_group_platform_recipients
+    for_each = toset(var.alert_group_platform_recipients)
+    iterator = mapping
 
     content {
-      name                    = "Send to ${each.value}"
-      email_address           = each.value
+      name                    = "Send to ${mapping.key}"
+      email_address           = mapping.key
       use_common_alert_schema = true
     }
   }
@@ -24,11 +25,12 @@ resource "azurerm_monitor_action_group" "synapse_alerts" {
   enabled             = var.alert_group_synapse_enabled
 
   dynamic "email_receiver" {
-    for_each = var.alert_group_synapse_recipients
+    for_each = toset(var.alert_group_synapse_recipients)
+    iterator = mapping
 
     content {
-      name                    = "Send to ${each.value}"
-      email_address           = each.value
+      name                    = "Send to ${mapping.key}"
+      email_address           = mapping.key
       use_common_alert_schema = true
     }
   }
