@@ -15,6 +15,8 @@ resource "azurerm_monitor_activity_log_alert" "data_lake_deleted" {
   action {
     action_group_id = azurerm_monitor_action_group.platform_alerts.id
   }
+
+  tags = local.tags
 }
 
 resource "azurerm_monitor_activity_log_alert" "data_lake_resource_health" {
@@ -53,4 +55,6 @@ resource "azurerm_monitor_activity_log_alert" "data_lake_resource_health" {
   action {
     action_group_id = azurerm_monitor_action_group.platform_alerts.id
   }
+
+  tags = local.tags
 }

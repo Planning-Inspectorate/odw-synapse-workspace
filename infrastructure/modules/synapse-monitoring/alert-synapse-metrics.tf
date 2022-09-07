@@ -22,4 +22,6 @@ resource "azurerm_monitor_metric_alert" "synapse_pipeline_runs_failed" {
   action {
     action_group_id = azurerm_monitor_action_group.synapse_alerts.id
   }
+
+  tags = local.tags
 }
