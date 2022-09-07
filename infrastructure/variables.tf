@@ -1,3 +1,27 @@
+variable "alert_group_platform_enabled" {
+  default     = false
+  description = "Determines whether the alert group for platform alerts is enabled"
+  type        = bool
+}
+
+variable "alert_group_platform_recipients" {
+  default     = []
+  description = "A list of email recipients to recieve platform alerts"
+  type        = list(string)
+}
+
+variable "alert_group_synapse_enabled" {
+  default     = false
+  description = "Determines whether the alert group for Synapse alerts is enabled"
+  type        = bool
+}
+
+variable "alert_group_synapse_recipients" {
+  default     = []
+  description = "A list of email recipients to recieve Synapse alerts"
+  type        = list(string)
+}
+
 variable "bastion_host_enabled" {
   default     = false
   description = "Determines if a Bastion Host should be provisioned for management purposes"

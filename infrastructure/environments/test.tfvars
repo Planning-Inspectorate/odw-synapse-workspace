@@ -1,3 +1,8 @@
+alert_group_platform_enabled    = true
+alert_group_platform_recipients = ["lester.march@planninginspectorate.gov.uk"]
+alert_group_synapse_enabled     = true
+alert_group_synapse_recipients  = ["lester.march@planninginspectorate.gov.uk"]
+
 bastion_host_enabled = false
 bastion_vm_username  = "basadmin"
 bastion_vm_size      = "Standard_F2s_v2"
