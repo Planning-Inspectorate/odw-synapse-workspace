@@ -25,8 +25,9 @@ resource "azurerm_monitor_activity_log_alert" "data_lake_resource_health" {
   enabled             = var.alert_group_platform_enabled
 
   criteria {
-    category = "ResourceHealth"
-    level    = "Informational"
+    category    = "ResourceHealth"
+    level       = "Informational"
+    resource_id = var.data_lake_account_id
 
     resource_health {
       current = [
