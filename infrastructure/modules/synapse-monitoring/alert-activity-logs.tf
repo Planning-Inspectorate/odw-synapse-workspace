@@ -6,9 +6,10 @@ resource "azurerm_monitor_activity_log_alert" "data_lake_deleted" {
   enabled             = var.alert_group_platform_enabled
 
   criteria {
-    resource_id    = var.data_lake_account_id
-    operation_name = "Microsoft.Storage/storageAccounts/delete"
     category       = "Administrative"
+    level          = "Critical"
+    operation_name = "Microsoft.Storage/storageAccounts/delete"
+    resource_id    = var.data_lake_account_id
   }
 
   action {
