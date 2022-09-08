@@ -106,3 +106,49 @@ resource "azurerm_monitor_metric_alert" "data_lake_latency" {
     action_group_id = azurerm_monitor_action_group.platform_alerts.id
   }
 }
+
+resource "azurerm_monitor_metric_alert" "data_lake_throughput_egress" {
+  name                = "Data Lake Egress"
+  resource_group_name = var.resource_group_name
+  scopes              = [var.data_lake_account_id]
+  description         = "Triggers an alert if the Data Lake Gen2 Storage Account exceeds 100GB/s egress throughput"
+  enabled             = var.alert_group_platform_enabled
+  frequency           = "PT1M"
+  severity            = 3
+  window_size         = "PT1M"
+
+  criteria {
+    metric_name      = "Egress"
+    metric_namespace = "Microsoft.Storage/storageAccounts"
+    aggregation      = "Total"
+    operator         = "GreaterThan"
+    threshold        = 5998995570688 # 5.59TiB/minute (93.13GiB/s)
+  }
+
+  action {
+    action_group_id = azurerm_monitor_action_group.platform_alerts.id
+  }
+}
+
+resource "azurerm_monitor_metric_alert" "data_lake_throughput_ingress" {
+  name                = "Data Lake Ingress"
+  resource_group_name = var.resource_group_name
+  scopes              = [var.data_lake_account_id]
+  description         = "Triggers an alert if the Data Lake Gen2 Storage Account exceeds 50GB/s ingress throughput"
+  enabled             = var.alert_group_platform_enabled
+  frequency           = "PT1M"
+  severity            = 3
+  window_size         = "PT1M"
+
+  criteria {
+    metric_name      = "Ingress"
+    metric_namespace = "Microsoft.Storage/storageAccounts"
+    aggregation      = "Total"
+    operator         = "GreaterThan"
+    threshold        = 3000034656256 # 2.79TiB/minute (46.57GiB/s)
+  }
+
+  action {
+    action_group_id = azurerm_monitor_action_group.platform_alerts.id
+  }
+}
