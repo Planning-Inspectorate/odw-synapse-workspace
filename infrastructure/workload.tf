@@ -21,6 +21,8 @@ module "synapse_management" {
   location            = module.azure_region.location_cli
   service_name        = local.service_name
 
+  key_vault_role_assignments = var.key_vault_role_assignments
+
   tags = local.tags
 }
 
