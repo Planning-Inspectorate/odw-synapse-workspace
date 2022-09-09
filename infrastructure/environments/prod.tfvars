@@ -1,7 +1,7 @@
-alert_group_platform_enabled             = false
-alert_group_platform_recipients          = []
-alert_group_synapse_enabled              = false
-alert_group_synapse_recipients           = []
+alert_group_platform_enabled             = true
+alert_group_platform_recipients          = ["odw_support@planninginspectorate.gov.uk"]
+alert_group_synapse_enabled              = true
+alert_group_synapse_recipients           = ["odw_support@planninginspectorate.gov.uk"]
 alert_threshold_data_lake_capacity_bytes = 10995116277760 # 10TiB
 
 bastion_host_enabled = false
