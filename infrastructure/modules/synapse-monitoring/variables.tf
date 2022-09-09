@@ -1,3 +1,33 @@
+variable "alert_group_platform_enabled" {
+  default     = false
+  description = "Determines whether the alert group for platform alerts is enabled"
+  type        = bool
+}
+
+variable "alert_group_platform_recipients" {
+  default     = []
+  description = "A list of email recipients to recieve platform alerts"
+  type        = list(string)
+}
+
+variable "alert_group_synapse_enabled" {
+  default     = false
+  description = "Determines whether the alert group for Synapse alerts is enabled"
+  type        = bool
+}
+
+variable "alert_group_synapse_recipients" {
+  default     = []
+  description = "A list of email recipients to recieve Synapse alerts"
+  type        = list(string)
+}
+
+variable "alert_threshold_data_lake_capacity_bytes" {
+  default     = 1099511627776 # 1TiB
+  description = "The threshold at which to trigger an alert for exceeding Data Lake capacity in bytes"
+  type        = number
+}
+
 variable "data_lake_account_id" {
   description = "The ID of the Data Lake Storage Account from which to collect diagnostic logs"
   type        = string

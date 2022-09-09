@@ -1,3 +1,9 @@
+alert_group_platform_enabled             = true
+alert_group_platform_recipients          = ["odw_support@planninginspectorate.gov.uk"]
+alert_group_synapse_enabled              = true
+alert_group_synapse_recipients           = ["odw_support@planninginspectorate.gov.uk"]
+alert_threshold_data_lake_capacity_bytes = 10995116277760 # 10TiB
+
 bastion_host_enabled = false
 bastion_vm_username  = "basadmin"
 bastion_vm_size      = "Standard_F2s_v2"
