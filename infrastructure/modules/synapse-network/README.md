@@ -72,7 +72,9 @@ No requirements.
 | Name | Type |
 |------|------|
 | [azurerm_network_watcher.synapse](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/network_watcher) | resource |
+| [azurerm_private_dns_zone.data_lake](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/private_dns_zone) | resource |
 | [azurerm_private_dns_zone.synapse](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/private_dns_zone) | resource |
+| [azurerm_private_dns_zone_virtual_network_link.data_lake](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/private_dns_zone_virtual_network_link) | resource |
 | [azurerm_private_dns_zone_virtual_network_link.synapse](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/private_dns_zone_virtual_network_link) | resource |
 | [azurerm_subnet.synapse](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/subnet) | resource |
 | [azurerm_virtual_network.synapse](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/virtual_network) | resource |
@@ -94,6 +96,7 @@ No requirements.
 
 | Name | Description |
 |------|-------------|
+| <a name="output_data_lake_private_dns_zone_id"></a> [data\_lake\_private\_dns\_zone\_id](#output\_data\_lake\_private\_dns\_zone\_id) | The ID of the Private DNS Zone hosting privatelink.dfs.core.windows.net |
 | <a name="output_synapse_private_dns_zone_id"></a> [synapse\_private\_dns\_zone\_id](#output\_synapse\_private\_dns\_zone\_id) | The ID of the Private DNS Zone hosting privatelink.azuresynapse.net |
 | <a name="output_vnet_id"></a> [vnet\_id](#output\_vnet\_id) | The ID of the Virtual Network deployed in this module |
 | <a name="output_vnet_name"></a> [vnet\_name](#output\_vnet\_name) | The name of the Virtual Network deployed in this module |

@@ -1,3 +1,8 @@
+output "data_lake_private_dns_zone_id" {
+  description = "The ID of the Private DNS Zone hosting privatelink.dfs.core.windows.net"
+  value       = azurerm_private_dns_zone.data_lake.id
+}
+
 output "synapse_private_dns_zone_id" {
   description = "The ID of the Private DNS Zone hosting privatelink.azuresynapse.net"
   value       = azurerm_private_dns_zone.synapse.id
