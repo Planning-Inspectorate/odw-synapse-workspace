@@ -39,6 +39,12 @@ variable "data_lake_replication_type" {
   type        = string
 }
 
+variable "data_lake_retention_days" {
+  default     = 7
+  description = "The number of days blob and queue data will be retained for upon deletion"
+  type        = number
+}
+
 variable "data_lake_role_assignments" {
   default     = {}
   description = "An object mapping RBAC roles to principal IDs for the data lake Storage Account"

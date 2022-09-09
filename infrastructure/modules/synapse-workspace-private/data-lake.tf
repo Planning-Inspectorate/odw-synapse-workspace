@@ -14,26 +14,36 @@ resource "azurerm_storage_account" "synapse" {
   is_hns_enabled            = true
   min_tls_version           = "TLS1_2"
 
+  blob_properties {
+    delete_retention_policy {
+      days = var.data_lake_retention_days
+    }
+
+    container_delete_retention_policy {
+      days = var.data_lake_retention_days
+    }
+  }
+
   queue_properties {
     logging {
       read                  = true
       write                 = true
       delete                = true
-      retention_policy_days = 7
+      retention_policy_days = var.data_lake_retention_days
       version               = "1.0"
     }
 
     minute_metrics {
       enabled               = true
       include_apis          = true
-      retention_policy_days = 7
+      retention_policy_days = var.data_lake_retention_days
       version               = "1.0"
     }
 
     hour_metrics {
       enabled               = true
       include_apis          = true
-      retention_policy_days = 7
+      retention_policy_days = var.data_lake_retention_days
       version               = "1.0"
     }
   }

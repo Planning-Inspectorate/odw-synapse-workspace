@@ -10,6 +10,7 @@ bastion_vm_image = {
 
 data_lake_account_tier     = "Standard"
 data_lake_replication_type = "GZRS"
+data_lake_retention_days   = 28
 data_lake_role_assignments = {
   "Storage Blob Data Contributor" = [
     "1fa42635-5dc3-43bc-b5da-77578f3dabb7", # pins-odw-prod-administrators
