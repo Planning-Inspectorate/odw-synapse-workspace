@@ -13,10 +13,7 @@ resource "azurerm_private_endpoint" "data_lake" {
     name                           = "dataLakeDfs"
     is_manual_connection           = false
     private_connection_resource_id = azurerm_storage_account.synapse.id
-    subresource_names = [
-      "dfs",
-      "dfs_secondary"
-    ]
+    subresource_names              = ["dfs"]
   }
 
   tags = local.tags
