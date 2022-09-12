@@ -1,6 +1,6 @@
 resource "azurerm_private_endpoint" "data_lake" {
   name                = "pins-pe-${azurerm_storage_account.synapse.name}"
-  resource_group_name = var.resource_group_name
+  resource_group_name = var.network_resource_group_name
   location            = var.location
   subnet_id           = var.synapse_private_endpoint_vnet_subnets[var.synapse_private_endpoint_subnet_name]
 

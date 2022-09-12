@@ -77,6 +77,7 @@ module "synapse_workspace_private" {
   data_lake_role_assignments             = var.data_lake_role_assignments
   data_lake_storage_containers           = var.data_lake_storage_containers
   key_vault_role_assignments             = var.key_vault_role_assignments
+  network_resource_group_name            = azurerm_resource_group.network.name
   purview_id                             = module.synapse_management.purview_id
   spark_pool_enabled                     = var.spark_pool_enabled
   spark_pool_max_node_count              = var.spark_pool_max_node_count

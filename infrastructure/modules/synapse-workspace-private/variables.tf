@@ -44,6 +44,11 @@ variable "key_vault_role_assignments" {
   type        = map(list(string))
 }
 
+variable "network_resource_group_name" {
+  description = "The name of the resource group into which private endpoints will be deployed"
+  type        = string
+}
+
 variable "purview_id" {
   default     = null
   description = "The ID of the Purview account to link with the Synapse Workspace"
