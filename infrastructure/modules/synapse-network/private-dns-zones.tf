@@ -1,5 +1,5 @@
 resource "azurerm_private_dns_zone" "data_lake" {
-  name                = "dfs.core.windows.net"
+  name                = "privatelink.dfs.core.windows.net"
   resource_group_name = var.resource_group_name
 
   tags = local.tags
