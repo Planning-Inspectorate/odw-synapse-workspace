@@ -4,15 +4,17 @@ resource "azurerm_storage_account" "synapse" {
   #checkov:skip=CKV2_AZURE_1:   SKIP: Microsoft managed keys are acceptable
   #checkov:skip=CKV2_AZURE_8:   TODO: Set activity log container to private
   #checkov:skip=CKV2_AZURE_18:  SKIP: Microsoft managed keys are acceptable
-  name                      = replace("pins-st-${local.resource_suffix}-${random_string.unique_id.id}", "-", "")
-  resource_group_name       = var.resource_group_name
-  location                  = var.location
-  account_tier              = var.data_lake_account_tier
-  account_replication_type  = var.data_lake_replication_type
-  account_kind              = "StorageV2"
-  enable_https_traffic_only = true
-  is_hns_enabled            = true
-  min_tls_version           = "TLS1_2"
+  name                            = replace("pins-st-${local.resource_suffix}-${random_string.unique_id.id}", "-", "")
+  resource_group_name             = var.resource_group_name
+  location                        = var.location
+  account_tier                    = var.data_lake_account_tier
+  account_replication_type        = var.data_lake_replication_type
+  account_kind                    = "StorageV2"
+  default_to_oauth_authentication = true
+  enable_https_traffic_only       = true
+  is_hns_enabled                  = true
+  min_tls_version                 = "TLS1_2"
+  public_network_access_enabled   = false
 
   blob_properties {
     delete_retention_policy {
