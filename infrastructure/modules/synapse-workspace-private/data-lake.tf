@@ -66,3 +66,10 @@ resource "azurerm_storage_container" "synapse" {
   storage_account_name  = azurerm_storage_account.synapse.name
   container_access_type = "private"
 }
+
+resource "azurerm_storage_container" "test" {
+  #checkov:skip=CKV2_AZURE_21:  SKIP: Testing only - to be removed
+  name                  = "test-container"
+  storage_account_name  = azurerm_storage_account.synapse.name
+  container_access_type = "private"
+}
