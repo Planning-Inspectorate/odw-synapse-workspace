@@ -4,6 +4,11 @@ variable "data_lake_account_tier" {
   type        = string
 }
 
+variable "data_lake_private_endpoint_dns_zone_id" {
+  description = "The ID of the Private DNS Zone hosting privatelink.dfs.core.windows.net"
+  type        = string
+}
+
 variable "data_lake_replication_type" {
   default     = "ZRS"
   description = "The replication type for the Synapse data lake Storage Account"
@@ -37,6 +42,11 @@ variable "key_vault_role_assignments" {
   default     = {}
   description = "An object mapping RBAC roles to principal IDs for Key Vault"
   type        = map(list(string))
+}
+
+variable "network_resource_group_name" {
+  description = "The name of the resource group into which private endpoints will be deployed"
+  type        = string
 }
 
 variable "purview_id" {

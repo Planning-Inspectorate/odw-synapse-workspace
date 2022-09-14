@@ -13,7 +13,7 @@ resource "azurerm_private_endpoint" "synapse_dedicated_sql_pool" {
   count = var.sql_pool_enabled ? 1 : 0
 
   name                = "pins-pe-syn-dsql-${local.resource_suffix}"
-  resource_group_name = var.resource_group_name
+  resource_group_name = var.network_resource_group_name
   location            = var.location
   subnet_id           = var.synapse_private_endpoint_vnet_subnets[var.synapse_private_endpoint_subnet_name]
 
@@ -34,7 +34,7 @@ resource "azurerm_private_endpoint" "synapse_dedicated_sql_pool" {
 
 resource "azurerm_private_endpoint" "synapse_serverless_sql_pool" {
   name                = "pins-pe-syn-ssql-${local.resource_suffix}"
-  resource_group_name = var.resource_group_name
+  resource_group_name = var.network_resource_group_name
   location            = var.location
   subnet_id           = var.synapse_private_endpoint_vnet_subnets[var.synapse_private_endpoint_subnet_name]
 
@@ -55,7 +55,7 @@ resource "azurerm_private_endpoint" "synapse_serverless_sql_pool" {
 
 resource "azurerm_private_endpoint" "synapse_development" {
   name                = "pins-pe-syn-devops-${local.resource_suffix}"
-  resource_group_name = var.resource_group_name
+  resource_group_name = var.network_resource_group_name
   location            = var.location
   subnet_id           = var.synapse_private_endpoint_vnet_subnets[var.synapse_private_endpoint_subnet_name]
 
