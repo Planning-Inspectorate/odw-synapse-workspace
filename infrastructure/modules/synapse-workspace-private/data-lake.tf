@@ -14,7 +14,7 @@ resource "azurerm_storage_account" "synapse" {
   enable_https_traffic_only       = true
   is_hns_enabled                  = true
   min_tls_version                 = "TLS1_2"
-  public_network_access_enabled   = false
+  public_network_access_enabled   = true
 
   blob_properties {
     delete_retention_policy {
