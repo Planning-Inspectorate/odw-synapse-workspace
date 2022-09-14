@@ -180,6 +180,7 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 |------|--------|---------|
 | <a name="module_azure_region"></a> [azure\_region](#module\_azure\_region) | claranet/regions/azurerm | 5.1.0 |
 | <a name="module_bastion_host"></a> [bastion\_host](#module\_bastion\_host) | ./modules/bastion-host | n/a |
+| <a name="module_synapse_data_lake"></a> [synapse\_data\_lake](#module\_synapse\_data\_lake) | ./modules/synapse-data-lake | n/a |
 | <a name="module_synapse_ingestion"></a> [synapse\_ingestion](#module\_synapse\_ingestion) | ./modules/synapse-ingestion | n/a |
 | <a name="module_synapse_management"></a> [synapse\_management](#module\_synapse\_management) | ./modules/synapse-management | n/a |
 | <a name="module_synapse_monitoring"></a> [synapse\_monitoring](#module\_synapse\_monitoring) | ./modules/synapse-monitoring | n/a |

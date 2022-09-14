@@ -7,9 +7,3 @@ resource "random_password" "synapse_sql_administrator_password" {
   min_numeric      = 2
   min_special      = 2
 }
-
-resource "random_string" "unique_id" {
-  length  = 6
-  upper   = false
-  special = false
-}
