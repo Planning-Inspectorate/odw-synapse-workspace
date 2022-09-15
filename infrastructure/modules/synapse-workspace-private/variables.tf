@@ -1,3 +1,8 @@
+variable "data_lake_account_id" {
+  description = "The ID of the Data Lake Storage Account"
+  type        = string
+}
+
 variable "data_lake_account_name" {
   description = "The name of the Data Lake Storage Account"
   type        = string

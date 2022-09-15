@@ -110,6 +110,7 @@ module "synapse_workspace_private" {
   location            = module.azure_region.location_cli
   service_name        = local.service_name
 
+  data_lake_account_id                  = module.synapse_data_lake.data_lake_account_id
   data_lake_account_name                = module.synapse_data_lake.data_lake_account_name
   data_lake_filesystem_id               = module.synapse_data_lake.data_lake_filesystem_id
   key_vault_role_assignments            = var.key_vault_role_assignments
