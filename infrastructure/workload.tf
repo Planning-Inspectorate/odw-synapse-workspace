@@ -28,6 +28,20 @@ module "synapse_network_failover" {
   tags = local.tags
 }
 
+resource "azurerm_virtual_network_peering" "pri_sec" {
+  name                      = "peer-${module.synapse_network.vnet_name}-${module.synapse_network_failover.vnet_name}"
+  resource_group_name       = azurerm_resource_group.network.name
+  virtual_network_name      = module.synapse_network.vnet_name
+  remote_virtual_network_id = module.synapse_network_failover.vnet_id
+}
+
+resource "azurerm_virtual_network_peering" "sec_pri" {
+  name                      = "peer-${module.synapse_network_failover.vnet_name}-${module.synapse_network.vnet_name}"
+  resource_group_name       = azurerm_resource_group.network_failover.name
+  virtual_network_name      = module.synapse_network_failover.vnet_name
+  remote_virtual_network_id = module.synapse_network.vnet_id
+}
+
 module "synapse_management" {
   source = "./modules/synapse-management"
 
