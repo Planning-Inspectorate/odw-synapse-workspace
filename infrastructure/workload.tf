@@ -13,6 +13,21 @@ module "synapse_network" {
   tags = local.tags
 }
 
+module "synapse_network_failover" {
+  source = "./modules/synapse-network"
+
+  environment         = var.environment
+  resource_group_name = azurerm_resource_group.network_failover.name
+  location            = module.azure_region.paired_location.location_cli
+  service_name        = local.service_name
+
+  network_watcher_enabled = var.network_watcher_enabled
+  vnet_base_cidr_block    = var.vnet_base_cidr_block_failover
+  vnet_subnets            = var.vnet_subnets
+
+  tags = local.tags
+}
+
 module "synapse_management" {
   source = "./modules/synapse-management"
 
@@ -52,10 +67,11 @@ module "bastion_host" {
   bastion_vm_size             = var.bastion_vm_size
   key_vault_id                = module.synapse_management.key_vault_id
   synapse_compute_subnet_name = local.compute_subnet_name
-  synapse_vnet_subnets        = module.synapse_network.vnet_subnets
+  synapse_vnet_subnets        = var.failover_deployment ? module.synapse_network_failover.vnet_subnets : module.synapse_network.vnet_subnets
 
   depends_on = [
     module.synapse_network,
+    module.synapse_network_failover,
     module.synapse_management
   ]
 
@@ -71,17 +87,18 @@ module "synapse_data_lake" {
   service_name        = local.service_name
 
   data_lake_account_tier                 = var.data_lake_account_tier
-  data_lake_private_endpoint_dns_zone_id = module.synapse_network.data_lake_private_dns_zone_id
+  data_lake_private_endpoint_dns_zone_id = var.failover_deployment ? module.synapse_network_failover.data_lake_private_dns_zone_id : module.synapse_network.data_lake_private_dns_zone_id
   data_lake_replication_type             = var.data_lake_replication_type
   data_lake_retention_days               = var.data_lake_retention_days
   data_lake_role_assignments             = var.data_lake_role_assignments
   data_lake_storage_containers           = var.data_lake_storage_containers
   network_resource_group_name            = azurerm_resource_group.network.name
   synapse_private_endpoint_subnet_name   = local.synapse_subnet_name
-  synapse_private_endpoint_vnet_subnets  = module.synapse_network.vnet_subnets
+  synapse_private_endpoint_vnet_subnets  = var.failover_deployment ? module.synapse_network_failover.vnet_subnets : module.synapse_network.vnet_subnets
 
   depends_on = [
-    module.synapse_network
+    module.synapse_network,
+    module.synapse_network_failover
   ]
 }
 
@@ -108,15 +125,16 @@ module "synapse_workspace_private" {
   sql_pool_sku_name                     = var.sql_pool_sku_name
   synapse_aad_administrator             = var.synapse_aad_administrator
   synapse_data_exfiltration_enabled     = var.synapse_data_exfiltration_enabled
-  synapse_private_endpoint_dns_zone_id  = module.synapse_network.synapse_private_dns_zone_id
+  synapse_private_endpoint_dns_zone_id  = var.failover_deployment ? module.synapse_network_failover.synapse_private_dns_zone_id : module.synapse_network.synapse_private_dns_zone_id
   synapse_private_endpoint_subnet_name  = local.synapse_subnet_name
-  synapse_private_endpoint_vnet_subnets = module.synapse_network.vnet_subnets
+  synapse_private_endpoint_vnet_subnets = var.failover_deployment ? module.synapse_network_failover.vnet_subnets : module.synapse_network.vnet_subnets
   synapse_sql_administrator_username    = var.synapse_sql_administrator_username
   synapse_role_assignments              = var.synapse_role_assignments
 
   depends_on = [
     module.synapse_data_lake,
     module.synapse_network,
+    module.synapse_network_failover,
     module.synapse_management
   ]
 
@@ -144,11 +162,13 @@ module "synapse_monitoring" {
   synapse_spark_pool_id                    = module.synapse_workspace_private.synapse_spark_pool_id
   synapse_sql_pool_id                      = module.synapse_workspace_private.synapse_sql_pool_id
   synapse_workspace_id                     = module.synapse_workspace_private.synapse_workspace_id
-  synapse_vnet_id                          = module.synapse_network.vnet_id
+  synapse_vnet_id                          = var.failover_deployment ? module.synapse_network_failover.vnet_id : module.synapse_network.vnet_id
 
   depends_on = [
     module.synapse_data_lake,
     module.synapse_ingestion,
+    module.synapse_network,
+    module.synapse_network_failover,
     module.synapse_workspace_private
   ]
 

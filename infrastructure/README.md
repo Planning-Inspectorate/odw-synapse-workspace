@@ -185,6 +185,7 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 | <a name="module_synapse_management"></a> [synapse\_management](#module\_synapse\_management) | ./modules/synapse-management | n/a |
 | <a name="module_synapse_monitoring"></a> [synapse\_monitoring](#module\_synapse\_monitoring) | ./modules/synapse-monitoring | n/a |
 | <a name="module_synapse_network"></a> [synapse\_network](#module\_synapse\_network) | ./modules/synapse-network | n/a |
+| <a name="module_synapse_network_failover"></a> [synapse\_network\_failover](#module\_synapse\_network\_failover) | ./modules/synapse-network | n/a |
 | <a name="module_synapse_sql_server"></a> [synapse\_sql\_server](#module\_synapse\_sql\_server) | ./modules/synapse-sql-server | n/a |
 | <a name="module_synapse_workspace_private"></a> [synapse\_workspace\_private](#module\_synapse\_workspace\_private) | ./modules/synapse-workspace-private | n/a |
 
@@ -197,6 +198,7 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 | [azurerm_resource_group.ingestion](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
 | [azurerm_resource_group.monitoring](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
 | [azurerm_resource_group.network](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
+| [azurerm_resource_group.network_failover](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
 | [azurerm_resource_group.sql_server](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
 
 ## Inputs
@@ -218,6 +220,7 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 | <a name="input_data_lake_role_assignments"></a> [data\_lake\_role\_assignments](#input\_data\_lake\_role\_assignments) | An object mapping RBAC roles to principal IDs for the data lake Storage Account | `map(list(string))` | `{}` | no |
 | <a name="input_data_lake_storage_containers"></a> [data\_lake\_storage\_containers](#input\_data\_lake\_storage\_containers) | A list of container names to be created in the Synapse data lake Storage Account | `list(string)` | <pre>[<br>  "default"<br>]</pre> | no |
 | <a name="input_environment"></a> [environment](#input\_environment) | The name of the environment in which resources will be deployed | `string` | n/a | yes |
+| <a name="input_failover_deployment"></a> [failover\_deployment](#input\_failover\_deployment) | Determines if this is a failover deployment such that resources will deployed to the failover region | `bool` | `false` | no |
 | <a name="input_key_vault_role_assignments"></a> [key\_vault\_role\_assignments](#input\_key\_vault\_role\_assignments) | An object mapping RBAC roles to principal IDs for Key Vault | `map(list(string))` | `{}` | no |
 | <a name="input_location"></a> [location](#input\_location) | The short-format Azure region into which resources will be deployed | `string` | n/a | yes |
 | <a name="input_network_watcher_enabled"></a> [network\_watcher\_enabled](#input\_network\_watcher\_enabled) | Determines whether a Network Watcher resource will be deployed | `bool` | `false` | no |
@@ -237,6 +240,7 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 | <a name="input_synapse_sql_administrator_username"></a> [synapse\_sql\_administrator\_username](#input\_synapse\_sql\_administrator\_username) | The SQL administrator username for the Synapse Workspace | `string` | `"synadmin"` | no |
 | <a name="input_tags"></a> [tags](#input\_tags) | A collection of tags to assign to taggable resources | `map(string)` | `{}` | no |
 | <a name="input_vnet_base_cidr_block"></a> [vnet\_base\_cidr\_block](#input\_vnet\_base\_cidr\_block) | The base IPv4 range for the Virtual Network in CIDR notation | `string` | `"10.90.0.0/24"` | no |
+| <a name="input_vnet_base_cidr_block_failover"></a> [vnet\_base\_cidr\_block\_failover](#input\_vnet\_base\_cidr\_block\_failover) | The base IPv4 range for the failover Virtual Network in CIDR notation | `string` | `"10.90.1.0/24"` | no |
 | <a name="input_vnet_subnets"></a> [vnet\_subnets](#input\_vnet\_subnets) | A collection of subnet definitions used to logically partition the Virtual Network | `list(map(string))` | <pre>[<br>  {<br>    "name": "ManagementSubnet",<br>    "new_bits": 2<br>  },<br>  {<br>    "name": "SynapseEndpointSubnet",<br>    "new_bits": 2<br>  },<br>  {<br>    "name": null,<br>    "new_bits": 2<br>  },<br>  {<br>    "name": null,<br>    "new_bits": 2<br>  }<br>]</pre> | no |
 
 ## Outputs
