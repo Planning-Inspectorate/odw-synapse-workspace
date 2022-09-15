@@ -3,7 +3,7 @@ locals {
   service_name = "odw"
 
   resource_suffix          = "${local.service_name}-${var.environment}-${module.azure_region.location_short}"
-  resource_suffix_failover = "${local.service_name}-${var.environment}-${module.azure_region.paired_location.location_cli}"
+  resource_suffix_failover = "${local.service_name}-${var.environment}-${module.azure_region.paired_location.location_short}"
 
   compute_subnet_name = "ComputeSubnet"
   synapse_subnet_name = "SynapseEndpointSubnet"
