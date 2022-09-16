@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "bb7f0c96-e14d-4b27-9c46-787f9c30e820"
+				"spark.autotune.trackingId": "e1c0f044-5f11-4502-b726-b7424d17f041"
 			}
 		},
 		"metadata": {
@@ -53,13 +53,6 @@
 		"cells": [
 			{
 				"cell_type": "code",
-				"source": [
-					"%run \"utils/functions_lib\""
-				],
-				"execution_count": 21
-			},
-			{
-				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
 						"source_hidden": false,
@@ -77,10 +70,10 @@
 				"source": [
 					"filepath = \"abfss://temp-sap-hr-data@pinsstodwdevuks9h80mb.dfs.core.windows.net/HR Absence Data 20220731.xlsx\"\r\n",
 					"targetpath = 'abfss://odw-standardised@pinsstodwdevuks9h80mb.dfs.core.windows.net/HR/'\r\n",
-					"storage_acc = \"hello\"\r\n",
-					"linked_service = 123"
+					"storage_acc = \"pinsstodwdevuks9h80mb.dfs.core.windows.net\"\r\n",
+					"linked_service = \"ls_storage\""
 				],
-				"execution_count": 1
+				"execution_count": 21
 			},
 			{
 				"cell_type": "code",
@@ -134,7 +127,7 @@
 					"        raise TypeError(\"Header row should be an integer value\")\r\n",
 					"        mssparkutils.notebook.exit()"
 				],
-				"execution_count": 3
+				"execution_count": 22
 			},
 			{
 				"cell_type": "code",
@@ -164,11 +157,11 @@
 					"    ### reading file with abfss file format\r\n",
 					"    import pandas as pd\r\n",
 					"    df = pd.read_excel(filepath, sheet_name=sheet_name, header=header, dtype='object')\r\n",
-					"    targetpath += filepath.split(\".windows.net/\")[1]\r\n",
+					"    targetpath += filepath.split(\".windows.net/\")[1].split(\".xlsx\")[0] + '.snappy.parquet'\r\n",
 					"    df.to_parquet(targetpath)\r\n",
 					"    # \"abfss://temp-sap-hr-data@pinsstodwdevuks9h80mb.dfs.core.windows.net/test.snappy.parquet\""
 				],
-				"execution_count": null
+				"execution_count": 23
 			},
 			{
 				"cell_type": "code",
@@ -191,7 +184,7 @@
 					"    import re\r\n",
 					"\r\n",
 					"    ### opening file\r\n",
-					"    targetpath += filepath.split(\".windows.net/\")[1]\r\n",
+					"    targetpath += filepath.split(\".windows.net/\")[1].split(\".xlsx\")[0] + '.snappy.parquet'\r\n",
 					"    df = pd.read_parquet(targetpath)\r\n",
 					"\r\n",
 					"    ### reading column names and sanitising for parquet format\r\n",
@@ -204,7 +197,7 @@
 					"    ### writing file\r\n",
 					"    df.to_parquet(targetpath)"
 				],
-				"execution_count": null
+				"execution_count": 24
 			},
 			{
 				"cell_type": "code",
@@ -220,15 +213,16 @@
 					}
 				},
 				"source": [
-					"def mount_parquet_synapsesql(curated_database_name,curated_storage_table_name,curated_storage_folder_path):\r\n",
+					"def mount_parquet_synapsesql(curated_database_name,curated_storage_table_name,filepath, targetpath):\r\n",
 					"    from pyspark.sql import SparkSession\r\n",
 					"    spark = SparkSession.builder.getOrCreate()\r\n",
-					"    from pyspark.sql.types import *\r\n",
-					"\r\n",
-					"    spark.sql(\"DROP TABLE {0}.{1}\".format(curated_database_name,curated_storage_table_name))\r\n",
-					"    spark.sql(\"CREATE TABLE {0}.{1} USING PARQUET LOCATION '{2}' \".format(curated_database_name,curated_storage_table_name,curated_storage_folder_path))"
+					"    #spark.sql(\"DROP TABLE {0}.{1}\".format(curated_database_name,curated_storage_table_name))\r\n",
+					"    ;\r\n",
+					"    spark.sql(f\"if object_id ('{curated_database_name}.{curated_storage_table_name}','U') is not null drop table {curated_database_name}.{curated_storage_table_name}\")\r\n",
+					"    targetpath += filepath.split(\".windows.net/\")[1].split(\".xlsx\")[0] + '.snappy.parquet'\r\n",
+					"    #spark.sql(\"CREATE TABLE {0}.{1} USING PARQUET LOCATION '{2}' \".format(curated_database_name,curated_storage_table_name,targetpath))"
 				],
-				"execution_count": null
+				"execution_count": 39
 			},
 			{
 				"cell_type": "code",
@@ -244,9 +238,107 @@
 					}
 				},
 				"source": [
-					"validate_parameters(filepath, storage_acc, linked_service)"
+					"from pyspark.sql import SparkSession\r\n",
+					"spark = SparkSession.builder.getOrCreate()\r\n",
+					"spark.createOr"
+				],
+				"execution_count": 47
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"validate_parameters(filepath, storage_acc, linked_service)\r\n",
+					"ingest_excel_to_parquet(storage_acc, filepath, targetpath, linked_service)"
 				],
 				"execution_count": 26
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"sanitise_headers(filepath,targetpath)"
+				],
+				"execution_count": 27
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"mount_parquet_synapsesql(\"odw_standardised_db\", \"abdullah_temp\", filepath, targetpath)"
+				],
+				"execution_count": 40
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					}
+				},
+				"source": [
+					"%%sql\r\n",
+					"select * \r\n",
+					"from daya_temp"
+				],
+				"execution_count": 46
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					""
+				],
+				"execution_count": null
 			}
 		]
 	}
