@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "63700cd6-1bfd-4229-8c4f-572a4641c34b"
+				"spark.autotune.trackingId": "a67d8c8f-cf31-4716-8f6d-88e10e874b96"
 			}
 		},
 		"metadata": {
@@ -70,7 +70,7 @@
 					"from notebookutils import mssparkutils\n",
 					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')"
 				],
-				"execution_count": 20
+				"execution_count": 15
 			},
 			{
 				"cell_type": "code",
@@ -90,13 +90,13 @@
 					"json_schema_folder='json_schema'\r\n",
 					"json_schema_file_name='absence_schema.json'\r\n",
 					"harmonised_storage_delta_folder = 'daya_temp'\r\n",
-					"harmonised_storage_delta_table_name = 'daya_temp'\r\n",
+					"harmonised_storage_delta_table_name = 'daya_temp3'\r\n",
 					"delta_lake_table_key_column = 'n/a'\r\n",
-					"delta_lake_table_name = \"daya_temp\"\r\n",
+					"delta_lake_table_name = \"daya_temp3\"\r\n",
 					"delta_lake_database_name = \"odw_harmonised_db\"\r\n",
 					"sourceColumnNames = 'n/a'"
 				],
-				"execution_count": 24
+				"execution_count": 26
 			},
 			{
 				"cell_type": "code",
@@ -112,47 +112,19 @@
 					}
 				},
 				"source": [
-					"# Temporary code to change it later\n",
-					"import pandas as pd\n",
-					"import requests\n",
-					"import io\n",
+					"json_schema_file_path = harmonised_storage_container + '/' + json_schema_folder + '/' + json_schema_file_name\n",
 					"\n",
-					"path =  raw_storage_container + 'odw-harmonised/json_schema/absence_schema.json'\n",
-					"print(path)\n",
+					"df=spark.read.text(json_schema_file_path)\n",
 					"\n",
-					"url= 'https://pinsstodwdevuks9h80mb.blob.core.windows.net/odw-harmonised/json_schema/absence_schema.json'\n",
+					"table = [x[\"value\"] for x in df.rdd.collect()]\n",
 					"\n",
-					"s=requests.get(url).content\n",
-					"print(s)\n",
-					"c=pd.read_json(io.StringIO(s.decode('utf-8')))\n",
 					"\n",
-					"print('------direct---')\n",
-					"data = pd.read_json(url)\n",
-					"print(data)"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"# Temporary code to change it later\n",
-					"from pyspark.sql.types import *\n",
 					"\n",
-					"path =  raw_storage_container + 'odw-harmonised/json_schema/absence_schema.json'\n",
-					"print(path)\n",
-					"df = spark.read.json(path)\n",
-					"df.show()"
+					"json_string = \"\"\n",
+					"\n",
+					"for item in table:\n",
+					"    json_string += item\n",
+					""
 				],
 				"execution_count": null
 			},
@@ -173,159 +145,10 @@
 					"from pyspark.sql.types import StructType, DataType, StructField, StringType, IntegerType\n",
 					"import json\n",
 					"\n",
-					"\n",
-					"json_string = \"\"\"\n",
-					"{\n",
-					"    \"fields\":[\n",
-					"        {\n",
-					"            \"metadata\":{\n",
-					"            \n",
-					"            },\n",
-					"            \"name\": \"AbsenceID\",\n",
-					"            \"type\": \"string\",\n",
-					"            \"nullable\": false\n",
-					"        },\n",
-					"        {\n",
-					"            \"metadata\":{\n",
-					"            \n",
-					"            },\n",
-					"            \"name\": \"EmployeeID\",\n",
-					"            \"type\": \"string\",\n",
-					"            \"nullable\": true\n",
-					"        },\n",
-					"        {\n",
-					"            \"metadata\":{\n",
-					"            \n",
-					"            },\n",
-					"            \"name\": \"StaffNumber\",\n",
-					"            \"type\": \"string\",\n",
-					"            \"nullable\": true\n",
-					"        },\n",
-					"        {\n",
-					"            \"metadata\":{\n",
-					"            \n",
-					"            },\n",
-					"            \"name\": \"AbsenceStartDate\",\n",
-					"            \"type\": \"string\",\n",
-					"            \"nullable\": true\n",
-					"        },\n",
-					"        {\n",
-					"            \"metadata\":{\n",
-					"            \n",
-					"            },\n",
-					"            \"name\": \"AbsenceEndDate\",\n",
-					"            \"type\": \"string\",\n",
-					"            \"nullable\": true\n",
-					"        },\n",
-					"        {\n",
-					"            \"metadata\":{\n",
-					"            \n",
-					"            },\n",
-					"            \"name\": \"Type\",\n",
-					"            \"type\": \"string\",\n",
-					"            \"nullable\": true\n",
-					"        },\n",
-					"        {\n",
-					"            \"metadata\":{\n",
-					"            \n",
-					"            },\n",
-					"            \"name\": \"SicknessGroup\",\n",
-					"            \"type\": \"string\",\n",
-					"            \"nullable\": true\n",
-					"        },\n",
-					"        {\n",
-					"            \"metadata\":{\n",
-					"            \n",
-					"            },\n",
-					"            \"name\": \"Days\",\n",
-					"            \"type\": \"string\",\n",
-					"            \"nullable\": true\n",
-					"        },\n",
-					"        {\n",
-					"            \"metadata\":{\n",
-					"            \n",
-					"            },\n",
-					"            \"name\": \"CalendarDays\",\n",
-					"            \"type\": \"string\",\n",
-					"            \"nullable\": true\n",
-					"        },\n",
-					"        {\n",
-					"            \"metadata\":{\n",
-					"            \n",
-					"            },\n",
-					"            \"name\": \"WorkScheduleID\",\n",
-					"            \"type\": \"string\",\n",
-					"            \"nullable\": true\n",
-					"        },\n",
-					"        {\n",
-					"            \"metadata\":{\n",
-					"            \n",
-					"            },\n",
-					"            \"name\": \"AnnualLeaveStart\",\n",
-					"            \"type\": \"string\",\n",
-					"            \"nullable\": true\n",
-					"        },\n",
-					"        {\n",
-					"            \"metadata\":{\n",
-					"            \n",
-					"            },\n",
-					"            \"name\": \"SourceSystemID\",\n",
-					"            \"type\": \"string\",\n",
-					"            \"nullable\": true\n",
-					"        },\n",
-					"        {\n",
-					"            \"metadata\":{\n",
-					"            \n",
-					"            },\n",
-					"            \"name\": \"StartDate\",\n",
-					"            \"type\": \"string\",\n",
-					"            \"nullable\": true\n",
-					"        },\n",
-					"        {\n",
-					"            \"metadata\":{\n",
-					"            \n",
-					"            },\n",
-					"            \"name\": \"EndDate\",\n",
-					"            \"type\": \"string\",\n",
-					"            \"nullable\": true\n",
-					"        }],\n",
-					"        \"primaryKey\":\"AbsenceID\",\n",
-					"        \"foreignKeys\":[\n",
-					"            {\n",
-					"                \"fields\": \"EmployeeID\",\n",
-					"                \"reference\": {\n",
-					"                    \"resource\": \"hr_record_fact\",\n",
-					"                    \"fields\": \"EmployeeID\"\n",
-					"                }\n",
-					"            },\n",
-					"            {\n",
-					"                \"fields\": \"WorkScheduleID\",\n",
-					"                \"reference\": {\n",
-					"                    \"resource\": \"hr_record_fact\",\n",
-					"                    \"fields\": \"WorkScheduleID\"\n",
-					"                }\n",
-					"            },\n",
-					"            {\n",
-					"                \"fields\": \"SourceSystemID\",\n",
-					"                \"reference\": {\n",
-					"                    \"resource\": \"sourceSystem_fact\",\n",
-					"                    \"fields\": \"SourceSystemID\"\n",
-					"                }\n",
-					"            }\n",
-					"        ]\n",
-					"    }\n",
-					"\"\"\"\n",
-					"\n",
-					"print('-----after print----')\n",
-					"\n",
 					"# new_schema = DataType.json(json_string).asInstanceOf[StructType]\n",
-					"new_schema = StructType.fromJson(json.loads(json_string))\n",
-					"\n",
-					"print(new_schema)\n",
-					"\n",
-					""
+					"new_schema = StructType.fromJson(json.loads(json_string))"
 				],
-				"execution_count": 7
+				"execution_count": 28
 			},
 			{
 				"cell_type": "code",
@@ -341,10 +164,11 @@
 					}
 				},
 				"source": [
-					"# Import modules\n",
+					"\n",
 					"from pyspark.sql.types import StructType, StructField, IntegerType, StringType ,DoubleType\n",
 					"from delta.tables import DeltaTable\n",
 					"harmonised_storage_delta_table_path = harmonised_storage_container + '/' + harmonised_storage_delta_folder + '/' + harmonised_storage_delta_table_name\n",
+					"\n",
 					"print('------------harmonised_storage_delta_table_path-----'+harmonised_storage_delta_table_path)\n",
 					"\n",
 					"if not (DeltaTable.isDeltaTable(spark,harmonised_storage_delta_table_path)):\n",
@@ -352,57 +176,7 @@
 					"    harmonisationInspectordf.write.option(\"mergeSchema\", \"true\").format('delta').mode('overwrite').save(harmonised_storage_delta_table_path)\n",
 					"    spark.sql(\"CREATE TABLE {0}.{1} USING DELTA LOCATION '{2}'\".format(delta_lake_database_name,delta_lake_table_name,harmonised_storage_delta_table_path))"
 				],
-				"execution_count": 11
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
-				},
-				"source": [
-					"%%sql\n",
-					"desc odw_harmonised_db.daya_temp;"
-				],
 				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"\n",
-					"\n",
-					"json_schema_file_path = harmonised_storage_container + '/' + json_schema_folder + '/' + json_schema_file_name\n",
-					"df = spark.read.json(json_schema_file_path)\n",
-					"\n",
-					"df.show\n",
-					"\n",
-					"#df=spark.read.text(json_schema_file_path)\n",
-					"\n",
-					""
-				],
-				"execution_count": 53
 			}
 		]
 	}
