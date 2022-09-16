@@ -26,11 +26,10 @@ module "bastion_host" {
   bastion_vm_size             = var.bastion_vm_size
   key_vault_id                = module.synapse_management.key_vault_id
   synapse_compute_subnet_name = local.compute_subnet_name
-  synapse_vnet_subnets        = var.failover_deployment ? module.synapse_network_failover.vnet_subnets : module.synapse_network.vnet_subnets
+  synapse_vnet_subnets        = module.synapse_network.vnet_subnets
 
   depends_on = [
     module.synapse_network,
-    module.synapse_network_failover,
     module.synapse_management
   ]
 

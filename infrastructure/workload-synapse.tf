@@ -22,16 +22,15 @@ module "synapse_workspace_private" {
   sql_pool_sku_name                     = var.sql_pool_sku_name
   synapse_aad_administrator             = var.synapse_aad_administrator
   synapse_data_exfiltration_enabled     = var.synapse_data_exfiltration_enabled
-  synapse_private_endpoint_dns_zone_id  = var.failover_deployment ? module.synapse_network_failover.synapse_private_dns_zone_id : module.synapse_network.synapse_private_dns_zone_id
+  synapse_private_endpoint_dns_zone_id  = azurerm_private_dns_zone.synapse.id
   synapse_private_endpoint_subnet_name  = local.synapse_subnet_name
-  synapse_private_endpoint_vnet_subnets = var.failover_deployment ? module.synapse_network_failover.vnet_subnets : module.synapse_network.vnet_subnets
+  synapse_private_endpoint_vnet_subnets = module.synapse_network.vnet_subnets
   synapse_sql_administrator_username    = var.synapse_sql_administrator_username
   synapse_role_assignments              = var.synapse_role_assignments
 
   depends_on = [
     module.synapse_data_lake,
     module.synapse_network,
-    module.synapse_network_failover,
     module.synapse_management
   ]
 
