@@ -96,7 +96,11 @@ No requirements.
 | [azurerm_synapse_firewall_rule.allow_all](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/synapse_firewall_rule) | resource |
 | [azurerm_synapse_firewall_rule.allow_all_azure](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/synapse_firewall_rule) | resource |
 | [azurerm_synapse_managed_private_endpoint.data_lake](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/synapse_managed_private_endpoint) | resource |
+<<<<<<< HEAD
 | [azurerm_synapse_private_link_hub.synapse_workspace](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/synapse_private_link_hub) | resource |
+=======
+| [azurerm_synapse_managed_private_endpoint.data_lake_failover](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/synapse_managed_private_endpoint) | resource |
+>>>>>>> feat(failover): add mpe for failover data lake
 | [azurerm_synapse_role_assignment.synapse](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/synapse_role_assignment) | resource |
 | [azurerm_synapse_spark_pool.synapse](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/synapse_spark_pool) | resource |
 | [azurerm_synapse_sql_pool.synapse](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/synapse_sql_pool) | resource |
@@ -112,7 +116,9 @@ No requirements.
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
 | <a name="input_data_lake_account_id"></a> [data\_lake\_account\_id](#input\_data\_lake\_account\_id) | The ID of the Data Lake Storage Account | `string` | n/a | yes |
+| <a name="input_data_lake_account_id_failover"></a> [data\_lake\_account\_id\_failover](#input\_data\_lake\_account\_id\_failover) | The ID of the Data Lake Storage Account used for backup and failover | `string` | n/a | yes |
 | <a name="input_data_lake_account_name"></a> [data\_lake\_account\_name](#input\_data\_lake\_account\_name) | The name of the Data Lake Storage Account | `string` | n/a | yes |
+| <a name="input_data_lake_account_name_failover"></a> [data\_lake\_account\_name\_failover](#input\_data\_lake\_account\_name\_failover) | The name of the Data Lake Storage Account used for backup and failover | `string` | n/a | yes |
 | <a name="input_data_lake_filesystem_id"></a> [data\_lake\_filesystem\_id](#input\_data\_lake\_filesystem\_id) | The ID of the Data Lake Gen2 filesystem | `string` | n/a | yes |
 | <a name="input_environment"></a> [environment](#input\_environment) | The name of the environment in which resources will be deployed | `string` | n/a | yes |
 | <a name="input_key_vault_role_assignments"></a> [key\_vault\_role\_assignments](#input\_key\_vault\_role\_assignments) | An object mapping RBAC roles to principal IDs for Key Vault | `map(list(string))` | `{}` | no |

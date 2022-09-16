@@ -7,7 +7,9 @@ module "synapse_workspace_private" {
   service_name        = local.service_name
 
   data_lake_account_id                  = module.synapse_data_lake.data_lake_account_id
+  data_lake_account_id_failover         = module.synapse_data_lake_failover.data_lake_account_id
   data_lake_account_name                = module.synapse_data_lake.data_lake_account_name
+  data_lake_account_name_failover       = module.synapse_data_lake_failover.data_lake_account_name
   data_lake_filesystem_id               = module.synapse_data_lake.data_lake_filesystem_id
   key_vault_role_assignments            = var.key_vault_role_assignments
   network_resource_group_name           = azurerm_resource_group.network.name
@@ -30,6 +32,7 @@ module "synapse_workspace_private" {
 
   depends_on = [
     module.synapse_data_lake,
+    module.synapse_data_lake_failover,
     module.synapse_network,
     module.synapse_management
   ]

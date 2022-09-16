@@ -3,8 +3,18 @@ variable "data_lake_account_id" {
   type        = string
 }
 
+variable "data_lake_account_id_failover" {
+  description = "The ID of the Data Lake Storage Account used for backup and failover"
+  type        = string
+}
+
 variable "data_lake_account_name" {
   description = "The name of the Data Lake Storage Account"
+  type        = string
+}
+
+variable "data_lake_account_name_failover" {
+  description = "The name of the Data Lake Storage Account used for backup and failover"
   type        = string
 }
 
