@@ -17,3 +17,13 @@ output "data_lake_filesystem_id" {
   description = "The ID of the Data Lake Gen2 filesystem"
   value       = azurerm_storage_data_lake_gen2_filesystem.synapse.id
 }
+
+output "key_vault_id" {
+  description = "The ID of the Key Vault"
+  value       = azurerm_key_vault.synapse.id
+}
+
+output "key_vault_uri" {
+  description = "The URI of the Key Vault"
+  value       = azurerm_key_vault.synapse.vault_uri
+}

@@ -28,10 +28,9 @@ variable "environment" {
   type        = string
 }
 
-variable "key_vault_role_assignments" {
-  default     = {}
-  description = "An object mapping RBAC roles to principal IDs for Key Vault"
-  type        = map(list(string))
+variable "key_vault_id" {
+  description = "The ID of the Key Vault to use for secret storage"
+  type        = string
 }
 
 variable "network_resource_group_name" {

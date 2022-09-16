@@ -1,20 +1,3 @@
-resource "azurerm_management_lock" "key_vault" {
-  name       = "Prevent Deletion"
-  scope      = azurerm_key_vault.synapse.id
-  lock_level = "CanNotDelete"
-  notes      = "Locked by Terraform"
-
-  depends_on = [
-    azurerm_key_vault.synapse,
-    azurerm_key_vault_secret.data_lake_storage_account_key,
-    azurerm_key_vault_secret.synapse_sql_administrator_password,
-    azurerm_key_vault_secret.synapse_sql_administrator_username,
-    azurerm_role_assignment.key_vault,
-    azurerm_role_assignment.key_vault_terraform,
-    azurerm_role_assignment.synapse_msi_key_vault
-  ]
-}
-
 resource "azurerm_management_lock" "synapse" {
   name       = "Prevent Deletion"
   scope      = azurerm_synapse_workspace.synapse.id

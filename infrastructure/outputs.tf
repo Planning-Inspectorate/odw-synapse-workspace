@@ -20,7 +20,7 @@ output "data_resource_group_name" {
 
 output "key_vault_uri" {
   description = "The URI of the Key Vault"
-  value       = var.failover_deployment ? module.synapse_workspace_private_failover.key_vault_uri : module.synapse_workspace_private.key_vault_uri
+  value       = var.failover_deployment ? module.synapse_data_lake_failover.key_vault_uri : module.synapse_data_lake.key_vault_uri
 }
 
 output "service_bus_namespace_name" {
