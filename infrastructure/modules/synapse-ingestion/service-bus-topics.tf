@@ -8,7 +8,7 @@ resource "azurerm_servicebus_topic" "employee" {
   default_message_ttl                     = "P14D"
   duplicate_detection_history_time_window = "P7D"
   enable_batched_operations               = true
-  enable_partitioning                     = true
+  enable_partitioning                     = false
   max_size_in_megabytes                   = 1024 # Attribute name incorrect: 1024 = 16GB
   requires_duplicate_detection            = true
 }
