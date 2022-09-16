@@ -40,6 +40,13 @@ resource "azurerm_resource_group" "network_failover" {
   tags = local.tags
 }
 
+resource "azurerm_resource_group" "network_global" {
+  name     = "pins-rg-network-${local.resource_suffix_global}"
+  location = module.azure_region.location_cli
+
+  tags = local.tags
+}
+
 resource "azurerm_resource_group" "sql_server" {
   count = var.sql_server_enabled ? 1 : 0
 
