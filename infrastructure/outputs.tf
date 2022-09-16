@@ -3,6 +3,11 @@ output "data_lake_account_id" {
   value       = module.synapse_data_lake.data_lake_account_id
 }
 
+output "data_lake_account_id_failover" {
+  description = "The ID of the Data Lake Storage Account"
+  value       = module.synapse_data_lake_failover.data_lake_account_id
+}
+
 output "data_lake_dfs_endpoint" {
   description = "The DFS endpoint URL of the Data Lake Storage Account"
   value       = module.synapse_data_lake.data_lake_dfs_endpoint
