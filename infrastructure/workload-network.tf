@@ -30,21 +30,21 @@ module "synapse_network_failover" {
 
 resource "azurerm_private_dns_zone" "data_lake" {
   name                = "privatelink.dfs.core.windows.net"
-  resource_group_name = azurerm_resource_group.network.name
+  resource_group_name = azurerm_resource_group.network_global.name
 
   tags = local.tags
 }
 
 resource "azurerm_private_dns_zone" "synapse" {
   name                = "privatelink.azuresynapse.net"
-  resource_group_name = azurerm_resource_group.network.name
+  resource_group_name = azurerm_resource_group.network_global.name
 
   tags = local.tags
 }
 
 resource "azurerm_private_dns_zone_virtual_network_link" "data_lake" {
   name                  = "dfs-${module.synapse_network.vnet_name}"
-  resource_group_name   = azurerm_resource_group.network.name
+  resource_group_name   = azurerm_resource_group.network_global.name
   private_dns_zone_name = azurerm_private_dns_zone.data_lake.name
   virtual_network_id    = module.synapse_network.vnet_id
 
@@ -53,7 +53,7 @@ resource "azurerm_private_dns_zone_virtual_network_link" "data_lake" {
 
 resource "azurerm_private_dns_zone_virtual_network_link" "data_lake_failover" {
   name                  = "dfs-${module.synapse_network_failover.vnet_name}"
-  resource_group_name   = azurerm_resource_group.network_failover.name
+  resource_group_name   = azurerm_resource_group.network_global.name
   private_dns_zone_name = azurerm_private_dns_zone.data_lake.name
   virtual_network_id    = module.synapse_network_failover.vnet_id
 
@@ -62,7 +62,7 @@ resource "azurerm_private_dns_zone_virtual_network_link" "data_lake_failover" {
 
 resource "azurerm_private_dns_zone_virtual_network_link" "synapse" {
   name                  = "azuresynapse-${module.synapse_network.vnet_name}"
-  resource_group_name   = azurerm_resource_group.network.name
+  resource_group_name   = azurerm_resource_group.network_global.name
   private_dns_zone_name = azurerm_private_dns_zone.synapse.name
   virtual_network_id    = module.synapse_network.vnet_id
 
@@ -71,7 +71,7 @@ resource "azurerm_private_dns_zone_virtual_network_link" "synapse" {
 
 resource "azurerm_private_dns_zone_virtual_network_link" "synapse_failover" {
   name                  = "azuresynapse-${module.synapse_network_failover.vnet_name}"
-  resource_group_name   = azurerm_resource_group.network_failover.name
+  resource_group_name   = azurerm_resource_group.network_global.name
   private_dns_zone_name = azurerm_private_dns_zone.synapse.name
   virtual_network_id    = module.synapse_network_failover.vnet_id
 
