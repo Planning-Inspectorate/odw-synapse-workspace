@@ -1,3 +1,24 @@
+resource "azurerm_resource_group" "network" {
+  name     = "pins-rg-network-${local.resource_suffix}"
+  location = module.azure_region.location_cli
+
+  tags = local.tags
+}
+
+resource "azurerm_resource_group" "network_failover" {
+  name     = "pins-rg-network-${local.resource_suffix_failover}"
+  location = module.azure_region.paired_location.location_cli
+
+  tags = local.tags
+}
+
+resource "azurerm_resource_group" "network_global" {
+  name     = "pins-rg-network-${local.resource_suffix_global}"
+  location = module.azure_region.location_cli
+
+  tags = local.tags
+}
+
 module "synapse_network" {
   source = "./modules/synapse-network"
 

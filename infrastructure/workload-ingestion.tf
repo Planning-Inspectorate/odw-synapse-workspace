@@ -1,3 +1,17 @@
+resource "azurerm_resource_group" "ingestion" {
+  name     = "pins-rg-ingestion-${local.resource_suffix}"
+  location = module.azure_region.location_cli
+
+  tags = local.tags
+}
+
+resource "azurerm_resource_group" "ingestion_failover" {
+  name     = "pins-rg-ingestion-${local.resource_suffix_failover}"
+  location = module.azure_region.paired_location.location_cli
+
+  tags = local.tags
+}
+
 module "synapse_ingestion" {
   source = "./modules/synapse-ingestion"
 

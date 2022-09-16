@@ -1,3 +1,21 @@
+resource "azurerm_resource_group" "sql_server" {
+  count = var.sql_server_enabled ? 1 : 0
+
+  name     = "pins-rg-sqlserver-${local.resource_suffix}"
+  location = module.azure_region.location_cli
+
+  tags = local.tags
+}
+
+resource "azurerm_resource_group" "sql_server_failover" {
+  count = var.sql_server_enabled && var.failover_deployment ? 1 : 0
+
+  name     = "pins-rg-sqlserver-${local.resource_suffix_failover}"
+  location = module.azure_region.paired_location.location_cli
+
+  tags = local.tags
+}
+
 module "synapse_sql_server" {
   count = var.sql_server_enabled ? 1 : 0
 

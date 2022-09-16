@@ -1,3 +1,19 @@
+resource "azurerm_resource_group" "data_management" {
+  name     = "pins-rg-datamgmt-${local.resource_suffix}"
+  location = module.azure_region.location_cli
+
+  tags = local.tags
+}
+
+resource "azurerm_resource_group" "data_management_failover" {
+  count = var.failover_deployment ? 1 : 0
+
+  name     = "pins-rg-datamgmt-${local.resource_suffix}"
+  location = module.azure_region.paired_location.location_cli
+
+  tags = local.tags
+}
+
 module "synapse_management" {
   source = "./modules/synapse-management"
 

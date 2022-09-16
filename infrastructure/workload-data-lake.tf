@@ -1,3 +1,17 @@
+resource "azurerm_resource_group" "data" {
+  name     = "pins-rg-data-${local.resource_suffix}"
+  location = module.azure_region.location_cli
+
+  tags = local.tags
+}
+
+resource "azurerm_resource_group" "data_failover" {
+  name     = "pins-rg-data-${local.resource_suffix_failover}"
+  location = module.azure_region.paired_location.location_cli
+
+  tags = local.tags
+}
+
 module "synapse_data_lake" {
   source = "./modules/synapse-data-lake"
 
