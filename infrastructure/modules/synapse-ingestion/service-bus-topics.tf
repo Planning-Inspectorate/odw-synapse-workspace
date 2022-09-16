@@ -1,4 +1,6 @@
 resource "azurerm_servicebus_topic" "employee" {
+  count = var.failover_namespace ? 0 : 1
+
   name         = "sbt-employee-${local.resource_suffix}"
   namespace_id = azurerm_servicebus_namespace.synapse.id
 

@@ -3,6 +3,17 @@ variable "environment" {
   type        = string
 }
 
+variable "failover_namespace" {
+  description = "Determines whether the Service Bus Namespace will be configured as a failover instance"
+  type        = bool
+}
+
+variable "primary_service_bus_namespace_id" {
+  default     = null
+  description = "The ID of the Service Bus Namespace to replicate from if failover_namespace is true"
+  type        = string
+}
+
 variable "resource_group_name" {
   description = "The name of the resource group into which resources will be deployed"
   type        = string

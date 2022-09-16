@@ -19,6 +19,15 @@ resource "azurerm_resource_group" "data_management" {
   tags = local.tags
 }
 
+resource "azurerm_resource_group" "data_management_failover" {
+  count = var.failover_deployment ? 1 : 0
+
+  name     = "pins-rg-datamgmt-${local.resource_suffix}"
+  location = module.azure_region.paired_location.location_cli
+
+  tags = local.tags
+}
+
 resource "azurerm_resource_group" "ingestion" {
   name     = "pins-rg-ingestion-${local.resource_suffix}"
   location = module.azure_region.location_cli
@@ -27,8 +36,6 @@ resource "azurerm_resource_group" "ingestion" {
 }
 
 resource "azurerm_resource_group" "ingestion_failover" {
-  count = var.failover_deployment ? 1 : 0
-
   name     = "pins-rg-ingestion-${local.resource_suffix_failover}"
   location = module.azure_region.paired_location.location_cli
 
@@ -36,6 +43,15 @@ resource "azurerm_resource_group" "ingestion_failover" {
 }
 
 resource "azurerm_resource_group" "monitoring" {
+  name     = "pins-rg-monitoring-${local.resource_suffix}"
+  location = module.azure_region.location_cli
+
+  tags = local.tags
+}
+
+resource "azurerm_resource_group" "monitoring_failover" {
+  count = var.failover_deployment ? 1 : 0
+
   name     = "pins-rg-monitoring-${local.resource_suffix}"
   location = module.azure_region.location_cli
 
@@ -68,6 +84,15 @@ resource "azurerm_resource_group" "sql_server" {
 
   name     = "pins-rg-sqlserver-${local.resource_suffix}"
   location = module.azure_region.location_cli
+
+  tags = local.tags
+}
+
+resource "azurerm_resource_group" "sql_server_failover" {
+  count = var.sql_server_enabled && var.failover_deployment ? 1 : 0
+
+  name     = "pins-rg-sqlserver-${local.resource_suffix_failover}"
+  location = module.azure_region.paired_location.location_cli
 
   tags = local.tags
 }
