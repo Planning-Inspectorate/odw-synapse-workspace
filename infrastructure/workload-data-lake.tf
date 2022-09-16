@@ -17,7 +17,29 @@ module "synapse_data_lake" {
   synapse_private_endpoint_vnet_subnets  = module.synapse_network.vnet_subnets
 
   depends_on = [
-    module.synapse_network,
+    module.synapse_network
+  ]
+}
+
+module "synapse_data_lake_failover" {
+  source = "./modules/synapse-data-lake"
+
+  environment         = var.environment
+  resource_group_name = azurerm_resource_group.data_failover.name
+  location            = module.azure_region.paired_location.location_cli
+  service_name        = local.service_name
+
+  data_lake_account_tier                 = var.data_lake_account_tier
+  data_lake_private_endpoint_dns_zone_id = azurerm_private_dns_zone.data_lake.id
+  data_lake_replication_type             = var.data_lake_replication_type
+  data_lake_retention_days               = var.data_lake_retention_days
+  data_lake_role_assignments             = var.data_lake_role_assignments
+  data_lake_storage_containers           = var.data_lake_storage_containers
+  network_resource_group_name            = azurerm_resource_group.network_failover.name
+  synapse_private_endpoint_subnet_name   = local.synapse_subnet_name
+  synapse_private_endpoint_vnet_subnets  = module.synapse_network_failover.vnet_subnets
+
+  depends_on = [
     module.synapse_network_failover
   ]
 }
