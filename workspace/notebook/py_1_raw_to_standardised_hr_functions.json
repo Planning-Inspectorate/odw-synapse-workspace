@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d168807d-c165-442d-ad9c-77814cbce57d"
+				"spark.autotune.trackingId": "bb7f0c96-e14d-4b27-9c46-787f9c30e820"
 			}
 		},
 		"metadata": {
@@ -69,12 +69,18 @@
 						"transient": {
 							"deleting": false
 						}
-					}
+					},
+					"tags": [
+						"parameters"
+					]
 				},
 				"source": [
-					"from typing import Union"
+					"filepath = \"abfss://temp-sap-hr-data@pinsstodwdevuks9h80mb.dfs.core.windows.net/HR Absence Data 20220731.xlsx\"\r\n",
+					"targetpath = 'abfss://odw-standardised@pinsstodwdevuks9h80mb.dfs.core.windows.net/HR/'\r\n",
+					"storage_acc = \"hello\"\r\n",
+					"linked_service = 123"
 				],
-				"execution_count": 22
+				"execution_count": 1
 			},
 			{
 				"cell_type": "code",
@@ -90,7 +96,77 @@
 					}
 				},
 				"source": [
-					""
+					"def validate_parameters(filepath, storage_acc, linked_service, sheet_name=0, header_row=0):\r\n",
+					"\r\n",
+					"    ### imports\r\n",
+					"    from notebookutils import mssparkutils\r\n",
+					"\r\n",
+					"    ### checking abfss path\r\n",
+					"    if filepath.split('abfss://')[0] != '':\r\n",
+					"        raise ValueError(\"File path string is not of abfss:// type\")\r\n",
+					"        mssparkutils.notebook.exit()\r\n",
+					"    \r\n",
+					"\r\n",
+					"    ### checking str data types\r\n",
+					"    # defining parameters to check\r\n",
+					"    parameters = {\r\n",
+					"        'filepath':filepath,\r\n",
+					"        'storage_acc':storage_acc,\r\n",
+					"        'linked_service':linked_service\r\n",
+					"    }\r\n",
+					"\r\n",
+					"    # checking str type\r\n",
+					"    str_errors = ''\r\n",
+					"    for para in parameters:\r\n",
+					"        if type(parameters[para]) != str:\r\n",
+					"            str_errors += parameters[para]\r\n",
+					"        if str_errors != '':\r\n",
+					"            raise TypeError(f\"Parameters: {str_errors} not of type string\") \r\n",
+					"            mssparkutils.notebook.exit()\r\n",
+					"\r\n",
+					"    # checking sheet name type is str or int\r\n",
+					"    if type(sheet_name) != str and type(sheet_name) != int:\r\n",
+					"        raise TypeError(\"Sheet name should either be a string or a integer\")\r\n",
+					"        mssparkutils.notebook.exit()\r\n",
+					"\r\n",
+					"    # checking int type\r\n",
+					"    if type(sheet_name) != int:\r\n",
+					"        raise TypeError(\"Header row should be an integer value\")\r\n",
+					"        mssparkutils.notebook.exit()"
+				],
+				"execution_count": 3
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def ingest_excel_to_parquet(storage_acc, filepath, targetpath, linked_service, sheet_name=0, header=0):\r\n",
+					"\r\n",
+					"    ### initialising spark session\r\n",
+					"    from pyspark.sql import SparkSession\r\n",
+					"    spark = SparkSession.builder.getOrCreate()\r\n",
+					"\r\n",
+					"    ### setting appopriate spark variables#\r\n",
+					"    source_full_storage_account_name = storage_acc\r\n",
+					"    spark.conf.set(f\"spark.storage.synapse.{source_full_storage_account_name}.linkedServiceName\", linked_service )\r\n",
+					"    spark.conf.set(f\"fs.azure.account.oauth.provider.type.{source_full_storage_account_name}\", \"com.microsoft.azure.synapse.tokenlibrary.LinkedServiceBasedTokenProvider\")\r\n",
+					"\r\n",
+					"    ### reading file with abfss file format\r\n",
+					"    import pandas as pd\r\n",
+					"    df = pd.read_excel(filepath, sheet_name=sheet_name, header=header, dtype='object')\r\n",
+					"    targetpath += filepath.split(\".windows.net/\")[1]\r\n",
+					"    df.to_parquet(targetpath)\r\n",
+					"    # \"abfss://temp-sap-hr-data@pinsstodwdevuks9h80mb.dfs.core.windows.net/test.snappy.parquet\""
 				],
 				"execution_count": null
 			},
@@ -108,55 +184,27 @@
 					}
 				},
 				"source": [
-					"class RawToStandardisedExcel():\r\n",
+					"def sanitise_headers(filepath, targetpath):\r\n",
 					"\r\n",
-					"    def __init__(self, storage_acc: str, path: str, linked_service:str, sheet_name: Union[str, int] = 0, header_row: int = 0):\r\n",
-					"        \r\n",
-					"        ### header_row\r\n",
-					"        if type(header_row) != int:\r\n",
-					"            raise TypeError(\"Header row variable is not of type int\")\r\n",
-					"        else:\r\n",
-					"            self.header_row = header_row\r\n",
+					"    ### imports\r\n",
+					"    import pandas as pd \r\n",
+					"    import re\r\n",
 					"\r\n",
-					"        ### no df on initialisation\r\n",
-					"        self.df = None\r\n",
-					"        \r\n",
-					"    \r\n",
-					"    def ingest(self):\r\n",
-					"        from pyspark.sql import SparkSession\r\n",
-					"        spark = SparkSession.builder.getOrCreate()\r\n",
+					"    ### opening file\r\n",
+					"    targetpath += filepath.split(\".windows.net/\")[1]\r\n",
+					"    df = pd.read_parquet(targetpath)\r\n",
 					"\r\n",
-					"        self.df = ingest_excel_to_df(self.storage_acc, self.path, self.linked_service, self.sheet_name, self.header_row)\r\n",
-					"        \r\n",
-					"    def convert(self):\r\n",
-					"        return None\r\n",
+					"    ### reading column names and sanitising for parquet format\r\n",
+					"    cols = df.columns\r\n",
+					"    cols=[re.sub(\"( |\\#|\\# |\\.|\\(|\\)|\\/)\",\"_\",i) for i in cols] # replace chars with _\r\n",
+					"    cols=[re.sub(\"([\\_]{2,})\",\"_\",i) for i in cols] #replace consecutive _ with one _\r\n",
+					"    cols=[re.sub(\"(\\_)$\",\"\",i) for i in cols] #remove trailing _\r\n",
+					"    df.columns = cols\r\n",
 					"\r\n",
-					""
+					"    ### writing file\r\n",
+					"    df.to_parquet(targetpath)"
 				],
-				"execution_count": 23
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"tags": [
-						"parameters"
-					]
-				},
-				"source": [
-					"filepath = \"abfss://temp-sap-hr-data@pinsstodwdevuks9h80mb.dfs.core.windows.net/HR Absence Data 20220731.xlsx\"\r\n",
-					"storage_acc = \"hello\"\r\n",
-					"linked_service = 123"
-				],
-				"execution_count": 24
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -172,58 +220,13 @@
 					}
 				},
 				"source": [
-					"def validate_parameters(filepath, storage_acc, linked_service):\r\n",
-					"    from notebookutils import mssparkutils\r\n",
-					"\r\n",
-					"    parameters = [filepath, storage_acc, linked_service]\r\n",
-					"\r\n",
-					"    if filepath.split('abfss://')[0] != '':\r\n",
-					"        raise ValueError(\"File path string is not of abfss:// type\")\r\n",
-					"        mssparkutils.notebook.exit()\r\n",
-					"    \r\n",
-					"    for x in parameters:\r\n",
-					"        if type(x) != str:\r\n",
-					"            raise TypeError(\"Chosen is not of type string\") \r\n",
-					"\r\n",
-					""
-				],
-				"execution_count": 25
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"def sanitise_headers(header):\r\n",
-					"    from notebookutils import mssparkutils\r\n",
+					"def mount_parquet_synapsesql(curated_database_name,curated_storage_table_name,curated_storage_folder_path):\r\n",
+					"    from pyspark.sql import SparkSession\r\n",
+					"    spark = SparkSession.builder.getOrCreate()\r\n",
 					"    from pyspark.sql.types import *\r\n",
 					"\r\n",
-					"raw_storage_folder_path = raw_storage_container   + '/' + raw_storage_source_folder + '/' + raw_storage_source_name\r\n",
-					"curated_storage_folder_path = curated_storage_container + '/' + curated_storage_folder + '/' + curated_storage_table_name\r\n",
-					"\r\n",
-					"rawsourceDF=spark.read.options(header='True', inferSchema='True', lineSep=\"§\", quote=\"\\\"\", escape=\"\\\\\", quoteAll=\"true\").xlsx(raw_storage_folder_path)\r\n",
-					"\r\n",
-					"#Rename Columns with illegal Parquet characters\r\n",
-					"import re\r\n",
-					"cols=[re.sub(\"( |\\#|\\# |\\.|\\(|\\)|\\/)\",\"_\",i) for i in rawsourceDF.columns] # replace chars with _\r\n",
-					"cols=[re.sub(\"([\\_]{2,})\",\"_\",i) for i in cols] #replace consecutive _ with one _\r\n",
-					"cols=[re.sub(\"(\\_)$\",\"\",i) for i in cols] #remove trailing _\r\n",
-					"rawsourceDF=rawsourceDF.toDF(*cols)\r\n",
-					"\r\n",
-					"rawsourceDF.write.option(\"header\", \"true\").format('parquet').mode('overwrite').save(curated_storage_folder_path)\r\n",
-					"\r\n",
-					"spark.sql(\"DROP TABLE {0}.{1}\".format(curated_database_name,curated_storage_table_name))\r\n",
-					"spark.sql(\"CREATE TABLE {0}.{1} USING PARQUET LOCATION '{2}' \".format(curated_database_name,curated_storage_table_name,curated_storage_folder_path))\r\n",
-					""
+					"    spark.sql(\"DROP TABLE {0}.{1}\".format(curated_database_name,curated_storage_table_name))\r\n",
+					"    spark.sql(\"CREATE TABLE {0}.{1} USING PARQUET LOCATION '{2}' \".format(curated_database_name,curated_storage_table_name,curated_storage_folder_path))"
 				],
 				"execution_count": null
 			},
