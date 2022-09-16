@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "e1c0f044-5f11-4502-b726-b7424d17f041"
+				"spark.autotune.trackingId": "95829ee5-9929-48dd-b540-c14a34166bb3"
 			}
 		},
 		"metadata": {
@@ -213,16 +213,15 @@
 					}
 				},
 				"source": [
-					"def mount_parquet_synapsesql(curated_database_name,curated_storage_table_name,filepath, targetpath):\r\n",
-					"    from pyspark.sql import SparkSession\r\n",
-					"    spark = SparkSession.builder.getOrCreate()\r\n",
-					"    #spark.sql(\"DROP TABLE {0}.{1}\".format(curated_database_name,curated_storage_table_name))\r\n",
-					"    ;\r\n",
-					"    spark.sql(f\"if object_id ('{curated_database_name}.{curated_storage_table_name}','U') is not null drop table {curated_database_name}.{curated_storage_table_name}\")\r\n",
-					"    targetpath += filepath.split(\".windows.net/\")[1].split(\".xlsx\")[0] + '.snappy.parquet'\r\n",
-					"    #spark.sql(\"CREATE TABLE {0}.{1} USING PARQUET LOCATION '{2}' \".format(curated_database_name,curated_storage_table_name,targetpath))"
+					"\r\n",
+					"from delta.tables import DeltaTable\r\n",
+					"harmonised_storage_delta_table_path = harmonised_storage_container + '/' + harmonised_storage_delta_folder + '/' + harmonised_storage_delta_table_name\r\n",
+					"\r\n",
+					"\r\n",
+					"if not (DeltaTable.isDeltaTable(spark,harmonised_storage_delta_table_path)):\r\n",
+					"    spark.sql(\"CREATE TABLE {0}.{1} USING DELTA LOCATION '{2}'\".format(delta_lake_database_name,delta_lake_table_name,harmonised_storage_delta_table_path))"
 				],
-				"execution_count": 39
+				"execution_count": 47
 			},
 			{
 				"cell_type": "code",
@@ -238,11 +237,17 @@
 					}
 				},
 				"source": [
-					"from pyspark.sql import SparkSession\r\n",
-					"spark = SparkSession.builder.getOrCreate()\r\n",
-					"spark.createOr"
+					"def mount_parquet_synapsesql(curated_database_name,curated_storage_table_name,filepath, targetpath):\r\n",
+					"    from pyspark.sql import SparkSession\r\n",
+					"    from delta.tables import DeltaTable\r\n",
+					"    spark = SparkSession.builder.getOrCreate()\r\n",
+					"    #spark.sql(\"DROP TABLE {0}.{1}\".format(curated_database_name,curated_storage_table_name))\r\n",
+					"    ;\r\n",
+					"    spark.sql(f\"if object_id ('{curated_database_name}.{curated_storage_table_name}','U') is not null drop table {curated_database_name}.{curated_storage_table_name}\")\r\n",
+					"    targetpath += filepath.split(\".windows.net/\")[1].split(\".xlsx\")[0] + '.snappy.parquet'\r\n",
+					"    #spark.sql(\"CREATE TABLE {0}.{1} USING PARQUET LOCATION '{2}' \".format(curated_database_name,curated_storage_table_name,targetpath))"
 				],
-				"execution_count": 47
+				"execution_count": 39
 			},
 			{
 				"cell_type": "code",
