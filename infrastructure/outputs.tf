@@ -28,22 +28,22 @@ output "service_bus_namespace_name" {
   value       = var.failover_deployment ? module.synapse_ingestion_failover.service_bus_namespace_name : module.synapse_ingestion.service_bus_namespace_name
 }
 
-output "synapse_dev_endpoint" {
-  description = "The development connectivity endpoint for the Synapse Workspace"
-  value       = var.failover_deployment ? module.synapse_workspace_private_failover.synapse_endpoints["dev"] : module.synapse_workspace_private.synapse_endpoints["dev"]
-}
+# output "synapse_dev_endpoint" {
+#   description = "The development connectivity endpoint for the Synapse Workspace"
+#   value       = var.failover_deployment ? module.synapse_workspace_private_failover.synapse_endpoints["dev"] : module.synapse_workspace_private.synapse_endpoints["dev"]
+# }
 
-output "synapse_dsql_endpoint" {
-  description = "The dedicated SQL pool connectivity endpoint for the Synapse Workspace"
-  value       = var.failover_deployment ? module.synapse_workspace_private_failover.synapse_endpoints["sql"] : module.synapse_workspace_private.synapse_endpoints["sql"]
-}
+# output "synapse_dsql_endpoint" {
+#   description = "The dedicated SQL pool connectivity endpoint for the Synapse Workspace"
+#   value       = var.failover_deployment ? module.synapse_workspace_private_failover.synapse_endpoints["sql"] : module.synapse_workspace_private.synapse_endpoints["sql"]
+# }
 
-output "synapse_ssql_endpoint" {
-  description = "The serverless SQL pool connectivity endpoint for the Synapse Workspace"
-  value       = var.failover_deployment ? module.synapse_workspace_private_failover.synapse_endpoints["sqlOnDemand"] : module.synapse_workspace_private.synapse_endpoints["sqlOnDemand"]
-}
+# output "synapse_ssql_endpoint" {
+#   description = "The serverless SQL pool connectivity endpoint for the Synapse Workspace"
+#   value       = var.failover_deployment ? module.synapse_workspace_private_failover.synapse_endpoints["sqlOnDemand"] : module.synapse_workspace_private.synapse_endpoints["sqlOnDemand"]
+# }
 
-output "synapse_workspace_name" {
-  description = "The name of the Synapse Workspace"
-  value       = var.failover_deployment ? module.synapse_workspace_private_failover.synapse_workspace_name : module.synapse_workspace_private.synapse_workspace_name
-}
+# output "synapse_workspace_name" {
+#   description = "The name of the Synapse Workspace"
+#   value       = var.failover_deployment ? module.synapse_workspace_private_failover.synapse_workspace_name : module.synapse_workspace_private.synapse_workspace_name
+# }
