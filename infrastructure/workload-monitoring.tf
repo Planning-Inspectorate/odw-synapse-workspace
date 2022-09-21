@@ -8,7 +8,7 @@ resource "azurerm_resource_group" "monitoring" {
 resource "azurerm_resource_group" "monitoring_failover" {
   count = var.failover_deployment ? 1 : 0
 
-  name     = "pins-rg-monitoring-${local.resource_suffix}"
+  name     = "pins-rg-monitoring-${local.resource_suffix_failover}"
   location = module.azure_region.location_cli
 
   tags = local.tags

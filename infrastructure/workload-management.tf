@@ -8,7 +8,7 @@ resource "azurerm_resource_group" "data_management" {
 resource "azurerm_resource_group" "data_management_failover" {
   count = var.failover_deployment ? 1 : 0
 
-  name     = "pins-rg-datamgmt-${local.resource_suffix}"
+  name     = "pins-rg-datamgmt-${local.resource_suffix_failover}"
   location = module.azure_region.paired_location.location_cli
 
   tags = local.tags
@@ -22,6 +22,7 @@ module "synapse_management" {
   location            = module.azure_region.location_cli
   service_name        = local.service_name
 
+  deploy_purview             = true
   key_vault_role_assignments = var.key_vault_role_assignments
 
   tags = local.tags
@@ -37,6 +38,7 @@ module "synapse_management_failover" {
   location            = module.azure_region.paired_location.location_cli
   service_name        = local.service_name
 
+  deploy_purview             = false # Not supported in the UK West region
   key_vault_role_assignments = var.key_vault_role_assignments
 
   tags = local.tags

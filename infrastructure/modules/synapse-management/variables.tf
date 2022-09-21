@@ -1,3 +1,9 @@
+variable "deploy_purview" {
+  default     = true
+  description = "Determines whether Purview will be deployed"
+  type        = bool
+}
+
 variable "environment" {
   description = "The name of the environment in which resources will be deployed"
   type        = string
