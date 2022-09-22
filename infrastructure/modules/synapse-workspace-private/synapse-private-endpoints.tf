@@ -1,5 +1,5 @@
 resource "azurerm_synapse_private_link_hub" "synapse_workspace" {
-  name                = "pins-plh-syn-${local.resource_suffix}"
+  name                = "synapse"
   resource_group_name = var.network_resource_group_name
   location            = var.location
 }
