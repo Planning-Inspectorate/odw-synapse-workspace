@@ -1,30 +1,9 @@
-<<<<<<< HEAD
 resource "azurerm_synapse_private_link_hub" "synapse_workspace" {
   name                = replace("pins-pl-syn-ws-${local.resource_suffix}", "-", "")
   resource_group_name = var.network_resource_group_name
   location            = var.location
-=======
-resource "azurerm_synapse_managed_private_endpoint" "data_lake" {
-  name                 = "synapse-st-dfs--${var.data_lake_account_name}"
-  synapse_workspace_id = azurerm_synapse_workspace.synapse.id
-  target_resource_id   = var.data_lake_account_id
-  subresource_name     = "dfs"
 
-  depends_on = [
-    time_sleep.firewall_delay
-  ]
->>>>>>> feat(failover): add mpe for failover data lake
-}
-
-resource "azurerm_synapse_managed_private_endpoint" "data_lake_failover" {
-  name                 = "synapse-st-dfs--${var.data_lake_account_name_failover}"
-  synapse_workspace_id = azurerm_synapse_workspace.synapse.id
-  target_resource_id   = var.data_lake_account_id_failover
-  subresource_name     = "dfs"
-
-  depends_on = [
-    time_sleep.firewall_delay
-  ]
+  tags = local.tags
 }
 
 resource "azurerm_private_endpoint" "synapse_dedicated_sql_pool" {
@@ -114,9 +93,20 @@ resource "azurerm_private_endpoint" "synapse_workspace" {
 }
 
 resource "azurerm_synapse_managed_private_endpoint" "data_lake" {
-  name                 = "synapse-st-dfs--${azurerm_storage_account.synapse.name}"
+  name                 = "synapse-st-dfs--${var.data_lake_account_name}"
   synapse_workspace_id = azurerm_synapse_workspace.synapse.id
-  target_resource_id   = azurerm_storage_account.synapse.id
+  target_resource_id   = var.data_lake_account_id
+  subresource_name     = "dfs"
+
+  depends_on = [
+    time_sleep.firewall_delay
+  ]
+}
+
+resource "azurerm_synapse_managed_private_endpoint" "data_lake_failover" {
+  name                 = "synapse-st-dfs--${var.data_lake_account_name_failover}"
+  synapse_workspace_id = azurerm_synapse_workspace.synapse.id
+  target_resource_id   = var.data_lake_account_id_failover
   subresource_name     = "dfs"
 
   depends_on = [
