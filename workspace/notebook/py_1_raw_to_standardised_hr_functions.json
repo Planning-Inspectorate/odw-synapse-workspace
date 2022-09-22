@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "3ae7942e-99b7-4739-b12d-49fd5296b45f"
+				"spark.autotune.trackingId": "f475b0de-62fe-444f-ae2f-f066e0527b7c"
 			}
 		},
 		"metadata": {
@@ -75,7 +75,7 @@
 					"linked_service = \"ls_storage\"\r\n",
 					"#abfss://odw-harmonised@pinsstodwdevuks9h80mb.dfs.core.windows.net//daya_temp/daya_temp3"
 				],
-				"execution_count": 21
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -129,7 +129,7 @@
 					"        raise TypeError(\"Header row should be an integer value\")\r\n",
 					"        mssparkutils.notebook.exit()"
 				],
-				"execution_count": 22
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -163,7 +163,27 @@
 					"    df.to_parquet(targetpath)\r\n",
 					"    # \"abfss://temp-sap-hr-data@pinsstodwdevuks9h80mb.dfs.core.windows.net/test.snappy.parquet\""
 				],
-				"execution_count": 23
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def enable_delta_on_parquet(targetpath):\r\n",
+					"    from delta.tables import DeltaTable\r\n",
+					"    deltaTable = DeltaTable.convertToDelta(spark, f\"parquet.`{targetpath}`\") "
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -199,7 +219,7 @@
 					"    ### writing file\r\n",
 					"    df.to_parquet(targetpath)"
 				],
-				"execution_count": 24
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -221,7 +241,7 @@
 					"    \r\n",
 					"    spark.sql(f\"CREATE TABLE {curated_database_name}.{curated_storage_table_name} USING DELTA LOCATION '{2}'\".format(delta_lake_database_name,delta_lake_table_name,harmonised_storage_delta_table_path))"
 				],
-				"execution_count": 47
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -237,21 +257,17 @@
 					}
 				},
 				"source": [
-					"def mount_parquet_synapsesql(curated_database_name,curated_storage_table_name,filepath, targetpath, deltatargetpath):\r\n",
+					"def mount_parquet_synapsesql(curated_database_name,curated_storage_table_name,filepath, targetpath):\r\n",
 					"    from pyspark.sql import SparkSession\r\n",
 					"    from delta.tables import DeltaTable\r\n",
 					"    spark = SparkSession.builder.getOrCreate()\r\n",
-					"    #spark.sql(\"DROP TABLE {0}.{1}\".format(curated_database_name,curated_storage_table_name))\r\n",
-					"    ;\r\n",
-					"    #spark.sql(f\"if object_id ('{curated_database_name}.{curated_storage_table_name}','U') is not null drop table {curated_database_name}.{curated_storage_table_name}\")\r\n",
-					"    #targetpath += filepath.split(\".windows.net/\")[1].split(\".xlsx\")[0] + '.snappy.parquet'\r\n",
-					"    #spark.sql(\"CREATE TABLE {0}.{1} USING PARQUET LOCATION '{2}' \".format(curated_database_name,curated_storage_table_name,targetpath))\r\n",
 					"    from delta.tables import DeltaTable\r\n",
-					"    if not (DeltaTable.isDeltaTable(spark,deltatargetpath)):\r\n",
-					"        targetpath += filepath.split(\".windows.net/\")[1].split(\".xlsx\")[0] + '.snappy.parquet'\r\n",
+					"    targetpath += filepath.split(\".windows.net/\")[1].split(\".xlsx\")[0] \r\n",
+					"    print(targetpath)\r\n",
+					"    if not (DeltaTable.isDeltaTable(spark,targetpath)):\r\n",
 					"        spark.sql(f\"CREATE TABLE {curated_database_name}.{curated_storage_table_name} USING DELTA LOCATION '{targetpath}'\")"
 				],
-				"execution_count": 39
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -270,7 +286,7 @@
 					"validate_parameters(filepath, storage_acc, linked_service)\r\n",
 					"ingest_excel_to_parquet(storage_acc, filepath, targetpath, linked_service)"
 				],
-				"execution_count": 26
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -288,7 +304,25 @@
 				"source": [
 					"sanitise_headers(filepath,targetpath)"
 				],
-				"execution_count": 27
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"enable_delta_on_parquet(targetpath)"
+				],
+				"execution_count": 34
 			},
 			{
 				"cell_type": "code",
@@ -306,7 +340,7 @@
 				"source": [
 					"mount_parquet_synapsesql(\"odw_standardised_db\", \"abdullah_temp\", filepath, targetpath)"
 				],
-				"execution_count": 40
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -322,9 +356,75 @@
 					}
 				},
 				"source": [
-					""
+					"from pyspark.sql import SparkSession\r\n",
+					"spark = SparkSession.builder.getOrCreate()\r\n",
+					"\r\n",
+					"### setting appopriate spark variables#\r\n",
+					"source_full_storage_account_name = storage_acc\r\n",
+					"spark.conf.set(f\"spark.storage.synapse.{source_full_storage_account_name}.linkedServiceName\", linked_service )\r\n",
+					"spark.conf.set(f\"fs.azure.account.oauth.provider.type.{source_full_storage_account_name}\", \"com.microsoft.azure.synapse.tokenlibrary.LinkedServiceBasedTokenProvider\")\r\n",
+					"\r\n",
+					"### reading file with abfss file format\r\n",
+					"import pandas as pd\r\n",
+					"df = pd.read_excel(filepath, dtype='object')"
 				],
-				"execution_count": 46
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"df.dtypes"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"import numpy as np\r\n",
+					"df.dtypes['Start Date'] == np.dtype('<M8[ns]')\r\n",
+					"np.array(df['Start Date'])"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"df.head()"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
