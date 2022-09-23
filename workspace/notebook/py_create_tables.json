@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "f3843d8d-ce89-4903-92c3-86456ee9064d"
+				"spark.autotune.trackingId": "717570ae-21e8-4bef-bca0-689f913ac20a"
 			}
 		},
 		"metadata": {
@@ -173,7 +173,7 @@
 					"    json_string_list.append(json_string)\n",
 					""
 				],
-				"execution_count": 50
+				"execution_count": 52
 			},
 			{
 				"cell_type": "code",
@@ -190,17 +190,27 @@
 				},
 				"source": [
 					"from pyspark.sql.types import StructType, DataType, StructField, StringType, IntegerType\n",
+					"from pyspark.sql.types import StructType, StructField, IntegerType, StringType ,DoubleType\n",
+					"from delta.tables import DeltaTable\n",
 					"import json\n",
 					"\n",
 					"schema_list=[]\n",
+					"i=0\n",
 					"\n",
 					"for json_string in json_string_list:\n",
 					"    schema = StructType.fromJson(json.loads(json_string))\n",
-					"    schema_list.append(schema_list)\n",
+					"    table_name= json_schema_files[i].split('.')[0]\n",
+					"    print('---------creating table '+table_name)\n",
+					"    harmonised_storage_delta_table_path = harmonised_storage_container + '/' + harmonised_storage_delta_folder + '/' + table_name\n",
 					"\n",
-					"print(schema_list[0])"
+					"    if not (DeltaTable.isDeltaTable(spark,harmonised_storage_delta_table_path)):\n",
+					"        harmonisationInspectordf = spark.createDataFrame([], schema)\n",
+					"        harmonisationInspectordf.write.option(\"mergeSchema\", \"true\").format('delta').mode('overwrite').save(harmonised_storage_delta_table_path)\n",
+					"        spark.sql(\"CREATE TABLE {0}.{1} USING DELTA LOCATION '{2}'\".format(delta_lake_database_name,table_name,harmonised_storage_delta_table_path))\n",
+					"    i += 1\n",
+					""
 				],
-				"execution_count": 51
+				"execution_count": 57
 			},
 			{
 				"cell_type": "code",
@@ -217,16 +227,11 @@
 				},
 				"source": [
 					"\n",
-					"from pyspark.sql.types import StructType, StructField, IntegerType, StringType ,DoubleType\n",
-					"from delta.tables import DeltaTable\n",
-					"harmonised_storage_delta_table_path = harmonised_storage_container + '/' + harmonised_storage_delta_folder + '/' + harmonised_storage_delta_table_name\n",
 					"\n",
-					"print('------------harmonised_storage_delta_table_path-----'+harmonised_storage_delta_table_path)\n",
 					"\n",
-					"if not (DeltaTable.isDeltaTable(spark,harmonised_storage_delta_table_path)):\n",
-					"    harmonisationInspectordf = spark.createDataFrame([], new_schema)\n",
-					"    harmonisationInspectordf.write.option(\"mergeSchema\", \"true\").format('delta').mode('overwrite').save(harmonised_storage_delta_table_path)\n",
-					"    spark.sql(\"CREATE TABLE {0}.{1} USING DELTA LOCATION '{2}'\".format(delta_lake_database_name,delta_lake_table_name,harmonised_storage_delta_table_path))"
+					"\n",
+					"\n",
+					""
 				],
 				"execution_count": null
 			}
