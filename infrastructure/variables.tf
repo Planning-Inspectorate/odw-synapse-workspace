@@ -22,6 +22,11 @@ variable "alert_group_synapse_recipients" {
   type        = list(string)
 }
 
+variable "alert_scope_service_health" {
+  description = "The resource scope at which to alert on service health events"
+  type        = string
+}
+
 variable "alert_threshold_data_lake_capacity_bytes" {
   default     = 1099511627776 # 1TiB
   description = "The threshold at which to trigger an alert for exceeding Data Lake capacity in bytes"

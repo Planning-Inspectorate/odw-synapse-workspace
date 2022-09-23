@@ -1,7 +1,7 @@
 resource "azurerm_monitor_activity_log_alert" "service_health" {
   name                = "Service Health"
   resource_group_name = var.resource_group_name
-  scopes              = [data.azurerm_subscription.current.id]
+  scopes              = [var.alert_scope_service_health]
   description         = "Triggers an alert if the Azure Service Health changes"
   enabled             = var.alert_group_platform_enabled
 

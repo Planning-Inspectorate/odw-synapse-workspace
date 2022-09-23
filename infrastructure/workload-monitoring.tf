@@ -26,6 +26,7 @@ module "synapse_monitoring" {
   alert_group_platform_recipients          = var.alert_group_platform_recipients
   alert_group_synapse_enabled              = var.alert_group_synapse_enabled
   alert_group_synapse_recipients           = var.alert_group_synapse_recipients
+  alert_scope_service_health               = var.alert_scope_service_health
   alert_threshold_data_lake_capacity_bytes = var.alert_threshold_data_lake_capacity_bytes
   data_lake_account_id                     = module.synapse_data_lake.data_lake_account_id
   key_vault_id                             = module.synapse_data_lake.key_vault_id
@@ -61,6 +62,7 @@ module "synapse_monitoring_failover" {
   alert_group_platform_recipients          = var.alert_group_platform_recipients
   alert_group_synapse_enabled              = var.alert_group_synapse_enabled
   alert_group_synapse_recipients           = var.alert_group_synapse_recipients
+  alert_scope_service_health               = var.alert_scope_service_health
   alert_threshold_data_lake_capacity_bytes = var.alert_threshold_data_lake_capacity_bytes
   data_lake_account_id                     = module.synapse_data_lake_failover.data_lake_account_id
   key_vault_id                             = module.synapse_data_lake_failover.key_vault_id
