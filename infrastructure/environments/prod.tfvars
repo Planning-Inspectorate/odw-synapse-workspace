@@ -62,6 +62,7 @@ sql_server_enabled                = false
 synapse_aad_administrator = {
   username  = "pins-odw-data-prod-syn-ws-sqladmins"
   object_id = "f0e4d89f-3288-48c9-ada9-1227a069c76e"
+  tenant_id = "5878df98-6f88-48ab-9322-998ce557088d"
 }
 
 synapse_data_exfiltration_enabled  = false
