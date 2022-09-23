@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "f6b64005-aed0-4fc8-829c-b4b55df35d83"
+				"spark.autotune.trackingId": "8c03ccb8-f287-4c98-988d-bb8e47df89e5"
 			}
 		},
 		"metadata": {
@@ -68,15 +68,15 @@
 					]
 				},
 				"source": [
-					"table_name = \"Addresses\"\r\n",
-					"filepath = \"abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/Fileshare/SAP_HR/2022-08/Addresses - 20220831.xlsx\"\r\n",
+					"table_name = \"leave\"\r\n",
+					"filepath = \"abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/Fileshare/SAP_HR/2022-08/Leave Entitlement_20220831.xlsx\"\r\n",
 					"targetpath = 'abfss://odw-standardised@pinsstodwdevuks9h80mb.dfs.core.windows.net/HR/' + table_name + \"/\"\r\n",
 					"# deltatargetpath = targetpath + 'Delta/HR'\r\n",
 					"storage_acc = \"pinsstodwdevuks9h80mb.dfs.core.windows.net\"\r\n",
 					"linked_service = \"ls_storage\"\r\n",
 					"#abfss://odw-harmonised@pinsstodwdevuks9h80mb.dfs.core.windows.net//daya_temp/daya_temp3"
 				],
-				"execution_count": 171
+				"execution_count": 63
 			},
 			{
 				"cell_type": "code",
@@ -130,7 +130,7 @@
 					"        raise TypeError(\"Header row should be an integer value\")\r\n",
 					"        mssparkutils.notebook.exit()"
 				],
-				"execution_count": 172
+				"execution_count": 64
 			},
 			{
 				"cell_type": "code",
@@ -167,14 +167,19 @@
 					"    cols=[re.sub(\"( |\\#|\\# |\\.|\\(|\\)|\\/)\",\"_\",i) for i in cols] # replace chars with _\r\n",
 					"    cols=[re.sub(\"([\\_]{2,})\",\"_\",i) for i in cols] #replace consecutive _ with one _\r\n",
 					"    cols=[re.sub(\"(\\_)$\",\"\",i) for i in cols] #remove trailing _\r\n",
+					"    cols = [item.replace(',','') for item in cols]\r\n",
 					"    df.columns = cols\r\n",
+					"    print(cols)\r\n",
+					"    ###\r\n",
+					"    df = df.astype(str, errors='ignore')\r\n",
 					"\r\n",
 					"    ### writing output\r\n",
 					"    targetpath += filepath.split(\".windows.net/\")[1].split(\".xlsx\")[0] + '.snappy.parquet'\r\n",
-					"    df.to_parquet(targetpath)\r\n",
+					"    print(df.head())\r\n",
+					"    df.to_parquet(targetpath,allow_truncated_timestamps=True)\r\n",
 					"    # \"abfss://temp-sap-hr-data@pinsstodwdevuks9h80mb.dfs.core.windows.net/test.snappy.parquet\""
 				],
-				"execution_count": 190
+				"execution_count": 65
 			},
 			{
 				"cell_type": "code",
@@ -194,7 +199,7 @@
 					"    import pandas as pd\r\n",
 					"    ### changing all types to string - makes life easier\r\n",
 					"    targetpath += filepath.split(\".windows.net/\")[1].split(\".xlsx\")[0] + '.snappy.parquet'\r\n",
-					"    print(\"help\")\r\n",
+					"    print(targetpath)\r\n",
 					"    df = pd.read_parquet(targetpath)\r\n",
 					"    print(\"testing\")\r\n",
 					"    df = df.astype(str, errors='ignore')\r\n",
@@ -202,7 +207,7 @@
 					"    ### writing file\r\n",
 					"    df.to_parquet(targetpath)"
 				],
-				"execution_count": 188
+				"execution_count": 66
 			},
 			{
 				"cell_type": "code",
@@ -222,7 +227,7 @@
 					"    from delta.tables import DeltaTable\r\n",
 					"    deltaTable = DeltaTable.convertToDelta(spark, f\"parquet.`{targetpath}`\") "
 				],
-				"execution_count": 176
+				"execution_count": 67
 			},
 			{
 				"cell_type": "code",
@@ -246,7 +251,7 @@
 					"    #if not (DeltaTable.isDeltaTable(spark,targetpath)):\r\n",
 					"    spark.sql(f\"CREATE TABLE {curated_database_name}.{curated_storage_table_name} USING DELTA LOCATION '{targetpath}'\")"
 				],
-				"execution_count": 177
+				"execution_count": 68
 			},
 			{
 				"cell_type": "code",
@@ -265,25 +270,7 @@
 					"validate_parameters(filepath, storage_acc, linked_service)\r\n",
 					"ingest_excel_to_parquet(storage_acc, filepath, targetpath, linked_service)"
 				],
-				"execution_count": 178
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"change_types(filepath, targetpath)"
-				],
-				"execution_count": 189
+				"execution_count": 69
 			},
 			{
 				"cell_type": "code",
@@ -301,7 +288,7 @@
 				"source": [
 					"enable_delta_on_parquet(targetpath)"
 				],
-				"execution_count": null
+				"execution_count": 70
 			},
 			{
 				"cell_type": "code",
@@ -319,25 +306,7 @@
 				"source": [
 					"mount_parquet_synapsesql(\"odw_standardised_db\", table_name, targetpath)"
 				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					""
-				],
-				"execution_count": null
+				"execution_count": 71
 			},
 			{
 				"cell_type": "code",
