@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "8378895c-5bc0-45f2-9d66-dc690505b061"
+				"spark.autotune.trackingId": "f3843d8d-ce89-4903-92c3-86456ee9064d"
 			}
 		},
 		"metadata": {
@@ -87,7 +87,7 @@
 					"workspace_storage_temp_folder = 'employee-syn'\r\n",
 					"workspace_storage_temp_name = 'employee-syn'\r\n",
 					"harmonised_storage_container = 'abfss://odw-harmonised@' + storage_account\r\n",
-					"json_schema_folder='json_schema'\r\n",
+					"json_schema_folder='json_schema/new/'\r\n",
 					"json_schema_file_name='absence_schema.json'\r\n",
 					"harmonised_storage_delta_folder = 'daya_temp'\r\n",
 					"harmonised_storage_delta_table_name = 'daya_temp3'\r\n",
@@ -96,7 +96,7 @@
 					"delta_lake_database_name = \"odw_harmonised_db\"\r\n",
 					"sourceColumnNames = 'n/a'"
 				],
-				"execution_count": 33
+				"execution_count": 48
 			},
 			{
 				"cell_type": "code",
@@ -114,18 +114,18 @@
 				"source": [
 					"from notebookutils import mssparkutils\n",
 					"\n",
-					"json_schema_path = harmonised_storage_container + '/' + json_schema_folder + '/new'\n",
+					"json_schema_path = harmonised_storage_container + '/' + json_schema_folder\n",
 					"\n",
 					"files = mssparkutils.fs.ls(json_schema_path)\n",
 					"\n",
-					"json_schema_file_paths = []\n",
+					"json_schema_files = []\n",
 					"\n",
 					"for fi in files:\n",
-					"  json_schema_file_paths.append(fi.path)\n",
+					"  json_schema_files.append(fi.name)\n",
 					"\n",
 					""
 				],
-				"execution_count": 39
+				"execution_count": 49
 			},
 			{
 				"cell_type": "code",
@@ -160,9 +160,9 @@
 				},
 				"source": [
 					"json_string_list=[]\n",
-					"table_names=[]\n",
 					"\n",
-					"for json_schema_file_path in json_schema_file_paths:\n",
+					"for file_name in json_schema_files:\n",
+					"    json_schema_file_path = json_schema_path + '/' + file_name\n",
 					"    df=spark.read.text(json_schema_file_path)\n",
 					"    table = [x[\"value\"] for x in df.rdd.collect()]\n",
 					"    json_string = \"\"\n",
@@ -173,7 +173,7 @@
 					"    json_string_list.append(json_string)\n",
 					""
 				],
-				"execution_count": 40
+				"execution_count": 50
 			},
 			{
 				"cell_type": "code",
@@ -200,7 +200,7 @@
 					"\n",
 					"print(schema_list[0])"
 				],
-				"execution_count": 45
+				"execution_count": 51
 			},
 			{
 				"cell_type": "code",
