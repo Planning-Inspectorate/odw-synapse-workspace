@@ -2,6 +2,7 @@ alert_group_platform_enabled             = true
 alert_group_platform_recipients          = ["lester.march@planninginspectorate.gov.uk"]
 alert_group_synapse_enabled              = true
 alert_group_synapse_recipients           = ["lester.march@planninginspectorate.gov.uk"]
+alert_scope_service_health               = "/subscriptions/6b18ba9d-2399-48b5-a834-e0f267be122d"
 alert_threshold_data_lake_capacity_bytes = 10995116277760 # 10TiB
 
 bastion_host_enabled = false
@@ -62,6 +63,7 @@ sql_server_enabled                = false
 synapse_aad_administrator = {
   username  = "pins-odw-data-preprod-syn-ws-sqladmins"
   object_id = "ba5af92f-a1bf-4332-a3c9-613a0a8f1b12"
+  tenant_id = "5878df98-6f88-48ab-9322-998ce557088d"
 }
 
 synapse_data_exfiltration_enabled  = false
@@ -81,7 +83,8 @@ synapse_role_assignments = {
 
 tags = {}
 
-vnet_base_cidr_block = "10.80.0.0/24"
+vnet_base_cidr_block          = "10.80.0.0/24"
+vnet_base_cidr_block_failover = "10.80.1.0/24"
 vnet_subnets = [
   {
     "name" : "AzureBastionSubnet",

@@ -1,36 +1,26 @@
-variable "data_lake_account_tier" {
-  default     = "Standard"
-  description = "The tier of the Synapse data lake Storage Account"
+variable "data_lake_account_id" {
+  description = "The ID of the Data Lake Storage Account"
   type        = string
 }
 
-variable "data_lake_private_endpoint_dns_zone_id" {
-  description = "The ID of the Private DNS Zone hosting privatelink.dfs.core.windows.net"
+variable "data_lake_account_id_failover" {
+  description = "The ID of the Data Lake Storage Account used for backup and failover"
   type        = string
 }
 
-variable "data_lake_replication_type" {
-  default     = "ZRS"
-  description = "The replication type for the Synapse data lake Storage Account"
+variable "data_lake_account_name" {
+  description = "The name of the Data Lake Storage Account"
   type        = string
 }
 
-variable "data_lake_retention_days" {
-  default     = 7
-  description = "The number of days blob and queue data will be retained for upon deletion"
-  type        = number
+variable "data_lake_account_name_failover" {
+  description = "The name of the Data Lake Storage Account used for backup and failover"
+  type        = string
 }
 
-variable "data_lake_role_assignments" {
-  default     = {}
-  description = "An object mapping RBAC roles to principal IDs for the data lake Storage Account"
-  type        = map(list(string))
-}
-
-variable "data_lake_storage_containers" {
-  default     = ["default"]
-  description = "A list of container names to be created in the Synapse data lake Storage Account"
-  type        = list(string)
+variable "data_lake_filesystem_id" {
+  description = "The ID of the Data Lake Gen2 filesystem"
+  type        = string
 }
 
 variable "environment" {
@@ -38,10 +28,9 @@ variable "environment" {
   type        = string
 }
 
-variable "key_vault_role_assignments" {
-  default     = {}
-  description = "An object mapping RBAC roles to principal IDs for Key Vault"
-  type        = map(list(string))
+variable "key_vault_id" {
+  description = "The ID of the Key Vault to use for secret storage"
+  type        = string
 }
 
 variable "network_resource_group_name" {

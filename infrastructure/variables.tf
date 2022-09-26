@@ -22,6 +22,11 @@ variable "alert_group_synapse_recipients" {
   type        = list(string)
 }
 
+variable "alert_scope_service_health" {
+  description = "The resource scope at which to alert on service health events"
+  type        = string
+}
+
 variable "alert_threshold_data_lake_capacity_bytes" {
   default     = 1099511627776 # 1TiB
   description = "The threshold at which to trigger an alert for exceeding Data Lake capacity in bytes"
@@ -90,6 +95,12 @@ variable "data_lake_storage_containers" {
 variable "environment" {
   description = "The name of the environment in which resources will be deployed"
   type        = string
+}
+
+variable "failover_deployment" {
+  default     = false
+  description = "Determines if this is a failover deployment such that resources will deployed to the failover region"
+  type        = bool
 }
 
 variable "key_vault_role_assignments" {
@@ -201,6 +212,12 @@ variable "tags" {
 variable "vnet_base_cidr_block" {
   default     = "10.90.0.0/24"
   description = "The base IPv4 range for the Virtual Network in CIDR notation"
+  type        = string
+}
+
+variable "vnet_base_cidr_block_failover" {
+  default     = "10.90.1.0/24"
+  description = "The base IPv4 range for the failover Virtual Network in CIDR notation"
   type        = string
 }
 

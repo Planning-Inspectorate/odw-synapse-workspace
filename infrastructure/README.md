@@ -180,23 +180,47 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 |------|--------|---------|
 | <a name="module_azure_region"></a> [azure\_region](#module\_azure\_region) | claranet/regions/azurerm | 5.1.0 |
 | <a name="module_bastion_host"></a> [bastion\_host](#module\_bastion\_host) | ./modules/bastion-host | n/a |
+| <a name="module_bastion_host_failover"></a> [bastion\_host\_failover](#module\_bastion\_host\_failover) | ./modules/bastion-host | n/a |
+| <a name="module_synapse_data_lake"></a> [synapse\_data\_lake](#module\_synapse\_data\_lake) | ./modules/synapse-data-lake | n/a |
+| <a name="module_synapse_data_lake_failover"></a> [synapse\_data\_lake\_failover](#module\_synapse\_data\_lake\_failover) | ./modules/synapse-data-lake | n/a |
 | <a name="module_synapse_ingestion"></a> [synapse\_ingestion](#module\_synapse\_ingestion) | ./modules/synapse-ingestion | n/a |
+| <a name="module_synapse_ingestion_failover"></a> [synapse\_ingestion\_failover](#module\_synapse\_ingestion\_failover) | ./modules/synapse-ingestion | n/a |
 | <a name="module_synapse_management"></a> [synapse\_management](#module\_synapse\_management) | ./modules/synapse-management | n/a |
+| <a name="module_synapse_management_failover"></a> [synapse\_management\_failover](#module\_synapse\_management\_failover) | ./modules/synapse-management | n/a |
 | <a name="module_synapse_monitoring"></a> [synapse\_monitoring](#module\_synapse\_monitoring) | ./modules/synapse-monitoring | n/a |
+| <a name="module_synapse_monitoring_failover"></a> [synapse\_monitoring\_failover](#module\_synapse\_monitoring\_failover) | ./modules/synapse-monitoring | n/a |
 | <a name="module_synapse_network"></a> [synapse\_network](#module\_synapse\_network) | ./modules/synapse-network | n/a |
+| <a name="module_synapse_network_failover"></a> [synapse\_network\_failover](#module\_synapse\_network\_failover) | ./modules/synapse-network | n/a |
 | <a name="module_synapse_sql_server"></a> [synapse\_sql\_server](#module\_synapse\_sql\_server) | ./modules/synapse-sql-server | n/a |
+| <a name="module_synapse_sql_server_failover"></a> [synapse\_sql\_server\_failover](#module\_synapse\_sql\_server\_failover) | ./modules/synapse-sql-server | n/a |
 | <a name="module_synapse_workspace_private"></a> [synapse\_workspace\_private](#module\_synapse\_workspace\_private) | ./modules/synapse-workspace-private | n/a |
+| <a name="module_synapse_workspace_private_failover"></a> [synapse\_workspace\_private\_failover](#module\_synapse\_workspace\_private\_failover) | ./modules/synapse-workspace-private | n/a |
 
 ## Resources
 
 | Name | Type |
 |------|------|
+| [azurerm_private_dns_zone.data_lake](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/private_dns_zone) | resource |
+| [azurerm_private_dns_zone.synapse](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/private_dns_zone) | resource |
+| [azurerm_private_dns_zone_virtual_network_link.data_lake](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/private_dns_zone_virtual_network_link) | resource |
+| [azurerm_private_dns_zone_virtual_network_link.data_lake_failover](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/private_dns_zone_virtual_network_link) | resource |
+| [azurerm_private_dns_zone_virtual_network_link.synapse](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/private_dns_zone_virtual_network_link) | resource |
+| [azurerm_private_dns_zone_virtual_network_link.synapse_failover](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/private_dns_zone_virtual_network_link) | resource |
 | [azurerm_resource_group.data](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
+| [azurerm_resource_group.data_failover](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
 | [azurerm_resource_group.data_management](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
+| [azurerm_resource_group.data_management_failover](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
 | [azurerm_resource_group.ingestion](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
+| [azurerm_resource_group.ingestion_failover](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
 | [azurerm_resource_group.monitoring](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
+| [azurerm_resource_group.monitoring_failover](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
 | [azurerm_resource_group.network](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
+| [azurerm_resource_group.network_failover](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
+| [azurerm_resource_group.network_global](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
 | [azurerm_resource_group.sql_server](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
+| [azurerm_resource_group.sql_server_failover](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
+| [azurerm_virtual_network_peering.pri_sec](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/virtual_network_peering) | resource |
+| [azurerm_virtual_network_peering.sec_pri](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/virtual_network_peering) | resource |
 
 ## Inputs
 
@@ -206,6 +230,7 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 | <a name="input_alert_group_platform_recipients"></a> [alert\_group\_platform\_recipients](#input\_alert\_group\_platform\_recipients) | A list of email recipients to recieve platform alerts | `list(string)` | `[]` | no |
 | <a name="input_alert_group_synapse_enabled"></a> [alert\_group\_synapse\_enabled](#input\_alert\_group\_synapse\_enabled) | Determines whether the alert group for Synapse alerts is enabled | `bool` | `false` | no |
 | <a name="input_alert_group_synapse_recipients"></a> [alert\_group\_synapse\_recipients](#input\_alert\_group\_synapse\_recipients) | A list of email recipients to recieve Synapse alerts | `list(string)` | `[]` | no |
+| <a name="input_alert_scope_service_health"></a> [alert\_scope\_service\_health](#input\_alert\_scope\_service\_health) | The resource scope at which to alert on service health events | `string` | n/a | yes |
 | <a name="input_alert_threshold_data_lake_capacity_bytes"></a> [alert\_threshold\_data\_lake\_capacity\_bytes](#input\_alert\_threshold\_data\_lake\_capacity\_bytes) | The threshold at which to trigger an alert for exceeding Data Lake capacity in bytes | `number` | `1099511627776` | no |
 | <a name="input_bastion_host_enabled"></a> [bastion\_host\_enabled](#input\_bastion\_host\_enabled) | Determines if a Bastion Host should be provisioned for management purposes | `bool` | `false` | no |
 | <a name="input_bastion_vm_image"></a> [bastion\_vm\_image](#input\_bastion\_vm\_image) | An object describing the image specification to use for the Bastion jumpbox VM | `map(string)` | <pre>{<br>  "offer": "windows-11",<br>  "publisher": "MicrosoftWindowsDesktop",<br>  "sku": "win11-21h2-ent",<br>  "version": "latest"<br>}</pre> | no |
@@ -217,6 +242,7 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 | <a name="input_data_lake_role_assignments"></a> [data\_lake\_role\_assignments](#input\_data\_lake\_role\_assignments) | An object mapping RBAC roles to principal IDs for the data lake Storage Account | `map(list(string))` | `{}` | no |
 | <a name="input_data_lake_storage_containers"></a> [data\_lake\_storage\_containers](#input\_data\_lake\_storage\_containers) | A list of container names to be created in the Synapse data lake Storage Account | `list(string)` | <pre>[<br>  "default"<br>]</pre> | no |
 | <a name="input_environment"></a> [environment](#input\_environment) | The name of the environment in which resources will be deployed | `string` | n/a | yes |
+| <a name="input_failover_deployment"></a> [failover\_deployment](#input\_failover\_deployment) | Determines if this is a failover deployment such that resources will deployed to the failover region | `bool` | `false` | no |
 | <a name="input_key_vault_role_assignments"></a> [key\_vault\_role\_assignments](#input\_key\_vault\_role\_assignments) | An object mapping RBAC roles to principal IDs for Key Vault | `map(list(string))` | `{}` | no |
 | <a name="input_location"></a> [location](#input\_location) | The short-format Azure region into which resources will be deployed | `string` | n/a | yes |
 | <a name="input_network_watcher_enabled"></a> [network\_watcher\_enabled](#input\_network\_watcher\_enabled) | Determines whether a Network Watcher resource will be deployed | `bool` | `false` | no |
@@ -236,6 +262,7 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 | <a name="input_synapse_sql_administrator_username"></a> [synapse\_sql\_administrator\_username](#input\_synapse\_sql\_administrator\_username) | The SQL administrator username for the Synapse Workspace | `string` | `"synadmin"` | no |
 | <a name="input_tags"></a> [tags](#input\_tags) | A collection of tags to assign to taggable resources | `map(string)` | `{}` | no |
 | <a name="input_vnet_base_cidr_block"></a> [vnet\_base\_cidr\_block](#input\_vnet\_base\_cidr\_block) | The base IPv4 range for the Virtual Network in CIDR notation | `string` | `"10.90.0.0/24"` | no |
+| <a name="input_vnet_base_cidr_block_failover"></a> [vnet\_base\_cidr\_block\_failover](#input\_vnet\_base\_cidr\_block\_failover) | The base IPv4 range for the failover Virtual Network in CIDR notation | `string` | `"10.90.1.0/24"` | no |
 | <a name="input_vnet_subnets"></a> [vnet\_subnets](#input\_vnet\_subnets) | A collection of subnet definitions used to logically partition the Virtual Network | `list(map(string))` | <pre>[<br>  {<br>    "name": "ManagementSubnet",<br>    "new_bits": 2<br>  },<br>  {<br>    "name": "SynapseEndpointSubnet",<br>    "new_bits": 2<br>  },<br>  {<br>    "name": null,<br>    "new_bits": 2<br>  },<br>  {<br>    "name": null,<br>    "new_bits": 2<br>  }<br>]</pre> | no |
 
 ## Outputs
@@ -243,6 +270,7 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 | Name | Description |
 |------|-------------|
 | <a name="output_data_lake_account_id"></a> [data\_lake\_account\_id](#output\_data\_lake\_account\_id) | The ID of the Data Lake Storage Account |
+| <a name="output_data_lake_account_id_failover"></a> [data\_lake\_account\_id\_failover](#output\_data\_lake\_account\_id\_failover) | The ID of the Data Lake Storage Account |
 | <a name="output_data_lake_dfs_endpoint"></a> [data\_lake\_dfs\_endpoint](#output\_data\_lake\_dfs\_endpoint) | The DFS endpoint URL of the Data Lake Storage Account |
 | <a name="output_data_resource_group_name"></a> [data\_resource\_group\_name](#output\_data\_resource\_group\_name) | The name of the data application resource group |
 | <a name="output_key_vault_uri"></a> [key\_vault\_uri](#output\_key\_vault\_uri) | The URI of the Key Vault |
