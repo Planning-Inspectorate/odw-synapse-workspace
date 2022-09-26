@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "717570ae-21e8-4bef-bca0-689f913ac20a"
+				"spark.autotune.trackingId": "60cc6b74-84e9-466d-827e-ec1f130e2e04"
 			}
 		},
 		"metadata": {
@@ -70,7 +70,7 @@
 					"from notebookutils import mssparkutils\n",
 					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')"
 				],
-				"execution_count": 32
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
@@ -96,7 +96,7 @@
 					"delta_lake_database_name = \"odw_harmonised_db\"\r\n",
 					"sourceColumnNames = 'n/a'"
 				],
-				"execution_count": 48
+				"execution_count": 13
 			},
 			{
 				"cell_type": "code",
@@ -125,25 +125,7 @@
 					"\n",
 					""
 				],
-				"execution_count": 49
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					""
-				],
-				"execution_count": null
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
@@ -173,7 +155,7 @@
 					"    json_string_list.append(json_string)\n",
 					""
 				],
-				"execution_count": 52
+				"execution_count": 15
 			},
 			{
 				"cell_type": "code",
@@ -192,48 +174,31 @@
 					"from pyspark.sql.types import StructType, DataType, StructField, StringType, IntegerType\n",
 					"from pyspark.sql.types import StructType, StructField, IntegerType, StringType ,DoubleType\n",
 					"from delta.tables import DeltaTable\n",
+					"from notebookutils import mssparkutils\n",
 					"import json\n",
 					"\n",
 					"schema_list=[]\n",
 					"i=0\n",
 					"\n",
+					"archive_folder = harmonised_storage_container + '/json_schema/old' \n",
+					"\n",
 					"for json_string in json_string_list:\n",
 					"    schema = StructType.fromJson(json.loads(json_string))\n",
 					"    table_name= json_schema_files[i].split('.')[0]\n",
+					"    json_file = json_schema_path+json_schema_files[i]\n",
 					"    print('---------creating table '+table_name)\n",
+					"    print('---------from file '+json_file)\n",
 					"    harmonised_storage_delta_table_path = harmonised_storage_container + '/' + harmonised_storage_delta_folder + '/' + table_name\n",
 					"\n",
 					"    if not (DeltaTable.isDeltaTable(spark,harmonised_storage_delta_table_path)):\n",
 					"        harmonisationInspectordf = spark.createDataFrame([], schema)\n",
 					"        harmonisationInspectordf.write.option(\"mergeSchema\", \"true\").format('delta').mode('overwrite').save(harmonised_storage_delta_table_path)\n",
 					"        spark.sql(\"CREATE TABLE {0}.{1} USING DELTA LOCATION '{2}'\".format(delta_lake_database_name,table_name,harmonised_storage_delta_table_path))\n",
+					"        mssparkutils.fs.mv(json_file, archive_folder)\n",
 					"    i += 1\n",
 					""
 				],
-				"execution_count": 57
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"\n",
-					"\n",
-					"\n",
-					"\n",
-					"\n",
-					""
-				],
-				"execution_count": null
+				"execution_count": 17
 			}
 		]
 	}
