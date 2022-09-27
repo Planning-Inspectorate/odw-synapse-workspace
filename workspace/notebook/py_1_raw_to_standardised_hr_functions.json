@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "32f81b58-8bf0-4a25-8daa-ed55b55a146f"
+				"spark.autotune.trackingId": "835bcf4d-d5e3-44b6-9f7f-84b3578a6de0"
 			}
 		},
 		"metadata": {
@@ -123,6 +123,29 @@
 					}
 				},
 				"source": [
+					"def _cleanse_headers(df):\r\n",
+					"    '''\r\n",
+					"    NOT A PURE FUNCTION\r\n",
+					"    Take a dataframe and appropriately cleanse headers in a file\r\n",
+					"    '''\r\n",
+					"    import re\r\n",
+					"    cols = df.columns\r\n",
+					"    cols=[re.sub(\"( |\\#|\\# |\\.|\\(|\\)|\\/)\",\"_\",i) for i in cols] # replace chars with _\r\n",
+					"    cols=[re.sub(\"([\\_]{2,})\",\"_\",i) for i in cols] #replace consecutive _ with one _\r\n",
+					"    cols=[re.sub(\"(\\_)$\",\"\",i) for i in cols] #remove trailing _\r\n",
+					"    cols = [item.replace(',','') for item in cols]\r\n",
+					"    df.columns = cols\r\n",
+					"\r\n",
+					"    return df \r\n",
+					"\r\n",
+					"def _change_types(df):\r\n",
+					"    '''\r\n",
+					"    NOT A PURE FUNCTION\r\n",
+					"    Take a dataframe and appropriately make all data types a string\r\n",
+					"    '''\r\n",
+					"    return df.astype(str, errors='ignore')\r\n",
+					"\r\n",
+					"\r\n",
 					"def ingest_excel_to_parquet(storage_acc, filepath, targetpath, linked_service, sheet_name=0, header=0):\r\n",
 					"\r\n",
 					"    '''\r\n",
@@ -143,56 +166,18 @@
 					"    df = pd.read_excel(filepath, sheet_name=sheet_name, header=header, dtype='object')\r\n",
 					"    \r\n",
 					"    ### cleanse headers \r\n",
-					"    import re\r\n",
-					"    cols = df.columns\r\n",
-					"    cols=[re.sub(\"( |\\#|\\# |\\.|\\(|\\)|\\/)\",\"_\",i) for i in cols] # replace chars with _\r\n",
-					"    cols=[re.sub(\"([\\_]{2,})\",\"_\",i) for i in cols] #replace consecutive _ with one _\r\n",
-					"    cols=[re.sub(\"(\\_)$\",\"\",i) for i in cols] #remove trailing _\r\n",
-					"    cols = [item.replace(',','') for item in cols]\r\n",
-					"    df.columns = cols\r\n",
+					"    df = _cleanse_headers(df)\r\n",
 					"    \r\n",
-					"    ###\r\n",
-					"    df = df.astype(str, errors='ignore')\r\n",
+					"    ### change all types to string\r\n",
+					"    df = _change_types(df)\r\n",
 					"\r\n",
 					"    ### writing output\r\n",
 					"    targetpath += filepath.split(\".windows.net/\")[1].split(\".xlsx\")[0] + '.snappy.parquet'\r\n",
 					"    print(df.head())\r\n",
 					"    df.to_parquet(targetpath,allow_truncated_timestamps=True)\r\n",
-					"    # \"abfss://temp-sap-hr-data@pinsstodwdevuks9h80mb.dfs.core.windows.net/test.snappy.parquet\""
+					""
 				],
 				"execution_count": 65
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"def change_types(filepath, targetpath):\r\n",
-					"    '''\r\n",
-					"    \r\n",
-					"    '''\r\n",
-					"\r\n",
-					"    import pandas as pd\r\n",
-					"    ### changing all types to string - makes life easier\r\n",
-					"    targetpath += filepath.split(\".windows.net/\")[1].split(\".xlsx\")[0] + '.snappy.parquet'\r\n",
-					"    print(targetpath)\r\n",
-					"    df = pd.read_parquet(targetpath)\r\n",
-					"    print(\"testing\")\r\n",
-					"    df = df.astype(str, errors='ignore')\r\n",
-					"\r\n",
-					"    ### writing file\r\n",
-					"    df.to_parquet(targetpath)"
-				],
-				"execution_count": 66
 			},
 			{
 				"cell_type": "code",
