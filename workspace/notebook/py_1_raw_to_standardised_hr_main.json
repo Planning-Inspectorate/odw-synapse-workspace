@@ -1,0 +1,139 @@
+{
+	"name": "py_1_raw_to_standardised_hr_main",
+	"properties": {
+		"folder": {
+			"name": "1-odw-raw-to-standardised/Fileshare/SAP_HR"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "d39405bc-0322-4c4a-b599-965c5f0f06d3"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": true,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.2",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"%run \"1-odw-raw-to-standardised/Fileshare/SAP_HR/py_1_raw_to_standardised_hr_functions\""
+				],
+				"execution_count": 48
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"storage_acc = mssparkutils.notebook.run('/utils/py_utils_get_storage_account') # ends in / \r\n",
+					"standardised_delta_lake_table_name = \"addresses\"\r\n",
+					"linked_service = \"ls_storage\"\r\n",
+					"db = \"odw_standardised_db\"\r\n",
+					"\r\n",
+					"raw_container = \"abfss://odw-raw@\" + storage_acc\r\n",
+					"raw_source_folder = \"Fileshare/SAP_HR/2022-08/\"\r\n",
+					"raw_name = \"Addresses - 20220831.xlsx\"\r\n",
+					"\r\n",
+					"standardised_container = 'abfss://odw-standardised@' + storage_acc\r\n",
+					"standardised_source_folder = \"HR/\" + standardised_delta_lake_table_name + \"/\"\r\n",
+					"standardised_name = raw_name.split(\".xlsx\")[0] + '.snappy.parquet'\r\n",
+					"\r\n",
+					"sheet_name = 0\r\n",
+					"header_row = 0"
+				],
+				"execution_count": 49
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"tags": [
+						"parameters"
+					]
+				},
+				"source": [
+					"filepath = raw_container + raw_source_folder + raw_name\r\n",
+					"targetpath = standardised_container + standardised_source_folder + standardised_name\r\n",
+					"target_delta_folder = standardised_container + standardised_source_folder"
+				],
+				"execution_count": 50
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"validate_parameters(filepath, storage_acc, linked_service, sheet_name, header_row)\r\n",
+					"ingest_excel_to_parquet(storage_acc, filepath, targetpath, linked_service)\r\n",
+					"enable_delta_on_parquet(target_delta_folder)\r\n",
+					"mount_parquet_synapsesql(db, delta_lake_table_name, target_delta_folder)"
+				],
+				"execution_count": 52
+			}
+		]
+	}
+}

@@ -1,0 +1,237 @@
+{
+	"name": "py_1_raw_to_standardised_hr_functions",
+	"properties": {
+		"folder": {
+			"name": "1-odw-raw-to-standardised/Fileshare/SAP_HR"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "ab99abf7-c69c-4742-9b52-20eb394a3e65"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": true,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.2",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def validate_parameters(filepath, storage_acc, linked_service, sheet_name=0, header_row=0):\r\n",
+					"    \r\n",
+					"    ''' \r\n",
+					"    Type check the parameters that will be used in the ETL processing with pyspark in subsequent functions    \r\n",
+					"     '''\r\n",
+					"    \r\n",
+					"    ### imports\r\n",
+					"    from notebookutils import mssparkutils\r\n",
+					"\r\n",
+					"    ### checking abfss path\r\n",
+					"    if filepath.split('abfss://')[0] != '':\r\n",
+					"        raise ValueError(\"File path string is not of abfss:// type\")\r\n",
+					"        mssparkutils.notebook.exit()\r\n",
+					"    \r\n",
+					"\r\n",
+					"    ### checking str data types\r\n",
+					"    # defining parameters to check\r\n",
+					"    parameters = {\r\n",
+					"        'filepath':filepath,\r\n",
+					"        'storage_acc':storage_acc,\r\n",
+					"        'linked_service':linked_service\r\n",
+					"    }\r\n",
+					"\r\n",
+					"    # checking str type\r\n",
+					"    str_errors = ''\r\n",
+					"    for para in parameters:\r\n",
+					"        if type(parameters[para]) != str:\r\n",
+					"            str_errors += parameters[para]\r\n",
+					"        if str_errors != '':\r\n",
+					"            raise TypeError(f\"Parameters: {str_errors} not of type string\") \r\n",
+					"            mssparkutils.notebook.exit()\r\n",
+					"\r\n",
+					"    # checking sheet name type is str or int\r\n",
+					"    if type(sheet_name) != str and type(sheet_name) != int:\r\n",
+					"        raise TypeError(\"Sheet name should either be a string or a integer\")\r\n",
+					"        mssparkutils.notebook.exit()\r\n",
+					"\r\n",
+					"    # checking int type\r\n",
+					"    if type(sheet_name) != int:\r\n",
+					"        raise TypeError(\"Header row should be an integer value\")\r\n",
+					"        mssparkutils.notebook.exit()"
+				],
+				"execution_count": 64
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def _cleanse_headers(df):\r\n",
+					"    '''\r\n",
+					"    NOT A PURE FUNCTION\r\n",
+					"    Take a dataframe and appropriately cleanse headers in a file\r\n",
+					"    '''\r\n",
+					"    import re\r\n",
+					"    cols = df.columns\r\n",
+					"    cols=[re.sub(\"( |\\#|\\# |\\.|\\(|\\)|\\/)\",\"_\",i) for i in cols] # replace chars with _\r\n",
+					"    cols=[re.sub(\"([\\_]{2,})\",\"_\",i) for i in cols] #replace consecutive _ with one _\r\n",
+					"    cols=[re.sub(\"(\\_)$\",\"\",i) for i in cols] #remove trailing _\r\n",
+					"    cols = [item.replace(',','') for item in cols]\r\n",
+					"    df.columns = cols\r\n",
+					"\r\n",
+					"    return df \r\n",
+					"\r\n",
+					"def _change_types(df):\r\n",
+					"    '''\r\n",
+					"    NOT A PURE FUNCTION\r\n",
+					"    Take a dataframe and appropriately make all data types a string\r\n",
+					"    '''\r\n",
+					"    return df.astype(str, errors='ignore')\r\n",
+					"\r\n",
+					"\r\n",
+					"def ingest_excel_to_parquet(storage_acc, filepath, targetpath, linked_service, sheet_name=0, header=0):\r\n",
+					"\r\n",
+					"    '''\r\n",
+					"    Create a parquet file with delta capabilities from a source excel file\r\n",
+					"    '''\r\n",
+					"\r\n",
+					"    ### initialising spark session\r\n",
+					"    from pyspark.sql import SparkSession\r\n",
+					"    spark = SparkSession.builder.getOrCreate()\r\n",
+					"\r\n",
+					"    ### setting appopriate spark variables\r\n",
+					"    source_full_storage_account_name = storage_acc\r\n",
+					"    spark.conf.set(f\"spark.storage.synapse.{source_full_storage_account_name}.linkedServiceName\", linked_service )\r\n",
+					"    spark.conf.set(f\"fs.azure.account.oauth.provider.type.{source_full_storage_account_name}\", \"com.microsoft.azure.synapse.tokenlibrary.LinkedServiceBasedTokenProvider\")\r\n",
+					"\r\n",
+					"    ### reading file with abfss file location format\r\n",
+					"    import pandas as pd\r\n",
+					"    df = pd.read_excel(filepath, sheet_name=sheet_name, header=header, dtype='object')\r\n",
+					"    \r\n",
+					"    ### cleanse headers \r\n",
+					"    df = _cleanse_headers(df)\r\n",
+					"    \r\n",
+					"    ### change all types to string\r\n",
+					"    df = _change_types(df)\r\n",
+					"\r\n",
+					"    ### writing output\r\n",
+					"    df.to_parquet(targetpath,allow_truncated_timestamps=True)\r\n",
+					""
+				],
+				"execution_count": 65
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def enable_delta_on_parquet(targetpath):\r\n",
+					"    '''\r\n",
+					"    Take a standard parquet file and enable delta lake capabiltiies on the file\r\n",
+					"    '''\r\n",
+					"\r\n",
+					"    from pyspark.sql import SparkSession\r\n",
+					"    spark = SparkSession.builder.getOrCreate()\r\n",
+					"    spark.conf.set('spark.hadoop.orc.overwrite.output.file','true')\r\n",
+					"\r\n",
+					"    from delta.tables import DeltaTable\r\n",
+					"    if not DeltaTable.isDeltaTable(spark,targetpath):\r\n",
+					"        deltaTable = DeltaTable.convertToDelta(spark, f\"parquet.`{targetpath}`\") "
+				],
+				"execution_count": 7
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def mount_parquet_synapsesql(db_name,table_name,targetpath):\r\n",
+					"    '''\r\n",
+					"    Make delta parquet file available in lake database\r\n",
+					"    '''\r\n",
+					"    from pyspark.sql import SparkSession\r\n",
+					"    from delta.tables import DeltaTable\r\n",
+					"    spark = SparkSession.builder.getOrCreate()\r\n",
+					"    spark.sql(f\"drop table if exists {db_name}.{table_name};\")\r\n",
+					"    spark.sql(f\"CREATE TABLE {db_name}.{table_name} USING DELTA LOCATION '{targetpath}'\")"
+				],
+				"execution_count": 68
+			}
+		]
+	}
+}
