@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "a67d8c8f-cf31-4716-8f6d-88e10e874b96"
+				"spark.autotune.trackingId": "3f11d37a-ea61-48cc-9387-aafcc44cece4"
 			}
 		},
 		"metadata": {
@@ -70,7 +70,7 @@
 					"from notebookutils import mssparkutils\n",
 					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')"
 				],
-				"execution_count": 15
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
@@ -80,23 +80,17 @@
 					]
 				},
 				"source": [
-					"raw_storage_container = 'n/a' + storage_account\r\n",
-					"raw_storage_source_folder = 'n/a'\r\n",
-					"raw_storage_source_name = 'n/a'\r\n",
 					"workspace_storage_container = 'abfss://odw-workspace@' + storage_account\r\n",
-					"workspace_storage_temp_folder = 'employee-syn'\r\n",
-					"workspace_storage_temp_name = 'employee-syn'\r\n",
 					"harmonised_storage_container = 'abfss://odw-harmonised@' + storage_account\r\n",
-					"json_schema_folder='json_schema'\r\n",
+					"json_schema_folder='json_schema/new/'\r\n",
 					"json_schema_file_name='absence_schema.json'\r\n",
 					"harmonised_storage_delta_folder = 'daya_temp'\r\n",
 					"harmonised_storage_delta_table_name = 'daya_temp3'\r\n",
 					"delta_lake_table_key_column = 'n/a'\r\n",
 					"delta_lake_table_name = \"daya_temp3\"\r\n",
-					"delta_lake_database_name = \"odw_harmonised_db\"\r\n",
-					"sourceColumnNames = 'n/a'"
+					"delta_lake_database_name = \"odw_harmonised_db\""
 				],
-				"execution_count": 26
+				"execution_count": 13
 			},
 			{
 				"cell_type": "code",
@@ -112,21 +106,50 @@
 					}
 				},
 				"source": [
-					"json_schema_file_path = harmonised_storage_container + '/' + json_schema_folder + '/' + json_schema_file_name\n",
+					"from notebookutils import mssparkutils\n",
 					"\n",
-					"df=spark.read.text(json_schema_file_path)\n",
+					"json_schema_path = harmonised_storage_container + '/' + json_schema_folder\n",
 					"\n",
-					"table = [x[\"value\"] for x in df.rdd.collect()]\n",
+					"files = mssparkutils.fs.ls(json_schema_path)\n",
 					"\n",
+					"json_schema_files = []\n",
 					"\n",
+					"for fi in files:\n",
+					"  json_schema_files.append(fi.name)\n",
 					"\n",
-					"json_string = \"\"\n",
-					"\n",
-					"for item in table:\n",
-					"    json_string += item\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 14
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"json_string_list=[]\n",
+					"\n",
+					"for file_name in json_schema_files:\n",
+					"    json_schema_file_path = json_schema_path + '/' + file_name\n",
+					"    df=spark.read.text(json_schema_file_path)\n",
+					"    table = [x[\"value\"] for x in df.rdd.collect()]\n",
+					"    json_string = \"\"\n",
+					"\n",
+					"    for item in table:\n",
+					"        json_string += item\n",
+					"\n",
+					"    json_string_list.append(json_string)\n",
+					""
+				],
+				"execution_count": 15
 			},
 			{
 				"cell_type": "code",
@@ -143,40 +166,33 @@
 				},
 				"source": [
 					"from pyspark.sql.types import StructType, DataType, StructField, StringType, IntegerType\n",
-					"import json\n",
-					"\n",
-					"# new_schema = DataType.json(json_string).asInstanceOf[StructType]\n",
-					"new_schema = StructType.fromJson(json.loads(json_string))"
-				],
-				"execution_count": 28
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"\n",
 					"from pyspark.sql.types import StructType, StructField, IntegerType, StringType ,DoubleType\n",
 					"from delta.tables import DeltaTable\n",
-					"harmonised_storage_delta_table_path = harmonised_storage_container + '/' + harmonised_storage_delta_folder + '/' + harmonised_storage_delta_table_name\n",
+					"from notebookutils import mssparkutils\n",
+					"import json\n",
 					"\n",
-					"print('------------harmonised_storage_delta_table_path-----'+harmonised_storage_delta_table_path)\n",
+					"schema_list=[]\n",
+					"i=0\n",
 					"\n",
-					"if not (DeltaTable.isDeltaTable(spark,harmonised_storage_delta_table_path)):\n",
-					"    harmonisationInspectordf = spark.createDataFrame([], new_schema)\n",
-					"    harmonisationInspectordf.write.option(\"mergeSchema\", \"true\").format('delta').mode('overwrite').save(harmonised_storage_delta_table_path)\n",
-					"    spark.sql(\"CREATE TABLE {0}.{1} USING DELTA LOCATION '{2}'\".format(delta_lake_database_name,delta_lake_table_name,harmonised_storage_delta_table_path))"
+					"archive_folder = harmonised_storage_container + '/json_schema/old' \n",
+					"\n",
+					"for json_string in json_string_list:\n",
+					"    schema = StructType.fromJson(json.loads(json_string))\n",
+					"    table_name= json_schema_files[i].split('.')[0]\n",
+					"    json_file = json_schema_path+json_schema_files[i]\n",
+					"    print('---------creating table '+table_name)\n",
+					"    print('---------from file '+json_file)\n",
+					"    harmonised_storage_delta_table_path = harmonised_storage_container + '/' + harmonised_storage_delta_folder + '/' + table_name\n",
+					"\n",
+					"    if not (DeltaTable.isDeltaTable(spark,harmonised_storage_delta_table_path)):\n",
+					"        harmonisationInspectordf = spark.createDataFrame([], schema)\n",
+					"        harmonisationInspectordf.write.option(\"mergeSchema\", \"true\").format('delta').mode('overwrite').save(harmonised_storage_delta_table_path)\n",
+					"        spark.sql(\"CREATE TABLE {0}.{1} USING DELTA LOCATION '{2}'\".format(delta_lake_database_name,table_name,harmonised_storage_delta_table_path))\n",
+					"        mssparkutils.fs.mv(json_file, archive_folder)\n",
+					"    i += 1\n",
+					""
 				],
-				"execution_count": null
+				"execution_count": 17
 			}
 		]
 	}
