@@ -7,8 +7,7 @@ resource "azurerm_key_vault_secret" "application_insights_connection_string" {
 
   lifecycle {
     ignore_changes = [
-      expiration_date,
-      value
+      expiration_date
     ]
   }
 }
