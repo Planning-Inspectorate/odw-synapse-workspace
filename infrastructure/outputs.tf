@@ -4,13 +4,18 @@ output "data_lake_account_id" {
 }
 
 output "data_lake_account_id_failover" {
-  description = "The ID of the Data Lake Storage Account"
+  description = "The ID of the Data Lake Storage Account used for backup and failover"
   value       = var.failover_deployment ? module.synapse_data_lake.data_lake_account_id : module.synapse_data_lake_failover.data_lake_account_id
 }
 
 output "data_lake_dfs_endpoint" {
   description = "The DFS endpoint URL of the Data Lake Storage Account"
   value       = var.failover_deployment ? module.synapse_data_lake_failover.data_lake_dfs_endpoint : module.synapse_data_lake.data_lake_dfs_endpoint
+}
+
+output "data_lake_dfs_endpoint_failover" {
+  description = "The DFS endpoint URL of the Data Lake Storage Account used for backup and failover"
+  value       = var.failover_deployment ? module.synapse_data_lake.data_lake_dfs_endpoint : module.synapse_data_lake_failover.data_lake_dfs_endpoint
 }
 
 output "data_resource_group_name" {
