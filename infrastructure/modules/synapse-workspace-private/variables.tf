@@ -83,6 +83,12 @@ variable "spark_pool_node_size" {
   type        = string
 }
 
+variable "spark_pool_requirements" {
+  default     = null
+  description = "File contents containing a list of packages required by the Spark pool"
+  type        = string
+}
+
 variable "spark_pool_version" {
   default     = "2.4"
   description = "The version of Spark running on the Synapse-linked Spark pool"

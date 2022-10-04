@@ -18,6 +18,7 @@ module "synapse_workspace_private" {
   spark_pool_max_node_count             = var.spark_pool_max_node_count
   spark_pool_min_node_count             = var.spark_pool_min_node_count
   spark_pool_node_size                  = var.spark_pool_node_size
+  spark_pool_requirements               = file("${path.module}/configuration/spark-requirements.txt")
   spark_pool_version                    = var.spark_pool_version
   sql_pool_enabled                      = var.sql_pool_enabled
   sql_pool_collation                    = var.sql_pool_collation
@@ -62,6 +63,7 @@ module "synapse_workspace_private_failover" {
   spark_pool_max_node_count             = var.spark_pool_max_node_count
   spark_pool_min_node_count             = var.spark_pool_min_node_count
   spark_pool_node_size                  = var.spark_pool_node_size
+  spark_pool_requirements               = file("${path.module}/configuration/spark-requirements.txt")
   spark_pool_version                    = var.spark_pool_version
   sql_pool_enabled                      = var.sql_pool_enabled
   sql_pool_collation                    = var.sql_pool_collation
