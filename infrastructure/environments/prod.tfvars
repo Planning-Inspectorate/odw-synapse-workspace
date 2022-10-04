@@ -26,6 +26,7 @@ data_lake_role_assignments = {
   ]
 }
 data_lake_storage_containers = [
+  "backup-logs",
   "odw-curated",
   "odw-raw",
   "odw-standardised",
