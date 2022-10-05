@@ -58,6 +58,7 @@ module "bastion_host" {
   bastion_vm_username         = var.bastion_vm_username
   bastion_vm_size             = var.bastion_vm_size
   key_vault_id                = module.synapse_management.key_vault_id
+  network_resource_group_name = azurerm_resource_group.network.name
   synapse_compute_subnet_name = local.compute_subnet_name
   synapse_vnet_subnets        = module.synapse_network.vnet_subnets
 
@@ -83,6 +84,7 @@ module "bastion_host_failover" {
   bastion_vm_username         = var.bastion_vm_username
   bastion_vm_size             = var.bastion_vm_size
   key_vault_id                = module.synapse_management_failover[0].key_vault_id
+  network_resource_group_name = azurerm_resource_group.network_failover.name
   synapse_compute_subnet_name = local.compute_subnet_name
   synapse_vnet_subnets        = module.synapse_network_failover.vnet_subnets
 
