@@ -86,7 +86,7 @@ No requirements.
 | <a name="input_service_name"></a> [service\_name](#input\_service\_name) | The short-format name of the overarching service being deployed | `string` | n/a | yes |
 | <a name="input_tags"></a> [tags](#input\_tags) | A collection of tags to assign to taggable resources | `map(string)` | `{}` | no |
 | <a name="input_vnet_base_cidr_block"></a> [vnet\_base\_cidr\_block](#input\_vnet\_base\_cidr\_block) | The base IPv4 range for the Virtual Network in CIDR notation | `string` | `"10.90.0.0/24"` | no |
-| <a name="input_vnet_subnets"></a> [vnet\_subnets](#input\_vnet\_subnets) | A collection of subnet definitions used to logically partition the Virtual Network | `list(map(string))` | <pre>[<br>  {<br>    "name": "ManagementSubnet",<br>    "new_bits": 2<br>  },<br>  {<br>    "name": "SynapseEndpointSubnet",<br>    "new_bits": 2<br>  },<br>  {<br>    "name": null,<br>    "new_bits": 2<br>  },<br>  {<br>    "name": null,<br>    "new_bits": 2<br>  }<br>]</pre> | no |
+| <a name="input_vnet_subnets"></a> [vnet\_subnets](#input\_vnet\_subnets) | A collection of subnet definitions used to logically partition the Virtual Network | `list(map(string))` | <pre>[<br>  {<br>    "name": "AzureBastionSubnet",<br>    "new_bits": 2<br>  },<br>  {<br>    "name": "SynapseEndpointSubnet",<br>    "new_bits": 2<br>  },<br>  {<br>    "name": "ComputeSubnet",<br>    "new_bits": 2<br>  },<br>  {<br>    "name": null,<br>    "new_bits": 2<br>  }<br>]</pre> | no |
 
 ## Outputs
 

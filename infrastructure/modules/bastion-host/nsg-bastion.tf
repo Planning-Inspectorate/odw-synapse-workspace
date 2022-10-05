@@ -1,8 +1,3 @@
-resource "azurerm_subnet_network_security_group_association" "bastion_host" {
-  network_security_group_id = azurerm_network_security_group.bastion_host
-  subnet_id                 = var.synapse_vnet_subnets["AzureBastionSubnet"]
-}
-
 resource "azurerm_network_security_group" "bastion_host" {
   name                = "pins-nsg-bastion-${local.resource_suffix}"
   location            = var.location
@@ -132,4 +127,9 @@ resource "azurerm_network_security_rule" "bastion_allow_session_info_out" {
   destination_port_range     = "*"
   source_address_prefix      = "*"
   destination_address_prefix = "Internet"
+}
+
+resource "azurerm_subnet_network_security_group_association" "bastion_host" {
+  network_security_group_id = azurerm_network_security_group.bastion_host
+  subnet_id                 = var.synapse_vnet_subnets["AzureBastionSubnet"]
 }
