@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "f4d55eac-a1e8-4b40-aa2d-0c57d4e8344c"
+				"spark.autotune.trackingId": "bef40fda-e7d6-4d6d-8c42-cc5d7d03d6db"
 			}
 		},
 		"metadata": {
@@ -65,7 +65,7 @@
 					}
 				},
 				"source": [
-					"def validate_parameters(filepath, storage_acc, linked_service, sheet_name=0, header_row=0):\r\n",
+					"def validate_parameters(storage_acc, filepath, standardised_container, standardised_source_folder, standardised_name, linked_service, sheet_name=0, header_row=0):\r\n",
 					"    \r\n",
 					"    ''' \r\n",
 					"    Type check the parameters that will be used in the ETL processing with pyspark in subsequent functions    \r\n",
@@ -75,6 +75,9 @@
 					"    from notebookutils import mssparkutils\r\n",
 					"    import logging\r\n",
 					"    \r\n",
+					"    ### creating filepath\r\n",
+					"    filepath = raw_container + raw_source_folder + raw_name\r\n",
+					"\r\n",
 					"    ### checking abfss path\r\n",
 					"    if filepath.split('abfss://')[0] != '':\r\n",
 					"        raise ValueError(\"File path string is not of abfss:// type\")\r\n",
@@ -180,6 +183,9 @@
 					"    spark.conf.set(f\"spark.storage.synapse.{source_full_storage_account_name}.linkedServiceName\", linked_service )\r\n",
 					"    spark.conf.set(f\"fs.azure.account.oauth.provider.type.{source_full_storage_account_name}\", \"com.microsoft.azure.synapse.tokenlibrary.LinkedServiceBasedTokenProvider\")\r\n",
 					"\r\n",
+					"    ### creating targetpath variable\r\n",
+					"    targetpath = standardised_container + standardised_source_folder + standardised_name\r\n",
+					"\r\n",
 					"    ### reading file with abfss file location format\r\n",
 					"    import pandas as pd\r\n",
 					"    df = pd.read_excel(filepath, sheet_name=sheet_name, header=header, dtype='object')\r\n",
@@ -210,7 +216,7 @@
 					}
 				},
 				"source": [
-					"def enable_delta_on_parquet(targetpath):\r\n",
+					"def enable_delta_on_parquet(standardised_container, standardised_source_folder):\r\n",
 					"    '''\r\n",
 					"    Take a standard parquet file and enable delta lake capabiltiies on the file\r\n",
 					"    '''\r\n",
@@ -219,6 +225,9 @@
 					"    from pyspark.sql import SparkSession\r\n",
 					"    spark = SparkSession.builder.getOrCreate()\r\n",
 					"    spark.conf.set('spark.hadoop.orc.overwrite.output.file','true')\r\n",
+					"\r\n",
+					"    ### create target delta folder variable\r\n",
+					"    target_delta_folder = standardised_container + standardised_source_folder\r\n",
 					"\r\n",
 					"    ### check parquet file in targetpath exists\r\n",
 					"    ### OUTSTANDING\r\n",
@@ -244,7 +253,7 @@
 					}
 				},
 				"source": [
-					"def lakedb_table_sparksql(db_name,table_name,targetpath):\r\n",
+					"def lakedb_table_sparksql(db_name,table_name,standardised_container, standardised_source_folder):\r\n",
 					"    '''\r\n",
 					"    Make delta parquet file available in lake database\r\n",
 					"    '''\r\n",
@@ -253,6 +262,9 @@
 					"    from pyspark.sql import SparkSession\r\n",
 					"    from delta.tables import DeltaTable\r\n",
 					"    spark = SparkSession.builder.getOrCreate()\r\n",
+					"\r\n",
+					"    ### create target delta folder variable\r\n",
+					"    target_delta_folder = standardised_container + standardised_source_folder\r\n",
 					"\r\n",
 					"    ### check parquet file is now delta table\r\n",
 					"    ### outstanding\r\n",
