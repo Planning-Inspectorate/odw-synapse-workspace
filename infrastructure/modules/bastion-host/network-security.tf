@@ -71,7 +71,7 @@ resource "azurerm_network_security_rule" "bastion_allow_ssh_rdp_out" {
   resource_group_name         = var.network_resource_group_name
   network_security_group_name = azurerm_network_security_group.bastion_host.name
 
-  priority                   = 100
+  priority                   = 120
   direction                  = "Outbound"
   access                     = "Allow"
   protocol                   = "*"
@@ -86,7 +86,7 @@ resource "azurerm_network_security_rule" "bastion_allow_azure_cloud_out" {
   resource_group_name         = var.network_resource_group_name
   network_security_group_name = azurerm_network_security_group.bastion_host.name
 
-  priority                   = 110
+  priority                   = 130
   direction                  = "Outbound"
   access                     = "Allow"
   protocol                   = "Tcp"
@@ -101,7 +101,7 @@ resource "azurerm_network_security_rule" "bastion_allow_host_comms_out" {
   resource_group_name         = var.network_resource_group_name
   network_security_group_name = azurerm_network_security_group.bastion_host.name
 
-  priority                   = 120
+  priority                   = 140
   direction                  = "Outbound"
   access                     = "Allow"
   protocol                   = "*"
@@ -116,7 +116,7 @@ resource "azurerm_network_security_rule" "bastion_allow_session_info_out" {
   resource_group_name         = var.network_resource_group_name
   network_security_group_name = azurerm_network_security_group.bastion_host.name
 
-  priority                   = 130
+  priority                   = 150
   direction                  = "Outbound"
   access                     = "Allow"
   protocol                   = "*"
