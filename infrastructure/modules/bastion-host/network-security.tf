@@ -7,9 +7,6 @@ resource "azurerm_network_security_group" "bastion_host" {
 }
 
 resource "azurerm_network_security_rule" "bastion_allow_http_in" {
-  #checkov:skip=CKV_AZURE_160:  Required for Azure Bastion
-  #checkov:skip=CKV_AZURE_10:   Required for Azure Bastion
-  #checkov:skip=CKV_AZURE_9:    Required for Azure Bastion
   name                        = "AllowHttpInbound"
   resource_group_name         = var.network_resource_group_name
   network_security_group_name = azurerm_network_security_group.bastion_host.name
@@ -18,8 +15,8 @@ resource "azurerm_network_security_rule" "bastion_allow_http_in" {
   direction                  = "Inbound"
   access                     = "Allow"
   protocol                   = "Tcp"
-  source_port_range          = 443
-  destination_port_range     = "*"
+  source_port_range          = "*"
+  destination_port_range     = 443
   source_address_prefix      = "Internet"
   destination_address_prefix = "*"
 }
@@ -33,8 +30,8 @@ resource "azurerm_network_security_rule" "bastion_allow_gateway_manager_in" {
   direction                  = "Inbound"
   access                     = "Allow"
   protocol                   = "Tcp"
-  source_port_range          = 443
-  destination_port_range     = "*"
+  source_port_range          = "*"
+  destination_port_range     = 443
   source_address_prefix      = "GatewayManager"
   destination_address_prefix = "*"
 }
@@ -48,8 +45,8 @@ resource "azurerm_network_security_rule" "bastion_allow_load_balancer_in" {
   direction                  = "Inbound"
   access                     = "Allow"
   protocol                   = "Tcp"
-  source_port_range          = 443
-  destination_port_range     = "*"
+  source_port_range          = "*"
+  destination_port_range     = 443
   source_address_prefix      = "AzureLoadBalancer"
   destination_address_prefix = "*"
 }
@@ -63,8 +60,8 @@ resource "azurerm_network_security_rule" "bastion_allow_host_comms_in" {
   direction                  = "Inbound"
   access                     = "Allow"
   protocol                   = "*"
-  source_port_ranges         = [5701, 8080]
-  destination_port_range     = "*"
+  source_port_range          = "*"
+  destination_port_ranges    = [5701, 8080]
   source_address_prefix      = "VirtualNetwork"
   destination_address_prefix = "VirtualNetwork"
 }
@@ -78,8 +75,8 @@ resource "azurerm_network_security_rule" "bastion_allow_ssh_rdp_out" {
   direction                  = "Outbound"
   access                     = "Allow"
   protocol                   = "*"
-  source_port_ranges         = [22, 3389]
-  destination_port_range     = "*"
+  source_port_range          = "*"
+  destination_port_ranges    = [22, 3389]
   source_address_prefix      = "*"
   destination_address_prefix = "VirtualNetwork"
 }
@@ -93,8 +90,8 @@ resource "azurerm_network_security_rule" "bastion_allow_azure_cloud_out" {
   direction                  = "Outbound"
   access                     = "Allow"
   protocol                   = "Tcp"
-  source_port_range          = 443
-  destination_port_range     = "*"
+  source_port_range          = "*"
+  destination_port_range     = 443
   source_address_prefix      = "*"
   destination_address_prefix = "AzureCloud"
 }
@@ -108,8 +105,8 @@ resource "azurerm_network_security_rule" "bastion_allow_host_comms_out" {
   direction                  = "Outbound"
   access                     = "Allow"
   protocol                   = "*"
-  source_port_ranges         = [5701, 8080]
-  destination_port_range     = "*"
+  source_port_range          = "*"
+  destination_port_ranges    = [5701, 8080]
   source_address_prefix      = "VirtualNetwork"
   destination_address_prefix = "VirtualNetwork"
 }
@@ -123,8 +120,8 @@ resource "azurerm_network_security_rule" "bastion_allow_session_info_out" {
   direction                  = "Outbound"
   access                     = "Allow"
   protocol                   = "*"
-  source_port_range          = 80
-  destination_port_range     = "*"
+  source_port_range          = "*"
+  destination_port_range     = 80
   source_address_prefix      = "*"
   destination_address_prefix = "Internet"
 }
