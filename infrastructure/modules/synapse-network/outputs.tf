@@ -8,7 +8,12 @@ output "vnet_name" {
   value       = azurerm_virtual_network.synapse.name
 }
 
+output "vnet_security_groups" {
+  description = "A map of subnet names to network security group names deployed in this module"
+  value       = { for k, v in azurerm_network_security_group.nsg : k => v.name }
+}
+
 output "vnet_subnets" {
-  description = "A map of subnet IDs and names deployed in this module"
+  description = "A map of subnet names to IDs deployed in this module"
   value       = { for k, v in azurerm_subnet.synapse : k => v.id }
 }
