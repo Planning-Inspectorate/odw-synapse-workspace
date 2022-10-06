@@ -23,6 +23,7 @@ module "synapse_network" {
   source = "./modules/synapse-network"
 
   environment         = var.environment
+  resource_group_id   = azurerm_resource_group.network.id
   resource_group_name = azurerm_resource_group.network.name
   location            = module.azure_region.location_cli
   service_name        = local.service_name
@@ -38,6 +39,7 @@ module "synapse_network_failover" {
   source = "./modules/synapse-network"
 
   environment         = var.environment
+  resource_group_id   = azurerm_resource_group.network_failover.id
   resource_group_name = azurerm_resource_group.network_failover.name
   location            = module.azure_region.paired_location.location_cli
   service_name        = local.service_name
@@ -45,26 +47,6 @@ module "synapse_network_failover" {
   network_watcher_enabled = var.network_watcher_enabled
   vnet_base_cidr_block    = var.vnet_base_cidr_block_failover
   vnet_subnets            = var.vnet_subnets
-
-  tags = local.tags
-}
-
-resource "azurerm_network_security_group" "nsg" {
-  for_each = module.synapse_network.vnet_subnets
-
-  name                = "pins-nsg-${lower(replace(each.key, "Subnet", ""))}-${local.resource_suffix}"
-  location            = module.azure_region.location_cli
-  resource_group_name = azurerm_resource_group.network.name
-
-  tags = local.tags
-}
-
-resource "azurerm_network_security_group" "nsg_failover" {
-  for_each = module.synapse_network_failover.vnet_subnets
-
-  name                = "pins-nsg-${lower(replace(each.key, "Subnet", ""))}-${local.resource_suffix_failover}"
-  location            = module.azure_region.paired_location.location_cli
-  resource_group_name = azurerm_resource_group.network_failover.name
 
   tags = local.tags
 }
@@ -117,28 +99,6 @@ resource "azurerm_private_dns_zone_virtual_network_link" "synapse_failover" {
   virtual_network_id    = module.synapse_network_failover.vnet_id
 
   tags = local.tags
-}
-
-resource "azurerm_subnet_network_security_group_association" "nsg" {
-  for_each = module.synapse_network.vnet_subnets
-
-  network_security_group_id = "${azurerm_resource_group.network.id}/${local.nsg_path}/pins-nsg-${lower(replace(each.key, "Subnet", ""))}-${local.resource_suffix}"
-  subnet_id                 = each.value
-
-  depends_on = [
-    azurerm_network_security_group.nsg
-  ]
-}
-
-resource "azurerm_subnet_network_security_group_association" "nsg_failover" {
-  for_each = module.synapse_network_failover.vnet_subnets
-
-  network_security_group_id = "${azurerm_resource_group.network_failover.id}/${local.nsg_path}/pins-nsg-${lower(replace(each.key, "Subnet", ""))}-${local.resource_suffix_failover}"
-  subnet_id                 = each.value
-
-  depends_on = [
-    azurerm_network_security_group.nsg_failover
-  ]
 }
 
 resource "azurerm_virtual_network_peering" "pri_sec" {
