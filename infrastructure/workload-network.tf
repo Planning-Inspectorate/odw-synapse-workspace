@@ -119,6 +119,28 @@ resource "azurerm_private_dns_zone_virtual_network_link" "synapse_failover" {
   tags = local.tags
 }
 
+resource "azurerm_subnet_network_security_group_association" "nsgs" {
+  for_each = module.synapse_network.vnet_subnets
+
+  network_security_group_id = "${azurerm_resource_group.network.id}/${local.nsg_path}/pins-nsg-${lower(replace(each.key, "Subnet", ""))}-${local.resource_suffix}"
+  subnet_id                 = each.value
+
+  depends_on = [
+    azurerm_network_security_group.nsgs
+  ]
+}
+
+resource "azurerm_subnet_network_security_group_association" "nsgs_failover" {
+  for_each = module.synapse_network_failover.vnet_subnets
+
+  network_security_group_id = "${azurerm_resource_group.network_failover.id}/${local.nsg_path}/pins-nsg-${lower(replace(each.key, "Subnet", ""))}-${local.resource_suffix_failover}"
+  subnet_id                 = each.value
+
+  depends_on = [
+    azurerm_network_security_group.nsgs_failover
+  ]
+}
+
 resource "azurerm_virtual_network_peering" "pri_sec" {
   name                      = "peer-${module.synapse_network.vnet_name}-${module.synapse_network_failover.vnet_name}"
   resource_group_name       = azurerm_resource_group.network.name
