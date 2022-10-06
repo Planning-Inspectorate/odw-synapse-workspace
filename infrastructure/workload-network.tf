@@ -49,6 +49,26 @@ module "synapse_network_failover" {
   tags = local.tags
 }
 
+resource "azurerm_network_security_group" "nsgs" {
+  for_each = module.synapse_network.vnet_subnets
+
+  name                = "pins-nsg-${each.key}-${local.resource_suffix}"
+  location            = module.azure_region.location_cli
+  resource_group_name = azurerm_resource_group.network.name
+
+  tags = local.tags
+}
+
+resource "azurerm_network_security_group" "nsgs_failover" {
+  for_each = module.synapse_network_failover.vnet_subnets
+
+  name                = "pins-nsg-${each.key}-${local.resource_suffix_failover}"
+  location            = module.azure_region.paired_location.location_cli
+  resource_group_name = azurerm_resource_group.network_failover.name
+
+  tags = local.tags
+}
+
 resource "azurerm_private_dns_zone" "data_lake" {
   name                = "privatelink.dfs.core.windows.net"
   resource_group_name = azurerm_resource_group.network_global.name
