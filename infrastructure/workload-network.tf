@@ -52,7 +52,7 @@ module "synapse_network_failover" {
 resource "azurerm_network_security_group" "nsgs" {
   for_each = module.synapse_network.vnet_subnets
 
-  name                = "pins-nsg-${each.key}-${local.resource_suffix}"
+  name                = "pins-nsg-${lower(replace(each.key, "Subnet", ""))}-${local.resource_suffix}"
   location            = module.azure_region.location_cli
   resource_group_name = azurerm_resource_group.network.name
 
@@ -62,7 +62,7 @@ resource "azurerm_network_security_group" "nsgs" {
 resource "azurerm_network_security_group" "nsgs_failover" {
   for_each = module.synapse_network_failover.vnet_subnets
 
-  name                = "pins-nsg-${each.key}-${local.resource_suffix_failover}"
+  name                = "pins-nsg-${lower(replace(each.key, "Subnet", ""))}-${local.resource_suffix_failover}"
   location            = module.azure_region.paired_location.location_cli
   resource_group_name = azurerm_resource_group.network_failover.name
 
