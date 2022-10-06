@@ -51,15 +51,20 @@ variable "service_name" {
   type        = string
 }
 
-variable "synapse_vnet_subnets" {
-  description = "A map of subnet names and IDs comprising the linked Virtual Network for Bastion host deployment"
-  type        = map(string)
-}
-
 variable "synapse_compute_subnet_name" {
   default     = "ComputeSubnet"
   description = "The name of the subnet into which the Bastion jumpbox VM should be deployed"
   type        = string
+}
+
+variable "synapse_vnet_security_groups" {
+  description = "A map of subnet names to network security group IDs"
+  type        = map(string)
+}
+
+variable "synapse_vnet_subnets" {
+  description = "A map of subnet names to IDs comprising the linked Virtual Network for Bastion host deployment"
+  type        = map(string)
 }
 
 variable "tags" {

@@ -52,8 +52,3 @@ output "synapse_workspace_name" {
   description = "The name of the Synapse Workspace"
   value       = var.failover_deployment ? one(module.synapse_workspace_private_failover).synapse_workspace_name : module.synapse_workspace_private.synapse_workspace_name
 }
-
-output "vnet_security_groups_test" {
-  description = "A map of subnet names to network security group names deployed in this module"
-  value       = module.synapse_network.vnet_security_groups
-}

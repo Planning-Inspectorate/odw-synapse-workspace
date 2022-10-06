@@ -281,5 +281,4 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 | <a name="output_synapse_dsql_endpoint"></a> [synapse\_dsql\_endpoint](#output\_synapse\_dsql\_endpoint) | The dedicated SQL pool connectivity endpoint for the Synapse Workspace |
 | <a name="output_synapse_ssql_endpoint"></a> [synapse\_ssql\_endpoint](#output\_synapse\_ssql\_endpoint) | The serverless SQL pool connectivity endpoint for the Synapse Workspace |
 | <a name="output_synapse_workspace_name"></a> [synapse\_workspace\_name](#output\_synapse\_workspace\_name) | The name of the Synapse Workspace |
-| <a name="output_vnet_security_groups_test"></a> [vnet\_security\_groups\_test](#output\_vnet\_security\_groups\_test) | A map of subnet names to network security group names deployed in this module |
 <!-- END OF PRE-COMMIT-TERRAFORM DOCS HOOK -->

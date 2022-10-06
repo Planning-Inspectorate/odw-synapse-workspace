@@ -66,7 +66,6 @@ No requirements.
 | [azurerm_key_vault_secret.bastion_vm_admin_password](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/key_vault_secret) | resource |
 | [azurerm_key_vault_secret.bastion_vm_admin_username](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/key_vault_secret) | resource |
 | [azurerm_network_interface.jumpbox](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/network_interface) | resource |
-| [azurerm_network_security_group.bastion_host](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/network_security_group) | resource |
 | [azurerm_network_security_rule.bastion_allow_azure_cloud_out](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/network_security_rule) | resource |
 | [azurerm_network_security_rule.bastion_allow_gateway_manager_in](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/network_security_rule) | resource |
 | [azurerm_network_security_rule.bastion_allow_host_comms_in](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/network_security_rule) | resource |
@@ -76,7 +75,6 @@ No requirements.
 | [azurerm_network_security_rule.bastion_allow_session_info_out](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/network_security_rule) | resource |
 | [azurerm_network_security_rule.bastion_allow_ssh_rdp_out](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/network_security_rule) | resource |
 | [azurerm_public_ip.bastion_host](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/public_ip) | resource |
-| [azurerm_subnet_network_security_group_association.bastion_host](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/subnet_network_security_group_association) | resource |
 | [azurerm_windows_virtual_machine.jumpbox](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/windows_virtual_machine) | resource |
 | [random_password.bastion_vm_admin_password](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/password) | resource |
 | [random_string.unique_id](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/string) | resource |
@@ -95,7 +93,8 @@ No requirements.
 | <a name="input_resource_group_name"></a> [resource\_group\_name](#input\_resource\_group\_name) | The name of the resource group into which resources will be deployed | `string` | n/a | yes |
 | <a name="input_service_name"></a> [service\_name](#input\_service\_name) | The short-format name of the overarching service being deployed | `string` | n/a | yes |
 | <a name="input_synapse_compute_subnet_name"></a> [synapse\_compute\_subnet\_name](#input\_synapse\_compute\_subnet\_name) | The name of the subnet into which the Bastion jumpbox VM should be deployed | `string` | `"ComputeSubnet"` | no |
-| <a name="input_synapse_vnet_subnets"></a> [synapse\_vnet\_subnets](#input\_synapse\_vnet\_subnets) | A map of subnet names and IDs comprising the linked Virtual Network for Bastion host deployment | `map(string)` | n/a | yes |
+| <a name="input_synapse_vnet_security_groups"></a> [synapse\_vnet\_security\_groups](#input\_synapse\_vnet\_security\_groups) | A map of subnet names to network security group IDs | `map(string)` | n/a | yes |
+| <a name="input_synapse_vnet_subnets"></a> [synapse\_vnet\_subnets](#input\_synapse\_vnet\_subnets) | A map of subnet names to IDs comprising the linked Virtual Network for Bastion host deployment | `map(string)` | n/a | yes |
 | <a name="input_tags"></a> [tags](#input\_tags) | A collection of tags to assign to taggable resources | `map(string)` | `{}` | no |
 
 ## Outputs
