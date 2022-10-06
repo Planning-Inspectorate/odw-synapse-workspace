@@ -7,7 +7,7 @@ resource "azurerm_key_vault" "synapse" {
   enable_rbac_authorization  = true
   purge_protection_enabled   = true
   soft_delete_retention_days = 7
-  tenant_id                  = data.azurerm_client_config.current.tenant_id
+  tenant_id                  = var.tenant_id
 
   tags = local.tags
 }

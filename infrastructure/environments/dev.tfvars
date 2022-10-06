@@ -65,7 +65,6 @@ sql_server_enabled                = true
 synapse_aad_administrator = {
   username  = "pins-odw-data-dev-syn-ws-sqladmins"
   object_id = "1c996957-30e4-40fe-b0b4-82d40f13c058"
-  tenant_id = "5878df98-6f88-48ab-9322-998ce557088d"
 }
 
 synapse_data_exfiltration_enabled  = false
@@ -84,6 +83,8 @@ synapse_role_assignments = {
 }
 
 tags = {}
+
+tenant_id = "5878df98-6f88-48ab-9322-998ce557088d"
 
 vnet_base_cidr_block          = "10.70.0.0/24"
 vnet_base_cidr_block_failover = "10.70.1.0/24"
