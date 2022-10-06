@@ -29,6 +29,7 @@ module "synapse_workspace_private" {
   synapse_private_endpoint_vnet_subnets = module.synapse_network.vnet_subnets
   synapse_sql_administrator_username    = var.synapse_sql_administrator_username
   synapse_role_assignments              = var.synapse_role_assignments
+  tenant_id                             = var.tenant_id
 
   depends_on = [
     module.synapse_data_lake,
@@ -73,6 +74,7 @@ module "synapse_workspace_private_failover" {
   synapse_private_endpoint_vnet_subnets = module.synapse_network_failover.vnet_subnets
   synapse_sql_administrator_username    = var.synapse_sql_administrator_username
   synapse_role_assignments              = var.synapse_role_assignments
+  tenant_id                             = var.tenant_id
 
   depends_on = [
     module.synapse_data_lake,

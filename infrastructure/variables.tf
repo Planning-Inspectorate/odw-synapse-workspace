@@ -209,6 +209,11 @@ variable "tags" {
   type        = map(string)
 }
 
+variable "tenant_id" {
+  description = "The ID of the Azure AD tenant containing the identities used for RBAC assignments"
+  type        = string
+}
+
 variable "vnet_base_cidr_block" {
   default     = "10.90.0.0/24"
   description = "The base IPv4 range for the Virtual Network in CIDR notation"
