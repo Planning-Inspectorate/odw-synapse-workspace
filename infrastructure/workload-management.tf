@@ -61,7 +61,7 @@ module "bastion_host" {
   network_resource_group_name  = azurerm_resource_group.network.name
   synapse_compute_subnet_name  = local.compute_subnet_name
   synapse_vnet_security_groups = module.synapse_network.vnet_security_groups
-  synapse_vnet_subnets         = module.synapse_network.vnet_subnets
+  synapse_vnet_subnet_names    = module.synapse_network.vnet_subnets
   synapse_vnet_subnet_prefixes = module.synapse_network.vnet_subnet_prefixes
 
   depends_on = [
@@ -89,7 +89,7 @@ module "bastion_host_failover" {
   network_resource_group_name  = azurerm_resource_group.network_failover.name
   synapse_compute_subnet_name  = local.compute_subnet_name
   synapse_vnet_security_groups = module.synapse_network_failover.vnet_security_groups
-  synapse_vnet_subnets         = module.synapse_network_failover.vnet_subnets
+  synapse_vnet_subnet_names    = module.synapse_network_failover.vnet_subnets
   synapse_vnet_subnet_prefixes = module.synapse_network_failover.vnet_subnet_prefixes
 
   depends_on = [

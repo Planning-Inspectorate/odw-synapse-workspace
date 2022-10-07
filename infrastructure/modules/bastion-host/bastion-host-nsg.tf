@@ -128,5 +128,5 @@ resource "azurerm_network_security_rule" "bastion_allow_session_info_out" {
 
 resource "azurerm_subnet_network_security_group_association" "bastion_host" {
   network_security_group_id = azurerm_network_security_group.bastion_host.id
-  subnet_id                 = var.synapse_vnet_subnets[local.bastion_subnet_name]
+  subnet_id                 = var.synapse_vnet_subnet_names[local.bastion_subnet_name]
 }

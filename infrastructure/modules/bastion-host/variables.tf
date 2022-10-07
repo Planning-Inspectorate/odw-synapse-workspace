@@ -62,7 +62,7 @@ variable "synapse_vnet_security_groups" {
   type        = map(string)
 }
 
-variable "synapse_vnet_subnets" {
+variable "synapse_vnet_subnet_names" {
   description = "A map of subnet names to IDs comprising the linked Virtual Network for Bastion host deployment"
   type        = map(string)
 }

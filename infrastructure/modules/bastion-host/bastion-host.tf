@@ -15,7 +15,7 @@ resource "azurerm_bastion_host" "bastion_host" {
 
   ip_configuration {
     name                 = "ipconfig"
-    subnet_id            = var.synapse_vnet_subnets[local.bastion_subnet_name]
+    subnet_id            = var.synapse_vnet_subnet_names[local.bastion_subnet_name]
     public_ip_address_id = azurerm_public_ip.bastion_host.id
   }
 

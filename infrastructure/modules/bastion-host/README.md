@@ -97,8 +97,8 @@ No requirements.
 | <a name="input_service_name"></a> [service\_name](#input\_service\_name) | The short-format name of the overarching service being deployed | `string` | n/a | yes |
 | <a name="input_synapse_compute_subnet_name"></a> [synapse\_compute\_subnet\_name](#input\_synapse\_compute\_subnet\_name) | The name of the subnet into which the Bastion jumpbox VM should be deployed | `string` | `"ComputeSubnet"` | no |
 | <a name="input_synapse_vnet_security_groups"></a> [synapse\_vnet\_security\_groups](#input\_synapse\_vnet\_security\_groups) | A map of subnet names to network security group IDs | `map(string)` | n/a | yes |
+| <a name="input_synapse_vnet_subnet_names"></a> [synapse\_vnet\_subnet\_names](#input\_synapse\_vnet\_subnet\_names) | A map of subnet names to IDs comprising the linked Virtual Network for Bastion host deployment | `map(string)` | n/a | yes |
 | <a name="input_synapse_vnet_subnet_prefixes"></a> [synapse\_vnet\_subnet\_prefixes](#input\_synapse\_vnet\_subnet\_prefixes) | A map of subnet names to CIDR ranges | `map(string)` | n/a | yes |
-| <a name="input_synapse_vnet_subnets"></a> [synapse\_vnet\_subnets](#input\_synapse\_vnet\_subnets) | A map of subnet names to IDs comprising the linked Virtual Network for Bastion host deployment | `map(string)` | n/a | yes |
 | <a name="input_tags"></a> [tags](#input\_tags) | A collection of tags to assign to taggable resources | `map(string)` | `{}` | no |
 
 ## Outputs
