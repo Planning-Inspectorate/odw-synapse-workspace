@@ -30,6 +30,7 @@ module "synapse_data_lake" {
   network_resource_group_name            = azurerm_resource_group.network.name
   synapse_private_endpoint_subnet_name   = local.synapse_subnet_name
   synapse_private_endpoint_vnet_subnets  = module.synapse_network.vnet_subnets
+  tenant_id                              = var.tenant_id
 
   depends_on = [
     module.synapse_network
@@ -54,6 +55,7 @@ module "synapse_data_lake_failover" {
   network_resource_group_name            = azurerm_resource_group.network_failover.name
   synapse_private_endpoint_subnet_name   = local.synapse_subnet_name
   synapse_private_endpoint_vnet_subnets  = module.synapse_network_failover.vnet_subnets
+  tenant_id                              = var.tenant_id
 
   depends_on = [
     module.synapse_network_failover
