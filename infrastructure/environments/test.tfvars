@@ -5,7 +5,7 @@ alert_group_synapse_recipients           = ["lester.march@planninginspectorate.g
 alert_scope_service_health               = "/subscriptions/6b18ba9d-2399-48b5-a834-e0f267be122d"
 alert_threshold_data_lake_capacity_bytes = 10995116277760 # 10TiB
 
-bastion_host_enabled = false
+bastion_host_enabled = true
 bastion_vm_username  = "basadmin"
 bastion_vm_size      = "Standard_F2s_v2"
 bastion_vm_image = {
