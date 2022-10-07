@@ -98,5 +98,6 @@ No requirements.
 | <a name="output_vnet_id"></a> [vnet\_id](#output\_vnet\_id) | The ID of the Virtual Network deployed in this module |
 | <a name="output_vnet_name"></a> [vnet\_name](#output\_vnet\_name) | The name of the Virtual Network deployed in this module |
 | <a name="output_vnet_security_groups"></a> [vnet\_security\_groups](#output\_vnet\_security\_groups) | A map of subnet names to network security group names deployed in this module |
+| <a name="output_vnet_subnet_prefixes"></a> [vnet\_subnet\_prefixes](#output\_vnet\_subnet\_prefixes) | A map of subnet names to CIDR ranges deployed in this module |
 | <a name="output_vnet_subnets"></a> [vnet\_subnets](#output\_vnet\_subnets) | A map of subnet names to IDs deployed in this module |
 <!-- END OF PRE-COMMIT-TERRAFORM DOCS HOOK -->

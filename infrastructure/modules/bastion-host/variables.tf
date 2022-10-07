@@ -67,6 +67,11 @@ variable "synapse_vnet_subnets" {
   type        = map(string)
 }
 
+variable "synapse_vnet_subnet_prefixes" {
+  description = "A map of subnet names to CIDR ranges"
+  type        = map(string)
+}
+
 variable "tags" {
   default     = {}
   description = "A collection of tags to assign to taggable resources"
