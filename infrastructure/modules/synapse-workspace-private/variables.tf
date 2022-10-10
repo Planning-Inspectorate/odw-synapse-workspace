@@ -157,3 +157,8 @@ variable "tags" {
   description = "A collection of tags to assign to taggable resources"
   type        = map(string)
 }
+
+variable "tenant_id" {
+  description = "The ID of the Azure AD tenant containing the identities used for RBAC assignments"
+  type        = string
+}

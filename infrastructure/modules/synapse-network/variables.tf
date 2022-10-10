@@ -9,6 +9,11 @@ variable "network_watcher_enabled" {
   type        = bool
 }
 
+variable "resource_group_id" {
+  description = "The ID of the resource group into which resources will be deployed"
+  type        = string
+}
+
 variable "resource_group_name" {
   description = "The name of the resource group into which resources will be deployed"
   type        = string
@@ -33,20 +38,20 @@ variable "vnet_base_cidr_block" {
 variable "vnet_subnets" {
   default = [
     {
-      name     = "ManagementSubnet"
-      new_bits = 2
+      "name" : "AzureBastionSubnet",
+      "new_bits" : 2 # /26
     },
     {
-      name     = "SynapseEndpointSubnet"
-      new_bits = 2
+      "name" : "SynapseEndpointSubnet",
+      "new_bits" : 2 # /26
     },
     {
-      name     = null
-      new_bits = 2
+      "name" : "ComputeSubnet"
+      "new_bits" : 2 # /26
     },
     {
-      name     = null
-      new_bits = 2
+      "name" : null, # Reserved
+      "new_bits" : 2 # /26
     }
   ]
   description = "A collection of subnet definitions used to logically partition the Virtual Network"

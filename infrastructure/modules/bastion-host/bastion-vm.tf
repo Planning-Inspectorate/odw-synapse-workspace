@@ -5,7 +5,7 @@ resource "azurerm_network_interface" "jumpbox" {
 
   ip_configuration {
     name                          = "ipconfig"
-    subnet_id                     = var.synapse_vnet_subnets[var.synapse_compute_subnet_name]
+    subnet_id                     = var.synapse_vnet_subnet_names[var.synapse_compute_subnet_name]
     private_ip_address_allocation = "Dynamic"
   }
 
