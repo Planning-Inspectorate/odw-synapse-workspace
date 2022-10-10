@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ad85fc23-444b-4d69-a063-4e3a6052f2c0"
+				"spark.autotune.trackingId": "e04225a3-0b38-494a-a7e5-0c76cafd14a2"
 			}
 		},
 		"metadata": {
@@ -55,26 +55,30 @@
 				"cell_type": "code",
 				"source": [
 					"def logging_to_appins(func):\r\n",
+					"    import functools\r\n",
 					"\r\n",
+					"    @functools.wraps(func)\r\n",
 					"    def wrapper(*args, **kwargs):\r\n",
 					"        from notebookutils import mssparkutils\r\n",
 					"        key = mssparkutils.credentials.getSecret(\"pinskvsynwodwdevuks\", \"application-insights-connection-string\", \"ls_kv\")\r\n",
 					"\r\n",
 					"        import logging\r\n",
 					"        from opencensus.ext.azure.log_exporter import AzureLogHandler\r\n",
+					"        logging.basicConfig(level = logging.DEBUG)\r\n",
 					"        logger = logging.getLogger(__name__)\r\n",
 					"        logger.addHandler(AzureLogHandler(\r\n",
 					"            connection_string=key.split(\";\")[0])\r\n",
 					"        )\r\n",
 					"        \r\n",
 					"        try:\r\n",
-					"            func(*args, **kwargs)\r\n",
+					"            result = func(*args, **kwargs)\r\n",
+					"            return result\r\n",
 					"        except Exception as e:\r\n",
 					"            logger.exception(e)\r\n",
 					"    \r\n",
 					"    return wrapper"
 				],
-				"execution_count": 13
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
