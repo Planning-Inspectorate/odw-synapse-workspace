@@ -272,6 +272,7 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 |------|-------------|
 | <a name="output_data_lake_account_id"></a> [data\_lake\_account\_id](#output\_data\_lake\_account\_id) | The ID of the Data Lake Storage Account |
 | <a name="output_data_lake_account_id_failover"></a> [data\_lake\_account\_id\_failover](#output\_data\_lake\_account\_id\_failover) | The ID of the Data Lake Storage Account used for backup and failover |
+| <a name="output_data_lake_account_name"></a> [data\_lake\_account\_name](#output\_data\_lake\_account\_name) | The name of the Data Lake Storage Account |
 | <a name="output_data_lake_dfs_endpoint"></a> [data\_lake\_dfs\_endpoint](#output\_data\_lake\_dfs\_endpoint) | The DFS endpoint URL of the Data Lake Storage Account |
 | <a name="output_data_lake_dfs_endpoint_failover"></a> [data\_lake\_dfs\_endpoint\_failover](#output\_data\_lake\_dfs\_endpoint\_failover) | The DFS endpoint URL of the Data Lake Storage Account used for backup and failover |
 | <a name="output_data_resource_group_name"></a> [data\_resource\_group\_name](#output\_data\_resource\_group\_name) | The name of the data application resource group |

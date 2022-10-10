@@ -8,6 +8,11 @@ output "data_lake_account_id_failover" {
   value       = var.failover_deployment ? module.synapse_data_lake.data_lake_account_id : module.synapse_data_lake_failover.data_lake_account_id
 }
 
+output "data_lake_account_name" {
+  description = "The name of the Data Lake Storage Account"
+  value       = var.failover_deployment ? module.synapse_data_lake_failover.data_lake_account_name : module.synapse_data_lake.data_lake_account_name
+}
+
 output "data_lake_dfs_endpoint" {
   description = "The DFS endpoint URL of the Data Lake Storage Account"
   value       = var.failover_deployment ? module.synapse_data_lake_failover.data_lake_dfs_endpoint : module.synapse_data_lake.data_lake_dfs_endpoint
