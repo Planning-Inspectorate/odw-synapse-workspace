@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "449ab5b8-b996-439c-a2d5-dbef8d2b0f62"
+				"spark.autotune.trackingId": "e60631a1-e3e6-4bf2-b6b0-33ef9c19d364"
 			}
 		},
 		"metadata": {
@@ -67,7 +67,7 @@
 				"source": [
 					"%run \"utils/py_logging_decorator\""
 				],
-				"execution_count": 17
+				"execution_count": 20
 			},
 			{
 				"cell_type": "code",
@@ -131,7 +131,7 @@
 					"        raise TypeError(\"Header row should be an integer value\")\r\n",
 					"        mssparkutils.notebook.exit()"
 				],
-				"execution_count": 13
+				"execution_count": 21
 			},
 			{
 				"cell_type": "code",
@@ -187,7 +187,7 @@
 					"    return df.astype(str, errors='ignore')\r\n",
 					"\r\n",
 					"@logging_to_appins\r\n",
-					"def ingest_excel_to_parquet(storage_acc, filepath, targetpath, linked_service, sheet_name=0, header=0):\r\n",
+					"def ingest_excel_to_parquet(storage_acc, raw_container, raw_source_folder, raw_name, standardised_container, standardised_source_folder, standardised_name, linked_service, sheet_name=0, header=0):\r\n",
 					"\r\n",
 					"    '''\r\n",
 					"    Create a parquet file with delta capabilities from a source excel file\r\n",
@@ -203,6 +203,7 @@
 					"    spark.conf.set(f\"fs.azure.account.oauth.provider.type.{source_full_storage_account_name}\", \"com.microsoft.azure.synapse.tokenlibrary.LinkedServiceBasedTokenProvider\")\r\n",
 					"\r\n",
 					"    ### creating targetpath variable\r\n",
+					"    filepath = raw_container + raw_source_folder + raw_name\r\n",
 					"    targetpath = standardised_container + standardised_source_folder + standardised_name\r\n",
 					"\r\n",
 					"    ### reading file with abfss file location format\r\n",
@@ -219,7 +220,7 @@
 					"    df.to_parquet(targetpath,allow_truncated_timestamps=True)\r\n",
 					""
 				],
-				"execution_count": 65
+				"execution_count": 22
 			},
 			{
 				"cell_type": "code",
@@ -254,10 +255,10 @@
 					"\r\n",
 					"    ### converting parquet to delta table\r\n",
 					"    from delta.tables import DeltaTable\r\n",
-					"    if not DeltaTable.isDeltaTable(spark,targetpath):\r\n",
-					"        deltaTable = DeltaTable.convertToDelta(spark, f\"parquet.`{targetpath}`\") "
+					"    if not DeltaTable.isDeltaTable(spark,target_delta_folder):\r\n",
+					"        deltaTable = DeltaTable.convertToDelta(spark, f\"parquet.`{target_delta_folder}`\") "
 				],
-				"execution_count": 7
+				"execution_count": 23
 			},
 			{
 				"cell_type": "code",
@@ -274,7 +275,7 @@
 				},
 				"source": [
 					"@logging_to_appins\r\n",
-					"def lakedb_table_sparksql(db_name,table_name,standardised_container, standardised_source_folder):\r\n",
+					"def lakedb_table_sparksql(db_name,delta_lake_table_name,standardised_container, standardised_source_folder):\r\n",
 					"    '''\r\n",
 					"    Make delta parquet file available in lake database\r\n",
 					"    '''\r\n",
@@ -291,10 +292,10 @@
 					"    ### outstanding\r\n",
 					"\r\n",
 					"    ### make delta table available to be queried in spark sql\r\n",
-					"    spark.sql(f\"drop table if exists {db_name}.{table_name};\")\r\n",
-					"    spark.sql(f\"CREATE TABLE {db_name}.{table_name} USING DELTA LOCATION '{targetpath}'\")"
+					"    spark.sql(f\"drop table if exists {db_name}.{delta_lake_table_name};\")\r\n",
+					"    spark.sql(f\"CREATE TABLE {db_name}.{delta_lake_table_name} USING DELTA LOCATION '{target_delta_folder}'\")"
 				],
-				"execution_count": 68
+				"execution_count": 24
 			}
 		]
 	}
