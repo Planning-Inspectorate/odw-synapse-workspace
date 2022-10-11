@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ab99abf7-c69c-4742-9b52-20eb394a3e65"
+				"spark.autotune.trackingId": "70e51d63-96c1-4b5a-9f4b-128305a49bfe"
 			}
 		},
 		"metadata": {
@@ -65,7 +65,26 @@
 					}
 				},
 				"source": [
-					"def validate_parameters(filepath, storage_acc, linked_service, sheet_name=0, header_row=0):\r\n",
+					"%run \"utils/py_logging_decorator\""
+				],
+				"execution_count": 20
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"@logging_to_appins\r\n",
+					"def validate_parameters(storage_acc, raw_container, raw_source_folder, raw_name, standardised_container, standardised_source_folder, standardised_name, linked_service, sheet_name=0, header_row=0):\r\n",
 					"    \r\n",
 					"    ''' \r\n",
 					"    Type check the parameters that will be used in the ETL processing with pyspark in subsequent functions    \r\n",
@@ -73,12 +92,17 @@
 					"    \r\n",
 					"    ### imports\r\n",
 					"    from notebookutils import mssparkutils\r\n",
+					"    import logging\r\n",
+					"    \r\n",
+					"    ### creating filepath\r\n",
+					"    filepath = raw_container + raw_source_folder + raw_name\r\n",
 					"\r\n",
 					"    ### checking abfss path\r\n",
 					"    if filepath.split('abfss://')[0] != '':\r\n",
 					"        raise ValueError(\"File path string is not of abfss:// type\")\r\n",
-					"        mssparkutils.notebook.exit()\r\n",
+					"        \r\n",
 					"    \r\n",
+					"    ### checking filepath has xlsx file in it \r\n",
 					"\r\n",
 					"    ### checking str data types\r\n",
 					"    # defining parameters to check\r\n",
@@ -95,19 +119,17 @@
 					"            str_errors += parameters[para]\r\n",
 					"        if str_errors != '':\r\n",
 					"            raise TypeError(f\"Parameters: {str_errors} not of type string\") \r\n",
-					"            mssparkutils.notebook.exit()\r\n",
-					"\r\n",
+					"            \r\n",
 					"    # checking sheet name type is str or int\r\n",
 					"    if type(sheet_name) != str and type(sheet_name) != int:\r\n",
 					"        raise TypeError(\"Sheet name should either be a string or a integer\")\r\n",
-					"        mssparkutils.notebook.exit()\r\n",
-					"\r\n",
+					"        \r\n",
 					"    # checking int type\r\n",
 					"    if type(sheet_name) != int:\r\n",
 					"        raise TypeError(\"Header row should be an integer value\")\r\n",
-					"        mssparkutils.notebook.exit()"
+					""
 				],
-				"execution_count": 64
+				"execution_count": 21
 			},
 			{
 				"cell_type": "code",
@@ -128,7 +150,14 @@
 					"    NOT A PURE FUNCTION\r\n",
 					"    Take a dataframe and appropriately cleanse headers in a file\r\n",
 					"    '''\r\n",
+					"    ### imports\r\n",
+					"    import pandas as pd\r\n",
 					"    import re\r\n",
+					"\r\n",
+					"    ### type checks\r\n",
+					"    if not isinstance(df, pd.DataFrame):\r\n",
+					"        raise TypeError(\"Expecting a pandas dataframe\")\r\n",
+					"        \r\n",
 					"    cols = df.columns\r\n",
 					"    cols=[re.sub(\"( |\\#|\\# |\\.|\\(|\\)|\\/)\",\"_\",i) for i in cols] # replace chars with _\r\n",
 					"    cols=[re.sub(\"([\\_]{2,})\",\"_\",i) for i in cols] #replace consecutive _ with one _\r\n",
@@ -143,10 +172,18 @@
 					"    NOT A PURE FUNCTION\r\n",
 					"    Take a dataframe and appropriately make all data types a string\r\n",
 					"    '''\r\n",
+					"\r\n",
+					"    ### imports\r\n",
+					"    import pandas as pd\r\n",
+					"    \r\n",
+					"    ### type checks\r\n",
+					"    if not isinstance(df, pd.DataFrame):\r\n",
+					"        raise TypeError(\"Expecting a pandas dataframe\")\r\n",
+					"        \r\n",
 					"    return df.astype(str, errors='ignore')\r\n",
 					"\r\n",
-					"\r\n",
-					"def ingest_excel_to_parquet(storage_acc, filepath, targetpath, linked_service, sheet_name=0, header=0):\r\n",
+					"@logging_to_appins\r\n",
+					"def ingest_excel_to_parquet(storage_acc, raw_container, raw_source_folder, raw_name, standardised_container, standardised_source_folder, standardised_name, linked_service, sheet_name=0, header=0):\r\n",
 					"\r\n",
 					"    '''\r\n",
 					"    Create a parquet file with delta capabilities from a source excel file\r\n",
@@ -161,10 +198,14 @@
 					"    spark.conf.set(f\"spark.storage.synapse.{source_full_storage_account_name}.linkedServiceName\", linked_service )\r\n",
 					"    spark.conf.set(f\"fs.azure.account.oauth.provider.type.{source_full_storage_account_name}\", \"com.microsoft.azure.synapse.tokenlibrary.LinkedServiceBasedTokenProvider\")\r\n",
 					"\r\n",
+					"    ### creating targetpath variable\r\n",
+					"    filepath = raw_container + raw_source_folder + raw_name\r\n",
+					"    targetpath = standardised_container + standardised_source_folder + standardised_name\r\n",
+					"\r\n",
 					"    ### reading file with abfss file location format\r\n",
 					"    import pandas as pd\r\n",
 					"    df = pd.read_excel(filepath, sheet_name=sheet_name, header=header, dtype='object')\r\n",
-					"    \r\n",
+					"\r\n",
 					"    ### cleanse headers \r\n",
 					"    df = _cleanse_headers(df)\r\n",
 					"    \r\n",
@@ -172,10 +213,10 @@
 					"    df = _change_types(df)\r\n",
 					"\r\n",
 					"    ### writing output\r\n",
-					"    df.to_parquet(targetpath,allow_truncated_timestamps=True)\r\n",
+					"    df.to_parquet(targetpath)\r\n",
 					""
 				],
-				"execution_count": 65
+				"execution_count": 22
 			},
 			{
 				"cell_type": "code",
@@ -191,20 +232,29 @@
 					}
 				},
 				"source": [
-					"def enable_delta_on_parquet(targetpath):\r\n",
+					"@logging_to_appins\r\n",
+					"def enable_delta_on_parquet(standardised_container, standardised_source_folder):\r\n",
 					"    '''\r\n",
 					"    Take a standard parquet file and enable delta lake capabiltiies on the file\r\n",
 					"    '''\r\n",
 					"\r\n",
+					"    ### initialise spark session\r\n",
 					"    from pyspark.sql import SparkSession\r\n",
 					"    spark = SparkSession.builder.getOrCreate()\r\n",
 					"    spark.conf.set('spark.hadoop.orc.overwrite.output.file','true')\r\n",
 					"\r\n",
+					"    ### create target delta folder variable\r\n",
+					"    target_delta_folder = standardised_container + standardised_source_folder\r\n",
+					"\r\n",
+					"    ### check parquet file in targetpath exists\r\n",
+					"    ### OUTSTANDING\r\n",
+					"\r\n",
+					"    ### converting parquet to delta table\r\n",
 					"    from delta.tables import DeltaTable\r\n",
-					"    if not DeltaTable.isDeltaTable(spark,targetpath):\r\n",
-					"        deltaTable = DeltaTable.convertToDelta(spark, f\"parquet.`{targetpath}`\") "
+					"    if not DeltaTable.isDeltaTable(spark,target_delta_folder):\r\n",
+					"        deltaTable = DeltaTable.convertToDelta(spark, f\"parquet.`{target_delta_folder}`\") "
 				],
-				"execution_count": 7
+				"execution_count": 23
 			},
 			{
 				"cell_type": "code",
@@ -220,17 +270,28 @@
 					}
 				},
 				"source": [
-					"def mount_parquet_synapsesql(db_name,table_name,targetpath):\r\n",
+					"@logging_to_appins\r\n",
+					"def lakedb_table_sparksql(db_name,delta_lake_table_name,standardised_container, standardised_source_folder):\r\n",
 					"    '''\r\n",
 					"    Make delta parquet file available in lake database\r\n",
 					"    '''\r\n",
+					"\r\n",
+					"    ### imports and spark session creation\r\n",
 					"    from pyspark.sql import SparkSession\r\n",
 					"    from delta.tables import DeltaTable\r\n",
 					"    spark = SparkSession.builder.getOrCreate()\r\n",
-					"    spark.sql(f\"drop table if exists {db_name}.{table_name};\")\r\n",
-					"    spark.sql(f\"CREATE TABLE {db_name}.{table_name} USING DELTA LOCATION '{targetpath}'\")"
+					"\r\n",
+					"    ### create target delta folder variable\r\n",
+					"    target_delta_folder = standardised_container + standardised_source_folder\r\n",
+					"\r\n",
+					"    ### check parquet file is now delta table\r\n",
+					"    ### outstanding\r\n",
+					"\r\n",
+					"    ### make delta table available to be queried in spark sql\r\n",
+					"    spark.sql(f\"drop table if exists {db_name}.{delta_lake_table_name};\")\r\n",
+					"    spark.sql(f\"CREATE TABLE {db_name}.{delta_lake_table_name} USING DELTA LOCATION '{target_delta_folder}'\")"
 				],
-				"execution_count": 68
+				"execution_count": 24
 			}
 		]
 	}

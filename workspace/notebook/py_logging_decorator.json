@@ -1,0 +1,109 @@
+{
+	"name": "py_logging_decorator",
+	"properties": {
+		"folder": {
+			"name": "utils"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "c15b82ec-c8a4-4356-9f99-febbc35a0e28"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": true,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.2",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"def logging_to_appins(func):\r\n",
+					"    import functools\r\n",
+					"    from notebookutils import mssparkutils\r\n",
+					"    \r\n",
+					"    @functools.wraps(func)\r\n",
+					"    def wrapper(*args, **kwargs):\r\n",
+					"        from notebookutils import mssparkutils\r\n",
+					"        key = mssparkutils.credentials.getSecret(\"pinskvsynwodwdevuks\", \"application-insights-connection-string\", \"ls_kv\")\r\n",
+					"\r\n",
+					"        import logging\r\n",
+					"        from opencensus.ext.azure.log_exporter import AzureLogHandler\r\n",
+					"        \r\n",
+					"        logger = logging.getLogger(__name__)\r\n",
+					"        logger.setLevel(logging.INFO)\r\n",
+					"        logger.addHandler(AzureLogHandler(\r\n",
+					"            connection_string=key.split(\";\")[0])\r\n",
+					"        )\r\n",
+					"\r\n",
+					"        args_repr = [repr(a) for a in args]\r\n",
+					"        kwargs_repr = [f\"{k}={v!r}\" for k, v in kwargs.items()]\r\n",
+					"        signature = \", \".join(args_repr + kwargs_repr)\r\n",
+					"        logger.info(f\"function {func.__name__} called with args {signature}\")\r\n",
+					"        try:\r\n",
+					"            result = func(*args, **kwargs)\r\n",
+					"            return result\r\n",
+					"        except Exception as e:\r\n",
+					"            logger.exception(e)\r\n",
+					"            mssparkutils.notebook.exit()\r\n",
+					"    return wrapper"
+				],
+				"execution_count": 3
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					""
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
