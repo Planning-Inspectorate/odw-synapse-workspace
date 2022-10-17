@@ -12,8 +12,6 @@ variables:
 - group: Terraform ${{ parameters.environment }}
 - name: environment
   value: ${{ lower(parameters.environment) }}
-- name: tfLintLogLevel
-  value: warn
 
 pr: none
 
@@ -40,101 +38,36 @@ stages:
         displayName: 'Checkout Repo'
 
       # Install required packages
-      - script: |
-          echo "Installing TFLint..."
-          echo "##[command]curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash"
-          curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
-          echo "##[command]tflint --version"
-          tflint -v
-
-          echo "Installing Checkov..."
-          echo "##[command]pip3 install checkov"
-          pip3 install checkov
-          echo "##[command]checkov --version"
-          checkov --version
-        displayName: 'Setup'
+      - template: steps/install-tflint.yaml
+      - template: steps/install-checkov.yaml
 
       # Login to Azure using Terraform service principal
-      - script: |
-          echo "Authenticating with service principal: $(AZURE_SERVICE_PRINCIPAL_ID)"
-          echo "##[command]az login && az account set"
-          az login \
-            --service-principal \
-            --username $(AZURE_SERVICE_PRINCIPAL_ID) \
-            --password $(AZURE_SERVICE_PRINCIPAL_SECRET) \
-            --tenant $(AZURE_TENANT_ID) \
-          && az account set \
-            --subscription $(SUBSCRIPTION_ID)
-          echo "Subscription scope set to: $(SUBSCRIPTION_ID)"
-          echo "##[command]az account show"
-          az account show
-        displayName: 'Azure Login'
+      - template: steps/azure-login.yaml
 
       # Run terraform init
-      - script: |
-          echo "Initialising Terraform using state file ${{ variables.environment }}.tfstate..."
-          echo "##[command]terraform init -backend-config="key=${{ variables.environment }}.tfstate" -input=false"
-          terraform init \
-            -backend-config="key=${{ variables.environment }}.tfstate" \
-            -input=false
-        displayName: 'Terraform Init'
-        workingDirectory: infrastructure
-        env:
-          ARM_CLIENT_ID: $(AZURE_SERVICE_PRINCIPAL_ID)
-          ARM_CLIENT_SECRET: $(AZURE_SERVICE_PRINCIPAL_SECRET)
-          ARM_SUBSCRIPTION_ID: $(SUBSCRIPTION_ID)
-          ARM_TENANT_ID: $(AZURE_TENANT_ID)
+      - template: steps/terraform-init.yaml
+        parameters:
+          environment: ${{ variables.environment }}
+          workingDirectory: infrastructure
 
-      # Run terraform format
-      - script: |
-          echo "Checking Terraform file formatting..."
-          echo "##[command]terraform fmt -check -recursive"
-          terraform fmt -check -recursive
-        displayName: 'Terraform Format'
-        workingDirectory: infrastructure
+      # Run Terraform format
+      - template: steps/terraform-format.yaml
+        parameters:
+          workingDirectory: infrastructure
 
-      # Run terraform validate
-      - script: |
-          echo "Validating Terraform files..."
-          echo "##[command]terraform validate -no-color"
-          terraform validate -no-color
-        displayName: 'Terraform Validate'
-        workingDirectory: infrastructure
+      # Run Terraform validate
+      - template: steps/terraform-validate.yaml
+        parameters:
+          workingDirectory: infrastructure
 
       # Run TFLint
-      - script: |
-          TFLINT_LOG=${{ variables.tfLintLogLevel }}
+      - template: steps/tflint-validate.yaml
+        parameters:
+          configFilePath: $(Build.Repository.LocalPath)/.tflint.hcl
+          workingDirectory: infrastructure
 
-          echo "Initialising TFLint..."
-          echo "##[command]tflint --init --config $(Build.Repository.LocalPath)/.tflint.hcl --no-color"
-          tflint \
-            --init \
-            --config $(Build.Repository.LocalPath)/.tflint.hcl \
-            --no-color
-
-          echo "Running TFLint..."
-          echo "##[command]tflint --config $(Build.Repository.LocalPath)/.tflint.hcl --format compact --module --no-color"
-          tflint \
-            --config $(Build.Repository.LocalPath)/.tflint.hcl \
-            --format compact \
-            --module \
-            --no-color
-
-          if [[ $? -ne 0 ]]; then
-            echo "##vso[task.logissue type=error]TFLint reported failures"
-          fi
-        displayName: 'TFLint Validate'
-        workingDirectory: infrastructure
-
-      - script: |
-          echo "Running Checkov..."
-          echo "##[command]checkov --directory . --framework terraform"
-          checkov \
-            --directory . \
-            --framework terraform \
-
-          if [[ $? -ne 0 ]]; then
-            echo "##vso[task.logissue type=error]Checkov reported failures"
-          fi
-        displayName: 'Checkov Validate'
-        workingDirectory: infrastructure
+      # Run Checkov
+      - template: steps/checkov-validate.yaml
+        parameters:
+          framework: terraform
+          workingDirectory: infrastructure
