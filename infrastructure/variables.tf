@@ -104,6 +104,16 @@ variable "devops_agent_image_id" {
   type        = string
 }
 
+variable "devops_agent_pool_resource_group_name" {
+  description = "The name of the resource group into which the Azure DevOps agents VMs will be deployed"
+  type        = string
+}
+
+variable "devops_agent_pool_resource_group_name_failover" {
+  description = "The name of the failover resource group into which the Azure DevOps agents VMs will be deployed"
+  type        = string
+}
+
 variable "environment" {
   description = "The name of the environment in which resources will be deployed"
   type        = string

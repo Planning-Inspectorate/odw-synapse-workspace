@@ -8,6 +8,7 @@ module "devops_agent_pool" {
   deploy_agent_pool        = var.deploy_agent_pool
   devops_agent_image_id    = var.devops_agent_image_id
   devops_agent_subnet_name = local.compute_subnet_name
+  resource_group_name      = var.devops_agent_pool_resource_group_name
   vnet_subnet_ids          = module.synapse_network.vnet_subnets
 
   depends_on = [
@@ -29,6 +30,7 @@ module "devops_agent_pool_failover" {
   deploy_agent_pool        = var.deploy_agent_pool
   devops_agent_image_id    = var.devops_agent_image_id
   devops_agent_subnet_name = local.compute_subnet_name
+  resource_group_name      = var.devops_agent_pool_resource_group_name_failover
   vnet_subnet_ids          = module.synapse_network_failover.vnet_subnets
 
   depends_on = [
