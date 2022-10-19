@@ -1,4 +1,6 @@
 resource "random_password" "devops_agent_password" {
+  count = var.deploy_agent_pool ? 1 : 0
+
   length           = 32
   special          = true
   override_special = "#&-_+"
