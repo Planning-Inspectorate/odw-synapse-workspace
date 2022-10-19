@@ -5,7 +5,7 @@ build {
     managed_image_resource_group_name = var.resource_group_name
     managed_image_name                = "devops-agents-${formatdate("YYYYMMDDhhmmss",timestamp())}"
 
-    os_type = "Linux"
+    os_type         = "Linux"
     image_publisher = "canonical"
     image_offer     = "0001-com-ubuntu-server-focal"
     image_sku       = "20_04-lts"
