@@ -244,7 +244,7 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 | <a name="input_data_lake_role_assignments"></a> [data\_lake\_role\_assignments](#input\_data\_lake\_role\_assignments) | An object mapping RBAC roles to principal IDs for the data lake Storage Account | `map(list(string))` | `{}` | no |
 | <a name="input_data_lake_storage_containers"></a> [data\_lake\_storage\_containers](#input\_data\_lake\_storage\_containers) | A list of container names to be created in the Synapse data lake Storage Account | `list(string)` | <pre>[<br>  "default"<br>]</pre> | no |
 | <a name="input_deploy_agent_pool"></a> [deploy\_agent\_pool](#input\_deploy\_agent\_pool) | A switch to determine whether the devops agent pool should be deployed | `bool` | `false` | no |
-| <a name="input_devops_agent_image_id"></a> [devops\_agent\_image\_id](#input\_devops\_agent\_image\_id) | The ID of the VM Image to use for the devops agent VMs | `string` | n/a | yes |
+| <a name="input_devops_agent_image_id"></a> [devops\_agent\_image\_id](#input\_devops\_agent\_image\_id) | The ID of the VM Image to use for the devops agent VMs | `string` | `null` | no |
 | <a name="input_environment"></a> [environment](#input\_environment) | The name of the environment in which resources will be deployed | `string` | n/a | yes |
 | <a name="input_failover_deployment"></a> [failover\_deployment](#input\_failover\_deployment) | Determines if this is a failover deployment such that resources will deployed to the failover region | `bool` | `false` | no |
 | <a name="input_key_vault_role_assignments"></a> [key\_vault\_role\_assignments](#input\_key\_vault\_role\_assignments) | An object mapping RBAC roles to principal IDs for Key Vault | `map(list(string))` | `{}` | no |

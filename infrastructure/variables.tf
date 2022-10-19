@@ -99,6 +99,7 @@ variable "deploy_agent_pool" {
 }
 
 variable "devops_agent_image_id" {
+  default     = null
   description = "The ID of the VM Image to use for the devops agent VMs"
   type        = string
 }

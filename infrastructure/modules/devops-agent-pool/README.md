@@ -41,7 +41,7 @@ No requirements.
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
 | <a name="input_deploy_agent_pool"></a> [deploy\_agent\_pool](#input\_deploy\_agent\_pool) | A switch to determine whether the devops agent VM Scale Set should be deployed | `bool` | `false` | no |
-| <a name="input_devops_agent_image_id"></a> [devops\_agent\_image\_id](#input\_devops\_agent\_image\_id) | The ID of the VM Image to use for the devops agent VMs | `string` | n/a | yes |
+| <a name="input_devops_agent_image_id"></a> [devops\_agent\_image\_id](#input\_devops\_agent\_image\_id) | The ID of the VM Image to use for the devops agent VMs | `string` | `null` | no |
 | <a name="input_devops_agent_instances"></a> [devops\_agent\_instances](#input\_devops\_agent\_instances) | The base number of devops agents in the VM Scale Set | `number` | `1` | no |
 | <a name="input_devops_agent_subnet_name"></a> [devops\_agent\_subnet\_name](#input\_devops\_agent\_subnet\_name) | The name of the subnet into which the devops agent VM Scale Set will be deployed | `string` | n/a | yes |
 | <a name="input_devops_agent_username"></a> [devops\_agent\_username](#input\_devops\_agent\_username) | The username of the devops agent local account | `string` | `"agent_user"` | no |
