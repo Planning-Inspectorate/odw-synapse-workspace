@@ -1,9 +1,11 @@
 resource "azurerm_linux_virtual_machine_scale_set" "devops_agent_pool" {
+  count = var.deploy_agent_pool ? 1 : 0
+
   #checkov:skip=CKV_AZURE_49: SSH authentication not required
   #checkov:skip=CKV_AZURE_97: Host encryption not required
   #checkov:skip=CKV_AZURE_149: Password authentication required
   name                = "pins-vmss-devops-${local.resource_suffix}"
-  resource_group_name = var.resource_group_name
+  resource_group_name = azurerm_resource_group.devops_agents.name
   location            = var.location
   sku                 = var.devops_agent_vm_sku
   instances           = var.devops_agent_instances
@@ -31,7 +33,7 @@ resource "azurerm_linux_virtual_machine_scale_set" "devops_agent_pool" {
     ip_configuration {
       name      = "ipconfig"
       primary   = true
-      subnet_id = var.devops_agent_subnet_id
+      subnet_id = var.vnet_subnet_ids[var.devops_agent_subnet_name]
     }
   }
 

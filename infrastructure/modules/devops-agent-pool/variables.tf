@@ -1,3 +1,9 @@
+variable "deploy_agent_pool" {
+  default     = false
+  description = "A switch to determine whether the devops agent VM Scale Set should be deployed"
+  type        = bool
+}
+
 variable "devops_agent_image_id" {
   description = "The ID of the VM Image to use for the devops agent VMs"
   type        = string
@@ -15,8 +21,8 @@ variable "devops_agent_username" {
   type        = string
 }
 
-variable "devops_agent_subnet_id" {
-  description = "The ID of the subnet into which the devops agent VM Scale Set will be deployed"
+variable "devops_agent_subnet_name" {
+  description = "The name of the subnet into which the devops agent VM Scale Set will be deployed"
   type        = string
 }
 
@@ -31,11 +37,6 @@ variable "environment" {
   type        = string
 }
 
-variable "resource_group_name" {
-  description = "The name of the resource group into which resources will be deployed"
-  type        = string
-}
-
 variable "location" {
   description = "The short-format Azure region into which resources will be deployed"
   type        = string
@@ -44,4 +45,15 @@ variable "location" {
 variable "service_name" {
   description = "The short-format name of the overarching service being deployed"
   type        = string
+}
+
+variable "tags" {
+  default     = {}
+  description = "A collection of tags to assign to taggable resources"
+  type        = map(string)
+}
+
+variable "vnet_subnet_ids" {
+  description = "A map of subnet names and IDs comprising the linked Virtual Network"
+  type        = map(string)
 }

@@ -92,6 +92,17 @@ variable "data_lake_storage_containers" {
   type        = list(string)
 }
 
+variable "deploy_agent_pool" {
+  default     = false
+  description = "A switch to determine whether the devops agent pool should be deployed"
+  type        = bool
+}
+
+variable "devops_agent_image_id" {
+  description = "The ID of the VM Image to use for the devops agent VMs"
+  type        = string
+}
+
 variable "environment" {
   description = "The name of the environment in which resources will be deployed"
   type        = string
