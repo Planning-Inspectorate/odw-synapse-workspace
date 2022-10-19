@@ -3,7 +3,7 @@ build {
 
   source "source.azure-arm.azure-agents" {
     managed_image_resource_group_name = var.resource_group_name
-    managed_image_name                = "devops-agents-${formatdate("YYYYMMDDhhmmss",timestamp())}"
+    managed_image_name                = var.image_name # "devops-agents-${formatdate("YYYYMMDDhhmmss",timestamp())}"
 
     os_type         = "Linux"
     image_publisher = "canonical"

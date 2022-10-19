@@ -8,6 +8,11 @@ variable "client_secret" {
   type        = string
 }
 
+variable "image_name" {
+  description = "The name for the image which will be created"
+  type        = string
+}
+
 variable "resource_group_name" {
   description = "The name of the resource group where the image will be created"
   type        = string
