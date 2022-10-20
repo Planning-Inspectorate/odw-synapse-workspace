@@ -19,7 +19,7 @@ resource "azurerm_linux_virtual_machine_scale_set" "devops_agent_pool" {
 
   platform_fault_domain_count = 1
 
-  source_image_id = var.devops_agent_image_id
+  source_image_id = data.azurerm_image.azure_agents.id
 
   boot_diagnostics {
     storage_account_uri = null

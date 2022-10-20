@@ -35,13 +35,14 @@ No requirements.
 | [azurerm_linux_virtual_machine_scale_set.devops_agent_pool](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/linux_virtual_machine_scale_set) | resource |
 | [azurerm_resource_group.devops_agents](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
 | [random_password.devops_agent_password](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/password) | resource |
+| [azurerm_image.azure_agents](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/data-sources/image) | data source |
 
 ## Inputs
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
 | <a name="input_deploy_agent_pool"></a> [deploy\_agent\_pool](#input\_deploy\_agent\_pool) | A switch to determine whether the devops agent VM Scale Set should be deployed | `bool` | `false` | no |
-| <a name="input_devops_agent_image_id"></a> [devops\_agent\_image\_id](#input\_devops\_agent\_image\_id) | The ID of the VM Image to use for the devops agent VMs | `string` | `null` | no |
+| <a name="input_devops_agent_image_prefix"></a> [devops\_agent\_image\_prefix](#input\_devops\_agent\_image\_prefix) | The name prefix used to identify the devops agent image | `string` | `"devops-agents"` | no |
 | <a name="input_devops_agent_instances"></a> [devops\_agent\_instances](#input\_devops\_agent\_instances) | The base number of devops agents in the VM Scale Set | `number` | `1` | no |
 | <a name="input_devops_agent_subnet_name"></a> [devops\_agent\_subnet\_name](#input\_devops\_agent\_subnet\_name) | The name of the subnet into which the devops agent VM Scale Set will be deployed | `string` | n/a | yes |
 | <a name="input_devops_agent_username"></a> [devops\_agent\_username](#input\_devops\_agent\_username) | The username of the devops agent local account | `string` | `"agent_user"` | no |

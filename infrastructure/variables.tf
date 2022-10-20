@@ -98,9 +98,9 @@ variable "deploy_agent_pool" {
   type        = bool
 }
 
-variable "devops_agent_image_id" {
-  default     = null
-  description = "The ID of the VM Image to use for the devops agent VMs"
+variable "devops_agent_image_prefix" {
+  default     = "devops-agents"
+  description = "The name prefix used to identify the devops agent image"
   type        = string
 }
 

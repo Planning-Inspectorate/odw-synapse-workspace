@@ -8,7 +8,8 @@ variable "client_secret" {
   type        = string
 }
 
-variable "image_name" {
+variable "image_prefix" {
+  default     = "devops-agents"
   description = "The name for the image which will be created"
   type        = string
 }
