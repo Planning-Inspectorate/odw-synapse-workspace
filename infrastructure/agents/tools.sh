@@ -72,5 +72,9 @@ sudo apt-get update; \
   sudo apt-get install -y aspnetcore-runtime-6.0 && \
   sudo apt-get install -y powershell
 
+# PowerShell Modules
+pwsh -c "& {Install-Module -Name Az -Scope AllUsers -Repository PSGallery -Force -Verbose}"
+pwsh -c "& {Get-Modules -ListAvailable}"
+
 # Sysprep
 /usr/sbin/waagent -force -deprovision+user && export HISTSIZE=0 && sync
