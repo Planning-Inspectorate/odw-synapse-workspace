@@ -11,6 +11,7 @@ sudo apt update
 
 sudo apt-get clean && apt-get update && apt-get upgrade
 sudo apt-get install -y --no-install-recommends \
+  apt-transport-https \
   build-essential \
   ca-certificates \
   curl \
@@ -28,6 +29,7 @@ sudo apt-get install -y --no-install-recommends \
   lsb-release \
   software-properties-common \
   unzip \
+  wget \
   xauth \
   xvfb \
   zip
@@ -67,8 +69,7 @@ sudo dpkg -i packages-microsoft-prod.deb
 rm packages-microsoft-prod.deb
 
 sudo apt-get update; \
-  sudo apt-get install -y apt-transport-https && \
-  sudo apt-get update && \
-  sudo apt-get install -y aspnetcore-runtime-6.0
+  sudo apt-get install -y aspnetcore-runtime-6.0 && \
+  sudo apt-get install -y powershell
 
 /usr/sbin/waagent -force -deprovision+user && export HISTSIZE=0 && sync
