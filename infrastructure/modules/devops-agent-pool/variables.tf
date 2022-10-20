@@ -28,7 +28,7 @@ variable "devops_agent_subnet_name" {
 }
 
 variable "devops_agent_vm_sku" {
-  default     = "Standard_D2ds_v5"
+  default     = "Standard_F2s_v2"
   description = "The size of the devops agent VMs to be deployed"
   type        = string
 }
