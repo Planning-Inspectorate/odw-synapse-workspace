@@ -11,7 +11,7 @@ variable "devops_agent_image_prefix" {
 }
 
 variable "devops_agent_instances" {
-  default     = 1
+  default     = 2
   description = "The base number of devops agents in the VM Scale Set"
   type        = number
 }

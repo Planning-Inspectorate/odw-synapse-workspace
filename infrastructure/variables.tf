@@ -104,6 +104,12 @@ variable "devops_agent_image_prefix" {
   type        = string
 }
 
+variable "devops_agent_instances" {
+  default     = 2
+  description = "The base number of devops agents in the VM Scale Set"
+  type        = number
+}
+
 variable "devops_agent_pool_resource_group_name" {
   description = "The name of the resource group into which the Azure DevOps agents VMs will be deployed"
   type        = string
