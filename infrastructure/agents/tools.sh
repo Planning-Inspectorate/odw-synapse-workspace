@@ -49,10 +49,10 @@ sudo apt install -y --no-install-recommends \
   python3.7-distutils \
   python3-pip
 
-# Terraform 1.3.2
+# Terraform 1.3.3
 curl -fsSL https://apt.releases.hashicorp.com/gpg | apt-key add -
 sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
-sudo apt-get install -y terraform=1.3.2
+sudo apt-get install -y terraform=1.3.3
 
 # Checkov
 python3.7 -m pip install -U checkov
@@ -63,7 +63,7 @@ curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/instal
 # Azure CLI
 curl -sL https://aka.ms/InstallAzureCLIDeb | bash
 
-# .NET Core
+# .NET Core and PowerShell
 wget https://packages.microsoft.com/config/ubuntu/20.04/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
 sudo dpkg -i packages-microsoft-prod.deb
 rm packages-microsoft-prod.deb
@@ -72,4 +72,5 @@ sudo apt-get update; \
   sudo apt-get install -y aspnetcore-runtime-6.0 && \
   sudo apt-get install -y powershell
 
+# Sysprep
 /usr/sbin/waagent -force -deprovision+user && export HISTSIZE=0 && sync
