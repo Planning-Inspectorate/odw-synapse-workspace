@@ -93,7 +93,7 @@ variable "data_lake_storage_containers" {
 }
 
 variable "deploy_agent_pool" {
-  default     = false
+  default     = true
   description = "A switch to determine whether the devops agent pool should be deployed"
   type        = bool
 }

@@ -1,5 +1,5 @@
 variable "deploy_agent_pool" {
-  default     = false
+  default     = true
   description = "A switch to determine whether the devops agent VM Scale Set should be deployed"
   type        = bool
 }
