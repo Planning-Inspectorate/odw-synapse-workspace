@@ -74,7 +74,7 @@ sudo apt-get update; \
 
 # PowerShell Modules
 pwsh -c "& {Install-Module -Name Az -Scope AllUsers -Repository PSGallery -Force -Verbose}"
-pwsh -c "& {Get-Modules -ListAvailable}"
+pwsh -c "& {Get-Module -ListAvailable}"
 
 # Sysprep
 /usr/sbin/waagent -force -deprovision+user && export HISTSIZE=0 && sync
