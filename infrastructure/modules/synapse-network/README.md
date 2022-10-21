@@ -81,6 +81,7 @@ No requirements.
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
+| <a name="input_devops_agent_subnet_name"></a> [devops\_agent\_subnet\_name](#input\_devops\_agent\_subnet\_name) | The name of the subnet into which the devops agents will be deployed | `string` | `"ComputeSubnet"` | no |
 | <a name="input_environment"></a> [environment](#input\_environment) | The name of the environment in which resources will be deployed | `string` | n/a | yes |
 | <a name="input_location"></a> [location](#input\_location) | The short-format Azure region into which resources will be deployed | `string` | n/a | yes |
 | <a name="input_network_watcher_enabled"></a> [network\_watcher\_enabled](#input\_network\_watcher\_enabled) | Determines whether a Network Watcher resource will be deployed | `bool` | `false` | no |
@@ -95,6 +96,7 @@ No requirements.
 
 | Name | Description |
 |------|-------------|
+| <a name="output_devops_agent_subnet_name"></a> [devops\_agent\_subnet\_name](#output\_devops\_agent\_subnet\_name) | The name of the subnet into which the devops agents will be deployed |
 | <a name="output_vnet_id"></a> [vnet\_id](#output\_vnet\_id) | The ID of the Virtual Network deployed in this module |
 | <a name="output_vnet_name"></a> [vnet\_name](#output\_vnet\_name) | The name of the Virtual Network deployed in this module |
 | <a name="output_vnet_security_groups"></a> [vnet\_security\_groups](#output\_vnet\_security\_groups) | A map of subnet names to network security group names deployed in this module |

@@ -4,13 +4,6 @@ variable "data_lake_account_tier" {
   type        = string
 }
 
-variable "data_lake_allowed_ip_addresses" {
-  default     = []
-  description = "A list of CIDR ranges to be permitted access to the data lake Storage Account"
-  sensitive   = true
-  type        = list(string)
-}
-
 variable "data_lake_private_endpoint_dns_zone_id" {
   description = "The ID of the Private DNS Zone hosting privatelink.dfs.core.windows.net"
   type        = string
@@ -40,9 +33,22 @@ variable "data_lake_storage_containers" {
   type        = list(string)
 }
 
+variable "devops_agent_subnet_name" {
+  default     = "ComputeSubnet"
+  description = "The name of the subnet into which the devops agents will be deployed"
+  type        = string
+}
+
 variable "environment" {
   description = "The name of the environment in which resources will be deployed"
   type        = string
+}
+
+variable "firewall_allowed_ip_addresses" {
+  default     = []
+  description = "A list of CIDR ranges to be permitted access to the data lake Storage Account"
+  sensitive   = true
+  type        = list(string)
 }
 
 variable "key_vault_role_assignments" {
@@ -77,11 +83,6 @@ variable "synapse_private_endpoint_subnet_name" {
   type        = string
 }
 
-variable "synapse_private_endpoint_vnet_subnets" {
-  description = "A map of subnet names and IDs comprising the linked Virtual Network for private endpoint deployment"
-  type        = map(string)
-}
-
 variable "tags" {
   default     = {}
   description = "A collection of tags to assign to taggable resources"
@@ -91,4 +92,14 @@ variable "tags" {
 variable "tenant_id" {
   description = "The ID of the Azure AD tenant containing the identities used for RBAC assignments"
   type        = string
+}
+
+variable "vnet_subnet_ids" {
+  description = "A map of subnet names and IDs comprising the linked Virtual Network"
+  type        = map(string)
+}
+
+variable "vnet_subnet_ids_failover" {
+  description = "A map of subnet names and IDs comprising the linked Virtual Network"
+  type        = map(string)
 }

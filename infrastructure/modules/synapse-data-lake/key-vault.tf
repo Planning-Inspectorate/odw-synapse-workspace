@@ -1,5 +1,5 @@
 resource "azurerm_key_vault" "synapse" {
-  #checkov:skip=CKV_AZURE_109: TODO: Implement fine-grained Key Vault firewall rules
+  #checkov:skip=CKV_AZURE_109: TODO: Key vault firewall
   name                       = replace("pins-kv-synw-${local.resource_suffix}", "-", "")
   resource_group_name        = var.resource_group_name
   location                   = var.location

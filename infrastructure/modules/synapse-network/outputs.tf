@@ -1,3 +1,8 @@
+output "devops_agent_subnet_name" {
+  description = "The name of the subnet into which the devops agents will be deployed"
+  value       = var.devops_agent_subnet_name
+}
+
 output "vnet_id" {
   description = "The ID of the Virtual Network deployed in this module"
   value       = azurerm_virtual_network.synapse.id

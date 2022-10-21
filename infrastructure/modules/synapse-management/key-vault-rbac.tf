@@ -19,5 +19,5 @@ resource "azurerm_role_assignment" "purview_msi_key_vault" {
 
   scope                = azurerm_key_vault.management.id
   role_definition_name = "Key Vault Secrets User"
-  principal_id         = azurerm_purview_account.management[0].identity.0.principal_id
+  principal_id         = azurerm_purview_account.management[0].identity[0].principal_id
 }

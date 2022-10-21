@@ -21,20 +21,22 @@ module "synapse_data_lake" {
   service_name        = local.service_name
 
   data_lake_account_tier                 = var.data_lake_account_tier
-  data_lake_allowed_ip_addresses         = jsondecode(file(local.firewall_config_file_path))
   data_lake_private_endpoint_dns_zone_id = azurerm_private_dns_zone.data_lake.id
   data_lake_replication_type             = var.data_lake_replication_type
   data_lake_retention_days               = var.data_lake_retention_days
   data_lake_role_assignments             = var.data_lake_role_assignments
   data_lake_storage_containers           = var.data_lake_storage_containers
+  firewall_allowed_ip_addresses          = jsondecode(file(local.firewall_config_file_path))
   key_vault_role_assignments             = var.key_vault_role_assignments
   network_resource_group_name            = azurerm_resource_group.network.name
   synapse_private_endpoint_subnet_name   = local.synapse_subnet_name
-  synapse_private_endpoint_vnet_subnets  = module.synapse_network.vnet_subnets
   tenant_id                              = var.tenant_id
+  vnet_subnet_ids                        = module.synapse_network.vnet_subnets
+  vnet_subnet_ids_failover               = module.synapse_network_failover.vnet_subnets
 
   depends_on = [
-    module.synapse_network
+    module.synapse_network,
+    module.synapse_network_failover
   ]
 }
 
@@ -47,19 +49,21 @@ module "synapse_data_lake_failover" {
   service_name        = local.service_name
 
   data_lake_account_tier                 = var.data_lake_account_tier
-  data_lake_allowed_ip_addresses         = jsondecode(file(local.firewall_config_file_path))
   data_lake_private_endpoint_dns_zone_id = azurerm_private_dns_zone.data_lake.id
   data_lake_replication_type             = var.data_lake_replication_type
   data_lake_retention_days               = var.data_lake_retention_days
   data_lake_role_assignments             = var.data_lake_role_assignments
   data_lake_storage_containers           = var.data_lake_storage_containers
+  firewall_allowed_ip_addresses          = jsondecode(file(local.firewall_config_file_path))
   key_vault_role_assignments             = var.key_vault_role_assignments
   network_resource_group_name            = azurerm_resource_group.network_failover.name
   synapse_private_endpoint_subnet_name   = local.synapse_subnet_name
-  synapse_private_endpoint_vnet_subnets  = module.synapse_network_failover.vnet_subnets
   tenant_id                              = var.tenant_id
+  vnet_subnet_ids                        = module.synapse_network_failover.vnet_subnets
+  vnet_subnet_ids_failover               = module.synapse_network.vnet_subnets
 
   depends_on = [
+    module.synapse_network,
     module.synapse_network_failover
   ]
 }

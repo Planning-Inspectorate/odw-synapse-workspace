@@ -1,3 +1,9 @@
+variable "devops_agent_subnet_name" {
+  default     = "ComputeSubnet"
+  description = "The name of the subnet into which the devops agents will be deployed"
+  type        = string
+}
+
 variable "environment" {
   description = "The name of the environment in which resources will be deployed"
   type        = string
