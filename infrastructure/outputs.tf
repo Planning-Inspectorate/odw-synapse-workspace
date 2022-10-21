@@ -28,6 +28,11 @@ output "data_resource_group_name" {
   value       = var.failover_deployment ? azurerm_resource_group.data_failover.name : azurerm_resource_group.data.name
 }
 
+output "devops_agent_pool_resource_group_name" {
+  description = "The name of the resource group containing the devops agent pool resources"
+  value       = var.failover_deployment ? one(module.devops_agent_pool_failover).resource_group_name : module.devops_agent_pool.resource_group_name
+}
+
 output "key_vault_uri" {
   description = "The URI of the Key Vault"
   value       = var.failover_deployment ? module.synapse_data_lake_failover.key_vault_uri : module.synapse_data_lake.key_vault_uri

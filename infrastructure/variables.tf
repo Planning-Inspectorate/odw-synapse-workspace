@@ -92,6 +92,40 @@ variable "data_lake_storage_containers" {
   type        = list(string)
 }
 
+variable "deploy_agent_pool" {
+  default     = true
+  description = "A switch to determine whether the devops agent pool should be deployed"
+  type        = bool
+}
+
+variable "devops_agent_image_prefix" {
+  default     = "devops-agents"
+  description = "The name prefix used to identify the devops agent image"
+  type        = string
+}
+
+variable "devops_agent_instances" {
+  default     = 2
+  description = "The base number of devops agents in the VM Scale Set"
+  type        = number
+}
+
+variable "devops_agent_pool_resource_group_name" {
+  description = "The name of the resource group into which the Azure DevOps agents VMs will be deployed"
+  type        = string
+}
+
+variable "devops_agent_pool_resource_group_name_failover" {
+  description = "The name of the failover resource group into which the Azure DevOps agents VMs will be deployed"
+  type        = string
+}
+
+variable "devops_agent_vm_sku" {
+  default     = "Standard_F2s_v2"
+  description = "The size of the devops agent VMs to be deployed"
+  type        = string
+}
+
 variable "environment" {
   description = "The name of the environment in which resources will be deployed"
   type        = string

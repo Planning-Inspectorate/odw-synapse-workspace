@@ -181,6 +181,8 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 | <a name="module_azure_region"></a> [azure\_region](#module\_azure\_region) | claranet/regions/azurerm | 5.1.0 |
 | <a name="module_bastion_host"></a> [bastion\_host](#module\_bastion\_host) | ./modules/bastion-host | n/a |
 | <a name="module_bastion_host_failover"></a> [bastion\_host\_failover](#module\_bastion\_host\_failover) | ./modules/bastion-host | n/a |
+| <a name="module_devops_agent_pool"></a> [devops\_agent\_pool](#module\_devops\_agent\_pool) | ./modules/devops-agent-pool | n/a |
+| <a name="module_devops_agent_pool_failover"></a> [devops\_agent\_pool\_failover](#module\_devops\_agent\_pool\_failover) | ./modules/devops-agent-pool | n/a |
 | <a name="module_synapse_data_lake"></a> [synapse\_data\_lake](#module\_synapse\_data\_lake) | ./modules/synapse-data-lake | n/a |
 | <a name="module_synapse_data_lake_failover"></a> [synapse\_data\_lake\_failover](#module\_synapse\_data\_lake\_failover) | ./modules/synapse-data-lake | n/a |
 | <a name="module_synapse_ingestion"></a> [synapse\_ingestion](#module\_synapse\_ingestion) | ./modules/synapse-ingestion | n/a |
@@ -241,6 +243,12 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 | <a name="input_data_lake_retention_days"></a> [data\_lake\_retention\_days](#input\_data\_lake\_retention\_days) | The number of days blob and queue data will be retained for upon deletion | `number` | `7` | no |
 | <a name="input_data_lake_role_assignments"></a> [data\_lake\_role\_assignments](#input\_data\_lake\_role\_assignments) | An object mapping RBAC roles to principal IDs for the data lake Storage Account | `map(list(string))` | `{}` | no |
 | <a name="input_data_lake_storage_containers"></a> [data\_lake\_storage\_containers](#input\_data\_lake\_storage\_containers) | A list of container names to be created in the Synapse data lake Storage Account | `list(string)` | <pre>[<br>  "default"<br>]</pre> | no |
+| <a name="input_deploy_agent_pool"></a> [deploy\_agent\_pool](#input\_deploy\_agent\_pool) | A switch to determine whether the devops agent pool should be deployed | `bool` | `true` | no |
+| <a name="input_devops_agent_image_prefix"></a> [devops\_agent\_image\_prefix](#input\_devops\_agent\_image\_prefix) | The name prefix used to identify the devops agent image | `string` | `"devops-agents"` | no |
+| <a name="input_devops_agent_instances"></a> [devops\_agent\_instances](#input\_devops\_agent\_instances) | The base number of devops agents in the VM Scale Set | `number` | `2` | no |
+| <a name="input_devops_agent_pool_resource_group_name"></a> [devops\_agent\_pool\_resource\_group\_name](#input\_devops\_agent\_pool\_resource\_group\_name) | The name of the resource group into which the Azure DevOps agents VMs will be deployed | `string` | n/a | yes |
+| <a name="input_devops_agent_pool_resource_group_name_failover"></a> [devops\_agent\_pool\_resource\_group\_name\_failover](#input\_devops\_agent\_pool\_resource\_group\_name\_failover) | The name of the failover resource group into which the Azure DevOps agents VMs will be deployed | `string` | n/a | yes |
+| <a name="input_devops_agent_vm_sku"></a> [devops\_agent\_vm\_sku](#input\_devops\_agent\_vm\_sku) | The size of the devops agent VMs to be deployed | `string` | `"Standard_F2s_v2"` | no |
 | <a name="input_environment"></a> [environment](#input\_environment) | The name of the environment in which resources will be deployed | `string` | n/a | yes |
 | <a name="input_failover_deployment"></a> [failover\_deployment](#input\_failover\_deployment) | Determines if this is a failover deployment such that resources will deployed to the failover region | `bool` | `false` | no |
 | <a name="input_key_vault_role_assignments"></a> [key\_vault\_role\_assignments](#input\_key\_vault\_role\_assignments) | An object mapping RBAC roles to principal IDs for Key Vault | `map(list(string))` | `{}` | no |
@@ -276,6 +284,7 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 | <a name="output_data_lake_dfs_endpoint"></a> [data\_lake\_dfs\_endpoint](#output\_data\_lake\_dfs\_endpoint) | The DFS endpoint URL of the Data Lake Storage Account |
 | <a name="output_data_lake_dfs_endpoint_failover"></a> [data\_lake\_dfs\_endpoint\_failover](#output\_data\_lake\_dfs\_endpoint\_failover) | The DFS endpoint URL of the Data Lake Storage Account used for backup and failover |
 | <a name="output_data_resource_group_name"></a> [data\_resource\_group\_name](#output\_data\_resource\_group\_name) | The name of the data application resource group |
+| <a name="output_devops_agent_pool_resource_group_name"></a> [devops\_agent\_pool\_resource\_group\_name](#output\_devops\_agent\_pool\_resource\_group\_name) | The name of the resource group containing the devops agent pool resources |
 | <a name="output_key_vault_uri"></a> [key\_vault\_uri](#output\_key\_vault\_uri) | The URI of the Key Vault |
 | <a name="output_service_bus_namespace_name"></a> [service\_bus\_namespace\_name](#output\_service\_bus\_namespace\_name) | The name of the Service Bus Namespace |
 | <a name="output_synapse_dev_endpoint"></a> [synapse\_dev\_endpoint](#output\_synapse\_dev\_endpoint) | The development connectivity endpoint for the Synapse Workspace |
