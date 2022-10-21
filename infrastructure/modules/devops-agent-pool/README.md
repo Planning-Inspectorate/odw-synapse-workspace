@@ -1,4 +1,4 @@
-# Bastion Host
+# Azure DevOps Agent Pool
 This module provisions an Azure DevOps agent pool into the specified a specified subnet.
 
 ### Table of Contents

@@ -9,6 +9,7 @@ module "devops_agent_pool" {
   devops_agent_image_prefix = var.devops_agent_image_prefix
   devops_agent_instances    = var.devops_agent_instances
   devops_agent_subnet_name  = local.compute_subnet_name
+  devops_agent_vm_sku       = var.devops_agent_vm_sku
   resource_group_name       = var.devops_agent_pool_resource_group_name
   vnet_subnet_ids           = module.synapse_network.vnet_subnets
 
