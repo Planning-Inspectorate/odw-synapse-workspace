@@ -64,6 +64,12 @@ variable "vnet_subnets" {
   type        = list(map(string))
 }
 
+variable "synapse_private_endpoint_subnet_name" {
+  default     = "SynapseEndpointSubnet"
+  description = "The name of the subnet into which Synapse private endpoints should be deployed"
+  type        = string
+}
+
 variable "tags" {
   default     = {}
   description = "A collection of tags to assign to taggable resources"
