@@ -51,6 +51,11 @@ variable "firewall_allowed_ip_addresses" {
   type        = list(string)
 }
 
+variable "key_vault_private_endpoint_dns_zone_id" {
+  description = "The ID of the Private DNS Zone hosting privatelink.vaultcore.azure.net"
+  type        = string
+}
+
 variable "key_vault_role_assignments" {
   default     = {}
   description = "An object mapping RBAC roles to principal IDs for Key Vault"

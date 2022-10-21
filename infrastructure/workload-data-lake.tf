@@ -27,6 +27,7 @@ module "synapse_data_lake" {
   data_lake_role_assignments             = var.data_lake_role_assignments
   data_lake_storage_containers           = var.data_lake_storage_containers
   firewall_allowed_ip_addresses          = jsondecode(file(local.firewall_config_file_path))
+  key_vault_private_endpoint_dns_zone_id = azurerm_private_dns_zone.key_vault.id
   key_vault_role_assignments             = var.key_vault_role_assignments
   network_resource_group_name            = azurerm_resource_group.network.name
   synapse_private_endpoint_subnet_name   = local.synapse_subnet_name
@@ -55,6 +56,7 @@ module "synapse_data_lake_failover" {
   data_lake_role_assignments             = var.data_lake_role_assignments
   data_lake_storage_containers           = var.data_lake_storage_containers
   firewall_allowed_ip_addresses          = jsondecode(file(local.firewall_config_file_path))
+  key_vault_private_endpoint_dns_zone_id = azurerm_private_dns_zone.key_vault.id
   key_vault_role_assignments             = var.key_vault_role_assignments
   network_resource_group_name            = azurerm_resource_group.network_failover.name
   synapse_private_endpoint_subnet_name   = local.synapse_subnet_name

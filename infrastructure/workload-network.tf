@@ -58,6 +58,13 @@ resource "azurerm_private_dns_zone" "data_lake" {
   tags = local.tags
 }
 
+resource "azurerm_private_dns_zone" "key_vault" {
+  name                = "privatelink.vaultcore.azure.net"
+  resource_group_name = azurerm_resource_group.network_global.name
+
+  tags = local.tags
+}
+
 resource "azurerm_private_dns_zone" "synapse" {
   name                = "privatelink.azuresynapse.net"
   resource_group_name = azurerm_resource_group.network_global.name
@@ -78,6 +85,24 @@ resource "azurerm_private_dns_zone_virtual_network_link" "data_lake_failover" {
   name                  = "dfs-${module.synapse_network_failover.vnet_name}"
   resource_group_name   = azurerm_resource_group.network_global.name
   private_dns_zone_name = azurerm_private_dns_zone.data_lake.name
+  virtual_network_id    = module.synapse_network_failover.vnet_id
+
+  tags = local.tags
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "key_vault" {
+  name                  = "dfs-${module.synapse_network.vnet_name}"
+  resource_group_name   = azurerm_resource_group.network_global.name
+  private_dns_zone_name = azurerm_private_dns_zone.key_vault.name
+  virtual_network_id    = module.synapse_network.vnet_id
+
+  tags = local.tags
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "key_vault_failover" {
+  name                  = "dfs-${module.synapse_network_failover.vnet_name}"
+  resource_group_name   = azurerm_resource_group.network_global.name
+  private_dns_zone_name = azurerm_private_dns_zone.key_vault.name
   virtual_network_id    = module.synapse_network_failover.vnet_id
 
   tags = local.tags
