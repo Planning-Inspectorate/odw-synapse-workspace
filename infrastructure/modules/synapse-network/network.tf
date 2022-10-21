@@ -22,4 +22,5 @@ resource "azurerm_subnet" "synapse" {
   resource_group_name  = var.resource_group_name
   address_prefixes     = [each.value]
   virtual_network_name = azurerm_virtual_network.synapse.name
+  service_endpoints    = each.key == "SynapseEndpointSubnet" ? ["Microsoft.Storage"] : []
 }
