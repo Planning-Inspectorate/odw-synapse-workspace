@@ -21,6 +21,7 @@ module "synapse_data_lake" {
   service_name        = local.service_name
 
   data_lake_account_tier                 = var.data_lake_account_tier
+  data_lake_allowed_ip_addresses         = jsondecode(file(local.firewall_config_file_path))
   data_lake_private_endpoint_dns_zone_id = azurerm_private_dns_zone.data_lake.id
   data_lake_replication_type             = var.data_lake_replication_type
   data_lake_retention_days               = var.data_lake_retention_days
@@ -46,6 +47,7 @@ module "synapse_data_lake_failover" {
   service_name        = local.service_name
 
   data_lake_account_tier                 = var.data_lake_account_tier
+  data_lake_allowed_ip_addresses         = jsondecode(file(local.firewall_config_file_path))
   data_lake_private_endpoint_dns_zone_id = azurerm_private_dns_zone.data_lake.id
   data_lake_replication_type             = var.data_lake_replication_type
   data_lake_retention_days               = var.data_lake_retention_days

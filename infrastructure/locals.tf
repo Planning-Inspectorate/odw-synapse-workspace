@@ -9,6 +9,8 @@ locals {
   compute_subnet_name = "ComputeSubnet"
   synapse_subnet_name = "SynapseEndpointSubnet"
 
+  firewall_config_file_path = "${path.module}/configuration/firewall-rules/allowed_ip_addresses.json"
+
   tags = merge(
     var.tags,
     {

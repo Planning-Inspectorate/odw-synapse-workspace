@@ -4,6 +4,13 @@ variable "data_lake_account_tier" {
   type        = string
 }
 
+variable "data_lake_allowed_ip_addresses" {
+  default     = []
+  description = "A list of CIDR ranges to be permitted access to the data lake Storage Account"
+  sensitive   = true
+  type        = list(string)
+}
+
 variable "data_lake_private_endpoint_dns_zone_id" {
   description = "The ID of the Private DNS Zone hosting privatelink.dfs.core.windows.net"
   type        = string
