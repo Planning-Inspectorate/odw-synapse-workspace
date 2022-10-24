@@ -34,6 +34,9 @@ data_lake_storage_containers = [
   "odw-config"
 ]
 
+devops_agent_pool_resource_group_name          = "pins-rg-devops-odw-prod-uks"
+devops_agent_pool_resource_group_name_failover = "pins-rg-devops-odw-prod-ukw"
+
 environment = "prod"
 location    = "uk-south"
 

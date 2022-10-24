@@ -25,7 +25,6 @@ data_lake_role_assignments = {
     "b4dbfba4-b78b-4163-9b39-87ea03e2d5ed"  # planninginspectorate-operational-data-warehouse-ff442a29-fc06-4a13-8e3e-65fd5da513b3
   ]
 }
-
 data_lake_storage_containers = [
   "backup-logs",
   "odw-curated",
@@ -34,6 +33,9 @@ data_lake_storage_containers = [
   "odw-harmonised",
   "odw-config"
 ]
+
+devops_agent_pool_resource_group_name          = "pins-rg-devops-odw-dev-uks"
+devops_agent_pool_resource_group_name_failover = "pins-rg-devops-odw-dev-ukw"
 
 environment = "dev"
 location    = "uk-south"
