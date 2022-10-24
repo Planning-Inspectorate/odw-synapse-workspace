@@ -18,7 +18,6 @@ variable "environment" {
 variable "firewall_allowed_ip_addresses" {
   default     = []
   description = "A list of CIDR ranges to be permitted access to the data lake Storage Account"
-  sensitive   = true
   type        = list(string)
 }
 
