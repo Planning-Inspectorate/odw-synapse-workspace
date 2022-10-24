@@ -17,7 +17,7 @@ resource "azurerm_synapse_firewall_rule" "allow_all" {
 resource "azurerm_synapse_firewall_rule" "allowed_ips" {
   for_each = toset(local.firewall_allowed_ip_addresses)
 
-  name                 = "AllowRule${index(local.firewall_allowed_ip_addresses, each.value) + 1}"
+  name                 = format("AllowRule%02s", index(local.firewall_allowed_ip_addresses, each.value) + 1)
   synapse_workspace_id = azurerm_synapse_workspace.synapse.id
   start_ip_address     = cidrhost(each.value, 0)
   end_ip_address       = cidrhost(each.value, -1)
