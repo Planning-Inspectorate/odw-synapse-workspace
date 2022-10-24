@@ -3,9 +3,7 @@ locals {
   resource_suffix = "${var.service_name}-${var.environment}-${module.azure_region.location_short}"
 
   firewall_allowed_ip_addresses = [
-    for address in var.firewall_allowed_ip_addresses : {
-      address = can(split("/", address)[1]) ? address : "${address}/32"
-    }
+    for address in var.firewall_allowed_ip_addresses : can(split("/", address)[1]) ? address : "${address}/32"
   ]
 
   synapse_role_assignments = flatten([

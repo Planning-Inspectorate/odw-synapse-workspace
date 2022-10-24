@@ -13,12 +13,12 @@ resource "azurerm_synapse_firewall_rule" "allow_all" {
 }
 
 resource "azurerm_synapse_firewall_rule" "allowed_ips" {
-  for_each = local.firewall_allowed_ip_addresses
+  for_each = toset(local.firewall_allowed_ip_addresses)
 
   name                 = "AllowRule${index(local.firewall_allowed_ip_addresses, each.value)}"
   synapse_workspace_id = azurerm_synapse_workspace.synapse.id
-  start_ip_address     = cidrhost(each.value.address, 0)
-  end_ip_address       = cidrhost(each.value.address, -1)
+  start_ip_address     = cidrhost(each.value, 0)
+  end_ip_address       = cidrhost(each.value, -1)
 }
 
 resource "time_sleep" "firewall_delay" {
