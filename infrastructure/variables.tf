@@ -137,6 +137,12 @@ variable "failover_deployment" {
   type        = bool
 }
 
+variable "firewall_allowed_ip_addresses" {
+  default     = []
+  description = "A list of CIDR ranges to be permitted access to the data lake Storage Account"
+  type        = list(string)
+}
+
 variable "key_vault_role_assignments" {
   default     = {}
   description = "An object mapping RBAC roles to principal IDs for Key Vault"

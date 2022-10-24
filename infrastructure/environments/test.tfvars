@@ -37,6 +37,10 @@ data_lake_storage_containers = [
 devops_agent_pool_resource_group_name          = "pins-rg-devops-odw-test-uks"
 devops_agent_pool_resource_group_name_failover = "pins-rg-devops-odw-test-ukw"
 
+firewall_allowed_ip_addresses = [
+  "109.153.205.252"
+]
+
 environment = "test"
 location    = "uk-south"
 
