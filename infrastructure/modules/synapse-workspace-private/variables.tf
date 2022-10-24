@@ -28,6 +28,13 @@ variable "environment" {
   type        = string
 }
 
+variable "firewall_allowed_ip_addresses" {
+  default     = []
+  description = "A list of CIDR ranges to be permitted access to the data lake Storage Account"
+  sensitive   = true
+  type        = list(string)
+}
+
 variable "key_vault_id" {
   description = "The ID of the Key Vault to use for secret storage"
   type        = string
