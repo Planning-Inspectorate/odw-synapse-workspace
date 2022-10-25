@@ -19,6 +19,16 @@ pwsh -c "& {Install-Module -Name Az -Scope AllUsers -Repository PSGallery -Force
 pwsh -c "& {Get-Module -ListAvailable}"
 ```
 
+## Firewall Rules
+The `allowed_ip_addresses.json` file in this directory is a placeholder file. IP addresses are subject to GDPR restrictions and as such this file should **not** be updated here to include any IP addresses. To update the list of allowed IP addresses, navigate to the [ODW Azure DevOps project](https://dev.azure.com/planninginspectorate/operational-data-warehouse/_library?itemType=SecureFiles) and upload a new secure file with the following format (a JSON array containing a list of IP addresses or ranges):
+
+```json
+[
+  "192.168.10.10", // Single addresses should be defined without a CIDR prefix
+  "192.168.0.0/24" // Ranges should be defined with their CIDR prefix
+]
+```
+
 ## Spark Pool
 The `spark-requirements.txt` file in this directory is used as an input for the Synapse Workspace and defines which Python packages (and optionally, their version) should be installed and made available for use within the Spark pool environment. The format for this file is outlined below:
 

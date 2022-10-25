@@ -37,20 +37,6 @@ data_lake_storage_containers = [
 devops_agent_pool_resource_group_name          = "pins-rg-devops-odw-test-uks"
 devops_agent_pool_resource_group_name_failover = "pins-rg-devops-odw-test-ukw"
 
-firewall_allowed_ip_addresses = [
-  "2.218.104.16",    # K+C Michael
-  "77.108.155.244",  # K+C Manchester Office 1
-  "77.108.155.245",  # K+C Manchester Office 2
-  "81.144.234.220",  # K+C London Office 1
-  "81.144.234.221",  # K+C London Office 2
-  "82.28.123.122",   # K+C Maria
-  "86.31.135.222",   # PINS Bristol Office 1
-  "86.166.41.93",    # K+C Daya
-  "109.153.205.252", # K+C Lester
-  "212.58.61.170",   # K+C London Office 3
-  "213.78.68.18"     # K+C London Office 4
-]
-
 environment = "test"
 location    = "uk-south"
 
