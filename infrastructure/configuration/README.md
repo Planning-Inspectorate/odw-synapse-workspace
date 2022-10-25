@@ -5,7 +5,7 @@ The configuration files in this folder are used by the Terraform root module for
 The  `devops-agents` directory contains [Packer](https://www.packer.io/) files which describe the image used to provision the Azure DevOps agent pool within the ODW network. The `devops-agent-deploy.yaml` pipeline runs to bootstraps the ODW environment, build the agent image using the files in this directory, then builds a self-hosted agent pool (VM Scale Set). After deployment and registration with Azure DevOps, the pool is managed entirely by Azure DevOps.
 
 The `build.pkr.hcl` file can be configured to specify the base image version. For example, it may be desireable to change the `image_sku` to a newer Ubuntu version:
-```json
+```bash
 os_type         = "Linux"
 image_publisher = "canonical"
 image_offer     = "0001-com-ubuntu-server-focal"
@@ -20,19 +20,17 @@ pwsh -c "& {Get-Module -ListAvailable}"
 ```
 
 ## Firewall Rules
-The `allowed_ip_addresses.json` file in this directory is a placeholder file. IP addresses are subject to GDPR restrictions and as such this file should **not** be updated here to include any IP addresses. To update the list of allowed IP addresses, navigate to the [ODW Azure DevOps project](https://dev.azure.com/planninginspectorate/operational-data-warehouse/_library?itemType=SecureFiles) and upload a new secure file with the following format (a JSON array containing a list of IP addresses or ranges):
+The `allowed_ip_addresses.yaml` file in this directory is a placeholder file. IP addresses are subject to GDPR restrictions and as such this file should **not** be updated here to include any IP addresses. To update the list of allowed IP addresses, navigate to the [ODW Azure DevOps project](https://dev.azure.com/planninginspectorate/operational-data-warehouse/_library?itemType=SecureFiles) and upload a new secure file with the following format (a YAML list containing a list of IP addresses or ranges with comments):
 
-```json
-[
-  "192.168.10.10", // Single addresses should be defined without a CIDR prefix
-  "192.168.0.0/24" // Ranges should be defined with their CIDR prefix
-]
+```yaml
+- "192.168.10.10"     # Single addresses should not have a prefix
+- "192.168.10.0/24"   # Ranges of addresses require a CIDR prefix
 ```
 
 ## Spark Pool
 The `spark-requirements.txt` file in this directory is used as an input for the Synapse Workspace and defines which Python packages (and optionally, their version) should be installed and made available for use within the Spark pool environment. The format for this file is outlined below:
 
-```
+```bash
 # Package with a specified version:
 <packageName>==<versionNumber>
 # Package with no specified version (latest):
