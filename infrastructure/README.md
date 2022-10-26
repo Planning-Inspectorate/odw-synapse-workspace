@@ -193,6 +193,8 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 | <a name="module_synapse_monitoring_failover"></a> [synapse\_monitoring\_failover](#module\_synapse\_monitoring\_failover) | ./modules/synapse-monitoring | n/a |
 | <a name="module_synapse_network"></a> [synapse\_network](#module\_synapse\_network) | ./modules/synapse-network | n/a |
 | <a name="module_synapse_network_failover"></a> [synapse\_network\_failover](#module\_synapse\_network\_failover) | ./modules/synapse-network | n/a |
+| <a name="module_synapse_shir"></a> [synapse\_shir](#module\_synapse\_shir) | ./modules/synapse-shir | n/a |
+| <a name="module_synapse_shir_failover"></a> [synapse\_shir\_failover](#module\_synapse\_shir\_failover) | ./modules/synapse-shir | n/a |
 | <a name="module_synapse_sql_server"></a> [synapse\_sql\_server](#module\_synapse\_sql\_server) | ./modules/synapse-sql-server | n/a |
 | <a name="module_synapse_sql_server_failover"></a> [synapse\_sql\_server\_failover](#module\_synapse\_sql\_server\_failover) | ./modules/synapse-sql-server | n/a |
 | <a name="module_synapse_workspace_private"></a> [synapse\_workspace\_private](#module\_synapse\_workspace\_private) | ./modules/synapse-workspace-private | n/a |
@@ -222,6 +224,8 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 | [azurerm_resource_group.network](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
 | [azurerm_resource_group.network_failover](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
 | [azurerm_resource_group.network_global](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
+| [azurerm_resource_group.shir](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
+| [azurerm_resource_group.shir_failover](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
 | [azurerm_resource_group.sql_server](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
 | [azurerm_resource_group.sql_server_failover](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
 | [azurerm_virtual_network_peering.pri_sec](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/virtual_network_peering) | resource |
