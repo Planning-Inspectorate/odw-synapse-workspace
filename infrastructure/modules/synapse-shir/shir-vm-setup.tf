@@ -7,13 +7,7 @@ resource "azurerm_virtual_machine_extension" "custom_script" {
 
   settings = <<SETTINGS
   {
-    "commandToExecute": "powershell.exe -ExecutionPolicy Unrestricted \\n
-    -Command $is=[IO.MemoryStream]::New([System.Convert]::FromBase64String(\\\"${base64gzip(file("${path.module}/scripts/Install-Shir.ps1"))}\\\")); \\n
-    $gs=[IO.Compression.GzipStream]::New($is, [IO.Compression.CompressionMode]::Decompress); \\n
-    $r=[IO.StreamReader]::New($gs, [System.Text.Encoding]::UTF8); \\n
-    Set-Content \\\"C:\\Windows\\Temp\\Install-Shir.ps1\\\" $r.ReadToEnd(); \\n
-    $r.Close(); \\n
-    .\\\"C:\\Windows\\Temp\\Install-Shir.ps1\\\" -authKey \\\"${azurerm_synapse_integration_runtime_self_hosted.synapse.authorization_key_primary}\\\""
+    "commandToExecute": "powershell.exe -ExecutionPolicy Unrestricted -Command $is=[IO.MemoryStream]::New([System.Convert]::FromBase64String(\\\"${base64gzip(file("${path.module}/scripts/Install-Shir.ps1"))}\\\")); $gs=[IO.Compression.GzipStream]::New($is, [IO.Compression.CompressionMode]::Decompress); $r=[IO.StreamReader]::New($gs, [System.Text.Encoding]::UTF8); Set-Content \\\"C:\\Windows\\Temp\\Install-Shir.ps1\\\" $r.ReadToEnd(); $r.Close(); .\\\"C:\\Windows\\Temp\\Install-Shir.ps1\\\" -authKey \\\"${azurerm_synapse_integration_runtime_self_hosted.synapse.authorization_key_primary}\\\""
   }
 SETTINGS
 
