@@ -46,6 +46,11 @@ variable "service_name" {
   type        = string
 }
 
+variable "synapse_workspace_id" {
+  description = "The ID of the Synapse Workspace to register the self-hosted integration runtime with"
+  type        = string
+}
+
 variable "tags" {
   default     = {}
   description = "A collection of tags to assign to taggable resources"
