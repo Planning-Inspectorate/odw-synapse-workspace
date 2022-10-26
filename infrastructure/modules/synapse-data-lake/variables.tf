@@ -9,6 +9,12 @@ variable "data_lake_private_endpoint_dns_zone_id" {
   type        = string
 }
 
+variable "data_lake_lifecycle_rules" {
+  default     = []
+  description = "A list of objects describing data lifecycle rules for the Synapse data lake Storage Account"
+  type        = list(any)
+}
+
 variable "data_lake_replication_type" {
   default     = "ZRS"
   description = "The replication type for the Synapse data lake Storage Account"

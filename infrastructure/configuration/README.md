@@ -1,6 +1,38 @@
 # Configuration Files
 The configuration files in this folder are used by the Terraform root module for deploying ODW infrastructure. Please see below details before updating any configuration files.
 
+## Data Lifecycle
+The `data-lifecycle` directory contains a `policies.json` file which describes the data lifecycle policies that should be applied to the Data Lake Storage Account. The policy file is formatted as a a list of JSON objects, for example:
+```bash
+[
+  {
+    "rule_name" : "example_rule",
+    "prefix_match" : [
+      "container1/folder1",
+      "container1/folder2",
+      "container2/folder1"
+    ],
+    "blob" : {
+      "cool_tier_since_modified_days" : 30,
+      "archive_tier_since_modified_days" : 60,
+      "delete_since_modified_days" : 90
+    },
+    "snapshot" : {
+      "cool_tier_since_created_days" : 30,
+      "archive_tier_since_created_days" : 60,
+      "delete_since_created_days" : 90
+    },
+    "version" : {
+      "cool_tier_since_created_days" : 30,
+      "archive_tier_since_created_days" : 60,
+      "delete_since_created_days" : 90
+    }
+  }
+]
+```
+
+For each of the `blob`, `snapshot`, and `version` sub-objects, attributes are optional. If any attribute is omitted from the policy then the action will not be performed. For example, omitting `archive_tier_since_modified_days` will mean that the respective data type will not be archieved but would be moved to cool storage and eventually deleted.
+
 ## DevOps Agents
 The  `devops-agents` directory contains [Packer](https://www.packer.io/) files which describe the image used to provision the Azure DevOps agent pool within the ODW network. The `devops-agent-deploy.yaml` pipeline runs to bootstraps the ODW environment, build the agent image using the files in this directory, then builds a self-hosted agent pool (VM Scale Set). After deployment and registration with Azure DevOps, the pool is managed entirely by Azure DevOps.
 
