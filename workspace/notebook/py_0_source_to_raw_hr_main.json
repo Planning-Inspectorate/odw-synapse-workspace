@@ -1,0 +1,145 @@
+{
+	"name": "py_0_source_to_raw_hr_main",
+	"properties": {
+		"folder": {
+			"name": "0-odw-source-to-raw/Fileshare/SAP_HR"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "c7c79477-3140-4032-bb40-6d6310143d60"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": true,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.2",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%run  \"0-odw-source-to-raw/Fileshare/SAP_HR/py_0_source_to_raw_hr_functions\""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"tags": [
+						"parameters"
+					]
+				},
+				"source": [
+					"schema_table = \"\"\"{\"fields\": [{\"metadata\": {},\"name\": \"Process_Date\",\"nullable\": false,\"type\": \"timestamp\"}, {\"metadata\": {},\"name\": \"Filepath\",\"nullable\":false,\"type\": \"string\"},{\"metadata\": {},\"name\": \"File_Modified_Date\",\"nullable\": false,\"type\": \"timestamp\"}]}\"\"\"\r\n",
+					"jsonschema = schema_table\r\n",
+					"db_name =  \"odw_config_db\"\r\n",
+					"table_name = \"datalabs_log\"\r\n",
+					"target_container = \"abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/\"\r\n",
+					"target_folder = \"config/datalabs_log/\""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"create_table_from_schema(jsonschema, db_name, table_name, target_container, target_folder)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"azfileshare_new_files(\"pinskvsynwodwdevuks\",\"datalab-connectionstring\", \"ls_kv\", share_name=\"datalab\", directory_path=\"ODW/HR/\", jsonschema=schema_table, target_container=target_container,target_folder=target_folder)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# spark.sql(\"drop table if exists odw_config_db.datalabs_log\")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}

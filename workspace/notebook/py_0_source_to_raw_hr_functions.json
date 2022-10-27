@@ -1,0 +1,233 @@
+{
+	"name": "py_0_source_to_raw_hr_functions",
+	"properties": {
+		"folder": {
+			"name": "0-odw-source-to-raw/Fileshare/SAP_HR"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "d3e0693d-64a4-41c1-adcd-484a30d5e929"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": true,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.2",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"%run \"utils/py_logging_decorator\""
+				],
+				"execution_count": 4
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"@logging_to_appins\r\n",
+					"def azfileshare_new_files(akv_name:str, secret_name:str, kv_linked_service:str, share_name:str, directory_path:str, jsonschema:str, target_container:str, target_folder:str):\r\n",
+					"    '''\r\n",
+					"    Function which determines if any new files are available in the datalabs environment\r\n",
+					"    \r\n",
+					"    Args:\r\n",
+					"        akv_name (str): Name of the key vault resource\r\n",
+					"        secret_name (str): Name of the secret\r\n",
+					"        kv_linked_service (str): Name of the key vault linked service in Azure Synapse\r\n",
+					"        share_name (str): Azure File Share resource name\r\n",
+					"        directory_path (str):  Root path to establish ShareDirectoryClient connection to \r\n",
+					"        jsonschema (str): \r\n",
+					"        target_container (str):\r\n",
+					"        target_folder (str): \r\n",
+					"    Returns:\r\n",
+					"        Nothing\r\n",
+					"    Actions:\r\n",
+					"        Appends the \r\n",
+					"    Raises:\r\n",
+					"\r\n",
+					"\r\n",
+					"    '''\r\n",
+					"    ### start datetime REMOVE?\r\n",
+					"    import datetime\r\n",
+					"    dt = datetime.datetime.now()\r\n",
+					"\r\n",
+					"\r\n",
+					"    ### establish connection to azure files and create client\r\n",
+					"    from azure.storage.fileshare import ShareDirectoryClient\r\n",
+					"    from notebookutils import mssparkutils\r\n",
+					"    creds = mssparkutils.credentials.getSecret(akv_name, secret_name, kv_linked_service)\r\n",
+					"    parent_dir = ShareDirectoryClient.from_connection_string(conn_str=creds, share_name=share_name, directory_path=directory_path)\r\n",
+					"\r\n",
+					"    ### recursive function to find all files within a directory\r\n",
+					"    all_files = []\r\n",
+					"    def _recursive_find_all_files(share_directory_client):\r\n",
+					"        files_and_dirs = list(share_directory_client.list_directories_and_files())\r\n",
+					"        if files_and_dirs == []:\r\n",
+					"            raise ValueError\r\n",
+					"        ### add some ms type checks \r\n",
+					"        # import azure.storage.fileshare\r\n",
+					"        # isinstance(my_list[0], azure.storage.fileshare._models.DirectoryProperties)\r\n",
+					"        files_and_dirs_len = len(files_and_dirs)\r\n",
+					"        count = 0\r\n",
+					"        for li in files_and_dirs:\r\n",
+					"            if li['is_directory']:\r\n",
+					"                _recursive_find_all_files(share_directory_client.get_subdirectory_client(li['name']))\r\n",
+					"            else:\r\n",
+					"                fileprops = share_directory_client.get_file_client(li['name']).get_file_properties()\r\n",
+					"                all_files.append([dt, fileprops.path, fileprops.last_modified]) # correct this to timestamp?\r\n",
+					"                count += 1\r\n",
+					"                if files_and_dirs_len == count:\r\n",
+					"                    break\r\n",
+					"\r\n",
+					"    _recursive_find_all_files(parent_dir)\r\n",
+					"    \r\n",
+					"    from pyspark.sql import SparkSession\r\n",
+					"    from pyspark.sql.functions import lit\r\n",
+					"    spark = SparkSession.builder.getOrCreate()\r\n",
+					"\r\n",
+					"    from pyspark.sql.types import StructType\r\n",
+					"    import json\r\n",
+					"    schema = StructType.fromJson(json.loads(jsonschema))\r\n",
+					"    logs_now_df = spark.createDataFrame(all_files, schema)\r\n",
+					"    logs_table_df = spark.read.format(\"delta\").load(target_container+target_folder)\r\n",
+					"    filtered_cols = logs_now_df.columns\r\n",
+					"    filtered_cols.remove(\"Process_Date\")\r\n",
+					"    logs_now_df_compare = logs_now_df.select(filtered_cols)\r\n",
+					"    logs_table_df_compare = logs_table_df.select(filtered_cols)\r\n",
+					"    new_paths = logs_now_df_compare.subtract(logs_table_df_compare)\r\n",
+					"\r\n",
+					"    new_paths = new_paths.withColumn(\"Process_Date\", lit(dt))\r\n",
+					"    # logs_now_df = spark.createDataFrame(new_paths, schema)\r\n",
+					"\r\n",
+					"    new_paths.write.format(\"delta\").mode(\"append\").saveAsTable(\"odw_config_db.datalabs_log\")\r\n",
+					"    all_paths = new_paths.select(\"Filepath\").toJSON()\r\n",
+					"    mssparkutils.notebook.exit(all_paths)"
+				],
+				"execution_count": 35
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"@logging_to_appins\r\n",
+					"def create_table_from_schema(jsonschema:str, db_name:str, table_name:str, target_container:str, target_folder:str):\r\n",
+					"    '''\r\n",
+					"    Function to create a table from a schema definition. Schema merge is disabled.\r\n",
+					"    \r\n",
+					"    Args:\r\n",
+					"    jsonschema (str) : json representation of the dataframe schema\r\n",
+					"    db_name (str) : name of the database the table will be created within\r\n",
+					"    table_name (str) : name of the table the parquet will be associated with\r\n",
+					"    target_container (str) : storage container within which the parquet will be located\r\n",
+					"    target_folder (str) : folder within which the filelog and parquet file will be located\r\n",
+					"    \r\n",
+					"    Returns:\r\n",
+					"        Nothing\r\n",
+					"    Actions:\r\n",
+					"        Creates a table if the table doesn't already exist in a target location \r\n",
+					"    Exceptions:\r\n",
+					"        NameError(f\"{db_name} doesn't exist\") - generated if the desired database doesn't exist already\r\n",
+					"\r\n",
+					"    '''\r\n",
+					"    ### type checks\r\n",
+					"\r\n",
+					"    ### imports\r\n",
+					"    from pyspark.sql.types import StructType\r\n",
+					"    from pyspark.sql import SparkSession\r\n",
+					"    import json\r\n",
+					"    from delta import DeltaTable\r\n",
+					"    import logging\r\n",
+					"    spark = SparkSession.builder.getOrCreate()\r\n",
+					"\r\n",
+					"    ### define target location\r\n",
+					"    target_loc = target_container + target_folder\r\n",
+					"    \r\n",
+					"    ### use json to create dataframe\r\n",
+					"    schema = StructType.fromJson(json.loads(jsonschema))\r\n",
+					"    df = spark.createDataFrame([], schema)\r\n",
+					"\r\n",
+					"    ### table checks\r\n",
+					"    if any([dbs.name == db_name for dbs in spark.catalog.listDatabases()]):\r\n",
+					"        if any([table.name == table_name for table in spark.catalog.listTables(db_name)]):\r\n",
+					"            table_details = spark.sql(f\"DESCRIBE DETAIL {db_name}.{table_name}\").toPandas()\r\n",
+					"            if len(table_details) > 1:\r\n",
+					"                raise ValueError(\"The table is represented by multiple parquet files- please investigate!\")\r\n",
+					"            else:\r\n",
+					"                if table_details['location'][0] == target_loc:\r\n",
+					"                    raise ValueError(\"Table already exists\")\r\n",
+					"                else:\r\n",
+					"                    raise ValueError(\"Table already exists but the location provided doesn't match the existing parquet location for the table!\")\r\n",
+					"\r\n",
+					"    ### write df to parquet location\r\n",
+					"    if not (DeltaTable.isDeltaTable(spark,target_loc)):\r\n",
+					"        df.write.option(\"mergeSchema\", \"false\").format('delta').save(target_loc)# no overwrite on table creation\r\n",
+					"    \r\n",
+					"    ### create spark sql table from parquet\r\n",
+					"    if any([dbs.name == db_name for dbs in spark.catalog.listDatabases()]):\r\n",
+					"        if not any([table.name == table_name for table in spark.catalog.listTables(db_name)]):\r\n",
+					"            spark.sql(\"CREATE TABLE {0}.{1} USING DELTA LOCATION '{2}'\".format(db_name,table_name,target_loc))\r\n",
+					"    else:\r\n",
+					"        raise NameError(f\"{db_name} doesn't exist\")"
+				],
+				"execution_count": 22
+			}
+		]
+	}
+}
