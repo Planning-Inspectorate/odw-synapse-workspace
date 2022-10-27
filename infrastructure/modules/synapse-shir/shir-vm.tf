@@ -26,6 +26,10 @@ resource "azurerm_windows_virtual_machine" "synapse" {
   patch_mode            = contains(split("_", var.runtime_vm_size), "v2") ? "AutomaticByPlatform" : "AutomaticByOS"
   hotpatching_enabled   = contains(split("_", var.runtime_vm_size), "v2") ? true : false
 
+  identity {
+    type = "SystemAssigned"
+  }
+
   os_disk {
     caching              = "ReadWrite"
     storage_account_type = "Standard_LRS"
@@ -37,6 +41,10 @@ resource "azurerm_windows_virtual_machine" "synapse" {
     sku       = var.runtime_vm_image["sku"]
     version   = var.runtime_vm_image["version"]
   }
+
+  depends_on = [
+    azurerm_storage_blob.install_shir
+  ]
 
   tags = local.tags
 }
