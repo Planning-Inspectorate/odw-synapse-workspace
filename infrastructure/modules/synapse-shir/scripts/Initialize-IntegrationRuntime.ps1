@@ -12,18 +12,19 @@ Function Assert-IntegrationRuntimeInstalled {
     [String]$HivePath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"
   )
 
+  $Installed = $false
+
   $InstalledSoftware = Get-ChildItem -Path $HivePath
   Foreach ($Package in $InstalledSoftware) {
     If (
       ($Package.GetValue("DisplayName") -eq "Microsoft Integration Runtime") -or
       ($Package.GetValue("DisplayName") -eq "Microsoft Integration Runtime Preview")
     ) {
-      Return $true
-
-    } Else {
-      Return $false
+      $Installed = $true
     }
   }
+
+  Return $Installed
 }
 
 Function Find-IntegrationRuntimeExecutable {
@@ -104,11 +105,10 @@ Function Register-IntegrationRuntime {
 }
 
 Function Uninstall-IntegrationRuntime {
-  If (Assert-IntegrationRuntimeInstalled -eq $true) {
+  $Installed = Assert-IntegrationRuntimeInstalled
+  If ($Installed -eq $true) {
     [Void](Get-WmiObject -Class Win32_Product -Filter "Name='Microsoft Integration Runtime Preview' or Name='Microsoft Integration Runtime'" -ComputerName $env:COMPUTERNAME).Uninstall()
   }
-
-  Return
 }
 
 # Create the working directory
