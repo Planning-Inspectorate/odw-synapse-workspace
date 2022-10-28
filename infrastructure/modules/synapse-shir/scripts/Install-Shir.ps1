@@ -149,6 +149,7 @@ If (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
     Break
 }
 
+New-Item -Path 'C:\SHIR' -ItemType Directory -ErrorAction SilentlyContinue
 $path = Get-GatewayBinary
 Validate-Input $path $authKey
 Install-Gateway $path

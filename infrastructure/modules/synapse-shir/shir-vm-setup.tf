@@ -1,17 +1,17 @@
 resource "azurerm_virtual_machine_extension" "custom_script" {
-  name                 = "shir-ext-${random_string.unique_id.id}"
+  name                 = "IntegrationRuntimeSetup"
   virtual_machine_id   = azurerm_windows_virtual_machine.synapse.id
   publisher            = "Microsoft.Compute"
   type                 = "CustomScriptExtension"
-  type_handler_version = "1.10"
+  type_handler_version = "1.9"
 
-  settings = <<SETTINGS
-  {
-    "fileUris": ["${azurerm_storage_blob.install_shir.url}"],
-    "commandToExecute": "powershell.exe Install-Shir.ps1",
-    "managedIdentity" : {}
-  }
-SETTINGS
+  protected_settings = <<PROTECTED_SETTINGS
+    {
+      "fileUris": ["${azurerm_storage_blob.install_shir.url}${data.azurerm_storage_account_sas.shir.sas}"],
+      "commandToExecute": "powershell.exe Install-Shir.ps1 -authKey ${azurerm_synapse_integration_runtime_self_hosted.synapse.authorization_key_primary}",
+      "managedIdentity": {}
+    }
+PROTECTED_SETTINGS
 
   depends_on = [
     azurerm_role_assignment.shir_vm
