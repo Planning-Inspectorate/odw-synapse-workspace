@@ -14,6 +14,7 @@ resource "azurerm_virtual_machine_extension" "custom_script" {
 PROTECTED_SETTINGS
 
   depends_on = [
+    azurerm_private_endpoint.shir_blob,
     azurerm_role_assignment.shir_vm
   ]
 

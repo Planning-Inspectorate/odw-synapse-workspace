@@ -204,6 +204,7 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 
 | Name | Type |
 |------|------|
+| [azurerm_private_dns_zone.blob](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/private_dns_zone) | resource |
 | [azurerm_private_dns_zone.data_lake](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/private_dns_zone) | resource |
 | [azurerm_private_dns_zone.key_vault](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/private_dns_zone) | resource |
 | [azurerm_private_dns_zone.synapse](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/private_dns_zone) | resource |
@@ -291,7 +292,6 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 | <a name="output_data_lake_dfs_endpoint"></a> [data\_lake\_dfs\_endpoint](#output\_data\_lake\_dfs\_endpoint) | The DFS endpoint URL of the Data Lake Storage Account |
 | <a name="output_data_lake_dfs_endpoint_failover"></a> [data\_lake\_dfs\_endpoint\_failover](#output\_data\_lake\_dfs\_endpoint\_failover) | The DFS endpoint URL of the Data Lake Storage Account used for backup and failover |
 | <a name="output_data_resource_group_name"></a> [data\_resource\_group\_name](#output\_data\_resource\_group\_name) | The name of the data application resource group |
-| <a name="output_debug_shir_config_blob_uri"></a> [debug\_shir\_config\_blob\_uri](#output\_debug\_shir\_config\_blob\_uri) | The SAS URI to the configuration script blob |
 | <a name="output_devops_agent_pool_resource_group_name"></a> [devops\_agent\_pool\_resource\_group\_name](#output\_devops\_agent\_pool\_resource\_group\_name) | The name of the resource group containing the devops agent pool resources |
 | <a name="output_key_vault_uri"></a> [key\_vault\_uri](#output\_key\_vault\_uri) | The URI of the Key Vault |
 | <a name="output_service_bus_namespace_name"></a> [service\_bus\_namespace\_name](#output\_service\_bus\_namespace\_name) | The name of the Service Bus Namespace |
