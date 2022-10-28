@@ -1,3 +1,11 @@
+# ==============================================================================
+# Script       : Initialize-IntegrationRuntime.ps1
+# Description  : Intalls and registers a Self-Hosted Integration Runtime
+# Version      : 1.0.0
+# Author       : Lester March (https://github.com/lestermarch)
+# Help         : https://learn.microsoft.com/en-us/azure/data-factory/create-self-hosted-integration-runtime
+# ==============================================================================
+
 Param(
   [Parameter(Mandatory=$true)]
   $AuthKey,
