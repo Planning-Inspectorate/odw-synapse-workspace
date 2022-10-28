@@ -59,9 +59,9 @@ resource "azurerm_storage_container" "shir" {
 }
 
 resource "azurerm_storage_blob" "install_shir" {
-  name                   = "Install-Shir.ps1"
+  name                   = local.script_name
   storage_account_name   = azurerm_storage_account.shir.name
   storage_container_name = azurerm_storage_container.shir.name
   type                   = "Block"
-  source                 = "${path.module}/scripts/Install-Shir.ps1"
+  source                 = "${path.module}/scripts/${local.script_name}"
 }

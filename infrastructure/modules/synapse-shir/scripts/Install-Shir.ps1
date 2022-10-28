@@ -22,7 +22,7 @@ function Get-GatewayBinary {
 
   } Else {
     $MsiFileName = 'IntegrationRuntime.latest.msi'
-    Write-Hsot "Downloading latest Microsoft Integration Runtime binary: $MsiFileName"
+    Write-Host "Downloading latest Microsoft Integration Runtime binary: $MsiFileName"
 
     $ProgressPreference = 'SilentlyContinue'
     Invoke-WebRequest -Uri 'https://go.microsoft.com/fwlink/?linkid=839822&clcid=0x409' -OutFile "C:\SHIR\$MsiFileName"
