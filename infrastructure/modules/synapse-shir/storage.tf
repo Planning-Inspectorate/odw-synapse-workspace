@@ -51,10 +51,11 @@ resource "azurerm_storage_account" "shir" {
 }
 
 resource "azurerm_storage_container" "shir" {
+  #checkov:skip=CKV_AZURE_34: Public access is required
   #checkov:skip=CKV2_AZURE_21: Blob logging is not required
   name                  = "scripts"
   storage_account_name  = azurerm_storage_account.shir.name
-  container_access_type = "private"
+  container_access_type = "container"
 }
 
 resource "azurerm_storage_blob" "install_shir" {
