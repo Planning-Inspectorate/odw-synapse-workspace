@@ -1,6 +1,6 @@
 # ==============================================================================
 # Script       : Initialize-IntegrationRuntime.ps1
-# Description  : Intalls and registers a Self-Hosted Integration Runtime
+# Description  : Installs and registers a Self-Hosted Integration Runtime
 # Version      : 1.0.0
 # Author       : Lester March (https://github.com/lestermarch)
 # Help         : https://learn.microsoft.com/en-us/azure/data-factory/create-self-hosted-integration-runtime
@@ -122,7 +122,7 @@ Function Uninstall-IntegrationRuntime {
 # Create the working directory
 New-Item -Path $Path -ItemType 'Directory' -ErrorAction 'SilentlyContinue'
 
-# Find or download Integration Runtime MSI package
+# Find or download the Integration Runtime MSI package
 $Msi = Get-IntegrationRuntimeMsi -MsiPath $Path
 
 # Install the Integration Runtime MSI package
