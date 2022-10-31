@@ -43,7 +43,8 @@ resource "azurerm_windows_virtual_machine" "synapse" {
   }
 
   depends_on = [
-    azurerm_storage_blob.install_shir
+    azurerm_storage_blob.runtime_script,
+    azurerm_storage_blob.openjdk_script
   ]
 
   tags = local.tags

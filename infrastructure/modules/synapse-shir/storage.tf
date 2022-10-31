@@ -58,10 +58,18 @@ resource "azurerm_storage_container" "shir" {
   container_access_type = "container"
 }
 
-resource "azurerm_storage_blob" "install_shir" {
-  name                   = local.script_name
+resource "azurerm_storage_blob" "runtime_script" {
+  name                   = local.script_name_runtime
   storage_account_name   = azurerm_storage_account.shir.name
   storage_container_name = azurerm_storage_container.shir.name
   type                   = "Block"
-  source                 = "${path.module}/scripts/${local.script_name}"
+  source                 = "${path.module}/scripts/${local.script_name_runtime}"
+}
+
+resource "azurerm_storage_blob" "openjdk_script" {
+  name                   = local.script_name_openjdk
+  storage_account_name   = azurerm_storage_account.shir.name
+  storage_container_name = azurerm_storage_container.shir.name
+  type                   = "Block"
+  source                 = "${path.module}/scripts/${local.script_name_openjdk}"
 }
