@@ -31,7 +31,7 @@ Function Get-OpenJdkMsi {
 
   } Else {
     $ProgressPreference = 'SilentlyContinue'
-    Invoke-WebRequest -Uri $IntegrationRuntimeUri -OutFile "$Path\$MsiFileName"
+    Invoke-WebRequest -Uri $OpenJdkUri -OutFile "$Path\$MsiFileName"
     $ProgressPreference = 'Continue'
   }
 
