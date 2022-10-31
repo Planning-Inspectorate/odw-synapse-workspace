@@ -54,6 +54,24 @@ Function Install-OpenJdk {
   }
 }
 
+Function Set-JavaEnvironmentVariables {
+  Try {
+    $JdkWmi = Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -like "*JDK*" } -ErrorAction 'Stop'
+    If ($JdkWmi.Count -gt 1) {
+      $JdkPath = $JdkWmi[0].InstallLocation
+
+    } Else {
+      $JdkPath = $JdkWmi.InstallLocation
+    }
+
+    [Environment]::SetEnvironmentVariable("JAVA_HOME",$JdkPath)
+    [Environment]::SetEnvironmentVariable("JRE_HOME",$JdkPath)
+
+  } Catch {
+    Throw "Failed to find OpenJDK install location"
+  }
+}
+
 # Create the working directory
 New-Item -Path $Path -ItemType 'Directory' -ErrorAction 'SilentlyContinue'
 
@@ -62,3 +80,6 @@ $Msi = Get-OpenJdkMsi -MsiPath $Path
 
 # Install the Integration Runtime MSI package
 Install-OpenJdk -MsiPath $Msi
+
+# Set JAVA_HOME and JRE_HOME environment variables
+Set-JavaEnvironmentVariables
