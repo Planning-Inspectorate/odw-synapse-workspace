@@ -33,7 +33,6 @@ No requirements.
 | Name | Type |
 |------|------|
 | [azurerm_network_interface.shir](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/network_interface) | resource |
-| [azurerm_private_endpoint.shir_blob](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/private_endpoint) | resource |
 | [azurerm_role_assignment.shir_vm](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/role_assignment) | resource |
 | [azurerm_role_assignment.terraform](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/role_assignment) | resource |
 | [azurerm_storage_account.shir](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/storage_account) | resource |
@@ -50,11 +49,9 @@ No requirements.
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
-| <a name="input_blob_private_endpoint_dns_zone_id"></a> [blob\_private\_endpoint\_dns\_zone\_id](#input\_blob\_private\_endpoint\_dns\_zone\_id) | The ID of the Private DNS Zone hosting privatelink.blob.core.windows.net | `string` | n/a | yes |
 | <a name="input_devops_agent_subnet_name"></a> [devops\_agent\_subnet\_name](#input\_devops\_agent\_subnet\_name) | The name of the subnet into which the devops agent VM Scale Set will be deployed | `string` | n/a | yes |
 | <a name="input_environment"></a> [environment](#input\_environment) | The name of the environment in which resources will be deployed | `string` | n/a | yes |
 | <a name="input_location"></a> [location](#input\_location) | The short-format Azure region into which resources will be deployed | `string` | n/a | yes |
-| <a name="input_network_resource_group_name"></a> [network\_resource\_group\_name](#input\_network\_resource\_group\_name) | The name of the resource group into which private endpoints will be deployed | `string` | n/a | yes |
 | <a name="input_resource_group_name"></a> [resource\_group\_name](#input\_resource\_group\_name) | The name of the resource group into which resources will be deployed | `string` | n/a | yes |
 | <a name="input_runtime_vm_image"></a> [runtime\_vm\_image](#input\_runtime\_vm\_image) | An object describing the image specification to use for the self-hosted integration runtime VM | `map(string)` | <pre>{<br>  "offer": "WindowsServer",<br>  "publisher": "MicrosoftWindowsServer",<br>  "sku": "2022-datacenter-azure-edition-core",<br>  "version": "latest"<br>}</pre> | no |
 | <a name="input_runtime_vm_size"></a> [runtime\_vm\_size](#input\_runtime\_vm\_size) | The size of the self-hosted integration runtime VM to be deployed | `string` | `"Standard_F2s_v2"` | no |

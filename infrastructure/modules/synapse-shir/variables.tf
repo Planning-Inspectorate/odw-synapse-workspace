@@ -1,8 +1,3 @@
-variable "blob_private_endpoint_dns_zone_id" {
-  description = "The ID of the Private DNS Zone hosting privatelink.blob.core.windows.net"
-  type        = string
-}
-
 variable "devops_agent_subnet_name" {
   description = "The name of the subnet into which the devops agent VM Scale Set will be deployed"
   type        = string
@@ -10,11 +5,6 @@ variable "devops_agent_subnet_name" {
 
 variable "environment" {
   description = "The name of the environment in which resources will be deployed"
-  type        = string
-}
-
-variable "network_resource_group_name" {
-  description = "The name of the resource group into which private endpoints will be deployed"
   type        = string
 }
 

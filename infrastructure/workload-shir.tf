@@ -22,11 +22,9 @@ module "synapse_shir" {
   location            = module.azure_region.location_cli
   service_name        = local.service_name
 
-  blob_private_endpoint_dns_zone_id = azurerm_private_dns_zone.blob.id
-  devops_agent_subnet_name          = local.compute_subnet_name
-  network_resource_group_name       = azurerm_resource_group.network.name
-  synapse_workspace_id              = module.synapse_workspace_private.synapse_workspace_id
-  vnet_subnet_ids                   = module.synapse_network.vnet_subnets
+  devops_agent_subnet_name = local.compute_subnet_name
+  synapse_workspace_id     = module.synapse_workspace_private.synapse_workspace_id
+  vnet_subnet_ids          = module.synapse_network.vnet_subnets
 
   depends_on = [
     module.synapse_network,
@@ -46,11 +44,9 @@ module "synapse_shir_failover" {
   location            = module.azure_region.paired_location.location_cli
   service_name        = local.service_name
 
-  blob_private_endpoint_dns_zone_id = azurerm_private_dns_zone.blob.id
-  devops_agent_subnet_name          = local.compute_subnet_name
-  network_resource_group_name       = azurerm_resource_group.network_failover.name
-  synapse_workspace_id              = module.synapse_workspace_private_failover[0].synapse_workspace_id
-  vnet_subnet_ids                   = module.synapse_network_failover.vnet_subnets
+  devops_agent_subnet_name = local.compute_subnet_name
+  synapse_workspace_id     = module.synapse_workspace_private_failover[0].synapse_workspace_id
+  vnet_subnet_ids          = module.synapse_network_failover.vnet_subnets
 
   depends_on = [
     module.synapse_network_failover,

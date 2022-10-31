@@ -14,8 +14,8 @@ resource "azurerm_virtual_machine_extension" "custom_script" {
 PROTECTED_SETTINGS
 
   depends_on = [
-    azurerm_private_endpoint.shir_blob,
-    azurerm_role_assignment.shir_vm
+    azurerm_role_assignment.shir_vm,
+    azurerm_synapse_integration_runtime_self_hosted.synapse
   ]
 
   tags = local.tags
