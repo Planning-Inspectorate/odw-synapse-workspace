@@ -7,7 +7,7 @@ resource "azurerm_virtual_machine_extension" "custom_script_runtime" {
 
   protected_settings = <<PROTECTED_SETTINGS
     {
-      "fileUris": ["@(${azurerm_storage_blob.deploy_script.url},${azurerm_storage_blob.runtime_script.url},${azurerm_storage_blob.openjdk_script.url})"],
+      "fileUris": ["${azurerm_storage_blob.deploy_script.url}", "${azurerm_storage_blob.runtime_script.url}", "${azurerm_storage_blob.openjdk_script.url}"],
       "commandToExecute": "powershell.exe -ExecutionPolicy Unrestricted -File ${local.script_name_deploy} -AuthKey ${azurerm_synapse_integration_runtime_self_hosted.synapse.authorization_key_primary}",
       "managedIdentity": {}
     }
