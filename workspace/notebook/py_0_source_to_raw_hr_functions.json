@@ -16,11 +16,12 @@
 			"executorMemory": "28g",
 			"executorCores": 4,
 			"numExecutors": 2,
+			"runAsWorkspaceSystemIdentity": false,
 			"conf": {
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "1ac89572-b29c-463f-82f9-6af2bcb93e38"
+				"spark.autotune.trackingId": "a7f6ba01-fdb4-44b2-9f20-4d94f46c2c3d"
 			}
 		},
 		"metadata": {
@@ -40,13 +41,14 @@
 				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
 				"auth": {
 					"type": "AAD",
-					"authResource": "https://dev.azuresynapse.net"
+					"authResource": "https://dev.azuresynapse.net",
+					"authHeader": null
 				},
 				"sparkVersion": "3.2",
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 28,
-				"automaticScaleJobs": false
+				"extraHeader": null
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -83,18 +85,15 @@
 					"        kv_linked_service (str): Name of the key vault linked service in Azure Synapse\r\n",
 					"        share_name (str): Azure File Share resource name\r\n",
 					"        directory_path (str):  Root path to establish ShareDirectoryClient connection to \r\n",
-					"        jsonschema (str): Pyspark StructType representation of a dataframe schema \r\n",
-					"        target_container (str): Container containing the Fileshare logs\r\n",
-					"        target_folder (str): Folder containing the Fileshare delta table\r\n",
-					"\r\n",
+					"        jsonschema (str): \r\n",
+					"        target_container (str):\r\n",
+					"        target_folder (str): \r\n",
 					"    Returns:\r\n",
 					"        Nothing\r\n",
-					"\r\n",
 					"    Actions:\r\n",
-					"        Appends any new files to the fileshare logs (a delta table) from a Fileshare\r\n",
-					"        \r\n",
+					"        Appends the \r\n",
 					"    Raises:\r\n",
-					"        ValueError(\"Empty directory has been provided\") - avoids a Fileshare client directory which is empty\r\n",
+					"\r\n",
 					"\r\n",
 					"    '''\r\n",
 					"    ### start datetime REMOVE?\r\n",
@@ -113,7 +112,7 @@
 					"    def _recursive_find_all_files(share_directory_client):\r\n",
 					"        files_and_dirs = list(share_directory_client.list_directories_and_files())\r\n",
 					"        if files_and_dirs == []:\r\n",
-					"            raise ValueError(\"Empty directory has been provided\")\r\n",
+					"            raise ValueError\r\n",
 					"        ### add some ms type checks \r\n",
 					"        # import azure.storage.fileshare\r\n",
 					"        # isinstance(my_list[0], azure.storage.fileshare._models.DirectoryProperties)\r\n",
@@ -183,14 +182,11 @@
 					"    \r\n",
 					"    Returns:\r\n",
 					"        Nothing\r\n",
-					"\r\n",
 					"    Actions:\r\n",
 					"        Creates a table if the table doesn't already exist in a target location \r\n",
-					"        \r\n",
 					"    Exceptions:\r\n",
 					"        NameError(f\"{db_name} doesn't exist\") - generated if the desired database doesn't exist already\r\n",
-					"        ValueError(\"The table is represented by multiple parquet files- please investigate!\")\r\n",
-					"        ValueError(f\"Table already exists but the location provided doesn't match the existing parquet location for the table!, {table_deets}, {target_loc}\")\r\n",
+					"\r\n",
 					"    '''\r\n",
 					"    ### type checks\r\n",
 					"\r\n",
@@ -217,22 +213,22 @@
 					"                raise ValueError(\"The table is represented by multiple parquet files- please investigate!\")\r\n",
 					"            else:\r\n",
 					"                if table_details['location'][0] == target_loc:\r\n",
-					"                    logger.info(f\"Table already exists with correct location\")\r\n",
+					"                    raise ValueError(\"Table already exists\")\r\n",
 					"                else:\r\n",
-					"                    table_deets = table_details['location'][0]\r\n",
-					"        \r\n",
-					"                    raise ValueError(f\"Table already exists but the location provided doesn't match the existing parquet location for the table!, {table_deets}, {target_loc}\")\r\n",
-					"        else:\r\n",
-					"            ### create spark sql table from parquet\r\n",
-					"            if any([dbs.name == db_name for dbs in spark.catalog.listDatabases()]):\r\n",
-					"            ### write df to parquet location\r\n",
-					"                if not (DeltaTable.isDeltaTable(spark,target_loc)):\r\n",
-					"                    df.write.option(\"mergeSchema\", \"false\").format('delta').save(target_loc)# no overwrite on table creation\r\n",
-					"                    \r\n",
-					"                if not any([table.name == table_name for table in spark.catalog.listTables(db_name)]):\r\n",
-					"                    spark.sql(\"CREATE TABLE {0}.{1} USING DELTA LOCATION '{2}'\".format(db_name,table_name,target_loc))\r\n",
+					"                    raise ValueError(\"Table already exists but the location provided doesn't match the existing parquet location for the table!\")\r\n",
+					"\r\n",
+					"    ### write df to parquet location\r\n",
+					"    if not (DeltaTable.isDeltaTable(spark,target_loc)):\r\n",
+					"        df.write.option(\"mergeSchema\", \"false\").format('delta').save(target_loc)# no overwrite on table creation\r\n",
+					"    \r\n",
+					"    ### create spark sql table from parquet\r\n",
+					"    if any([dbs.name == db_name for dbs in spark.catalog.listDatabases()]):\r\n",
+					"        if not any([table.name == table_name for table in spark.catalog.listTables(db_name)]):\r\n",
+					"            spark.sql(\"CREATE TABLE {0}.{1} USING DELTA LOCATION '{2}'\".format(db_name,table_name,target_loc))\r\n",
 					"    else:\r\n",
-					"        raise NameError(f\"{db_name} doesn't exist\")"
+					"        raise NameError(f\"{db_name} doesn't exist\")\r\n",
+					"        # spark.sql(f\"CREATE DATABASE IF NOT EXISTS {db_name}\")\r\n",
+					"        # logger.info(f\"Database {db_name} has been created\")"
 				],
 				"execution_count": 3
 			},
@@ -251,8 +247,7 @@
 				},
 				"source": [
 					""
-				],
-				"execution_count": null
+				]
 			}
 		]
 	}
