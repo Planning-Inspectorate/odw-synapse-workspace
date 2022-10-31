@@ -58,6 +58,14 @@ resource "azurerm_storage_container" "shir" {
   container_access_type = "container"
 }
 
+resource "azurerm_storage_blob" "deploy_script" {
+  name                   = local.script_name_deploy
+  storage_account_name   = azurerm_storage_account.shir.name
+  storage_container_name = azurerm_storage_container.shir.name
+  type                   = "Block"
+  source                 = "${path.module}/scripts/${local.script_name_deploy}"
+}
+
 resource "azurerm_storage_blob" "runtime_script" {
   name                   = local.script_name_runtime
   storage_account_name   = azurerm_storage_account.shir.name
