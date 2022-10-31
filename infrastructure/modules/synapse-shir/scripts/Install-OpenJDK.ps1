@@ -17,7 +17,7 @@ Function Get-OpenJdkMsi {
     [String]$MsiPath = 'C:\OpenJDK',
 
     [Parameter(Mandatory=$false)]
-    [String]$OpenJdkUri = "https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u345-b01/OpenJDK8U-jdk_x86-32_windows_hotspot_8u345b01.msi"
+    [String]$OpenJdkUri = "https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u345-b01/OpenJDK8U-jdk_x64_windows_hotspot_8u345b01.msi"
   )
 
   $MsiFileName = $OpenJdkUri.Split("/")[-1]
