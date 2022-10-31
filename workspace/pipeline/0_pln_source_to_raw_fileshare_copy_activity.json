@@ -1,0 +1,211 @@
+{
+	"name": "0_pln_source_to_raw_fileshare_copy_activity",
+	"properties": {
+		"activities": [
+			{
+				"name": "ForEach1",
+				"type": "ForEach",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@pipeline().parameters.AllPaths",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "CopySourceToRaw",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "BinarySource",
+									"storeSettings": {
+										"type": "AzureFileStorageReadSettings",
+										"recursive": true
+									},
+									"formatSettings": {
+										"type": "BinaryReadSettings"
+									}
+								},
+								"sink": {
+									"type": "BinarySink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings"
+									}
+								},
+								"enableStaging": false
+							},
+							"inputs": [
+								{
+									"referenceName": "a_ds_saphr_excel_binary_source",
+									"type": "DatasetReference",
+									"parameters": {
+										"Filepath": {
+											"value": "@item()",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "b_ds_saphr_excel_binary_sink",
+									"type": "DatasetReference",
+									"parameters": {
+										"FrequencyDateFilename": {
+											"value": "@replace(item(),'ODW/HR/','')",
+											"type": "Expression"
+										},
+										"SourceType": "Fileshare",
+										"SourceSystem": "SAP_HR"
+									}
+								}
+							]
+						},
+						{
+							"name": "Copy_Success_Failure_Logging",
+							"type": "SynapseNotebook",
+							"dependsOn": [
+								{
+									"activity": "CopySourceToRaw",
+									"dependencyConditions": [
+										"Succeeded",
+										"Failed"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "py_0_log_copy_activity_output",
+									"type": "NotebookReference"
+								},
+								"parameters": {
+									"output": {
+										"value": {
+											"value": "@activity('CopySourceToRaw').output.executionDetails.status",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"filepath": {
+										"value": {
+											"value": "@item()",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"jsonschema": {
+										"value": {
+											"value": "@pipeline().parameters.jsonschema",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"db_name": {
+										"value": {
+											"value": "@pipeline().parameters.db_name",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"table_name": {
+										"value": {
+											"value": "@pipeline().parameters.table_name",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"akv_name": {
+										"value": {
+											"value": "@pipeline().parameters.akv_name",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"secret_name": {
+										"value": {
+											"value": "@pipeline().parameters.secret_name",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"kv_linked_service": {
+										"value": {
+											"value": "@pipeline().parameters.kv_linked_service",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"share_name": {
+										"value": {
+											"value": "@pipeline().parameters.share_name",
+											"type": "Expression"
+										},
+										"type": "string"
+									}
+								},
+								"snapshot": true,
+								"sparkPool": {
+									"referenceName": "pinssynspodw",
+									"type": "BigDataPoolReference"
+								},
+								"executorSize": null,
+								"conf": {
+									"spark.dynamicAllocation.enabled": null,
+									"spark.dynamicAllocation.minExecutors": null,
+									"spark.dynamicAllocation.maxExecutors": null
+								},
+								"driverSize": null,
+								"numExecutors": null
+							}
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"jsonschema": {
+				"type": "string"
+			},
+			"db_name": {
+				"type": "string"
+			},
+			"table_name": {
+				"type": "string"
+			},
+			"akv_name": {
+				"type": "string"
+			},
+			"secret_name": {
+				"type": "string"
+			},
+			"kv_linked_service": {
+				"type": "string"
+			},
+			"share_name": {
+				"type": "string"
+			},
+			"AllPaths": {
+				"type": "array"
+			}
+		},
+		"annotations": []
+	}
+}

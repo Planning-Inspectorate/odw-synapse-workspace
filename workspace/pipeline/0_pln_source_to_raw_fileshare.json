@@ -1,0 +1,308 @@
+{
+	"name": "0_pln_source_to_raw_fileshare",
+	"properties": {
+		"activities": [
+			{
+				"name": "source_to_raw_main",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "source_to_raw_tests",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_0_source_to_raw_hr_main",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"jsonschema": {
+							"value": {
+								"value": "@pipeline().parameters.jsonschema",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"db_name": {
+							"value": {
+								"value": "@pipeline().parameters.db_name",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"table_name": {
+							"value": {
+								"value": "@pipeline().parameters.table_name",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"target_container": {
+							"value": {
+								"value": "@pipeline().parameters.target_container",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"target_folder": {
+							"value": {
+								"value": "@pipeline().parameters.target_folder",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"akv_name": {
+							"value": {
+								"value": "@pipeline().parameters.akv_name",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"secret_name": {
+							"value": {
+								"value": "@pipeline().parameters.secret_name",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"kv_linked_service": {
+							"value": {
+								"value": "@pipeline().parameters.kv_linked_service",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"share_name": {
+							"value": {
+								"value": "@pipeline().parameters.share_name",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"directory_path": {
+							"value": {
+								"value": "@pipeline().parameters.directory_path",
+								"type": "Expression"
+							},
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"sparkPool": {
+						"referenceName": "pinssynspodw",
+						"type": "BigDataPoolReference"
+					},
+					"executorSize": null,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"driverSize": null,
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "If Condition1",
+				"description": "If no new files \"[]\" then logged, else Copy activity starts",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "source_to_raw_main",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(activity('source_to_raw_main').output.status.Output.result.exitValue, '[]')",
+						"type": "Expression"
+					},
+					"ifFalseActivities": [
+						{
+							"name": "CopySourceToRaw",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "0_pln_source_to_raw_fileshare_copy_activity",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"jsonschema": {
+										"value": "@pipeline().parameters.jsonschema",
+										"type": "Expression"
+									},
+									"db_name": {
+										"value": "@pipeline().parameters.db_name",
+										"type": "Expression"
+									},
+									"table_name": {
+										"value": "@pipeline().parameters.table_name",
+										"type": "Expression"
+									},
+									"akv_name": {
+										"value": "@pipeline().parameters.akv_name",
+										"type": "Expression"
+									},
+									"secret_name": {
+										"value": "@pipeline().parameters.secret_name",
+										"type": "Expression"
+									},
+									"kv_linked_service": {
+										"value": "@pipeline().parameters.kv_linked_service",
+										"type": "Expression"
+									},
+									"share_name": {
+										"value": "@pipeline().parameters.share_name",
+										"type": "Expression"
+									},
+									"AllPaths": {
+										"value": "@split(activity('source_to_raw_main').output.status.Output.result.exitValue, ',,,')",
+										"type": "Expression"
+									}
+								}
+							}
+						}
+					],
+					"ifTrueActivities": [
+						{
+							"name": "No_New_Files_Logging",
+							"type": "SynapseNotebook",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "py_0_log_notebook_output",
+									"type": "NotebookReference"
+								},
+								"snapshot": true,
+								"sparkPool": {
+									"referenceName": "pinssynspodw",
+									"type": "BigDataPoolReference"
+								},
+								"executorSize": null,
+								"conf": {
+									"spark.dynamicAllocation.enabled": null,
+									"spark.dynamicAllocation.minExecutors": null,
+									"spark.dynamicAllocation.maxExecutors": null
+								},
+								"driverSize": null,
+								"numExecutors": null
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "source_to_raw_tests",
+				"type": "SynapseNotebook",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_0_source_to_raw_hr_tests",
+						"type": "NotebookReference"
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			}
+		],
+		"parameters": {
+			"jsonschema": {
+				"type": "string",
+				"defaultValue": {
+					"fields": [
+						{
+							"name": "Process_Date",
+							"nullable": false,
+							"type": "timestamp"
+						},
+						{
+							"name": "Filepath",
+							"nullable": false,
+							"type": "string"
+						},
+						{
+							"name": "File_Modified_Date",
+							"nullable": false,
+							"type": "timestamp"
+						}
+					]
+				}
+			},
+			"db_name": {
+				"type": "string",
+				"defaultValue": "odw_config_db"
+			},
+			"table_name": {
+				"type": "string",
+				"defaultValue": "datalabs_log"
+			},
+			"target_container": {
+				"type": "string",
+				"defaultValue": "abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/"
+			},
+			"target_folder": {
+				"type": "string",
+				"defaultValue": "config/datalabs_log/"
+			},
+			"akv_name": {
+				"type": "string",
+				"defaultValue": "pinskvsynwodwdevuks"
+			},
+			"secret_name": {
+				"type": "string",
+				"defaultValue": "datalab-connectionstring"
+			},
+			"kv_linked_service": {
+				"type": "string",
+				"defaultValue": "ls_kv"
+			},
+			"share_name": {
+				"type": "string",
+				"defaultValue": "datalab"
+			},
+			"directory_path": {
+				"type": "string",
+				"defaultValue": "ODW/HR/"
+			}
+		},
+		"annotations": []
+	}
+}
