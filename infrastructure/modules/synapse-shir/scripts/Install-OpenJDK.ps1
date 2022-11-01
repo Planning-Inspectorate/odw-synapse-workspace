@@ -7,17 +7,20 @@
 # ==============================================================================
 
 Param(
-  [Parameter(Mandatory=$false)]
-  $Path = 'C:\OpenJDK'
+  [Parameter(Mandatory=$true)]
+  $DownloadUri,
+
+  [Parameter(Mandatory=$true)]
+  $Path
 )
 
 Function Get-OpenJdkMsi {
   Param(
-    [Parameter(Mandatory=$false)]
-    [String]$MsiPath = 'C:\OpenJDK',
+    [Parameter(Mandatory=$true)]
+    [String]$MsiPath,
 
-    [Parameter(Mandatory=$false)]
-    [String]$OpenJdkUri = "https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u345-b01/OpenJDK8U-jdk_x64_windows_hotspot_8u345b01.msi"
+    [Parameter(Mandatory=$true)]
+    [String]$OpenJdkUri
   )
 
   $MsiFileName = $OpenJdkUri.Split("/")[-1]
@@ -40,8 +43,8 @@ Function Get-OpenJdkMsi {
 
 Function Install-OpenJdk {
   Param(
-    [Parameter(Mandatory=$false)]
-    [String]$MsiPath = 'C:\OpenJDK'
+    [Parameter(Mandatory=$true)]
+    [String]$MsiPath
   )
 
   $Install = Start-Process "msiexec.exe" "/i $MsiPath /quiet /passive" -Wait -PassThru
@@ -76,7 +79,7 @@ Function Set-JavaEnvironmentVariables {
 New-Item -Path $Path -ItemType 'Directory' -ErrorAction 'SilentlyContinue'
 
 # Find or download the Integration Runtime MSI package
-$Msi = Get-OpenJdkMsi -MsiPath $Path
+$Msi = Get-OpenJdkMsi -MsiPath $Path -OpenJdkUri $DownloadUri
 
 # Install the Integration Runtime MSI package
 Install-OpenJdk -MsiPath $Msi

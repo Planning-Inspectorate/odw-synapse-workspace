@@ -8,10 +8,13 @@
 
 Param(
   [Parameter(Mandatory=$true)]
-  $AuthKey,
+  [String]$AuthKey,
 
-  [Parameter(Mandatory=$false)]
-  $Path = 'C:\SHIR'
+  [Parameter(Mandatory=$true)]
+  [String]$DownloadUri,
+
+  [Parameter(Mandatory=$true)]
+  [String]$Path
 )
 
 Function Assert-IntegrationRuntimeInstalled {
@@ -55,11 +58,11 @@ Function Find-IntegrationRuntimeExecutable {
 
 Function Get-IntegrationRuntimeMsi {
   Param(
-    [Parameter(Mandatory=$false)]
-    [String]$MsiPath = 'C:\SHIR',
+    [Parameter(Mandatory=$true)]
+    [String]$MsiPath,
 
-    [Parameter(Mandatory=$false)]
-    [String]$IntegrationRuntimeUri = 'https://go.microsoft.com/fwlink/?linkid=839822&clcid=0x409'
+    [Parameter(Mandatory=$true)]
+    [String]$IntegrationRuntimeUri
   )
 
   $MsiFiles = (Get-ChildItem -Path $Path | Where-Object {
@@ -83,7 +86,7 @@ Function Get-IntegrationRuntimeMsi {
 Function Install-IntegrationRuntime {
   Param(
     [Parameter(Mandatory=$false)]
-    [String]$MsiPath = 'C:\SHIR'
+    [String]$MsiPath
   )
 
   Uninstall-IntegrationRuntime
@@ -123,7 +126,7 @@ Function Uninstall-IntegrationRuntime {
 New-Item -Path $Path -ItemType 'Directory' -ErrorAction 'SilentlyContinue'
 
 # Find or download the Integration Runtime MSI package
-$Msi = Get-IntegrationRuntimeMsi -MsiPath $Path
+$Msi = Get-IntegrationRuntimeMsi -MsiPath $Path -IntegrationRuntimeUri $DownloadUri
 
 # Install the Integration Runtime MSI package
 Install-IntegrationRuntime -MsiPath $Msi
