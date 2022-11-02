@@ -3,6 +3,7 @@ resource "azurerm_key_vault" "management" {
   resource_group_name        = var.resource_group_name
   location                   = var.location
   sku_name                   = "standard"
+  enabled_for_deployment     = true
   enable_rbac_authorization  = true
   purge_protection_enabled   = true
   soft_delete_retention_days = 7
