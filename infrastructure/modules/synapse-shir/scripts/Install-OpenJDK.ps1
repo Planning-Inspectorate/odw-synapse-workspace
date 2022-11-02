@@ -67,8 +67,8 @@ Function Set-JavaEnvironmentVariables {
       $JdkPath = $JdkWmi.InstallLocation
     }
 
-    [Environment]::SetEnvironmentVariable('JAVA_HOME', "$($JdkPath)jre/", 'Machine')
-    [Environment]::SetEnvironmentVariable('JRE_HOME', "$($JdkPath)jre/", 'Machine')
+    [Environment]::SetEnvironmentVariable('JAVA_HOME', "$($JdkPath)jre\", 'Machine')
+    [Environment]::SetEnvironmentVariable('JRE_HOME', "$($JdkPath)jre\", 'Machine')
 
   } Catch {
     Throw "Failed to find OpenJDK install location"
