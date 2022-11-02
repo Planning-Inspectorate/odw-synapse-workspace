@@ -78,10 +78,10 @@ Function Set-JavaEnvironmentVariables {
 # Create the working directory
 New-Item -Path $Path -ItemType 'Directory' -ErrorAction 'SilentlyContinue'
 
-# Find or download the Integration Runtime MSI package
+# Find or download the OpenJDK MSI package
 $Msi = Get-OpenJdkMsi -MsiPath $Path -OpenJdkUri $DownloadUri
 
-# Install the Integration Runtime MSI package
+# Install the OpenJDK MSI package
 Install-OpenJdk -MsiPath $Msi
 
 # Set JAVA_HOME and JRE_HOME environment variables
