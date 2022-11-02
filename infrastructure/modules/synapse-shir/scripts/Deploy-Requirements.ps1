@@ -11,6 +11,14 @@ Param(
   $AuthKey
 )
 
+# Download and install Java Development Kit & Runtime Environment
+$ParamInstallOpenJdk = @{
+  DownloadUri = 'https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u345-b01/OpenJDK8U-jdk_x64_windows_hotspot_8u345b01.msi'
+  Path        = 'C:\Temp\OpenJDK'
+}
+
+& .\Install-OpenJDK.ps1 @ParamInstallOpenJdk
+
 # Download, install and register the Microsoft Integration Runtime
 $ParamInitIntegrationRuntime = @{
   AuthKey     = $AuthKey
@@ -19,11 +27,3 @@ $ParamInitIntegrationRuntime = @{
 }
 
 & .\Initialize-IntegrationRuntime.ps1 @ParamInitIntegrationRuntime
-
-# Download and install Java Development Kit & Runtime Environment
-$ParamInstallOpenJdk = @{
-  DownloadUri = 'https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u345-b01/OpenJDK8U-jdk_x64_windows_hotspot_8u345b01.msi'
-  Path        = 'C:\Temp\OpenJDK'
-}
-
-& .\Install-OpenJDK.ps1 @ParamInstallOpenJdk
