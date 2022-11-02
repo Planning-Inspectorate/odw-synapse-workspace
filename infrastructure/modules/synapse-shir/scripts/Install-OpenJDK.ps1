@@ -1,9 +1,9 @@
 # ==============================================================================
 # Script       : Install-OpenJDK.ps1
-# Description  : Installs Adoptium's OpenJDK 8 for x64 Windows
+# Description  : Installs Adoptium OpenJDK for x64 Windows
 # Version      : 1.0.0
 # Author       : Lester March (https://github.com/lestermarch)
-# Help         : https://adoptium.net/temurin/archive/?version=8
+# Help         : https://adoptium.net/installation/windows/
 # ==============================================================================
 
 Param(
@@ -47,7 +47,7 @@ Function Install-OpenJdk {
     [String]$MsiPath
   )
 
-  $Install = Start-Process "msiexec.exe" "/i $MsiPath /quiet /passive" -Wait -PassThru
+  $Install = Start-Process "msiexec.exe" "/i $MsiPath INSTALLLEVEL=1 INSTALLDIR=`"C:\Program Files\OpenJDK`" /quiet" -Wait -PassThru
   If ($Install.ExitCode -ne 0) {
     Throw "Failed to install OpenJDK: $($Install.ExitCode)"
 
@@ -67,8 +67,8 @@ Function Set-JavaEnvironmentVariables {
       $JdkPath = $JdkWmi.InstallLocation
     }
 
-    [Environment]::SetEnvironmentVariable("JAVA_HOME", $JdkPath, 'Machine')
-    [Environment]::SetEnvironmentVariable("JRE_HOME", $JdkPath, 'Machine')
+    [Environment]::SetEnvironmentVariable('JAVA_HOME', "$($JdkPath)jre/", 'Machine')
+    [Environment]::SetEnvironmentVariable('JRE_HOME', "$($JdkPath)jre/", 'Machine')
 
   } Catch {
     Throw "Failed to find OpenJDK install location"
