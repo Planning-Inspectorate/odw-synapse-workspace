@@ -5,14 +5,7 @@
 			{
 				"name": "source_to_raw_main",
 				"type": "SynapseNotebook",
-				"dependsOn": [
-					{
-						"activity": "source_to_raw_tests",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
+				"dependsOn": [],
 				"policy": {
 					"timeout": "0.12:00:00",
 					"retry": 0,
@@ -29,7 +22,7 @@
 					"parameters": {
 						"jsonschema": {
 							"value": {
-								"value": "@pipeline().parameters.jsonschema",
+								"value": "@json(pipeline().parameters.jsonschema)",
 								"type": "Expression"
 							},
 							"type": "string"
@@ -114,7 +107,7 @@
 				}
 			},
 			{
-				"name": "If Condition1",
+				"name": "NewFilesCheck",
 				"description": "If no new files \"[]\" then logged, else Copy activity starts",
 				"type": "IfCondition",
 				"dependsOn": [
@@ -175,6 +168,10 @@
 									"AllPaths": {
 										"value": "@split(activity('source_to_raw_main').output.status.Output.result.exitValue, ',,,')",
 										"type": "Expression"
+									},
+									"directory_path": {
+										"value": "@pipeline().parameters.directory_path",
+										"type": "Expression"
 									}
 								}
 							}
@@ -215,56 +212,12 @@
 						}
 					]
 				}
-			},
-			{
-				"name": "source_to_raw_tests",
-				"type": "SynapseNotebook",
-				"dependsOn": [],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "py_0_source_to_raw_hr_tests",
-						"type": "NotebookReference"
-					},
-					"snapshot": true,
-					"conf": {
-						"spark.dynamicAllocation.enabled": null,
-						"spark.dynamicAllocation.minExecutors": null,
-						"spark.dynamicAllocation.maxExecutors": null
-					},
-					"numExecutors": null
-				}
 			}
 		],
 		"parameters": {
 			"jsonschema": {
 				"type": "string",
-				"defaultValue": {
-					"fields": [
-						{
-							"name": "Process_Date",
-							"nullable": false,
-							"type": "timestamp"
-						},
-						{
-							"name": "Filepath",
-							"nullable": false,
-							"type": "string"
-						},
-						{
-							"name": "File_Modified_Date",
-							"nullable": false,
-							"type": "timestamp"
-						}
-					]
-				}
+				"defaultValue": "'{\"fields\": [{\"metadata\": {}, \"name\": \"Process_Date\", \"nullable\": false, \"type\": \"timestamp\"}, {\"metadata\": {}, \"name\": \"Filepath\", \"nullable\": false, \"type\": \"string\"}, {\"metadata\": {}, \"name\": \"File_Modified_Date\", \"nullable\": false, \"type\": \"timestamp\"}]}'"
 			},
 			"db_name": {
 				"type": "string",

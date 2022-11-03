@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "03cd159c-cd8d-4b08-ba92-51ec1e6aa9b3"
+				"spark.autotune.trackingId": "b1017504-adef-4114-822a-4119c08f5d11"
 			}
 		},
 		"metadata": {
@@ -41,14 +41,13 @@
 				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
 				"auth": {
 					"type": "AAD",
-					"authResource": "https://dev.azuresynapse.net",
-					"authHeader": null
+					"authResource": "https://dev.azuresynapse.net"
 				},
 				"sparkVersion": "3.2",
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 28,
-				"extraHeader": null
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -57,7 +56,8 @@
 				"cell_type": "code",
 				"source": [
 					"%run \"utils/py_logging_decorator\""
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -76,8 +76,8 @@
 					]
 				},
 				"source": [
-					"output\r\n",
-					"filepath\r\n",
+					"output = \"\"\r\n",
+					"filepath = \"\"\r\n",
 					"\r\n",
 					"jsonschema = \"\"\"{\"fields\": [{\"metadata\": {},\"name\": \"Process_Date\",\"nullable\": false,\"type\": \"timestamp\"}, {\"metadata\": {},\"name\": \"Filepath\",\"nullable\":false,\"type\": \"string\"},{\"metadata\": {},\"name\": \"File_Modified_Date\",\"nullable\": false,\"type\": \"timestamp\"}]}\"\"\"\r\n",
 					"db_name =  \"odw_config_db\"\r\n",
@@ -87,7 +87,8 @@
 					"kv_linked_service=\"ls_kv\"\r\n",
 					"share_name =\"datalab\"\r\n",
 					""
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -111,7 +112,7 @@
 					"    import logging\r\n",
 					"    logger = logging.getLogger(__name__)\r\n",
 					"    if output == \"Succeeded\":\r\n",
-					"        logger.log(f\"Copy activity succeeded for {filepath}\")\r\n",
+					"        logger.info(f\"Copy activity succeeded for {filepath}\")\r\n",
 					"\r\n",
 					"        from notebookutils import mssparkutils\r\n",
 					"        creds = mssparkutils.credentials.getSecret(akv_name, secret_name, kv_linked_service)\r\n",
@@ -128,13 +129,14 @@
 					"        from pyspark.sql import SparkSession\r\n",
 					"        spark = SparkSession.builder.getOrCreate()\r\n",
 					"        schema = StructType.fromJson(json.loads(jsonschema))\r\n",
-					"        new_raw_file = spark.createDataFrame([dt, filepath, fileprops.last_modified], schema)\r\n",
+					"        new_raw_file = spark.createDataFrame([[dt, filepath, fileprops.last_modified]], schema)\r\n",
 					"        new_raw_file.write.format(\"delta\").mode(\"append\").saveAsTable(f\"{db_name}.{table_name}\")\r\n",
 					"\r\n",
 					"    else:\r\n",
 					"        raise Exception(f\"Transfer to raw for file {filepath} has failed\")\r\n",
 					""
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -151,7 +153,8 @@
 				},
 				"source": [
 					"log_copy_output(output, filepath, akv_name, secret_name, kv_linked_service, share_name, jsonschema, db_name, table_name)"
-				]
+				],
+				"execution_count": null
 			}
 		]
 	}
