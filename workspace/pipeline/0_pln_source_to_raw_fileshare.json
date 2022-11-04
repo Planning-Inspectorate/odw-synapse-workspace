@@ -1,9 +1,11 @@
 {
 	"name": "0_pln_source_to_raw_fileshare",
 	"properties": {
+		"description": "This is the top level of the source to raw pipeline for Fileshare files, currently being used for SAP HR files.\n\nDescription of the default parameters: \n-jsonschema: schema definition for the table to log the file transfer\n-db_name: the synapse database for the file transfer log table\n-table_name: the name of the table inside -db_name for the file transfer log table\n-target_container: the abfss:// file path container of the file transfer log table\n-target_folder: the folder within which the delta table will be located\n-akv_name: the name of the key vault containing the secret to obtain the connection string to the file share\n-secret_name: the name of the secret within akv_name containing the connection string to access the file share\n-kv_linked_service: the linked service name of the key vault akv_name\n-share_name: the name of the Azure Fileshare\n-directory_path: the path within the Azure Fileshare to identify all files within\n-sink_sourcetype: The top level folder within odw-raw to transfer the data from Fileshare into\n-sink_sourcesystem: The subfolder within sink_sourcetype to transfer the data into",
 		"activities": [
 			{
 				"name": "source_to_raw_main",
+				"description": "This notebook creates the table for the Azure Fileshare transfer logging if the Delta log table does not exist.\n\nThis notebook then generates the file paths from Azure Fileshare for the copy activity to copy into raw, for any new or modified files, based on existing information in the log table.",
 				"type": "SynapseNotebook",
 				"dependsOn": [],
 				"policy": {
@@ -108,7 +110,7 @@
 			},
 			{
 				"name": "NewFilesCheck",
-				"description": "If no new files \"[]\" then logged, else Copy activity starts",
+				"description": "True : If no new files are present in the Fileshare this is logged to the app insights instance.\n\nFalse: For any new files, the Copy activity starts",
 				"type": "IfCondition",
 				"dependsOn": [
 					{
@@ -127,6 +129,7 @@
 					"ifFalseActivities": [
 						{
 							"name": "CopySourceToRaw",
+							"description": "A path inside the Azure Fileshare is passed from the previous notebook activity into this activity and a binary transfer is completed based on the parameters.",
 							"type": "ExecutePipeline",
 							"dependsOn": [],
 							"userProperties": [],
@@ -172,6 +175,14 @@
 									"directory_path": {
 										"value": "@pipeline().parameters.directory_path",
 										"type": "Expression"
+									},
+									"sink_sourcetype": {
+										"value": "@pipeline().parameters.sink_sourcetype",
+										"type": "Expression"
+									},
+									"sink_sourcesystem": {
+										"value": "@pipeline().parameters.sink_sourcesystem",
+										"type": "Expression"
 									}
 								}
 							}
@@ -180,6 +191,7 @@
 					"ifTrueActivities": [
 						{
 							"name": "No_New_Files_Logging",
+							"description": "Output of the previous notebook activity is \"[]\" which indicated that no new or modified files are present in the log table of files transferred from source to raw.",
 							"type": "SynapseNotebook",
 							"dependsOn": [],
 							"policy": {
@@ -254,7 +266,18 @@
 			"directory_path": {
 				"type": "string",
 				"defaultValue": "ODW/HR/"
+			},
+			"sink_sourcetype": {
+				"type": "string",
+				"defaultValue": "Fileshare"
+			},
+			"sink_sourcesystem": {
+				"type": "string",
+				"defaultValue": "SAP_HR"
 			}
+		},
+		"folder": {
+			"name": "0_Raw_SAP_HR_Data_Copy"
 		},
 		"annotations": [],
 		"lastPublishTime": "2022-11-01T08:31:03Z"

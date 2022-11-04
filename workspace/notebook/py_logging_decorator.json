@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "edaae879-55d8-416d-bfdb-9ea2bc30bc2e"
+				"spark.autotune.trackingId": "9727efed-f6b6-4c60-9fea-9b686b40e789"
 			}
 		},
 		"metadata": {
@@ -41,14 +41,13 @@
 				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
 				"auth": {
 					"type": "AAD",
-					"authResource": "https://dev.azuresynapse.net",
-					"authHeader": null
+					"authResource": "https://dev.azuresynapse.net"
 				},
 				"sparkVersion": "3.2",
 				"nodeCount": 3,
-				"cores": 4,
-				"memory": 28,
-				"extraHeader": null
+				"cores": 8,
+				"memory": 56,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -59,11 +58,10 @@
 					"def logging_to_appins(func):\r\n",
 					"    import functools\r\n",
 					"    from notebookutils import mssparkutils\r\n",
-					"    \r\n",
 					"    @functools.wraps(func)\r\n",
 					"    def wrapper(*args, **kwargs):\r\n",
 					"        from notebookutils import mssparkutils\r\n",
-					"        key = mssparkutils.credentials.getSecret(\"pinskvsynwodwdevuks\", \"application-insights-connection-string\", \"ls_kv\")\r\n",
+					"        \r\n",
 					"\r\n",
 					"        import logging\r\n",
 					"        from opencensus.ext.azure.log_exporter import AzureLogHandler\r\n",
@@ -73,6 +71,7 @@
 					"        if True in [type(handle) == AzureLogHandler for handle in logger.handlers]:\r\n",
 					"            pass\r\n",
 					"        else:\r\n",
+					"            key = mssparkutils.credentials.getSecret(\"pinskvsynwodwdevuks\", \"application-insights-connection-string\", \"ls_kv\")\r\n",
 					"            logger.addHandler(AzureLogHandler(\r\n",
 					"            connection_string=key.split(\";\")[0])\r\n",
 					"            )\r\n",
@@ -83,6 +82,8 @@
 					"        try:\r\n",
 					"            result = func(*args, **kwargs)\r\n",
 					"            return result\r\n",
+					"        except mssparkutils.handlers.notebookHandler.NotebookExit as e:\r\n",
+					"            logger.info(f\"Notebook exited with value {e}\")\r\n",
 					"        except Exception as e:\r\n",
 					"            logger.exception(e)\r\n",
 					"            raise e\r\n",
