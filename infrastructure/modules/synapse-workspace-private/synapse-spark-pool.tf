@@ -8,7 +8,7 @@ resource "azurerm_synapse_spark_pool" "synapse" {
   spark_version        = var.spark_pool_version
 
   auto_pause {
-    delay_in_minutes = 15
+    delay_in_minutes = var.spark_pool_timeout_minutes
   }
 
   auto_scale {

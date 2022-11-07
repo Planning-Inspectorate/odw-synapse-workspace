@@ -178,6 +178,12 @@ variable "spark_pool_node_size" {
   type        = string
 }
 
+variable "spark_pool_timeout_minutes" {
+  default     = 15
+  description = "The time buffer in minutes to wait before the Spark pool is paused due to inactivity"
+  type        = number
+}
+
 variable "spark_pool_version" {
   default     = "2.4"
   description = "The version of Spark running on the Synapse-linked Spark pool"

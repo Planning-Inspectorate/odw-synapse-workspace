@@ -5,12 +5,12 @@ output "synapse_endpoints" {
 
 output "synapse_spark_pool_id" {
   description = "The ID of the Synapse Spark Pool"
-  value       = azurerm_synapse_spark_pool.synapse[0].id
+  value       = var.spark_pool_enabled ? one(azurerm_synapse_spark_pool.synapse).id : null
 }
 
 output "synapse_sql_pool_id" {
   description = "The ID of the Synapse SQL Pool"
-  value       = azurerm_synapse_sql_pool.synapse[0].id
+  value       = var.sql_pool_enabled ? one(azurerm_synapse_sql_pool.synapse).id : null
 }
 
 output "synapse_workspace_id" {
