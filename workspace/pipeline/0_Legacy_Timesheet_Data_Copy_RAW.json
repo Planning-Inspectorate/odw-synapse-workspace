@@ -1,0 +1,283 @@
+{
+	"name": "0_Legacy_Timesheet_Data_Copy_RAW",
+	"properties": {
+		"description": "This is the ingest of the legacy timesheet data",
+		"activities": [
+			{
+				"name": "MWR_Lines",
+				"description": "Importing the legacy MWR_Lines time sheet Data",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [
+					{
+						"name": "Source",
+						"value": "load.mwr_lines"
+					},
+					{
+						"name": "Destination",
+						"value": "odw-raw/@{concat('Horizon', '/', formatDateTime(utcnow(), 'yyyy-MM-dd'))}/@{'<FileName>'}"
+					}
+				],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"queryTimeout": "02:00:00",
+						"isolationLevel": "ReadCommitted",
+						"partitionOption": "None"
+					},
+					"sink": {
+						"type": "DelimitedTextSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "DelimitedTextWriteSettings",
+							"quoteAllText": true,
+							"fileExtension": ".txt"
+						}
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "MWR_Lines",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "Legacy_Timesheets_Data",
+						"type": "DatasetReference",
+						"parameters": {
+							"Filename": "MWR_Lines.csv"
+						}
+					}
+				]
+			},
+			{
+				"name": "MWR_Lines_Fail",
+				"description": "c",
+				"type": "Fail",
+				"dependsOn": [
+					{
+						"activity": "MWR_Lines",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"userProperties": [
+					{
+						"name": "Michael Cross",
+						"value": "michael.cross@planninginspectorate.gov.uk"
+					}
+				],
+				"typeProperties": {
+					"message": "The import of MWR_Lines data has failed",
+					"errorCode": "MWR_Lines1"
+				}
+			},
+			{
+				"name": "MWR_Status",
+				"description": "Importing the legacy MWR_Status time sheet Data",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "MWR_Lines",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [
+					{
+						"name": "Source",
+						"value": "load.mwr_status"
+					},
+					{
+						"name": "Destination",
+						"value": "odw-raw/@{concat('Horizon', '/', formatDateTime(utcnow(), 'yyyy-MM-dd'))}/@{'<FileName>'}"
+					}
+				],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"queryTimeout": "02:00:00",
+						"isolationLevel": "ReadCommitted",
+						"partitionOption": "None"
+					},
+					"sink": {
+						"type": "DelimitedTextSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "DelimitedTextWriteSettings",
+							"quoteAllText": true,
+							"fileExtension": ".txt"
+						}
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "MWR_Status",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "Legacy_Timesheets_Data",
+						"type": "DatasetReference",
+						"parameters": {
+							"Filename": "MWR_Status.csv"
+						}
+					}
+				]
+			},
+			{
+				"name": "MWR_Status_Fail",
+				"description": "Failure of the mwr_status table data load",
+				"type": "Fail",
+				"dependsOn": [
+					{
+						"activity": "MWR_Status",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"message": "The mwr_status data has failed to be copied to Raw",
+					"errorCode": "MWR_Status1"
+				}
+			},
+			{
+				"name": "MWR_SubmissionDate",
+				"description": "Importing the legacy MWR_Submission_date timesheet Data",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "MWR_Status",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [
+					{
+						"name": "Source",
+						"value": "load.mwr_submission_date"
+					},
+					{
+						"name": "Destination",
+						"value": "odw-raw/@{concat('Horizon', '/', formatDateTime(utcnow(), 'yyyy-MM-dd'))}/@{'<FileName>'}"
+					}
+				],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"queryTimeout": "02:00:00",
+						"isolationLevel": "ReadCommitted",
+						"partitionOption": "None"
+					},
+					"sink": {
+						"type": "DelimitedTextSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "DelimitedTextWriteSettings",
+							"quoteAllText": true,
+							"fileExtension": ".txt"
+						}
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "MWR_Submission_Date",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "Legacy_Timesheets_Data",
+						"type": "DatasetReference",
+						"parameters": {
+							"Filename": "MWR_Submisison_Date.csv"
+						}
+					}
+				]
+			},
+			{
+				"name": "MWR_Submisison_Date_Fail",
+				"description": "Failure of the mwr_submission_date table data load",
+				"type": "Fail",
+				"dependsOn": [
+					{
+						"activity": "MWR_SubmissionDate",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"message": "The mwr_submisison_date data has failed to be copied to Raw",
+					"errorCode": "MWR_Submission_Date1"
+				}
+			}
+		],
+		"folder": {
+			"name": "0_Raw_Timesheet_Legacy_Data"
+		},
+		"annotations": []
+	}
+}
