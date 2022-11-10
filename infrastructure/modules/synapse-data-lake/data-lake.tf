@@ -65,4 +65,8 @@ resource "azurerm_storage_container" "synapse" {
   name                  = each.key
   storage_account_name  = azurerm_storage_account.synapse.name
   container_access_type = "private"
+
+  depends_on = [
+    azurerm_storage_data_lake_gen2_filesystem.synapse
+  ]
 }

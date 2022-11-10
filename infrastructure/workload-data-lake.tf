@@ -41,6 +41,8 @@ module "synapse_data_lake" {
     module.synapse_network,
     module.synapse_network_failover
   ]
+
+  tags = local.tags
 }
 
 module "synapse_data_lake_failover" {
@@ -72,4 +74,6 @@ module "synapse_data_lake_failover" {
     module.synapse_network,
     module.synapse_network_failover
   ]
+
+  tags = local.tags
 }
