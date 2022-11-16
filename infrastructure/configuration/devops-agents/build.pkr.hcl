@@ -10,7 +10,7 @@ build {
     image_offer     = "0001-com-ubuntu-server-focal"
     image_sku       = "20_04-lts"
 
-    location        = "UK South"
+    location        = var.location
     vm_size         = "Standard_D2ds_v5"
   }
 

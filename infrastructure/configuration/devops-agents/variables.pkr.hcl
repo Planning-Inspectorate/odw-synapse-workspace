@@ -14,6 +14,12 @@ variable "image_prefix" {
   type        = string
 }
 
+variable "location" {
+  default     = "UK South"
+  description = "The Azure region in which to provision temporary resources"
+  type        = string
+}
+
 variable "resource_group_name" {
   description = "The name of the resource group where the image will be created"
   type        = string
