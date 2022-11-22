@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "9fb849f3-36a5-454e-8ce6-3be5efe47c2a"
+				"spark.autotune.trackingId": "8d30dcd6-0b88-4de5-9ed3-10aa27aff031"
 			}
 		},
 		"metadata": {
@@ -45,11 +45,31 @@
 				"sparkVersion": "3.2",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 28
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Check for new, updated or deleted data\r\n",
+					"- This script checks for new, updated or deleted data by checking the source data (sap hr) against the target (odw_harmonised_db.employee_dim)\r\n",
+					"- **New Data:** where a Pers_No in the source does not exist as an EmployeeNumber in the target. NewData flag is set to 'Y'\r\n",
+					"- **Updated data:** Comparison occurs on Pers_No in source and EmployeeNumber in target where the row hash is different i.e. there is a change in one of the columns. NewData flag is set to 'Y'\r\n",
+					"- **Deleted data:** where an EmployeeNumber in the target exists but the same Pers_No doesn't exist in the source. DeletedData flag is set to 'Y'\r\n",
+					"\r\n",
+					"## View employee_dim_new is created"
+				]
+			},
 			{
 				"cell_type": "code",
 				"metadata": {
@@ -155,6 +175,22 @@
 					""
 				],
 				"execution_count": 3
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Dataset is created that contains changed data and corresponding target data\r\n",
+					"- This script combines data that has been updated, Deleted or is new, with corresponding target data\r\n",
+					"- View **employee_dim_new** is unioned to the target data filter to only those rows where changes have been detected\r\n",
+					"## View employee_dim_changed_rows is created"
+				]
 			},
 			{
 				"cell_type": "code",
@@ -277,6 +313,22 @@
 				"execution_count": 4
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# View employee_dim_changed_rows is used in a merge (Upsert) statement into the target table\r\n",
+					"- **WHEN MATCHED** ON the Business Key (i.e. Pers_No from SAP HR), EndDate is set to today -1 day and the IsActive flag is set to 'N'\r\n",
+					"- **WHEN NOT MATCHED** ON the business key, insert rows\r\n",
+					"## Table odw_harmonised.employee_dim is updated"
+				]
+			},
+			{
 				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
@@ -318,6 +370,22 @@
 					""
 				],
 				"execution_count": 5
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Fix the IDs\r\n",
+					"- No auto-increment feature is available in delta tables, therefore we need to create new IDs for the inserted rows\r\n",
+					"- This is done by select the target data and using INSERT OVERWRITE to re-insert the data is a new Row Number\r\n",
+					"## Table odw_harmonised.employee_dim is updated"
+				]
 			},
 			{
 				"cell_type": "code",
