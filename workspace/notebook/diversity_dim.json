@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "675382b8-ca57-4ef2-aafb-9eeadc61045c"
+				"spark.autotune.trackingId": "3fe4fdef-770f-403e-b344-29609138b2f0"
 			}
 		},
 		"metadata": {
@@ -45,11 +45,31 @@
 				"sparkVersion": "3.2",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 28
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Check for new, updated or deleted data\n",
+					"- This script checks for new, updated or deleted data by checking the source data (sap hr) against the target (odw_harmonised_db.employee_dim)\n",
+					"- **New Data:** where a Ethnic_Origin in the source does not exist as an Description in the target. NewData flag is set to 'Y'\n",
+					"- **Updated data:** Comparison occurs on Ethnic_Origin in source and Description in target where the row hash is different i.e. there is a change in one of the columns. NewData flag is set to 'Y'\n",
+					"- **Deleted data:** where an Description in the target exists but the same Ethnic_Origin doesn't exist in the source. DeletedData flag is set to 'Y'\n",
+					"\n",
+					"## View diversity_dim_new is created"
+				]
+			},
 			{
 				"cell_type": "code",
 				"metadata": {
@@ -143,6 +163,27 @@
 						"transient": {
 							"deleting": false
 						}
+					}
+				},
+				"source": [
+					"# Dataset is created that contains changed data and corresponding target data\n",
+					"- This script combines data that has been updated, Deleted or is new, with corresponding target data\n",
+					"- View **diversity_dim_new** is unioned to the target data filter to only those rows where changes have been detected\n",
+					"## View diversity_dim_changed_rows is created"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
 					},
 					"microsoft": {
 						"language": "sparksql"
@@ -192,6 +233,22 @@
 				"execution_count": null
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# View diversity_dim_changed_rows is used in a merge (Upsert) statement into the target table\n",
+					"- **WHEN MATCHED** ON the Business Key (i.e. Ethnic_Origin from Personal Characteristics), EndDate is set to today -1 day and the IsActive flag is set to 'N'\n",
+					"- **WHEN NOT MATCHED** ON the business key, insert rows\n",
+					"## Table odw_harmonised.diversity_dim is updated"
+				]
+			},
+			{
 				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
@@ -232,6 +289,22 @@
 					""
 				],
 				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Fix the IDs\n",
+					"- No auto-increment feature is available in delta tables, therefore we need to create new IDs for the inserted rows\n",
+					"- This is done by select the target data and using INSERT OVERWRITE to re-insert the data is a new Row Number\n",
+					"## Table odw_harmonised.diversity_dim is updated"
+				]
 			},
 			{
 				"cell_type": "code",

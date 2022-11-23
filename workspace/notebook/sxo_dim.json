@@ -1,0 +1,360 @@
+{
+	"name": "sxo_dim",
+	"properties": {
+		"folder": {
+			"name": "odw-harmonised/SAP-HR"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "14ff5539-7db7-4c68-bff8-42e817987a41"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.2",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Check for new, updated or deleted data\n",
+					"- This script checks for new, updated or deleted data by checking the source data (sap hr) against the target (odw_harmonised_db.employee_dim)\n",
+					"- **New Data:** where a SxO in the source does not exist as an Description in the target. NewData flag is set to 'Y'\n",
+					"- **Updated data:** Comparison occurs on SxO in source and Description in target where the row hash is different i.e. there is a change in one of the columns. NewData flag is set to 'Y'\n",
+					"- **Deleted data:** where an Description in the target exists but the same SxO doesn't exist in the source. DeletedData flag is set to 'Y'\n",
+					"\n",
+					"## View diversity_dim_new is created"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					}
+				},
+				"source": [
+					"%%sql\r\n",
+					"-- Build SXO_dim table\r\n",
+					"-- Gets modified or deleted from source rows\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW sxo_dim_new\r\n",
+					"\r\n",
+					"    AS\r\n",
+					"\r\n",
+					"-- gets data that matches of SourceID and flags that it is modified based on a row (md5) hash. Flags as \"NewData\"\r\n",
+					"-- gets data that is in the target but not in source. Flags as \"DeletedData\"\r\n",
+					"\r\n",
+					"SELECT\r\n",
+					"    CASE\r\n",
+					"        WHEN T1.SxO IS NULL\r\n",
+					"        THEN first(T3.SXOID)\r\n",
+					"        ELSE NULL\r\n",
+					"    END as SXOID, -- surrogate key\r\n",
+					"    SxO AS Description,\r\n",
+					"    first(T2.SourceSystemID) as SourceSystemID, -- NOT CORRECT\r\n",
+					"    CURRENT_TIMESTAMP AS StartDate,\r\n",
+					"    NULL AS EndDate,\r\n",
+					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
+					"    NULL AS ValidTo,\r\n",
+					"    md5(SxO) as RowID,\r\n",
+					"    'Y' as IsActive,\r\n",
+					"    CASE\r\n",
+					"        WHEN T1.SxO = first(T3.Description) AND md5(concat(T1.SxO)) <> first(T3.RowID)     \r\n",
+					"        THEN 'Y'\r\n",
+					"        WHEN first(T3.Description) IS NULL\r\n",
+					"        THEN 'Y'\r\n",
+					"        ELSE 'N'\r\n",
+					"    END as NewData,\r\n",
+					"    CASE\r\n",
+					"        WHEN T1.SxO IS NULL\r\n",
+					"        THEN 'Y'\r\n",
+					"        ELSE 'N'\r\n",
+					"    END AS  DeletedData\r\n",
+					"\r\n",
+					"FROM odw_standardised_db.personal_characteristics T1\r\n",
+					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description\r\n",
+					"FULL JOIN odw_harmonised_db.sxo_dim T3 ON T1.SxO = T3.Description\r\n",
+					"WHERE  (T3.IsActive = 'Y' or T3.IsActive IS NULL)\r\n",
+					"    \r\n",
+					"        AND (\r\n",
+					"        \r\n",
+					"        -- flags new data        \r\n",
+					"        ( CASE\r\n",
+					"            WHEN T1.SxO = T3.Description AND md5(concat(T1.SxO)) <> T3.RowID\r\n",
+					"            THEN 'Y'\r\n",
+					"            WHEN T3.Description IS NULL\r\n",
+					"            THEN 'Y'\r\n",
+					"            ELSE 'N'\r\n",
+					"        END  = 'Y' ) OR\r\n",
+					"        \r\n",
+					"        -- flags deleted data\r\n",
+					"        ( CASE\r\n",
+					"            WHEN T1.SxO IS NULL\r\n",
+					"            THEN 'Y'\r\n",
+					"            ELSE 'N'\r\n",
+					"        END = 'Y' )\r\n",
+					"    )\r\n",
+					"\r\n",
+					"    AND\r\n",
+					"\r\n",
+					"        T1.SxO IS NOT NULL\r\n",
+					"\r\n",
+					"GROUP BY T1.SxO\r\n",
+					"\r\n",
+					";"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Dataset is created that contains changed data and corresponding target data\n",
+					"- This script combines data that has been updated, Deleted or is new, with corresponding target data\n",
+					"- View **SXO_dim_new** is unioned to the target data filter to only those rows where changes have been detected\n",
+					"## View SXO_dim_changed_rows is created"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					}
+				},
+				"source": [
+					"%%sql\r\n",
+					"-- Create new and updated dataset\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY  VIEW sxo_dim_changed_rows\r\n",
+					"\r\n",
+					"    AS\r\n",
+					"\r\n",
+					"-- gets updated, deleted and new rows \r\n",
+					"\r\n",
+					"Select \r\n",
+					"    SXOID,\r\n",
+					"    Description, \r\n",
+					"    SourceSystemID,\r\n",
+					"    StartDate,\r\n",
+					"    EndDate,\r\n",
+					"    IngestionDate,\r\n",
+					"    ValidTo,\r\n",
+					"    RowID,\r\n",
+					"    IsActive\r\n",
+					"From sxo_dim_new\r\n",
+					"\r\n",
+					"    UNION ALL\r\n",
+					"\r\n",
+					"-- gets original versions of updated rows so we can update EndDate and set IsActive flag to 'N'\r\n",
+					"\r\n",
+					"SELECT\r\n",
+					"    SXOID,\r\n",
+					"    Description,\r\n",
+					"    SourceSystemID,\r\n",
+					"    StartDate,\r\n",
+					"    EndDate,\r\n",
+					"    IngestionDate,\r\n",
+					"    ValidTo,\r\n",
+					"    RowID,\r\n",
+					"    IsActive\r\n",
+					"FROM odw_harmonised_db.sxo_dim\r\n",
+					"WHERE Description IN (SELECT Description FROM sxo_dim_new); -- gets original versions of updated rows\r\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# View SXO_dim_changed_rows is used in a merge (Upsert) statement into the target table\n",
+					"- **WHEN MATCHED** ON the Business Key (i.e. SxO from Personal Characteristics), EndDate is set to today -1 day and the IsActive flag is set to 'N'\n",
+					"- **WHEN NOT MATCHED** ON the business key, insert rows\n",
+					"## Table odw_harmonised.SXO_dim is updated"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					}
+				},
+				"source": [
+					"%%sql\r\n",
+					"\r\n",
+					"-- merge into fact table\r\n",
+					"\r\n",
+					"MERGE INTO odw_harmonised_db.sxo_dim AS Target\r\n",
+					"USING sxo_dim_changed_rows AS Source\r\n",
+					"\r\n",
+					"ON Source.SXOID = Target.SXOID\r\n",
+					"\r\n",
+					"-- For Updates existing rows\r\n",
+					"\r\n",
+					"WHEN MATCHED\r\n",
+					"    THEN \r\n",
+					"    UPDATE SET\r\n",
+					"    Target.EndDate = date_sub(current_timestamp,1),\r\n",
+					"    Target.IsActive = 'N'\r\n",
+					"\r\n",
+					"-- Insert completely new rows\r\n",
+					"WHEN NOT MATCHED \r\n",
+					"    THEN INSERT * ;   \r\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Fix the IDs\n",
+					"- No auto-increment feature is available in delta tables, therefore we need to create new IDs for the inserted rows\n",
+					"- This is done by select the target data and using INSERT OVERWRITE to re-insert the data is a new Row Number\n",
+					"## Table odw_harmonised.SXO_dim is updated"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					}
+				},
+				"source": [
+					"%%sql\r\n",
+					"-- Insert new SXOID\r\n",
+					"\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.sxo_dim\r\n",
+					"\r\n",
+					"SELECT \r\n",
+					"    ROW_NUMBER() OVER (ORDER BY SXOID NULLS LAST) AS SXOID, \r\n",
+					"    Description, \r\n",
+					"    SourceSystemID,\r\n",
+					"    StartDate,\r\n",
+					"    EndDate,\r\n",
+					"    IngestionDate,\r\n",
+					"    ValidTo,\r\n",
+					"    RowID,\r\n",
+					"    IsActive\r\n",
+					"FROM odw_harmonised_db.sxo_dim;\r\n",
+					"\r\n",
+					"Select * FROM odw_harmonised_db.sxo_dim;"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
