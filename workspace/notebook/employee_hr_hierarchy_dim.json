@@ -1,0 +1,351 @@
+{
+	"name": "employee_hr_hierarchy_dim",
+	"properties": {
+		"folder": {
+			"name": "odw-harmonised/SAP-HR"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "bc03b969-b6b8-463f-89f7-4e9e4c85b714"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.2",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Check for new, updated or deleted data\n",
+					"- This script checks for new, updated or deleted data by checking the source data (sap hr) against the target (odw_harmonised_db.Employee_HR_Hierarchy_Dim)\n",
+					"- **New Data:** where an EmployeeID in the source does not exist as an EmployeeID in the target. NewData flag is set to 'Y'\n",
+					"- **Updated data:** Comparison occurs on EmployeeID in source and EmployeeID in target where the row hash is different i.e. there is a change in one of the columns. NewData flag is set to 'Y'\n",
+					"- **Deleted data:** where an EmployeeID in the target exists but the same EmployeeID doesn't exist in the source. DeletedData flag is set to 'Y'\n",
+					"\n",
+					"## View employee_hr_hierarchy_dim_new is created"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"-- Build employee_hr_hierarchy_dim table\r\n",
+					"-- Gets modified or deleted from source rows\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW employee_hr_hierarchy_dim_new\r\n",
+					"\r\n",
+					"    AS\r\n",
+					"\r\n",
+					"-- gets data that matches of SourceID and flags that it is modified based on a row (md5) hash. Flags as \"NewData\"\r\n",
+					"-- gets data that is in the target but not in source. Flags as \"DeletedData\"\r\n",
+					"\r\n",
+					"SELECT \r\n",
+					"    CASE\r\n",
+					"        WHEN T3.EmployeeID IS NULL\r\n",
+					"        THEN T7.EmployeeHRHierarchyID\r\n",
+					"        ELSE NULL\r\n",
+					"    END as EmployeeHRHierarchyID, -- surrogate key\r\n",
+					"    T3.EmployeeID AS EmployeeID,\r\n",
+					"    T4.EmployeeID as ManagerEmployeeID,\r\n",
+					"    T5.EmployeeID AS CounterSignManagerID,\r\n",
+					"    T2.SourceSystemID as SourceSystemID,\r\n",
+					"    CURRENT_TIMESTAMP AS StartDate,\r\n",
+					"    NULL AS EndDate,\r\n",
+					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
+					"    NULL AS ValidTo,\r\n",
+					"    md5(concat(IFNULL(T3.EmployeeID,'.'), IFNULL(T4.EmployeeID,'.'), IFNULL(T5.EmployeeID,'.'))) as RowID,\r\n",
+					"    'Y' as IsActive,\r\n",
+					"    CASE\r\n",
+					"        WHEN T3.EmployeeID = T7.EmployeeID AND  md5(concat(IFNULL(T3.EmployeeID,'.'), IFNULL(T4.EmployeeID,'.'), IFNULL(T5.EmployeeID,'.'))) <> T7.RowID    -- same employee, changed data\r\n",
+					"        THEN 'Y'\r\n",
+					"        WHEN T7.EmployeeID IS NULL -- new employee\r\n",
+					"        THEN 'Y'\r\n",
+					"        ELSE 'N'\r\n",
+					"    END as NewData,\r\n",
+					"    CASE\r\n",
+					"        WHEN T3.EmployeeID IS NULL\r\n",
+					"        THEN 'Y'\r\n",
+					"        ELSE 'N'\r\n",
+					"    END AS  DeletedData\r\n",
+					"\r\n",
+					"FROM odw_standardised_db.vw_saphr T1\r\n",
+					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description\r\n",
+					"LEFT JOIN odw_harmonised_db.employee_dim T3 ON T1.Pers_No = T3.EmployeeNumber\r\n",
+					"LEFT JOIN odw_harmonised_db.employee_dim T4 ON T1.Pers_No_2 = T4.EmployeeNumber\r\n",
+					"LEFT JOIN odw_harmonised_db.employee_dim T5 ON T1.Counter_Sign_Manager = CONCAT(T5.FirstName,' ', T5.LastName)\r\n",
+					"FULL JOIN odw_harmonised_db.Employee_HR_Hierarchy_Dim T7 ON T3.EmployeeID = T7.EmployeeID\r\n",
+					"WHERE  (T7.IsActive = 'Y' or T7.IsActive IS NULL)\r\n",
+					"    \r\n",
+					"        AND (\r\n",
+					"        \r\n",
+					"        -- flags new data        \r\n",
+					"        ( CASE\r\n",
+					"            WHEN T3.EmployeeID = T7.EmployeeID AND  md5(concat(IFNULL(T3.EmployeeID,'.'), IFNULL(T4.EmployeeID,'.'), IFNULL(T5.EmployeeID,'.'))) <> T7.RowID    -- same employee, changed data\r\n",
+					"            THEN 'Y'\r\n",
+					"            WHEN T7.EmployeeID IS NULL -- new employee\r\n",
+					"            THEN 'Y'\r\n",
+					"            ELSE 'N'\r\n",
+					"        END  = 'Y' ) OR\r\n",
+					"        \r\n",
+					"        -- flags deleted data\r\n",
+					"        ( CASE\r\n",
+					"            WHEN T3.EmployeeID IS NULL\r\n",
+					"            THEN 'Y'\r\n",
+					"            ELSE 'N'\r\n",
+					"        END = 'Y' )\r\n",
+					")\r\n",
+					"\r\n",
+					";\r\n",
+					""
+				],
+				"execution_count": 18
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Dataset is created that contains changed data and corresponding target data\n",
+					"- This script combines data that has been updated, Deleted or is new, with corresponding target data\n",
+					"- View **employee_hr_hierarchy_dim_new** is unioned to the target data filter to only those rows where changes have been detected\n",
+					"## View employee_hr_hierarchy_dim_changed_rows is created"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"-- Create new and updated dataset\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW employee_hr_hierarchy_dim_changed_rows\r\n",
+					"\r\n",
+					"    AS\r\n",
+					"\r\n",
+					"-- gets updated, deleted and new rows \r\n",
+					"\r\n",
+					"Select \r\n",
+					"    EmployeeHRHierarchyID, -- surrogate key\r\n",
+					"    EmployeeID,\r\n",
+					"    ManagerEmployeeID,\r\n",
+					"    CounterSignManagerID,\r\n",
+					"    SourceSystemID,\r\n",
+					"    StartDate,\r\n",
+					"    EndDate,\r\n",
+					"    IngestionDate,\r\n",
+					"    ValidTo,\r\n",
+					"    RowID,\r\n",
+					"    IsActive\r\n",
+					"    \r\n",
+					"From employee_hr_hierarchy_dim_new\r\n",
+					"\r\n",
+					"    UNION ALL\r\n",
+					"\r\n",
+					"-- gets original versions of updated rows so we can update EndDate and set IsActive flag to 'N'\r\n",
+					"\r\n",
+					"SELECT\r\n",
+					"    EmployeeHRHierarchyID, -- surrogate key\r\n",
+					"    EmployeeID,\r\n",
+					"    ManagerEmployeeID,\r\n",
+					"    CounterSignManagerID,\r\n",
+					"    SourceSystemID,\r\n",
+					"    StartDate,\r\n",
+					"    EndDate,\r\n",
+					"    IngestionDate,\r\n",
+					"    ValidTo,\r\n",
+					"    RowID,\r\n",
+					"    IsActive\r\n",
+					"FROM odw_harmonised_db.employee_hr_hierarchy_dim\r\n",
+					"WHERE EmployeeID IN (SELECT EmployeeID FROM employee_hr_hierarchy_dim_new); "
+				],
+				"execution_count": 19
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# View personnelarea_dim_changed_rows is used in a merge (Upsert) statement into the target table\n",
+					"- **WHEN MATCHED** ON the Business Key (i.e. EmployeeID from employee_dim), EndDate is set to today -1 day and the IsActive flag is set to 'N'\n",
+					"- **WHEN NOT MATCHED** ON the business key, insert rows\n",
+					"## Table odw_harmonised_db.employee_hr_hierarchy_dim is updated"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"\r\n",
+					"-- merge into fact table\r\n",
+					"\r\n",
+					"MERGE INTO odw_harmonised_db.employee_hr_hierarchy_dim AS Target\r\n",
+					"USING employee_hr_hierarchy_dim_changed_rows AS Source\r\n",
+					"\r\n",
+					"ON Source.EmployeeHRHierarchyID = Target.EmployeeHRHierarchyID\r\n",
+					"\r\n",
+					"-- For Updates existing rows\r\n",
+					"\r\n",
+					"WHEN MATCHED\r\n",
+					"    THEN \r\n",
+					"    UPDATE SET\r\n",
+					"    Target.EndDate = date_sub(current_timestamp,1),\r\n",
+					"    Target.IsActive = 'N'\r\n",
+					"\r\n",
+					"-- Insert completely new rows\r\n",
+					"WHEN NOT MATCHED \r\n",
+					"    THEN INSERT * ;  \r\n",
+					""
+				],
+				"execution_count": 20
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Fix the IDs\n",
+					"- No auto-increment feature is available in delta tables, therefore we need to create new IDs for the inserted rows\n",
+					"- This is done by select the target data and using INSERT OVERWRITE to re-insert the data is a new Row Number\n",
+					"## Table odw_harmonised_db.employee_hr_hierarchy_dim is updated"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"-- Insert new employee_hr_hierarchy_dim\r\n",
+					"\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.employee_hr_hierarchy_dim\r\n",
+					"\r\n",
+					"SELECT \r\n",
+					"    ROW_NUMBER() OVER (ORDER BY EmployeeHRHierarchyID NULLS LAST) AS EmployeeHRHierarchyID,\r\n",
+					"    EmployeeID,\r\n",
+					"    ManagerEmployeeID,\r\n",
+					"    CounterSignManagerID,\r\n",
+					"    SourceSystemID,\r\n",
+					"    StartDate,\r\n",
+					"    EndDate,\r\n",
+					"    IngestionDate,\r\n",
+					"    ValidTo,\r\n",
+					"    RowID,\r\n",
+					"    IsActive\r\n",
+					"FROM odw_harmonised_db.employee_hr_hierarchy_dim;\r\n",
+					"\r\n",
+					"Select * FROM odw_harmonised_db.employee_hr_hierarchy_dim;\r\n",
+					""
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
