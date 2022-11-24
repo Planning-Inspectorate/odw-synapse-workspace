@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "84139833-a9b9-45de-9a18-b0616d1c40e4"
+				"spark.autotune.trackingId": "5c97873c-9c32-45f6-a531-92d31bbf5ae2"
 			}
 		},
 		"metadata": {
@@ -41,14 +41,13 @@
 				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
 				"auth": {
 					"type": "AAD",
-					"authResource": "https://dev.azuresynapse.net",
-					"authHeader": null
+					"authResource": "https://dev.azuresynapse.net"
 				},
 				"sparkVersion": "3.2",
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 28,
-				"extraHeader": null
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -90,6 +89,14 @@
 					"    \r\n",
 					"    ''' \r\n",
 					"    Type check the parameters that will be used in the ETL processing with pyspark in subsequent functions    \r\n",
+					"\r\n",
+					"    Args:\r\n",
+					"\r\n",
+					"    Returns:\r\n",
+					"\r\n",
+					"    Actions:\r\n",
+					"    \r\n",
+					"    Raises:\r\n",
 					"     '''\r\n",
 					"    \r\n",
 					"    ### imports\r\n",
@@ -206,8 +213,16 @@
 					"\r\n",
 					"    ### reading file with abfss file location format\r\n",
 					"    import pandas as pd\r\n",
-					"    df = pd.read_excel(filepath, sheet_name=sheet_name, header=header, dtype='object')\r\n",
-					"\r\n",
+					"    from notebookutils import mssparkutils\r\n",
+					"    jobId = mssparkutils.env.getJobId()\r\n",
+					"    mssparkutils.fs.unmount(\"/temp_raw\") \r\n",
+					"    mssparkutils.fs.mount( \r\n",
+					"    raw_container + raw_source_folder, \r\n",
+					"    \"/temp_raw\", \r\n",
+					"    {\"linkedService\":\"ls_storage\"} \r\n",
+					"    )   \r\n",
+					"    df = pd.read_excel(f\"/synfs/{jobId}/temp_raw/{raw_name}\", sheet_name=sheet_name, header=header, dtype='object')\r\n",
+					"    mssparkutils.fs.unmount(\"/temp_raw\") \r\n",
 					"    ### cleanse headers \r\n",
 					"    df = _cleanse_headers(df)\r\n",
 					"    \r\n",
@@ -217,7 +232,8 @@
 					"    ### writing output\r\n",
 					"    df.to_parquet(targetpath)\r\n",
 					""
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -254,7 +270,8 @@
 					"    from delta.tables import DeltaTable\r\n",
 					"    if not DeltaTable.isDeltaTable(spark,target_delta_folder):\r\n",
 					"        deltaTable = DeltaTable.convertToDelta(spark, f\"parquet.`{target_delta_folder}`\") "
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -290,7 +307,8 @@
 					"    ### make delta table available to be queried in spark sql\r\n",
 					"    spark.sql(f\"drop table if exists {db_name}.{delta_lake_table_name};\")\r\n",
 					"    spark.sql(f\"CREATE TABLE {db_name}.{delta_lake_table_name} USING DELTA LOCATION '{target_delta_folder}'\")"
-				]
+				],
+				"execution_count": null
 			}
 		]
 	}
