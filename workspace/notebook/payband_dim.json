@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5cb6d8c5-bf2c-43db-b195-0fe48bf7cd12"
+				"spark.autotune.trackingId": "bee3aa58-9db2-4990-a2c1-285ce8d96b9d"
 			}
 		},
 		"metadata": {
@@ -75,7 +75,8 @@
 				"metadata": {
 					"microsoft": {
 						"language": "sparksql"
-					}
+					},
+					"collapsed": false
 				},
 				"source": [
 					"%%sql\r\n",
@@ -91,61 +92,66 @@
 					"\r\n",
 					"SELECT \r\n",
 					"    CASE\r\n",
-					"        WHEN T1.PA IS NULL\r\n",
-					"        THEN first(T7.PersonnelAreaID)\r\n",
+					"        WHEN T1.PS_group IS NULL\r\n",
+					"        THEN first(T7.PayBandID)\r\n",
 					"        ELSE NULL\r\n",
-					"    END as PersonnelAreaID, -- surrogate key\r\n",
-					"    PA AS PersonnelAreaCode, -- source system id\r\n",
-					"    Personnel_Area AS Description, \r\n",
+					"    END as PayBandID, -- surrogate key\r\n",
+					"    PS_group AS PSGroupCode, -- source system id\r\n",
+					"    Pay_Band_Description AS Description, \r\n",
 					"    First(T2.SourceSystemID) as SourceSystemID,\r\n",
 					"    CURRENT_TIMESTAMP AS StartDate,\r\n",
 					"    NULL AS EndDate,\r\n",
 					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
 					"    NULL AS ValidTo,\r\n",
-					"    md5(concat(T1.PA, T1.Personnel_Area)) as RowID,\r\n",
+					"    md5(concat(T1.PS_group, T1.Pay_Band_Description)) as RowID,\r\n",
 					"    'Y' as IsActive,\r\n",
 					"    CASE\r\n",
-					"        WHEN T1.PA = first(T7.PersonnelAreaCode) AND md5(concat(T1.PA, T1.Personnel_Area)) <> first(T7.RowID)    -- same employee, changed data\r\n",
+					"        WHEN T1.PS_group = first(T7.PSGroupCode) AND md5(concat(T1.PS_group, T1.Pay_Band_Description)) <> first(T7.RowID)    -- same employee, changed data\r\n",
 					"        THEN 'Y'\r\n",
-					"        WHEN first(T7.PersonnelAreaCode) IS NULL -- new employee\r\n",
+					"        WHEN first(T7.PSGroupCode) IS NULL -- new employee\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
 					"    END as NewData,\r\n",
 					"    CASE\r\n",
-					"        WHEN T1.PA IS NULL\r\n",
+					"        WHEN T1.PS_group IS NULL\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
 					"    END AS  DeletedData\r\n",
 					"\r\n",
+					"\r\n",
 					"FROM odw_standardised_db.saphr T1\r\n",
 					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description\r\n",
-					"FULL JOIN odw_harmonised_db.payband_dim T7 ON T1.PA = T7.PersonnelAreaCode\r\n",
+					"FULL JOIN odw_harmonised_db.payband_dim T7 ON T1.PS_group = T7.PSGroupCode\r\n",
 					"WHERE  (T7.IsActive = 'Y' or T7.IsActive IS NULL)\r\n",
 					"    \r\n",
 					"        AND (\r\n",
 					"        \r\n",
 					"        -- flags new data        \r\n",
 					"        ( CASE\r\n",
-					"            WHEN T1.PA = T7.PersonnelAreaCode AND md5(concat(T1.PA, T1.Personnel_Area)) <> T7.RowID    -- same employee, changed data\r\n",
+					"            WHEN T1.PS_group = T7.PSGroupCode AND md5(concat(T1.PS_group, T1.Pay_Band_Description)) <> T7.RowID    -- same employee, changed data\r\n",
 					"            THEN 'Y'\r\n",
-					"            WHEN T7.PersonnelAreaCode IS NULL -- new employee\r\n",
+					"            WHEN T7.PSGroupCode IS NULL -- new employee\r\n",
 					"            THEN 'Y'\r\n",
 					"            ELSE 'N'\r\n",
 					"        END  = 'Y' ) OR\r\n",
 					"        \r\n",
 					"        -- flags deleted data\r\n",
 					"        ( CASE\r\n",
-					"            WHEN T1.PA IS NULL\r\n",
+					"            WHEN T1.PS_group IS NULL\r\n",
 					"            THEN 'Y'\r\n",
 					"            ELSE 'N'\r\n",
 					"        END = 'Y' )\r\n",
 					")\r\n",
-					"GROUP BY T1.PA, T1.Personnel_Area\r\n",
+					"    AND\r\n",
+					"\r\n",
+					"        T1.PS_group IS NOT NULL\r\n",
+					"\r\n",
+					"GROUP BY T1.PS_group, T1.Pay_Band_Description\r\n",
 					"\r\n",
 					";\r\n",
 					""
 				],
-				"execution_count": 1
+				"execution_count": 23
 			},
 			{
 				"cell_type": "markdown",
@@ -189,8 +195,8 @@
 					"    AS\r\n",
 					"\r\n",
 					"SELECT \r\n",
-					"    PersonnelAreaID,\r\n",
-					"    PersonnelAreaCode,\r\n",
+					"    PayBandID,\r\n",
+					"    PSGroupCode,\r\n",
 					"    Description, \r\n",
 					"    SourceSystemID,\r\n",
 					"    StartDate,\r\n",
@@ -204,8 +210,8 @@
 					"    UNION ALL\r\n",
 					"\r\n",
 					"SELECT\r\n",
-					"    PersonnelAreaID,\r\n",
-					"    PersonnelAreaCode,\r\n",
+					"    PayBandID,\r\n",
+					"    PSGroupCode,\r\n",
 					"    Description,\r\n",
 					"    SourceSystemID,\r\n",
 					"    StartDate,\r\n",
@@ -215,10 +221,10 @@
 					"    RowID,\r\n",
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.payband_dim\r\n",
-					"WHERE PersonnelAreaCode IN (SELECT PersonnelAreaCode FROM payband_dim_new); \r\n",
+					"WHERE PSGroupCode IN (SELECT PSGroupCode FROM payband_dim_new); \r\n",
 					""
 				],
-				"execution_count": 2
+				"execution_count": 24
 			},
 			{
 				"cell_type": "markdown",
@@ -250,17 +256,17 @@
 					},
 					"microsoft": {
 						"language": "sparksql"
-					}
+					},
+					"collapsed": false
 				},
 				"source": [
 					"%%sql\r\n",
-					"\r\n",
 					"-- merge into fact table\r\n",
 					"\r\n",
 					"MERGE INTO odw_harmonised_db.payband_dim AS Target\r\n",
 					"USING payband_dim_changed_rows AS Source\r\n",
 					"\r\n",
-					"ON Source.PersonnelAreaID = Target.PersonnelAreaID\r\n",
+					"ON Source.PayBandID = Target.PayBandID\r\n",
 					"\r\n",
 					"-- For Updates existing rows\r\n",
 					"\r\n",
@@ -275,64 +281,7 @@
 					"    THEN INSERT * ;  \r\n",
 					""
 				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"# Fix the IDs\n",
-					"- No auto-increment feature is available in delta tables, therefore we need to create new IDs for the inserted rows\n",
-					"- This is done by select the target data and using INSERT OVERWRITE to re-insert the data is a new Row Number\n",
-					"## Table odw_harmonised.payband_dim is updated"
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"microsoft": {
-						"language": "sparksql"
-					}
-				},
-				"source": [
-					"%%sql\r\n",
-					"\r\n",
-					"-- merge into fact table\r\n",
-					"\r\n",
-					"MERGE INTO odw_harmonised_db.payband_dim AS Target\r\n",
-					"USING payband_dim_changed_rows AS Source\r\n",
-					"\r\n",
-					"ON Source.PersonnelAreaID = Target.PersonnelAreaID\r\n",
-					"\r\n",
-					"-- For Updates existing rows\r\n",
-					"\r\n",
-					"WHEN MATCHED\r\n",
-					"    THEN \r\n",
-					"    UPDATE SET\r\n",
-					"    Target.EndDate = date_sub(current_timestamp,1),\r\n",
-					"    Target.IsActive = 'N'\r\n",
-					"\r\n",
-					"-- Insert completely new rows\r\n",
-					"WHEN NOT MATCHED \r\n",
-					"    THEN INSERT * ;  \r\n",
-					""
-				],
-				"execution_count": 3
+				"execution_count": 25
 			},
 			{
 				"cell_type": "markdown",
@@ -374,8 +323,8 @@
 					"INSERT OVERWRITE odw_harmonised_db.payband_dim\r\n",
 					"\r\n",
 					"SELECT \r\n",
-					"    ROW_NUMBER() OVER (ORDER BY PersonnelAreaID NULLS LAST) AS PersonnelAreaID,\r\n",
-					"    PersonnelAreaCode,\r\n",
+					"    ROW_NUMBER() OVER (ORDER BY PayBandID NULLS LAST) AS PayBandID,\r\n",
+					"    PSGroupCode,\r\n",
 					"    Description, \r\n",
 					"    SourceSystemID,\r\n",
 					"    StartDate,\r\n",
@@ -389,7 +338,7 @@
 					"Select * FROM odw_harmonised_db.payband_dim;\r\n",
 					""
 				],
-				"execution_count": 4
+				"execution_count": 26
 			}
 		]
 	}

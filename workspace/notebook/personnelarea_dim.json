@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d66e1713-f6ad-4ce2-baa9-5186c6a05197"
+				"spark.autotune.trackingId": "764f8780-6199-44fe-8d14-98d7fa7f7a05"
 			}
 		},
 		"metadata": {
@@ -140,6 +140,12 @@
 					"            ELSE 'N'\r\n",
 					"        END = 'Y' )\r\n",
 					")\r\n",
+					"\r\n",
+					"    AND\r\n",
+					"\r\n",
+					"        T1.PA IS NOT NULL\r\n",
+					"\r\n",
+					"\r\n",
 					"GROUP BY T1.PA, T1.Personnel_Area\r\n",
 					"\r\n",
 					";\r\n",
@@ -276,63 +282,6 @@
 					""
 				],
 				"execution_count": null
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"# Fix the IDs\n",
-					"- No auto-increment feature is available in delta tables, therefore we need to create new IDs for the inserted rows\n",
-					"- This is done by select the target data and using INSERT OVERWRITE to re-insert the data is a new Row Number\n",
-					"## Table odw_harmonised.personnelarea_dim is updated"
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"microsoft": {
-						"language": "sparksql"
-					}
-				},
-				"source": [
-					"%%sql\r\n",
-					"\r\n",
-					"-- merge into fact table\r\n",
-					"\r\n",
-					"MERGE INTO odw_harmonised_db.personnelarea_dim AS Target\r\n",
-					"USING personnelarea_dim_changed_rows AS Source\r\n",
-					"\r\n",
-					"ON Source.PersonnelAreaID = Target.PersonnelAreaID\r\n",
-					"\r\n",
-					"-- For Updates existing rows\r\n",
-					"\r\n",
-					"WHEN MATCHED\r\n",
-					"    THEN \r\n",
-					"    UPDATE SET\r\n",
-					"    Target.EndDate = date_sub(current_timestamp,1),\r\n",
-					"    Target.IsActive = 'N'\r\n",
-					"\r\n",
-					"-- Insert completely new rows\r\n",
-					"WHEN NOT MATCHED \r\n",
-					"    THEN INSERT * ;  \r\n",
-					""
-				],
-				"execution_count": 3
 			},
 			{
 				"cell_type": "markdown",
