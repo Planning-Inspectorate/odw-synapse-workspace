@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "bee3aa58-9db2-4990-a2c1-285ce8d96b9d"
+				"spark.autotune.trackingId": "b0f68c99-046a-4f1e-a47c-07705806369e"
 			}
 		},
 		"metadata": {
@@ -103,10 +103,10 @@
 					"    NULL AS EndDate,\r\n",
 					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
 					"    NULL AS ValidTo,\r\n",
-					"    md5(concat(T1.PS_group, T1.Pay_Band_Description)) as RowID,\r\n",
+					"    md5(concat(IFNULL(T1.PS_group,'.'), IFNULL(T1.Pay_Band_Description,'.'))) as RowID,\r\n",
 					"    'Y' as IsActive,\r\n",
 					"    CASE\r\n",
-					"        WHEN T1.PS_group = first(T7.PSGroupCode) AND md5(concat(T1.PS_group, T1.Pay_Band_Description)) <> first(T7.RowID)    -- same employee, changed data\r\n",
+					"        WHEN T1.PS_group = first(T7.PSGroupCode) AND md5(concat(IFNULL(T1.PS_group,'.'), IFNULL(T1.Pay_Band_Description,'.')))  <> first(T7.RowID)    -- same employee, changed data\r\n",
 					"        THEN 'Y'\r\n",
 					"        WHEN first(T7.PSGroupCode) IS NULL -- new employee\r\n",
 					"        THEN 'Y'\r\n",
@@ -119,7 +119,7 @@
 					"    END AS  DeletedData\r\n",
 					"\r\n",
 					"\r\n",
-					"FROM odw_standardised_db.saphr T1\r\n",
+					"FROM odw_standardised_db.vw_saphr T1\r\n",
 					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description\r\n",
 					"FULL JOIN odw_harmonised_db.payband_dim T7 ON T1.PS_group = T7.PSGroupCode\r\n",
 					"WHERE  (T7.IsActive = 'Y' or T7.IsActive IS NULL)\r\n",
@@ -128,7 +128,7 @@
 					"        \r\n",
 					"        -- flags new data        \r\n",
 					"        ( CASE\r\n",
-					"            WHEN T1.PS_group = T7.PSGroupCode AND md5(concat(T1.PS_group, T1.Pay_Band_Description)) <> T7.RowID    -- same employee, changed data\r\n",
+					"            WHEN T1.PS_group = T7.PSGroupCode AND md5(concat(IFNULL(T1.PS_group,'.'), IFNULL(T1.Pay_Band_Description,'.')))  <> T7.RowID    -- same employee, changed data\r\n",
 					"            THEN 'Y'\r\n",
 					"            WHEN T7.PSGroupCode IS NULL -- new employee\r\n",
 					"            THEN 'Y'\r\n",
@@ -151,7 +151,7 @@
 					";\r\n",
 					""
 				],
-				"execution_count": 23
+				"execution_count": 6
 			},
 			{
 				"cell_type": "markdown",
@@ -224,7 +224,7 @@
 					"WHERE PSGroupCode IN (SELECT PSGroupCode FROM payband_dim_new); \r\n",
 					""
 				],
-				"execution_count": 24
+				"execution_count": 7
 			},
 			{
 				"cell_type": "markdown",
@@ -281,7 +281,7 @@
 					"    THEN INSERT * ;  \r\n",
 					""
 				],
-				"execution_count": 25
+				"execution_count": 8
 			},
 			{
 				"cell_type": "markdown",
@@ -334,11 +334,9 @@
 					"    RowID,\r\n",
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.payband_dim;\r\n",
-					"\r\n",
-					"Select * FROM odw_harmonised_db.payband_dim;\r\n",
 					""
 				],
-				"execution_count": 26
+				"execution_count": 9
 			}
 		]
 	}

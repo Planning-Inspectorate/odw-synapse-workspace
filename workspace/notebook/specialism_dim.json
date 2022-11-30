@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "03448070-4b05-4483-ae85-b48e52c5b14e"
+				"spark.autotune.trackingId": "f35940c2-5024-4cb7-8c8b-d4aec4561513"
 			}
 		},
 		"metadata": {
@@ -96,7 +96,7 @@
 					"        THEN first(T7.SpecialismID)\r\n",
 					"        ELSE NULL\r\n",
 					"    END as SpecialismID, -- surrogate key\r\n",
-					"    T1.Staff_Number AS EmployeeID,\r\n",
+					"    FIRST(T3.EmployeeID) AS EmployeeID,\r\n",
 					"    T1.Qualification_Name as Qualification,\r\n",
 					"    T1.Proficien AS Proficiency,\r\n",
 					"    first(T2.SourceSystemID) as SourceSystemID,\r\n",
@@ -104,23 +104,24 @@
 					"    NULL AS EndDate,\r\n",
 					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
 					"    NULL AS ValidTo,\r\n",
-					"    md5(concat(IFNULL(T1.Staff_Number,'.'), IFNULL(T1.Qualification_Name,'.'), IFNULL(T1.Proficien,'.'))) as RowID,\r\n",
+					"    md5(concat(IFNULL(FIRST(T3.EmployeeID),'.'), IFNULL(T1.Qualification_Name,'.'), IFNULL(T1.Proficien,'.'))) as RowID,\r\n",
 					"    'Y' as IsActive,\r\n",
 					"    CASE\r\n",
-					"        WHEN T1.Staff_Number = first(T7.EmployeeID) AND  md5(concat(IFNULL(T1.Staff_Number,'.'), IFNULL(T1.Qualification_Name,'.'), IFNULL(T1.Proficien,'.'))) <> first(T7.RowID)    -- same employee, changed data\r\n",
+					"        WHEN FIRST(T3.EmployeeID) = first(T7.EmployeeID) AND  md5(concat(IFNULL(FIRST(T3.EmployeeID),'.'), IFNULL(T1.Qualification_Name,'.'), IFNULL(T1.Proficien,'.'))) <> first(T7.RowID)    -- same employee, changed data\r\n",
 					"        THEN 'Y'\r\n",
 					"        WHEN first(T7.EmployeeID) IS NULL -- new employee\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
 					"    END as NewData,\r\n",
 					"    CASE\r\n",
-					"        WHEN T1.Staff_Number IS NULL\r\n",
+					"        WHEN FIRST(T3.EmployeeID) IS NULL\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
 					"    END AS  DeletedData\r\n",
 					"\r\n",
-					"FROM odw_standardised_db.specialisms T1\r\n",
+					"FROM odw_standardised_db.vw_specialisms T1\r\n",
 					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description\r\n",
+					"LEFT JOIN odw_harmonised_db.employee_dim T3 ON T1.Staff_Number = T3.EmployeeNumber\r\n",
 					"FULL JOIN odw_harmonised_db.specialism_dim T7 ON T1.Staff_Number = T7.EmployeeID\r\n",
 					"WHERE  (T7.IsActive = 'Y' or T7.IsActive IS NULL)\r\n",
 					"    \r\n",
@@ -128,7 +129,7 @@
 					"        \r\n",
 					"        -- flags new data        \r\n",
 					"        ( CASE\r\n",
-					"            WHEN T1.Staff_Number = T7.EmployeeID AND  md5(concat(IFNULL(T1.Staff_Number,'.'), IFNULL(T1.Qualification_Name,'.'), IFNULL(T1.Proficien,'.'))) <> T7.RowID    -- same employee, changed data\r\n",
+					"            WHEN T3.EmployeeID = T7.EmployeeID AND  md5(concat(IFNULL(T3.EmployeeID,'.'), IFNULL(T1.Qualification_Name,'.'), IFNULL(T1.Proficien,'.'))) <> T7.RowID    -- same employee, changed data\r\n",
 					"            THEN 'Y'\r\n",
 					"            WHEN T7.EmployeeID IS NULL -- new employee\r\n",
 					"            THEN 'Y'\r\n",
@@ -137,7 +138,7 @@
 					"        \r\n",
 					"        -- flags deleted data\r\n",
 					"        ( CASE\r\n",
-					"            WHEN T1.Staff_Number IS NULL\r\n",
+					"            WHEN T3.EmployeeID IS NULL\r\n",
 					"            THEN 'Y'\r\n",
 					"            ELSE 'N'\r\n",
 					"        END = 'Y' )\r\n",
@@ -151,7 +152,7 @@
 					";\r\n",
 					""
 				],
-				"execution_count": 27
+				"execution_count": 8
 			},
 			{
 				"cell_type": "markdown",
@@ -227,7 +228,7 @@
 					"FROM odw_harmonised_db.specialism_dim\r\n",
 					"WHERE SpecialismID IN (SELECT SpecialismID FROM specialism_dim_new); "
 				],
-				"execution_count": 28
+				"execution_count": 9
 			},
 			{
 				"cell_type": "markdown",
@@ -285,7 +286,7 @@
 					"    THEN INSERT * ;  \r\n",
 					""
 				],
-				"execution_count": 29
+				"execution_count": 10
 			},
 			{
 				"cell_type": "markdown",
@@ -343,7 +344,7 @@
 					"Select * FROM odw_harmonised_db.specialism_dim;\r\n",
 					""
 				],
-				"execution_count": 30
+				"execution_count": 11
 			}
 		]
 	}

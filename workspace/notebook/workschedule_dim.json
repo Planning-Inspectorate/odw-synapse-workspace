@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "bbff43ff-f4be-49b5-a4bc-8b1e077b40cd"
+				"spark.autotune.trackingId": "1c9479b9-7130-4247-b2d2-d0716e938894"
 			}
 		},
 		"metadata": {
@@ -105,10 +105,14 @@
 					"    NULL AS EndDate,\r\n",
 					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
 					"    NULL AS ValidTo,\r\n",
-					"    md5(concat(T1.Work_Schedule_Rule, T1.WkDys)) as RowID,\r\n",
+					"    md5(concat(IFNULL(T1.Work_Schedule_Rule,'.'), IFNULL(T1.WkDys,'.'),IFNULL(T1.Wk_hrs,'.'),IFNULL(T1.Hrs_Day,'.'))) as RowID,\r\n",
 					"    'Y' as IsActive,\r\n",
 					"    CASE\r\n",
-					"        WHEN T1.Work_Schedule_Rule = first(T7.WorkScheduleRule) AND md5(concat(T1.Work_Schedule_Rule, T1.WkDys)) <> first(T7.RowID)    -- same employee, changed data\r\n",
+					"        WHEN T1.Work_Schedule_Rule = FIRST(T7.WorkScheduleRule) AND\r\n",
+					"            T1.WkDys = FIRST(T7.WorkWeekDays) AND\r\n",
+					"            T1.Wk_hrs = FIRST(T7.WorkWeekHours) AND\r\n",
+					"            T1.Hrs_Day = FIRST(T7.WorkDayHours) AND\r\n",
+					"            md5(concat(IFNULL(T1.Work_Schedule_Rule,'.'), IFNULL(T1.WkDys,'.'),IFNULL(T1.Wk_hrs,'.'),IFNULL(T1.Hrs_Day,'.'))) <> first(T7.RowID)    -- same employee, changed data\r\n",
 					"        THEN 'Y'\r\n",
 					"        WHEN first(T7.WorkScheduleRule) IS NULL -- new work schedule\r\n",
 					"        THEN 'Y'\r\n",
@@ -121,21 +125,28 @@
 					"    END AS  DeletedData\r\n",
 					"\r\n",
 					"\r\n",
-					"FROM odw_standardised_db.absences T1\r\n",
+					"FROM odw_standardised_db.vw_absences T1\r\n",
 					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description\r\n",
-					"FULL JOIN odw_harmonised_db.workschedule_dim T7 ON T1.Work_Schedule_Rule = T7.WorkScheduleRule\r\n",
+					"FULL JOIN odw_harmonised_db.workschedule_dim T7 ON T1.Work_Schedule_Rule = T7.WorkScheduleRule AND\r\n",
+					"                                                    T1.WkDys = T7.WorkWeekDays AND\r\n",
+					"                                                    T1.Wk_hrs = T7.WorkWeekHours AND\r\n",
+					"                                                    T1.Hrs_Day = T7.WorkDayHours\r\n",
 					"WHERE  (T7.IsActive = 'Y' or T7.IsActive IS NULL)\r\n",
 					"    \r\n",
 					"        AND (\r\n",
 					"        \r\n",
 					"        -- flags new data        \r\n",
 					"        ( CASE\r\n",
-					"            WHEN T1.Work_Schedule_Rule = T7.WorkScheduleRule AND md5(concat(T1.Work_Schedule_Rule, T1.WkDys)) <> T7.RowID    -- same employee, changed data\r\n",
-					"            THEN 'Y'\r\n",
-					"            WHEN T7.WorkScheduleRule IS NULL -- new employee\r\n",
-					"            THEN 'Y'\r\n",
-					"            ELSE 'N'\r\n",
-					"        END  = 'Y' ) OR\r\n",
+					"                WHEN T1.Work_Schedule_Rule = T7.WorkScheduleRule AND\r\n",
+					"                    T1.WkDys = T7.WorkWeekDays AND\r\n",
+					"                    T1.Wk_hrs = T7.WorkWeekHours AND\r\n",
+					"                    T1.Hrs_Day = T7.WorkDayHours AND\r\n",
+					"                    md5(concat(IFNULL(T1.Work_Schedule_Rule,'.'), IFNULL(T1.WkDys,'.'),IFNULL(T1.Wk_hrs,'.'),IFNULL(T1.Hrs_Day,'.'))) <> T7.RowID   -- same employee, changed data\r\n",
+					"                THEN 'Y'\r\n",
+					"                WHEN T7.WorkScheduleRule IS NULL -- new work schedule\r\n",
+					"                THEN 'Y'\r\n",
+					"                ELSE 'N'\r\n",
+					"            END  = 'Y' ) OR\r\n",
 					"        \r\n",
 					"        -- flags deleted data\r\n",
 					"        ( CASE\r\n",
@@ -150,10 +161,9 @@
 					"\r\n",
 					"GROUP BY T1.Work_Schedule_Rule, T1.WkDys, T1.Wk_hrs, T1.Hrs_Day\r\n",
 					"\r\n",
-					";\r\n",
-					""
+					";"
 				],
-				"execution_count": 9
+				"execution_count": 12
 			},
 			{
 				"cell_type": "markdown",
@@ -230,7 +240,7 @@
 					"WHERE WorkScheduleRule IN (SELECT WorkScheduleRule FROM workschedule_dim_new); \r\n",
 					""
 				],
-				"execution_count": 10
+				"execution_count": 13
 			},
 			{
 				"cell_type": "markdown",
@@ -287,7 +297,7 @@
 					"    THEN INSERT * ;  \r\n",
 					""
 				],
-				"execution_count": 11
+				"execution_count": 10
 			},
 			{
 				"cell_type": "markdown",
@@ -346,7 +356,7 @@
 					"Select * FROM odw_harmonised_db.workschedule_dim;\r\n",
 					""
 				],
-				"execution_count": 12
+				"execution_count": 11
 			}
 		]
 	}

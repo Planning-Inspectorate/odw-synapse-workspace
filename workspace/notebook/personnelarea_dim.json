@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "764f8780-6199-44fe-8d14-98d7fa7f7a05"
+				"spark.autotune.trackingId": "36f48da9-2200-4751-ab10-3a7538c4bf54"
 			}
 		},
 		"metadata": {
@@ -75,7 +75,8 @@
 				"metadata": {
 					"microsoft": {
 						"language": "sparksql"
-					}
+					},
+					"collapsed": false
 				},
 				"source": [
 					"%%sql\r\n",
@@ -102,10 +103,10 @@
 					"    NULL AS EndDate,\r\n",
 					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
 					"    NULL AS ValidTo,\r\n",
-					"    md5(concat(T1.PA, T1.Personnel_Area)) as RowID,\r\n",
+					"    md5(concat(IFNULL(T1.PA, '.'), IFNULL(T1.Personnel_Area,'.'))) as RowID,\r\n",
 					"    'Y' as IsActive,\r\n",
 					"    CASE\r\n",
-					"        WHEN T1.PA = first(T7.PersonnelAreaCode) AND md5(concat(T1.PA, T1.Personnel_Area)) <> first(T7.RowID)    -- same employee, changed data\r\n",
+					"        WHEN T1.PA = first(T7.PersonnelAreaCode) AND  md5(concat(IFNULL(T1.PA, '.'), IFNULL(T1.Personnel_Area,'.'))) <> first(T7.RowID)    -- same employee, changed data\r\n",
 					"        THEN 'Y'\r\n",
 					"        WHEN first(T7.PersonnelAreaCode) IS NULL -- new employee\r\n",
 					"        THEN 'Y'\r\n",
@@ -117,7 +118,7 @@
 					"        ELSE 'N'\r\n",
 					"    END AS  DeletedData\r\n",
 					"\r\n",
-					"FROM odw_standardised_db.saphr T1\r\n",
+					"FROM odw_standardised_db.vw_saphr T1\r\n",
 					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description\r\n",
 					"FULL JOIN odw_harmonised_db.personnelarea_dim T7 ON T1.PA = T7.PersonnelAreaCode\r\n",
 					"WHERE  (T7.IsActive = 'Y' or T7.IsActive IS NULL)\r\n",
@@ -126,7 +127,7 @@
 					"        \r\n",
 					"        -- flags new data        \r\n",
 					"        ( CASE\r\n",
-					"            WHEN T1.PA = T7.PersonnelAreaCode AND md5(concat(T1.PA, T1.Personnel_Area)) <> T7.RowID    -- same employee, changed data\r\n",
+					"            WHEN T1.PA = T7.PersonnelAreaCode AND md5(concat(IFNULL(T1.PA, '.'), IFNULL(T1.Personnel_Area,'.'))) <> T7.RowID    -- same employee, changed data\r\n",
 					"            THEN 'Y'\r\n",
 					"            WHEN T7.PersonnelAreaCode IS NULL -- new employee\r\n",
 					"            THEN 'Y'\r\n",
@@ -151,7 +152,7 @@
 					";\r\n",
 					""
 				],
-				"execution_count": 1
+				"execution_count": 2
 			},
 			{
 				"cell_type": "markdown",
@@ -224,7 +225,7 @@
 					"WHERE PersonnelAreaCode IN (SELECT PersonnelAreaCode FROM personnelarea_dim_new); \r\n",
 					""
 				],
-				"execution_count": 2
+				"execution_count": 3
 			},
 			{
 				"cell_type": "markdown",
@@ -256,7 +257,8 @@
 					},
 					"microsoft": {
 						"language": "sparksql"
-					}
+					},
+					"collapsed": false
 				},
 				"source": [
 					"%%sql\r\n",
@@ -281,7 +283,7 @@
 					"    THEN INSERT * ;  \r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 4
 			},
 			{
 				"cell_type": "markdown",
@@ -335,10 +337,9 @@
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.personnelarea_dim;\r\n",
 					"\r\n",
-					"Select * FROM odw_harmonised_db.personnelarea_dim;\r\n",
 					""
 				],
-				"execution_count": 4
+				"execution_count": 5
 			}
 		]
 	}

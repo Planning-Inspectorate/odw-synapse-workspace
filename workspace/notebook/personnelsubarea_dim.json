@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "0e35ab2f-c77a-45ea-b497-2d77c6b57840"
+				"spark.autotune.trackingId": "f66c481a-7e65-4011-a55f-7cb160231663"
 			}
 		},
 		"metadata": {
@@ -103,10 +103,10 @@
 					"    NULL AS EndDate,\r\n",
 					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
 					"    NULL AS ValidTo,\r\n",
-					"    md5(concat(T1.PSubarea, T1.Personnel_Subarea)) as RowID,\r\n",
+					"    md5(concat(IFNULL(T1.PSubarea,'.'), IFNULL(T1.Personnel_Subarea,'.'))) as RowID,\r\n",
 					"    'Y' as IsActive,\r\n",
 					"    CASE\r\n",
-					"        WHEN T1.PSubarea = first(T7.PersonnelSubAreaCode) AND md5(concat(T1.PSubarea, T1.Personnel_Subarea)) <> first(T7.RowID)    -- same employee, changed data\r\n",
+					"        WHEN T1.PSubarea = first(T7.PersonnelSubAreaCode) AND md5(concat(IFNULL(T1.PSubarea,'.'), IFNULL(T1.Personnel_Subarea,'.'))) <> first(T7.RowID)    -- same employee, changed data\r\n",
 					"        THEN 'Y'\r\n",
 					"        WHEN first(T7.PersonnelSubAreaCode) IS NULL -- new employee\r\n",
 					"        THEN 'Y'\r\n",
@@ -118,7 +118,7 @@
 					"        ELSE 'N'\r\n",
 					"    END AS  DeletedData\r\n",
 					"\r\n",
-					"FROM odw_standardised_db.saphr T1\r\n",
+					"FROM odw_standardised_db.vw_saphr T1\r\n",
 					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description\r\n",
 					"FULL JOIN odw_harmonised_db.personnelsubarea_dim T7 ON T1.PSubarea = T7.PersonnelSubAreaCode\r\n",
 					"WHERE  (T7.IsActive = 'Y' or T7.IsActive IS NULL)\r\n",
@@ -127,7 +127,7 @@
 					"        \r\n",
 					"        -- flags new data        \r\n",
 					"        ( CASE\r\n",
-					"            WHEN T1.PSubarea = T7.PersonnelSubAreaCode AND md5(concat(T1.PSubarea, T1.Personnel_Subarea)) <> T7.RowID    -- same employee, changed data\r\n",
+					"            WHEN T1.PSubarea = T7.PersonnelSubAreaCode AND md5(concat(IFNULL(T1.PSubarea,'.'), IFNULL(T1.Personnel_Subarea,'.'))) <> T7.RowID    -- same employee, changed data\r\n",
 					"            THEN 'Y'\r\n",
 					"            WHEN T7.PersonnelSubAreaCode IS NULL -- new employee\r\n",
 					"            THEN 'Y'\r\n",
@@ -152,7 +152,7 @@
 					";\r\n",
 					""
 				],
-				"execution_count": 6
+				"execution_count": 4
 			},
 			{
 				"cell_type": "markdown",
@@ -225,7 +225,7 @@
 					"WHERE PersonnelSubAreaCode IN (SELECT PersonnelSubAreaCode FROM personnelsubarea_dim_new); \r\n",
 					""
 				],
-				"execution_count": 7
+				"execution_count": 5
 			},
 			{
 				"cell_type": "markdown",
@@ -283,7 +283,7 @@
 					"    THEN INSERT * ;  \r\n",
 					""
 				],
-				"execution_count": 8
+				"execution_count": 6
 			},
 			{
 				"cell_type": "markdown",
@@ -340,7 +340,7 @@
 					"Select * FROM odw_harmonised_db.personnelsubarea_dim;\r\n",
 					""
 				],
-				"execution_count": 9
+				"execution_count": 7
 			}
 		]
 	}
