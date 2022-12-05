@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "598f3898-3aca-4d3d-a0ec-fba5075d1897"
+				"spark.autotune.trackingId": "dfa56165-ea06-49a1-abfb-7b2f72a7401e"
 			}
 		},
 		"metadata": {
@@ -95,7 +95,11 @@
 					"    END as ContractID, \r\n",
 					"    T1.WorkC as ContractCode,\r\n",
 					"    First(T1.Work_Contract) as Description,\r\n",
-					"    T1.CT as ContractTypeCode,\r\n",
+					"    CASE \r\n",
+					"        WHEN T1.CT IS NULL\r\n",
+					"        THEN 'N/A'\r\n",
+					"        ELSE T1.CT\r\n",
+					"    END as ContractTypeCode,\r\n",
 					"    First(T1.Contract_Type) as ContractType,\r\n",
 					"    first(T2.SourceSystemID) as SourceSystemID,\r\n",
 					"    CURRENT_TIMESTAMP AS StartDate,\r\n",
@@ -121,7 +125,11 @@
 					"FROM odw_standardised_db.vw_saphr T1\r\n",
 					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description\r\n",
 					"FULL JOIN odw_harmonised_db.contract_dim T7 ON T1.WorkC = T7.ContractCode AND\r\n",
-					"                                                T1.CT = T7.ContractTypeCode        \r\n",
+					"                                                CASE \r\n",
+					"                                                    WHEN T1.CT IS NULL\r\n",
+					"                                                    THEN 'N/A'\r\n",
+					"                                                    ELSE T1.CT\r\n",
+					"                                                END = T7.ContractTypeCode        \r\n",
 					"WHERE  (T7.IsActive = 'Y' or T7.IsActive IS NULL)\r\n",
 					"    \r\n",
 					"        AND (\r\n",
@@ -146,7 +154,7 @@
 					"GROUP BY T1.WorkC, T1.CT\r\n",
 					";"
 				],
-				"execution_count": 23
+				"execution_count": 34
 			},
 			{
 				"cell_type": "markdown",
@@ -206,23 +214,46 @@
 					"    UNION ALL\r\n",
 					"\r\n",
 					"SELECT\r\n",
-					"    ContractID,\r\n",
-					"    ContractCode,\r\n",
-					"    Description,\r\n",
-					"    ContractTypeCode,\r\n",
-					"    ContractType,\r\n",
-					"    SourceSystemID,\r\n",
-					"    StartDate,\r\n",
-					"    EndDate,\r\n",
-					"    IngestionDate,\r\n",
-					"    ValidTo,\r\n",
-					"    RowID,\r\n",
-					"    IsActive\r\n",
-					"FROM odw_harmonised_db.contract_dim\r\n",
-					"WHERE ContractCode IN (SELECT ContractCode FROM contract_dim_new); \r\n",
+					"    T1.ContractID,\r\n",
+					"    T1.ContractCode,\r\n",
+					"    T1.Description,\r\n",
+					"    T1.ContractTypeCode,\r\n",
+					"    T1.ContractType,\r\n",
+					"    T1.SourceSystemID,\r\n",
+					"    T1.StartDate,\r\n",
+					"    T1.EndDate,\r\n",
+					"    T1.IngestionDate,\r\n",
+					"    T1.ValidTo,\r\n",
+					"    T1.RowID,\r\n",
+					"    T1.IsActive\r\n",
+					"FROM odw_harmonised_db.contract_dim T1\r\n",
+					"INNER JOIN contract_dim_new T2 ON T1.ContractCode = T2.ContractCode AND T1.ContractTypeCode = T2.ContractTypeCode; \r\n",
 					""
 				],
-				"execution_count": 24
+				"execution_count": 35
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"select * from contract_dim_changed_rows"
+				],
+				"execution_count": 36
 			},
 			{
 				"cell_type": "markdown",
@@ -280,7 +311,7 @@
 					"    THEN INSERT * ;  \r\n",
 					""
 				],
-				"execution_count": 25
+				"execution_count": 31
 			},
 			{
 				"cell_type": "markdown",
@@ -338,7 +369,7 @@
 					"FROM odw_harmonised_db.contract_dim;\r\n",
 					""
 				],
-				"execution_count": 26
+				"execution_count": 32
 			},
 			{
 				"cell_type": "code",
@@ -362,7 +393,7 @@
 					"SELECT *\n",
 					"from odw_harmonised_db.contract_dim;"
 				],
-				"execution_count": 28
+				"execution_count": 33
 			}
 		]
 	}

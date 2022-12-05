@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "10bb6fad-dd02-40e5-99ac-1fa6a04a65d6"
+				"spark.autotune.trackingId": "97f61936-f5d0-4896-8071-cd37b758f942"
 			}
 		},
 		"metadata": {
@@ -73,6 +73,24 @@
 			{
 				"cell_type": "code",
 				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## NEED TO POPULATE THE HISTORIC DATA ##"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
 					"microsoft": {
 						"language": "sparksql"
 					},
@@ -102,11 +120,13 @@
 					"    NULL AS EndDate,\r\n",
 					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
 					"    NULL AS ValidTo,\r\n",
-					"    md5(concat(IFNULL(T1.Reason_For_Action,'.'),IFNULL(T1.Org_Start_Date,'.'),IFNULL(T1.Leaving,'.'))) as RowID,\r\n",
+					"    md5(concat(IFNULL(T1.Reason_For_Action,'.'),IFNULL(T1.Org_Start_Date,'.'), IFNULL(T1.Leaving,'.'))) as RowID,\r\n",
 					"    'Y' as IsActive,\r\n",
 					"    CASE\r\n",
-					"        WHEN T3.EmployeeID = T7.EmployeeID AND T1.Org_Start_Date = T7.EmploymentStartDate\r\n",
-					"            AND md5(concat(IFNULL(T1.Reason_For_Action,'.'),IFNULL(T1.Org_Start_Date,'.'),IFNULL(T1.Leaving,'.'))) <> T7.RowID  -- same employee, changed data\r\n",
+					"        WHEN T3.EmployeeID = T7.EmployeeID AND \r\n",
+					"             T1.Org_Start_Date = T7.EmploymentStartDate AND\r\n",
+					"             T1.Leaving = T7.EmploymentEndDate AND\r\n",
+					"             md5(concat(IFNULL(T1.Reason_For_Action,'.'),IFNULL(T1.Org_Start_Date,'.'),IFNULL(T1.Leaving,'.'))) <> T7.RowID  -- same employee, changed data\r\n",
 					"        THEN 'Y'\r\n",
 					"        WHEN T7.EmployeeID  IS NULL -- new employee\r\n",
 					"        THEN 'Y'\r\n",
@@ -122,7 +142,8 @@
 					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description\r\n",
 					"LEFT JOIN odw_harmonised_db.employee_dim T3 ON T1.Pers_No = T3.EmployeeNumber\r\n",
 					"FULL JOIN odw_harmonised_db.EmployeeLeavers_dim T7 ON   T3.EmployeeID = T7.EmployeeID AND \r\n",
-					"                                                        T1.Org_Start_Date = T7.EmploymentStartDate \r\n",
+					"                                                        T1.Org_Start_Date = T7.EmploymentStartDate AND\r\n",
+					"                                                        T1.Leaving = T7.EmploymentEndDate\r\n",
 					"\r\n",
 					"WHERE  (T7.IsActive = 'Y' or T7.IsActive IS NULL)\r\n",
 					"    \r\n",
@@ -130,8 +151,10 @@
 					"        \r\n",
 					"        -- flags new data        \r\n",
 					"        (       CASE\r\n",
-					"                    WHEN T3.EmployeeID = T7.EmployeeID AND T1.Org_Start_Date = T7.EmploymentStartDate\r\n",
-					"                        AND md5(concat(IFNULL(T1.Reason_For_Action,'.'),IFNULL(T1.Org_Start_Date,'.'),IFNULL(T1.Leaving,'.'))) <> T7.RowID  -- same employee, changed data\r\n",
+					"                    WHEN T3.EmployeeID = T7.EmployeeID AND \r\n",
+					"                            T1.Org_Start_Date = T7.EmploymentStartDate AND\r\n",
+					"                            T1.Leaving = T7.EmploymentEndDate AND\r\n",
+					"                            md5(concat(IFNULL(T1.Reason_For_Action,'.'),IFNULL(T1.Org_Start_Date,'.'),IFNULL(T1.Leaving,'.'))) <> T7.RowID  -- same employee, changed data\r\n",
 					"                    THEN 'Y'\r\n",
 					"                    WHEN T7.EmployeeID  IS NULL -- new employee\r\n",
 					"                    THEN 'Y'\r\n",
@@ -148,7 +171,7 @@
 					"\r\n",
 					";"
 				],
-				"execution_count": 8
+				"execution_count": 4
 			},
 			{
 				"cell_type": "markdown",
