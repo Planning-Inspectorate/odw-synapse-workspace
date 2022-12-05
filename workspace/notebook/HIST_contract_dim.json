@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "2ffe7c14-2ab0-40d5-a606-9c1d66489925"
+				"spark.autotune.trackingId": "a711815e-8fa4-4b82-90d9-99572e050a29"
 			}
 		},
 		"metadata": {
@@ -72,23 +72,33 @@
 					"    StartDate,\r\n",
 					"    EndDate,\r\n",
 					"    IngestionDate,\r\n",
-					"    ValidTo\r\n",
+					"    ValidTo,\r\n",
+					"    RowID,\r\n",
+					"    IsActive\r\n",
 					")\r\n",
 					"\r\n",
 					"SELECT\r\n",
-					"    uuid() AS ContractID,\r\n",
+					"    row_number over (order by ContractID NULLS FIRST) AS ContractID,\r\n",
 					"    T1.WorkC as ContractCode, \r\n",
 					"    First(T1.Work_Contract) as Description,\r\n",
-					"    T1.CT as ContractTypeCode,\r\n",
+					"    CASE \r\n",
+					"        WHEN T1.CT IS NULL\r\n",
+					"        THEN 'N/A'\r\n",
+					"        ELSE T1.CT\r\n",
+					"    END as ContractTypeCode,\r\n",
 					"    First(T1.Contract_Type) as ContractType,\r\n",
 					"    First(T2.SourceSystemID) as SourceSystemID,\r\n",
 					"    CURRENT_TIMESTAMP AS StartDate,\r\n",
-					"    '9999-12-31' AS EndDate,\r\n",
+					"    NULL AS EndDate,\r\n",
 					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
-					"    NULL AS ValidTo\r\n",
+					"    NULL AS ValidTo,\r\n",
+					"    md5(concat(IFNULL(T1.WorkC,'.'), IFNULL(First(T1.Work_Contract),'.'), IFNULL(T1.CT,'.'), IFNULL(First(T1.Contract_Type),'.'))) as RowID,\r\n",
+					"    'Y' as IsActive,\r\n",
 					"FROM odw_standardised_db.vw_saphr T1 -- CHECK\r\n",
 					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description\r\n",
-					"GROUP BY T1.WorkC, T1.Work_Contract, T1.CT, T1.Contract_Type"
+					"GROUP BY T1.WorkC, T1.CT\r\n",
+					"\r\n",
+					""
 				],
 				"execution_count": null
 			}
