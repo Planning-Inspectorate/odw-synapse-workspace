@@ -1,0 +1,155 @@
+{
+	"name": "HIST_employee_dim",
+	"properties": {
+		"folder": {
+			"name": "odw-harmonised/SAP-HR/HIST"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "bc95c508-85ea-4f07-bb71-8485f61384cf"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "python"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.2",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					}
+				},
+				"source": [
+					"%%sql\r\n",
+					"-- Build Employee_Dim table \r\n",
+					"\r\n",
+					"-- Notes - Addresses are only supplied for Inspectors - need to check inspector count against addresses data\r\n",
+					"\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.employee_dim (\r\n",
+					"    EmployeeID,\r\n",
+					"    FirstName,\r\n",
+					"    LastName,\r\n",
+					"    DOB,\r\n",
+					"    NINumber,\r\n",
+					"    Gender,\r\n",
+					"    AddressLine1,\r\n",
+					"    AddressLine2,\r\n",
+					"    AddressLine3,\r\n",
+					"    City,\r\n",
+					"    County,\r\n",
+					"    PostCode,\r\n",
+					"    EmailAddress,\r\n",
+					"    TelephoneNumberPersonal,\r\n",
+					"    TelephoneNumberWork,\r\n",
+					"    PersNumber,\r\n",
+					"    EmployeeNumber,\r\n",
+					"    FTE,\r\n",
+					"    WorkHours,\r\n",
+					"    PartTimeEmployee,\r\n",
+					"    EmploymentStatus,\r\n",
+					"    CivilServiceStart,\r\n",
+					"    DateToCurrentJob,\r\n",
+					"    SeniorityDate,\r\n",
+					"    OrgStartDate,\r\n",
+					"    FixTermEndDate,\r\n",
+					"    LoanStartDate,\r\n",
+					"    LoanEndDate,\r\n",
+					"    PayrollArea,\r\n",
+					"    AssignmentNumber,\r\n",
+					"    EmployeeGroup,\r\n",
+					"    AnnualSalary,\r\n",
+					"    SourceSystemID,\r\n",
+					"    StartDate,\r\n",
+					"    EndDate,\r\n",
+					"    IngestionDate,\r\n",
+					"    ValidTo\r\n",
+					")\r\n",
+					"\r\n",
+					"SELECT \r\n",
+					"    uuid(), --EmployeeID\r\n",
+					"    T1.First_name as FirstName,\r\n",
+					"    T1.Last_name as LastName,\r\n",
+					"    T1.Birth_date as DOB,\r\n",
+					"    T1.NI_number as NINumber,\r\n",
+					"    T1.Gender_Key as Gender,\r\n",
+					"    T2.Street_and_House_Number as AddressLine1,\r\n",
+					"    T2.`2nd_Address_Line` as AddressLine2,\r\n",
+					"    T2.District as AddressLine3,\r\n",
+					"    T2.City as City,\r\n",
+					"    T2.Region_State_Province_Count as County,\r\n",
+					"    T2.Postal_Code as PostCode,\r\n",
+					"    T3.Email_Address as EmailAddress,\r\n",
+					"    T2.Personal_Mobile as TelephoneNumberPersonal,\r\n",
+					"    T2.Work_Mobile as TelephoneNumberWork,\r\n",
+					"    T2.Staff_Number as PersNumber,\r\n",
+					"    T1.Pers_No as EmployeeNumber,\r\n",
+					"    T1.FTE,\r\n",
+					"    T1.Wk_hrs as WorkHours,\r\n",
+					"    T1.`Indicator_Part-Time_Employee` as PartTimeEmployee,\r\n",
+					"    T1.Employment_Status as EmploymentStatus,\r\n",
+					"    T1.Civil_Service_Start as CivilServiceStart,\r\n",
+					"    T1.Date_to_Current_Job as DateToCurrentJob,\r\n",
+					"    T1.Seniority_Date as SeniorityDate,\r\n",
+					"    T1.Org_Start_Date as OrgStartDate,\r\n",
+					"    T1.Fix_Term_End_Date as FixTermEndDate,\r\n",
+					"    T1.Loan_Start_Date as LoanStartDate,\r\n",
+					"    T1.Loan_End_Date as LoadEndDate,\r\n",
+					"    T1.Payroll_Area as PayrollArea,\r\n",
+					"    T1.Assignment_Number as AssignmentNumber,\r\n",
+					"    T1.Employee_Group as EmployeeGroup,\r\n",
+					"    T1.Annual_salary as AnnualSalary,\r\n",
+					"    T4.SourceSystemID,\r\n",
+					"    current_timestamp as StartDate,\r\n",
+					"    NULL as EndDate,\r\n",
+					"    current_timestamp as IngestDate,\r\n",
+					"    NULL as ValidTo\r\n",
+					"\r\n",
+					"FROM odw_standardised_db.vw_saphr T1\r\n",
+					"LEFT JOIN odw_standardised_db.vw_addresses T2 ON T1.Pers_No = T2.Staff_Number\r\n",
+					"LEFT JOIN odw_standardised_db.vw_email T3 ON T2.Staff_Number = T3.Staff_Number\r\n",
+					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T4 ON \"SAP HR\" = T4.Descr"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
