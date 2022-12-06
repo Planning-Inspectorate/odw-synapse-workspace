@@ -1,0 +1,129 @@
+{
+	"name": "HIST_HR_record_fact",
+	"properties": {
+		"folder": {
+			"name": "odw-harmonised/SAP-HR/HIST"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "5dfea6d9-b8cb-4db0-b2af-34d56057646c"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "python"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					}
+				},
+				"source": [
+					"%%sql\r\n",
+					"\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.hr_record_fact (\r\n",
+					"\r\n",
+					"    HRRecordID,\r\n",
+					"    EmployeeID,\r\n",
+					"    PersonnelAreaID,\r\n",
+					"    PersonnelSubAreaID,\r\n",
+					"    OrganisationalUnitID,\r\n",
+					"    ContractID,\r\n",
+					"    PayBandID,\r\n",
+					"    CostCenterID,\r\n",
+					"    PositionID,\r\n",
+					"    ManagerEmployeeID,\r\n",
+					"    ManagerPositionID,\r\n",
+					"    CounterSignManagerEmployeeID,\r\n",
+					"    LocationID,\r\n",
+					"    WorkScheduleID,\r\n",
+					"    SourceSystemID,\r\n",
+					"    StartDate,\r\n",
+					"    EndDate,\r\n",
+					"    IngestionDate,\r\n",
+					"    ValidTo,\r\n",
+					"    RowID,\r\n",
+					"    IsActive)\r\n",
+					"\r\n",
+					"SELECT\r\n",
+					"    Row_Number() over (order by T2.EmployeeID) as HRRecordID,\r\n",
+					"    T2.EmployeeID AS EmployeeID,\r\n",
+					"    T3.PersonnelAreaID AS PersonnelAreaID,\r\n",
+					"    T4.PersonnelSubAreaID AS PersonnelSubAreaID,\r\n",
+					"    T5.OrganisationUnitID AS OrganisationalUnitID,\r\n",
+					"    T6.ContractID AS ContractID,\r\n",
+					"    T7.PayBandID AS PayBandID, -- NULLS occur due to contractors\r\n",
+					"    T8.CostCenterID AS CostCenterID,\r\n",
+					"    T9.PositionID AS PositionID,\r\n",
+					"    T10.ManagerEmployeeID AS ManagerEmployeeID,\r\n",
+					"    TempMPID.PositionID AS ManagerPositionID,\r\n",
+					"    NULL AS CounterSignManagerEmployeeID,\r\n",
+					"    T11.LocationID AS LocationID,\r\n",
+					"    T12.WorkScheduleID AS WorkScheduleID,\r\n",
+					"    T14.SourceSystemID,\r\n",
+					"    current_timestamp as StartDate,\r\n",
+					"    NULL as EndDate,\r\n",
+					"    current_timestamp as IngestionDate,\r\n",
+					"    NULL as ValidTo,\r\n",
+					"    md5(concat(T2.EmployeeID, IFNULL(T3.PersonnelAreaID, '.'), IFNULL(T4.PersonnelSubAreaID, '.'), IFNULL(T5.OrganisationUnitID, '.'),IFNULL(T6.ContractID, '.'),\r\n",
+					"                IFNULL(T7.PayBandID, '.'),IFNULL(T8.CostCenterID, '.'),IFNULL(T9.PositionID, '.'),IFNULL(T10.ManagerEmployeeID, '.'),IFNULL(TempMPID.PositionID, '.'),\r\n",
+					"                IFNULL(T10.CounterSignManagerID, '.'), IFNULL(T11.LocationID, '.'),IFNULL(T12.WorkScheduleID, '.'))) as RowID, \r\n",
+					"    'Y' as IsActive\r\n",
+					"\r\n",
+					"FROM odw_standardised_db.sap_hr_historic T1\r\n",
+					"LEFT JOIN odw_harmonised_db.employee_dim T2 ON T1.Pers_No = T2.EmployeeNumber\r\n",
+					"LEFT JOIN odw_harmonised_db.personnelarea_dim T3 ON T1.PA = T3.PersonnelAreaCode\r\n",
+					"LEFT JOIN odw_harmonised_db.personnelsubarea_dim T4 ON T1.PSubArea = T4.PersonnelSubAreaCode\r\n",
+					"LEFT JOIN odw_harmonised_db.organisationunit_dim T5 ON T1.Org_unit = T5.OrganisationUnit\r\n",
+					"LEFT JOIN odw_harmonised_db.contract_dim T6 ON T1.WorkC = T6.ContractCode AND \r\n",
+					"                                                CASE \r\n",
+					"                                                        WHEN T1.CT IS NULL\r\n",
+					"                                                        THEN 'N/A'\r\n",
+					"                                                        ELSE T1.CT\r\n",
+					"                                                END = T6.ContractTypeCode\r\n",
+					"LEFT JOIN odw_harmonised_db.payband_dim T7 ON T1.PS_group = T7.PSGroupCode -- NULLS occur due to contractors\r\n",
+					"LEFT JOIN odw_harmonised_db.costcenter_dim T8 ON T1.Cost_Ctr = T8.CostCenterCode\r\n",
+					"LEFT JOIN odw_harmonised_db.position_dim T9 ON T1.PositionID= T9.PositionCode\r\n",
+					"LEFT JOIN odw_harmonised_db.position_dim TempMPID ON T1.Manager_Position = TempMPID.PositionCode\r\n",
+					"LEFT JOIN odw_harmonised_db.employee_hr_hierarchy_dim T10 ON T2.EmployeeID = T10.EmployeeID\r\n",
+					"LEFT JOIN odw_harmonised_db.pins_location_dim T11 ON T1.Loc = T11.LocationCode\r\n",
+					"LEFT JOIN (\r\n",
+					"            SELECT T1.EmployeeID, T1.WorkScheduleID\r\n",
+					"            FROM odw_harmonised_db.absence_dim T1\r\n",
+					"            INNER JOIN ( SELECT EmployeeID, Max(AbsenceEndDate) as Max_AbsenceEndDate\r\n",
+					"                         FROM odw_harmonised_db.absence_dim\r\n",
+					"                         GROUP BY EmployeeID ) T3        ON  T1.EmployeeID = T3.EmployeeID AND\r\n",
+					"                                                             T1.AbsenceEndDate = T3.Max_AbsenceEndDate\r\n",
+					"            GROUP BY T1.EmployeeID, T1.WorkScheduleID\r\n",
+					"            \r\n",
+					"    ) T12 ON T2.EmployeeID = T12.EmployeeID -- NULLS occur as no data for some employees in the absence file\r\n",
+					"\r\n",
+					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T14 ON \"SAP HR\" = T14.Description\r\n",
+					"INNER JOIN (SELECT MAX(EffectiveFrom) AS Max_EffectiveFrom FROM odw_standardised_db.sap_hr_historic) MEF ON T1.EffectiveFrom = MEF.Max_EffectiveFrom"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}

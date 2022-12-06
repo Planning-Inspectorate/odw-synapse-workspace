@@ -1,0 +1,103 @@
+{
+	"name": "HIST_Employee_HR_Hierarchy_Dim",
+	"properties": {
+		"folder": {
+			"name": "odw-harmonised/SAP-HR/HIST"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "a6292f05-0bc9-476c-8bde-594d69400889"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "python"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.2",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					}
+				},
+				"source": [
+					"%%sql\r\n",
+					"-- Build Employee_HR_Hierarchy_Dim table  \r\n",
+					"\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.Employee_HR_Hierarchy_Dim (\r\n",
+					"    EmployeeHRHierarchyID,\r\n",
+					"    EmployeeID,\r\n",
+					"    ManagerEmployeeID,\r\n",
+					"    CounterSignManagerID, -- join back on first name and last name\r\n",
+					"    SourceSystemID,\r\n",
+					"    StartDate,\r\n",
+					"    EndDate,\r\n",
+					"    IngestionDate,\r\n",
+					"    ValidTo,\r\n",
+					"    RowID,\r\n",
+					"    IsActive\r\n",
+					")\r\n",
+					"\r\n",
+					"SELECT\r\n",
+					"    Row_Number() over (order by T3.EmployeeID) AS EmployeeHRHierarchyID,\r\n",
+					"    T3.EmployeeID AS EmployeeID,\r\n",
+					"    T4.EmployeeID as ManagerEmployeeID,\r\n",
+					"    NULL AS CounterSignManagerID,\r\n",
+					"    T2.SourceSystemID as SourceSystemID,\r\n",
+					"    CURRENT_TIMESTAMP AS StartDate,\r\n",
+					"    NULL AS EndDate,\r\n",
+					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
+					"    NULL AS ValidTo,\r\n",
+					"    md5(concat(IFNULL(T3.EmployeeID,'.'), IFNULL(T4.EmployeeID,'.'))) as RowID,\r\n",
+					"    'Y' as IsActive\r\n",
+					"\r\n",
+					"FROM odw_standardised_db.sap_hr_historic T1\r\n",
+					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description\r\n",
+					"LEFT JOIN odw_harmonised_db.employee_dim T3 ON T1.Pers_No = T3.PersNumber\r\n",
+					"LEFT JOIN odw_harmonised_db.employee_dim T4 ON T1.Pers_No_2 = T4.PersNumber\r\n",
+					"INNER JOIN (SELECT MAX(EffectiveFrom) AS Max_EffectiveFrom FROM odw_standardised_db.sap_hr_historic) MEF ON T1.EffectiveFrom = MEF.Max_EffectiveFrom\r\n",
+					""
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
