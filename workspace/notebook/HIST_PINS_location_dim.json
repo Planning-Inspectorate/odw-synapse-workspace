@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "4e2e79ef-8959-4306-82f7-422fd5e077d9"
+				"spark.autotune.trackingId": "36d92376-d83b-4148-b2b8-b70084276df8"
 			}
 		},
 		"metadata": {
@@ -70,22 +70,27 @@
 					"    StartDate,\r\n",
 					"    EndDate,\r\n",
 					"    IngestionDate,\r\n",
-					"    ValidTo\r\n",
+					"    ValidTo,\r\n",
+					"    RowID,\r\n",
+					"    IsActive\r\n",
 					")\r\n",
 					"\r\n",
 					"\r\n",
 					"SELECT\r\n",
-					"    uuid() AS LocationID,\r\n",
+					"    Row_Number() over (order by T1.Loc) AS LocationID,\r\n",
 					"    Loc  AS LocationCode, -- check\r\n",
 					"    First(Location)  AS Description,\r\n",
 					"    First(T2.SourceSystemID) as SourceSystemID,\r\n",
 					"    CURRENT_TIMESTAMP AS StartDate,\r\n",
 					"    null AS EndDate,\r\n",
 					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
-					"    NULL AS ValidTo\r\n",
-					"FROM odw_standardised_db.saphr T1\r\n",
+					"    NULL AS ValidTo,\r\n",
+					"    md5(concat(IFNULL(T1.Loc,'.'), IFNULL(FIRST(T1.Location),'.'))) as RowID,\r\n",
+					"    'Y' as IsActive\r\n",
+					"\r\n",
+					"FROM odw_standardised_db.sap_hr_historic T1\r\n",
 					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description\r\n",
-					"GROUP "
+					"GROUP BY T1.Loc"
 				],
 				"execution_count": null
 			}
