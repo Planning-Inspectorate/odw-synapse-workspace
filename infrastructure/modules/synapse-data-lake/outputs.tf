@@ -23,6 +23,11 @@ output "key_vault_id" {
   value       = azurerm_key_vault.synapse.id
 }
 
+output "key_vault_name" {
+  description = "The name of the Key Vault"
+  value       = azurerm_key_vault.synapse.name
+}
+
 output "key_vault_uri" {
   description = "The URI of the Key Vault"
   value       = azurerm_key_vault.synapse.vault_uri

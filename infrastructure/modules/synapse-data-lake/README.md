@@ -82,5 +82,6 @@ No requirements.
 | <a name="output_data_lake_dfs_endpoint"></a> [data\_lake\_dfs\_endpoint](#output\_data\_lake\_dfs\_endpoint) | The DFS endpoint URL of the Data Lake Storage Account |
 | <a name="output_data_lake_filesystem_id"></a> [data\_lake\_filesystem\_id](#output\_data\_lake\_filesystem\_id) | The ID of the Data Lake Gen2 filesystem |
 | <a name="output_key_vault_id"></a> [key\_vault\_id](#output\_key\_vault\_id) | The ID of the Key Vault |
+| <a name="output_key_vault_name"></a> [key\_vault\_name](#output\_key\_vault\_name) | The name of the Key Vault |
 | <a name="output_key_vault_uri"></a> [key\_vault\_uri](#output\_key\_vault\_uri) | The URI of the Key Vault |
 <!-- END OF PRE-COMMIT-TERRAFORM DOCS HOOK -->

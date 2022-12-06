@@ -39,6 +39,11 @@ variable "key_vault_id" {
   type        = string
 }
 
+variable "key_vault_name" {
+  description = "The name of the Key Vault to use for secret storage"
+  type        = string
+}
+
 variable "network_resource_group_name" {
   description = "The name of the resource group into which private endpoints will be deployed"
   type        = string
