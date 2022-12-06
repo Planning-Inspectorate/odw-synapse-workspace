@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "52e81cc4-9cf3-4bec-92e8-0abd88e2871c"
+				"spark.autotune.trackingId": "20819470-9edb-45b2-8fc2-cbd46eac4e2c"
 			}
 		},
 		"metadata": {
@@ -118,12 +118,34 @@
 					}
 				},
 				"source": [
+					"from pyspark.sql import SparkSession\r\n",
+					"spark = SparkSession.builder.getOrCreate()\r\n",
+					"\r\n",
+					"config_target_container = \"abfss://odw-config@\" + spark.sparkContext.environment.get('dataLakeAccountName', 'get') + \".dfs.core.windows.net/\"\r\n",
+					"standardised_target_container = \"abfss://odw-raw@\" + spark.sparkContext.environment.get('dataLakeAccountName', 'get') + \".dfs.core.windows.net/\""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
 					"import json\r\n",
 					"from pyspark.sql.types import StringType,BooleanType,DateType,TimestampType,IntegerType, FloatType, StructType\r\n",
-					"outstanding_files_table_json = spark.read.text(\"abfss://odw-config@pinsstodwdevuks9h80mb.dfs.core.windows.net/orchestration/scheduling_outstanding_files_table.json\", wholetext=True).first().value\r\n",
+					"outstanding_files_table_json = spark.read.text(config_target_container + \"orchestration/scheduling_outstanding_files_table.json\", wholetext=True).first().value\r\n",
 					"outstanding_struct_schema = StructType.fromJson(json.loads(outstanding_files_table_json))\r\n",
 					"new_outst_file = spark.createDataFrame([[dt, jsonId]], outstanding_struct_schema)\r\n",
-					"new_outst_file.write.format(\"delta\").mode(\"append\").save(\"abfss://odw-standardised@pinsstodwdevuks9h80mb.dfs.core.windows.net/config/raw_to_std_outstanding_files\")"
+					"new_outst_file.write.format(\"delta\").mode(\"append\").save(standardised_target_container+\"config/raw_to_std_outstanding_files\")"
 				],
 				"execution_count": 51
 			},
