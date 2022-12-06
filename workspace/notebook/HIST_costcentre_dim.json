@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "528993fd-b1ba-4a72-9ec2-af894205455f"
+				"spark.autotune.trackingId": "123bd468-ee5d-4272-b7d5-01f5acbc7eba"
 			}
 		},
 		"metadata": {
@@ -70,18 +70,23 @@
 					"    StartDate,\r\n",
 					"    EndDate,\r\n",
 					"    IngestionDate,\r\n",
-					"    ValidTo\r\n",
+					"    ValidTo,\r\n",
+					"    RowID,\r\n",
+					"    IsActive\r\n",
 					")\r\n",
 					"\r\n",
 					"SELECT\r\n",
-					"    uuid() AS CostCenterID,\r\n",
+					"    Row_Number() over (Order by T1.Cost_Ctr NULLS FIRST) AS CostCenterID,\r\n",
 					"    T1.Cost_Ctr AS CostCenterCode,\r\n",
 					"    First(T1.Cost_Centre) AS Description,\r\n",
 					"    First(T2.SourceSystemID) as SourceSystemID,\r\n",
 					"    CURRENT_TIMESTAMP AS StartDate,\r\n",
-					"    '9999-12-31' AS EndDate,\r\n",
+					"    NULL AS EndDate,\r\n",
 					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
-					"    NULL AS ValidTo\r\n",
+					"    NULL AS ValidTo,\r\n",
+					"    md5(concat(IFNULL(T1.Cost_Ctr,'.'), IFNULL(first(T1.Cost_Centre),'.'))) as RowID,\r\n",
+					"    'Y' as IsActive\r\n",
+					"\r\n",
 					"FROM odw_standardised_db.vw_saphr T1\r\n",
 					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description\r\n",
 					"GROUP BY T1.Cost_Ctr"
