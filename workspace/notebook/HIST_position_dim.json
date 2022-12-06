@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "f3b08b7c-62a6-4f2f-b110-5a229f393c5b"
+				"spark.autotune.trackingId": "302c53eb-caa7-47ce-a1a2-3e9cb60125a1"
 			}
 		},
 		"metadata": {
@@ -28,7 +28,7 @@
 			"enableDebugMode": false,
 			"kernelspec": {
 				"name": "synapse_pyspark",
-				"display_name": "python"
+				"display_name": "Synapse PySpark"
 			},
 			"language_info": {
 				"name": "python"
@@ -56,7 +56,8 @@
 				"metadata": {
 					"microsoft": {
 						"language": "sparksql"
-					}
+					},
+					"collapsed": false
 				},
 				"source": [
 					"%%sql\r\n",
@@ -77,24 +78,23 @@
 					"\r\n",
 					"\r\n",
 					"SELECT\r\n",
-					"    Row_Number() over (Order by T1.PositionID) AS PositionID,\r\n",
-					"    T1.PositionID  AS PositionCode, -- cell AH\r\n",
-					"    First(PositionName)  AS Description, -- cell AI\r\n",
+					"    Row_Number() over (Order by T1.Position) AS PositionID,\r\n",
+					"    T1.Position  AS PositionCode,\r\n",
+					"    First(Position1)  AS Description,\r\n",
 					"    First(T2.SourceSystemID) as SourceSystemID,\r\n",
 					"    CURRENT_TIMESTAMP AS StartDate,\r\n",
 					"    NULL AS EndDate,\r\n",
 					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
 					"    NULL AS ValidTo,\r\n",
-					"    md5(concat(IFNULL(T1.PositionID,'.'), IFNULL(FIRST(T1.PositionName),'.'))) as RowID,\r\n",
+					"    md5(concat(IFNULL(T1.Position,'.'), IFNULL(FIRST(T1.Position1),'.'))) as RowID,\r\n",
 					"    'Y' as IsActive\r\n",
 					"\r\n",
-					"\r\n",
-					"FROM odw_standardised_db.sap_hr_historic T1 -- CHECK\r\n",
-					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description\r\n",
-					"INNER JOIN (SELECT MAX(EffectiveFrom) AS Max_EffectiveFrom FROM odw_standardised_db.sap_hr_historic) MEF ON T1.EffectiveFrom = MEF.Max_EffectiveFrom\r\n",
-					"GROUP BY T1.PositionID"
+					"FROM odw_standardised_db.vw_saphr_historic T1\r\n",
+					"WHERE T1.Position IS NOT NULL\r\n",
+					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description AND T2.IsActive = 'Y'\r\n",
+					"GROUP BY T1.Position"
 				],
-				"execution_count": null
+				"execution_count": 2
 			}
 		]
 	}

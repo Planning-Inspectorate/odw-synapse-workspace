@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "209e9cc3-004a-40d6-9f90-6ab341136246"
+				"spark.autotune.trackingId": "81014ae0-92a9-43eb-96c4-58867552f41a"
 			}
 		},
 		"metadata": {
@@ -77,9 +77,9 @@
 					"\r\n",
 					"\r\n",
 					"SELECT\r\n",
-					"    Row_Number() over (order by T1.PS_group, T1.Pay_Band_Description) AS PayBandID,\r\n",
+					"    Row_Number() over (order by T1.PS_group) AS PayBandID,\r\n",
 					"    PS_Group  AS PSGroupCode,\r\n",
-					"    Pay_Band_Description AS Description,\r\n",
+					"    First(Pay_Band_Description) AS Description,\r\n",
 					"    First(T2.SourceSystemID) as SourceSystemID,\r\n",
 					"    CURRENT_TIMESTAMP AS StartDate,\r\n",
 					"    NULL AS EndDate,\r\n",
@@ -87,10 +87,9 @@
 					"    NULL AS ValidTo,\r\n",
 					"    md5(concat(IFNULL(T1.PS_group,'.'), IFNULL(T1.Pay_Band_Description,'.'))) as RowID,\r\n",
 					"    'Y' as IsActive\r\n",
-					"FROM odw_standardised_db.vw_saphr T1 -- CHECK\r\n",
-					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description\r\n",
-					"INNER JOIN (SELECT MAX(EffectiveFrom) AS Max_EffectiveFrom FROM odw_standardised_db.sap_hr_historic) MEF ON T1.EffectiveFrom = MEF.Max_EffectiveFrom\r\n",
-					"GROUP BY T1.PS_group, T1.Pay_Band_Description -- check"
+					"FROM odw_standardised_db.vw_saphr_historic T1\r\n",
+					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description AND T2.IsActive = 'Y'\r\n",
+					"GROUP BY T1.PS_group"
 				],
 				"execution_count": null
 			}

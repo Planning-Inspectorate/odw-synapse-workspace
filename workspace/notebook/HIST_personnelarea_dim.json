@@ -6,6 +6,10 @@
 		},
 		"nbformat": 4,
 		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
 		"sessionProperties": {
 			"driverMemory": "28g",
 			"driverCores": 4,
@@ -16,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "0790b34f-7d52-4d80-a11b-31c33d8aaf38"
+				"spark.autotune.trackingId": "268afae7-4883-4625-ad10-c10cd21517f1"
 			}
 		},
 		"metadata": {
@@ -28,6 +32,21 @@
 			},
 			"language_info": {
 				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.2",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -57,9 +76,9 @@
 					")\r\n",
 					"\r\n",
 					"SELECT \r\n",
-					"    Row_Number() over (order by T1.PA, T1.Personnel_Area) AS PersonnelAreaID,\r\n",
+					"    Row_Number() over (order by T1.PA) AS PersonnelAreaID,\r\n",
 					"    T1.PA AS PersonnelAreaCode,\r\n",
-					"    T1.Personnel_Area AS Description, \r\n",
+					"    first(T1.Personnel_Area) AS Description, \r\n",
 					"    First(T2.SourceSystemID) as SourceSystemID,\r\n",
 					"    CURRENT_TIMESTAMP AS StartDate,\r\n",
 					"    NULL AS EndDate,\r\n",
@@ -67,10 +86,10 @@
 					"    NULL AS ValidTo,\r\n",
 					"    md5(concat(IFNULL(T1.PA, '.'), IFNULL(T1.Personnel_Area,'.'))) as RowID,\r\n",
 					"    'Y' as IsActive\r\n",
-					"FROM odw_standardised_db.sap_hr_historic T1\r\n",
-					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description\r\n",
-					"INNER JOIN (SELECT MAX(EffectiveFrom) AS Max_EffectiveFrom FROM odw_standardised_db.sap_hr_historic) MEF ON T1.EffectiveFrom = MEF.Max_EffectiveFrom\r\n",
-					"GROUP BY T1.PA, T1.Personnel_Area"
+					"FROM odw_standardised_db.vw_saphr_historic T1\r\n",
+					"WHERE T1.PA IS NOT NULL\r\n",
+					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description AND T2.IsActive = 'Y'\r\n",
+					"GROUP BY T1.PA"
 				],
 				"execution_count": null
 			}

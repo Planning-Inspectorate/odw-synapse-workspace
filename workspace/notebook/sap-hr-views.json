@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "688debbb-b96c-4f85-9cc5-a4e4c8175985"
+				"spark.autotune.trackingId": "c07d4a39-82b1-4206-9545-3ee45fe76fee"
 			}
 		},
 		"metadata": {
@@ -95,7 +95,7 @@
 					"\r\n",
 					"FROM odw_standardised_db.hr_absences"
 				],
-				"execution_count": 11
+				"execution_count": 15
 			},
 			{
 				"cell_type": "code",
@@ -148,9 +148,11 @@
 					"    expected_from,\r\n",
 					"    expected_to\r\n",
 					"\r\n",
-					"FROM odw_standardised_db.hr_addresses"
+					"FROM odw_standardised_db.hr_addresses T1\r\n",
+					"INNER JOIN (SELECT MAX(expected_from) AS Max_expectedfrom FROM odw_standardised_db.hr_addresses) MEF ON T1.expected_from = MEF.Max_expectedfrom\r\n",
+					""
 				],
-				"execution_count": 12
+				"execution_count": 16
 			},
 			{
 				"cell_type": "code",
@@ -193,9 +195,10 @@
 					"    expected_from,\r\n",
 					"    expected_to\r\n",
 					"\r\n",
-					"FROM odw_standardised_db.hr_email"
+					"FROM odw_standardised_db.hr_email T1\r\n",
+					"INNER JOIN (SELECT MAX(expected_from) AS Max_expectedfrom FROM odw_standardised_db.hr_addresses) MEF ON T1.expected_from = MEF.Max_expectedfrom"
 				],
-				"execution_count": 13
+				"execution_count": 17
 			},
 			{
 				"cell_type": "code",
@@ -238,9 +241,10 @@
 					"    expected_from,\r\n",
 					"    expected_to\r\n",
 					"\r\n",
-					"FROM odw_standardised_db.hr_leave"
+					"FROM odw_standardised_db.hr_leave T1\r\n",
+					"INNER JOIN (SELECT MAX(expected_from) AS Max_expectedfrom FROM odw_standardised_db.hr_addresses) MEF ON T1.expected_from = MEF.Max_expectedfrom"
 				],
-				"execution_count": 14
+				"execution_count": 18
 			},
 			{
 				"cell_type": "code",
@@ -313,9 +317,10 @@
 					"    expected_from,\r\n",
 					"    expected_to\r\n",
 					"\r\n",
-					"FROM odw_standardised_db.hr_leavers"
+					"FROM odw_standardised_db.hr_leavers T1\r\n",
+					"INNER JOIN (SELECT MAX(expected_from) AS Max_expectedfrom FROM odw_standardised_db.hr_addresses) MEF ON T1.expected_from = MEF.Max_expectedfrom"
 				],
-				"execution_count": 15
+				"execution_count": 19
 			},
 			{
 				"cell_type": "code",
@@ -430,9 +435,10 @@
 					"    expected_from,\r\n",
 					"    expected_to\r\n",
 					"\r\n",
-					"FROM odw_standardised_db.hr_saphr"
+					"FROM odw_standardised_db.hr_saphr T1\r\n",
+					"INNER JOIN (SELECT MAX(expected_from) AS Max_expectedfrom FROM odw_standardised_db.hr_addresses) MEF ON T1.expected_from = MEF.Max_expectedfrom"
 				],
-				"execution_count": 16
+				"execution_count": 20
 			},
 			{
 				"cell_type": "code",
@@ -474,9 +480,10 @@
 					"    expected_from,\r\n",
 					"    expected_to\r\n",
 					"\r\n",
-					"FROM odw_standardised_db.hr_specialisms"
+					"FROM odw_standardised_db.hr_specialisms T1\r\n",
+					"INNER JOIN (SELECT MAX(expected_from) AS Max_expectedfrom FROM odw_standardised_db.hr_addresses) MEF ON T1.expected_from = MEF.Max_expectedfrom"
 				],
-				"execution_count": 17
+				"execution_count": 21
 			},
 			{
 				"cell_type": "code",
@@ -504,11 +511,11 @@
 					"\r\n",
 					"SELECT \r\n",
 					"    CASE \r\n",
-					"        WHEN LENGTH(Pers_No) = 6 AND SUBSTR(Pers_No,1,1) = 5\r\n",
-					"        THEN CONCAT('00',Pers_No)\r\n",
-					"        WHEN LENGTH(Pers_No) = 6 AND SUBSTR(Pers_No,1,1) = 4\r\n",
-					"        THEN CONCAT('50',Pers_No)        \r\n",
-					"        ELSE Pers_No\r\n",
+					"        WHEN LENGTH(T1.Pers_No) = 6 AND SUBSTR(T1.Pers_No,1,1) = 5\r\n",
+					"        THEN CONCAT('00',T1.Pers_No)\r\n",
+					"        WHEN LENGTH(T1.Pers_No) = 6 AND SUBSTR(T1.Pers_No,1,1) = 4\r\n",
+					"        THEN CONCAT('50',T1.Pers_No)        \r\n",
+					"        ELSE T1.Pers_No\r\n",
 					"    END as Pers_No,\r\n",
 					"    First_name,\r\n",
 					"    Last_name,\r\n",
@@ -589,11 +596,43 @@
 					"    FTE_2,\r\n",
 					"    ingested_datetime,\r\n",
 					"    expected_from,\r\n",
-					"    expected_to\r\n",
+					"    expected_to,\r\n",
+					"    report_monthend_date\r\n",
 					"\r\n",
-					"FROM odw_standardised_db.sap_hr_historic"
+					"FROM odw_standardised_db.sap_hr_historic T1\r\n",
+					"INNER JOIN (    SELECT MAX(expected_from) AS Max_expectedfrom FROM odw_standardised_db.sap_hr_historic) MEF ON T1.expected_from = MEF.Max_expectedfrom\r\n",
+					"INNER JOIN (    SELECT Pers_No, MAX(report_monthend_date) AS Max_Rpt_Monthend_Date\r\n",
+					"                FROM odw_standardised_db.sap_hr_historic\r\n",
+					"                Group by Pers_No) Rpt_Date ON T1.Pers_No = Rpt_Date.Pers_No AND\r\n",
+					"                                        T1.report_monthend_date = Rpt_Date.Max_Rpt_Monthend_Date"
 				],
-				"execution_count": 5
+				"execution_count": 22
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"\r\n",
+					"select * from odw_standardised_db.hr_saphr where Pers_no = '00500504'\r\n",
+					"\r\n",
+					"--SELECT * from odw_standardised_db.vw_leavers where Pers_no = '00500504'"
+				],
+				"execution_count": 1
 			}
 		]
 	}
