@@ -16,7 +16,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "b144fa90-0b1c-47e9-bc15-9d5ab01d1bcf"
+				"spark.autotune.trackingId": "f09248e0-00a8-4e58-a73f-71445029c66f"
 			}
 		},
 		"metadata": {
@@ -52,11 +52,13 @@
 					"    StartDate,\r\n",
 					"    EndDate,\r\n",
 					"    IngestionDate,\r\n",
-					"    ValidTo\r\n",
+					"    ValidTo,\r\n",
+					"    RowID,\r\n",
+					"    IsActive\r\n",
 					")\r\n",
 					"\r\n",
 					"SELECT\r\n",
-					"    uuid() AS OrganisationUnitID,\r\n",
+					"    Row_Number() over (Order By T1.Org_Unit, T1.Organizational_Unit) AS OrganisationUnitID,\r\n",
 					"    T1.Org_unit as OrganisationUnit,\r\n",
 					"    T1.Organizational_Unit AS Description,\r\n",
 					"    T1.Organizational_Key12 AS OrganisationUnitKey,\r\n",
@@ -64,10 +66,12 @@
 					"    CURRENT_TIMESTAMP AS StartDate,\r\n",
 					"    NULL AS EndDate,\r\n",
 					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
-					"    NULL AS ValidTo\r\n",
+					"    NULL AS ValidTo,md5(concat(IFNULL(T1.Org_unit,'.'), IFNULL(T1.Organizational_Unit,'.'))) as RowID, -- check this\r\n",
+					"    'Y' as IsActive\r\n",
+					"\r\n",
 					"FROM odw_standardised_db.vw_saphr T1\r\n",
 					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description\r\n",
-					"GROUP BY T1.Org_unit, T1.Organizational_Unit, T1.Organizati"
+					"GROUP BY T1.Org_unit, T1.Organizational_Unit"
 				],
 				"execution_count": null
 			}
