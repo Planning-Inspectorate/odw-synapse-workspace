@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "cf5b45de-58de-4450-86d5-fef07128acaa"
+				"spark.autotune.trackingId": "a2bdd3d7-d754-4b90-b55b-aaf0ec09f72a"
 			}
 		},
 		"metadata": {
@@ -70,21 +70,26 @@
 					"    StartDate,\r\n",
 					"    EndDate,\r\n",
 					"    IngestionDate,\r\n",
-					"    ValidTo\r\n",
+					"    ValidTo,\r\n",
+					"    RowID,\r\n",
+					"    IsActive\r\n",
 					")\r\n",
 					"\r\n",
 					"SELECT \r\n",
-					"    uuid() AS PersonnelSubAreaID,\r\n",
+					"    Row_Number() over (order by T1.PSubarea, T1.Personnel_Subarea) AS PersonnelSubAreaID,\r\n",
 					"    T1.PSubarea as PersonnelSubAreaCode,\r\n",
-					"    First(T1.Personnel_Subarea) AS Description,\r\n",
+					"    T1.Personnel_Subarea AS Description,\r\n",
 					"    First(T2.SourceSystemID) as SourceSystemID,\r\n",
 					"    CURRENT_TIMESTAMP AS StartDate,\r\n",
-					"    '9999-12-31' AS EndDate,\r\n",
+					"    NULL AS EndDate,\r\n",
 					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
-					"    NULL AS ValidTo\r\n",
-					"FROM odw_standardised_db.vw_saphr T1\r\n",
+					"    NULL AS ValidTo,\r\n",
+					"    md5(concat(IFNULL(T1.PSubarea,'.'), IFNULL(T1.Personnel_Subarea,'.'))) as RowID,\r\n",
+					"    'Y' as IsActive\r\n",
+					"\r\n",
+					"FROM odw_standardised_db.sap_hr_historic T1\r\n",
 					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description\r\n",
-					"GROUP BY T1.PSubarea"
+					"GROUP BY T1.PSubarea, T1.Personnel_Subarea"
 				],
 				"execution_count": null
 			}
