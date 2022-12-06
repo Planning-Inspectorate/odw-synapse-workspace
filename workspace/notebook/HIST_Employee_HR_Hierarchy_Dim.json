@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "23704f25-b3fc-4f02-8de7-c7b09310edfb"
+				"spark.autotune.trackingId": "a9d6a451-b970-4b1a-9c3f-5c087210791c"
 			}
 		},
 		"metadata": {
@@ -71,24 +71,29 @@
 					"    StartDate,\r\n",
 					"    EndDate,\r\n",
 					"    IngestionDate,\r\n",
-					"    ValidTo\r\n",
+					"    ValidTo,\r\n",
+					"    RowID,\r\n",
+					"    IsActive\r\n",
 					")\r\n",
 					"\r\n",
 					"SELECT\r\n",
-					"    uuid() AS EmployeeHRHierarchyID,\r\n",
+					"    Row_Number() over (order by T3.EmployeeID) AS EmployeeHRHierarchyID,\r\n",
 					"    T3.EmployeeID AS EmployeeID,\r\n",
 					"    T4.EmployeeID as ManagerEmployeeID,\r\n",
-					"    T5.EmployeeID AS CounterSignManagerID,\r\n",
+					"    NULL AS CounterSignManagerID,\r\n",
 					"    T2.SourceSystemID as SourceSystemID,\r\n",
 					"    CURRENT_TIMESTAMP AS StartDate,\r\n",
-					"    '9999-12-31' AS EndDate,\r\n",
+					"    NULL AS EndDate,\r\n",
 					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
-					"    NULL AS ValidTo\r\n",
-					"FROM odw_standardised_db.vw_saphr T1\r\n",
+					"    NULL AS ValidTo,\r\n",
+					"    md5(concat(IFNULL(T3.EmployeeID,'.'), IFNULL(T4.EmployeeID,'.'))) as RowID,\r\n",
+					"    'Y' as IsActive\r\n",
+					"\r\n",
+					"FROM odw_standardised_db.sap_hr_historic T1\r\n",
 					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description\r\n",
 					"LEFT JOIN odw_harmonised_db.employee_dim T3 ON T1.Pers_No = T3.PersNumber\r\n",
 					"LEFT JOIN odw_harmonised_db.employee_dim T4 ON T1.Pers_No_2 = T4.PersNumber\r\n",
-					"LEFT JOIN odw_harmonised_db.employee_dim T5 ON T1.Counter_Sign_Manager = CONCAT(T5.FirstName,' ', T5.LastName)"
+					""
 				],
 				"execution_count": null
 			}
