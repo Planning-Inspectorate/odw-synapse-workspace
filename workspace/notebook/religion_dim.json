@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "572672b3-267a-4c27-ac4f-0d09500b1d09"
+				"spark.autotune.trackingId": "5aa1e4f4-118e-4dec-aa0f-f3067657b536"
 			}
 		},
 		"metadata": {
@@ -62,6 +62,35 @@
 						"transient": {
 							"deleting": false
 						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW religion_grouped\r\n",
+					"\r\n",
+					"    AS\r\n",
+					"\r\n",
+					"SELECT Religious_denomination_key as ReligionCode,\r\n",
+					"        Religion as Description\r\n",
+					"\r\n",
+					" FROM odw_standardised_db.vw_protected_characteristics\r\n",
+					" where Religious_denomination_key is not null\r\n",
+					" group by Religious_denomination_key, religion"
+				],
+				"execution_count": 3
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
 					}
 				},
 				"source": [
@@ -72,15 +101,15 @@
 					"- **Deleted data:** where an ReligionCode in the target exists but the same Disability_Text doesn't exist in the source. DeletedData flag is set to 'Y'\n",
 					"\n",
 					"## View religion_dim_new is created"
-				],
-				"execution_count": null
+				]
 			},
 			{
 				"cell_type": "code",
 				"metadata": {
 					"microsoft": {
 						"language": "sparksql"
-					}
+					},
+					"collapsed": false
 				},
 				"source": [
 					"%%sql\r\n",
@@ -96,72 +125,61 @@
 					"\r\n",
 					"SELECT\r\n",
 					"    CASE\r\n",
-					"        WHEN T1.Religion IS NULL\r\n",
-					"        THEN first(T3.SXOID)\r\n",
-					"        ELSE NULL\r\n",
+					"        WHEN T1.ReligionCode IS NULL\r\n",
+					"        THEN T3.ReligionID\r\n",
 					"    END as ReligionID, -- surrogate key\r\n",
-					"    Religion AS ReligionCode,\r\n",
-					"    first(T1.Religious_Denomination) AS Description,\r\n",
-					"    first(T2.SourceSystemID) as SourceSystemID, -- NOT CORRECT\r\n",
+					"    T1.ReligionCode,\r\n",
+					"    T1.Description,\r\n",
+					"    T2.SourceSystemID, -- NOT CORRECT\r\n",
 					"    CURRENT_TIMESTAMP AS StartDate,\r\n",
 					"    NULL AS EndDate,\r\n",
 					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
 					"    NULL AS ValidTo,\r\n",
-					"    md5(Religion) as RowID,\r\n",
+					"    md5(concat(IFNULL(T1.ReligionCode,'.'), IFNULL(T1.Description,'.'))) as RowID,\r\n",
 					"    'Y' as IsActive,\r\n",
 					"    CASE\r\n",
-					"        WHEN T1.Religion = first(T3.ReligionCode) AND md5(concat(T1.Religion)) <> first(T3.RowID)     \r\n",
+					"        WHEN T1.ReligionCode = T3.ReligionCode AND md5(concat(IFNULL(T1.ReligionCode,'.'), IFNULL(T1.Description,'.'))) <> T3.RowID\r\n",
 					"        THEN 'Y'\r\n",
-					"        WHEN first(T3.ReligionCode) IS NULL\r\n",
+					"        WHEN T3.ReligionCode IS NULL\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
 					"    END as NewData,\r\n",
 					"    CASE\r\n",
-					"        WHEN T1.Religion IS NULL\r\n",
+					"        WHEN T1.ReligionCode IS NULL\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
 					"    END AS  DeletedData\r\n",
 					"\r\n",
-					"FROM odw_standardised_db.personal_characteristics T1\r\n",
-					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description\r\n",
-					"FULL JOIN odw_harmonised_db.religion_dim T3 ON T1.Religion = T3.ReligionCode\r\n",
+					"FROM religion_grouped T1\r\n",
+					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description AND T2.IsActive = 'Y'\r\n",
+					"FULL JOIN odw_harmonised_db.religion_dim T3 ON T1.ReligionCode = T3.ReligionCode\r\n",
 					"WHERE  (T3.IsActive = 'Y' or T3.IsActive IS NULL)\r\n",
 					"    \r\n",
 					"        AND (\r\n",
 					"        \r\n",
 					"        -- flags new data        \r\n",
-					"        ( CASE\r\n",
-					"            WHEN T1.Religion = T3.ReligionCode AND md5(concat(T1.Religion)) <> T3.RowID\r\n",
-					"            THEN 'Y'\r\n",
-					"            WHEN T3.ReligionCode IS NULL\r\n",
-					"            THEN 'Y'\r\n",
-					"            ELSE 'N'\r\n",
-					"        END  = 'Y' ) OR\r\n",
+					"        (   CASE\r\n",
+					"                WHEN T1.ReligionCode = T3.ReligionCode AND md5(concat(IFNULL(T1.ReligionCode,'.'), IFNULL(T1.Description,'.'))) <> T3.RowID\r\n",
+					"                THEN 'Y'\r\n",
+					"                WHEN T3.ReligionCode IS NULL\r\n",
+					"                THEN 'Y'\r\n",
+					"                ELSE 'N'\r\n",
+					"            END  = 'Y' ) OR\r\n",
 					"        \r\n",
 					"        -- flags deleted data\r\n",
-					"        ( CASE\r\n",
-					"            WHEN T1.Religion IS NULL\r\n",
-					"            THEN 'Y'\r\n",
-					"            ELSE 'N'\r\n",
-					"        END = 'Y' )\r\n",
-					"    )\r\n",
-					"\r\n",
-					"    AND\r\n",
-					"        T1.Religion IS NOT NULL\r\n",
-					"\r\n",
-					"GROUP BY T1.Religion\r\n",
-					"\r\n",
+					"        (   CASE\r\n",
+					"                WHEN T1.ReligionCode IS NULL\r\n",
+					"                THEN 'Y'\r\n",
+					"                ELSE 'N'\r\n",
+					"            END = 'Y' )\r\n",
+					"            )\r\n",
 					";"
 				],
-				"execution_count": null
+				"execution_count": 6
 			},
 			{
-				"cell_type": "code",
+				"cell_type": "markdown",
 				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
 					"nteract": {
 						"transient": {
 							"deleting": false
@@ -173,8 +191,7 @@
 					"- This script combines data that has been updated, Deleted or is new, with corresponding target data\n",
 					"- View **religion_dim_new** is unioned to the target data filter to only those rows where changes have been detected\n",
 					"## View religion_dim_changed_rows is created"
-				],
-				"execution_count": null
+				]
 			},
 			{
 				"cell_type": "code",

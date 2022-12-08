@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "7e740a23-b748-49a7-91d7-726f68864edf"
+				"spark.autotune.trackingId": "072ad961-ad8c-4799-b160-f3fcd9931a51"
 			}
 		},
 		"metadata": {
@@ -70,31 +70,6 @@
 					"\n",
 					"## View absence_dim_new is created"
 				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
-				},
-				"source": [
-					"%%sql\r\n",
-					"Select *\r\n",
-					"FROM odw_standardised_db.absences_new T1\r\n",
-					"INNER JOIN (Select Max(expected_from) as MaxExpectedFrom from odw_standardised_db.absences_new) dt ON T1.expected_from = dt.MaxExpectedFrom"
-				],
-				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
@@ -155,13 +130,13 @@
 					"    END AS  DeletedData\r\n",
 					"\r\n",
 					"FROM odw_standardised_db.vw_absences T1\r\n",
-					"INNER JOIN (Select Max(expected_from) as MaxExpectedFrom from odw_standardised_db.vw_absences) dt ON T1.expected_from = dt.MaxExpectedFrom\r\n",
-					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description\r\n",
+					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description AND T2.IsActive = 'Y'\r\n",
 					"LEFT JOIN odw_harmonised_db.employee_dim T3 ON T3.EmployeeNumber = T1.Staff_Number\r\n",
 					"LEFT JOIN odw_harmonised_db.workschedule_dim T3 ON T3.WorkScheduleRule = T1.Work_Schedule_Rule AND \r\n",
 					"                                                        T3.WorkWeekDays = T1.WkDys AND \r\n",
 					"                                                        T3.WorkWeekHours = T1.Wk_hrs AND   \r\n",
 					"                                                        T3.WorkDayHours = T1.Hrs_Day\r\n",
+					"                                                        AND T3.IsActive = 'Y'\r\n",
 					"FULL JOIN odw_harmonised_db.absence_dim T7 ON T3.EmployeeID = T7.EmployeeID AND \r\n",
 					"                                                T1.Attendance_or_Absence_Type = T7.AbsenceType AND \r\n",
 					"                                                T1.Start_Date = T7.AbsenceStartDate AND \r\n",
@@ -189,14 +164,12 @@
 					"            ELSE 'N'\r\n",
 					"        END = 'Y' )\r\n",
 					"        )\r\n",
-					"    AND\r\n",
 					"\r\n",
-					"        T1.Staff_Number IS NOT NULL\r\n",
 					";\r\n",
 					"\r\n",
 					""
 				],
-				"execution_count": 1
+				"execution_count": 4
 			},
 			{
 				"cell_type": "markdown",

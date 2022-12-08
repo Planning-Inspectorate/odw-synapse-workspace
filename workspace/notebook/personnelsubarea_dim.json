@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "f66c481a-7e65-4011-a55f-7cb160231663"
+				"spark.autotune.trackingId": "6531cbef-26ef-4644-8960-2b77b0937f9c"
 			}
 		},
 		"metadata": {
@@ -51,6 +51,42 @@
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW personnelsubarea_grouped\r\n",
+					"\r\n",
+					"    AS\r\n",
+					"\r\n",
+					"SELECT \r\n",
+					"\r\n",
+					"    PSubarea AS PersonnelSubAreaCode,\r\n",
+					"    Personnel_Subarea AS Description\r\n",
+					"\r\n",
+					"    \r\n",
+					"FROM odw_standardised_db.vw_saphr\r\n",
+					"WHERE PSubarea IS NOT NULL\r\n",
+					"GROUP BY PSubarea, Personnel_Subarea;"
+				],
+				"execution_count": 1
+			},
 			{
 				"cell_type": "markdown",
 				"metadata": {
@@ -92,67 +128,61 @@
 					"\r\n",
 					"SELECT \r\n",
 					"    CASE\r\n",
-					"        WHEN T1.PSubarea IS NULL\r\n",
-					"        THEN first(T7.PersonnelSubAreaID)\r\n",
+					"        WHEN T1.PersonnelSubAreaCode IS NULL\r\n",
+					"        THEN T7.PersonnelSubAreaID\r\n",
 					"        ELSE NULL\r\n",
 					"    END as PersonnelSubAreaID, -- surrogate key\r\n",
-					"    PSubarea AS PersonnelSubAreaCode, -- source system id\r\n",
-					"    Personnel_Subarea AS Description, \r\n",
-					"    First(T2.SourceSystemID) as SourceSystemID,\r\n",
+					"    T1.PersonnelSubAreaCode, -- source system id\r\n",
+					"    T1.Description, \r\n",
+					"    T2.SourceSystemID as SourceSystemID,\r\n",
 					"    CURRENT_TIMESTAMP AS StartDate,\r\n",
 					"    NULL AS EndDate,\r\n",
 					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
 					"    NULL AS ValidTo,\r\n",
-					"    md5(concat(IFNULL(T1.PSubarea,'.'), IFNULL(T1.Personnel_Subarea,'.'))) as RowID,\r\n",
+					"    md5(concat(IFNULL(T1.PersonnelSubAreaCode,'.'), IFNULL(T1.Description,'.'))) as RowID,\r\n",
 					"    'Y' as IsActive,\r\n",
 					"    CASE\r\n",
-					"        WHEN T1.PSubarea = first(T7.PersonnelSubAreaCode) AND md5(concat(IFNULL(T1.PSubarea,'.'), IFNULL(T1.Personnel_Subarea,'.'))) <> first(T7.RowID)    -- same employee, changed data\r\n",
+					"        WHEN T1.PersonnelSubAreaCode = T7.PersonnelSubAreaCode AND md5(concat(IFNULL(T1.PersonnelSubAreaCode,'.'), IFNULL(T1.Description,'.'))) <> T7.RowID    -- same employee, changed data\r\n",
 					"        THEN 'Y'\r\n",
-					"        WHEN first(T7.PersonnelSubAreaCode) IS NULL -- new employee\r\n",
+					"        WHEN T7.PersonnelSubAreaCode IS NULL -- new employee\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
 					"    END as NewData,\r\n",
 					"    CASE\r\n",
-					"        WHEN T1.PSubarea IS NULL\r\n",
+					"        WHEN T1.PersonnelSubAreaCode IS NULL\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
 					"    END AS  DeletedData\r\n",
 					"\r\n",
-					"FROM odw_standardised_db.vw_saphr T1\r\n",
-					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description\r\n",
-					"FULL JOIN odw_harmonised_db.personnelsubarea_dim T7 ON T1.PSubarea = T7.PersonnelSubAreaCode\r\n",
+					"FROM personnelsubarea_grouped T1\r\n",
+					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description and T2.IsActive = 'Y'\r\n",
+					"FULL JOIN odw_harmonised_db.personnelsubarea_dim T7 ON T1.PersonnelSubAreaCode = T7.PersonnelSubAreaCode\r\n",
 					"WHERE  (T7.IsActive = 'Y' or T7.IsActive IS NULL)\r\n",
 					"    \r\n",
 					"        AND (\r\n",
 					"        \r\n",
 					"        -- flags new data        \r\n",
 					"        ( CASE\r\n",
-					"            WHEN T1.PSubarea = T7.PersonnelSubAreaCode AND md5(concat(IFNULL(T1.PSubarea,'.'), IFNULL(T1.Personnel_Subarea,'.'))) <> T7.RowID    -- same employee, changed data\r\n",
-					"            THEN 'Y'\r\n",
-					"            WHEN T7.PersonnelSubAreaCode IS NULL -- new employee\r\n",
-					"            THEN 'Y'\r\n",
-					"            ELSE 'N'\r\n",
-					"        END  = 'Y' ) OR\r\n",
+					"                WHEN T1.PersonnelSubAreaCode = T7.PersonnelSubAreaCode AND md5(concat(IFNULL(T1.PersonnelSubAreaCode,'.'), IFNULL(T1.Description,'.'))) <> T7.RowID    -- same employee, changed data\r\n",
+					"                THEN 'Y'\r\n",
+					"                WHEN T7.PersonnelSubAreaCode IS NULL -- new employee\r\n",
+					"                THEN 'Y'\r\n",
+					"                ELSE 'N'\r\n",
+					"            END  = 'Y' ) OR\r\n",
 					"        \r\n",
 					"        -- flags deleted data\r\n",
 					"        ( CASE\r\n",
-					"            WHEN T1.PSubarea IS NULL\r\n",
-					"            THEN 'Y'\r\n",
-					"            ELSE 'N'\r\n",
-					"        END = 'Y' )\r\n",
+					"                WHEN T1.PersonnelSubAreaCode IS NULL\r\n",
+					"                THEN 'Y'\r\n",
+					"                ELSE 'N'\r\n",
+					"            END = 'Y' )\r\n",
 					")\r\n",
 					"\r\n",
-					"    AND\r\n",
-					"\r\n",
-					"        T1.PSubarea IS NOT NULL\r\n",
-					"\r\n",
-					"\r\n",
-					"GROUP BY T1.PSubarea, T1.Personnel_Subarea\r\n",
 					"\r\n",
 					";\r\n",
 					""
 				],
-				"execution_count": 4
+				"execution_count": 3
 			},
 			{
 				"cell_type": "markdown",

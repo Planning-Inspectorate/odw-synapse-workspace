@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "aad84ea9-9a1f-4d48-a072-6394e5e8e097"
+				"spark.autotune.trackingId": "de71a67b-3029-4440-b891-73a20742271c"
 			}
 		},
 		"metadata": {
@@ -51,6 +51,42 @@
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW pins_position_grouped\r\n",
+					"\r\n",
+					"    AS\r\n",
+					"\r\n",
+					"SELECT \r\n",
+					"\r\n",
+					"    Position  AS PositionCode,\r\n",
+					"    First(Position_1)  AS Description\r\n",
+					"\r\n",
+					"    \r\n",
+					"FROM odw_standardised_db.vw_saphr\r\n",
+					"WHERE Position IS NOT NULL\r\n",
+					"GROUP BY Position ;"
+				],
+				"execution_count": 4
+			},
 			{
 				"cell_type": "markdown",
 				"metadata": {
@@ -92,42 +128,42 @@
 					"\r\n",
 					"SELECT \r\n",
 					"    CASE\r\n",
-					"        WHEN T1.PositionID IS NULL\r\n",
-					"        THEN first(T7.PositionCode)\r\n",
+					"        WHEN T1.PositionCode IS NULL\r\n",
+					"        THEN T7.PositionCode\r\n",
 					"        ELSE NULL\r\n",
 					"    END as PositionID, \r\n",
-					"    T1.PositionID  AS PositionCode,\r\n",
-					"    First(PositionName)  AS Description,\r\n",
-					"    first(T2.SourceSystemID) as SourceSystemID,\r\n",
+					"    T1.PositionCode,\r\n",
+					"    T1.Description,\r\n",
+					"    T2.SourceSystemID,\r\n",
 					"    CURRENT_TIMESTAMP AS StartDate,\r\n",
 					"    NULL AS EndDate,\r\n",
 					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
 					"    NULL AS ValidTo,\r\n",
-					"    md5(concat(IFNULL(T1.PositionID,'.'), IFNULL(FIRST(T1.PositionName),'.'))) as RowID,\r\n",
+					"    md5(concat(IFNULL(T1.PositionCode,'.'), IFNULL(T1.Description,'.'))) as RowID,\r\n",
 					"    'Y' as IsActive,\r\n",
 					"    CASE\r\n",
-					"        WHEN T1.PositionID = first(T7.PositionCode) AND  md5(concat(IFNULL(T1.PositionID,'.'), IFNULL(FIRST(T1.PositionName),'.'))) <> first(T7.RowID)    -- same employee, changed data\r\n",
+					"        WHEN T1.PositionCode = T7.PositionCode AND  md5(concat(IFNULL(T1.PositionCode,'.'), IFNULL(T1.Description,'.'))) <> T7.RowID   -- same employee, changed data\r\n",
 					"        THEN 'Y'\r\n",
-					"        WHEN FIRST(T7.PositionCode) IS NULL -- new employee\r\n",
+					"        WHEN T7.PositionCode IS NULL -- new employee\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
 					"    END as NewData,\r\n",
 					"    CASE\r\n",
-					"        WHEN T1.PositionID IS NULL\r\n",
+					"        WHEN T1.PositionCode IS NULL\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
 					"    END AS  DeletedData\r\n",
 					"\r\n",
-					"FROM odw_standardised_db.vw_saphr T1\r\n",
-					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description\r\n",
-					"FULL JOIN odw_harmonised_db.position_dim T7 ON T1.PositionID = T7.PositionCode\r\n",
+					"FROM pins_position_grouped T1\r\n",
+					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description AND T2.IsActive = 'Y'\r\n",
+					"FULL JOIN odw_harmonised_db.position_dim T7 ON T1.PositionCode = T7.PositionCode\r\n",
 					"WHERE  (T7.IsActive = 'Y' or T7.IsActive IS NULL)\r\n",
 					"    \r\n",
 					"        AND (\r\n",
 					"        \r\n",
 					"        -- flags new data        \r\n",
 					"        (   CASE\r\n",
-					"                WHEN T1.PositionID = T7.PositionCode AND  md5(concat(IFNULL(T1.PositionID,'.'), IFNULL(T1.PositionName,'.'))) <> T7.RowID  -- same employee, changed data\r\n",
+					"                WHEN T1.PositionCode = T7.PositionCode AND md5(concat(IFNULL(T1.PositionCode,'.'), IFNULL(T1.Description,'.'))) <> T7.RowID  -- same employee, changed data\r\n",
 					"                THEN 'Y'\r\n",
 					"                WHEN T7.PositionCode IS NULL -- new employee\r\n",
 					"                THEN 'Y'\r\n",
@@ -136,16 +172,16 @@
 					"        \r\n",
 					"        -- flags deleted data\r\n",
 					"        (   CASE\r\n",
-					"                WHEN T1.PositionID IS NULL\r\n",
+					"                WHEN T1.PositionCode IS NULL\r\n",
 					"                THEN 'Y'\r\n",
 					"                ELSE 'N'\r\n",
 					"            END = 'Y' )\r\n",
 					")\r\n",
-					"GROUP BY T1.PositionID\r\n",
+					"\r\n",
 					";\r\n",
 					""
 				],
-				"execution_count": 2
+				"execution_count": 6
 			},
 			{
 				"cell_type": "markdown",

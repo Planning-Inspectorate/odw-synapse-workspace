@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "b0f68c99-046a-4f1e-a47c-07705806369e"
+				"spark.autotune.trackingId": "b2b4a2fe-8d47-48d7-b191-439bd634d968"
 			}
 		},
 		"metadata": {
@@ -51,6 +51,41 @@
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW payband_grouped\r\n",
+					"\r\n",
+					"    AS\r\n",
+					"\r\n",
+					"SELECT \r\n",
+					"\r\n",
+					"    PS_group AS PSGroupCode,\r\n",
+					"    First(Pay_Band_Description) AS Description    \r\n",
+					"    \r\n",
+					"FROM odw_standardised_db.vw_saphr\r\n",
+					"WHERE PS_group IS NOT NULL\r\n",
+					"GROUP BY PS_group;"
+				],
+				"execution_count": 1
+			},
 			{
 				"cell_type": "markdown",
 				"metadata": {
@@ -92,66 +127,61 @@
 					"\r\n",
 					"SELECT \r\n",
 					"    CASE\r\n",
-					"        WHEN T1.PS_group IS NULL\r\n",
-					"        THEN first(T7.PayBandID)\r\n",
+					"        WHEN T1.PSGroupCode IS NULL\r\n",
+					"        THEN T7.PayBandID\r\n",
 					"        ELSE NULL\r\n",
 					"    END as PayBandID, -- surrogate key\r\n",
-					"    PS_group AS PSGroupCode, -- source system id\r\n",
-					"    Pay_Band_Description AS Description, \r\n",
-					"    First(T2.SourceSystemID) as SourceSystemID,\r\n",
+					"    T1.PSGroupCode, -- source system id\r\n",
+					"    T1.Description, \r\n",
+					"    T2.SourceSystemID as SourceSystemID,\r\n",
 					"    CURRENT_TIMESTAMP AS StartDate,\r\n",
 					"    NULL AS EndDate,\r\n",
 					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
 					"    NULL AS ValidTo,\r\n",
-					"    md5(concat(IFNULL(T1.PS_group,'.'), IFNULL(T1.Pay_Band_Description,'.'))) as RowID,\r\n",
+					"    md5(concat(IFNULL(T1.PSGroupCode,'.'), IFNULL(T1.Description,'.'))) as RowID,\r\n",
 					"    'Y' as IsActive,\r\n",
 					"    CASE\r\n",
-					"        WHEN T1.PS_group = first(T7.PSGroupCode) AND md5(concat(IFNULL(T1.PS_group,'.'), IFNULL(T1.Pay_Band_Description,'.')))  <> first(T7.RowID)    -- same employee, changed data\r\n",
+					"        WHEN T1.PSGroupCode = T7.PSGroupCode AND md5(concat(IFNULL(T1.PSGroupCode,'.'), IFNULL(T1.Description,'.')))  <> T7.RowID   -- same employee, changed data\r\n",
 					"        THEN 'Y'\r\n",
-					"        WHEN first(T7.PSGroupCode) IS NULL -- new employee\r\n",
+					"        WHEN T7.PSGroupCode IS NULL -- new employee\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
 					"    END as NewData,\r\n",
 					"    CASE\r\n",
-					"        WHEN T1.PS_group IS NULL\r\n",
+					"        WHEN T1.PSGroupCode IS NULL\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
 					"    END AS  DeletedData\r\n",
 					"\r\n",
 					"\r\n",
-					"FROM odw_standardised_db.vw_saphr T1\r\n",
-					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description\r\n",
-					"FULL JOIN odw_harmonised_db.payband_dim T7 ON T1.PS_group = T7.PSGroupCode\r\n",
+					"FROM payband_grouped T1\r\n",
+					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description and T2.IsActive = 'Y'\r\n",
+					"FULL JOIN odw_harmonised_db.payband_dim T7 ON T1.PSGroupCode = T7.PSGroupCode\r\n",
 					"WHERE  (T7.IsActive = 'Y' or T7.IsActive IS NULL)\r\n",
 					"    \r\n",
 					"        AND (\r\n",
 					"        \r\n",
 					"        -- flags new data        \r\n",
-					"        ( CASE\r\n",
-					"            WHEN T1.PS_group = T7.PSGroupCode AND md5(concat(IFNULL(T1.PS_group,'.'), IFNULL(T1.Pay_Band_Description,'.')))  <> T7.RowID    -- same employee, changed data\r\n",
-					"            THEN 'Y'\r\n",
-					"            WHEN T7.PSGroupCode IS NULL -- new employee\r\n",
-					"            THEN 'Y'\r\n",
-					"            ELSE 'N'\r\n",
-					"        END  = 'Y' ) OR\r\n",
+					"        (   CASE\r\n",
+					"                WHEN T1.PSGroupCode = T7.PSGroupCode AND md5(concat(IFNULL(T1.PSGroupCode,'.'), IFNULL(T1.Description,'.')))  <> T7.RowID   -- same employee, changed data\r\n",
+					"                THEN 'Y'\r\n",
+					"                WHEN T7.PSGroupCode IS NULL -- new employee\r\n",
+					"                THEN 'Y'\r\n",
+					"                ELSE 'N'\r\n",
+					"            END  = 'Y' ) OR\r\n",
 					"        \r\n",
 					"        -- flags deleted data\r\n",
-					"        ( CASE\r\n",
-					"            WHEN T1.PS_group IS NULL\r\n",
-					"            THEN 'Y'\r\n",
-					"            ELSE 'N'\r\n",
-					"        END = 'Y' )\r\n",
+					"        (   CASE\r\n",
+					"                WHEN T1.PSGroupCode IS NULL\r\n",
+					"                THEN 'Y'\r\n",
+					"                ELSE 'N'\r\n",
+					"            END = 'Y' )\r\n",
 					")\r\n",
-					"    AND\r\n",
-					"\r\n",
-					"        T1.PS_group IS NOT NULL\r\n",
-					"\r\n",
-					"GROUP BY T1.PS_group, T1.Pay_Band_Description\r\n",
 					"\r\n",
 					";\r\n",
 					""
 				],
-				"execution_count": 6
+				"execution_count": 4
 			},
 			{
 				"cell_type": "markdown",

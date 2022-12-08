@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "45240a73-3458-4030-8531-a218b2b9b5bf"
+				"spark.autotune.trackingId": "7f498cfa-08ba-4946-9279-941f55617c76"
 			}
 		},
 		"metadata": {
@@ -51,6 +51,38 @@
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW disability_grouped\r\n",
+					"\r\n",
+					"    AS\r\n",
+					"\r\n",
+					"Select Disability_text as DisabilityCode, \r\n",
+					"        first(Disability_Code_Description) as Description\r\n",
+					"FROM odw_standardised_db.vw_protected_characteristics \r\n",
+					"Where Disability_text IS NOT NULL \r\n",
+					"GROUP BY Disability_Text"
+				],
+				"execution_count": 7
+			},
 			{
 				"cell_type": "markdown",
 				"metadata": {
@@ -92,64 +124,62 @@
 					"\r\n",
 					"SELECT\r\n",
 					"    CASE\r\n",
-					"        WHEN T1.Disability_Text IS NULL\r\n",
-					"        THEN first(T3.DisabilityID)\r\n",
+					"        WHEN T1.DisabilityCode IS NULL\r\n",
+					"        THEN T3.DisabilityID\r\n",
 					"        ELSE NULL\r\n",
 					"    END as DisabilityID, \r\n",
-					"    Disability_Text AS DisabilityCode,\r\n",
-					"    first(T1.Disability_Code_Description) AS Description,\r\n",
-					"    first(T2.SourceSystemID) as SourceSystemID,\r\n",
+					"    T1.DisabilityCode,\r\n",
+					"    T1.Description,\r\n",
+					"    T2.SourceSystemID as SourceSystemID,\r\n",
 					"    CURRENT_TIMESTAMP AS StartDate,\r\n",
 					"    NULL AS EndDate,\r\n",
 					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
 					"    NULL AS ValidTo,\r\n",
-					"    md5(Disability_Text) as RowID,\r\n",
+					"    md5(CONCAT(IFNULL(T1.DisabilityCode,'.'), IFNULL(T1.Description,'.'))) as RowID,\r\n",
 					"    'Y' as IsActive,\r\n",
 					"    CASE\r\n",
-					"        WHEN T1.Disability_Text = first(T3.DisabilityCode) AND md5(concat(T1.Disability_Text)) <> first(T3.RowID)     \r\n",
+					"        WHEN T1.DisabilityCode = T3.DisabilityCode AND \r\n",
+					"                md5(CONCAT(IFNULL(T1.DisabilityCode,'.'), IFNULL(T1.Description,'.'))) <> T3.RowID  \r\n",
 					"        THEN 'Y'\r\n",
-					"        WHEN first(T3.DisabilityCode) IS NULL\r\n",
+					"        WHEN T3.DisabilityCode IS NULL\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
 					"    END as NewData,\r\n",
 					"    CASE\r\n",
-					"        WHEN T1.Disability_Text IS NULL\r\n",
+					"        WHEN T1.DisabilityCode IS NULL\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
 					"    END AS  DeletedData\r\n",
 					"\r\n",
-					"FROM odw_standardised_db.personal_characteristics T1\r\n",
-					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description\r\n",
-					"FULL JOIN odw_harmonised_db.disability_dim T3 ON T1.Disability_Text = T3.DisabilityCode\r\n",
+					"FROM disability_grouped T1\r\n",
+					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description AND T2.IsActive = 'Y'\r\n",
+					"FULL JOIN odw_harmonised_db.disability_dim T3 ON T1.DisabilityCode = T3.DisabilityCode \r\n",
 					"WHERE  (T3.IsActive = 'Y' or T3.IsActive IS NULL)\r\n",
 					"    \r\n",
 					"        AND (\r\n",
 					"        \r\n",
 					"        -- flags new data        \r\n",
-					"        ( CASE\r\n",
-					"            WHEN T1.Disability_Text = T3.DisabilityCode AND md5(concat(T1.Disability_Text)) <> T3.RowID\r\n",
-					"            THEN 'Y'\r\n",
-					"            WHEN T3.DisabilityCode IS NULL\r\n",
-					"            THEN 'Y'\r\n",
+					"        (   CASE\r\n",
+					"                WHEN T1.DisabilityCode = T3.DisabilityCode AND \r\n",
+					"                        md5(CONCAT(IFNULL(T1.DisabilityCode,'.'), IFNULL(T1.Description,'.'))) <> T3.RowID  \r\n",
+					"                THEN 'Y'\r\n",
+					"                WHEN T3.DisabilityCode IS NULL\r\n",
+					"                THEN 'Y'\r\n",
 					"            ELSE 'N'\r\n",
-					"        END  = 'Y' ) OR\r\n",
+					"            END  = 'Y' ) OR\r\n",
 					"        \r\n",
 					"        -- flags deleted data\r\n",
 					"        ( CASE\r\n",
-					"            WHEN T1.Disability_Text IS NULL\r\n",
+					"            WHEN T1.DisabilityCode IS NULL\r\n",
 					"            THEN 'Y'\r\n",
 					"            ELSE 'N'\r\n",
 					"        END = 'Y' )\r\n",
 					"    )\r\n",
 					"\r\n",
-					"    AND\r\n",
-					"        T1.Disability_Text IS NOT NULL\r\n",
-					"\r\n",
-					"GROUP BY T1.Disability_Text\r\n",
 					"\r\n",
 					";"
 				],
-				"execution_count": 3
+				"execution_count": 11
 			},
 			{
 				"cell_type": "markdown",

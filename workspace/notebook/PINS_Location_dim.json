@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "2b986b72-184e-430a-ad86-901b9f5affe5"
+				"spark.autotune.trackingId": "f8161b85-9ed2-4731-ae01-84384208b32a"
 			}
 		},
 		"metadata": {
@@ -51,6 +51,42 @@
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW pins_location_grouped\r\n",
+					"\r\n",
+					"    AS\r\n",
+					"\r\n",
+					"SELECT \r\n",
+					"\r\n",
+					"    Loc  AS LocationCode,\r\n",
+					"    First(Location)  AS Description\r\n",
+					"\r\n",
+					"    \r\n",
+					"FROM odw_standardised_db.vw_saphr\r\n",
+					"WHERE Loc IS NOT NULL\r\n",
+					"GROUP BY Loc;"
+				],
+				"execution_count": 1
+			},
 			{
 				"cell_type": "markdown",
 				"metadata": {
@@ -92,56 +128,56 @@
 					"\r\n",
 					"SELECT \r\n",
 					"    CASE\r\n",
-					"        WHEN T1.Loc IS NULL\r\n",
-					"        THEN first(T7.LocationID)\r\n",
+					"        WHEN T1.LocationCode IS NULL\r\n",
+					"        THEN T7.LocationID\r\n",
 					"        ELSE NULL\r\n",
 					"    END as LocationID, -- surrogate key\r\n",
-					"    Loc  AS LocationCode, -- check\r\n",
-					"    First(Location)  AS Description,\r\n",
-					"    first(T2.SourceSystemID) as SourceSystemID,\r\n",
+					"    T1.LocationCode, -- check\r\n",
+					"    T1.Description,\r\n",
+					"    T2.SourceSystemID as SourceSystemID,\r\n",
 					"    CURRENT_TIMESTAMP AS StartDate,\r\n",
 					"    NULL AS EndDate,\r\n",
 					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
 					"    NULL AS ValidTo,\r\n",
-					"    md5(concat(IFNULL(T1.Loc,'.'), IFNULL(FIRST(T1.Location),'.'))) as RowID,\r\n",
+					"    md5(concat(IFNULL(T1.LocationCode,'.'), IFNULL(T1.Description,'.'))) as RowID,\r\n",
 					"    'Y' as IsActive,\r\n",
 					"    CASE\r\n",
-					"        WHEN T1.Loc = first(T7.LocationCode) AND  md5(concat(IFNULL(T1.Loc,'.'), IFNULL(FIRST(T1.Location),'.'))) <> first(T7.RowID)    -- same employee, changed data\r\n",
+					"        WHEN T1.LocationCode = T7.LocationCode AND  md5(concat(IFNULL(T1.LocationCode,'.'), IFNULL(T1.Description,'.'))) <> T7.RowID   -- same employee, changed data\r\n",
 					"        THEN 'Y'\r\n",
-					"        WHEN FIRST(T7.LocationCode) IS NULL -- new employee\r\n",
+					"        WHEN T7.LocationCode IS NULL -- new employee\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
 					"    END as NewData,\r\n",
 					"    CASE\r\n",
-					"        WHEN T1.Loc IS NULL\r\n",
+					"        WHEN T1.LocationCode IS NULL\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
 					"    END AS  DeletedData\r\n",
 					"\r\n",
-					"FROM odw_standardised_db.vw_saphr T1\r\n",
-					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description\r\n",
-					"FULL JOIN odw_harmonised_db.PINS_Location_dim T7 ON T1.Loc = T7.LocationCode\r\n",
+					"FROM pins_location_grouped T1\r\n",
+					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description and T2.IsActive = 'Y'\r\n",
+					"FULL JOIN odw_harmonised_db.PINS_Location_dim T7 ON T1.LocationCode = T7.LocationCode\r\n",
 					"WHERE  (T7.IsActive = 'Y' or T7.IsActive IS NULL)\r\n",
 					"    \r\n",
 					"        AND (\r\n",
 					"        \r\n",
 					"        -- flags new data        \r\n",
 					"        (   CASE\r\n",
-					"                WHEN T1.Loc = T7.LocationCode AND  md5(concat(IFNULL(T1.Loc,'.'), IFNULL(T1.Location,'.'))) <> T7.RowID    -- same employee, changed data\r\n",
+					"                WHEN T1.LocationCode = T7.LocationCode AND  md5(concat(IFNULL(T1.LocationCode,'.'), IFNULL(T1.Description,'.'))) <> T7.RowID   -- same employee, changed data\r\n",
 					"                THEN 'Y'\r\n",
 					"                WHEN T7.LocationCode IS NULL -- new employee\r\n",
 					"                THEN 'Y'\r\n",
 					"                ELSE 'N'\r\n",
-					"            END  = 'Y' ) OR\r\n",
+					"            END = 'Y' ) OR\r\n",
 					"        \r\n",
 					"        -- flags deleted data\r\n",
-					"        (   CASE\r\n",
-					"                WHEN T1.Loc IS NULL\r\n",
+					"    (       CASE\r\n",
+					"                WHEN T1.LocationCode IS NULL\r\n",
 					"                THEN 'Y'\r\n",
 					"                ELSE 'N'\r\n",
 					"            END = 'Y' )\r\n",
 					")\r\n",
-					"GROUP BY T1.Loc\r\n",
+					"\r\n",
 					";\r\n",
 					""
 				],

@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "9eea51ba-e2c2-4270-a5c8-44c8821547e1"
+				"spark.autotune.trackingId": "e4335ea9-e624-43a6-974e-b04d1d91ffeb"
 			}
 		},
 		"metadata": {
@@ -51,6 +51,40 @@
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW costcentre_grouped\r\n",
+					"\r\n",
+					"    AS\r\n",
+					"\r\n",
+					"SELECT  \r\n",
+					"    Cost_Ctr AS CostCenterCode,\r\n",
+					"    first(Cost_Centre) AS Description\r\n",
+					"       \r\n",
+					"FROM odw_standardised_db.vw_saphr\r\n",
+					"WHERE Cost_Ctr IS NOT NULL\r\n",
+					"GROUP BY Cost_Ctr;"
+				],
+				"execution_count": 3
+			},
 			{
 				"cell_type": "markdown",
 				"metadata": {
@@ -92,42 +126,42 @@
 					"\r\n",
 					"SELECT \r\n",
 					"    CASE\r\n",
-					"        WHEN T1.Cost_Ctr IS NULL\r\n",
-					"        THEN first(T7.CostCenterID)\r\n",
+					"        WHEN T1.CostCenterCode IS NULL\r\n",
+					"        THEN T7.CostCenterID\r\n",
 					"        ELSE NULL\r\n",
 					"    END as CostCenterID, -- surrogate key\r\n",
-					"    T1.Cost_Ctr AS CostCenterCode,\r\n",
-					"    first(T1.Cost_Centre) AS Description,\r\n",
-					"    first(T2.SourceSystemID) as SourceSystemID,\r\n",
+					"    T1.CostCenterCode,\r\n",
+					"    T1.Description,\r\n",
+					"    T2.SourceSystemID,\r\n",
 					"    CURRENT_TIMESTAMP AS StartDate,\r\n",
 					"    NULL AS EndDate,\r\n",
 					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
 					"    NULL AS ValidTo,\r\n",
-					"    md5(concat(IFNULL(T1.Cost_Ctr,'.'), IFNULL(first(T1.Cost_Centre),'.'))) as RowID,\r\n",
+					"    md5(concat(IFNULL(T1.CostCenterCode,'.'), IFNULL(T1.Description,'.'))) as RowID,\r\n",
 					"    'Y' as IsActive,\r\n",
 					"    CASE\r\n",
-					"        WHEN T1.Cost_Ctr = first(T7.CostCenterCode) AND  md5(concat(IFNULL(T1.Cost_Ctr,'.'), IFNULL(first(T1.Cost_Centre),'.'))) <> first(T7.RowID)    -- same employee, changed data\r\n",
+					"        WHEN T1.CostCenterCode = T7.CostCenterCode AND  md5(concat(IFNULL(T1.CostCenterCode,'.'), IFNULL(T1.Description,'.'))) <> T7.RowID    -- same employee, changed data\r\n",
 					"        THEN 'Y'\r\n",
-					"        WHEN first(T7.CostCenterCode) IS NULL -- new employee\r\n",
+					"        WHEN T7.CostCenterCode IS NULL -- new employee\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
 					"    END as NewData,\r\n",
 					"    CASE\r\n",
-					"        WHEN T1.Cost_Ctr IS NULL\r\n",
+					"        WHEN T1.CostCenterCode IS NULL\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
 					"    END AS  DeletedData\r\n",
 					"\r\n",
-					"FROM odw_standardised_db.vw_saphr T1\r\n",
-					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description\r\n",
-					"FULL JOIN odw_harmonised_db.CostCenter_Dim T7 ON T1.Cost_Ctr = T7.CostCenterCode\r\n",
+					"FROM costcentre_grouped T1\r\n",
+					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description and T2.IsActive = 'Y'\r\n",
+					"FULL JOIN odw_harmonised_db.CostCenter_Dim T7 ON T1.CostCenterCode = T7.CostCenterCode \r\n",
 					"WHERE  (T7.IsActive = 'Y' or T7.IsActive IS NULL)\r\n",
 					"    \r\n",
 					"        AND (\r\n",
 					"        \r\n",
 					"        -- flags new data        \r\n",
 					"        (   CASE\r\n",
-					"                WHEN T1.Cost_Ctr = T7.CostCenterCode AND  md5(concat(IFNULL(T1.Cost_Ctr,'.'), IFNULL(T1.Cost_Centre,'.'))) <> T7.RowID    -- same employee, changed data\r\n",
+					"                WHEN T1.CostCenterCode = T7.CostCenterCode AND  md5(concat(IFNULL(T1.CostCenterCode,'.'), IFNULL(T1.Description,'.'))) <> T7.RowID    -- same employee, changed data\r\n",
 					"                THEN 'Y'\r\n",
 					"                WHEN T7.CostCenterCode IS NULL -- new employee\r\n",
 					"                THEN 'Y'\r\n",
@@ -136,18 +170,16 @@
 					"        \r\n",
 					"        -- flags deleted data\r\n",
 					"        (   CASE\r\n",
-					"                WHEN T1.Cost_Ctr IS NULL\r\n",
+					"                WHEN T1.CostCenterCode IS NULL\r\n",
 					"                THEN 'Y'\r\n",
 					"                ELSE 'N'\r\n",
 					"            END = 'Y' )\r\n",
 					")\r\n",
-					"        AND T1.Cost_Ctr IS NOT NULL\r\n",
 					"\r\n",
-					"GROUP BY T1.Cost_Ctr\r\n",
 					";\r\n",
 					""
 				],
-				"execution_count": 8
+				"execution_count": 5
 			},
 			{
 				"cell_type": "markdown",
