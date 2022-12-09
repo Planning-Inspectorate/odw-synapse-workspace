@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "582e0b63-351f-40dc-9b3b-09e657103063"
+				"spark.autotune.trackingId": "594db6e9-102e-4f45-a5fc-d606e9482d8a"
 			}
 		},
 		"metadata": {
@@ -101,10 +101,9 @@
 					"WHERE PA IS NOT NULL\n",
 					"\n",
 					"GROUP BY PA, Personnel_Area;\n",
-					"\n",
-					"select * from personnelarea_grouped;"
+					""
 				],
-				"execution_count": 1
+				"execution_count": 11
 			},
 			{
 				"cell_type": "code",
@@ -129,16 +128,16 @@
 					"SELECT \r\n",
 					"    CASE\r\n",
 					"        WHEN T1.PA IS NULL\r\n",
-					"        THEN first(T7.PersonnelAreaID)\r\n",
+					"        THEN T7.PersonnelAreaID\r\n",
 					"        ELSE NULL\r\n",
 					"    END as PersonnelAreaID, -- surrogate key\r\n",
 					"    CASE\r\n",
 					"        WHEN T1.PA IS NULL\r\n",
-					"        THEN first(T7.PersonnelAreaCode)\r\n",
+					"        THEN T7.PersonnelAreaCode\r\n",
 					"        ELSE T1.PA\r\n",
 					"    END as PersonnelAreaCode, -- source system id\r\n",
 					"    Personnel_Area AS Description, \r\n",
-					"    First(T2.SourceSystemID) as SourceSystemID,\r\n",
+					"    T2.SourceSystemID as SourceSystemID,\r\n",
 					"    CURRENT_TIMESTAMP AS StartDate,\r\n",
 					"    NULL AS EndDate,\r\n",
 					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
@@ -146,9 +145,9 @@
 					"    md5(concat(IFNULL(T1.PA, '.'), IFNULL(T1.Personnel_Area,'.'))) as RowID,\r\n",
 					"    'Y' as IsActive,\r\n",
 					"    CASE\r\n",
-					"        WHEN T1.PA = first(T7.PersonnelAreaCode) AND  md5(concat(IFNULL(T1.PA, '.'), IFNULL(T1.Personnel_Area,'.'))) <> first(T7.RowID)    -- same employee, changed data\r\n",
+					"        WHEN T1.PA = T7.PersonnelAreaCode AND  md5(concat(IFNULL(T1.PA, '.'), IFNULL(T1.Personnel_Area,'.'))) <> T7.RowID  -- same employee, changed data\r\n",
 					"        THEN 'Y'\r\n",
-					"        WHEN first(T7.PersonnelAreaCode) IS NULL -- new employee\r\n",
+					"        WHEN T7.PersonnelAreaCode IS NULL -- new employee\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
 					"    END as NewData,\r\n",
@@ -181,52 +180,28 @@
 					"            ELSE 'N'\r\n",
 					"        END = 'Y' )\r\n",
 					")\r\n",
-					"\r\n",
-					"    -- AND\r\n",
-					"\r\n",
-					"    --     T1.PA IS NOT NULL\r\n",
-					"\r\n",
-					"\r\n",
-					"GROUP BY T1.PA, T1.Personnel_Area\r\n",
 					";\r\n",
-					"\r\n",
-					"SELECT * FROM personnelarea_dim_new;\r\n",
 					""
 				],
-				"execution_count": 2
+				"execution_count": 12
 			},
 			{
-				"cell_type": "code",
+				"cell_type": "markdown",
 				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
 					"nteract": {
 						"transient": {
 							"deleting": false
 						}
-					},
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
+					}
 				},
 				"source": [
-					"%%sql\n",
+					"# Run tests to check integrity of data by numbers\n",
+					"- This script checks for the total number of current codes in the harmonised table, and compare against the numbers for new data to be added and data to be set as inactive.\n",
+					"- **Changes tracking:** where it checks the data against active records in harmonised and compares with records to add and records to be set as inactive.\n",
+					"- **Changes tolerance levels:** if the total ammount to be added and deleted surpasses the tolerance limit, it will interrupt the proces of loading the data\n",
 					"\n",
-					"SELECT COUNT (DISTINCT PA) AS Source_Number_PAreas FROM odw_standardised_db.vw_saphr;\n",
-					"SELECT DISTINCT PA AS Source_PAreas FROM odw_standardised_db.vw_saphr;\n",
-					"SELECT COUNT (DISTINCT PersonnelAreaCode)  AS Current_Number_PAreas FROM odw_harmonised_db.personnelarea_dim;\n",
-					"SELECT DISTINCT PersonnelAreaCode AS Current_PAreas FROM odw_harmonised_db.personnelarea_dim;\n",
-					"SELECT COUNT (DISTINCT PersonnelAreaCode) AS New_Data_Number FROM personnelarea_dim_new WHERE NewData = 'Y';\n",
-					"SELECT DISTINCT PersonnelAreaCode AS New_Data_Records FROM personnelarea_dim_new WHERE NewData = 'Y';\n",
-					"SELECT COUNT (DISTINCT PersonnelAreaCode) AS Deleted_Data_Number FROM personnelarea_dim_new WHERE DeletedData = 'Y';\n",
-					"SELECT DISTINCT PersonnelAreaCode AS Deleted_Data_Records FROM personnelarea_dim_new WHERE DeletedData = 'Y';\n",
-					"SELECT DISTINCT PA AS Existing_PAreas FROM odw_standardised_db.vw_saphr T1 RIGHT JOIN odw_harmonised_db.personnelarea_dim T7 ON T1.PA = T7.PersonnelAreaCode;\n",
-					"SELECT * FROM personnelarea_dim_new;"
-				],
-				"execution_count": 104
+					""
+				]
 			},
 			{
 				"cell_type": "code",
@@ -246,107 +221,113 @@
 					"spark = SparkSession.builder.getOrCreate()\n",
 					"\n",
 					"Source_Number_PAreas = spark.sql(\"SELECT COUNT (DISTINCT PA) AS Source_Number_PAreas FROM odw_standardised_db.vw_saphr\")\n",
-					"Source_PAreas = spark.sql(\"SELECT DISTINCT PA AS Source_PAreas FROM odw_standardised_db.vw_saphr\")\n",
 					"Current_Number_PAreas = spark.sql(\"SELECT COUNT (DISTINCT PersonnelAreaCode) AS Current_Number_PAreas FROM odw_harmonised_db.personnelarea_dim where IsActive = 'Y' \")\n",
-					"Current_PAreas = spark.sql(\"SELECT DISTINCT PersonnelAreaCode AS Current_Number_PAreas FROM odw_harmonised_db.personnelarea_dim where IsActive = 'Y' \")\n",
 					"New_Data_Number = spark.sql(\"SELECT COUNT (DISTINCT PersonnelAreaCode) AS New_Data_Number FROM personnelarea_dim_new WHERE NewData = 'Y'\")\n",
-					"New_Data_Records = spark.sql(\"SELECT DISTINCT PersonnelAreaCode AS New_Data_Records FROM personnelarea_dim_new WHERE NewData = 'Y'\")\n",
 					"Deleted_Data_Number = spark.sql(\"SELECT COUNT (DISTINCT PersonnelAreaCode) AS Deleted_Data_Number FROM personnelarea_dim_new WHERE DeletedData = 'Y'\")\n",
-					"Deleted_Data_Records = spark.sql(\"SELECT DISTINCT PersonnelAreaCode AS Deleted_Data_Records FROM personnelarea_dim_new WHERE DeletedData = 'Y'\")\n",
-					"Existing_PAreas = spark.sql(\"SELECT DISTINCT PA AS Existing_PAreas FROM odw_standardised_db.vw_saphr T1 RIGHT JOIN odw_harmonised_db.personnelarea_dim T7 ON T1.PA = T7.PersonnelAreaCode\")\n",
 					"\n",
 					"Source_Number_PAreas_Pandas = Source_Number_PAreas.toPandas()\n",
-					"Source_PAreas_Pandas =  Source_PAreas.toPandas()\n",
 					"Current_Number_PAreas_Pandas =  Current_Number_PAreas.toPandas()\n",
-					"Current_PAreas_Pandas =  Current_PAreas.toPandas()\n",
 					"New_Data_Number_Pandas = New_Data_Number.toPandas()\n",
-					"New_Data_Records_Pandas = New_Data_Records.toPandas()\n",
 					"Deleted_Data_Number_Pandas = Deleted_Data_Number.toPandas()\n",
-					"Deleted_Data_Records_Pandas = Deleted_Data_Records.toPandas()\n",
-					"Existing_PAreas_Pandas = Existing_PAreas.toPandas()\n",
-					"\n",
 					"\n",
 					"# checking if new total number of registers matches the previously loaded, plus New ones, minus Deleted ones\n",
+					"print(\"SET 1:\")\n",
 					"Total_Number = Source_Number_PAreas_Pandas['Source_Number_PAreas'].tolist() \n",
 					"Current_Loaded_Number = Current_Number_PAreas_Pandas['Current_Number_PAreas'].tolist() \n",
 					"New_Data_Number = New_Data_Number_Pandas['New_Data_Number'].tolist() \n",
 					"Deleted_Data_Number = Deleted_Data_Number_Pandas['Deleted_Data_Number'].tolist() \n",
-					"print(\"TEST 1:\")\n",
+					"\n",
+					"# print(Total_Number) \n",
+					"# print(Current_Loaded_Number) \n",
+					"# print(New_Data_Number) \n",
+					"# print(Deleted_Data_Number)\n",
+					"\n",
 					"if Total_Number[0] != (Current_Loaded_Number[0] + New_Data_Number[0] - Deleted_Data_Number[0]):\n",
 					"    raise RuntimeError(\"Loading Number do not match\")\n",
 					"else:\n",
-					"    print(\"Loading Number Matches!\")\n",
+					"    print(\"Loading number matches with existing codes plus new, minus deleted!\")\n",
 					"\n",
+					"if New_Data_Number[0] > 10:\n",
+					"    raise RuntimeError(\"ALERT: Too many new codes\")\n",
+					"else:\n",
+					"    print(\"New data under tolerance levels\")\n",
 					"\n",
-					"print(Source_PAreas_Pandas)\n",
-					"print(Current_PAreas_Pandas)\n",
-					"print(New_Data_Records_Pandas)\n",
-					"print(Deleted_Data_Records_Pandas)\n",
-					"print(Existing_PAreas_Pandas)\n",
+					"if Deleted_Data_Number[0] > 5:\n",
+					"    raise RuntimeError(\"ALERT: Too many deleted codes\")\n",
+					"else:\n",
+					"    print(\"Unused codes under tolerance levels\")\n",
+					""
+				],
+				"execution_count": 4
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Run tests to check integrity of data by comparision of codes\n",
+					"- This script checks for the total list of current codes in the harmonised table, and compare against the list for new data to be added and data to be set as inactive.\n",
+					"- **Changes tracking:** where it checks the data against active records in harmonised and compares with records to add and records to be set as inactive.\n",
+					"- **Changes tolerance levels:** if the total ammount to be added and deleted surpasses the tolerance limit, it will interrupt the proces of loading the data\n",
+					"\n",
+					""
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql import SparkSession\n",
+					"spark = SparkSession.builder.getOrCreate()\n",
+					"\n",
+					"Source_PAreas = spark.sql(\"SELECT DISTINCT PA AS Source_PAreas FROM odw_standardised_db.vw_saphr\")\n",
+					"Current_PAreas = spark.sql(\"SELECT DISTINCT PersonnelAreaCode AS Current_PAreas FROM odw_harmonised_db.personnelarea_dim where IsActive = 'Y' \")\n",
+					"New_Data_Records = spark.sql(\"SELECT DISTINCT PersonnelAreaCode AS New_Data_Records FROM personnelarea_dim_new WHERE NewData = 'Y'\")\n",
+					"Deleted_Data_Records = spark.sql(\"SELECT DISTINCT PersonnelAreaCode AS Deleted_Data_Records FROM personnelarea_dim_new WHERE DeletedData = 'Y'\")\n",
+					"Existing_PAreas = spark.sql(\"SELECT DISTINCT PA AS Existing_PAreas FROM odw_standardised_db.vw_saphr T1 RIGHT JOIN odw_harmonised_db.personnelarea_dim T7 ON T1.PA = T7.PersonnelAreaCode\")\n",
+					"\n",
+					"Source_PAreas_Pandas =  Source_PAreas.toPandas()\n",
+					"Current_PAreas_Pandas =  Current_PAreas.toPandas()\n",
+					"New_Data_Records_Pandas = New_Data_Records.toPandas()\n",
+					"Deleted_Data_Records_Pandas = Deleted_Data_Records.toPandas()\n",
+					"# Existing_PAreas_Pandas = Existing_PAreas.toPandas()\n",
 					"\n",
 					"# checking if a deleted areacode is correcly flagged, not existing in the new data, but existing inpreviously loaded\n",
+					"print(\"TEST 2:\")\n",
+					"\n",
 					"Total_Records = Source_PAreas_Pandas['Source_PAreas'].tolist() \n",
 					"Current_Records = Current_PAreas_Pandas['Current_PAreas'].tolist() \n",
 					"Deleted_Records = Deleted_Data_Records_Pandas['Deleted_Data_Records'].tolist()\n",
-					"print(Total_Records)\n",
-					"print(Current_Records)\n",
-					"print(Deleted_Records)\n",
-					"print(\"TEST 2:\")\n",
-					"# if Total_Number[0] != (Current_Loaded_Number[0] + New_Data_Number[0] - Deleted_Data_Number[0]):\n",
-					"#     raise RuntimeError(\"Loading Number do not match\")\n",
-					"# else:\n",
-					"#     print(\"Loading Number Matches!\")\n",
+					"New_Records = New_Data_Records_Pandas['New_Data_Records'].tolist()\n",
 					"\n",
-					""
-				],
-				"execution_count": 103
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
-				},
-				"source": [
-					"%%sql\n",
-					"-- DELETE FROM odw_harmonised_db.personnelarea_dim WHERE PersonnelAreaCode = 'P500'"
-				],
-				"execution_count": 59
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
-				},
-				"source": [
-					"%%sql\n",
+					"for i in Deleted_Records:\n",
+					"    if i in Current_Records: \n",
+					"        print(i + \" to be deleted is in the current records\")\n",
+					"    else:\n",
+					"        raise RuntimeError(\"Loading Number do not match\")\n",
 					"\n",
-					"SELECT * FROM odw_standardised_db.vw_saphr;"
+					"for j in New_Records:\n",
+					"    if j not in Current_Records: \n",
+					"        print(j + \" to be added is not in the current records\")\n",
+					"    else:\n",
+					"        raise RuntimeError(\"Loading Number do not match\")"
 				],
-				"execution_count": 77
+				"execution_count": 10
 			},
 			{
 				"cell_type": "markdown",
