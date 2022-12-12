@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "a047c467-7acb-4b0a-99a1-1d8eb9c1ff39"
+				"spark.autotune.trackingId": "a7a58f1f-f205-4487-8545-23199744d1b9"
 			}
 		},
 		"metadata": {
@@ -73,6 +73,121 @@
 			{
 				"cell_type": "code",
 				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"-- Build Employee_Dim table -- merge\r\n",
+					"\r\n",
+					"-- Notes - Addresses are only supplied for Inspectors - need to check inspector count against addresses data\r\n",
+					"\r\n",
+					"-- Gets modified or deleted from source rows\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW employee_dim_new \r\n",
+					"\r\n",
+					"    AS\r\n",
+					"\r\n",
+					"-- gets data that matches of SourceID and flags that it is modified based on a row (md5) hash. Flags as \"NewData\"\r\n",
+					"-- gets data that is in the target but not in source. Flags as \"DeletedData\"\r\n",
+					"\r\n",
+					"SELECT \r\n",
+					"    CASE\r\n",
+					"        WHEN T1.Pers_No IS NULL\r\n",
+					"        THEN T7.EmployeeID\r\n",
+					"        ELSE NULL\r\n",
+					"    END as EmployeeID, -- surrogate key\r\n",
+					"    T1.First_name as FirstName,\r\n",
+					"    T1.Last_name as LastName,\r\n",
+					"    NULL as DOB,\r\n",
+					"    NULL as NINumber,\r\n",
+					"    NULL as Gender,\r\n",
+					"    T2.Street_and_House_Number as AddressLine1,\r\n",
+					"    T2.`2nd_Address_Line` as AddressLine2,\r\n",
+					"    T2.District as AddressLine3,\r\n",
+					"    T2.City as City,\r\n",
+					"    T2.Region_State_Province_Count as County,\r\n",
+					"    T2.Postal_Code as PostCode,\r\n",
+					"    T3.Email_Address as EmailAddress,\r\n",
+					"    T2.Personal_Mobile as TelephoneNumberPersonal,\r\n",
+					"    T2.Work_Mobile as TelephoneNumberWork,\r\n",
+					"    T2.Staff_Number as PersNumber,\r\n",
+					"    T1.Pers_No as EmployeeNumber,\r\n",
+					"    NULL,\r\n",
+					"    NULL as WorkHours,\r\n",
+					"    NULL as PartTimeEmployee,\r\n",
+					"    NULL as EmploymentStatus,\r\n",
+					"    NULL as CivilServiceStart,\r\n",
+					"    NULL as DateToCurrentJob,\r\n",
+					"    NULL as SeniorityDate,\r\n",
+					"    NULL as OrgStartDate,\r\n",
+					"    NULL as FixTermEndDate,\r\n",
+					"    NULL as LoanStartDate,\r\n",
+					"    NULL as LoanEndDate,\r\n",
+					"    NULL as PayrollArea,\r\n",
+					"    NULL as AssignmentNumber,\r\n",
+					"    NULL as EmployeeGroup,\r\n",
+					"    NULL as AnnualSalary, -- T1.Annual_salary\r\n",
+					"    T4.SourceSystemID,\r\n",
+					"    current_timestamp as StartDate,\r\n",
+					"    NULL as EndDate,\r\n",
+					"    current_timestamp as IngestionDate,\r\n",
+					"    NULL as ValidTo,\r\n",
+					"    md5(concat( IFNULL(T1.First_name,'.'),IFNULL(T1.Last_name,'.'),IFNULL(NULL,'.'), IFNULL(NULL, '.'), IFNULL(NULL, '.'), IFNULL(T2.Street_and_House_Number, '.'),IFNULL(T2.`2nd_Address_Line`, '.'),\r\n",
+					"                IFNULL(T2.District, '.'),IFNULL(T2.City, '.'),IFNULL(T2.Region_State_Province_Count, '.'),IFNULL(T2.Postal_Code, '.'),IFNULL(T3.Email_Address, '.'),IFNULL(T2.Personal_Mobile, '.'),\r\n",
+					"                IFNULL(T2.Work_Mobile, '.'),IFNULL(T2.Staff_Number, '.'),IFNULL(T1.Pers_No, '.'),IFNULL(NULL,'.'),IFNULL(NULL,'.'),IFNULL(NULL,'.'),NULL,IFNULL(NULL, '.'),IFNULL(NULL, '.'),\r\n",
+					"                IFNULL(NULL, '.'),IFNULL(NULL, '.'),IFNULL(NULL, '.'),IFNULL(NULL, '.'),IFNULL(NULL, '.'),IFNULL(NULL,'.'),IFNULL(NULL, '.'),\r\n",
+					"                IFNULL(NULL,'.'))) as RowID, \r\n",
+					"    'Y' as IsActive\r\n",
+					"\r\n",
+					"FROM odw_standardised_db.vw_leavers T1\r\n",
+					"LEFT JOIN odw_standardised_db.vw_addresses T2 ON T1.Pers_No = T2.Staff_Number\r\n",
+					"LEFT JOIN odw_standardised_db.vw_email T3 ON T1.Pers_No = T3.Staff_Number\r\n",
+					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T4 ON \"SAP HR\" = T4.Description and T4.IsActive = 'Y'\r\n",
+					"FULL JOIN odw_harmonised_db.employee_dim T7 ON T1.Pers_No = T7.EmployeeNumber \r\n",
+					"WHERE  (T7.IsActive = 'Y' or T7.IsActive IS NULL)\r\n",
+					"    \r\n",
+					"        AND (\r\n",
+					"        \r\n",
+					"        -- flags new data        \r\n",
+					"        ( CASE\r\n",
+					"            WHEN T1.Pers_No = T7.EmployeeNumber AND md5(concat( IFNULL(T1.First_name,'.'),IFNULL(T1.Last_name,'.'),IFNULL(NULL,'.'), IFNULL(NULL, '.'), IFNULL(NULL, '.'), IFNULL(T2.Street_and_House_Number, '.'),IFNULL(T2.`2nd_Address_Line`, '.'),\r\n",
+					"                                                    IFNULL(T2.District, '.'),IFNULL(T2.City, '.'),IFNULL(T2.Region_State_Province_Count, '.'),IFNULL(T2.Postal_Code, '.'),IFNULL(T3.Email_Address, '.'),IFNULL(T2.Personal_Mobile, '.'),\r\n",
+					"                                                    IFNULL(T2.Work_Mobile, '.'),IFNULL(T2.Staff_Number, '.'),IFNULL(T1.Pers_No, '.'),IFNULL(NULL,'.'),IFNULL(NULL,'.'),IFNULL(NULL,'.'),NULL,IFNULL(NULL, '.'),IFNULL(NULL, '.'),\r\n",
+					"                                                    IFNULL(NULL, '.'),IFNULL(NULL, '.'),IFNULL(NULL, '.'),IFNULL(NULL, '.'),IFNULL(NULL, '.'),IFNULL(NULL,'.'),IFNULL(NULL, '.'),\r\n",
+					"                                                    IFNULL(NULL,'.')))   <> T7.RowID     \r\n",
+					"            THEN 'Y'\r\n",
+					"            WHEN T7.EmployeeNumber IS NULL\r\n",
+					"            THEN 'Y'\r\n",
+					"            ELSE 'N'\r\n",
+					"        END  = 'Y' ) OR\r\n",
+					"        \r\n",
+					"        -- flags deleted data\r\n",
+					"        ( CASE\r\n",
+					"            WHEN T1.Pers_No IS NULL\r\n",
+					"            THEN 'Y'\r\n",
+					"            ELSE 'N'\r\n",
+					"        END = 'Y' )\r\n",
+					")\r\n",
+					";\r\n",
+					""
+				],
+				"execution_count": 35
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
 					"microsoft": {
 						"language": "sparksql"
 					},
@@ -95,7 +210,11 @@
 					"    END as EmployeeLeaversID,     \r\n",
 					"    T3.EmployeeID,\r\n",
 					"    T1.Reason_For_Action AS ReasonForLeaving, \r\n",
-					"    T1.Org_Start_Date AS EmploymentStartDate,\r\n",
+					"    CASE \r\n",
+					"        WHEN T1.Org_Start_Date = '00/00/0000'\r\n",
+					"        THEN '1900-01-01 00:00:00'\r\n",
+					"        ELSE T1.Org_Start_Date\r\n",
+					"    END AS EmploymentStartDate,\r\n",
 					"    T1.Leaving AS EmploymentEndDate,\r\n",
 					"    T2.SourceSystemID as SourceSystemID,\r\n",
 					"    CURRENT_TIMESTAMP AS StartDate,\r\n",
@@ -153,7 +272,7 @@
 					"\r\n",
 					";"
 				],
-				"execution_count": 4
+				"execution_count": 27
 			},
 			{
 				"cell_type": "markdown",
@@ -213,24 +332,59 @@
 					"    UNION ALL\r\n",
 					"\r\n",
 					"SELECT\r\n",
-					"    EmployeeLeaversID,\r\n",
-					"    EmployeeID,\r\n",
-					"    ReasonForLeaving, \r\n",
-					"    EmploymentStartDate,\r\n",
-					"    EmploymentEndDate,\r\n",
-					"    SourceSystemID,\r\n",
-					"    StartDate,\r\n",
-					"    EndDate,\r\n",
-					"    IngestionDate,\r\n",
-					"    ValidTo,\r\n",
-					"    RowID,\r\n",
-					"    IsActive\r\n",
-					"FROM odw_harmonised_db.employeeleavers_dim\r\n",
-					"WHERE EmployeeID IN (SELECT EmployeeID FROM employeeleavers_dim_new)\r\n",
+					"    T1.EmployeeLeaversID,\r\n",
+					"    T1.EmployeeID,\r\n",
+					"    T1.ReasonForLeaving, \r\n",
+					"    T1.EmploymentStartDate,\r\n",
+					"    T1.EmploymentEndDate,\r\n",
+					"    T1.SourceSystemID,\r\n",
+					"    T1.StartDate,\r\n",
+					"    T1.EndDate,\r\n",
+					"    T1.IngestionDate,\r\n",
+					"    T1.ValidTo,\r\n",
+					"    T1.RowID,\r\n",
+					"    T1.IsActive\r\n",
+					"FROM odw_harmonised_db.employeeleavers_dim T1\r\n",
+					"INNER JOIN employeeleavers_dim_new T2 ON    T1.EmployeeID = T2.EmployeeID AND \r\n",
+					"                                            T1.EmploymentStartDate = T2.EmploymentStartDate AND\r\n",
+					"                                            T1.EmploymentEndDate = T2.EmploymentEndDate\r\n",
 					"; \r\n",
 					""
 				],
-				"execution_count": 9
+				"execution_count": 21
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"-- select * from(\r\n",
+					"-- SELECT EmployeeLeaversID, count(*) as count\r\n",
+					"-- from employeeleavers_dim_changed_rows\r\n",
+					"-- group by EmployeeLeaversID\r\n",
+					"-- )\r\n",
+					"-- where Count > 1\r\n",
+					"\r\n",
+					"\r\n",
+					"select *\r\n",
+					"from employeeleavers_dim_changed_rows\r\n",
+					"where EmployeeID = 331"
+				],
+				"execution_count": 22
 			},
 			{
 				"cell_type": "markdown",
@@ -273,7 +427,7 @@
 					"MERGE INTO odw_harmonised_db.employeeleavers_dim AS Target\r\n",
 					"USING employeeleavers_dim_changed_rows AS Source\r\n",
 					"\r\n",
-					"ON Source.EmployeeLeaversID = Target.EmployeeLeaversID\r\n",
+					"ON Source.EmployeeID = Target.EmployeeID\r\n",
 					"\r\n",
 					"-- For Updates existing rows\r\n",
 					"\r\n",
@@ -288,7 +442,7 @@
 					"    THEN INSERT * ;  \r\n",
 					""
 				],
-				"execution_count": 10
+				"execution_count": 23
 			},
 			{
 				"cell_type": "markdown",
@@ -346,7 +500,7 @@
 					"FROM odw_harmonised_db.employeeleavers_dim;\r\n",
 					""
 				],
-				"execution_count": 11
+				"execution_count": 24
 			},
 			{
 				"cell_type": "code",
@@ -367,10 +521,11 @@
 				},
 				"source": [
 					"%%sql\n",
-					"SELECT *\n",
-					"from odw_harmonised_db.employeeleavers_dim;"
+					"SELECT count(*)\n",
+					"from odw_harmonised_db.employeeleavers_dim\n",
+					"where employeeid is null;"
 				],
-				"execution_count": 12
+				"execution_count": 26
 			}
 		]
 	}
