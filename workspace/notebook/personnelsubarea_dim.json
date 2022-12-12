@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "a78cb5ea-c890-4216-a1b4-9a7b15b7e9de"
+				"spark.autotune.trackingId": "cc72e366-ee5d-469f-b1c0-46f5c58872b0"
 			}
 		},
 		"metadata": {
@@ -80,7 +80,6 @@
 					"    PSubarea AS PersonnelSubAreaCode,\r\n",
 					"    Personnel_Subarea AS Description\r\n",
 					"\r\n",
-					"    \r\n",
 					"FROM odw_standardised_db.vw_saphr\r\n",
 					"WHERE PSubarea IS NOT NULL\r\n",
 					"GROUP BY PSubarea, Personnel_Subarea;"
@@ -177,12 +176,139 @@
 					"                ELSE 'N'\r\n",
 					"            END = 'Y' )\r\n",
 					")\r\n",
-					"\r\n",
-					"\r\n",
 					";\r\n",
 					""
 				],
+				"execution_count": 2
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Run tests to check integrity of data by numbers\n",
+					"- This script checks for the total number of current codes in the harmonised table, and compare against the numbers for new data to be added and data to be set as inactive.\n",
+					"- **Changes tracking:** where it checks the data against active records in harmonised and compares with records to add and records to be set as inactive.\n",
+					"- **Changes tolerance levels:** if the total ammount to be added and deleted surpasses the tolerance limit, it will interrupt the proces of loading the data"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql import SparkSession\n",
+					"spark = SparkSession.builder.getOrCreate()\n",
+					"\n",
+					"Source_Number_PAreas = spark.sql(\"SELECT COUNT (DISTINCT PSubarea) AS Source_Number_PAreas FROM odw_standardised_db.vw_saphr\")\n",
+					"Current_Number_PAreas = spark.sql(\"SELECT COUNT (DISTINCT PersonnelSubAreaCode) AS Current_Number_PAreas FROM odw_harmonised_db.personnelsubarea_dim where IsActive = 'Y' \")\n",
+					"New_Data_Number = spark.sql(\"SELECT COUNT (DISTINCT PersonnelSubAreaCode) AS New_Data_Number FROM personnelsubarea_dim_new WHERE NewData = 'Y'\")\n",
+					"Deleted_Data_Number = spark.sql(\"SELECT COUNT (DISTINCT PersonnelSubAreaCode) AS Deleted_Data_Number FROM personnelsubarea_dim_new WHERE DeletedData = 'Y'\")\n",
+					"\n",
+					"Source_Number_PAreas_Pandas = Source_Number_PAreas.toPandas()\n",
+					"Current_Number_PAreas_Pandas =  Current_Number_PAreas.toPandas()\n",
+					"New_Data_Number_Pandas = New_Data_Number.toPandas()\n",
+					"Deleted_Data_Number_Pandas = Deleted_Data_Number.toPandas()\n",
+					"\n",
+					"# checking if new total number of registers matches the previously loaded, plus New ones, minus Deleted ones\n",
+					"print(\"SET 1:\")\n",
+					"Total_Number = Source_Number_PAreas_Pandas['Source_Number_PAreas'].tolist() \n",
+					"Current_Loaded_Number = Current_Number_PAreas_Pandas['Current_Number_PAreas'].tolist() \n",
+					"New_Data_Number = New_Data_Number_Pandas['New_Data_Number'].tolist() \n",
+					"Deleted_Data_Number = Deleted_Data_Number_Pandas['Deleted_Data_Number'].tolist() \n",
+					"\n",
+					"if Total_Number[0] != (Current_Loaded_Number[0] + New_Data_Number[0] - Deleted_Data_Number[0]):\n",
+					"    raise RuntimeError(\"Loading Number do not match\")\n",
+					"else:\n",
+					"    print(\"Loading number matches with existing codes plus new, minus deleted!\")\n",
+					"\n",
+					"if New_Data_Number[0] > 10:\n",
+					"    raise RuntimeError(\"ALERT: Too many new codes\")\n",
+					"else:\n",
+					"    print(\"New data under tolerance levels\")\n",
+					"\n",
+					"if Deleted_Data_Number[0] > 5:\n",
+					"    raise RuntimeError(\"ALERT: Too many deleted codes\")\n",
+					"else:\n",
+					"    print(\"Unused codes under tolerance levels\")"
+				],
 				"execution_count": 3
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Run tests to check integrity of data by comparision of codes\n",
+					"- This script checks for the total list of current codes in the harmonised table, and compare against the list for new data to be added and data to be set as inactive.\n",
+					"- **Changes tracking:** where it checks the data against active records in harmonised and compares with records to add and records to be set as inactive.\n",
+					"- **Changes tolerance levels:** if the total ammount to be added and deleted surpasses the tolerance limit, it will interrupt the proces of loading the data"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql import SparkSession\n",
+					"spark = SparkSession.builder.getOrCreate()\n",
+					"\n",
+					"Current_PAreas = spark.sql(\"SELECT DISTINCT PersonnelSubAreaCode AS Current_PAreas FROM odw_harmonised_db.personnelsubarea_dim where IsActive = 'Y' \")\n",
+					"New_Data_Records = spark.sql(\"SELECT DISTINCT PersonnelSubAreaCode AS New_Data_Records FROM personnelsubarea_dim_new WHERE NewData = 'Y'\")\n",
+					"Deleted_Data_Records = spark.sql(\"SELECT DISTINCT PersonnelSubAreaCode AS Deleted_Data_Records FROM personnelsubarea_dim_new WHERE DeletedData = 'Y'\")\n",
+					"\n",
+					"Current_PAreas_Pandas =  Current_PAreas.toPandas()\n",
+					"New_Data_Records_Pandas = New_Data_Records.toPandas()\n",
+					"Deleted_Data_Records_Pandas = Deleted_Data_Records.toPandas()\n",
+					"\n",
+					"# checking if a deleted areacode is correcly flagged, not existing in the new data, but existing inpreviously loaded\n",
+					"print(\"TEST 2:\")\n",
+					"\n",
+					"Current_Records = Current_PAreas_Pandas['Current_PAreas'].tolist() \n",
+					"Deleted_Records = Deleted_Data_Records_Pandas['Deleted_Data_Records'].tolist()\n",
+					"New_Records = New_Data_Records_Pandas['New_Data_Records'].tolist()\n",
+					"\n",
+					"for i in Deleted_Records:\n",
+					"    if i in Current_Records: \n",
+					"        print(i + \" to be deleted is in the current records\")\n",
+					"    else:\n",
+					"        raise RuntimeError(\"Loading Number do not match\")\n",
+					"\n",
+					"for j in New_Records:\n",
+					"    if j not in Current_Records: \n",
+					"        print(j + \" to be added is not in the current records\")\n",
+					"    else:\n",
+					"        raise RuntimeError(\"Loading Number do not match\")"
+				],
+				"execution_count": 4
 			},
 			{
 				"cell_type": "markdown",

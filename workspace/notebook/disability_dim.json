@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "7f498cfa-08ba-4946-9279-941f55617c76"
+				"spark.autotune.trackingId": "1c229608-afb8-42d6-938b-817da760c82c"
 			}
 		},
 		"metadata": {
@@ -81,7 +81,7 @@
 					"Where Disability_text IS NOT NULL \r\n",
 					"GROUP BY Disability_Text"
 				],
-				"execution_count": 7
+				"execution_count": 1
 			},
 			{
 				"cell_type": "markdown",
@@ -179,7 +179,140 @@
 					"\r\n",
 					";"
 				],
-				"execution_count": 11
+				"execution_count": 2
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Run tests to check integrity of data by numbers\n",
+					"- This script checks for the total number of current codes in the harmonised table, and compare against the numbers for new data to be added and data to be set as inactive.\n",
+					"- **Changes tracking:** where it checks the data against active records in harmonised and compares with records to add and records to be set as inactive."
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql import SparkSession\n",
+					"spark = SparkSession.builder.getOrCreate()\n",
+					"\n",
+					"Source_Number = spark.sql(\"SELECT COUNT (DISTINCT Disability_text) AS Source_Number FROM odw_standardised_db.vw_protected_characteristics\")\n",
+					"Current_Number = spark.sql(\"SELECT COUNT (DISTINCT DisabilityCode) AS Current_Number FROM odw_harmonised_db.disability_dim where IsActive = 'Y' \")\n",
+					"New_Data_Number = spark.sql(\"SELECT COUNT (DISTINCT DisabilityCode) AS New_Data_Number FROM disability_dim_new WHERE NewData = 'Y'\")\n",
+					"Deleted_Data_Number = spark.sql(\"SELECT COUNT (DISTINCT DisabilityCode) AS Deleted_Data_Number FROM disability_dim_new WHERE DeletedData = 'Y'\")\n",
+					"\n",
+					"Source_Number_Pandas = Source_Number.toPandas()\n",
+					"Current_Number_Pandas =  Current_Number.toPandas()\n",
+					"New_Data_Number_Pandas = New_Data_Number.toPandas()\n",
+					"Deleted_Data_Number_Pandas = Deleted_Data_Number.toPandas()\n",
+					"\n",
+					"# checking if new total number of registers matches the previously loaded, plus New ones, minus Deleted ones\n",
+					"print(\"SET 1:\")\n",
+					"Total_Number = Source_Number_Pandas['Source_Number'].tolist() \n",
+					"Current_Loaded_Number = Current_Number_Pandas['Current_Number'].tolist() \n",
+					"New_Data_Number = New_Data_Number_Pandas['New_Data_Number'].tolist() \n",
+					"Deleted_Data_Number = Deleted_Data_Number_Pandas['Deleted_Data_Number'].tolist() \n",
+					"\n",
+					"if Total_Number[0] != (Current_Loaded_Number[0] + New_Data_Number[0] - Deleted_Data_Number[0]):\n",
+					"    raise RuntimeError(\"Loading Number do not match\")\n",
+					"else:\n",
+					"    print(\"Loading number matches with existing codes plus new, minus deleted!\")\n",
+					"\n",
+					"if New_Data_Number[0] > 10:\n",
+					"    raise RuntimeError(\"ALERT: Too many new codes\")\n",
+					"else:\n",
+					"    print(\"New data under tolerance levels\")\n",
+					"\n",
+					"if Deleted_Data_Number[0] > 5:\n",
+					"    raise RuntimeError(\"ALERT: Too many deleted codes\")\n",
+					"else:\n",
+					"    print(\"Unused codes under tolerance levels\")"
+				],
+				"execution_count": 3
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Run tests to check integrity of data by comparision of codes\n",
+					"- This script checks for the total list of current codes in the harmonised table, and compare against the list for new data to be added and data to be set as inactive.\n",
+					"- **Changes tracking:** where it checks the data against active records in harmonised and compares with records to add and records to be set as inactive.\n",
+					"- **Changes tolerance levels:** if the total ammount to be added and deleted surpasses the tolerance limit, it will interrupt the proces of loading the data"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql import SparkSession\n",
+					"spark = SparkSession.builder.getOrCreate()\n",
+					"\n",
+					"Current_Records = spark.sql(\"SELECT DISTINCT DisabilityCode AS Current_Records FROM odw_harmonised_db.disability_dim where IsActive = 'Y' \")\n",
+					"New_Data_Records = spark.sql(\"SELECT DISTINCT DisabilityCode AS New_Data_Records FROM disability_dim_new WHERE NewData = 'Y'\")\n",
+					"Deleted_Data_Records = spark.sql(\"SELECT DISTINCT DisabilityCode AS Deleted_Data_Records FROM disability_dim_new WHERE DeletedData = 'Y'\")\n",
+					"\n",
+					"Current_Records_Pandas =  Current_Records.toPandas()\n",
+					"New_Data_Records_Pandas = New_Data_Records.toPandas()\n",
+					"Deleted_Data_Records_Pandas = Deleted_Data_Records.toPandas()\n",
+					"\n",
+					"# checking if a deleted areacode is correcly flagged, not existing in the new data, but existing inpreviously loaded\n",
+					"print(\"TEST 2:\")\n",
+					"\n",
+					"Current_Records = Current_Records_Pandas['Current_Records'].tolist() \n",
+					"Deleted_Records = Deleted_Data_Records_Pandas['Deleted_Data_Records'].tolist()\n",
+					"New_Records = New_Data_Records_Pandas['New_Data_Records'].tolist()\n",
+					"\n",
+					"for i in Deleted_Records:\n",
+					"    if i in Current_Records: \n",
+					"        print(i + \" to be deleted is in the current records\")\n",
+					"    else:\n",
+					"        raise RuntimeError(\"Records to Delete do not match\")\n",
+					"\n",
+					"for j in New_Records:\n",
+					"    if j not in Current_Records: \n",
+					"        print(j + \" to be added is not in the current records\")\n",
+					"    else:\n",
+					"        raise RuntimeError(\"Records to Add do not match\")"
+				],
+				"execution_count": 4
 			},
 			{
 				"cell_type": "markdown",
