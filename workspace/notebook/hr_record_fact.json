@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "939c6239-14b7-44ed-ab79-657a6b0c491a"
+				"spark.autotune.trackingId": "5d3f2ef9-e470-4b64-93b8-a1c109ca7b72"
 			}
 		},
 		"metadata": {
@@ -120,7 +120,7 @@
 					"    NULL as ValidTo,\r\n",
 					"    md5(concat(T2.EmployeeID, IFNULL(T3.PersonnelAreaID, '.'), IFNULL(T4.PersonnelSubAreaID, '.'), IFNULL(T5.OrganisationUnitID, '.'),IFNULL(T6.ContractID, '.'),\r\n",
 					"                IFNULL(T7.PayBandID, '.'),IFNULL(T8.CostCenterID, '.'),IFNULL(T9.PositionID, '.'),IFNULL(T10.ManagerEmployeeID, '.'),IFNULL(TempMPID.PositionID, '.'),\r\n",
-					"                IFNULL(T10.CounterSignManagerID, '.'), IFNULL(T11.LocationID, '.'),IFNULL(T12.WorkScheduleID, '.'))) as RowID, \r\n",
+					"                IFNULL(NULL, '.'), IFNULL(T11.LocationID, '.'),IFNULL(T12.WorkScheduleID, '.'))) as RowID, \r\n",
 					"    'Y' as IsActive\r\n",
 					"\r\n",
 					"FROM odw_standardised_db.vw_saphr T1 -- COUNT is 997\r\n",
@@ -136,7 +136,7 @@
 					"                                                END = T6.ContractTypeCode AND T6.IsActive = 'Y'\r\n",
 					"LEFT JOIN odw_harmonised_db.payband_dim T7 ON T1.PS_group = T7.PSGroupCode AND T7.IsActive = 'Y' -- NULLS occur due to contractors\r\n",
 					"LEFT JOIN odw_harmonised_db.costcenter_dim T8 ON T1.Cost_Ctr = T8.CostCenterCode AND T8.IsActive = 'Y'\r\n",
-					"LEFT JOIN odw_harmonised_db.position_dim T9 ON T1.PositionID= T9.PositionCode AND T9.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_harmonised_db.position_dim T9 ON T1.Position= T9.PositionCode AND T9.IsActive = 'Y'\r\n",
 					"LEFT JOIN odw_harmonised_db.position_dim TempMPID ON T1.Manager_Position = TempMPID.PositionCode AND TempMPID.IsActive = 'Y'\r\n",
 					"LEFT JOIN odw_harmonised_db.employee_hr_hierarchy_dim T10 ON T2.EmployeeID = T10.EmployeeID AND T10.IsActive = 'Y'\r\n",
 					"LEFT JOIN odw_harmonised_db.pins_location_dim T11 ON T1.Loc = T11.LocationCode AND T11.IsActive = 'Y'\r\n",
@@ -145,11 +145,13 @@
 					"            FROM odw_harmonised_db.absence_dim T1\r\n",
 					"            INNER JOIN ( SELECT EmployeeID, Max(AbsenceEndDate) as Max_AbsenceEndDate\r\n",
 					"                         FROM odw_harmonised_db.absence_dim\r\n",
+					"                         Where IsActive = 'Y'\r\n",
 					"                         GROUP BY EmployeeID ) T3        ON  T1.EmployeeID = T3.EmployeeID AND\r\n",
 					"                                                             T1.AbsenceEndDate = T3.Max_AbsenceEndDate\r\n",
+					"            where IsActive = 'Y'\r\n",
 					"            GROUP BY T1.EmployeeID, T1.WorkScheduleID\r\n",
 					"            \r\n",
-					"    ) T12 ON T2.EmployeeID = T12.EmployeeID AND T12.IsActive = 'Y' -- NULLS occur as no data for some employees in the absence file\r\n",
+					"    ) T12 ON T2.EmployeeID = T12.EmployeeID  -- NULLS occur as no data for some employees in the absence file\r\n",
 					"\r\n",
 					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T14 ON \"SAP HR\" = T14.Description AND T14.IsActive = 'Y'\r\n",
 					"LEFT JOIN odw_harmonised_db.hr_record_fact T15 ON T2.EmployeeID = T15.EmployeeID\r\n",
@@ -164,7 +166,7 @@
 					"                IFNULL(T5.OrganisationUnitID, '.'),IFNULL(T6.ContractID, '.'),\r\n",
 					"                IFNULL(T7.PayBandID, '.'),IFNULL(T8.CostCenterID, '.'),IFNULL(T9.PositionID, '.'),IFNULL(T10.ManagerEmployeeID, '.'),\r\n",
 					"                IFNULL(TempMPID.PositionID, '.'),\r\n",
-					"                IFNULL(T10.CounterSignManagerID, '.'), IFNULL(T11.LocationID, '.'),IFNULL(T12.WorkScheduleID, '.'))) <> T15.RowID\r\n",
+					"                IFNULL(NULL, '.'), IFNULL(T11.LocationID, '.'),IFNULL(T12.WorkScheduleID, '.'))) <> T15.RowID\r\n",
 					"            THEN 'Y'\r\n",
 					"            WHEN T15.EmployeeID IS NULL\r\n",
 					"            THEN 'Y'\r\n",
@@ -182,7 +184,7 @@
 					";\r\n",
 					""
 				],
-				"execution_count": 42
+				"execution_count": 9
 			},
 			{
 				"cell_type": "code",
@@ -272,7 +274,7 @@
 					"# -- ;\r\n",
 					""
 				],
-				"execution_count": 43
+				"execution_count": 10
 			},
 			{
 				"cell_type": "markdown",
@@ -372,7 +374,7 @@
 					"WHERE EmployeeID IN (SELECT EmployeeID FROM hr_record_fact_new);\r\n",
 					""
 				],
-				"execution_count": 44
+				"execution_count": 11
 			},
 			{
 				"cell_type": "markdown",
@@ -429,7 +431,7 @@
 					"    THEN INSERT * ;   \r\n",
 					""
 				],
-				"execution_count": 45
+				"execution_count": 12
 			},
 			{
 				"cell_type": "markdown",
@@ -494,7 +496,7 @@
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.hr_record_fact;"
 				],
-				"execution_count": 46
+				"execution_count": 13
 			}
 		]
 	}
