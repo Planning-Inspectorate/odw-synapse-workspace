@@ -129,4 +129,15 @@ resource "azurerm_network_security_rule" "bastion_allow_session_info_out" {
 resource "azurerm_subnet_network_security_group_association" "bastion_host" {
   network_security_group_id = azurerm_network_security_group.bastion_host.id
   subnet_id                 = var.synapse_vnet_subnet_names[local.bastion_subnet_name]
+
+  depends_on = [
+    azurerm_network_security_rule.bastion_allow_http_in,
+    azurerm_network_security_rule.bastion_allow_gateway_manager_in,
+    azurerm_network_security_rule.bastion_allow_load_balancer_in,
+    azurerm_network_security_rule.bastion_allow_host_comms_in,
+    azurerm_network_security_rule.bastion_allow_ssh_rdp_out,
+    azurerm_network_security_rule.bastion_allow_azure_cloud_out,
+    azurerm_network_security_rule.bastion_allow_host_comms_out,
+    azurerm_network_security_rule.bastion_allow_session_info_out
+  ]
 }
