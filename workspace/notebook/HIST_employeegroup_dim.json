@@ -1,0 +1,104 @@
+{
+	"name": "HIST_employeegroup_dim",
+	"properties": {
+		"folder": {
+			"name": "odw-harmonised/SAP-HR/HIST"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "45ed6ae5-8549-40ee-afce-7e3ce9c2f84a"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.2",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"\r\n",
+					"-- Build payband_dim table  - table is incorrect\r\n",
+					"\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.employeegroup_dim (\r\n",
+					"    EmployeeGroupID,\r\n",
+					"    EEGrp,\r\n",
+					"    EmployeeGroup,\r\n",
+					"    SourceSystemID,\r\n",
+					"    StartDate,\r\n",
+					"    EndDate,\r\n",
+					"    IngestionDate,\r\n",
+					"    ValidTo,\r\n",
+					"    RowID,\r\n",
+					"    IsActive\r\n",
+					")\r\n",
+					"\r\n",
+					"SELECT \r\n",
+					"    Row_Number() over (order by T1.EEGrp) AS EmployeeGroupID,\r\n",
+					"    T1.EEGrp,\r\n",
+					"    FIRST(T1.Employee_Group), \r\n",
+					"    FIRST(T2.SourceSystemID) as SourceSystemID,\r\n",
+					"    CURRENT_TIMESTAMP AS StartDate,\r\n",
+					"    NULL AS EndDate,\r\n",
+					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
+					"    NULL AS ValidTo,\r\n",
+					"    md5(concat(IFNULL(T1.EEGrp,'.'), IFNULL(FIRST(T1.Employee_Group),'.'))) as RowID,\r\n",
+					"    'Y' as IsActive\r\n",
+					"\r\n",
+					"FROM odw_standardised_db.vw_saphr_historic T1\r\n",
+					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description and T2.IsActive = 'Y'\r\n",
+					"WHERE T1.EEGrp IS NOT NULL\r\n",
+					"GROUP BY T1.EEGrp\r\n",
+					"\r\n",
+					"\r\n",
+					";\r\n",
+					""
+				],
+				"execution_count": 4
+			}
+		]
+	}
+}

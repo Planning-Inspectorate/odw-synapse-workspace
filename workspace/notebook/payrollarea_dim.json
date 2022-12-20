@@ -1,0 +1,373 @@
+{
+	"name": "payrollarea_dim",
+	"properties": {
+		"folder": {
+			"name": "odw-harmonised/SAP-HR"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "8b2f4a8d-7510-4757-a89e-26c8714aaf97"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.2",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW payrollarea_grouped\r\n",
+					"\r\n",
+					"    AS\r\n",
+					"\r\n",
+					"SELECT \r\n",
+					"\r\n",
+					"    PArea AS PayrollAreaCode,\r\n",
+					"    First(Payroll_Area) AS Description    \r\n",
+					"    \r\n",
+					"FROM odw_standardised_db.vw_saphr\r\n",
+					"WHERE PArea IS NOT NULL\r\n",
+					"GROUP BY PArea;"
+				],
+				"execution_count": 14
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Check for new, updated or deleted data\n",
+					"- This script checks for new, updated or deleted data by checking the source data (sap hr) against the target (odw_harmonised_db.payband_dim)\n",
+					"- **New Data:** where a PA in the source does not exist as an PSGroupCode in the target. NewData flag is set to 'Y'\n",
+					"- **Updated data:** Comparison occurs on PA in source and PSGroupCode in target where the row hash is different i.e. there is a change in one of the columns. NewData flag is set to 'Y'\n",
+					"- **Deleted data:** where an PSGroupCode in the target exists but the same PA doesn't exist in the source. DeletedData flag is set to 'Y'\n",
+					"\n",
+					"## View payband_dim_new is created"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"-- Build payband_dim table\r\n",
+					"-- Gets modified or deleted from source rows\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW payrollarea_dim_new\r\n",
+					"\r\n",
+					"    AS\r\n",
+					"\r\n",
+					"-- gets data that matches of SourceID and flags that it is modified based on a row (md5) hash. Flags as \"NewData\"\r\n",
+					"-- gets data that is in the target but not in source. Flags as \"DeletedData\"\r\n",
+					"\r\n",
+					"SELECT \r\n",
+					"    CASE\r\n",
+					"        WHEN T1.PayrollAreaCode IS NULL\r\n",
+					"        THEN T7.PayrollAreaID\r\n",
+					"        ELSE NULL\r\n",
+					"    END as PayrollAreaID, -- surrogate key\r\n",
+					"    T1.PayrollAreaCode, -- source system id\r\n",
+					"    T1.Description, \r\n",
+					"    T2.SourceSystemID as SourceSystemID,\r\n",
+					"    CURRENT_TIMESTAMP AS StartDate,\r\n",
+					"    NULL AS EndDate,\r\n",
+					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
+					"    NULL AS ValidTo,\r\n",
+					"    md5(concat(IFNULL(T1.PayrollAreaCode,'.'), IFNULL(T1.Description,'.'))) as RowID,\r\n",
+					"    'Y' as IsActive,\r\n",
+					"    CASE\r\n",
+					"        WHEN T1.PayrollAreaCode = T7.PayrollAreaCode AND md5(concat(IFNULL(T1.PayrollAreaCode,'.'), IFNULL(T1.Description,'.')))  <> T7.RowID   -- same employee, changed data\r\n",
+					"        THEN 'Y'\r\n",
+					"        WHEN T7.PayrollAreaCode IS NULL -- new employee\r\n",
+					"        THEN 'Y'\r\n",
+					"        ELSE 'N'\r\n",
+					"    END as NewData,\r\n",
+					"    CASE\r\n",
+					"        WHEN T1.PayrollAreaCode IS NULL\r\n",
+					"        THEN 'Y'\r\n",
+					"        ELSE 'N'\r\n",
+					"    END AS  DeletedData\r\n",
+					"\r\n",
+					"\r\n",
+					"FROM payrollarea_grouped T1\r\n",
+					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description and T2.IsActive = 'Y'\r\n",
+					"FULL JOIN odw_harmonised_db.payrollarea_dim T7 ON T1.PayrollAreaCode = T7.PayrollAreaCode\r\n",
+					"WHERE  (T7.IsActive = 'Y' or T7.IsActive IS NULL)\r\n",
+					"    \r\n",
+					"        AND (\r\n",
+					"        \r\n",
+					"        -- flags new data        \r\n",
+					"        (   CASE\r\n",
+					"                WHEN T1.PayrollAreaCode = T7.PayrollAreaCode AND md5(concat(IFNULL(T1.PayrollAreaCode,'.'), IFNULL(T1.Description,'.')))  <> T7.RowID   -- same employee, changed data\r\n",
+					"                THEN 'Y'\r\n",
+					"                WHEN T7.PayrollAreaCode IS NULL -- new employee\r\n",
+					"                THEN 'Y'\r\n",
+					"                ELSE 'N'\r\n",
+					"            END  = 'Y' ) OR\r\n",
+					"        \r\n",
+					"        -- flags deleted data\r\n",
+					"        (   CASE\r\n",
+					"                WHEN T1.PayrollAreaCode IS NULL\r\n",
+					"                THEN 'Y'\r\n",
+					"                ELSE 'N'\r\n",
+					"            END = 'Y' )\r\n",
+					")\r\n",
+					"\r\n",
+					";\r\n",
+					""
+				],
+				"execution_count": 15
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Dataset is created that contains changed data and corresponding target data\n",
+					"- This script combines data that has been updated, Deleted or is new, with corresponding target data\n",
+					"- View **payband_dim_new** is unioned to the target data filter to only those rows where changes have been detected\n",
+					"## View payband_dim_changed_rows is created"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"-- Creating new and updated dataset\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW payband_dim_changed_rows\r\n",
+					"\r\n",
+					"    AS\r\n",
+					"\r\n",
+					"SELECT \r\n",
+					"    PayrollAreaID,\r\n",
+					"    PayrollAreaCode,\r\n",
+					"    Description, \r\n",
+					"    SourceSystemID,\r\n",
+					"    StartDate,\r\n",
+					"    EndDate,\r\n",
+					"    IngestionDate,\r\n",
+					"    ValidTo,\r\n",
+					"    RowID,\r\n",
+					"    IsActive\r\n",
+					"FROM payrollarea_dim_new\r\n",
+					"\r\n",
+					"    UNION ALL\r\n",
+					"\r\n",
+					"SELECT\r\n",
+					"    PayrollAreaID,\r\n",
+					"    PayrollAreaCode,\r\n",
+					"    Description, \r\n",
+					"    SourceSystemID,\r\n",
+					"    StartDate,\r\n",
+					"    EndDate,\r\n",
+					"    IngestionDate,\r\n",
+					"    ValidTo,\r\n",
+					"    RowID,\r\n",
+					"    IsActive\r\n",
+					"FROM odw_harmonised_db.payrollarea_dim\r\n",
+					"WHERE PayrollAreaCode IN (SELECT PayrollAreaCode FROM payrollarea_dim_new WHERE PayrollAreaID IS NULL); \r\n",
+					""
+				],
+				"execution_count": 16
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# View payband_dim_changed_rows is used in a merge (Upsert) statement into the target table\n",
+					"- **WHEN MATCHED** ON the Business Key (i.e. PA from SAPHR), EndDate is set to today -1 day and the IsActive flag is set to 'N'\n",
+					"- **WHEN NOT MATCHED** ON the business key, insert rows\n",
+					"## Table odw_harmonised.payband_dim is updated"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"-- merge into fact table\r\n",
+					"\r\n",
+					"MERGE INTO odw_harmonised_db.payrollarea_dim AS Target\r\n",
+					"USING payband_dim_changed_rows AS Source\r\n",
+					"\r\n",
+					"ON Source.PayrollAreaID = Target.PayrollAreaID\r\n",
+					"\r\n",
+					"-- For Updates existing rows\r\n",
+					"\r\n",
+					"WHEN MATCHED\r\n",
+					"    THEN \r\n",
+					"    UPDATE SET\r\n",
+					"    Target.EndDate = date_sub(current_timestamp,1),\r\n",
+					"    Target.IsActive = 'N'\r\n",
+					"\r\n",
+					"-- Insert completely new rows\r\n",
+					"WHEN NOT MATCHED \r\n",
+					"    THEN INSERT * ;  \r\n",
+					""
+				],
+				"execution_count": 17
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Fix the IDs\n",
+					"- No auto-increment feature is available in delta tables, therefore we need to create new IDs for the inserted rows\n",
+					"- This is done by select the target data and using INSERT OVERWRITE to re-insert the data is a new Row Number\n",
+					"## Table odw_harmonised.payband_dim is updated"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"-- Insert new PersonnelAreaID\r\n",
+					"\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.payrollarea_dim\r\n",
+					"\r\n",
+					"SELECT \r\n",
+					"    ROW_NUMBER() OVER (ORDER BY PayrollAreaID NULLS LAST) AS PayrollAreaID,\r\n",
+					"    PayrollAreaCode,\r\n",
+					"    Description, \r\n",
+					"    SourceSystemID,\r\n",
+					"    StartDate,\r\n",
+					"    EndDate,\r\n",
+					"    IngestionDate,\r\n",
+					"    ValidTo,\r\n",
+					"    RowID,\r\n",
+					"    IsActive\r\n",
+					"FROM odw_harmonised_db.payrollarea_dim;\r\n",
+					""
+				],
+				"execution_count": 18
+			}
+		]
+	}
+}
