@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "36ab4564-3eec-44c3-ad66-29ec915dc6cf"
+				"spark.autotune.trackingId": "bc133e5a-d4c5-40ba-8adb-abadbc07c9f4"
 			}
 		},
 		"metadata": {
@@ -91,6 +91,8 @@
 					"-- gets data that is in the target but not in source. Flags as \"DeletedData\"\r\n",
 					"\r\n",
 					"SELECT \r\n",
+					"\r\n",
+					"\r\n",
 					"    CASE\r\n",
 					"        WHEN T3.EmployeeID IS NULL\r\n",
 					"        THEN T7.EmployeeHRHierarchyID\r\n",
@@ -111,32 +113,45 @@
 					"        THEN 'Y'\r\n",
 					"        WHEN T7.EmployeeID IS NULL -- new employee\r\n",
 					"        THEN 'Y'\r\n",
+					"        --WHEN T3.EmployeeID = T7.EmployeeID AND md5(concat(IFNULL(T3.EmployeeID,'.'), IFNULL(T4.EmployeeID,'.'))) = T7.RowID\r\n",
+					"\r\n",
+					"        -- THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
 					"    END as NewData,\r\n",
 					"    CASE\r\n",
 					"        WHEN T3.EmployeeID IS NULL\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
-					"    END AS  DeletedData\r\n",
+					"    END AS  DeletedData,\r\n",
+					"    CASE    \r\n",
+					"        WHEN T3.EmployeeID = T7.EmployeeID AND T7.IsActive IS NULL\r\n",
+					"        THEN 'Y'\r\n",
+					"        ELSE 'N'\r\n",
+					"    END AS HistoricData, \r\n",
+					"    T7.IsActive as HistoricIsActive\r\n",
+					"\r\n",
 					"\r\n",
 					"FROM odw_standardised_db.vw_saphr T1\r\n",
 					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description\r\n",
 					"LEFT JOIN odw_harmonised_db.employee_dim T3 ON T1.Pers_No = T3.EmployeeNumber and T3.IsActive = 'Y'\r\n",
 					"LEFT JOIN odw_harmonised_db.employee_dim T4 ON T1.Pers_No_1 = T4.EmployeeNumber and T4.IsActive = 'Y'\r\n",
 					"--LEFT JOIN odw_harmonised_db.employee_dim T5 ON T1.Counter_Sign_Manager = CONCAT(T5.FirstName,' ', T5.LastName)\r\n",
-					"FULL JOIN odw_harmonised_db.Employee_HR_Hierarchy_Dim T7 ON T3.EmployeeID = T7.EmployeeID \r\n",
-					"WHERE  (T7.IsActive = 'Y' or T7.IsActive IS NULL)\r\n",
+					"FULL JOIN odw_harmonised_db.Employee_HR_Hierarchy_Dim T7 ON T3.EmployeeID = T7.EmployeeID and T7.IsActive = 'Y'\r\n",
+					"WHERE /** (T7.IsActive = 'Y' or T7.IsActive IS NULL)\r\n",
 					"    \r\n",
-					"        AND (\r\n",
+					"--         AND  **/ (\r\n",
 					"        \r\n",
-					"        -- flags new data        \r\n",
-					"        ( CASE\r\n",
-					"            WHEN T3.EmployeeID = T7.EmployeeID AND  md5(concat(IFNULL(T3.EmployeeID,'.'), IFNULL(T4.EmployeeID,'.'))) <> T7.RowID    -- same employee, changed data\r\n",
-					"            THEN 'Y'\r\n",
-					"            WHEN T7.EmployeeID IS NULL -- new employee\r\n",
-					"            THEN 'Y'\r\n",
-					"            ELSE 'N'\r\n",
-					"        END  = 'Y' ) OR\r\n",
+					"--         -- flags new data        \r\n",
+					"        (   CASE\r\n",
+					"                WHEN T3.EmployeeID = T7.EmployeeID AND  md5(concat(IFNULL(T3.EmployeeID,'.'), IFNULL(T4.EmployeeID,'.'))) <> T7.RowID    -- same employee, changed data\r\n",
+					"                THEN 'Y'\r\n",
+					"                WHEN T7.EmployeeID IS NULL -- new employee\r\n",
+					"                THEN 'Y'\r\n",
+					"                -- WHEN T3.EmployeeID = T7.EmployeeID AND md5(concat(IFNULL(T3.EmployeeID,'.'), IFNULL(T4.EmployeeID,'.'))) = T7.RowID\r\n",
+					"                --         AND T7.IsActive = 'N'\r\n",
+					"                --THEN 'Y'\r\n",
+					"                ELSE 'N'\r\n",
+					"            END = 'Y' ) OR\r\n",
 					"        \r\n",
 					"        -- flags deleted data\r\n",
 					"        ( CASE\r\n",
@@ -149,7 +164,30 @@
 					";\r\n",
 					""
 				],
-				"execution_count": 1
+				"execution_count": 129
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"SELECT * from employee_hr_hierarchy_dim_new"
+				],
+				"execution_count": 134
 			},
 			{
 				"cell_type": "markdown",
@@ -207,7 +245,7 @@
 					"    RowID,\r\n",
 					"    IsActive\r\n",
 					"    \r\n",
-					"From employee_hr_hierarchy_dim_new\r\n",
+					"From employee_hr_hierarchy_dim_new WHERE HistoricIsActive = 'Y' or HistoricIsActive IS NULL\r\n",
 					"\r\n",
 					"    UNION ALL\r\n",
 					"\r\n",
@@ -226,9 +264,35 @@
 					"    RowID,\r\n",
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.employee_hr_hierarchy_dim\r\n",
-					"WHERE EmployeeID IN (SELECT EmployeeID FROM employee_hr_hierarchy_dim_new WHERE EmployeeHRHierarchyID IS NULL); "
+					"WHERE EmployeeID IN (SELECT EmployeeID FROM employee_hr_hierarchy_dim_new WHERE EmployeeHRHierarchyID IS NULL) \r\n",
+					"AND IsActive = 'Y'; "
 				],
-				"execution_count": 2
+				"execution_count": 130
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"SELECT *\r\n",
+					"from employee_hr_hierarchy_dim_changed_rows\r\n",
+					""
+				],
+				"execution_count": 135
 			},
 			{
 				"cell_type": "markdown",
@@ -286,7 +350,7 @@
 					"    THEN INSERT * ;  \r\n",
 					""
 				],
-				"execution_count": 3
+				"execution_count": 131
 			},
 			{
 				"cell_type": "markdown",
@@ -328,7 +392,7 @@
 					"INSERT OVERWRITE odw_harmonised_db.employee_hr_hierarchy_dim\r\n",
 					"\r\n",
 					"SELECT \r\n",
-					"    ROW_NUMBER() OVER (ORDER BY EmployeeHRHierarchyID NULLS LAST) AS EmployeeHRHierarchyID,\r\n",
+					"    ROW_NUMBER() OVER (ORDER BY EmployeeID NULLS LAST) AS EmployeeHRHierarchyID,\r\n",
 					"    EmployeeID,\r\n",
 					"    ManagerEmployeeID,\r\n",
 					"    CounterSignManagerID,\r\n",
@@ -344,7 +408,41 @@
 					"\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 138
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"\r\n",
+					"select *\r\n",
+					"from odw_harmonised_db.employee_hr_hierarchy_dim\r\n",
+					"where EmployeeID = 1650\r\n",
+					"-- GROUP BY EmployeeID\r\n",
+					"-- having count(*) > 1\r\n",
+					"\r\n",
+					"-- update odw_harmonised_db.employee_hr_hierarchy_dim\r\n",
+					"-- set IsActive = 'N' \r\n",
+					"-- WHERE EmployeeID = 1650\r\n",
+					"\r\n",
+					"--Delete from odw_harmonised_db.employee_hr_hierarchy_dim where EmployeeHRHierarchyID = 1021"
+				],
+				"execution_count": 139
 			}
 		]
 	}
