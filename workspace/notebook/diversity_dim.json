@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "3c8531d0-ca32-4fef-ac46-18910329ce3d"
+				"spark.autotune.trackingId": "2d09678f-7801-4620-b1ef-4e2e2200eabf"
 			}
 		},
 		"metadata": {
@@ -99,7 +99,7 @@
 					"Where Ethnic_Origin IS NOT NULL \r\n",
 					"GROUP BY Ethnic_Origin"
 				],
-				"execution_count": 1
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
@@ -148,15 +148,13 @@
 					"        WHEN T1.Description IS NULL\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
-					"    END AS  DeletedData\r\n",
+					"    END AS  DeletedData, \r\n",
+					"    T3.IsActive as HistoricIsActive\r\n",
 					"\r\n",
 					"FROM diversity_grouped T1\r\n",
 					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description and T2.IsActive = 'Y'\r\n",
-					"FULL JOIN odw_harmonised_db.diversity_dim T3 ON T1.Description = T3.Description \r\n",
-					"WHERE  (T3.IsActive = 'Y' or T3.IsActive IS NULL)\r\n",
-					"    \r\n",
-					"        AND (\r\n",
-					"        \r\n",
+					"FULL JOIN odw_harmonised_db.diversity_dim T3 ON T1.Description = T3.Description AND T3.IsActive = 'Y'\r\n",
+					"WHERE  \r\n",
 					"        -- flags new data        \r\n",
 					"        (   CASE\r\n",
 					"                WHEN T1.Description = T3.Description AND md5(IFNULL(t1.Description, '.')) <> T3.RowID\r\n",
@@ -172,10 +170,11 @@
 					"            THEN 'Y'\r\n",
 					"            ELSE 'N'\r\n",
 					"        END = 'Y' )\r\n",
-					"    )\r\n",
-					";"
+					";\r\n",
+					"\r\n",
+					"select * from diversity_dim_new;"
 				],
-				"execution_count": null
+				"execution_count": 13
 			},
 			{
 				"cell_type": "markdown",
@@ -247,7 +246,7 @@
 					"#else:\r\n",
 					"#    print(\"Unused codes under tolerance levels\")"
 				],
-				"execution_count": 1
+				"execution_count": 14
 			},
 			{
 				"cell_type": "markdown",
@@ -312,7 +311,7 @@
 					"#    else:\r\n",
 					"        # raise RuntimeError(\"Records to Add do not match\")"
 				],
-				"execution_count": null
+				"execution_count": 15
 			},
 			{
 				"cell_type": "markdown",
@@ -344,7 +343,8 @@
 					},
 					"microsoft": {
 						"language": "sparksql"
-					}
+					},
+					"collapsed": false
 				},
 				"source": [
 					"%%sql\r\n",
@@ -357,7 +357,6 @@
 					"-- gets updated, deleted and new rows \r\n",
 					"\r\n",
 					"Select \r\n",
-					"\r\n",
 					"    DiversityID,\r\n",
 					"    Description, \r\n",
 					"    SourceSystemID,\r\n",
@@ -367,7 +366,7 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"From diversity_dim_new\r\n",
+					"From diversity_dim_new WHERE HistoricIsActive = 'Y' or HistoricIsActive IS NULL\r\n",
 					"\r\n",
 					"    UNION ALL\r\n",
 					"\r\n",
@@ -384,10 +383,10 @@
 					"    RowID,\r\n",
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.diversity_dim\r\n",
-					"WHERE Description IN (SELECT Description FROM diversity_dim_new WHERE DiversityID IS NULL);\r\n",
-					""
+					"WHERE Description IN (SELECT Description FROM diversity_dim_new WHERE DiversityID IS NULL)\r\n",
+					"AND IsActive = 'Y'"
 				],
-				"execution_count": null
+				"execution_count": 16
 			},
 			{
 				"cell_type": "markdown",
@@ -419,7 +418,8 @@
 					},
 					"microsoft": {
 						"language": "sparksql"
-					}
+					},
+					"collapsed": false
 				},
 				"source": [
 					"%%sql\r\n",
@@ -445,7 +445,7 @@
 					"\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 17
 			},
 			{
 				"cell_type": "markdown",
@@ -477,7 +477,8 @@
 					},
 					"microsoft": {
 						"language": "sparksql"
-					}
+					},
+					"collapsed": false
 				},
 				"source": [
 					"%%sql\r\n",
@@ -497,7 +498,7 @@
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.diversity_dim;"
 				],
-				"execution_count": null
+				"execution_count": 18
 			}
 		]
 	}
