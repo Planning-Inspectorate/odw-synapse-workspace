@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "10d74c22-2027-444a-b6db-8f159a5e2c7f"
+				"spark.autotune.trackingId": "ff8e88cc-18bf-433b-a005-b9ca0f6fb3b4"
 			}
 		},
 		"metadata": {
@@ -151,16 +151,14 @@
 					"        WHEN T1.PayrollAreaCode IS NULL\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
-					"    END AS  DeletedData\r\n",
-					"\r\n",
+					"    END AS  DeletedData, \r\n",
+					"    T7.IsActive as HistoricIsActive\r\n",
 					"\r\n",
 					"FROM payrollarea_grouped T1\r\n",
 					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description and T2.IsActive = 'Y'\r\n",
-					"FULL JOIN odw_harmonised_db.payrollarea_dim T7 ON T1.PayrollAreaCode = T7.PayrollAreaCode\r\n",
-					"WHERE  (T7.IsActive = 'Y' or T7.IsActive IS NULL)\r\n",
-					"    \r\n",
-					"        AND (\r\n",
-					"        \r\n",
+					"FULL JOIN odw_harmonised_db.payrollarea_dim T7 ON T1.PayrollAreaCode = T7.PayrollAreaCode AND T7.IsActive = 'Y'\r\n",
+					"WHERE\r\n",
+					"    (  \r\n",
 					"        -- flags new data        \r\n",
 					"        (   CASE\r\n",
 					"                WHEN T1.PayrollAreaCode = T7.PayrollAreaCode AND md5(concat(IFNULL(T1.PayrollAreaCode,'.'), IFNULL(T1.Description,'.')))  <> T7.RowID   -- same employee, changed data\r\n",
@@ -176,8 +174,7 @@
 					"                THEN 'Y'\r\n",
 					"                ELSE 'N'\r\n",
 					"            END = 'Y' )\r\n",
-					")\r\n",
-					"\r\n",
+					"    )\r\n",
 					";\r\n",
 					""
 				],
@@ -235,7 +232,7 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM payrollarea_dim_new\r\n",
+					"FROM payrollarea_dim_new WHERE HistoricIsActive = 'Y' or HistoricIsActive IS NULL\r\n",
 					"\r\n",
 					"    UNION ALL\r\n",
 					"\r\n",
@@ -251,7 +248,7 @@
 					"    RowID,\r\n",
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.payrollarea_dim\r\n",
-					"WHERE PayrollAreaCode IN (SELECT PayrollAreaCode FROM payrollarea_dim_new WHERE PayrollAreaID IS NULL); \r\n",
+					"WHERE PayrollAreaCode IN (SELECT PayrollAreaCode FROM payrollarea_dim_new WHERE PayrollAreaID IS NULL) AND IsActive = 'Y' ; \r\n",
 					""
 				],
 				"execution_count": 1

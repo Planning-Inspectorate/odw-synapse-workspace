@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "1fba8222-c953-408f-b108-2c03b14f566e"
+				"spark.autotune.trackingId": "4c4df571-9bb5-4fcc-83e5-782210f8f2d1"
 			}
 		},
 		"metadata": {
@@ -155,16 +155,16 @@
 					"        WHEN T1.ContractCode IS NULL\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
-					"    END AS  DeletedData\r\n",
+					"    END AS  DeletedData, \r\n",
+					"    T7.IsActive as HistoricIsActive\r\n",
 					"\r\n",
 					"FROM contract_grouped T1\r\n",
 					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description AND T2.IsActive = 'Y'\r\n",
 					"FULL JOIN odw_harmonised_db.contract_dim T7 ON T1.ContractCode = T7.ContractCode AND\r\n",
-					"                                                T1.ContractTypeCode = T7.ContractTypeCode     \r\n",
-					"WHERE  (T7.IsActive = 'Y' or T7.IsActive IS NULL)\r\n",
-					"    \r\n",
-					"        AND (\r\n",
-					"        \r\n",
+					"                                                T1.ContractTypeCode = T7.ContractTypeCode AND \r\n",
+					"                                                T7.IsActive = 'Y'     \r\n",
+					"WHERE\r\n",
+					"    (\r\n",
 					"        -- flags new data        \r\n",
 					"        (  CASE\r\n",
 					"                WHEN T1.ContractCode = T7.ContractCode AND T1.ContractTypeCode = T7.ContractTypeCode\r\n",
@@ -181,7 +181,7 @@
 					"                THEN 'Y'\r\n",
 					"                ELSE 'N'\r\n",
 					"            END = 'Y' )\r\n",
-					");"
+					"    );"
 				],
 				"execution_count": 3
 			},
@@ -371,7 +371,7 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"From contract_dim_new\r\n",
+					"From contract_dim_new WHERE HistoricIsActive = 'Y' or HistoricIsActive IS NULL\r\n",
 					"\r\n",
 					"    UNION ALL\r\n",
 					"\r\n",
@@ -390,7 +390,7 @@
 					"    T1.IsActive\r\n",
 					"FROM odw_harmonised_db.contract_dim T1\r\n",
 					"INNER JOIN contract_dim_new T2 ON T1.ContractCode = T2.ContractCode AND T1.ContractTypeCode = T2.ContractTypeCode\r\n",
-					"                                    AND T2.ContractID IS NULL    \r\n",
+					"                                    AND T2.ContractID IS NULL AND IsActive = 'Y'\r\n",
 					"; \r\n",
 					""
 				],

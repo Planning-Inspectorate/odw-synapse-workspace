@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "907dc5d2-daf5-4005-b0d8-9d96bc7eaa08"
+				"spark.autotune.trackingId": "ea95d68b-8058-4ed7-b8fe-1539036cd524"
 			}
 		},
 		"metadata": {
@@ -148,14 +148,14 @@
 					"        WHEN T1.ReligionCode IS NULL\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
-					"    END AS  DeletedData\r\n",
+					"    END AS  DeletedData,\r\n",
+					"    T3.IsActive as HistoricIsActive\r\n",
 					"\r\n",
 					"FROM religion_grouped T1\r\n",
 					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description AND T2.IsActive = 'Y'\r\n",
-					"FULL JOIN odw_harmonised_db.religion_dim T3 ON T1.ReligionCode = T3.ReligionCode\r\n",
-					"WHERE  (T3.IsActive = 'Y' or T3.IsActive IS NULL)\r\n",
-					"    \r\n",
-					"        AND (\r\n",
+					"FULL JOIN odw_harmonised_db.religion_dim T3 ON T1.ReligionCode = T3.ReligionCode and T3.IsActive = 'Y'\r\n",
+					"WHERE  \r\n",
+					"    (\r\n",
 					"        \r\n",
 					"        -- flags new data        \r\n",
 					"        (   CASE\r\n",
@@ -172,7 +172,7 @@
 					"                THEN 'Y'\r\n",
 					"                ELSE 'N'\r\n",
 					"            END = 'Y' )\r\n",
-					"            )\r\n",
+					"    )\r\n",
 					";"
 				],
 				"execution_count": 3
@@ -367,7 +367,7 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"From religion_dim_new\r\n",
+					"From religion_dim_new WHERE HistoricIsActive = 'Y' or HistoricIsActive IS NULL\r\n",
 					"\r\n",
 					"    UNION ALL\r\n",
 					"\r\n",
@@ -385,7 +385,8 @@
 					"    RowID,\r\n",
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.religion_dim\r\n",
-					"WHERE ReligionCode IN (SELECT ReligionCode FROM religion_dim_new WHERE ReligionID IS NULL); \r\n",
+					"WHERE ReligionCode IN (SELECT ReligionCode FROM religion_dim_new WHERE ReligionID IS NULL)\r\n",
+					"AND IsActive = 'Y'; \r\n",
 					""
 				],
 				"execution_count": null

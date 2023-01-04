@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "e487eeac-c0db-49da-8735-d16fbfe74aac"
+				"spark.autotune.trackingId": "6a9aaae3-e9f0-47c0-8628-132832f647ca"
 			}
 		},
 		"metadata": {
@@ -147,7 +147,8 @@
 					"                IFNULL(T1.Seniority_Date, '.'),IFNULL(T1.Org_Start_Date, '.'),IFNULL(T1.Fix_Term_End_Date, '.'),IFNULL(T1.Loan_End_Date, '.'),IFNULL(T1.Loan_Start_Date, '.'),IFNULL(T1.Payroll_Area,'.'),IFNULL(T1.Assignment_Number, '.'),\r\n",
 					"                IFNULL(T1.Employee_Group,'.'),IFNULL(T1.Reason_for_Action,'.'),IFNULL(T5.AnnualLeaveStartDate,'.'),IFNULL(T1.curr,'.'), IFNULL(T1.Date_to_Subst_Grade,'.'),\r\n",
 					"                IFNULL(T1.Employee_No,'.'))) as RowID, \r\n",
-					"    'Y' as IsActive\r\n",
+					"    'Y' as IsActive, \r\n",
+					"    T7.IsActive as HistoricIsActive\r\n",
 					"\r\n",
 					"FROM odw_standardised_db.vw_saphr T1\r\n",
 					"LEFT JOIN odw_standardised_db.vw_addresses T2 ON T1.Pers_No = T2.Staff_Number\r\n",
@@ -156,11 +157,9 @@
 					"LEFT JOIN ( SELECT staff_number, max(ded_from) as AnnualLeaveStartDate\r\n",
 					"            FROM odw_standardised_db.vw_leave\r\n",
 					"            GRoup BY Staff_Number) T5 ON T1.Pers_No = T5.staff_number    \r\n",
-					"FULL JOIN odw_harmonised_db.employee_dim T7 ON T1.Pers_No = T7.EmployeeNumber \r\n",
-					"WHERE  (T7.IsActive = 'Y' or T7.IsActive IS NULL)\r\n",
-					"    \r\n",
-					"        AND (\r\n",
-					"        \r\n",
+					"FULL JOIN odw_harmonised_db.employee_dim T7 ON T1.Pers_No = T7.EmployeeNumber AND T7.IsActive = 'Y'\r\n",
+					"WHERE\r\n",
+					"    (\r\n",
 					"        -- flags new data        \r\n",
 					"        ( CASE\r\n",
 					"            WHEN T1.Pers_No = T7.EmployeeNumber AND md5(concat( IFNULL(T1.First_name,'.'),IFNULL(T1.Last_name,'.'),IFNULL(T1.Birth_date,'.'), IFNULL(T1.NI_number, '.'), IFNULL(T1.Gender_Key, '.'), IFNULL(T2.Street_and_House_Number, '.'),IFNULL(T2.`2nd_Address_Line`, '.'),\r\n",
@@ -181,7 +180,7 @@
 					"            THEN 'Y'\r\n",
 					"            ELSE 'N'\r\n",
 					"        END = 'Y' )\r\n",
-					")\r\n",
+					"    )\r\n",
 					";\r\n",
 					""
 				],
@@ -276,7 +275,7 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"From employee_dim_new\r\n",
+					"From employee_dim_new WHERE HistoricIsActive = 'Y' or HistoricIsActive IS NULL\r\n",
 					"\r\n",
 					"    UNION ALL\r\n",
 					"\r\n",
@@ -328,7 +327,7 @@
 					"    RowID,\r\n",
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.employee_dim\r\n",
-					"WHERE EmployeeNumber IN (SELECT EmployeeNumber FROM employee_dim_new WHERE EmployeeID IS NULL);\r\n",
+					"WHERE EmployeeNumber IN (SELECT EmployeeNumber FROM employee_dim_new WHERE EmployeeID IS NULL) AND IsActive = 'Y';\r\n",
 					""
 				],
 				"execution_count": 7

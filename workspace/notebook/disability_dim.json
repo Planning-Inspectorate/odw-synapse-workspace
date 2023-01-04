@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5dbcebc9-f8ba-4491-a248-f3fcbc954538"
+				"spark.autotune.trackingId": "006b0bbd-d9ef-4c11-9504-dc82f73a7fc2"
 			}
 		},
 		"metadata": {
@@ -149,14 +149,14 @@
 					"        WHEN T1.DisabilityCode IS NULL\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
-					"    END AS  DeletedData\r\n",
+					"    END AS  DeletedData, \r\n",
+					"    T3.IsActive as HistoricIsActive\r\n",
 					"\r\n",
 					"FROM disability_grouped T1\r\n",
 					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description AND T2.IsActive = 'Y'\r\n",
-					"FULL JOIN odw_harmonised_db.disability_dim T3 ON T1.DisabilityCode = T3.DisabilityCode \r\n",
-					"WHERE  (T3.IsActive = 'Y' or T3.IsActive IS NULL)\r\n",
-					"    \r\n",
-					"        AND (\r\n",
+					"FULL JOIN odw_harmonised_db.disability_dim T3 ON T1.DisabilityCode = T3.DisabilityCode and T3.IsActive = 'Y'\r\n",
+					"WHERE  \r\n",
+					"    (\r\n",
 					"        \r\n",
 					"        -- flags new data        \r\n",
 					"        (   CASE\r\n",
@@ -175,7 +175,6 @@
 					"            ELSE 'N'\r\n",
 					"        END = 'Y' )\r\n",
 					"    )\r\n",
-					"\r\n",
 					"\r\n",
 					";"
 				],
@@ -372,7 +371,7 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"From disability_dim_new\r\n",
+					"From disability_dim_new WHERE HistoricIsActive = 'Y' or HistoricIsActive IS NULL\r\n",
 					"\r\n",
 					"    UNION ALL\r\n",
 					"\r\n",
@@ -390,7 +389,8 @@
 					"    RowID,\r\n",
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.disability_dim\r\n",
-					"WHERE DisabilityCode IN (SELECT DisabilityCode FROM disability_dim_new WHERE DisabilityID IS NULL);\r\n",
+					"WHERE DisabilityCode IN (SELECT DisabilityCode FROM disability_dim_new WHERE DisabilityID IS NULL)\r\n",
+					"AND IsActive = 'Y';\r\n",
 					""
 				],
 				"execution_count": null

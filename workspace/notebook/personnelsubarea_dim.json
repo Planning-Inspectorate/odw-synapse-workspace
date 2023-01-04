@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "0e50aaca-3aae-417a-92fd-3d8973d4f48c"
+				"spark.autotune.trackingId": "75f6ef10-03fb-4027-a955-39763ccc5be0"
 			}
 		},
 		"metadata": {
@@ -151,14 +151,14 @@
 					"        WHEN T1.PersonnelSubAreaCode IS NULL\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
-					"    END AS  DeletedData\r\n",
+					"    END AS  DeletedData, \r\n",
+					"    T7.IsActive as HistoricIsActive\r\n",
 					"\r\n",
 					"FROM personnelsubarea_grouped T1\r\n",
 					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description and T2.IsActive = 'Y'\r\n",
-					"FULL JOIN odw_harmonised_db.personnelsubarea_dim T7 ON T1.PersonnelSubAreaCode = T7.PersonnelSubAreaCode\r\n",
-					"WHERE  (T7.IsActive = 'Y' or T7.IsActive IS NULL)\r\n",
-					"    \r\n",
-					"        AND (\r\n",
+					"FULL JOIN odw_harmonised_db.personnelsubarea_dim T7 ON T1.PersonnelSubAreaCode = T7.PersonnelSubAreaCode AND T7.IsActive = 'Y'\r\n",
+					"WHERE\r\n",
+					"    (\r\n",
 					"        \r\n",
 					"        -- flags new data        \r\n",
 					"        ( CASE\r\n",
@@ -175,7 +175,7 @@
 					"                THEN 'Y'\r\n",
 					"                ELSE 'N'\r\n",
 					"            END = 'Y' )\r\n",
-					")\r\n",
+					"    )\r\n",
 					";\r\n",
 					""
 				],
@@ -371,7 +371,7 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM personnelsubarea_dim_new\r\n",
+					"FROM personnelsubarea_dim_new WHERE HistoricIsActive = 'Y' or HistoricIsActive IS NULL\r\n",
 					"\r\n",
 					"    UNION ALL\r\n",
 					"\r\n",
@@ -387,7 +387,7 @@
 					"    RowID,\r\n",
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.personnelsubarea_dim\r\n",
-					"WHERE PersonnelSubAreaCode IN (SELECT PersonnelSubAreaCode FROM personnelsubarea_dim_new WHERE PersonnelSubAreaID IS NULL); \r\n",
+					"WHERE PersonnelSubAreaCode IN (SELECT PersonnelSubAreaCode FROM personnelsubarea_dim_new WHERE PersonnelSubAreaID IS NULL) AND IsActive = 'Y'; \r\n",
 					""
 				],
 				"execution_count": 5

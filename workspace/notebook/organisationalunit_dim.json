@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d665f199-0dac-4509-a7b0-a2d1f0064ce1"
+				"spark.autotune.trackingId": "30e76b74-c480-4e62-8744-a9cbe21e366b"
 			}
 		},
 		"metadata": {
@@ -151,16 +151,16 @@
 					"        WHEN T1.OrganisationUnit IS NULL\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
-					"    END AS  DeletedData\r\n",
+					"    END AS  DeletedData, \r\n",
+					"    T7.IsActive as HistoricIsActive\r\n",
 					"\r\n",
 					"FROM organisation_grouped T1\r\n",
 					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description and T2.IsActive = 'Y'\r\n",
 					"FULL JOIN odw_harmonised_db.organisationunit_dim T7 ON T1.OrganisationUnit = T7.OrganisationUnit AND\r\n",
-					"                                                        T1.Description = T7.Description\r\n",
-					"WHERE  (T7.IsActive = 'Y' or T7.IsActive IS NULL)\r\n",
-					"    \r\n",
-					"        AND (\r\n",
-					"        \r\n",
+					"                                                        T1.Description = T7.Description AND\r\n",
+					"                                                        T7.IsActive = 'Y'\r\n",
+					"WHERE\r\n",
+					"    (\r\n",
 					"        -- flags new data        \r\n",
 					"        (   CASE\r\n",
 					"                WHEN T1.OrganisationUnit = T7.OrganisationUnit AND T1.Description = T7.Description AND  \r\n",
@@ -177,7 +177,7 @@
 					"                THEN 'Y'\r\n",
 					"                ELSE 'N'\r\n",
 					"            END = 'Y' )\r\n",
-					")\r\n",
+					"    )\r\n",
 					";"
 				],
 				"execution_count": 4
@@ -374,7 +374,7 @@
 					"    RowID,\r\n",
 					"    IsActive\r\n",
 					"    \r\n",
-					"From OrganisationUnit_dim_new\r\n",
+					"From OrganisationUnit_dim_new WHERE HistoricIsActive = 'Y' or HistoricIsActive IS NULL\r\n",
 					"\r\n",
 					"    UNION ALL\r\n",
 					"\r\n",
@@ -394,7 +394,8 @@
 					"FROM odw_harmonised_db.organisationunit_dim T1\r\n",
 					"INNER JOIN OrganisationUnit_dim_new T2 ON T1.OrganisationUnit = T2.OrganisationUnit AND\r\n",
 					"                                            T1.Description = T2.Description AND\r\n",
-					"                                            T2.OrganisationUnitID IS NULL ;\r\n",
+					"                                            T2.OrganisationUnitID IS NULL AND \r\n",
+					"                                            IsActive = 'Y' ;\r\n",
 					""
 				],
 				"execution_count": 25

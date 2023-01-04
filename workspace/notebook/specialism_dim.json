@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "8936b729-a214-4d25-abf5-86408a967ea8"
+				"spark.autotune.trackingId": "66aba5ca-ea1a-4f62-92f7-0c76dbffc1f4"
 			}
 		},
 		"metadata": {
@@ -117,15 +117,15 @@
 					"        WHEN FIRST(T3.EmployeeID) IS NULL\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
-					"    END AS  DeletedData\r\n",
+					"    END AS  DeletedData, \r\n",
+					"    T7.IsActive as HistoricIsActive\r\n",
 					"\r\n",
 					"FROM odw_standardised_db.vw_specialisms T1\r\n",
 					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description and T2.IsActive = 'Y'\r\n",
 					"LEFT JOIN odw_harmonised_db.employee_dim T3 ON T1.Staff_Number = T3.EmployeeNumber and T3.IsActive = 'Y'\r\n",
-					"FULL JOIN odw_harmonised_db.specialism_dim T7 ON T1.Staff_Number = T7.EmployeeID\r\n",
-					"WHERE  (T7.IsActive = 'Y' or T7.IsActive IS NULL)\r\n",
-					"    \r\n",
-					"        AND (\r\n",
+					"FULL JOIN odw_harmonised_db.specialism_dim T7 ON T1.Staff_Number = T7.EmployeeID AND T7.IsActive = 'Y'\r\n",
+					"WHERE\r\n",
+					"    (\r\n",
 					"        \r\n",
 					"        -- flags new data        \r\n",
 					"        ( CASE\r\n",
@@ -142,8 +142,7 @@
 					"            THEN 'Y'\r\n",
 					"            ELSE 'N'\r\n",
 					"        END = 'Y' )\r\n",
-					")\r\n",
-					"\r\n",
+					"    )\r\n",
 					"    AND\r\n",
 					"        T1.Staff_Number IS NOT NULL\r\n",
 					"\r\n",
@@ -337,7 +336,7 @@
 					"    RowID,\r\n",
 					"    IsActive\r\n",
 					"    \r\n",
-					"From specialism_dim_new\r\n",
+					"From specialism_dim_new WHERE HistoricIsActive = 'Y' or HistoricIsActive IS NULL\r\n",
 					"\r\n",
 					"    UNION ALL\r\n",
 					"\r\n",
@@ -356,7 +355,7 @@
 					"    RowID,\r\n",
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.specialism_dim\r\n",
-					"WHERE SpecialismID IN (SELECT SpecialismID FROM specialism_dim_new WHERE SpecialismID IS NULL); "
+					"WHERE SpecialismID IN (SELECT SpecialismID FROM specialism_dim_new WHERE SpecialismID IS NULL) AND IsActive = 'Y'; "
 				],
 				"execution_count": 2
 			},

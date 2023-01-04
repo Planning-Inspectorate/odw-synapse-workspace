@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "cc2b7355-7b9c-4824-8562-f226410443a4"
+				"spark.autotune.trackingId": "6a8eda03-5f8f-4257-9812-7378c7c37956"
 			}
 		},
 		"metadata": {
@@ -126,7 +126,8 @@
 					"    md5(concat(IFNULL(T2.EmployeeID,'.'), IFNULL(T3.PersonnelAreaID, '.'), IFNULL(T4.PersonnelSubAreaID, '.'), IFNULL(T5.OrganisationUnitID, '.'),IFNULL(T6.ContractID, '.'),\r\n",
 					"                IFNULL(T7.PayBandID, '.'),IFNULL(T8.CostCenterID, '.'),IFNULL(T9.PositionID, '.'),IFNULL(T10.ManagerEmployeeID, '.'),IFNULL(TempMPID.PositionID, '.'),\r\n",
 					"                IFNULL(NULL, '.'), IFNULL(T11.LocationID, '.'),IFNULL(T12.WorkScheduleID, '.'),IFNULL(T13.EmployeeGroupID, '.'),IFNULL(T13b.PayrollAreaID, '.'))) as RowID, \r\n",
-					"    'Y' as IsActive\r\n",
+					"    'Y' as IsActive, \r\n",
+					"    T7.IsActive as HistoricIsActive\r\n",
 					"\r\n",
 					"\r\n",
 					"FROM odw_standardised_db.vw_saphr T1 -- COUNT is 997\r\n",
@@ -163,12 +164,10 @@
 					"LEFT JOIN odw_harmonised_db.EmployeeGroup_dim T13 ON T1.EEGrp = T13.EEGrp and T13.IsActive = 'Y'\r\n",
 					"LEFT JOIN odw_harmonised_db.payrollarea_dim T13b ON T1.PArea = T13b.PayrollAreaCode and T13b.IsActive = 'Y'\r\n",
 					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T14 ON \"SAP HR\" = T14.Description AND T14.IsActive = 'Y'\r\n",
-					"FULL JOIN odw_harmonised_db.hr_record_fact T15 ON T2.EmployeeID = T15.EmployeeID\r\n",
+					"FULL JOIN odw_harmonised_db.hr_record_fact T15 ON T2.EmployeeID = T15.EmployeeID AND T15.IsActive = 'Y'\r\n",
 					"\r\n",
-					"WHERE  (T15.IsActive = 'Y' or T15.IsActive IS NULL)\r\n",
-					"    \r\n",
-					"        AND (\r\n",
-					"        \r\n",
+					"WHERE\r\n",
+					"    (\r\n",
 					"        -- flags new data        \r\n",
 					"        ( CASE\r\n",
 					"            WHEN T2.EmployeeID = T15.EmployeeID AND md5(concat(IFNULL(T2.EmployeeID,'.'), IFNULL(T3.PersonnelAreaID, '.'), IFNULL(T4.PersonnelSubAreaID, '.'), IFNULL(T5.OrganisationUnitID, '.'),IFNULL(T6.ContractID, '.'),\r\n",
@@ -186,10 +185,7 @@
 					"            THEN 'Y'\r\n",
 					"            ELSE 'N'\r\n",
 					"        END = 'Y' )\r\n",
-					")\r\n",
-					"\r\n",
-					"\r\n",
-					"\r\n",
+					"    )\r\n",
 					";\r\n",
 					""
 				],
@@ -355,7 +351,7 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"From hr_record_fact_new\r\n",
+					"From hr_record_fact_new WHERE HistoricIsActive = 'Y' or HistoricIsActive IS NULL\r\n",
 					"\r\n",
 					"    UNION ALL\r\n",
 					"\r\n",
@@ -388,7 +384,7 @@
 					"    RowID,\r\n",
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.hr_record_fact\r\n",
-					"WHERE EmployeeID IN (SELECT EmployeeID FROM hr_record_fact_new WHERE HRRecordID IS NULL);\r\n",
+					"WHERE EmployeeID IN (SELECT EmployeeID FROM hr_record_fact_new WHERE HRRecordID IS NULL) AND IsActive = 'Y';\r\n",
 					""
 				],
 				"execution_count": 93

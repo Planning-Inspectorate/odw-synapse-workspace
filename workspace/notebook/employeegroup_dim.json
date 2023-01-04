@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "9",
 				"spark.dynamicAllocation.maxExecutors": "9",
-				"spark.autotune.trackingId": "8b993da4-d426-424a-b571-c79ee91a741d"
+				"spark.autotune.trackingId": "fbeea392-cb84-4e4d-b1ac-e6cca3f97532"
 			}
 		},
 		"metadata": {
@@ -102,7 +102,7 @@
 					"- **Updated data:** Comparison occurs on PA in source and PSGroupCode in target where the row hash is different i.e. there is a change in one of the columns. NewData flag is set to 'Y'\n",
 					"- **Deleted data:** where an PSGroupCode in the target exists but the same PA doesn't exist in the source. DeletedData flag is set to 'Y'\n",
 					"\n",
-					"## View payband_dim_new is created"
+					"## View employeegroup_dim_new is created"
 				]
 			},
 			{
@@ -151,16 +151,14 @@
 					"        WHEN T1.EEGrp IS NULL\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
-					"    END AS  DeletedData\r\n",
-					"\r\n",
+					"    END AS  DeletedData, \r\n",
+					"    T7.IsActive as HistoricIsActive\r\n",
 					"\r\n",
 					"FROM employeegroup_grouped T1\r\n",
 					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description and T2.IsActive = 'Y'\r\n",
-					"FULL JOIN odw_harmonised_db.employeegroup_dim T7 ON T1.EEGrp = T7.EEGrp\r\n",
-					"WHERE  (T7.IsActive = 'Y' or T7.IsActive IS NULL)\r\n",
-					"    \r\n",
-					"        AND (\r\n",
-					"        \r\n",
+					"FULL JOIN odw_harmonised_db.employeegroup_dim T7 ON T1.EEGrp = T7.EEGrp AND T7.IsActive = 'Y' \r\n",
+					"WHERE\r\n",
+					"    ( \r\n",
 					"        -- flags new data        \r\n",
 					"        (   CASE\r\n",
 					"                WHEN T1.EEGrp = T7.EEGrp AND md5(concat(IFNULL(T1.EEGrp,'.'), IFNULL(T1.EmployeeGroup,'.')))  <> T7.RowID   -- same employee, changed data\r\n",
@@ -176,8 +174,7 @@
 					"                THEN 'Y'\r\n",
 					"                ELSE 'N'\r\n",
 					"            END = 'Y' )\r\n",
-					")\r\n",
-					"\r\n",
+					"    )\r\n",
 					";\r\n",
 					""
 				],
@@ -235,7 +232,7 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM employeegroup_dim_new\r\n",
+					"FROM employeegroup_dim_new WHERE HistoricIsActive = 'Y' or HistoricIsActive IS NULL\r\n",
 					"\r\n",
 					"    UNION ALL\r\n",
 					"\r\n",
@@ -251,7 +248,7 @@
 					"    RowID,\r\n",
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.employeegroup_dim\r\n",
-					"WHERE EEGrp IN (SELECT EEGrp FROM employeegroup_dim_new WHERE EmployeeGroupID IS NULL); \r\n",
+					"WHERE EEGrp IN (SELECT EEGrp FROM employeegroup_dim_new WHERE EmployeeGroupID IS NULL) AND IsActive = 'Y'; \r\n",
 					""
 				],
 				"execution_count": 14

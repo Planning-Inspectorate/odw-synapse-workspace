@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "510a493c-b165-4c86-b6d8-89b2198626fe"
+				"spark.autotune.trackingId": "b0ac56aa-86de-4db8-b0ae-582966e93c7d"
 			}
 		},
 		"metadata": {
@@ -122,18 +122,18 @@
 					"        WHEN T1.Work_Schedule_Rule IS NULL\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
-					"    END AS  DeletedData\r\n",
+					"    END AS  DeletedData, \r\n",
+					"    T7.IsActive as HistoricIsActive\r\n",
 					"\r\n",
 					"FROM odw_standardised_db.vw_absences T1\r\n",
 					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description and T2.IsActive = 'Y'\r\n",
 					"FULL JOIN odw_harmonised_db.workschedule_dim T7 ON T1.Work_Schedule_Rule = T7.WorkScheduleRule AND\r\n",
 					"                                                    T1.WkDys = T7.WorkWeekDays AND\r\n",
 					"                                                    T1.Wk_hrs = T7.WorkWeekHours AND\r\n",
-					"                                                    T1.Hrs_Day = T7.WorkDayHours\r\n",
-					"WHERE  (T7.IsActive = 'Y' or T7.IsActive IS NULL)\r\n",
-					"    \r\n",
-					"        AND (\r\n",
-					"        \r\n",
+					"                                                    T1.Hrs_Day = T7.WorkDayHours AND \r\n",
+					"                                                    T7.IsActive = 'Y'\r\n",
+					"WHERE\r\n",
+					"    (\r\n",
 					"        -- flags new data        \r\n",
 					"        ( CASE\r\n",
 					"                WHEN T1.Work_Schedule_Rule = T7.WorkScheduleRule AND\r\n",
@@ -153,7 +153,7 @@
 					"            THEN 'Y'\r\n",
 					"            ELSE 'N'\r\n",
 					"        END = 'Y' )\r\n",
-					")\r\n",
+					"    )\r\n",
 					"GROUP BY T1.Work_Schedule_Rule, T1.WkDys, T1.Wk_hrs, T1.Hrs_Day;"
 				],
 				"execution_count": 8
@@ -349,7 +349,7 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM workschedule_dim_new\r\n",
+					"FROM workschedule_dim_new WHERE HistoricIsActive = 'Y' or HistoricIsActive IS NULL\r\n",
 					"\r\n",
 					"    UNION ALL\r\n",
 					"\r\n",
@@ -367,7 +367,7 @@
 					"    RowID,\r\n",
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.workschedule_dim\r\n",
-					"WHERE WorkScheduleRule IN (SELECT WorkScheduleRule FROM workschedule_dim_new WHERE WorkScheduleID IS NULL); \r\n",
+					"WHERE WorkScheduleRule IN (SELECT WorkScheduleRule FROM workschedule_dim_new WHERE WorkScheduleID IS NULL) AND IsActive = 'Y'; \r\n",
 					""
 				],
 				"execution_count": 5

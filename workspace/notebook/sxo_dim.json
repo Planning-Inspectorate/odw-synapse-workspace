@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "99620d6d-6d2c-41d2-8c3f-f3db3e94a253"
+				"spark.autotune.trackingId": "48adb016-b90e-4997-bef6-a46a1d0fe4af"
 			}
 		},
 		"metadata": {
@@ -147,14 +147,14 @@
 					"        WHEN T1.Description IS NULL\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
-					"    END AS  DeletedData\r\n",
+					"    END AS  DeletedData,\r\n",
+					"    T3.IsActive as HistoricIsActive\r\n",
 					"\r\n",
 					"FROM sxo_grouped T1\r\n",
 					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description\r\n",
-					"FULL JOIN odw_harmonised_db.sxo_dim T3 ON T1.Description = T3.Description\r\n",
-					"WHERE  (T3.IsActive = 'Y' or T3.IsActive IS NULL)\r\n",
-					"    \r\n",
-					"        AND (\r\n",
+					"FULL JOIN odw_harmonised_db.sxo_dim T3 ON T1.Description = T3.Description and T3.IsActive = 'Y'\r\n",
+					"WHERE  \r\n",
+					"    (\r\n",
 					"        \r\n",
 					"        -- flags new data        \r\n",
 					"        ( CASE\r\n",
@@ -366,7 +366,7 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"From sxo_dim_new\r\n",
+					"From sxo_dim_new WHERE HistoricIsActive = 'Y' or HistoricIsActive IS NULL\r\n",
 					"\r\n",
 					"    UNION ALL\r\n",
 					"\r\n",
@@ -383,7 +383,8 @@
 					"    RowID,\r\n",
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.sxo_dim\r\n",
-					"WHERE Description IN (SELECT Description FROM sxo_dim_new WHERE SXOID IS NULL); \r\n",
+					"WHERE Description IN (SELECT Description FROM sxo_dim_new WHERE SXOID IS NULL)\r\n",
+					"AND IsActive = 'Y'; \r\n",
 					""
 				],
 				"execution_count": null

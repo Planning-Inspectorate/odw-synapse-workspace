@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "2d9cd4f4-9eb4-458f-b5a5-d96e64bf31de"
+				"spark.autotune.trackingId": "0f193d6d-b893-4bc1-bfa3-7704ffceae8d"
 			}
 		},
 		"metadata": {
@@ -127,7 +127,8 @@
 					"        WHEN T3.EmployeeID IS NULL\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
-					"    END AS  DeletedData\r\n",
+					"    END AS  DeletedData, \r\n",
+					"    T7.IsActive as HistoricIsActive\r\n",
 					"\r\n",
 					"FROM odw_standardised_db.vw_absences T1\r\n",
 					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description AND T2.IsActive = 'Y'\r\n",
@@ -141,10 +142,9 @@
 					"                                                T1.Attendance_or_Absence_Type = T7.AbsenceType AND \r\n",
 					"                                                T1.Start_Date = T7.AbsenceStartDate AND \r\n",
 					"                                                T1.End_Date = T7.AbsenceEndDate\r\n",
-					"WHERE  (T7.IsActive = 'Y' or T7.IsActive IS NULL)\r\n",
-					"    \r\n",
-					"        AND (\r\n",
-					"        \r\n",
+					"                                                AND T7.IsActive = 'Y'\r\n",
+					"WHERE\r\n",
+					"    (\r\n",
 					"        -- flags new data        \r\n",
 					"        ( CASE\r\n",
 					"            WHEN T3.EmployeeID = T7.EmployeeID AND \r\n",
@@ -163,11 +163,8 @@
 					"            THEN 'Y'\r\n",
 					"            ELSE 'N'\r\n",
 					"        END = 'Y' )\r\n",
-					"        )\r\n",
-					"\r\n",
-					";\r\n",
-					"\r\n",
-					""
+					"    )\r\n",
+					";"
 				],
 				"execution_count": 4
 			},
@@ -230,7 +227,7 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM absence_dim_new T5\r\n",
+					"FROM absence_dim_new T5 WHERE HistoricIsActive = 'Y' or HistoricIsActive IS NULL\r\n",
 					"\r\n",
 					"    UNION ALL\r\n",
 					"\r\n",
@@ -255,7 +252,7 @@
 					"FROM odw_harmonised_db.absence_dim T4\r\n",
 					"INNER JOIN absence_dim_new T5 ON T4.EmployeeID = T5.EmployeeID AND T4.AbsenceType = T5.AbsenceType AND\r\n",
 					" T4.AbsenceStartDate = T5.AbsenceStartDate AND T4.AbsenceEndDate = T5.AbsenceEndDate AND \r\n",
-					" T5.AbsenceID IS NULL\r\n",
+					" T5.AbsenceID IS NULL AND IsActive = 'Y'\r\n",
 					"; \r\n",
 					"\r\n",
 					""

@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "51faa329-f5b8-4689-ba15-35d45c49f07b"
+				"spark.autotune.trackingId": "55b050f6-a6ad-47c2-9897-4a51371efa3f"
 			}
 		},
 		"metadata": {
@@ -157,15 +157,14 @@
 					"        WHEN T1.PA IS NULL\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
-					"    END AS  DeletedData\r\n",
+					"    END AS  DeletedData, \r\n",
+					"    T7.IsActive as HistoricIsActive\r\n",
 					"\r\n",
 					"FROM personnelarea_grouped T1\r\n",
 					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description\r\n",
-					"FULL JOIN odw_harmonised_db.personnelarea_dim T7 ON T1.PA = T7.PersonnelAreaCode\r\n",
-					"WHERE  (T7.IsActive = 'Y' or T7.IsActive IS NULL)\r\n",
-					"    \r\n",
-					"        AND (\r\n",
-					"        \r\n",
+					"FULL JOIN odw_harmonised_db.personnelarea_dim T7 ON T1.PA = T7.PersonnelAreaCode AND T7.IsActive = 'Y'\r\n",
+					"WHERE\r\n",
+					"    (\r\n",
 					"        -- flags new data        \r\n",
 					"        ( CASE\r\n",
 					"            WHEN T1.PA = T7.PersonnelAreaCode AND md5(concat(IFNULL(T1.PA, '.'), IFNULL(T1.Personnel_Area,'.'))) <> T7.RowID    -- same employee, changed data\r\n",
@@ -181,7 +180,7 @@
 					"            THEN 'Y'\r\n",
 					"            ELSE 'N'\r\n",
 					"        END = 'Y' )\r\n",
-					")\r\n",
+					"    )\r\n",
 					";\r\n",
 					""
 				],
@@ -381,7 +380,7 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM personnelarea_dim_new\r\n",
+					"FROM personnelarea_dim_new WHERE HistoricIsActive = 'Y' or HistoricIsActive IS NULL\r\n",
 					"\r\n",
 					"    UNION ALL\r\n",
 					"\r\n",
@@ -397,7 +396,7 @@
 					"    RowID,\r\n",
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.personnelarea_dim\r\n",
-					"WHERE PersonnelAreaCode IN (SELECT PersonnelAreaCode FROM personnelarea_dim_new where PersonnelAreaID IS NULL); \r\n",
+					"WHERE PersonnelAreaCode IN (SELECT PersonnelAreaCode FROM personnelarea_dim_new where PersonnelAreaID IS NULL) AND IsActive = 'Y'; \r\n",
 					"\r\n",
 					""
 				],

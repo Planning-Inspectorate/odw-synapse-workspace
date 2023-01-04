@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "e08f16a1-2be7-4e0f-b94d-71d196256911"
+				"spark.autotune.trackingId": "cc362d91-f63f-4281-a693-e695760eb70e"
 			}
 		},
 		"metadata": {
@@ -151,14 +151,14 @@
 					"        WHEN T1.LocationCode IS NULL\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
-					"    END AS  DeletedData\r\n",
+					"    END AS  DeletedData, \r\n",
+					"    T7.IsActive as HistoricIsActive\r\n",
 					"\r\n",
 					"FROM pins_location_grouped T1\r\n",
 					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description and T2.IsActive = 'Y'\r\n",
-					"FULL JOIN odw_harmonised_db.PINS_Location_dim T7 ON T1.LocationCode = T7.LocationCode\r\n",
-					"WHERE  (T7.IsActive = 'Y' or T7.IsActive IS NULL)\r\n",
-					"    \r\n",
-					"        AND (\r\n",
+					"FULL JOIN odw_harmonised_db.PINS_Location_dim T7 ON T1.LocationCode = T7.LocationCode AND T7.IsActive = 'Y'\r\n",
+					"WHERE\r\n",
+					"    (\r\n",
 					"        \r\n",
 					"        -- flags new data        \r\n",
 					"        (   CASE\r\n",
@@ -170,12 +170,12 @@
 					"            END = 'Y' ) OR\r\n",
 					"        \r\n",
 					"        -- flags deleted data\r\n",
-					"    (       CASE\r\n",
+					"        (   CASE\r\n",
 					"                WHEN T1.LocationCode IS NULL\r\n",
 					"                THEN 'Y'\r\n",
 					"                ELSE 'N'\r\n",
 					"            END = 'Y' )\r\n",
-					");"
+					"    );"
 				],
 				"execution_count": 5
 			},
@@ -366,7 +366,7 @@
 					"    RowID,\r\n",
 					"    IsActive\r\n",
 					"    \r\n",
-					"From PINS_Location_dim_new\r\n",
+					"From PINS_Location_dim_new WHERE HistoricIsActive = 'Y' or HistoricIsActive IS NULL\r\n",
 					"\r\n",
 					"    UNION ALL\r\n",
 					"\r\n",
@@ -385,7 +385,7 @@
 					"    IsActive\r\n",
 					"    \r\n",
 					"FROM odw_harmonised_db.PINS_Location_dim\r\n",
-					"WHERE LocationCode IN (SELECT LocationCode FROM PINS_Location_dim_new WHERE LocationID IS NULL); "
+					"WHERE LocationCode IN (SELECT LocationCode FROM PINS_Location_dim_new WHERE LocationID IS NULL) AND IsActive = 'Y'; "
 				],
 				"execution_count": 7
 			},

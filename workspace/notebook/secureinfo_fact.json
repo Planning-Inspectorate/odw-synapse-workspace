@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "447277fd-8931-4e71-b9d6-ff8200b627f7"
+				"spark.autotune.trackingId": "b56ccf85-0b76-4e24-96fc-56c1754c7abf"
 			}
 		},
 		"metadata": {
@@ -119,7 +119,8 @@
 					"        WHEN T1.Ref_No IS NULL\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
-					"    END AS  DeletedData\r\n",
+					"    END AS  DeletedData, \r\n",
+					"    T7.IsActive as HistoricIsActive\r\n",
 					"\r\n",
 					"FROM odw_standardised_db.vw_protected_characteristics T1\r\n",
 					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description AND T2.IsActive = 'Y'\r\n",
@@ -129,10 +130,9 @@
 					"LEFT JOIN odw_harmonised_db.religion_dim T5 ON  T1.Religion = T5.ReligionCode  AND \r\n",
 					"                                                T1.Religious_Denomination_Key = T5.Description AND T5.IsActive = 'Y'\r\n",
 					"LEFT JOIN odw_harmonised_db.sxo_dim T6 ON T1.SxO = T6.Description AND T6.IsActive = 'Y'\r\n",
-					"FULL JOIN odw_harmonised_db.secureinfo_fact T7 ON T1.Ref_No = T7.SourceID\r\n",
-					"WHERE  (T7.IsActive = 'Y' or T7.IsActive IS NULL)\r\n",
-					"    \r\n",
-					"        AND (\r\n",
+					"FULL JOIN odw_harmonised_db.secureinfo_fact T7 ON T1.Ref_No = T7.SourceID AND T7.IsActive = 'Y'\r\n",
+					"WHERE\r\n",
+					"    (\r\n",
 					"        \r\n",
 					"        -- flags new data        \r\n",
 					"        (   CASE\r\n",
@@ -149,7 +149,7 @@
 					"                THEN 'Y'\r\n",
 					"                ELSE 'N'\r\n",
 					"            END = 'Y' )\r\n",
-					")\r\n",
+					"    )\r\n",
 					";"
 				],
 				"execution_count": 1
@@ -212,7 +212,7 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"From secureinfo_fact_new\r\n",
+					"From secureinfo_fact_new WHERE HistoricIsActive = 'Y' or HistoricIsActive IS NULL\r\n",
 					"\r\n",
 					"    UNION ALL\r\n",
 					"\r\n",
@@ -233,7 +233,7 @@
 					"    RowID,\r\n",
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.secureinfo_fact\r\n",
-					"WHERE SourceID IN (SELECT SourceID FROM secureinfo_fact_new WHERE SecureInfoID IS NULL);\r\n",
+					"WHERE SourceID IN (SELECT SourceID FROM secureinfo_fact_new WHERE SecureInfoID IS NULL) AND IsActive = 'Y';\r\n",
 					""
 				],
 				"execution_count": 8
