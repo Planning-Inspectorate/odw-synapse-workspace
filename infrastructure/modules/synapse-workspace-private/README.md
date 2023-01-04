@@ -148,4 +148,5 @@ No requirements.
 | <a name="output_synapse_sql_pool_id"></a> [synapse\_sql\_pool\_id](#output\_synapse\_sql\_pool\_id) | The ID of the Synapse SQL Pool |
 | <a name="output_synapse_workspace_id"></a> [synapse\_workspace\_id](#output\_synapse\_workspace\_id) | The ID of the Synapse Workspace |
 | <a name="output_synapse_workspace_name"></a> [synapse\_workspace\_name](#output\_synapse\_workspace\_name) | The name of the Synapse Workspace |
+| <a name="output_synapse_workspace_principal_id"></a> [synapse\_workspace\_principal\_id](#output\_synapse\_workspace\_principal\_id) | The managed identity of the Synapse Workspace |
 <!-- END OF PRE-COMMIT-TERRAFORM DOCS HOOK -->

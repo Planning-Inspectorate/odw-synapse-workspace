@@ -22,3 +22,8 @@ output "synapse_workspace_name" {
   description = "The name of the Synapse Workspace"
   value       = azurerm_synapse_workspace.synapse.name
 }
+
+output "synapse_workspace_principal_id" {
+  description = "The managed identity of the Synapse Workspace"
+  value       = azurerm_synapse_workspace.synapse.identity[0].principal_id
+}

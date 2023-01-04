@@ -20,7 +20,10 @@ module "synapse_ingestion" {
   location            = module.azure_region.location_cli
   service_name        = local.service_name
 
-  failover_namespace = false
+  failover_namespace                      = false
+  service_bus_role_assignments            = var.service_bus_role_assignments
+  synapse_workspace_failover_principal_id = try(module.synapse_workspace_private_failover.synapse_workspace_principal_id, null)
+  synapse_workspace_principal_id          = module.synapse_workspace_private.synapse_workspace_principal_id
 
   tags = local.tags
 }
@@ -33,8 +36,11 @@ module "synapse_ingestion_failover" {
   location            = module.azure_region.paired_location.location_cli
   service_name        = local.service_name
 
-  failover_namespace               = true
-  primary_service_bus_namespace_id = module.synapse_ingestion.service_bus_namespace_id
+  failover_namespace                      = true
+  primary_service_bus_namespace_id        = module.synapse_ingestion.service_bus_namespace_id
+  service_bus_role_assignments            = var.service_bus_role_assignments
+  synapse_workspace_failover_principal_id = try(module.synapse_workspace_private_failover.synapse_workspace_principal_id, null)
+  synapse_workspace_principal_id          = module.synapse_workspace_private.synapse_workspace_principal_id
 
   depends_on = [
     module.synapse_ingestion
