@@ -1,0 +1,290 @@
+{
+	"name": "mrw_legacy_tables",
+	"properties": {
+		"folder": {
+			"name": "odw-harmonised/Legacy_MRW"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "95c64a0e-06b9-43dd-a726-9d0133933774"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.2",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.mrw_lines_dim\r\n",
+					"\r\n",
+					"SELECT\r\n",
+					"    T1.id AS MRWLinesID,\r\n",
+					"    T1.inspector_id AS InspectorID,\r\n",
+					"    T1.timesheet_date AS TimeSheetDate,\r\n",
+					"    T1.line_number AS LineNumber,\r\n",
+					"    T1.job_id AS JobID,\r\n",
+					"    T1.workstage_id AS WorkstageID,\r\n",
+					"    T1.workstage_name AS WorkstageName,\r\n",
+					"    T1.dated AS Dated,\r\n",
+					"    T1.hours AS Hours,\r\n",
+					"    T1.pdac_etl_date AS PDACETLDate,\r\n",
+					"    CURRENT_TIMESTAMP AS StartDate, \r\n",
+					"    NULL AS EndDate,\r\n",
+					"    T1.ingested_datetime AS IngestionDate,\r\n",
+					"    NULL AS ValidTo,\r\n",
+					"    md5(CONCAT(IFNULL(T1.id, \".\"), IFNULL(T1.inspector_id, \".\"), IFNULL(T1.line_number, \".\"))) as RowID,\r\n",
+					"    \"Y\" AS IsActive\r\n",
+					"FROM odw_standardised_db.legacy_timesheets_mwr_lines T1;\r\n",
+					""
+				],
+				"execution_count": 2
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"INSERT OVERWRITE odw_harmonised_db.mrw_status_dim\n",
+					"\n",
+					"SELECT\n",
+					"    T2.id AS MRWStatusID,\n",
+					"    T2.job_id AS JobID,\n",
+					"    T2.inspector_id AS InspectorID,\n",
+					"    T2.timesheet_date AS TimeSheetDate,\n",
+					"    T2.status_id AS StatusID,\n",
+					"    T2.status_name AS StatusName,\n",
+					"    T2.inspector_submit_date AS InspectorSubmitDate,\n",
+					"    T2.pdac_etl_date AS PDACETLDate,\n",
+					"    CURRENT_TIMESTAMP AS StartDate, \n",
+					"    NULL AS EndDate,\n",
+					"    T2.ingested_datetime AS IngestionDate,\n",
+					"    NULL AS ValidTo,\n",
+					"    md5(CONCAT(IFNULL(T2.id, \".\"), IFNULL(T2.job_id, \".\"), IFNULL(T2.inspector_id, \".\"))) as RowID,\n",
+					"    \"Y\" AS IsActive\n",
+					"FROM odw_standardised_db.legacy_timesheets_mwr_status T2;"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"INSERT OVERWRITE odw_harmonised_db.mrw_submission_date_dim\n",
+					"\n",
+					"SELECT\n",
+					"    T3.id AS MRWSubmissionDateID,\n",
+					"    T3.dated AS Dated,\n",
+					"    T3.inspector_id AS InspectorID,\n",
+					"    T3.job_id AS JobID,\n",
+					"    T3.status AS StatusID,\n",
+					"    T3.status_name AS StatusName,\n",
+					"    CURRENT_TIMESTAMP AS StartDate, \n",
+					"    NULL AS EndDate,\n",
+					"    T3.ingested_datetime AS IngestionDate,\n",
+					"    NULL AS ValidTo,\n",
+					"    md5(CONCAT(IFNULL(T3.id, \".\"), IFNULL(T3.job_id, \".\"), IFNULL(T3.inspector_id, \".\"))) as RowID,\n",
+					"    \"Y\" AS IsActive\n",
+					"FROM odw_standardised_db.legacy_timesheets_mwr_submission_date T3;"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"-- Build SourceSystem_Fact table\n",
+					"--INSERT OVERWRITE achieves the same as a TRUNCATE TABLE and INSERT INTO but in one statement\n",
+					"\n",
+					"-- INSERT INTO odw_harmonised_db.sourcesystem_fact\n",
+					"\n",
+					"-- SELECT\n",
+					"--     2 AS SourceSystemID,\n",
+					"--     \"Legacy Timesheets\" AS Description,\n",
+					"--     CURRENT_TIMESTAMP AS StartDate, \n",
+					"--     NULL AS EndDate,\n",
+					"--     CURRENT_TIMESTAMP AS IngestionDate,\n",
+					"--     NULL AS ValidTo,\n",
+					"--     md5(\"Legacy Timesheets\") as RowID,\n",
+					"--     \"Y\" AS IsActive\n",
+					"-- ;"
+				],
+				"execution_count": 14
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"INSERT OVERWRITE odw_harmonised_db.legacy_mrw_fact\n",
+					"\n",
+					"SELECT\n",
+					"    uuid() AS LegacyMRWID,\n",
+					"    T1.InspectorID AS InspectorID,\n",
+					"    T1.MRWLinesID AS MRWLinesID,\n",
+					"    T2.MRWStatusID AS MRWStatusID,\n",
+					"    T3.MRWSubmissionDateID AS MRWSubmissionDateID,\n",
+					"    T4.SourceSystemID AS SourceSystemID,\n",
+					"    CURRENT_TIMESTAMP AS IngestionDate,\n",
+					"    NULL AS ValidTo,\n",
+					"    md5(CONCAT(IFNULL(T1.InspectorID, \".\"), IFNULL(T1.MRWLinesID, \".\"), IFNULL(T2.MRWStatusID, \".\"), IFNULL(T3.MRWSubmissionDateID, \".\"))) as RowID,\n",
+					"    \"Y\" AS IsActive\n",
+					"FROM odw_harmonised_db.mrw_lines_dim T1\n",
+					"LEFT JOIN odw_harmonised_db.mrw_status_dim T2 ON T1.InspectorID = T2.InspectorID AND T1.JobID = T2.JobID AND T1.TimeSheetDate = T2.TimeSheetDate\n",
+					"LEFT JOIN odw_harmonised_db.mrw_submission_date_dim T3 ON T1.InspectorID = T3.InspectorID AND T1.JobID = T3.JobID AND T1.Dated = T3.Dated\n",
+					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T4 ON \"Legacy Timesheets\" = T4.Description;\n",
+					""
+				],
+				"execution_count": 19
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql \n",
+					"\n",
+					"SELECT COUNT(*) FROM odw_standardised_db.legacy_timesheets_mwr_lines;\n",
+					"SELECT COUNT(*) FROM odw_harmonised_db.mrw_lines_dim;\n",
+					"\n",
+					"SELECT COUNT(*) FROM odw_standardised_db.legacy_timesheets_mwr_status;\n",
+					"SELECT COUNT(*) FROM odw_harmonised_db.mrw_status_dim;\n",
+					"\n",
+					"SELECT COUNT(*) FROM odw_standardised_db.legacy_timesheets_mwr_submission_date;\n",
+					"SELECT COUNT(*) FROM odw_harmonised_db.mrw_submission_date_dim;"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
