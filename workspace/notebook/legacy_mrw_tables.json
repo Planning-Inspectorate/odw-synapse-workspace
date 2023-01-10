@@ -1,5 +1,5 @@
 {
-	"name": "mrw_legacy_tables",
+	"name": "legacy_mrw_tables",
 	"properties": {
 		"folder": {
 			"name": "odw-harmonised/Legacy_MRW"
@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "95c64a0e-06b9-43dd-a726-9d0133933774"
+				"spark.autotune.trackingId": "52cd60b6-9f10-4a2c-b772-1c9bf3ff24fc"
 			}
 		},
 		"metadata": {
@@ -71,10 +71,10 @@
 				"source": [
 					"%%sql\r\n",
 					"\r\n",
-					"INSERT OVERWRITE odw_harmonised_db.mrw_lines_dim\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.legacy_mwr_lines_dim\r\n",
 					"\r\n",
 					"SELECT\r\n",
-					"    T1.id AS MRWLinesID,\r\n",
+					"    T1.id AS MWRLinesID,\r\n",
 					"    T1.inspector_id AS InspectorID,\r\n",
 					"    T1.timesheet_date AS TimeSheetDate,\r\n",
 					"    T1.line_number AS LineNumber,\r\n",
@@ -93,7 +93,7 @@
 					"FROM odw_standardised_db.legacy_timesheets_mwr_lines T1;\r\n",
 					""
 				],
-				"execution_count": 2
+				"execution_count": 1
 			},
 			{
 				"cell_type": "code",
@@ -115,10 +115,10 @@
 				"source": [
 					"%%sql\n",
 					"\n",
-					"INSERT OVERWRITE odw_harmonised_db.mrw_status_dim\n",
+					"INSERT OVERWRITE odw_harmonised_db.legacy_mwr_status_dim\n",
 					"\n",
 					"SELECT\n",
-					"    T2.id AS MRWStatusID,\n",
+					"    T2.id AS MWRStatusID,\n",
 					"    T2.job_id AS JobID,\n",
 					"    T2.inspector_id AS InspectorID,\n",
 					"    T2.timesheet_date AS TimeSheetDate,\n",
@@ -134,7 +134,7 @@
 					"    \"Y\" AS IsActive\n",
 					"FROM odw_standardised_db.legacy_timesheets_mwr_status T2;"
 				],
-				"execution_count": null
+				"execution_count": 13
 			},
 			{
 				"cell_type": "code",
@@ -156,10 +156,10 @@
 				"source": [
 					"%%sql\n",
 					"\n",
-					"INSERT OVERWRITE odw_harmonised_db.mrw_submission_date_dim\n",
+					"INSERT OVERWRITE odw_harmonised_db.legacy_mwr_submission_date_dim\n",
 					"\n",
 					"SELECT\n",
-					"    T3.id AS MRWSubmissionDateID,\n",
+					"    T3.id AS MWRSubmissionDateID,\n",
 					"    T3.dated AS Dated,\n",
 					"    T3.inspector_id AS InspectorID,\n",
 					"    T3.job_id AS JobID,\n",
@@ -173,7 +173,7 @@
 					"    \"Y\" AS IsActive\n",
 					"FROM odw_standardised_db.legacy_timesheets_mwr_submission_date T3;"
 				],
-				"execution_count": null
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
@@ -201,17 +201,17 @@
 					"-- INSERT INTO odw_harmonised_db.sourcesystem_fact\n",
 					"\n",
 					"-- SELECT\n",
-					"--     2 AS SourceSystemID,\n",
-					"--     \"Legacy Timesheets\" AS Description,\n",
+					"--     3 AS SourceSystemID,\n",
+					"--     \"Timesheets\" AS Description,\n",
 					"--     CURRENT_TIMESTAMP AS StartDate, \n",
 					"--     NULL AS EndDate,\n",
 					"--     CURRENT_TIMESTAMP AS IngestionDate,\n",
 					"--     NULL AS ValidTo,\n",
-					"--     md5(\"Legacy Timesheets\") as RowID,\n",
+					"--     md5(\"Timesheets\") as RowID,\n",
 					"--     \"Y\" AS IsActive\n",
 					"-- ;"
 				],
-				"execution_count": 14
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
@@ -233,26 +233,26 @@
 				"source": [
 					"%%sql\n",
 					"\n",
-					"INSERT OVERWRITE odw_harmonised_db.legacy_mrw_fact\n",
+					"INSERT OVERWRITE odw_harmonised_db.legacy_mwr_fact\n",
 					"\n",
 					"SELECT\n",
-					"    uuid() AS LegacyMRWID,\n",
+					"    uuid() AS LegacyMWRID,\n",
 					"    T1.InspectorID AS InspectorID,\n",
-					"    T1.MRWLinesID AS MRWLinesID,\n",
-					"    T2.MRWStatusID AS MRWStatusID,\n",
-					"    T3.MRWSubmissionDateID AS MRWSubmissionDateID,\n",
+					"    T1.MWRLinesID AS MWRLinesID,\n",
+					"    T2.MWRStatusID AS MWRStatusID,\n",
+					"    T3.MWRSubmissionDateID AS MWRSubmissionDateID,\n",
 					"    T4.SourceSystemID AS SourceSystemID,\n",
 					"    CURRENT_TIMESTAMP AS IngestionDate,\n",
 					"    NULL AS ValidTo,\n",
-					"    md5(CONCAT(IFNULL(T1.InspectorID, \".\"), IFNULL(T1.MRWLinesID, \".\"), IFNULL(T2.MRWStatusID, \".\"), IFNULL(T3.MRWSubmissionDateID, \".\"))) as RowID,\n",
+					"    md5(CONCAT(IFNULL(T1.InspectorID, \".\"), IFNULL(T1.MWRLinesID, \".\"), IFNULL(T2.MWRStatusID, \".\"), IFNULL(T3.MWRSubmissionDateID, \".\"))) as RowID,\n",
 					"    \"Y\" AS IsActive\n",
-					"FROM odw_harmonised_db.mrw_lines_dim T1\n",
-					"LEFT JOIN odw_harmonised_db.mrw_status_dim T2 ON T1.InspectorID = T2.InspectorID AND T1.JobID = T2.JobID AND T1.TimeSheetDate = T2.TimeSheetDate\n",
-					"LEFT JOIN odw_harmonised_db.mrw_submission_date_dim T3 ON T1.InspectorID = T3.InspectorID AND T1.JobID = T3.JobID AND T1.Dated = T3.Dated\n",
+					"FROM odw_harmonised_db.legacy_mwr_lines_dim T1\n",
+					"LEFT JOIN odw_harmonised_db.legacy_mwr_status_dim T2 ON T1.InspectorID = T2.InspectorID AND T1.JobID = T2.JobID AND T1.TimeSheetDate = T2.TimeSheetDate\n",
+					"LEFT JOIN odw_harmonised_db.legacy_mwr_submission_date_dim T3 ON T1.InspectorID = T3.InspectorID AND T1.JobID = T3.JobID AND T1.Dated = T3.Dated\n",
 					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T4 ON \"Legacy Timesheets\" = T4.Description;\n",
 					""
 				],
-				"execution_count": 19
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
@@ -275,15 +275,15 @@
 					"%%sql \n",
 					"\n",
 					"SELECT COUNT(*) FROM odw_standardised_db.legacy_timesheets_mwr_lines;\n",
-					"SELECT COUNT(*) FROM odw_harmonised_db.mrw_lines_dim;\n",
+					"SELECT COUNT(*) FROM odw_harmonised_db.legacy_mwr_lines_dim;\n",
 					"\n",
 					"SELECT COUNT(*) FROM odw_standardised_db.legacy_timesheets_mwr_status;\n",
-					"SELECT COUNT(*) FROM odw_harmonised_db.mrw_status_dim;\n",
+					"SELECT COUNT(*) FROM odw_harmonised_db.legacy_mwr_status_dim;\n",
 					"\n",
 					"SELECT COUNT(*) FROM odw_standardised_db.legacy_timesheets_mwr_submission_date;\n",
-					"SELECT COUNT(*) FROM odw_harmonised_db.mrw_submission_date_dim;"
+					"SELECT COUNT(*) FROM odw_harmonised_db.legacy_mwr_submission_date_dim;"
 				],
-				"execution_count": null
+				"execution_count": 11
 			}
 		]
 	}
