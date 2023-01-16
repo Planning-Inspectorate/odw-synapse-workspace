@@ -172,7 +172,7 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 
 | Name | Version |
 |------|---------|
-| <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) | 3.25.0 |
+| <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) | 3.39.1 |
 
 ## Modules
 
