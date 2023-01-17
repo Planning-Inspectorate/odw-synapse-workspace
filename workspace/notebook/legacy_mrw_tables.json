@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "52cd60b6-9f10-4a2c-b772-1c9bf3ff24fc"
+				"spark.autotune.trackingId": "ebb6f38e-c203-4641-a36a-7cd2d5ac2b1c"
 			}
 		},
 		"metadata": {
@@ -42,7 +42,7 @@
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.2",
+				"sparkVersion": "3.3",
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 28,
@@ -84,13 +84,13 @@
 					"    T1.dated AS Dated,\r\n",
 					"    T1.hours AS Hours,\r\n",
 					"    T1.pdac_etl_date AS PDACETLDate,\r\n",
-					"    CURRENT_TIMESTAMP AS StartDate, \r\n",
-					"    NULL AS EndDate,\r\n",
+					"    T4.SourceSystemID AS SourceSystemID,\r\n",
 					"    T1.ingested_datetime AS IngestionDate,\r\n",
 					"    NULL AS ValidTo,\r\n",
 					"    md5(CONCAT(IFNULL(T1.id, \".\"), IFNULL(T1.inspector_id, \".\"), IFNULL(T1.line_number, \".\"))) as RowID,\r\n",
 					"    \"Y\" AS IsActive\r\n",
-					"FROM odw_standardised_db.legacy_timesheets_mwr_lines T1;\r\n",
+					"FROM odw_standardised_db.legacy_timesheets_mwr_lines T1\r\n",
+					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T4 ON \"Legacy Timesheets\" = T4.Description;\r\n",
 					""
 				],
 				"execution_count": 1
@@ -126,15 +126,15 @@
 					"    T2.status_name AS StatusName,\n",
 					"    T2.inspector_submit_date AS InspectorSubmitDate,\n",
 					"    T2.pdac_etl_date AS PDACETLDate,\n",
-					"    CURRENT_TIMESTAMP AS StartDate, \n",
-					"    NULL AS EndDate,\n",
+					"    T4.SourceSystemID AS SourceSystemID,\n",
 					"    T2.ingested_datetime AS IngestionDate,\n",
 					"    NULL AS ValidTo,\n",
 					"    md5(CONCAT(IFNULL(T2.id, \".\"), IFNULL(T2.job_id, \".\"), IFNULL(T2.inspector_id, \".\"))) as RowID,\n",
 					"    \"Y\" AS IsActive\n",
-					"FROM odw_standardised_db.legacy_timesheets_mwr_status T2;"
+					"FROM odw_standardised_db.legacy_timesheets_mwr_status T2\n",
+					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T4 ON \"Legacy Timesheets\" = T4.Description;"
 				],
-				"execution_count": 13
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
@@ -165,13 +165,13 @@
 					"    T3.job_id AS JobID,\n",
 					"    T3.status AS StatusID,\n",
 					"    T3.status_name AS StatusName,\n",
-					"    CURRENT_TIMESTAMP AS StartDate, \n",
-					"    NULL AS EndDate,\n",
+					"    T4.SourceSystemID AS SourceSystemID,\n",
 					"    T3.ingested_datetime AS IngestionDate,\n",
 					"    NULL AS ValidTo,\n",
 					"    md5(CONCAT(IFNULL(T3.id, \".\"), IFNULL(T3.job_id, \".\"), IFNULL(T3.inspector_id, \".\"))) as RowID,\n",
 					"    \"Y\" AS IsActive\n",
-					"FROM odw_standardised_db.legacy_timesheets_mwr_submission_date T3;"
+					"FROM odw_standardised_db.legacy_timesheets_mwr_submission_date T3\n",
+					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T4 ON \"Legacy Timesheets\" = T4.Description;"
 				],
 				"execution_count": 3
 			},
@@ -195,21 +195,24 @@
 				"source": [
 					"%%sql\n",
 					"\n",
-					"-- Build SourceSystem_Fact table\n",
-					"--INSERT OVERWRITE achieves the same as a TRUNCATE TABLE and INSERT INTO but in one statement\n",
+					"INSERT OVERWRITE odw_harmonised_db.legacy_mwr_record_fact\n",
 					"\n",
-					"-- INSERT INTO odw_harmonised_db.sourcesystem_fact\n",
-					"\n",
-					"-- SELECT\n",
-					"--     3 AS SourceSystemID,\n",
-					"--     \"Timesheets\" AS Description,\n",
-					"--     CURRENT_TIMESTAMP AS StartDate, \n",
-					"--     NULL AS EndDate,\n",
-					"--     CURRENT_TIMESTAMP AS IngestionDate,\n",
-					"--     NULL AS ValidTo,\n",
-					"--     md5(\"Timesheets\") as RowID,\n",
-					"--     \"Y\" AS IsActive\n",
-					"-- ;"
+					"SELECT\n",
+					"    uuid() AS LegacyMWRID,\n",
+					"    T1.InspectorID AS InspectorID,\n",
+					"    T1.MWRLinesID AS MWRLinesID,\n",
+					"    T2.MWRStatusID AS MWRStatusID,\n",
+					"    T3.MWRSubmissionDateID AS MWRSubmissionDateID,\n",
+					"    T4.SourceSystemID AS SourceSystemID,\n",
+					"    CURRENT_TIMESTAMP AS IngestionDate,\n",
+					"    NULL AS ValidTo,\n",
+					"    md5(CONCAT(IFNULL(T1.InspectorID, \".\"), IFNULL(T1.MWRLinesID, \".\"), IFNULL(T2.MWRStatusID, \".\"), IFNULL(T3.MWRSubmissionDateID, \".\"))) as RowID,\n",
+					"    \"Y\" AS IsActive\n",
+					"FROM odw_harmonised_db.legacy_mwr_lines_dim T1\n",
+					"LEFT JOIN odw_harmonised_db.legacy_mwr_status_dim T2 ON T1.InspectorID = T2.InspectorID AND T1.JobID = T2.JobID AND T1.TimeSheetDate = T2.TimeSheetDate\n",
+					"LEFT JOIN odw_harmonised_db.legacy_mwr_submission_date_dim T3 ON T1.InspectorID = T3.InspectorID AND T1.JobID = T3.JobID AND T1.Dated = T3.Dated\n",
+					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T4 ON \"Legacy Timesheets\" = T4.Description;\n",
+					""
 				],
 				"execution_count": 5
 			},
@@ -233,26 +236,25 @@
 				"source": [
 					"%%sql\n",
 					"\n",
-					"INSERT OVERWRITE odw_harmonised_db.legacy_mwr_fact\n",
+					"-- INSERT OVERWRITE odw_harmonised_db.legacy_mwr_inspector_join\n",
 					"\n",
-					"SELECT\n",
-					"    uuid() AS LegacyMWRID,\n",
-					"    T1.InspectorID AS InspectorID,\n",
-					"    T1.MWRLinesID AS MWRLinesID,\n",
-					"    T2.MWRStatusID AS MWRStatusID,\n",
-					"    T3.MWRSubmissionDateID AS MWRSubmissionDateID,\n",
-					"    T4.SourceSystemID AS SourceSystemID,\n",
-					"    CURRENT_TIMESTAMP AS IngestionDate,\n",
-					"    NULL AS ValidTo,\n",
-					"    md5(CONCAT(IFNULL(T1.InspectorID, \".\"), IFNULL(T1.MWRLinesID, \".\"), IFNULL(T2.MWRStatusID, \".\"), IFNULL(T3.MWRSubmissionDateID, \".\"))) as RowID,\n",
-					"    \"Y\" AS IsActive\n",
-					"FROM odw_harmonised_db.legacy_mwr_lines_dim T1\n",
-					"LEFT JOIN odw_harmonised_db.legacy_mwr_status_dim T2 ON T1.InspectorID = T2.InspectorID AND T1.JobID = T2.JobID AND T1.TimeSheetDate = T2.TimeSheetDate\n",
-					"LEFT JOIN odw_harmonised_db.legacy_mwr_submission_date_dim T3 ON T1.InspectorID = T3.InspectorID AND T1.JobID = T3.JobID AND T1.Dated = T3.Dated\n",
-					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T4 ON \"Legacy Timesheets\" = T4.Description;\n",
-					""
+					"-- SELECT\n",
+					"--     uuid() AS LegacyMWRInspectorID,\n",
+					"--     T1.dim_inspector_key AS InspectorID,\n",
+					"--     T2.EmployeeID AS EmployeeID,\n",
+					"--     T1.pins_staff_number AS PINSStaffNumber,\n",
+					"--     T1.pins_email_address AS EmailAddress,\n",
+					"--     T1.source_id AS SourceID,\n",
+					"--     T4.SourceSystemID AS SourceSystemID,\n",
+					"--     CURRENT_TIMESTAMP AS IngestionDate,\n",
+					"--     NULL AS ValidTo,\n",
+					"--     md5(CONCAT(IFNULL(T1.dim_inspector_key, \".\"), IFNULL(T1.pins_staff_number, \".\"), IFNULL(T1.pins_email_address, \".\"))) as RowID,\n",
+					"--     \"Y\" AS IsActive\n",
+					"-- FROM odw_standardised_db.legacy_timesheets_mwr_inspector_dim T1\n",
+					"-- LEFT JOIN odw_harmonised_db.employee_dim T2 ON T1.pins_staff_number = T2.EmployeeNumber\n",
+					"-- LEFT JOIN odw_harmonised_db.sourcesystem_fact T4 ON \"Legacy Timesheets\" = T4.Description"
 				],
-				"execution_count": 14
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
@@ -274,16 +276,21 @@
 				"source": [
 					"%%sql \n",
 					"\n",
-					"SELECT COUNT(*) FROM odw_standardised_db.legacy_timesheets_mwr_lines;\n",
-					"SELECT COUNT(*) FROM odw_harmonised_db.legacy_mwr_lines_dim;\n",
+					"-- SELECT COUNT(*) FROM odw_standardised_db.legacy_timesheets_mwr_lines;\n",
+					"-- SELECT COUNT(*) FROM odw_harmonised_db.legacy_mwr_lines_dim;\n",
 					"\n",
-					"SELECT COUNT(*) FROM odw_standardised_db.legacy_timesheets_mwr_status;\n",
-					"SELECT COUNT(*) FROM odw_harmonised_db.legacy_mwr_status_dim;\n",
+					"-- SELECT COUNT(*) FROM odw_standardised_db.legacy_timesheets_mwr_status;\n",
+					"-- SELECT COUNT(*) FROM odw_harmonised_db.legacy_mwr_status_dim;\n",
 					"\n",
-					"SELECT COUNT(*) FROM odw_standardised_db.legacy_timesheets_mwr_submission_date;\n",
-					"SELECT COUNT(*) FROM odw_harmonised_db.legacy_mwr_submission_date_dim;"
+					"-- SELECT COUNT(*) FROM odw_standardised_db.legacy_timesheets_mwr_submission_date;\n",
+					"-- SELECT COUNT(*) FROM odw_harmonised_db.legacy_mwr_submission_date_dim;\n",
+					"\n",
+					"-- SELECT COUNT(*) FROM odw_harmonised_db.legacy_mwr_record_fact;\n",
+					"\n",
+					"SELECT COUNT(*) FROM odw_standardised_db.legacy_timesheets_mwr_inspector_dim;\n",
+					""
 				],
-				"execution_count": 11
+				"execution_count": 8
 			}
 		]
 	}
