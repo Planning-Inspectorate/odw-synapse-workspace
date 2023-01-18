@@ -1,5 +1,5 @@
 {
-	"name": "personnelarea_dim",
+	"name": "hr_personnel_area_dim",
 	"properties": {
 		"folder": {
 			"name": "odw-harmonised/SAP-HR"
@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "55b050f6-a6ad-47c2-9897-4a51371efa3f"
+				"spark.autotune.trackingId": "be2379bb-8490-4551-aca2-efbdb2e5a411"
 			}
 		},
 		"metadata": {
@@ -42,7 +42,7 @@
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.2",
+				"sparkVersion": "3.3",
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 28,
@@ -105,7 +105,7 @@
 					"GROUP BY PA, Personnel_Area;\n",
 					""
 				],
-				"execution_count": 37
+				"execution_count": 1
 			},
 			{
 				"cell_type": "code",
@@ -140,8 +140,6 @@
 					"    END as PersonnelAreaCode, -- source system id\r\n",
 					"    Personnel_Area AS Description, \r\n",
 					"    T2.SourceSystemID as SourceSystemID,\r\n",
-					"    CURRENT_TIMESTAMP AS StartDate,\r\n",
-					"    NULL AS EndDate,\r\n",
 					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
 					"    NULL AS ValidTo,\r\n",
 					"    md5(concat(IFNULL(T1.PA, '.'), IFNULL(T1.Personnel_Area,'.'))) as RowID,\r\n",
@@ -161,8 +159,8 @@
 					"    T7.IsActive as HistoricIsActive\r\n",
 					"\r\n",
 					"FROM personnelarea_grouped T1\r\n",
-					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description\r\n",
-					"FULL JOIN odw_harmonised_db.personnelarea_dim T7 ON T1.PA = T7.PersonnelAreaCode AND T7.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_harmonised_db.main_sourcesystem_fact T2 ON \"SAP HR\" = T2.Description\r\n",
+					"FULL JOIN odw_harmonised_db.hr_personnel_area_dim T7 ON T1.PA = T7.PersonnelAreaCode AND T7.IsActive = 'Y'\r\n",
 					"WHERE\r\n",
 					"    (\r\n",
 					"        -- flags new data        \r\n",
@@ -184,7 +182,7 @@
 					";\r\n",
 					""
 				],
-				"execution_count": 38
+				"execution_count": 2
 			},
 			{
 				"cell_type": "markdown",
@@ -218,30 +216,30 @@
 					}
 				},
 				"source": [
-					"from pyspark.sql import SparkSession\n",
-					"spark = SparkSession.builder.getOrCreate()\n",
+					"# from pyspark.sql import SparkSession\n",
+					"# spark = SparkSession.builder.getOrCreate()\n",
 					"\n",
-					"Source_Number = spark.sql(\"SELECT COUNT(*) AS Source_Number FROM personnelarea_grouped\")\n",
-					"Current_Number = spark.sql(\"SELECT COUNT (DISTINCT RowID) AS Current_Number FROM odw_harmonised_db.personnelarea_dim where IsActive = 'Y' \")\n",
-					"New_Data_Number = spark.sql(\"SELECT COUNT (DISTINCT RowID) AS New_Data_Number FROM personnelarea_dim_new WHERE NewData = 'Y'\")\n",
-					"Deleted_Data_Number = spark.sql(\"SELECT COUNT (DISTINCT RowID) AS Deleted_Data_Number FROM personnelarea_dim_new WHERE DeletedData = 'Y'\")\n",
+					"# Source_Number = spark.sql(\"SELECT COUNT(*) AS Source_Number FROM personnelarea_grouped\")\n",
+					"# Current_Number = spark.sql(\"SELECT COUNT (DISTINCT RowID) AS Current_Number FROM odw_harmonised_db.personnelarea_dim where IsActive = 'Y' \")\n",
+					"# New_Data_Number = spark.sql(\"SELECT COUNT (DISTINCT RowID) AS New_Data_Number FROM personnelarea_dim_new WHERE NewData = 'Y'\")\n",
+					"# Deleted_Data_Number = spark.sql(\"SELECT COUNT (DISTINCT RowID) AS Deleted_Data_Number FROM personnelarea_dim_new WHERE DeletedData = 'Y'\")\n",
 					"\n",
-					"Source_Number_Pandas = Source_Number.toPandas()\n",
-					"Current_Number_Pandas =  Current_Number.toPandas()\n",
-					"New_Data_Number_Pandas = New_Data_Number.toPandas()\n",
-					"Deleted_Data_Number_Pandas = Deleted_Data_Number.toPandas()\n",
+					"# Source_Number_Pandas = Source_Number.toPandas()\n",
+					"# Current_Number_Pandas =  Current_Number.toPandas()\n",
+					"# New_Data_Number_Pandas = New_Data_Number.toPandas()\n",
+					"# Deleted_Data_Number_Pandas = Deleted_Data_Number.toPandas()\n",
 					"\n",
-					"# checking if new total number of registers matches the previously loaded, plus New ones, minus Deleted ones\n",
-					"print(\"SET 1:\")\n",
-					"Total_Number = Source_Number_Pandas['Source_Number'].tolist() \n",
-					"Current_Loaded_Number = Current_Number_Pandas['Current_Number'].tolist() \n",
-					"New_Data_Number = New_Data_Number_Pandas['New_Data_Number'].tolist() \n",
-					"Deleted_Data_Number = Deleted_Data_Number_Pandas['Deleted_Data_Number'].tolist() \n",
+					"# # checking if new total number of registers matches the previously loaded, plus New ones, minus Deleted ones\n",
+					"# print(\"SET 1:\")\n",
+					"# Total_Number = Source_Number_Pandas['Source_Number'].tolist() \n",
+					"# Current_Loaded_Number = Current_Number_Pandas['Current_Number'].tolist() \n",
+					"# New_Data_Number = New_Data_Number_Pandas['New_Data_Number'].tolist() \n",
+					"# Deleted_Data_Number = Deleted_Data_Number_Pandas['Deleted_Data_Number'].tolist() \n",
 					"\n",
-					"print(Total_Number) \n",
-					"print(Current_Loaded_Number) \n",
-					"print(New_Data_Number) \n",
-					"print(Deleted_Data_Number)\n",
+					"# print(Total_Number) \n",
+					"# print(Current_Loaded_Number) \n",
+					"# print(New_Data_Number) \n",
+					"# print(Deleted_Data_Number)\n",
 					"\n",
 					"#if Total_Number[0] != (Current_Loaded_Number[0] + New_Data_Number[0] - Deleted_Data_Number[0]):\n",
 					"    #raise RuntimeError(\"Loading Number do not match\")\n",
@@ -258,7 +256,7 @@
 					"#else:\n",
 					"#    print(\"Unused codes under tolerance levels\")"
 				],
-				"execution_count": 1
+				"execution_count": 3
 			},
 			{
 				"cell_type": "markdown",
@@ -292,27 +290,27 @@
 					}
 				},
 				"source": [
-					"from pyspark.sql import SparkSession\r\n",
-					"spark = SparkSession.builder.getOrCreate()\r\n",
+					"# from pyspark.sql import SparkSession\r\n",
+					"# spark = SparkSession.builder.getOrCreate()\r\n",
 					"\r\n",
-					"Current_Records = spark.sql(\"SELECT DISTINCT RowID AS Current_Records FROM odw_harmonised_db.personnelarea_dim where IsActive = 'Y' \")\r\n",
-					"New_Data_Records = spark.sql(\"SELECT DISTINCT RowID AS New_Data_Records FROM personnelarea_dim_new WHERE NewData = 'Y'\")\r\n",
-					"Deleted_Data_Records = spark.sql(\"SELECT DISTINCT RowID AS Deleted_Data_Records FROM personnelarea_dim_new WHERE DeletedData = 'Y'\")\r\n",
+					"# Current_Records = spark.sql(\"SELECT DISTINCT RowID AS Current_Records FROM odw_harmonised_db.personnelarea_dim where IsActive = 'Y' \")\r\n",
+					"# New_Data_Records = spark.sql(\"SELECT DISTINCT RowID AS New_Data_Records FROM personnelarea_dim_new WHERE NewData = 'Y'\")\r\n",
+					"# Deleted_Data_Records = spark.sql(\"SELECT DISTINCT RowID AS Deleted_Data_Records FROM personnelarea_dim_new WHERE DeletedData = 'Y'\")\r\n",
 					"\r\n",
-					"Current_Records_Pandas =  Current_Records.toPandas()\r\n",
-					"New_Data_Records_Pandas = New_Data_Records.toPandas()\r\n",
-					"Deleted_Data_Records_Pandas = Deleted_Data_Records.toPandas()\r\n",
+					"# Current_Records_Pandas =  Current_Records.toPandas()\r\n",
+					"# New_Data_Records_Pandas = New_Data_Records.toPandas()\r\n",
+					"# Deleted_Data_Records_Pandas = Deleted_Data_Records.toPandas()\r\n",
 					"\r\n",
-					"# checking if a deleted records are correcly flagged, not existing in the new data, but existing inpreviously loaded\r\n",
-					"print(\"TEST 2:\")\r\n",
+					"# # checking if a deleted records are correcly flagged, not existing in the new data, but existing inpreviously loaded\r\n",
+					"# print(\"TEST 2:\")\r\n",
 					"\r\n",
-					"Current_Records = Current_Records_Pandas['Current_Records'].tolist() \r\n",
-					"Deleted_Records = Deleted_Data_Records_Pandas['Deleted_Data_Records'].tolist()\r\n",
-					"New_Records = New_Data_Records_Pandas['New_Data_Records'].tolist()\r\n",
+					"# Current_Records = Current_Records_Pandas['Current_Records'].tolist() \r\n",
+					"# Deleted_Records = Deleted_Data_Records_Pandas['Deleted_Data_Records'].tolist()\r\n",
+					"# New_Records = New_Data_Records_Pandas['New_Data_Records'].tolist()\r\n",
 					"\r\n",
-					"print(Current_Records)\r\n",
-					"print(Deleted_Records)\r\n",
-					"print(New_Records)\r\n",
+					"# print(Current_Records)\r\n",
+					"# print(Deleted_Records)\r\n",
+					"# print(New_Records)\r\n",
 					"\r\n",
 					"#for i in Deleted_Records:\r\n",
 					"#    if i in Current_Records: \r\n",
@@ -326,7 +324,7 @@
 					"#    else:\r\n",
 					"        #raise RuntimeError(\"Records to Add do not match\")"
 				],
-				"execution_count": null
+				"execution_count": 4
 			},
 			{
 				"cell_type": "markdown",
@@ -374,8 +372,6 @@
 					"    PersonnelAreaCode,\r\n",
 					"    Description, \r\n",
 					"    SourceSystemID,\r\n",
-					"    StartDate,\r\n",
-					"    EndDate,\r\n",
 					"    IngestionDate,\r\n",
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
@@ -389,18 +385,16 @@
 					"    PersonnelAreaCode,\r\n",
 					"    Description,\r\n",
 					"    SourceSystemID,\r\n",
-					"    StartDate,\r\n",
-					"    EndDate,\r\n",
 					"    IngestionDate,\r\n",
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM odw_harmonised_db.personnelarea_dim\r\n",
+					"FROM odw_harmonised_db.hr_personnel_area_dim\r\n",
 					"WHERE PersonnelAreaCode IN (SELECT PersonnelAreaCode FROM personnelarea_dim_new where PersonnelAreaID IS NULL) AND IsActive = 'Y'; \r\n",
 					"\r\n",
 					""
 				],
-				"execution_count": 42
+				"execution_count": 5
 			},
 			{
 				"cell_type": "markdown",
@@ -440,7 +434,7 @@
 					"\r\n",
 					"-- merge into fact table\r\n",
 					"\r\n",
-					"MERGE INTO odw_harmonised_db.personnelarea_dim AS Target\r\n",
+					"MERGE INTO odw_harmonised_db.hr_personnel_area_dim AS Target\r\n",
 					"USING personnelarea_dim_changed_rows AS Source\r\n",
 					"\r\n",
 					"ON Source.PersonnelAreaID = Target.PersonnelAreaID\r\n",
@@ -450,7 +444,7 @@
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.EndDate = date_sub(current_timestamp,1),\r\n",
+					"    Target.ValidTo = date_sub(current_timestamp,1),\r\n",
 					"    Target.IsActive = 'N'\r\n",
 					"\r\n",
 					"-- Insert completely new rows\r\n",
@@ -458,7 +452,7 @@
 					"    THEN INSERT * ;  \r\n",
 					""
 				],
-				"execution_count": 43
+				"execution_count": 6
 			},
 			{
 				"cell_type": "markdown",
@@ -497,24 +491,22 @@
 					"%%sql\r\n",
 					"-- Insert new PersonnelAreaID\r\n",
 					"\r\n",
-					"INSERT OVERWRITE odw_harmonised_db.personnelarea_dim\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.hr_personnel_area_dim\r\n",
 					"\r\n",
 					"SELECT \r\n",
 					"    ROW_NUMBER() OVER (ORDER BY PersonnelAreaID NULLS LAST) AS PersonnelAreaID,\r\n",
 					"    PersonnelAreaCode,\r\n",
 					"    Description, \r\n",
 					"    SourceSystemID,\r\n",
-					"    StartDate,\r\n",
-					"    EndDate,\r\n",
 					"    IngestionDate,\r\n",
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM odw_harmonised_db.personnelarea_dim;\r\n",
+					"FROM odw_harmonised_db.hr_personnel_area_dim;\r\n",
 					"\r\n",
 					""
 				],
-				"execution_count": 44
+				"execution_count": 7
 			}
 		]
 	}

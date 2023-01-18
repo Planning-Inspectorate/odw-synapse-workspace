@@ -1,5 +1,5 @@
 {
-	"name": "secureinfo_fact",
+	"name": "hr_secure_info_fact",
 	"properties": {
 		"folder": {
 			"name": "odw-harmonised/SAP-HR"
@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "b56ccf85-0b76-4e24-96fc-56c1754c7abf"
+				"spark.autotune.trackingId": "56c772c1-9af7-4ead-bef6-d62f039b280f"
 			}
 		},
 		"metadata": {
@@ -42,7 +42,7 @@
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.2",
+				"sparkVersion": "3.3",
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 28,
@@ -102,8 +102,6 @@
 					"    T5.ReligionID,\r\n",
 					"    T6.SXOID, \r\n",
 					"    T2.SourceSystemID as SourceSystemID,\r\n",
-					"    CURRENT_TIMESTAMP AS StartDate,\r\n",
-					"    null AS EndDate,\r\n",
 					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
 					"    NULL AS ValidTo,\r\n",
 					"    md5(concat(IFNULL(T1.Ref_No,'.'), IFNULL(T3.DisabilityID,'.'), IFNULL(T4.DiversityID,'.'), IFNULL(T5.ReligionID,'.'), IFNULL(T6.SXOID,'.'))) as RowID,\r\n",
@@ -123,14 +121,14 @@
 					"    T7.IsActive as HistoricIsActive\r\n",
 					"\r\n",
 					"FROM odw_standardised_db.vw_protected_characteristics T1\r\n",
-					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description AND T2.IsActive = 'Y'\r\n",
-					"LEFT JOIN odw_harmonised_db.disability_dim T3 ON    T1.Disability_Text = T3.DisabilityCode  AND \r\n",
+					"LEFT JOIN odw_harmonised_db.main_sourcesystem_fact T2 ON \"SAP HR\" = T2.Description AND T2.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_harmonised_db.hr_disability_dim T3 ON    T1.Disability_Text = T3.DisabilityCode  AND \r\n",
 					"                                                    T1.Disability_Code_Description = T3.Description AND T3.IsActive = 'Y'\r\n",
-					"LEFT JOIN odw_harmonised_db.diversity_dim T4 ON T1.Ethnic_Origin = T4.Description AND T4.IsActive = 'Y'\r\n",
-					"LEFT JOIN odw_harmonised_db.religion_dim T5 ON  T1.Religion = T5.ReligionCode  AND \r\n",
+					"LEFT JOIN odw_harmonised_db.hr_diversity_dim T4 ON T1.Ethnic_Origin = T4.Description AND T4.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_harmonised_db.hr_religion_dim T5 ON  T1.Religion = T5.ReligionCode  AND \r\n",
 					"                                                T1.Religious_Denomination_Key = T5.Description AND T5.IsActive = 'Y'\r\n",
-					"LEFT JOIN odw_harmonised_db.sxo_dim T6 ON T1.SxO = T6.Description AND T6.IsActive = 'Y'\r\n",
-					"FULL JOIN odw_harmonised_db.secureinfo_fact T7 ON T1.Ref_No = T7.SourceID AND T7.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_harmonised_db.hr_sxo_dim T6 ON T1.SxO = T6.Description AND T6.IsActive = 'Y'\r\n",
+					"FULL JOIN odw_harmonised_db.hr_secure_info_fact T7 ON T1.Ref_No = T7.SourceID AND T7.IsActive = 'Y'\r\n",
 					"WHERE\r\n",
 					"    (\r\n",
 					"        \r\n",
@@ -152,7 +150,7 @@
 					"    )\r\n",
 					";"
 				],
-				"execution_count": 1
+				"execution_count": 2
 			},
 			{
 				"cell_type": "markdown",
@@ -206,8 +204,6 @@
 					"    ReligionID,\r\n",
 					"    SXOID, \r\n",
 					"    SourceSystemID,\r\n",
-					"    StartDate,\r\n",
-					"    EndDate,\r\n",
 					"    IngestionDate,\r\n",
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
@@ -226,17 +222,15 @@
 					"    ReligionID,\r\n",
 					"    SXOID, \r\n",
 					"    SourceSystemID,\r\n",
-					"    StartDate,\r\n",
-					"    EndDate,\r\n",
 					"    IngestionDate,\r\n",
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM odw_harmonised_db.secureinfo_fact\r\n",
+					"FROM odw_harmonised_db.hr_secure_info_fact\r\n",
 					"WHERE SourceID IN (SELECT SourceID FROM secureinfo_fact_new WHERE SecureInfoID IS NULL) AND IsActive = 'Y';\r\n",
 					""
 				],
-				"execution_count": 8
+				"execution_count": 3
 			},
 			{
 				"cell_type": "markdown",
@@ -275,7 +269,7 @@
 					"%%sql\r\n",
 					"-- merge into fact table\r\n",
 					"\r\n",
-					"MERGE INTO odw_harmonised_db.secureinfo_fact AS Target\r\n",
+					"MERGE INTO odw_harmonised_db.hr_secure_info_fact AS Target\r\n",
 					"USING secureinfo_fact_changed_rows AS Source\r\n",
 					"\r\n",
 					"ON Source.SecureInfoID = Target.SecureInfoID\r\n",
@@ -285,14 +279,14 @@
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.EndDate = date_sub(current_timestamp,1),\r\n",
+					"    Target.ValidTo = date_sub(current_timestamp,1),\r\n",
 					"    Target.IsActive = 'N'\r\n",
 					"\r\n",
 					"-- Insert completely new rows\r\n",
 					"WHEN NOT MATCHED \r\n",
 					"    THEN INSERT * ;"
 				],
-				"execution_count": 9
+				"execution_count": 4
 			},
 			{
 				"cell_type": "markdown",
@@ -332,7 +326,7 @@
 					"\r\n",
 					"-- Insert new SecureInfoID\r\n",
 					"\r\n",
-					"INSERT OVERWRITE odw_harmonised_db.secureinfo_fact \r\n",
+					"INSERT OVERWRITE odw_harmonised_db.hr_secure_info_fact \r\n",
 					"\r\n",
 					"SELECT \r\n",
 					"    ROW_NUMBER() OVER (ORDER BY SecureInfoID NULLS LAST) AS SecureInfoID, \r\n",
@@ -342,15 +336,13 @@
 					"    ReligionID,\r\n",
 					"    SXOID, \r\n",
 					"    SourceSystemID,\r\n",
-					"    StartDate,\r\n",
-					"    EndDate,\r\n",
 					"    IngestionDate,\r\n",
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM odw_harmonised_db.secureinfo_fact;"
+					"FROM odw_harmonised_db.hr_secure_info_fact;"
 				],
-				"execution_count": 10
+				"execution_count": 5
 			}
 		]
 	}
