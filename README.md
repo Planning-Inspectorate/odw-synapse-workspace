@@ -1,10 +1,8 @@
-# Introduction 
-This repo contains all the artifacts for the PINS Operational Data Warehouse Pilot/POC. It consists of the following:-
-* [Azure Synapse Workspace](workspace/) - Synapse artifacts e.g. pipelines, datasets, notebooks, linked services
-* [Azure DevOps](devops/) - Azure DevOps pipeline configuration for build/release pipelines
-* [Azure Service Bus](servicebus/) - js code for publishing/consuming service bus topics
-* [Terraform](terraform/) - terraform templates used for generating ODW infrastructure as code
-* [Test Scripts](tests/) - scripts for generating synthetic data for testing purposes
+# Introduction
+This repo contains all the artifacts and infrastructure code for the PINS Operational Data Warehouse (ODW). It consists of the following:
+* [Infrastructure](infrastructure/) - Contains the root Terraform module for deploying the ODW environment
+* [Pipelines](pipelines/) - Contains Azure DevOps Pipeline definitions and steps
+* [Workspace](workspace/) - Contains development data artifacts ingested into the development Azure Synapse Workspace
 
 # Reference Documentation
 * Azure Data Landscape
@@ -14,10 +12,10 @@ This repo contains all the artifacts for the PINS Operational Data Warehouse Pil
 * Azure Synapse
   * [Source Control](https://docs.microsoft.com/en-us/azure/synapse-analytics/cicd/source-control)
   * [CI/CD](https://docs.microsoft.com/en-us/azure/synapse-analytics/cicd/continuous-integration-delivery)
-  * [Access Control](https://docs.microsoft.com/en-us/azure/synapse-analytics/security/how-to-set-up-access-control) - these rules are implemented in the Terraform templates
+  * [Access Control](https://docs.microsoft.com/en-us/azure/synapse-analytics/security/how-to-set-up-access-control)
 * Terraform
+  * [Data Landing Zone Architecture](https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/scenarios/cloud-scale-analytics/architectures/data-landing-zone#data-landing-zone-architecture)
   * [CI/CD Terraform Deployment with Azure DevOps](https://www.azuredevopslabs.com/labs/vstsextend/terraform/)
-
 
 # Getting Started
 The following steps outline how to get up and running with this repo on your own system:
@@ -34,12 +32,32 @@ The following steps outline how to get up and running with this repo on your own
     2. Clone the repo in VSCode/Azure Data Studio to a local folder
 
 # Environments
-|       Resources      | Description | Dev                               | Location |      Preprod                 | Location | Production | Location |
-|:--------------------:|:-----------:|:---------------------------------:|:--------:|:----------------------------:|:--------:|:----------:|:--------:|
-| Resource Group       | Azure Container holding related environment resources | [pins-odw-data-dev-rg](https://portal.azure.com/#@planninginspectorate.gov.uk/resource/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-odw-data-dev-rg/)       | UK South  | [pins-odw-data-preprod-rg](https://portal.azure.com/#@planninginspectorate.gov.uk/resource/subscriptions/6b18ba9d-2399-48b5-a834-e0f267be122d/resourceGroups/pins-odw-data-preprod-rg)       | UK South  | |  |
-| Key Vault       | Secure store for environment secrets and credentials | [pins-odw-data-dev-kv](https://portal.azure.com/#@planninginspectorate.gov.uk/resource/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-odw-data-dev-rg/providers/Microsoft.KeyVault/vaults/pins-odw-data-dev-kv/overview)       | UK South  | [pins-odw-data-preprod-kv](https://portal.azure.com/#@planninginspectorate.gov.uk/resource/subscriptions/6b18ba9d-2399-48b5-a834-e0f267be122d/resourceGroups/pins-odw-data-preprod-rg/providers/Microsoft.KeyVault/vaults/pins-odw-data-preprod-kv/overview)       | UK South  |  |  |
-| Azure Synapse Analytics  | Azure platform for data orchestration, notebooks, workspaces and SQL Pools | [pins-odw-data-dev-syn-ws](https://web.azuresynapse.net/en/home?workspace=%2Fsubscriptions%2Fff442a29-fc06-4a13-8e3e-65fd5da513b3%2FresourceGroups%2Fpins-odw-data-dev-rg%2Fproviders%2FMicrosoft.Synapse%2Fworkspaces%2Fpins-odw-data-dev-syn-ws)                      | UK South  | [pins-odw-data-preprod-syn-ws](https://web.azuresynapse.net/en/home?workspace=%2Fsubscriptions%2F6b18ba9d-2399-48b5-a834-e0f267be122d%2FresourceGroups%2Fpins-odw-data-preprod-rg%2Fproviders%2FMicrosoft.Synapse%2Fworkspaces%2Fpins-odw-data-preprod-syn-ws)                  | UK South  |  |  |
-| Data Lake Gen2 storage         | Azure storage for data lakehouse | [pinsodwdatadevstorage](https://portal.azure.com/#@planninginspectorate.gov.uk/resource/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-odw-data-dev-rg/providers/Microsoft.Storage/storageAccounts/pinsodwdatadevstorage/overview)                     | UK South  | [pinsodwdatapreprodstor](https://portal.azure.com/#@planninginspectorate.gov.uk/resource/subscriptions/6b18ba9d-2399-48b5-a834-e0f267be122d/resourceGroups/pins-odw-data-preprod-rg/providers/Microsoft.Storage/storageAccounts/pinsodwdatapreprodstor/overview)                 | UK South  |   |  |
-| Temporary Terraform State Storage           | Temporary storage for Terraform state - should be relocated alongside other PINS Terraform state storage | [pinsodwterraformstorage](https://portal.azure.com/#@planninginspectorate.gov.uk/resource/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-odw-terraform-rg/providers/Microsoft.Storage/storageAccounts/pinsodwterraformstorage/overview)                 | UK South  | N/A |   | N/A |  |
-| Temporary Service Bus Resource Group           | Temporary resource group for Service Bus outside of Data Landing Zone | [pins-odw-service-dev-rg](https://portal.azure.com/#@planninginspectorate.gov.uk/resource/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-odw-service-dev-rg/overview)                 | UK South  | N/A |   | N/A |  |
-| Temporary Service Bus          | Temporary Service Bus for POC of ODW integration| [pinsodwservicedev](https://portal.azure.com/#@planninginspectorate.gov.uk/resource/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-odw-service-dev-rg/providers/Microsoft.ServiceBus/namespaces/pinsodwservicedev/overview)                 | UK South  | N/A |  | N/A |  |
+The ODW environment is deployed to three Azure subscriptions as follows:
+
+| Environment Name | Subscription Name | Subscription ID |
+|------------------|-------------------|-----------------|
+| Development | pins-odw-data-dev-sub | ff442a29-fc06-4a13-8e3e-65fd5da513b3 |
+| Pre-Production | pins-odw-data-preprod-sub | 6b18ba9d-2399-48b5-a834-e0f267be122d |
+| Production | pins-odw-data-prod-sub | a82fd28d-5989-4e06-a0bb-1a5d859f9e0c |
+
+Within each subscription, the infrastructure is split into several resource groups, aligned to the [data landing zone architecture](https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/scenarios/cloud-scale-analytics/architectures/data-landing-zone#data-landing-zone-architecture):
+
+| Resource Group Name | Description |
+|---------------------|---------|
+| pins-rg-data-odw-_{env}_-_{region}_ | Contains the Data Lake and Synapse Workspace resources |
+| pins-rg-data-odw-_{env}_-_{region}_-synapse-managed | Managed resource group for the Synapse Workspace |
+| pins-rg-datamgmt-odw-_{env}_-_{region}_ | Contains data management resource such as Purview and Bastion VM(s) |
+| pins-rg-datamgmt-odw-_{env}_-_{region}_-purview-managed | Managed resource group for the Purview Account |
+| pins-rg-devops-odw-_{env}_-_{region}_ | Contains Azue DevOps agents for deployments into the private network |
+| pins-rg-monitoring-odw-_{env}_-_{region}_ | Contains monitoring resources such as Log Analytics and App Insights |
+| pins-rg-network-odw-_{env}_-global | Contains private DNS zones for private-link-enabled resources |
+| pins-rg-network-odw-_{env}_-_{region}_ | Contains the virtual network, network security groups and private endpoints |
+| pins-rg-shir-odw-_{env}_-_{region}_ | Contains self-hosted integration runtime VM(s) used by the Synapse Workspace |
+
+Some of the key resources used in the deployment are:
+| Resource Name | Description |
+|---------------|-------------|
+| Synapse Workspace | Analytics product for loading, transforming and analysing data using SQL and/or Spark |
+| ADLS Storage Account | Hierarchical namespace enabled Storage Account to act as a data lake |
+| Key Vault | Secrets storage for connection strings, password, etc for connected services |
+| Log Analytics | Activity and metric diagnostic log storage with querying capabilities using KQL |
