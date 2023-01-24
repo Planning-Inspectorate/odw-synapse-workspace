@@ -46,9 +46,5 @@ module "synapse_ingestion_failover" {
   synapse_workspace_failover_principal_id = try(module.synapse_workspace_private_failover.synapse_workspace_principal_id, null)
   synapse_workspace_principal_id          = module.synapse_workspace_private.synapse_workspace_principal_id
 
-  depends_on = [
-    module.synapse_ingestion
-  ]
-
   tags = local.tags
 }

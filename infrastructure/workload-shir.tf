@@ -26,11 +26,6 @@ module "synapse_shir" {
   synapse_workspace_id     = module.synapse_workspace_private.synapse_workspace_id
   vnet_subnet_ids          = module.synapse_network.vnet_subnets
 
-  depends_on = [
-    module.synapse_network,
-    module.synapse_workspace_private
-  ]
-
   tags = local.tags
 }
 
@@ -47,11 +42,6 @@ module "synapse_shir_failover" {
   devops_agent_subnet_name = local.compute_subnet_name
   synapse_workspace_id     = module.synapse_workspace_private_failover[0].synapse_workspace_id
   vnet_subnet_ids          = module.synapse_network_failover.vnet_subnets
-
-  depends_on = [
-    module.synapse_network_failover,
-    module.synapse_workspace_private_failover
-  ]
 
   tags = local.tags
 }

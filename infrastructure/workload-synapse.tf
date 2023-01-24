@@ -35,13 +35,6 @@ module "synapse_workspace_private" {
   synapse_role_assignments              = var.synapse_role_assignments
   tenant_id                             = var.tenant_id
 
-  depends_on = [
-    module.synapse_data_lake,
-    module.synapse_data_lake_failover,
-    module.synapse_network,
-    module.synapse_management
-  ]
-
   tags = local.tags
 }
 
@@ -83,13 +76,6 @@ module "synapse_workspace_private_failover" {
   synapse_sql_administrator_username    = var.synapse_sql_administrator_username
   synapse_role_assignments              = var.synapse_role_assignments
   tenant_id                             = var.tenant_id
-
-  depends_on = [
-    module.synapse_data_lake,
-    module.synapse_data_lake_failover,
-    module.synapse_network_failover,
-    module.synapse_management_failover
-  ]
 
   tags = local.tags
 }

@@ -38,13 +38,6 @@ module "synapse_monitoring" {
   synapse_workspace_id                     = module.synapse_workspace_private.synapse_workspace_id
   synapse_vnet_id                          = module.synapse_network.vnet_id
 
-  depends_on = [
-    module.synapse_data_lake,
-    module.synapse_ingestion,
-    module.synapse_network,
-    module.synapse_workspace_private
-  ]
-
   tags = local.tags
 }
 
@@ -73,13 +66,6 @@ module "synapse_monitoring_failover" {
   synapse_sql_pool_id                      = module.synapse_workspace_private_failover[0].synapse_sql_pool_id
   synapse_workspace_id                     = module.synapse_workspace_private_failover[0].synapse_workspace_id
   synapse_vnet_id                          = module.synapse_network_failover.vnet_id
-
-  depends_on = [
-    module.synapse_data_lake_failover,
-    module.synapse_ingestion_failover,
-    module.synapse_network_failover,
-    module.synapse_workspace_private_failover
-  ]
 
   tags = local.tags
 }

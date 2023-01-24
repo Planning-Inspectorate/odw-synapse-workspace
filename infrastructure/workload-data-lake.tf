@@ -40,11 +40,6 @@ module "synapse_data_lake" {
   vnet_subnet_ids                        = module.synapse_network.vnet_subnets
   vnet_subnet_ids_failover               = module.synapse_network_failover.vnet_subnets
 
-  depends_on = [
-    module.synapse_network,
-    module.synapse_network_failover
-  ]
-
   tags = local.tags
 }
 
@@ -75,11 +70,6 @@ module "synapse_data_lake_failover" {
   tenant_id                              = var.tenant_id
   vnet_subnet_ids                        = module.synapse_network_failover.vnet_subnets
   vnet_subnet_ids_failover               = module.synapse_network.vnet_subnets
-
-  depends_on = [
-    module.synapse_network,
-    module.synapse_network_failover
-  ]
 
   tags = local.tags
 }

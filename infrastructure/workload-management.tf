@@ -32,11 +32,6 @@ module "synapse_management" {
   vnet_subnet_ids                        = module.synapse_network.vnet_subnets
   vnet_subnet_ids_failover               = module.synapse_network_failover.vnet_subnets
 
-  depends_on = [
-    module.synapse_network,
-    module.synapse_network_failover
-  ]
-
   tags = local.tags
 }
 
@@ -59,11 +54,6 @@ module "synapse_management_failover" {
   synapse_private_endpoint_subnet_name   = module.synapse_network_failover.synapse_private_endpoint_subnet_name
   vnet_subnet_ids                        = module.synapse_network_failover.vnet_subnets
   vnet_subnet_ids_failover               = module.synapse_network.vnet_subnets
-
-  depends_on = [
-    module.synapse_network,
-    module.synapse_network_failover
-  ]
 
   tags = local.tags
 }
@@ -88,11 +78,6 @@ module "bastion_host" {
   synapse_vnet_subnet_names    = module.synapse_network.vnet_subnets
   synapse_vnet_subnet_prefixes = module.synapse_network.vnet_subnet_prefixes
 
-  depends_on = [
-    module.synapse_network,
-    module.synapse_management
-  ]
-
   tags = local.tags
 }
 
@@ -115,11 +100,6 @@ module "bastion_host_failover" {
   synapse_vnet_security_groups = module.synapse_network_failover.vnet_security_groups
   synapse_vnet_subnet_names    = module.synapse_network_failover.vnet_subnets
   synapse_vnet_subnet_prefixes = module.synapse_network_failover.vnet_subnet_prefixes
-
-  depends_on = [
-    module.synapse_network_failover,
-    module.synapse_management_failover
-  ]
 
   tags = local.tags
 }

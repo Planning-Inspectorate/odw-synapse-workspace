@@ -13,10 +13,6 @@ module "devops_agent_pool" {
   devops_agent_vm_sku       = var.devops_agent_vm_sku
   vnet_subnet_ids           = module.synapse_network.vnet_subnets
 
-  depends_on = [
-    module.synapse_network
-  ]
-
   tags = local.tags
 }
 
@@ -34,10 +30,6 @@ module "devops_agent_pool_failover" {
   devops_agent_subnet_name  = local.compute_subnet_name
   devops_agent_vm_sku       = var.devops_agent_vm_sku
   vnet_subnet_ids           = module.synapse_network_failover.vnet_subnets
-
-  depends_on = [
-    module.synapse_network_failover
-  ]
 
   tags = local.tags
 }

@@ -35,11 +35,6 @@ module "synapse_sql_server" {
   vnet_subnet_ids                   = module.synapse_network.vnet_subnets
   vnet_subnet_ids_failover          = module.synapse_network_failover.vnet_subnets
 
-  depends_on = [
-    module.synapse_data_lake,
-    module.synapse_workspace_private
-  ]
-
   tags = local.tags
 }
 
@@ -61,11 +56,6 @@ module "synapse_sql_server_failover" {
   synapse_workspace_id              = module.synapse_workspace_private_failover[0].synapse_workspace_id
   vnet_subnet_ids                   = module.synapse_network_failover.vnet_subnets
   vnet_subnet_ids_failover          = module.synapse_network.vnet_subnets
-
-  depends_on = [
-    module.synapse_data_lake_failover,
-    module.synapse_workspace_private_failover
-  ]
 
   tags = local.tags
 }
