@@ -1,4 +1,5 @@
 resource "azurerm_key_vault" "synapse" {
+  #checkov:skip=CKV_AZURE_189: Firewall is enabled in the network_acls block
   name                       = replace("pins-kv-synw-${local.resource_suffix}", "-", "")
   resource_group_name        = var.resource_group_name
   location                   = var.location

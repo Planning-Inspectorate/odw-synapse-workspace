@@ -1,6 +1,18 @@
+variable "devops_agent_subnet_name" {
+  default     = "ComputeSubnet"
+  description = "The name of the subnet into which the devops agents will be deployed"
+  type        = string
+}
+
 variable "environment" {
   description = "The name of the environment in which resources will be deployed"
   type        = string
+}
+
+variable "firewall_allowed_ip_addresses" {
+  default     = []
+  description = "A list of CIDR ranges to be permitted access to the data lake Storage Account"
+  type        = list(string)
 }
 
 variable "key_vault_id" {
@@ -42,5 +54,15 @@ variable "synapse_workspace_id" {
 variable "tags" {
   default     = {}
   description = "A collection of tags to assign to taggable resources"
+  type        = map(string)
+}
+
+variable "vnet_subnet_ids" {
+  description = "A map of subnet names and IDs comprising the linked Virtual Network"
+  type        = map(string)
+}
+
+variable "vnet_subnet_ids_failover" {
+  description = "A map of subnet names and IDs comprising the linked Virtual Network"
   type        = map(string)
 }

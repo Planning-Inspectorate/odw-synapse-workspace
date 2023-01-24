@@ -1,6 +1,9 @@
 
 resource "azurerm_storage_account" "synapse" {
   #checkov:skip=CKV_AZURE_35: Firewall is enabled using azurerm_storage_account_network_rules
+  #checkov:skip=CKV_AZURE_59: Firewall is enabled using azurerm_storage_account_network_rules
+  #checkov:skip=CKV_AZURE_190: Firewall is enabled using azurerm_storage_account_network_rules
+  #checkov:skip=CKV_AZURE_206: Storage replication is defined in environment variables with ZRS default
   #checkov:skip=CKV2_AZURE_1: Microsoft managed keys are acceptable
   #checkov:skip=CKV2_AZURE_8: Firewall is enabled using azurerm_storage_account_network_rules
   #checkov:skip=CKV2_AZURE_18: Microsoft managed keys are acceptable
@@ -59,7 +62,7 @@ resource "azurerm_storage_data_lake_gen2_filesystem" "synapse" {
 }
 
 resource "azurerm_storage_container" "synapse" {
-  #checkov:skip=CKV2_AZURE_21:  SKIP: Implemented in synapse-monitoring module
+  #checkov:skip=CKV2_AZURE_21: Implemented in synapse-monitoring module
   for_each = toset(var.data_lake_storage_containers)
 
   name                  = each.key
