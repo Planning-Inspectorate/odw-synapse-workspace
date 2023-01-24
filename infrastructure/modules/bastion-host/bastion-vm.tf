@@ -13,20 +13,17 @@ resource "azurerm_network_interface" "jumpbox" {
 }
 
 resource "azurerm_windows_virtual_machine" "jumpbox" {
-  #checkov:skip=CKV_AZURE_50: VM extensions are required for provisioning and updates
   #checkov:skip=CKV_AZURE_151: Host encryption is not supported
-  #checkov:skip=CKV_AZURE_177: Automatic updates are conditionally supported based on VM type
+  #checkov:skip=CKV_AZURE_177: Automatic updates are only supported for Windows Server 2022
   name                       = "bas-vm-${local.resource_suffix}"
   location                   = var.location
   resource_group_name        = var.resource_group_name
   size                       = var.bastion_vm_size
   admin_username             = var.bastion_vm_username
   admin_password             = random_password.bastion_vm_admin_password.result
-  allow_extension_operations = contains(split("_", var.bastion_vm_size), "v2") ? true : false
+  allow_extension_operations = false
   computer_name              = "bastion-${random_string.unique_id.id}"
-  hotpatching_enabled        = contains(split("_", var.bastion_vm_size), "v2") ? true : false
   network_interface_ids      = [azurerm_network_interface.jumpbox.id]
-  patch_mode                 = contains(split("_", var.bastion_vm_size), "v2") ? "AutomaticByPlatform" : "AutomaticByOS"
   provision_vm_agent         = true
 
   os_disk {

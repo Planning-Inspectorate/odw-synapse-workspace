@@ -1,7 +1,10 @@
 resource "azurerm_storage_account" "shir" {
-  #checkov:skip=CKV_AZURE_35: TODO: Firewall
+  #checkov:skip=CKV_AZURE_35: Firewall not required for this stroage account
+  #checkov:skip=CKV_AZURE_59: Firewall not required for this stroage account
+  #checkov:skip=CKV_AZURE_190: Firewall not required for this stroage account
+  #checkov:skip=CKV_AZURE_206: Locally redundant storage is acceptable for this storage account use-case
   #checkov:skip=CKV2_AZURE_1: Microsoft managed keys are acceptable
-  #checkov:skip=CKV2_AZURE_8: TODO: Firewall
+  #checkov:skip=CKV2_AZURE_8: Firewall not required for this stroage account
   #checkov:skip=CKV2_AZURE_18: Microsoft managed keys are acceptable
   name                            = replace("pins-st-${local.resource_suffix}-${random_string.unique_id.id}", "-", "")
   resource_group_name             = var.resource_group_name

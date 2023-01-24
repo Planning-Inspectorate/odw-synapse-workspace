@@ -160,6 +160,12 @@ variable "network_watcher_enabled" {
   type        = bool
 }
 
+variable "service_bus_failover_enabled" {
+  default     = false
+  description = "Determines whether the Service Bus Namespace will be provisioned with the Premium SKU for failover"
+  type        = bool
+}
+
 variable "service_bus_role_assignments" {
   default     = {}
   description = "An object mapping RBAC roles to principal IDs for the service bus"

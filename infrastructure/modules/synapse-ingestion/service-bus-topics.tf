@@ -1,7 +1,7 @@
 resource "azurerm_servicebus_topic" "employee" {
   count = var.failover_namespace ? 0 : 1
 
-  name         = "Employee"
+  name         = "employee"
   namespace_id = azurerm_servicebus_namespace.synapse.id
 
   auto_delete_on_idle                     = "P10675199DT2H48M5.4775807S"

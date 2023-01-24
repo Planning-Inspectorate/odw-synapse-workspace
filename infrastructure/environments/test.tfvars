@@ -52,6 +52,7 @@ key_vault_role_assignments = {
 
 network_watcher_enabled = false
 
+service_bus_failover_enabled = false
 service_bus_role_assignments = {
   "Azure Service Bus Data Owner" = [
     "8274feca-09ef-41b1-9b4e-5eedc3384df4" # pins-odw-preprod-administrators
@@ -63,7 +64,7 @@ spark_pool_max_node_count  = 12
 spark_pool_min_node_count  = 3
 spark_pool_node_size       = "Small"
 spark_pool_timeout_minutes = 15
-spark_pool_version         = "3.3"
+spark_pool_version         = "3.2"
 
 sql_pool_collation = "SQL_Latin1_General_CP1_CI_AS"
 sql_pool_enabled   = false

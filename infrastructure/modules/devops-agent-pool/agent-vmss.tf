@@ -2,6 +2,8 @@ resource "azurerm_linux_virtual_machine_scale_set" "devops_agent_pool" {
   #checkov:skip=CKV_AZURE_49: SSH authentication not required
   #checkov:skip=CKV_AZURE_97: Host encryption not required
   #checkov:skip=CKV_AZURE_149: Password authentication required
+  #checkov:skip=CKV_AZURE_178: SSH authentication not required
+  #checkov:skip=CKV_AZURE_179: Scale set is managed by Azure DevOps
   count = var.deploy_agent_pool ? 1 : 0
 
   name                = "pins-vmss-devops-${local.resource_suffix}"
