@@ -15,9 +15,8 @@ resource "azurerm_monitor_diagnostic_setting" "synapse_spark_pool" {
     }
   }
 
-  log {
+  enabled_log {
     category = "BigDataPoolAppsEnded"
-    enabled  = true
 
     retention_policy {
       days    = 0

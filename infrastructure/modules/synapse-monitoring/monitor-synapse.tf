@@ -13,9 +13,8 @@ resource "azurerm_monitor_diagnostic_setting" "synapse" {
     }
   }
 
-  log {
+  enabled_log {
     category = "BuiltinSqlReqsEnded"
-    enabled  = true
 
     retention_policy {
       days    = 0
@@ -23,9 +22,8 @@ resource "azurerm_monitor_diagnostic_setting" "synapse" {
     }
   }
 
-  log {
+  enabled_log {
     category = "GatewayApiRequests"
-    enabled  = true
 
     retention_policy {
       days    = 0
@@ -33,9 +31,8 @@ resource "azurerm_monitor_diagnostic_setting" "synapse" {
     }
   }
 
-  log {
+  enabled_log {
     category = "IntegrationActivityRuns"
-    enabled  = true
 
     retention_policy {
       days    = 0
@@ -43,9 +40,8 @@ resource "azurerm_monitor_diagnostic_setting" "synapse" {
     }
   }
 
-  log {
+  enabled_log {
     category = "IntegrationPipelineRuns"
-    enabled  = true
 
     retention_policy {
       days    = 0
@@ -53,9 +49,8 @@ resource "azurerm_monitor_diagnostic_setting" "synapse" {
     }
   }
 
-  log {
+  enabled_log {
     category = "IntegrationTriggerRuns"
-    enabled  = true
 
     retention_policy {
       days    = 0
@@ -63,9 +58,8 @@ resource "azurerm_monitor_diagnostic_setting" "synapse" {
     }
   }
 
-  log {
+  enabled_log {
     category = "SQLSecurityAuditEvents"
-    enabled  = true
 
     retention_policy {
       days    = 0
@@ -73,9 +67,8 @@ resource "azurerm_monitor_diagnostic_setting" "synapse" {
     }
   }
 
-  log {
+  enabled_log {
     category = "SynapseLinkEvent"
-    enabled  = true
 
     retention_policy {
       days    = 0
@@ -83,9 +76,8 @@ resource "azurerm_monitor_diagnostic_setting" "synapse" {
     }
   }
 
-  log {
+  enabled_log {
     category = "SynapseRbacOperations"
-    enabled  = true
 
     retention_policy {
       days    = 0

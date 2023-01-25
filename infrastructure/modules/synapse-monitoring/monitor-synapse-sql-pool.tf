@@ -14,9 +14,8 @@ resource "azurerm_monitor_diagnostic_setting" "synapse_sql_pool" {
     }
   }
 
-  log {
+  enabled_log {
     category = "DmsWorkers"
-    enabled  = true
 
     retention_policy {
       days    = 0
@@ -24,9 +23,8 @@ resource "azurerm_monitor_diagnostic_setting" "synapse_sql_pool" {
     }
   }
 
-  log {
+  enabled_log {
     category = "ExecRequests"
-    enabled  = true
 
     retention_policy {
       days    = 0
@@ -34,9 +32,8 @@ resource "azurerm_monitor_diagnostic_setting" "synapse_sql_pool" {
     }
   }
 
-  log {
+  enabled_log {
     category = "RequestSteps"
-    enabled  = true
 
     retention_policy {
       days    = 0
@@ -44,9 +41,8 @@ resource "azurerm_monitor_diagnostic_setting" "synapse_sql_pool" {
     }
   }
 
-  log {
+  enabled_log {
     category = "SQLSecurityAuditEvents"
-    enabled  = true
 
     retention_policy {
       days    = 0
@@ -54,9 +50,8 @@ resource "azurerm_monitor_diagnostic_setting" "synapse_sql_pool" {
     }
   }
 
-  log {
+  enabled_log {
     category = "SqlRequests"
-    enabled  = true
 
     retention_policy {
       days    = 0
@@ -64,9 +59,8 @@ resource "azurerm_monitor_diagnostic_setting" "synapse_sql_pool" {
     }
   }
 
-  log {
+  enabled_log {
     category = "Waits"
-    enabled  = true
 
     retention_policy {
       days    = 0

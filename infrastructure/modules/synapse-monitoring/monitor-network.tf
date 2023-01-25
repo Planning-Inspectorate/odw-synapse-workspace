@@ -13,9 +13,8 @@ resource "azurerm_monitor_diagnostic_setting" "network" {
     }
   }
 
-  log {
+  enabled_log {
     category = "VMProtectionAlerts"
-    enabled  = true
 
     retention_policy {
       days    = 0

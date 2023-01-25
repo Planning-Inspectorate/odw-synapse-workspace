@@ -13,9 +13,8 @@ resource "azurerm_monitor_diagnostic_setting" "service_bus_namespace" {
     }
   }
 
-  log {
+  enabled_log {
     category = "ApplicationMetricsLogs"
-    enabled  = true
 
     retention_policy {
       days    = 0
@@ -23,9 +22,8 @@ resource "azurerm_monitor_diagnostic_setting" "service_bus_namespace" {
     }
   }
 
-  log {
+  enabled_log {
     category = "OperationalLogs"
-    enabled  = true
 
     retention_policy {
       days    = 0
@@ -33,9 +31,8 @@ resource "azurerm_monitor_diagnostic_setting" "service_bus_namespace" {
     }
   }
 
-  log {
+  enabled_log {
     category = "RuntimeAuditLogs"
-    enabled  = true
 
     retention_policy {
       days    = 0
@@ -43,9 +40,8 @@ resource "azurerm_monitor_diagnostic_setting" "service_bus_namespace" {
     }
   }
 
-  log {
+  enabled_log {
     category = "VNetAndIPFilteringLogs"
-    enabled  = true
 
     retention_policy {
       days    = 0
