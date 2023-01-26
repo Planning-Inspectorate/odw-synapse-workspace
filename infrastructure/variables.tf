@@ -196,6 +196,18 @@ variable "spark_pool_node_size" {
   type        = string
 }
 
+variable "spark_pool_preview_enabled" {
+  default     = false
+  description = "Determines whether a Synapse-linked preview Spark pool should be deployed"
+  type        = bool
+}
+
+variable "spark_pool_preview_version" {
+  default     = "3.3"
+  description = "The version of Spark running on the Synapse-linked preview Spark pool"
+  type        = string
+}
+
 variable "spark_pool_timeout_minutes" {
   default     = 15
   description = "The time buffer in minutes to wait before the Spark pool is paused due to inactivity"
