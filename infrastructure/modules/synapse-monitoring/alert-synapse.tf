@@ -89,3 +89,28 @@ resource "azurerm_monitor_metric_alert" "synapse_pipeline_runs_failed" {
 
   tags = local.tags
 }
+
+resource "azurerm_monitor_metric_alert" "synapse_exceptions" {
+  name                = "Synapse Pipeline and Notebook Exceptions"
+  resource_group_name = var.resource_group_name
+  scopes              = [azurerm_application_insights.synapse.id]
+  description         = "Triggers an alert if any failures are detected in Synapse pipeline runs"
+  enabled             = var.alert_group_synapse_enabled
+  frequency           = "PT1M"
+  severity            = 1
+  window_size         = "PT5M"
+
+  criteria {
+    metric_name      = "exceptions/count"
+    metric_namespace = "Microsoft.Insights/components"
+    aggregation      = "Count"
+    operator         = "GreaterThanOrEqual"
+    threshold        = 1
+  }
+
+  action {
+    action_group_id = azurerm_monitor_action_group.synapse_alerts.id
+  }
+
+  tags = local.tags
+}
