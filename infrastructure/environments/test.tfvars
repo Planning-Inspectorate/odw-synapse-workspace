@@ -1,7 +1,7 @@
 alert_group_platform_enabled             = true
-alert_group_platform_recipients          = ["lester.march@planninginspectorate.gov.uk"]
+alert_group_platform_recipients          = ["nasir.rahman@planninginspectorate.gov.uk"]
 alert_group_synapse_enabled              = true
-alert_group_synapse_recipients           = ["lester.march@planninginspectorate.gov.uk"]
+alert_group_synapse_recipients           = ["abdullah.pakwashee@planninginspectorate.gov.uk"]
 alert_scope_service_health               = "/subscriptions/6b18ba9d-2399-48b5-a834-e0f267be122d"
 alert_threshold_data_lake_capacity_bytes = 10995116277760 # 10TiB
 

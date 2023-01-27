@@ -1,5 +1,5 @@
 resource "azurerm_mssql_server" "sql_server" {
-  #checkov:skip=CKV_AZURE_113:  TODO: Disable public network access
+  #checkov:skip=CKV_AZURE_113: Firewall is enabled using azurerm_mssql_firewall_rule
   name                         = "sql-${local.resource_suffix}"
   location                     = var.location
   resource_group_name          = var.resource_group_name
