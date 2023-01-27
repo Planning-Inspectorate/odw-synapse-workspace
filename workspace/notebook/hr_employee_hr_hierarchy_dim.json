@@ -1,5 +1,5 @@
 {
-	"name": "payrollarea_dim",
+	"name": "hr_employee_hr_hierarchy_dim",
 	"properties": {
 		"folder": {
 			"name": "odw-harmonised/SAP-HR"
@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ff8e88cc-18bf-433b-a005-b9ca0f6fb3b4"
+				"spark.autotune.trackingId": "e1de762c-4f00-445b-8f71-4e8e2b600a66"
 			}
 		},
 		"metadata": {
@@ -41,53 +41,17 @@
 				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
 				"auth": {
 					"type": "AAD",
-					"authResource": "https://dev.azuresynapse.net",
-					"authHeader": null
+					"authResource": "https://dev.azuresynapse.net"
 				},
 				"sparkVersion": "3.2",
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 28,
-				"extraHeader": null
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
-				},
-				"source": [
-					"%%sql\r\n",
-					"\r\n",
-					"CREATE OR REPLACE TEMPORARY VIEW payrollarea_grouped\r\n",
-					"\r\n",
-					"    AS\r\n",
-					"\r\n",
-					"SELECT \r\n",
-					"\r\n",
-					"    PArea AS PayrollAreaCode,\r\n",
-					"    First(Payroll_Area) AS Description    \r\n",
-					"    \r\n",
-					"FROM odw_standardised_db.vw_saphr\r\n",
-					"WHERE PArea IS NOT NULL\r\n",
-					"GROUP BY PArea;"
-				],
-				"execution_count": 14
-			},
 			{
 				"cell_type": "markdown",
 				"metadata": {
@@ -99,12 +63,12 @@
 				},
 				"source": [
 					"# Check for new, updated or deleted data\n",
-					"- This script checks for new, updated or deleted data by checking the source data (sap hr) against the target (odw_harmonised_db.payband_dim)\n",
-					"- **New Data:** where a PA in the source does not exist as an PSGroupCode in the target. NewData flag is set to 'Y'\n",
-					"- **Updated data:** Comparison occurs on PA in source and PSGroupCode in target where the row hash is different i.e. there is a change in one of the columns. NewData flag is set to 'Y'\n",
-					"- **Deleted data:** where an PSGroupCode in the target exists but the same PA doesn't exist in the source. DeletedData flag is set to 'Y'\n",
+					"- This script checks for new, updated or deleted data by checking the source data (sap hr) against the target (odw_harmonised_db.Employee_HR_Hierarchy_Dim)\n",
+					"- **New Data:** where an EmployeeID in the source does not exist as an EmployeeID in the target. NewData flag is set to 'Y'\n",
+					"- **Updated data:** Comparison occurs on EmployeeID in source and EmployeeID in target where the row hash is different i.e. there is a change in one of the columns. NewData flag is set to 'Y'\n",
+					"- **Deleted data:** where an EmployeeID in the target exists but the same EmployeeID doesn't exist in the source. DeletedData flag is set to 'Y'\n",
 					"\n",
-					"## View payband_dim_new is created"
+					"## View employee_hr_hierarchy_dim_new is created"
 				]
 			},
 			{
@@ -117,11 +81,10 @@
 				},
 				"source": [
 					"%%sql\r\n",
-					"-- Build payband_dim table\r\n",
+					"-- Build employee_hr_hierarchy_dim table\r\n",
 					"-- Gets modified or deleted from source rows\r\n",
 					"\r\n",
-					"CREATE OR REPLACE TEMPORARY VIEW payrollarea_dim_new\r\n",
-					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW employee_hr_hierarchy_dim_new\r\n",
 					"    AS\r\n",
 					"\r\n",
 					"-- gets data that matches of SourceID and flags that it is modified based on a row (md5) hash. Flags as \"NewData\"\r\n",
@@ -129,58 +92,71 @@
 					"\r\n",
 					"SELECT \r\n",
 					"    CASE\r\n",
-					"        WHEN T1.PayrollAreaCode IS NULL\r\n",
-					"        THEN T7.PayrollAreaID\r\n",
+					"        WHEN T3.EmployeeID IS NULL\r\n",
+					"        THEN T7.EmployeeHRHierarchyID\r\n",
 					"        ELSE NULL\r\n",
-					"    END as PayrollAreaID, -- surrogate key\r\n",
-					"    T1.PayrollAreaCode, -- source system id\r\n",
-					"    T1.Description, \r\n",
+					"    END as EmployeeHRHierarchyID, -- surrogate key\r\n",
+					"    T3.EmployeeID AS EmployeeID,\r\n",
+					"    T4.EmployeeID as ManagerEmployeeID,\r\n",
 					"    T2.SourceSystemID as SourceSystemID,\r\n",
-					"    CURRENT_TIMESTAMP AS StartDate,\r\n",
-					"    NULL AS EndDate,\r\n",
 					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
 					"    NULL AS ValidTo,\r\n",
-					"    md5(concat(IFNULL(T1.PayrollAreaCode,'.'), IFNULL(T1.Description,'.'))) as RowID,\r\n",
+					"    md5(concat(IFNULL(T3.EmployeeID,'.'), IFNULL(T4.EmployeeID,'.'))) as RowID,\r\n",
 					"    'Y' as IsActive,\r\n",
 					"    CASE\r\n",
-					"        WHEN T1.PayrollAreaCode = T7.PayrollAreaCode AND md5(concat(IFNULL(T1.PayrollAreaCode,'.'), IFNULL(T1.Description,'.')))  <> T7.RowID   -- same employee, changed data\r\n",
+					"        WHEN T3.EmployeeID = T7.EmployeeID AND  md5(concat(IFNULL(T3.EmployeeID,'.'), IFNULL(T4.EmployeeID,'.'))) <> T7.RowID    -- same employee, changed data\r\n",
 					"        THEN 'Y'\r\n",
-					"        WHEN T7.PayrollAreaCode IS NULL -- new employee\r\n",
+					"        WHEN T7.EmployeeID IS NULL -- new employee\r\n",
 					"        THEN 'Y'\r\n",
+					"        --WHEN T3.EmployeeID = T7.EmployeeID AND md5(concat(IFNULL(T3.EmployeeID,'.'), IFNULL(T4.EmployeeID,'.'))) = T7.RowID\r\n",
+					"\r\n",
+					"        -- THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
 					"    END as NewData,\r\n",
 					"    CASE\r\n",
-					"        WHEN T1.PayrollAreaCode IS NULL\r\n",
+					"        WHEN T3.EmployeeID IS NULL\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
-					"    END AS  DeletedData, \r\n",
+					"    END AS  DeletedData,\r\n",
+					"    CASE    \r\n",
+					"        WHEN T3.EmployeeID = T7.EmployeeID AND T7.IsActive IS NULL\r\n",
+					"        THEN 'Y'\r\n",
+					"        ELSE 'N'\r\n",
+					"    END AS HistoricData, \r\n",
 					"    T7.IsActive as HistoricIsActive\r\n",
 					"\r\n",
-					"FROM payrollarea_grouped T1\r\n",
-					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description and T2.IsActive = 'Y'\r\n",
-					"FULL JOIN odw_harmonised_db.payrollarea_dim T7 ON T1.PayrollAreaCode = T7.PayrollAreaCode AND T7.IsActive = 'Y'\r\n",
-					"WHERE\r\n",
-					"    (  \r\n",
-					"        -- flags new data        \r\n",
+					"\r\n",
+					"FROM odw_standardised_db.vw_saphr T1\r\n",
+					"LEFT JOIN odw_harmonised_db.main_sourcesystem_fact T2 ON \"SAP HR\" = T2.Description\r\n",
+					"LEFT JOIN odw_harmonised_db.hr_employee_fact T3 ON T1.Pers_No = T3.EmployeeNumber and T3.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_harmonised_db.hr_employee_fact T4 ON T1.Pers_No_1 = T4.EmployeeNumber and T4.IsActive = 'Y'\r\n",
+					"FULL JOIN odw_harmonised_db.hr_employee_hr_hierarchy_dim T7 ON T3.EmployeeID = T7.EmployeeID AND T7.IsActive = 'Y'\r\n",
+					"WHERE /** (T7.IsActive = 'Y' or T7.IsActive IS NULL)\r\n",
+					"    \r\n",
+					"--         AND  **/ (\r\n",
+					"--         -- flags new data        \r\n",
 					"        (   CASE\r\n",
-					"                WHEN T1.PayrollAreaCode = T7.PayrollAreaCode AND md5(concat(IFNULL(T1.PayrollAreaCode,'.'), IFNULL(T1.Description,'.')))  <> T7.RowID   -- same employee, changed data\r\n",
+					"                WHEN T3.EmployeeID = T7.EmployeeID AND  md5(concat(IFNULL(T3.EmployeeID,'.'), IFNULL(T4.EmployeeID,'.'))) <> T7.RowID    -- same employee, changed data\r\n",
 					"                THEN 'Y'\r\n",
-					"                WHEN T7.PayrollAreaCode IS NULL -- new employee\r\n",
+					"                WHEN T7.EmployeeID IS NULL -- new employee\r\n",
 					"                THEN 'Y'\r\n",
+					"                -- WHEN T3.EmployeeID = T7.EmployeeID AND md5(concat(IFNULL(T3.EmployeeID,'.'), IFNULL(T4.EmployeeID,'.'))) = T7.RowID\r\n",
+					"                --         AND T7.IsActive = 'N'\r\n",
+					"                --THEN 'Y'\r\n",
 					"                ELSE 'N'\r\n",
-					"            END  = 'Y' ) OR\r\n",
+					"            END = 'Y' ) OR\r\n",
 					"        \r\n",
 					"        -- flags deleted data\r\n",
-					"        (   CASE\r\n",
-					"                WHEN T1.PayrollAreaCode IS NULL\r\n",
-					"                THEN 'Y'\r\n",
-					"                ELSE 'N'\r\n",
-					"            END = 'Y' )\r\n",
+					"        ( CASE\r\n",
+					"            WHEN T3.EmployeeID IS NULL\r\n",
+					"            THEN 'Y'\r\n",
+					"            ELSE 'N'\r\n",
+					"        END = 'Y' )\r\n",
 					"    )\r\n",
 					";\r\n",
 					""
 				],
-				"execution_count": 15
+				"execution_count": 2
 			},
 			{
 				"cell_type": "markdown",
@@ -194,8 +170,8 @@
 				"source": [
 					"# Dataset is created that contains changed data and corresponding target data\n",
 					"- This script combines data that has been updated, Deleted or is new, with corresponding target data\n",
-					"- View **payband_dim_new** is unioned to the target data filter to only those rows where changes have been detected\n",
-					"## View payband_dim_changed_rows is created"
+					"- View **employee_hr_hierarchy_dim_new** is unioned to the target data filter to only those rows where changes have been detected\n",
+					"## View employee_hr_hierarchy_dim_changed_rows is created"
 				]
 			},
 			{
@@ -217,43 +193,44 @@
 				},
 				"source": [
 					"%%sql\r\n",
-					"-- Creating new and updated dataset\r\n",
+					"-- Create new and updated dataset\r\n",
 					"\r\n",
-					"CREATE OR REPLACE TEMPORARY VIEW payband_dim_changed_rows\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW employee_hr_hierarchy_dim_changed_rows\r\n",
 					"\r\n",
 					"    AS\r\n",
 					"\r\n",
-					"SELECT \r\n",
-					"    PayrollAreaID,\r\n",
-					"    PayrollAreaCode,\r\n",
-					"    Description, \r\n",
+					"-- gets updated, deleted and new rows \r\n",
+					"\r\n",
+					"Select \r\n",
+					"    EmployeeHRHierarchyID, -- surrogate key\r\n",
+					"    EmployeeID,\r\n",
+					"    ManagerEmployeeID,\r\n",
 					"    SourceSystemID,\r\n",
-					"    StartDate,\r\n",
-					"    EndDate,\r\n",
 					"    IngestionDate,\r\n",
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM payrollarea_dim_new WHERE HistoricIsActive = 'Y' or HistoricIsActive IS NULL\r\n",
+					"    \r\n",
+					"From employee_hr_hierarchy_dim_new WHERE HistoricIsActive = 'Y' or HistoricIsActive IS NULL\r\n",
 					"\r\n",
 					"    UNION ALL\r\n",
 					"\r\n",
+					"-- gets original versions of updated rows so we can update EndDate and set IsActive flag to 'N'\r\n",
+					"\r\n",
 					"SELECT\r\n",
-					"    PayrollAreaID,\r\n",
-					"    PayrollAreaCode,\r\n",
-					"    Description, \r\n",
+					"    EmployeeHRHierarchyID, -- surrogate key\r\n",
+					"    EmployeeID,\r\n",
+					"    ManagerEmployeeID,\r\n",
 					"    SourceSystemID,\r\n",
-					"    StartDate,\r\n",
-					"    EndDate,\r\n",
 					"    IngestionDate,\r\n",
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM odw_harmonised_db.payrollarea_dim\r\n",
-					"WHERE PayrollAreaCode IN (SELECT PayrollAreaCode FROM payrollarea_dim_new WHERE PayrollAreaID IS NULL) AND IsActive = 'Y' ; \r\n",
-					""
+					"FROM odw_harmonised_db.hr_employee_hr_hierarchy_dim\r\n",
+					"WHERE EmployeeID IN (SELECT EmployeeID FROM employee_hr_hierarchy_dim_new WHERE EmployeeHRHierarchyID IS NULL) \r\n",
+					"AND IsActive = 'Y'; "
 				],
-				"execution_count": 1
+				"execution_count": 3
 			},
 			{
 				"cell_type": "markdown",
@@ -265,10 +242,10 @@
 					}
 				},
 				"source": [
-					"# View payband_dim_changed_rows is used in a merge (Upsert) statement into the target table\n",
-					"- **WHEN MATCHED** ON the Business Key (i.e. PA from SAPHR), EndDate is set to today -1 day and the IsActive flag is set to 'N'\n",
+					"# View employee_hr_hierarchy_dim_changed_rows is used in a merge (Upsert) statement into the target table\n",
+					"- **WHEN MATCHED** ON the Business Key (i.e. EmployeeID from employee_dim), EndDate is set to today -1 day and the IsActive flag is set to 'N'\n",
 					"- **WHEN NOT MATCHED** ON the business key, insert rows\n",
-					"## Table odw_harmonised.payband_dim is updated"
+					"## Table odw_harmonised_db.employee_hr_hierarchy_dim is updated"
 				]
 			},
 			{
@@ -290,19 +267,20 @@
 				},
 				"source": [
 					"%%sql\r\n",
-					"-- merge into fact table\r\n",
 					"\r\n",
-					"MERGE INTO odw_harmonised_db.payrollarea_dim AS Target\r\n",
-					"USING payband_dim_changed_rows AS Source\r\n",
+					"-- merge into dim table\r\n",
 					"\r\n",
-					"ON Source.PayrollAreaID = Target.PayrollAreaID\r\n",
+					"MERGE INTO odw_harmonised_db.hr_employee_hr_hierarchy_dim AS Target\r\n",
+					"USING employee_hr_hierarchy_dim_changed_rows AS Source\r\n",
+					"\r\n",
+					"ON Source.EmployeeHRHierarchyID = Target.EmployeeHRHierarchyID\r\n",
 					"\r\n",
 					"-- For Updates existing rows\r\n",
 					"\r\n",
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.EndDate = date_sub(current_timestamp,1),\r\n",
+					"    Target.ValidTo = date_sub(current_timestamp,1),\r\n",
 					"    Target.IsActive = 'N'\r\n",
 					"\r\n",
 					"-- Insert completely new rows\r\n",
@@ -310,7 +288,7 @@
 					"    THEN INSERT * ;  \r\n",
 					""
 				],
-				"execution_count": 17
+				"execution_count": 5
 			},
 			{
 				"cell_type": "markdown",
@@ -325,7 +303,7 @@
 					"# Fix the IDs\n",
 					"- No auto-increment feature is available in delta tables, therefore we need to create new IDs for the inserted rows\n",
 					"- This is done by select the target data and using INSERT OVERWRITE to re-insert the data is a new Row Number\n",
-					"## Table odw_harmonised.payband_dim is updated"
+					"## Table odw_harmonised_db.employee_hr_hierarchy_dim is updated"
 				]
 			},
 			{
@@ -347,25 +325,22 @@
 				},
 				"source": [
 					"%%sql\r\n",
-					"-- Insert new PersonnelAreaID\r\n",
+					"-- Insert new employee_hr_hierarchy_dim\r\n",
 					"\r\n",
-					"INSERT OVERWRITE odw_harmonised_db.payrollarea_dim\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.hr_employee_hr_hierarchy_dim\r\n",
 					"\r\n",
 					"SELECT \r\n",
-					"    ROW_NUMBER() OVER (ORDER BY PayrollAreaID NULLS LAST) AS PayrollAreaID,\r\n",
-					"    PayrollAreaCode,\r\n",
-					"    Description, \r\n",
+					"    ROW_NUMBER() OVER (ORDER BY EmployeeID NULLS LAST) AS EmployeeHRHierarchyID,\r\n",
+					"    EmployeeID,\r\n",
+					"    ManagerEmployeeID,\r\n",
 					"    SourceSystemID,\r\n",
-					"    StartDate,\r\n",
-					"    EndDate,\r\n",
 					"    IngestionDate,\r\n",
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM odw_harmonised_db.payrollarea_dim;\r\n",
-					""
+					"FROM odw_harmonised_db.hr_employee_hr_hierarchy_dim;"
 				],
-				"execution_count": 18
+				"execution_count": 6
 			}
 		]
 	}

@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "6a8eda03-5f8f-4257-9812-7378c7c37956"
+				"spark.autotune.trackingId": "760bc245-c16d-4abb-a05d-4674c2369095"
 			}
 		},
 		"metadata": {
@@ -41,14 +41,13 @@
 				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
 				"auth": {
 					"type": "AAD",
-					"authResource": "https://dev.azuresynapse.net",
-					"authHeader": null
+					"authResource": "https://dev.azuresynapse.net"
 				},
 				"sparkVersion": "3.2",
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 28,
-				"extraHeader": null
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -115,14 +114,11 @@
 					"    T9.PositionID AS PositionID,\r\n",
 					"    T10.ManagerEmployeeID AS ManagerEmployeeID,\r\n",
 					"    TempMPID.PositionID AS ManagerPositionID,\r\n",
-					"    NULL AS CounterSignManagerEmployeeID,\r\n",
 					"    T11.LocationID AS LocationID,\r\n",
 					"    T12.WorkScheduleID AS WorkScheduleID,\r\n",
 					"    T13.EmployeeGroupID,\r\n",
 					"    T13b.PayrollAreaID,\r\n",
 					"    T14.SourceSystemID,\r\n",
-					"    current_timestamp as StartDate,\r\n",
-					"    NULL as EndDate,\r\n",
 					"    current_timestamp as IngestionDate,\r\n",
 					"    NULL as ValidTo,\r\n",
 					"    md5(concat(IFNULL(T2.EmployeeID,'.'), IFNULL(T3.PersonnelAreaID, '.'), IFNULL(T4.PersonnelSubAreaID, '.'), IFNULL(T5.OrganisationUnitID, '.'),IFNULL(T6.ContractID, '.'),\r\n",
@@ -133,28 +129,28 @@
 					"\r\n",
 					"\r\n",
 					"FROM odw_standardised_db.vw_saphr T1 -- COUNT is 997\r\n",
-					"LEFT JOIN odw_harmonised_db.employee_dim T2 ON T1.Pers_No = T2.EmployeeNumber AND T2.IsActive = 'Y'\r\n",
-					"LEFT JOIN odw_harmonised_db.personnelarea_dim T3 ON T1.PA = T3.PersonnelAreaCode AND T3.IsActive = 'Y'\r\n",
-					"LEFT JOIN odw_harmonised_db.personnelsubarea_dim T4 ON T1.PSubArea = T4.PersonnelSubAreaCode AND T4.IsActive = 'Y'\r\n",
-					"LEFT JOIN odw_harmonised_db.organisationunit_dim T5 ON T1.Org_unit = T5.OrganisationUnit and\r\n",
+					"LEFT JOIN odw_harmonised_db.hr_employee_fact T2 ON T1.Pers_No = T2.EmployeeNumber AND T2.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_harmonised_db.hr_personnel_area_dim T3 ON T1.PA = T3.PersonnelAreaCode AND T3.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_harmonised_db.hr_personnel_sub_area_dim T4 ON T1.PSubArea = T4.PersonnelSubAreaCode AND T4.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_harmonised_db.hr_organisation_unit_dim T5 ON T1.Org_unit = T5.OrganisationUnit and\r\n",
 					"                                                         T1.Organizational_Unit = T5.Description AND T5.IsActive = 'Y' --64 nulls\r\n",
-					"LEFT JOIN odw_harmonised_db.contract_dim T6 ON T1.WorkC = T6.ContractCode AND \r\n",
+					"LEFT JOIN odw_harmonised_db.hr_contract_dim T6 ON T1.WorkC = T6.ContractCode AND \r\n",
 					"                                                CASE \r\n",
 					"                                                        WHEN T1.CT IS NULL\r\n",
 					"                                                        THEN 'N/A'\r\n",
 					"                                                        ELSE T1.CT\r\n",
 					"                                                END = T6.ContractTypeCode AND T6.IsActive = 'Y'\r\n",
-					"LEFT JOIN odw_harmonised_db.payband_dim T7 ON T1.PS_group = T7.PSGroupCode AND T7.IsActive = 'Y' -- NULLS occur due to contractors\r\n",
-					"LEFT JOIN odw_harmonised_db.costcenter_dim T8 ON T1.Cost_Ctr = T8.CostCenterCode AND T8.IsActive = 'Y'\r\n",
-					"LEFT JOIN odw_harmonised_db.position_dim T9 ON T1.Position= T9.PositionCode AND T9.IsActive = 'Y'\r\n",
-					"LEFT JOIN odw_harmonised_db.position_dim TempMPID ON T1.Manager_Position = TempMPID.PositionCode AND TempMPID.IsActive = 'Y'\r\n",
-					"LEFT JOIN odw_harmonised_db.employee_hr_hierarchy_dim T10 ON T2.EmployeeID = T10.EmployeeID AND T10.IsActive = 'Y' --447 no manager\r\n",
-					"LEFT JOIN odw_harmonised_db.pins_location_dim T11 ON T1.Loc = T11.LocationCode AND T11.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_harmonised_db.hr_payband_dim T7 ON T1.PS_group = T7.PSGroupCode AND T7.IsActive = 'Y' -- NULLS occur due to contractors\r\n",
+					"LEFT JOIN odw_harmonised_db.hr_costcenter_dim T8 ON T1.Cost_Ctr = T8.CostCenterCode AND T8.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_harmonised_db.hr_position_dim T9 ON T1.Position= T9.PositionCode AND T9.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_harmonised_db.hr_position_dim TempMPID ON T1.Manager_Position = TempMPID.PositionCode AND TempMPID.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_harmonised_db.hr_employee_hr_hierarchy_dim T10 ON T2.EmployeeID = T10.EmployeeID AND T10.IsActive = 'Y' --447 no manager\r\n",
+					"LEFT JOIN odw_harmonised_db.hr_pins_location_dim T11 ON T1.Loc = T11.LocationCode AND T11.IsActive = 'Y'\r\n",
 					"LEFT JOIN (\r\n",
 					"            SELECT T1.EmployeeID, T1.WorkScheduleID\r\n",
-					"            FROM odw_harmonised_db.absence_dim T1\r\n",
+					"            FROM odw_harmonised_db.hr_absence_dim T1\r\n",
 					"            INNER JOIN ( SELECT EmployeeID, Max(AbsenceEndDate) as Max_AbsenceEndDate\r\n",
-					"                         FROM odw_harmonised_db.absence_dim\r\n",
+					"                         FROM odw_harmonised_db.hr_absence_dim\r\n",
 					"                         Where IsActive = 'Y'\r\n",
 					"                         GROUP BY EmployeeID ) T3        ON  T1.EmployeeID = T3.EmployeeID AND\r\n",
 					"                                                             T1.AbsenceEndDate = T3.Max_AbsenceEndDate\r\n",
@@ -163,9 +159,9 @@
 					"            \r\n",
 					"    ) T12 ON T2.EmployeeID = T12.EmployeeID  -- NULLS occur as no data for some employees in the absence file, -577 no workscheduleid\r\n",
 					"\r\n",
-					"LEFT JOIN odw_harmonised_db.EmployeeGroup_dim T13 ON T1.EEGrp = T13.EEGrp and T13.IsActive = 'Y'\r\n",
-					"LEFT JOIN odw_harmonised_db.payrollarea_dim T13b ON T1.PArea = T13b.PayrollAreaCode and T13b.IsActive = 'Y'\r\n",
-					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T14 ON \"SAP HR\" = T14.Description AND T14.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_harmonised_db.hr_employeegroup_dim T13 ON T1.EEGrp = T13.EEGrp and T13.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_harmonised_db.hr_payroll_area_dim T13b ON T1.PArea = T13b.PayrollAreaCode and T13b.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_harmonised_db.main_sourcesystem_fact T14 ON \"SAP HR\" = T14.Description AND T14.IsActive = 'Y'\r\n",
 					"FULL JOIN odw_harmonised_db.hr_record_fact T15 ON T2.EmployeeID = T15.EmployeeID AND T15.IsActive = 'Y'\r\n",
 					"\r\n",
 					"WHERE\r\n",
@@ -191,7 +187,7 @@
 					";\r\n",
 					""
 				],
-				"execution_count": 91
+				"execution_count": 11
 			},
 			{
 				"cell_type": "code",
@@ -281,7 +277,7 @@
 					"# -- ;\r\n",
 					""
 				],
-				"execution_count": 92
+				"execution_count": 12
 			},
 			{
 				"cell_type": "markdown",
@@ -341,14 +337,11 @@
 					"    PositionID,\r\n",
 					"    ManagerEmployeeID,\r\n",
 					"    ManagerPositionID,\r\n",
-					"    CounterSignManagerEmployeeID,\r\n",
 					"    LocationID,\r\n",
 					"    WorkScheduleID,\r\n",
 					"    EmployeeGroupID,\r\n",
 					"    PayrollAreaID,\r\n",
 					"    SourceSystemID,\r\n",
-					"    StartDate,\r\n",
-					"    EndDate,\r\n",
 					"    IngestionDate,\r\n",
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
@@ -373,14 +366,11 @@
 					"    PositionID,\r\n",
 					"    ManagerEmployeeID,\r\n",
 					"    ManagerPositionID,\r\n",
-					"    CounterSignManagerEmployeeID,\r\n",
 					"    LocationID,\r\n",
 					"    WorkScheduleID,\r\n",
 					"    EmployeeGroupID,\r\n",
 					"    PayrollAreaID,\r\n",
 					"    SourceSystemID,\r\n",
-					"    StartDate,\r\n",
-					"    EndDate,\r\n",
 					"    IngestionDate,\r\n",
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
@@ -389,7 +379,7 @@
 					"WHERE EmployeeID IN (SELECT EmployeeID FROM hr_record_fact_new WHERE HRRecordID IS NULL) AND IsActive = 'Y';\r\n",
 					""
 				],
-				"execution_count": 93
+				"execution_count": 13
 			},
 			{
 				"cell_type": "markdown",
@@ -438,7 +428,7 @@
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.EndDate = date_sub(current_timestamp,1),\r\n",
+					"    Target.ValidTo = date_sub(current_timestamp,1),\r\n",
 					"    Target.IsActive = 'N'\r\n",
 					"\r\n",
 					"-- Insert completely new rows\r\n",
@@ -446,7 +436,7 @@
 					"    THEN INSERT * ;   \r\n",
 					""
 				],
-				"execution_count": 94
+				"execution_count": 14
 			},
 			{
 				"cell_type": "markdown",
@@ -501,45 +491,18 @@
 					"    PositionID,\r\n",
 					"    ManagerEmployeeID,\r\n",
 					"    ManagerPositionID,\r\n",
-					"    CounterSignManagerEmployeeID,\r\n",
 					"    LocationID,\r\n",
 					"    WorkScheduleID,\r\n",
 					"    EmployeeGroupID,\r\n",
 					"    PayrollAreaID,\r\n",
 					"    SourceSystemID,\r\n",
-					"    StartDate,\r\n",
-					"    EndDate,\r\n",
 					"    IngestionDate,\r\n",
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.hr_record_fact;"
 				],
-				"execution_count": 95
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
-				},
-				"source": [
-					"%%sql\r\n",
-					"select count(*) from odw_harmonised_db.hr_record_fact --where IsActive = 'Y'\r\n",
-					"---where EmployeeID is NULL"
-				],
-				"execution_count": 96
+				"execution_count": 15
 			}
 		]
 	}

@@ -1,5 +1,5 @@
 {
-	"name": "employeegroup_dim",
+	"name": "hr_payroll_area_dim",
 	"properties": {
 		"folder": {
 			"name": "odw-harmonised/SAP-HR"
@@ -15,13 +15,13 @@
 			"driverCores": 4,
 			"executorMemory": "28g",
 			"executorCores": 4,
-			"numExecutors": 9,
+			"numExecutors": 2,
 			"runAsWorkspaceSystemIdentity": false,
 			"conf": {
 				"spark.dynamicAllocation.enabled": "false",
-				"spark.dynamicAllocation.minExecutors": "9",
-				"spark.dynamicAllocation.maxExecutors": "9",
-				"spark.autotune.trackingId": "fbeea392-cb84-4e4d-b1ac-e6cca3f97532"
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "58095550-0fbd-446b-b63b-e58b07374fcd"
 			}
 		},
 		"metadata": {
@@ -41,14 +41,13 @@
 				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
 				"auth": {
 					"type": "AAD",
-					"authResource": "https://dev.azuresynapse.net",
-					"authHeader": null
+					"authResource": "https://dev.azuresynapse.net"
 				},
 				"sparkVersion": "3.2",
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 28,
-				"extraHeader": null
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -73,20 +72,20 @@
 				"source": [
 					"%%sql\r\n",
 					"\r\n",
-					"CREATE OR REPLACE TEMPORARY VIEW employeegroup_grouped\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW payrollarea_grouped\r\n",
 					"\r\n",
 					"    AS\r\n",
 					"\r\n",
 					"SELECT \r\n",
 					"\r\n",
-					"    EEGrp,\r\n",
-					"    First(Employee_Group) AS EmployeeGroup    \r\n",
+					"    PArea AS PayrollAreaCode,\r\n",
+					"    First(Payroll_Area) AS Description    \r\n",
 					"    \r\n",
 					"FROM odw_standardised_db.vw_saphr\r\n",
-					"WHERE EEGrp IS NOT NULL\r\n",
-					"GROUP BY EEGrp;"
+					"WHERE PArea IS NOT NULL\r\n",
+					"GROUP BY PArea;"
 				],
-				"execution_count": 12
+				"execution_count": 1
 			},
 			{
 				"cell_type": "markdown",
@@ -99,12 +98,12 @@
 				},
 				"source": [
 					"# Check for new, updated or deleted data\n",
-					"- This script checks for new, updated or deleted data by checking the source data (sap hr) against the target (odw_harmonised_db.payband_dim)\n",
-					"- **New Data:** where a PA in the source does not exist as an PSGroupCode in the target. NewData flag is set to 'Y'\n",
-					"- **Updated data:** Comparison occurs on PA in source and PSGroupCode in target where the row hash is different i.e. there is a change in one of the columns. NewData flag is set to 'Y'\n",
-					"- **Deleted data:** where an PSGroupCode in the target exists but the same PA doesn't exist in the source. DeletedData flag is set to 'Y'\n",
+					"- This script checks for new, updated or deleted data by checking the source data (sap hr) against the target (odw_harmonised_db.payroll_area_dim)\n",
+					"- **New Data:** where a PA in the source does not exist as an PayrollAreaCode in the target. NewData flag is set to 'Y'\n",
+					"- **Updated data:** Comparison occurs on PA in source and PayrollAreaCode in target where the row hash is different i.e. there is a change in one of the columns. NewData flag is set to 'Y'\n",
+					"- **Deleted data:** where an PayrollAreaCode in the target exists but the same PA doesn't exist in the source. DeletedData flag is set to 'Y'\n",
 					"\n",
-					"## View employeegroup_dim_new is created"
+					"## View payroll_area_dim_new is created"
 				]
 			},
 			{
@@ -120,7 +119,7 @@
 					"-- Build payband_dim table\r\n",
 					"-- Gets modified or deleted from source rows\r\n",
 					"\r\n",
-					"CREATE OR REPLACE TEMPORARY VIEW employeegroup_dim_new\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW payrollarea_dim_new\r\n",
 					"\r\n",
 					"    AS\r\n",
 					"\r\n",
@@ -129,58 +128,55 @@
 					"\r\n",
 					"SELECT \r\n",
 					"    CASE\r\n",
-					"        WHEN T1.EEGrp IS NULL\r\n",
-					"        THEN T7.EmployeeGroupID\r\n",
+					"        WHEN T1.PayrollAreaCode IS NULL\r\n",
+					"        THEN T7.PayrollAreaID\r\n",
 					"        ELSE NULL\r\n",
-					"    END as EmployeeGroupID, -- surrogate key\r\n",
-					"    T1.EEGrp, -- source system id\r\n",
-					"    T1.EmployeeGroup, \r\n",
+					"    END as PayrollAreaID, -- surrogate key\r\n",
+					"    T1.PayrollAreaCode, -- source system id\r\n",
+					"    T1.Description, \r\n",
 					"    T2.SourceSystemID as SourceSystemID,\r\n",
-					"    CURRENT_TIMESTAMP AS StartDate,\r\n",
-					"    NULL AS EndDate,\r\n",
 					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
 					"    NULL AS ValidTo,\r\n",
-					"    md5(concat(IFNULL(T1.EEGrp,'.'), IFNULL(T1.EmployeeGroup,'.'))) as RowID,\r\n",
+					"    md5(concat(IFNULL(T1.PayrollAreaCode,'.'), IFNULL(T1.Description,'.'))) as RowID,\r\n",
 					"    'Y' as IsActive,\r\n",
 					"    CASE\r\n",
-					"        WHEN T1.EEGrp = T7.EEGrp AND md5(concat(IFNULL(T1.EEGrp,'.'), IFNULL(T1.EmployeeGroup,'.')))  <> T7.RowID   -- same employee, changed data\r\n",
+					"        WHEN T1.PayrollAreaCode = T7.PayrollAreaCode AND md5(concat(IFNULL(T1.PayrollAreaCode,'.'), IFNULL(T1.Description,'.')))  <> T7.RowID   -- same employee, changed data\r\n",
 					"        THEN 'Y'\r\n",
-					"        WHEN T7.EEGrp IS NULL -- new employee\r\n",
+					"        WHEN T7.PayrollAreaCode IS NULL -- new payroll area\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
 					"    END as NewData,\r\n",
 					"    CASE\r\n",
-					"        WHEN T1.EEGrp IS NULL\r\n",
+					"        WHEN T1.PayrollAreaCode IS NULL\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
 					"    END AS  DeletedData, \r\n",
 					"    T7.IsActive as HistoricIsActive\r\n",
 					"\r\n",
-					"FROM employeegroup_grouped T1\r\n",
-					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description and T2.IsActive = 'Y'\r\n",
-					"FULL JOIN odw_harmonised_db.employeegroup_dim T7 ON T1.EEGrp = T7.EEGrp AND T7.IsActive = 'Y' \r\n",
+					"FROM payrollarea_grouped T1\r\n",
+					"LEFT JOIN odw_harmonised_db.main_sourcesystem_fact T2 ON \"SAP HR\" = T2.Description and T2.IsActive = 'Y'\r\n",
+					"FULL JOIN odw_harmonised_db.hr_payroll_area_dim T7 ON T1.PayrollAreaCode = T7.PayrollAreaCode AND T7.IsActive = 'Y'\r\n",
 					"WHERE\r\n",
-					"    ( \r\n",
+					"    (  \r\n",
 					"        -- flags new data        \r\n",
 					"        (   CASE\r\n",
-					"                WHEN T1.EEGrp = T7.EEGrp AND md5(concat(IFNULL(T1.EEGrp,'.'), IFNULL(T1.EmployeeGroup,'.')))  <> T7.RowID   -- same employee, changed data\r\n",
+					"                WHEN T1.PayrollAreaCode = T7.PayrollAreaCode AND md5(concat(IFNULL(T1.PayrollAreaCode,'.'), IFNULL(T1.Description,'.')))  <> T7.RowID   -- same employee, changed data\r\n",
 					"                THEN 'Y'\r\n",
-					"                WHEN T7.EEGrp IS NULL -- new employee\r\n",
+					"                WHEN T7.PayrollAreaCode IS NULL -- new payroll area\r\n",
 					"                THEN 'Y'\r\n",
 					"                ELSE 'N'\r\n",
 					"            END  = 'Y' ) OR\r\n",
 					"        \r\n",
 					"        -- flags deleted data\r\n",
 					"        (   CASE\r\n",
-					"                WHEN T1.EEGrp IS NULL\r\n",
+					"                WHEN T1.PayrollAreaCode IS NULL\r\n",
 					"                THEN 'Y'\r\n",
 					"                ELSE 'N'\r\n",
 					"            END = 'Y' )\r\n",
 					"    )\r\n",
-					";\r\n",
-					""
+					";"
 				],
-				"execution_count": 13
+				"execution_count": 2
 			},
 			{
 				"cell_type": "markdown",
@@ -195,7 +191,7 @@
 					"# Dataset is created that contains changed data and corresponding target data\n",
 					"- This script combines data that has been updated, Deleted or is new, with corresponding target data\n",
 					"- View **payband_dim_new** is unioned to the target data filter to only those rows where changes have been detected\n",
-					"## View payband_dim_changed_rows is created"
+					"## View payroll_area_dim_changed_rows is created"
 				]
 			},
 			{
@@ -219,41 +215,37 @@
 					"%%sql\r\n",
 					"-- Creating new and updated dataset\r\n",
 					"\r\n",
-					"CREATE OR REPLACE TEMPORARY VIEW employeegroup_dim_changed_rows\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW payband_dim_changed_rows\r\n",
 					"\r\n",
 					"    AS\r\n",
 					"\r\n",
 					"SELECT \r\n",
-					"    EmployeeGroupID,\r\n",
-					"    EEGrp,\r\n",
-					"    EmployeeGroup,\r\n",
+					"    PayrollAreaID,\r\n",
+					"    PayrollAreaCode,\r\n",
+					"    Description, \r\n",
 					"    SourceSystemID,\r\n",
-					"    StartDate,\r\n",
-					"    EndDate,\r\n",
 					"    IngestionDate,\r\n",
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM employeegroup_dim_new WHERE HistoricIsActive = 'Y' or HistoricIsActive IS NULL\r\n",
+					"FROM payrollarea_dim_new WHERE HistoricIsActive = 'Y' or HistoricIsActive IS NULL\r\n",
 					"\r\n",
 					"    UNION ALL\r\n",
 					"\r\n",
 					"SELECT\r\n",
-					"    EmployeeGroupID,\r\n",
-					"    EEGrp,\r\n",
-					"    EmployeeGroup,\r\n",
+					"    PayrollAreaID,\r\n",
+					"    PayrollAreaCode,\r\n",
+					"    Description, \r\n",
 					"    SourceSystemID,\r\n",
-					"    StartDate,\r\n",
-					"    EndDate,\r\n",
 					"    IngestionDate,\r\n",
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM odw_harmonised_db.employeegroup_dim\r\n",
-					"WHERE EEGrp IN (SELECT EEGrp FROM employeegroup_dim_new WHERE EmployeeGroupID IS NULL) AND IsActive = 'Y'; \r\n",
+					"FROM odw_harmonised_db.hr_payroll_area_dim\r\n",
+					"WHERE PayrollAreaCode IN (SELECT PayrollAreaCode FROM payrollarea_dim_new WHERE PayrollAreaID IS NULL) AND IsActive = 'Y' ; \r\n",
 					""
 				],
-				"execution_count": 14
+				"execution_count": 3
 			},
 			{
 				"cell_type": "markdown",
@@ -290,19 +282,19 @@
 				},
 				"source": [
 					"%%sql\r\n",
-					"-- merge into fact table\r\n",
+					"-- merge into dim table\r\n",
 					"\r\n",
-					"MERGE INTO odw_harmonised_db.employeegroup_dim AS Target\r\n",
-					"USING employeegroup_dim_changed_rows AS Source\r\n",
+					"MERGE INTO odw_harmonised_db.hr_payroll_area_dim AS Target\r\n",
+					"USING payband_dim_changed_rows AS Source\r\n",
 					"\r\n",
-					"ON Source.EmployeeGroupID = Target.EmployeeGroupID\r\n",
+					"ON Source.PayrollAreaID = Target.PayrollAreaID\r\n",
 					"\r\n",
 					"-- For Updates existing rows\r\n",
 					"\r\n",
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.EndDate = date_sub(current_timestamp,1),\r\n",
+					"    Target.ValidTo = date_sub(current_timestamp,1),\r\n",
 					"    Target.IsActive = 'N'\r\n",
 					"\r\n",
 					"-- Insert completely new rows\r\n",
@@ -310,11 +302,15 @@
 					"    THEN INSERT * ;  \r\n",
 					""
 				],
-				"execution_count": 15
+				"execution_count": 4
 			},
 			{
-				"cell_type": "markdown",
+				"cell_type": "code",
 				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
 					"nteract": {
 						"transient": {
 							"deleting": false
@@ -325,8 +321,9 @@
 					"# Fix the IDs\n",
 					"- No auto-increment feature is available in delta tables, therefore we need to create new IDs for the inserted rows\n",
 					"- This is done by select the target data and using INSERT OVERWRITE to re-insert the data is a new Row Number\n",
-					"## Table odw_harmonised.payband_dim is updated"
-				]
+					"## Table odw_harmonised.payroll_area_dim is updated"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -349,23 +346,21 @@
 					"%%sql\r\n",
 					"-- Insert new PersonnelAreaID\r\n",
 					"\r\n",
-					"INSERT OVERWRITE odw_harmonised_db.employeegroup_dim\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.hr_payroll_area_dim\r\n",
 					"\r\n",
 					"SELECT \r\n",
-					"    ROW_NUMBER() OVER (ORDER BY EmployeeGroupID NULLS LAST) AS EmployeeGroupID,\r\n",
-					"    EEGrp,\r\n",
-					"    EmployeeGroup,\r\n",
+					"    ROW_NUMBER() OVER (ORDER BY PayrollAreaID NULLS LAST) AS PayrollAreaID,\r\n",
+					"    PayrollAreaCode,\r\n",
+					"    Description, \r\n",
 					"    SourceSystemID,\r\n",
-					"    StartDate,\r\n",
-					"    EndDate,\r\n",
 					"    IngestionDate,\r\n",
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM odw_harmonised_db.employeegroup_dim;\r\n",
+					"FROM odw_harmonised_db.hr_payroll_area_dim;\r\n",
 					""
 				],
-				"execution_count": 18
+				"execution_count": 5
 			}
 		]
 	}
