@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "21a7e7aa-9be2-4620-befb-36e76eb24b80"
+				"spark.autotune.trackingId": "e4aa7351-5153-46dc-b003-0da2b2b10925"
 			}
 		},
 		"metadata": {
@@ -41,18 +41,35 @@
 				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
 				"auth": {
 					"type": "AAD",
-					"authResource": "https://dev.azuresynapse.net",
-					"authHeader": null
+					"authResource": "https://dev.azuresynapse.net"
 				},
 				"sparkVersion": "3.2",
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 28,
-				"extraHeader": null
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%run /utils/py_logging_decorator"
+				],
+				"execution_count": null
+			},
 			{
 				"cell_type": "code",
 				"source": [
@@ -73,7 +90,10 @@
 						"transient": {
 							"deleting": false
 						}
-					}
+					},
+					"tags": [
+						"parameters"
+					]
 				},
 				"source": [
 					"jsonId =48 # 11 to 31 inclusive\r\n",
@@ -100,33 +120,27 @@
 					}
 				},
 				"source": [
-					"from datetime import datetime\r\n",
-					"dt = datetime(year=year, month=month, day=day,hour=hour,minute=minute,second=second)\r\n",
-					""
-				],
-				"execution_count": 31
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"from pyspark.sql import SparkSession\r\n",
-					"spark = SparkSession.builder.getOrCreate()\r\n",
+					"@logging_to_appins\r\n",
+					"def add_file_to_table(jsonId, year, month, day, hour, minute, second):\r\n",
+					"    try:\r\n",
+					"        from datetime import datetime\r\n",
+					"        dt = datetime(year=year, month=month, day=day,hour=hour,minute=minute,second=second)\r\n",
+					"        from pyspark.sql import SparkSession\r\n",
+					"        spark = SparkSession.builder.getOrCreate()\r\n",
 					"\r\n",
-					"config_target_container = \"abfss://odw-config@\" + spark.sparkContext.environment.get('dataLakeAccountName', 'get') + \".dfs.core.windows.net/\"\r\n",
-					"standardised_target_container = \"abfss://odw-standardised@\" + spark.sparkContext.environment.get('dataLakeAccountName', 'get') + \".dfs.core.windows.net/\""
+					"        config_target_container = \"abfss://odw-config@\" + spark.sparkContext.environment.get('dataLakeAccountName', 'get') + \".dfs.core.windows.net/\"\r\n",
+					"        standardised_target_container = \"abfss://odw-standardised@\" + spark.sparkContext.environment.get('dataLakeAccountName', 'get') + \".dfs.core.windows.net/\"\r\n",
+					"        import json\r\n",
+					"        from pyspark.sql.types import StringType,BooleanType,DateType,TimestampType,IntegerType, FloatType, StructType\r\n",
+					"        outstanding_files_table_json = spark.read.text(config_target_container + \"orchestration/scheduling_outstanding_files_table.json\", wholetext=True).first().value\r\n",
+					"        outstanding_struct_schema = StructType.fromJson(json.loads(outstanding_files_table_json))\r\n",
+					"        new_outst_file = spark.createDataFrame([[dt, jsonId]], outstanding_struct_schema)\r\n",
+					"        new_outst_file.write.format(\"delta\").mode(\"append\").save(standardised_target_container+\"config/raw_to_std_outstanding_files\")\r\n",
+					"    except Exception as e:\r\n",
+					"        raise RuntimeError(f\"For jsonID:{jsonId} for date {year}-{month}-{day}, record failed to be added to raw_to_std_outstanding_files\") from e\r\n",
+					"        "
 				],
-				"execution_count": 32
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -142,69 +156,9 @@
 					}
 				},
 				"source": [
-					"import json\r\n",
-					"from pyspark.sql.types import StringType,BooleanType,DateType,TimestampType,IntegerType, FloatType, StructType\r\n",
-					"outstanding_files_table_json = spark.read.text(config_target_container + \"orchestration/scheduling_outstanding_files_table.json\", wholetext=True).first().value\r\n",
-					"outstanding_struct_schema = StructType.fromJson(json.loads(outstanding_files_table_json))\r\n",
-					"new_outst_file = spark.createDataFrame([[dt, jsonId]], outstanding_struct_schema)\r\n",
-					"new_outst_file.write.format(\"delta\").mode(\"append\").save(standardised_target_container+\"config/raw_to_std_outstanding_files\")"
+					"add_file_to_table(jsonId, year,month,day,hour,minute,second)"
 				],
-				"execution_count": 33
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"# from pyspark.sql import SparkSession\r\n",
-					"# import logging\r\n",
-					"# spark = SparkSession.builder.getOrCreate()"
-				],
-				"execution_count": 34
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"# spark.sql(\"delete from odw_config_db.raw_to_std_outstanding_files where DefinitionID in (34)\")"
-				],
-				"execution_count": 35
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					""
-				]
+				"execution_count": null
 			}
 		]
 	}
