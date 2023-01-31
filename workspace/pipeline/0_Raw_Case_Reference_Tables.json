@@ -187,7 +187,7 @@
 						"formatSettings": {
 							"type": "DelimitedTextWriteSettings",
 							"quoteAllText": true,
-							"fileExtension": ".txt"
+							"fileExtension": ".csv"
 						}
 					},
 					"enableStaging": false,
@@ -489,6 +489,197 @@
 				}
 			},
 			{
+				"name": "Local_Planning_Authority",
+				"description": "Source to RAW pipeline to ingest local planning authority data into Raw",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "Contacts_Organisation",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [
+					{
+						"name": "Source",
+						"value": "Live.dim_local_planning_authority"
+					},
+					{
+						"name": "Destination",
+						"value": "odw-raw/Horizon/"
+					}
+				],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"queryTimeout": "02:00:00",
+						"isolationLevel": "ReadCommitted",
+						"partitionOption": "None"
+					},
+					"sink": {
+						"type": "DelimitedTextSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "DelimitedTextWriteSettings",
+							"quoteAllText": true,
+							"fileExtension": ".csv"
+						}
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"name": "dim_local_planning_authority_key",
+									"type": "Int32"
+								},
+								"sink": {
+									"name": "dim_local_planning_authority_key",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "lpa_code",
+									"type": "String"
+								},
+								"sink": {
+									"name": "lpa_code",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "lpa_name",
+									"type": "String"
+								},
+								"sink": {
+									"name": "lpa_name",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "lpa_county",
+									"type": "String"
+								},
+								"sink": {
+									"name": "lpa_county",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "lpa_country",
+									"type": "String"
+								},
+								"sink": {
+									"name": "lpa_country",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "lpa_governmental_office",
+									"type": "String"
+								},
+								"sink": {
+									"name": "lpa_governmental_office",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "lpa_latitude",
+									"type": "Single"
+								},
+								"sink": {
+									"name": "lpa_latitude",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "lpa_longitude",
+									"type": "Single"
+								},
+								"sink": {
+									"name": "lpa_longitude",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "type_short",
+									"type": "String"
+								},
+								"sink": {
+									"name": "type_short",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "type_long",
+									"type": "String"
+								},
+								"sink": {
+									"name": "type_long",
+									"type": "String"
+								}
+							}
+						]
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "dim_Local_Planning_Authority",
+						"type": "DatasetReference",
+						"parameters": {
+							"FileName": "Local_Planning_Authority"
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "Local_Planning_Authority",
+						"type": "DatasetReference",
+						"parameters": {
+							"FileName": "Local_Planning_Authority.csv"
+						}
+					}
+				]
+			},
+			{
+				"name": "Local_Planning_Authority_Fail",
+				"description": "The ingestion of data from [Live].[dim_local_planning_authority] to Raw has failed",
+				"type": "Fail",
+				"dependsOn": [
+					{
+						"activity": "Local_Planning_Authority",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"message": "The ingestion of data from [Live].[dim_local_planning_authority] to Raw has failed",
+					"errorCode": "Local_Planning_Authority_1"
+				}
+			},
+			{
 				"name": "Logging Failed Activities-2",
 				"type": "SynapseNotebook",
 				"dependsOn": [
@@ -516,6 +707,48 @@
 						"output": {
 							"value": {
 								"value": "@activity('Contacts_Organisatoin_Fail').output.message",
+								"type": "Expression"
+							},
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Logging Failed Activities-3",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Local_Planning_Authority_Fail",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_fail_activity_logging",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"output": {
+							"value": {
+								"value": "@activity('Local_Planning_Authority_Fail').output.message",
 								"type": "Expression"
 							},
 							"type": "string"
