@@ -9,9 +9,9 @@ resource "azurerm_storage_account" "sql_server_auditing" {
   name                            = replace("pins-st-${local.resource_suffix}-${random_string.unique_id.id}", "-", "")
   location                        = var.location
   resource_group_name             = var.resource_group_name
-  account_tier                    = "Standard"
+  account_tier                    = "Premium"
   account_replication_type        = "LRS"
-  account_kind                    = "StorageV2"
+  account_kind                    = "BlockBlobStorage"
   default_to_oauth_authentication = true
   enable_https_traffic_only       = true
   min_tls_version                 = "TLS1_2"
@@ -24,30 +24,6 @@ resource "azurerm_storage_account" "sql_server_auditing" {
 
     container_delete_retention_policy {
       days = 7
-    }
-  }
-
-  queue_properties {
-    logging {
-      read                  = true
-      write                 = true
-      delete                = true
-      retention_policy_days = 7
-      version               = "1.0"
-    }
-
-    minute_metrics {
-      enabled               = true
-      include_apis          = true
-      retention_policy_days = 7
-      version               = "1.0"
-    }
-
-    hour_metrics {
-      enabled               = true
-      include_apis          = true
-      retention_policy_days = 7
-      version               = "1.0"
     }
   }
 
