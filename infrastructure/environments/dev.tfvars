@@ -64,7 +64,7 @@ spark_pool_max_node_count  = 12
 spark_pool_min_node_count  = 3
 spark_pool_node_size       = "Small"
 spark_pool_timeout_minutes = 60
-spark_pool_version         = "3.2"
+spark_pool_version         = "3.3"
 
 spark_pool_preview_enabled = true
 spark_pool_preview_version = "3.3"
