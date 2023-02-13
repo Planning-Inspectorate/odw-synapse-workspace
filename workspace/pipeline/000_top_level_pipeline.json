@@ -126,6 +126,224 @@
 						}
 					]
 				}
+			},
+			{
+				"name": "Harmonised - HR",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "1_scheduling_raw_to_standardised",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(dayOfWeek(utcnow()),2)",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "sap-hr-views",
+							"type": "SynapseNotebook",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "sap-hr-views",
+									"type": "NotebookReference"
+								},
+								"snapshot": true,
+								"conf": {
+									"spark.dynamicAllocation.enabled": null,
+									"spark.dynamicAllocation.minExecutors": null,
+									"spark.dynamicAllocation.maxExecutors": null
+								},
+								"numExecutors": null
+							}
+						},
+						{
+							"name": "sap-hr-master",
+							"type": "SynapseNotebook",
+							"dependsOn": [
+								{
+									"activity": "sap-hr-views",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "sap-hr-master",
+									"type": "NotebookReference"
+								},
+								"snapshot": true,
+								"conf": {
+									"spark.dynamicAllocation.enabled": null,
+									"spark.dynamicAllocation.minExecutors": null,
+									"spark.dynamicAllocation.maxExecutors": null
+								},
+								"numExecutors": null
+							}
+						},
+						{
+							"name": "sap-hr-views failed",
+							"type": "Fail",
+							"dependsOn": [
+								{
+									"activity": "sap-hr-views",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"message": "sap-hr-views failed",
+								"errorCode": "sap-hr-views failed"
+							}
+						},
+						{
+							"name": "py_fail_activity_logging",
+							"type": "SynapseNotebook",
+							"dependsOn": [
+								{
+									"activity": "sap-hr-views failed",
+									"dependencyConditions": [
+										"Completed"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "py_fail_activity_logging",
+									"type": "NotebookReference"
+								},
+								"parameters": {
+									"output": {
+										"value": {
+											"value": "@activity('sap-hr-views failed').output.message",
+											"type": "Expression"
+										},
+										"type": "string"
+									}
+								},
+								"snapshot": true,
+								"conf": {
+									"spark.dynamicAllocation.enabled": null,
+									"spark.dynamicAllocation.minExecutors": null,
+									"spark.dynamicAllocation.maxExecutors": null
+								},
+								"numExecutors": null
+							}
+						},
+						{
+							"name": "sap-hr-master failed",
+							"type": "Fail",
+							"dependsOn": [
+								{
+									"activity": "sap-hr-master",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"message": "sap-hr-master failed",
+								"errorCode": "sap-hr-master failed"
+							}
+						},
+						{
+							"name": "py_fail_activity_logging_copy1",
+							"type": "SynapseNotebook",
+							"dependsOn": [
+								{
+									"activity": "sap-hr-master failed",
+									"dependencyConditions": [
+										"Completed"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "py_fail_activity_logging",
+									"type": "NotebookReference"
+								},
+								"parameters": {
+									"output": {
+										"value": {
+											"value": "@activity('sap-hr-master failed').output.message",
+											"type": "Expression"
+										},
+										"type": "string"
+									}
+								},
+								"snapshot": true,
+								"conf": {
+									"spark.dynamicAllocation.enabled": null,
+									"spark.dynamicAllocation.minExecutors": null,
+									"spark.dynamicAllocation.maxExecutors": null
+								},
+								"numExecutors": null
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "4_scheduling_harmonised_to_curated",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Harmonised - HR",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "4_scheduling_harmonised_to_curated",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
+				}
 			}
 		],
 		"annotations": [],
