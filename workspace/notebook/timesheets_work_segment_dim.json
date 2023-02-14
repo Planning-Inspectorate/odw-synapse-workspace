@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "789f36e5-6755-49f7-b450-69206bb4a94b"
+				"spark.autotune.trackingId": "4ea9c098-2ae1-4493-bb1d-3d85d699e735"
 			}
 		},
 		"metadata": {
@@ -41,51 +41,17 @@
 				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
 				"auth": {
 					"type": "AAD",
-					"authResource": "https://dev.azuresynapse.net",
-					"authHeader": null
+					"authResource": "https://dev.azuresynapse.net"
 				},
 				"sparkVersion": "3.2",
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 28,
-				"extraHeader": null
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
-				},
-				"source": [
-					"%%sql\r\n",
-					"\r\n",
-					"CREATE OR REPLACE TEMPORARY VIEW timesheets_work_segment_grouped\r\n",
-					"\r\n",
-					"    AS\r\n",
-					"\r\n",
-					"SELECT Religious_denomination_key as ReligionCode,\r\n",
-					"        Religion as Description\r\n",
-					"\r\n",
-					" FROM odw_standardised_db.timesheets_work_segment\r\n",
-					" where Religious_denomination_key is not null\r\n",
-					" group by Religious_denomination_key, religion"
-				],
-				"execution_count": 2
-			},
 			{
 				"cell_type": "markdown",
 				"metadata": {
@@ -97,10 +63,10 @@
 				},
 				"source": [
 					"# Check for new, updated or deleted data\n",
-					"- This script checks for new, updated or deleted data by checking the source data (timesheets) against the target (odw_harmonised_db.employee_dim)\n",
-					"- **New Data:** where a Religion in the source does not exist as an ReligionCode in the target. NewData flag is set to 'Y'\n",
-					"- **Updated data:** Comparison occurs on Religion in source and ReligionCode in targReligionet where the row hash is different i.e. there is a change in one of the columns. NewData flag is set to 'Y'\n",
-					"- **Deleted data:** where an ReligionCode in the target exists but the same Disability_Text doesn't exist in the source. DeletedData flag is set to 'Y'\n",
+					"- This script checks for new, updated or deleted data by checking the source data (timesheets) against the target (odw_harmonised_db.timesheets_work_segment)\n",
+					"- **New Data:** where a segment_id in the source does not exist as an SegmentID in the target. NewData flag is set to 'Y'\n",
+					"- **Updated data:** Comparison occurs on segment_id in source and SegmentID in target where the row hash is different i.e. there is a change in one of the columns. NewData flag is set to 'Y'\n",
+					"- **Deleted data:** where an SegmentID in the target exists but the same information doesn't exist in the source. DeletedData flag is set to 'Y'\n",
 					"\n",
 					"## View timesheets_work_segment_new is created"
 				]
@@ -118,7 +84,7 @@
 					"-- Build religion_dim table\r\n",
 					"-- Gets modified or deleted from source rows\r\n",
 					"\r\n",
-					"CREATE OR REPLACE TEMPORARY VIEW religion_dim_new\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW timesheets_work_segment_new\r\n",
 					"\r\n",
 					"    AS\r\n",
 					"\r\n",
@@ -127,57 +93,58 @@
 					"\r\n",
 					"SELECT\r\n",
 					"    CASE\r\n",
-					"        WHEN T1.ReligionCode IS NULL\r\n",
-					"        THEN T3.ReligionID\r\n",
-					"    END as ReligionID, -- surrogate key\r\n",
-					"    T1.ReligionCode,\r\n",
-					"    T1.Description,\r\n",
-					"    T2.SourceSystemID, -- NOT CORRECT\r\n",
-					"    CURRENT_TIMESTAMP AS StartDate,\r\n",
-					"    NULL AS EndDate,\r\n",
-					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
+					"        WHEN T1.segment_id IS NULL\r\n",
+					"        THEN T5.SegmentID\r\n",
+					"    END as TimesheetsWorkSegmentID, -- surrogate key\r\n",
+					"    T1.segment_id AS SegmentID,\r\n",
+					"    T4.EmployeeID AS EmployeeID,\r\n",
+					"    T1.segment_date AS SegmentDate,\r\n",
+					"    T1.start_time AS StartTime,\r\n",
+					"    T1.end_time AS EndTime,\r\n",
+					"    T1.case_reference AS CaseReference,\r\n",
+					"    T1.segment_type AS SegmentType,\r\n",
+					"    T1.worked_minutes AS WorkedMinutes,\r\n",
+					"    T1.created_at AS CreatedAt,\r\n",
+					"    T1.updated_at AS UpdatedAt,\r\n",
+					"    T1.case_display_name AS CaseDisplayName,\r\n",
+					"    T2.SourceSystemID,\r\n",
+					"    T1.segment_date AS IngestionDate,\r\n",
 					"    NULL AS ValidTo,\r\n",
-					"    md5(concat(IFNULL(T1.ReligionCode,'.'), IFNULL(T1.Description,'.'))) as RowID,\r\n",
-					"    'Y' as IsActive,\r\n",
-					"    CASE\r\n",
-					"        WHEN T1.ReligionCode = T3.ReligionCode AND md5(concat(IFNULL(T1.ReligionCode,'.'), IFNULL(T1.Description,'.'))) <> T3.RowID\r\n",
-					"        THEN 'Y'\r\n",
-					"        WHEN T3.ReligionCode IS NULL\r\n",
-					"        THEN 'Y'\r\n",
-					"        ELSE 'N'\r\n",
-					"    END as NewData,\r\n",
-					"    CASE\r\n",
-					"        WHEN T1.ReligionCode IS NULL\r\n",
-					"        THEN 'Y'\r\n",
-					"        ELSE 'N'\r\n",
-					"    END AS  DeletedData,\r\n",
-					"    T3.IsActive as HistoricIsActive\r\n",
+					"    md5(concat( IFNULL(T1.segment_id,'.'), IFNULL(T4.EmployeeID,'.'), IFNULL(T1.segment_date,'.'), IFNULL(T1.start_time,'.'), IFNULL(T1.end_time,'.'), \r\n",
+					"                IFNULL(T1.case_reference,'.'), IFNULL(T1.segment_type,'.'), IFNULL(T1.worked_minutes,'.'), IFNULL(T1.created_at,'.'), \r\n",
+					"                IFNULL(T1.updated_at,'.'), IFNULL(T1.case_display_name,'.'))) as RowID,\r\n",
+					"    'Y' as IsActive, \r\n",
+					"    T5.IsActive as HistoricIsActive\r\n",
 					"\r\n",
-					"FROM religion_grouped T1\r\n",
-					"LEFT JOIN odw_harmonised_db.sourcesystem_fact T2 ON \"SAP HR\" = T2.Description AND T2.IsActive = 'Y'\r\n",
-					"FULL JOIN odw_harmonised_db.religion_dim T3 ON T1.ReligionCode = T3.ReligionCode and T3.IsActive = 'Y'\r\n",
-					"WHERE  \r\n",
+					"FROM odw_standardised_db.timesheets_work_segment T1\r\n",
+					"LEFT JOIN odw_harmonised_db.main_sourcesystem_fact T2 ON \"Timesheets\" = T2.Description and T2.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_standardised_db.timesheets_employee T3 ON T1.employee_id = T3.employee_id\r\n",
+					"LEFT JOIN odw_harmonised_db.hr_employee_fact T4 ON T3.staff_number = T4.EmployeeNumber AND T4.IsActive = 'Y'\r\n",
+					"FULL JOIN odw_harmonised_db.timesheets_work_segment_dim T5 ON T1.segment_id = T5.SegmentID AND T5.IsActive = 'Y'\r\n",
+					"\r\n",
+					"WHERE\r\n",
 					"    (\r\n",
-					"        \r\n",
 					"        -- flags new data        \r\n",
-					"        (   CASE\r\n",
-					"                WHEN T1.ReligionCode = T3.ReligionCode AND md5(concat(IFNULL(T1.ReligionCode,'.'), IFNULL(T1.Description,'.'))) <> T3.RowID\r\n",
-					"                THEN 'Y'\r\n",
-					"                WHEN T3.ReligionCode IS NULL\r\n",
-					"                THEN 'Y'\r\n",
-					"                ELSE 'N'\r\n",
-					"            END  = 'Y' ) OR\r\n",
+					"        ( CASE\r\n",
+					"            WHEN T1.segment_id = T5.SegmentID AND md5(concat(IFNULL(T1.segment_id,'.'), IFNULL(T4.EmployeeID,'.'), IFNULL(T1.segment_date,'.'), IFNULL(T1.start_time,'.'), \r\n",
+					"                    IFNULL(T1.end_time,'.'), IFNULL(T1.case_reference,'.'), IFNULL(T1.segment_type,'.'), IFNULL(T1.worked_minutes,'.'), IFNULL(T1.created_at,'.'), \r\n",
+					"                    IFNULL(T1.updated_at,'.'), IFNULL(T1.case_display_name,'.')))  <> T5.RowID     \r\n",
+					"            THEN 'Y'\r\n",
+					"            WHEN T5.TimesheetsWorkSegmentID IS NULL\r\n",
+					"            THEN 'Y'\r\n",
+					"            ELSE 'N'\r\n",
+					"        END  = 'Y' ) OR\r\n",
 					"        \r\n",
 					"        -- flags deleted data\r\n",
-					"        (   CASE\r\n",
-					"                WHEN T1.ReligionCode IS NULL\r\n",
-					"                THEN 'Y'\r\n",
-					"                ELSE 'N'\r\n",
-					"            END = 'Y' )\r\n",
+					"        ( CASE\r\n",
+					"            WHEN T1.segment_id IS NULL\r\n",
+					"            THEN 'Y'\r\n",
+					"            ELSE 'N'\r\n",
+					"        END = 'Y' )\r\n",
 					"    )\r\n",
 					";"
 				],
-				"execution_count": 3
+				"execution_count": 28
 			},
 			{
 				"cell_type": "markdown",
@@ -209,30 +176,30 @@
 					}
 				},
 				"source": [
-					"from pyspark.sql import SparkSession\r\n",
-					"spark = SparkSession.builder.getOrCreate()\r\n",
+					"# from pyspark.sql import SparkSession\r\n",
+					"# spark = SparkSession.builder.getOrCreate()\r\n",
 					"\r\n",
-					"Source_Number = spark.sql(\"SELECT COUNT(*) AS Source_Number FROM religion_grouped\")\r\n",
-					"Current_Number = spark.sql(\"SELECT COUNT (DISTINCT RowID) AS Current_Number FROM odw_harmonised_db.religion_dim where IsActive = 'Y' \")\r\n",
-					"New_Data_Number = spark.sql(\"SELECT COUNT (DISTINCT RowID) AS New_Data_Number FROM religion_dim_new WHERE NewData = 'Y'\")\r\n",
-					"Deleted_Data_Number = spark.sql(\"SELECT COUNT (DISTINCT RowID) AS Deleted_Data_Number FROM religion_dim_new WHERE DeletedData = 'Y'\")\r\n",
+					"# Source_Number = spark.sql(\"SELECT COUNT(*) AS Source_Number FROM religion_grouped\")\r\n",
+					"# Current_Number = spark.sql(\"SELECT COUNT (DISTINCT RowID) AS Current_Number FROM odw_harmonised_db.religion_dim where IsActive = 'Y' \")\r\n",
+					"# New_Data_Number = spark.sql(\"SELECT COUNT (DISTINCT RowID) AS New_Data_Number FROM religion_dim_new WHERE NewData = 'Y'\")\r\n",
+					"# Deleted_Data_Number = spark.sql(\"SELECT COUNT (DISTINCT RowID) AS Deleted_Data_Number FROM religion_dim_new WHERE DeletedData = 'Y'\")\r\n",
 					"\r\n",
-					"Source_Number_Pandas = Source_Number.toPandas()\r\n",
-					"Current_Number_Pandas =  Current_Number.toPandas()\r\n",
-					"New_Data_Number_Pandas = New_Data_Number.toPandas()\r\n",
-					"Deleted_Data_Number_Pandas = Deleted_Data_Number.toPandas()\r\n",
+					"# Source_Number_Pandas = Source_Number.toPandas()\r\n",
+					"# Current_Number_Pandas =  Current_Number.toPandas()\r\n",
+					"# New_Data_Number_Pandas = New_Data_Number.toPandas()\r\n",
+					"# Deleted_Data_Number_Pandas = Deleted_Data_Number.toPandas()\r\n",
 					"\r\n",
-					"# checking if new total number of registers matches the previously loaded, plus New ones, minus Deleted ones\r\n",
-					"print(\"SET 1:\")\r\n",
-					"Total_Number = Source_Number_Pandas['Source_Number'].tolist() \r\n",
-					"Current_Loaded_Number = Current_Number_Pandas['Current_Number'].tolist() \r\n",
-					"New_Data_Number = New_Data_Number_Pandas['New_Data_Number'].tolist() \r\n",
-					"Deleted_Data_Number = Deleted_Data_Number_Pandas['Deleted_Data_Number'].tolist() \r\n",
+					"# # checking if new total number of registers matches the previously loaded, plus New ones, minus Deleted ones\r\n",
+					"# print(\"SET 1:\")\r\n",
+					"# Total_Number = Source_Number_Pandas['Source_Number'].tolist() \r\n",
+					"# Current_Loaded_Number = Current_Number_Pandas['Current_Number'].tolist() \r\n",
+					"# New_Data_Number = New_Data_Number_Pandas['New_Data_Number'].tolist() \r\n",
+					"# Deleted_Data_Number = Deleted_Data_Number_Pandas['Deleted_Data_Number'].tolist() \r\n",
 					"\r\n",
-					"print(Total_Number) \r\n",
-					"print(Current_Loaded_Number) \r\n",
-					"print(New_Data_Number) \r\n",
-					"print(Deleted_Data_Number)\r\n",
+					"# print(Total_Number) \r\n",
+					"# print(Current_Loaded_Number) \r\n",
+					"# print(New_Data_Number) \r\n",
+					"# print(Deleted_Data_Number)\r\n",
 					"\r\n",
 					"# if Total_Number[0] != (Current_Loaded_Number[0] + New_Data_Number[0] - Deleted_Data_Number[0]):\r\n",
 					"#     raise RuntimeError(\"Loading Number do not match\")\r\n",
@@ -249,7 +216,7 @@
 					"# else:\r\n",
 					"#     print(\"Unused codes under tolerance levels\")"
 				],
-				"execution_count": 1
+				"execution_count": 29
 			},
 			{
 				"cell_type": "markdown",
@@ -280,27 +247,27 @@
 					}
 				},
 				"source": [
-					"from pyspark.sql import SparkSession\r\n",
-					"spark = SparkSession.builder.getOrCreate()\r\n",
+					"# from pyspark.sql import SparkSession\r\n",
+					"# spark = SparkSession.builder.getOrCreate()\r\n",
 					"\r\n",
-					"Current_Records = spark.sql(\"SELECT DISTINCT RowID AS Current_Records FROM odw_harmonised_db.religion_dim where IsActive = 'Y' \")\r\n",
-					"New_Data_Records = spark.sql(\"SELECT DISTINCT RowID AS New_Data_Records FROM religion_dim_new WHERE NewData = 'Y'\")\r\n",
-					"Deleted_Data_Records = spark.sql(\"SELECT DISTINCT RowID AS Deleted_Data_Records FROM religion_dim_new WHERE DeletedData = 'Y'\")\r\n",
+					"# Current_Records = spark.sql(\"SELECT DISTINCT RowID AS Current_Records FROM odw_harmonised_db.religion_dim where IsActive = 'Y' \")\r\n",
+					"# New_Data_Records = spark.sql(\"SELECT DISTINCT RowID AS New_Data_Records FROM religion_dim_new WHERE NewData = 'Y'\")\r\n",
+					"# Deleted_Data_Records = spark.sql(\"SELECT DISTINCT RowID AS Deleted_Data_Records FROM religion_dim_new WHERE DeletedData = 'Y'\")\r\n",
 					"\r\n",
-					"Current_Records_Pandas =  Current_Records.toPandas()\r\n",
-					"New_Data_Records_Pandas = New_Data_Records.toPandas()\r\n",
-					"Deleted_Data_Records_Pandas = Deleted_Data_Records.toPandas()\r\n",
+					"# Current_Records_Pandas =  Current_Records.toPandas()\r\n",
+					"# New_Data_Records_Pandas = New_Data_Records.toPandas()\r\n",
+					"# Deleted_Data_Records_Pandas = Deleted_Data_Records.toPandas()\r\n",
 					"\r\n",
-					"# checking if a deleted records are correcly flagged, not existing in the new data, but existing inpreviously loaded\r\n",
-					"print(\"TEST 2:\")\r\n",
+					"# # checking if a deleted records are correcly flagged, not existing in the new data, but existing inpreviously loaded\r\n",
+					"# print(\"TEST 2:\")\r\n",
 					"\r\n",
-					"Current_Records = Current_Records_Pandas['Current_Records'].tolist() \r\n",
-					"Deleted_Records = Deleted_Data_Records_Pandas['Deleted_Data_Records'].tolist()\r\n",
-					"New_Records = New_Data_Records_Pandas['New_Data_Records'].tolist()\r\n",
+					"# Current_Records = Current_Records_Pandas['Current_Records'].tolist() \r\n",
+					"# Deleted_Records = Deleted_Data_Records_Pandas['Deleted_Data_Records'].tolist()\r\n",
+					"# New_Records = New_Data_Records_Pandas['New_Data_Records'].tolist()\r\n",
 					"\r\n",
-					"print(Current_Records)\r\n",
-					"print(Deleted_Records)\r\n",
-					"print(New_Records)\r\n",
+					"# print(Current_Records)\r\n",
+					"# print(Deleted_Records)\r\n",
+					"# print(New_Records)\r\n",
 					"\r\n",
 					"# for i in Deleted_Records:\r\n",
 					"#     if i in Current_Records: \r\n",
@@ -314,7 +281,7 @@
 					"#     else:\r\n",
 					"#         raise RuntimeError(\"Records to Add do not match\")"
 				],
-				"execution_count": 5
+				"execution_count": 30
 			},
 			{
 				"cell_type": "markdown",
@@ -328,8 +295,8 @@
 				"source": [
 					"# Dataset is created that contains changed data and corresponding target data\n",
 					"- This script combines data that has been updated, Deleted or is new, with corresponding target data\n",
-					"- View **religion_dim_new** is unioned to the target data filter to only those rows where changes have been detected\n",
-					"## View religion_dim_changed_rows is created"
+					"- View **table_new** is unioned to the target data filter to only those rows where changes have been detected\n",
+					"## View table_changed_rows is created"
 				]
 			},
 			{
@@ -346,51 +313,67 @@
 					},
 					"microsoft": {
 						"language": "sparksql"
-					}
+					},
+					"collapsed": false
 				},
 				"source": [
 					"%%sql\r\n",
 					"-- Create new and updated dataset\r\n",
 					"\r\n",
-					"CREATE OR REPLACE TEMPORARY VIEW religion_dim_changed_rows\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW timesheets_work_segment_changed_rows\r\n",
 					"\r\n",
 					"    AS\r\n",
 					"\r\n",
 					"-- gets updated, deleted and new rows \r\n",
 					"\r\n",
 					"Select \r\n",
-					"    ReligionID,\r\n",
-					"    ReligionCode,\r\n",
-					"    Description, \r\n",
+					"    TimesheetsWorkSegmentID,\r\n",
+					"    SegmentID,\r\n",
+					"    EmployeeID,\r\n",
+					"    SegmentDate,\r\n",
+					"    StartTime,\r\n",
+					"    EndTime,\r\n",
+					"    CaseReference,\r\n",
+					"    SegmentType,\r\n",
+					"    WorkedMinutes,\r\n",
+					"    CreatedAt,\r\n",
+					"    UpdatedAt,\r\n",
+					"    CaseDisplayName,\r\n",
 					"    SourceSystemID,\r\n",
-					"    StartDate,\r\n",
-					"    EndDate,\r\n",
 					"    IngestionDate,\r\n",
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"From religion_dim_new WHERE HistoricIsActive = 'Y' or HistoricIsActive IS NULL\r\n",
+					"From timesheets_work_segment_new WHERE HistoricIsActive = 'Y' or HistoricIsActive IS NULL\r\n",
 					"\r\n",
 					"    UNION ALL\r\n",
 					"\r\n",
 					"-- gets original versions of updated rows so we can update EndDate and set IsActive flag to 'N'\r\n",
 					"\r\n",
 					"SELECT\r\n",
-					"    ReligionID,\r\n",
-					"    ReligionCode,\r\n",
-					"    Description,\r\n",
+					"    TimesheetsWorkSegmentID,\r\n",
+					"    SegmentID,\r\n",
+					"    EmployeeID,\r\n",
+					"    SegmentDate,\r\n",
+					"    StartTime,\r\n",
+					"    EndTime,\r\n",
+					"    CaseReference,\r\n",
+					"    SegmentType,\r\n",
+					"    WorkedMinutes,\r\n",
+					"    CreatedAt,\r\n",
+					"    UpdatedAt,\r\n",
+					"    CaseDisplayName,\r\n",
 					"    SourceSystemID,\r\n",
-					"    StartDate,\r\n",
-					"    EndDate,\r\n",
 					"    IngestionDate,\r\n",
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM odw_harmonised_db.religion_dim\r\n",
-					"WHERE ReligionCode IN (SELECT ReligionCode FROM religion_dim_new WHERE ReligionID IS NULL)\r\n",
+					"FROM odw_harmonised_db.timesheets_work_segment_dim\r\n",
+					"WHERE SegmentID IN (SELECT SegmentID FROM timesheets_work_segment_new WHERE EmployeeID IS NULL)\r\n",
 					"AND IsActive = 'Y'; \r\n",
 					""
-				]
+				],
+				"execution_count": 31
 			},
 			{
 				"cell_type": "markdown",
@@ -403,9 +386,9 @@
 				},
 				"source": [
 					"# View religion_dim_changed_rows is used in a merge (Upsert) statement into the target table\n",
-					"- **WHEN MATCHED** ON the Business Key (i.e. Religion from Personal Characteristics), EndDate is set to today -1 day and the IsActive flag is set to 'N'\n",
+					"- **WHEN MATCHED** ON the Business Key, ValidTo is set to today -1 day and the IsActive flag is set to 'N'\n",
 					"- **WHEN NOT MATCHED** ON the business key, insert rows\n",
-					"## Table odw_harmonised.religion_dim is updated"
+					"## Table odw_harmonised.XXX_dim is updated"
 				]
 			},
 			{
@@ -422,31 +405,33 @@
 					},
 					"microsoft": {
 						"language": "sparksql"
-					}
+					},
+					"collapsed": false
 				},
 				"source": [
 					"%%sql\r\n",
 					"\r\n",
-					"-- merge into fact table\r\n",
+					"-- merge into table\r\n",
 					"\r\n",
-					"MERGE INTO odw_harmonised_db.religion_dim AS Target\r\n",
-					"USING religion_dim_changed_rows AS Source\r\n",
+					"MERGE INTO odw_harmonised_db.timesheets_work_segment_dim AS Target\r\n",
+					"USING timesheets_work_segment_changed_rows AS Source\r\n",
 					"\r\n",
-					"ON Source.ReligionID = Target.ReligionID\r\n",
+					"ON Source.TimesheetsWorkSegmentID = Target.TimesheetsWorkSegmentID\r\n",
 					"\r\n",
-					"-- For Updates existing rows\r\n",
+					"-- updates existing rows\r\n",
 					"\r\n",
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.EndDate = date_sub(current_timestamp,1),\r\n",
+					"    Target.ValidTo = date_sub(current_timestamp,1),\r\n",
 					"    Target.IsActive = 'N'\r\n",
 					"\r\n",
 					"-- Insert completely new rows\r\n",
 					"WHEN NOT MATCHED \r\n",
 					"    THEN INSERT * ;   \r\n",
 					""
-				]
+				],
+				"execution_count": 32
 			},
 			{
 				"cell_type": "markdown",
@@ -478,29 +463,38 @@
 					},
 					"microsoft": {
 						"language": "sparksql"
-					}
+					},
+					"collapsed": false
 				},
 				"source": [
 					"%%sql\r\n",
-					"-- Insert new ReligionID\r\n",
+					"-- Insert new ID\r\n",
 					"\r\n",
-					"INSERT OVERWRITE odw_harmonised_db.religion_dim\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.timesheets_work_segment_dim\r\n",
 					"\r\n",
 					"SELECT \r\n",
-					"    ROW_NUMBER() OVER (ORDER BY ReligionID NULLS LAST) AS ReligionID, \r\n",
-					"    ReligionCode,\r\n",
-					"    Description, \r\n",
+					"    ROW_NUMBER() OVER (ORDER BY SegmentID NULLS LAST) AS TimesheetsWorkSegmentID,\r\n",
+					"    SegmentID,\r\n",
+					"    EmployeeID,\r\n",
+					"    SegmentDate,\r\n",
+					"    StartTime,\r\n",
+					"    EndTime,\r\n",
+					"    CaseReference,\r\n",
+					"    SegmentType,\r\n",
+					"    WorkedMinutes,\r\n",
+					"    CreatedAt,\r\n",
+					"    UpdatedAt,\r\n",
+					"    CaseDisplayName, \r\n",
 					"    SourceSystemID,\r\n",
-					"    StartDate,\r\n",
-					"    EndDate,\r\n",
 					"    IngestionDate,\r\n",
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM odw_harmonised_db.religion_dim;\r\n",
+					"FROM odw_harmonised_db.timesheets_work_segment_dim;\r\n",
 					"\r\n",
-					"Select * FROM odw_harmonised_db.religion_dim;"
-				]
+					"Select * FROM odw_harmonised_db.timesheets_work_segment_dim;"
+				],
+				"execution_count": 33
 			}
 		]
 	}

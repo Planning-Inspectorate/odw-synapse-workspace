@@ -1,0 +1,401 @@
+{
+	"name": "timesheets_minutes_dim",
+	"properties": {
+		"folder": {
+			"name": "odw-harmonised/Timesheets"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"runAsWorkspaceSystemIdentity": false,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "ce6f7e5b-2bf9-4a04-b9c1-d87165f39cce"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.2",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Check for new, updated or deleted data\n",
+					"- This script checks for new, updated or deleted data by checking the source data (timesheets) against the target (odw_harmonised_db.timesheets_minutes)\n",
+					"- **New Data:** where a segment_id in the source does not exist as an SegmentID in the target. NewData flag is set to 'Y'\n",
+					"- **Updated data:** Comparison occurs on segment_id in source and SegmentID in target where the row hash is different i.e. there is a change in one of the columns. NewData flag is set to 'Y'\n",
+					"- **Deleted data:** where an SegmentID in the target exists but the same information doesn't exist in the source. DeletedData flag is set to 'Y'\n",
+					"\n",
+					"## View timesheets_minutes_new is created"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"-- Build religion_dim table\r\n",
+					"-- Gets modified or deleted from source rows\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW timesheets_minutes_new\r\n",
+					"\r\n",
+					"    AS\r\n",
+					"\r\n",
+					"-- gets data that matches of SourceID and flags that it is modified based on a row (md5) hash. Flags as \"NewData\"\r\n",
+					"-- gets data that is in the target but not in source. Flags as \"DeletedData\"\r\n",
+					"\r\n",
+					"SELECT\r\n",
+					"    CASE\r\n",
+					"        WHEN T1.staff_number IS NULL\r\n",
+					"        THEN T5.StaffNumber\r\n",
+					"    END as TimesheetsMinutesID, -- surrogate key\r\n",
+					"    T1.staff_number AS StaffNumber,\r\n",
+					"    T4.EmployeeID AS EmployeeID,\r\n",
+					"    T1.business_area AS BusinessArea,\r\n",
+					"    T1.core_minutes AS CoreMinutes,\r\n",
+					"    T1.balance_minutes AS BalanceMinutes,\r\n",
+					"    T2.SourceSystemID,\r\n",
+					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
+					"    NULL AS ValidTo,\r\n",
+					"    md5(concat(IFNULL(T1.staff_number,'.'), IFNULL(T1.business_area,'.'), IFNULL(T1.core_minutes,'.'), IFNULL(T1.balance_minutes,'.'))) as RowID,\r\n",
+					"    'Y' as IsActive,\r\n",
+					"    T5.IsActive as HistoricIsActive\r\n",
+					"\r\n",
+					"FROM odw_standardised_db.timesheets_employee T1\r\n",
+					"LEFT JOIN odw_harmonised_db.main_sourcesystem_fact T2 ON \"Timesheets\" = T2.Description AND T2.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_harmonised_db.hr_employee_fact T4 ON T1.staff_number = T4.EmployeeNumber AND T4.IsActive = 'Y'\r\n",
+					"FULL JOIN odw_harmonised_db.timesheets_minutes_dim T5 ON T1.staff_number = T5.StaffNumber AND T5.IsActive = 'Y' \r\n",
+					"WHERE\r\n",
+					"    (\r\n",
+					"        -- flags new data        \r\n",
+					"        ( CASE\r\n",
+					"            WHEN T1.staff_number = T5.StaffNumber AND md5(concat(IFNULL(T1.staff_number,'.'), IFNULL(T1.business_area,'.'), \r\n",
+					"                IFNULL(T1.core_minutes,'.'), IFNULL(T1.balance_minutes,'.'))) <> T5.RowID\r\n",
+					"            THEN 'Y'\r\n",
+					"            WHEN T5.StaffNumber IS NULL\r\n",
+					"            THEN 'Y'\r\n",
+					"            ELSE 'N'\r\n",
+					"        END  = 'Y' ) OR\r\n",
+					"        \r\n",
+					"        -- flags deleted data\r\n",
+					"        ( CASE\r\n",
+					"            WHEN T1.staff_number IS NULL\r\n",
+					"            THEN 'Y'\r\n",
+					"            ELSE 'N'\r\n",
+					"        END = 'Y' )\r\n",
+					"    )\r\n",
+					";"
+				],
+				"execution_count": 81
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Run tests to check integrity of data by numbers\n",
+					"- This script checks for the total number of current codes in the harmonised table, and compare against the numbers for new data to be added and data to be set as inactive.\n",
+					"- **Changes tracking:** where it checks the data against active records in harmonised and compares with records to add and records to be set as inactive.\n",
+					"- **Changes tolerance levels:** if the total ammount to be added and deleted surpasses the tolerance limit, it will interrupt the proces of loading the data"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Run tests to check integrity of data by comparision of codes\n",
+					"- This script checks for the total list of current codes in the harmonised table, and compare against the list for new data to be added and data to be set as inactive.\n",
+					"- **Changes tracking:** where it checks the data against active records in harmonised and compares with records to add and records to be set as inactive."
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Dataset is created that contains changed data and corresponding target data\n",
+					"- This script combines data that has been updated, Deleted or is new, with corresponding target data\n",
+					"- View **table_new** is unioned to the target data filter to only those rows where changes have been detected\n",
+					"## View table_changed_rows is created"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"-- Create new and updated dataset\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW timesheets_minutes_changed_rows\r\n",
+					"\r\n",
+					"    AS\r\n",
+					"\r\n",
+					"-- gets updated, deleted and new rows \r\n",
+					"\r\n",
+					"Select \r\n",
+					"    TimesheetsMinutesID,\r\n",
+					"    StaffNumber,\r\n",
+					"    EmployeeID,\r\n",
+					"    BusinessArea,\r\n",
+					"    CoreMinutes,\r\n",
+					"    BalanceMinutes,\r\n",
+					"    SourceSystemID,\r\n",
+					"    IngestionDate,\r\n",
+					"    ValidTo,\r\n",
+					"    RowID,\r\n",
+					"    IsActive\r\n",
+					"From timesheets_minutes_new WHERE HistoricIsActive = 'Y' or HistoricIsActive IS NULL\r\n",
+					"\r\n",
+					"    UNION ALL\r\n",
+					"\r\n",
+					"-- gets original versions of updated rows so we can update EndDate and set IsActive flag to 'N'\r\n",
+					"\r\n",
+					"SELECT\r\n",
+					"    TimesheetsMinutesID,\r\n",
+					"    StaffNumber,\r\n",
+					"    EmployeeID,\r\n",
+					"    BusinessArea,\r\n",
+					"    CoreMinutes,\r\n",
+					"    BalanceMinutes,\r\n",
+					"    SourceSystemID,\r\n",
+					"    IngestionDate,\r\n",
+					"    ValidTo,\r\n",
+					"    RowID,\r\n",
+					"    IsActive\r\n",
+					"FROM odw_harmonised_db.timesheets_minutes_dim\r\n",
+					"WHERE TimesheetsMinutesID IN (SELECT TimesheetsMinutesID FROM timesheets_minutes_new WHERE EmployeeID IS NULL)\r\n",
+					"AND IsActive = 'Y'; \r\n",
+					""
+				],
+				"execution_count": 82
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# View TABLE_dim_changed_rows is used in a merge (Upsert) statement into the target table\n",
+					"- **WHEN MATCHED** ON the Business Key, ValidTo is set to today -1 day and the IsActive flag is set to 'N'\n",
+					"- **WHEN NOT MATCHED** ON the business key, insert rows\n",
+					"## Table odw_harmonised.XXX_dim is updated"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"-- merge into fact table\r\n",
+					"\r\n",
+					"MERGE INTO odw_harmonised_db.timesheets_minutes_dim AS Target\r\n",
+					"USING timesheets_minutes_changed_rows AS Source\r\n",
+					"\r\n",
+					"ON Source.TimesheetsMinutesID = Target.TimesheetsMinutesID\r\n",
+					"\r\n",
+					"-- For Updates existing rows\r\n",
+					"\r\n",
+					"WHEN MATCHED\r\n",
+					"    THEN \r\n",
+					"    UPDATE SET\r\n",
+					"    Target.ValidTo = date_sub(current_timestamp,1),\r\n",
+					"    Target.IsActive = 'N'\r\n",
+					"\r\n",
+					"-- Insert completely new rows\r\n",
+					"WHEN NOT MATCHED \r\n",
+					"    THEN INSERT *\r\n",
+					""
+				],
+				"execution_count": 83
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Fix the IDs\n",
+					"- No auto-increment feature is available in delta tables, therefore we need to create new IDs for the inserted rows\n",
+					"- This is done by select the target data and using INSERT OVERWRITE to re-insert the data is a new Row Number\n",
+					"## Table odw_harmonised.TABLE_dim is updated"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"-- Insert new ID\r\n",
+					"\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.timesheets_minutes_dim\r\n",
+					"\r\n",
+					"SELECT \r\n",
+					"    ROW_NUMBER() OVER (ORDER BY StaffNumber NULLS LAST) AS TimesheetsMinutesID,\r\n",
+					"    StaffNumber,\r\n",
+					"    EmployeeID,\r\n",
+					"    BusinessArea,\r\n",
+					"    CoreMinutes,\r\n",
+					"    BalanceMinutes,\r\n",
+					"    SourceSystemID,\r\n",
+					"    IngestionDate,\r\n",
+					"    ValidTo,\r\n",
+					"    RowID,\r\n",
+					"    IsActive\r\n",
+					"FROM odw_harmonised_db.timesheets_minutes_dim;\r\n",
+					"\r\n",
+					"Select * FROM odw_harmonised_db.timesheets_minutes_dim;"
+				],
+				"execution_count": 84
+			}
+		]
+	}
+}
