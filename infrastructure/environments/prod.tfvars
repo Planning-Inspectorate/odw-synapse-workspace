@@ -66,7 +66,7 @@ spark_pool_node_size       = "Small"
 spark_pool_timeout_minutes = 15
 spark_pool_version         = "3.3"
 
-spark_pool_preview_enabled = false
+spark_pool_preview_enabled = true
 spark_pool_preview_version = "3.3"
 
 sql_pool_collation = "SQL_Latin1_General_CP1_CI_AS"
