@@ -1,11 +1,12 @@
 resource "azurerm_synapse_spark_pool" "synapse" {
   count = var.spark_pool_enabled ? 1 : 0
 
-  name                 = "pinssynspodw"
-  synapse_workspace_id = azurerm_synapse_workspace.synapse.id
-  node_size_family     = "MemoryOptimized"
-  node_size            = var.spark_pool_node_size
-  spark_version        = var.spark_pool_version
+  name                           = "pinssynspodw"
+  synapse_workspace_id           = azurerm_synapse_workspace.synapse.id
+  node_size_family               = "MemoryOptimized"
+  node_size                      = var.spark_pool_node_size
+  spark_version                  = var.spark_pool_version
+  session_level_packages_enabled = "true"
 
   auto_pause {
     delay_in_minutes = var.spark_pool_timeout_minutes
@@ -39,11 +40,12 @@ resource "azurerm_synapse_spark_pool" "synapse" {
 resource "azurerm_synapse_spark_pool" "synapse_preview" {
   count = var.spark_pool_preview_enabled ? 1 : 0
 
-  name                 = "pinssynspodwpr"
-  synapse_workspace_id = azurerm_synapse_workspace.synapse.id
-  node_size_family     = "MemoryOptimized"
-  node_size            = var.spark_pool_node_size
-  spark_version        = var.spark_pool_preview_version
+  name                           = "pinssynspodwpr"
+  synapse_workspace_id           = azurerm_synapse_workspace.synapse.id
+  node_size_family               = "MemoryOptimized"
+  node_size                      = var.spark_pool_node_size
+  spark_version                  = var.spark_pool_preview_version
+  session_level_packages_enabled = "true"
 
   auto_pause {
     delay_in_minutes = var.spark_pool_timeout_minutes
