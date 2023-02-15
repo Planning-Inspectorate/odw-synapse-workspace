@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "602aa0e3-08e6-4850-a8bb-6ff42446c5a7"
+				"spark.autotune.trackingId": "a8fe84c8-7408-4d42-874f-66b44078e1f1"
 			}
 		},
 		"metadata": {
@@ -81,7 +81,7 @@
 				},
 				"source": [
 					"%%sql\r\n",
-					"-- Build religion_dim table\r\n",
+					"-- Build TimeSheetsFact table\r\n",
 					"-- Gets modified or deleted from source rows\r\n",
 					"\r\n",
 					"CREATE OR REPLACE TEMPORARY VIEW timesheets_record_new\r\n",
@@ -94,37 +94,40 @@
 					"SELECT\r\n",
 					"    CASE\r\n",
 					"        WHEN T1.segment_id IS NULL\r\n",
-					"        THEN T5.SegmentID\r\n",
+					"        THEN T9.SegmentID\r\n",
 					"    END as TimeSheetsFactID, -- surrogate key\r\n",
+					"    T1.segment_id AS SegmentID,\r\n",
 					"    T4.EmployeeID,\r\n",
-					"    T5.SegmentTypeReferenceID,\r\n",
-					"    T6.TimesheetsWorkSegmentID,\r\n",
-					"    T7.TimesheetsWorkSegmentLockID,\r\n",
+					"    T6.SegmentTypeReferenceID,\r\n",
+					"    T7.TimesheetsWorkSegmentID,\r\n",
+					"    T8.TimesheetsWorkSegmentLockID,\r\n",
+					"    T5.TimesheetsMinutesID,\r\n",
 					"    T2.SourceSystemID,\r\n",
-					"    T1.segment_date AS IngestionDate,\r\n",
+					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
 					"    NULL AS ValidTo,\r\n",
-					"    md5(concat(IFNULL(T4.EmployeeID,'.'), IFNULL(T5.SegmentTypeReferenceID,'.'), IFNULL(T6.TimesheetsWorkSegmentID,'.'), \r\n",
-					"    IFNULL(T7.TimesheetsWorkSegmentLockID,'.'))) as RowID,\r\n",
+					"    md5(concat(IFNULL(T1.segment_id,'.'),IFNULL(T4.EmployeeID,'.'), IFNULL(T6.SegmentTypeReferenceID,'.'), IFNULL(T7.TimesheetsWorkSegmentID,'.'), \r\n",
+					"    IFNULL(T8.TimesheetsWorkSegmentLockID,'.'))) as RowID,\r\n",
 					"    'Y' as IsActive, \r\n",
-					"    T5.IsActive as HistoricIsActive\r\n",
+					"    T9.IsActive as HistoricIsActive\r\n",
 					"\r\n",
 					"FROM odw_standardised_db.timesheets_work_segment T1\r\n",
 					"LEFT JOIN odw_harmonised_db.main_sourcesystem_fact T2 ON \"Timesheets\" = T2.Description and T2.IsActive = 'Y'\r\n",
 					"LEFT JOIN odw_standardised_db.timesheets_employee T3 ON T1.employee_id = T3.employee_id\r\n",
-					"LEFT JOIN odw_harmonised_db.timesheets_minutes_dim T4 ON T3.staff_number = T4.EmployeeNumber AND T4.IsActive = 'Y'\r\n",
-					"LEFT JOIN odw_harmonised_db.timesheets_segment_type_reference_dim T5 ON T3.staff_number = T4.EmployeeNumber AND T4.IsActive = 'Y'\r\n",
-					"LEFT JOIN odw_harmonised_db.timesheets_work_segment_dim T6 ON T3.staff_number = T4.EmployeeNumber AND T4.IsActive = 'Y'\r\n",
-					"LEFT JOIN odw_harmonised_db.timesheets_work_segment_lock_dim T7 ON T3.staff_number = T4.EmployeeNumber AND T4.IsActive = 'Y'\r\n",
-					"FULL JOIN odw_harmonised_db.timesheets_record_fact T8 ON T1.segment_id = T5.SegmentID AND T5.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_harmonised_db.hr_employee_fact T4 ON T3.staff_number = T4.EmployeeNumber AND T4.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_harmonised_db.timesheets_minutes_dim T5 ON T4.EmployeeID = T5.EmployeeID AND T5.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_harmonised_db.timesheets_segment_type_reference_dim T6 ON T1.segment_type = T6.SegmentTypeID AND T6.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_harmonised_db.timesheets_work_segment_dim T7 ON T7.EmployeeID = T4.EmployeeID AND T1.case_reference = T7.CaseReference AND T7.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_harmonised_db.timesheets_work_segment_lock_dim T8 ON T8.EmployeeID = T4.EmployeeID AND T8.IsActive = 'Y'\r\n",
+					"FULL JOIN odw_harmonised_db.timesheets_record_fact T9 ON T1.segment_id = T9.SegmentID AND T9.IsActive = 'Y' \r\n",
 					"\r\n",
 					"WHERE\r\n",
 					"    (\r\n",
 					"        -- flags new data        \r\n",
 					"        ( CASE\r\n",
-					"            WHEN T1.segment_id = T5.SegmentID AND md5(concat(IFNULL(T4.EmployeeID,'.'), IFNULL(T5.SegmentTypeReferenceID,'.'), \r\n",
-					"            IFNULL(T6.TimesheetsWorkSegmentID,'.'), IFNULL(T7.TimesheetsWorkSegmentLockID,'.')))  <> T5.RowID     \r\n",
+					"            WHEN T1.segment_id = T9.SegmentID AND md5(concat(IFNULL(T1.segment_id,'.'),IFNULL(T4.EmployeeID,'.'), IFNULL(T6.SegmentTypeReferenceID,'.'), IFNULL(T7.TimesheetsWorkSegmentID,'.'), \r\n",
+					"            IFNULL(T8.TimesheetsWorkSegmentLockID,'.')))  <> T5.RowID     \r\n",
 					"            THEN 'Y'\r\n",
-					"            WHEN T5.TimesheetsWorkSegmentID IS NULL\r\n",
+					"            WHEN T9.SegmentID IS NULL\r\n",
 					"            THEN 'Y'\r\n",
 					"            ELSE 'N'\r\n",
 					"        END  = 'Y' ) OR\r\n",
@@ -138,7 +141,7 @@
 					"    )\r\n",
 					";"
 				],
-				"execution_count": 28
+				"execution_count": 27
 			},
 			{
 				"cell_type": "markdown",
@@ -205,7 +208,7 @@
 				"source": [
 					""
 				],
-				"execution_count": 30
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -252,10 +255,12 @@
 					"\r\n",
 					"Select \r\n",
 					"    TimeSheetsFactID,\r\n",
+					"    SegmentID,\r\n",
 					"    EmployeeID,\r\n",
 					"    SegmentTypeReferenceID,\r\n",
 					"    TimesheetsWorkSegmentID,\r\n",
 					"    TimesheetsWorkSegmentLockID,\r\n",
+					"    TimesheetsMinutesID,\r\n",
 					"    SourceSystemID,\r\n",
 					"    IngestionDate,\r\n",
 					"    ValidTo,\r\n",
@@ -269,10 +274,12 @@
 					"\r\n",
 					"SELECT\r\n",
 					"    TimeSheetsFactID,\r\n",
+					"    SegmentID,\r\n",
 					"    EmployeeID,\r\n",
 					"    SegmentTypeReferenceID,\r\n",
 					"    TimesheetsWorkSegmentID,\r\n",
 					"    TimesheetsWorkSegmentLockID,\r\n",
+					"    TimesheetsMinutesID,\r\n",
 					"    SourceSystemID,\r\n",
 					"    IngestionDate,\r\n",
 					"    ValidTo,\r\n",
@@ -283,7 +290,7 @@
 					"AND IsActive = 'Y'; \r\n",
 					""
 				],
-				"execution_count": 31
+				"execution_count": 28
 			},
 			{
 				"cell_type": "markdown",
@@ -295,7 +302,7 @@
 					}
 				},
 				"source": [
-					"# View religion_dim_changed_rows is used in a merge (Upsert) statement into the target table\n",
+					"# View timesheets_record_fact_changed_rows is used in a merge (Upsert) statement into the target table\n",
 					"- **WHEN MATCHED** ON the Business Key, ValidTo is set to today -1 day and the IsActive flag is set to 'N'\n",
 					"- **WHEN NOT MATCHED** ON the business key, insert rows\n",
 					"## Table odw_harmonised.XXX_dim is updated"
@@ -341,7 +348,7 @@
 					"    THEN INSERT * ;   \r\n",
 					""
 				],
-				"execution_count": 32
+				"execution_count": 29
 			},
 			{
 				"cell_type": "markdown",
@@ -356,7 +363,7 @@
 					"# Fix the IDs\n",
 					"- No auto-increment feature is available in delta tables, therefore we need to create new IDs for the inserted rows\n",
 					"- This is done by select the target data and using INSERT OVERWRITE to re-insert the data is a new Row Number\n",
-					"## Table odw_harmonised.religion_dim is updated"
+					"## Table odw_harmonised.timesheets_record_fact is updated"
 				]
 			},
 			{
@@ -384,10 +391,12 @@
 					"\r\n",
 					"SELECT \r\n",
 					"    ROW_NUMBER() OVER (ORDER BY TimeSheetsFactID NULLS LAST) AS TimeSheetsFactID,\r\n",
+					"    SegmentID,\r\n",
 					"    EmployeeID,\r\n",
 					"    SegmentTypeReferenceID,\r\n",
 					"    TimesheetsWorkSegmentID,\r\n",
 					"    TimesheetsWorkSegmentLockID,\r\n",
+					"    TimesheetsMinutesID,\r\n",
 					"    SourceSystemID,\r\n",
 					"    IngestionDate,\r\n",
 					"    ValidTo,\r\n",
@@ -397,7 +406,7 @@
 					"\r\n",
 					"Select * FROM odw_harmonised_db.timesheets_record_fact;"
 				],
-				"execution_count": 33
+				"execution_count": 30
 			}
 		]
 	}
