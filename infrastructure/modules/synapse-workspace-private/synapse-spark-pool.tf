@@ -6,7 +6,7 @@ resource "azurerm_synapse_spark_pool" "synapse" {
   node_size_family               = "MemoryOptimized"
   node_size                      = var.spark_pool_node_size
   spark_version                  = var.spark_pool_version
-  session_level_packages_enabled = "true"
+  session_level_packages_enabled = true
 
   auto_pause {
     delay_in_minutes = var.spark_pool_timeout_minutes
@@ -45,7 +45,7 @@ resource "azurerm_synapse_spark_pool" "synapse_preview" {
   node_size_family               = "MemoryOptimized"
   node_size                      = var.spark_pool_node_size
   spark_version                  = var.spark_pool_preview_version
-  session_level_packages_enabled = "true"
+  session_level_packages_enabled = true
 
   auto_pause {
     delay_in_minutes = var.spark_pool_timeout_minutes
