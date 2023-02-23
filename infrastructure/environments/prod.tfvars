@@ -52,6 +52,11 @@ key_vault_role_assignments = {
 
 network_watcher_enabled = false
 
+odt_back_office_subscription_id                          = "d1d6c393-2fe3-40af-ac27-f5b6bad36735"  
+odt_back_office_service_bus_failover_enabled             = false
+odt_back_office_service_bus_resource_group_name          = "pins-sb-back-office-prod-ukw-001"
+odt_back_office_service_bus_resource_group_name_failover = "pins-sb-back-office-prod-uks-001"
+
 service_bus_failover_enabled = true
 service_bus_role_assignments = {
   "Azure Service Bus Data Owner" = [
