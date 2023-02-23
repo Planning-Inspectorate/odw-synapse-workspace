@@ -52,7 +52,7 @@ variable "tags" {
   type        = map(string)
 }
 
-variable "odt_bo_private_endpoint_dns_zone_id" {
+variable "odt_back_office_private_endpoint_dns_zone_id" {
   description = "The ID of the private DNS zone for the ODT Back Office private dns zone"
   type        = string
 }

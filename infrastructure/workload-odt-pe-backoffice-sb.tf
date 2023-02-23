@@ -66,7 +66,7 @@ module "odt-pe-backoffice-sb-failover" {
   odt_back_office_service_bus_failover_enabled             = var.odt_back_office_service_bus_failover_enabled
   odt_back_office_service_bus_resource_group_name          = var.odt_back_office_service_bus_resource_group_name
   odt_back_office_service_bus_resource_group_name_failover = var.odt_back_office_service_bus_resource_group_name_failover
-  odt_bo_private_endpoint_dns_zone_id                      = azurerm_private_dns_zone.back_office_private_dns_zone.id
+  odt_back_office_private_endpoint_dns_zone_id             = azurerm_private_dns_zone.back_office_private_dns_zone.id
   synapse_private_endpoint_subnet_name                     = local.synapse_subnet_name
   synapse_private_endpoint_vnet_subnets                    = module.synapse_network_failover.vnet_subnets
 
