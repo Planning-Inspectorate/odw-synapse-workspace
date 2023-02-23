@@ -29,7 +29,7 @@ resource "azurerm_private_dns_zone" "back_office_private_dns_zone" {
 resource "azurerm_private_dns_zone_virtual_network_link" "back_office_private_dns_zone_vnet_link" {
   name                  = "pins-pdns-vnet-link-backoffice-sb-${local.resource_suffix}"
   resource_group_name   = azurerm_resource_group.odt_pe_backoffice_sb_global.name
-  private_dns_zone_name = azurerm_private_dns_zone.back_office_private_dns_zone[0].name
+  private_dns_zone_name = azurerm_private_dns_zone.back_office_private_dns_zone.name
   virtual_network_id    = module.synapse_network.vnet_id
   registration_enabled  = false
 
