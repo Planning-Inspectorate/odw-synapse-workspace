@@ -36,7 +36,7 @@ resource "azurerm_private_dns_zone_virtual_network_link" "back_office_private_dn
   tags = local.tags
 }
 
-module "odt-pe-backoffice-sb" {
+module "odt_pe_backoffice_sb" {
   source = "./modules/odt-pe-backoffice-sb"
 
   environment                                              = var.environment
@@ -53,7 +53,7 @@ module "odt-pe-backoffice-sb" {
   tags = local.tags
 }
 
-module "odt-pe-backoffice-sb-failover" {
+module "odt_pe_backoffice_sb_failover" {
   count = var.failover_deployment ? 1 : 0
 
   source = "./modules/odt-pe-backoffice-sb"
