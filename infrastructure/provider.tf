@@ -30,7 +30,6 @@ provider "azurerm" {
 
 provider "azurerm" {
   features {}
-  subscription_id            = var.odt_back_office_subscription_id
-  skip_provider_registration = true
-  alias                      = "odt_backoffice"
+  subscription_id = var.odt_back_office_subscription_id
+  alias           = "odt_backoffice"
 }

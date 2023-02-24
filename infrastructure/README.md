@@ -183,8 +183,8 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 | <a name="module_bastion_host_failover"></a> [bastion\_host\_failover](#module\_bastion\_host\_failover) | ./modules/bastion-host | n/a |
 | <a name="module_devops_agent_pool"></a> [devops\_agent\_pool](#module\_devops\_agent\_pool) | ./modules/devops-agent-pool | n/a |
 | <a name="module_devops_agent_pool_failover"></a> [devops\_agent\_pool\_failover](#module\_devops\_agent\_pool\_failover) | ./modules/devops-agent-pool | n/a |
-| <a name="module_odt-pe-backoffice-sb"></a> [odt-pe-backoffice-sb](#module\_odt-pe-backoffice-sb) | ./modules/odt-pe-backoffice-sb | n/a |
-| <a name="module_odt-pe-backoffice-sb-failover"></a> [odt-pe-backoffice-sb-failover](#module\_odt-pe-backoffice-sb-failover) | ./modules/odt-pe-backoffice-sb | n/a |
+| <a name="module_odt_pe_backoffice_sb"></a> [odt\_pe\_backoffice\_sb](#module\_odt\_pe\_backoffice\_sb) | ./modules/odt-pe-backoffice-sb | n/a |
+| <a name="module_odt_pe_backoffice_sb_failover"></a> [odt\_pe\_backoffice\_sb\_failover](#module\_odt\_pe\_backoffice\_sb\_failover) | ./modules/odt-pe-backoffice-sb | n/a |
 | <a name="module_synapse_data_lake"></a> [synapse\_data\_lake](#module\_synapse\_data\_lake) | ./modules/synapse-data-lake | n/a |
 | <a name="module_synapse_data_lake_failover"></a> [synapse\_data\_lake\_failover](#module\_synapse\_data\_lake\_failover) | ./modules/synapse-data-lake | n/a |
 | <a name="module_synapse_ingestion"></a> [synapse\_ingestion](#module\_synapse\_ingestion) | ./modules/synapse-ingestion | n/a |
