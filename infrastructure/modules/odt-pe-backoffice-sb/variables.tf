@@ -25,6 +25,11 @@ variable "odt_back_office_service_bus_resource_group_name_failover" {
   type        = string
 }
 
+variable "odt_back_office_service_bus_subscription_id" {
+  description = "The ID of the subscription in which resources will be deployed"
+  type        = string
+}
+
 variable "location" {
   description = "The short-format Azure region into which resources will be deployed"
   type        = string
