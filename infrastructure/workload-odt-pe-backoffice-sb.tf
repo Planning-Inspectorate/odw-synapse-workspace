@@ -39,6 +39,10 @@ resource "azurerm_private_dns_zone_virtual_network_link" "back_office_private_dn
 module "odt-pe-backoffice-sb" {
   source = "./modules/odt-pe-backoffice-sb"
 
+  providers = {
+    azurerm = azurerm.odt_backoffice
+  }
+
   environment                                              = var.environment
   resource_group_name                                      = azurerm_resource_group.odt_pe_backoffice_sb.name
   location                                                 = azurerm_resource_group.odt_pe_backoffice_sb.location
@@ -59,6 +63,9 @@ module "odt-pe-backoffice-sb-failover" {
   count = var.failover_deployment ? 1 : 0
 
   source = "./modules/odt-pe-backoffice-sb"
+  providers = {
+    azurerm = azurerm.odt_backoffice
+  }
 
   environment                                              = var.environment
   resource_group_name                                      = azurerm_resource_group.odt_pe_backoffice_sb_failover.name

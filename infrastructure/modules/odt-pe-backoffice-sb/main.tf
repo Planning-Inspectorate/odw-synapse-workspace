@@ -13,8 +13,6 @@ resource "azurerm_private_endpoint" "odt_backoffice_servicebus_private_endpoint"
     name                 = "pins-pdns-backoffice-sb-${local.resource_suffix}"
     private_dns_zone_ids = [var.odt_back_office_private_endpoint_dns_zone_id]
   }
-  tags = {
-    environment = var.environment
-    service     = var.service_name
-  }
+  
+  tags = local.tags
 }
