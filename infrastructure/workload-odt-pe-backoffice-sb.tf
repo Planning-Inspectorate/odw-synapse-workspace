@@ -43,7 +43,6 @@ module "odt-pe-backoffice-sb" {
   resource_group_name                                      = azurerm_resource_group.odt_pe_backoffice_sb.name
   location                                                 = azurerm_resource_group.odt_pe_backoffice_sb.location
   service_name                                             = local.service_name
-  odt_back_office_service_bus_subscription_id              = var.odt_back_office_service_bus_subscription_id
   odt_back_office_service_bus_failover_enabled             = var.odt_back_office_service_bus_failover_enabled
   odt_back_office_service_bus_resource_group_name          = var.odt_back_office_service_bus_resource_group_name
   odt_back_office_service_bus_resource_group_name_failover = var.odt_back_office_service_bus_resource_group_name_failover
@@ -63,7 +62,6 @@ module "odt-pe-backoffice-sb-failover" {
   resource_group_name                                      = azurerm_resource_group.odt_pe_backoffice_sb_failover.name
   location                                                 = azurerm_resource_group.odt_pe_backoffice_sb_failover.location
   service_name                                             = local.service_name
-  odt_back_office_service_bus_subscription_id              = var.odt_back_office_service_bus_subscription_id
   odt_back_office_service_bus_failover_enabled             = var.odt_back_office_service_bus_failover_enabled
   odt_back_office_service_bus_resource_group_name          = var.odt_back_office_service_bus_resource_group_name
   odt_back_office_service_bus_resource_group_name_failover = var.odt_back_office_service_bus_resource_group_name_failover
