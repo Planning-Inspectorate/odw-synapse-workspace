@@ -51,6 +51,10 @@ module "odt_pe_backoffice_sb" {
   synapse_private_endpoint_vnet_subnets                    = module.synapse_network.vnet_subnets
 
   tags = local.tags
+  providers = {
+    azurerm                = azurerm
+    azurerm.odt_backoffice = azurerm.odt_backoffice
+  }
 }
 
 module "odt_pe_backoffice_sb_failover" {
@@ -70,4 +74,9 @@ module "odt_pe_backoffice_sb_failover" {
   synapse_private_endpoint_vnet_subnets                    = module.synapse_network_failover.vnet_subnets
 
   tags = local.tags
+
+  providers = {
+    azurerm                = azurerm
+    azurerm.odt_backoffice = azurerm.odt_backoffice
+  }
 }
