@@ -1,0 +1,815 @@
+{
+	"name": "casework_legacy_rights_of_way_dim",
+	"properties": {
+		"folder": {
+			"name": "odw-harmonised/Casework"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"runAsWorkspaceSystemIdentity": false,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "72bf5e7c-3e19-417c-b334-f0480cbf9f89"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.3",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": true
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Check for new, updated or deleted data\n",
+					"- This script checks for new, updated or deleted data by checking the source data (horizon tables) against the target (odw_harmonised_db.casework tables)\n",
+					"- **New Data:** where an main Reference in the source does not exist in the target, then NewData flag is set to 'Y'\n",
+					"- **Updated data:** Comparison occurs on Reference Fields in source and in target where the row hash is different i.e. there is a change in one of the columns. NewData flag is set to 'Y'\n",
+					"- **Deleted data:** where an Reference info in the target exists but the same identifyers don't exist in the source. DeletedData flag is set to 'Y'\n",
+					"\n",
+					"## View casework_legacy_rights_of_way_dim_new is created"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"-- Build casework_legacy_rights_of_way_dim_new table\r\n",
+					"-- Gets modified or deleted from source rows\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW casework_legacy_rights_of_way_dim_new\r\n",
+					"\r\n",
+					"     AS\r\n",
+					"\r\n",
+					"-- gets data that matches of SourceID and flags that it is modified based on a row (md5) hash. Flags as \"NewData\"\r\n",
+					"-- gets data that is in the target but not in source. Flags as \"DeletedData\"\r\n",
+					"\r\n",
+					"SELECT \r\n",
+					"    CASE\r\n",
+					"        WHEN T1.fps_number IS NULL\r\n",
+					"        THEN T3.LegacyRightsOfWayID\r\n",
+					"        ELSE NULL\r\n",
+					"    END as LegacyRightsOfWayID,\r\n",
+					"    T1.record_status AS RecordStatus,\r\n",
+					"    T1.group AS Group,\r\n",
+					"    T1.jurisdiction AS Jurisdiction,\r\n",
+					"    T1.fps_number AS FPSNumber,\r\n",
+					"    T1.fps_1 AS FPS1,\r\n",
+					"    T1.fps_2 AS FPS2,\r\n",
+					"    T1.fps_3 AS FPS3,\r\n",
+					"    T1.fps_4 AS FPS4,\r\n",
+					"    T1.lead_fps_number AS LeadFPSNumber,\r\n",
+					"    T1.migration AS Migration,\r\n",
+					"    T1.act AS Act,\r\n",
+					"    T1.section AS Section,\r\n",
+					"    T1.dataease_oma AS DataEaseOMA,\r\n",
+					"    T1.order_making_authority AS OrderMakingAuthority,\r\n",
+					"    T1.title_of_order AS TitleOfOrder,\r\n",
+					"    T1.oma_reference AS OMAReference,\r\n",
+					"    T1.oma_contact AS OMAContact,\r\n",
+					"    T1.oma_telephone AS OMATelephone,\r\n",
+					"    T1.oma_form_of_address AS OMAFormOfAddress,\r\n",
+					"    T1.dataease_objectors AS DataEaseObjectors,\r\n",
+					"    T1.number_of_objectors AS NumberOfObjectors,\r\n",
+					"    T1.concurrent_orders AS ConcurrentObjectors,\r\n",
+					"    T1.receipt_of_orders AS ReceiptOfOrders,\r\n",
+					"    T1.documentation_complete AS DocumentationComplete,\r\n",
+					"    T1.allocation_level AS AllocationLevel,\r\n",
+					"    T1.fee_rate AS FeeRate,\r\n",
+					"    T1.date_order_validated AS DateOrderValidated,\r\n",
+					"    T1.order_rejected_or_returned AS OrderRejectedOrReturned,\r\n",
+					"    T1.date_orders_withdrawn AS DateOrdersWithdrawn,\r\n",
+					"    T1.date_of_recovery_by_sos AS DateOfRecoveryBySOS,\r\n",
+					"    T1.date_procedure_confirmed AS DateProcedureConfirmed,\r\n",
+					"    T1.procedure AS Procedure,\r\n",
+					"    T1.date_inquiry_requested AS DateInquiryRequested,\r\n",
+					"    T1.local_inquiry_date AS LocalInquiryDate,\r\n",
+					"    T1.estimated_duration AS EstimatedDuration,\r\n",
+					"    T1.inquiry_venue AS InquiryVenue,\r\n",
+					"    T1.sent_for_allocation AS SentForAllocation,\r\n",
+					"    T1.inspectors_name AS InspectorsName,\r\n",
+					"    T1.inquiry_observed_by AS InquiryObservedBy,\r\n",
+					"    T1.inquirysv_cancelled AS InquirySVCancelled,\r\n",
+					"    T1.asv_usv AS ASVUSV,\r\n",
+					"    T1.number_of_claims AS NumberOfClaims,\r\n",
+					"    T1._committed AS GBPCommitted,\r\n",
+					"    T1.committed_left AS CommittedLeft,\r\n",
+					"    T1.actual_duration AS ActualDuration,\r\n",
+					"    T1.sitting_days_claimed AS SittingDaysClaimed,\r\n",
+					"    T1.preparation_time AS PreparationTime,\r\n",
+					"    T1.reporting_time AS ReportingTime,\r\n",
+					"    T1.cost_of_claims AS CostOfClaims,\r\n",
+					"    T1.date_file_to_inspector AS DateFileToInspector,\r\n",
+					"    T1.receipt_of_decisionreport AS ReceiptOfDecisionReport,\r\n",
+					"    T1.date_sent_to_reader AS DateSentToReader,\r\n",
+					"    T1.readers_name AS ReadersName,\r\n",
+					"    T1.date_returned_from_reader AS DateReturnedFromReader,\r\n",
+					"    T1.date_decisionreport_despatched AS DateDecisionReportDespatched,\r\n",
+					"    T1.decision_recommendation AS DecisionRecommendation,\r\n",
+					"    T1.date_publication_procedure_completed AS DatePublicationProcedureCompleted,\r\n",
+					"    T1.date_file_to_pa AS DateFileToPA,\r\n",
+					"    T1.associated_file_1 AS AssociatedFile1,\r\n",
+					"    T1.associated_file_2 AS AssociatedFile2,\r\n",
+					"    T1.associated_file_3 AS AssociatedFile3,\r\n",
+					"    T1.associated_file_4 AS AssociatedFile4,\r\n",
+					"    T1.associated_file_5 AS AssociatedFile5,\r\n",
+					"    T1.associated_file_6 AS AssociatedFile6,\r\n",
+					"    T1.associated_file_7 AS AssociatedFile7,\r\n",
+					"    T1.associated_file_8 AS AssociatedFile8,\r\n",
+					"    T1.associated_file_9 AS AssociatedFile9,\r\n",
+					"    T1.date_costs_report_despatched AS DateCostsReportDespatched,\r\n",
+					"    T1.date_costs_order_originated AS DateCostsOrderOriginated,\r\n",
+					"    T1.notes AS Notes,\r\n",
+					"    T1.oma_stance AS OMAStance,\r\n",
+					"    T1.last_sitting_day AS LastSittingDay,\r\n",
+					"    T1.recharged_to_defra AS RechargedToDefra,\r\n",
+					"    T1.name_of_applicant AS NameOfApplicant,\r\n",
+					"    T1.decision_clear_for_despatch AS DecisionClearForDespatch,\r\n",
+					"    T1.pdac_etl_date AS PDACETLDate,\r\n",
+					"    T2.SourceSystemID,\r\n",
+					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
+					"    NULL AS ValidTo,\r\n",
+					"    md5(concat(IFNULL(T1.record_status,'.'), IFNULL(T1.group,'.'), IFNULL(T1.jurisdiction,'.'), IFNULL(T1.jurisdiction,'.'), IFNULL(T1.fps_number,'.'), IFNULL(T1.lead_fps_number,'.'), \r\n",
+					"    IFNULL(T1.migration,'.'), IFNULL(T1.act,'.'), IFNULL(T1.dataease_oma,'.'), IFNULL(T1.order_making_authority,'.'), IFNULL(T1.title_of_order,'.'), IFNULL(T1.oma_reference,'.'), \r\n",
+					"    IFNULL(T1.oma_contact,'.'), IFNULL(T1.oma_telephone,'.'), IFNULL(T1.oma_form_of_address,'.'), IFNULL(T1.dataease_objectors,'.'), IFNULL(T1.number_of_objectors,'.'), \r\n",
+					"    IFNULL(T1.concurrent_orders,'.'), IFNULL(T1.receipt_of_orders,'.'), IFNULL(T1.documentation_complete,'.'), IFNULL(T1.allocation_level,'.'), IFNULL(T1.fee_rate,'.'), \r\n",
+					"    IFNULL(T1.date_order_validated,'.'), IFNULL(T1.order_rejected_or_returned,'.'), IFNULL(T1.date_orders_withdrawn,'.'), IFNULL(T1.date_of_recovery_by_sos,'.'), \r\n",
+					"    IFNULL(T1.date_procedure_confirmed,'.'), IFNULL(T1.procedure,'.'), IFNULL(T1.date_inquiry_requested,'.'), IFNULL(T1.local_inquiry_date,'.'), IFNULL(T1.estimated_duration,'.'), \r\n",
+					"    IFNULL(T1.inquiry_venue,'.'), IFNULL(T1.sent_for_allocation,'.'), IFNULL(T1.inspectors_name,'.'), IFNULL(T1.inquiry_observed_by,'.'), IFNULL(T1.inquirysv_cancelled,'.'), IFNULL(T1.asv_usv,'.'), \r\n",
+					"    IFNULL(T1.number_of_claims,'.'), IFNULL(T1._committed,'.'), IFNULL(T1.committed_left,'.'), IFNULL(T1.actual_duration,'.'), IFNULL(T1.sitting_days_claimed,'.'), IFNULL(T1.preparation_time,'.'), \r\n",
+					"    IFNULL(T1.reporting_time,'.'), IFNULL(T1.cost_of_claims,'.'), IFNULL(T1.date_file_to_inspector,'.'), IFNULL(T1.receipt_of_decisionreport,'.'), IFNULL(T1.date_sent_to_reader,'.'), \r\n",
+					"    IFNULL(T1.readers_name,'.'), IFNULL(T1.date_returned_from_reader,'.'), IFNULL(T1.date_decisionreport_despatched,'.'), IFNULL(T1.decision_recommendation,'.'), \r\n",
+					"    IFNULL(T1.date_publication_procedure_completed,'.'), IFNULL(T1.date_file_to_pa,'.'), IFNULL(T1.associated_file_1,'.'), IFNULL(T1.associated_file_2,'.'),  IFNULL(T1.associated_file_3,'.'), \r\n",
+					"    IFNULL(T1.associated_file_4,'.'), IFNULL(T1.associated_file_5,'.'), IFNULL(T1.associated_file_6,'.'), IFNULL(T1.associated_file_7,'.'), IFNULL(T1.associated_file_8,'.'), \r\n",
+					"    IFNULL(T1.associated_file_9,'.'), IFNULL(T1.date_costs_report_despatched,'.'), IFNULL(T1.date_costs_order_originated,'.'), IFNULL(T1.notes,'.'), IFNULL(T1.oma_stance,'.'), \r\n",
+					"    IFNULL(T1.recharged_to_defra,'.'), IFNULL(T1.name_of_applicant,'.'), IFNULL(T1.decision_clear_for_despatch,'.'), IFNULL(T1.pdac_etl_date,'.'))) as RowID, -- this hash should contain all the defining fields, so needs to be done\r\n",
+					"    'Y' as IsActive,\r\n",
+					"    CASE\r\n",
+					"        WHEN T1.fps_number = T3.FpsNumber AND  md5(concat(IFNULL(T1.record_status,'.'), IFNULL(T1.group,'.'), IFNULL(T1.jurisdiction,'.'), IFNULL(T1.jurisdiction,'.'), IFNULL(T1.fps_number,'.'), IFNULL(T1.lead_fps_number,'.'), \r\n",
+					"    IFNULL(T1.migration,'.'), IFNULL(T1.act,'.'), IFNULL(T1.dataease_oma,'.'), IFNULL(T1.order_making_authority,'.'), IFNULL(T1.title_of_order,'.'), IFNULL(T1.oma_reference,'.'), \r\n",
+					"    IFNULL(T1.oma_contact,'.'), IFNULL(T1.oma_telephone,'.'), IFNULL(T1.oma_form_of_address,'.'), IFNULL(T1.dataease_objectors,'.'), IFNULL(T1.number_of_objectors,'.'), \r\n",
+					"    IFNULL(T1.concurrent_orders,'.'), IFNULL(T1.receipt_of_orders,'.'), IFNULL(T1.documentation_complete,'.'), IFNULL(T1.allocation_level,'.'), IFNULL(T1.fee_rate,'.'), \r\n",
+					"    IFNULL(T1.date_order_validated,'.'), IFNULL(T1.order_rejected_or_returned,'.'), IFNULL(T1.date_orders_withdrawn,'.'), IFNULL(T1.date_of_recovery_by_sos,'.'), \r\n",
+					"    IFNULL(T1.date_procedure_confirmed,'.'), IFNULL(T1.procedure,'.'), IFNULL(T1.date_inquiry_requested,'.'), IFNULL(T1.local_inquiry_date,'.'), IFNULL(T1.estimated_duration,'.'), \r\n",
+					"    IFNULL(T1.inquiry_venue,'.'), IFNULL(T1.sent_for_allocation,'.'), IFNULL(T1.inspectors_name,'.'), IFNULL(T1.inquiry_observed_by,'.'), IFNULL(T1.inquirysv_cancelled,'.'), IFNULL(T1.asv_usv,'.'), \r\n",
+					"    IFNULL(T1.number_of_claims,'.'), IFNULL(T1._committed,'.'), IFNULL(T1.committed_left,'.'), IFNULL(T1.actual_duration,'.'), IFNULL(T1.sitting_days_claimed,'.'), IFNULL(T1.preparation_time,'.'), \r\n",
+					"    IFNULL(T1.reporting_time,'.'), IFNULL(T1.cost_of_claims,'.'), IFNULL(T1.date_file_to_inspector,'.'), IFNULL(T1.receipt_of_decisionreport,'.'), IFNULL(T1.date_sent_to_reader,'.'), \r\n",
+					"    IFNULL(T1.readers_name,'.'), IFNULL(T1.date_returned_from_reader,'.'), IFNULL(T1.date_decisionreport_despatched,'.'), IFNULL(T1.decision_recommendation,'.'), \r\n",
+					"    IFNULL(T1.date_publication_procedure_completed,'.'), IFNULL(T1.date_file_to_pa,'.'), IFNULL(T1.associated_file_1,'.'), IFNULL(T1.associated_file_2,'.'),  IFNULL(T1.associated_file_3,'.'), \r\n",
+					"    IFNULL(T1.associated_file_4,'.'), IFNULL(T1.associated_file_5,'.'), IFNULL(T1.associated_file_6,'.'), IFNULL(T1.associated_file_7,'.'), IFNULL(T1.associated_file_8,'.'), \r\n",
+					"    IFNULL(T1.associated_file_9,'.'), IFNULL(T1.date_costs_report_despatched,'.'), IFNULL(T1.date_costs_order_originated,'.'), IFNULL(T1.notes,'.'), IFNULL(T1.oma_stance,'.'), \r\n",
+					"    IFNULL(T1.recharged_to_defra,'.'), IFNULL(T1.name_of_applicant,'.'), IFNULL(T1.decision_clear_for_despatch,'.'), IFNULL(T1.pdac_etl_date,'.'))) <> T3.RowID   -- same employee, changed data\r\n",
+					"        THEN 'Y'\r\n",
+					"        WHEN T3.FpsNumber IS NULL -- new FpsNumber\r\n",
+					"        THEN 'Y'\r\n",
+					"        ELSE 'N'\r\n",
+					"    END as NewData,\r\n",
+					"    CASE\r\n",
+					"        WHEN T1.fps_number IS NULL\r\n",
+					"        THEN 'Y'\r\n",
+					"        ELSE 'N'\r\n",
+					"    END AS  DeletedData, \r\n",
+					"    T3.IsActive as HistoricIsActive\r\n",
+					"\r\n",
+					"FROM odw_standardised_db.horizon_hzn_right_of_way T1\r\n",
+					"LEFT JOIN odw_harmonised_db.main_sourcesystem_fact T2 ON \"Casework\" = T2.Description AND T2.IsActive = 'Y'\r\n",
+					"FULL JOIN odw_harmonised_db.casework_legacy_rights_of_way_dim T3 ON T1.fps_number = T3.FpsNumber AND T3.IsActive = 'Y'\r\n",
+					"WHERE\r\n",
+					"    (\r\n",
+					"        -- flags new data        \r\n",
+					"        (   CASE\r\n",
+					"                WHEN T1.fps_number = T3.FpsNumber AND md5(concat(IFNULL(T1.record_status,'.'), IFNULL(T1.group,'.'), IFNULL(T1.jurisdiction,'.'), IFNULL(T1.jurisdiction,'.'), IFNULL(T1.fps_number,'.'), IFNULL(T1.lead_fps_number,'.'), \r\n",
+					"    IFNULL(T1.migration,'.'), IFNULL(T1.act,'.'), IFNULL(T1.dataease_oma,'.'), IFNULL(T1.order_making_authority,'.'), IFNULL(T1.title_of_order,'.'), IFNULL(T1.oma_reference,'.'), \r\n",
+					"    IFNULL(T1.oma_contact,'.'), IFNULL(T1.oma_telephone,'.'), IFNULL(T1.oma_form_of_address,'.'), IFNULL(T1.dataease_objectors,'.'), IFNULL(T1.number_of_objectors,'.'), \r\n",
+					"    IFNULL(T1.concurrent_orders,'.'), IFNULL(T1.receipt_of_orders,'.'), IFNULL(T1.documentation_complete,'.'), IFNULL(T1.allocation_level,'.'), IFNULL(T1.fee_rate,'.'), \r\n",
+					"    IFNULL(T1.date_order_validated,'.'), IFNULL(T1.order_rejected_or_returned,'.'), IFNULL(T1.date_orders_withdrawn,'.'), IFNULL(T1.date_of_recovery_by_sos,'.'), \r\n",
+					"    IFNULL(T1.date_procedure_confirmed,'.'), IFNULL(T1.procedure,'.'), IFNULL(T1.date_inquiry_requested,'.'), IFNULL(T1.local_inquiry_date,'.'), IFNULL(T1.estimated_duration,'.'), \r\n",
+					"    IFNULL(T1.inquiry_venue,'.'), IFNULL(T1.sent_for_allocation,'.'), IFNULL(T1.inspectors_name,'.'), IFNULL(T1.inquiry_observed_by,'.'), IFNULL(T1.inquirysv_cancelled,'.'), IFNULL(T1.asv_usv,'.'), \r\n",
+					"    IFNULL(T1.number_of_claims,'.'), IFNULL(T1._committed,'.'), IFNULL(T1.committed_left,'.'), IFNULL(T1.actual_duration,'.'), IFNULL(T1.sitting_days_claimed,'.'), IFNULL(T1.preparation_time,'.'), \r\n",
+					"    IFNULL(T1.reporting_time,'.'), IFNULL(T1.cost_of_claims,'.'), IFNULL(T1.date_file_to_inspector,'.'), IFNULL(T1.receipt_of_decisionreport,'.'), IFNULL(T1.date_sent_to_reader,'.'), \r\n",
+					"    IFNULL(T1.readers_name,'.'), IFNULL(T1.date_returned_from_reader,'.'), IFNULL(T1.date_decisionreport_despatched,'.'), IFNULL(T1.decision_recommendation,'.'), \r\n",
+					"    IFNULL(T1.date_publication_procedure_completed,'.'), IFNULL(T1.date_file_to_pa,'.'), IFNULL(T1.associated_file_1,'.'), IFNULL(T1.associated_file_2,'.'),  IFNULL(T1.associated_file_3,'.'), \r\n",
+					"    IFNULL(T1.associated_file_4,'.'), IFNULL(T1.associated_file_5,'.'), IFNULL(T1.associated_file_6,'.'), IFNULL(T1.associated_file_7,'.'), IFNULL(T1.associated_file_8,'.'), \r\n",
+					"    IFNULL(T1.associated_file_9,'.'), IFNULL(T1.date_costs_report_despatched,'.'), IFNULL(T1.date_costs_order_originated,'.'), IFNULL(T1.notes,'.'), IFNULL(T1.oma_stance,'.'), \r\n",
+					"    IFNULL(T1.recharged_to_defra,'.'), IFNULL(T1.name_of_applicant,'.'), IFNULL(T1.decision_clear_for_despatch,'.'), IFNULL(T1.pdac_etl_date,'.'))) <> T3.RowID  -- same employee, changed data\r\n",
+					"                THEN 'Y'\r\n",
+					"                WHEN T3.FpsNumber IS NULL -- new FpsNumber\r\n",
+					"                THEN 'Y'\r\n",
+					"            ELSE 'N'\r\n",
+					"            END  = 'Y' ) OR\r\n",
+					"        \r\n",
+					"        -- flags deleted data\r\n",
+					"        (   CASE\r\n",
+					"                WHEN T1.fps_number IS NULL\r\n",
+					"                THEN 'Y'\r\n",
+					"                ELSE 'N'\r\n",
+					"            END = 'Y' )\r\n",
+					"    );\r\n",
+					""
+				],
+				"execution_count": 46
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Run tests to check integrity of data by numbers\r\n",
+					"- This script checks for the total number of current codes in the harmonised table, and compare against the numbers for new data to be added and data to be set as inactive.\r\n",
+					"- **Changes tracking:** where it checks the data against active records in harmonised and compares with records to add and records to be set as inactive.\r\n",
+					"- **Changes tolerance levels:** if the total amount to be added and deleted surpasses the tolerance limit, it will interrupt the process of loading the data"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# from pyspark.sql import SparkSession\r\n",
+					"# spark = SparkSession.builder.getOrCreate()\r\n",
+					"\r\n",
+					"# Source_Number = spark.sql(\"SELECT COUNT(*) AS Source_Number FROM pins_casework_all_appeals_grouped\")\r\n",
+					"# Current_Number = spark.sql(\"SELECT COUNT (DISTINCT RowID) AS Current_Number FROM odw_harmonised_db.casework_legacy_rights_of_way_dim where IsActive = 'Y' \")\r\n",
+					"# New_Data_Number = spark.sql(\"SELECT COUNT (DISTINCT RowID) AS New_Data_Number FROM casework_legacy_rights_of_way_dim WHERE NewData = 'Y'\")\r\n",
+					"# Deleted_Data_Number = spark.sql(\"SELECT COUNT (DISTINCT RowID) AS Deleted_Data_Number FROM casework_legacy_rights_of_way_dim WHERE DeletedData = 'Y'\")\r\n",
+					"\r\n",
+					"# Source_Number_Pandas = Source_Number.toPandas()\r\n",
+					"# Current_Number_Pandas =  Current_Number.toPandas()\r\n",
+					"# New_Data_Number_Pandas = New_Data_Number.toPandas()\r\n",
+					"# Deleted_Data_Number_Pandas = Deleted_Data_Number.toPandas()\r\n",
+					"\r\n",
+					"# # checking if new total number of registers matches the previously loaded, plus New ones, minus Deleted ones\r\n",
+					"# print(\"SET 1:\")\r\n",
+					"# Total_Number = Source_Number_Pandas['Source_Number'].tolist() \r\n",
+					"# Current_Loaded_Number = Current_Number_Pandas['Current_Number'].tolist() \r\n",
+					"# New_Data_Number = New_Data_Number_Pandas['New_Data_Number'].tolist() \r\n",
+					"# Deleted_Data_Number = Deleted_Data_Number_Pandas['Deleted_Data_Number'].tolist() \r\n",
+					"\r\n",
+					"# if Total_Number[0] != (Current_Loaded_Number[0] + New_Data_Number[0] - Deleted_Data_Number[0]):\r\n",
+					"#     raise RuntimeError(\"Loading Number do not match\")\r\n",
+					"# else:\r\n",
+					"#     print(\"Loading number matches with existing codes plus new, minus deleted!\")\r\n",
+					"\r\n",
+					"# if New_Data_Number[0] > 1000:\r\n",
+					"#     raise RuntimeError(\"ALERT: Too many new codes\")\r\n",
+					"# else:\r\n",
+					"#     print(\"New data under tolerance levels\")\r\n",
+					"\r\n",
+					"# if Deleted_Data_Number[0] > 500:\r\n",
+					"#     raise RuntimeError(\"ALERT: Too many deleted codes\")\r\n",
+					"# else:\r\n",
+					"#     print(\"Unused codes under tolerance levels\")"
+				],
+				"execution_count": 47
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Run tests to check integrity of data by comparison of codes\r\n",
+					"- This script checks for the total list of current codes in the harmonised table, and compare against the list for new data to be added and data to be set as inactive.\r\n",
+					"- **Changes tracking:** where it checks the data against active records in harmonised and compares with records to add and records to be set as inactive."
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# from pyspark.sql import SparkSession\r\n",
+					"# spark = SparkSession.builder.getOrCreate()\r\n",
+					"\r\n",
+					"# Current_Records = spark.sql(\"SELECT DISTINCT RowID AS Current_Records FROM odw_harmonised_db.casework_legacy_rights_of_way_dim where IsActive = 'Y' \")\r\n",
+					"# New_Data_Records = spark.sql(\"SELECT DISTINCT RowID AS New_Data_Records FROM casework_legacy_rights_of_way_dim WHERE NewData = 'Y'\")\r\n",
+					"# Deleted_Data_Records = spark.sql(\"SELECT DISTINCT RowID AS Deleted_Data_Records FROM casework_legacy_rights_of_way_dim WHERE DeletedData = 'Y'\")\r\n",
+					"\r\n",
+					"# Current_Records_Pandas =  Current_Records.toPandas()\r\n",
+					"# New_Data_Records_Pandas = New_Data_Records.toPandas()\r\n",
+					"# Deleted_Data_Records_Pandas = Deleted_Data_Records.toPandas()\r\n",
+					"\r\n",
+					"# # checking if a deleted records are correcly flagged, not existing in the new data, but existing inpreviously loaded\r\n",
+					"# print(\"TEST 2:\")\r\n",
+					"\r\n",
+					"# Current_Records = Current_Records_Pandas['Current_Records'].tolist() \r\n",
+					"# Deleted_Records = Deleted_Data_Records_Pandas['Deleted_Data_Records'].tolist()\r\n",
+					"# New_Records = New_Data_Records_Pandas['New_Data_Records'].tolist()\r\n",
+					"\r\n",
+					"# print(Current_Records)\r\n",
+					"# print(Deleted_Records)\r\n",
+					"# print(New_Records)\r\n",
+					"\r\n",
+					"# for i in Deleted_Records:\r\n",
+					"#     if i in Current_Records: \r\n",
+					"#         print(i + \" to be deleted is in the current records\")\r\n",
+					"#     else:\r\n",
+					"#         raise RuntimeError(\"Records to Delete do not match\")\r\n",
+					"\r\n",
+					"# for j in New_Records:\r\n",
+					"#     if j not in Current_Records: \r\n",
+					"#         print(j + \" to be added is not in the current records\")\r\n",
+					"#     else:\r\n",
+					"#         raise RuntimeError(\"Records to Add do not match\")"
+				],
+				"execution_count": 48
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Dataset is created that contains changed data and corresponding target data\n",
+					"- This script combines data that has been updated, Deleted or is new, with corresponding target data\n",
+					"- View **casework_all_appeals_new** is unioned to the target data filter to only those rows where changes have been detected\n",
+					"## View casework_legacy_rights_of_way_dim_changed_rows is created"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"-- Create new and updated dataset\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW casework_legacy_rights_of_way_dim_changed_rows\r\n",
+					"\r\n",
+					"    AS\r\n",
+					"\r\n",
+					"-- gets updated, deleted and new rows \r\n",
+					"Select \r\n",
+					"    LegacyRightsOfWayID,\r\n",
+					"    RecordStatus,\r\n",
+					"    Group,\r\n",
+					"    Jurisdiction,\r\n",
+					"    FPSNumber,\r\n",
+					"    FPS1,\r\n",
+					"    FPS2,\r\n",
+					"    FPS3,\r\n",
+					"    FPS4,\r\n",
+					"    LeadFPSNumber,\r\n",
+					"    Migration,\r\n",
+					"    Act,\r\n",
+					"    Section,\r\n",
+					"    DataEaseOMA,\r\n",
+					"    OrderMakingAuthority,\r\n",
+					"    TitleOfOrder,\r\n",
+					"    OMAReference,\r\n",
+					"    OMAContact,\r\n",
+					"    OMATelephone,\r\n",
+					"    OMAFormOfAddress,\r\n",
+					"    DataEaseObjectors,\r\n",
+					"    NumberOfObjectors,\r\n",
+					"    ConcurrentObjectors,\r\n",
+					"    ReceiptOfOrders,\r\n",
+					"    DocumentationComplete,\r\n",
+					"    AllocationLevel,\r\n",
+					"    FeeRate,\r\n",
+					"    DateOrderValidated,\r\n",
+					"    OrderRejectedOrReturned,\r\n",
+					"    DateOrdersWithdrawn,\r\n",
+					"    DateOfRecoveryBySOS,\r\n",
+					"    DateProcedureConfirmed,\r\n",
+					"    Procedure,\r\n",
+					"    DateInquiryRequested,\r\n",
+					"    LocalInquiryDate,\r\n",
+					"    EstimatedDuration,\r\n",
+					"    InquiryVenue,\r\n",
+					"    SentForAllocation,\r\n",
+					"    InspectorsName,\r\n",
+					"    InquiryObservedBy,\r\n",
+					"    InquirySVCancelled,\r\n",
+					"    ASVUSV,\r\n",
+					"    NumberOfClaims,\r\n",
+					"    GBPCommitted,\r\n",
+					"    CommittedLeft,\r\n",
+					"    ActualDuration,\r\n",
+					"    SittingDaysClaimed,\r\n",
+					"    PreparationTime,\r\n",
+					"    ReportingTime,\r\n",
+					"    CostOfClaims,\r\n",
+					"    DateFileToInspector,\r\n",
+					"    ReceiptOfDecisionReport,\r\n",
+					"    DateSentToReader,\r\n",
+					"    ReadersName,\r\n",
+					"    DateReturnedFromReader,\r\n",
+					"    DateDecisionReportDespatched,\r\n",
+					"    DecisionRecommendation,\r\n",
+					"    DatePublicationProcedureCompleted,\r\n",
+					"    DateFileToPA,\r\n",
+					"    AssociatedFile1,\r\n",
+					"    AssociatedFile2,\r\n",
+					"    AssociatedFile3,\r\n",
+					"    AssociatedFile4,\r\n",
+					"    AssociatedFile5,\r\n",
+					"    AssociatedFile6,\r\n",
+					"    AssociatedFile7,\r\n",
+					"    AssociatedFile8,\r\n",
+					"    AssociatedFile9,\r\n",
+					"    DateCostsReportDespatched,\r\n",
+					"    DateCostsOrderOriginated,\r\n",
+					"    Notes,\r\n",
+					"    OMAStance,\r\n",
+					"    LastSittingDay,\r\n",
+					"    RechargedToDefra,\r\n",
+					"    NameOfApplicant,\r\n",
+					"    DecisionClearForDespatch,\r\n",
+					"    PDACETLDate,\r\n",
+					"    SourceSystemID,\r\n",
+					"    IngestionDate,\r\n",
+					"    ValidTo,\r\n",
+					"    RowID,\r\n",
+					"    IsActive\r\n",
+					"\r\n",
+					"From casework_legacy_rights_of_way_dim_new WHERE HistoricIsActive = 'Y' or HistoricIsActive IS NULL\r\n",
+					"\r\n",
+					"    UNION ALL\r\n",
+					"\r\n",
+					"-- gets original versions of updated rows so we can update EndDate and set IsActive flag to 'N'\r\n",
+					"SELECT\r\n",
+					"    LegacyRightsOfWayID,\r\n",
+					"    RecordStatus,\r\n",
+					"    Group,\r\n",
+					"    Jurisdiction,\r\n",
+					"    FPSNumber,\r\n",
+					"    FPS1,\r\n",
+					"    FPS2,\r\n",
+					"    FPS3,\r\n",
+					"    FPS4,\r\n",
+					"    LeadFPSNumber,\r\n",
+					"    Migration,\r\n",
+					"    Act,\r\n",
+					"    Section,\r\n",
+					"    DataEaseOMA,\r\n",
+					"    OrderMakingAuthority,\r\n",
+					"    TitleOfOrder,\r\n",
+					"    OMAReference,\r\n",
+					"    OMAContact,\r\n",
+					"    OMATelephone,\r\n",
+					"    OMAFormOfAddress,\r\n",
+					"    DataEaseObjectors,\r\n",
+					"    NumberOfObjectors,\r\n",
+					"    ConcurrentObjectors,\r\n",
+					"    ReceiptOfOrders,\r\n",
+					"    DocumentationComplete,\r\n",
+					"    AllocationLevel,\r\n",
+					"    FeeRate,\r\n",
+					"    DateOrderValidated,\r\n",
+					"    OrderRejectedOrReturned,\r\n",
+					"    DateOrdersWithdrawn,\r\n",
+					"    DateOfRecoveryBySOS,\r\n",
+					"    DateProcedureConfirmed,\r\n",
+					"    Procedure,\r\n",
+					"    DateInquiryRequested,\r\n",
+					"    LocalInquiryDate,\r\n",
+					"    EstimatedDuration,\r\n",
+					"    InquiryVenue,\r\n",
+					"    SentForAllocation,\r\n",
+					"    InspectorsName,\r\n",
+					"    InquiryObservedBy,\r\n",
+					"    InquirySVCancelled,\r\n",
+					"    ASVUSV,\r\n",
+					"    NumberOfClaims,\r\n",
+					"    GBPCommitted,\r\n",
+					"    CommittedLeft,\r\n",
+					"    ActualDuration,\r\n",
+					"    SittingDaysClaimed,\r\n",
+					"    PreparationTime,\r\n",
+					"    ReportingTime,\r\n",
+					"    CostOfClaims,\r\n",
+					"    DateFileToInspector,\r\n",
+					"    ReceiptOfDecisionReport,\r\n",
+					"    DateSentToReader,\r\n",
+					"    ReadersName,\r\n",
+					"    DateReturnedFromReader,\r\n",
+					"    DateDecisionReportDespatched,\r\n",
+					"    DecisionRecommendation,\r\n",
+					"    DatePublicationProcedureCompleted,\r\n",
+					"    DateFileToPA,\r\n",
+					"    AssociatedFile1,\r\n",
+					"    AssociatedFile2,\r\n",
+					"    AssociatedFile3,\r\n",
+					"    AssociatedFile4,\r\n",
+					"    AssociatedFile5,\r\n",
+					"    AssociatedFile6,\r\n",
+					"    AssociatedFile7,\r\n",
+					"    AssociatedFile8,\r\n",
+					"    AssociatedFile9,\r\n",
+					"    DateCostsReportDespatched,\r\n",
+					"    DateCostsOrderOriginated,\r\n",
+					"    Notes,\r\n",
+					"    OMAStance,\r\n",
+					"    LastSittingDay,\r\n",
+					"    RechargedToDefra,\r\n",
+					"    NameOfApplicant,\r\n",
+					"    DecisionClearForDespatch,\r\n",
+					"    PDACETLDate,\r\n",
+					"    SourceSystemID,\r\n",
+					"    IngestionDate,\r\n",
+					"    ValidTo,\r\n",
+					"    RowID,\r\n",
+					"    IsActive\r\n",
+					"    \r\n",
+					"FROM odw_harmonised_db.casework_legacy_rights_of_way_dim\r\n",
+					"WHERE FPSNumber IN (SELECT FPSNumber FROM casework_legacy_rights_of_way_dim_new WHERE LegacyRightsOfWayID IS NULL) AND IsActive = 'Y'; "
+				],
+				"execution_count": 49
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# View casework_legacy_rights_of_way_dim_changed_rows is used in a merge (Upsert) statement into the target table\n",
+					"- **WHEN MATCHED** ON the surrogate Key (i.e. AllAppealsID), EndDate is set to today -1 day and the IsActive flag is set to 'N'\n",
+					"- **WHEN NOT MATCHED** ON the surrogate Key, insert rows\n",
+					"## Table odw_harmonised_db.casework_legacy_rights_of_way_dim is updated"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"-- merge into dim table\r\n",
+					"\r\n",
+					"MERGE INTO odw_harmonised_db.casework_legacy_rights_of_way_dim AS Target\r\n",
+					"USING casework_legacy_rights_of_way_dim_changed_rows AS Source\r\n",
+					"\r\n",
+					"ON Source.LegacyRightsOfWayID = Target.LegacyRightsOfWayID\r\n",
+					"\r\n",
+					"-- For Updates existing rows\r\n",
+					"\r\n",
+					"WHEN MATCHED\r\n",
+					"    THEN \r\n",
+					"    UPDATE SET\r\n",
+					"    Target.ValidTo = date_sub(current_timestamp,1),\r\n",
+					"    Target.IsActive = 'N'\r\n",
+					"\r\n",
+					"-- Insert completely new rows\r\n",
+					"WHEN NOT MATCHED \r\n",
+					"    THEN INSERT * ;  \r\n",
+					""
+				],
+				"execution_count": 50
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Fix the IDs\n",
+					"- No auto-increment feature is available in delta tables, therefore we need to create new IDs for the inserted rows\n",
+					"- This is done by select the target data and using INSERT OVERWRITE to re-insert the data is a new Row Number\n",
+					"## Table odw_harmonised_db.casework_legacy_rights_of_way_dim is updated"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"-- Insert new casework_legacy_rights_of_way_dim\r\n",
+					"\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.casework_legacy_rights_of_way_dim\r\n",
+					"\r\n",
+					"SELECT \r\n",
+					"    ROW_NUMBER() OVER (ORDER BY FPSNumber NULLS LAST) AS LegacyRightsOfWayID,\r\n",
+					"    RecordStatus,\r\n",
+					"    Group,\r\n",
+					"    Jurisdiction,\r\n",
+					"    FPSNumber,\r\n",
+					"    FPS1,\r\n",
+					"    FPS2,\r\n",
+					"    FPS3,\r\n",
+					"    FPS4,\r\n",
+					"    LeadFPSNumber,\r\n",
+					"    Migration,\r\n",
+					"    Act,\r\n",
+					"    Section,\r\n",
+					"    DataEaseOMA,\r\n",
+					"    OrderMakingAuthority,\r\n",
+					"    TitleOfOrder,\r\n",
+					"    OMAReference,\r\n",
+					"    OMAContact,\r\n",
+					"    OMATelephone,\r\n",
+					"    OMAFormOfAddress,\r\n",
+					"    DataEaseObjectors,\r\n",
+					"    NumberOfObjectors,\r\n",
+					"    ConcurrentObjectors,\r\n",
+					"    ReceiptOfOrders,\r\n",
+					"    DocumentationComplete,\r\n",
+					"    AllocationLevel,\r\n",
+					"    FeeRate,\r\n",
+					"    DateOrderValidated,\r\n",
+					"    OrderRejectedOrReturned,\r\n",
+					"    DateOrdersWithdrawn,\r\n",
+					"    DateOfRecoveryBySOS,\r\n",
+					"    DateProcedureConfirmed,\r\n",
+					"    Procedure,\r\n",
+					"    DateInquiryRequested,\r\n",
+					"    LocalInquiryDate,\r\n",
+					"    EstimatedDuration,\r\n",
+					"    InquiryVenue,\r\n",
+					"    SentForAllocation,\r\n",
+					"    InspectorsName,\r\n",
+					"    InquiryObservedBy,\r\n",
+					"    InquirySVCancelled,\r\n",
+					"    ASVUSV,\r\n",
+					"    NumberOfClaims,\r\n",
+					"    GBPCommitted,\r\n",
+					"    CommittedLeft,\r\n",
+					"    ActualDuration,\r\n",
+					"    SittingDaysClaimed,\r\n",
+					"    PreparationTime,\r\n",
+					"    ReportingTime,\r\n",
+					"    CostOfClaims,\r\n",
+					"    DateFileToInspector,\r\n",
+					"    ReceiptOfDecisionReport,\r\n",
+					"    DateSentToReader,\r\n",
+					"    ReadersName,\r\n",
+					"    DateReturnedFromReader,\r\n",
+					"    DateDecisionReportDespatched,\r\n",
+					"    DecisionRecommendation,\r\n",
+					"    DatePublicationProcedureCompleted,\r\n",
+					"    DateFileToPA,\r\n",
+					"    AssociatedFile1,\r\n",
+					"    AssociatedFile2,\r\n",
+					"    AssociatedFile3,\r\n",
+					"    AssociatedFile4,\r\n",
+					"    AssociatedFile5,\r\n",
+					"    AssociatedFile6,\r\n",
+					"    AssociatedFile7,\r\n",
+					"    AssociatedFile8,\r\n",
+					"    AssociatedFile9,\r\n",
+					"    DateCostsReportDespatched,\r\n",
+					"    DateCostsOrderOriginated,\r\n",
+					"    Notes,\r\n",
+					"    OMAStance,\r\n",
+					"    LastSittingDay,\r\n",
+					"    RechargedToDefra,\r\n",
+					"    NameOfApplicant,\r\n",
+					"    DecisionClearForDespatch,\r\n",
+					"    PDACETLDate,\r\n",
+					"    SourceSystemID,\r\n",
+					"    IngestionDate,\r\n",
+					"    ValidTo,\r\n",
+					"    RowID,\r\n",
+					"    IsActive\r\n",
+					"FROM odw_harmonised_db.casework_legacy_rights_of_way_dim;\r\n",
+					""
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
