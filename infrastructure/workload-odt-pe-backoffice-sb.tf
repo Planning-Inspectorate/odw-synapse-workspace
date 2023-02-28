@@ -6,6 +6,8 @@ resource "azurerm_resource_group" "odt_pe_backoffice_sb" {
 }
 
 resource "azurerm_resource_group" "odt_pe_backoffice_sb_failover" {
+  count    = var.failover_deployment ? 1 : 0
+
   name     = "pins-rg-odt-bo-sb-${local.resource_suffix_failover}"
   location = module.azure_region.paired_location.location_cli
 
