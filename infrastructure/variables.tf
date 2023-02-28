@@ -160,6 +160,12 @@ variable "network_watcher_enabled" {
   type        = bool
 }
 
+variable "odt_back_office_service_bus_enabled" {
+  default     = false
+  description = "Determines whether the ODT Service Bus Namespace will be deployed"
+  type        = bool
+}
+
 variable "odt_back_office_service_bus_failover_enabled" {
   default     = false
   description = "Whether or not to enable failover for the Service Bus namespace"
@@ -175,10 +181,12 @@ variable "odt_back_office_service_bus_resource_group_name_failover" {
   description = "The name of the resource group into which resources will be deployed"
   type        = string
 }
+
 variable "odt_back_office_subscription_id" {
   description = "The subscription ID of the ODT Back Office subscription"
   type        = string
 }
+
 variable "service_bus_failover_enabled" {
   default     = false
   description = "Determines whether the Service Bus Namespace will be provisioned with the Premium SKU for failover"

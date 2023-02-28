@@ -1,4 +1,6 @@
 resource "azurerm_resource_group" "odt_pe_backoffice_sb" {
+  count = var.odt_back_office_service_bus_enabled ? 1 : 0
+
   name     = "pins-rg-odt-bo-sb-${local.resource_suffix}"
   location = module.azure_region.location_cli
 
@@ -6,7 +8,7 @@ resource "azurerm_resource_group" "odt_pe_backoffice_sb" {
 }
 
 resource "azurerm_resource_group" "odt_pe_backoffice_sb_failover" {
-  count    = var.failover_deployment ? 1 : 0
+  count = var.odt_back_office_service_bus_enabled && var.failover_deployment ? 1 : 0
 
   name     = "pins-rg-odt-bo-sb-${local.resource_suffix_failover}"
   location = module.azure_region.paired_location.location_cli
@@ -15,6 +17,8 @@ resource "azurerm_resource_group" "odt_pe_backoffice_sb_failover" {
 }
 
 resource "azurerm_resource_group" "odt_pe_backoffice_sb_global" {
+  count = var.odt_back_office_service_bus_enabled ? 1 : 0
+
   name     = "pins-rg-odt-bo-sb-${local.resource_suffix_global}"
   location = module.azure_region.location_cli
 
@@ -22,6 +26,8 @@ resource "azurerm_resource_group" "odt_pe_backoffice_sb_global" {
 }
 
 resource "azurerm_private_dns_zone" "back_office_private_dns_zone" {
+  count = var.odt_back_office_service_bus_enabled ? 1 : 0
+
   name                = "privatelink.servicebus.windows.net"
   resource_group_name = azurerm_resource_group.odt_pe_backoffice_sb_global.name
 
@@ -29,6 +35,8 @@ resource "azurerm_private_dns_zone" "back_office_private_dns_zone" {
 }
 
 resource "azurerm_private_dns_zone_virtual_network_link" "back_office_private_dns_zone_vnet_link" {
+  count = var.odt_back_office_service_bus_enabled ? 1 : 0
+
   name                  = "pins-pdns-vnet-link-backoffice-sb-${local.resource_suffix}"
   resource_group_name   = azurerm_resource_group.odt_pe_backoffice_sb_global.name
   private_dns_zone_name = azurerm_private_dns_zone.back_office_private_dns_zone.name
@@ -39,6 +47,8 @@ resource "azurerm_private_dns_zone_virtual_network_link" "back_office_private_dn
 }
 
 module "odt_pe_backoffice_sb" {
+  count = var.odt_back_office_service_bus_enabled ? 1 : 0
+
   source = "./modules/odt-pe-backoffice-sb"
 
   environment                                              = var.environment
@@ -60,7 +70,7 @@ module "odt_pe_backoffice_sb" {
 }
 
 module "odt_pe_backoffice_sb_failover" {
-  count = var.failover_deployment ? 1 : 0
+  count = var.odt_back_office_service_bus_enabled && var.failover_deployment ? 1 : 0
 
   source = "./modules/odt-pe-backoffice-sb"
 
