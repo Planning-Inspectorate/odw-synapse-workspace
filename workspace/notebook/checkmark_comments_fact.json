@@ -1,0 +1,443 @@
+{
+	"name": "checkmark_comments_fact",
+	"properties": {
+		"folder": {
+			"name": "odw-harmonised/Checkmark"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"runAsWorkspaceSystemIdentity": false,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "b13f17c5-19bf-4bab-812a-0bcfb1def417"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.3",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Check for new, updated or deleted data\r\n",
+					"- This script checks for new, updated or deleted data by checking the source data (sap hr) against the target (odw_harmonised_db.checkmark_comments_fact)\r\n",
+					"- **New Data:** where a Pers_No in the source does not exist as an EmployeeNumber in the target. NewData flag is set to 'Y'\r\n",
+					"- **Updated data:** Comparison occurs on Pers_No in source and EmployeeNumber in target where the row hash is different i.e. there is a change in one of the columns. NewData flag is set to 'Y'\r\n",
+					"- **Deleted data:** where an EmployeeNumber in the target exists but the same Pers_No doesn't exist in the source. DeletedData flag is set to 'Y'\r\n",
+					"\r\n",
+					"## View checkmark_comments_fact_new is created"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql  \r\n",
+					"\r\n",
+					"-- Gets modified or deleted from source rows\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW checkmark_comments_fact_new \r\n",
+					"\r\n",
+					"    AS\r\n",
+					"\r\n",
+					"-- gets data that matches of CaseReference and flags that it is modified based on a row (md5) hash. Flags as \"NewData\"\r\n",
+					"-- gets data that is in the target but not in source. Flags as \"DeletedData\"\r\n",
+					"\r\n",
+					"SELECT\r\n",
+					"    CASE\r\n",
+					"        WHEN T5.CaseReference IS NULL\r\n",
+					"        THEN T1.CommentsID\r\n",
+					"        ELSE NULL\r\n",
+					"    END as CommentsID, -- surrogate \r\n",
+					"    T5.CommentsDimID,\r\n",
+					"    T5.CaseReference, -- source system id\r\n",
+					"    T5.State AS StateReferenceID,\r\n",
+					"    T5.Type AS TypeReferenceID,\r\n",
+					"    T2.SourceSystemID as SourceSystemID,\r\n",
+					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
+					"    NULL AS ValidTo,\r\n",
+					"    md5(concat(IFNULL(T1.CaseReference,'.'), IFNULL(T5.State,'.'), IFNULL(T5.Type,'.'), IFNULL(T5.CaseReference,'.'))) as RowID,\r\n",
+					"    'Y' as IsActive,\r\n",
+					"    CASE\r\n",
+					"        WHEN T1.CaseReference = T5.CaseReference AND md5(concat(IFNULL(T1.CaseReference,'.'), IFNULL(T5.State,'.'), IFNULL(T5.Type,'.'), IFNULL(T5.CaseReference,'.'))) <> T5.RowID    -- same employee, changed data\r\n",
+					"        THEN 'Y'\r\n",
+					"        WHEN T5.CaseReference IS NULL -- new comment\r\n",
+					"        THEN 'Y'\r\n",
+					"        ELSE 'N'\r\n",
+					"    END as NewData,\r\n",
+					"    CASE\r\n",
+					"        WHEN T1.CaseReference IS NULL\r\n",
+					"        THEN 'Y'\r\n",
+					"        ELSE 'N'\r\n",
+					"    END AS  DeletedData, \r\n",
+					"    T5.IsActive as HistoricIsActive\r\n",
+					"\r\n",
+					"FROM odw_harmonised_db.checkmark_comments_fact T1\r\n",
+					"FULL JOIN odw_harmonised_db.checkmark_comments_dim T5 ON T1.CaseReference = T5.CaseReference AND T5.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_harmonised_db.main_sourcesystem_fact T2 ON \"SAP HR\" = T2.Description AND T2.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_harmonised_db.checkmark_comment_state_reference_dim T4 ON T1.StateReferenceID = T4.CommentStateReferenceID AND T4.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_harmonised_db.checkmark_comment_type_reference_dim T3 ON T1.TypeReferenceID = T3.CommentTypeReferenceID AND T3.IsActive = 'Y'\r\n",
+					"\r\n",
+					"\r\n",
+					"WHERE\r\n",
+					"    (\r\n",
+					"        \r\n",
+					"        -- flags new data        \r\n",
+					"        (   CASE\r\n",
+					"                WHEN T1.CaseReference = T5.CaseReference AND md5(concat(IFNULL(T1.CaseReference,'.'), IFNULL(T5.State,'.'), IFNULL(T5.Type,'.'), IFNULL(T5.CaseReference,'.'))) <> T5.RowID    -- same employee, changed data\r\n",
+					"                THEN 'Y'\r\n",
+					"                WHEN T5.CaseReference IS NULL -- new employee\r\n",
+					"                THEN 'Y'\r\n",
+					"                ELSE 'N'\r\n",
+					"            END  = 'Y' ) OR\r\n",
+					"        \r\n",
+					"        -- flags deleted data\r\n",
+					"        (   CASE\r\n",
+					"                WHEN T1.CaseReference IS NULL\r\n",
+					"                THEN 'Y'\r\n",
+					"                ELSE 'N'\r\n",
+					"            END = 'Y' )\r\n",
+					"    )\r\n",
+					";"
+				],
+				"execution_count": 1
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"# -- %%sql\r\n",
+					"# -- -- Build checkmark_comments_fact -- merge\r\n",
+					"# -- -- Gets modified or deleted from source rows\r\n",
+					"\r\n",
+					"# -- CREATE OR REPLACE TEMPORARY VIEW checkmark_comments_fact_new \r\n",
+					"\r\n",
+					"# --     AS\r\n",
+					"\r\n",
+					"# -- -- gets data that matches of CaseReference and flags that it is modified based on a row (md5) hash. Flags as \"NewData\"\r\n",
+					"# -- -- gets data that is in the target but not in source. Flags as \"DeletedData\"\r\n",
+					"\r\n",
+					"# -- SELECT \r\n",
+					"# --     CASE\r\n",
+					"# --         WHEN T1.Pers_No IS NULL\r\n",
+					"# --         THEN T2.EmployeeID\r\n",
+					"# --         ELSE NULL\r\n",
+					"# --     END as HRRecordID, -- surrogate key\r\n",
+					"# --     T2.EmployeeID AS EmployeeID,\r\n",
+					"# --     T3.PersonnelAreaID AS PersonnelAreaID,\r\n",
+					"# --     T4.PersonnelSubAreaID AS PersonnelSubAreaID,\r\n",
+					"# --     T5.OrganisationUnitID AS OrganisationalUnitID,\r\n",
+					"# --     T6.ContractID AS ContractID,\r\n",
+					"# --     T5.PayBandID AS PayBandID,\r\n",
+					"# --     T8.CostCenterID AS CostCenterID,\r\n",
+					"# --     T9.PositionID AS PositionID,\r\n",
+					"# --     T10.ManagerEmployeeID AS ManagerEmployeeID,\r\n",
+					"# --     TempMPID.PositionID AS ManagerPositionID,\r\n",
+					"# --     T10.CounterSignManagerID AS CounterSignManagerEmployeeID,\r\n",
+					"# --     T11.LocationID AS LocationID,\r\n",
+					"# --     T12.WorkScheduleID AS WorkScheduleID,\r\n",
+					"# --     T14.SourceSystemID,\r\n",
+					"# --     current_timestamp as StartDate,\r\n",
+					"# --     NULL as EndDate,\r\n",
+					"# --     current_timestamp as IngestionDate,\r\n",
+					"# --     NULL as ValidTo,\r\n",
+					"# --     md5(concat(T2.EmployeeID, IFNULL(T3.PersonnelAreaID, '.'), IFNULL(T4.PersonnelSubAreaID, '.'), IFNULL(T5.OrganisationUnitID, '.'),IFNULL(T6.ContractID, '.'),\r\n",
+					"# --                 IFNULL(T5.PayBandID, '.'),IFNULL(T8.CostCenterID, '.'),IFNULL(T9.PositionID, '.'),IFNULL(T10.ManagerEmployeeID, '.'),IFNULL(TempMPID.PositionID, '.'),\r\n",
+					"# --                 IFNULL(T10.CounterSignManagerID, '.'), IFNULL(T11.LocationID, '.'),IFNULL(T12.WorkScheduleID, '.'))) as RowID, \r\n",
+					"# --     'Y' as IsActive\r\n",
+					"\r\n",
+					"# -- FROM odw_standardised_db.vw_saphr T1\r\n",
+					"# -- LEFT JOIN odw_harmonised_db.employee_dim T2 ON T1.Pers_No = T2.EmployeeNumber\r\n",
+					"# -- LEFT JOIN odw_harmonised_db.personnelarea_dim T3 ON T1.PA = T3.PersonnelAreaCode\r\n",
+					"# -- LEFT JOIN odw_harmonised_db.personnelsubarea_dim T4 ON T1.PSubArea = T4.PersonnelSubAreaCode\r\n",
+					"# -- LEFT JOIN odw_harmonised_db.organisationunit_dim T5 ON T1.Org_unit = T5.OrganisationUnit\r\n",
+					"# -- LEFT JOIN odw_harmonised_db.contract_dim T6 ON T1.WorkC = T6.ContractCode AND T1.CT = T6.ContractTypeCode\r\n",
+					"# -- LEFT JOIN odw_harmonised_db.payband_dim T5 ON T1.PS_group = T5.PSGroupCode\r\n",
+					"# -- LEFT JOIN odw_harmonised_db.costcenter_dim T8 ON T1.Cost_Ctr = T8.CostCenterCode\r\n",
+					"# -- LEFT JOIN odw_harmonised_db.position_dim T9 ON T1.PositionID= T9.PositionCode\r\n",
+					"# -- LEFT JOIN odw_harmonised_db.position_dim TempMPID ON T1.Manager_Position = T9.PositionCode\r\n",
+					"# -- LEFT JOIN odw_harmonised_db.employee_hr_hierarchy_dim T10 ON T2.EmployeeID = T10.EmployeeID\r\n",
+					"# -- LEFT JOIN odw_harmonised_db.pins_location_dim T11 ON T1.Loc = T11.LocationCode\r\n",
+					"# -- LEFT JOIN odw_harmonised_db.absence_dim TAbs ON T2.EmployeeID = TAbs.EmployeeID AND TAbs.IsActive = 'Y'\r\n",
+					"# -- LEFT JOIN odw_harmonised_db.workschedule_dim T12 ON TAbs.WorkScheduleID = T12.WorkScheduleID\r\n",
+					"# -- LEFT JOIN odw_harmonised_db.sourcesystem_fact T14 ON \"SAP HR\" = T14.Description\r\n",
+					"# -- -- FULL JOIN odw_harmonised_db.checkmark_comments_fact T15 ON ----T1.Pers_No = T5.EmployeeNumber\r\n",
+					"# -- WHERE  (T5.IsActive = 'Y' or T5.IsActive IS NULL)\r\n",
+					"    \r\n",
+					"# --         AND (\r\n",
+					"        \r\n",
+					"# --         -- flags new data        \r\n",
+					"# --         ( CASE\r\n",
+					"# --             WHEN T1.Pers_No = T2.EmployeeNumber AND md5(concat(T2.EmployeeID, IFNULL(T3.PersonnelAreaID, '.'), IFNULL(T4.PersonnelSubAreaID, '.'), IFNULL(T5.OrganisationUnitID, '.'),IFNULL(T6.ContractID, '.'),\r\n",
+					"# --                 IFNULL(T5.PayBandID, '.'),IFNULL(T8.CostCenterID, '.'),IFNULL(T9.PositionID, '.'),IFNULL(T10.ManagerEmployeeID, '.'),IFNULL(TempMPID.PositionID, '.'),\r\n",
+					"# --                 IFNULL(T10.CounterSignManagerID, '.'), IFNULL(T11.LocationID, '.'),IFNULL(T12.WorkScheduleID, '.'))) <> T5.RowID     \r\n",
+					"# --             THEN 'Y'\r\n",
+					"# --             WHEN T2.EmployeeID IS NULL\r\n",
+					"# --             THEN 'Y'\r\n",
+					"# --             ELSE 'N'\r\n",
+					"# --         END  = 'Y' ) OR\r\n",
+					"        \r\n",
+					"# --         -- flags deleted data\r\n",
+					"# --         ( CASE\r\n",
+					"# --             WHEN T1.Pers_No IS NULL\r\n",
+					"# --             THEN 'Y'\r\n",
+					"# --             ELSE 'N'\r\n",
+					"# --         END = 'Y' )\r\n",
+					"# -- )\r\n",
+					"# -- --GROUP BY T1.Pers_No, T2.EmployeeID, T3.PersonnelAreaID, T4.PersonnelSubAreaID, T5.OrganisationUnitID, T6.ContractID, T5.PayBandID, T8.CostCenterID, T9.PositionID, T10.ManagerEmployeeID, TempMPID.PositionID, T10.CounterSignManagerID, T11.LocationID, T12.WorkScheduleID\r\n",
+					"# -- ;\r\n",
+					""
+				],
+				"execution_count": 2
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Dataset is created that contains changed data and corresponding target data\r\n",
+					"- This script combines data that has been updated, Deleted or is new, with corresponding target data\r\n",
+					"- View **checkmark_comments_fact_new** is unioned to the target data filter to only those rows where changes have been detected\r\n",
+					"## View checkmark_comments_fact_changed_rows is created"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"\r\n",
+					"-- Create new and updated dataset\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW checkmark_comments_fact_changed_rows\r\n",
+					"\r\n",
+					"    AS\r\n",
+					"\r\n",
+					"-- gets updated, deleted and new rows \r\n",
+					"\r\n",
+					"Select \r\n",
+					"    CommentsID, -- surrogate \r\n",
+					"    CommentsDimID,\r\n",
+					"    CaseReference, -- source system id\r\n",
+					"    StateReferenceID,\r\n",
+					"    TypeReferenceID,\r\n",
+					"    SourceSystemID,\r\n",
+					"    IngestionDate,\r\n",
+					"    ValidTo,\r\n",
+					"    RowID,\r\n",
+					"    IsActive\r\n",
+					"From checkmark_comments_fact_new WHERE HistoricIsActive = 'Y' or HistoricIsActive IS NULL\r\n",
+					"\r\n",
+					"    UNION ALL\r\n",
+					"\r\n",
+					"-- gets original versions of updated rows so we can update EndDate and set IsActive flag to 'N'\r\n",
+					"\r\n",
+					"SELECT\r\n",
+					"    CommentsID, -- surrogate \r\n",
+					"    CommentsDimID,\r\n",
+					"    CaseReference, -- source system id\r\n",
+					"    StateReferenceID,\r\n",
+					"    TypeReferenceID,\r\n",
+					"    SourceSystemID,\r\n",
+					"    IngestionDate,\r\n",
+					"    ValidTo,\r\n",
+					"    RowID,\r\n",
+					"    IsActive\r\n",
+					"FROM odw_harmonised_db.checkmark_comments_fact\r\n",
+					"WHERE CaseReference IN (SELECT CaseReference FROM checkmark_comments_fact_new WHERE CommentsID IS NULL) AND IsActive = 'Y';\r\n",
+					""
+				],
+				"execution_count": 3
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# View checkmark_comments_fact_changed_rows is used in a merge (Upsert) statement into the target table\r\n",
+					"- **WHEN MATCHED** ON the Business Key (i.e. Pers_No from SAP HR), EndDate is set to today -1 day and the IsActive flag is set to 'N'\r\n",
+					"- **WHEN NOT MATCHED** ON the business key, insert rows\r\n",
+					"## Table checkmark_comments_fact.employee_dim is updated"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"-- merge into fact table\r\n",
+					"\r\n",
+					"MERGE INTO odw_harmonised_db.checkmark_comments_fact AS Target\r\n",
+					"USING checkmark_comments_fact_changed_rows AS Source\r\n",
+					"\r\n",
+					"ON Source.CaseReference = Target.CaseReference\r\n",
+					"\r\n",
+					"-- For Updates existing rows\r\n",
+					"\r\n",
+					"WHEN MATCHED\r\n",
+					"    THEN \r\n",
+					"    UPDATE SET\r\n",
+					"    Target.ValidTo = date_sub(current_timestamp,1),\r\n",
+					"    Target.IsActive = 'N'\r\n",
+					"\r\n",
+					"-- Insert completely new rows\r\n",
+					"WHEN NOT MATCHED \r\n",
+					"    THEN INSERT * ;   \r\n",
+					""
+				],
+				"execution_count": 4
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Fix the IDs\r\n",
+					"- No auto-increment feature is available in delta tables, therefore we need to create new IDs for the inserted rows\r\n",
+					"- This is done by select the target data and using INSERT OVERWRITE to re-insert the data is a new Row Number\r\n",
+					"## Table odw_harmonised.checkmark_comments_fact is updated"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"-- Insert new CommentsID\r\n",
+					"\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.checkmark_comments_fact\r\n",
+					"\r\n",
+					"SELECT \r\n",
+					"    ROW_NUMBER() OVER (ORDER BY CommentsID NULLS LAST) AS CommentsID, -- surrogate key\r\n",
+					"    CommentsDimID,\r\n",
+					"    CaseReference, -- source system id\r\n",
+					"    StateReferenceID,\r\n",
+					"    TypeReferenceID,\r\n",
+					"    SourceSystemID,\r\n",
+					"    IngestionDate,\r\n",
+					"    ValidTo,\r\n",
+					"    RowID,\r\n",
+					"    IsActive\r\n",
+					"FROM odw_harmonised_db.checkmark_comments_fact;"
+				],
+				"execution_count": 5
+			}
+		]
+	}
+}

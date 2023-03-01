@@ -1,0 +1,374 @@
+{
+	"name": "checkmark_reading_case_fact",
+	"properties": {
+		"folder": {
+			"name": "odw-harmonised/Checkmark"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"runAsWorkspaceSystemIdentity": false,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "a64ad0ba-4ac0-49df-8b83-009684dfe22f"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.2",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Check for new, updated or deleted data\r\n",
+					"- This script checks for new, updated or deleted data by checking the source data (sap hr) against the target (odw_harmonised_db.checkmark_comments_fact)\r\n",
+					"- **New Data:** where a Pers_No in the source does not exist as an EmployeeNumber in the target. NewData flag is set to 'Y'\r\n",
+					"- **Updated data:** Comparison occurs on Pers_No in source and EmployeeNumber in target where the row hash is different i.e. there is a change in one of the columns. NewData flag is set to 'Y'\r\n",
+					"- **Deleted data:** where an EmployeeNumber in the target exists but the same Pers_No doesn't exist in the source. DeletedData flag is set to 'Y'\r\n",
+					"\r\n",
+					"## View checkmark_reading_case_fact_new is created"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql  \r\n",
+					"\r\n",
+					"-- Gets modified or deleted from source rows\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW checkmark_reading_case_fact_new \r\n",
+					"\r\n",
+					"    AS\r\n",
+					"\r\n",
+					"-- gets data that matches of ReadingCaseID and flags that it is modified based on a row (md5) hash. Flags as \"NewData\"\r\n",
+					"-- gets data that is in the target but not in source. Flags as \"DeletedData\"\r\n",
+					"\r\n",
+					"SELECT\r\n",
+					"    CASE\r\n",
+					"        WHEN T5.ReadingCaseID IS NULL\r\n",
+					"        THEN T1.ReadingCaseFactID\r\n",
+					"        ELSE NULL\r\n",
+					"    END as ReadingCaseFactID, -- surrogate \r\n",
+					"    T5.ReadingCaseID, -- source system id\r\n",
+					"    T5.CaseLevel AS LevelReferenceID,\r\n",
+					"    TNSI.NSIID,\r\n",
+					"    T5.Source AS SourceReferenceID,\r\n",
+					"    T5.TypeOfReading AS ReadingTypeReferenceID,\r\n",
+					"    T5.ReadingStatus AS ReadingStatusReferenceID,\r\n",
+					"    T5.Procedure AS ProcedureReferenceID,\r\n",
+					"    T5.CaseReference,\r\n",
+					"    \r\n",
+					"    T2.SourceSystemID as SourceSystemID,\r\n",
+					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
+					"    NULL AS ValidTo,\r\n",
+					"    md5(concat(IFNULL(T1.ReadingCaseID,'.'), IFNULL(T5.CaseLevel,'.'), IFNULL(    TNSI.NSIID,'.'), IFNULL(T5.Source,'.'),IFNULL(T5.TypeOfReading,'.'),IFNULL(T5.ReadingStatus,'.'),IFNULL(T5.Procedure,'.'),IFNULL(T5.CaseReference,'.'))) as RowID,\r\n",
+					"    'Y' as IsActive,\r\n",
+					"    CASE\r\n",
+					"        WHEN T1.ReadingCaseID = T5.ReadingCaseID AND md5(concat(IFNULL(T1.ReadingCaseID,'.'), IFNULL(T5.CaseLevel,'.'), IFNULL(    TNSI.NSIID,'.'), IFNULL(T5.Source,'.'),IFNULL(T5.TypeOfReading,'.'),IFNULL(T5.ReadingStatus,'.'),IFNULL(T5.Procedure,'.'),IFNULL(T5.CaseReference,'.'))) <> T5.RowID    -- same employee, changed data\r\n",
+					"        THEN 'Y'\r\n",
+					"        WHEN T5.ReadingCaseID IS NULL -- new comment\r\n",
+					"        THEN 'Y'\r\n",
+					"        ELSE 'N'\r\n",
+					"    END as NewData,\r\n",
+					"    CASE\r\n",
+					"        WHEN T1.ReadingCaseID IS NULL\r\n",
+					"        THEN 'Y'\r\n",
+					"        ELSE 'N'\r\n",
+					"    END AS  DeletedData, \r\n",
+					"    T5.IsActive as HistoricIsActive\r\n",
+					"\r\n",
+					"FROM odw_harmonised_db.checkmark_reading_case_fact T1\r\n",
+					"FULL JOIN odw_harmonised_db.checkmark_reading_case_dim T5 ON T1.ReadingCaseID = T5.ReadingCaseID AND T5.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_harmonised_db.main_sourcesystem_fact T2 ON \"SAP HR\" = T2.Description AND T2.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_harmonised_db.checkmark_level_reference_dim TLR ON TLR.LevelReferenceID = T1.LevelReferenceID AND TLR.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_harmonised_db.checkmark_nsi_dim TNSI ON TNSI.NSIID = T1.NSIID AND TNSI.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_harmonised_db.checkmark_source_reference_dim TSR ON TSR.SourceReferenceID = T1.SourceReferenceID AND TSR.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_harmonised_db.checkmark_reading_type_reference_dim TRTR ON TRTR.ReadingTypeReferenceID = T1.ReadingTypeReferenceID AND TRTR.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_harmonised_db.checkmark_reading_status_reference_dim TRSR ON TRSR.ReadingStatusReferenceID = T1.ReadingStatusReferenceID AND TRSR.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_harmonised_db.checkmark_procedure_reference_dim TPR ON TPR.ProcedureReferenceID = T1.ProcedureReferenceID AND TLR.IsActive = 'Y'\r\n",
+					"\r\n",
+					"\r\n",
+					"WHERE\r\n",
+					"    (\r\n",
+					"        \r\n",
+					"        -- flags new data        \r\n",
+					"        (   CASE\r\n",
+					"                WHEN T1.ReadingCaseID = T5.ReadingCaseID AND md5(concat(IFNULL(T1.ReadingCaseID,'.'), IFNULL(T5.CaseLevel,'.'), IFNULL(    TNSI.NSIID,'.'), IFNULL(T5.Source,'.'),IFNULL(T5.TypeOfReading,'.'),IFNULL(T5.ReadingStatus,'.'),IFNULL(T5.Procedure,'.'),IFNULL(T5.CaseReference,'.'))) <> T5.RowID    -- same employee, changed data\r\n",
+					"                THEN 'Y'\r\n",
+					"                WHEN T5.ReadingCaseID IS NULL -- new employee\r\n",
+					"                THEN 'Y'\r\n",
+					"                ELSE 'N'\r\n",
+					"            END  = 'Y' ) OR\r\n",
+					"        \r\n",
+					"        -- flags deleted data\r\n",
+					"        (   CASE\r\n",
+					"                WHEN T1.ReadingCaseID IS NULL\r\n",
+					"                THEN 'Y'\r\n",
+					"                ELSE 'N'\r\n",
+					"            END = 'Y' )\r\n",
+					"    )\r\n",
+					";"
+				],
+				"execution_count": 1
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Dataset is created that contains changed data and corresponding target data\r\n",
+					"- This script combines data that has been updated, Deleted or is new, with corresponding target data\r\n",
+					"- View **checkmark_reading_case_fact_new** is unioned to the target data filter to only those rows where changes have been detected\r\n",
+					"## View checkmark_reading_case_fact_changed_rows is created"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"\r\n",
+					"-- Create new and updated dataset\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW checkmark_reading_case_fact_changed_rows\r\n",
+					"\r\n",
+					"    AS\r\n",
+					"\r\n",
+					"-- gets updated, deleted and new rows \r\n",
+					"\r\n",
+					"Select \r\n",
+					"    ReadingCaseFactID, -- surrogate \r\n",
+					"    ReadingCaseID, -- source system id\r\n",
+					"    LevelReferenceID,\r\n",
+					"    NSIID,\r\n",
+					"    SourceReferenceID,\r\n",
+					"    ReadingTypeReferenceID,\r\n",
+					"    ReadingStatusReferenceID,\r\n",
+					"    ProcedureReferenceID,\r\n",
+					"    CaseReference,\r\n",
+					"    SourceSystemID,\r\n",
+					"    IngestionDate,\r\n",
+					"    ValidTo,\r\n",
+					"    RowID,\r\n",
+					"    IsActive\r\n",
+					"From checkmark_reading_case_fact_new WHERE HistoricIsActive = 'Y' or HistoricIsActive IS NULL\r\n",
+					"\r\n",
+					"    UNION ALL\r\n",
+					"\r\n",
+					"-- gets original versions of updated rows so we can update EndDate and set IsActive flag to 'N'\r\n",
+					"\r\n",
+					"SELECT\r\n",
+					"    ReadingCaseFactID, -- surrogate \r\n",
+					"    ReadingCaseID, -- source system id\r\n",
+					"    LevelReferenceID,\r\n",
+					"    NSIID,\r\n",
+					"    SourceReferenceID,\r\n",
+					"    ReadingTypeReferenceID,\r\n",
+					"    ReadingStatusReferenceID,\r\n",
+					"    ProcedureReferenceID,\r\n",
+					"    CaseReference,\r\n",
+					"    SourceSystemID,\r\n",
+					"    IngestionDate,\r\n",
+					"    ValidTo,\r\n",
+					"    RowID,\r\n",
+					"    IsActive\r\n",
+					"FROM odw_harmonised_db.checkmark_reading_case_fact\r\n",
+					"WHERE CaseReference IN (SELECT CaseReference FROM checkmark_reading_case_fact_new WHERE ReadingCaseFactID IS NULL) AND IsActive = 'Y';\r\n",
+					""
+				],
+				"execution_count": 2
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# View checkmark_reading_case_fact_changed_rows is used in a merge (Upsert) statement into the target table\r\n",
+					"- **WHEN MATCHED** ON the Business Key (i.e. Pers_No from SAP HR), EndDate is set to today -1 day and the IsActive flag is set to 'N'\r\n",
+					"- **WHEN NOT MATCHED** ON the business key, insert rows\r\n",
+					"## Table checkmark_comments_fact.employee_dim is updated"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"-- merge into fact table\r\n",
+					"\r\n",
+					"MERGE INTO odw_harmonised_db.checkmark_reading_case_fact AS Target\r\n",
+					"USING checkmark_reading_case_fact_changed_rows AS Source\r\n",
+					"\r\n",
+					"ON Source.CaseReference = Target.CaseReference\r\n",
+					"\r\n",
+					"-- For Updates existing rows\r\n",
+					"\r\n",
+					"WHEN MATCHED\r\n",
+					"    THEN \r\n",
+					"    UPDATE SET\r\n",
+					"    Target.ValidTo = date_sub(current_timestamp,1),\r\n",
+					"    Target.IsActive = 'N'\r\n",
+					"\r\n",
+					"-- Insert completely new rows\r\n",
+					"WHEN NOT MATCHED \r\n",
+					"    THEN INSERT * ;   \r\n",
+					""
+				],
+				"execution_count": 3
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Fix the IDs\r\n",
+					"- No auto-increment feature is available in delta tables, therefore we need to create new IDs for the inserted rows\r\n",
+					"- This is done by select the target data and using INSERT OVERWRITE to re-insert the data is a new Row Number\r\n",
+					"## Table odw_harmonised.checkmark_comments_fact is updated"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"-- Insert new ReadingCaseFactID\r\n",
+					"\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.checkmark_reading_case_fact\r\n",
+					"\r\n",
+					"SELECT \r\n",
+					"    ROW_NUMBER() OVER (ORDER BY ReadingCaseFactID NULLS LAST) AS ReadingCaseFactID, -- surrogate key\r\n",
+					"    ReadingCaseID, -- source system id\r\n",
+					"    LevelReferenceID,\r\n",
+					"    NSIID,\r\n",
+					"    SourceReferenceID,\r\n",
+					"    ReadingTypeReferenceID,\r\n",
+					"    ReadingStatusReferenceID,\r\n",
+					"    ProcedureReferenceID,\r\n",
+					"    CaseReference,\r\n",
+					"    SourceSystemID,\r\n",
+					"    IngestionDate,\r\n",
+					"    ValidTo,\r\n",
+					"    RowID,\r\n",
+					"    IsActive\r\n",
+					"FROM odw_harmonised_db.checkmark_reading_case_fact;"
+				],
+				"execution_count": 4
+			}
+		]
+	}
+}
