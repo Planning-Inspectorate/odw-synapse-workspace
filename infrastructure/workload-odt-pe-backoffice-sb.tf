@@ -56,7 +56,7 @@ module "odt_pe_backoffice_sb" {
   location                                                 = module.azure_region.location_cli
   service_name                                             = local.service_name
   odt_back_office_service_bus_failover_enabled             = var.odt_back_office_service_bus_failover_enabled
-  odt-back_office_service_bus_name                         = var.odt_back_office_service_bus_name
+  odt_back_office_service_bus_name                         = var.odt_back_office_service_bus_name
   odt_back_office_service_bus_name_failover                = var.odt_back_office_service_bus_name_failover
   odt_back_office_service_bus_resource_group_name          = var.odt_back_office_service_bus_resource_group_name
   odt_back_office_service_bus_resource_group_name_failover = var.odt_back_office_service_bus_resource_group_name_failover
@@ -81,7 +81,7 @@ module "odt_pe_backoffice_sb_failover" {
   location                                                 = module.azure_region.location_cli
   service_name                                             = local.service_name
   odt_back_office_service_bus_failover_enabled             = var.odt_back_office_service_bus_failover_enabled
-  odt-back_office_service_bus_name                         = var.odt_back_office_service_bus_name
+  odt_back_office_service_bus_name                         = var.odt_back_office_service_bus_name
   odt_back_office_service_bus_name_failover                = var.odt_back_office_service_bus_name_failover
   odt_back_office_service_bus_resource_group_name          = var.odt_back_office_service_bus_resource_group_name
   odt_back_office_service_bus_resource_group_name_failover = var.odt_back_office_service_bus_resource_group_name_failover
