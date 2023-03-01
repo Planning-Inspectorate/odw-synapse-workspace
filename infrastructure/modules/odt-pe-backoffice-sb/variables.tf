@@ -9,28 +9,12 @@ variable "resource_group_name" {
   type        = string
 }
 
-variable "odt_back_office_service_bus_failover_enabled" {
-  default     = false
-  description = "Whether or not to enable failover for the Service Bus namespace"
-  type        = bool
-}
-
 variable "odt_back_office_service_bus_name" {
   description = "The name of the Service Bus namespace into which resources will be deployed"
   type        = string
 }
 
-variable "odt_back_office_service_bus_name_failover" {
-  description = "The name of the Service Bus namespace into which resources will be deployed"
-  type        = string
-}
-
 variable "odt_back_office_service_bus_resource_group_name" {
-  description = "The name of the resource group into which resources will be deployed"
-  type        = string
-}
-
-variable "odt_back_office_service_bus_resource_group_name_failover" {
   description = "The name of the resource group into which resources will be deployed"
   type        = string
 }
