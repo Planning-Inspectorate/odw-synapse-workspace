@@ -762,6 +762,441 @@
 					},
 					"numExecutors": null
 				}
+			},
+			{
+				"name": "Horizon Contact Information",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "Local_Planning_Authority",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [
+					{
+						"name": "Source",
+						"value": "."
+					},
+					{
+						"name": "Destination",
+						"value": "odw-raw/@{concat('Horizon', '/', formatDateTime(utcnow(), 'yyyy-MM-dd'))}/@{'HorizonContactInformation.csv'}"
+					}
+				],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": "WITH cases as\n(\nSELECT DISTINCT\n      cases.CaseNodeId, \n\t  dtree.SubType,  \n\t  cases.CaseReference, \n\t  cases.CaseUniqueId as case_number\n      \nFROM\n      Horizon_CaseReference cases\n      INNER JOIN DTree dtree ON cases.CaseNodeId = dtree.DataID\n      INNER JOIN Horizon_TypeOfCase t ON cases.CaseTypeId = t.ID\nWHERE\n\t  dtree.OwnerID != -235834 \t-- Recycle bin ownerid\n\t  AND t.CaseworkType IN ('Appeal', 'CommonLand', 'Costs', 'Environment', 'RightsOfWay')\n)\n,\ncase_involvement(DataId, ContactID, ContactDetails, TypeOfInvolvement) AS\n       (SELECT DISTINCT d.DataId AS DataId, ll1.ValStr AS [ContactID], ll2.ValStr AS [ContactDetails], ll3.ValStr AS [TypeOfInvolvement]\n       FROM DTree d\n\t\t   INNER JOIN llattrdata ll1 ON d.DataId = ll1.Id\n\t\t   INNER JOIN llattrdata ll2 ON d.DataId = ll2.Id\n\t\t   INNER JOIN llattrdata ll3 ON d.DataId = ll3.Id\n       WHERE\n\t\t   ll1.DefId = 95501 AND ll1.AttrId = 20\n\t\t   AND ll2.DefId = 95501 AND ll2.AttrId = 19\n\t\t   AND ll3.DefId = 95501 AND ll3.AttrId = 3 \n\t\t   --exclude PINS staff case involvement roles\n\t\t   --AND ll3.ValStr NOT IN ('Case Manager', 'Case Officer', 'Inspector', 'Assistant Case Officer', 'Environmental Services Officer', 'Programme Officer', 'Legal Officer', 'Previous Inspector')\n\t\t   AND ll1.ParentKeyId = ll2.ParentKeyId\n\t\t   AND ll1.ParentKeyId = ll3.ParentKeyId)\n\nSELECT DISTINCT\n\tcr.case_number,\n\tD.CreateDate as case_created_date,\n\tci.ContactID,\n\tci.TypeOfInvolvement,\n\tv.ContactType,\n\tv.FirstName,\n\tv.LastName,\n\tv.PostName,\n\tv.Title,\n\tv.Salutation,\n\tv.Suffix,\n\tv.POBox,\n\tv.Address1,\n\tv.Address2,\n\tv.City,\n\tv.County,\n\tv.Postcode,\n\tv.Country,\n\tv.TelephoneOffice,\n\tv.TelephoneMobile,\n\tv.Fax,\n\tv.Email,\n\tv.LPACode,\n\tv.OrganisationName,\n\tt.OrganisationTypeName\nFROM \n\tcases cr\n\t\tINNER JOIN DTree D ON cr.CaseNodeId = D.DataID\n\t\tINNER JOIN case_involvement ci on D.DataID = ci.DataId\n\t\tLEFT JOIN [dbo].[Horizon_vw_AllContacts] v on ci.ContactID =v.Id\n\t\tLEFT JOIN Contacts_OrganisationType t on v.OrganisationTypeID = t.ID\n--WHERE\n--\t\t\tcase_number = 3000079",
+						"queryTimeout": "02:00:00",
+						"isolationLevel": "ReadCommitted",
+						"partitionOption": "None"
+					},
+					"sink": {
+						"type": "DelimitedTextSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "DelimitedTextWriteSettings",
+							"quoteAllText": true,
+							"fileExtension": ".txt"
+						}
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"name": "case_number",
+									"type": "Int32",
+									"physicalType": "int"
+								},
+								"sink": {
+									"type": "String",
+									"physicalType": "String",
+									"ordinal": 1
+								}
+							},
+							{
+								"source": {
+									"name": "case_created_date",
+									"type": "DateTime",
+									"physicalType": "datetime"
+								},
+								"sink": {
+									"type": "String",
+									"physicalType": "String",
+									"ordinal": 2
+								}
+							},
+							{
+								"source": {
+									"name": "ContactID",
+									"type": "String",
+									"physicalType": "nvarchar"
+								},
+								"sink": {
+									"type": "String",
+									"physicalType": "String",
+									"ordinal": 3
+								}
+							},
+							{
+								"source": {
+									"name": "TypeOfInvolvement",
+									"type": "String",
+									"physicalType": "nvarchar"
+								},
+								"sink": {
+									"type": "String",
+									"physicalType": "String",
+									"ordinal": 4
+								}
+							},
+							{
+								"source": {
+									"name": "ContactType",
+									"type": "String",
+									"physicalType": "varchar"
+								},
+								"sink": {
+									"type": "String",
+									"physicalType": "String",
+									"ordinal": 5
+								}
+							},
+							{
+								"source": {
+									"name": "FirstName",
+									"type": "String",
+									"physicalType": "nvarchar"
+								},
+								"sink": {
+									"type": "String",
+									"physicalType": "String",
+									"ordinal": 6
+								}
+							},
+							{
+								"source": {
+									"name": "LastName",
+									"type": "String",
+									"physicalType": "nvarchar"
+								},
+								"sink": {
+									"type": "String",
+									"physicalType": "String",
+									"ordinal": 7
+								}
+							},
+							{
+								"source": {
+									"name": "PostName",
+									"type": "String",
+									"physicalType": "nvarchar"
+								},
+								"sink": {
+									"type": "String",
+									"physicalType": "String",
+									"ordinal": 8
+								}
+							},
+							{
+								"source": {
+									"name": "Title",
+									"type": "String",
+									"physicalType": "nvarchar"
+								},
+								"sink": {
+									"type": "String",
+									"physicalType": "String",
+									"ordinal": 9
+								}
+							},
+							{
+								"source": {
+									"name": "Salutation",
+									"type": "String",
+									"physicalType": "nvarchar"
+								},
+								"sink": {
+									"type": "String",
+									"physicalType": "String",
+									"ordinal": 10
+								}
+							},
+							{
+								"source": {
+									"name": "Suffix",
+									"type": "String",
+									"physicalType": "nvarchar"
+								},
+								"sink": {
+									"type": "String",
+									"physicalType": "String",
+									"ordinal": 11
+								}
+							},
+							{
+								"source": {
+									"name": "POBox",
+									"type": "String",
+									"physicalType": "nvarchar"
+								},
+								"sink": {
+									"type": "String",
+									"physicalType": "String",
+									"ordinal": 12
+								}
+							},
+							{
+								"source": {
+									"name": "Address1",
+									"type": "String",
+									"physicalType": "nvarchar"
+								},
+								"sink": {
+									"type": "String",
+									"physicalType": "String",
+									"ordinal": 13
+								}
+							},
+							{
+								"source": {
+									"name": "Address2",
+									"type": "String",
+									"physicalType": "nvarchar"
+								},
+								"sink": {
+									"type": "String",
+									"physicalType": "String",
+									"ordinal": 14
+								}
+							},
+							{
+								"source": {
+									"name": "City",
+									"type": "String",
+									"physicalType": "nvarchar"
+								},
+								"sink": {
+									"type": "String",
+									"physicalType": "String",
+									"ordinal": 15
+								}
+							},
+							{
+								"source": {
+									"name": "County",
+									"type": "String",
+									"physicalType": "nvarchar"
+								},
+								"sink": {
+									"type": "String",
+									"physicalType": "String",
+									"ordinal": 16
+								}
+							},
+							{
+								"source": {
+									"name": "Postcode",
+									"type": "String",
+									"physicalType": "nvarchar"
+								},
+								"sink": {
+									"type": "String",
+									"physicalType": "String",
+									"ordinal": 17
+								}
+							},
+							{
+								"source": {
+									"name": "Country",
+									"type": "String",
+									"physicalType": "nvarchar"
+								},
+								"sink": {
+									"type": "String",
+									"physicalType": "String",
+									"ordinal": 18
+								}
+							},
+							{
+								"source": {
+									"name": "TelephoneOffice",
+									"type": "String",
+									"physicalType": "nvarchar"
+								},
+								"sink": {
+									"type": "String",
+									"physicalType": "String",
+									"ordinal": 19
+								}
+							},
+							{
+								"source": {
+									"name": "TelephoneMobile",
+									"type": "String",
+									"physicalType": "nvarchar"
+								},
+								"sink": {
+									"type": "String",
+									"physicalType": "String",
+									"ordinal": 20
+								}
+							},
+							{
+								"source": {
+									"name": "Fax",
+									"type": "String",
+									"physicalType": "nvarchar"
+								},
+								"sink": {
+									"type": "String",
+									"physicalType": "String",
+									"ordinal": 21
+								}
+							},
+							{
+								"source": {
+									"name": "Email",
+									"type": "String",
+									"physicalType": "nvarchar"
+								},
+								"sink": {
+									"type": "String",
+									"physicalType": "String",
+									"ordinal": 22
+								}
+							},
+							{
+								"source": {
+									"name": "LPACode",
+									"type": "String",
+									"physicalType": "nvarchar"
+								},
+								"sink": {
+									"type": "String",
+									"physicalType": "String",
+									"ordinal": 23
+								}
+							},
+							{
+								"source": {
+									"name": "OrganisationName",
+									"type": "String",
+									"physicalType": "nvarchar"
+								},
+								"sink": {
+									"type": "String",
+									"physicalType": "String",
+									"ordinal": 24
+								}
+							},
+							{
+								"source": {
+									"name": "OrganisationTypeName",
+									"type": "String",
+									"physicalType": "nvarchar"
+								},
+								"sink": {
+									"type": "String",
+									"physicalType": "String",
+									"ordinal": 25
+								}
+							}
+						],
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "HorizonContactInformation",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "HorizonContactInfo",
+						"type": "DatasetReference",
+						"parameters": {
+							"FileName": "HorizonContactInformation.csv"
+						}
+					}
+				]
+			},
+			{
+				"name": "Logging Failed Activities-4",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Horizon_Contact_Info_Fail",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_fail_activity_logging",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"output": {
+							"value": {
+								"value": "@activity('Horizon_Contact_Info_Fail').output.message",
+								"type": "Expression"
+							},
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Horizon_Contact_Info_Fail",
+				"description": "The ingestion of horizon contact info to Raw has failed",
+				"type": "Fail",
+				"dependsOn": [
+					{
+						"activity": "Horizon Contact Information",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"message": "The ingestion of horizon contact info to Raw has failed",
+					"errorCode": "Horizon_Contact_1"
+				}
 			}
 		],
 		"folder": {
