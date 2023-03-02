@@ -4392,6 +4392,131 @@
 					},
 					"numExecutors": null
 				}
+			},
+			{
+				"name": "NSIP_Additional_Data",
+				"description": "Additional NSIP Information",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "HZN_Right_of_Way",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": "SELECT\r\nCR.CaseReference,\r\nTOE.[Name] AS TypeOfExamination,\r\nET.[Name],\r\nET.[Description],\r\nET.[DeadlineStartDateTime],\r\nET.[Date],\r\nET.[Location]\r\nFROM horizon_ExamTimetable ET\r\nJOIN horizon_CaseReference CR on CR.CaseNodeID = ET.CaseId\r\nJOIN horizon_TypeOfExamination TOE on TOE.ID = ET.ExaminationTypeID\r\n;\r\n\r\n",
+						"queryTimeout": "02:00:00",
+						"isolationLevel": "ReadCommitted",
+						"partitionOption": "None"
+					},
+					"sink": {
+						"type": "DelimitedTextSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "DelimitedTextWriteSettings",
+							"quoteAllText": true,
+							"fileExtension": ".txt"
+						}
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "HZN_NSIP_Query",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "NSIPAdditionalDetails",
+						"type": "DatasetReference",
+						"parameters": {
+							"FileName": "NSIPAdditionalDetails.csv"
+						}
+					}
+				]
+			},
+			{
+				"name": "NSIPAdditionalDetails_Data_Copy_Failure1",
+				"description": "NSIPAdditionalDetails data loading into the RAW ODW Layer as csv has failed",
+				"type": "Fail",
+				"dependsOn": [
+					{
+						"activity": "NSIP_Additional_Data",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"message": "The Horizon NSIPAdditionalDetails load to RAW has failed",
+					"errorCode": "HZN_Data_Copy_NSIPAdditionalDetails"
+				}
+			},
+			{
+				"name": "Logging Failed Activities-12",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "NSIPAdditionalDetails_Data_Copy_Failure1",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_fail_activity_logging",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"output": {
+							"value": {
+								"value": "@activity('NSIPAdditionalDetails_Data_Copy_Failure1').output.message",
+								"type": "Expression"
+							},
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
 			}
 		],
 		"folder": {
