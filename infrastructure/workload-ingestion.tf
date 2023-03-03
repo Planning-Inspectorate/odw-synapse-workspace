@@ -23,6 +23,7 @@ module "synapse_ingestion" {
   failover_namespace                      = false
   service_bus_failover_enabled            = var.service_bus_failover_enabled
   service_bus_role_assignments            = var.service_bus_role_assignments
+  service_bus_topics_and_subscriptions    = var.service_bus_topics_and_subscriptions
   synapse_workspace_failover_principal_id = try(module.synapse_workspace_private_failover.synapse_workspace_principal_id, null)
   synapse_workspace_principal_id          = module.synapse_workspace_private.synapse_workspace_principal_id
 
@@ -43,6 +44,7 @@ module "synapse_ingestion_failover" {
   primary_service_bus_namespace_id        = module.synapse_ingestion.service_bus_namespace_id
   service_bus_failover_enabled            = var.service_bus_failover_enabled
   service_bus_role_assignments            = var.service_bus_role_assignments
+  service_bus_topics_and_subscriptions    = var.service_bus_topics_and_subscriptions
   synapse_workspace_failover_principal_id = try(module.synapse_workspace_private_failover.synapse_workspace_principal_id, null)
   synapse_workspace_principal_id          = module.synapse_workspace_private.synapse_workspace_principal_id
 

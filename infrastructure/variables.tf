@@ -210,6 +210,12 @@ variable "service_bus_role_assignments" {
   type        = map(list(string))
 }
 
+variable "service_bus_topics_and_subscriptions" {
+  default     = {}
+  description = "An object mapping Service Bus Topics to a list of Subscription names"
+  type        = map(list(string))
+}
+
 variable "spark_pool_enabled" {
   default     = false
   description = "Determines whether a Synapse-linked Spark pool should be deployed"

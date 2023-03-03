@@ -66,6 +66,12 @@ service_bus_role_assignments = {
     "1fa42635-5dc3-43bc-b5da-77578f3dabb7" # pins-odw-prod-administrators
   ]
 }
+service_bus_topics_and_subscriptions = {
+  "employee" = [
+    "employee",
+    "employee-verify"
+  ]
+}
 
 spark_pool_enabled         = true
 spark_pool_max_node_count  = 12

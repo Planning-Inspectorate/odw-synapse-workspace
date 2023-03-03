@@ -36,6 +36,12 @@ variable "service_bus_role_assignments" {
   type        = map(list(string))
 }
 
+variable "service_bus_topics_and_subscriptions" {
+  default     = {}
+  description = "An object mapping Service Bus Topics to a list of Subscription names"
+  type        = map(list(string))
+}
+
 variable "service_name" {
   description = "The short-format name of the overarching service being deployed"
   type        = string
