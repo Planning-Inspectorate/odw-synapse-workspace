@@ -1,0 +1,120 @@
+{
+	"name": "Notebook 2",
+	"properties": {
+		"folder": {
+			"name": "odw-harmonised/Casework"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodwpr",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "c1af854b-dfb4-45ab-881d-c02c8246e2e5"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodwpr",
+				"name": "pinssynspodwpr",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodwpr",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.3",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"\n",
+					"%%sql\n",
+					"\n",
+					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW  ST1 AS \n",
+					"SELECT appealrefnumber,lastmodified,decisiondate,decisionsubmitdate,bespokeindicator,bespoketargetdate,processingstate,linkstatus,casecloseddate,pcsappealwithdrawndate,\n",
+					"numberofresidences,appealsdocumentscomplete,questionnairereceived,lpaconditionsreceived,lpaconditionsforwarded,statementsdue,lpastatementsubmitted,lpastatementforwarded,\n",
+					"appellantstatementsubmitted,appellantstatementforwarded,finalcommentsdue,lpacommentssubmitted,lpacommentsforwarded,statementofcommongrounddue,statementofcommongroundreceived,\n",
+					"appellantcommentssubmitted,appellantcommentsforwarded,thirdpartyrepsdue,thirdpartyrepsforwarded,sitenoticesent,proofsdue,lpaproofssubmitted,lpaproofsforwarded,\n",
+					"appellantsproofssubmitted,appellantsproofsforwarded,areaofsiteinhectares,dateofdecisionifissued,typeofapplication,appealsourceindicator,developmentorallegation,\n",
+					"amountdue,sitegreenbelt,lpaapplicationreference,lpaapplicationdate,datenotrecoveredorderecovered,daterecovered,callindate\n",
+					"FROM odw_standardised_db.horizon_appeals_additional_data\n",
+					"GROUP BY appealrefnumber,lastmodified,decisiondate,decisionsubmitdate,bespokeindicator,bespoketargetdate,processingstate,linkstatus,casecloseddate,pcsappealwithdrawndate,\n",
+					"numberofresidences,appealsdocumentscomplete,questionnairereceived,lpaconditionsreceived,lpaconditionsforwarded,statementsdue,lpastatementsubmitted,lpastatementforwarded,\n",
+					"appellantstatementsubmitted,appellantstatementforwarded,finalcommentsdue,lpacommentssubmitted,lpacommentsforwarded,statementofcommongrounddue,statementofcommongroundreceived,\n",
+					"appellantcommentssubmitted,appellantcommentsforwarded,thirdpartyrepsdue,thirdpartyrepsforwarded,sitenoticesent,proofsdue,lpaproofssubmitted,lpaproofsforwarded,\n",
+					"appellantsproofssubmitted,appellantsproofsforwarded,areaofsiteinhectares,dateofdecisionifissued,typeofapplication,appealsourceindicator,developmentorallegation,\n",
+					"amountdue,sitegreenbelt,lpaapplicationreference,lpaapplicationdate,datenotrecoveredorderecovered,daterecovered,callindate;\n",
+					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW ST2\n",
+					"AS SELECT appealrefnumber,caseprocess,caseworkmarker,costsappliedforindicator,level,procedureappellant,procedurelpa,proceduredetermineddate,targetdate,agriculturalholding,\n",
+					"developmentaffectsettingoflistedbuilding,floorspaceinsquaremetres,sitegridreferenceeasting,sitegridreferencenorthing,historicbuildinggrantmade,incarelatestoca,\n",
+					"inspectorneedtoentersite,isfloodinganissue,isthesitewithinanaonb,sitewithinsssi\n",
+					"FROM odw_standardised_db.horizon_add_additional_data\n",
+					"GROUP BY appealrefnumber,caseprocess,caseworkmarker,costsappliedforindicator,level,procedureappellant,procedurelpa,proceduredetermineddate,targetdate,agriculturalholding,\n",
+					"developmentaffectsettingoflistedbuilding,floorspaceinsquaremetres,sitegridreferenceeasting,sitegridreferencenorthing,historicbuildinggrantmade,incarelatestoca,\n",
+					"inspectorneedtoentersite,isfloodinganissue,isthesitewithinanaonb,sitewithinsssi;\n",
+					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW T1 AS SELECT\n",
+					"    ST1.*,\n",
+					"    ST2.caseprocess,\n",
+					"    ST2.caseworkmarker,\n",
+					"    ST2.costsappliedforindicator,\n",
+					"    ST2.level,\n",
+					"    ST2.procedureappellant,\n",
+					"    ST2.procedurelpa,\n",
+					"    ST2.proceduredetermineddate,\n",
+					"    ST2.targetdate,\n",
+					"    ST2.agriculturalholding,\n",
+					"    ST2.developmentaffectsettingoflistedbuilding,\n",
+					"    ST2.floorspaceinsquaremetres,\n",
+					"    ST2.sitegridreferenceeasting,\n",
+					"    ST2.sitegridreferencenorthing,\n",
+					"    ST2.historicbuildinggrantmade,\n",
+					"    ST2.incarelatestoca,\n",
+					"    ST2.inspectorneedtoentersite,\n",
+					"    ST2.isfloodinganissue,\n",
+					"    ST2.isthesitewithinanaonb,\n",
+					"    ST2.sitewithinsssi\n",
+					"    FROM ST1 FULL JOIN ST2 on ST1.appealrefnumber = ST2.appealrefnumber;\n",
+					"\n",
+					"select count(*) from T1;"
+				],
+				"execution_count": 1
+			}
+		]
+	}
+}
