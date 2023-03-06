@@ -72,10 +72,7 @@ service_bus_topics_and_subscriptions = {
     "employee",
     "employee-verify"
   ],
-  "organisation" = [
-    "organisation",
-    "organisation-verify"
-  ],
+  "organisation" = [],
 }
 
 spark_pool_enabled         = true
