@@ -1,5 +1,7 @@
 resource "azurerm_servicebus_topic" "topics" {
-  for_each = var.failover_namespace == false ? local.service_bus_topics_and_subscriptions : {}
+  for_each = var.failover_namespace ? {} : {
+    for topic in local.service_bus_topics_and_subscriptions : topic.topic_name => topic
+  }
 
   name         = each.key
   namespace_id = azurerm_servicebus_namespace.synapse.id
