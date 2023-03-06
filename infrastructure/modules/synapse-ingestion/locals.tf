@@ -3,10 +3,10 @@ locals {
   resource_suffix = "${var.service_name}-${var.environment}-${module.azure_region.location_short}"
 
   service_bus_topics_and_subscriptions = flatten([
-    for subscription, topics in var.service_bus_topics_and_subscriptions : [
-      for topic in topics : {
-        subscription_name = subscription
-        topic_name        = topic
+    for topic, subscriptions in var.service_bus_topics_and_subscriptions : [
+      for subscription in subscriptions : {
+        subscription_names = subscription
+        topic_name         = topic
       }
     ]
   ])
