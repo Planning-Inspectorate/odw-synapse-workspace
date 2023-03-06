@@ -1,9 +1,9 @@
 resource "azurerm_servicebus_topic" "topics" {
   for_each = var.failover_namespace ? {} : {
-    for topic in local.service_bus_topics_and_subscriptions : topic.topic_name => topic
+    for topic_name, subscription_name in local.service_bus_topics_and_subscriptions : topic_name => topic_name
   }
 
-  name         = each.value.topic_name
+  name         = each.value
   namespace_id = azurerm_servicebus_namespace.synapse.id
 
   auto_delete_on_idle                     = "P10675199DT2H48M5.4775807S"
