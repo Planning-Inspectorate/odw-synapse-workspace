@@ -5,8 +5,8 @@ locals {
   service_bus_topics_and_subscriptions = flatten([
     for topic, subscriptions in var.service_bus_topics_and_subscriptions : [
       for subscription in subscriptions : {
-        subscription_name = subscription
         topic_name        = topic
+        subscription_name = subscription
       }
     ]
   ])
