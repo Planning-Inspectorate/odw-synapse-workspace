@@ -3,7 +3,7 @@ resource "azurerm_servicebus_topic" "topics" {
     for topic in local.service_bus_topics_and_subscriptions : topic.topic_name => topic
   }
 
-  name         = each.key
+  name         = each.value.topic_name
   namespace_id = azurerm_servicebus_namespace.synapse.id
 
   auto_delete_on_idle                     = "P10675199DT2H48M5.4775807S"
