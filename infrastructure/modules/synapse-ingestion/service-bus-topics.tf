@@ -1,6 +1,6 @@
 resource "azurerm_servicebus_topic" "topics" {
   for_each = var.failover_namespace ? {} : {
-    for topic in toset(local.service_bus_topics_and_subscriptions) : topic.topic_name => topic
+    for topic in local.service_bus_topics_and_subscriptions : (topic.topic_name) => topic
   }
 
   name         = each.value.topic_name
