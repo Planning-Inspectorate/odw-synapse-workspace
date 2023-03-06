@@ -6,7 +6,7 @@ locals {
     for subscription, topics in var.service_bus_topics_and_subscriptions : [
       for topic in topics : {
         subscription_name = subscription
-        topic_name     = topic
+        topic_name        = topic
       }
     ]
   ])
