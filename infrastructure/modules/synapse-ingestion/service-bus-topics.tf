@@ -1,6 +1,6 @@
 resource "azurerm_servicebus_topic" "topics" {
   for_each = var.failover_namespace ? {} : var.service_bus_topics_and_subscriptions
-  
+
   name         = each.key
   namespace_id = azurerm_servicebus_namespace.synapse.id
 
