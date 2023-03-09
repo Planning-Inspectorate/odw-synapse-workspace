@@ -1,5 +1,5 @@
 {
-	"name": "casework_all_appeals_additional_data_dim1",
+	"name": "casework_all_appeals_additional_data_dim_TEST",
 	"properties": {
 		"folder": {
 			"name": "odw-harmonised/Casework"
@@ -7,7 +7,7 @@
 		"nbformat": 4,
 		"nbformat_minor": 2,
 		"bigDataPool": {
-			"referenceName": "pinssynspodw",
+			"referenceName": "temppool",
 			"type": "BigDataPoolReference"
 		},
 		"sessionProperties": {
@@ -15,12 +15,12 @@
 			"driverCores": 4,
 			"executorMemory": "28g",
 			"executorCores": 4,
-			"numExecutors": 2,
+			"numExecutors": 1,
 			"conf": {
-				"spark.dynamicAllocation.enabled": "false",
-				"spark.dynamicAllocation.minExecutors": "2",
-				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "9e144aa7-aa51-44ab-a73d-72f3e9a2ddfa"
+				"spark.dynamicAllocation.enabled": "true",
+				"spark.dynamicAllocation.minExecutors": "1",
+				"spark.dynamicAllocation.maxExecutors": "5",
+				"spark.autotune.trackingId": "702af9bf-e193-46a4-9b83-65f769d5a12a"
 			}
 		},
 		"metadata": {
@@ -34,23 +34,92 @@
 				"name": "python"
 			},
 			"a365ComputeOptions": {
-				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
-				"name": "pinssynspodw",
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/temppool",
+				"name": "temppool",
 				"type": "Spark",
-				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/temppool",
 				"auth": {
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.3",
-				"nodeCount": 3,
+				"sparkVersion": "3.2",
+				"nodeCount": 10,
 				"cores": 4,
 				"memory": 28,
-				"automaticScaleJobs": false
+				"automaticScaleJobs": true
 			},
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW  ST1 AS \n",
+					"SELECT appealrefnumber,lastmodified,decisiondate,decisionsubmitdate,bespokeindicator,bespoketargetdate,processingstate,linkstatus,casecloseddate,pcsappealwithdrawndate,\n",
+					"numberofresidences,appealsdocumentscomplete,questionnairereceived,lpaconditionsreceived,lpaconditionsforwarded,statementsdue,lpastatementsubmitted,lpastatementforwarded,\n",
+					"appellantstatementsubmitted,appellantstatementforwarded,finalcommentsdue,lpacommentssubmitted,lpacommentsforwarded,statementofcommongrounddue,statementofcommongroundreceived,\n",
+					"appellantcommentssubmitted,appellantcommentsforwarded,thirdpartyrepsdue,thirdpartyrepsforwarded,sitenoticesent,proofsdue,lpaproofssubmitted,lpaproofsforwarded,\n",
+					"appellantsproofssubmitted,appellantsproofsforwarded,areaofsiteinhectares,dateofdecisionifissued,typeofapplication,appealsourceindicator,developmentorallegation,\n",
+					"amountdue,sitegreenbelt,lpaapplicationreference,lpaapplicationdate,datenotrecoveredorderecovered,daterecovered,callindate\n",
+					"FROM odw_standardised_db.horizon_appeals_additional_data\n",
+					"GROUP BY appealrefnumber,lastmodified,decisiondate,decisionsubmitdate,bespokeindicator,bespoketargetdate,processingstate,linkstatus,casecloseddate,pcsappealwithdrawndate,\n",
+					"numberofresidences,appealsdocumentscomplete,questionnairereceived,lpaconditionsreceived,lpaconditionsforwarded,statementsdue,lpastatementsubmitted,lpastatementforwarded,\n",
+					"appellantstatementsubmitted,appellantstatementforwarded,finalcommentsdue,lpacommentssubmitted,lpacommentsforwarded,statementofcommongrounddue,statementofcommongroundreceived,\n",
+					"appellantcommentssubmitted,appellantcommentsforwarded,thirdpartyrepsdue,thirdpartyrepsforwarded,sitenoticesent,proofsdue,lpaproofssubmitted,lpaproofsforwarded,\n",
+					"appellantsproofssubmitted,appellantsproofsforwarded,areaofsiteinhectares,dateofdecisionifissued,typeofapplication,appealsourceindicator,developmentorallegation,\n",
+					"amountdue,sitegreenbelt,lpaapplicationreference,lpaapplicationdate,datenotrecoveredorderecovered,daterecovered,callindate;\n",
+					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW ST2\n",
+					"AS SELECT appealrefnumber,caseprocess,caseworkmarker,costsappliedforindicator,level,procedureappellant,procedurelpa,proceduredetermineddate,targetdate,agriculturalholding,\n",
+					"developmentaffectsettingoflistedbuilding,floorspaceinsquaremetres,sitegridreferenceeasting,sitegridreferencenorthing,historicbuildinggrantmade,incarelatestoca,\n",
+					"inspectorneedtoentersite,isfloodinganissue,isthesitewithinanaonb,sitewithinsssi\n",
+					"FROM odw_standardised_db.horizon_add_additional_data\n",
+					"GROUP BY appealrefnumber,caseprocess,caseworkmarker,costsappliedforindicator,level,procedureappellant,procedurelpa,proceduredetermineddate,targetdate,agriculturalholding,\n",
+					"developmentaffectsettingoflistedbuilding,floorspaceinsquaremetres,sitegridreferenceeasting,sitegridreferencenorthing,historicbuildinggrantmade,incarelatestoca,\n",
+					"inspectorneedtoentersite,isfloodinganissue,isthesitewithinanaonb,sitewithinsssi;\n",
+					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW TempAdditional AS SELECT\n",
+					"    ST1.*,\n",
+					"    ST2.caseprocess,\n",
+					"    ST2.caseworkmarker,\n",
+					"    ST2.costsappliedforindicator,\n",
+					"    ST2.level,\n",
+					"    ST2.procedureappellant,\n",
+					"    ST2.procedurelpa,\n",
+					"    ST2.proceduredetermineddate,\n",
+					"    ST2.targetdate,\n",
+					"    ST2.agriculturalholding,\n",
+					"    ST2.developmentaffectsettingoflistedbuilding,\n",
+					"    ST2.floorspaceinsquaremetres,\n",
+					"    ST2.sitegridreferenceeasting,\n",
+					"    ST2.sitegridreferencenorthing,\n",
+					"    ST2.historicbuildinggrantmade,\n",
+					"    ST2.incarelatestoca,\n",
+					"    ST2.inspectorneedtoentersite,\n",
+					"    ST2.isfloodinganissue,\n",
+					"    ST2.isthesitewithinanaonb,\n",
+					"    ST2.sitewithinsssi\n",
+					"    FROM ST1 FULL JOIN ST2 on ST1.appealrefnumber = ST2.appealrefnumber;"
+				],
+				"execution_count": 1
+			},
 			{
 				"cell_type": "markdown",
 				"metadata": {
@@ -165,10 +234,38 @@
 					"    T2.SourceSystemID,\n",
 					"    CURRENT_TIMESTAMP AS IngestionDate,\n",
 					"    NULL AS ValidTo,\n",
-					"    md5(concat(IFNULL(T1.appealrefnumber,'.'), IFNULL(T1.lastmodified,'.'), IFNULL(T1.decisiondate,'.'), IFNULL(T1.decisionsubmitdate,'.'), IFNULL(T1.bespokeindicator,'.'), IFNULL(T1.bespoketargetdate,'.'), IFNULL(T1.processingstate,'.'), IFNULL(T1.linkstatus,'.'), IFNULL(T1.casecloseddate,'.'), IFNULL(T1.pcsappealwithdrawndate,'.'), IFNULL(T1.numberofresidences,'.'), IFNULL(T1.appealsdocumentscomplete,'.'), IFNULL(T1.questionnairereceived,'.'), IFNULL(T1.lpaconditionsreceived,'.'), IFNULL(T1.lpaconditionsforwarded,'.'), IFNULL(T1.statementsdue,'.'), IFNULL(T1.lpastatementsubmitted,'.'), IFNULL(T1.lpastatementforwarded,'.'), IFNULL(T1.appellantstatementsubmitted,'.'), IFNULL(T1.appellantstatementforwarded,'.'), IFNULL(T1.finalcommentsdue,'.'), IFNULL(T1.lpacommentssubmitted,'.'), IFNULL(T1.lpacommentsforwarded,'.'), IFNULL(T1.statementofcommongrounddue,'.'), IFNULL(T1.statementofcommongroundreceived,'.'), IFNULL(T1.appellantcommentssubmitted,'.'), IFNULL(T1.appellantcommentsforwarded,'.'), IFNULL(T1.thirdpartyrepsdue,'.'), IFNULL(T1.thirdpartyrepsforwarded,'.'), IFNULL(T1.sitenoticesent,'.'), IFNULL(T1.proofsdue,'.'), IFNULL(T1.lpaproofssubmitted,'.'), IFNULL(T1.lpaproofsforwarded,'.'), IFNULL(T1.appellantsproofssubmitted,'.'), IFNULL(T1.appellantsproofsforwarded,'.'), IFNULL(T1.areaofsiteinhectares,'.'), IFNULL(T1.dateofdecisionifissued,'.'), IFNULL(T1.typeofapplication,'.'), IFNULL(T1.appealsourceindicator,'.'), IFNULL(T1.developmentorallegation,'.'), IFNULL(T1.amountdue,'.'), IFNULL(T1.sitegreenbelt,'.'), IFNULL(T1.lpaapplicationreference,'.'), IFNULL(T1.lpaapplicationdate,'.'), IFNULL(T1.datenotrecoveredorderecovered,'.'), IFNULL(T1.daterecovered,'.'), IFNULL(T1.callindate,'.'), IFNULL(T1.caseprocess,'.'), IFNULL(T1.caseworkmarker,'.'), IFNULL(T1.costsappliedforindicator,'.'), IFNULL(T1.level,'.'), IFNULL(T1.procedureappellant,'.'), IFNULL(T1.procedurelpa,'.'), IFNULL(T1.proceduredetermineddate,'.'), IFNULL(T1.targetdate,'.'), IFNULL(T1.agriculturalholding,'.'), IFNULL(T1.developmentaffectsettingoflistedbuilding,'.'), IFNULL(T1.floorspaceinsquaremetres,'.'), IFNULL(T1.sitegridreferenceeasting,'.'), IFNULL(T1.sitegridreferencenorthing,'.'), IFNULL(T1.historicbuildinggrantmade,'.'), IFNULL(T1.incarelatestoca,'.'), IFNULL(T1.inspectorneedtoentersite,'.'), IFNULL(T1.isfloodinganissue,'.'), IFNULL(T1.isthesitewithinanaonb,'.'), IFNULL(T1.sitewithinsssi,'.'))) as RowID, -- this hash should contain all the defining fields\n",
+					"    md5(concat(IFNULL(T1.appealrefnumber,'.'), IFNULL(T1.lastmodified,'.'), IFNULL(T1.decisiondate,'.'), IFNULL(T1.decisionsubmitdate,'.'), IFNULL(T1.bespokeindicator,'.'), \n",
+					"    IFNULL(T1.bespoketargetdate,'.'), IFNULL(T1.processingstate,'.'), IFNULL(T1.linkstatus,'.'), IFNULL(T1.casecloseddate,'.'), IFNULL(T1.pcsappealwithdrawndate,'.'), \n",
+					"    IFNULL(T1.numberofresidences,'.'), IFNULL(T1.appealsdocumentscomplete,'.'), IFNULL(T1.questionnairereceived,'.'), IFNULL(T1.lpaconditionsreceived,'.'), \n",
+					"    IFNULL(T1.lpaconditionsforwarded,'.'), IFNULL(T1.statementsdue,'.'), IFNULL(T1.lpastatementsubmitted,'.'), IFNULL(T1.lpastatementforwarded,'.'), \n",
+					"    IFNULL(T1.appellantstatementsubmitted,'.'), IFNULL(T1.appellantstatementforwarded,'.'), IFNULL(T1.finalcommentsdue,'.'), IFNULL(T1.lpacommentssubmitted,'.'), \n",
+					"    IFNULL(T1.lpacommentsforwarded,'.'), IFNULL(T1.statementofcommongrounddue,'.'), IFNULL(T1.statementofcommongroundreceived,'.'), IFNULL(T1.appellantcommentssubmitted,'.'), \n",
+					"    IFNULL(T1.appellantcommentsforwarded,'.'), IFNULL(T1.thirdpartyrepsdue,'.'), IFNULL(T1.thirdpartyrepsforwarded,'.'), IFNULL(T1.sitenoticesent,'.'), IFNULL(T1.proofsdue,'.'), \n",
+					"    IFNULL(T1.lpaproofssubmitted,'.'), IFNULL(T1.lpaproofsforwarded,'.'), IFNULL(T1.appellantsproofssubmitted,'.'), IFNULL(T1.appellantsproofsforwarded,'.'), \n",
+					"    IFNULL(T1.areaofsiteinhectares,'.'), IFNULL(T1.dateofdecisionifissued,'.'), IFNULL(T1.typeofapplication,'.'), IFNULL(T1.appealsourceindicator,'.'), \n",
+					"    IFNULL(T1.developmentorallegation,'.'), IFNULL(T1.amountdue,'.'), IFNULL(T1.sitegreenbelt,'.'), IFNULL(T1.lpaapplicationreference,'.'), IFNULL(T1.lpaapplicationdate,'.'), \n",
+					"    IFNULL(T1.datenotrecoveredorderecovered,'.'), IFNULL(T1.daterecovered,'.'), IFNULL(T1.callindate,'.'), IFNULL(T1.caseprocess,'.'), IFNULL(T1.caseworkmarker,'.'), \n",
+					"    IFNULL(T1.costsappliedforindicator,'.'), IFNULL(T1.level,'.'), IFNULL(T1.procedureappellant,'.'), IFNULL(T1.procedurelpa,'.'), IFNULL(T1.proceduredetermineddate,'.'), \n",
+					"    IFNULL(T1.targetdate,'.'), IFNULL(T1.agriculturalholding,'.'), IFNULL(T1.developmentaffectsettingoflistedbuilding,'.'), IFNULL(T1.floorspaceinsquaremetres,'.'), \n",
+					"    IFNULL(T1.sitegridreferenceeasting,'.'), IFNULL(T1.sitegridreferencenorthing,'.'), IFNULL(T1.historicbuildinggrantmade,'.'), IFNULL(T1.incarelatestoca,'.'), \n",
+					"    IFNULL(T1.inspectorneedtoentersite,'.'), IFNULL(T1.isfloodinganissue,'.'), IFNULL(T1.isthesitewithinanaonb,'.'), IFNULL(T1.sitewithinsssi,'.'))) as RowID, -- this hash should contain all the defining fields\n",
 					"    'Y' as IsActive,\n",
 					"    CASE\n",
-					"        WHEN T1.appealrefnumber = T3.AppealRefNumber AND md5(concat(IFNULL(T1.appealrefnumber,'.'), IFNULL(T1.lastmodified,'.'), IFNULL(T1.decisiondate,'.'), IFNULL(T1.decisionsubmitdate,'.'), IFNULL(T1.bespokeindicator,'.'), IFNULL(T1.bespoketargetdate,'.'), IFNULL(T1.processingstate,'.'), IFNULL(T1.linkstatus,'.'), IFNULL(T1.casecloseddate,'.'), IFNULL(T1.pcsappealwithdrawndate,'.'), IFNULL(T1.numberofresidences,'.'), IFNULL(T1.appealsdocumentscomplete,'.'), IFNULL(T1.questionnairereceived,'.'), IFNULL(T1.lpaconditionsreceived,'.'), IFNULL(T1.lpaconditionsforwarded,'.'), IFNULL(T1.statementsdue,'.'), IFNULL(T1.lpastatementsubmitted,'.'), IFNULL(T1.lpastatementforwarded,'.'), IFNULL(T1.appellantstatementsubmitted,'.'), IFNULL(T1.appellantstatementforwarded,'.'), IFNULL(T1.finalcommentsdue,'.'), IFNULL(T1.lpacommentssubmitted,'.'), IFNULL(T1.lpacommentsforwarded,'.'), IFNULL(T1.statementofcommongrounddue,'.'), IFNULL(T1.statementofcommongroundreceived,'.'), IFNULL(T1.appellantcommentssubmitted,'.'), IFNULL(T1.appellantcommentsforwarded,'.'), IFNULL(T1.thirdpartyrepsdue,'.'), IFNULL(T1.thirdpartyrepsforwarded,'.'), IFNULL(T1.sitenoticesent,'.'), IFNULL(T1.proofsdue,'.'), IFNULL(T1.lpaproofssubmitted,'.'), IFNULL(T1.lpaproofsforwarded,'.'), IFNULL(T1.appellantsproofssubmitted,'.'), IFNULL(T1.appellantsproofsforwarded,'.'), IFNULL(T1.areaofsiteinhectares,'.'), IFNULL(T1.dateofdecisionifissued,'.'), IFNULL(T1.typeofapplication,'.'), IFNULL(T1.appealsourceindicator,'.'), IFNULL(T1.developmentorallegation,'.'), IFNULL(T1.amountdue,'.'), IFNULL(T1.sitegreenbelt,'.'), IFNULL(T1.lpaapplicationreference,'.'), IFNULL(T1.lpaapplicationdate,'.'), IFNULL(T1.datenotrecoveredorderecovered,'.'), IFNULL(T1.daterecovered,'.'), IFNULL(T1.callindate,'.'), IFNULL(T1.caseprocess,'.'), IFNULL(T1.caseworkmarker,'.'), IFNULL(T1.costsappliedforindicator,'.'), IFNULL(T1.level,'.'), IFNULL(T1.procedureappellant,'.'), IFNULL(T1.procedurelpa,'.'), IFNULL(T1.proceduredetermineddate,'.'), IFNULL(T1.targetdate,'.'), IFNULL(T1.agriculturalholding,'.'), IFNULL(T1.developmentaffectsettingoflistedbuilding,'.'), IFNULL(T1.floorspaceinsquaremetres,'.'), IFNULL(T1.sitegridreferenceeasting,'.'), IFNULL(T1.sitegridreferencenorthing,'.'), IFNULL(T1.historicbuildinggrantmade,'.'), IFNULL(T1.incarelatestoca,'.'), IFNULL(T1.inspectorneedtoentersite,'.'), IFNULL(T1.isfloodinganissue,'.'), IFNULL(T1.isthesitewithinanaonb,'.'), IFNULL(T1.sitewithinsssi,'.'))) <> T3.RowID   -- same row, changed data\n",
+					"        WHEN T1.appealrefnumber = T3.AppealRefNumber AND md5(concat(IFNULL(T1.appealrefnumber,'.'), IFNULL(T1.lastmodified,'.'), IFNULL(T1.decisiondate,'.'), \n",
+					"        IFNULL(T1.decisionsubmitdate,'.'), IFNULL(T1.bespokeindicator,'.'), IFNULL(T1.bespoketargetdate,'.'), IFNULL(T1.processingstate,'.'), IFNULL(T1.linkstatus,'.'), \n",
+					"        IFNULL(T1.casecloseddate,'.'), IFNULL(T1.pcsappealwithdrawndate,'.'), IFNULL(T1.numberofresidences,'.'), IFNULL(T1.appealsdocumentscomplete,'.'), \n",
+					"        IFNULL(T1.questionnairereceived,'.'), IFNULL(T1.lpaconditionsreceived,'.'), IFNULL(T1.lpaconditionsforwarded,'.'), IFNULL(T1.statementsdue,'.'), \n",
+					"        IFNULL(T1.lpastatementsubmitted,'.'), IFNULL(T1.lpastatementforwarded,'.'), IFNULL(T1.appellantstatementsubmitted,'.'), IFNULL(T1.appellantstatementforwarded,'.'), \n",
+					"        IFNULL(T1.finalcommentsdue,'.'), IFNULL(T1.lpacommentssubmitted,'.'), IFNULL(T1.lpacommentsforwarded,'.'), IFNULL(T1.statementofcommongrounddue,'.'), \n",
+					"        IFNULL(T1.statementofcommongroundreceived,'.'), IFNULL(T1.appellantcommentssubmitted,'.'), IFNULL(T1.appellantcommentsforwarded,'.'), IFNULL(T1.thirdpartyrepsdue,'.'), \n",
+					"        IFNULL(T1.thirdpartyrepsforwarded,'.'), IFNULL(T1.sitenoticesent,'.'), IFNULL(T1.proofsdue,'.'), IFNULL(T1.lpaproofssubmitted,'.'), IFNULL(T1.lpaproofsforwarded,'.'), \n",
+					"        IFNULL(T1.appellantsproofssubmitted,'.'), IFNULL(T1.appellantsproofsforwarded,'.'), IFNULL(T1.areaofsiteinhectares,'.'), IFNULL(T1.dateofdecisionifissued,'.'), \n",
+					"        IFNULL(T1.typeofapplication,'.'), IFNULL(T1.appealsourceindicator,'.'), IFNULL(T1.developmentorallegation,'.'), IFNULL(T1.amountdue,'.'), IFNULL(T1.sitegreenbelt,'.'), \n",
+					"        IFNULL(T1.lpaapplicationreference,'.'), IFNULL(T1.lpaapplicationdate,'.'), IFNULL(T1.datenotrecoveredorderecovered,'.'), IFNULL(T1.daterecovered,'.'), IFNULL(T1.callindate,'.'), \n",
+					"        IFNULL(T1.caseprocess,'.'), IFNULL(T1.caseworkmarker,'.'), IFNULL(T1.costsappliedforindicator,'.'), IFNULL(T1.level,'.'), IFNULL(T1.procedureappellant,'.'), \n",
+					"        IFNULL(T1.procedurelpa,'.'), IFNULL(T1.proceduredetermineddate,'.'), IFNULL(T1.targetdate,'.'), IFNULL(T1.agriculturalholding,'.'), IFNULL(T1.developmentaffectsettingoflistedbuilding,'.'), \n",
+					"        IFNULL(T1.floorspaceinsquaremetres,'.'), IFNULL(T1.sitegridreferenceeasting,'.'), IFNULL(T1.sitegridreferencenorthing,'.'), IFNULL(T1.historicbuildinggrantmade,'.'), \n",
+					"        IFNULL(T1.incarelatestoca,'.'), IFNULL(T1.inspectorneedtoentersite,'.'), IFNULL(T1.isfloodinganissue,'.'), IFNULL(T1.isthesitewithinanaonb,'.'), IFNULL(T1.sitewithinsssi,'.'))) <> T3.RowID   -- same row, changed data\n",
 					"        THEN 'Y'\n",
 					"        WHEN T3.AppealRefNumber IS NULL -- new AppealRefNumber\n",
 					"        THEN 'Y'\n",
@@ -182,14 +279,28 @@
 					"    T3.IsActive as HistoricIsActive\n",
 					"    \n",
 					"\n",
-					"FROM odw_standardised_db.vw_all_additional_appeal T1\n",
+					"FROM TempAdditional T1\n",
 					"LEFT JOIN odw_harmonised_db.main_sourcesystem_fact T2 ON \"Casework\" = T2.Description AND T2.IsActive = 'Y'\n",
 					"FULL JOIN odw_harmonised_db.casework_all_appeals_additional_data_dim T3 ON T1.appealrefnumber = T3.AppealRefNumber AND T3.IsActive = 'Y'\n",
 					"WHERE\n",
 					"    (\n",
 					"        -- flags new data        \n",
 					"        (   CASE\n",
-					"                WHEN T1.appealrefnumber = T3.AppealRefNumber AND md5(concat(IFNULL(T1.appealrefnumber,'.'), IFNULL(T1.lastmodified,'.'), IFNULL(T1.decisiondate,'.'), IFNULL(T1.decisionsubmitdate,'.'), IFNULL(T1.bespokeindicator,'.'), IFNULL(T1.bespoketargetdate,'.'), IFNULL(T1.processingstate,'.'), IFNULL(T1.linkstatus,'.'), IFNULL(T1.casecloseddate,'.'), IFNULL(T1.pcsappealwithdrawndate,'.'), IFNULL(T1.numberofresidences,'.'), IFNULL(T1.appealsdocumentscomplete,'.'), IFNULL(T1.questionnairereceived,'.'), IFNULL(T1.lpaconditionsreceived,'.'), IFNULL(T1.lpaconditionsforwarded,'.'), IFNULL(T1.statementsdue,'.'), IFNULL(T1.lpastatementsubmitted,'.'), IFNULL(T1.lpastatementforwarded,'.'), IFNULL(T1.appellantstatementsubmitted,'.'), IFNULL(T1.appellantstatementforwarded,'.'), IFNULL(T1.finalcommentsdue,'.'), IFNULL(T1.lpacommentssubmitted,'.'), IFNULL(T1.lpacommentsforwarded,'.'), IFNULL(T1.statementofcommongrounddue,'.'), IFNULL(T1.statementofcommongroundreceived,'.'), IFNULL(T1.appellantcommentssubmitted,'.'), IFNULL(T1.appellantcommentsforwarded,'.'), IFNULL(T1.thirdpartyrepsdue,'.'), IFNULL(T1.thirdpartyrepsforwarded,'.'), IFNULL(T1.sitenoticesent,'.'), IFNULL(T1.proofsdue,'.'), IFNULL(T1.lpaproofssubmitted,'.'), IFNULL(T1.lpaproofsforwarded,'.'), IFNULL(T1.appellantsproofssubmitted,'.'), IFNULL(T1.appellantsproofsforwarded,'.'), IFNULL(T1.areaofsiteinhectares,'.'), IFNULL(T1.dateofdecisionifissued,'.'), IFNULL(T1.typeofapplication,'.'), IFNULL(T1.appealsourceindicator,'.'), IFNULL(T1.developmentorallegation,'.'), IFNULL(T1.amountdue,'.'), IFNULL(T1.sitegreenbelt,'.'), IFNULL(T1.lpaapplicationreference,'.'), IFNULL(T1.lpaapplicationdate,'.'), IFNULL(T1.datenotrecoveredorderecovered,'.'), IFNULL(T1.daterecovered,'.'), IFNULL(T1.callindate,'.'), IFNULL(T1.caseprocess,'.'), IFNULL(T1.caseworkmarker,'.'), IFNULL(T1.costsappliedforindicator,'.'), IFNULL(T1.level,'.'), IFNULL(T1.procedureappellant,'.'), IFNULL(T1.procedurelpa,'.'), IFNULL(T1.proceduredetermineddate,'.'), IFNULL(T1.targetdate,'.'), IFNULL(T1.agriculturalholding,'.'), IFNULL(T1.developmentaffectsettingoflistedbuilding,'.'), IFNULL(T1.floorspaceinsquaremetres,'.'), IFNULL(T1.sitegridreferenceeasting,'.'), IFNULL(T1.sitegridreferencenorthing,'.'), IFNULL(T1.historicbuildinggrantmade,'.'), IFNULL(T1.incarelatestoca,'.'), IFNULL(T1.inspectorneedtoentersite,'.'), IFNULL(T1.isfloodinganissue,'.'), IFNULL(T1.isthesitewithinanaonb,'.'), IFNULL(T1.sitewithinsssi,'.'))) <> T3.RowID  -- same row, changed data\n",
+					"                WHEN T1.appealrefnumber = T3.AppealRefNumber AND md5(concat(IFNULL(T1.appealrefnumber,'.'), IFNULL(T1.lastmodified,'.'), IFNULL(T1.decisiondate,'.'), \n",
+					"        IFNULL(T1.decisionsubmitdate,'.'), IFNULL(T1.bespokeindicator,'.'), IFNULL(T1.bespoketargetdate,'.'), IFNULL(T1.processingstate,'.'), IFNULL(T1.linkstatus,'.'), \n",
+					"        IFNULL(T1.casecloseddate,'.'), IFNULL(T1.pcsappealwithdrawndate,'.'), IFNULL(T1.numberofresidences,'.'), IFNULL(T1.appealsdocumentscomplete,'.'), \n",
+					"        IFNULL(T1.questionnairereceived,'.'), IFNULL(T1.lpaconditionsreceived,'.'), IFNULL(T1.lpaconditionsforwarded,'.'), IFNULL(T1.statementsdue,'.'), \n",
+					"        IFNULL(T1.lpastatementsubmitted,'.'), IFNULL(T1.lpastatementforwarded,'.'), IFNULL(T1.appellantstatementsubmitted,'.'), IFNULL(T1.appellantstatementforwarded,'.'), \n",
+					"        IFNULL(T1.finalcommentsdue,'.'), IFNULL(T1.lpacommentssubmitted,'.'), IFNULL(T1.lpacommentsforwarded,'.'), IFNULL(T1.statementofcommongrounddue,'.'), \n",
+					"        IFNULL(T1.statementofcommongroundreceived,'.'), IFNULL(T1.appellantcommentssubmitted,'.'), IFNULL(T1.appellantcommentsforwarded,'.'), IFNULL(T1.thirdpartyrepsdue,'.'), \n",
+					"        IFNULL(T1.thirdpartyrepsforwarded,'.'), IFNULL(T1.sitenoticesent,'.'), IFNULL(T1.proofsdue,'.'), IFNULL(T1.lpaproofssubmitted,'.'), IFNULL(T1.lpaproofsforwarded,'.'), \n",
+					"        IFNULL(T1.appellantsproofssubmitted,'.'), IFNULL(T1.appellantsproofsforwarded,'.'), IFNULL(T1.areaofsiteinhectares,'.'), IFNULL(T1.dateofdecisionifissued,'.'), \n",
+					"        IFNULL(T1.typeofapplication,'.'), IFNULL(T1.appealsourceindicator,'.'), IFNULL(T1.developmentorallegation,'.'), IFNULL(T1.amountdue,'.'), IFNULL(T1.sitegreenbelt,'.'), \n",
+					"        IFNULL(T1.lpaapplicationreference,'.'), IFNULL(T1.lpaapplicationdate,'.'), IFNULL(T1.datenotrecoveredorderecovered,'.'), IFNULL(T1.daterecovered,'.'), IFNULL(T1.callindate,'.'), \n",
+					"        IFNULL(T1.caseprocess,'.'), IFNULL(T1.caseworkmarker,'.'), IFNULL(T1.costsappliedforindicator,'.'), IFNULL(T1.level,'.'), IFNULL(T1.procedureappellant,'.'), \n",
+					"        IFNULL(T1.procedurelpa,'.'), IFNULL(T1.proceduredetermineddate,'.'), IFNULL(T1.targetdate,'.'), IFNULL(T1.agriculturalholding,'.'), IFNULL(T1.developmentaffectsettingoflistedbuilding,'.'), \n",
+					"        IFNULL(T1.floorspaceinsquaremetres,'.'), IFNULL(T1.sitegridreferenceeasting,'.'), IFNULL(T1.sitegridreferencenorthing,'.'), IFNULL(T1.historicbuildinggrantmade,'.'), \n",
+					"        IFNULL(T1.incarelatestoca,'.'), IFNULL(T1.inspectorneedtoentersite,'.'), IFNULL(T1.isfloodinganissue,'.'), IFNULL(T1.isthesitewithinanaonb,'.'), IFNULL(T1.sitewithinsssi,'.'))) <> T3.RowID  -- same row, changed data\n",
 					"                THEN 'Y'\n",
 					"                WHEN T3.AppealRefNumber IS NULL -- new AppealRefNumber\n",
 					"                THEN 'Y'\n",

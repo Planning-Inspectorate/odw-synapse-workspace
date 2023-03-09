@@ -7,7 +7,7 @@
 		"nbformat": 4,
 		"nbformat_minor": 2,
 		"bigDataPool": {
-			"referenceName": "pinssynspodw",
+			"referenceName": "temppool",
 			"type": "BigDataPoolReference"
 		},
 		"sessionProperties": {
@@ -15,13 +15,13 @@
 			"driverCores": 4,
 			"executorMemory": "28g",
 			"executorCores": 4,
-			"numExecutors": 2,
+			"numExecutors": 1,
 			"runAsWorkspaceSystemIdentity": false,
 			"conf": {
-				"spark.dynamicAllocation.enabled": "false",
-				"spark.dynamicAllocation.minExecutors": "2",
-				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "98461f0b-cfee-4aa8-8c40-51453968b477"
+				"spark.dynamicAllocation.enabled": "true",
+				"spark.dynamicAllocation.minExecutors": "1",
+				"spark.dynamicAllocation.maxExecutors": "5",
+				"spark.autotune.trackingId": "6235cb9a-82ea-4d61-b203-d5079772acb0"
 			}
 		},
 		"metadata": {
@@ -35,19 +35,19 @@
 				"name": "python"
 			},
 			"a365ComputeOptions": {
-				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
-				"name": "pinssynspodw",
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/temppool",
+				"name": "temppool",
 				"type": "Spark",
-				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/temppool",
 				"auth": {
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.3",
-				"nodeCount": 3,
+				"sparkVersion": "3.2",
+				"nodeCount": 10,
 				"cores": 4,
 				"memory": 28,
-				"automaticScaleJobs": false
+				"automaticScaleJobs": true
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -130,10 +130,20 @@
 					"    T2.SourceSystemID,\r\n",
 					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
 					"    NULL AS ValidTo,\r\n",
-					"    md5(concat(IFNULL(T1.appealrefnumber,'.'), IFNULL(T1.lastmodified,'.'))) as RowID, -- this hash should contain all the defining fields, so needs to be done\r\n",
+					"    md5(concat(IFNULL(T1.appealrefnumber,'.'), IFNULL(T1.lastmodified,'.'), IFNULL(T1.procedurecode,'.'), IFNULL(T1.decisioncod,'.'), IFNULL(T1.linkedappeal,'.'), IFNULL(T1.lpacode,'.'), \r\n",
+					"    IFNULL(T1.applicationtype,'.'), IFNULL(T1.appealtypereason,'.'), IFNULL(T1.appealtypereasonid,'.'), IFNULL(T1.appealtypegroup,'.'), IFNULL(T1.appealtype,'.'), IFNULL(T1.rcrissue1,'.'), \r\n",
+					"    IFNULL(T1.appealrecdate,'.'), IFNULL(T1.appealstartdate,'.'), IFNULL(T1.appealdecideddate,'.'), IFNULL(T1.appealwithdrawndate,'.'), IFNULL(T1.appealturnedawaydate,'.'), \r\n",
+					"    IFNULL(T1.appeallapseddate,'.'), IFNULL(T1.redetermined,'.'), IFNULL(T1.jurisdiction,'.'), IFNULL(T1.daysinabeyance,'.'), IFNULL(T1.leadcase,'.'), IFNULL(T1.leadcaseworktype,'.'), \r\n",
+					"    IFNULL(T1.leadproceduretype,'.'), IFNULL(T1.developmenttype,'.'), IFNULL(T1.caseofficerName,'.'), IFNULL(T1.caseofficerlogin,'.'), IFNULL(T1.leadcaseofficername,'.'), \r\n",
+					"    IFNULL(T1.leadcaseofficelogin,'.'), IFNULL(T1.currentactivetaskgrp,'.'))) as RowID, -- this hash should contain all the defining fields, so needs to be done\r\n",
 					"    'Y' as IsActive,\r\n",
 					"    CASE\r\n",
-					"        WHEN T1.appealrefnumber = T3.AppealRefNumber AND  md5(concat(IFNULL(T1.appealrefnumber,'.'), IFNULL(T1.lastmodified,'.'))) <> T3.RowID   -- same employee, changed data\r\n",
+					"        WHEN T1.appealrefnumber = T3.AppealRefNumber AND  md5(concat(IFNULL(T1.appealrefnumber,'.'), IFNULL(T1.lastmodified,'.'), IFNULL(T1.procedurecode,'.'), IFNULL(T1.decisioncod,'.'), IFNULL(T1.linkedappeal,'.'), IFNULL(T1.lpacode,'.'), \r\n",
+					"    IFNULL(T1.applicationtype,'.'), IFNULL(T1.appealtypereason,'.'), IFNULL(T1.appealtypereasonid,'.'), IFNULL(T1.appealtypegroup,'.'), IFNULL(T1.appealtype,'.'), IFNULL(T1.rcrissue1,'.'), \r\n",
+					"    IFNULL(T1.appealrecdate,'.'), IFNULL(T1.appealstartdate,'.'), IFNULL(T1.appealdecideddate,'.'), IFNULL(T1.appealwithdrawndate,'.'), IFNULL(T1.appealturnedawaydate,'.'), \r\n",
+					"    IFNULL(T1.appeallapseddate,'.'), IFNULL(T1.redetermined,'.'), IFNULL(T1.jurisdiction,'.'), IFNULL(T1.daysinabeyance,'.'), IFNULL(T1.leadcase,'.'), IFNULL(T1.leadcaseworktype,'.'), \r\n",
+					"    IFNULL(T1.leadproceduretype,'.'), IFNULL(T1.developmenttype,'.'), IFNULL(T1.caseofficerName,'.'), IFNULL(T1.caseofficerlogin,'.'), IFNULL(T1.leadcaseofficername,'.'), \r\n",
+					"    IFNULL(T1.leadcaseofficelogin,'.'), IFNULL(T1.currentactivetaskgrp,'.'))) <> T3.RowID   -- same employee, changed data\r\n",
 					"        THEN 'Y'\r\n",
 					"        WHEN T3.AppealRefNumber IS NULL -- new AppealRef\r\n",
 					"        THEN 'Y'\r\n",
@@ -146,14 +156,19 @@
 					"    END AS  DeletedData, \r\n",
 					"    T3.IsActive as HistoricIsActive\r\n",
 					"\r\n",
-					"FROM odw_standardised_db.horizon_all_appeals T1\r\n",
+					"FROM odw_standardised_db.vw_all_appeals T1\r\n",
 					"LEFT JOIN odw_harmonised_db.main_sourcesystem_fact T2 ON \"Casework\" = T2.Description AND T2.IsActive = 'Y'\r\n",
 					"FULL JOIN odw_harmonised_db.casework_all_appeals_dim T3 ON T1.appealrefnumber = T3.AppealRefNumber AND T3.IsActive = 'Y'\r\n",
 					"WHERE\r\n",
 					"    (\r\n",
 					"        -- flags new data        \r\n",
 					"        (   CASE\r\n",
-					"                WHEN T1.appealrefnumber = T3.AppealRefNumber AND md5(concat(IFNULL(T1.appealrefnumber,'.'), IFNULL(T1.lastmodified,'.'))) <> T3.RowID  -- same employee, changed data\r\n",
+					"                WHEN T1.appealrefnumber = T3.AppealRefNumber AND md5(concat(IFNULL(T1.appealrefnumber,'.'), IFNULL(T1.lastmodified,'.'), IFNULL(T1.procedurecode,'.'), IFNULL(T1.decisioncod,'.'), IFNULL(T1.linkedappeal,'.'), IFNULL(T1.lpacode,'.'), \r\n",
+					"    IFNULL(T1.applicationtype,'.'), IFNULL(T1.appealtypereason,'.'), IFNULL(T1.appealtypereasonid,'.'), IFNULL(T1.appealtypegroup,'.'), IFNULL(T1.appealtype,'.'), IFNULL(T1.rcrissue1,'.'), \r\n",
+					"    IFNULL(T1.appealrecdate,'.'), IFNULL(T1.appealstartdate,'.'), IFNULL(T1.appealdecideddate,'.'), IFNULL(T1.appealwithdrawndate,'.'), IFNULL(T1.appealturnedawaydate,'.'), \r\n",
+					"    IFNULL(T1.appeallapseddate,'.'), IFNULL(T1.redetermined,'.'), IFNULL(T1.jurisdiction,'.'), IFNULL(T1.daysinabeyance,'.'), IFNULL(T1.leadcase,'.'), IFNULL(T1.leadcaseworktype,'.'), \r\n",
+					"    IFNULL(T1.leadproceduretype,'.'), IFNULL(T1.developmenttype,'.'), IFNULL(T1.caseofficerName,'.'), IFNULL(T1.caseofficerlogin,'.'), IFNULL(T1.leadcaseofficername,'.'), \r\n",
+					"    IFNULL(T1.leadcaseofficelogin,'.'), IFNULL(T1.currentactivetaskgrp,'.'))) <> T3.RowID  -- same employee, changed data\r\n",
 					"                THEN 'Y'\r\n",
 					"                WHEN T3.AppealRefNumber IS NULL -- new PositionCode\r\n",
 					"                THEN 'Y'\r\n",
@@ -168,10 +183,9 @@
 					"            END = 'Y' )\r\n",
 					"    );\r\n",
 					"\r\n",
-					"SELECT COUNT(*) FROM odw_standardised_db.horizon_all_appeals;\r\n",
-					"SELECT COUNT(distinct(appealrefnumber)) FROM odw_standardised_db.horizon_all_appeals;"
+					""
 				],
-				"execution_count": 9
+				"execution_count": 1
 			},
 			{
 				"cell_type": "markdown",
@@ -238,7 +252,7 @@
 					"# else:\r\n",
 					"#     print(\"Unused codes under tolerance levels\")"
 				],
-				"execution_count": 21
+				"execution_count": 2
 			},
 			{
 				"cell_type": "markdown",
@@ -303,7 +317,7 @@
 					"#     else:\r\n",
 					"#         raise RuntimeError(\"Records to Add do not match\")"
 				],
-				"execution_count": 22
+				"execution_count": 3
 			},
 			{
 				"cell_type": "markdown",
@@ -431,15 +445,11 @@
 					"FROM odw_harmonised_db.casework_all_appeals_dim\r\n",
 					"WHERE AppealRefNumber IN (SELECT AppealRefNumber FROM casework_all_appeals_dim_new WHERE AllAppealsID IS NULL) AND IsActive = 'Y'; "
 				],
-				"execution_count": 23
+				"execution_count": 4
 			},
 			{
-				"cell_type": "code",
+				"cell_type": "markdown",
 				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
 					"nteract": {
 						"transient": {
 							"deleting": false
@@ -451,8 +461,7 @@
 					"- **WHEN MATCHED** ON the surrogate Key (i.e. AllAppealsID), EndDate is set to today -1 day and the IsActive flag is set to 'N'\n",
 					"- **WHEN NOT MATCHED** ON the surrogate Key, insert rows\n",
 					"## Table odw_harmonised_db.casework_all_appeals_dim is updated"
-				],
-				"execution_count": null
+				]
 			},
 			{
 				"cell_type": "code",
@@ -493,7 +502,7 @@
 					"    THEN INSERT * ;  \r\n",
 					""
 				],
-				"execution_count": 24
+				"execution_count": 5
 			},
 			{
 				"cell_type": "markdown",
@@ -574,45 +583,7 @@
 					"FROM odw_harmonised_db.casework_all_appeals_dim;\r\n",
 					""
 				],
-				"execution_count": 25
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"This last cell is just to check count of rows between source and target on first load, to be deleted!"
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
-				},
-				"source": [
-					"%%sql \n",
-					"\n",
-					"SELECT COUNT(*) FROM odw_standardised_db.horizon_all_appeals;\n",
-					"SELECT COUNT(*) FROM odw_harmonised_db.casework_all_appeals_dim;"
-				],
-				"execution_count": 26
+				"execution_count": 6
 			}
 		]
 	}
