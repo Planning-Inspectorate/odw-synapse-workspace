@@ -7,7 +7,7 @@
 		"nbformat": 4,
 		"nbformat_minor": 2,
 		"bigDataPool": {
-			"referenceName": "pinssynspodw",
+			"referenceName": "temppool",
 			"type": "BigDataPoolReference"
 		},
 		"sessionProperties": {
@@ -15,13 +15,13 @@
 			"driverCores": 4,
 			"executorMemory": "28g",
 			"executorCores": 4,
-			"numExecutors": 2,
+			"numExecutors": 1,
 			"runAsWorkspaceSystemIdentity": false,
 			"conf": {
-				"spark.dynamicAllocation.enabled": "false",
-				"spark.dynamicAllocation.minExecutors": "2",
-				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "293622df-c47b-413a-95af-c34ab244b8f1"
+				"spark.dynamicAllocation.enabled": "true",
+				"spark.dynamicAllocation.minExecutors": "1",
+				"spark.dynamicAllocation.maxExecutors": "5",
+				"spark.autotune.trackingId": "c35f05cb-b3c6-4401-8e21-70dab6f58c7a"
 			}
 		},
 		"metadata": {
@@ -35,19 +35,19 @@
 				"name": "python"
 			},
 			"a365ComputeOptions": {
-				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
-				"name": "pinssynspodw",
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/temppool",
+				"name": "temppool",
 				"type": "Spark",
-				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/temppool",
 				"auth": {
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.3",
-				"nodeCount": 3,
+				"sparkVersion": "3.2",
+				"nodeCount": 10,
 				"cores": 4,
 				"memory": 28,
-				"automaticScaleJobs": false
+				"automaticScaleJobs": true
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -98,7 +98,7 @@
 					"        ELSE NULL\r\n",
 					"    END as LegacyRightsOfWayID,\r\n",
 					"    T1.record_status AS RecordStatus,\r\n",
-					"    T1.group AS Group,\r\n",
+					"    T1.group AS RecordGroup,\r\n",
 					"    T1.jurisdiction AS Jurisdiction,\r\n",
 					"    T1.fps_number AS FPSNumber,\r\n",
 					"    T1.fps_1 AS FPS1,\r\n",
@@ -192,7 +192,7 @@
 					"    IFNULL(T1.recharged_to_defra,'.'), IFNULL(T1.name_of_applicant,'.'), IFNULL(T1.decision_clear_for_despatch,'.'), IFNULL(T1.pdac_etl_date,'.'))) as RowID, -- this hash should contain all the defining fields, so needs to be done\r\n",
 					"    'Y' as IsActive,\r\n",
 					"    CASE\r\n",
-					"        WHEN T1.fps_number = T3.FpsNumber AND  md5(concat(IFNULL(T1.record_status,'.'), IFNULL(T1.group,'.'), IFNULL(T1.jurisdiction,'.'), IFNULL(T1.jurisdiction,'.'), IFNULL(T1.fps_number,'.'), IFNULL(T1.lead_fps_number,'.'), \r\n",
+					"        WHEN T1.fps_number = T3.FPSNumber AND  md5(concat(IFNULL(T1.record_status,'.'), IFNULL(T1.group,'.'), IFNULL(T1.jurisdiction,'.'), IFNULL(T1.jurisdiction,'.'), IFNULL(T1.fps_number,'.'), IFNULL(T1.lead_fps_number,'.'), \r\n",
 					"    IFNULL(T1.migration,'.'), IFNULL(T1.act,'.'), IFNULL(T1.dataease_oma,'.'), IFNULL(T1.order_making_authority,'.'), IFNULL(T1.title_of_order,'.'), IFNULL(T1.oma_reference,'.'), \r\n",
 					"    IFNULL(T1.oma_contact,'.'), IFNULL(T1.oma_telephone,'.'), IFNULL(T1.oma_form_of_address,'.'), IFNULL(T1.dataease_objectors,'.'), IFNULL(T1.number_of_objectors,'.'), \r\n",
 					"    IFNULL(T1.concurrent_orders,'.'), IFNULL(T1.receipt_of_orders,'.'), IFNULL(T1.documentation_complete,'.'), IFNULL(T1.allocation_level,'.'), IFNULL(T1.fee_rate,'.'), \r\n",
@@ -207,7 +207,7 @@
 					"    IFNULL(T1.associated_file_9,'.'), IFNULL(T1.date_costs_report_despatched,'.'), IFNULL(T1.date_costs_order_originated,'.'), IFNULL(T1.notes,'.'), IFNULL(T1.oma_stance,'.'), \r\n",
 					"    IFNULL(T1.recharged_to_defra,'.'), IFNULL(T1.name_of_applicant,'.'), IFNULL(T1.decision_clear_for_despatch,'.'), IFNULL(T1.pdac_etl_date,'.'))) <> T3.RowID   -- same employee, changed data\r\n",
 					"        THEN 'Y'\r\n",
-					"        WHEN T3.FpsNumber IS NULL -- new FpsNumber\r\n",
+					"        WHEN T3.FPSNumber IS NULL -- new AppealRef\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
 					"    END as NewData,\r\n",
@@ -220,12 +220,12 @@
 					"\r\n",
 					"FROM odw_standardised_db.horizon_hzn_right_of_way T1\r\n",
 					"LEFT JOIN odw_harmonised_db.main_sourcesystem_fact T2 ON \"Casework\" = T2.Description AND T2.IsActive = 'Y'\r\n",
-					"FULL JOIN odw_harmonised_db.casework_legacy_rights_of_way_dim T3 ON T1.fps_number = T3.FpsNumber AND T3.IsActive = 'Y'\r\n",
+					"FULL JOIN odw_harmonised_db.casework_legacy_rights_of_way_dim T3 ON T1.fps_number = T3.FPSNumber AND T3.IsActive = 'Y'\r\n",
 					"WHERE\r\n",
 					"    (\r\n",
 					"        -- flags new data        \r\n",
 					"        (   CASE\r\n",
-					"                WHEN T1.fps_number = T3.FpsNumber AND md5(concat(IFNULL(T1.record_status,'.'), IFNULL(T1.group,'.'), IFNULL(T1.jurisdiction,'.'), IFNULL(T1.jurisdiction,'.'), IFNULL(T1.fps_number,'.'), IFNULL(T1.lead_fps_number,'.'), \r\n",
+					"                WHEN T1.fps_number = T3.FPSNumber AND md5(concat(IFNULL(T1.record_status,'.'), IFNULL(T1.group,'.'), IFNULL(T1.jurisdiction,'.'), IFNULL(T1.jurisdiction,'.'), IFNULL(T1.fps_number,'.'), IFNULL(T1.lead_fps_number,'.'), \r\n",
 					"    IFNULL(T1.migration,'.'), IFNULL(T1.act,'.'), IFNULL(T1.dataease_oma,'.'), IFNULL(T1.order_making_authority,'.'), IFNULL(T1.title_of_order,'.'), IFNULL(T1.oma_reference,'.'), \r\n",
 					"    IFNULL(T1.oma_contact,'.'), IFNULL(T1.oma_telephone,'.'), IFNULL(T1.oma_form_of_address,'.'), IFNULL(T1.dataease_objectors,'.'), IFNULL(T1.number_of_objectors,'.'), \r\n",
 					"    IFNULL(T1.concurrent_orders,'.'), IFNULL(T1.receipt_of_orders,'.'), IFNULL(T1.documentation_complete,'.'), IFNULL(T1.allocation_level,'.'), IFNULL(T1.fee_rate,'.'), \r\n",
@@ -240,7 +240,7 @@
 					"    IFNULL(T1.associated_file_9,'.'), IFNULL(T1.date_costs_report_despatched,'.'), IFNULL(T1.date_costs_order_originated,'.'), IFNULL(T1.notes,'.'), IFNULL(T1.oma_stance,'.'), \r\n",
 					"    IFNULL(T1.recharged_to_defra,'.'), IFNULL(T1.name_of_applicant,'.'), IFNULL(T1.decision_clear_for_despatch,'.'), IFNULL(T1.pdac_etl_date,'.'))) <> T3.RowID  -- same employee, changed data\r\n",
 					"                THEN 'Y'\r\n",
-					"                WHEN T3.FpsNumber IS NULL -- new FpsNumber\r\n",
+					"                WHEN T3.FPSNumber IS NULL -- new PositionCode\r\n",
 					"                THEN 'Y'\r\n",
 					"            ELSE 'N'\r\n",
 					"            END  = 'Y' ) OR\r\n",
@@ -254,7 +254,7 @@
 					"    );\r\n",
 					""
 				],
-				"execution_count": 46
+				"execution_count": 1
 			},
 			{
 				"cell_type": "markdown",
@@ -321,7 +321,7 @@
 					"# else:\r\n",
 					"#     print(\"Unused codes under tolerance levels\")"
 				],
-				"execution_count": 47
+				"execution_count": 2
 			},
 			{
 				"cell_type": "markdown",
@@ -386,7 +386,7 @@
 					"#     else:\r\n",
 					"#         raise RuntimeError(\"Records to Add do not match\")"
 				],
-				"execution_count": 48
+				"execution_count": 3
 			},
 			{
 				"cell_type": "markdown",
@@ -433,7 +433,7 @@
 					"Select \r\n",
 					"    LegacyRightsOfWayID,\r\n",
 					"    RecordStatus,\r\n",
-					"    Group,\r\n",
+					"    RecordGroup,\r\n",
 					"    Jurisdiction,\r\n",
 					"    FPSNumber,\r\n",
 					"    FPS1,\r\n",
@@ -522,7 +522,7 @@
 					"SELECT\r\n",
 					"    LegacyRightsOfWayID,\r\n",
 					"    RecordStatus,\r\n",
-					"    Group,\r\n",
+					"    RecordGroup,\r\n",
 					"    Jurisdiction,\r\n",
 					"    FPSNumber,\r\n",
 					"    FPS1,\r\n",
@@ -606,7 +606,7 @@
 					"FROM odw_harmonised_db.casework_legacy_rights_of_way_dim\r\n",
 					"WHERE FPSNumber IN (SELECT FPSNumber FROM casework_legacy_rights_of_way_dim_new WHERE LegacyRightsOfWayID IS NULL) AND IsActive = 'Y'; "
 				],
-				"execution_count": 49
+				"execution_count": 4
 			},
 			{
 				"cell_type": "markdown",
@@ -663,7 +663,7 @@
 					"    THEN INSERT * ;  \r\n",
 					""
 				],
-				"execution_count": 50
+				"execution_count": 5
 			},
 			{
 				"cell_type": "markdown",
@@ -707,7 +707,7 @@
 					"SELECT \r\n",
 					"    ROW_NUMBER() OVER (ORDER BY FPSNumber NULLS LAST) AS LegacyRightsOfWayID,\r\n",
 					"    RecordStatus,\r\n",
-					"    Group,\r\n",
+					"    RecordGroup,\r\n",
 					"    Jurisdiction,\r\n",
 					"    FPSNumber,\r\n",
 					"    FPS1,\r\n",
@@ -790,7 +790,7 @@
 					"FROM odw_harmonised_db.casework_legacy_rights_of_way_dim;\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 6
 			}
 		]
 	}
