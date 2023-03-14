@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "4c20098f-fa03-4503-9521-e1c0c0a8209e"
+				"spark.autotune.trackingId": "4247b228-2650-480c-bcde-17c0a099364c"
 			}
 		},
 		"metadata": {
@@ -69,9 +69,13 @@
 					"from notebookutils import mssparkutils\r\n",
 					"path_to_file = \"abfss://odw-config@pinsstodwdevuks9h80mb.dfs.core.windows.net/schema_creation/\"\r\n",
 					"file = mssparkutils.fs.ls(path_to_file)\r\n",
-					"path_to_target = \"abfss://odw-config@pinsstodwdevuks9h80mb.dfs.core.windows.net/standardised_table_definitions/Timesheets/\""
+					"path_to_target = \"abfss://odw-config@pinsstodwdevuks9h80mb.dfs.core.windows.net/standardised_table_definitions/Casework_Adhoc/\"\r\n",
+					"\r\n",
+					"# array of file names with corresponding sheet name\r\n",
+					"files_with_specific_sheets = [{\"filename\": \"Specialist_TPO.xlsx\", \"sheet\": \"MiPINS-SQL\"}]\r\n",
+					""
 				],
-				"execution_count": 2
+				"execution_count": 42
 			},
 			{
 				"cell_type": "code",
@@ -113,7 +117,9 @@
 					"    elif '.xlsx' in f:\r\n",
 					"        ext = '.xlsx'\r\n",
 					"        filename = f.split(\"/\")[-1]\r\n",
-					"        df = pd.read_excel(f\"/synfs/{jobId}/source/{filename}\", dtype=str)\r\n",
+					"        file_with_specific_sheet = next(filter(lambda fs: fs['filename'] == filename, files_with_specific_sheets), None)\r\n",
+					"        sheet_name = file_with_specific_sheet['sheet'] if file_with_specific_sheet else 0\r\n",
+					"        df = pd.read_excel(f\"/synfs/{jobId}/source/{filename}\", dtype=str, sheet_name=sheet_name)\r\n",
 					"    else:\r\n",
 					"        continue\r\n",
 					"    df = df.loc[:, ~df.columns.str.contains('^Unnamed')]\r\n",
@@ -159,7 +165,7 @@
 					"    f.write(json_to_write)\r\n",
 					"    f.close()"
 				],
-				"execution_count": 3
+				"execution_count": 43
 			},
 			{
 				"cell_type": "code",
