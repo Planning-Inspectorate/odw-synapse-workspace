@@ -21,6 +21,7 @@ module "synapse_workspace_private" {
   spark_pool_min_node_count             = var.spark_pool_min_node_count
   spark_pool_node_size                  = var.spark_pool_node_size
   spark_pool_preview_enabled            = var.spark_pool_preview_enabled
+  spark_pool_preview_requirements       = file("${path.module}/configuration/spark-pool/requirements-preview.txt")
   spark_pool_preview_version            = var.spark_pool_preview_version
   spark_pool_requirements               = file("${path.module}/configuration/spark-pool/requirements.txt")
   spark_pool_timeout_minutes            = var.spark_pool_timeout_minutes
@@ -65,6 +66,7 @@ module "synapse_workspace_private_failover" {
   spark_pool_min_node_count             = var.spark_pool_min_node_count
   spark_pool_node_size                  = var.spark_pool_node_size
   spark_pool_preview_enabled            = var.spark_pool_preview_enabled
+  spark_pool_preview_requirements       = file("${path.module}/configuration/spark-pool/requirements-preview.txt")
   spark_pool_preview_version            = var.spark_pool_preview_version
   spark_pool_requirements               = file("${path.module}/configuration/spark-pool/requirements.txt")
   spark_pool_timeout_minutes            = var.spark_pool_timeout_minutes

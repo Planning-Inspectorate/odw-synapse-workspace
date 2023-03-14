@@ -125,6 +125,7 @@ No requirements.
 | <a name="input_spark_pool_min_node_count"></a> [spark\_pool\_min\_node\_count](#input\_spark\_pool\_min\_node\_count) | The minimum number of nodes the Synapse-linked Spark pool can autoscale to | `number` | `3` | no |
 | <a name="input_spark_pool_node_size"></a> [spark\_pool\_node\_size](#input\_spark\_pool\_node\_size) | The size of nodes comprising the Synapse-linked Spark pool | `string` | `"Small"` | no |
 | <a name="input_spark_pool_preview_enabled"></a> [spark\_pool\_preview\_enabled](#input\_spark\_pool\_preview\_enabled) | Determines whether a Synapse-linked preview Spark pool should be deployed | `bool` | `false` | no |
+| <a name="input_spark_pool_preview_requirements"></a> [spark\_pool\_preview\_requirements](#input\_spark\_pool\_preview\_requirements) | File contents containing a list of packages required by the Spark pool preview | `string` | `null` | no |
 | <a name="input_spark_pool_preview_version"></a> [spark\_pool\_preview\_version](#input\_spark\_pool\_preview\_version) | The version of Spark running on the Synapse-linked preview Spark pool | `string` | `"3.3"` | no |
 | <a name="input_spark_pool_requirements"></a> [spark\_pool\_requirements](#input\_spark\_pool\_requirements) | File contents containing a list of packages required by the Spark pool | `string` | `null` | no |
 | <a name="input_spark_pool_timeout_minutes"></a> [spark\_pool\_timeout\_minutes](#input\_spark\_pool\_timeout\_minutes) | The time buffer in minutes to wait before the Spark pool is paused due to inactivity | `number` | `15` | no |
