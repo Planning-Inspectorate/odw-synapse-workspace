@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "bbcba2a1-f165-4111-8c3a-cf61a7e331e9"
+				"spark.autotune.trackingId": "979a5abb-3540-468a-8771-783ae5629962"
 			}
 		},
 		"metadata": {
@@ -43,7 +43,7 @@
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.2",
+				"sparkVersion": "3.3",
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 28,
@@ -88,7 +88,7 @@
 					"\r\n",
 					"-- gets data that matches of SourceID and flags that it is modified based on a row (md5) hash. Flags as \"NewData\"\r\n",
 					"-- gets data that is in the target but not in source. Flags as \"DeletedData\"\r\n",
-					"SELECT \r\n",
+					"SELECT DISTINCT\r\n",
 					"    CASE\r\n",
 					"        WHEN T3.EmployeeID IS NULL\r\n",
 					"        THEN T7.LeaveEntitlementID\r\n",
@@ -103,11 +103,11 @@
 					"    T2.SourceSystemID as SourceSystemID,\r\n",
 					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
 					"    NULL AS ValidTo,\r\n",
-					"    md5(concat(IFNULL(T1.Number,'.'), IFNULL(T1.Deduction,'.'))) as RowID,\r\n",
+					"    md5(concat(IFNULL(T1.Number,'.'),IFNULL(T1.Deduction,'.'),IFNULL(T1.Ded_from,'.'),IFNULL(T1.Absence_Quota_type,'.'))) as RowID,\r\n",
 					"    'Y' as IsActive,\r\n",
 					"    CASE\r\n",
 					"        WHEN T3.EmployeeID = T7.EmployeeID AND T1.Absence_Quota_type = T7.AbsenceQuotaType\r\n",
-					"            AND md5(concat(IFNULL(T1.Number,'.'), IFNULL(T1.Deduction,'.'))) <> T7.RowID  -- same employee, changed data\r\n",
+					"            AND md5(concat(IFNULL(T1.Number,'.'),IFNULL(T1.Deduction,'.'),IFNULL(T1.Ded_from,'.'),IFNULL(T1.Absence_Quota_type,'.'))) <> T7.RowID  -- same employee, changed data\r\n",
 					"        THEN 'Y'\r\n",
 					"        WHEN T7.EmployeeID  IS NULL -- new employee\r\n",
 					"        THEN 'Y'\r\n",
@@ -132,7 +132,7 @@
 					"        -- flags new data        \r\n",
 					"        (      CASE\r\n",
 					"                    WHEN T3.EmployeeID = T7.EmployeeID AND T1.Absence_Quota_type = T7.AbsenceQuotaType\r\n",
-					"                        AND md5(concat(IFNULL(T1.Number,'.'), IFNULL(T1.Deduction,'.'))) <> T7.RowID  -- same employee, changed data\r\n",
+					"                        AND md5(concat(IFNULL(T1.Number,'.'),IFNULL(T1.Deduction,'.'),IFNULL(T1.Ded_from,'.'),IFNULL(T1.Absence_Quota_type,'.'))) <> T7.RowID  -- same employee, changed data\r\n",
 					"                    THEN 'Y'\r\n",
 					"                    WHEN T7.EmployeeID  IS NULL -- new employee\r\n",
 					"                    THEN 'Y'\r\n",
@@ -146,9 +146,10 @@
 					"                ELSE 'N'\r\n",
 					"            END = 'Y' )\r\n",
 					"    )\r\n",
-					";"
+					";\r\n",
+					""
 				],
-				"execution_count": 1
+				"execution_count": 5
 			},
 			{
 				"cell_type": "markdown",
@@ -224,11 +225,11 @@
 					"INNER JOIN leaveentitlement_dim_new T2 ON   T1.EmployeeID = T2.EmployeeID AND\r\n",
 					"                                            T1.AbsenceQuotaType = T2.AbsenceQuotaType AND\r\n",
 					"                                            T2.LeaveEntitlementID IS NULL AND \r\n",
-					"                                            IsActive = 'Y'\r\n",
+					"                                            T2.IsActive = 'Y'\r\n",
 					"; \r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 6
 			},
 			{
 				"cell_type": "markdown",
@@ -286,15 +287,11 @@
 					"    THEN INSERT * ;  \r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 7
 			},
 			{
-				"cell_type": "code",
+				"cell_type": "markdown",
 				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
 					"nteract": {
 						"transient": {
 							"deleting": false
@@ -306,8 +303,7 @@
 					"- No auto-increment feature is available in delta tables, therefore we need to create new IDs for the inserted rows\n",
 					"- This is done by select the target data and using INSERT OVERWRITE to re-insert the data is a new Row Number\n",
 					"## Table odw_harmonised.leave_entitlement_dim is updated"
-				],
-				"execution_count": null
+				]
 			},
 			{
 				"cell_type": "code",
@@ -349,7 +345,7 @@
 					"FROM odw_harmonised_db.hr_leave_entitlement_dim;\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 8
 			}
 		]
 	}

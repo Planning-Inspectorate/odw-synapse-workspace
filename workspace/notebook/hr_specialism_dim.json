@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "52e5579a-66fc-4bc4-a9e9-544d55c1b8e7"
+				"spark.autotune.trackingId": "587a0810-4785-45f8-b9f2-6266cf97342e"
 			}
 		},
 		"metadata": {
@@ -41,14 +41,13 @@
 				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
 				"auth": {
 					"type": "AAD",
-					"authResource": "https://dev.azuresynapse.net",
-					"authHeader": null
+					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.2",
+				"sparkVersion": "3.3",
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 28,
-				"extraHeader": null
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -92,7 +91,7 @@
 					"-- gets data that matches of SourceID and flags that it is modified based on a row (md5) hash. Flags as \"NewData\"\r\n",
 					"-- gets data that is in the target but not in source. Flags as \"DeletedData\"\r\n",
 					"\r\n",
-					"SELECT \r\n",
+					"SELECT DISTINCT\r\n",
 					"    CASE\r\n",
 					"        WHEN T1.Staff_Number IS NULL\r\n",
 					"        THEN first(T7.SpecialismID)\r\n",
@@ -147,9 +146,13 @@
 					"        T1.Staff_Number IS NOT NULL\r\n",
 					"\r\n",
 					"GROUP BY T1.Staff_Number, T1.Qualification_Name, T1.Proficien\r\n",
-					";"
+					";\r\n",
+					"\r\n",
+					"select count(*) from specialism_dim_new;\r\n",
+					"select count(*) from specialism_dim_new where EmployeeID is null;\r\n",
+					"select * from specialism_dim_new where EmployeeID is null;"
 				],
-				"execution_count": 1
+				"execution_count": 3
 			},
 			{
 				"cell_type": "markdown",
@@ -216,7 +219,7 @@
 					"# else:\r\n",
 					"#     print(\"Unused codes under tolerance levels\")"
 				],
-				"execution_count": 2
+				"execution_count": 4
 			},
 			{
 				"cell_type": "markdown",
@@ -280,7 +283,8 @@
 					"#         print(j + \" to be added is not in the current records\")\r\n",
 					"#     else:\r\n",
 					"#        raise RuntimeError(\"Records to Add do not match\")"
-				]
+				],
+				"execution_count": 5
 			},
 			{
 				"cell_type": "markdown",
@@ -352,7 +356,7 @@
 					"FROM odw_harmonised_db.hr_specialism_dim\r\n",
 					"WHERE SpecialismID IN (SELECT SpecialismID FROM specialism_dim_new WHERE SpecialismID IS NULL) AND IsActive = 'Y'; "
 				],
-				"execution_count": 4
+				"execution_count": 6
 			},
 			{
 				"cell_type": "markdown",
@@ -410,7 +414,7 @@
 					"    THEN INSERT * ;  \r\n",
 					""
 				],
-				"execution_count": 5
+				"execution_count": 7
 			},
 			{
 				"cell_type": "markdown",
@@ -462,7 +466,8 @@
 					"    RowID,\r\n",
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.hr_specialism_dim;"
-				]
+				],
+				"execution_count": 8
 			}
 		]
 	}
