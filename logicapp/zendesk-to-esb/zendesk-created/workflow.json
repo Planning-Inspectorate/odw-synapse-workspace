@@ -1,0 +1,47 @@
+{
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "actions": {
+      "Send_message": {
+        "type": "ApiConnection",
+        "inputs": {
+          "host": {
+            "connection": {
+              "referenceName": "servicebus-2"
+            }
+          },
+          "method": "post",
+          "body": {
+            "SessionId": "@{guid()}",
+            "MessageId": "@{guid()}",
+            "Label": "Created",
+            "ContentData": "@{base64(triggerOutputs())}"
+          },
+          "path": "/@{encodeURIComponent(encodeURIComponent('zendesk'))}/messages"
+        },
+        "runAfter": {}
+      }
+    },
+    "contentVersion": "1.0.0.0",
+    "outputs": {},
+    "triggers": {
+      "When_an_item_is_created": {
+        "type": "ApiConnection",
+        "inputs": {
+          "host": {
+            "connection": {
+              "referenceName": "zendesk"
+            }
+          },
+          "method": "get",
+          "path": "/datasets/default/tables/@{encodeURIComponent(encodeURIComponent('tickets'))}/onnewitems"
+        },
+        "recurrence": {
+          "frequency": "Minute",
+          "interval": 1
+        }
+      }
+    }
+  },
+  "kind": "Stateful"
+}
