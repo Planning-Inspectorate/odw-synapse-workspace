@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "e77043c1-fd82-4345-9713-021ccc22ec07"
+				"spark.autotune.trackingId": "31ba60f8-b306-4a50-beb1-2ef8fed34c6d"
 			}
 		},
 		"metadata": {
@@ -42,7 +42,7 @@
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.2",
+				"sparkVersion": "3.3",
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 28,
@@ -67,18 +67,18 @@
 					"\r\n",
 					"INSERT OVERWRITE odw_harmonised_db.hr_employee_fact\r\n",
 					"\r\n",
-					"SELECT \r\n",
-					"    Row_Number() over (order by T1.Pers_No NULLS FIRST) as EmployeeID,\r\n",
+					"SELECT DISTINCT\r\n",
+					"    T1.Pers_No as EmployeeID,\r\n",
 					"    T1.Birth_date as DOB,\r\n",
 					"    T1.NI_number as NINumber,\r\n",
-					"    T2.Staff_Number as PersNumber,\r\n",
-					"    T1.Pers_No as EmployeeNumber,\r\n",
+					"    T1.Pers_No as PersNumber,\r\n",
+					"    T2.Staff_Number as EmployeeNumber,\r\n",
 					"    T1.Employee_No as LegacyEmployeeNumber,\r\n",
 					"    NULL as NewSAPEmployeeNumber,\r\n",
 					"    T4.SourceSystemID,\r\n",
 					"    current_timestamp as IngestionDate,\r\n",
 					"    NULL as ValidTo,\r\n",
-					"    md5(concat( IFNULL(T1.Birth_date,'.'), IFNULL(T1.NI_number, '.'), IFNULL(T1.Pers_No, '.'), IFNULL(T1.Employee_No,'.'))) as RowID, \r\n",
+					"    md5(concat(IFNULL(T1.Birth_date,'.'), IFNULL(T1.NI_number, '.'), IFNULL(T1.Pers_No, '.'),IFNULL(T2.Staff_Number, '.'), IFNULL(T1.Employee_No,'.'))) as RowID, \r\n",
 					"    'Y' as IsActive\r\n",
 					"\r\n",
 					"FROM odw_standardised_db.vw_saphr_historic T1\r\n",
@@ -86,7 +86,33 @@
 					"LEFT JOIN odw_harmonised_db.main_sourcesystem_fact T4 ON \"SAP HR\" = T4.Description and T4.IsActive = 'Y'\r\n",
 					""
 				],
-				"execution_count": 9
+				"execution_count": 6
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql \n",
+					"\n",
+					"SELECT COUNT(*) FROM odw_standardised_db.vw_saphr_historic;\n",
+					"SELECT COUNT(*) FROM odw_harmonised_db.hr_employee_fact;\n",
+					""
+				],
+				"execution_count": 7
 			}
 		]
 	}

@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d0772739-bba4-43fd-b789-6401cada8f9f"
+				"spark.autotune.trackingId": "d94848ab-0bc4-4ed4-9b72-c909e0c07a4c"
 			}
 		},
 		"metadata": {
@@ -94,13 +94,13 @@
 					"-- gets data that matches of SourceID and flags that it is modified based on a row (md5) hash. Flags as \"NewData\"\r\n",
 					"-- gets data that is in the target but not in source. Flags as \"DeletedData\"\r\n",
 					"\r\n",
-					"SELECT \r\n",
+					"SELECT DISTINCT\r\n",
 					"    CASE\r\n",
 					"        WHEN T1.Pers_No IS NULL\r\n",
 					"        THEN T7.EmployeeInfoID\r\n",
 					"        ELSE NULL\r\n",
 					"    END as EmployeeInfoID, -- surrogate key\r\n",
-					"    T8.EmployeeID,\r\n",
+					"    T1.Pers_No AS EmployeeID,\r\n",
 					"    T1.First_name AS FirstName,\r\n",
 					"    T1.Last_name AS LastName,\r\n",
 					"    T1.Gender_Key AS Gender,\r\n",
@@ -147,13 +147,13 @@
 					"LEFT JOIN ( SELECT staff_number, max(ded_from) as AnnualLeaveStartDate\r\n",
 					"            FROM odw_standardised_db.vw_leave\r\n",
 					"            GROUP BY Staff_Number) T5 ON T1.Pers_No = T5.staff_number   \r\n",
-					"LEFT JOIN odw_harmonised_db.hr_employee_fact T8 ON T1.Pers_No = T8.EmployeeNumber AND T8.IsActive = 'Y' \r\n",
+					"LEFT JOIN odw_harmonised_db.hr_employee_fact T8 ON T1.Pers_No = T8.PersNumber AND T8.IsActive = 'Y' \r\n",
 					"FULL JOIN odw_harmonised_db.hr_employee_dim T7 ON T8.EmployeeID = T7.EmployeeID AND T7.IsActive = 'Y'\r\n",
 					"WHERE\r\n",
 					"    (\r\n",
 					"        -- flags new data        \r\n",
 					"        ( CASE\r\n",
-					"            WHEN T1.Pers_No = T8.EmployeeNumber AND md5(concat( IFNULL(T1.First_name,'.'),IFNULL(T1.Last_name,'.'), IFNULL(T1.Gender_Key, '.'), IFNULL(T2.Street_and_House_Number, '.'),\r\n",
+					"            WHEN T1.Pers_No = T7.EmployeeID AND md5(concat( IFNULL(T1.First_name,'.'),IFNULL(T1.Last_name,'.'), IFNULL(T1.Gender_Key, '.'), IFNULL(T2.Street_and_House_Number, '.'),\r\n",
 					"                IFNULL(T2.`2nd_Address_Line`, '.'),IFNULL(T2.District, '.'), IFNULL(T2.City, '.'),IFNULL(T2.Region_State_Province_Count, '.'),IFNULL(T2.Postal_Code, '.'),IFNULL(T3.Email_Address, '.'),\r\n",
 					"                IFNULL(T2.Personal_Mobile, '.'), IFNULL(T2.Work_Mobile, '.'), IFNULL(T1.FTE,'.'),IFNULL(T1.Wk_hrs,'.'),IFNULL(T1.Indicator_Part_Time_Employee,'.'),T1.Employment_Status,\r\n",
 					"                IFNULL(T1.Civil_Service_Start, '.'),IFNULL(T1.Date_to_Current_Job, '.'), IFNULL(T1.Seniority_Date, '.'),IFNULL(T1.Org_Start_Date, '.'),IFNULL(T1.Fix_Term_End_Date, '.'),\r\n",
@@ -172,10 +172,13 @@
 					"            ELSE 'N'\r\n",
 					"        END = 'Y' )\r\n",
 					"    )\r\n",
+					"    AND T1.Pers_No IS NOT NULL\r\n",
 					";\r\n",
-					""
+					"\r\n",
+					"SELECT COUNT(*) FROM employee_dim_new;\r\n",
+					"SELECT * FROM employee_dim_new;"
 				],
-				"execution_count": 1
+				"execution_count": 6
 			},
 			{
 				"cell_type": "markdown",
@@ -303,7 +306,7 @@
 					"WHERE EmployeeID IN (SELECT EmployeeID FROM employee_dim_new WHERE EmployeeInfoID IS NULL) AND IsActive = 'Y';\r\n",
 					""
 				],
-				"execution_count": 2
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -359,7 +362,7 @@
 					"WHEN NOT MATCHED \r\n",
 					"    THEN INSERT * ;   "
 				],
-				"execution_count": 3
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -438,7 +441,33 @@
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.hr_employee_dim;"
 				],
-				"execution_count": 4
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql \n",
+					"\n",
+					"\n",
+					"SELECT COUNT (*) from odw_harmonised_db.hr_employee_fact;\n",
+					"SELECT COUNT (*) from odw_harmonised_db.hr_employee_dim"
+				],
+				"execution_count": null
 			}
 		]
 	}

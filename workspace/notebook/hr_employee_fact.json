@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "86189914-0d8e-40ea-872d-bde081cc1326"
+				"spark.autotune.trackingId": "b5e47f08-5366-4486-afe2-71d3bfb8d8e3"
 			}
 		},
 		"metadata": {
@@ -43,7 +43,7 @@
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.2",
+				"sparkVersion": "3.3",
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 28,
@@ -94,22 +94,18 @@
 					"-- gets data that matches of SourceID and flags that it is modified based on a row (md5) hash. Flags as \"NewData\"\r\n",
 					"-- gets data that is in the target but not in source. Flags as \"DeletedData\"\r\n",
 					"\r\n",
-					"SELECT \r\n",
-					"    CASE\r\n",
-					"        WHEN T1.Pers_No IS NULL\r\n",
-					"        THEN T7.EmployeeID\r\n",
-					"        ELSE NULL\r\n",
-					"    END as EmployeeID, -- surrogate key\r\n",
+					"SELECT DISTINCT\r\n",
+					"    T1.Pers_No as EmployeeID,\r\n",
 					"    T1.Birth_date as DOB,\r\n",
 					"    T1.NI_number as NINumber,\r\n",
-					"    T2.Staff_Number as PersNumber,\r\n",
-					"    T1.Pers_No as EmployeeNumber,\r\n",
+					"    T1.Pers_No as PersNumber,\r\n",
+					"    T2.Staff_Number as EmployeeNumber,\r\n",
 					"    T1.Employee_No as LegacyEmployeeNumber,\r\n",
 					"    NULL as NewSAPEmployeeNumber,\r\n",
 					"    T4.SourceSystemID,\r\n",
-					"    CURRENT_TIMESTAMP as IngestionDate,\r\n",
+					"    current_timestamp as IngestionDate,\r\n",
 					"    NULL as ValidTo,\r\n",
-					"    md5(concat( IFNULL(T1.Birth_date,'.'), IFNULL(T1.NI_number, '.'), IFNULL(T2.Staff_Number, '.'),IFNULL(T1.Pers_No, '.'), IFNULL(T1.Employee_No,'.'))) as RowID, \r\n",
+					"    md5(concat(IFNULL(T1.Birth_date,'.'), IFNULL(T1.NI_number, '.'), IFNULL(T1.Pers_No, '.'),IFNULL(T2.Staff_Number, '.'), IFNULL(T1.Employee_No,'.'))) as RowID, \r\n",
 					"    'Y' as IsActive, \r\n",
 					"    T7.IsActive as HistoricIsActive\r\n",
 					"\r\n",
@@ -120,14 +116,14 @@
 					"LEFT JOIN ( SELECT staff_number, max(ded_from) as AnnualLeaveStartDate\r\n",
 					"            FROM odw_standardised_db.vw_leave\r\n",
 					"            GRoup BY Staff_Number) T5 ON T1.Pers_No = T5.staff_number    \r\n",
-					"FULL JOIN odw_harmonised_db.hr_employee_fact T7 ON T1.Pers_No = T7.EmployeeNumber AND T7.IsActive = 'Y'\r\n",
+					"FULL JOIN odw_harmonised_db.hr_employee_fact T7 ON T1.Pers_No = T7.PersNumber AND T7.IsActive = 'Y'\r\n",
 					"WHERE\r\n",
 					"    (\r\n",
 					"        -- flags new data        \r\n",
 					"        ( CASE\r\n",
-					"            WHEN T1.Pers_No = T7.EmployeeNumber AND md5(concat( IFNULL(T1.Birth_date,'.'), IFNULL(T1.NI_number, '.'), IFNULL(T2.Staff_Number, '.'),IFNULL(T1.Pers_No, '.'), IFNULL(T1.Employee_No,'.')))  <> T7.RowID     \r\n",
+					"            WHEN T1.Pers_No = T7.PersNumber AND md5(concat(IFNULL(T1.Birth_date,'.'), IFNULL(T1.NI_number, '.'), IFNULL(T1.Pers_No, '.'),IFNULL(T2.Staff_Number, '.'), IFNULL(T1.Employee_No,'.')))  <> T7.RowID     \r\n",
 					"            THEN 'Y'\r\n",
-					"            WHEN T7.EmployeeNumber IS NULL\r\n",
+					"            WHEN T7.PersNumber IS NULL\r\n",
 					"            THEN 'Y'\r\n",
 					"            ELSE 'N'\r\n",
 					"        END  = 'Y' ) OR\r\n",
@@ -140,9 +136,11 @@
 					"        END = 'Y' )\r\n",
 					"    )\r\n",
 					";\r\n",
+					"\r\n",
+					"select * from employee_fact_new where employeeID = '00500901'\r\n",
 					""
 				],
-				"execution_count": 2
+				"execution_count": 31
 			},
 			{
 				"cell_type": "markdown",
@@ -221,10 +219,12 @@
 					"    RowID,\r\n",
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.hr_employee_fact\r\n",
-					"WHERE EmployeeNumber IN (SELECT EmployeeNumber FROM employee_fact_new WHERE EmployeeID IS NULL) AND IsActive = 'Y';\r\n",
+					"WHERE PersNumber IN (SELECT PersNumber FROM employee_fact_new WHERE RowID IS NULL) AND IsActive = 'Y';\r\n",
+					"\r\n",
+					"select * from employee_fact_changed_rows where employeeID = '00500901'\r\n",
 					""
 				],
-				"execution_count": 3
+				"execution_count": 32
 			},
 			{
 				"cell_type": "markdown",
@@ -278,10 +278,10 @@
 					"\r\n",
 					"-- Insert completely new rows\r\n",
 					"WHEN NOT MATCHED \r\n",
-					"    THEN INSERT * ;   \r\n",
+					"    THEN INSERT *;\r\n",
 					""
 				],
-				"execution_count": 4
+				"execution_count": 33
 			},
 			{
 				"cell_type": "markdown",
@@ -320,10 +320,10 @@
 					"%%sql\r\n",
 					"-- Insert new employee_fact\r\n",
 					"\r\n",
-					"INSERT OVERWRITE odw_harmonised_db.hr_employee_fact\r\n",
+					"INSERT INTO odw_harmonised_db.hr_employee_fact\r\n",
 					"\r\n",
 					"SELECT \r\n",
-					"    ROW_NUMBER() OVER (ORDER BY EmployeeID NULLS LAST) AS EmployeeID, \r\n",
+					"    EmployeeID, \r\n",
 					"    DOB,\r\n",
 					"    NINumber,\r\n",
 					"    PersNumber,\r\n",
@@ -335,9 +335,9 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM odw_harmonised_db.hr_employee_fact;"
+					"FROM employee_fact_changed_rows;"
 				],
-				"execution_count": 5
+				"execution_count": 34
 			}
 		]
 	}
