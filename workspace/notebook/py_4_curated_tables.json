@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "55c45a13-e504-421d-9af8-a5d67b9c803a"
+				"spark.autotune.trackingId": "b683c243-1d69-45f7-be25-b8bb62a0ecad"
 			}
 		},
 		"metadata": {
@@ -35,10 +35,10 @@
 				"name": "python"
 			},
 			"a365ComputeOptions": {
-				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodwpr",
-				"name": "pinssynspodwpr",
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
 				"type": "Spark",
-				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodwpr",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
 				"auth": {
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
@@ -46,7 +46,8 @@
 				"sparkVersion": "3.3",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 28
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -56,7 +57,7 @@
 				"source": [
 					"%run  \"0-odw-source-to-raw/Fileshare/SAP_HR/py_0_source_to_raw_hr_functions\""
 				],
-				"execution_count": 4
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
@@ -80,7 +81,26 @@
 					"import pandas as pd\r\n",
 					""
 				],
-				"execution_count": 5
+				"execution_count": 6
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"source_schema_file = 'nsip_relevant_reps.json'\n",
+					"target_table_name = 'nsip_relevant_reps'"
+				],
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
@@ -97,15 +117,14 @@
 				},
 				"source": [
 					"storage_acc_name = spark.sparkContext.environment.get('dataLakeAccountName', 'get')\r\n",
-					"outstanding_files_table_json = spark.read.text(\"abfss://odw-curated@\"+storage_acc_name+\".dfs.core.windows.net/config/json_files/new/employee.json\", wholetext=True).first().value\r\n",
+					"outstanding_files_table_json = spark.read.text(\"abfss://odw-curated@\"+storage_acc_name+\".dfs.core.windows.net/config/json_files/new/\"+source_schema_file, wholetext=True).first().value\r\n",
 					"db_name= \"odw_curated_db\"\r\n",
-					"table_name = \"employee\"\r\n",
 					"target_container = \"abfss://odw-curated@\"+storage_acc_name+\".dfs.core.windows.net/\"\r\n",
-					"target_folder = \"tables/employee\"\r\n",
-					"create_table_from_schema(outstanding_files_table_json, db_name, table_name, target_container, target_folder, change_data_feed=True)\r\n",
+					"target_folder = \"tables/\"+target_table_name\r\n",
+					"create_table_from_schema(outstanding_files_table_json, db_name, target_table_name, target_container, target_folder, change_data_feed=True)\r\n",
 					""
 				],
-				"execution_count": 6
+				"execution_count": 8
 			}
 		]
 	}
