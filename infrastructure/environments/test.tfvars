@@ -71,6 +71,10 @@ service_bus_topics_and_subscriptions = {
   "employee" = [
     "employee",
     "employee-verify"
+  ],
+  "zendesk" = [
+    "zendesk",
+    "zendesk-verify"
   ]
 }
 

@@ -72,6 +72,10 @@ service_bus_topics_and_subscriptions = {
     "employee",
     "employee-verify"
   ],
+  "zendesk" = [
+    "zendesk",
+    "zendesk-verify"
+  ]
 }
 
 spark_pool_enabled         = true
