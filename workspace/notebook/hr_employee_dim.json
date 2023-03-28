@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d94848ab-0bc4-4ed4-9b72-c909e0c07a4c"
+				"spark.autotune.trackingId": "65af67db-9b40-4911-ab34-32fa63531ad8"
 			}
 		},
 		"metadata": {
@@ -52,25 +52,6 @@
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"# Check for new, updated or deleted data\r\n",
-					"- This script checks for new, updated or deleted data by checking the source data (sap hr) against the target (odw_harmonised_db.employee_dim)\r\n",
-					"- **New Data:** where a Pers_No in the source does not exist as an EmployeeNumber in the target. NewData flag is set to 'Y'\r\n",
-					"- **Updated data:** Comparison occurs on Pers_No in source and EmployeeNumber in target where the row hash is different i.e. there is a change in one of the columns. NewData flag is set to 'Y'\r\n",
-					"- **Deleted data:** where an EmployeeNumber in the target exists but the same Pers_No doesn't exist in the source. DeletedData flag is set to 'Y'\r\n",
-					"\r\n",
-					"## View employee_dim_new is created"
-				]
-			},
 			{
 				"cell_type": "code",
 				"metadata": {
@@ -117,18 +98,18 @@
 					"    T1.Wk_hrs AS WorkHours,\r\n",
 					"    T1.Indicator_Part_Time_Employee AS PartTimeEmployee,\r\n",
 					"    T1.Employment_Status AS EmploymentStatus,\r\n",
-					"    T1.Civil_Service_Start AS CivilServiceStart,\r\n",
-					"    T1.Date_to_Current_Job AS DateToCurrentJob,\r\n",
-					"    T1.Seniority_Date AS SeniorityDate,\r\n",
-					"    T1.Org_Start_Date AS OrgStartDate,\r\n",
-					"    T1.Fix_Term_End_Date AS FixTermEndDate,\r\n",
-					"    T1.Loan_Start_Date AS LoanStartDate,\r\n",
-					"    T1.Loan_End_Date AS LoanEndDate,\r\n",
+					"    to_timestamp(T1.Civil_Service_Start) AS CivilServiceStart,\r\n",
+					"    to_timestamp(T1.Date_to_Current_Job) AS DateToCurrentJob,\r\n",
+					"    to_timestamp(T1.Seniority_Date) AS SeniorityDate,\r\n",
+					"    to_timestamp(T1.Org_Start_Date) AS OrgStartDate,\r\n",
+					"    to_timestamp(T1.Fix_Term_End_Date) AS FixTermEndDate,\r\n",
+					"    to_timestamp(T1.Loan_Start_Date) AS LoanStartDate,\r\n",
+					"    to_timestamp(T1.Loan_End_Date) AS LoanEndDate,\r\n",
 					"    T1.Assignment_Number AS AssignmentNumber,\r\n",
-					"    NULL AS AnnualSalary, -- T1.Annual_salary\r\n",
+					"    T1.Annual_salary AS AnnualSalary, -- T1.Annual_salary\r\n",
 					"    T1.curr AS Currency,\r\n",
 					"    T1.Reason_For_Action AS ReasonForAction,\r\n",
-					"    T1.Date_to_Subst_Grade AS DateToSubstantiveGrade,\r\n",
+					"    to_timestamp(T1.Date_to_Subst_Grade) AS DateToSubstantiveGrade,\r\n",
 					"    T4.SourceSystemID,\r\n",
 					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
 					"    NULL as ValidTo,\r\n",
@@ -175,10 +156,10 @@
 					"    AND T1.Pers_No IS NOT NULL\r\n",
 					";\r\n",
 					"\r\n",
-					"SELECT COUNT(*) FROM employee_dim_new;\r\n",
-					"SELECT * FROM employee_dim_new;"
+					"-- SELECT COUNT(*) FROM employee_dim_new;\r\n",
+					"-- SELECT * FROM employee_dim_new;"
 				],
-				"execution_count": 6
+				"execution_count": 9
 			},
 			{
 				"cell_type": "markdown",
@@ -306,7 +287,7 @@
 					"WHERE EmployeeID IN (SELECT EmployeeID FROM employee_dim_new WHERE EmployeeInfoID IS NULL) AND IsActive = 'Y';\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 10
 			},
 			{
 				"cell_type": "markdown",
@@ -362,7 +343,7 @@
 					"WHEN NOT MATCHED \r\n",
 					"    THEN INSERT * ;   "
 				],
-				"execution_count": null
+				"execution_count": 11
 			},
 			{
 				"cell_type": "markdown",
@@ -441,7 +422,7 @@
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.hr_employee_dim;"
 				],
-				"execution_count": null
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
@@ -467,7 +448,7 @@
 					"SELECT COUNT (*) from odw_harmonised_db.hr_employee_fact;\n",
 					"SELECT COUNT (*) from odw_harmonised_db.hr_employee_dim"
 				],
-				"execution_count": null
+				"execution_count": 13
 			}
 		]
 	}
