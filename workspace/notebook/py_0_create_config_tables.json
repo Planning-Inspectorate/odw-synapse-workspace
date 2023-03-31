@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "1b0e6045-85d5-4afb-b027-2c48b9e719d6"
+				"spark.autotune.trackingId": "66a2b89d-c1f8-434a-b3bd-c2e2558ddab3"
 			}
 		},
 		"metadata": {
@@ -122,7 +122,18 @@
 					"\r\n",
 					"    ### create outstanding files table\r\n",
 					"    outstanding_files_table_json = spark.read.text(\"abfss://odw-config@\"+storage_acc_name+\".dfs.core.windows.net/orchestration/scheduling_outstanding_files_table.json\", wholetext=True).first().value\r\n",
-					"    create_table_from_schema(outstanding_files_table_json, \"odw_config_db\", \"raw_to_std_outstanding_files\", \"abfss://odw-standardised@\"+storage_acc_name+\".dfs.core.windows.net/\", \"config/raw_to_std_outstanding_files\" )"
+					"    create_table_from_schema(outstanding_files_table_json, \"odw_config_db\", \"raw_to_std_outstanding_files\", \"abfss://odw-standardised@\"+storage_acc_name+\".dfs.core.windows.net/\", \"config/raw_to_std_outstanding_files\" )\r\n",
+					"\r\n",
+					"    orchestration_json = spark.read.text(\"abfss://odw-config@\"+storage_acc_name+\".dfs.core.windows.net/orchestration/orchestration.json\", wholetext=True).first().value\r\n",
+					"    json_config_dict = json.loads(orchestration_json)\r\n",
+					"    definitions = json_config_dict['definitions']\r\n",
+					"    for defs in definitions:\r\n",
+					"        standardised_container = \"abfss://odw-standardised@\"+storage_acc_name+\".dfs.core.windows.net/\" \r\n",
+					"        standardised_table_name = defs['Standardised_Table_Name']\r\n",
+					"        standardised_path = defs['Standardised_Path'] + \"/\"\r\n",
+					"        standardised_table_loc = \"abfss://odw-config@\"+storage_acc_name+\".dfs.core.windows.net/\" + defs['Standardised_Table_Definition']\r\n",
+					"        standardised_table_def_json = spark.read.text(standardised_table_loc, wholetext=True).first().value\r\n",
+					"        create_table_from_schema(standardised_table_def_json, \"odw_standardised_db\", standardised_table_name,standardised_container , standardised_path+standardised_table_name)"
 				],
 				"execution_count": 3
 			},
