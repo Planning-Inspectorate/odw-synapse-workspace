@@ -154,6 +154,18 @@ variable "location" {
   type        = string
 }
 
+variable "logic_app_service_plan_enabled" {
+  default     = false
+  description = "Determines whether an App Service Plan should be deployed"
+  type        = bool
+}
+
+variable "logic_app_standard_enabled" {
+  default     = false
+  description = "Determines whether a Logic App Standard function should be deployed"
+  type        = bool
+}
+
 variable "network_watcher_enabled" {
   default     = false
   description = "Determines whether a Network Watcher resource will be deployed"
