@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5ad361d7-18eb-41f9-8fe2-2289b43fc4f0"
+				"spark.autotune.trackingId": "5c45a16c-4801-4628-b0d6-35ca7fe22af2"
 			}
 		},
 		"metadata": {
@@ -105,19 +105,21 @@
 					"    End_Date AS AbsenceEndDate,\r\n",
 					"    T1.Days as Days,\r\n",
 					"    T1.hrs AS Hours,\r\n",
-					"    Cal_Days as CalendarDays,\r\n",
+					"    T1.Cal_Days as CalendarDays,\r\n",
+					"    T1.hrs_day as HoursPerDay,\r\n",
+					"    T1.wkdys as DaysPerWeek,\r\n",
 					"    T4.WorkScheduleID as WorkScheduleID,\r\n",
 					"    Annual_Leave_Start AS AnnualLeaveStart,\r\n",
 					"    T2.SourceSystemID as SourceSystemID,\r\n",
 					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
 					"    NULL AS ValidTo,\r\n",
-					"    md5(concat(IFNULL(T3.EmployeeID,'.'), IFNULL(T1.Attendance_or_Absence_Type,'.'), IFNULL(T1.Start_Date,'.'), IFNULL(T1.End_Date,'.'))) as RowID,\r\n",
+					"    md5(concat(IFNULL(T3.EmployeeID,'.'), IFNULL(T1.Attendance_or_Absence_Type,'.'), IFNULL(T1.Start_Date,'.'), IFNULL(T1.End_Date,'.'), IFNULL(T1.hrs_day,'.'), IFNULL(T1.wkdys,'.'))) as RowID,\r\n",
 					"    'Y' as IsActive,\r\n",
 					"    CASE\r\n",
 					"        WHEN T1.Attendance_or_Absence_Type = T7.AbsenceType AND \r\n",
 					"                T1.Start_Date = T7.AbsenceStartDate AND \r\n",
 					"                T1.End_Date = T7.AbsenceEndDate AND \r\n",
-					"                md5(concat(IFNULL(T3.EmployeeID,'.'), IFNULL(T1.Attendance_or_Absence_Type,'.'), IFNULL(T1.Start_Date,'.'), IFNULL(T1.End_Date,'.'))) <> T7.RowID  -- same employee, changed data\r\n",
+					"                md5(concat(IFNULL(T3.EmployeeID,'.'), IFNULL(T1.Attendance_or_Absence_Type,'.'), IFNULL(T1.Start_Date,'.'), IFNULL(T1.End_Date,'.'), IFNULL(T1.hrs_day,'.'), IFNULL(T1.wkdys,'.'))) <> T7.RowID  -- same employee, changed data\r\n",
 					"        THEN 'Y'\r\n",
 					"        WHEN T7.EmployeeID IS NULL -- new employee\r\n",
 					"        THEN 'Y'\r\n",
@@ -150,7 +152,7 @@
 					"            WHEN T3.EmployeeID = T7.EmployeeID AND \r\n",
 					"                    T1.Attendance_or_Absence_Type = T7.AbsenceType AND \r\n",
 					"                    T1.Start_Date = T7.AbsenceStartDate AND \r\n",
-					"                    T1.End_Date = T7.AbsenceEndDate AND md5(concat(IFNULL(T3.EmployeeID,'.'), IFNULL(T1.Attendance_or_Absence_Type,'.'), IFNULL(T1.Start_Date,'.'), IFNULL(T1.End_Date,'.'))) <> T7.RowID    -- same employee, changed data\r\n",
+					"                    T1.End_Date = T7.AbsenceEndDate AND md5(concat(IFNULL(T3.EmployeeID,'.'), IFNULL(T1.Attendance_or_Absence_Type,'.'), IFNULL(T1.Start_Date,'.'), IFNULL(T1.End_Date,'.'), IFNULL(T1.hrs_day,'.'), IFNULL(T1.wkdys,'.'))) <> T7.RowID    -- same employee, changed data\r\n",
 					"            THEN 'Y'\r\n",
 					"            WHEN T7.EmployeeID IS NULL -- new employee\r\n",
 					"            THEN 'Y'\r\n",
@@ -164,13 +166,9 @@
 					"            ELSE 'N'\r\n",
 					"        END = 'Y' )\r\n",
 					"    )\r\n",
-					";\r\n",
-					"\r\n",
-					"-- select count(*) from odw_standardised_db.vw_absences;\r\n",
-					"-- select count(*) from absence_dim_new;\r\n",
-					"-- select * from absence_dim_new;"
+					";"
 				],
-				"execution_count": 8
+				"execution_count": 12
 			},
 			{
 				"cell_type": "markdown",
@@ -225,6 +223,8 @@
 					"    CalendarDays,\r\n",
 					"    WorkScheduleID,\r\n",
 					"    AnnualLeaveStart,\r\n",
+					"    HoursPerDay,\r\n",
+					"    DaysPerWeek,\r\n",
 					"    SourceSystemID,\r\n",
 					"    IngestionDate,\r\n",
 					"    ValidTo,\r\n",
@@ -246,6 +246,8 @@
 					"    T4.CalendarDays,\r\n",
 					"    T4.WorkScheduleID,\r\n",
 					"    T4.AnnualLeaveStart,\r\n",
+					"    T4.HoursPerDay,\r\n",
+					"    T4.DaysPerWeek,\r\n",
 					"    T4.SourceSystemID,\r\n",
 					"    T4.IngestionDate,\r\n",
 					"    T4.ValidTo,\r\n",
@@ -257,7 +259,7 @@
 					" T5.AbsenceID IS NULL AND T5.IsActive = 'Y'\r\n",
 					";"
 				],
-				"execution_count": 9
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -314,7 +316,7 @@
 					"    THEN INSERT * ;  \r\n",
 					""
 				],
-				"execution_count": 10
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -367,6 +369,8 @@
 					"    CalendarDays,\r\n",
 					"    WorkScheduleID,\r\n",
 					"    AnnualLeaveStart,\r\n",
+					"    HoursPerDay,\r\n",
+					"    DaysPerWeek,\r\n",
 					"    SourceSystemID,\r\n",
 					"    IngestionDate,\r\n",
 					"    ValidTo,\r\n",
@@ -374,7 +378,7 @@
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.hr_absence_dim;"
 				],
-				"execution_count": 11
+				"execution_count": null
 			}
 		]
 	}
