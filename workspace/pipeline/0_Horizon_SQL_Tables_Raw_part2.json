@@ -1988,6 +1988,140 @@
 					},
 					"numExecutors": null
 				}
+			},
+			{
+				"name": "Horizon_NSIP_Advice",
+				"description": "Getting the data from the horizon table Horizon_vw_NSIPAdvice to bring into ODW",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "Horizon_NSIP_redactions",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [
+					{
+						"name": "Source",
+						"value": "."
+					},
+					{
+						"name": "Destination",
+						"value": "odw-raw/@{concat('Horizon', '/', formatDateTime(utcnow(), 'yyyy-MM-dd'))}/@{'NSIPAdvice.csv'}"
+					}
+				],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": "SELECT \n[AdviceNodeId]\n,[CaseReference]\n,[AdviceReference]\n,[AdviceStatus]\n,[Section51Advice]\n,[EnquirerFirstname]\n,[EnquirerLastname]\n,[EnquirerOrganisation]\n,[EnquiryDate]\n,[EnqiryMethod]\n,[Enquiry]\n,[AdviceFrom]\n,[AdviceDate]\n,[Advice]\n,[AdviceLastModified]\n,[AttachmentCount]\n,[AttachmentsLastModified]\n,[LastPublishedDate]\n,[CaseNodeId]\n,[WelshLanguage]\n,[CaseworkType]\nFROM [otcs].[dbo].[Horizon_vw_NSIPAdvice]",
+						"queryTimeout": "02:00:00",
+						"isolationLevel": "ReadCommitted",
+						"partitionOption": "None"
+					},
+					"sink": {
+						"type": "DelimitedTextSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "DelimitedTextWriteSettings",
+							"quoteAllText": true,
+							"fileExtension": ".txt"
+						}
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "NSIP_Advice",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "NSIPAdvice",
+						"type": "DatasetReference",
+						"parameters": {
+							"FileName": "NSIPAdvice.csv"
+						}
+					}
+				]
+			},
+			{
+				"name": "NSIPAdviceFail1",
+				"description": "The ingestion of Horizon_vw_NSIPAdvice into ODW RAW has failed ",
+				"type": "Fail",
+				"dependsOn": [
+					{
+						"activity": "Horizon_NSIP_Advice",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"message": "The ingestion of Horizon_vw_NSIPAdvice into ODW RAW has failed",
+					"errorCode": "NSIPAdviceFail1"
+				}
+			},
+			{
+				"name": "Logging Failed Activities-19",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "NSIPAdviceFail1",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_fail_activity_logging",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"output": {
+							"value": {
+								"value": "@activity('NSIPAdviceFail1').output.message",
+								"type": "Expression"
+							},
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
 			}
 		],
 		"folder": {
