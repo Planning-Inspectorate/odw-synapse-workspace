@@ -61,7 +61,6 @@ odt_back_office_service_bus_name                         = "pins-sb-back-office-
 odt_back_office_service_bus_name_failover                = "pins-sb-back-office-test-uks-001"
 odt_back_office_service_bus_resource_group_name          = "pins-rg-back-office-test-ukw-001"
 odt_back_office_service_bus_resource_group_name_failover = "pins-rg-back-office-test-uks-001"
-odt_back_office_subscription_id                          = "76cf28c6-6fda-42f1-bcd9-6d7dbed704ef"
 
 service_bus_failover_enabled = false
 service_bus_role_assignments = {

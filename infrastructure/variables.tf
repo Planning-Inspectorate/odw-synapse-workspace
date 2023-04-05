@@ -205,8 +205,8 @@ variable "odt_back_office_service_bus_resource_group_name_failover" {
   type        = string
 }
 
-variable "odt_back_office_subscription_id" {
-  description = "The subscription ID of the ODT Back Office subscription"
+variable "odt_subscription_id" {
+  description = "The subscription ID of the ODT subscription"
   type        = string
 }
 
