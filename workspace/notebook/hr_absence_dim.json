@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5c45a16c-4801-4628-b0d6-35ca7fe22af2"
+				"spark.autotune.trackingId": "e620d5bc-d7ac-47e7-9a6b-7c30f28e6d9a"
 			}
 		},
 		"metadata": {
@@ -52,6 +52,63 @@
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## View absence_dim_new_non_null is created"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW absence_dim_new_non_null\n",
+					"\n",
+					"    AS\n",
+					"\n",
+					"SELECT DISTINCT\n",
+					"    Staff_Number,\n",
+					"    Attendance_or_Absence_Type,\n",
+					"    Sickness_Group,\n",
+					"    Annual_Leave_Start,\n",
+					"    Start_Date,\n",
+					"    End_Date,\n",
+					"    Days,\n",
+					"    hrs,\n",
+					"    Cal_Days,\n",
+					"    hrs_day,\n",
+					"    wkdys,\n",
+					"    wk_hrs,\n",
+					"    Work_Schedule_Rule\n",
+					"\n",
+					"FROM odw_standardised_db.vw_absences\n",
+					"WHERE Staff_Number IS NOT NULL AND Attendance_or_Absence_Type IS NOT NULL;"
+				],
+				"execution_count": 21
+			},
 			{
 				"cell_type": "markdown",
 				"metadata": {
@@ -95,80 +152,79 @@
 					"SELECT \r\n",
 					"    CASE\r\n",
 					"        WHEN T1.Staff_Number IS NULL\r\n",
-					"        THEN T7.AbsenceID\r\n",
+					"        THEN T3.AbsenceID\r\n",
 					"        ELSE NULL\r\n",
 					"    END as AbsenceID, -- surrogate key\r\n",
-					"    T3.EmployeeID AS EmployeeID,\r\n",
-					"    Attendance_or_Absence_Type AS AbsenceType,\r\n",
-					"    Sickness_Group AS SicknessGroup,\r\n",
-					"    Start_Date AS AbsenceStartDate,\r\n",
-					"    End_Date AS AbsenceEndDate,\r\n",
+					"    T3.ROWID as a,\r\n",
+					"    md5(concat(IFNULL(T1.Staff_Number,'.'), IFNULL(T1.Attendance_or_Absence_Type,'.'), IFNULL(T1.Start_Date,'.'), IFNULL(T1.End_Date,'.'))) as b,\r\n",
+					"    T1.Staff_Number AS EmployeeID,\r\n",
+					"    T1.Attendance_or_Absence_Type AS AbsenceType,\r\n",
+					"    T1.Sickness_Group AS SicknessGroup,\r\n",
+					"    T1.Start_Date AS AbsenceStartDate,\r\n",
+					"    T1.End_Date AS AbsenceEndDate,\r\n",
 					"    T1.Days as Days,\r\n",
 					"    T1.hrs AS Hours,\r\n",
 					"    T1.Cal_Days as CalendarDays,\r\n",
-					"    T1.hrs_day as HoursPerDay,\r\n",
-					"    T1.wkdys as DaysPerWeek,\r\n",
 					"    T4.WorkScheduleID as WorkScheduleID,\r\n",
-					"    Annual_Leave_Start AS AnnualLeaveStart,\r\n",
+					"    T1.Annual_Leave_Start AS AnnualLeaveStart,\r\n",
 					"    T2.SourceSystemID as SourceSystemID,\r\n",
 					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
 					"    NULL AS ValidTo,\r\n",
-					"    md5(concat(IFNULL(T3.EmployeeID,'.'), IFNULL(T1.Attendance_or_Absence_Type,'.'), IFNULL(T1.Start_Date,'.'), IFNULL(T1.End_Date,'.'), IFNULL(T1.hrs_day,'.'), IFNULL(T1.wkdys,'.'))) as RowID,\r\n",
+					"    md5(concat(IFNULL(T1.Staff_Number,'.'), IFNULL(T1.Attendance_or_Absence_Type,'.'), IFNULL(T1.Start_Date,'.'), IFNULL(T1.End_Date,'.'))) as RowID,\r\n",
 					"    'Y' as IsActive,\r\n",
 					"    CASE\r\n",
-					"        WHEN T1.Attendance_or_Absence_Type = T7.AbsenceType AND \r\n",
-					"                T1.Start_Date = T7.AbsenceStartDate AND \r\n",
-					"                T1.End_Date = T7.AbsenceEndDate AND \r\n",
-					"                md5(concat(IFNULL(T3.EmployeeID,'.'), IFNULL(T1.Attendance_or_Absence_Type,'.'), IFNULL(T1.Start_Date,'.'), IFNULL(T1.End_Date,'.'), IFNULL(T1.hrs_day,'.'), IFNULL(T1.wkdys,'.'))) <> T7.RowID  -- same employee, changed data\r\n",
+					"        WHEN T1.Attendance_or_Absence_Type = T3.AbsenceType AND \r\n",
+					"                T1.Start_Date = T3.AbsenceStartDate AND \r\n",
+					"                T1.End_Date = T3.AbsenceEndDate AND \r\n",
+					"                md5(concat(IFNULL(T1.Staff_Number,'.'), IFNULL(T1.Attendance_or_Absence_Type,'.'), IFNULL(T1.Start_Date,'.'), IFNULL(T1.End_Date,'.'))) <> T3.RowID  -- same employee, changed data\r\n",
 					"        THEN 'Y'\r\n",
-					"        WHEN T7.EmployeeID IS NULL -- new employee\r\n",
+					"        WHEN T3.EmployeeID IS NULL -- new employee\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
 					"    END as NewData,\r\n",
 					"    CASE\r\n",
-					"        WHEN T3.EmployeeID IS NULL\r\n",
+					"        WHEN T1.Staff_Number IS NULL\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
 					"    END AS  DeletedData, \r\n",
-					"    T7.IsActive as HistoricIsActive\r\n",
+					"    T3.IsActive as HistoricIsActive\r\n",
 					"\r\n",
-					"FROM odw_standardised_db.vw_absences T1\r\n",
+					"FROM absence_dim_new_non_null T1\r\n",
 					"LEFT JOIN odw_harmonised_db.main_sourcesystem_fact T2 ON \"SAP HR\" = T2.Description AND T2.IsActive = 'Y'\r\n",
-					"LEFT JOIN odw_harmonised_db.hr_employee_fact T3 ON T1.Staff_Number = T3.PersNumber and T3.IsActive = 'Y'\r\n",
 					"LEFT JOIN odw_harmonised_db.hr_work_schedule_dim T4 ON T4.WorkScheduleRule = T1.Work_Schedule_Rule AND \r\n",
 					"                                                        T4.WorkWeekDays = T1.WkDys AND \r\n",
 					"                                                        T4.WorkWeekHours = T1.Wk_hrs AND   \r\n",
 					"                                                        T4.WorkDayHours = T1.Hrs_Day\r\n",
 					"                                                        AND T4.IsActive = 'Y'\r\n",
-					"FULL JOIN odw_harmonised_db.hr_absence_dim T7 ON T3.EmployeeID = T7.EmployeeID AND \r\n",
-					"                                                T1.Attendance_or_Absence_Type = T7.AbsenceType AND \r\n",
-					"                                                T1.Start_Date = T7.AbsenceStartDate AND \r\n",
-					"                                                T1.End_Date = T7.AbsenceEndDate\r\n",
-					"                                                AND T7.IsActive = 'Y'\r\n",
+					"FULL JOIN odw_harmonised_db.hr_absence_dim T3 ON T1.Staff_Number = T3.EmployeeID AND \r\n",
+					"                                                T1.Attendance_or_Absence_Type = T3.AbsenceType AND \r\n",
+					"                                                T1.Start_Date = T3.AbsenceStartDate AND \r\n",
+					"                                                T1.End_Date = T3.AbsenceEndDate\r\n",
+					"                                                AND T3.IsActive = 'Y'\r\n",
 					"WHERE\r\n",
 					"    (\r\n",
 					"        -- flags new data        \r\n",
 					"        ( CASE\r\n",
-					"            WHEN T3.EmployeeID = T7.EmployeeID AND \r\n",
-					"                    T1.Attendance_or_Absence_Type = T7.AbsenceType AND \r\n",
-					"                    T1.Start_Date = T7.AbsenceStartDate AND \r\n",
-					"                    T1.End_Date = T7.AbsenceEndDate AND md5(concat(IFNULL(T3.EmployeeID,'.'), IFNULL(T1.Attendance_or_Absence_Type,'.'), IFNULL(T1.Start_Date,'.'), IFNULL(T1.End_Date,'.'), IFNULL(T1.hrs_day,'.'), IFNULL(T1.wkdys,'.'))) <> T7.RowID    -- same employee, changed data\r\n",
+					"            WHEN T1.Staff_Number = T3.EmployeeID AND \r\n",
+					"                    T1.Attendance_or_Absence_Type = T3.AbsenceType AND \r\n",
+					"                    T1.Start_Date = T3.AbsenceStartDate AND \r\n",
+					"                    T1.End_Date = T3.AbsenceEndDate AND md5(concat(IFNULL(T1.Staff_Number,'.'), IFNULL(T1.Attendance_or_Absence_Type,'.'), IFNULL(T1.Start_Date,'.'), IFNULL(T1.End_Date,'.'), IFNULL(T1.hrs_day,'.'), IFNULL(T1.wkdys,'.'))) <> T3.RowID    -- same employee, changed data\r\n",
 					"            THEN 'Y'\r\n",
-					"            WHEN T7.EmployeeID IS NULL -- new employee\r\n",
+					"            WHEN T3.EmployeeID IS NULL -- new employee\r\n",
 					"            THEN 'Y'\r\n",
 					"            ELSE 'N'\r\n",
 					"        END  = 'Y' ) OR\r\n",
 					"        \r\n",
 					"        -- flags deleted data\r\n",
 					"        ( CASE\r\n",
-					"            WHEN T3.EmployeeID IS NULL\r\n",
+					"            WHEN T1.Staff_Number IS NULL\r\n",
 					"            THEN 'Y'\r\n",
 					"            ELSE 'N'\r\n",
 					"        END = 'Y' )\r\n",
 					"    )\r\n",
 					";"
 				],
-				"execution_count": 12
+				"execution_count": 33
 			},
 			{
 				"cell_type": "markdown",
@@ -223,8 +279,6 @@
 					"    CalendarDays,\r\n",
 					"    WorkScheduleID,\r\n",
 					"    AnnualLeaveStart,\r\n",
-					"    HoursPerDay,\r\n",
-					"    DaysPerWeek,\r\n",
 					"    SourceSystemID,\r\n",
 					"    IngestionDate,\r\n",
 					"    ValidTo,\r\n",
@@ -246,8 +300,6 @@
 					"    T4.CalendarDays,\r\n",
 					"    T4.WorkScheduleID,\r\n",
 					"    T4.AnnualLeaveStart,\r\n",
-					"    T4.HoursPerDay,\r\n",
-					"    T4.DaysPerWeek,\r\n",
 					"    T4.SourceSystemID,\r\n",
 					"    T4.IngestionDate,\r\n",
 					"    T4.ValidTo,\r\n",
@@ -259,7 +311,7 @@
 					" T5.AbsenceID IS NULL AND T5.IsActive = 'Y'\r\n",
 					";"
 				],
-				"execution_count": null
+				"execution_count": 24
 			},
 			{
 				"cell_type": "markdown",
@@ -316,7 +368,7 @@
 					"    THEN INSERT * ;  \r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 25
 			},
 			{
 				"cell_type": "markdown",
@@ -369,8 +421,6 @@
 					"    CalendarDays,\r\n",
 					"    WorkScheduleID,\r\n",
 					"    AnnualLeaveStart,\r\n",
-					"    HoursPerDay,\r\n",
-					"    DaysPerWeek,\r\n",
 					"    SourceSystemID,\r\n",
 					"    IngestionDate,\r\n",
 					"    ValidTo,\r\n",
@@ -378,7 +428,7 @@
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.hr_absence_dim;"
 				],
-				"execution_count": null
+				"execution_count": 20
 			}
 		]
 	}
