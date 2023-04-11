@@ -10,7 +10,7 @@ resource "azurerm_logic_app_standard" "logic_app" {
 
   app_settings = {
     "FUNCTIONS_WORKER_RUNTIME"     = "node"
-    "WEBSITE_NODE_DEFAULT_VERSION" = "~18"
+    "WEBSITE_NODE_DEFAULT_VERSION" = "~16"
   }
 
   tags = local.tags

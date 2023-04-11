@@ -1,5 +1,5 @@
 resource "azurerm_resource_group" "logic_app" {
-  name     = "pins-rg-logic-app-${local.resource_suffix}"
+  name     = "pins-rg-data-${local.resource_suffix}"
   location = module.azure_region.location_cli
 
   tags = local.tags
@@ -8,7 +8,7 @@ resource "azurerm_resource_group" "logic_app" {
 resource "azurerm_resource_group" "logic_app_failover" {
   count = var.failover_deployment ? 1 : 0
 
-  name     = "pins-rg-logic-app-${local.resource_suffix_failover}"
+  name     = "pins-rg-data-${local.resource_suffix_failover}"
   location = module.azure_region.paired_location.location_cli
 
   tags = local.tags
