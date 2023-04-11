@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "2b55d2ff-d6cf-4208-a825-f73f80416fbf"
+				"spark.autotune.trackingId": "63b38156-70ad-4a9e-93cf-f5fec137b289"
 			}
 		},
 		"metadata": {
@@ -100,7 +100,7 @@
 					"WHERE\n",
 					"    le.AbsenceQuotaType = 'Annual Leave / P&P';"
 				],
-				"execution_count": 24
+				"execution_count": 44
 			},
 			{
 				"cell_type": "code",
@@ -139,7 +139,7 @@
 					"WHERE\n",
 					"    le.AbsenceQuotaType = 'Brought Forward';"
 				],
-				"execution_count": 25
+				"execution_count": 45
 			},
 			{
 				"cell_type": "code",
@@ -181,7 +181,7 @@
 					"\n",
 					"sparkDF.createOrReplaceTempView('bank_holidays')"
 				],
-				"execution_count": 26
+				"execution_count": 46
 			},
 			{
 				"cell_type": "code",
@@ -213,7 +213,7 @@
 					"    CASE\n",
 					"        WHEN sc.ReportMonthEndDate >= a.AbsenceEndDate\n",
 					"        THEN a.Hours\n",
-					"        ELSE a.Hours - (a.HoursPerDay * datediff(a.AbsenceEndDate, sc.ReportMonthEndDate))\n",
+					"        ELSE a.Hours - (w.WorkDayHours * datediff(a.AbsenceEndDate, sc.ReportMonthEndDate))\n",
 					"    END AS LeaveHours,\n",
 					"    a.Days, \n",
 					"    a.Hours,\n",
@@ -223,12 +223,14 @@
 					"    sc.LeaveStartDate,\n",
 					"    bh.title as HolidayTitle,\n",
 					"    CASE \n",
-					"        WHEN a.Days = 0 AND a.Hours = 0 THEN a.HoursPerDay * a.CalendarDays\n",
+					"        WHEN a.Days = 0 AND a.Hours = 0 \n",
+					"        THEN w.WorkDayHours * a.CalendarDays\n",
 					"        ELSE NULL\n",
 					"    END AS BankHolidaysHours\n",
 					"\n",
 					"\n",
 					"FROM odw_harmonised_db.hr_absence_dim a\n",
+					"LEFT JOIN odw_harmonised_db.hr_work_schedule_dim w on a.WorkScheduleID = w.WorkScheduleID\n",
 					"LEFT JOIN staff_cost sc ON a.EmployeeID = sc.EmployeeID\n",
 					"LEFT JOIN bank_holidays bh ON a.AbsenceStartDate = bh.Date\n",
 					"WHERE\n",
@@ -236,56 +238,10 @@
 					"    AND \n",
 					"    a.AbsenceStartDate  BETWEEN sc.LeaveStartDate AND sc.ReportMonthEndDate\n",
 					"GROUP BY \n",
-					"    a.EmployeeID,a.AbsenceID,a.Days,a.Hours,a.CalendarDays,a.AbsenceStartDate,a.AbsenceEndDate,sc.LeaveStartDate,bh.title,a.HoursPerDay,sc.ReportMonthEndDate\n",
+					"    a.EmployeeID,a.AbsenceID,a.Days,a.Hours,a.CalendarDays,a.AbsenceStartDate,a.AbsenceEndDate,sc.LeaveStartDate,bh.title,w.WorkDayHours,sc.ReportMonthEndDate\n",
 					"Order by AbsenceStartDate"
 				],
-				"execution_count": 27
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
-				},
-				"source": [
-					" %%sql\n",
-					"-- CREATE OR REPLACE TEMPORARY VIEW fixed_leave_taken -- adding bank holidays in leave_hours_taken\n",
-					"\n",
-					"--     AS\n",
-					"\n",
-					"-- SELECT DISTINCT\n",
-					"-- EmployeeID,\n",
-					"-- Days, \n",
-					"-- Hours,\n",
-					"-- CalendarDays,\n",
-					"-- AbsenceStartDate,\n",
-					"-- AbsenceEndDate,\n",
-					"-- LeaveStartDate,\n",
-					"-- HolidayTitle,\n",
-					"-- BankHolidaysHours,\n",
-					"-- LeaveHours,\n",
-					"--  CASE\n",
-					"--     WHEN Days = 0 AND Hours = 0 AND HolidayTitle is not null AND LeaveStartDate<=AbsenceStartDate \n",
-					"--     THEN LeaveHours + BankHolidaysHours\n",
-					"--     ELSE LeaveHours\n",
-					"-- END AS LeaveHoursTaken\n",
-					"\n",
-					"-- FROM leave_taken\n",
-					"-- Where EmployeeID is not null and LeaveStartDate<=AbsenceStartDate and EmployeeID = 500514\n",
-					"-- Order by AbsenceEndDate;"
-				],
-				"execution_count": 31
+				"execution_count": 48
 			},
 			{
 				"cell_type": "code",
@@ -322,7 +278,7 @@
 					"Where EmployeeID is not null and LeaveStartDate <= AbsenceStartDate\n",
 					"GROUP BY EmployeeID;"
 				],
-				"execution_count": 18
+				"execution_count": 49
 			},
 			{
 				"cell_type": "code",
@@ -441,7 +397,7 @@
 					"where \n",
 					"\tright(cast(cast(sc.ReportMonthEndDate as date) as varchar(10)),5) in ('01-31','02-28','02-29','03-31','04-30','05-31','06-30','07-31','08-31','09-30','10-31','11-30','12-31')"
 				],
-				"execution_count": 19
+				"execution_count": 50
 			},
 			{
 				"cell_type": "code",
@@ -471,7 +427,7 @@
 					"from sap_hr_historic\n",
 					"order by pers_no"
 				],
-				"execution_count": 20
+				"execution_count": 51
 			},
 			{
 				"cell_type": "code",
@@ -636,7 +592,7 @@
 					"    )\r\n",
 					";"
 				],
-				"execution_count": null
+				"execution_count": 52
 			},
 			{
 				"cell_type": "code",
@@ -855,7 +811,7 @@
 					"FROM odw_harmonised_db.hr_historic_sap_hr\r\n",
 					"WHERE PersNo IN (SELECT PersNo FROM hr_historic_sap_hr_new WHERE HistoricSAPHRID IS NULL) AND IsActive = 'Y';"
 				],
-				"execution_count": null
+				"execution_count": 53
 			},
 			{
 				"cell_type": "code",
@@ -895,7 +851,7 @@
 					"WHEN NOT MATCHED \r\n",
 					"    THEN INSERT * ;   "
 				],
-				"execution_count": null
+				"execution_count": 54
 			},
 			{
 				"cell_type": "code",
