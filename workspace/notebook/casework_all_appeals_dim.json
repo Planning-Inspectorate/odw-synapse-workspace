@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "3bdb3336-8c23-4e29-a57d-8090f301b6bd"
+				"spark.autotune.trackingId": "cc076792-dd9b-4364-8795-c59b77d96de1"
 			}
 		},
 		"metadata": {
@@ -102,7 +102,7 @@
 					"    T1.procedurecode AS ProcedureCode,\r\n",
 					"    T1.decisioncod AS DecisionCode,\r\n",
 					"    T1.linkedappeal AS LinkedAppeal,\r\n",
-					"    T1.lpacode AS LPACode,\r\n",
+					"    T10.LPAID AS LPAID,\r\n",
 					"    T1.applicationtype AS ApplicationType,\r\n",
 					"    T1.appealtypereason AS AppealTypeReason,\r\n",
 					"    T1.appealtypereasonid AS AppealTypeReasonID,\r\n",
@@ -130,7 +130,7 @@
 					"    T2.SourceSystemID,\r\n",
 					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
 					"    NULL AS ValidTo,\r\n",
-					"    md5(concat(IFNULL(T1.appealrefnumber,'.'), IFNULL(T1.lastmodified,'.'), IFNULL(T1.procedurecode,'.'), IFNULL(T1.decisioncod,'.'), IFNULL(T1.linkedappeal,'.'), IFNULL(T1.lpacode,'.'), \r\n",
+					"    md5(concat(IFNULL(T1.appealrefnumber,'.'), IFNULL(T1.lastmodified,'.'), IFNULL(T1.procedurecode,'.'), IFNULL(T1.decisioncod,'.'), IFNULL(T1.linkedappeal,'.'), IFNULL(T10.LPAID,'.'), \r\n",
 					"    IFNULL(T1.applicationtype,'.'), IFNULL(T1.appealtypereason,'.'), IFNULL(T1.appealtypereasonid,'.'), IFNULL(T1.appealtypegroup,'.'), IFNULL(T1.appealtype,'.'), IFNULL(T1.rcrissue1,'.'), \r\n",
 					"    IFNULL(T1.appealrecdate,'.'), IFNULL(T1.appealstartdate,'.'), IFNULL(T1.appealdecideddate,'.'), IFNULL(T1.appealwithdrawndate,'.'), IFNULL(T1.appealturnedawaydate,'.'), \r\n",
 					"    IFNULL(T1.appeallapseddate,'.'), IFNULL(T1.redetermined,'.'), IFNULL(T1.jurisdiction,'.'), IFNULL(T1.daysinabeyance,'.'), IFNULL(T1.leadcase,'.'), IFNULL(T1.leadcaseworktype,'.'), \r\n",
@@ -138,7 +138,7 @@
 					"    IFNULL(T1.leadcaseofficelogin,'.'), IFNULL(T1.currentactivetaskgrp,'.'))) as RowID, -- this hash should contain all the defining fields, so needs to be done\r\n",
 					"    'Y' as IsActive,\r\n",
 					"    CASE\r\n",
-					"        WHEN T1.appealrefnumber = T3.AppealRefNumber AND  md5(concat(IFNULL(T1.appealrefnumber,'.'), IFNULL(T1.lastmodified,'.'), IFNULL(T1.procedurecode,'.'), IFNULL(T1.decisioncod,'.'), IFNULL(T1.linkedappeal,'.'), IFNULL(T1.lpacode,'.'), \r\n",
+					"        WHEN T1.appealrefnumber = T3.AppealRefNumber AND  md5(concat(IFNULL(T1.appealrefnumber,'.'), IFNULL(T1.lastmodified,'.'), IFNULL(T1.procedurecode,'.'), IFNULL(T1.decisioncod,'.'), IFNULL(T1.linkedappeal,'.'), IFNULL(T10.LPAID,'.'), \r\n",
 					"    IFNULL(T1.applicationtype,'.'), IFNULL(T1.appealtypereason,'.'), IFNULL(T1.appealtypereasonid,'.'), IFNULL(T1.appealtypegroup,'.'), IFNULL(T1.appealtype,'.'), IFNULL(T1.rcrissue1,'.'), \r\n",
 					"    IFNULL(T1.appealrecdate,'.'), IFNULL(T1.appealstartdate,'.'), IFNULL(T1.appealdecideddate,'.'), IFNULL(T1.appealwithdrawndate,'.'), IFNULL(T1.appealturnedawaydate,'.'), \r\n",
 					"    IFNULL(T1.appeallapseddate,'.'), IFNULL(T1.redetermined,'.'), IFNULL(T1.jurisdiction,'.'), IFNULL(T1.daysinabeyance,'.'), IFNULL(T1.leadcase,'.'), IFNULL(T1.leadcaseworktype,'.'), \r\n",
@@ -158,12 +158,13 @@
 					"\r\n",
 					"FROM odw_standardised_db.vw_all_appeals T1\r\n",
 					"LEFT JOIN odw_harmonised_db.main_sourcesystem_fact T2 ON \"Casework\" = T2.Description AND T2.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_harmonised_db.casework_local_planning_authority_fact T10 ON T1.lpacode = T10.LPACode AND T10.IsActive = 'Y'\r\n",
 					"FULL JOIN odw_harmonised_db.casework_all_appeals_dim T3 ON T1.appealrefnumber = T3.AppealRefNumber AND T3.IsActive = 'Y'\r\n",
 					"WHERE\r\n",
 					"    (\r\n",
 					"        -- flags new data        \r\n",
 					"        (   CASE\r\n",
-					"                WHEN T1.appealrefnumber = T3.AppealRefNumber AND md5(concat(IFNULL(T1.appealrefnumber,'.'), IFNULL(T1.lastmodified,'.'), IFNULL(T1.procedurecode,'.'), IFNULL(T1.decisioncod,'.'), IFNULL(T1.linkedappeal,'.'), IFNULL(T1.lpacode,'.'), \r\n",
+					"                WHEN T1.appealrefnumber = T3.AppealRefNumber AND md5(concat(IFNULL(T1.appealrefnumber,'.'), IFNULL(T1.lastmodified,'.'), IFNULL(T1.procedurecode,'.'), IFNULL(T1.decisioncod,'.'), IFNULL(T1.linkedappeal,'.'), IFNULL(T10.LPAID,'.'), \r\n",
 					"    IFNULL(T1.applicationtype,'.'), IFNULL(T1.appealtypereason,'.'), IFNULL(T1.appealtypereasonid,'.'), IFNULL(T1.appealtypegroup,'.'), IFNULL(T1.appealtype,'.'), IFNULL(T1.rcrissue1,'.'), \r\n",
 					"    IFNULL(T1.appealrecdate,'.'), IFNULL(T1.appealstartdate,'.'), IFNULL(T1.appealdecideddate,'.'), IFNULL(T1.appealwithdrawndate,'.'), IFNULL(T1.appealturnedawaydate,'.'), \r\n",
 					"    IFNULL(T1.appeallapseddate,'.'), IFNULL(T1.redetermined,'.'), IFNULL(T1.jurisdiction,'.'), IFNULL(T1.daysinabeyance,'.'), IFNULL(T1.leadcase,'.'), IFNULL(T1.leadcaseworktype,'.'), \r\n",
@@ -185,7 +186,7 @@
 					"\r\n",
 					""
 				],
-				"execution_count": 1
+				"execution_count": 5
 			},
 			{
 				"cell_type": "markdown",
@@ -252,7 +253,7 @@
 					"# else:\r\n",
 					"#     print(\"Unused codes under tolerance levels\")"
 				],
-				"execution_count": 2
+				"execution_count": 6
 			},
 			{
 				"cell_type": "markdown",
@@ -317,7 +318,7 @@
 					"#     else:\r\n",
 					"#         raise RuntimeError(\"Records to Add do not match\")"
 				],
-				"execution_count": 3
+				"execution_count": 7
 			},
 			{
 				"cell_type": "markdown",
@@ -368,7 +369,7 @@
 					"    ProcedureCode,\r\n",
 					"    DecisionCode,\r\n",
 					"    LinkedAppeal,\r\n",
-					"    LPACode,\r\n",
+					"    LPAID,\r\n",
 					"    ApplicationType,\r\n",
 					"    AppealTypeReason,\r\n",
 					"    AppealTypeReasonID,\r\n",
@@ -411,7 +412,7 @@
 					"    ProcedureCode,\r\n",
 					"    DecisionCode,\r\n",
 					"    LinkedAppeal,\r\n",
-					"    LPACode,\r\n",
+					"    LPAID,\r\n",
 					"    ApplicationType,\r\n",
 					"    AppealTypeReason,\r\n",
 					"    AppealTypeReasonID,\r\n",
@@ -445,7 +446,7 @@
 					"FROM odw_harmonised_db.casework_all_appeals_dim\r\n",
 					"WHERE AppealRefNumber IN (SELECT AppealRefNumber FROM casework_all_appeals_dim_new WHERE AllAppealsID IS NULL) AND IsActive = 'Y'; "
 				],
-				"execution_count": 4
+				"execution_count": 8
 			},
 			{
 				"cell_type": "markdown",
@@ -502,7 +503,7 @@
 					"    THEN INSERT * ;  \r\n",
 					""
 				],
-				"execution_count": 5
+				"execution_count": 9
 			},
 			{
 				"cell_type": "markdown",
@@ -550,7 +551,7 @@
 					"    ProcedureCode,\r\n",
 					"    DecisionCode,\r\n",
 					"    LinkedAppeal,\r\n",
-					"    LPACode,\r\n",
+					"    LPAID,\r\n",
 					"    ApplicationType,\r\n",
 					"    AppealTypeReason,\r\n",
 					"    AppealTypeReasonID,\r\n",
@@ -583,7 +584,7 @@
 					"FROM odw_harmonised_db.casework_all_appeals_dim;\r\n",
 					""
 				],
-				"execution_count": 6
+				"execution_count": 10
 			}
 		]
 	}

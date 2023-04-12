@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "41a68537-383c-4435-8c74-927f3a17e8d2"
+				"spark.autotune.trackingId": "a45ce206-fa8c-4283-b338-e83c6b62433d"
 			}
 		},
 		"metadata": {
@@ -199,7 +199,7 @@
 					"    submission_date,\r\n",
 					"    reports_issued"
 				],
-				"execution_count": 7
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
@@ -230,7 +230,7 @@
 					"    T1.hz_ref AS HZRef,\r\n",
 					"    T1.ldf_no AS LDFNo,\r\n",
 					"    T1.region AS Region,\r\n",
-					"    T1.lpa AS LPA,\r\n",
+					"    T10.LPAID AS LPAID,\r\n",
 					"    T1.title AS Title,\r\n",
 					"    T1.dpd_type AS DPDType,\r\n",
 					"    T1.grade AS Grade,\r\n",
@@ -274,7 +274,6 @@
 					"    T1.total_weeks AS TotalWeeks,\r\n",
 					"    T1.hearing_close_to_final_report AS HearingClosetoFinalReport,\r\n",
 					"    T1.notes AS Notes,\r\n",
-					"    T1.lpa_lookup AS LPALookup,\r\n",
 					"    T1.submission_date AS SubmissionDate,\r\n",
 					"    T1.reports_issued AS ReportsIssued,\r\n",
 					"    T2.SourceSystemID,\r\n",
@@ -298,7 +297,9 @@
 					"\r\n",
 					"FROM casework_local_plans_grouped T1\r\n",
 					"LEFT JOIN odw_harmonised_db.main_sourcesystem_fact T2 ON \"Casework\" = T2.Description AND T2.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_harmonised_db.casework_local_planning_authority_fact T10 ON LOWER(ltrim(left(t10.LPAName, 4))) = LOWER(ltrim(left(t1.lpa, 4))) AND T10.IsActive = 'Y'\r\n",
 					"FULL JOIN odw_harmonised_db.casework_local_plans_dim T3 ON T1.hz_ref = T3.HZRef AND T3.IsActive = 'Y'\r\n",
+					"\r\n",
 					"WHERE\r\n",
 					"    (\r\n",
 					"        -- flags new data        \r\n",
@@ -317,9 +318,13 @@
 					"                ELSE 'N'\r\n",
 					"            END = 'Y' )\r\n",
 					"    );\r\n",
+					"    SELECT COUNT(*) FROM casework_local_plans_grouped;\r\n",
+					"    SELECT COUNT(*) FROM casework_local_plans_dim_new;\r\n",
+					"    SELECT COUNT(HZRef) FROM casework_local_plans_dim_new;\r\n",
+					"    SELECT * FROM casework_local_plans_dim_new;\r\n",
 					""
 				],
-				"execution_count": 8
+				"execution_count": 14
 			},
 			{
 				"cell_type": "markdown",
@@ -386,7 +391,7 @@
 					"# else:\r\n",
 					"#     print(\"Unused codes under tolerance levels\")"
 				],
-				"execution_count": 9
+				"execution_count": 6
 			},
 			{
 				"cell_type": "markdown",
@@ -451,7 +456,7 @@
 					"#     else:\r\n",
 					"#         raise RuntimeError(\"Records to Add do not match\")"
 				],
-				"execution_count": 10
+				"execution_count": 7
 			},
 			{
 				"cell_type": "markdown",
@@ -500,7 +505,7 @@
 					"    HZRef,\r\n",
 					"    LDFNo,\r\n",
 					"    Region,\r\n",
-					"    LPA,\r\n",
+					"    LPAID,\r\n",
 					"    Title,\r\n",
 					"    DPDType,\r\n",
 					"    Grade,\r\n",
@@ -544,7 +549,6 @@
 					"    TotalWeeks,\r\n",
 					"    HearingClosetoFinalReport,\r\n",
 					"    Notes,\r\n",
-					"    LPALookup,\r\n",
 					"    SubmissionDate,\r\n",
 					"    ReportsIssued,\r\n",
 					"    SourceSystemID,\r\n",
@@ -563,7 +567,7 @@
 					"    HZRef,\r\n",
 					"    LDFNo,\r\n",
 					"    Region,\r\n",
-					"    LPA,\r\n",
+					"    LPAID,\r\n",
 					"    Title,\r\n",
 					"    DPDType,\r\n",
 					"    Grade,\r\n",
@@ -607,7 +611,6 @@
 					"    TotalWeeks,\r\n",
 					"    HearingClosetoFinalReport,\r\n",
 					"    Notes,\r\n",
-					"    LPALookup,\r\n",
 					"    SubmissionDate,\r\n",
 					"    ReportsIssued,\r\n",
 					"    SourceSystemID,\r\n",
@@ -619,7 +622,7 @@
 					"FROM odw_harmonised_db.casework_local_plans_dim\r\n",
 					"WHERE HZRef IN (SELECT HZRef FROM casework_local_plans_dim_new WHERE LocalPlansID IS NULL) AND IsActive = 'Y'; "
 				],
-				"execution_count": 11
+				"execution_count": 8
 			},
 			{
 				"cell_type": "markdown",
@@ -676,7 +679,7 @@
 					"    THEN INSERT * ;  \r\n",
 					""
 				],
-				"execution_count": 12
+				"execution_count": 9
 			},
 			{
 				"cell_type": "markdown",
@@ -722,7 +725,7 @@
 					"    HZRef,\r\n",
 					"    LDFNo,\r\n",
 					"    Region,\r\n",
-					"    LPA,\r\n",
+					"    LPAID,\r\n",
 					"    Title,\r\n",
 					"    DPDType,\r\n",
 					"    Grade,\r\n",
@@ -766,7 +769,6 @@
 					"    TotalWeeks,\r\n",
 					"    HearingClosetoFinalReport,\r\n",
 					"    Notes,\r\n",
-					"    LPALookup,\r\n",
 					"    SubmissionDate,\r\n",
 					"    ReportsIssued,\r\n",
 					"    SourceSystemID,\r\n",
@@ -777,7 +779,7 @@
 					"FROM odw_harmonised_db.casework_local_plans_dim;\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 10
 			}
 		]
 	}

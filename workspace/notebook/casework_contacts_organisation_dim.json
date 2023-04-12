@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "112f69ea-ba1a-4fea-9176-9db3a0e63551"
+				"spark.autotune.trackingId": "2d44b548-0797-41c8-9f18-0c241a56d67e"
 			}
 		},
 		"metadata": {
@@ -118,7 +118,7 @@
 					"    T1.ID AS ContactID,\r\n",
 					"    T1.name AS Name,\r\n",
 					"    T1.organisationtypeid AS OrganisationTypeID,\r\n",
-					"    T1.lpacode AS LPACode,\r\n",
+					"    T10.LPAID AS LPAID,\r\n",
 					"    T1.pobox AS POBox,\r\n",
 					"    T1.address1 AS Address1,\r\n",
 					"    T1.address2 AS Address2,\r\n",
@@ -133,12 +133,12 @@
 					"    T2.SourceSystemID,\r\n",
 					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
 					"    NULL AS ValidTo,\r\n",
-					"    md5(concat(IFNULL(T1.ID,'.'), IFNULL(T1.name,'.'), IFNULL(T1.organisationtypeid,'.'), IFNULL(T1.lpacode,'.'), IFNULL(T1.pobox,'.'), IFNULL(T1.address1,'.'), IFNULL(T1.address2,'.'), \r\n",
+					"    md5(concat(IFNULL(T1.ID,'.'), IFNULL(T1.name,'.'), IFNULL(T1.organisationtypeid,'.'), IFNULL(T10.LPAID,'.'), IFNULL(T1.pobox,'.'), IFNULL(T1.address1,'.'), IFNULL(T1.address2,'.'), \r\n",
 					"    IFNULL(T1.city,'.'), IFNULL(T1.county,'.'), IFNULL(T1.postcode,'.'), IFNULL(T1.country,'.'), IFNULL(T1.telephoneoffice,'.'), IFNULL(T1.fax,'.'), IFNULL(T1.email,'.'), \r\n",
 					"    IFNULL(T1.lastupdatedbyid,'.'))) as RowID, -- this hash should contain all the defining fields, so needs to be done\r\n",
 					"    'Y' as IsActive,\r\n",
 					"    CASE\r\n",
-					"        WHEN T1.ID = T3.ContactID AND md5(concat(IFNULL(T1.ID,'.'), IFNULL(T1.name,'.'), IFNULL(T1.organisationtypeid,'.'), IFNULL(T1.lpacode,'.'), IFNULL(T1.pobox,'.'), IFNULL(T1.address1,'.'), IFNULL(T1.address2,'.'), \r\n",
+					"        WHEN T1.ID = T3.ContactID AND md5(concat(IFNULL(T1.ID,'.'), IFNULL(T1.name,'.'), IFNULL(T1.organisationtypeid,'.'), IFNULL(T10.LPAID,'.'), IFNULL(T1.pobox,'.'), IFNULL(T1.address1,'.'), IFNULL(T1.address2,'.'), \r\n",
 					"    IFNULL(T1.city,'.'), IFNULL(T1.county,'.'), IFNULL(T1.postcode,'.'), IFNULL(T1.country,'.'), IFNULL(T1.telephoneoffice,'.'), IFNULL(T1.fax,'.'), IFNULL(T1.email,'.'), \r\n",
 					"    IFNULL(T1.lastupdatedbyid,'.'))) <> T3.RowID   -- same employee, changed data\r\n",
 					"        THEN 'Y'\r\n",
@@ -155,12 +155,13 @@
 					"\r\n",
 					"FROM odw_standardised_db.horizon_contacts_organisation T1\r\n",
 					"LEFT JOIN odw_harmonised_db.main_sourcesystem_fact T2 ON \"Casework\" = T2.Description AND T2.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_harmonised_db.casework_local_planning_authority_fact T10 ON T1.lpacode = T10.LPACode AND T10.IsActive = 'Y'\r\n",
 					"FULL JOIN odw_harmonised_db.casework_contacts_organisation_dim T3 ON T1.ID = T3.ContactID AND T3.IsActive = 'Y'\r\n",
 					"WHERE\r\n",
 					"    (\r\n",
 					"        -- flags new data        \r\n",
 					"        (   CASE\r\n",
-					"                WHEN T1.ID = T3.ContactID AND md5(concat(IFNULL(T1.ID,'.'), IFNULL(T1.name,'.'), IFNULL(T1.organisationtypeid,'.'), IFNULL(T1.lpacode,'.'), IFNULL(T1.pobox,'.'), IFNULL(T1.address1,'.'), IFNULL(T1.address2,'.'), \r\n",
+					"                WHEN T1.ID = T3.ContactID AND md5(concat(IFNULL(T1.ID,'.'), IFNULL(T1.name,'.'), IFNULL(T1.organisationtypeid,'.'), IFNULL(T10.LPAID,'.'), IFNULL(T1.pobox,'.'), IFNULL(T1.address1,'.'), IFNULL(T1.address2,'.'), \r\n",
 					"    IFNULL(T1.city,'.'), IFNULL(T1.county,'.'), IFNULL(T1.postcode,'.'), IFNULL(T1.country,'.'), IFNULL(T1.telephoneoffice,'.'), IFNULL(T1.fax,'.'), IFNULL(T1.email,'.'), \r\n",
 					"    IFNULL(T1.lastupdatedbyid,'.'))) <> T3.RowID  -- same employee, changed data\r\n",
 					"                THEN 'Y'\r\n",
@@ -177,13 +178,9 @@
 					"            END = 'Y' )\r\n",
 					"    );\r\n",
 					"\r\n",
-					"SELECT COUNT(ID) FROM odw_standardised_db.horizon_contacts_organisation;\r\n",
-					"SELECT COUNT(*) FROM odw_standardised_db.horizon_contacts_organisation;\r\n",
-					"SELECT COUNT(*) FROM casework_contacts_organisation_dim_new;\r\n",
-					"\r\n",
 					""
 				],
-				"execution_count": 11
+				"execution_count": 3
 			},
 			{
 				"cell_type": "markdown",
@@ -217,7 +214,7 @@
 				"source": [
 					""
 				],
-				"execution_count": 10
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -250,7 +247,7 @@
 				"source": [
 					""
 				],
-				"execution_count": 11
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -299,7 +296,7 @@
 					"    ContactID,\r\n",
 					"    Name,\r\n",
 					"    OrganisationTypeID,\r\n",
-					"    LPACode,\r\n",
+					"    LPAID,\r\n",
 					"    POBox,\r\n",
 					"    Address1,\r\n",
 					"    Address2,\r\n",
@@ -327,7 +324,7 @@
 					"    ContactID,\r\n",
 					"    Name,\r\n",
 					"    OrganisationTypeID,\r\n",
-					"    LPACode,\r\n",
+					"    LPAID,\r\n",
 					"    POBox,\r\n",
 					"    Address1,\r\n",
 					"    Address2,\r\n",
@@ -348,7 +345,7 @@
 					"FROM odw_harmonised_db.casework_contacts_organisation_dim\r\n",
 					"WHERE ContactID IN (SELECT ContactID FROM casework_contacts_organisation_dim_new WHERE ContactsOrganisationID IS NULL) AND IsActive = 'Y'; "
 				],
-				"execution_count": 12
+				"execution_count": 4
 			},
 			{
 				"cell_type": "markdown",
@@ -405,7 +402,7 @@
 					"    THEN INSERT * ;  \r\n",
 					""
 				],
-				"execution_count": 13
+				"execution_count": 5
 			},
 			{
 				"cell_type": "markdown",
@@ -451,7 +448,7 @@
 					"    ContactID,\r\n",
 					"    Name,\r\n",
 					"    OrganisationTypeID,\r\n",
-					"    LPACode,\r\n",
+					"    LPAID,\r\n",
 					"    POBox,\r\n",
 					"    Address1,\r\n",
 					"    Address2,\r\n",
@@ -471,7 +468,7 @@
 					"FROM odw_harmonised_db.casework_contacts_organisation_dim;\r\n",
 					""
 				],
-				"execution_count": 14
+				"execution_count": 6
 			}
 		]
 	}
