@@ -45,7 +45,7 @@ In order to add a new raw source and convert the data in standardised form, foll
 - Go to the pipeline `pln_raw_to_standardised_e2e` and set the new `Source_ID` in the first activity of the pipeline called "Set SourceID".
 	- Click the activity Set SourceID > Settings > Edit the Value of the variable
 - Run the pipeline and cross your fingers. If it succeeds, you should be able to find your Standardised table at the specified location with the data ingested.
-- Finally, go to `[synapse_data_lake]/odw-config/standardised_table_definitions/` and download the newly created schema json file and push it in your branch. This will help keep things consistent between environments.
+- Finally, go to `[synapse_data_lake]/odw-config/standardised_table_definitions/` and download the newly created schema json file and push it in your branch. Delete this json file then from synapse so that terraform can deploy it without "file exists" error. This will help keep things consistent between environments.
 
 
 ## Pipeline
