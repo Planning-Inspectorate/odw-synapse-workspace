@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "1e95f757-e12b-48e3-868e-d3bb515d8882"
+				"spark.autotune.trackingId": "cdea57b3-830f-466b-94df-76654f267e4e"
 			}
 		},
 		"metadata": {
@@ -93,26 +93,34 @@
 					"        WHEN T3.EmployeeID IS NULL\r\n",
 					"        THEN T7.EmployeeLeaversID\r\n",
 					"        ELSE NULL\r\n",
-					"    END as EmployeeLeaversID,     \r\n",
-					"    T1.Pers_No AS EmployeeID,\r\n",
-					"    T1.Pers_No AS EmployeeNumber,\r\n",
-					"    T1.Reason_For_Action AS ReasonForLeaving, \r\n",
+					"    END                     AS EmployeeLeaversID,     \r\n",
+					"    T1.Pers_No              AS EmployeeID,\r\n",
+					"    T1.Pers_No              AS EmployeeNumber,\r\n",
+					"    T1.Reason_For_Action    AS ReasonForLeaving, \r\n",
 					"    CASE \r\n",
 					"        WHEN T1.Org_Start_Date = '00/00/0000'\r\n",
 					"        THEN '1900-01-01 00:00:00'\r\n",
 					"        ELSE T1.Org_Start_Date\r\n",
-					"    END AS EmploymentStartDate,\r\n",
-					"    T1.Leaving AS EmploymentEndDate,\r\n",
-					"    T2.SourceSystemID as SourceSystemID,\r\n",
-					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
-					"    NULL AS ValidTo,\r\n",
-					"    md5(concat(IFNULL(T3.EmployeeID,'.'),IFNULL(T1.Reason_For_Action,'.'),IFNULL(T1.Org_Start_Date,'.'), IFNULL(T1.Leaving,'.'))) as RowID,\r\n",
+					"    END                     AS EmploymentStartDate,\r\n",
+					"    T1.Leaving              AS EmploymentEndDate,\r\n",
+					"    T2.SourceSystemID       AS SourceSystemID,\r\n",
+					"    CURRENT_TIMESTAMP       AS IngestionDate,\r\n",
+					"    NULL                    AS ValidTo,\r\n",
+					"    md5(concat(\r\n",
+					"        IFNULL(T3.EmployeeID,'.'),\r\n",
+					"        IFNULL(T1.Reason_For_Action,'.'),\r\n",
+					"        IFNULL(CAST(T1.Org_Start_Date AS varchar(20)),'.'), \r\n",
+					"        IFNULL(T1.Leaving,'.'))) as RowID,\r\n",
 					"    'Y' as IsActive,\r\n",
 					"    CASE\r\n",
 					"        WHEN T3.EmployeeID = T7.EmployeeID AND \r\n",
 					"             T1.Org_Start_Date = T7.EmploymentStartDate AND\r\n",
 					"             T1.Leaving = T7.EmploymentEndDate AND\r\n",
-					"             md5(concat(IFNULL(T3.EmployeeID,'.'),IFNULL(T1.Reason_For_Action,'.'),IFNULL(T1.Org_Start_Date,'.'),IFNULL(T1.Leaving,'.'))) <> T7.RowID  -- same employee, changed data\r\n",
+					"             md5(concat(\r\n",
+					"                IFNULL(T3.EmployeeID,'.'),\r\n",
+					"                IFNULL(T1.Reason_For_Action,'.'),\r\n",
+					"                IFNULL(CAST(T1.Org_Start_Date AS varchar(20)),'.'),\r\n",
+					"                IFNULL(T1.Leaving,'.'))) <> T7.RowID  -- same employee, changed data\r\n",
 					"        THEN 'Y'\r\n",
 					"        WHEN T7.EmployeeID  IS NULL -- new employee\r\n",
 					"        THEN 'Y'\r\n",
@@ -137,16 +145,20 @@
 					"        AND (\r\n",
 					"        \r\n",
 					"        -- flags new data        \r\n",
-					"        (       CASE\r\n",
-					"                    WHEN T3.EmployeeID = T7.EmployeeID AND \r\n",
-					"                            T1.Org_Start_Date = T7.EmploymentStartDate AND\r\n",
-					"                            T1.Leaving = T7.EmploymentEndDate AND\r\n",
-					"                            md5(concat(IFNULL(T3.EmployeeID,'.'),IFNULL(T1.Reason_For_Action,'.'),IFNULL(T1.Org_Start_Date,'.'),IFNULL(T1.Leaving,'.'))) <> T7.RowID  -- same employee, changed data\r\n",
-					"                    THEN 'Y'\r\n",
-					"                    WHEN T7.EmployeeID  IS NULL -- new employee\r\n",
-					"                    THEN 'Y'\r\n",
-					"                    ELSE 'N'\r\n",
-					"                END  = 'Y' ) OR\r\n",
+					"        (   CASE\r\n",
+					"                WHEN T3.EmployeeID = T7.EmployeeID AND \r\n",
+					"                        T1.Org_Start_Date = T7.EmploymentStartDate AND\r\n",
+					"                        T1.Leaving = T7.EmploymentEndDate AND\r\n",
+					"                        md5(concat(\r\n",
+					"                            IFNULL(T3.EmployeeID,'.'),\r\n",
+					"                            IFNULL(T1.Reason_For_Action,'.'),\r\n",
+					"                            IFNULL(CAST(T1.Org_Start_Date AS varchar(20)),'.'),\r\n",
+					"                            IFNULL(T1.Leaving,'.'))) <> T7.RowID  -- same employee, changed data\r\n",
+					"                THEN 'Y'\r\n",
+					"                WHEN T7.EmployeeID  IS NULL -- new employee\r\n",
+					"                THEN 'Y'\r\n",
+					"                ELSE 'N'\r\n",
+					"            END  = 'Y' ) OR\r\n",
 					"        \r\n",
 					"        -- flags deleted data\r\n",
 					"        (   CASE\r\n",
@@ -156,10 +168,10 @@
 					"            END = 'Y' )\r\n",
 					");\r\n",
 					"\r\n",
-					"-- select count(*) from hr_employee_leavers_dim_new;\r\n",
-					"-- select * from hr_employee_leavers_dim_new;"
+					"select count(*) from hr_employee_leavers_dim_new;\r\n",
+					"select * from hr_employee_leavers_dim_new;"
 				],
-				"execution_count": 5
+				"execution_count": 17
 			},
 			{
 				"cell_type": "markdown",
@@ -234,9 +246,10 @@
 					"                                            T2.EmployeeLeaversID IS NULL AND \r\n",
 					"                                            T1.IsActive = 'Y'\r\n",
 					"; \r\n",
-					""
+					"\r\n",
+					"SELECT * FROM hr_employee_leavers_dim_changed_rows;"
 				],
-				"execution_count": 6
+				"execution_count": 18
 			},
 			{
 				"cell_type": "markdown",
@@ -279,7 +292,7 @@
 					"MERGE INTO odw_harmonised_db.hr_employee_leavers_dim AS Target\r\n",
 					"USING hr_employee_leavers_dim_changed_rows AS Source\r\n",
 					"\r\n",
-					"ON Source.EmployeeID = Target.EmployeeID\r\n",
+					"ON Source.EmployeeID = Target.EmployeeID AND Target.EmployeeID = 'Y'\r\n",
 					"\r\n",
 					"-- For Updates existing rows\r\n",
 					"\r\n",
@@ -294,7 +307,7 @@
 					"    THEN INSERT * ;  \r\n",
 					""
 				],
-				"execution_count": 7
+				"execution_count": 19
 			},
 			{
 				"cell_type": "markdown",
@@ -350,32 +363,7 @@
 					"FROM odw_harmonised_db.hr_employee_leavers_dim;\r\n",
 					""
 				],
-				"execution_count": 8
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
-				},
-				"source": [
-					"%%sql\n",
-					"SELECT count(*)\n",
-					"from odw_harmonised_db.hr_employee_leavers_dim\n",
-					"where employeeid is null;"
-				],
-				"execution_count": 9
+				"execution_count": 20
 			}
 		]
 	}
