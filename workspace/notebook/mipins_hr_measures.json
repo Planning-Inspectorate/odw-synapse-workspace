@@ -1,8 +1,8 @@
 {
-	"name": "hr_historic_sap_hr",
+	"name": "mipins_hr_measures",
 	"properties": {
 		"folder": {
-			"name": "odw-harmonised/SAP-HR"
+			"name": "odw-curated"
 		},
 		"nbformat": 4,
 		"nbformat_minor": 2,
@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "63b38156-70ad-4a9e-93cf-f5fec137b289"
+				"spark.autotune.trackingId": "0dc90429-8e19-4c1c-9190-d8102fc83a0e"
 			}
 		},
 		"metadata": {
@@ -100,7 +100,7 @@
 					"WHERE\n",
 					"    le.AbsenceQuotaType = 'Annual Leave / P&P';"
 				],
-				"execution_count": 44
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -139,7 +139,22 @@
 					"WHERE\n",
 					"    le.AbsenceQuotaType = 'Brought Forward';"
 				],
-				"execution_count": 45
+				"execution_count": 5
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"- Getting a list of Bank Holidays from Gov.UK\n",
+					"## View bank_holidays is created\n",
+					""
+				]
 			},
 			{
 				"cell_type": "code",
@@ -181,7 +196,7 @@
 					"\n",
 					"sparkDF.createOrReplaceTempView('bank_holidays')"
 				],
-				"execution_count": 46
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
@@ -241,7 +256,7 @@
 					"    a.EmployeeID,a.AbsenceID,a.Days,a.Hours,a.CalendarDays,a.AbsenceStartDate,a.AbsenceEndDate,sc.LeaveStartDate,bh.title,w.WorkDayHours,sc.ReportMonthEndDate\n",
 					"Order by AbsenceStartDate"
 				],
-				"execution_count": 48
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
@@ -278,7 +293,7 @@
 					"Where EmployeeID is not null and LeaveStartDate <= AbsenceStartDate\n",
 					"GROUP BY EmployeeID;"
 				],
-				"execution_count": 49
+				"execution_count": 8
 			},
 			{
 				"cell_type": "code",
@@ -300,7 +315,7 @@
 				"source": [
 					"%%sql\n",
 					"\n",
-					"CREATE OR REPLACE TEMPORARY VIEW sap_hr_historic\n",
+					"CREATE OR REPLACE TEMPORARY VIEW mipins_hr_measures\n",
 					"\n",
 					"     AS\n",
 					"\t \n",
@@ -397,37 +412,26 @@
 					"where \n",
 					"\tright(cast(cast(sc.ReportMonthEndDate as date) as varchar(10)),5) in ('01-31','02-28','02-29','03-31','04-30','05-31','06-30','07-31','08-31','09-30','10-31','11-30','12-31')"
 				],
-				"execution_count": 50
+				"execution_count": 9
 			},
 			{
-				"cell_type": "code",
+				"cell_type": "markdown",
 				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
 					"nteract": {
 						"transient": {
 							"deleting": false
 						}
-					},
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
+					}
 				},
 				"source": [
-					"%%sql\n",
-					"\t \n",
-					"SELECT DISTINCT\n",
-					"\tpers_no,\n",
-					"\tleave_taken_hrs,\n",
-					"\tleave_remaining_hours,\n",
-					"\tleave_remaining_prorata_hours\n",
-					"from sap_hr_historic\n",
-					"order by pers_no"
-				],
-				"execution_count": 51
+					"# Check for new, updated or deleted data\n",
+					"- This script checks for new, updated or deleted data by checking the source data (horizon tables) against the target (odw_harmonised_db.casework tables)\n",
+					"- **New Data:** where an main Reference in the source does not exist in the target, then NewData flag is set to 'Y'\n",
+					"- **Updated data:** Comparison occurs on Reference Fields in source and in target where the row hash is different i.e. there is a change in one of the columns. NewData flag is set to 'Y'\n",
+					"- **Deleted data:** where an Reference info in the target exists but the same identifyers don't exist in the source. DeletedData flag is set to 'Y'\n",
+					"\n",
+					"## View mipins_hr_measures_new is created"
+				]
 			},
 			{
 				"cell_type": "code",
@@ -450,50 +454,50 @@
 					"%%sql\r\n",
 					"-- Gets modified or deleted from source rows\r\n",
 					"\r\n",
-					"CREATE OR REPLACE TEMPORARY VIEW hr_historic_sap_hr_new \r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW mipins_hr_measures_new \r\n",
 					"\r\n",
 					"    AS\r\n",
 					"\r\n",
-					"-- gets data that matches of PersNo and flags that it is modified based on a row (md5) hash. Flags as \"NewData\"\r\n",
+					"-- gets data that matches of EmployeeID and flags that it is modified based on a row (md5) hash. Flags as \"NewData\"\r\n",
 					"-- gets data that is in the target but not in source. Flags as \"DeletedData\"\r\n",
 					"\r\n",
 					"SELECT\r\n",
 					"    CASE\r\n",
 					"        WHEN h.pers_no IS NULL\r\n",
-					"        THEN T5.HistoricSAPHRID\r\n",
+					"        THEN T5.MeasureID\r\n",
 					"        ELSE NULL\r\n",
-					"    END as HistoricSAPHRID, -- surrogate\r\n",
-					"    h.pers_no\tAS\tPersNo\t,\r\n",
+					"    END as MeasureID, -- surrogate\r\n",
+					"    h.pers_no\tAS\tEmployeeID\t,\r\n",
 					"    h.first_name\tAS\tFirstName\t,\r\n",
 					"    h.last_name\tAS\tLastName\t,\r\n",
 					"    h.employee_no\tAS\tEmployeeNo\t,\r\n",
-					"    h.cocd\tAS\tCocd\t,\r\n",
+					"    h.cocd\tAS\tCoCd\t,\r\n",
 					"    h.company_code\tAS\tCompanyCode\t,\r\n",
-					"    h.pa\tAS\tPa\t,\r\n",
+					"    h.pa\tAS\tPA\t,\r\n",
 					"    h.personnel_area\tAS\tPersonnelArea\t,\r\n",
-					"    h.psubarea\tAS\tPsubarea\t,\r\n",
-					"    h.personnel_subarea\tAS\tPersonnelSubarea\t,\r\n",
+					"    h.psubarea\tAS\tPSubArea\t,\r\n",
+					"    h.personnel_subarea\tAS\tPersonnelSubArea\t,\r\n",
 					"    h.org_unit\tAS\tOrgUnit\t,\r\n",
 					"    h.organizational_unit\tAS\tOrganizationalUnit\t,\r\n",
 					"    h.organizational_key1\tAS\tOrganizationalKey1\t,\r\n",
 					"    h.organizational_key2\tAS\tOrganizationalKey2\t,\r\n",
-					"    h.workc\tAS\tWorkc\t,\r\n",
+					"    h.workc\tAS\tWorkC\t,\r\n",
 					"    h.work_contract\tAS\tWorkContract\t,\r\n",
-					"    h.ct\tAS\tCt\t,\r\n",
+					"    h.ct\tAS\tCT\t,\r\n",
 					"    h.contract_type\tAS\tContractType\t,\r\n",
-					"    h.ps_group\tAS\tPsGroup\t,\r\n",
+					"    h.ps_group\tAS\tPSGroup\t,\r\n",
 					"    h.pay_band_description\tAS\tPayBandDescription\t,\r\n",
-					"    h.fte\tAS\tFte\t,\r\n",
-					"    h.wk_hrs\tAS\tWkHrs\t,\r\n",
+					"    h.fte\tAS\tFTE\t,\r\n",
+					"    h.wk_hrs\tAS\tWeekHours\t,\r\n",
 					"    h.indicator_part_time_employee\tAS\tIndicatorPartTimeEmployee\t,\r\n",
 					"    h.s\tAS\tS\t,\r\n",
 					"    h.employment_status\tAS\tEmploymentStatus\t,\r\n",
 					"    h.gender_key\tAS\tGenderKey\t,\r\n",
-					"    h.tra_start_date\tAS\tTraStartDate\t,\r\n",
-					"    h.tra_end_date\tAS\tTraEndDate\t,\r\n",
-					"    h.tra_status\tAS\tTraStatus\t,\r\n",
-					"    h.tra_grade\tAS\tTraGrade\t,\r\n",
-					"    h.prev_persno\tAS\tPrevPersno\t,\r\n",
+					"    h.tra_start_date\tAS\tTRAStartDate\t,\r\n",
+					"    h.tra_end_date\tAS\tTRAEndDate\t,\r\n",
+					"    h.tra_status\tAS\tTRAStatus\t,\r\n",
+					"    h.tra_grade\tAS\tTRAGrade\t,\r\n",
+					"    h.prev_persno\tAS\tPrevPersNo\t,\r\n",
 					"    h.actr\tAS\tActr\t,\r\n",
 					"    h.reason_for_action\tAS\tReasonForAction\t,\r\n",
 					"    h.position\tAS\tPosition\t,\r\n",
@@ -515,16 +519,16 @@
 					"    h.fix_term_end_date\tAS\tFixTermEndDate\t,\r\n",
 					"    h.loan_start_date\tAS\tLoanStartDate\t,\r\n",
 					"    h.loan_end_date\tAS\tLoanEndDate\t,\r\n",
-					"    h.eegrp\tAS\tEegrp\t,\r\n",
+					"    h.eegrp\tAS\tEEGrp\t,\r\n",
 					"    h.employee_group\tAS\tEmployeeGroup\t,\r\n",
 					"    h.annual_salary\tAS\tAnnualSalary\t,\r\n",
 					"    h.curr\tAS\tCurr\t,\r\n",
-					"    h.ni_number\tAS\tNiNumber\t,\r\n",
+					"    h.ni_number\tAS\tNINumber\t,\r\n",
 					"    h.birth_date\tAS\tBirthDate\t,\r\n",
 					"    h.age_of_employee\tAS\tAgeOfEmployee\t,\r\n",
-					"    h.eo\tAS\tEo\t,\r\n",
+					"    h.eo\tAS\tEO\t,\r\n",
 					"    h.ethnic_origin\tAS\tEthnicOrigin\t,\r\n",
-					"    h.nid\tAS\tNid\t,\r\n",
+					"    h.nid\tAS\tNID\t,\r\n",
 					"    h.rel\tAS\tRel\t,\r\n",
 					"    h.religious_denomination_key\tAS\tReligiousDenominationKey\t,\r\n",
 					"    h.sxo\tAS\tSxo\t,\r\n",
@@ -537,25 +541,25 @@
 					"    h.disability_code\tAS\tDisabilityCode\t,\r\n",
 					"    h.disability_text\tAS\tDisabilityText\t,\r\n",
 					"    h.disability_code_description\tAS\tDisabilityCodeDescription\t,\r\n",
-					"    h.parea\tAS\tParea\t,\r\n",
+					"    h.parea\tAS\tPArea\t,\r\n",
 					"    h.payroll_area\tAS\tPayrollArea\t,\r\n",
 					"    h.assignment_number\tAS\tAssignmentNumber\t,\r\n",
-					"    h.fte_2\tAS\tFte2\t,\r\n",
-					"    h.Report_MonthEnd_Date\tAS\tReportMonthendDate\t,\r\n",
-					"    h.leave_entitlement_hrs\tAS\tLeaveEntitlementHrs\t,\r\n",
-					"    h.leave_taken_hrs\tAS\tLeaveTakenHrs\t,\r\n",
+					"    h.fte_2\tAS\tFTE2\t,\r\n",
+					"    h.Report_MonthEnd_Date\tAS\tReportMonthEndDate\t,\r\n",
+					"    h.leave_entitlement_hrs\tAS\tLeaveEntitlementHours\t,\r\n",
+					"    h.leave_taken_hrs\tAS\tLeaveTakenHours\t,\r\n",
 					"    h.leave_remaining_hours\tAS\tLeaveRemainingHours\t,\r\n",
 					"    h.leave_remaining_prorata_hours\tAS\tLeaveRemainingProrataHours,\r\n",
 					"\r\n",
 					"    T2.SourceSystemID as SourceSystemID,\r\n",
 					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
 					"    NULL AS ValidTo,\r\n",
-					"    md5(concat(IFNULL(h.pers_no,'.'),IFNULL(h.employee_no,'.'))) AS RowID,\r\n",
+					"    md5(concat(IFNULL(h.pers_no,'.'),IFNULL(CAST(h.Report_MonthEnd_Date as VARCHAR(20)),'.'),IFNULL(h.leave_entitlement_hrs,'.'),IFNULL(h.leave_taken_hrs,'.'),IFNULL(h.leave_remaining_hours,'.'),IFNULL(h.leave_remaining_prorata_hours,'.'))) AS RowID,\r\n",
 					"    'Y' AS IsActive,\r\n",
 					"    CASE\r\n",
-					"        WHEN h.pers_no = T5.PersNo AND md5(concat(IFNULL(h.pers_no,'.'),IFNULL(h.employee_no,'.'))) <> T5.RowID-- same employee, changed data\r\n",
+					"        WHEN h.pers_no = T5.EmployeeID AND md5(concat(IFNULL(h.pers_no,'.'),IFNULL(CAST(h.Report_MonthEnd_Date as VARCHAR(20)),'.'),IFNULL(h.leave_entitlement_hrs,'.'),IFNULL(h.leave_taken_hrs,'.'),IFNULL(h.leave_remaining_hours,'.'),IFNULL(h.leave_remaining_prorata_hours,'.'))) <> T5.RowID-- same employee, changed data\r\n",
 					"        THEN 'Y'\r\n",
-					"        WHEN T5.PersNo IS NULL -- new comment\r\n",
+					"        WHEN T5.EmployeeID IS NULL \r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
 					"    END as NewData,\r\n",
@@ -566,9 +570,9 @@
 					"    END AS  DeletedData, \r\n",
 					"    T5.IsActive as HistoricIsActive\r\n",
 					"\r\n",
-					"FROM sap_hr_historic h\r\n",
+					"FROM mipins_hr_measures h\r\n",
 					"LEFT JOIN odw_harmonised_db.main_sourcesystem_fact T2 ON \"SAP HR\" = T2.Description AND T2.IsActive = 'Y'\r\n",
-					"LEFT JOIN odw_harmonised_db.hr_historic_sap_hr T5 ON h.pers_no = T5.PersNo AND T5.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_curated_db.mipins_hr_measures T5 ON h.pers_no = T5.EmployeeID AND T5.IsActive = 'Y'\r\n",
 					"\r\n",
 					"\r\n",
 					"WHERE\r\n",
@@ -576,9 +580,9 @@
 					"        \r\n",
 					"        -- flags new data        \r\n",
 					"        (   CASE\r\n",
-					"                WHEN h.pers_no = T5.PersNo AND md5(concat(IFNULL(h.pers_no,'.'),IFNULL(h.employee_no,'.'))) <> T5.RowID    -- same employee, changed data\r\n",
+					"                WHEN h.pers_no = T5.EmployeeID AND md5(concat(IFNULL(h.pers_no,'.'),IFNULL(CAST(h.Report_MonthEnd_Date as VARCHAR(20)),'.'),IFNULL(h.leave_entitlement_hrs,'.'),IFNULL(h.leave_taken_hrs,'.'),IFNULL(h.leave_remaining_hours,'.'),IFNULL(h.leave_remaining_prorata_hours,'.'))) <> T5.RowID    -- same employee, changed data\r\n",
 					"                THEN 'Y'\r\n",
-					"                WHEN T5.PersNo IS NULL -- new employee\r\n",
+					"                WHEN T5.EmployeeID IS NULL \r\n",
 					"                THEN 'Y'\r\n",
 					"                ELSE 'N'\r\n",
 					"            END  = 'Y' ) OR\r\n",
@@ -592,7 +596,23 @@
 					"    )\r\n",
 					";"
 				],
-				"execution_count": 52
+				"execution_count": 10
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Dataset is created that contains changed data and corresponding target data\n",
+					"- This script combines data that has been updated, Deleted or is new, with corresponding target data\n",
+					"- View **mipins_hr_measures_new** is unioned to the target data filter to only those rows where changes have been detected\n",
+					"## View mipins_hr_measures_changed_rows is created"
+				]
 			},
 			{
 				"cell_type": "code",
@@ -616,45 +636,45 @@
 					"\r\n",
 					"-- Create new and updated dataset\r\n",
 					"\r\n",
-					"CREATE OR REPLACE TEMPORARY VIEW hr_historic_sap_hr_changed_rows\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW mipins_hr_measures_changed_rows\r\n",
 					"\r\n",
 					"    AS\r\n",
 					"\r\n",
 					"-- gets updated, deleted and new rows \r\n",
 					"\r\n",
 					"Select \r\n",
-					"    HistoricSAPHRID, -- surrogate \r\n",
-					"    PersNo\t,\r\n",
+					"    MeasureID, -- surrogate \r\n",
+					"    EmployeeID\t,\r\n",
 					"    FirstName\t,\r\n",
 					"    LastName\t,\r\n",
 					"    EmployeeNo\t,\r\n",
-					"    Cocd\t,\r\n",
+					"    CoCd\t,\r\n",
 					"    CompanyCode\t,\r\n",
-					"    Pa\t,\r\n",
+					"    PA\t,\r\n",
 					"    PersonnelArea\t,\r\n",
-					"    Psubarea\t,\r\n",
-					"    PersonnelSubarea\t,\r\n",
+					"    PSubArea\t,\r\n",
+					"    PersonnelSubArea\t,\r\n",
 					"    OrgUnit\t,\r\n",
 					"    OrganizationalUnit\t,\r\n",
 					"    OrganizationalKey1\t,\r\n",
 					"    OrganizationalKey2\t,\r\n",
-					"    Workc\t,\r\n",
+					"    WorkC\t,\r\n",
 					"    WorkContract\t,\r\n",
-					"    Ct\t,\r\n",
+					"    CT\t,\r\n",
 					"    ContractType\t,\r\n",
-					"    PsGroup\t,\r\n",
+					"    PSGroup\t,\r\n",
 					"    PayBandDescription\t,\r\n",
-					"    Fte\t,\r\n",
-					"    WkHrs\t,\r\n",
+					"    FTE\t,\r\n",
+					"    WeekHours\t,\r\n",
 					"    IndicatorPartTimeEmployee\t,\r\n",
 					"    S\t,\r\n",
 					"    EmploymentStatus\t,\r\n",
 					"    GenderKey\t,\r\n",
-					"    TraStartDate\t,\r\n",
-					"    TraEndDate\t,\r\n",
-					"    TraStatus\t,\r\n",
-					"    TraGrade\t,\r\n",
-					"    PrevPersno\t,\r\n",
+					"    TRAStartDate\t,\r\n",
+					"    TRAEndDate\t,\r\n",
+					"    TRAStatus\t,\r\n",
+					"    TRAGrade\t,\r\n",
+					"    PrevPersNo\t,\r\n",
 					"    Actr\t,\r\n",
 					"    ReasonForAction\t,\r\n",
 					"    Position\t,\r\n",
@@ -676,16 +696,16 @@
 					"    FixTermEndDate\t,\r\n",
 					"    LoanStartDate\t,\r\n",
 					"    LoanEndDate\t,\r\n",
-					"    Eegrp\t,\r\n",
+					"    EEGrp\t,\r\n",
 					"    EmployeeGroup\t,\r\n",
 					"    AnnualSalary\t,\r\n",
 					"    Curr\t,\r\n",
-					"    NiNumber\t,\r\n",
+					"    NINumber\t,\r\n",
 					"    BirthDate\t,\r\n",
 					"    AgeOfEmployee\t,\r\n",
-					"    Eo\t,\r\n",
+					"    EO\t,\r\n",
 					"    EthnicOrigin\t,\r\n",
-					"    Nid\t,\r\n",
+					"    NID\t,\r\n",
 					"    Rel\t,\r\n",
 					"    ReligiousDenominationKey\t,\r\n",
 					"    Sxo\t,\r\n",
@@ -698,13 +718,13 @@
 					"    DisabilityCode\t,\r\n",
 					"    DisabilityText\t,\r\n",
 					"    DisabilityCodeDescription\t,\r\n",
-					"    Parea\t,\r\n",
+					"    PArea\t,\r\n",
 					"    PayrollArea\t,\r\n",
 					"    AssignmentNumber\t,\r\n",
-					"    Fte2\t,\r\n",
-					"    ReportMonthendDate\t,\r\n",
-					"    LeaveEntitlementHrs\t,\r\n",
-					"    LeaveTakenHrs\t,\r\n",
+					"    FTE2\t,\r\n",
+					"    ReportMonthEndDate\t,\r\n",
+					"    LeaveEntitlementHours\t,\r\n",
+					"    LeaveTakenHours\t,\r\n",
 					"    LeaveRemainingHours\t,\r\n",
 					"    LeaveRemainingProrataHours\t,\r\n",
 					"    SourceSystemID,\r\n",
@@ -712,45 +732,45 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"From hr_historic_sap_hr_new WHERE HistoricIsActive = 'Y' or HistoricIsActive IS NULL\r\n",
+					"From mipins_hr_measures_new WHERE HistoricIsActive = 'Y' or HistoricIsActive IS NULL\r\n",
 					"\r\n",
 					"    UNION ALL\r\n",
 					"\r\n",
 					"-- gets original versions of updated rows so we can update EndDate and set IsActive flag to 'N'\r\n",
 					"\r\n",
 					"SELECT\r\n",
-					"    HistoricSAPHRID, -- surrogate \r\n",
-					"    PersNo\t,\r\n",
+					"    MeasureID, -- surrogate \r\n",
+					"    EmployeeID\t,\r\n",
 					"    FirstName\t,\r\n",
 					"    LastName\t,\r\n",
 					"    EmployeeNo\t,\r\n",
-					"    Cocd\t,\r\n",
+					"    CoCd\t,\r\n",
 					"    CompanyCode\t,\r\n",
-					"    Pa\t,\r\n",
+					"    PA\t,\r\n",
 					"    PersonnelArea\t,\r\n",
-					"    Psubarea\t,\r\n",
-					"    PersonnelSubarea\t,\r\n",
+					"    PSubArea\t,\r\n",
+					"    PersonnelSubArea\t,\r\n",
 					"    OrgUnit\t,\r\n",
 					"    OrganizationalUnit\t,\r\n",
 					"    OrganizationalKey1\t,\r\n",
 					"    OrganizationalKey2\t,\r\n",
-					"    Workc\t,\r\n",
+					"    WorkC\t,\r\n",
 					"    WorkContract\t,\r\n",
-					"    Ct\t,\r\n",
+					"    CT\t,\r\n",
 					"    ContractType\t,\r\n",
-					"    PsGroup\t,\r\n",
+					"    PSGroup\t,\r\n",
 					"    PayBandDescription\t,\r\n",
-					"    Fte\t,\r\n",
-					"    WkHrs\t,\r\n",
+					"    FTE\t,\r\n",
+					"    WeekHours\t,\r\n",
 					"    IndicatorPartTimeEmployee\t,\r\n",
 					"    S\t,\r\n",
 					"    EmploymentStatus\t,\r\n",
 					"    GenderKey\t,\r\n",
-					"    TraStartDate\t,\r\n",
-					"    TraEndDate\t,\r\n",
-					"    TraStatus\t,\r\n",
-					"    TraGrade\t,\r\n",
-					"    PrevPersno\t,\r\n",
+					"    TRAStartDate\t,\r\n",
+					"    TRAEndDate\t,\r\n",
+					"    TRAStatus\t,\r\n",
+					"    TRAGrade\t,\r\n",
+					"    PrevPersNo\t,\r\n",
 					"    Actr\t,\r\n",
 					"    ReasonForAction\t,\r\n",
 					"    Position\t,\r\n",
@@ -772,16 +792,16 @@
 					"    FixTermEndDate\t,\r\n",
 					"    LoanStartDate\t,\r\n",
 					"    LoanEndDate\t,\r\n",
-					"    Eegrp\t,\r\n",
+					"    EEGrp\t,\r\n",
 					"    EmployeeGroup\t,\r\n",
 					"    AnnualSalary\t,\r\n",
 					"    Curr\t,\r\n",
-					"    NiNumber\t,\r\n",
+					"    NINumber\t,\r\n",
 					"    BirthDate\t,\r\n",
 					"    AgeOfEmployee\t,\r\n",
-					"    Eo\t,\r\n",
+					"    EO\t,\r\n",
 					"    EthnicOrigin\t,\r\n",
-					"    Nid\t,\r\n",
+					"    NID\t,\r\n",
 					"    Rel\t,\r\n",
 					"    ReligiousDenominationKey\t,\r\n",
 					"    Sxo\t,\r\n",
@@ -794,13 +814,13 @@
 					"    DisabilityCode\t,\r\n",
 					"    DisabilityText\t,\r\n",
 					"    DisabilityCodeDescription\t,\r\n",
-					"    Parea\t,\r\n",
+					"    PArea\t,\r\n",
 					"    PayrollArea\t,\r\n",
 					"    AssignmentNumber\t,\r\n",
-					"    Fte2\t,\r\n",
-					"    ReportMonthendDate\t,\r\n",
-					"    LeaveEntitlementHrs\t,\r\n",
-					"    LeaveTakenHrs\t,\r\n",
+					"    FTE2\t,\r\n",
+					"    ReportMonthEndDate\t,\r\n",
+					"    LeaveEntitlementHours\t,\r\n",
+					"    LeaveTakenHours\t,\r\n",
 					"    LeaveRemainingHours\t,\r\n",
 					"    LeaveRemainingProrataHours\t,\r\n",
 					"    SourceSystemID,\r\n",
@@ -808,10 +828,26 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM odw_harmonised_db.hr_historic_sap_hr\r\n",
-					"WHERE PersNo IN (SELECT PersNo FROM hr_historic_sap_hr_new WHERE HistoricSAPHRID IS NULL) AND IsActive = 'Y';"
+					"FROM odw_curated_db.mipins_hr_measures\r\n",
+					"WHERE EmployeeID IN (SELECT EmployeeID FROM mipins_hr_measures_new WHERE MeasureID IS NULL) AND IsActive = 'Y';"
 				],
-				"execution_count": 53
+				"execution_count": 11
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# View mipins_hr_measures_changed_rows is used in a merge (Upsert) statement into the target table\n",
+					"- **WHEN MATCHED** ON the surrogate Key (i.e. EmployeeID), EndDate is set to today -1 day and the IsActive flag is set to 'N'\n",
+					"- **WHEN NOT MATCHED** ON the surrogate Key, insert rows\n",
+					"## Table odw_curated_db.mipins_hr_measures is updated"
+				]
 			},
 			{
 				"cell_type": "code",
@@ -834,10 +870,10 @@
 					"%%sql\r\n",
 					"-- merge into fact table\r\n",
 					"\r\n",
-					"MERGE INTO odw_harmonised_db.hr_historic_sap_hr AS Target\r\n",
-					"USING hr_historic_sap_hr_changed_rows AS Source\r\n",
+					"MERGE INTO odw_curated_db.mipins_hr_measures AS Target\r\n",
+					"USING mipins_hr_measures_changed_rows AS Source\r\n",
 					"\r\n",
-					"ON Source.PersNo = Target.PersNo\r\n",
+					"ON Source.EmployeeID = Target.EmployeeID\r\n",
 					"\r\n",
 					"-- For Updates existing rows\r\n",
 					"\r\n",
@@ -851,7 +887,23 @@
 					"WHEN NOT MATCHED \r\n",
 					"    THEN INSERT * ;   "
 				],
-				"execution_count": 54
+				"execution_count": 12
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Fix the IDs\n",
+					"- No auto-increment feature is available in delta tables, therefore we need to create new IDs for the inserted rows\n",
+					"- This is done by select the target data and using INSERT OVERWRITE to re-insert the data is a new Row Number\n",
+					"## Table odw_curated_db.mipins_hr_measures is updated"
+				]
 			},
 			{
 				"cell_type": "code",
@@ -872,43 +924,43 @@
 				},
 				"source": [
 					"%%sql\r\n",
-					"-- Insert new HistoricSAPHRID\r\n",
+					"-- Insert new MeasureID\r\n",
 					"\r\n",
-					"INSERT OVERWRITE odw_harmonised_db.hr_historic_sap_hr\r\n",
+					"INSERT OVERWRITE odw_curated_db.mipins_hr_measures\r\n",
 					"\r\n",
 					"SELECT \r\n",
-					"    ROW_NUMBER() OVER (ORDER BY HistoricSAPHRID NULLS LAST) AS HistoricSAPHRID, -- surrogate key\r\n",
-					"    PersNo\t,\r\n",
+					"    ROW_NUMBER() OVER (ORDER BY MeasureID NULLS LAST) AS MeasureID, -- surrogate key\r\n",
+					"    EmployeeID\t,\r\n",
 					"    FirstName\t,\r\n",
 					"    LastName\t,\r\n",
 					"    EmployeeNo\t,\r\n",
-					"    Cocd\t,\r\n",
+					"    CoCd\t,\r\n",
 					"    CompanyCode\t,\r\n",
-					"    Pa\t,\r\n",
+					"    PA\t,\r\n",
 					"    PersonnelArea\t,\r\n",
-					"    Psubarea\t,\r\n",
-					"    PersonnelSubarea\t,\r\n",
+					"    PSubArea\t,\r\n",
+					"    PersonnelSubArea\t,\r\n",
 					"    OrgUnit\t,\r\n",
 					"    OrganizationalUnit\t,\r\n",
 					"    OrganizationalKey1\t,\r\n",
 					"    OrganizationalKey2\t,\r\n",
-					"    Workc\t,\r\n",
+					"    WorkC\t,\r\n",
 					"    WorkContract\t,\r\n",
-					"    Ct\t,\r\n",
+					"    CT\t,\r\n",
 					"    ContractType\t,\r\n",
-					"    PsGroup\t,\r\n",
+					"    PSGroup\t,\r\n",
 					"    PayBandDescription\t,\r\n",
-					"    Fte\t,\r\n",
-					"    WkHrs\t,\r\n",
+					"    FTE\t,\r\n",
+					"    WeekHours\t,\r\n",
 					"    IndicatorPartTimeEmployee\t,\r\n",
 					"    S\t,\r\n",
 					"    EmploymentStatus\t,\r\n",
 					"    GenderKey\t,\r\n",
-					"    TraStartDate\t,\r\n",
-					"    TraEndDate\t,\r\n",
-					"    TraStatus\t,\r\n",
-					"    TraGrade\t,\r\n",
-					"    PrevPersno\t,\r\n",
+					"    TRAStartDate\t,\r\n",
+					"    TRAEndDate\t,\r\n",
+					"    TRAStatus\t,\r\n",
+					"    TRAGrade\t,\r\n",
+					"    PrevPersNo\t,\r\n",
 					"    Actr\t,\r\n",
 					"    ReasonForAction\t,\r\n",
 					"    Position\t,\r\n",
@@ -930,16 +982,16 @@
 					"    FixTermEndDate\t,\r\n",
 					"    LoanStartDate\t,\r\n",
 					"    LoanEndDate\t,\r\n",
-					"    Eegrp\t,\r\n",
+					"    EEGrp\t,\r\n",
 					"    EmployeeGroup\t,\r\n",
 					"    AnnualSalary\t,\r\n",
 					"    Curr\t,\r\n",
-					"    NiNumber\t,\r\n",
+					"    NINumber\t,\r\n",
 					"    BirthDate\t,\r\n",
 					"    AgeOfEmployee\t,\r\n",
-					"    Eo\t,\r\n",
+					"    EO\t,\r\n",
 					"    EthnicOrigin\t,\r\n",
-					"    Nid\t,\r\n",
+					"    NID\t,\r\n",
 					"    Rel\t,\r\n",
 					"    ReligiousDenominationKey\t,\r\n",
 					"    Sxo\t,\r\n",
@@ -952,13 +1004,13 @@
 					"    DisabilityCode\t,\r\n",
 					"    DisabilityText\t,\r\n",
 					"    DisabilityCodeDescription\t,\r\n",
-					"    Parea\t,\r\n",
+					"    PArea\t,\r\n",
 					"    PayrollArea\t,\r\n",
 					"    AssignmentNumber\t,\r\n",
-					"    Fte2\t,\r\n",
-					"    ReportMonthendDate\t,\r\n",
-					"    LeaveEntitlementHrs\t,\r\n",
-					"    LeaveTakenHrs\t,\r\n",
+					"    FTE2\t,\r\n",
+					"    ReportMonthEndDate\t,\r\n",
+					"    LeaveEntitlementHours\t,\r\n",
+					"    LeaveTakenHours\t,\r\n",
 					"    LeaveRemainingHours\t,\r\n",
 					"    LeaveRemainingProrataHours\t,\r\n",
 					"    SourceSystemID,\r\n",
@@ -966,22 +1018,9 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM odw_harmonised_db.hr_historic_sap_hr;"
+					"FROM odw_curated_db.mipins_hr_measures;"
 				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"Checking for day and hours in absenence_dim which = 0 "
-				]
+				"execution_count": 13
 			}
 		]
 	}

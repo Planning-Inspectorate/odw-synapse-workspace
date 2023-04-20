@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "30ee9983-5376-432f-8ae7-f206999984ee"
+				"spark.autotune.trackingId": "df39c9bb-6137-4f02-867c-5ef7c86fffc3"
 			}
 		},
 		"metadata": {
@@ -106,7 +106,7 @@
 					"FROM odw_standardised_db.vw_absences\n",
 					"WHERE Staff_Number IS NOT NULL AND Attendance_or_Absence_Type IS NOT NULL;"
 				],
-				"execution_count": 50
+				"execution_count": 1
 			},
 			{
 				"cell_type": "markdown",
@@ -148,14 +148,12 @@
 					"-- gets data that matches of SourceID and flags that it is modified based on a row (md5) hash. Flags as \"NewData\"\r\n",
 					"-- gets data that is in the target but not in source. Flags as \"DeletedData\"\r\n",
 					"\r\n",
-					"SELECT \r\n",
+					"SELECT DISTINCT\r\n",
 					"    CASE\r\n",
 					"        WHEN T1.Staff_Number IS NULL\r\n",
 					"        THEN T3.AbsenceID\r\n",
 					"        ELSE NULL\r\n",
 					"    END as AbsenceID, -- surrogate key\r\n",
-					"    T3.ROWID as a,\r\n",
-					"    md5(concat(IFNULL(T1.Staff_Number,'.'), IFNULL(T1.Attendance_or_Absence_Type,'.'), IFNULL(T1.Start_Date,'.'), IFNULL(T1.End_Date,'.'))) as b,\r\n",
 					"    T1.Staff_Number AS EmployeeID,\r\n",
 					"    T1.Attendance_or_Absence_Type AS AbsenceType,\r\n",
 					"    T1.Sickness_Group AS SicknessGroup,\r\n",
@@ -169,13 +167,13 @@
 					"    T2.SourceSystemID as SourceSystemID,\r\n",
 					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
 					"    NULL AS ValidTo,\r\n",
-					"    md5(concat(IFNULL(T1.Staff_Number,'.'), IFNULL(T1.Attendance_or_Absence_Type,'.'), IFNULL(T1.Start_Date,'.'), IFNULL(T1.End_Date,'.'))) as RowID,\r\n",
+					"    md5(concat(IFNULL(T1.Staff_Number,'.'), IFNULL(T1.Attendance_or_Absence_Type,'.'), IFNULL(CAST(T1.Start_Date AS VARCHAR(20)),'.'), IFNULL(CAST(T1.End_Date AS VARCHAR(20)),'.'), IFNULL(T1.Hrs,'.'))) as RowID,\r\n",
 					"    'Y' as IsActive,\r\n",
 					"    CASE\r\n",
 					"        WHEN T1.Attendance_or_Absence_Type = T3.AbsenceType AND \r\n",
 					"                T1.Start_Date = T3.AbsenceStartDate AND \r\n",
 					"                T1.End_Date = T3.AbsenceEndDate AND \r\n",
-					"                md5(concat(IFNULL(T1.Staff_Number,'.'), IFNULL(T1.Attendance_or_Absence_Type,'.'), IFNULL(T1.Start_Date,'.'), IFNULL(T1.End_Date,'.'))) <> T3.RowID  -- same employee, changed data\r\n",
+					"                md5(concat(IFNULL(T1.Staff_Number,'.'), IFNULL(T1.Attendance_or_Absence_Type,'.'), IFNULL(CAST(T1.Start_Date AS VARCHAR(20)),'.'), IFNULL(CAST(T1.End_Date AS VARCHAR(20)),'.'), IFNULL(T1.Hrs,'.'))) <> T3.RowID  -- same employee, changed data\r\n",
 					"        THEN 'Y'\r\n",
 					"        WHEN T3.EmployeeID IS NULL -- new employee\r\n",
 					"        THEN 'Y'\r\n",
@@ -198,7 +196,8 @@
 					"FULL JOIN odw_harmonised_db.hr_absence_dim T3 ON T1.Staff_Number = T3.EmployeeID AND \r\n",
 					"                                                T1.Attendance_or_Absence_Type = T3.AbsenceType AND \r\n",
 					"                                                T1.Start_Date = T3.AbsenceStartDate AND \r\n",
-					"                                                T1.End_Date = T3.AbsenceEndDate\r\n",
+					"                                                T1.End_Date = T3.AbsenceEndDate AND\r\n",
+					"                                                T1.hrs = T3.Hours\r\n",
 					"                                                AND T3.IsActive = 'Y'\r\n",
 					"WHERE\r\n",
 					"    (\r\n",
@@ -207,7 +206,7 @@
 					"            WHEN T1.Staff_Number = T3.EmployeeID AND \r\n",
 					"                    T1.Attendance_or_Absence_Type = T3.AbsenceType AND \r\n",
 					"                    T1.Start_Date = T3.AbsenceStartDate AND \r\n",
-					"                    T1.End_Date = T3.AbsenceEndDate AND md5(concat(IFNULL(T1.Staff_Number,'.'), IFNULL(T1.Attendance_or_Absence_Type,'.'), IFNULL(T1.Start_Date,'.'), IFNULL(T1.End_Date,'.'))) <> T3.RowID    -- same employee, changed data\r\n",
+					"                    T1.End_Date = T3.AbsenceEndDate AND md5(concat(IFNULL(T1.Staff_Number,'.'), IFNULL(T1.Attendance_or_Absence_Type,'.'), IFNULL(CAST(T1.Start_Date AS VARCHAR(20)),'.'), IFNULL(CAST(T1.End_Date AS VARCHAR(20)),'.'), IFNULL(T1.Hrs,'.'))) <> T3.RowID    -- same employee, changed data\r\n",
 					"            THEN 'Y'\r\n",
 					"            WHEN T3.EmployeeID IS NULL -- new employee\r\n",
 					"            THEN 'Y'\r\n",
@@ -221,9 +220,9 @@
 					"            ELSE 'N'\r\n",
 					"        END = 'Y' )\r\n",
 					"    )\r\n",
-					";"
+					"AND T1.Staff_Number IS NOT NULL;"
 				],
-				"execution_count": 51
+				"execution_count": 6
 			},
 			{
 				"cell_type": "markdown",
@@ -305,12 +304,9 @@
 					"    T4.RowID,\r\n",
 					"    T4.IsActive\r\n",
 					"FROM odw_harmonised_db.hr_absence_dim T4\r\n",
-					"INNER JOIN absence_dim_new T5 ON T4.EmployeeID = T5.EmployeeID AND T4.AbsenceType = T5.AbsenceType AND\r\n",
-					" T4.AbsenceStartDate = T5.AbsenceStartDate AND T4.AbsenceEndDate = T5.AbsenceEndDate AND \r\n",
-					" T5.AbsenceID IS NULL AND T5.IsActive = 'Y'\r\n",
-					";"
+					"WHERE EmployeeID IN (SELECT EmployeeID FROM absence_dim_new WHERE AbsenceID IS NULL) AND IsActive = 'Y';"
 				],
-				"execution_count": 52
+				"execution_count": 88
 			},
 			{
 				"cell_type": "markdown",
@@ -367,7 +363,7 @@
 					"    THEN INSERT * ;  \r\n",
 					""
 				],
-				"execution_count": 53
+				"execution_count": 90
 			},
 			{
 				"cell_type": "markdown",
@@ -427,7 +423,7 @@
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.hr_absence_dim;"
 				],
-				"execution_count": 54
+				"execution_count": 91
 			}
 		]
 	}
