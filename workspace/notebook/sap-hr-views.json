@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "3085ca4d-4473-49cf-b6cc-fc26eada98a0"
+				"spark.autotune.trackingId": "15549361-765f-435c-8339-43643dce071b"
 			}
 		},
 		"metadata": {
@@ -85,29 +85,52 @@
 					"from pyspark.sql import SparkSession\n",
 					"spark = SparkSession.builder.getOrCreate()\n",
 					"\n",
-					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"def get_england_and_wales(data_frame):\n",
+					"    return (\n",
+					"        pd\n",
+					"        .json_normalize(\n",
+					"            data_frame.to_dict(),\n",
+					"            record_path=[['england-and-wales', 'events']]\n",
+					"        )\n",
+					"        .astype({\n",
+					"            'title': 'string',\n",
+					"            'date': 'string',\n",
+					"            'notes': 'string',\n",
+					"            'bunting': 'bool'\n",
+					"        })\n",
+					"    )\n",
 					"\n",
+					"bank_holidays = pd.read_json(path_or_buf = 'https://www.gov.uk/bank-holidays.json')\n",
+					"bh = get_england_and_wales(bank_holidays)\n",
+					"\n",
+					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
 					"absences_table_loc = \"abfss://odw-standardised@\" + storage_account+'HR/hr_absences'\n",
 					"\n",
 					"work_schedule = spark.read.format('delta').load(\"abfss://odw-standardised@\" + storage_account+'HR/hr_work_schedule_rule').toPandas()\n",
 					"absences = spark.read.format('delta').load(absences_table_loc).toPandas()\n",
 					"\n",
-					"def get_absence_hrs(id, days, start, end, ws):\n",
+					"include_bank_holidays = False\n",
+					"\n",
+					"def get_absence_hrs(days, start, end, ws):\n",
 					"    ws = work_schedule[work_schedule[\"work_schedule_rule\"] == ws]\n",
 					"    sum = 0\n",
 					"    for d in pd.bdate_range(start, end):\n",
 					"        day_short_name = d.day_name()[0:2]\n",
 					"        hrs = float(ws[day_short_name.lower()])\n",
-					"        sum += days*hrs if  0 < days < 1 else hrs\n",
+					"        if str(d)[:10] in bh['date'].values:\n",
+					"            if include_bank_holidays:\n",
+					"                sum += hrs\n",
+					"        else:\n",
+					"            sum += days*hrs if days < 1 else hrs\n",
 					"    return str(sum)\n",
 					"\n",
 					"for i, row in absences.iterrows():\n",
-					"    absences.at[i, 'hrs'] = get_absence_hrs(row['staff_number'], float(row['days']), row['start_date'], row['end_date'], row['work_schedule_rule'])\n",
+					"    absences.at[i, 'hrs'] = get_absence_hrs(float(row['days']), row['start_date'], row['end_date'], row['work_schedule_rule'])\n",
 					"\n",
 					"absencesDF = spark.createDataFrame(absences)\n",
 					"absencesDF.write.format(\"delta\").mode(\"overwrite\").save(absences_table_loc)"
 				],
-				"execution_count": 73
+				"execution_count": 101
 			},
 			{
 				"cell_type": "code",
@@ -154,7 +177,7 @@
 					"FROM odw_standardised_db.hr_absences T1\r\n",
 					"INNER JOIN (SELECT MAX(expected_from) AS Max_expectedfrom FROM odw_standardised_db.hr_absences) MEF ON T1.expected_from = MEF.Max_expectedfrom"
 				],
-				"execution_count": null
+				"execution_count": 102
 			},
 			{
 				"cell_type": "code",

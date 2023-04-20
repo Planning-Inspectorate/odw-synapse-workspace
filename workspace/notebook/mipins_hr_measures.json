@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "0dc90429-8e19-4c1c-9190-d8102fc83a0e"
+				"spark.autotune.trackingId": "50e2d844-527d-4800-952b-e3abb56d0851"
 			}
 		},
 		"metadata": {
@@ -100,7 +100,7 @@
 					"WHERE\n",
 					"    le.AbsenceQuotaType = 'Annual Leave / P&P';"
 				],
-				"execution_count": 4
+				"execution_count": 22
 			},
 			{
 				"cell_type": "code",
@@ -139,64 +139,7 @@
 					"WHERE\n",
 					"    le.AbsenceQuotaType = 'Brought Forward';"
 				],
-				"execution_count": 5
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"- Getting a list of Bank Holidays from Gov.UK\n",
-					"## View bank_holidays is created\n",
-					""
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"import pandas as pd\n",
-					"from pyspark.sql import SparkSession\n",
-					"\n",
-					"def get_england_and_wales(data_frame):\n",
-					"    return (\n",
-					"        pd\n",
-					"        .json_normalize(\n",
-					"            data_frame.to_dict(),\n",
-					"            record_path=[['england-and-wales', 'events']]\n",
-					"        )\n",
-					"        .astype({\n",
-					"            'title': 'string',\n",
-					"            'date': 'datetime64[ns]',\n",
-					"            'notes': 'string',\n",
-					"            'bunting': 'bool'\n",
-					"        })\n",
-					"    )\n",
-					"\n",
-					"bank_holidays = pd.read_json(path_or_buf = 'https://www.gov.uk/bank-holidays.json')\n",
-					"bh = get_england_and_wales(bank_holidays)\n",
-					"\n",
-					"spark = SparkSession.builder.getOrCreate()\n",
-					"sparkDF=spark.createDataFrame(bh) \n",
-					"\n",
-					"sparkDF.createOrReplaceTempView('bank_holidays')"
-				],
-				"execution_count": 6
+				"execution_count": 23
 			},
 			{
 				"cell_type": "code",
@@ -235,28 +178,20 @@
 					"    a.CalendarDays,\n",
 					"    a.AbsenceStartDate,\n",
 					"    a.AbsenceEndDate,\n",
-					"    sc.LeaveStartDate,\n",
-					"    bh.title as HolidayTitle,\n",
-					"    CASE \n",
-					"        WHEN a.Days = 0 AND a.Hours = 0 \n",
-					"        THEN w.WorkDayHours * a.CalendarDays\n",
-					"        ELSE NULL\n",
-					"    END AS BankHolidaysHours\n",
-					"\n",
+					"    sc.LeaveStartDate\n",
 					"\n",
 					"FROM odw_harmonised_db.hr_absence_dim a\n",
 					"LEFT JOIN odw_harmonised_db.hr_work_schedule_dim w on a.WorkScheduleID = w.WorkScheduleID\n",
 					"LEFT JOIN staff_cost sc ON a.EmployeeID = sc.EmployeeID\n",
-					"LEFT JOIN bank_holidays bh ON a.AbsenceStartDate = bh.Date\n",
 					"WHERE\n",
 					"    a.AbsenceType IN ('PT Annual / P&P Leave', 'FT Annual / Priv Leave')\n",
 					"    AND \n",
 					"    a.AbsenceStartDate  BETWEEN sc.LeaveStartDate AND sc.ReportMonthEndDate\n",
 					"GROUP BY \n",
-					"    a.EmployeeID,a.AbsenceID,a.Days,a.Hours,a.CalendarDays,a.AbsenceStartDate,a.AbsenceEndDate,sc.LeaveStartDate,bh.title,w.WorkDayHours,sc.ReportMonthEndDate\n",
+					"    a.EmployeeID,a.AbsenceID,a.Days,a.Hours,a.CalendarDays,a.AbsenceStartDate,a.AbsenceEndDate,sc.LeaveStartDate,w.WorkDayHours,sc.ReportMonthEndDate\n",
 					"Order by AbsenceStartDate"
 				],
-				"execution_count": 7
+				"execution_count": 24
 			},
 			{
 				"cell_type": "code",
@@ -283,17 +218,13 @@
 					"\n",
 					"SELECT\n",
 					"EmployeeID,\n",
-					"SUM(CASE\n",
-					"        WHEN Days = 0 AND Hours = 0 AND HolidayTitle is not null AND LeaveStartDate <= AbsenceStartDate \n",
-					"        THEN LeaveHours + BankHolidaysHours\n",
-					"        ELSE LeaveHours\n",
-					"    END) AS LeaveHoursTaken\n",
+					"SUM(LeaveHours) AS LeaveHoursTaken\n",
 					"\n",
 					"FROM leave_taken\n",
 					"Where EmployeeID is not null and LeaveStartDate <= AbsenceStartDate\n",
 					"GROUP BY EmployeeID;"
 				],
-				"execution_count": 8
+				"execution_count": 25
 			},
 			{
 				"cell_type": "code",
@@ -412,7 +343,7 @@
 					"where \n",
 					"\tright(cast(cast(sc.ReportMonthEndDate as date) as varchar(10)),5) in ('01-31','02-28','02-29','03-31','04-30','05-31','06-30','07-31','08-31','09-30','10-31','11-30','12-31')"
 				],
-				"execution_count": 9
+				"execution_count": 26
 			},
 			{
 				"cell_type": "markdown",
@@ -596,7 +527,7 @@
 					"    )\r\n",
 					";"
 				],
-				"execution_count": 10
+				"execution_count": 27
 			},
 			{
 				"cell_type": "markdown",
@@ -831,7 +762,7 @@
 					"FROM odw_curated_db.mipins_hr_measures\r\n",
 					"WHERE EmployeeID IN (SELECT EmployeeID FROM mipins_hr_measures_new WHERE MeasureID IS NULL) AND IsActive = 'Y';"
 				],
-				"execution_count": 11
+				"execution_count": 28
 			},
 			{
 				"cell_type": "markdown",
@@ -887,7 +818,7 @@
 					"WHEN NOT MATCHED \r\n",
 					"    THEN INSERT * ;   "
 				],
-				"execution_count": 12
+				"execution_count": 29
 			},
 			{
 				"cell_type": "markdown",
@@ -1020,7 +951,7 @@
 					"    IsActive\r\n",
 					"FROM odw_curated_db.mipins_hr_measures;"
 				],
-				"execution_count": 13
+				"execution_count": 30
 			}
 		]
 	}
