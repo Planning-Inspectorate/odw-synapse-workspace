@@ -141,12 +141,3 @@ vnet_subnets = [
     "new_bits" : 2 # /26
   }
 ]
-
-workflow_names = [
-  {
-    "name" : "zendesk-created"
-  },
-  {
-    "name" : "zendesk-updated"
-  }
-]

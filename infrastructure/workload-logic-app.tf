@@ -17,16 +17,13 @@ resource "azurerm_resource_group" "logic_app_failover" {
 module "logic_app" {
   source = "./modules/logic-app"
 
-  display_name        = var.display_name
   environment         = var.environment
   resource_group_name = azurerm_resource_group.logic_app.name
   location            = module.azure_region.location_cli
-  name                = var.name
   service_name        = local.service_name
 
   logic_app_service_plan_enabled = var.logic_app_service_plan_enabled
   logic_app_standard_enabled     = var.logic_app_standard_enabled
-  workflow_names                 = var.workflow_names
 
   tags = local.tags
 }
@@ -36,16 +33,13 @@ module "logic_app_failover" {
 
   source = "./modules/logic-app"
 
-  display_name        = var.display_name
   environment         = var.environment
   resource_group_name = azurerm_resource_group.logic_app_failover[0].name
   location            = module.azure_region.paired_location.location_cli
-  name                = var.name
   service_name        = local.service_name
 
   logic_app_service_plan_enabled = var.logic_app_service_plan_enabled
   logic_app_standard_enabled     = var.logic_app_standard_enabled
-  workflow_names                 = var.workflow_names
 
   tags = local.tags
 }
