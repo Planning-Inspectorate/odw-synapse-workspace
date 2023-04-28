@@ -22,7 +22,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "a7827e43-6d2b-4fbc-898e-1c3ca38b4c9b"
+				"spark.autotune.trackingId": "30ccbcc5-50f7-49c5-8830-3cd40682858e"
 			}
 		},
 		"metadata": {
@@ -44,7 +44,7 @@
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.2",
+				"sparkVersion": "3.3",
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 28,
@@ -77,6 +77,27 @@
 					"%run  /0-odw-source-to-raw/Fileshare/SAP_HR/py_0_source_to_raw_hr_functions"
 				],
 				"execution_count": 43
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"tags": [
+						"parameters"
+					]
+				},
+				"source": [
+					"specific_table = \"\""
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -133,12 +154,18 @@
 					"    files = mssparkutils.fs.ls(json_schema_path)\r\n",
 					"    #looping through the files \r\n",
 					"    for file in files:\r\n",
-					"        #print(file)\r\n",
-					"        #json_schema=spark.read.text(\"abfss://odw-config@\"+storage_acc_name+\".dfs.core.windows.net/[enter path here]\", wholetext=True).first().value\r\n",
-					"        #asigning the path to each json_schema from the contents of the each file\r\n",
-					"        json_schema=spark.read.text(file.path, wholetext=True).first().value\r\n",
-					"        #creating table while looping through the files so we can change the schemas, file name, and folder based on the file info\r\n",
-					"        create_table_from_schema(json_schema, delta_lake_database_name,file.name.lower().split('.json')[0],harmonised_storage_container+\"/\",harmonised_storage_delta_folder+file.name.lower().split('.json')[0]) \r\n",
+					"        if specific_table == \"\":\r\n",
+					"            #print(file)\r\n",
+					"            #json_schema=spark.read.text(\"abfss://odw-config@\"+storage_acc_name+\".dfs.core.windows.net/[enter path here]\", wholetext=True).first().value\r\n",
+					"            #asigning the path to each json_schema from the contents of the each file\r\n",
+					"            json_schema=spark.read.text(file.path, wholetext=True).first().value\r\n",
+					"            #creating table while looping through the files so we can change the schemas, file name, and folder based on the file info\r\n",
+					"            create_table_from_schema(json_schema, delta_lake_database_name,file.name.lower().split('.json')[0],harmonised_storage_container+\"/\",harmonised_storage_delta_folder+file.name.lower().split('.json')[0]) \r\n",
+					"        else:\r\n",
+					"            if specific_table in file.name.lower():\r\n",
+					"                json_schema=spark.read.text(file.path, wholetext=True).first().value\r\n",
+					"                #creating table while looping through the files so we can change the schemas, file name, and folder based on the file info\r\n",
+					"                create_table_from_schema(json_schema, delta_lake_database_name,file.name.lower().split('.json')[0],harmonised_storage_container+\"/\",harmonised_storage_delta_folder+file.name.lower().split('.json')[0]) \r\n",
 					"\r\n",
 					"   \r\n",
 					"#calling the function \r\n",
