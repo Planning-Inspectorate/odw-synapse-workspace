@@ -332,7 +332,14 @@
 			{
 				"name": "0_pln_source_to_raw_fileshare",
 				"type": "ExecutePipeline",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "py_odw_harmonised_table_creation",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"userProperties": [],
 				"typeProperties": {
 					"pipeline": {
@@ -391,6 +398,69 @@
 						"spark.dynamicAllocation.maxExecutors": null
 					},
 					"numExecutors": null
+				}
+			},
+			{
+				"name": "py_delete_table",
+				"type": "SynapseNotebook",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_delete_table",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"db_name": {
+							"value": "odw_harmonised_db",
+							"type": "string"
+						},
+						"table_name": {
+							"value": "hr_employee_leavers_dim",
+							"type": "string"
+						}
+					},
+					"snapshot": true
+				}
+			},
+			{
+				"name": "py_odw_harmonised_table_creation",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "py_delete_table",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_odw_harmonised_table_creation",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"specific_table": {
+							"value": "hr_employee_leavers_dim",
+							"type": "string"
+						}
+					},
+					"snapshot": true
 				}
 			}
 		],
