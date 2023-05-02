@@ -1,0 +1,128 @@
+{
+	"name": "mipins_hr_measures_new_data_lookup",
+	"properties": {
+		"folder": {
+			"name": "4-odw-harmonised-to-curated/hr-cube"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "64632e20-c888-4973-adaf-ae408c4b7bda"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.3",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"tags": [
+						"parameters"
+					]
+				},
+				"source": [
+					"from datetime import datetime\n",
+					"\n",
+					"month=datetime.now().month\n",
+					"year=datetime.now().year"
+				],
+				"execution_count": 91
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"import logging\n",
+					"import calendar\n",
+					"import datetime\n",
+					"from pyspark.sql import SparkSession\n",
+					"from notebookutils import mssparkutils\n",
+					"logger = logging.getLogger(__name__)\n",
+					"spark = SparkSession.builder.getOrCreate()\n",
+					"\n",
+					"# storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"\n",
+					"day = calendar.monthrange(year, month)[1]\n",
+					"month_end_date = datetime.datetime(year, month, day).strftime('%Y-%m-%d')\n",
+					"\n",
+					"# check if latest HR measures report for the month has been generated\n",
+					"df = spark.sql(\"select count(*) as count from odw_curated_db.mipins_hr_measures where cast(ReportMonthEndDate as date) ='\"+month_end_date+\"'\");\n",
+					"if df.first().asDict()['count'] > 0:\n",
+					"    logger.info(\"Data already exists for the ReportMonthEndDate \" + month_end_date)\n",
+					"    mssparkutils.notebook.exit(False)\n",
+					"\n",
+					"# check if the latest data is in the standardised tables\n",
+					"df = spark.sql(\"select count(*) as count from odw_standardised_db.hr_absences where date_add(expected_from, -1) ='\"+month_end_date+\"'\");\n",
+					"absences_count = df.first().asDict()['count']\n",
+					"\n",
+					"df = spark.sql(\"select count(*) as count from odw_standardised_db.hr_leave where date_add(expected_from, -1) ='\"+month_end_date+\"'\");\n",
+					"leave_count = df.first().asDict()['count']\n",
+					"\n",
+					"if leave_count == 0 or absences_count == 0:\n",
+					"    logger.info(\"Data doesn't exist in standardised tables for \" + month_end_date)\n",
+					"    mssparkutils.notebook.exit(False)\n",
+					"\n",
+					"mssparkutils.notebook.exit(True)"
+				],
+				"execution_count": 92
+			}
+		]
+	}
+}

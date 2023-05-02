@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "3405a9f9-76e7-4870-8fc8-8b93572f4019"
+				"spark.autotune.trackingId": "4cdbf07f-d1f2-4dab-aba8-c2378a2978f8"
 			}
 		},
 		"metadata": {
@@ -64,7 +64,7 @@
 					"    .createOrReplaceTempView('dates')\r\n",
 					")"
 				],
-				"execution_count": 1
+				"execution_count": 15
 			},
 			{
 				"cell_type": "code",
@@ -87,7 +87,7 @@
 					"%%sql  \r\n",
 					"SELECT * from dates"
 				],
-				"execution_count": 2
+				"execution_count": 16
 			},
 			{
 				"cell_type": "code",
@@ -149,7 +149,7 @@
 					"order by\r\n",
 					"  calendarDate"
 				],
-				"execution_count": 3
+				"execution_count": 17
 			},
 			{
 				"cell_type": "code",
@@ -213,7 +213,7 @@
 					"  dates\r\n",
 					""
 				],
-				"execution_count": 4
+				"execution_count": 18
 			},
 			{
 				"cell_type": "code",
@@ -274,11 +274,27 @@
 					"    else quarter(calendarDate) -1\r\n",
 					"  END as FinancialQuarter,\r\n",
 					"  concat(FinancialYear,'-',NextFinancialYear) as FinancialPeriod,\r\n",
-					"  concat(MonthOfYear,'-',CalendarYear) AS MonthANDYear\r\n",
+					"  concat(MonthOfYear,'-',CalendarYear) AS MonthANDYear,\r\n",
+					"    CASE\r\n",
+					"    WHEN FinancialYear =  year(current_timestamp) and month(current_timestamp)>3 THEN 'Current FY'\r\n",
+					"    WHEN FinancialYear =  year(current_timestamp)-1 and month(current_timestamp)<4 THEN 'Current FY'  \r\n",
+					"    WHEN FinancialYear =  year(current_timestamp)-1 and month(current_timestamp)>3 THEN 'Previous FY'\r\n",
+					"    WHEN FinancialYear =  year(current_timestamp) and month(current_timestamp)<4 THEN 'Previous FY'\r\n",
+					"    WHEN FinancialYear =  year(current_timestamp)-1 and month(current_timestamp)<4 THEN 'Older FY'\r\n",
+					"    WHEN FinancialYear =  year(current_timestamp)-2 and month(current_timestamp)>3 THEN 'Older FY'   \r\n",
+					"    WHEN FinancialYear < year(current_timestamp)-2 THEN 'Older FY'\r\n",
+					"    ELSE 'Future FY'\r\n",
+					"  END AS financial_year,\r\n",
+					"  CASE\r\n",
+					"    WHEN CalendarYear = year(current_timestamp) then 'Current CY'\r\n",
+					"    WHEN CalendarYear = year(current_timestamp) - 1 then 'Previous CY'\r\n",
+					"    WHEN CalendarYear < year(current_timestamp) - 1 then 'Older CY'\r\n",
+					"    ELSE 'Future CY'\r\n",
+					"  END AS calendar_year\r\n",
 					"from\r\n",
 					"    calendar_dim"
 				],
-				"execution_count": 5
+				"execution_count": 19
 			},
 			{
 				"cell_type": "code",
@@ -295,9 +311,11 @@
 					"collapsed": false
 				},
 				"source": [
-					"spark.sql(f\"drop table if exists default.calendar_dim;\")"
+					"spark.sql(f\"drop table if exists default.calendar_dim;\")\r\n",
+					"# spark.sql(f\"drop table if exists default.calendar_dim_plus;\")\r\n",
+					""
 				],
-				"execution_count": 6
+				"execution_count": 20
 			}
 		]
 	}
