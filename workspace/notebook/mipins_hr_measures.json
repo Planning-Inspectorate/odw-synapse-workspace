@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "50e2d844-527d-4800-952b-e3abb56d0851"
+				"spark.autotune.trackingId": "4d3f6e34-9edb-44ba-acfc-5c2cd34c926d"
 			}
 		},
 		"metadata": {
@@ -95,12 +95,12 @@
 					"                                                    END\n",
 					"                                                    AS date), le.expectedfrom))/364.25)%1))) AS ExpectedLeaveHoursRemaining\n",
 					"    \n",
-					"FROM odw_standardised_db.hr_saphr h\n",
+					"FROM odw_standardised_db.vw_saphr h\n",
 					"LEFT JOIN odw_harmonised_db.hr_leave_entitlement_dim le on h.pers_no = le.EmployeeID\n",
 					"WHERE\n",
 					"    le.AbsenceQuotaType = 'Annual Leave / P&P';"
 				],
-				"execution_count": 22
+				"execution_count": 49
 			},
 			{
 				"cell_type": "code",
@@ -134,12 +134,12 @@
 					"        else le.LeaveDaysPerYear\n",
 					"    end as CarriedOverHours\n",
 					"\n",
-					"FROM odw_standardised_db.hr_saphr h\n",
+					"FROM odw_standardised_db.vw_saphr h\n",
 					"LEFT JOIN odw_harmonised_db.hr_leave_entitlement_dim le on h.pers_no = le.EmployeeID\n",
 					"WHERE\n",
 					"    le.AbsenceQuotaType = 'Brought Forward';"
 				],
-				"execution_count": 23
+				"execution_count": 50
 			},
 			{
 				"cell_type": "code",
@@ -191,7 +191,7 @@
 					"    a.EmployeeID,a.AbsenceID,a.Days,a.Hours,a.CalendarDays,a.AbsenceStartDate,a.AbsenceEndDate,sc.LeaveStartDate,w.WorkDayHours,sc.ReportMonthEndDate\n",
 					"Order by AbsenceStartDate"
 				],
-				"execution_count": 24
+				"execution_count": 51
 			},
 			{
 				"cell_type": "code",
@@ -212,7 +212,7 @@
 				},
 				"source": [
 					"%%sql\n",
-					"CREATE OR REPLACE TEMPORARY VIEW leave_taken_fixed -- adding bank holidays in leave_hours_taken\n",
+					"CREATE OR REPLACE TEMPORARY VIEW leave_taken_fixed\n",
 					"\n",
 					"    AS\n",
 					"\n",
@@ -224,7 +224,7 @@
 					"Where EmployeeID is not null and LeaveStartDate <= AbsenceStartDate\n",
 					"GROUP BY EmployeeID;"
 				],
-				"execution_count": 25
+				"execution_count": 52
 			},
 			{
 				"cell_type": "code",
@@ -335,7 +335,7 @@
 					"\tround((coalesce(sc.LeaveAllowance, 0) + coalesce(co.CarriedOverHours, 0) - coalesce(sc.ExpectedLeaveHoursRemaining, 0)  - coalesce(lt.LeaveHoursTaken, 0)), 2) as leave_remaining_hours,\n",
 					"\tcoalesce(round(sc.ExpectedLeaveHoursRemaining, 2), 0) as leave_remaining_prorata_hours\n",
 					"\t--,coalesce(round((coalesce(sc.LeaveAllowance, 0) + coalesce(co.CarriedOverHours, 0) - coalesce(sc.ExpectedLeaveHoursRemaining, 0)  - coalesce(lt.LeaveHoursTaken, 0)) * (sc.hourly_rate) * (1 + p.Total), 2),0.0) as cost_untaken_al\n",
-					"from odw_standardised_db.hr_saphr h\n",
+					"from odw_standardised_db.vw_saphr h\n",
 					"\tleft join staff_cost sc on cast(h.pers_no as int) = cast(sc.EmployeeID as int)\n",
 					"\tleft join carried_over co on cast(sc.EmployeeID as int) = cast(co.EmployeeID as int)\n",
 					"\tleft join leave_taken_fixed lt on cast(sc.EmployeeID as int) = cast(lt.EmployeeID as int)\n",
@@ -343,7 +343,7 @@
 					"where \n",
 					"\tright(cast(cast(sc.ReportMonthEndDate as date) as varchar(10)),5) in ('01-31','02-28','02-29','03-31','04-30','05-31','06-30','07-31','08-31','09-30','10-31','11-30','12-31')"
 				],
-				"execution_count": 26
+				"execution_count": 53
 			},
 			{
 				"cell_type": "markdown",
@@ -392,7 +392,7 @@
 					"-- gets data that matches of EmployeeID and flags that it is modified based on a row (md5) hash. Flags as \"NewData\"\r\n",
 					"-- gets data that is in the target but not in source. Flags as \"DeletedData\"\r\n",
 					"\r\n",
-					"SELECT\r\n",
+					"SELECT DISTINCT\r\n",
 					"    CASE\r\n",
 					"        WHEN h.pers_no IS NULL\r\n",
 					"        THEN T5.MeasureID\r\n",
@@ -527,7 +527,7 @@
 					"    )\r\n",
 					";"
 				],
-				"execution_count": 27
+				"execution_count": 54
 			},
 			{
 				"cell_type": "markdown",
@@ -762,7 +762,7 @@
 					"FROM odw_curated_db.mipins_hr_measures\r\n",
 					"WHERE EmployeeID IN (SELECT EmployeeID FROM mipins_hr_measures_new WHERE MeasureID IS NULL) AND IsActive = 'Y';"
 				],
-				"execution_count": 28
+				"execution_count": 57
 			},
 			{
 				"cell_type": "markdown",
@@ -804,7 +804,7 @@
 					"MERGE INTO odw_curated_db.mipins_hr_measures AS Target\r\n",
 					"USING mipins_hr_measures_changed_rows AS Source\r\n",
 					"\r\n",
-					"ON Source.EmployeeID = Target.EmployeeID\r\n",
+					"ON Source.MeasureID = Target.MeasureID\r\n",
 					"\r\n",
 					"-- For Updates existing rows\r\n",
 					"\r\n",
@@ -818,7 +818,7 @@
 					"WHEN NOT MATCHED \r\n",
 					"    THEN INSERT * ;   "
 				],
-				"execution_count": 29
+				"execution_count": 62
 			},
 			{
 				"cell_type": "markdown",
@@ -951,7 +951,7 @@
 					"    IsActive\r\n",
 					"FROM odw_curated_db.mipins_hr_measures;"
 				],
-				"execution_count": 30
+				"execution_count": 63
 			}
 		]
 	}
