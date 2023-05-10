@@ -8,12 +8,6 @@
 				"type": "SynapseNotebook",
 				"dependsOn": [
 					{
-						"activity": "py_1_initial_run_raw_to_standardised_scheduling",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					},
-					{
 						"activity": "HIST_HR_record_fact",
 						"dependencyConditions": [
 							"Succeeded"
@@ -234,108 +228,6 @@
 				}
 			},
 			{
-				"name": "outstanding_files_add_entry",
-				"type": "SynapseNotebook",
-				"dependsOn": [
-					{
-						"activity": "py_delete_outstanding_files_entry",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "outstanding_files_add_entry",
-						"type": "NotebookReference"
-					},
-					"parameters": {
-						"jsonId": {
-							"value": "83",
-							"type": "int"
-						},
-						"year": {
-							"value": "2023",
-							"type": "int"
-						},
-						"month": {
-							"value": "4",
-							"type": "int"
-						},
-						"day": {
-							"value": "1",
-							"type": "int"
-						},
-						"hour": {
-							"value": "0",
-							"type": "int"
-						},
-						"minute": {
-							"value": "0",
-							"type": "int"
-						},
-						"second": {
-							"value": "0",
-							"type": "int"
-						}
-					},
-					"snapshot": true,
-					"conf": {
-						"spark.dynamicAllocation.enabled": null,
-						"spark.dynamicAllocation.minExecutors": null,
-						"spark.dynamicAllocation.maxExecutors": null
-					},
-					"numExecutors": null
-				}
-			},
-			{
-				"name": "py_1_initial_run_raw_to_standardised_scheduling",
-				"type": "SynapseNotebook",
-				"dependsOn": [
-					{
-						"activity": "outstanding_files_add_entry",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "py_1_initial_run_raw_to_standardised_scheduling",
-						"type": "NotebookReference"
-					},
-					"parameters": {
-						"source_id": {
-							"value": "83",
-							"type": "int"
-						}
-					},
-					"snapshot": true,
-					"conf": {
-						"spark.dynamicAllocation.enabled": null,
-						"spark.dynamicAllocation.minExecutors": null,
-						"spark.dynamicAllocation.maxExecutors": null
-					},
-					"numExecutors": null
-				}
-			},
-			{
 				"name": "0_pln_source_to_raw_fileshare",
 				"type": "ExecutePipeline",
 				"dependsOn": [
@@ -485,7 +377,14 @@
 				"name": "py_delete_table_contents",
 				"description": "py_delete_table_contents",
 				"type": "SynapseNotebook",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "pln_hr_run_hr_ingestion",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"timeout": "0.12:00:00",
 					"retry": 0,
@@ -509,7 +408,13 @@
 							"type": "string"
 						}
 					},
-					"snapshot": true
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
 				}
 			},
 			{
@@ -537,7 +442,33 @@
 						"referenceName": "HIST_HR_record_fact",
 						"type": "NotebookReference"
 					},
-					"snapshot": true
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "pln_hr_run_hr_ingestion",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "py_delete_outstanding_files_entry",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_hr_run_hr_ingestion",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
 				}
 			}
 		],
