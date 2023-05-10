@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "82dcae95-8d43-4cd4-8629-634e7206d378"
+				"spark.autotune.trackingId": "d9962528-a18a-4ee6-8f9c-ddcd6dc93111"
 			}
 		},
 		"metadata": {
@@ -331,6 +331,19 @@
 				"execution_count": null
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Creates a view odw_standardised_db.vw_leavers_temp with a column RN (Row Number) to be able to select non-duplicates."
+				]
+			},
+			{
 				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
@@ -348,63 +361,132 @@
 					"collapsed": false
 				},
 				"source": [
-					"%%sql   \r\n",
-					"\r\n",
-					"CREATE OR REPLACE VIEW odw_standardised_db.vw_leavers\r\n",
-					"\r\n",
-					"AS\r\n",
-					"\r\n",
-					"SELECT \r\n",
-					"    CASE \r\n",
-					"        WHEN LENGTH(Pers_No) = 6 AND SUBSTR(Pers_No,1,1) = 5\r\n",
-					"        THEN CONCAT('00',Pers_No)\r\n",
-					"        WHEN LENGTH(Pers_No) = 6 AND SUBSTR(Pers_No,1,1) = 4\r\n",
-					"        THEN CONCAT('50',Pers_No)        \r\n",
-					"        ELSE Pers_No\r\n",
-					"    END as Pers_No,\r\n",
-					"    Last_name,\r\n",
-					"    First_name,\r\n",
-					"    CoCd,\r\n",
-					"    Company_Code,\r\n",
-					"    Loc,\r\n",
-					"    Location,\r\n",
-					"    PS_group,\r\n",
-					"    Pay_Band_Description,\r\n",
-					"    Org_unit,\r\n",
-					"    Organizational_Unit,\r\n",
-					"    PA,\r\n",
-					"    Personnel_Area,\r\n",
-					"    Personnel_Subarea,\r\n",
-					"    WorkC,\r\n",
-					"    Work_Contract,\r\n",
-					"    to_timestamp(Org_Start_Date) AS Org_Start_Date,\r\n",
-					"    Leaving,\r\n",
-					"    Act,\r\n",
-					"    Action_Type,\r\n",
-					"    ActR,\r\n",
-					"    Reason_for_Action,\r\n",
-					"    S,\r\n",
-					"    Employment_Status,\r\n",
-					"    Employee_No,\r\n",
-					"    Position,\r\n",
-					"    Position_1,\r\n",
-					"    Annual_salary,\r\n",
-					"    Curr,\r\n",
-					"    User_ID,\r\n",
-					"    Email_Address,\r\n",
-					"    Pers_No_1,\r\n",
-					"    Name_of_Manager_OM,\r\n",
-					"    Manager_Position,\r\n",
-					"    MAnager_Position_Text,\r\n",
-					"    LM_E_mail,\r\n",
-					"    ingested_datetime,\r\n",
-					"    expected_from,\r\n",
-					"    expected_to\r\n",
-					"\r\n",
-					"FROM odw_standardised_db.hr_leavers T1\r\n",
+					"%%sql\n",
+					"\n",
+					"CREATE OR REPLACE VIEW odw_standardised_db.vw_leavers_temp \n",
+					"\n",
+					"AS\n",
+					"\n",
+					"SELECT  \n",
+					"    *,\n",
+					"    ROW_NUMBER() OVER (PARTITION BY Pers_No, Leaving ORDER BY Pers_No) AS RN\n",
+					"\n",
+					"FROM odw_standardised_db.hr_leavers T1\n",
 					"INNER JOIN (SELECT MAX(expected_from) AS Max_expectedfrom FROM odw_standardised_db.hr_leavers) MEF ON T1.expected_from = MEF.Max_expectedfrom"
 				],
-				"execution_count": null
+				"execution_count": 60
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql   \n",
+					"\n",
+					"CREATE OR REPLACE VIEW odw_standardised_db.vw_leavers\n",
+					"\n",
+					"AS\n",
+					"\n",
+					"SELECT \n",
+					"    CASE \n",
+					"        WHEN LENGTH(Pers_No) = 6 AND SUBSTR(Pers_No,1,1) = 5\n",
+					"        THEN CONCAT('00',Pers_No)\n",
+					"        WHEN LENGTH(Pers_No) = 6 AND SUBSTR(Pers_No,1,1) = 4\n",
+					"        THEN CONCAT('50',Pers_No)        \n",
+					"        ELSE Pers_No\n",
+					"    END as Pers_No,\n",
+					"    Last_name,\n",
+					"    First_name,\n",
+					"    CoCd,\n",
+					"    Company_Code,\n",
+					"    Loc,\n",
+					"    Location,\n",
+					"    PS_group,\n",
+					"    Pay_Band_Description,\n",
+					"    Org_unit,\n",
+					"    Organizational_Unit,\n",
+					"    PA,\n",
+					"    Personnel_Area,\n",
+					"    Personnel_Subarea,\n",
+					"    WorkC,\n",
+					"    Work_Contract,\n",
+					"    to_timestamp(Org_Start_Date) AS Org_Start_Date,\n",
+					"    Leaving,\n",
+					"    Act,\n",
+					"    Action_Type,\n",
+					"    ActR,\n",
+					"    Reason_for_Action,\n",
+					"    S,\n",
+					"    Employment_Status,\n",
+					"    Employee_No,\n",
+					"    Position,\n",
+					"    Position_1,\n",
+					"    Annual_salary,\n",
+					"    Curr,\n",
+					"    User_ID,\n",
+					"    Email_Address,\n",
+					"    Pers_No_1,\n",
+					"    Name_of_Manager_OM,\n",
+					"    Manager_Position,\n",
+					"    MAnager_Position_Text,\n",
+					"    LM_E_mail,\n",
+					"    ingested_datetime,\n",
+					"    expected_from,\n",
+					"    expected_to\n",
+					"\n",
+					"FROM odw_standardised_db.vw_leavers_temp\n",
+					"WHERE RN = 1;"
+				],
+				"execution_count": 61
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## DROP the view odw_standardised_db.vw_leavers_temp."
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"DROP VIEW IF EXISTS odw_standardised_db.vw_leavers_temp;"
+				],
+				"execution_count": 62
 			},
 			{
 				"cell_type": "code",
