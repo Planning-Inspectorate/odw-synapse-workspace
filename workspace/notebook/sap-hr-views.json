@@ -16,12 +16,11 @@
 			"executorMemory": "28g",
 			"executorCores": 4,
 			"numExecutors": 2,
-			"runAsWorkspaceSystemIdentity": false,
 			"conf": {
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d9962528-a18a-4ee6-8f9c-ddcd6dc93111"
+				"spark.autotune.trackingId": "25f7d771-b338-4d32-9a0e-269fca74391d"
 			}
 		},
 		"metadata": {
@@ -64,7 +63,9 @@
 				"source": [
 					"## Fix Absence Hours in odw-standardised.hr_absences\n",
 					"\n",
-					"**Some absences might have incorrect number of hours. This cell calculates the absence hours between a `start_date` and `end_date` based on the `work_schedule_rule` of the Employee and updates the table**"
+					"**Some absences might have incorrect number of hours. This cell calculates the absence hours between a `start_date` and `end_date` based on the `work_schedule_rule` of the Employee and updates the table**\n",
+					"\n",
+					"TODO: Update the vw_absences view instead of the hr_absences table to save execution time."
 				]
 			},
 			{
@@ -111,19 +112,27 @@
 					"\n",
 					"include_bank_holidays = False\n",
 					"\n",
-					"def get_absence_hrs(days, hrs, start, end, ws):\n",
+					"def get_absence_hrs(days, original_hrs, start, end, ws):\n",
 					"    ws = work_schedule[work_schedule[\"work_schedule_rule\"] == ws]\n",
 					"    if len(ws) == 0:\n",
-					"        return str(hrs)\n",
+					"        return str(original_hrs)\n",
+					"    if len(ws) > 1:\n",
+					"        ws = ws.iloc[0]\n",
+					"    \n",
 					"    sum = 0\n",
-					"    for d in pd.bdate_range(start, end):\n",
-					"        day_short_name = d.day_name()[0:2]\n",
-					"        hrs = float(ws[day_short_name.lower()])\n",
-					"        if str(d)[:10] in bh['date'].values:\n",
-					"            if include_bank_holidays:\n",
-					"                sum += hrs\n",
-					"        else:\n",
-					"            sum += days*hrs if days < 1 else hrs\n",
+					"\n",
+					"    try:\n",
+					"        for d in pd.bdate_range(start, end):\n",
+					"            day_short_name = d.day_name()[0:2]\n",
+					"            hrs = float(ws[day_short_name.lower()])\n",
+					"            if str(d)[:10] in bh['date'].values:\n",
+					"                if include_bank_holidays:\n",
+					"                    sum += hrs\n",
+					"            else:\n",
+					"                sum += days*hrs if days < 1 else hrs\n",
+					"    except:\n",
+					"        return str(original_hrs)\n",
+					"\n",
 					"    return str(sum)\n",
 					"\n",
 					"for i, row in absences.iterrows():\n",
@@ -132,7 +141,7 @@
 					"absencesDF = spark.createDataFrame(absences)\n",
 					"absencesDF.write.format(\"delta\").mode(\"overwrite\").save(absences_table_loc)"
 				],
-				"execution_count": 8
+				"execution_count": 23
 			},
 			{
 				"cell_type": "code",
@@ -179,7 +188,7 @@
 					"FROM odw_standardised_db.hr_absences T1\r\n",
 					"INNER JOIN (SELECT MAX(expected_from) AS Max_expectedfrom FROM odw_standardised_db.hr_absences) MEF ON T1.expected_from = MEF.Max_expectedfrom"
 				],
-				"execution_count": 102
+				"execution_count": 24
 			},
 			{
 				"cell_type": "code",
@@ -236,7 +245,7 @@
 					"INNER JOIN (SELECT MAX(expected_from) AS Max_expectedfrom FROM odw_standardised_db.hr_addresses) MEF ON T1.expected_from = MEF.Max_expectedfrom\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 25
 			},
 			{
 				"cell_type": "code",
@@ -282,7 +291,7 @@
 					"FROM odw_standardised_db.hr_email T1\r\n",
 					"INNER JOIN (SELECT MAX(expected_from) AS Max_expectedfrom FROM odw_standardised_db.hr_email) MEF ON T1.expected_from = MEF.Max_expectedfrom"
 				],
-				"execution_count": null
+				"execution_count": 26
 			},
 			{
 				"cell_type": "code",
@@ -328,7 +337,7 @@
 					"FROM odw_standardised_db.hr_leave T1\r\n",
 					"INNER JOIN (SELECT MAX(expected_from) AS Max_expectedfrom FROM odw_standardised_db.hr_leave) MEF ON T1.expected_from = MEF.Max_expectedfrom"
 				],
-				"execution_count": null
+				"execution_count": 27
 			},
 			{
 				"cell_type": "markdown",
@@ -340,7 +349,8 @@
 					}
 				},
 				"source": [
-					"## Creates a view odw_standardised_db.vw_leavers_temp with a column RN (Row Number) to be able to select non-duplicates."
+					"## Creates a view odw_standardised_db.vw_leavers_temp \n",
+					"#### Creates the view with a column RN (Row Number) to be able to select non-duplicates. This is a temporary view and will be deleted after being utilised in the harmonised layer"
 				]
 			},
 			{
@@ -374,7 +384,7 @@
 					"FROM odw_standardised_db.hr_leavers T1\n",
 					"INNER JOIN (SELECT MAX(expected_from) AS Max_expectedfrom FROM odw_standardised_db.hr_leavers) MEF ON T1.expected_from = MEF.Max_expectedfrom"
 				],
-				"execution_count": 60
+				"execution_count": 33
 			},
 			{
 				"cell_type": "code",
@@ -450,43 +460,7 @@
 					"FROM odw_standardised_db.vw_leavers_temp\n",
 					"WHERE RN = 1;"
 				],
-				"execution_count": 61
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"## DROP the view odw_standardised_db.vw_leavers_temp."
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
-				},
-				"source": [
-					"%%sql\n",
-					"DROP VIEW IF EXISTS odw_standardised_db.vw_leavers_temp;"
-				],
-				"execution_count": 62
+				"execution_count": 34
 			},
 			{
 				"cell_type": "code",
@@ -531,7 +505,7 @@
 					"FROM odw_standardised_db.hr_protected_characteristics T1\r\n",
 					"INNER JOIN (SELECT MAX(expected_from) AS Max_expectedfrom FROM odw_standardised_db.hr_protected_characteristics) MEF ON T1.expected_from = MEF.Max_expectedfrom"
 				],
-				"execution_count": null
+				"execution_count": 30
 			},
 			{
 				"cell_type": "code",
@@ -649,7 +623,7 @@
 					"FROM odw_standardised_db.hr_saphr T1\r\n",
 					"INNER JOIN (SELECT MAX(expected_from) AS Max_expectedfrom FROM odw_standardised_db.hr_saphr) MEF ON T1.expected_from = MEF.Max_expectedfrom"
 				],
-				"execution_count": 9
+				"execution_count": 31
 			},
 			{
 				"cell_type": "code",
@@ -694,7 +668,7 @@
 					"FROM odw_standardised_db.hr_specialisms T1\r\n",
 					"INNER JOIN (SELECT MAX(expected_from) AS Max_expectedfrom FROM odw_standardised_db.hr_specialisms) MEF ON T1.expected_from = MEF.Max_expectedfrom"
 				],
-				"execution_count": 10
+				"execution_count": 32
 			}
 		]
 	}
