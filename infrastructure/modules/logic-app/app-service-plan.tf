@@ -4,7 +4,7 @@ resource "azurerm_service_plan" "logic_app" {
   name                = "pins-app-service-${local.resource_suffix}"
   location            = var.location
   resource_group_name = var.resource_group_name
-  os_type             = "Linux"
+  os_type             = "Windows"
   sku_name            = var.sku_name
 
   tags = local.tags
