@@ -38,7 +38,7 @@ data_lake_storage_containers = [
 devops_agent_pool_resource_group_name          = "pins-rg-devops-odw-dev-uks"
 devops_agent_pool_resource_group_name_failover = "pins-rg-devops-odw-dev-ukw"
 
-environment = "test"
+environment = "dev"
 location    = "uk-south"
 
 logic_app_enabled = true
