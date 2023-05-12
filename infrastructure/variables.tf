@@ -154,21 +154,9 @@ variable "location" {
   type        = string
 }
 
-variable "logic_app_service_plan_enabled" {
+variable "logic_app_enabled" {
   default     = false
-  description = "Determines whether an App Service Plan should be deployed"
-  type        = bool
-}
-
-variable "logic_app_storage_account_enabled" {
-  default     = false
-  description = "Determines whether a storage account for Logic App should be deployed"
-  type        = bool
-}
-
-variable "logic_app_standard_enabled" {
-  default     = false
-  description = "Determines whether a Logic App Standard function should be deployed"
+  description = "Determines whether the resources for the App Service Plan, Storage Account and Logic App Standard should be deployed"
   type        = bool
 }
 

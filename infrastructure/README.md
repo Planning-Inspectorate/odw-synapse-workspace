@@ -172,7 +172,7 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 
 | Name | Version |
 |------|---------|
-| <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) | ~> 3.0 |
+| <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) | 3.56.0 |
 
 ## Modules
 
@@ -272,9 +272,7 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 | <a name="input_failover_deployment"></a> [failover\_deployment](#input\_failover\_deployment) | Determines if this is a failover deployment such that resources will deployed to the failover region | `bool` | `false` | no |
 | <a name="input_key_vault_role_assignments"></a> [key\_vault\_role\_assignments](#input\_key\_vault\_role\_assignments) | An object mapping RBAC roles to principal IDs for Key Vault | `map(list(string))` | `{}` | no |
 | <a name="input_location"></a> [location](#input\_location) | The short-format Azure region into which resources will be deployed | `string` | n/a | yes |
-| <a name="input_logic_app_service_plan_enabled"></a> [logic\_app\_service\_plan\_enabled](#input\_logic\_app\_service\_plan\_enabled) | Determines whether an App Service Plan should be deployed | `bool` | `false` | no |
-| <a name="input_logic_app_standard_enabled"></a> [logic\_app\_standard\_enabled](#input\_logic\_app\_standard\_enabled) | Determines whether a Logic App Standard function should be deployed | `bool` | `false` | no |
-| <a name="input_logic_app_storage_account_enabled"></a> [logic\_app\_storage\_account\_enabled](#input\_logic\_app\_storage\_account\_enabled) | Determines whether a storage account for Logic App should be deployed | `bool` | `false` | no |
+| <a name="input_logic_app_enabled"></a> [logic\_app\_enabled](#input\_logic\_app\_enabled) | Determines whether the resources for the App Service Plan, Storage Account and Logic App Standard should be deployed | `bool` | `false` | no |
 | <a name="input_network_watcher_enabled"></a> [network\_watcher\_enabled](#input\_network\_watcher\_enabled) | Determines whether a Network Watcher resource will be deployed | `bool` | `false` | no |
 | <a name="input_odt_back_office_service_bus_enabled"></a> [odt\_back\_office\_service\_bus\_enabled](#input\_odt\_back\_office\_service\_bus\_enabled) | Determines whether the ODT Service Bus Namespace will be deployed | `bool` | `false` | no |
 | <a name="input_odt_back_office_service_bus_failover_enabled"></a> [odt\_back\_office\_service\_bus\_failover\_enabled](#input\_odt\_back\_office\_service\_bus\_failover\_enabled) | Whether or not to enable failover for the Service Bus namespace | `bool` | `false` | no |

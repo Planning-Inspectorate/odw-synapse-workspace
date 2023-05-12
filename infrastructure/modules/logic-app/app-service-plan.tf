@@ -1,5 +1,5 @@
 resource "azurerm_service_plan" "logic_app" {
-  count = var.logic_app_service_plan_enabled ? 1 : 0
+  count = var.logic_app_enabled ? 1 : 0
 
   name                = "pins-app-service-${local.resource_suffix}"
   location            = var.location
