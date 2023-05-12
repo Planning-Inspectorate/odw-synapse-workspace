@@ -14,12 +14,17 @@ variable "logic_app_service_plan_enabled" {
   type        = bool
 }
 
+variable "logic_app_storage_account_enabled" {
+  default     = false
+  description = "Determines whether a storage account for Logic App should be deployed"
+  type        = bool
+}
+
 variable "logic_app_standard_enabled" {
   default     = false
   description = "Determines whether a Logic App Standard function should be deployed"
   type        = bool
 }
-
 variable "resource_group_name" {
   description = "The name of the resource group into which resources will be deployed"
   type        = string
