@@ -1,4 +1,5 @@
 resource "azurerm_storage_account" "logic_app" {
+  count = var.logic_app_storage_account_enabled ? 1 : 0
   #checkov:skip=CKV_AZURE_35: Firewall not required for this storage account
   #checkov:skip=CKV_AZURE_59: Firewall not required for this storage account
   #checkov:skip=CKV_AZURE_190: Firewall not required for this storage account

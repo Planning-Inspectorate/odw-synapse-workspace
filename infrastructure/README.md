@@ -172,7 +172,7 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 
 | Name | Version |
 |------|---------|
-| <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) | 3.39.1 |
+| <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) | ~> 3.0 |
 
 ## Modules
 
@@ -274,6 +274,7 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 | <a name="input_location"></a> [location](#input\_location) | The short-format Azure region into which resources will be deployed | `string` | n/a | yes |
 | <a name="input_logic_app_service_plan_enabled"></a> [logic\_app\_service\_plan\_enabled](#input\_logic\_app\_service\_plan\_enabled) | Determines whether an App Service Plan should be deployed | `bool` | `false` | no |
 | <a name="input_logic_app_standard_enabled"></a> [logic\_app\_standard\_enabled](#input\_logic\_app\_standard\_enabled) | Determines whether a Logic App Standard function should be deployed | `bool` | `false` | no |
+| <a name="input_logic_app_storage_account_enabled"></a> [logic\_app\_storage\_account\_enabled](#input\_logic\_app\_storage\_account\_enabled) | Determines whether a storage account for Logic App should be deployed | `bool` | `false` | no |
 | <a name="input_network_watcher_enabled"></a> [network\_watcher\_enabled](#input\_network\_watcher\_enabled) | Determines whether a Network Watcher resource will be deployed | `bool` | `false` | no |
 | <a name="input_odt_back_office_service_bus_enabled"></a> [odt\_back\_office\_service\_bus\_enabled](#input\_odt\_back\_office\_service\_bus\_enabled) | Determines whether the ODT Service Bus Namespace will be deployed | `bool` | `false` | no |
 | <a name="input_odt_back_office_service_bus_failover_enabled"></a> [odt\_back\_office\_service\_bus\_failover\_enabled](#input\_odt\_back\_office\_service\_bus\_failover\_enabled) | Whether or not to enable failover for the Service Bus namespace | `bool` | `false` | no |
@@ -281,7 +282,7 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 | <a name="input_odt_back_office_service_bus_name_failover"></a> [odt\_back\_office\_service\_bus\_name\_failover](#input\_odt\_back\_office\_service\_bus\_name\_failover) | The name of the Service Bus namespace into which resources will be deployed | `string` | n/a | yes |
 | <a name="input_odt_back_office_service_bus_resource_group_name"></a> [odt\_back\_office\_service\_bus\_resource\_group\_name](#input\_odt\_back\_office\_service\_bus\_resource\_group\_name) | The name of the resource group into which resources will be deployed | `string` | n/a | yes |
 | <a name="input_odt_back_office_service_bus_resource_group_name_failover"></a> [odt\_back\_office\_service\_bus\_resource\_group\_name\_failover](#input\_odt\_back\_office\_service\_bus\_resource\_group\_name\_failover) | The name of the resource group into which resources will be deployed | `string` | n/a | yes |
-| <a name="input_odt_back_office_subscription_id"></a> [odt\_back\_office\_subscription\_id](#input\_odt\_back\_office\_subscription\_id) | The subscription ID of the ODT Back Office subscription | `string` | n/a | yes |
+| <a name="input_odt_subscription_id"></a> [odt\_subscription\_id](#input\_odt\_subscription\_id) | The subscription ID of the ODT subscription | `string` | n/a | yes |
 | <a name="input_service_bus_failover_enabled"></a> [service\_bus\_failover\_enabled](#input\_service\_bus\_failover\_enabled) | Determines whether the Service Bus Namespace will be provisioned with the Premium SKU for failover | `bool` | `false` | no |
 | <a name="input_service_bus_role_assignments"></a> [service\_bus\_role\_assignments](#input\_service\_bus\_role\_assignments) | An object mapping RBAC roles to principal IDs for the service bus | `map(list(string))` | `{}` | no |
 | <a name="input_service_bus_topics_and_subscriptions"></a> [service\_bus\_topics\_and\_subscriptions](#input\_service\_bus\_topics\_and\_subscriptions) | An object mapping Service Bus Topics to a list of Subscription names | `map(list(string))` | `{}` | no |
