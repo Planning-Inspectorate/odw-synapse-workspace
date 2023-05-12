@@ -41,9 +41,7 @@ devops_agent_pool_resource_group_name_failover = "pins-rg-devops-odw-prod-ukw"
 environment = "prod"
 location    = "uk-south"
 
-logic_app_service_plan_enabled    = false
-logic_app_storage_account_enabled = false
-logic_app_standard_enabled        = false
+logic_app_enabled = false
 
 key_vault_role_assignments = {
   "Key Vault Administrator" = [
