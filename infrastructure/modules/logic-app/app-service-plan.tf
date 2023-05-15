@@ -5,6 +5,7 @@ resource "azurerm_service_plan" "logic_app" {
   location            = var.location
   resource_group_name = var.resource_group_name
   os_type             = "Windows"
+  reserved            = false
   sku_name            = var.sku_name
 
   tags = local.tags
