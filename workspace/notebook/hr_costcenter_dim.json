@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "eb4e5e40-6e0c-4f04-96fe-b8f3717ac4a9"
+				"spark.autotune.trackingId": "41595ac9-6d52-4320-85be-03a7df12067b"
 			}
 		},
 		"metadata": {
@@ -43,7 +43,7 @@
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.2",
+				"sparkVersion": "3.3",
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 28,
@@ -125,7 +125,7 @@
 					"-- gets data that matches of SourceID and flags that it is modified based on a row (md5) hash. Flags as \"NewData\"\r\n",
 					"-- gets data that is in the target but not in source. Flags as \"DeletedData\"\r\n",
 					"\r\n",
-					"SELECT \r\n",
+					"SELECT DISTINCT\r\n",
 					"    CASE\r\n",
 					"        WHEN T1.CostCenterCode IS NULL\r\n",
 					"        THEN T7.CostCenterID\r\n",
@@ -136,22 +136,10 @@
 					"    T2.SourceSystemID,\r\n",
 					"    CURRENT_TIMESTAMP AS StartDate,\r\n",
 					"    NULL AS EndDate,\r\n",
-					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
+					"    to_timestamp(T1.expected_from) AS IngestionDate,\r\n",
 					"    NULL AS ValidTo,\r\n",
 					"    md5(concat(IFNULL(T1.CostCenterCode,'.'), IFNULL(T1.Description,'.'))) as RowID,\r\n",
 					"    'Y' as IsActive,\r\n",
-					"    CASE\r\n",
-					"        WHEN T1.CostCenterCode = T7.CostCenterCode AND  md5(concat(IFNULL(T1.CostCenterCode,'.'), IFNULL(T1.Description,'.'))) <> T7.RowID    -- same employee, changed data\r\n",
-					"        THEN 'Y'\r\n",
-					"        WHEN T7.CostCenterCode IS NULL -- new employee\r\n",
-					"        THEN 'Y'\r\n",
-					"        ELSE 'N'\r\n",
-					"    END as NewData,\r\n",
-					"    CASE\r\n",
-					"        WHEN T1.CostCenterCode IS NULL\r\n",
-					"        THEN 'Y'\r\n",
-					"        ELSE 'N'\r\n",
-					"    END AS  DeletedData, \r\n",
 					"    T7.IsActive as HistoricIsActive\r\n",
 					"\r\n",
 					"FROM costcentre_grouped T1\r\n",
@@ -159,95 +147,20 @@
 					"FULL JOIN odw_harmonised_db.hr_costcenter_dim T7 ON T1.CostCenterCode = T7.CostCenterCode  AND \r\n",
 					"                                                T7.IsActive = 'Y'\r\n",
 					"WHERE\r\n",
-					"    (\r\n",
-					"        \r\n",
+					"\r\n",
 					"        -- flags new data        \r\n",
 					"        (   CASE\r\n",
-					"                WHEN T1.CostCenterCode = T7.CostCenterCode AND  md5(concat(IFNULL(T1.CostCenterCode,'.'), IFNULL(T1.Description,'.'))) <> T7.RowID    -- same employee, changed data\r\n",
+					"                WHEN T1.CostCenterCode = T7.CostCenterCode AND  \r\n",
+					"                    md5(concat(IFNULL(T1.CostCenterCode,'.'), IFNULL(T1.Description,'.'))) <> T7.RowID    -- same employee, changed data\r\n",
 					"                THEN 'Y'\r\n",
 					"                WHEN T7.CostCenterCode IS NULL -- new employee\r\n",
 					"                THEN 'Y'\r\n",
 					"                ELSE 'N'\r\n",
-					"            END  = 'Y' ) OR\r\n",
-					"        \r\n",
-					"        -- flags deleted data\r\n",
-					"        (   CASE\r\n",
-					"                WHEN T1.CostCenterCode IS NULL\r\n",
-					"                THEN 'Y'\r\n",
-					"                ELSE 'N'\r\n",
-					"            END = 'Y' )\r\n",
-					"    )\r\n",
+					"            END  = 'Y' )\r\n",
 					";\r\n",
 					""
 				],
 				"execution_count": 2
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"# Run tests to check integrity of data by numbers\n",
-					"- This script checks for the total number of current codes in the harmonised table, and compare against the numbers for new data to be added and data to be set as inactive.\n",
-					"- **Changes tracking:** where it checks the data against active records in harmonised and compares with records to add and records to be set as inactive.\n",
-					"- **Changes tolerance levels:** if the total amount to be added and deleted surpasses the tolerance limit, it will interrupt the process of loading the data."
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					""
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"# Run tests to check integrity of data by comparison of codes\n",
-					"- This script checks for the total list of current codes in the harmonised table, and compare against the list for new data to be added and data to be set as inactive.\n",
-					"- **Changes tracking:** where it checks the data against active records in harmonised and compares with records to add and records to be set as inactive."
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					""
-				],
-				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -418,7 +331,7 @@
 					"%%sql\r\n",
 					"-- Insert new hr_costcenter_dim\r\n",
 					"\r\n",
-					"INSERT OVERWRITE odw_harmonised_db.hr_costcenter_dim\r\n",
+					"INSERT INTO odw_harmonised_db.hr_costcenter_dim\r\n",
 					"\r\n",
 					"SELECT \r\n",
 					"    ROW_NUMBER() OVER (ORDER BY CostCenterID NULLS LAST) AS CostCenterID,\r\n",
@@ -429,7 +342,7 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM odw_harmonised_db.hr_costcenter_dim;"
+					"FROM CostCenter_Dim_changed_rows;"
 				],
 				"execution_count": 5
 			}

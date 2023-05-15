@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "4a38e1a9-447b-4201-baeb-70b97c89d777"
+				"spark.autotune.trackingId": "01ef03d1-9e60-4f42-8a59-1cd94a2802b7"
 			}
 		},
 		"metadata": {
@@ -62,9 +62,6 @@
 				},
 				"source": [
 					"%%sql\r\n",
-					"-- Build Employee_Dim table \r\n",
-					"\r\n",
-					"-- Notes - Addresses are only supplied for Inspectors - need to check inspector count against addresses data\r\n",
 					"\r\n",
 					"INSERT OVERWRITE odw_harmonised_db.hr_employee_dim \r\n",
 					"\r\n",
@@ -87,20 +84,20 @@
 					"    T1.Wk_hrs as WorkHours,\r\n",
 					"    T1.Indicator_Part_Time_Employee as PartTimeEmployee,\r\n",
 					"    T1.Employment_Status as EmploymentStatus,\r\n",
-					"    T1.Civil_Service_Start as CivilServiceStart,\r\n",
-					"    T1.Date_to_Current_Job as DateToCurrentJob,\r\n",
-					"    T1.Seniority_Date as SeniorityDate,\r\n",
-					"    T1.Org_Start_Date as OrgStartDate,\r\n",
-					"    T1.Fix_Term_End_Date as FixTermEndDate,\r\n",
-					"    T1.Loan_Start_Date as LoanStartDate,\r\n",
-					"    T1.Loan_End_Date as LoanEndDate,\r\n",
+					"    to_timestamp(T1.Civil_Service_Start) AS CivilServiceStart,\r\n",
+					"    to_timestamp(T1.Date_to_Current_Job) AS DateToCurrentJob,\r\n",
+					"    to_timestamp(T1.Seniority_Date) AS SeniorityDate,\r\n",
+					"    to_timestamp(T1.Org_Start_Date) AS OrgStartDate,\r\n",
+					"    to_timestamp(T1.Fix_Term_End_Date) AS FixTermEndDate,\r\n",
+					"    to_timestamp(T1.Loan_Start_Date) AS LoanStartDate,\r\n",
+					"    to_timestamp(T1.Loan_End_Date) AS LoanEndDate,\r\n",
 					"    T1.Assignment_Number as AssignmentNumber,\r\n",
 					"    T1.Annual_salary as AnnualSalary, -- T1.Annual_salary\r\n",
 					"    T1.curr as Currency,\r\n",
 					"    T1.Reason_For_Action AS ReasonForAction,\r\n",
-					"    T1.Date_to_Subst_Grade as DateToSubstantiveGrade,\r\n",
+					"    to_timestamp(Date_to_Subst_Grade) as DateToSubstantiveGrade,\r\n",
 					"    T4.SourceSystemID,\r\n",
-					"    CURRENT_TIMESTAMP as IngestionDate,\r\n",
+					"    to_timestamp(T1.expected_from) AS IngestionDate,\r\n",
 					"    NULL as ValidTo,\r\n",
 					"    md5(concat( IFNULL(T1.Pers_No,'.'),IFNULL(T1.First_name,'.'),IFNULL(T1.Last_name,'.'), IFNULL(T1.Gender_Key, '.'), IFNULL(T2.Street_and_House_Number, '.'),IFNULL(T2.District, '.'),\r\n",
 					"                IFNULL(T2.City, '.'),IFNULL(T2.Region_State_Province_Count, '.'),IFNULL(T2.Postal_Code, '.'),IFNULL(T3.Email_Address, '.'),IFNULL(T2.Personal_Mobile, '.'), IFNULL(T2.Work_Mobile, '.'),\r\n",
@@ -135,14 +132,133 @@
 					"collapsed": false
 				},
 				"source": [
+					"%%sql\n",
+					"\n",
+					"-- CREATE OR REPLACE TEMPORARY VIEW employee_dim_from_leavers\n",
+					"\n",
+					"--     AS\n",
+					"\n",
+					"-- SELECT DISTINCT\n",
+					"--     Pers_No,\n",
+					"--     Last_name,\n",
+					"--     First_name,\n",
+					"--     Loc,\n",
+					"--     Location,\n",
+					"--     PS_group,\n",
+					"--     Pay_Band_Description,\n",
+					"--     Org_unit,\n",
+					"--     Organizational_Unit,\n",
+					"--     PA,\n",
+					"--     Personnel_Area,\n",
+					"--     Personnel_Subarea,\n",
+					"--     WorkC,\n",
+					"--     Work_Contract,\n",
+					"--     to_timestamp(Org_Start_Date) AS Org_Start_Date,\n",
+					"--     Employee_No,\n",
+					"--     Position,\n",
+					"--     Position_1,\n",
+					"--     Annual_salary,\n",
+					"--     Curr,\n",
+					"--     User_ID,\n",
+					"--     Email_Address,\n",
+					"--     Pers_No_1,\n",
+					"--     Name_of_Manager_OM,\n",
+					"--     expected_from\n",
+					"\n",
+					"-- FROM odw_standardised_db.vw_leavers\n",
+					"-- WHERE Pers_No NOT IN (SELECT EmployeeID FROM odw_harmonised_db.hr_employee_dim)"
+				],
+				"execution_count": 1
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					}
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"-- INSERT INTO odw_harmonised_db.hr_employee_dim \n",
+					"\n",
+					"-- SELECT \n",
+					"--     ROW_NUMBER() OVER (ORDER BY EmployeeInfoID NULLS LAST) AS EmployeeInfoID, \n",
+					"--     EmployeeID, \n",
+					"--     FirstName,\n",
+					"--     LastName,\n",
+					"--     Gender,\n",
+					"--     AddressLine1,\n",
+					"--     AddressLine2,\n",
+					"--     AddressLine3,\n",
+					"--     City,\n",
+					"--     County,\n",
+					"--     PostCode,\n",
+					"--     EmailAddress,\n",
+					"--     TelephoneNumberPersonal,\n",
+					"--     TelephoneNumberWork,\n",
+					"--     FTE,\n",
+					"--     WorkHours,\n",
+					"--     PartTimeEmployee,\n",
+					"--     EmploymentStatus,\n",
+					"--     CivilServiceStart,\n",
+					"--     DateToCurrentJob,\n",
+					"--     SeniorityDate,\n",
+					"--     OrgStartDate,\n",
+					"--     FixTermEndDate,\n",
+					"--     LoanStartDate,\n",
+					"--     LoanEndDate,\n",
+					"--     AssignmentNumber,\n",
+					"--     AnnualSalary,\n",
+					"--     Currency,\n",
+					"--     ReasonForAction,\n",
+					"--     DateToSubstantiveGrade,\n",
+					"--     SourceSystemID,\n",
+					"--     IngestionDate,\n",
+					"--     ValidTo,\n",
+					"--     RowID,\n",
+					"--     IsActive\n",
+					"-- FROM odw_standardised_db.vw_leavers;"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
 					"%%sql \n",
 					"\n",
-					"SELECT COUNT(*) FROM odw_standardised_db.vw_saphr_historic;\n",
-					"SELECT COUNT(*) FROM odw_harmonised_db.hr_employee_dim;\n",
+					"-- SELECT COUNT(*) FROM odw_standardised_db.vw_saphr_historic;\n",
+					"-- SELECT COUNT(*) FROM odw_harmonised_db.hr_employee_dim;\n",
 					"\n",
-					"SELECT * FROM odw_standardised_db.vw_saphr_historic;"
+					"-- SELECT * FROM odw_standardised_db.vw_saphr_historic;\n",
+					"\n",
+					"-- SELECT * FROM odw_standardised_db.vw_leavers;"
 				],
-				"execution_count": 2
+				"execution_count": 1
 			}
 		]
 	}

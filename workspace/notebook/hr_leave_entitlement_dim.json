@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d38c3ecc-74d7-45fe-a871-18fd79deaa99"
+				"spark.autotune.trackingId": "a99d88a0-cc19-41df-afc7-5d64e6c48970"
 			}
 		},
 		"metadata": {
@@ -101,7 +101,7 @@
 					"FROM odw_standardised_db.vw_leave\n",
 					"WHERE Staff_Number IS NOT NULL AND absence_quota_type IS NOT NULL;"
 				],
-				"execution_count": 141
+				"execution_count": 5
 			},
 			{
 				"cell_type": "markdown",
@@ -138,7 +138,6 @@
 					"    AS\r\n",
 					"\r\n",
 					"-- gets data that matches of SourceID and flags that it is modified based on a row (md5) hash. Flags as \"NewData\"\r\n",
-					"-- gets data that is in the target but not in source. Flags as \"DeletedData\"\r\n",
 					"SELECT DISTINCT\r\n",
 					"    CASE\r\n",
 					"        WHEN T1.Staff_Number IS NULL\r\n",
@@ -148,28 +147,15 @@
 					"    T1.Staff_Number AS EmployeeID, -- FK to employee_fact\r\n",
 					"    T1.number AS LeaveDaysPerYear,\r\n",
 					"    T1.deduction AS LeaveDeduction,\r\n",
-					"    T1.ded_from AS LeaveYearStart,\r\n",
-					"    T1.ded_to AS LeaveYearEnd,\r\n",
+					"    to_timestamp(T1.ded_from) AS LeaveYearStart,\r\n",
+					"    to_timestamp(T1.ded_to) AS LeaveYearEnd,\r\n",
 					"    T1.absence_quota_type AS AbsenceQuotaType,\r\n",
 					"    date_add(T1.Expected_From, -1) AS ExpectedFrom,\r\n",
 					"    T2.SourceSystemID as SourceSystemID,\r\n",
-					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
+					"    to_timestamp(T1.Expected_From) AS IngestionDate,\r\n",
 					"    NULL AS ValidTo,\r\n",
 					"    md5(concat(IFNULL(T1.Staff_Number,'.'),IFNULL(T1.number,'.'),IFNULL(T1.deduction,'.'),IFNULL(cast(T1.ded_from as varchar(20)),'.'),IFNULL(T1.absence_quota_type,'.'))) as RowID,\r\n",
 					"    'Y' as IsActive,\r\n",
-					"    CASE\r\n",
-					"        WHEN T1.Staff_Number = T3.EmployeeID AND T1.absence_quota_type = T3.AbsenceQuotaType\r\n",
-					"            AND md5(concat(IFNULL(T1.Staff_Number,'.'),IFNULL(T1.number,'.'),IFNULL(T1.deduction,'.'),IFNULL(cast(T1.ded_from as varchar(20)),'.'),IFNULL(T1.absence_quota_type,'.'))) <> T3.RowID  -- same employee, changed data\r\n",
-					"        THEN 'Y'\r\n",
-					"        WHEN T3.EmployeeID  IS NULL -- new employee\r\n",
-					"        THEN 'Y'\r\n",
-					"        ELSE 'N'\r\n",
-					"    END as NewData,\r\n",
-					"    CASE\r\n",
-					"        WHEN T1.Staff_Number IS NULL\r\n",
-					"        THEN 'Y'\r\n",
-					"        ELSE 'N'\r\n",
-					"    END AS  DeletedData, \r\n",
 					"    T3.IsActive as HistoricIsActive\r\n",
 					"\r\n",
 					"FROM leaveentitlement_dim_non_null T1\r\n",
@@ -179,27 +165,18 @@
 					"                                                        T3.IsActive = 'Y'\r\n",
 					"\r\n",
 					"WHERE\r\n",
-					"    (\r\n",
-					"        -- flags new data        \r\n",
-					"        (      CASE\r\n",
-					"                    WHEN T1.Staff_Number = T3.EmployeeID AND T1.absence_quota_type = T3.AbsenceQuotaType\r\n",
-					"                        AND md5(concat(IFNULL(T1.Staff_Number,'.'),IFNULL(T1.number,'.'),IFNULL(T1.deduction,'.'),IFNULL(cast(T1.ded_from as varchar(20)),'.'),IFNULL(T1.absence_quota_type,'.'))) <> T3.RowID  -- same employee, changed data\r\n",
-					"                    THEN 'Y'\r\n",
-					"                    WHEN T3.EmployeeID  IS NULL -- new employee\r\n",
-					"                    THEN 'Y'\r\n",
-					"                    ELSE 'N'\r\n",
-					"                END  = 'Y' ) OR\r\n",
-					"        \r\n",
-					"        -- flags deleted data\r\n",
-					"        (   CASE\r\n",
-					"                WHEN T1.Staff_Number IS NULL\r\n",
-					"                THEN 'Y'\r\n",
-					"                ELSE 'N'\r\n",
-					"            END = 'Y' )\r\n",
-					"    )\r\n",
+					"    -- flags new data        \r\n",
+					"    CASE\r\n",
+					"        WHEN T1.Staff_Number = T3.EmployeeID AND T1.absence_quota_type = T3.AbsenceQuotaType\r\n",
+					"            AND md5(concat(IFNULL(T1.Staff_Number,'.'),IFNULL(T1.number,'.'),IFNULL(T1.deduction,'.'),IFNULL(cast(T1.ded_from as varchar(20)),'.'),IFNULL(T1.absence_quota_type,'.'))) <> T3.RowID  -- same employee, changed data\r\n",
+					"        THEN 'Y'\r\n",
+					"        WHEN T3.EmployeeID  IS NULL -- new employee\r\n",
+					"        THEN 'Y'\r\n",
+					"        ELSE 'N'\r\n",
+					"    END  = 'Y' \r\n",
 					"AND T1.Staff_Number IS NOT NULL;"
 				],
-				"execution_count": 142
+				"execution_count": 6
 			},
 			{
 				"cell_type": "markdown",
@@ -281,7 +258,7 @@
 					"; \r\n",
 					""
 				],
-				"execution_count": 143
+				"execution_count": 8
 			},
 			{
 				"cell_type": "markdown",
@@ -339,7 +316,7 @@
 					"    THEN INSERT * ;  \r\n",
 					""
 				],
-				"execution_count": 144
+				"execution_count": 9
 			},
 			{
 				"cell_type": "markdown",
@@ -379,7 +356,7 @@
 					"\r\n",
 					"-- Insert new leaveentitlementID\r\n",
 					"\r\n",
-					"INSERT OVERWRITE odw_harmonised_db.hr_leave_entitlement_dim\r\n",
+					"INSERT INTO odw_harmonised_db.hr_leave_entitlement_dim\r\n",
 					"\r\n",
 					"SELECT \r\n",
 					"    ROW_NUMBER() OVER (ORDER BY LeaveEntitlementID NULLS LAST) AS LeaveEntitlementID,\r\n",
@@ -395,10 +372,10 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM odw_harmonised_db.hr_leave_entitlement_dim;\r\n",
+					"FROM leaveentitlement_dim_changed_rows;\r\n",
 					""
 				],
-				"execution_count": 145
+				"execution_count": 10
 			},
 			{
 				"cell_type": "code",
@@ -422,7 +399,7 @@
 					"select count(*) from odw_standardised_db.vw_leave;\n",
 					"select count(*) from odw_harmonised_db.hr_leave_entitlement_dim;"
 				],
-				"execution_count": 146
+				"execution_count": 11
 			}
 		]
 	}
