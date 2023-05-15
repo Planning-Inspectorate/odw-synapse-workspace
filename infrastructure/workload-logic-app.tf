@@ -1,4 +1,5 @@
 resource "azurerm_resource_group" "logic_app" {
+  count = var.logic_app_enabled ? 0 : 1
   name     = "pins-rg-logic-app-${local.resource_suffix}"
   location = module.azure_region.location_cli
 
