@@ -1,14 +1,16 @@
 resource "azurerm_servicebus_topic" "topics" {
-  for_each = var.failover_namespace ? {} : var.service_bus_topics_and_subscriptions
+  for_each = local.service_bus_topics_and_subscriptions
 
-  name         = each.key
-  namespace_id = azurerm_servicebus_namespace.synapse.id
-
-  auto_delete_on_idle                     = "P10675199DT2H48M5.4775807S"
-  default_message_ttl                     = "P14D"
-  duplicate_detection_history_time_window = "P7D"
-  enable_batched_operations               = true
-  enable_partitioning                     = false
-  max_size_in_megabytes                   = 1024 # Attribute name incorrect: 1024 = 16GB
-  requires_duplicate_detection            = true
+  name                                    = each.key
+  namespace_id                            = azurerm_servicebus_namespace.synapse.id
+  status                                  = each.value.status
+  auto_delete_on_idle                     = each.value.auto_delete_on_idle
+  default_message_ttl                     = each.value.default_message_ttl
+  duplicate_detection_history_time_window = each.value.duplicate_detection_history_time_window
+  enable_batched_operations               = each.value.enable_batched_operations
+  enable_express                          = each.value.enable_express
+  enable_partitioning                     = each.value.enable_partitioning
+  max_size_in_megabytes                   = each.value.max_size_in_megabytes
+  requires_duplicate_detection            = each.value.requires_duplicate_detection
+  support_ordering                        = each.value.support_ordering
 }

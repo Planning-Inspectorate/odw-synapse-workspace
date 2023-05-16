@@ -63,20 +63,27 @@ odt_back_office_service_bus_resource_group_name_failover = "pins-rg-back-office-
 
 service_bus_failover_enabled = true
 service_bus_role_assignments = {
-  "Azure Service Bus Data Owner" = [
-    "1fa42635-5dc3-43bc-b5da-77578f3dabb7" # pins-odw-prod-administrators
-  ]
+  "Azure Service Bus Data Owner" = {
+    groups = ["pins-odw-prod-administrators"]
+  }
 }
-service_bus_topics_and_subscriptions = {
-  "employee" = [
-    "employee",
-    "employee-verify"
-  ],
-  "zendesk" = [
-    "zendesk",
-    "zendesk-verify"
-  ]
-}
+
+service_bus_topics_and_subscriptions = [
+  {
+    name = "employee"
+    subscriptions = {
+      "employee"        = {},
+      "employee-verify" = {}
+    }
+  },
+  {
+    name = "zendesk"
+    subscriptions = {
+      "zendesk"        = {},
+      "zendesk-verify" = {}
+    }
+  }
+]
 
 spark_pool_enabled         = true
 spark_pool_max_node_count  = 12
