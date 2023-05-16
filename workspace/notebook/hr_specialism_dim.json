@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "db7de874-0359-4b4d-b9bf-9d8cec85d9d3"
+				"spark.autotune.trackingId": "597ff65a-252d-41c6-a112-5c43397afdfb"
 			}
 		},
 		"metadata": {
@@ -66,7 +66,6 @@
 					"- This script checks for new, updated or deleted data by checking the source data (sap hr) against the target (odw_harmonised_db.specialism_dim)\n",
 					"- **New Data:** where an EmployeeID in the source does not exist as an EmployeeID in the target. NewData flag is set to 'Y'\n",
 					"- **Updated data:** Comparison occurs on EmployeeID in source and EmployeeID in target where the row hash is different i.e. there is a change in one of the columns. NewData flag is set to 'Y'\n",
-					"- **Deleted data:** where an EmployeeID in the target exists but the same EmployeeID doesn't exist in the source. DeletedData flag is set to 'Y'\n",
 					"\n",
 					"## View specialism_dim_new is created"
 				]
@@ -82,7 +81,7 @@
 				"source": [
 					"%%sql\r\n",
 					"-- Build specialism_dim table\r\n",
-					"-- Gets modified or deleted from source rows\r\n",
+					"-- Gets modified or new from source rows\r\n",
 					"\r\n",
 					"CREATE OR REPLACE TEMPORARY VIEW specialism_dim_new\r\n",
 					"\r\n",
@@ -101,22 +100,10 @@
 					"    T1.Qualification_Name as Qualification,\r\n",
 					"    T1.Proficien AS Proficiency,\r\n",
 					"    first(T2.SourceSystemID) as SourceSystemID,\r\n",
-					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
+					"    to_timestamp(T1.expected_from) AS IngestionDate,\r\n",
 					"    NULL AS ValidTo,\r\n",
 					"    md5(concat(IFNULL(FIRST(T3.EmployeeID),'.'), IFNULL(T1.Qualification_Name,'.'), IFNULL(T1.Proficien,'.'))) as RowID,\r\n",
 					"    first('Y') as IsActive,\r\n",
-					"    CASE\r\n",
-					"        WHEN FIRST(T3.EmployeeID) = first(T7.EmployeeID) AND  md5(concat(IFNULL(FIRST(T3.EmployeeID),'.'), IFNULL(T1.Qualification_Name,'.'), IFNULL(T1.Proficien,'.'))) <> first(T7.RowID)    -- same employee, changed data\r\n",
-					"        THEN 'Y'\r\n",
-					"        WHEN first(T7.EmployeeID) IS NULL -- new employee\r\n",
-					"        THEN 'Y'\r\n",
-					"        ELSE 'N'\r\n",
-					"    END as NewData,\r\n",
-					"    CASE\r\n",
-					"        WHEN FIRST(T3.EmployeeID) IS NULL\r\n",
-					"        THEN 'Y'\r\n",
-					"        ELSE 'N'\r\n",
-					"    END AS  DeletedData, \r\n",
 					"    first(T7.IsActive) as HistoricIsActive\r\n",
 					"\r\n",
 					"FROM odw_standardised_db.vw_specialisms T1\r\n",
@@ -124,8 +111,6 @@
 					"LEFT JOIN odw_harmonised_db.hr_employee_fact T3 ON T1.Staff_Number = T3.EmployeeNumber and T3.IsActive = 'Y'\r\n",
 					"FULL JOIN odw_harmonised_db.hr_specialism_dim T7 ON T1.Staff_Number = T7.EmployeeID AND T7.IsActive = 'Y'\r\n",
 					"WHERE\r\n",
-					"    (\r\n",
-					"        \r\n",
 					"        -- flags new data        \r\n",
 					"        ( CASE\r\n",
 					"            WHEN T3.EmployeeID = T7.EmployeeID AND  md5(concat(IFNULL(T3.EmployeeID,'.'), IFNULL(T1.Qualification_Name,'.'), IFNULL(T1.Proficien,'.'))) <> T7.RowID    -- same employee, changed data\r\n",
@@ -133,15 +118,7 @@
 					"            WHEN T7.EmployeeID IS NULL -- new employee\r\n",
 					"            THEN 'Y'\r\n",
 					"            ELSE 'N'\r\n",
-					"        END  = 'Y' ) OR\r\n",
-					"        \r\n",
-					"        -- flags deleted data\r\n",
-					"        ( CASE\r\n",
-					"            WHEN T3.EmployeeID IS NULL\r\n",
-					"            THEN 'Y'\r\n",
-					"            ELSE 'N'\r\n",
-					"        END = 'Y' )\r\n",
-					"    )\r\n",
+					"        END  = 'Y' )\r\n",
 					"    AND\r\n",
 					"        T1.Staff_Number IS NOT NULL\r\n",
 					"\r\n",
@@ -453,7 +430,7 @@
 					"%%sql\r\n",
 					"-- Insert new employee_hr_hierarchy_dim\r\n",
 					"\r\n",
-					"INSERT OVERWRITE odw_harmonised_db.hr_specialism_dim\r\n",
+					"INSERT INTO odw_harmonised_db.hr_specialism_dim\r\n",
 					"\r\n",
 					"SELECT \r\n",
 					"    ROW_NUMBER() OVER (ORDER BY SpecialismID NULLS LAST) AS SpecialismID,\r\n",
@@ -465,7 +442,7 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM odw_harmonised_db.hr_specialism_dim;"
+					"FROM specialism_dim_changed_rows;"
 				],
 				"execution_count": 6
 			}
