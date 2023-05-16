@@ -41,9 +41,7 @@ devops_agent_pool_resource_group_name_failover = "pins-rg-devops-odw-dev-ukw"
 environment = "dev"
 location    = "uk-south"
 
-logic_app_service_plan_enabled    = false
-logic_app_storage_account_enabled = false
-logic_app_standard_enabled        = false
+logic_app_enabled = false
 
 key_vault_role_assignments = {
   "Key Vault Administrator" = [
@@ -65,21 +63,27 @@ odt_back_office_service_bus_resource_group_name_failover = "pins-rg-back-office-
 
 service_bus_failover_enabled = false
 service_bus_role_assignments = {
-  "Azure Service Bus Data Owner" = [
-    "ebcc4498-4abe-4457-8970-7fa08bf87543" # pins-odw-dev-administrators
-  ]
+  "Azure Service Bus Data Owner" = {
+    groups = ["pins-odw-dev-administrators"]
+  }
 }
 
-service_bus_topics_and_subscriptions = {
-  "employee" = [
-    "employee",
-    "employee-verify"
-  ],
-  "zendesk" = [
-    "zendesk",
-    "zendesk-verify"
-  ]
-}
+service_bus_topics_and_subscriptions = [
+  {
+    name = "employee"
+    subscriptions = {
+      "employee"        = {},
+      "employee-verify" = {}
+    }
+  },
+  {
+    name = "zendesk"
+    subscriptions = {
+      "zendesk"        = {},
+      "zendesk-verify" = {}
+    }
+  }
+]
 
 spark_pool_enabled         = true
 spark_pool_max_node_count  = 12

@@ -13,7 +13,6 @@ terraform {
       version = "~> 3.0"
     }
   }
-
   required_version = ">= 1.1.6, < 2.0.0"
 }
 
@@ -24,7 +23,6 @@ provider "azurerm" {
     }
   }
 }
-
 provider "azurerm" {
   features {}
   subscription_id = var.odt_subscription_id
