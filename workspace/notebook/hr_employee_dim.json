@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "526ca49b-837e-4f98-b05d-eb9de444d161"
+				"spark.autotune.trackingId": "d7b88aee-c0ed-4ea2-8cd2-d7b251f9fae9"
 			}
 		},
 		"metadata": {
@@ -111,7 +111,7 @@
 					"    T1.Reason_For_Action AS ReasonForAction,\r\n",
 					"    to_timestamp(T1.Date_to_Subst_Grade) AS DateToSubstantiveGrade,\r\n",
 					"    T4.SourceSystemID,\r\n",
-					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
+					"    to_timestamp(T1.expected_from) AS IngestionDate,\r\n",
 					"    NULL as ValidTo,\r\n",
 					"    md5(concat( IFNULL(T1.First_name,'.'),IFNULL(T1.Last_name,'.'), IFNULL(T1.Gender_Key, '.'), IFNULL(T2.Street_and_House_Number, '.'),IFNULL(T2.`2nd_Address_Line`, '.'),IFNULL(T2.District, '.'),\r\n",
 					"                IFNULL(T2.City, '.'),IFNULL(T2.Region_State_Province_Count, '.'),IFNULL(T2.Postal_Code, '.'),IFNULL(T3.Email_Address, '.'),IFNULL(T2.Personal_Mobile, '.'), IFNULL(T2.Work_Mobile, '.'),\r\n",
@@ -131,7 +131,6 @@
 					"LEFT JOIN odw_harmonised_db.hr_employee_fact T8 ON T1.Pers_No = T8.PersNumber AND T8.IsActive = 'Y' \r\n",
 					"FULL JOIN odw_harmonised_db.hr_employee_dim T7 ON T8.EmployeeID = T7.EmployeeID AND T7.IsActive = 'Y'\r\n",
 					"WHERE\r\n",
-					"    (\r\n",
 					"        -- flags new data        \r\n",
 					"        ( CASE\r\n",
 					"            WHEN T1.Pers_No = T7.EmployeeID AND md5(concat( IFNULL(T1.First_name,'.'),IFNULL(T1.Last_name,'.'), IFNULL(T1.Gender_Key, '.'), IFNULL(T2.Street_and_House_Number, '.'),\r\n",
@@ -144,20 +143,12 @@
 					"            WHEN T7.EmployeeInfoID IS NULL\r\n",
 					"            THEN 'Y'\r\n",
 					"            ELSE 'N'\r\n",
-					"        END  = 'Y' ) OR\r\n",
-					"        \r\n",
-					"        -- flags deleted data\r\n",
-					"        ( CASE\r\n",
-					"            WHEN T1.Pers_No IS NULL\r\n",
-					"            THEN 'Y'\r\n",
-					"            ELSE 'N'\r\n",
-					"        END = 'Y' )\r\n",
-					"    )\r\n",
+					"        END  = 'Y' )\r\n",
 					"    AND T1.Pers_No IS NOT NULL\r\n",
 					";\r\n",
 					""
 				],
-				"execution_count": 9
+				"execution_count": 1
 			},
 			{
 				"cell_type": "markdown",
@@ -285,7 +276,7 @@
 					"WHERE EmployeeID IN (SELECT EmployeeID FROM employee_dim_new WHERE EmployeeInfoID IS NULL) AND IsActive = 'Y';\r\n",
 					""
 				],
-				"execution_count": 10
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -341,7 +332,7 @@
 					"WHEN NOT MATCHED \r\n",
 					"    THEN INSERT * ;   "
 				],
-				"execution_count": 11
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -380,7 +371,7 @@
 					"%%sql\r\n",
 					"-- Insert new SecureInfoID\r\n",
 					"\r\n",
-					"INSERT OVERWRITE odw_harmonised_db.hr_employee_dim \r\n",
+					"INSERT INTO odw_harmonised_db.hr_employee_dim \r\n",
 					"\r\n",
 					"SELECT \r\n",
 					"    ROW_NUMBER() OVER (ORDER BY EmployeeInfoID NULLS LAST) AS EmployeeInfoID, \r\n",
@@ -418,9 +409,9 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM odw_harmonised_db.hr_employee_dim;"
+					"FROM employee_dim_changed_rows;"
 				],
-				"execution_count": 12
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -442,11 +433,10 @@
 				"source": [
 					"%%sql \n",
 					"\n",
-					"\n",
 					"SELECT COUNT (*) from odw_harmonised_db.hr_employee_fact;\n",
 					"SELECT COUNT (*) from odw_harmonised_db.hr_employee_dim"
 				],
-				"execution_count": 13
+				"execution_count": null
 			}
 		]
 	}

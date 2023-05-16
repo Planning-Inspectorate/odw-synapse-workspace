@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "4a8b3164-f30a-4de7-970e-dba1392346e6"
+				"spark.autotune.trackingId": "c48c1cb9-c081-4a4a-8262-72db3c53c07e"
 			}
 		},
 		"metadata": {
@@ -41,14 +41,13 @@
 				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
 				"auth": {
 					"type": "AAD",
-					"authResource": "https://dev.azuresynapse.net",
-					"authHeader": null
+					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.2",
+				"sparkVersion": "3.3",
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 28,
-				"extraHeader": null
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -126,7 +125,7 @@
 					"-- gets data that matches of SourceID and flags that it is modified based on a row (md5) hash. Flags as \"NewData\"\r\n",
 					"-- gets data that is in the target but not in source. Flags as \"DeletedData\"\r\n",
 					"\r\n",
-					"SELECT \r\n",
+					"SELECT DISTINCT\r\n",
 					"    CASE\r\n",
 					"        WHEN T1.LocationCode IS NULL\r\n",
 					"        THEN T7.LocationID\r\n",
@@ -135,45 +134,24 @@
 					"    T1.LocationCode, -- check\r\n",
 					"    T1.Description,\r\n",
 					"    T2.SourceSystemID as SourceSystemID,\r\n",
-					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
+					"    to_timestamp(T1.expected_from) AS IngestionDate,\r\n",
 					"    NULL AS ValidTo,\r\n",
 					"    md5(concat(IFNULL(T1.LocationCode,'.'), IFNULL(T1.Description,'.'))) as RowID,\r\n",
 					"    'Y' as IsActive,\r\n",
-					"    CASE\r\n",
-					"        WHEN T1.LocationCode = T7.LocationCode AND  md5(concat(IFNULL(T1.LocationCode,'.'), IFNULL(T1.Description,'.'))) <> T7.RowID   -- same employee, changed data\r\n",
-					"        THEN 'Y'\r\n",
-					"        WHEN T7.LocationCode IS NULL -- new employee\r\n",
-					"        THEN 'Y'\r\n",
-					"        ELSE 'N'\r\n",
-					"    END as NewData,\r\n",
-					"    CASE\r\n",
-					"        WHEN T1.LocationCode IS NULL\r\n",
-					"        THEN 'Y'\r\n",
-					"        ELSE 'N'\r\n",
-					"    END AS  DeletedData, \r\n",
 					"    T7.IsActive as HistoricIsActive\r\n",
 					"\r\n",
 					"FROM pins_location_grouped T1\r\n",
 					"LEFT JOIN odw_harmonised_db.main_sourcesystem_fact T2 ON \"SAP HR\" = T2.Description and T2.IsActive = 'Y'\r\n",
 					"FULL JOIN odw_harmonised_db.hr_pins_location_dim T7 ON T1.LocationCode = T7.LocationCode AND T7.IsActive = 'Y'\r\n",
 					"WHERE\r\n",
-					"    (\r\n",
-					"        -- flags new data        \r\n",
-					"        (   CASE\r\n",
-					"                WHEN T1.LocationCode = T7.LocationCode AND  md5(concat(IFNULL(T1.LocationCode,'.'), IFNULL(T1.Description,'.'))) <> T7.RowID   -- same employee, changed data\r\n",
-					"                THEN 'Y'\r\n",
-					"                WHEN T7.LocationCode IS NULL -- new employee\r\n",
-					"                THEN 'Y'\r\n",
-					"                ELSE 'N'\r\n",
-					"            END = 'Y' ) OR\r\n",
-					"        \r\n",
-					"        -- flags deleted data\r\n",
-					"        (   CASE\r\n",
-					"                WHEN T1.LocationCode IS NULL\r\n",
-					"                THEN 'Y'\r\n",
-					"                ELSE 'N'\r\n",
-					"            END = 'Y' )\r\n",
-					"    )\r\n",
+					"    -- flags new data        \r\n",
+					"    CASE\r\n",
+					"        WHEN T1.LocationCode = T7.LocationCode AND  md5(concat(IFNULL(T1.LocationCode,'.'), IFNULL(T1.Description,'.'))) <> T7.RowID   -- same employee, changed data\r\n",
+					"        THEN 'Y'\r\n",
+					"        WHEN T7.LocationCode IS NULL -- new employee\r\n",
+					"        THEN 'Y'\r\n",
+					"        ELSE 'N'\r\n",
+					"    END = 'Y' \r\n",
 					";"
 				],
 				"execution_count": 2
@@ -307,7 +285,8 @@
 					"#         print(j + \" to be added is not in the current records\")\r\n",
 					"#     else:\r\n",
 					"#         raise RuntimeError(\"Records to Add do not match\")"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -478,7 +457,7 @@
 					"%%sql\r\n",
 					"-- Insert new PINS_Location_dim\r\n",
 					"\r\n",
-					"INSERT OVERWRITE odw_harmonised_db.hr_pins_location_dim\r\n",
+					"INSERT INTO odw_harmonised_db.hr_pins_location_dim\r\n",
 					"\r\n",
 					"SELECT \r\n",
 					"    ROW_NUMBER() OVER (ORDER BY LocationID NULLS LAST) AS LocationID,\r\n",
@@ -489,7 +468,7 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM odw_harmonised_db.hr_pins_location_dim;"
+					"FROM PINS_Location_dim_changed_rows;"
 				],
 				"execution_count": 7
 			}
