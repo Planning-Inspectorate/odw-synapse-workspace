@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "70118644-2a3b-41fd-a08f-7fcff7e693d5"
+				"spark.autotune.trackingId": "f78c817c-7615-4fce-ac10-bb998ffad5e7"
 			}
 		},
 		"metadata": {
@@ -94,7 +94,7 @@
 					"    sender.send_messages(message)\n",
 					""
 				],
-				"execution_count": 23
+				"execution_count": 3
 			},
 			{
 				"cell_type": "markdown",
@@ -132,7 +132,7 @@
 					"table_name=\"odw_curated_db.employee\"\n",
 					"custom_props_attributes=[\"_change_type\"]"
 				],
-				"execution_count": 22
+				"execution_count": 4
 			},
 			{
 				"cell_type": "markdown",
@@ -168,7 +168,7 @@
 					"conn_str = mssparkutils.credentials.getSecret(akv_name, secret_name, kv_linked_service)\n",
 					""
 				],
-				"execution_count": 24
+				"execution_count": 5
 			},
 			{
 				"cell_type": "markdown",
@@ -202,7 +202,7 @@
 					"    topic_accessed_at=get_topic_accessed_at(servicebus_mgmt_client)\n",
 					"print(topic_accessed_at)"
 				],
-				"execution_count": 25
+				"execution_count": 20
 			},
 			{
 				"cell_type": "markdown",
@@ -228,55 +228,15 @@
 						"transient": {
 							"deleting": false
 						}
-					},
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
-				},
-				"source": [
-					"%%sql\n",
-					"DESCRIBE HISTORY odw_curated_db.employee"
-				],
-				"execution_count": 3
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
 					}
 				},
 				"source": [
 					"from pyspark.sql import SparkSession\r\n",
 					"spark = SparkSession.builder.getOrCreate()\r\n",
-					"history_df = spark.sql(\"DESCRIBE HISTORY odw_curated_db.employee\")"
-				],
-				"execution_count": 5
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
+					"history_df = spark.sql(\"DESCRIBE HISTORY odw_curated_db.employee\")\r\n",
 					"hist_df_pandas = history_df.toPandas()"
 				],
-				"execution_count": 16
+				"execution_count": 10
 			},
 			{
 				"cell_type": "code",
@@ -292,63 +252,23 @@
 					}
 				},
 				"source": [
-					"hist_df_pandas"
+					"# if the history goes back to version 0 \r\n",
+					"if 0 in hist_df_pandas['version'].values:\r\n",
+					"\r\n",
+					"    # version 0 datetime\r\n",
+					"    version_0_datetime = pd.Timestamp(hist_df_pandas[hist_df_pandas['version'] == 0]['timestamp'].values[0]).tz_localize('UTC').to_pydatetime()\r\n",
+					"    version_1_datetime = pd.Timestamp(hist_df_pandas[hist_df_pandas['version'] == 1]['timestamp'].values[0]).tz_localize('UTC').to_pydatetime()\r\n",
+					"\r\n",
+					"    # is the topic accessed at more recent than the version\r\n",
+					"    if topic_accessed_at > version_0_datetime :\r\n",
+					"        starting_timestamp = topic_accessed_at\r\n",
+					"    \r\n",
+					"    else: \r\n",
+					"        starting_timestamp = version_1_datetime\r\n",
+					"else:\r\n",
+					"    starting_timestamp = topic_accessed_at"
 				],
-				"execution_count": 18
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"history_df = spark.sql(\"SELECT * FROM odw_curated_db.employee VERSION AS OF 0\")"
-				],
-				"execution_count": 19
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"topic_accessed_at > hist_df_pandas[hist_df_pandas['version'] == 35]['timestamp']"
-				],
-				"execution_count": 26
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": true
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"history"
-				],
-				"execution_count": 7
+				"execution_count": 55
 			},
 			{
 				"cell_type": "markdown",
@@ -384,7 +304,7 @@
 					"try:\n",
 					"    cdf_df=(spark.read.format(\"delta\")\n",
 					"        .option(\"readChangeFeed\", \"true\")\n",
-					"        .option(\"startingTimestamp\", topic_accessed_at)\n",
+					"        .option(\"startingTimestamp\", starting_timestamp)\n",
 					"        .table(table_name))\n",
 					"    cdf_df=cdf_df.filter(\"_change_type != 'update_preimage'\") #CDF provides preimage and postimage records\n",
 					"    with servicebus_client:\n",
