@@ -82,6 +82,12 @@ service_bus_topics_and_subscriptions = [
       "zendesk"        = {},
       "zendesk-verify" = {}
     }
+  },
+  {
+    name = "test"
+    subscriptions = {
+      "test-verify" = {}
+    }
   }
 ]
 
