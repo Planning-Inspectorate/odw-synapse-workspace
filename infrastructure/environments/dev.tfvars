@@ -83,12 +83,6 @@ service_bus_topics_and_subscriptions = [
       "zendesk-verify" = {}
     }
   },
-  {
-    name = "test"
-    subscriptions = {
-      "test-verify" = {}
-    }
-  }
 ]
 
 spark_pool_enabled         = true
