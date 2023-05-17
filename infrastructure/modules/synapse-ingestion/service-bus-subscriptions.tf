@@ -3,7 +3,7 @@ resource "azurerm_servicebus_subscription" "topic_subscriptions" {
     for subscription in local.service_bus_topic_subscriptions : subscription.subscription_name => subscription
   }
 
-  name                                      = each.key 
+  name                                      = each.key
   topic_id                                  = azurerm_servicebus_topic.topics[each.value.topic_name].id
   status                                    = each.value.status
   max_delivery_count                        = each.value.max_delivery_count
