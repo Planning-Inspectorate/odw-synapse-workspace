@@ -6,12 +6,12 @@ locals {
     status                                  = "Active"
     auto_delete_on_idle                     = "P10675199DT2H48M5.4775807S"
     default_message_ttl                     = "P14D"
-    duplicate_detection_history_time_window = "P7D"
-    enable_batched_operations               = true
+    duplicate_detection_history_time_window = "PT10M"
+    enable_batched_operations               = false
     enable_express                          = false
     enable_partitioning                     = false
-    max_size_in_megabytes                   = 1024
-    requires_duplicate_detection            = true
+    max_size_in_megabytes                   = 5120
+    requires_duplicate_detection            = false
     support_ordering                        = false
     subscriptions                           = {}
   }
@@ -21,9 +21,9 @@ locals {
   service_bus_topic_subscriptions_defaults = {
     status                                    = "Active"
     max_delivery_count                        = 1
-    auto_delete_on_idle                       = "PT5M"
+    auto_delete_on_idle                       = "P10675199DT2H48M5.4775807S"
     default_message_ttl                       = "P14D"
-    lock_duration                             = "P0DT0H1M0S"
+    lock_duration                             = "PT1M"
     dead_lettering_on_message_expiration      = false
     dead_lettering_on_filter_evaluation_error = true
     enable_batched_operations                 = false

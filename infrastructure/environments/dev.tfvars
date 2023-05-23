@@ -82,7 +82,7 @@ service_bus_topics_and_subscriptions = [
       "zendesk"        = {},
       "zendesk-verify" = {}
     }
-  }
+  },
 ]
 
 spark_pool_enabled         = true
