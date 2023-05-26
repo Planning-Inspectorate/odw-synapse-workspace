@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "8a2b23c5-3e0a-4cbc-8d9c-b452187a8c97"
+				"spark.autotune.trackingId": "d0f84e11-6a9d-493e-8ca3-5ceb0ee0b93a"
 			}
 		},
 		"metadata": {
@@ -95,11 +95,14 @@
 					"\r\n",
 					"    AS\r\n",
 					"\r\n",
-					"Select Ethnic_Origin as Description\r\n",
+					"Select  Ethnic_Origin as Description,\r\n",
+					"        last(expected_from) AS expected_from\r\n",
+					"\r\n",
 					"FROM odw_standardised_db.vw_protected_characteristics \r\n",
+					"WHERE Ethnic_Origin IS NOT NULL\r\n",
 					"GROUP BY Ethnic_Origin"
 				],
-				"execution_count": 4
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
@@ -131,7 +134,7 @@
 					"    END as DiversityID, -- surrogate key\r\n",
 					"    T1.Description AS Description,\r\n",
 					"    T2.SourceSystemID as SourceSystemID, -- NOT CORRECT\r\n",
-					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
+					"    to_timestamp(T1.expected_from) AS IngestionDate,\r\n",
 					"    NULL AS ValidTo,\r\n",
 					"    md5(IFNULL(T1.Description, '.')) as RowID,\r\n",
 					"    'Y' as IsActive,\r\n",
@@ -142,18 +145,19 @@
 					"FULL JOIN odw_harmonised_db.hr_diversity_dim T3 ON T1.Description = T3.Description AND T3.IsActive = 'Y'\r\n",
 					"WHERE  \r\n",
 					"        -- flags new data        \r\n",
-					"    CASE\r\n",
+					"    (CASE\r\n",
 					"        WHEN T1.Description = T3.Description AND md5(IFNULL(t1.Description, '.')) <> T3.RowID\r\n",
 					"        THEN 'Y'\r\n",
 					"        WHEN T3.Description IS NULL\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
-					"    END  = 'Y'\r\n",
+					"    END  = 'Y')\r\n",
+					"    AND T1.Description IS NOT NULL\r\n",
 					";\r\n",
 					"\r\n",
 					"select * from diversity_dim_new;"
 				],
-				"execution_count": 5
+				"execution_count": 8
 			},
 			{
 				"cell_type": "markdown",
@@ -224,7 +228,7 @@
 					"WHERE Description IN (SELECT Description FROM diversity_dim_new WHERE DiversityID IS NULL)\r\n",
 					"AND IsActive = 'Y'"
 				],
-				"execution_count": 8
+				"execution_count": 9
 			},
 			{
 				"cell_type": "markdown",
@@ -274,13 +278,8 @@
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.ValidTo = date_sub(current_timestamp,1),\r\n",
+					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
 					"    Target.IsActive = 'N'\r\n",
-					"\r\n",
-					"-- Insert completely new rows\r\n",
-					"WHEN NOT MATCHED \r\n",
-					"    THEN INSERT * ;   \r\n",
-					"\r\n",
 					""
 				],
 				"execution_count": 9

@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "04fff157-b2f4-4f59-9d99-43818bc1ffe6"
+				"spark.autotune.trackingId": "be9f7f2d-11ed-4663-9ef6-684bcca12527"
 			}
 		},
 		"metadata": {
@@ -77,9 +77,11 @@
 					"    AS\r\n",
 					"\r\n",
 					"SELECT Religious_denomination_key as ReligionCode,\r\n",
-					"        Religion as Description\r\n",
+					"        Religion as Description,\r\n",
+					"        last(expected_from) AS expected_from\r\n",
 					"\r\n",
 					" FROM odw_standardised_db.vw_protected_characteristics\r\n",
+					" WHERE Religious_denomination_key IS NOT NULL AND Religion IS NOT NULL\r\n",
 					" group by Religious_denomination_key, religion"
 				],
 				"execution_count": 1
@@ -142,13 +144,14 @@
 					"FULL JOIN odw_harmonised_db.hr_religion_dim T3 ON T1.ReligionCode = T3.ReligionCode and T3.IsActive = 'Y'\r\n",
 					"WHERE  \r\n",
 					"    -- flags new data        \r\n",
-					"    CASE\r\n",
+					"    (CASE\r\n",
 					"        WHEN T1.ReligionCode = T3.ReligionCode AND md5(concat(IFNULL(T1.ReligionCode,'.'), IFNULL(T1.Description,'.'))) <> T3.RowID\r\n",
 					"        THEN 'Y'\r\n",
 					"        WHEN T3.ReligionCode IS NULL\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
-					"    END  = 'Y' \r\n",
+					"    END  = 'Y')\r\n",
+					"    AND T1.ReligionCode IS NOT NULL\r\n",
 					";"
 				],
 				"execution_count": 2
@@ -362,7 +365,7 @@
 					"AND IsActive = 'Y'; \r\n",
 					""
 				],
-				"execution_count": 5
+				"execution_count": 3
 			},
 			{
 				"cell_type": "markdown",
@@ -412,12 +415,9 @@
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.ValidTo = date_sub(current_timestamp,1),\r\n",
+					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
 					"    Target.IsActive = 'N'\r\n",
 					"\r\n",
-					"-- Insert completely new rows\r\n",
-					"WHEN NOT MATCHED \r\n",
-					"    THEN INSERT * ;   \r\n",
 					""
 				],
 				"execution_count": 6
@@ -472,7 +472,7 @@
 					"    IsActive\r\n",
 					"FROM religion_dim_changed_rows;"
 				],
-				"execution_count": 7
+				"execution_count": 4
 			}
 		]
 	}
