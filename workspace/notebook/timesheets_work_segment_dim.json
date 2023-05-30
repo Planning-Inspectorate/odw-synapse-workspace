@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "4ea9c098-2ae1-4493-bb1d-3d85d699e735"
+				"spark.autotune.trackingId": "e5bdadc2-8434-4963-a731-31da9a0a3ea1"
 			}
 		},
 		"metadata": {
@@ -43,7 +43,7 @@
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.2",
+				"sparkVersion": "3.3",
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 28,
@@ -108,7 +108,7 @@
 					"    T1.updated_at AS UpdatedAt,\r\n",
 					"    T1.case_display_name AS CaseDisplayName,\r\n",
 					"    T2.SourceSystemID,\r\n",
-					"    T1.segment_date AS IngestionDate,\r\n",
+					"    to_timestamp(T1.expected_from) AS IngestionDate,\r\n",
 					"    NULL AS ValidTo,\r\n",
 					"    md5(concat( IFNULL(T1.segment_id,'.'), IFNULL(T4.EmployeeID,'.'), IFNULL(T1.segment_date,'.'), IFNULL(T1.start_time,'.'), IFNULL(T1.end_time,'.'), \r\n",
 					"                IFNULL(T1.case_reference,'.'), IFNULL(T1.segment_type,'.'), IFNULL(T1.worked_minutes,'.'), IFNULL(T1.created_at,'.'), \r\n",
@@ -123,7 +123,6 @@
 					"FULL JOIN odw_harmonised_db.timesheets_work_segment_dim T5 ON T1.segment_id = T5.SegmentID AND T5.IsActive = 'Y'\r\n",
 					"\r\n",
 					"WHERE\r\n",
-					"    (\r\n",
 					"        -- flags new data        \r\n",
 					"        ( CASE\r\n",
 					"            WHEN T1.segment_id = T5.SegmentID AND md5(concat(IFNULL(T1.segment_id,'.'), IFNULL(T4.EmployeeID,'.'), IFNULL(T1.segment_date,'.'), IFNULL(T1.start_time,'.'), \r\n",
@@ -133,15 +132,7 @@
 					"            WHEN T5.TimesheetsWorkSegmentID IS NULL\r\n",
 					"            THEN 'Y'\r\n",
 					"            ELSE 'N'\r\n",
-					"        END  = 'Y' ) OR\r\n",
-					"        \r\n",
-					"        -- flags deleted data\r\n",
-					"        ( CASE\r\n",
-					"            WHEN T1.segment_id IS NULL\r\n",
-					"            THEN 'Y'\r\n",
-					"            ELSE 'N'\r\n",
-					"        END = 'Y' )\r\n",
-					"    )\r\n",
+					"        END  = 'Y' ) \r\n",
 					";"
 				],
 				"execution_count": 28
@@ -425,10 +416,6 @@
 					"    UPDATE SET\r\n",
 					"    Target.ValidTo = date_sub(current_timestamp,1),\r\n",
 					"    Target.IsActive = 'N'\r\n",
-					"\r\n",
-					"-- Insert completely new rows\r\n",
-					"WHEN NOT MATCHED \r\n",
-					"    THEN INSERT * ;   \r\n",
 					""
 				],
 				"execution_count": 32
@@ -470,7 +457,7 @@
 					"%%sql\r\n",
 					"-- Insert new ID\r\n",
 					"\r\n",
-					"INSERT OVERWRITE odw_harmonised_db.timesheets_work_segment_dim\r\n",
+					"INSERT INTO odw_harmonised_db.timesheets_work_segment_dim\r\n",
 					"\r\n",
 					"SELECT \r\n",
 					"    ROW_NUMBER() OVER (ORDER BY SegmentID NULLS LAST) AS TimesheetsWorkSegmentID,\r\n",
@@ -490,9 +477,8 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM odw_harmonised_db.timesheets_work_segment_dim;\r\n",
-					"\r\n",
-					"Select * FROM odw_harmonised_db.timesheets_work_segment_dim;"
+					"FROM timesheets_work_segment_changed_rows;\r\n",
+					""
 				],
 				"execution_count": 33
 			}
