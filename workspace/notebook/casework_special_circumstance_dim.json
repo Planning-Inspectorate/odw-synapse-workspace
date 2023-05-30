@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "df4ad1ec-90d2-4d5f-bf17-6efe885d91ca"
+				"spark.autotune.trackingId": "540fecab-da52-4e3d-92d8-fbc0f3f75cd8"
 			}
 		},
 		"metadata": {
@@ -52,24 +52,6 @@
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": true
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					""
-				],
-				"execution_count": null
-			},
 			{
 				"cell_type": "markdown",
 				"metadata": {
@@ -114,50 +96,42 @@
 					"        WHEN T1.appealrefnumber IS NULL\r\n",
 					"        THEN T3.SpecialCircumstanceID\r\n",
 					"        ELSE NULL\r\n",
-					"    END as SpecialCircumstanceID,\r\n",
-					"    T1.appealrefnumber AS AppealRefNumber,\r\n",
-					"    T1.lastmodified AS LastModified,\r\n",
-					"    T1.specialcircumstance AS SpecialCircumstance,\r\n",
+					"    END                             AS SpecialCircumstanceID,\r\n",
+					"    T1.appealrefnumber              AS AppealRefNumber,\r\n",
+					"    T1.lastmodified                 AS LastModified,\r\n",
+					"    T1.specialcircumstance          AS SpecialCircumstance,\r\n",
 					"    T2.SourceSystemID,\r\n",
-					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
-					"    NULL AS ValidTo,\r\n",
-					"    md5(concat(IFNULL(T1.appealrefnumber,'.'), IFNULL(T1.lastmodified,'.'), IFNULL(T1.specialcircumstance,'.'))) as RowID, -- this hash should contain all the defining fields, so needs to be done\r\n",
-					"    'Y' as IsActive,\r\n",
-					"    CASE\r\n",
-					"        WHEN T1.appealrefnumber = T3.AppealRefNumber AND  md5(concat(IFNULL(T1.appealrefnumber,'.'), IFNULL(T1.lastmodified,'.'), IFNULL(T1.specialcircumstance,'.'))) <> T3.RowID   -- same employee, changed data\r\n",
-					"        THEN 'Y'\r\n",
-					"        WHEN T3.AppealRefNumber IS NULL -- new AppealRef\r\n",
-					"        THEN 'Y'\r\n",
-					"        ELSE 'N'\r\n",
-					"    END as NewData,\r\n",
-					"    CASE\r\n",
-					"        WHEN T1.appealrefnumber IS NULL\r\n",
-					"        THEN 'Y'\r\n",
-					"        ELSE 'N'\r\n",
-					"    END AS  DeletedData, \r\n",
-					"    T3.IsActive as HistoricIsActive\r\n",
+					"    to_timestamp(T1.expected_from)  AS IngestionDate,\r\n",
+					"    NULL                            AS ValidTo,\r\n",
+					"    md5(\r\n",
+					"        concat(\r\n",
+					"            IFNULL(T1.appealrefnumber,'.'),\r\n",
+					"            IFNULL(T1.lastmodified,'.'),\r\n",
+					"            IFNULL(T1.specialcircumstance,'.')\r\n",
+					"        ))                          AS RowID, -- this hash should contain all the defining fields\r\n",
+					"    'Y'                             AS IsActive,\r\n",
+					"    T3.IsActive                     AS HistoricIsActive\r\n",
 					"\r\n",
 					"FROM odw_standardised_db.horizon_special_circumstance T1\r\n",
 					"LEFT JOIN odw_harmonised_db.main_sourcesystem_fact T2 ON \"Casework\" = T2.Description AND T2.IsActive = 'Y'\r\n",
 					"FULL JOIN odw_harmonised_db.casework_special_circumstance_dim T3 ON T1.appealrefnumber = T3.AppealRefNumber AND T3.IsActive = 'Y'\r\n",
 					"WHERE\r\n",
-					"    (\r\n",
-					"        -- flags new data        \r\n",
-					"        (   CASE\r\n",
-					"                WHEN T1.appealrefnumber = T3.AppealRefNumber AND md5(concat(IFNULL(T1.appealrefnumber,'.'), IFNULL(T1.lastmodified,'.'), IFNULL(T1.specialcircumstance,'.'))) <> T3.RowID  -- same employee, changed data\r\n",
-					"                THEN 'Y'\r\n",
-					"                WHEN T3.AppealRefNumber IS NULL -- new PositionCode\r\n",
-					"                THEN 'Y'\r\n",
-					"            ELSE 'N'\r\n",
-					"            END  = 'Y' ) OR\r\n",
-					"        \r\n",
-					"        -- flags deleted data\r\n",
-					"        (   CASE\r\n",
-					"                WHEN T1.appealrefnumber IS NULL\r\n",
-					"                THEN 'Y'\r\n",
-					"                ELSE 'N'\r\n",
-					"            END = 'Y' )\r\n",
-					"    );\r\n",
+					"    -- flags new data        \r\n",
+					"    CASE\r\n",
+					"        WHEN T1.appealrefnumber = T3.AppealRefNumber AND \r\n",
+					"            md5(\r\n",
+					"                concat(\r\n",
+					"                    IFNULL(T1.appealrefnumber,'.'),\r\n",
+					"                    IFNULL(T1.lastmodified,'.'),\r\n",
+					"                    IFNULL(T1.specialcircumstance,'.')\r\n",
+					"                )\r\n",
+					"            ) <> T3.RowID  -- existing record, changed data\r\n",
+					"        THEN 'Y'\r\n",
+					"        WHEN T3.AppealRefNumber IS NULL -- new record\r\n",
+					"        THEN 'Y'\r\n",
+					"    ELSE 'N'\r\n",
+					"    END  = 'Y'\r\n",
+					";\r\n",
 					""
 				],
 				"execution_count": 2
@@ -416,11 +390,7 @@
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
 					"    Target.ValidTo = date_sub(current_timestamp,1),\r\n",
-					"    Target.IsActive = 'N'\r\n",
-					"\r\n",
-					"-- Insert completely new rows\r\n",
-					"WHEN NOT MATCHED \r\n",
-					"    THEN INSERT * ;  \r\n",
+					"    Target.IsActive = 'N';  \r\n",
 					""
 				],
 				"execution_count": 6
@@ -462,7 +432,7 @@
 					"%%sql\r\n",
 					"-- Insert new casework_special_circumstance_dim\r\n",
 					"\r\n",
-					"INSERT OVERWRITE odw_harmonised_db.casework_special_circumstance_dim\r\n",
+					"INSERT INTO odw_harmonised_db.casework_special_circumstance_dim\r\n",
 					"\r\n",
 					"SELECT \r\n",
 					"    ROW_NUMBER() OVER (ORDER BY AppealRefNumber NULLS LAST) AS SpecialCircumstanceID,\r\n",
@@ -474,7 +444,7 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM odw_harmonised_db.casework_special_circumstance_dim;\r\n",
+					"FROM casework_special_circumstance_dim_changed_rows;\r\n",
 					""
 				],
 				"execution_count": 7
