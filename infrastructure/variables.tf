@@ -154,11 +154,11 @@ variable "location" {
   type        = string
 }
 
-variable "logic_app_enabled" {
-  default     = false
-  description = "Determines whether the resources for the App Service Plan, Storage Account and Logic App Standard should be deployed"
-  type        = bool
-}
+# variable "logic_app_enabled" {
+#   default     = false
+#   description = "Determines whether the resources for the App Service Plan, Storage Account and Logic App Standard should be deployed"
+#   type        = bool
+# }
 
 variable "network_watcher_enabled" {
   default     = false
