@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "069dd89e-0348-4092-bfb6-ab7a28af89b0"
+				"spark.autotune.trackingId": "3287e9c8-27ab-4834-a519-a2a0a76caffb"
 			}
 		},
 		"metadata": {
@@ -150,7 +150,7 @@
 					"    --     ELSE 'Y'\r\n",
 					"    -- END as IsGreenAppeal,\r\n",
 					"    T2.SourceSystemID,\r\n",
-					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
+					"    to_timestamp(T1.expected_from) AS IngestionDate,\r\n",
 					"    NULL AS ValidTo,\r\n",
 					"    md5(concat(\r\n",
 					"        IFNULL(T1.CaseReference,'.'),\r\n",
@@ -160,25 +160,6 @@
 					"        IFNULL(T7.NSIPProjectInfoInternalID,'.')\r\n",
 					"        )) as RowID, -- this hash should contain all the defining fields, so needs to be done\r\n",
 					"    'Y' as IsActive,\r\n",
-					"    CASE\r\n",
-					"        WHEN T1.CaseReference = T3.CaseReference \r\n",
-					"            AND  md5(concat(\r\n",
-					"                IFNULL(T1.CaseReference,'.'),\r\n",
-					"                IFNULL(T4.AdditionalFieldsID,'.'),\r\n",
-					"                IFNULL(T5.EventID,'.'),\r\n",
-					"                IFNULL(T6.InspectorCasesID,'.'),\r\n",
-					"                IFNULL(T7.NSIPProjectInfoInternalID,'.')\r\n",
-					"                )) <> T3.RowID   -- same employee, changed data\r\n",
-					"        THEN 'Y'\r\n",
-					"        WHEN T3.CaseReference IS NULL -- new AppealRef\r\n",
-					"        THEN 'Y'\r\n",
-					"        ELSE 'N'\r\n",
-					"    END as NewData,\r\n",
-					"    CASE\r\n",
-					"        WHEN T1.CaseReference IS NULL\r\n",
-					"        THEN 'Y'\r\n",
-					"        ELSE 'N'\r\n",
-					"    END AS  DeletedData, \r\n",
 					"    T3.IsActive as HistoricIsActive\r\n",
 					"\r\n",
 					"FROM odw_harmonised_db.casework_case_info_dim T1\r\n",
@@ -656,10 +637,6 @@
 					"    UPDATE SET\r\n",
 					"    Target.ValidTo = date_sub(current_timestamp,1),\r\n",
 					"    Target.IsActive = 'N'\r\n",
-					"\r\n",
-					"-- Insert completely new rows\r\n",
-					"WHEN NOT MATCHED \r\n",
-					"    THEN INSERT * ;  \r\n",
 					""
 				],
 				"execution_count": null
@@ -701,7 +678,7 @@
 					"%%sql\r\n",
 					"-- Insert new casework_case_fact\r\n",
 					"\r\n",
-					"INSERT OVERWRITE odw_harmonised_db.casework_case_fact\r\n",
+					"INSERT INTO odw_harmonised_db.casework_case_fact\r\n",
 					"\r\n",
 					"SELECT \r\n",
 					"    ROW_NUMBER() OVER (ORDER BY CaseReference NULLS LAST) AS CaseID,\r\n",
@@ -757,7 +734,7 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM odw_harmonised_db.casework_case_fact;\r\n",
+					"FROM casework_case_fact_changed_rows;\r\n",
 					""
 				],
 				"execution_count": null

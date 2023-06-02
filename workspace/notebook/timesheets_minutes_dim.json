@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ce6f7e5b-2bf9-4a04-b9c1-d87165f39cce"
+				"spark.autotune.trackingId": "b14b4fce-7410-482d-bd25-0d409765c1fc"
 			}
 		},
 		"metadata": {
@@ -43,7 +43,7 @@
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.2",
+				"sparkVersion": "3.3",
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 28,
@@ -82,7 +82,7 @@
 				"source": [
 					"%%sql\r\n",
 					"-- Build religion_dim table\r\n",
-					"-- Gets modified or deleted from source rows\r\n",
+					"-- Gets modified from source rows\r\n",
 					"\r\n",
 					"CREATE OR REPLACE TEMPORARY VIEW timesheets_minutes_new\r\n",
 					"\r\n",
@@ -102,7 +102,7 @@
 					"    T1.core_minutes AS CoreMinutes,\r\n",
 					"    T1.balance_minutes AS BalanceMinutes,\r\n",
 					"    T2.SourceSystemID,\r\n",
-					"    CURRENT_TIMESTAMP AS IngestionDate,\r\n",
+					"    to_timestamp(T1.expected_from) AS IngestionDate,\r\n",
 					"    NULL AS ValidTo,\r\n",
 					"    md5(concat(IFNULL(T1.staff_number,'.'), IFNULL(T1.business_area,'.'), IFNULL(T1.core_minutes,'.'), IFNULL(T1.balance_minutes,'.'))) as RowID,\r\n",
 					"    'Y' as IsActive,\r\n",
@@ -113,8 +113,7 @@
 					"LEFT JOIN odw_harmonised_db.hr_employee_fact T4 ON T1.staff_number = T4.EmployeeNumber AND T4.IsActive = 'Y'\r\n",
 					"FULL JOIN odw_harmonised_db.timesheets_minutes_dim T5 ON T1.staff_number = T5.StaffNumber AND T5.IsActive = 'Y' \r\n",
 					"WHERE\r\n",
-					"    (\r\n",
-					"        -- flags new data        \r\n",
+					"    -- flags new data        \r\n",
 					"        ( CASE\r\n",
 					"            WHEN T1.staff_number = T5.StaffNumber AND md5(concat(IFNULL(T1.staff_number,'.'), IFNULL(T1.business_area,'.'), \r\n",
 					"                IFNULL(T1.core_minutes,'.'), IFNULL(T1.balance_minutes,'.'))) <> T5.RowID\r\n",
@@ -122,15 +121,7 @@
 					"            WHEN T5.StaffNumber IS NULL\r\n",
 					"            THEN 'Y'\r\n",
 					"            ELSE 'N'\r\n",
-					"        END  = 'Y' ) OR\r\n",
-					"        \r\n",
-					"        -- flags deleted data\r\n",
-					"        ( CASE\r\n",
-					"            WHEN T1.staff_number IS NULL\r\n",
-					"            THEN 'Y'\r\n",
-					"            ELSE 'N'\r\n",
-					"        END = 'Y' )\r\n",
-					"    )\r\n",
+					"        END  = 'Y' )\r\n",
 					";"
 				],
 				"execution_count": 81
@@ -329,12 +320,9 @@
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.ValidTo = date_sub(current_timestamp,1),\r\n",
+					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
 					"    Target.IsActive = 'N'\r\n",
 					"\r\n",
-					"-- Insert completely new rows\r\n",
-					"WHEN NOT MATCHED \r\n",
-					"    THEN INSERT *\r\n",
 					""
 				],
 				"execution_count": 83
@@ -376,7 +364,7 @@
 					"%%sql\r\n",
 					"-- Insert new ID\r\n",
 					"\r\n",
-					"INSERT OVERWRITE odw_harmonised_db.timesheets_minutes_dim\r\n",
+					"INSERT INTO odw_harmonised_db.timesheets_minutes_dim\r\n",
 					"\r\n",
 					"SELECT \r\n",
 					"    ROW_NUMBER() OVER (ORDER BY StaffNumber NULLS LAST) AS TimesheetsMinutesID,\r\n",
@@ -390,9 +378,8 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM odw_harmonised_db.timesheets_minutes_dim;\r\n",
-					"\r\n",
-					"Select * FROM odw_harmonised_db.timesheets_minutes_dim;"
+					"FROM timesheets_minutes_changed_rows;\r\n",
+					""
 				],
 				"execution_count": 84
 			}

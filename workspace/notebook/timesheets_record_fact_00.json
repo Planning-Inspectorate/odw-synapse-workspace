@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "2dcfa9e9-5cfe-45a8-a8d4-c85567ddf56e"
+				"spark.autotune.trackingId": "994e1281-b56d-4261-aa92-c42d80ee7364"
 			}
 		},
 		"metadata": {
@@ -43,7 +43,7 @@
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.2",
+				"sparkVersion": "3.3",
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 28,
@@ -107,8 +107,8 @@
 					"    TimesheetsWorkSegmentID,\r\n",
 					"    TimesheetsWorkSegmentLockID,\r\n",
 					"    TimesheetMinutesID,\r\n",
-					"    .SourceSystemID,\r\n",
-					"    current_timestamp as IngestionDate,\r\n",
+					"    T14.SourceSystemID,\r\n",
+					"    to_timestamp(T1.expected_from) AS IngestionDate,\r\n",
 					"    NULL as ValidTo,\r\n",
 					"    md5(concat(IFNULL(T2.EmployeeID,'.'), IFNULL(T3.PersonnelAreaID, '.'), IFNULL(T4.PersonnelSubAreaID, '.'), IFNULL(T5.OrganisationUnitID, '.'),IFNULL(T6.ContractID, '.'),\r\n",
 					"                IFNULL(T7.PayBandID, '.'),IFNULL(T8.CostCenterID, '.'),IFNULL(T9.PositionID, '.'),IFNULL(T10.ManagerEmployeeID, '.'),IFNULL(TempMPID.PositionID, '.'),\r\n",
@@ -154,7 +154,6 @@
 					"FULL JOIN odw_harmonised_db.timesheets_record_fact T15 ON T2.EmployeeID = T15.EmployeeID AND T15.IsActive = 'Y'\r\n",
 					"\r\n",
 					"WHERE\r\n",
-					"    (\r\n",
 					"        -- flags new data        \r\n",
 					"        ( CASE\r\n",
 					"            WHEN T2.EmployeeID = T15.EmployeeID AND md5(concat(IFNULL(T2.EmployeeID,'.'), IFNULL(T3.PersonnelAreaID, '.'), IFNULL(T4.PersonnelSubAreaID, '.'), IFNULL(T5.OrganisationUnitID, '.'),IFNULL(T6.ContractID, '.'),\r\n",
@@ -164,15 +163,7 @@
 					"            WHEN T15.EmployeeID IS NULL\r\n",
 					"            THEN 'Y'\r\n",
 					"            ELSE 'N'\r\n",
-					"        END  = 'Y' ) OR\r\n",
-					"        \r\n",
-					"        -- flags deleted data\r\n",
-					"        ( CASE\r\n",
-					"            WHEN T1.Pers_No IS NULL\r\n",
-					"            THEN 'Y'\r\n",
-					"            ELSE 'N'\r\n",
-					"        END = 'Y' )\r\n",
-					"    )\r\n",
+					"        END  = 'Y' ) \r\n",
 					";\r\n",
 					""
 				],
@@ -307,10 +298,6 @@
 					"    UPDATE SET\r\n",
 					"    Target.ValidTo = date_sub(current_timestamp,1),\r\n",
 					"    Target.IsActive = 'N'\r\n",
-					"\r\n",
-					"-- Insert completely new rows\r\n",
-					"WHEN NOT MATCHED \r\n",
-					"    THEN INSERT * ;   \r\n",
 					""
 				],
 				"execution_count": 14
@@ -352,7 +339,7 @@
 					"%%sql\r\n",
 					"-- Insert new SecureInfoID\r\n",
 					"\r\n",
-					"INSERT OVERWRITE odw_harmonised_db.hr_record_fact\r\n",
+					"INSERT INTO odw_harmonised_db.hr_record_fact\r\n",
 					"\r\n",
 					"SELECT \r\n",
 					"    ROW_NUMBER() OVER (ORDER BY HRRecordID NULLS LAST) AS TimeSheetsFactID, -- surrogate key\r\n",
@@ -366,7 +353,7 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM odw_harmonised_db.hr_record_fact;"
+					"FROM hr_record_fact_changed_rows;"
 				],
 				"execution_count": 15
 			}
