@@ -1,6 +1,6 @@
 resource "azurerm_key_vault" "synapse" {
+  #checkov:skip=CKV2_AZURE_32: Managed Private Endpoint is enabled for the Key Vault
   #checkov:skip=CKV_AZURE_189: Firewall is enabled in the network_acls block
-  #checkov:skip=CKV_AZURE_32: Firewall is enabled in the network_acls block
   name                       = replace("pins-kv-synw-${local.resource_suffix}", "-", "")
   resource_group_name        = var.resource_group_name
   location                   = var.location

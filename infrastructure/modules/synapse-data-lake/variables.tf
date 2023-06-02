@@ -74,6 +74,12 @@ variable "firewall_allowed_ip_addresses" {
   type        = list(string)
 }
 
+variable "key_vault_name" {
+  default     = ""
+  description = "The name of the Key Vault to use for secret storage"
+  type        = string
+}
+
 variable "key_vault_role_assignments" {
   default     = {}
   description = "An object mapping RBAC roles to principal IDs for Key Vault"
@@ -103,6 +109,11 @@ variable "service_name" {
 variable "synapse_private_endpoint_subnet_name" {
   default     = "SynapseEndpointSubnet"
   description = "The name of the subnet into which Synapse private endpoints should be deployed"
+  type        = string
+}
+
+variable "synapse_workspace_id" {
+  description = "The ID of the Synapse Workspace"
   type        = string
 }
 
