@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ec9b16a7-9fca-4706-9fac-be0ea1bd4f86"
+				"spark.autotune.trackingId": "dcbba13c-c3f2-4ce2-b540-25f27be0f63b"
 			}
 		},
 		"metadata": {
@@ -64,7 +64,7 @@
 				"source": [
 					"%run /utils/py_logging_decorator"
 				],
-				"execution_count": 42
+				"execution_count": 20
 			},
 			{
 				"cell_type": "code",
@@ -86,7 +86,7 @@
 					"db_name=\"\"\r\n",
 					"table_name=\"\""
 				],
-				"execution_count": 43
+				"execution_count": 21
 			},
 			{
 				"cell_type": "code",
@@ -206,7 +206,18 @@
 					"\r\n",
 					"    # check the table to see if there are any changes in the schema at all\r\n",
 					"    current_json_str = spark.read.format('delta').table(f'{db_name}.{table_name}').schema.jsonValue()    \r\n",
-					"    if json.loads(schema)['fields'] != current_json_str['fields']:\r\n",
+					"\r\n",
+					"    # delta spark engine does not enforce nullability - i have tested this a lot and the databricks forums and github imply this is on purpose...\r\n",
+					"    current_json_no_null = current_json_str\r\n",
+					"    [field.pop('nullable') for field in current_json_no_null['fields']]\r\n",
+					"\r\n",
+					"    schema_no_null = json.loads(schema)\r\n",
+					"    [field.pop('nullable') for field in schema_no_null['fields']]\r\n",
+					"\r\n",
+					"    current_table_schema = json.dumps(current_json_no_null['fields'], sort_keys=True)\r\n",
+					"    latest_json_schema = json.dumps(schema_no_null['fields'], sort_keys=True)\r\n",
+					"\r\n",
+					"    if current_table_schema == latest_json_schema:\r\n",
 					"        logger.info(\"no changes in schema\")\r\n",
 					"    else:\r\n",
 					"        # get the last stable table version in case we need to rollback\r\n",
@@ -217,6 +228,7 @@
 					"        last_stable_version = fullHistoryDF.select(\"version\").first()['version']\r\n",
 					"        try:\r\n",
 					"            # attempt to cast existing columns with new column type\r\n",
+					"            logger.info(\"casting columns\")\r\n",
 					"            new_schema_cast_columns(current_json_str, schema, db_name, table_name)\r\n",
 					"        except Exception as e:\r\n",
 					"            # if casting fails, raise error and restore to last stable version in case any transactions have happened\r\n",
@@ -227,6 +239,7 @@
 					"        \r\n",
 					"        # if successful, add new columns from new schema schema \r\n",
 					"        try:\r\n",
+					"            logger.info(\"adding new columns\")\r\n",
 					"            new_struct = StructType.fromJson(json.loads(schema))\r\n",
 					"            spark = SparkSession.builder.getOrCreate()\r\n",
 					"            spark.conf.set(\"spark.databricks.delta.schema.autoMerge.enabled\", \"true\")\r\n",
@@ -240,7 +253,7 @@
 					"\r\n",
 					""
 				],
-				"execution_count": 44
+				"execution_count": 22
 			},
 			{
 				"cell_type": "code",
@@ -258,7 +271,7 @@
 				"source": [
 					"apply_new_schema(db_name,table_name)"
 				],
-				"execution_count": 45
+				"execution_count": 23
 			}
 		]
 	}
