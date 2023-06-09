@@ -165,14 +165,14 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 
 | Name | Version |
 |------|---------|
-| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.1.6, < 2.0.0 |
-| <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) | ~> 3.0 |
+| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.1.6, < 3.56.0 |
+| <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) | ~> 3.56.0 |
 
 ## Providers
 
 | Name | Version |
 |------|---------|
-| <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) | 3.58.0 |
+| <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) | 3.56.0 |
 
 ## Modules
 
@@ -183,6 +183,8 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 | <a name="module_bastion_host_failover"></a> [bastion\_host\_failover](#module\_bastion\_host\_failover) | ./modules/bastion-host | n/a |
 | <a name="module_devops_agent_pool"></a> [devops\_agent\_pool](#module\_devops\_agent\_pool) | ./modules/devops-agent-pool | n/a |
 | <a name="module_devops_agent_pool_failover"></a> [devops\_agent\_pool\_failover](#module\_devops\_agent\_pool\_failover) | ./modules/devops-agent-pool | n/a |
+| <a name="module_logic_app"></a> [logic\_app](#module\_logic\_app) | ./modules/logic-app | n/a |
+| <a name="module_logic_app_failover"></a> [logic\_app\_failover](#module\_logic\_app\_failover) | ./modules/logic-app | n/a |
 | <a name="module_odt_pe_backoffice_sb"></a> [odt\_pe\_backoffice\_sb](#module\_odt\_pe\_backoffice\_sb) | ./modules/odt-pe-backoffice-sb | n/a |
 | <a name="module_odt_pe_backoffice_sb_failover"></a> [odt\_pe\_backoffice\_sb\_failover](#module\_odt\_pe\_backoffice\_sb\_failover) | ./modules/odt-pe-backoffice-sb | n/a |
 | <a name="module_synapse_data_lake"></a> [synapse\_data\_lake](#module\_synapse\_data\_lake) | ./modules/synapse-data-lake | n/a |
@@ -223,6 +225,8 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 | [azurerm_resource_group.data_management_failover](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
 | [azurerm_resource_group.ingestion](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
 | [azurerm_resource_group.ingestion_failover](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
+| [azurerm_resource_group.logic_app](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
+| [azurerm_resource_group.logic_app_failover](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
 | [azurerm_resource_group.monitoring](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
 | [azurerm_resource_group.monitoring_failover](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
 | [azurerm_resource_group.network](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
@@ -268,6 +272,7 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 | <a name="input_failover_deployment"></a> [failover\_deployment](#input\_failover\_deployment) | Determines if this is a failover deployment such that resources will deployed to the failover region | `bool` | `false` | no |
 | <a name="input_key_vault_role_assignments"></a> [key\_vault\_role\_assignments](#input\_key\_vault\_role\_assignments) | An object mapping RBAC roles to principal IDs for Key Vault | `map(list(string))` | `{}` | no |
 | <a name="input_location"></a> [location](#input\_location) | The short-format Azure region into which resources will be deployed | `string` | n/a | yes |
+| <a name="input_logic_app_enabled"></a> [logic\_app\_enabled](#input\_logic\_app\_enabled) | Determines whether the resources for the App Service Plan, Storage Account and Logic App Standard should be deployed | `bool` | `false` | no |
 | <a name="input_network_watcher_enabled"></a> [network\_watcher\_enabled](#input\_network\_watcher\_enabled) | Determines whether a Network Watcher resource will be deployed | `bool` | `false` | no |
 | <a name="input_odt_back_office_service_bus_enabled"></a> [odt\_back\_office\_service\_bus\_enabled](#input\_odt\_back\_office\_service\_bus\_enabled) | Determines whether the ODT Service Bus Namespace will be deployed | `bool` | `false` | no |
 | <a name="input_odt_back_office_service_bus_failover_enabled"></a> [odt\_back\_office\_service\_bus\_failover\_enabled](#input\_odt\_back\_office\_service\_bus\_failover\_enabled) | Whether or not to enable failover for the Service Bus namespace | `bool` | `false` | no |
@@ -315,6 +320,7 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 | <a name="output_devops_agent_pool_resource_group_name"></a> [devops\_agent\_pool\_resource\_group\_name](#output\_devops\_agent\_pool\_resource\_group\_name) | The name of the resource group containing the devops agent pool resources |
 | <a name="output_key_vault_uri"></a> [key\_vault\_uri](#output\_key\_vault\_uri) | The URI of the Key Vault |
 | <a name="output_service_bus_namespace_name"></a> [service\_bus\_namespace\_name](#output\_service\_bus\_namespace\_name) | The name of the Service Bus Namespace |
+| <a name="output_service_bus_primary_connection_string"></a> [service\_bus\_primary\_connection\_string](#output\_service\_bus\_primary\_connection\_string) | The primary connection string of the Service Bus Namespace |
 | <a name="output_synapse_dev_endpoint"></a> [synapse\_dev\_endpoint](#output\_synapse\_dev\_endpoint) | The development connectivity endpoint for the Synapse Workspace |
 | <a name="output_synapse_dsql_endpoint"></a> [synapse\_dsql\_endpoint](#output\_synapse\_dsql\_endpoint) | The dedicated SQL pool connectivity endpoint for the Synapse Workspace |
 | <a name="output_synapse_ssql_endpoint"></a> [synapse\_ssql\_endpoint](#output\_synapse\_ssql\_endpoint) | The serverless SQL pool connectivity endpoint for the Synapse Workspace |
