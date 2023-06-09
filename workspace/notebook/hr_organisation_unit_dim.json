@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "cf89929c-29d9-4e29-8c02-3f08949eed1a"
+				"spark.autotune.trackingId": "67f0728f-5bfd-409f-b8bf-838bc1819d7e"
 			}
 		},
 		"metadata": {
@@ -76,16 +76,17 @@
 					"\r\n",
 					"    AS\r\n",
 					"\r\n",
-					"SELECT \r\n",
-					"        Org_unit AS OrganisationUnit,\r\n",
-					"        Organizational_Unit AS Description,\r\n",
+					"SELECT DISTINCT\r\n",
+					"        IFNULL(Org_unit, 'No Value') AS OrganisationUnit,\r\n",
+					"        IFNULL(Organizational_Unit, 'No Value Given') AS Description,\r\n",
 					"        last(expected_from) AS expected_from\r\n",
 					"    \r\n",
 					"FROM odw_standardised_db.vw_saphr\r\n",
-					"WHERE Org_Unit IS NOT NULL\r\n",
-					"GROUP BY Org_unit, Organizational_Unit;"
+					"WHERE Org_Unit IS NOT NULL AND Org_Unit != '00000000'\r\n",
+					"GROUP BY Org_unit, Organizational_Unit;\r\n",
+					""
 				],
-				"execution_count": 1
+				"execution_count": 37
 			},
 			{
 				"cell_type": "markdown",
@@ -151,13 +152,14 @@
 					"        WHEN T1.OrganisationUnit = T7.OrganisationUnit AND T1.Description = T7.Description AND  \r\n",
 					"            md5(concat(IFNULL(T1.OrganisationUnit,'.'), IFNULL(T1.Description,'.'))) <> T7.RowID    -- same unit, changed data\r\n",
 					"        THEN 'Y'\r\n",
-					"        WHEN T7.OrganisationUnit IS NULL -- new organisational unit\r\n",
+					"        WHEN T7.OrganisationUnitID IS NULL -- new organisational unit\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
 					"    END  = 'Y' \r\n",
-					";"
+					";\r\n",
+					""
 				],
-				"execution_count": 2
+				"execution_count": 39
 			},
 			{
 				"cell_type": "markdown",
@@ -234,7 +236,7 @@
 					"                                            T1.IsActive = 'Y' ;\r\n",
 					""
 				],
-				"execution_count": 5
+				"execution_count": 31
 			},
 			{
 				"cell_type": "markdown",
@@ -286,10 +288,12 @@
 					"    UPDATE SET\r\n",
 					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
 					"    Target.IsActive = 'N'\r\n",
-					"\r\n",
+					"        \r\n",
+					"WHEN NOT MATCHED \r\n",
+					"    THEN INSERT * ;  \r\n",
 					""
 				],
-				"execution_count": 6
+				"execution_count": 32
 			},
 			{
 				"cell_type": "markdown",
@@ -328,7 +332,7 @@
 					"%%sql\r\n",
 					"-- Insert new organisationunit_dim\r\n",
 					"\r\n",
-					"INSERT INTO odw_harmonised_db.hr_organisation_unit_dim\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.hr_organisation_unit_dim\r\n",
 					"\r\n",
 					"SELECT \r\n",
 					"    ROW_NUMBER() OVER (ORDER BY OrganisationUnitID NULLS LAST) AS OrganisationUnitID,\r\n",
@@ -339,9 +343,9 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM OrganisationUnit_dim_changed_rows;"
+					"FROM odw_harmonised_db.hr_organisation_unit_dim;"
 				],
-				"execution_count": 7
+				"execution_count": 34
 			}
 		]
 	}

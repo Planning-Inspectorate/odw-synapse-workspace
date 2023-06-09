@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ae48e745-e577-4357-bf04-f099e483c89a"
+				"spark.autotune.trackingId": "930b66bc-decd-4ef5-8679-34a989d21f21"
 			}
 		},
 		"metadata": {
@@ -276,7 +276,10 @@
 					"    UPDATE SET\r\n",
 					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
 					"    Target.IsActive = 'N'\r\n",
-					"\r\n",
+					"        \r\n",
+					"-- Insert completely new rows\r\n",
+					"WHEN NOT MATCHED \r\n",
+					"    THEN INSERT * ;\r\n",
 					""
 				],
 				"execution_count": 4
@@ -318,7 +321,7 @@
 					"%%sql\r\n",
 					"-- Insert new PersonnelAreaID\r\n",
 					"\r\n",
-					"INSERT INTO odw_harmonised_db.hr_payroll_area_dim\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.hr_payroll_area_dim\r\n",
 					"\r\n",
 					"SELECT \r\n",
 					"    ROW_NUMBER() OVER (ORDER BY PayrollAreaID NULLS LAST) AS PayrollAreaID,\r\n",
@@ -329,7 +332,7 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM payband_dim_changed_rows;\r\n",
+					"FROM odw_harmonised_db.hr_payroll_area_dim;\r\n",
 					""
 				],
 				"execution_count": 5

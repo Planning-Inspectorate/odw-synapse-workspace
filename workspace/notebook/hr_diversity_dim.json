@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d0f84e11-6a9d-493e-8ca3-5ceb0ee0b93a"
+				"spark.autotune.trackingId": "197adf73-6b75-47cc-be04-8984cebeb9b8"
 			}
 		},
 		"metadata": {
@@ -280,6 +280,11 @@
 					"    UPDATE SET\r\n",
 					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
 					"    Target.IsActive = 'N'\r\n",
+					"\r\n",
+					"        \r\n",
+					"-- Insert completely new rows\r\n",
+					"WHEN NOT MATCHED \r\n",
+					"    THEN INSERT * ;  \r\n",
 					""
 				],
 				"execution_count": 9
@@ -321,17 +326,17 @@
 					"%%sql\r\n",
 					"-- Insert new DiversityID\r\n",
 					"\r\n",
-					"INSERT INTO odw_harmonised_db.hr_diversity_dim\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.hr_diversity_dim\r\n",
 					"\r\n",
 					"SELECT \r\n",
-					"    ROW_NUMBER() OVER (ORDER BY Description NULLS LAST) AS DiversityID, \r\n",
+					"    ROW_NUMBER() OVER (ORDER BY DiversityID NULLS LAST) AS DiversityID, \r\n",
 					"    Description, \r\n",
 					"    SourceSystemID,\r\n",
 					"    IngestionDate,\r\n",
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM diversity_dim_changed_rows;"
+					"FROM odw_harmonised_db.hr_diversity_dim;"
 				],
 				"execution_count": 10
 			}

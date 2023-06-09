@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "7588ac0f-ca3a-4265-8a1e-7ce9c069e750"
+				"spark.autotune.trackingId": "0e9455f5-4015-433b-808e-e813691aed56"
 			}
 		},
 		"metadata": {
@@ -293,7 +293,10 @@
 					"    UPDATE SET\r\n",
 					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
 					"    Target.IsActive = 'N'\r\n",
-					"\r\n",
+					"        \r\n",
+					"-- Insert completely new rows\r\n",
+					"WHEN NOT MATCHED \r\n",
+					"    THEN INSERT * ;  \r\n",
 					""
 				],
 				"execution_count": 5
@@ -336,7 +339,7 @@
 					"\r\n",
 					"-- Insert new ContractID\r\n",
 					"\r\n",
-					"INSERT INTO odw_harmonised_db.hr_contract_dim\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.hr_contract_dim\r\n",
 					"\r\n",
 					"SELECT \r\n",
 					"    ROW_NUMBER() OVER (ORDER BY ContractID NULLS LAST) AS ContractID,\r\n",
@@ -349,7 +352,7 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM contract_dim_changed_rows;\r\n",
+					"FROM odw_harmonised_db.hr_contract_dim;\r\n",
 					""
 				],
 				"execution_count": 6

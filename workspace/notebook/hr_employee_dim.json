@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "43ab8f9f-0a81-4fbf-a6f0-915d8d1c7280"
+				"spark.autotune.trackingId": "429f2d11-50e8-4338-a1bb-87da58409221"
 			}
 		},
 		"metadata": {
@@ -194,7 +194,7 @@
 					"\r\n",
 					"-- gets updated, deleted and new rows \r\n",
 					"\r\n",
-					"Select \r\n",
+					"SELECT DISTINCT\r\n",
 					"    EmployeeInfoID, -- surrogate key\r\n",
 					"    EmployeeID, \r\n",
 					"    FirstName,\r\n",
@@ -236,7 +236,7 @@
 					"\r\n",
 					"-- gets original versions of updated rows so we can update EndDate and set IsActive flag to 'N'\r\n",
 					"\r\n",
-					"SELECT\r\n",
+					"SELECT DISTINCT\r\n",
 					"    EmployeeInfoID, -- surrogate key\r\n",
 					"    EmployeeID, \r\n",
 					"    FirstName,\r\n",
@@ -276,7 +276,7 @@
 					"WHERE EmployeeID IN (SELECT EmployeeID FROM employee_dim_new WHERE EmployeeInfoID IS NULL) AND IsActive = 'Y';\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 7
 			},
 			{
 				"cell_type": "markdown",
@@ -327,9 +327,13 @@
 					"    UPDATE SET\r\n",
 					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
 					"    Target.IsActive = 'N'\r\n",
+					"\r\n",
+					"-- Insert completely new rows\r\n",
+					"WHEN NOT MATCHED \r\n",
+					"    THEN INSERT * ;  \r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 9
 			},
 			{
 				"cell_type": "markdown",
@@ -368,7 +372,7 @@
 					"%%sql\r\n",
 					"-- Insert new SecureInfoID\r\n",
 					"\r\n",
-					"INSERT INTO odw_harmonised_db.hr_employee_dim \r\n",
+					"INSERT OVERWRITE odw_harmonised_db.hr_employee_dim \r\n",
 					"\r\n",
 					"SELECT \r\n",
 					"    ROW_NUMBER() OVER (ORDER BY EmployeeInfoID NULLS LAST) AS EmployeeInfoID, \r\n",
@@ -406,34 +410,9 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM employee_dim_changed_rows;"
+					"FROM odw_harmonised_db.hr_employee_dim ;"
 				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
-				},
-				"source": [
-					"%%sql \n",
-					"\n",
-					"SELECT COUNT (*) from odw_harmonised_db.hr_employee_fact;\n",
-					"SELECT COUNT (*) from odw_harmonised_db.hr_employee_dim"
-				],
-				"execution_count": null
+				"execution_count": 10
 			}
 		]
 	}
