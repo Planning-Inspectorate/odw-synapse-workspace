@@ -17,7 +17,7 @@ resource "azurerm_api_connection" "zendesk_api_connection" {
   # }
 
   provisioner "local-exec" {
-    command     = "./LogicAppConnectionAuth.ps1"
+    command     = "./${path.module}/LogicAppConnectionAuth.ps1"
     interpreter = ["pwsh", "-Command"]
   }
 }
