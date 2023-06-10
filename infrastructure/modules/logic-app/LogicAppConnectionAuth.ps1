@@ -28,11 +28,13 @@ Param(
 
 #login to get an access code 
 
-Login-AzureRmAccount 
+# Login-AzureRmAccount 
+
+Connect-AzAccount -UseDeviceAuthentication
 
 #select the subscription
 
-$subscription = Select-AzureRmSubscription -SubscriptionId $subscriptionId
+# $subscription = Select-AzureRmSubscription -SubscriptionId $subscriptionId
 
 #if the connection wasn't alrady created via a deployment
 if($createConnection)
