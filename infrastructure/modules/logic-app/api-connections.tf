@@ -10,10 +10,15 @@ resource "azurerm_api_connection" "zendesk_api_connection" {
     "token:Subdomain" = "pinssupport"
   }
 
-  lifecycle {
-    ignore_changes = [
-      parameter_values
-    ]
+  # lifecycle {
+  #   ignore_changes = [
+  #     parameter_values
+  #   ]
+  # }
+
+  provisioner "local-exec" {
+    command = "LogicAppConnectionAuth.ps1"
+    interpreter = ["pwsh", "-Command"]
   }
 }
 
