@@ -30,7 +30,7 @@ Param(
 
 # Login-AzureRmAccount 
 
-Connect-AzAccount -UseDeviceAuthentication
+Connect-AzAccount -SubscriptionId $subscriptionId
 
 #select the subscription
 
