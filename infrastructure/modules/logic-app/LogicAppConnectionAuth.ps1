@@ -30,12 +30,12 @@ Param(
 
 # Login-AzureRmAccount 
 
-# Connect-AzAccount -SubscriptionId $subscriptionId
+Connect-AzAccount -UseDeviceAuthentication
 Set-AzContext -Subscription $subscriptionId
 
 #select the subscription
 
-# $subscription = Select-AzureRmSubscription -SubscriptionId $subscriptionId
+# Select-AzureRmSubscription -SubscriptionId $subscriptionId
 
 #if the connection wasn't alrady created via a deployment
 if($createConnection)
