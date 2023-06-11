@@ -8,6 +8,9 @@ Param(
     [bool] $createConnection =  $false
 )
     Enable-AzureRmAlias
+    Import-Module AzureAD -UseWindowsPowerShell
+    Import-Module AzureAD
+
 
     Function Show-OAuthWindow {
     Add-Type -AssemblyName System.Windows.Forms
