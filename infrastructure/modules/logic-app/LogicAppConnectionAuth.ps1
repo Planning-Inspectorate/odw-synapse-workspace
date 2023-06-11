@@ -8,6 +8,7 @@ Param(
     [bool] $createConnection =  $false
 )
     Enable-AzureRmAlias
+    Install-Module AzureAD -Force
     Import-Module AzureAD -UseWindowsPowerShell
     Import-Module AzureAD
 
