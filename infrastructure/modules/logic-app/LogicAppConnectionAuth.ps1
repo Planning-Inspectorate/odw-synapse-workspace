@@ -32,7 +32,7 @@ Param(
 
 #select the subscription
 
-Select-AzureRmSubscription -SubscriptionId $subscriptionId
+Select-AzureRmSubscription -SubscriptionId 'ff442a29-fc06-4a13-8e3e-65fd5da513b3'
 
 #if the connection wasn't alrady created via a deployment
 if($createConnection)
