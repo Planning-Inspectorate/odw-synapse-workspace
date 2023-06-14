@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "f8750a21-904b-490a-96c0-c1e55897be10"
+				"spark.autotune.trackingId": "947c594f-ca56-4f6d-afe8-deb5ccb07aad"
 			}
 		},
 		"metadata": {
@@ -407,8 +407,12 @@
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.ValidTo = date_sub(current_timestamp,1),\r\n",
-					"    Target.IsActive = 'N' ;  \r\n",
+					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
+					"    Target.IsActive = 'N'\r\n",
+					"        \r\n",
+					"-- Insert completely new rows\r\n",
+					"WHEN NOT MATCHED \r\n",
+					"    THEN INSERT * ; \r\n",
 					""
 				],
 				"execution_count": 6
@@ -450,10 +454,10 @@
 					"%%sql\r\n",
 					"-- Insert new casework_specialism_dim\r\n",
 					"\r\n",
-					"INSERT INTO odw_harmonised_db.casework_specialism_dim\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.casework_specialism_dim\r\n",
 					"\r\n",
 					"SELECT \r\n",
-					"    ROW_NUMBER() OVER (ORDER BY AppealRefNumber NULLS LAST) AS SpecialismID,\r\n",
+					"    ROW_NUMBER() OVER (ORDER BY SpecialismID NULLS LAST) AS SpecialismID,\r\n",
 					"    AppealRefNumber,\r\n",
 					"    LastModified,\r\n",
 					"    Specialism,\r\n",
@@ -462,7 +466,7 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM casework_specialism_dim_changed_rows;\r\n",
+					"FROM odw_harmonised_db.casework_specialism_dim;\r\n",
 					""
 				],
 				"execution_count": 7

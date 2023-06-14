@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "82ac7989-996b-4620-ba5f-6d04eb9e52af"
+				"spark.autotune.trackingId": "753fe867-28aa-49ff-b4f1-ab4557c53b27"
 			}
 		},
 		"metadata": {
@@ -420,9 +420,12 @@
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.ValidTo = date_sub(current_timestamp,1),\r\n",
+					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
 					"    Target.IsActive = 'N'\r\n",
-					""
+					"\r\n",
+					"-- Insert completely new rows\r\n",
+					"WHEN NOT MATCHED \r\n",
+					"    THEN INSERT * ;  "
 				],
 				"execution_count": 6
 			},
@@ -463,10 +466,10 @@
 					"%%sql\r\n",
 					"-- Insert new casework_enforcement_grounds_dim\r\n",
 					"\r\n",
-					"INSERT INTO odw_harmonised_db.casework_enforcement_grounds_dim\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.casework_enforcement_grounds_dim\r\n",
 					"\r\n",
 					"SELECT \r\n",
-					"    ROW_NUMBER() OVER (ORDER BY AppealRefNumber NULLS LAST) AS EnforcementGroundsID,\r\n",
+					"    ROW_NUMBER() OVER (ORDER BY EnforcementGroundsID NULLS LAST) AS EnforcementGroundsID,\r\n",
 					"    AppealRefNumber,\r\n",
 					"    LastModified,\r\n",
 					"    GroundForAppeal,\r\n",
@@ -477,7 +480,8 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM casework_enforcement_grounds_dim_changed_rows;\r\n",
+					"FROM odw_harmonised_db.casework_enforcement_grounds_dim\r\n",
+					";\r\n",
 					""
 				],
 				"execution_count": 7

@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "e5bdadc2-8434-4963-a731-31da9a0a3ea1"
+				"spark.autotune.trackingId": "c29771a0-1083-492c-b0ce-fa64d5f6202a"
 			}
 		},
 		"metadata": {
@@ -416,6 +416,10 @@
 					"    UPDATE SET\r\n",
 					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
 					"    Target.IsActive = 'N'\r\n",
+					"        \r\n",
+					"-- Insert completely new rows\r\n",
+					"WHEN NOT MATCHED \r\n",
+					"    THEN INSERT * ; \r\n",
 					""
 				],
 				"execution_count": 32
@@ -457,10 +461,10 @@
 					"%%sql\r\n",
 					"-- Insert new ID\r\n",
 					"\r\n",
-					"INSERT INTO odw_harmonised_db.timesheets_work_segment_dim\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.timesheets_work_segment_dim\r\n",
 					"\r\n",
 					"SELECT \r\n",
-					"    ROW_NUMBER() OVER (ORDER BY SegmentID NULLS LAST) AS TimesheetsWorkSegmentID,\r\n",
+					"    ROW_NUMBER() OVER (ORDER BY TimesheetsWorkSegmentID NULLS LAST) AS TimesheetsWorkSegmentID,\r\n",
 					"    SegmentID,\r\n",
 					"    EmployeeID,\r\n",
 					"    SegmentDate,\r\n",
@@ -477,7 +481,7 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM timesheets_work_segment_changed_rows;\r\n",
+					"FROM odw_harmonised_db.timesheets_work_segment_dim;\r\n",
 					""
 				],
 				"execution_count": 33

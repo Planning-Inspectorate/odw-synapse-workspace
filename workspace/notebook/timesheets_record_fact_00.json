@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "994e1281-b56d-4261-aa92-c42d80ee7364"
+				"spark.autotune.trackingId": "917dc8b5-61df-4d29-a7af-427a428b8360"
 			}
 		},
 		"metadata": {
@@ -296,8 +296,12 @@
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.ValidTo = date_sub(current_timestamp,1),\r\n",
+					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
 					"    Target.IsActive = 'N'\r\n",
+					"        \r\n",
+					"-- Insert completely new rows\r\n",
+					"WHEN NOT MATCHED \r\n",
+					"    THEN INSERT * ; \r\n",
 					""
 				],
 				"execution_count": 14
@@ -339,10 +343,10 @@
 					"%%sql\r\n",
 					"-- Insert new SecureInfoID\r\n",
 					"\r\n",
-					"INSERT INTO odw_harmonised_db.hr_record_fact\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.hr_record_fact\r\n",
 					"\r\n",
 					"SELECT \r\n",
-					"    ROW_NUMBER() OVER (ORDER BY HRRecordID NULLS LAST) AS TimeSheetsFactID, -- surrogate key\r\n",
+					"    ROW_NUMBER() OVER (ORDER BY TimeSheetsFactID NULLS LAST) AS TimeSheetsFactID, -- surrogate key\r\n",
 					"    EmployeeID,\r\n",
 					"    SegmentTypeReferenceID,\r\n",
 					"    TimesheetsWorkSegmentID,\r\n",
@@ -353,7 +357,7 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM hr_record_fact_changed_rows;"
+					"FROM odw_harmonised_db.hr_record_fact;"
 				],
 				"execution_count": 15
 			}

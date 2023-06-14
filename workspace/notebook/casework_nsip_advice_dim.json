@@ -22,7 +22,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5a9824a4-1756-476d-9a16-13231c8bab8f"
+				"spark.autotune.trackingId": "c99f0f55-85d0-4a1e-9318-7dbdd6d66b28"
 			}
 		},
 		"metadata": {
@@ -481,8 +481,12 @@
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.ValidTo = date_sub(current_timestamp,1),\r\n",
-					"    Target.IsActive = 'N'"
+					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
+					"    Target.IsActive = 'N'\r\n",
+					"        \r\n",
+					"-- Insert completely new rows\r\n",
+					"WHEN NOT MATCHED \r\n",
+					"    THEN INSERT * ; "
 				],
 				"execution_count": 5
 			},
@@ -523,7 +527,7 @@
 					"%%sql\r\n",
 					"-- Insert new casework_nsip_advice_dim\r\n",
 					"\r\n",
-					"INSERT INTO odw_harmonised_db.casework_nsip_advice_dim\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.casework_nsip_advice_dim\r\n",
 					"\r\n",
 					"SELECT \r\n",
 					"    ROW_NUMBER() OVER (ORDER BY NSIPAdviceID NULLS LAST) AS NSIPAdviceID,\r\n",
@@ -554,7 +558,7 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"    FROM casework_nsip_advice_dim_changed_rows;\r\n",
+					"    FROM odw_harmonised_db.casework_nsip_advice_dim;\r\n",
 					""
 				],
 				"execution_count": 6

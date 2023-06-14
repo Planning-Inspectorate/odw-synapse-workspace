@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "1ea37217-65ce-408b-a57f-c896f45edac8"
+				"spark.autotune.trackingId": "8a226237-7795-4fd3-ba5a-9fa02da62a24"
 			}
 		},
 		"metadata": {
@@ -546,8 +546,12 @@
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.ValidTo = date_sub(current_timestamp,1),\r\n",
-					"    Target.IsActive = 'N';  \r\n",
+					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
+					"    Target.IsActive = 'N'\r\n",
+					"        \r\n",
+					"-- Insert completely new rows\r\n",
+					"WHEN NOT MATCHED \r\n",
+					"    THEN INSERT * ; \r\n",
 					""
 				],
 				"execution_count": 5
@@ -589,7 +593,7 @@
 					"%%sql\r\n",
 					"-- Insert new casework_nsip_relevant_representation_dim\r\n",
 					"\r\n",
-					"INSERT INTO odw_harmonised_db.casework_nsip_relevant_representation_dim\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.casework_nsip_relevant_representation_dim\r\n",
 					"\r\n",
 					"SELECT \r\n",
 					"    ROW_NUMBER() OVER (ORDER BY NSIPRelevantRepresentationID NULLS LAST) AS NSIPRelevantRepresentationID,\r\n",
@@ -634,7 +638,7 @@
 					"    RowID,\r\n",
 					"    IsActive\r\n",
 					"    \r\n",
-					"FROM casework_nsip_relevant_representation_dim_changed_rows;\r\n",
+					"FROM odw_harmonised_db.casework_nsip_relevant_representation_dim;\r\n",
 					""
 				],
 				"execution_count": null

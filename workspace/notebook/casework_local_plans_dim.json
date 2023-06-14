@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ab8e3a31-ff43-40c0-ae46-cc8d916c3d3d"
+				"spark.autotune.trackingId": "3604b6bd-d6ef-4d0e-9804-55726bc9ce5a"
 			}
 		},
 		"metadata": {
@@ -730,8 +730,12 @@
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.ValidTo = date_sub(current_timestamp,1),\r\n",
-					"    Target.IsActive = 'N' ;  \r\n",
+					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
+					"    Target.IsActive = 'N'\r\n",
+					"        \r\n",
+					"-- Insert completely new rows\r\n",
+					"WHEN NOT MATCHED \r\n",
+					"    THEN INSERT * ; \r\n",
 					""
 				],
 				"execution_count": 9
@@ -773,10 +777,10 @@
 					"%%sql\r\n",
 					"-- Insert new casework_local_plans_dim\r\n",
 					"\r\n",
-					"INSERT INTO odw_harmonised_db.casework_local_plans_dim\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.casework_local_plans_dim\r\n",
 					"\r\n",
 					"SELECT \r\n",
-					"    ROW_NUMBER() OVER (ORDER BY HZRef NULLS LAST) AS LocalPlansID,\r\n",
+					"    ROW_NUMBER() OVER (ORDER BY LocalPlansID NULLS LAST) AS LocalPlansID,\r\n",
 					"    HZRef,\r\n",
 					"    LDFNo,\r\n",
 					"    Region,\r\n",
@@ -831,7 +835,7 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM casework_local_plans_dim_changed_rows;\r\n",
+					"FROM odw_harmonised_db.casework_local_plans_dim;\r\n",
 					""
 				],
 				"execution_count": 10

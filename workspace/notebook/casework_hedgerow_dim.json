@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "70d9fc4e-bac3-4880-a091-5dbd31901549"
+				"spark.autotune.trackingId": "4df84815-34fa-4ea7-a631-f644e0187d67"
 			}
 		},
 		"metadata": {
@@ -490,35 +490,14 @@
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.ValidTo = date_sub(current_timestamp,1),\r\n",
+					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
 					"    Target.IsActive = 'N'\r\n",
-					""
+					"        \r\n",
+					"-- Insert completely new rows\r\n",
+					"WHEN NOT MATCHED \r\n",
+					"    THEN INSERT * ; "
 				],
 				"execution_count": 23
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
-				},
-				"source": [
-					"%%sql\n",
-					"\n",
-					"SELECT * FROM casework_hedgerow_dim_changed_rows;"
-				],
-				"execution_count": 25
 			},
 			{
 				"cell_type": "markdown",
@@ -557,10 +536,10 @@
 					"%%sql\r\n",
 					"-- Insert new casework_hedgerow_dim\r\n",
 					"\r\n",
-					"INSERT INTO odw_harmonised_db.casework_hedgerow_dim\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.casework_hedgerow_dim\r\n",
 					"\r\n",
 					"SELECT \r\n",
-					"    ROW_NUMBER() OVER (ORDER BY AppealReferenceNumber NULLS LAST) AS HedgerowID,\r\n",
+					"    ROW_NUMBER() OVER (ORDER BY HedgerowID NULLS LAST) AS HedgerowID,\r\n",
 					"    Category,\r\n",
 					"    Type,\r\n",
 					"    Procedure,\r\n",
@@ -590,7 +569,7 @@
 					"    RowID,\r\n",
 					"    IsActive\r\n",
 					"\r\n",
-					"FROM casework_hedgerow_dim_changed_rows;\r\n",
+					"FROM odw_harmonised_db.casework_hedgerow_dim;\r\n",
 					""
 				],
 				"execution_count": 26

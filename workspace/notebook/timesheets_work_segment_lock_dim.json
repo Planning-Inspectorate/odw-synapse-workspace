@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "0f3870af-bef2-48a5-b4b7-3193722fd5ae"
+				"spark.autotune.trackingId": "a5c08a82-0e99-4a52-aa26-705942da280e"
 			}
 		},
 		"metadata": {
@@ -391,6 +391,10 @@
 					"    UPDATE SET\r\n",
 					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
 					"    Target.IsActive = 'N'\r\n",
+					"        \r\n",
+					"-- Insert completely new rows\r\n",
+					"WHEN NOT MATCHED \r\n",
+					"    THEN INSERT * ; \r\n",
 					""
 				],
 				"execution_count": 26
@@ -432,10 +436,10 @@
 					"%%sql\r\n",
 					"-- Insert new ID\r\n",
 					"\r\n",
-					"INSERT INTO odw_harmonised_db.timesheets_work_segment_lock_dim\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.timesheets_work_segment_lock_dim\r\n",
 					"\r\n",
 					"SELECT \r\n",
-					"    ROW_NUMBER() OVER (ORDER BY WorkSegmentLockID NULLS LAST) AS TimesheetsWorkSegmentID,\r\n",
+					"    ROW_NUMBER() OVER (ORDER BY TimesheetsWorkSegmentID NULLS LAST) AS TimesheetsWorkSegmentID,\r\n",
 					"    WorkSegmentLockID,\r\n",
 					"    EmployeeID,\r\n",
 					"    FirstDateOfWeek,\r\n",
@@ -445,7 +449,7 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM timesheets_work_segment_lock_changed_rows;"
+					"FROM odw_harmonised_db.timesheets_work_segment_lock_dim;"
 				],
 				"execution_count": 27
 			}

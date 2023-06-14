@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "94f88fe6-4e3e-47cb-bec6-d5aa51fa85c0"
+				"spark.autotune.trackingId": "ddbabc47-a270-4d1a-9a3f-04b0c77d1316"
 			}
 		},
 		"metadata": {
@@ -379,8 +379,12 @@
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.ValidTo = date_sub(current_timestamp,1),\r\n",
-					"    Target.IsActive = 'N'"
+					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
+					"    Target.IsActive = 'N'\r\n",
+					"\r\n",
+					"-- Insert completely new rows\r\n",
+					"WHEN NOT MATCHED \r\n",
+					"    THEN INSERT * ;  "
 				],
 				"execution_count": 6
 			},
@@ -421,10 +425,10 @@
 					"%%sql\r\n",
 					"-- Insert new casework_case_officer_additional_details_dim\r\n",
 					"\r\n",
-					"INSERT INTO odw_harmonised_db.casework_case_officer_additional_details_dim\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.casework_case_officer_additional_details_dim\r\n",
 					"\r\n",
 					"SELECT \r\n",
-					"    ROW_NUMBER() OVER (ORDER BY AppealRefNumber NULLS LAST) AS CaseOfficerAdditionalDetailsID,\r\n",
+					"    ROW_NUMBER() OVER (ORDER BY CaseOfficerAdditionalDetailsID NULLS LAST) AS CaseOfficerAdditionalDetailsID,\r\n",
 					"    AppealRefNumber,\r\n",
 					"    CaseReference,\r\n",
 					"    CaseOfficerLogin,\r\n",
@@ -435,7 +439,7 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM casework_case_officer_additional_details_dim_changed_rows;\r\n",
+					"FROM odw_harmonised_db.casework_case_officer_additional_details_dim;\r\n",
 					""
 				],
 				"execution_count": 7

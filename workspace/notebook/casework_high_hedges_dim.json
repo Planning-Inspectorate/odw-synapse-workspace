@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "58cab413-5362-4c81-9fd4-ba4364c27396"
+				"spark.autotune.trackingId": "9c913519-cfa2-4d75-8e29-84f05978072f"
 			}
 		},
 		"metadata": {
@@ -490,9 +490,12 @@
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.ValidTo = date_sub(current_timestamp,1),\r\n",
-					"    Target.IsActive = 'N';  \r\n",
-					""
+					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
+					"    Target.IsActive = 'N'\r\n",
+					"        \r\n",
+					"-- Insert completely new rows\r\n",
+					"WHEN NOT MATCHED \r\n",
+					"    THEN INSERT * ; "
 				],
 				"execution_count": 12
 			},
@@ -533,7 +536,7 @@
 					"%%sql\r\n",
 					"-- Insert new casework_high_hedges_dim\r\n",
 					"\r\n",
-					"INSERT INTO odw_harmonised_db.casework_high_hedges_dim\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.casework_high_hedges_dim\r\n",
 					"\r\n",
 					"SELECT \r\n",
 					"    ROW_NUMBER() OVER (ORDER BY AppealReferenceNumber NULLS LAST) AS HighHedgesID,\r\n",
@@ -565,7 +568,7 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM casework_high_hedges_dim_changed_rows;\r\n",
+					"FROM odw_harmonised_db.casework_high_hedges_dim;\r\n",
 					""
 				],
 				"execution_count": 13

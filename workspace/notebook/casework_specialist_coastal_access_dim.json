@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "542584d4-0fcf-422e-8f81-c9883ac0b163"
+				"spark.autotune.trackingId": "7e269ec7-e9f9-4979-9c84-637b0b33cc52"
 			}
 		},
 		"metadata": {
@@ -398,8 +398,12 @@
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.ValidTo = date_sub(current_timestamp,1),\r\n",
-					"    Target.IsActive = 'N';  \r\n",
+					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
+					"    Target.IsActive = 'N'\r\n",
+					"        \r\n",
+					"-- Insert completely new rows\r\n",
+					"WHEN NOT MATCHED \r\n",
+					"    THEN INSERT * ;  \r\n",
 					""
 				],
 				"execution_count": 7
@@ -441,7 +445,7 @@
 					"%%sql\r\n",
 					"-- Insert new casework_specialist_coastal_access_dim\r\n",
 					"\r\n",
-					"INSERT INTO odw_harmonised_db.casework_specialist_coastal_access_dim\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.casework_specialist_coastal_access_dim\r\n",
 					"\r\n",
 					"SELECT \r\n",
 					"    ROW_NUMBER() OVER (ORDER BY SpecialistCoastalAccessID NULLS LAST) AS SpecialistCoastalAccessID,\r\n",
@@ -456,7 +460,7 @@
 					"    RowID,\r\n",
 					"    IsActive\r\n",
 					"    \r\n",
-					"FROM casework_specialist_coastal_access_dim_changed_rows;\r\n",
+					"FROM odw_harmonised_db.casework_specialist_coastal_access_dim;\r\n",
 					""
 				],
 				"execution_count": 8

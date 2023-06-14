@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5d69f2a4-3e62-4ea6-aeae-4b2e1190c848"
+				"spark.autotune.trackingId": "2d79841a-df34-4a38-8edb-b436487862a2"
 			}
 		},
 		"metadata": {
@@ -338,8 +338,12 @@
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.ValidTo = date_sub(current_timestamp,1),\r\n",
+					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
 					"    Target.IsActive = 'N'\r\n",
+					"\r\n",
+					"-- Insert completely new rows\r\n",
+					"WHEN NOT MATCHED \r\n",
+					"    THEN INSERT * ;  \r\n",
 					""
 				],
 				"execution_count": 4
@@ -381,10 +385,10 @@
 					"%%sql\r\n",
 					"-- Insert new casework_common_land_dim\r\n",
 					"\r\n",
-					"INSERT INTO odw_harmonised_db.casework_common_land_dim\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.casework_common_land_dim\r\n",
 					"\r\n",
 					"SELECT \r\n",
-					"    ROW_NUMBER() OVER (ORDER BY AppealRefNumber NULLS LAST) AS CommonLandID,\r\n",
+					"    ROW_NUMBER() OVER (ORDER BY CommonLandID NULLS LAST) AS CommonLandID,\r\n",
 					"    AppealRefNumber,\r\n",
 					"    NameOfCommonOrVillageGreen,\r\n",
 					"    SourceSystemID,\r\n",
@@ -392,7 +396,7 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM casework_common_land_dim_changed_rows;\r\n",
+					"FROM odw_harmonised_db.casework_common_land_dim;\r\n",
 					""
 				],
 				"execution_count": 5
