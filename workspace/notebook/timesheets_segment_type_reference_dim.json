@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ccb6c118-8d8c-4d3d-89f8-0e3aa8262be4"
+				"spark.autotune.trackingId": "94ceb3ac-86c9-405d-8f47-bf72a666a7d5"
 			}
 		},
 		"metadata": {
@@ -394,6 +394,10 @@
 					"    UPDATE SET\r\n",
 					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
 					"    Target.IsActive = 'N'\r\n",
+					"        \r\n",
+					"-- Insert completely new rows\r\n",
+					"WHEN NOT MATCHED \r\n",
+					"    THEN INSERT * ; \r\n",
 					""
 				],
 				"execution_count": 33
@@ -435,10 +439,10 @@
 					"%%sql\r\n",
 					"-- Insert new SegmentTypeReferenceID\r\n",
 					"\r\n",
-					"INSERT INTO odw_harmonised_db.timesheets_segment_type_reference_dim\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.timesheets_segment_type_reference_dim\r\n",
 					"\r\n",
 					"SELECT \r\n",
-					"    ROW_NUMBER() OVER (ORDER BY SegmentTypeID NULLS LAST) AS SegmentTypeReferenceID,\r\n",
+					"    ROW_NUMBER() OVER (ORDER BY SegmentTypeReferenceID NULLS LAST) AS SegmentTypeReferenceID,\r\n",
 					"    SegmentTypeID,\r\n",
 					"    SegmentTypeDescription,\r\n",
 					"    SegmentTypeShortName,\r\n",
@@ -449,7 +453,7 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM timesheets_segment_type_reference_changed_rows;"
+					"FROM odw_harmonised_db.timesheets_segment_type_reference_dim;"
 				],
 				"execution_count": 34
 			}

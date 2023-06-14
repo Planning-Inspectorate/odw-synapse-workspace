@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5174ea89-dfea-44a7-8955-e4dd7f96b830"
+				"spark.autotune.trackingId": "478e9c1e-bffd-4e9b-b8ab-cc6e0fb5c2a4"
 			}
 		},
 		"metadata": {
@@ -698,8 +698,12 @@
 					"WHEN MATCHED\n",
 					"    THEN \n",
 					"    UPDATE SET\n",
-					"    Target.ValidTo = date_sub(current_timestamp,1),\n",
-					"    Target.IsActive = 'N'"
+					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\n",
+					"    Target.IsActive = 'N'\n",
+					"\n",
+					"-- Insert completely new rows\n",
+					"WHEN NOT MATCHED \n",
+					"    THEN INSERT * ;"
 				],
 				"execution_count": 7
 			},
@@ -740,10 +744,10 @@
 					"%%sql\n",
 					"-- Insert new casework_all_appeals_additional_data_dim\n",
 					"\n",
-					"INSERT INTO odw_harmonised_db.casework_all_appeals_additional_data_dim\n",
+					"INSERT OVERWRITE odw_harmonised_db.casework_all_appeals_additional_data_dim\n",
 					"\n",
 					"SELECT \n",
-					"    ROW_NUMBER() OVER (ORDER BY AppealRefNumber NULLS LAST) AS AllAppealsAdditionalDataID,\n",
+					"    ROW_NUMBER() OVER (ORDER BY AllAppealsAdditionalDataID NULLS LAST) AS AllAppealsAdditionalDataID,\n",
 					"    AppealRefNumber,\n",
 					"    LastModified,\n",
 					"    DecisionDate,\n",
@@ -815,7 +819,7 @@
 					"    ValidTo,\n",
 					"    RowID,\n",
 					"    IsActive\n",
-					"FROM casework_all_appeals_additional_data_dim_changed_rows;\n",
+					"FROM odw_harmonised_db.casework_all_appeals_additional_data_dim;\n",
 					""
 				],
 				"execution_count": null

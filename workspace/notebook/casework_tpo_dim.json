@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ffe012d7-26c8-46e0-beff-240f9b0923e6"
+				"spark.autotune.trackingId": "1c09e087-eea0-4c79-b1ae-af29a58df7e0"
 			}
 		},
 		"metadata": {
@@ -484,8 +484,12 @@
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.ValidTo = date_sub(current_timestamp,1),\r\n",
-					"    Target.IsActive = 'N';  \r\n",
+					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
+					"    Target.IsActive = 'N'\r\n",
+					"        \r\n",
+					"-- Insert completely new rows\r\n",
+					"WHEN NOT MATCHED \r\n",
+					"    THEN INSERT * ; \r\n",
 					""
 				],
 				"execution_count": 9
@@ -527,10 +531,10 @@
 					"%%sql\r\n",
 					"-- Insert new casework_tpo_dim\r\n",
 					"\r\n",
-					"INSERT INTO odw_harmonised_db.casework_tpo_dim\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.casework_tpo_dim\r\n",
 					"\r\n",
 					"SELECT \r\n",
-					"    ROW_NUMBER() OVER (ORDER BY AppealReferenceNumber NULLS LAST) AS TPOID,\r\n",
+					"    ROW_NUMBER() OVER (ORDER BY TPOID NULLS LAST) AS TPOID,\r\n",
 					"    Category,\r\n",
 					"    Type,\r\n",
 					"    Procedure,\r\n",
@@ -557,7 +561,7 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM casework_tpo_dim_changed_rows;\r\n",
+					"FROM odw_harmonised_db.casework_tpo_dim;\r\n",
 					""
 				],
 				"execution_count": 10

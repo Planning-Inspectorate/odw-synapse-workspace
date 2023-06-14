@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "22910620-e50d-4ef7-a286-1474853a2743"
+				"spark.autotune.trackingId": "1a132323-0763-49d5-8874-011fdd20f2a8"
 			}
 		},
 		"metadata": {
@@ -434,9 +434,12 @@
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.ValidTo = date_sub(current_timestamp,1),\r\n",
+					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
 					"    Target.IsActive = 'N'\r\n",
-					""
+					"\r\n",
+					"-- Insert completely new rows\r\n",
+					"WHEN NOT MATCHED \r\n",
+					"    THEN INSERT * ;  "
 				],
 				"execution_count": 3
 			},
@@ -477,10 +480,10 @@
 					"%%sql\r\n",
 					"-- Insert new casework_contact_information_dim\r\n",
 					"\r\n",
-					"INSERT INTO odw_harmonised_db.casework_contact_information_dim\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.casework_contact_information_dim\r\n",
 					"\r\n",
 					"SELECT \r\n",
-					"    ROW_NUMBER() OVER (ORDER BY ContactID NULLS LAST) AS ContactInformationID,\r\n",
+					"    ROW_NUMBER() OVER (ORDER BY ContactInformationID NULLS LAST) AS ContactInformationID,\r\n",
 					"    CaseNumber,\r\n",
 					"    CaseCreatedDate,\r\n",
 					"    ContactID,\r\n",
@@ -511,7 +514,7 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM casework_contact_information_dim_changed_rows;\r\n",
+					"FROM odw_harmonised_db.casework_contact_information_dim;\r\n",
 					""
 				],
 				"execution_count": 4

@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "3ef41374-5f35-4153-ba8e-a1479bfc24b1"
+				"spark.autotune.trackingId": "14753b80-f0aa-4051-b687-8001e31e0e78"
 			}
 		},
 		"metadata": {
@@ -405,9 +405,12 @@
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.ValidTo = date_sub(current_timestamp,1),\r\n",
+					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
 					"    Target.IsActive = 'N'\r\n",
-					""
+					"        \r\n",
+					"-- Insert completely new rows\r\n",
+					"WHEN NOT MATCHED \r\n",
+					"    THEN INSERT * ;  "
 				],
 				"execution_count": 6
 			},
@@ -448,10 +451,10 @@
 					"%%sql\r\n",
 					"-- Insert new casework_application_sub_type_case_name_dim\r\n",
 					"\r\n",
-					"INSERT INTO odw_harmonised_db.casework_application_sub_type_case_name_dim\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.casework_application_sub_type_case_name_dim\r\n",
 					"\r\n",
 					"SELECT \r\n",
-					"    ROW_NUMBER() OVER (ORDER BY AppealRefNumber NULLS LAST) AS ApplicationSubTypeCaseNameID,\r\n",
+					"    ROW_NUMBER() OVER (ORDER BY ApplicationSubTypeCaseNameID NULLS LAST) AS ApplicationSubTypeCaseNameID,\r\n",
 					"    AppealRefNumber,\r\n",
 					"    ApplicationSubType,\r\n",
 					"    CaseName,\r\n",
@@ -460,7 +463,7 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM casework_application_sub_type_case_name_dim_changed_rows;\r\n",
+					"FROM odw_harmonised_db.casework_application_sub_type_case_name_dim;\r\n",
 					""
 				],
 				"execution_count": 7

@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "2222799c-6ccc-474d-b73d-f736a0fa5856"
+				"spark.autotune.trackingId": "0f0f7be0-8756-4f63-a07b-3732a35be0f5"
 			}
 		},
 		"metadata": {
@@ -706,8 +706,12 @@
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.ValidTo = date_sub(current_timestamp,1),\r\n",
-					"    Target.IsActive = 'N'"
+					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
+					"    Target.IsActive = 'N'\r\n",
+					"        \r\n",
+					"-- Insert completely new rows\r\n",
+					"WHEN NOT MATCHED \r\n",
+					"    THEN INSERT * ; "
 				],
 				"execution_count": 21
 			},
@@ -748,10 +752,10 @@
 					"%%sql\r\n",
 					"-- Insert new casework_nsip_project_info_internal_dim\r\n",
 					"\r\n",
-					"INSERT INTO odw_harmonised_db.casework_nsip_project_info_internal_dim\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.casework_nsip_project_info_internal_dim\r\n",
 					"\r\n",
 					"SELECT \r\n",
-					"    ROW_NUMBER() OVER (ORDER BY CaseReference NULLS LAST) AS NSIPProjectInfoInternalID,\r\n",
+					"    ROW_NUMBER() OVER (ORDER BY NSIPProjectInfoInternalID NULLS LAST) AS NSIPProjectInfoInternalID,\r\n",
 					"    CaseCreatedDate,\r\n",
 					"    ProjectName,\r\n",
 					"    ProjectStatus,\r\n",
@@ -820,7 +824,7 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM casework_nsip_project_info_internal_dim_changed_rows;\r\n",
+					"FROM odw_harmonised_db.casework_nsip_project_info_internal_dim;\r\n",
 					""
 				],
 				"execution_count": 22

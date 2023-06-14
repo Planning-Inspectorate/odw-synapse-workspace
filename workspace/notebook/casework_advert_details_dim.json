@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ab6c9d31-b483-4bc7-95ae-bc7e11ffa491"
+				"spark.autotune.trackingId": "9bd29b9b-ce07-42ff-983f-184bc2f3542d"
 			}
 		},
 		"metadata": {
@@ -435,8 +435,12 @@
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.ValidTo = date_sub(current_timestamp,1),\r\n",
+					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
 					"    Target.IsActive = 'N'\r\n",
+					"\r\n",
+					"-- Insert completely new rows\r\n",
+					"WHEN NOT MATCHED \r\n",
+					"    THEN INSERT * ;\r\n",
 					""
 				],
 				"execution_count": 12
@@ -478,10 +482,10 @@
 					"%%sql\r\n",
 					"-- Insert new casework_advert_details_dim\r\n",
 					"\r\n",
-					"INSERT INTO odw_harmonised_db.casework_advert_details_dim\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.casework_advert_details_dim\r\n",
 					"\r\n",
 					"SELECT \r\n",
-					"    ROW_NUMBER() OVER (ORDER BY AppealRefNumber NULLS LAST) AS AdvertDetailsID,\r\n",
+					"    ROW_NUMBER() OVER (ORDER BY AdvertDetailsID NULLS LAST) AS AdvertDetailsID,\r\n",
 					"    AppealRefNumber,\r\n",
 					"    LastModified,\r\n",
 					"    SignCategory,\r\n",
@@ -495,7 +499,7 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM casework_advert_details_dim_changed_rows;\r\n",
+					"FROM odw_harmonised_db.casework_advert_details_dim;\r\n",
 					""
 				],
 				"execution_count": 13
