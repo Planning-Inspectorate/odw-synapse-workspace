@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "f1bfb6b0-710f-495f-a2f0-cf42214eb113"
+				"spark.autotune.trackingId": "c915cf99-338b-49ec-8dba-1828cb2853dd"
 			}
 		},
 		"metadata": {
@@ -287,6 +287,10 @@
 					"    UPDATE SET\r\n",
 					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
 					"    Target.IsActive = 'N'\r\n",
+					"\r\n",
+					"-- Insert completely new rows\r\n",
+					"WHEN NOT MATCHED \r\n",
+					"    THEN INSERT * ;  \r\n",
 					""
 				],
 				"execution_count": 4
@@ -326,9 +330,9 @@
 				},
 				"source": [
 					"%%sql\r\n",
-					"-- Insert new hr_costcenter_dim\r\n",
+					"-- Insert new hr_costcenter_dim id\r\n",
 					"\r\n",
-					"INSERT INTO odw_harmonised_db.hr_costcenter_dim\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.hr_costcenter_dim\r\n",
 					"\r\n",
 					"SELECT \r\n",
 					"    ROW_NUMBER() OVER (ORDER BY CostCenterID NULLS LAST) AS CostCenterID,\r\n",
@@ -339,7 +343,7 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM CostCenter_Dim_changed_rows;"
+					"FROM odw_harmonised_db.hr_costcenter_dim;"
 				],
 				"execution_count": 5
 			}
