@@ -115,7 +115,7 @@ resource "azurerm_synapse_managed_private_endpoint" "data_lake_failover" {
 }
 
 resource "azurerm_synapse_managed_private_endpoint" "synapse_mpe_kv" {
-  name                 = "synapse-mpe-kv-${local.resource_suffix}"
+  name                 = "synapse-mpe-kv--${local.resource_suffix}"
   synapse_workspace_id = azurerm_synapse_workspace.synapse.id
   target_resource_id   = var.key_vault_id
   subresource_name     = "vault"
