@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "8963004a-b400-4afe-aeeb-a000e06cf42f"
+				"spark.autotune.trackingId": "a11d598b-7ca2-4344-938c-ddeab6823ceb"
 			}
 		},
 		"metadata": {
@@ -408,26 +408,46 @@
 					}
 				},
 				"source": [
+					"\r\n",
+					"def add_file_to_table(jsonId, year, month, day, hour, minute, second):\r\n",
+					"    try:\r\n",
+					"        from datetime import datetime\r\n",
+					"        dt = datetime(year=year, month=month, day=day,hour=hour,minute=minute,second=second)\r\n",
+					"        from pyspark.sql import SparkSession\r\n",
+					"        spark = SparkSession.builder.getOrCreate()\r\n",
+					"\r\n",
+					"        config_target_container = \"abfss://odw-config@\" + spark.sparkContext.environment.get('dataLakeAccountName', 'get') + \".dfs.core.windows.net/\"\r\n",
+					"        standardised_target_container = \"abfss://odw-standardised@\" + spark.sparkContext.environment.get('dataLakeAccountName', 'get') + \".dfs.core.windows.net/\"\r\n",
+					"        import json\r\n",
+					"        from pyspark.sql.types import StringType,BooleanType,DateType,TimestampType,IntegerType, FloatType, StructType\r\n",
+					"        outstanding_files_table_json = spark.read.text(config_target_container + \"orchestration/scheduling_outstanding_files_table.json\", wholetext=True).first().value\r\n",
+					"        outstanding_struct_schema = StructType.fromJson(json.loads(outstanding_files_table_json))\r\n",
+					"        new_outst_file = spark.createDataFrame([[dt, jsonId]], outstanding_struct_schema)\r\n",
+					"        new_outst_file.write.format(\"delta\").mode(\"append\").save(standardised_target_container+\"config/raw_to_std_outstanding_files\")\r\n",
+					"    except Exception as e:\r\n",
+					"        raise RuntimeError(f\"For jsonID:{jsonId} for date {year}-{month}-{day}, record failed to be added to raw_to_std_outstanding_files\") from e\r\n",
+					"        \r\n",
+					"\r\n",
 					"from datetime import datetime, date\r\n",
 					"\r\n",
 					"weekly_folders_and_files = mssparkutils.fs.ls(\"abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/Fileshare/SAP_HR/HR/Weekly/\")\r\n",
 					"weekly_target_files_keys = {'address':1,'email':3,'saphr':2,'specialism':4}\r\n",
 					"\r\n",
 					"monthly_folders_and_files = mssparkutils.fs.ls(\"abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/Fileshare/SAP_HR/HR/Monthly/\")\r\n",
-					"monthly_target_files_keys = {'absence':5,'leave entitlement':6, 'leavers':7, 'pc':8}\r\n",
+					"monthly_target_files_keys = {'address':1,'email':3,'saphr':2,'specialism':4,'absence':5,'leave entitlement':6, 'leavers':7, 'pc':8}\r\n",
 					"\r\n",
 					"output = []\r\n",
 					"\r\n",
-					"# for date_folder in weekly_folders_and_files:\r\n",
-					"#     if date_folder.isDir :\r\n",
-					"#         files_in_folder = mssparkutils.fs.ls(date_folder.path)\r\n",
-					"#         for file in files_in_folder:\r\n",
-					"#             if file.isFile:\r\n",
-					"#                 for key in weekly_target_files_keys:\r\n",
-					"#                     if key in file.name.lower():  \r\n",
-					"#                         date_str = file.path.split('/')[-2]\r\n",
-					"#                         date_unpacked = datetime.strptime(date_str, \"%Y-%m-%d\")\r\n",
-					"#                         mssparkutils.notebook.run('/1-odw-raw-to-standardised/Scheduling/outstanding_files_add_entry', arguments={\"jsonId\": weekly_target_files_keys[key],\"year\": date_unpacked.year,\"month\": date_unpacked.month,\"day\": date_unpacked.day})\r\n",
+					"for date_folder in weekly_folders_and_files:\r\n",
+					"    if date_folder.isDir :\r\n",
+					"        files_in_folder = mssparkutils.fs.ls(date_folder.path)\r\n",
+					"        for file in files_in_folder:\r\n",
+					"            if file.isFile:\r\n",
+					"                for key in weekly_target_files_keys:\r\n",
+					"                    if key in file.name.lower():  \r\n",
+					"                        date_str = file.path.split('/')[-2]\r\n",
+					"                        date_unpacked = datetime.strptime(date_str, \"%Y-%m-%d\")\r\n",
+					"                        add_file_to_table( weekly_target_files_keys[key], date_unpacked.year, date_unpacked.month, date_unpacked.day, 0, 0, 0)\r\n",
 					"\r\n",
 					"for date_folder in monthly_folders_and_files:\r\n",
 					"    if date_folder.isDir :\r\n",
@@ -442,7 +462,7 @@
 					"                        folder_date = date(folder_date.year, folder_date.month, calendar.monthrange(folder_date.year, folder_date.month)[-1]) + timedelta(days=1)\r\n",
 					"                        folder_date = datetime.combine(folder_date, datetime.min.time())\r\n",
 					"                        # print(file.path,  folder_date)\r\n",
-					"                        mssparkutils.notebook.run('/1-odw-raw-to-standardised/Scheduling/outstanding_files_add_entry', arguments={\"jsonId\": monthly_target_files_keys[key],\"year\": folder_date.year,\"month\": folder_date.month,\"day\": folder_date.day})\r\n",
+					"                        add_file_to_table( monthly_target_files_keys[key], folder_date.year, folder_date.month, folder_date.day, 0, 0, 0)\r\n",
 					"\r\n",
 					"\r\n",
 					"\r\n",
@@ -470,14 +490,136 @@
 						"transient": {
 							"deleting": false
 						}
-					},
-					"microsoft": {
-						"language": "sparksql"
 					}
 				},
 				"source": [
-					"%%sql\r\n",
-					"describe history odw_config_db.raw_to_std_outstanding_files"
+					"%run /1-odw-raw-to-standardised/Scheduling/py_1_initial_run_raw_to_standardised_scheduling {\"source_id\": 1}"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%run /1-odw-raw-to-standardised/Scheduling/py_1_initial_run_raw_to_standardised_scheduling {\"source_id\": 2}"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%run /1-odw-raw-to-standardised/Scheduling/py_1_initial_run_raw_to_standardised_scheduling {\"source_id\": 3}"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%run /1-odw-raw-to-standardised/Scheduling/py_1_initial_run_raw_to_standardised_scheduling {\"source_id\": 4}"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%run /1-odw-raw-to-standardised/Scheduling/py_1_initial_run_raw_to_standardised_scheduling {\"source_id\": 5}"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%run /1-odw-raw-to-standardised/Scheduling/py_1_initial_run_raw_to_standardised_scheduling {\"source_id\": 6}"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%run /1-odw-raw-to-standardised/Scheduling/py_1_initial_run_raw_to_standardised_scheduling {\"source_id\": 7}"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%run /1-odw-raw-to-standardised/Scheduling/py_1_initial_run_raw_to_standardised_scheduling {\"source_id\": 8}"
 				],
 				"execution_count": null
 			}
