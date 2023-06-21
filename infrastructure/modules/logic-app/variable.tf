@@ -18,15 +18,13 @@ variable "resource_group_name" {
   description = "The name of the resource group into which resources will be deployed"
   type        = string
 }
-
 variable "service_name" {
   description = "The short-format name of the overarching service being deployed"
   type        = string
 }
 
-variable "sku_name" {
-  default     = "WS1"
-  description = "The SKU of the App Service Plan"
+variable "service_bus_primary_connection_string" {
+  description = "The primary connection string for the Service Bus Namespace"
   type        = string
 }
 

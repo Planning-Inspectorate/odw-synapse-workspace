@@ -43,6 +43,12 @@ output "service_bus_namespace_name" {
   value       = var.failover_deployment ? module.synapse_ingestion_failover.service_bus_namespace_name : module.synapse_ingestion.service_bus_namespace_name
 }
 
+output "service_bus_primary_connection_string" {
+  description = "The primary connection string of the Service Bus Namespace"
+  value       = var.failover_deployment ? module.synapse_ingestion_failover.service_bus_primary_connection_string : module.synapse_ingestion.service_bus_primary_connection_string
+  sensitive   = true
+}
+
 output "synapse_dev_endpoint" {
   description = "The development connectivity endpoint for the Synapse Workspace"
   value       = var.failover_deployment ? one(module.synapse_workspace_private_failover).synapse_endpoints["dev"] : module.synapse_workspace_private.synapse_endpoints["dev"]
