@@ -1,5 +1,5 @@
 alert_group_platform_enabled             = true
-alert_group_platform_recipients          = ["odw_support@planninginspectorate.gov.uk", "alex.delany@planninginspectorate.gov.uk"]
+alert_group_platform_recipients          = ["nasir.rahman@planninginspectorate.gov.uk", "alex.delany@planninginspectorate.gov.uk", "michael.juckes@planninginspectorate.gov.uk"]
 alert_group_synapse_enabled              = true
 alert_group_synapse_recipients           = ["odw_support@planninginspectorate.gov.uk"]
 alert_scope_service_health               = "/subscriptions/a82fd28d-5989-4e06-a0bb-1a5d859f9e0c"
