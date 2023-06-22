@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5421dc44-2702-4ee5-aa49-8762f95c16da"
+				"spark.autotune.trackingId": "e1c3b240-b7a9-4498-a6a2-643d1f7798a8"
 			}
 		},
 		"metadata": {
@@ -63,6 +63,49 @@
 							"deleting": false
 						}
 					},
+					"tags": [
+						"parameters"
+					]
+				},
+				"source": [
+					"expected_from = '2017-07-31'"
+				],
+				"execution_count": 27
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"if expected_from == '':\n",
+					"    spark.sql(\"SET EXPECTED_FROM_VAR = current_date();\")\n",
+					"else:\n",
+					"    spark.sql(f\"SET EXPECTED_FROM_VAR = '{expected_from}'\")\n",
+					""
+				],
+				"execution_count": 28
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
 					"microsoft": {
 						"language": "sparksql"
 					},
@@ -80,27 +123,27 @@
 					"    h.ps_group as Grade, \n",
 					"\th.annual_salary as Salary, \n",
 					"    cast(cast(h.annual_salary as float)/(365.0*7.4) as float) as HourlyRate,\n",
-					"    cast(le.ExpectedFrom as date) as ReportMonthEndDate,\n",
+					"    cast(${EXPECTED_FROM_VAR} as date) as ReportMonthEndDate,\n",
 					"    le.LeaveDaysPerYear as LeaveAllowance,\n",
-					"    cast(case sign(datediff(day, cast(le.LeaveYearStart as date), le.expectedfrom))\n",
+					"    cast(case sign(datediff(day, cast(le.LeaveYearStart as date), ${EXPECTED_FROM_VAR}))\n",
 					"\t\t\t\twhen 1 then le.LeaveYearStart\n",
 					"\t\t\t\twhen 0 then le.LeaveYearStart\n",
 					"\t\t\t\telse dateadd(year, -1, le.LeaveYearStart)\n",
 					"\t\t\tend as date) as LeaveStartDate,\n",
 					"    le.leavedaysperyear*(1 - abs((((datediff(day, cast(\n",
-					"                                                    CASE sign(datediff(day, cast(le.leaveyearstart AS date), le.expectedfrom))\n",
+					"                                                    CASE sign(datediff(day, cast(le.leaveyearstart AS date), ${EXPECTED_FROM_VAR}))\n",
 					"                                                    WHEN 1 THEN\n",
 					"                                                    le.leaveyearstart\n",
 					"                                                    ELSE dateadd(year, -1, le.leaveyearstart)\n",
 					"                                                    END\n",
-					"                                                    AS date), le.expectedfrom))/364.25)%1))) AS ExpectedLeaveHoursRemaining\n",
+					"                                                    AS date), ${EXPECTED_FROM_VAR}))/364.25)%1))) AS ExpectedLeaveHoursRemaining\n",
 					"    \n",
 					"FROM odw_standardised_db.vw_saphr h\n",
 					"LEFT JOIN odw_harmonised_db.hr_leave_entitlement_dim le on h.pers_no = le.EmployeeID\n",
 					"WHERE\n",
 					"    le.AbsenceQuotaType = 'Annual Leave / P&P';"
 				],
-				"execution_count": 11
+				"execution_count": 29
 			},
 			{
 				"cell_type": "code",
@@ -139,7 +182,7 @@
 					"WHERE\n",
 					"    le.AbsenceQuotaType = 'Brought Forward';"
 				],
-				"execution_count": 12
+				"execution_count": 30
 			},
 			{
 				"cell_type": "code",
@@ -191,7 +234,7 @@
 					"    a.EmployeeID,a.AbsenceID,a.Days,a.Hours,a.CalendarDays,a.AbsenceStartDate,a.AbsenceEndDate,sc.LeaveStartDate,w.WorkDayHours,sc.ReportMonthEndDate\n",
 					"Order by AbsenceStartDate"
 				],
-				"execution_count": 13
+				"execution_count": 31
 			},
 			{
 				"cell_type": "code",
@@ -224,7 +267,7 @@
 					"Where EmployeeID is not null and LeaveStartDate <= AbsenceStartDate\n",
 					"GROUP BY EmployeeID;"
 				],
-				"execution_count": 14
+				"execution_count": 32
 			},
 			{
 				"cell_type": "code",
@@ -329,7 +372,7 @@
 					"\th.payroll_area,\n",
 					"\th.assignment_number,\n",
 					"\th.fte_2,\n",
-					"\tsc.ReportMonthEndDate \t\t\t\t\t\t\t\t\t\t\t\tAS Report_MonthEnd_Date,\n",
+					"\t${EXPECTED_FROM_VAR} AS ReportMonthEndDate,\n",
 					"\tcoalesce(sc.LeaveAllowance, 0) + coalesce(co.CarriedOverHours, 0) \tAS leave_entitlement_hrs,\n",
 					"\tcoalesce(lt.LeaveHoursTaken, 0) \t\t\t\t\t\t\t\t\tAS leave_taken_hrs,\n",
 					"\tround((coalesce(sc.LeaveAllowance, 0) + \n",
@@ -345,9 +388,9 @@
 					"\tleft join leave_taken_fixed lt on cast(sc.EmployeeID as int) = cast(lt.EmployeeID as int)\n",
 					"\tleft join odw_standardised_db.bis_pension_ernic_rates p on sc.Grade = p.Grade\n",
 					"where \n",
-					"\tright(cast(cast(sc.ReportMonthEndDate as date) as varchar(10)),5) in ('01-31','02-28','02-29','03-31','04-30','05-31','06-30','07-31','08-31','09-30','10-31','11-30','12-31')"
+					"\tright(cast(cast(${EXPECTED_FROM_VAR} as date) as varchar(10)),5) in ('01-31','02-28','02-29','03-31','04-30','05-31','06-30','07-31','08-31','09-30','10-31','11-30','12-31')"
 				],
-				"execution_count": 15
+				"execution_count": 37
 			},
 			{
 				"cell_type": "markdown",
@@ -524,7 +567,7 @@
 					"    END  = 'Y'\r\n",
 					";"
 				],
-				"execution_count": 16
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -759,7 +802,7 @@
 					"FROM odw_curated_db.mipins_hr_measures\r\n",
 					"WHERE EmployeeID IN (SELECT EmployeeID FROM mipins_hr_measures_new WHERE MeasureID IS NULL) AND IsActive = 'Y';"
 				],
-				"execution_count": 17
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -815,7 +858,7 @@
 					"-- WHEN NOT MATCHED \r\n",
 					"--     THEN INSERT * ;   "
 				],
-				"execution_count": 18
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -948,7 +991,7 @@
 					"    IsActive\r\n",
 					"FROM odw_curated_db.mipins_hr_measures;"
 				],
-				"execution_count": 19
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -974,7 +1017,7 @@
 					"\n",
 					"SELECT * from odw_standardised_db.vw_saphr"
 				],
-				"execution_count": 22
+				"execution_count": null
 			}
 		]
 	}
