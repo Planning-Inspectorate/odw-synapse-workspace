@@ -511,6 +511,18 @@
 						"dependencyConditions": [
 							"Succeeded"
 						]
+					},
+					{
+						"activity": "Create Harmonised",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Create Curated",
+						"dependencyConditions": [
+							"Succeeded"
+						]
 					}
 				],
 				"policy": {
@@ -534,6 +546,77 @@
 					},
 					"numExecutors": null
 				}
+			},
+			{
+				"name": "Create Curated",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Delete All Tables",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@variables('hr_tables')",
+						"type": "Expression"
+					},
+					"batchCount": 10,
+					"activities": [
+						{
+							"name": "If is_curated",
+							"type": "IfCondition",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"expression": {
+									"value": "@startswith(item(), 'odw_curated_db')",
+									"type": "Expression"
+								},
+								"ifTrueActivities": [
+									{
+										"name": "Create Harmonised Table_copy1",
+										"type": "SynapseNotebook",
+										"dependsOn": [],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"notebook": {
+												"referenceName": "py_odw_curated_table_creation",
+												"type": "NotebookReference"
+											},
+											"parameters": {
+												"specific_table": {
+													"value": {
+														"value": "@split(item(), '.')[1]",
+														"type": "Expression"
+													},
+													"type": "string"
+												}
+											},
+											"snapshot": true,
+											"conf": {
+												"spark.dynamicAllocation.enabled": null,
+												"spark.dynamicAllocation.minExecutors": null,
+												"spark.dynamicAllocation.maxExecutors": null
+											},
+											"numExecutors": null
+										}
+									}
+								]
+							}
+						}
+					]
+				}
 			}
 		],
 		"variables": {
@@ -545,7 +628,7 @@
 			}
 		},
 		"folder": {
-			"name": "post-deployment"
+			"name": "post-deployment/23-06-2023"
 		},
 		"annotations": []
 	}
