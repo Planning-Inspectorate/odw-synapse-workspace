@@ -7,12 +7,14 @@
  2. Have any new tables been created in Standardised?
  
 	- [ ] orchestration.json has been updated and tested in Dev and has been / is about to be PRd into main
-	- [ ] the new schema exists inside *odw-config/standardised-table-definitions* OR is about to be PRd into that folder 
+	- [ ] the new schema exists inside *odw-config/standardised-table-definitions* OR is about to be PRd into main
+		- Make sure to run Platform Integrate and Platform Deploy to Dev at least to ensure the schema is deployed into Synapse Dev Live 
 	- [ ] Is the raw-to-standardised python script scheduled to run for this dataset grouping?
  3. Have any new tables been created in Harmonised or Curated?
 		 
 	 - [ ]  *2-odw-standardised-to-harmonised/py_odw_harmonised_table_creation* OR 4-*odw-harmonised-to-curated/py_odw_curated_table_creation* are set up to run in the pipeline *pln_post_deployments* with the base parameter specifying the correct table
-	- [ ] the new schema exists inside *odw-config/standardised-table-definitions* OR is about to be PRd into that folder 
+	- [ ] the new schema exists inside *odw-config/harmonised-table-definitions* / *odw-config/curated-table-definitions* OR is about to be PRd into main
+		- Make sure to run Platform Integrate and Platform Deploy to Dev at least to ensure the schema is deployed into Synapse Dev Live 
  4. Have any tables changed AND/OR have any columns changed in any scripts?
 We only care about new columns or columns that change type.
 
