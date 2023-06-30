@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "7b8e0ba2-50b8-4536-bde1-4074e1e950c6"
+				"spark.autotune.trackingId": "72db9fe8-250d-46ee-9747-02050f3b6e48"
 			}
 		},
 		"metadata": {
@@ -144,7 +144,7 @@
 					"SELECT count(*) FROM casework_case_full_list\n",
 					""
 				],
-				"execution_count": 29
+				"execution_count": 53
 			},
 			{
 				"cell_type": "markdown",
@@ -226,7 +226,7 @@
 					"    T25.CommonLandID,\r\n",
 					"    T26.SpecialistModificationsID,\r\n",
 					"    T27.ApplicationSubTypeCaseNameID,\r\n",
-					"    T28.DecisionIssueID,\r\n",
+					"    T28.DecisionIssueID                 AS DecisionIssuesID,\r\n",
 					"    T29.AdvertDetailsID,\r\n",
 					"    T30.EnforcementGroundsID,\r\n",
 					"    T31.SpecialCircumstanceID,\r\n",
@@ -239,16 +239,23 @@
 					"            T33.NSIPExaminationTimetableID IS NULL\r\n",
 					"        THEN 'N'\r\n",
 					"        ELSE 'Y'\r\n",
-					"    END AS IsNSIP,\r\n",
+					"    END AS IsNSIP, \r\n",
 					"    -- CASE\r\n",
 					"    --     WHEN T1.CaseReference IS LIKE '%%/TPO/%%' OR \r\n",
-					"    --         T1.CaseReference IS LIKE '%%/TPO/%%' OR \r\n",
-					"    --         T1.CaseReference IS LIKE '%%/TPO/%%' OR \r\n",
+					"    --         T1.CaseReference IS LIKE '%%/HH/%%' OR \r\n",
+					"    --         T1.CaseReference IS LIKE '%%/HGW/%%' OR \r\n",
 					"    --         T1.CaseReference IS LIKE 'FPS/%%'\r\n",
 					"    --     THEN 'Y'\r\n",
 					"    --     ELSE 'N'\r\n",
 					"    -- END AS IsGreenAppeal,\r\n",
-					"    'N' AS IsGreenAppeal,\r\n",
+					"    CASE\r\n",
+					"        WHEN T37.CaseReference = T1.CaseReference OR \r\n",
+					"            T38.CaseReference = T1.CaseReference OR \r\n",
+					"            T39.CaseReference = T1.CaseReference\r\n",
+					"        THEN 'Y'\r\n",
+					"        ELSE 'N'\r\n",
+					"    END AS IsGreenAppeal,\r\n",
+					"    -- 'N' AS IsGreenAppeal,\r\n",
 					"    T2.SourceSystemID,\r\n",
 					"    to_timestamp(T1.IngestionDate) AS IngestionDate,\r\n",
 					"    NULL AS ValidTo,\r\n",
@@ -365,15 +372,15 @@
 					"LEFT JOIN odw_harmonised_db.casework_contact_information_dim T35 \r\n",
 					"    ON T1.CaseReference = T35.CaseNumber \r\n",
 					"        AND T35.IsActive = 'Y'\r\n",
-					"-- LEFT JOIN odw_harmonised_db.casework_hedgerow_dim T37 \r\n",
-					"--     ON T1.CaseReference = T37.CaseReference \r\n",
-					"--     AND T37.IsActive = 'Y'\r\n",
-					"-- LEFT JOIN odw_harmonised_db.casework_hedgerow_dim T38 \r\n",
-					"--     ON T1.CaseReference = T38.CaseReference \r\n",
-					"--     AND T38.IsActive = 'Y'\r\n",
-					"-- LEFT JOIN odw_harmonised_db.tpo_dim T39\r\n",
-					"--     ON T1.CaseReference = T39.CaseReference \r\n",
-					"--     AND T39.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_harmonised_db.casework_hedgerow_dim T37 \r\n",
+					"    ON T1.CaseReference = T37.CaseReference \r\n",
+					"    AND T37.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_harmonised_db.casework_hedgerow_dim T38 \r\n",
+					"    ON T1.CaseReference = T38.CaseReference \r\n",
+					"    AND T38.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_harmonised_db.casework_tpo_dim T39\r\n",
+					"    ON T1.CaseReference = T39.CaseReference \r\n",
+					"    AND T39.IsActive = 'Y'\r\n",
 					"\r\n",
 					"WHERE\r\n",
 					"    (   CASE\r\n",
@@ -392,7 +399,7 @@
 					"\r\n",
 					""
 				],
-				"execution_count": 31
+				"execution_count": 54
 			},
 			{
 				"cell_type": "markdown",
@@ -459,7 +466,7 @@
 					"# else:\r\n",
 					"#     print(\"Unused codes under tolerance levels\")"
 				],
-				"execution_count": null
+				"execution_count": 55
 			},
 			{
 				"cell_type": "markdown",
@@ -524,7 +531,7 @@
 					"#     else:\r\n",
 					"#         raise RuntimeError(\"Records to Add do not match\")"
 				],
-				"execution_count": null
+				"execution_count": 56
 			},
 			{
 				"cell_type": "markdown",
@@ -574,8 +581,8 @@
 					"    AdditionalFieldsID,\r\n",
 					"    EventID,\r\n",
 					"    InspectorCasesID,\r\n",
-					"    NSIPProjectInfoInternalID AS ProjectInfoInternalID,\r\n",
-					"    CasesInfoID,\r\n",
+					"    ProjectInfoInternalID,\r\n",
+					"    CaseInfoID,\r\n",
 					"    CaseDatesID,\r\n",
 					"    CaseOfficerAdditionalDetailsID,\r\n",
 					"    NSIPRedactionsID,\r\n",
@@ -603,8 +610,7 @@
 					"    SpecialistRechargeID,\r\n",
 					"    SpecialistPurchaseNoticeID,\r\n",
 					"    CommonLandID,\r\n",
-					"    SpecialistModifcationsID,\r\n",
-					"    CaseInfoID,\r\n",
+					"    SpecialistModificationsID,\r\n",
 					"    ApplicationSubTypeCaseNameID,\r\n",
 					"    DecisionIssuesID,\r\n",
 					"    AdvertDetailsID,\r\n",
@@ -612,12 +618,10 @@
 					"    SpecialCircumstanceID,\r\n",
 					"    SpecialismID,\r\n",
 					"    NSIPExaminationTimetableID,\r\n",
-					"    NSIPRelevantRepresentationID,\r\n",
 					"    ContactInformationID,\r\n",
 					"    IsNSIP,\r\n",
-					"    IsAppeal,\r\n",
-					"    IsApplication,\r\n",
 					"    IsGreenAppeal,\r\n",
+					"    SourceSystemID,\r\n",
 					"    IngestionDate,\r\n",
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
@@ -634,8 +638,8 @@
 					"    AdditionalFieldsID,\r\n",
 					"    EventID,\r\n",
 					"    InspectorCasesID,\r\n",
-					"    NSIPProjectInfoInternalID AS ProjectInfoInternalID,\r\n",
-					"    CasesInfoID,\r\n",
+					"    ProjectInfoInternalID,\r\n",
+					"    CaseInfoID,\r\n",
 					"    CaseDatesID,\r\n",
 					"    CaseOfficerAdditionalDetailsID,\r\n",
 					"    NSIPRedactionsID,\r\n",
@@ -663,8 +667,7 @@
 					"    SpecialistRechargeID,\r\n",
 					"    SpecialistPurchaseNoticeID,\r\n",
 					"    CommonLandID,\r\n",
-					"    SpecialistModifcationsID,\r\n",
-					"    CaseInfoID,\r\n",
+					"    SpecialistModificationsID,\r\n",
 					"    ApplicationSubTypeCaseNameID,\r\n",
 					"    DecisionIssuesID,\r\n",
 					"    AdvertDetailsID,\r\n",
@@ -672,12 +675,10 @@
 					"    SpecialCircumstanceID,\r\n",
 					"    SpecialismID,\r\n",
 					"    NSIPExaminationTimetableID,\r\n",
-					"    NSIPRelevantRepresentationID,\r\n",
 					"    ContactInformationID,\r\n",
 					"    IsNSIP,\r\n",
-					"    IsAppeal,\r\n",
-					"    IsApplication,\r\n",
 					"    IsGreenAppeal,\r\n",
+					"    SourceSystemID,\r\n",
 					"    IngestionDate,\r\n",
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
@@ -686,7 +687,7 @@
 					"FROM odw_harmonised_db.casework_case_fact\r\n",
 					"WHERE CaseReference IN (SELECT CaseReference FROM casework_case_fact_new WHERE CaseID IS NULL) AND IsActive = 'Y'; "
 				],
-				"execution_count": null
+				"execution_count": 57
 			},
 			{
 				"cell_type": "markdown",
@@ -742,7 +743,7 @@
 					"WHEN NOT MATCHED \r\n",
 					"    THEN INSERT * ;  "
 				],
-				"execution_count": null
+				"execution_count": 58
 			},
 			{
 				"cell_type": "markdown",
@@ -789,8 +790,8 @@
 					"    AdditionalFieldsID,\r\n",
 					"    EventID,\r\n",
 					"    InspectorCasesID,\r\n",
-					"    NSIPProjectInfoInternalID AS ProjectInfoInternalID,\r\n",
-					"    CasesInfoID,\r\n",
+					"    ProjectInfoInternalID,\r\n",
+					"    CaseInfoID,\r\n",
 					"    CaseDatesID,\r\n",
 					"    CaseOfficerAdditionalDetailsID,\r\n",
 					"    NSIPRedactionsID,\r\n",
@@ -818,8 +819,7 @@
 					"    SpecialistRechargeID,\r\n",
 					"    SpecialistPurchaseNoticeID,\r\n",
 					"    CommonLandID,\r\n",
-					"    SpecialistModifcationsID,\r\n",
-					"    CaseInfoID,\r\n",
+					"    SpecialistModificationsID,\r\n",
 					"    ApplicationSubTypeCaseNameID,\r\n",
 					"    DecisionIssuesID,\r\n",
 					"    AdvertDetailsID,\r\n",
@@ -827,12 +827,10 @@
 					"    SpecialCircumstanceID,\r\n",
 					"    SpecialismID,\r\n",
 					"    NSIPExaminationTimetableID,\r\n",
-					"    NSIPRelevantRepresentationID,\r\n",
 					"    ContactInformationID,\r\n",
 					"    IsNSIP,\r\n",
-					"    IsAppeal,\r\n",
-					"    IsApplication,\r\n",
 					"    IsGreenAppeal,\r\n",
+					"    SourceSystemID,\r\n",
 					"    IngestionDate,\r\n",
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
@@ -840,7 +838,7 @@
 					"FROM odw_harmonised_db.casework_case_fact;\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 60
 			}
 		]
 	}
