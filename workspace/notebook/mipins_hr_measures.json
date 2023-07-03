@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "392d95e4-daf7-49ab-9123-340e8bc19485"
+				"spark.autotune.trackingId": "2e58d4fb-80c0-4cbe-a741-74d2ebc8662f"
 			}
 		},
 		"metadata": {
@@ -70,7 +70,7 @@
 				"source": [
 					"expected_from = ''"
 				],
-				"execution_count": 27
+				"execution_count": 32
 			},
 			{
 				"cell_type": "code",
@@ -92,7 +92,7 @@
 					"    spark.sql(f\"SET EXPECTED_FROM_VAR = '{expected_from}'\")\n",
 					""
 				],
-				"execution_count": 28
+				"execution_count": 33
 			},
 			{
 				"cell_type": "code",
@@ -114,36 +114,51 @@
 				"source": [
 					"%%sql\n",
 					"\n",
-					"CREATE OR REPLACE TEMPORARY VIEW staff_cost\n",
-					"\n",
-					"     AS\n",
-					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW staff_cost AS \n",
 					"SELECT DISTINCT\n",
-					"    h.pers_no as EmployeeID,\n",
-					"    h.ps_group as Grade, \n",
-					"\th.annual_salary as Salary, \n",
-					"    cast(cast(h.annual_salary as float)/(365.0*7.4) as float) as HourlyRate,\n",
-					"    cast(${EXPECTED_FROM_VAR} as date) as ReportMonthEndDate,\n",
-					"    le.LeaveDaysPerYear as LeaveAllowance,\n",
-					"    cast(case sign(datediff(day, cast(le.LeaveYearStart as date), ${EXPECTED_FROM_VAR}))\n",
-					"\t\t\t\twhen 1 then le.LeaveYearStart\n",
-					"\t\t\t\twhen 0 then le.LeaveYearStart\n",
-					"\t\t\t\telse dateadd(year, -1, le.LeaveYearStart)\n",
-					"\t\t\tend as date) as LeaveStartDate,\n",
-					"    le.leavedaysperyear*(1 - abs((((datediff(day, cast(\n",
-					"                                                    CASE sign(datediff(day, cast(le.leaveyearstart AS date), ${EXPECTED_FROM_VAR}))\n",
-					"                                                    WHEN 1 THEN\n",
-					"                                                    le.leaveyearstart\n",
-					"                                                    ELSE dateadd(year, -1, le.leaveyearstart)\n",
-					"                                                    END\n",
-					"                                                    AS date), ${EXPECTED_FROM_VAR}))/364.25)%1))) AS ExpectedLeaveHoursRemaining\n",
-					"    \n",
-					"FROM odw_standardised_db.vw_saphr h\n",
-					"LEFT JOIN odw_harmonised_db.hr_leave_entitlement_dim le on h.pers_no = le.EmployeeID\n",
+					"    h.pers_no AS EmployeeID,\n",
+					"    h.ps_group AS Grade,\n",
+					"    h.annual_salary AS Salary,\n",
+					"    FORMAT_NUMBER(CAST(h.annual_salary AS FLOAT) / (365.0*7.4), 2) AS HourlyRate,\n",
+					"    FORMAT_NUMBER(CAST(le.LeaveDaysPerYear AS FLOAT), 2) AS LeaveAllowance,\n",
+					"    CAST(\n",
+					"        CASE\n",
+					"            sign(datediff(DAY, CAST(le.LeaveYearStart AS DATE), ${EXPECTED_FROM_VAR})) \n",
+					"            WHEN\n",
+					"                1 \n",
+					"            THEN\n",
+					"                le.LeaveYearStart \n",
+					"            WHEN\n",
+					"                0 \n",
+					"            THEN\n",
+					"                le.LeaveYearStart \n",
+					"            ELSE\n",
+					"                dateadd(YEAR, - 1, le.LeaveYearStart) \n",
+					"        END\n",
+					"    AS DATE) AS LeaveStartDate, \n",
+					"    FORMAT_NUMBER(le.leavedaysperyear*(1 - ABS((((datediff(DAY, CAST( \n",
+					"        CASE\n",
+					"            sign(datediff(DAY, CAST(le.leaveyearstart AS DATE), ${EXPECTED_FROM_VAR})) \n",
+					"            WHEN\n",
+					"                1 \n",
+					"            THEN\n",
+					"                le.leaveyearstart \n",
+					"            ELSE\n",
+					"                dateadd(YEAR, - 1, le.leaveyearstart) \n",
+					"        END\n",
+					"    AS DATE), ${EXPECTED_FROM_VAR})) / 364.25) % 1))), 2) AS ExpectedLeaveHoursRemaining, \n",
+					"    CAST(${EXPECTED_FROM_VAR} AS DATE) AS ReportMonthEndDate \n",
+					"FROM\n",
+					"    odw_standardised_db.vw_saphr h \n",
+					"    LEFT JOIN\n",
+					"        odw_harmonised_db.hr_leave_entitlement_dim le \n",
+					"        ON h.pers_no = le.EmployeeID \n",
 					"WHERE\n",
-					"    le.AbsenceQuotaType = 'Annual Leave / P&P';"
+					"    le.AbsenceQuotaType = 'Annual Leave / P&P' \n",
+					"    AND LEFT(h.expected_from, 7) = LEFT(${EXPECTED_FROM_VAR}, 7) \n",
+					"    AND le.IsActive = 'Y'"
 				],
-				"execution_count": 29
+				"execution_count": 34
 			},
 			{
 				"cell_type": "code",
@@ -165,24 +180,34 @@
 				"source": [
 					"%%sql\n",
 					"\n",
-					"CREATE OR REPLACE TEMPORARY VIEW carried_over\n",
-					"    \n",
-					"    AS\n",
-					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW carried_over AS \n",
 					"SELECT DISTINCT\n",
-					"    h.pers_no as EmployeeID,\n",
-					"    case sign(le.LeaveDaysPerYear - 148)\n",
-					"        when 1 then 148\n",
-					"        when 0 then 148\n",
-					"        else le.LeaveDaysPerYear\n",
-					"    end as CarriedOverHours\n",
-					"\n",
-					"FROM odw_standardised_db.vw_saphr h\n",
-					"LEFT JOIN odw_harmonised_db.hr_leave_entitlement_dim le on h.pers_no = le.EmployeeID\n",
+					"    h.pers_no AS EmployeeID,\n",
+					"    FORMAT_NUMBER( \n",
+					"        CASE\n",
+					"            SIGN(le.LeaveDaysPerYear - 148) \n",
+					"            WHEN\n",
+					"                1 \n",
+					"            THEN\n",
+					"                148 \n",
+					"            WHEN\n",
+					"                0 \n",
+					"            THEN\n",
+					"                148 \n",
+					"            ELSE\n",
+					"                le.LeaveDaysPerYear \n",
+					"        END\n",
+					"    , 2) AS CarriedOverHours \n",
+					"FROM\n",
+					"    odw_standardised_db.vw_saphr h \n",
+					"    LEFT JOIN\n",
+					"        odw_harmonised_db.hr_leave_entitlement_dim le \n",
+					"        ON h.pers_no = le.EmployeeID \n",
 					"WHERE\n",
-					"    le.AbsenceQuotaType = 'Brought Forward';"
+					"    le.AbsenceQuotaType = 'Brought Forward' \n",
+					"    AND le.IsActive = 'Y';"
 				],
-				"execution_count": 30
+				"execution_count": 35
 			},
 			{
 				"cell_type": "code",
@@ -204,37 +229,43 @@
 				"source": [
 					"%%sql\n",
 					"\n",
-					"CREATE OR REPLACE TEMPORARY VIEW leave_taken\n",
-					"\n",
-					"     AS\n",
-					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW leave_taken AS \n",
 					"SELECT DISTINCT\n",
-					"    a.AbsenceID,\n",
-					"    a.EmployeeID,\n",
-					"    CASE\n",
-					"        WHEN sc.ReportMonthEndDate >= a.AbsenceEndDate\n",
-					"        THEN a.Hours\n",
-					"        ELSE a.Hours - (w.WorkDayHours * datediff(a.AbsenceEndDate, sc.ReportMonthEndDate))\n",
-					"    END AS LeaveHours,\n",
-					"    a.Days, \n",
-					"    a.Hours,\n",
-					"    a.CalendarDays,\n",
-					"    a.AbsenceStartDate,\n",
-					"    a.AbsenceEndDate,\n",
-					"    sc.LeaveStartDate\n",
-					"\n",
-					"FROM odw_harmonised_db.hr_absence_dim a\n",
-					"LEFT JOIN odw_harmonised_db.hr_work_schedule_dim w on a.WorkScheduleID = w.WorkScheduleID\n",
-					"LEFT JOIN staff_cost sc ON a.EmployeeID = sc.EmployeeID\n",
+					"   a.EmployeeID,\n",
+					"   CASE\n",
+					"      WHEN\n",
+					"         sc.ReportMonthEndDate >= a.AbsenceEndDate \n",
+					"      THEN\n",
+					"         a.Hours \n",
+					"      ELSE\n",
+					"         a.Hours - (w.WorkDayHours * datediff(a.AbsenceEndDate, sc.ReportMonthEndDate)) \n",
+					"   END\n",
+					"   AS LeaveHours, \n",
+					"   a.Days, \n",
+					"   a.Hours, \n",
+					"   a.CalendarDays, \n",
+					"   a.AbsenceStartDate, \n",
+					"   a.AbsenceEndDate, \n",
+					"   sc.LeaveStartDate \n",
+					"FROM\n",
+					"   odw_harmonised_db.hr_absence_dim a \n",
+					"   LEFT JOIN\n",
+					"      odw_harmonised_db.hr_work_schedule_dim w \n",
+					"      ON a.WorkScheduleID = w.WorkScheduleID \n",
+					"   LEFT JOIN\n",
+					"      staff_cost sc \n",
+					"      ON a.EmployeeID = sc.EmployeeID \n",
 					"WHERE\n",
-					"    a.AbsenceType IN ('PT Annual / P&P Leave', 'FT Annual / Priv Leave')\n",
-					"    AND \n",
-					"    a.AbsenceStartDate  BETWEEN sc.LeaveStartDate AND sc.ReportMonthEndDate\n",
-					"GROUP BY \n",
-					"    a.EmployeeID,a.AbsenceID,a.Days,a.Hours,a.CalendarDays,a.AbsenceStartDate,a.AbsenceEndDate,sc.LeaveStartDate,w.WorkDayHours,sc.ReportMonthEndDate\n",
-					"Order by AbsenceStartDate"
+					"   a.AbsenceType IN \n",
+					"   (\n",
+					"      'PT Annual / P&P Leave', 'FT Annual / Priv Leave'\n",
+					"   )\n",
+					"   AND a.AbsenceStartDate BETWEEN sc.LeaveStartDate AND sc.ReportMonthEndDate \n",
+					"   AND LEFT(a.IngestionDate, 7) = LEFT(${EXPECTED_FROM_VAR}, 7) \n",
+					"ORDER BY\n",
+					"   EmployeeID, ABSENCESTARTDATE"
 				],
-				"execution_count": 31
+				"execution_count": 36
 			},
 			{
 				"cell_type": "code",
@@ -255,19 +286,22 @@
 				},
 				"source": [
 					"%%sql\n",
-					"CREATE OR REPLACE TEMPORARY VIEW leave_taken_fixed\n",
 					"\n",
-					"    AS\n",
-					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW leave_taken_fixed AS \n",
 					"SELECT\n",
-					"EmployeeID,\n",
-					"SUM(LeaveHours) AS LeaveHoursTaken\n",
-					"\n",
-					"FROM leave_taken\n",
-					"Where EmployeeID is not null and LeaveStartDate <= AbsenceStartDate\n",
-					"GROUP BY EmployeeID;"
+					"   EmployeeID,\n",
+					"   FORMAT_NUMBER(SUM(LeaveHours), 2) AS LeaveHoursTaken \n",
+					"FROM\n",
+					"   leave_taken \n",
+					"WHERE\n",
+					"   EmployeeID IS NOT NULL \n",
+					"   AND LeaveStartDate <= AbsenceStartDate \n",
+					"GROUP BY\n",
+					"   EmployeeID \n",
+					"ORDER BY\n",
+					"   EmployeeID"
 				],
-				"execution_count": 32
+				"execution_count": 37
 			},
 			{
 				"cell_type": "code",
@@ -388,9 +422,10 @@
 					"\tleft join leave_taken_fixed lt on cast(sc.EmployeeID as int) = cast(lt.EmployeeID as int)\n",
 					"\tleft join odw_standardised_db.bis_pension_ernic_rates p on sc.Grade = p.Grade\n",
 					"where \n",
-					"\tright(cast(cast(${EXPECTED_FROM_VAR} as date) as varchar(10)),5) in ('01-31','02-28','02-29','03-31','04-30','05-31','06-30','07-31','08-31','09-30','10-31','11-30','12-31')"
+					"\tright(cast(cast(${EXPECTED_FROM_VAR} as date) as varchar(10)),5) in ('01-31','02-28','02-29','03-31','04-30','05-31','06-30','07-31','08-31','09-30','10-31','11-30','12-31')\n",
+					"\torder by pers_no"
 				],
-				"execution_count": 37
+				"execution_count": 38
 			},
 			{
 				"cell_type": "markdown",
@@ -567,7 +602,7 @@
 					"    END  = 'Y'\r\n",
 					";"
 				],
-				"execution_count": null
+				"execution_count": 39
 			},
 			{
 				"cell_type": "markdown",
@@ -802,7 +837,7 @@
 					"FROM odw_curated_db.mipins_hr_measures\r\n",
 					"WHERE EmployeeID IN (SELECT EmployeeID FROM mipins_hr_measures_new WHERE MeasureID IS NULL) AND IsActive = 'Y';"
 				],
-				"execution_count": null
+				"execution_count": 40
 			},
 			{
 				"cell_type": "markdown",
@@ -858,7 +893,7 @@
 					"WHEN NOT MATCHED \r\n",
 					"    THEN INSERT * ;   "
 				],
-				"execution_count": null
+				"execution_count": 41
 			},
 			{
 				"cell_type": "markdown",
