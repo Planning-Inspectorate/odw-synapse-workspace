@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "0e9455f5-4015-433b-808e-e813691aed56"
+				"spark.autotune.trackingId": "3ff428b8-42f4-4080-9e1e-92229f44f648"
 			}
 		},
 		"metadata": {
@@ -244,6 +244,57 @@
 				"execution_count": 4
 			},
 			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					}
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW Loading_month\n",
+					"\n",
+					"    AS\n",
+					"\n",
+					"SELECT DISTINCT\n",
+					"    IngestionDate AS IngestionDate,\n",
+					"    to_timestamp(date_sub(IngestionDate,1)) AS ClosingDate,\n",
+					"    'Y' AS IsActive\n",
+					"\n",
+					"FROM contract_dim_new;\n",
+					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW contract_dim_changed_rows_final\n",
+					"\n",
+					"    AS\n",
+					"\n",
+					"SELECT \n",
+					"    T1.ContractID,\n",
+					"    T1.ContractCode,\n",
+					"    T1.Description,\n",
+					"    T1.ContractTypeCode,\n",
+					"    T1.ContractType,\n",
+					"    T1.SourceSystemID,\n",
+					"    T1.IngestionDate,\n",
+					"    T1.ValidTo,\n",
+					"    T1.RowID,\n",
+					"    T1.IsActive,\n",
+					"    T2.ClosingDate\n",
+					"FROM contract_dim_changed_rows T1\n",
+					"FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive"
+				],
+				"execution_count": null
+			},
+			{
 				"cell_type": "markdown",
 				"metadata": {
 					"nteract": {
@@ -282,7 +333,7 @@
 					"-- merge into dim table\r\n",
 					"\r\n",
 					"MERGE INTO odw_harmonised_db.hr_contract_dim AS Target\r\n",
-					"USING contract_dim_changed_rows AS Source\r\n",
+					"USING contract_dim_changed_rows_final AS Source\r\n",
 					"\r\n",
 					"ON Source.ContractID = Target.ContractID\r\n",
 					"\r\n",
@@ -291,13 +342,31 @@
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
+					"    Target.ValidTo = to_timestamp(ClosingDate),\r\n",
 					"    Target.IsActive = 'N'\r\n",
 					"        \r\n",
 					"-- Insert completely new rows\r\n",
 					"WHEN NOT MATCHED \r\n",
-					"    THEN INSERT * ;  \r\n",
-					""
+					"    THEN INSERT (ContractID,\r\n",
+					"        ContractCode,\r\n",
+					"        Description,\r\n",
+					"        ContractTypeCode,\r\n",
+					"        ContractType,\r\n",
+					"        SourceSystemID,\r\n",
+					"        IngestionDate,\r\n",
+					"        ValidTo,\r\n",
+					"        RowID,\r\n",
+					"        IsActive)  \r\n",
+					"        VALUES (Source.ContractID,\r\n",
+					"        Source.ContractCode,\r\n",
+					"        Source.Description,\r\n",
+					"        Source.ContractTypeCode,\r\n",
+					"        Source.ContractType,\r\n",
+					"        Source.SourceSystemID,\r\n",
+					"        Source.IngestionDate,\r\n",
+					"        Source.ValidTo,\r\n",
+					"        Source.RowID,\r\n",
+					"        Source.IsActive)"
 				],
 				"execution_count": 5
 			},

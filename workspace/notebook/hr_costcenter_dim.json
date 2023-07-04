@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "c915cf99-338b-49ec-8dba-1828cb2853dd"
+				"spark.autotune.trackingId": "8306a924-8f55-4d3c-92b4-e550e2727b24"
 			}
 		},
 		"metadata": {
@@ -207,7 +207,7 @@
 					"-- gets updated, deleted and new rows \r\n",
 					"\r\n",
 					"Select \r\n",
-					"    CostCenterID, -- surrogate key\r\n",
+					"    CostCenterID,\r\n",
 					"    CostCenterCode,\r\n",
 					"    Description,\r\n",
 					"    SourceSystemID,\r\n",
@@ -236,6 +236,55 @@
 					"AND IsActive = 'Y'; "
 				],
 				"execution_count": 3
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					}
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW Loading_month\n",
+					"\n",
+					"    AS\n",
+					"\n",
+					"SELECT DISTINCT\n",
+					"    IngestionDate AS IngestionDate,\n",
+					"    to_timestamp(date_sub(IngestionDate,1)) AS ClosingDate,\n",
+					"    'Y' AS IsActive\n",
+					"\n",
+					"FROM costcenter_dim_new;\n",
+					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW CostCenter_Dim_changed_rows_final\n",
+					"\n",
+					"    AS\n",
+					"\n",
+					"SELECT \n",
+					"    T1.CostCenterID, -- surrogate key\n",
+					"    T1.CostCenterCode,\n",
+					"    T1.Description,\n",
+					"    T1.SourceSystemID,\n",
+					"    T1.IngestionDate,\n",
+					"    T1.ValidTo,\n",
+					"    T1.RowID,\n",
+					"    T1.IsActive\n",
+					"    T2.ClosingDate\n",
+					"FROM CostCenter_Dim_changed_rows T1\n",
+					"FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -276,7 +325,7 @@
 					"-- merge into dim table\r\n",
 					"\r\n",
 					"MERGE INTO odw_harmonised_db.hr_costcenter_dim AS Target\r\n",
-					"USING CostCenter_Dim_changed_rows AS Source\r\n",
+					"USING CostCenter_Dim_changed_rows_final AS Source\r\n",
 					"\r\n",
 					"ON Source.CostCenterID = Target.CostCenterID\r\n",
 					"\r\n",
@@ -285,12 +334,27 @@
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
+					"    Target.ValidTo = to_timestamp(ClosingDate),\r\n",
 					"    Target.IsActive = 'N'\r\n",
 					"\r\n",
 					"-- Insert completely new rows\r\n",
 					"WHEN NOT MATCHED \r\n",
-					"    THEN INSERT * ;  \r\n",
+					"    THEN INSERT (CostCenterID,\r\n",
+					"        CostCenterCode,\r\n",
+					"        Description,\r\n",
+					"        SourceSystemID,\r\n",
+					"        IngestionDate,\r\n",
+					"        ValidTo,\r\n",
+					"        RowID,\r\n",
+					"        IsActive)  \r\n",
+					"        VALUES (Source.CostCenterID,\r\n",
+					"        Source.CostCenterCode,\r\n",
+					"        Source.Description,\r\n",
+					"        Source.SourceSystemID,\r\n",
+					"        Source.IngestionDate,\r\n",
+					"        Source.ValidTo,\r\n",
+					"        Source.RowID,\r\n",
+					"        Source.IsActive)\r\n",
 					""
 				],
 				"execution_count": 4

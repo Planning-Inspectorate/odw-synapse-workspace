@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "c96254aa-9494-44db-8afe-1e8d0ec75b96"
+				"spark.autotune.trackingId": "bb289fca-fd08-40d2-b3a6-53ae31cecea5"
 			}
 		},
 		"metadata": {
@@ -105,9 +105,9 @@
 					"    expected_from\n",
 					"\n",
 					"FROM odw_standardised_db.vw_absences\n",
-					"WHERE Staff_Number IS NOT NULL AND Attendance_or_Absence_Type IS NOT NULL ;"
+					"WHERE Staff_Number IS NOT NULL AND Attendance_or_Absence_Type IS NOT NULL;"
 				],
-				"execution_count": 56
+				"execution_count": 217
 			},
 			{
 				"cell_type": "markdown",
@@ -205,7 +205,7 @@
 					"-- AND \r\n",
 					"T1.Staff_Number IS NOT NULL;"
 				],
-				"execution_count": 57
+				"execution_count": 219
 			},
 			{
 				"cell_type": "markdown",
@@ -289,7 +289,66 @@
 					"FROM odw_harmonised_db.hr_absence_dim T4\r\n",
 					"WHERE EmployeeID IN (SELECT EmployeeID FROM absence_dim_new WHERE AbsenceID IS NULL) AND IsActive = 'Y';"
 				],
-				"execution_count": 59
+				"execution_count": 221
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW Loading_month\n",
+					"\n",
+					"    AS\n",
+					"\n",
+					"SELECT DISTINCT\n",
+					"    IngestionDate AS IngestionDate,\n",
+					"    to_timestamp(date_sub(IngestionDate,1)) AS ClosingDate,\n",
+					"    'Y' AS IsActive\n",
+					"\n",
+					"FROM absence_dim_new;\n",
+					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW absence_dim_changed_rows_final\n",
+					"\n",
+					"    AS\n",
+					"\n",
+					"SELECT \n",
+					"    T1.AbsenceID,\n",
+					"    T1.EmployeeID,\n",
+					"    T1.AbsenceType,\n",
+					"    T1.SicknessGroup,\n",
+					"    T1.AbsenceStartDate,\n",
+					"    T1.AbsenceEndDate,\n",
+					"    T1.Days,\n",
+					"    T1.Hours,\n",
+					"    T1.CalendarDays,\n",
+					"    T1.WorkScheduleID,\n",
+					"    T1.AnnualLeaveStart,\n",
+					"    T1.SourceSystemID,\n",
+					"    T1.IngestionDate,\n",
+					"    T1.ValidTo,\n",
+					"    T1.RowID,\n",
+					"    T1.IsActive,\n",
+					"    T2.ClosingDate\n",
+					"FROM absence_dim_changed_rows T1\n",
+					"FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive\n",
+					""
+				],
+				"execution_count": 222
 			},
 			{
 				"cell_type": "markdown",
@@ -329,24 +388,52 @@
 					"-- merge into fact table\r\n",
 					"\r\n",
 					"MERGE INTO odw_harmonised_db.hr_absence_dim AS Target\r\n",
-					"USING absence_dim_changed_rows AS Source\r\n",
+					"USING absence_dim_changed_rows_final AS Source\r\n",
 					"\r\n",
 					"ON Source.AbsenceID = Target.AbsenceID \r\n",
 					"\r\n",
 					"-- For Updates existing rows\r\n",
-					"\r\n",
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
+					"    Target.ValidTo = to_timestamp(ClosingDate),\r\n",
 					"    Target.IsActive = 'N'\r\n",
 					"\r\n",
 					"-- Insert completely new rows\r\n",
 					"WHEN NOT MATCHED \r\n",
-					"    THEN INSERT * ;  \r\n",
-					""
+					"    THEN INSERT (AbsenceID,\r\n",
+					"        EmployeeID,\r\n",
+					"        AbsenceType,\r\n",
+					"        SicknessGroup,\r\n",
+					"        AbsenceStartDate,\r\n",
+					"        AbsenceEndDate,\r\n",
+					"        Days,\r\n",
+					"        Hours,\r\n",
+					"        CalendarDays,\r\n",
+					"        WorkScheduleID,\r\n",
+					"        AnnualLeaveStart,\r\n",
+					"        SourceSystemID,\r\n",
+					"        IngestionDate,\r\n",
+					"        ValidTo,\r\n",
+					"        RowID,\r\n",
+					"        IsActive)  \r\n",
+					"        VALUES (Source.AbsenceID, \r\n",
+					"        Source.EmployeeID, \r\n",
+					"        Source.AbsenceType, \r\n",
+					"        Source.SicknessGroup, \r\n",
+					"        Source.AbsenceStartDate, \r\n",
+					"        Source.AbsenceEndDate, \r\n",
+					"        Source.Days, Source.Hours, \r\n",
+					"        Source.CalendarDays, \r\n",
+					"        Source.WorkScheduleID, \r\n",
+					"        Source.AnnualLeaveStart, \r\n",
+					"        Source.SourceSystemID, \r\n",
+					"        Source.IngestionDate, \r\n",
+					"        Source.ValidTo, \r\n",
+					"        Source.RowID, \r\n",
+					"        Source.IsActive)"
 				],
-				"execution_count": 61
+				"execution_count": 224
 			},
 			{
 				"cell_type": "markdown",
@@ -406,7 +493,7 @@
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.hr_absence_dim;"
 				],
-				"execution_count": 62
+				"execution_count": 226
 			}
 		]
 	}
