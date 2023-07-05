@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "3ffaa1f5-0071-4370-b0de-a03ba4a9ee44"
+				"spark.autotune.trackingId": "de2a9d56-7a68-4380-9517-dbb9418cd721"
 			}
 		},
 		"metadata": {
@@ -214,6 +214,58 @@
 				"execution_count": 43
 			},
 			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					}
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW Loading_month\n",
+					"\n",
+					"    AS\n",
+					"\n",
+					"SELECT DISTINCT\n",
+					"    IngestionDate AS IngestionDate,\n",
+					"    to_timestamp(date_sub(IngestionDate,1)) AS ClosingDate,\n",
+					"    'Y' AS IsActive\n",
+					"\n",
+					"FROM secureinfo_fact_new;\n",
+					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW secureinfo_fact_changed_rows_final\n",
+					"\n",
+					"    AS\n",
+					"\n",
+					"SELECT \n",
+					"    T1.SecureInfoID,\n",
+					"    SourceID,\n",
+					"    DisabilityID,\n",
+					"    DiversityID,\n",
+					"    ReligionID,\n",
+					"    SXOID,\n",
+					"    T1.SourceSystemID,\n",
+					"    T1.IngestionDate,\n",
+					"    T1.ValidTo,\n",
+					"    T1.RowID,\n",
+					"    T1.IsActive,\n",
+					"    T2.ClosingDate\n",
+					"FROM secureinfo_fact_changed_rows T1\n",
+					"FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive"
+				],
+				"execution_count": null
+			},
+			{
 				"cell_type": "markdown",
 				"metadata": {
 					"nteract": {
@@ -251,7 +303,7 @@
 					"-- merge into fact table\r\n",
 					"\r\n",
 					"MERGE INTO odw_harmonised_db.hr_secure_info_fact AS Target\r\n",
-					"USING secureinfo_fact_changed_rows AS Source\r\n",
+					"USING secureinfo_fact_changed_rows_final AS Source\r\n",
 					"\r\n",
 					"ON Source.SecureInfoID = Target.SecureInfoID\r\n",
 					"\r\n",
@@ -260,12 +312,33 @@
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
+					"    Target.ValidTo = to_timestamp(ClosingDate),\r\n",
 					"    Target.IsActive = 'N'\r\n",
 					"\r\n",
 					"-- Insert completely new rows\r\n",
 					"WHEN NOT MATCHED \r\n",
-					"    THEN INSERT * ;"
+					"    THEN INSERT (SecureInfoID, \r\n",
+					"        SourceID,\r\n",
+					"        DisabilityID,\r\n",
+					"        DiversityID,\r\n",
+					"        ReligionID,\r\n",
+					"        SXOID,\r\n",
+					"        SourceSystemID,\r\n",
+					"        IngestionDate,\r\n",
+					"        ValidTo,\r\n",
+					"        RowID,\r\n",
+					"        IsActive)  \r\n",
+					"        VALUES (Source.SecureInfoID,\r\n",
+					"        Source.SourceID, \r\n",
+					"        Source.DisabilityID,\r\n",
+					"        Source.DiversityID,\r\n",
+					"        Source.ReligionID,\r\n",
+					"        Source.SXOID,\r\n",
+					"        Source.SourceSystemID, \r\n",
+					"        Source.IngestionDate, \r\n",
+					"        Source.ValidTo, \r\n",
+					"        Source.RowID, \r\n",
+					"        Source.IsActive) ;"
 				],
 				"execution_count": 44
 			},

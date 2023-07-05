@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "fe0d0382-590f-44c5-9c6d-b67667bc78d9"
+				"spark.autotune.trackingId": "dbabd893-9846-4aea-b6e1-5f984cfadefa"
 			}
 		},
 		"metadata": {
@@ -145,7 +145,7 @@
 					"            END  = 'Y' )\r\n",
 					";"
 				],
-				"execution_count": 17
+				"execution_count": 39
 			},
 			{
 				"cell_type": "markdown",
@@ -231,7 +231,63 @@
 					"                                            T1.IsActive = 'Y'\r\n",
 					";"
 				],
-				"execution_count": 18
+				"execution_count": 40
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					}
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW Loading_month\n",
+					"\n",
+					"    AS\n",
+					"\n",
+					"SELECT DISTINCT\n",
+					"    IngestionDate AS IngestionDate,\n",
+					"    to_timestamp(date_sub(IngestionDate,1)) AS ClosingDate,\n",
+					"    'Y' AS IsActive\n",
+					"\n",
+					"FROM hr_employee_leavers_dim_new;\n",
+					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW hr_employee_leavers_dim_changed_rows_final\n",
+					"\n",
+					"    AS\n",
+					"\n",
+					"SELECT \n",
+					"    T1.EmployeeLeaversID,\n",
+					"    T1.EmployeeID,\n",
+					"    T1.ReasonForLeaving, \n",
+					"    T1.EmploymentStartDate,\n",
+					"    T1.EmploymentEndDate,\n",
+					"    T1.Act,\n",
+					"    T1.ActionType,\n",
+					"    T1.ActR,\n",
+					"    T1.S,\n",
+					"    T1.UserID,\n",
+					"    T1.SourceSystemID,\n",
+					"    T1.IngestionDate,\n",
+					"    T1.ValidTo,\n",
+					"    T1.RowID,\n",
+					"    T1.IsActive,\n",
+					"    T2.ClosingDate\n",
+					"FROM hr_employee_leavers_dim_changed_rows T1\n",
+					"FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -272,7 +328,7 @@
 					"-- merge into fact table\r\n",
 					"\r\n",
 					"MERGE INTO odw_harmonised_db.hr_employee_leavers_dim AS Target\r\n",
-					"USING hr_employee_leavers_dim_changed_rows AS Source\r\n",
+					"USING hr_employee_leavers_dim_changed_rows_final AS Source\r\n",
 					"\r\n",
 					"ON Source.EmployeeLeaversID = Target.EmployeeLeaversID AND Target.IsActive = 'Y'\r\n",
 					"\r\n",
@@ -281,15 +337,44 @@
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
+					"    Target.ValidTo = to_timestamp(ClosingDate),\r\n",
 					"    Target.IsActive = 'N'\r\n",
 					"\r\n",
 					"-- Insert completely new rows\r\n",
 					"WHEN NOT MATCHED \r\n",
-					"    THEN INSERT * ;  \r\n",
+					"    THEN INSERT (EmployeeLeaversID,\r\n",
+					"        EmployeeID,\r\n",
+					"        ReasonForLeaving, \r\n",
+					"        EmploymentStartDate,\r\n",
+					"        EmploymentEndDate,\r\n",
+					"        Act,\r\n",
+					"        ActionType,\r\n",
+					"        ActR,\r\n",
+					"        S,\r\n",
+					"        UserID,\r\n",
+					"        SourceSystemID,\r\n",
+					"        IngestionDate,\r\n",
+					"        ValidTo,\r\n",
+					"        RowID,\r\n",
+					"        IsActive)  \r\n",
+					"        VALUES (Source.EmployeeLeaversID,\r\n",
+					"        Source.EmployeeID,\r\n",
+					"        Source.ReasonForLeaving, \r\n",
+					"        Source.EmploymentStartDate,\r\n",
+					"        Source.EmploymentEndDate,\r\n",
+					"        Source.Act,\r\n",
+					"        Source.ActionType,\r\n",
+					"        Source.ActR,\r\n",
+					"        Source.S,\r\n",
+					"        Source.UserID,\r\n",
+					"        Source.SourceSystemID, \r\n",
+					"        Source.IngestionDate, \r\n",
+					"        Source.ValidTo, \r\n",
+					"        Source.RowID, \r\n",
+					"        Source.IsActive) ;  \r\n",
 					""
 				],
-				"execution_count": 19
+				"execution_count": 41
 			},
 			{
 				"cell_type": "markdown",
@@ -350,7 +435,7 @@
 					"FROM odw_harmonised_db.hr_employee_leavers_dim;\r\n",
 					""
 				],
-				"execution_count": 20
+				"execution_count": 42
 			},
 			{
 				"cell_type": "markdown",
@@ -385,10 +470,44 @@
 				"source": [
 					"%%sql\n",
 					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW hr_employee_leavers_leaving_this_month\n",
+					"\n",
+					"AS\n",
+					"\n",
+					"SELECT  \n",
+					"\n",
+					"    *\n",
+					"\n",
+					"FROM hr_employee_leavers_dim_new\n",
+					"\n",
+					"WHERE SUBSTRING(EmploymentENDDate, 0, 7) = (SELECT SUBSTRING(MAX(EXPECTED_FROM), 0, 7) FROM odw_standardised_db.vw_leavers)"
+				],
+				"execution_count": 43
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
 					"-- merge into fact table\n",
 					"\n",
 					"MERGE INTO odw_harmonised_db.hr_employee_dim AS Target\n",
-					"USING hr_employee_leavers_dim_new AS Source\n",
+					"USING hr_employee_leavers_leaving_this_month AS Source\n",
 					"\n",
 					"ON Source.EmployeeID = Target.EmployeeID AND Target.IsActive = 'Y'\n",
 					"\n",
@@ -400,7 +519,7 @@
 					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\n",
 					"    Target.IsActive = 'N'"
 				],
-				"execution_count": 21
+				"execution_count": 44
 			},
 			{
 				"cell_type": "code",
@@ -425,7 +544,7 @@
 					"-- merge into fact table\n",
 					"\n",
 					"MERGE INTO odw_harmonised_db.hr_employee_fact AS Target\n",
-					"USING hr_employee_leavers_dim_new AS Source\n",
+					"USING hr_employee_leavers_leaving_this_month AS Source\n",
 					"\n",
 					"ON Source.EmployeeID = Target.EmployeeID AND Target.IsActive = 'Y'\n",
 					"\n",
@@ -437,7 +556,7 @@
 					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\n",
 					"    Target.IsActive = 'N'"
 				],
-				"execution_count": 22
+				"execution_count": 45
 			},
 			{
 				"cell_type": "code",
@@ -462,7 +581,7 @@
 					"-- merge into fact table\n",
 					"\n",
 					"MERGE INTO odw_harmonised_db.hr_record_fact AS Target\n",
-					"USING hr_employee_leavers_dim_new AS Source\n",
+					"USING hr_employee_leavers_leaving_this_month AS Source\n",
 					"\n",
 					"ON Source.EmployeeID = Target.EmployeeID AND Target.IsActive = 'Y'\n",
 					"\n",
@@ -474,7 +593,7 @@
 					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\n",
 					"    Target.IsActive = 'N'"
 				],
-				"execution_count": 23
+				"execution_count": 46
 			}
 		]
 	}

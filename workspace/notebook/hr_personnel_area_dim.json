@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "7c96b021-917e-4e80-827b-6ad01bd8b114"
+				"spark.autotune.trackingId": "30280c6e-a4b4-494b-a9b5-5b883de1881f"
 			}
 		},
 		"metadata": {
@@ -375,6 +375,55 @@
 				"execution_count": 5
 			},
 			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					}
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW Loading_month\n",
+					"\n",
+					"    AS\n",
+					"\n",
+					"SELECT DISTINCT\n",
+					"    IngestionDate AS IngestionDate,\n",
+					"    to_timestamp(date_sub(IngestionDate,1)) AS ClosingDate,\n",
+					"    'Y' AS IsActive\n",
+					"\n",
+					"FROM personnelarea_dim_new;\n",
+					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW personnelarea_dim_changed_rows_final\n",
+					"\n",
+					"    AS\n",
+					"\n",
+					"SELECT \n",
+					"    T1.PersonnelAreaID,\n",
+					"    T1.PersonnelAreaCode,\n",
+					"    T1.Description,\n",
+					"    T1.SourceSystemID,\n",
+					"    T1.IngestionDate,\n",
+					"    T1.ValidTo,\n",
+					"    T1.RowID,\n",
+					"    T1.IsActive,\n",
+					"    T2.ClosingDate\n",
+					"FROM personnelarea_dim_changed_rows T1\n",
+					"FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive"
+				],
+				"execution_count": null
+			},
+			{
 				"cell_type": "markdown",
 				"metadata": {
 					"nteract": {
@@ -413,7 +462,7 @@
 					"-- merge into dim table\r\n",
 					"\r\n",
 					"MERGE INTO odw_harmonised_db.hr_personnel_area_dim AS Target\r\n",
-					"USING personnelarea_dim_changed_rows AS Source\r\n",
+					"USING personnelarea_dim_changed_rows_final AS Source\r\n",
 					"\r\n",
 					"ON Source.PersonnelAreaID = Target.PersonnelAreaID\r\n",
 					"\r\n",
@@ -422,12 +471,27 @@
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
+					"    Target.ValidTo = to_timestamp(ClosingDate),\r\n",
 					"    Target.IsActive = 'N'\r\n",
 					"\r\n",
 					"-- Insert completely new rows\r\n",
 					"WHEN NOT MATCHED \r\n",
-					"    THEN INSERT * ;  \r\n",
+					"    THEN INSERT (PersonnelAreaID,\r\n",
+					"        PersonnelAreaCode,\r\n",
+					"        Description,\r\n",
+					"        SourceSystemID,\r\n",
+					"        IngestionDate,\r\n",
+					"        ValidTo,\r\n",
+					"        RowID,\r\n",
+					"        IsActive)  \r\n",
+					"        VALUES (Source.PersonnelAreaID,\r\n",
+					"        Source.PersonnelAreaCode,\r\n",
+					"        Source.Description,\r\n",
+					"        Source.SourceSystemID, \r\n",
+					"        Source.IngestionDate, \r\n",
+					"        Source.ValidTo, \r\n",
+					"        Source.RowID, \r\n",
+					"        Source.IsActive) ;  \r\n",
 					""
 				],
 				"execution_count": 6

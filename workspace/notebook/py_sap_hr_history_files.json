@@ -71,7 +71,10 @@
 					"spark.conf.set(\"spark.databricks.delta.schema.autoMerge.enabled\", \"true\")\n",
 					"\n",
 					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
-					"source_container_path = \"abfss://odw-raw@\"+storage_account "
+					"\n",
+					"raw_container = \"abfss://odw-raw@\" + storage_account\n",
+					"config_container = \"abfss://odw-config@\" + storage_account\n",
+					"standardised_container = \"abfss://odw-standardised@\" + storage_account"
 				],
 				"execution_count": 1
 			},
@@ -183,7 +186,7 @@
 					}
 				},
 				"source": [
-					"history_files_source_path = f\"{source_container_path}Fileshare/SAP_HR/HR/zSAP_HR history files/\"\n",
+					"history_files_source_path = f\"{raw_container}Fileshare/SAP_HR/HR/zSAP_HR history files/\"\n",
 					"\n",
 					"\n",
 					"target_files_keys = ['absence', 'address', 'email', 'leaver', 'leave', 'pc', 'saphr', 'specialism']\n",
@@ -415,25 +418,22 @@
 					"        dt = datetime(year=year, month=month, day=day,hour=hour,minute=minute,second=second)\r\n",
 					"        from pyspark.sql import SparkSession\r\n",
 					"        spark = SparkSession.builder.getOrCreate()\r\n",
-					"\r\n",
-					"        config_target_container = \"abfss://odw-config@\" + spark.sparkContext.environment.get('dataLakeAccountName', 'get') + \".dfs.core.windows.net/\"\r\n",
-					"        standardised_target_container = \"abfss://odw-standardised@\" + spark.sparkContext.environment.get('dataLakeAccountName', 'get') + \".dfs.core.windows.net/\"\r\n",
 					"        import json\r\n",
 					"        from pyspark.sql.types import StringType,BooleanType,DateType,TimestampType,IntegerType, FloatType, StructType\r\n",
-					"        outstanding_files_table_json = spark.read.text(config_target_container + \"orchestration/scheduling_outstanding_files_table.json\", wholetext=True).first().value\r\n",
+					"        outstanding_files_table_json = spark.read.text(config_container + \"orchestration/scheduling_outstanding_files_table.json\", wholetext=True).first().value\r\n",
 					"        outstanding_struct_schema = StructType.fromJson(json.loads(outstanding_files_table_json))\r\n",
 					"        new_outst_file = spark.createDataFrame([[dt, jsonId]], outstanding_struct_schema)\r\n",
-					"        new_outst_file.write.format(\"delta\").mode(\"append\").save(standardised_target_container+\"config/raw_to_std_outstanding_files\")\r\n",
+					"        new_outst_file.write.format(\"delta\").mode(\"append\").save(standardised_container+\"config/raw_to_std_outstanding_files\")\r\n",
 					"    except Exception as e:\r\n",
 					"        raise RuntimeError(f\"For jsonID:{jsonId} for date {year}-{month}-{day}, record failed to be added to raw_to_std_outstanding_files\") from e\r\n",
 					"        \r\n",
 					"\r\n",
 					"from datetime import datetime, date\r\n",
 					"\r\n",
-					"weekly_folders_and_files = mssparkutils.fs.ls(\"abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/Fileshare/SAP_HR/HR/Weekly/\")\r\n",
+					"weekly_folders_and_files = mssparkutils.fs.ls(raw_container + \"Fileshare/SAP_HR/HR/Weekly/\")\r\n",
 					"weekly_target_files_keys = {'address':1,'email':3,'saphr':2,'specialism':4}\r\n",
 					"\r\n",
-					"monthly_folders_and_files = mssparkutils.fs.ls(\"abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/Fileshare/SAP_HR/HR/Monthly/\")\r\n",
+					"monthly_folders_and_files = mssparkutils.fs.ls(raw_container + \"Fileshare/SAP_HR/HR/Monthly/\")\r\n",
 					"monthly_target_files_keys = {'address':1,'email':3,'saphr':2,'specialism':4,'absence':5,'leave entitlement':6, 'leavers':7, 'pc':8}\r\n",
 					"\r\n",
 					"output = []\r\n",
@@ -447,6 +447,7 @@
 					"                    if key in file.name.lower():  \r\n",
 					"                        date_str = file.path.split('/')[-2]\r\n",
 					"                        date_unpacked = datetime.strptime(date_str, \"%Y-%m-%d\")\r\n",
+					"                        print( weekly_target_files_keys[key], date_unpacked.year, date_unpacked.month, date_unpacked.day)\r\n",
 					"                        add_file_to_table( weekly_target_files_keys[key], date_unpacked.year, date_unpacked.month, date_unpacked.day, 0, 0, 0)\r\n",
 					"\r\n",
 					"for date_folder in monthly_folders_and_files:\r\n",
@@ -461,7 +462,7 @@
 					"                        folder_date = date_unpacked\r\n",
 					"                        folder_date = date(folder_date.year, folder_date.month, calendar.monthrange(folder_date.year, folder_date.month)[-1]) + timedelta(days=1)\r\n",
 					"                        folder_date = datetime.combine(folder_date, datetime.min.time())\r\n",
-					"                        # print(file.path,  folder_date)\r\n",
+					"                        print( monthly_target_files_keys[key], folder_date.year, folder_date.month, folder_date.day)\r\n",
 					"                        add_file_to_table( monthly_target_files_keys[key], folder_date.year, folder_date.month, folder_date.day, 0, 0, 0)\r\n",
 					"\r\n",
 					"\r\n",
@@ -477,7 +478,7 @@
 					"# hr pc monthly\r\n",
 					""
 				],
-				"execution_count": 65
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
