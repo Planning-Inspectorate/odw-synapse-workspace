@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "743f73b9-3acd-4d40-a492-9c9b65795a2a"
+				"spark.autotune.trackingId": "dbabd893-9846-4aea-b6e1-5f984cfadefa"
 			}
 		},
 		"metadata": {
@@ -234,6 +234,62 @@
 				"execution_count": 40
 			},
 			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					}
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW Loading_month\n",
+					"\n",
+					"    AS\n",
+					"\n",
+					"SELECT DISTINCT\n",
+					"    IngestionDate AS IngestionDate,\n",
+					"    to_timestamp(date_sub(IngestionDate,1)) AS ClosingDate,\n",
+					"    'Y' AS IsActive\n",
+					"\n",
+					"FROM hr_employee_leavers_dim_new;\n",
+					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW hr_employee_leavers_dim_changed_rows_final\n",
+					"\n",
+					"    AS\n",
+					"\n",
+					"SELECT \n",
+					"    T1.EmployeeLeaversID,\n",
+					"    T1.EmployeeID,\n",
+					"    T1.ReasonForLeaving, \n",
+					"    T1.EmploymentStartDate,\n",
+					"    T1.EmploymentEndDate,\n",
+					"    T1.Act,\n",
+					"    T1.ActionType,\n",
+					"    T1.ActR,\n",
+					"    T1.S,\n",
+					"    T1.UserID,\n",
+					"    T1.SourceSystemID,\n",
+					"    T1.IngestionDate,\n",
+					"    T1.ValidTo,\n",
+					"    T1.RowID,\n",
+					"    T1.IsActive,\n",
+					"    T2.ClosingDate\n",
+					"FROM hr_employee_leavers_dim_changed_rows T1\n",
+					"FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive"
+				],
+				"execution_count": null
+			},
+			{
 				"cell_type": "markdown",
 				"metadata": {
 					"nteract": {
@@ -272,7 +328,7 @@
 					"-- merge into fact table\r\n",
 					"\r\n",
 					"MERGE INTO odw_harmonised_db.hr_employee_leavers_dim AS Target\r\n",
-					"USING hr_employee_leavers_dim_changed_rows AS Source\r\n",
+					"USING hr_employee_leavers_dim_changed_rows_final AS Source\r\n",
 					"\r\n",
 					"ON Source.EmployeeLeaversID = Target.EmployeeLeaversID AND Target.IsActive = 'Y'\r\n",
 					"\r\n",
@@ -281,12 +337,41 @@
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
+					"    Target.ValidTo = to_timestamp(ClosingDate),\r\n",
 					"    Target.IsActive = 'N'\r\n",
 					"\r\n",
 					"-- Insert completely new rows\r\n",
 					"WHEN NOT MATCHED \r\n",
-					"    THEN INSERT * ;  \r\n",
+					"    THEN INSERT (EmployeeLeaversID,\r\n",
+					"        EmployeeID,\r\n",
+					"        ReasonForLeaving, \r\n",
+					"        EmploymentStartDate,\r\n",
+					"        EmploymentEndDate,\r\n",
+					"        Act,\r\n",
+					"        ActionType,\r\n",
+					"        ActR,\r\n",
+					"        S,\r\n",
+					"        UserID,\r\n",
+					"        SourceSystemID,\r\n",
+					"        IngestionDate,\r\n",
+					"        ValidTo,\r\n",
+					"        RowID,\r\n",
+					"        IsActive)  \r\n",
+					"        VALUES (Source.EmployeeLeaversID,\r\n",
+					"        Source.EmployeeID,\r\n",
+					"        Source.ReasonForLeaving, \r\n",
+					"        Source.EmploymentStartDate,\r\n",
+					"        Source.EmploymentEndDate,\r\n",
+					"        Source.Act,\r\n",
+					"        Source.ActionType,\r\n",
+					"        Source.ActR,\r\n",
+					"        Source.S,\r\n",
+					"        Source.UserID,\r\n",
+					"        Source.SourceSystemID, \r\n",
+					"        Source.IngestionDate, \r\n",
+					"        Source.ValidTo, \r\n",
+					"        Source.RowID, \r\n",
+					"        Source.IsActive) ;  \r\n",
 					""
 				],
 				"execution_count": 41
