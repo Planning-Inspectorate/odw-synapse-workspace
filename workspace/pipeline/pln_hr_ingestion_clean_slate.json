@@ -1,0 +1,143 @@
+{
+	"name": "pln_hr_ingestion_clean_slate",
+	"properties": {
+		"activities": [
+			{
+				"name": "Clear All Tables",
+				"description": "Clear All Tables",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Set HR Tables Array",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@variables('hr_tables')",
+						"type": "Expression"
+					},
+					"batchCount": 10,
+					"activities": [
+						{
+							"name": "Clear Table",
+							"type": "SynapseNotebook",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "py_delete_table_contents",
+									"type": "NotebookReference"
+								},
+								"parameters": {
+									"db_name": {
+										"value": {
+											"value": "@split(item(), '.')[0]",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"table_name": {
+										"value": {
+											"value": "@split(item(), '.')[1]",
+											"type": "Expression"
+										},
+										"type": "string"
+									}
+								},
+								"snapshot": true,
+								"conf": {
+									"spark.dynamicAllocation.enabled": null,
+									"spark.dynamicAllocation.minExecutors": null,
+									"spark.dynamicAllocation.maxExecutors": null
+								},
+								"numExecutors": null
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Set HR Tables Array",
+				"description": "",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "hr_tables",
+					"value": [
+						"odw_standardised_db.hr_addresses",
+						"odw_standardised_db.hr_saphr",
+						"odw_standardised_db.hr_email",
+						"odw_standardised_db.hr_specialisms",
+						"odw_standardised_db.hr_leave",
+						"odw_standardised_db.hr_leavers",
+						"odw_standardised_db.hr_protected_characteristics",
+						"odw_standardised_db.hr_work_schedule_rule",
+						"odw_standardised_db.hr_absences",
+						"odw_standardised_db.sap_hr_historic",
+						"odw_standardised_db.bis_pension_ernic_rates"
+					]
+				}
+			},
+			{
+				"name": "py_sap_hr_history_files",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Clear All Tables",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_sap_hr_history_files",
+						"type": "NotebookReference"
+					},
+					"snapshot": true
+				}
+			}
+		],
+		"variables": {
+			"hr_views": {
+				"type": "Array"
+			},
+			"hr_tables": {
+				"type": "Array"
+			},
+			"test": {
+				"type": "String"
+			}
+		},
+		"folder": {
+			"name": "post-deployment/06-07-2023"
+		},
+		"annotations": []
+	}
+}
