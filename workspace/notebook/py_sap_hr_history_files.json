@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "894ef88c-a571-43de-8261-25066c191050"
+				"spark.autotune.trackingId": "ea82c631-8c66-4d67-8a43-7b9355c50cc6"
 			}
 		},
 		"metadata": {
@@ -202,6 +202,17 @@
 					"df = spark.read.option(\"multiline\",\"true\").json(path_to_orchestration_file)\n",
 					"definitions = json.loads(df.toJSON().first())['definitions']\n",
 					"\n",
+					"for file in root_saphr_files:\n",
+					"    definition = next((d for d in definitions if d['Source_ID'] == 2), None)\n",
+					"    expected_from = datetime.strptime(file.name[6:-5], \"%Y%m%d\")\n",
+					"\n",
+					"    if definition:\n",
+					"        expected_from = date(expected_from.year, expected_from.month, calendar.monthrange(expected_from.year, expected_from.month)[1]) + timedelta(days=1)\n",
+					"        expected_from = datetime.combine(expected_from, datetime.min.time())\n",
+					"        expected_to = expected_from + timedelta(days=definition['Expected_Within_Weekdays']) \n",
+					"        ingest(definition, history_files_source_path, file.name, expected_from, expected_to)\n",
+					"\n",
+					"\n",
 					"for folder in folders:\n",
 					"    files = mssparkutils.fs.ls(folder.path)\n",
 					"    files = [f for f in files if f.isFile and f.name.lower().endswith('.xlsx')]\n",
@@ -217,17 +228,7 @@
 					"                    expected_to = expected_from + timedelta(days=definition['Expected_Within_Weekdays']) \n",
 					"                    ingest(definition, folder.path, file.name, expected_from, expected_to)\n",
 					"                    break\n",
-					"                \n",
-					"for file in root_saphr_files:\n",
-					"    definition = next((d for d in definitions if d['Source_ID'] == 2), None)\n",
-					"    expected_from = datetime.strptime(file.name[6:-5], \"%Y%m%d\")\n",
-					"\n",
-					"    if definition:\n",
-					"        expected_from = date(expected_from.year, expected_from.month, calendar.monthrange(expected_from.year, expected_from.month)[1]) + timedelta(days=1)\n",
-					"        expected_from = datetime.combine(expected_from, datetime.min.time())\n",
-					"        expected_to = expected_from + timedelta(days=definition['Expected_Within_Weekdays']) \n",
-					"        ingest(definition, history_files_source_path, file.name, expected_from, expected_to)\n",
-					""
+					"                "
 				],
 				"execution_count": 10
 			},
