@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "10bfed1b-cf6f-44d1-bd83-e658ea1f8b2d"
+				"spark.autotune.trackingId": "bb474bad-21ee-428c-9d56-d080f36c0cf9"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				},
 				"sparkVersion": "3.3",
 				"nodeCount": 3,
-				"cores": 4,
-				"memory": 28,
+				"cores": 8,
+				"memory": 56,
 				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
@@ -69,6 +69,93 @@
 					"\r\n",
 					"## View hr_record_fact_new is created"
 				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"-- Build Employee_fact table -- merge\n",
+					"\n",
+					"-- Notes - Addresses are only supplied for Inspectors - need to check inspector count against addresses data\n",
+					"\n",
+					"\n",
+					"-- gets data that matches of SourceID and flags that it is modified based on a row (md5) hash and flags as \"NewData\"\n",
+					"\n",
+					"SELECT DISTINCT\n",
+					"    T1.Pers_No as EmployeeID,\n",
+					"    to_date(T1.Birth_date) as DOB,\n",
+					"    T1.NI_number as NINumber,\n",
+					"    T1.Pers_No as PersNumber,\n",
+					"    T2.Staff_Number as EmployeeNumber,\n",
+					"    T1.Employee_No as LegacyEmployeeNumber,\n",
+					"    NULL as NewSAPEmployeeNumber,\n",
+					"    T4.SourceSystemID,\n",
+					"    to_timestamp(T1.expected_from) AS IngestionDate,\n",
+					"    NULL as ValidTo,\n",
+					"    md5(concat(IFNULL(T1.Birth_date,'.'), IFNULL(T1.NI_number, '.'), IFNULL(T1.Pers_No, '.'),IFNULL(T2.Staff_Number, '.'), IFNULL(T1.Employee_No,'.'))) as RowID, \n",
+					"    'Y' as IsActive, \n",
+					"    T7.IsActive as HistoricIsActive\n",
+					"\n",
+					"FROM odw_standardised_db.vw_saphr T1\n",
+					"LEFT JOIN odw_standardised_db.vw_addresses T2 ON T1.Pers_No = T2.Staff_Number\n",
+					"LEFT JOIN odw_standardised_db.vw_email T3 ON T1.Pers_No = T3.Staff_Number\n",
+					"LEFT JOIN odw_harmonised_db.main_sourcesystem_fact T4 ON \"SAP HR\" = T4.Description and T4.IsActive = 'Y'\n",
+					"LEFT JOIN ( SELECT staff_number, max(ded_from) as AnnualLeaveStartDate\n",
+					"            FROM odw_standardised_db.vw_leave\n",
+					"            GRoup BY Staff_Number) T5 ON T1.Pers_No = T5.staff_number    \n",
+					"FULL JOIN odw_harmonised_db.hr_employee_fact T7 ON T1.Pers_No = T7.PersNumber AND T7.IsActive = 'Y'\n",
+					"WHERE\n",
+					"        -- flags new data        \n",
+					"        CASE\n",
+					"            WHEN T1.Pers_No = T7.PersNumber AND md5(concat(IFNULL(T1.Birth_date,'.'), IFNULL(T1.NI_number, '.'), IFNULL(T1.Pers_No, '.'),IFNULL(T2.Staff_Number, '.'), IFNULL(T1.Employee_No,'.')))  <> T7.RowID     \n",
+					"            THEN 'Y'\n",
+					"            WHEN T7.PersNumber IS NULL\n",
+					"            THEN 'Y'\n",
+					"            ELSE 'N'\n",
+					"        END  = 'Y' \n",
+					"AND T1.Pers_No IS NOT NULL;\n",
+					""
+				],
+				"execution_count": 27
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"SELECT count(*) FROM odw_standardised_db.vw_email"
+				],
+				"execution_count": 15
 			},
 			{
 				"cell_type": "code",
@@ -179,7 +266,30 @@
 					"    AND T2.EmployeeID IS NOT NULL\r\n",
 					";"
 				],
-				"execution_count": 70
+				"execution_count": 1
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"select * from hr_record_fact_new"
+				],
+				"execution_count": 8
 			},
 			{
 				"cell_type": "markdown",
@@ -281,7 +391,7 @@
 					"WHERE EmployeeID IN (SELECT EmployeeID FROM hr_record_fact_new WHERE HRRecordID IS NULL) AND IsActive = 'Y';\r\n",
 					""
 				],
-				"execution_count": 71
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
@@ -297,7 +407,8 @@
 					},
 					"microsoft": {
 						"language": "sparksql"
-					}
+					},
+					"collapsed": false
 				},
 				"source": [
 					"%%sql\n",
@@ -344,7 +455,7 @@
 					"FROM hr_record_fact_changed_rows T1\n",
 					"FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive"
 				],
-				"execution_count": null
+				"execution_count": 3
 			},
 			{
 				"cell_type": "markdown",
@@ -444,7 +555,7 @@
 					"        Source.IsActive) ; \r\n",
 					""
 				],
-				"execution_count": 72
+				"execution_count": 4
 			},
 			{
 				"cell_type": "markdown",
@@ -511,7 +622,7 @@
 					"FROM odw_harmonised_db.hr_record_fact;\r\n",
 					""
 				],
-				"execution_count": 73
+				"execution_count": 5
 			}
 		]
 	}
