@@ -1,47 +1,81 @@
 {
   "definition": {
-    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
-    "actions": {
-      "Send_message": {
-        "type": "ApiConnection",
-        "inputs": {
-          "host": {
-            "connection": {
-              "referenceName": "servicebus-2"
-            }
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "actions": {
+          "Send_message": {
+              "inputs": {
+                  "body": {
+                      "ContentData": "@{base64(triggerBody())}",
+                      "Label": "Updated",
+                      "MessageId": "@{guid()}",
+                      "SessionId": "@{guid()}"
+                  },
+                  "host": {
+                      "connection": {
+                          "name": "@parameters('$connections')['servicebus']['connectionId']"
+                      }
+                  },
+                  "method": "post",
+                  "path": "/@{encodeURIComponent(encodeURIComponent('zendesk'))}/messages",
+                  "queries": {
+                      "systemProperties": "None"
+                  }
+              },
+              "runAfter": {},
+              "type": "ApiConnection"
+          }
+      },
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+          "$connections": {
+              "defaultValue": {},
+              "type": "Object"
           },
-          "method": "post",
-          "body": {
-            "SessionId": "@{guid()}",
-            "MessageId": "@{guid()}",
-            "Label": "Updated",
-            "ContentData": "@{base64(triggerOutputs())}"
-          },
-          "path": "/@{encodeURIComponent(encodeURIComponent('zendesk'))}/messages"
-        },
-        "runAfter": {}
+          "created_at": {
+              "defaultValue": "2023-07-04T09:00:00Z",
+              "type": "String"
+          }
+      },
+      "triggers": {
+          "Triggers_when_a_new_ticket_is_updated": {
+              "evaluatedRecurrence": {
+                  "frequency": "Hour",
+                  "interval": 1
+              },
+              "inputs": {
+                  "host": {
+                      "connection": {
+                          "name": "@parameters('$connections')['pins-la-custom-connector-zendesk']['connectionId']"
+                      }
+                  },
+                  "method": "get",
+                  "path": "/api/v2/search.json",
+                  "queries": {
+                      "query": "?query=type:ticket updated_at>1hour order_by:updated_at sort:desc"
+                  }
+              },
+              "recurrence": {
+                  "frequency": "Hour",
+                  "interval": 1
+              },
+              "type": "ApiConnection"
+          }
       }
-    },
-    "contentVersion": "1.0.0.0",
-    "outputs": {},
-    "triggers": {
-      "When_an_item_is_created": {
-        "type": "ApiConnection",
-        "inputs": {
-          "host": {
-            "connection": {
-              "referenceName": "zendesk"
-            }
-          },
-          "method": "get",
-          "path": "/datasets/default/tables/@{encodeURIComponent(encodeURIComponent('tickets'))}/onupdateditems"
-        },
-        "recurrence": {
-          "frequency": "Minute",
-          "interval": 3
-        }
-      }
-    }
   },
-  "kind": "Stateful"
+  "parameters": {
+      "$connections": {
+          "value": {
+              "pins-la-custom-connector-zendesk": {
+                  "connectionId": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-logic-app-odw-dev-uks/providers/Microsoft.Web/connections/pins-la-custom-connector-zendesk",
+                  "connectionName": "pins-la-custom-connector-zendesk",
+                  "id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-logic-app-odw-dev-uks/providers/Microsoft.Web/customApis/pins-la-custom-connector-zendesk"
+              },
+              "servicebus": {
+                  "connectionId": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-logic-app-odw-dev-uks/providers/Microsoft.Web/connections/servicebus",
+                  "connectionName": "servicebus",
+                  "id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/providers/Microsoft.Web/locations/uksouth/managedApis/servicebus"
+              }
+          }
+      }
+  }
 }

@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "490f6161-2de1-49c1-a6b9-e2be7bc6e954"
+				"spark.autotune.trackingId": "02b60e85-ae39-44da-afcc-43abad9f17c7"
 			}
 		},
 		"metadata": {
@@ -59,11 +59,13 @@
 				},
 				"source": [
 					"from notebookutils import mssparkutils\r\n",
+					"from pyspark.sql import SparkSession\r\n",
+					"spark = SparkSession.builder.getOrCreate()\r\n",
 					"\r\n",
 					"# Builds the calendar which holds the CY and FY info\r\n",
-					"mssparkutils.notebook.run('/Calendar')"
+					"# mssparkutils.notebook.run('/Calendar')"
 				],
-				"execution_count": 33
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
@@ -98,7 +100,7 @@
 					"\r\n",
 					"      FROM odw_harmonised_db.hr_absence_dim abs\r\n",
 					"      FULL JOIN default.calendar_dim_plus date on date.calendarDate = abs.AbsenceEndDate\r\n",
-					"      WHERE AbsenceType in  ('Sickness') and financial_year in ('Current FY','Previous FY')\r\n",
+					"      WHERE AbsenceType in  ('Sickness') and financial_year in ('CurrentFY','PreviousFY')\r\n",
 					"      GROUP BY EmployeeID\r\n",
 					"            ,financial_year\r\n",
 					"\r\n",
@@ -114,14 +116,14 @@
 					"\r\n",
 					"      FROM odw_harmonised_db.hr_absence_dim abs\r\n",
 					"      FULL JOIN default.calendar_dim_plus date on date.calendarDate = abs.AbsenceEndDate\r\n",
-					"      WHERE AbsenceType in  ('Sickness') and calendar_year in ('Current CY','Previous CY')\r\n",
+					"      WHERE AbsenceType in  ('Sickness') and calendar_year in ('CurrentCY','PreviousCY')\r\n",
 					"      GROUP BY EmployeeID\r\n",
 					"            ,calendar_year\r\n",
 					"\r\n",
 					"\r\n",
 					""
 				],
-				"execution_count": 35
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
@@ -151,12 +153,58 @@
 					"PIVOT\r\n",
 					"(\r\n",
 					"      MAX(SicknessCount)\r\n",
-					"      FOR MeasureYear IN ('Previous FY','Current FY','Previous CY','Current CY')\r\n",
+					"      FOR MeasureYear IN ('PreviousFY','CurrentFY','PreviousCY','CurrentCY')\r\n",
 					") order by StaffNumber\r\n",
 					"\r\n",
 					""
 				],
-				"execution_count": 36
+				"execution_count": 8
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"spark.sql(f\"drop table if exists default.mipins_hr_fact_sickness;\")"
+				],
+				"execution_count": 9
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"\r\n",
+					"create or replace table mipins_hr_fact_sickness\r\n",
+					"using delta\r\n",
+					"location '/odw_curated_db/mipins_hr_fact_sickness'\r\n",
+					"as\r\n",
+					"SELECT * FROM odw_curated_db.vw_mipins_hr_fact_sickness"
+				],
+				"execution_count": 10
 			}
 		]
 	}

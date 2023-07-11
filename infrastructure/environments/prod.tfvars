@@ -61,7 +61,7 @@ odt_back_office_service_bus_name_failover                = "pins-sb-back-office-
 odt_back_office_service_bus_resource_group_name          = "pins-rg-back-office-prod-ukw-001"
 odt_back_office_service_bus_resource_group_name_failover = "pins-rg-back-office-prod-uks-001"
 
-service_bus_failover_enabled = true
+service_bus_failover_enabled = false
 service_bus_role_assignments = {
   "Azure Service Bus Data Owner" = {
     groups = ["pins-odw-prod-administrators"]
