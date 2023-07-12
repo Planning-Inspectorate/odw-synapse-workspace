@@ -12,29 +12,9 @@ resource "azapi_resource" "zendesk_custom_api" {
       "connectionParameters" : {
         "username" : {
           "type" : "securestring",
-          "uiDefinition" : {
-            "displayName" : "username",
-            "description" : "The username for this api",
-            "tooltip" : "Provide the username",
-            "constraints" : {
-              "tabIndex" : 2,
-              "clearText" : true,
-              "required" : "true"
-            }
-          }
         },
         "password" : {
           "type" : "securestring",
-          "uiDefinition" : {
-            "displayName" : "password",
-            "description" : "The password for this api",
-            "tooltip" : "Provide the password",
-            "constraints" : {
-              "tabIndex" : 3,
-              "clearText" : false,
-              "required" : "true"
-            }
-          }
         }
       },
       "capabilities" : [],
