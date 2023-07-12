@@ -7,7 +7,8 @@ resource "azapi_resource" "zendesk_custom_api" {
   parent_id = var.resource_group_id
   tags      = local.tags
 
-  body = jsonencode({
+  body = <<DEPLOY
+  {
     "properties" : {
       "connectionParameters" : {
         "username" : {
@@ -25,5 +26,6 @@ resource "azapi_resource" "zendesk_custom_api" {
       "apiType" : "Rest",
       "wsdlDefinition" : {}
     }
-  })
+  }
+DEPLOY
 }
