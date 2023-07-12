@@ -22,7 +22,7 @@ resource "azapi_resource" "zendesk_custom_api" {
       "description" : "Custom API for Zendesk",
       "displayName" : "zemdesk-custom-api",
       "iconUri" : "https://content.powerapps.com/resource/makerx/static/media/default-connection-icon.00d06b6e.svg",
-      "swagger" : jsonencode(file("${path.module}/zendesk-custom-connector.yaml")),
+      "swagger" : file("${path.module}/zendesk-custom-connector.yaml"),
       "apiType" : "Rest",
       "wsdlDefinition" : {}
     }
