@@ -24,7 +24,6 @@ resource "azapi_resource" "zendesk_custom_api" {
       "iconUri" : "https://content.powerapps.com/resource/makerx/static/media/default-connection-icon.00d06b6e.svg",
       "swagger" : jsondecode(file("${path.module}/zendesk-swagger.json")),
       "apiType" : "Rest",
-      "wsdlDefinition" : {}
     }
   })
 }
