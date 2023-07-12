@@ -7,7 +7,7 @@ resource "azapi_resource" "zendesk_custom_api" {
   parent_id = var.resource_group_id
   tags      = local.tags
 
-  body = <<DEPLOY
+  body = jsonencode(
   {
     "properties" : {
       "connectionParameters" : {
@@ -22,10 +22,9 @@ resource "azapi_resource" "zendesk_custom_api" {
       "description" : "Custom API for Zendesk",
       "displayName" : "zemdesk-custom-api",
       "iconUri" : "https://content.powerapps.com/resource/makerx/static/media/default-connection-icon.00d06b6e.svg",
-      "swagger" : file("${path.module}/zendesk-custom-connector.yaml"),
+      "swagger" : jsondecode(file("${path.module}/zendesk-swagger.json")),
       "apiType" : "Rest",
       "wsdlDefinition" : {}
     }
-  }
-DEPLOY
+  })
 }
