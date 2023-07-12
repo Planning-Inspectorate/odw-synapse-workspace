@@ -23,6 +23,7 @@ provider "azurerm" {
     }
   }
 }
+
 provider "azurerm" {
   features {}
   subscription_id = var.odt_subscription_id

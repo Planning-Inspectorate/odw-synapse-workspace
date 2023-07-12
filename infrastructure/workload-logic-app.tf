@@ -23,6 +23,7 @@ module "logic_app" {
 
   environment                           = var.environment
   resource_group_name                   = azurerm_resource_group.logic_app[0].name
+  resource_group_id                     = azurerm_resource_group.logic_app[0].id
   location                              = module.azure_region.location_cli
   logic_app_enabled                     = var.logic_app_enabled
   service_name                          = local.service_name
@@ -38,6 +39,7 @@ module "logic_app_failover" {
 
   environment                           = var.environment
   resource_group_name                   = azurerm_resource_group.logic_app_failover[0].name
+  resource_group_id                     = azurerm_resource_group.logic_app_failover[0].id
   location                              = module.azure_region.paired_location.location_cli
   logic_app_enabled                     = var.logic_app_enabled
   service_name                          = local.service_name
