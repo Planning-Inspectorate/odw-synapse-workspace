@@ -36,15 +36,15 @@ resource "azurerm_api_connection" "service_bus_api_connection" {
   }
 }
 
-resource "azurerm_resource_group_template_deployment" "zendesk_custom_api" {
+resource "azurerm_resource_group_template_deployment" "zendesk_custom_api_template" {
   count = var.logic_app_enabled ? 1 : 0
 
-  name                = "zendesk-custom-api"
+  name                = "zendesk-custom-api-template"
   resource_group_name = var.resource_group_name
   deployment_mode     = "Incremental"
   parameters_content = jsonencode({
     "connections" = {
-      value = "zendesk-custom-api"
+      value = "zendesk-custom-api-connection"
     }
     "customApiId" = {
       value = data.azapi_resource.zendesk_custom_api.id
