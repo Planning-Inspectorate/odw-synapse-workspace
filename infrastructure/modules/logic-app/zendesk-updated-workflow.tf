@@ -72,7 +72,7 @@ resource "azurerm_logic_app_action_custom" "zendesk_updated_action" {
   body = jsonencode({
     "inputs" : {
       "body" : {
-        "ContentData" : "@{base64(triggerOutputs())}",
+        "ContentData" : "@{base64(triggerBody())}",
         "Label" : "Updated",
         "MessageId" : "@{guid()}",
         "SessionId" : "@{guid()}"
