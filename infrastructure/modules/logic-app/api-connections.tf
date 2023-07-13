@@ -50,10 +50,10 @@ resource "azurerm_resource_group_template_deployment" "zendesk_custom_api_templa
       value = data.azapi_resource.zendesk_custom_api.id
     }
     "username" = {
-      value = data.azure_key_vault_secret.zendesk_username.value
+      value = data.azurerm_key_vault_secret.zendesk_username.value
     }
     "password" = {
-      value = data.azure_key_vault_secret.zendesk_password.value
+      value = data.azurerm_key_vault_secret.zendesk_password.value
     }
   })
 
