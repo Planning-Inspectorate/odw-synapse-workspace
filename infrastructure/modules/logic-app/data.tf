@@ -13,3 +13,13 @@ data "azapi_resource" "zendesk_custom_api" {
   name      = "zendesk-custom-api"
   type      = "Microsoft.Web/customApis@2016-06-01"
 }
+
+data "azure_key_vault_secret" "zendesk_username" {
+  name         = "zendesk-service-username"
+  key_vault_id = var.key_vault_id
+}
+
+data "azure_key_vault_secret" "zendesk_password" {
+  name         = "zendesk-service-password"
+  key_vault_id = var.key_vault_id
+}
