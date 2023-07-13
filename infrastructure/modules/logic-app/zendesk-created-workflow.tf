@@ -35,7 +35,7 @@ resource "azurerm_logic_app_trigger_custom" "zendesk_created_trigger" {
   count = var.logic_app_enabled ? 1 : 0
 
   logic_app_id = azurerm_logic_app_workflow.zendesk_created[count.index].id
-  name         = "When_an_item_is_created"
+  name         = "Triggers_when_a_new_ticket_is_updated"
 
   body = jsonencode({
     "evaluatedRecurrence" : {
@@ -48,10 +48,10 @@ resource "azurerm_logic_app_trigger_custom" "zendesk_created_trigger" {
           "name" : "@parameters('$connections')['zendesk-custom-api']['connectionId']"
         }
       },
-      "method": "get",
-      "path": "/api/v2/search.json",
-      "queries": {
-          "query": "?query=type:ticket created_at>1hour order_by:created_at sort:desc"
+      "method" : "get",
+      "path" : "/api/v2/search.json",
+      "queries" : {
+        "query" : "?query=type:ticket created_at>1hour order_by:created_at sort:desc"
       }
     },
     "recurrence" : {
