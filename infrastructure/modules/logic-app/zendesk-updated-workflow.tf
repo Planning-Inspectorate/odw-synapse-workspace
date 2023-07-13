@@ -15,9 +15,9 @@ resource "azurerm_logic_app_workflow" "zendesk_updated" {
   parameters = {
     "$connections" = jsonencode({
       "zendesk" : {
-        "connectionId" : azurerm_api_connection.zendesk_api_connection[count.index].id,
-        "connectionName" : azurerm_api_connection.zendesk_api_connection[count.index].name,
-        "id" : azurerm_api_connection.zendesk_api_connection[count.index].managed_api_id
+        "connectionId" : azapi_resource.zendesk_custom_api[count.index].id,
+        "connectionName" : azapi_resource.zendesk_custom_api[count.index].name,
+        "id" : azapi_resource.zendesk_custom_api[count.index].id
       },
       "servicebus" : {
         "connectionId" : azurerm_api_connection.service_bus_api_connection[count.index].id,

@@ -1,22 +1,3 @@
-resource "azurerm_api_connection" "zendesk_api_connection" {
-  count = var.logic_app_enabled ? 1 : 0
-
-  name                = "zendesk"
-  resource_group_name = var.resource_group_name
-  managed_api_id      = data.azurerm_managed_api.zendesk_managed_api.id
-  display_name        = "pinssupport"
-
-  parameter_values = {
-    "token:Subdomain" = "pinssupport"
-  }
-
-  lifecycle {
-    ignore_changes = [
-      parameter_values
-    ]
-  }
-}
-
 resource "azurerm_api_connection" "service_bus_api_connection" {
   count = var.logic_app_enabled ? 1 : 0
 
@@ -58,4 +39,10 @@ resource "azurerm_resource_group_template_deployment" "zendesk_custom_api_templa
   })
 
   template_content = file("${path.module}/zendesk-template.json")
+
+  lifecycle {
+    ignore_changes = [
+      parameters_content
+    ]
+  }
 }
