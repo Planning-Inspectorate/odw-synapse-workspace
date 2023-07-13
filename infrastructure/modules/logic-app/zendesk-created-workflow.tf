@@ -35,7 +35,7 @@ resource "azurerm_logic_app_trigger_custom" "zendesk_created_trigger" {
   count = var.logic_app_enabled ? 1 : 0
 
   logic_app_id = azurerm_logic_app_workflow.zendesk_created[count.index].id
-  name         = "Triggers_when_a_new_ticket_is_updated"
+  name         = "Triggers_when_a_new_ticket_is_Created"
 
   body = jsonencode({
     "evaluatedRecurrence" : {
