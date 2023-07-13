@@ -19,7 +19,7 @@ resource "azapi_resource" "zendesk_custom_api" {
           }
         },
         "backendService" : {
-          "serviceUrl" : "https://pinssupport.zendesk.com/api/v2/",
+          "serviceUrl" : "https://pinssupport.zendesk.com",
         },
         "capabilities" : [],
         "description" : "Custom API for Zendesk",
