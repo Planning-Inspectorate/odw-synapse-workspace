@@ -17,7 +17,7 @@ resource "azurerm_logic_app_workflow" "zendesk_created" {
       "zendesk-custom-api" : {
         "connectionId" : azurerm_resource_group_template_deployment.zendesk_custom_api_template[count.index].id,
         "connectionName" : azurerm_resource_group_template_deployment.zendesk_custom_api_template[count.index].name,
-        "id" : data.azapi_resource.zendesk_custom_api.id
+        "id" : azapi_resource.zendesk_custom_api[count.index].id
       },
       "servicebus" : {
         "connectionId" : azurerm_api_connection.service_bus_api_connection[count.index].id,

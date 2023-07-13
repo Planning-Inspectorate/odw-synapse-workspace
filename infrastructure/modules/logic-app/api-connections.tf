@@ -28,7 +28,7 @@ resource "azurerm_resource_group_template_deployment" "zendesk_custom_api_templa
       value = "zendesk-custom-api"
     }
     "customApiId" = {
-      value = azapi_resource.zendesk_custom_api.id
+      value = azapi_resource.zendesk_custom_api[count.index].id
     }
     "username" = {
       value = data.azurerm_key_vault_secret.zendesk_username.value
