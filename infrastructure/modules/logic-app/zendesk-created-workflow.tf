@@ -27,7 +27,8 @@ resource "azurerm_logic_app_workflow" "zendesk_created" {
     })
   }
   identity {
-    type = "SystemAssigned"
+    type         = "SystemAssigned"
+    identity_ids = []
   }
 }
 

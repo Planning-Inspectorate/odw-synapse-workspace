@@ -5,6 +5,7 @@ resource "azurerm_api_connection" "service_bus_api_connection" {
   resource_group_name = var.resource_group_name
   managed_api_id      = data.azurerm_managed_api.service_bus_managed_api.id
   display_name        = "servicebus"
+  tags                = local.tags
 
   parameter_values = {
     connectionString = var.service_bus_primary_connection_string
@@ -45,4 +46,6 @@ resource "azurerm_resource_group_template_deployment" "zendesk_custom_api_templa
       parameters_content
     ]
   }
+
+  tags = local.tags
 }
