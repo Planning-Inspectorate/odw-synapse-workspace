@@ -13,7 +13,7 @@ data "azurerm_key_vault_secret" "zendesk_password" {
   key_vault_id = var.key_vault_id
 }
 
-data "azurerm_resource" "zendesk_custom_api" {
+data "azurerm_resources" "zendesk_custom_api" {
   count = var.logic_app_enabled ? 1 : 0
 
   name                = "zendesk-custom-api"
