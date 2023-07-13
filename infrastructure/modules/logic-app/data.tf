@@ -12,3 +12,11 @@ data "azurerm_key_vault_secret" "zendesk_password" {
   name         = "zendesk-service-password"
   key_vault_id = var.key_vault_id
 }
+
+data "azurerm_resource" "zendesk_custom_api" {
+  count = var.logic_app_enabled ? 1 : 0
+
+  name                = "zendesk-custom-api"
+  resource_group_name = var.resource_group_name
+  type                = "Microsoft.Web/connections"
+}
