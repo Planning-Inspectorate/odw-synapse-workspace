@@ -15,7 +15,7 @@ resource "azurerm_logic_app_workflow" "zendesk_created" {
   parameters = {
     "$connections" = jsonencode({
       "zendesk-custom-api" : {
-        "connectionId" : data.azurerm_resources.zendesk_custom_api[count.index].resource_id,
+        "connectionId" : data.azurerm_resources.zendesk_custom_api[count.index].id,
         "connectionName" : azurerm_resource_group_template_deployment.zendesk_custom_api_template[count.index].name,
         "id" : azapi_resource.zendesk_custom_api[count.index].id
       },
