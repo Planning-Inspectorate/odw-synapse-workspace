@@ -58,6 +58,7 @@ resource "azurerm_logic_app_trigger_custom" "zendesk_created_trigger" {
       "frequency" : "Hour",
       "interval" : 1
     },
+    "splitOn" : "@triggerBody()?['value']",
     "type" : "ApiConnection"
   })
 }
