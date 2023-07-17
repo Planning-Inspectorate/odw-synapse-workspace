@@ -3,7 +3,7 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "Look_For_New_Data",
+				"name": "Lookup New Data In Standardised",
 				"type": "SynapseNotebook",
 				"dependsOn": [],
 				"policy": {
@@ -21,11 +21,17 @@
 					},
 					"parameters": {
 						"month": {
-							"value": "4",
+							"value": {
+								"value": "@formatDateTime(utcnow(), 'MM')",
+								"type": "Expression"
+							},
 							"type": "int"
 						},
 						"year": {
-							"value": "2023",
+							"value": {
+								"value": "@formatDateTime(utcnow(), 'yyyy')",
+								"type": "Expression"
+							},
 							"type": "int"
 						}
 					},
@@ -39,11 +45,11 @@
 				}
 			},
 			{
-				"name": "If New_Data_Exists",
+				"name": "If New Data Exists",
 				"type": "IfCondition",
 				"dependsOn": [
 					{
-						"activity": "Look_For_New_Data",
+						"activity": "Lookup New Data In Standardised",
 						"dependencyConditions": [
 							"Completed"
 						]
@@ -52,7 +58,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"expression": {
-						"value": "@activity('Look_For_New_Data').output.status.Output.result.exitValue",
+						"value": "@activity('Lookup New Data In Standardised').output.status.Output.result.exitValue",
 						"type": "Expression"
 					},
 					"ifFalseActivities": [
@@ -85,40 +91,7 @@
 					],
 					"ifTrueActivities": [
 						{
-							"name": "mipins_hr_measures",
-							"type": "SynapseNotebook",
-							"dependsOn": [
-								{
-									"activity": "sap-hr-master",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"notebook": {
-									"referenceName": "mipins_hr_measures",
-									"type": "NotebookReference"
-								},
-								"snapshot": true,
-								"conf": {
-									"spark.dynamicAllocation.enabled": null,
-									"spark.dynamicAllocation.minExecutors": null,
-									"spark.dynamicAllocation.maxExecutors": null
-								},
-								"numExecutors": null
-							}
-						},
-						{
-							"name": "sap-hr-views",
+							"name": "py_harmonised_and_hr_measures_monthly",
 							"type": "SynapseNotebook",
 							"dependsOn": [],
 							"policy": {
@@ -131,41 +104,38 @@
 							"userProperties": [],
 							"typeProperties": {
 								"notebook": {
-									"referenceName": "sap-hr-views",
+									"referenceName": "py_harmonised_and_hr_measures_monthly",
 									"type": "NotebookReference"
 								},
-								"snapshot": true,
-								"conf": {
-									"spark.dynamicAllocation.enabled": null,
-									"spark.dynamicAllocation.minExecutors": null,
-									"spark.dynamicAllocation.maxExecutors": null
-								},
-								"numExecutors": null
-							}
-						},
-						{
-							"name": "sap-hr-master",
-							"type": "SynapseNotebook",
-							"dependsOn": [
-								{
-									"activity": "sap-hr-views",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"notebook": {
-									"referenceName": "sap-hr-master",
-									"type": "NotebookReference"
+								"parameters": {
+									"start_month": {
+										"value": {
+											"value": "@formatDateTime(utcnow(), 'MM')",
+											"type": "Expression"
+										},
+										"type": "int"
+									},
+									"end_month": {
+										"value": {
+											"value": "@formatDateTime(utcnow(), 'MM')",
+											"type": "Expression"
+										},
+										"type": "int"
+									},
+									"start_year": {
+										"value": {
+											"value": "@formatDateTime(utcnow(), 'yyyy')",
+											"type": "Expression"
+										},
+										"type": "int"
+									},
+									"end_year": {
+										"value": {
+											"value": "@formatDateTime(utcnow(), 'yyyy')",
+											"type": "Expression"
+										},
+										"type": "int"
+									}
 								},
 								"snapshot": true
 							}
