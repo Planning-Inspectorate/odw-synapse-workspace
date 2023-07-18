@@ -39,10 +39,6 @@ resource "azurerm_logic_app_trigger_custom" "zendesk_updated_trigger" {
   name         = "Triggers_when_a_new_ticket_is_updated"
 
   body = jsonencode({
-    "evaluatedRecurrence" : {
-      "frequency" : "Hour",
-      "interval" : 1
-    },
     "inputs" : {
       "host" : {
         "connection" : {
