@@ -383,7 +383,7 @@
 				}
 			},
 			{
-				"name": "Ingest Hist and Monthly Sap HR",
+				"name": "Ingest Monthly HR Raw to Std",
 				"type": "SynapseNotebook",
 				"dependsOn": [
 					{
@@ -403,7 +403,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"notebook": {
-						"referenceName": "py_sap_hr_history_files",
+						"referenceName": "py_hr_monthly_raw_to_std",
 						"type": "NotebookReference"
 					},
 					"snapshot": true,
@@ -487,11 +487,11 @@
 				}
 			},
 			{
-				"name": "pln_hr_ingestion_harmonised_and_curated",
+				"name": "pln_hr_ingestion_harmonised_and_measures",
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
-						"activity": "Ingest Hist and Monthly Sap HR",
+						"activity": "Ingest Monthly HR Raw to Std",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -512,10 +512,43 @@
 				"userProperties": [],
 				"typeProperties": {
 					"pipeline": {
-						"referenceName": "pln_hr_ingestion_harmonised_and_curated",
+						"referenceName": "pln_hr_ingestion_harmonised_and_measures",
 						"type": "PipelineReference"
 					},
 					"waitOnCompletion": true
+				}
+			},
+			{
+				"name": "employee",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "pln_hr_ingestion_harmonised_and_measures",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "employee",
+						"type": "NotebookReference"
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
 				}
 			}
 		],

@@ -14,10 +14,10 @@ resource "azurerm_logic_app_workflow" "zendesk_updated" {
 
   parameters = {
     "$connections" = jsonencode({
-      "zendesk" : {
-        "connectionId" : azurerm_api_connection.zendesk_api_connection[count.index].id,
-        "connectionName" : azurerm_api_connection.zendesk_api_connection[count.index].name,
-        "id" : azurerm_api_connection.zendesk_api_connection[count.index].managed_api_id
+      "zendesk-custom-api" : {
+        "connectionId" : jsondecode(azurerm_resource_group_template_deployment.zendesk_custom_api_template[count.index].output_content).connectionId.value,
+        "connectionName" : azurerm_resource_group_template_deployment.zendesk_custom_api_template[count.index].name,
+        "id" : azapi_resource.zendesk_custom_api[count.index].id
       },
       "servicebus" : {
         "connectionId" : azurerm_api_connection.service_bus_api_connection[count.index].id,
@@ -27,7 +27,8 @@ resource "azurerm_logic_app_workflow" "zendesk_updated" {
     })
   }
   identity {
-    type = "SystemAssigned"
+    type         = "SystemAssigned"
+    identity_ids = []
   }
 }
 
@@ -35,27 +36,25 @@ resource "azurerm_logic_app_trigger_custom" "zendesk_updated_trigger" {
   count = var.logic_app_enabled ? 1 : 0
 
   logic_app_id = azurerm_logic_app_workflow.zendesk_updated[count.index].id
-  name         = "When_an_item_is_modified"
+  name         = "Triggers_when_a_new_ticket_is_updated"
 
   body = jsonencode({
-    "evaluatedRecurrence" : {
-      "frequency" : "Minute",
-      "interval" : 1
-    },
     "inputs" : {
       "host" : {
         "connection" : {
-          "name" : "@parameters('$connections')['zendesk']['connectionId']"
+          "name" : "@parameters('$connections')['zendesk-custom-api']['connectionId']"
         }
       },
       "method" : "get",
-      "path" : "/datasets/default/tables/@{encodeURIComponent(encodeURIComponent('tickets'))}/onupdateditems"
+      "path" : "/api/v2/search.json",
+      "queries" : {
+        "query" : "?query=type:ticket updated_at>1hour order_by:updated_at sort:desc"
+      }
     },
     "recurrence" : {
-      "frequency" : "Minute",
+      "frequency" : "Hour",
       "interval" : 1
     },
-    "splitOn" : "@triggerBody()?['value']",
     "type" : "ApiConnection"
   })
 }
@@ -69,7 +68,7 @@ resource "azurerm_logic_app_action_custom" "zendesk_updated_action" {
   body = jsonencode({
     "inputs" : {
       "body" : {
-        "ContentData" : "@{base64(triggerOutputs())}",
+        "ContentData" : "@{base64(triggerBody())}",
         "Label" : "Updated",
         "MessageId" : "@{guid()}",
         "SessionId" : "@{guid()}"

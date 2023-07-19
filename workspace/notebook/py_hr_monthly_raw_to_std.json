@@ -1,5 +1,5 @@
 {
-	"name": "py_sap_hr_history_files",
+	"name": "py_hr_monthly_raw_to_std",
 	"properties": {
 		"folder": {
 			"name": "post-deployment"
@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "aca65257-6fea-4dd6-bbe7-1b9f905a5302"
+				"spark.autotune.trackingId": "8541a82d-5fa2-45d3-86e3-d34e1348890d"
 			}
 		},
 		"metadata": {
@@ -44,8 +44,8 @@
 				},
 				"sparkVersion": "3.3",
 				"nodeCount": 3,
-				"cores": 8,
-				"memory": 56,
+				"cores": 4,
+				"memory": 28,
 				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
@@ -59,16 +59,9 @@
 					"import json\n",
 					"import calendar\n",
 					"from datetime import datetime, timedelta, date\n",
-					"import logging\n",
-					"logger = logging.getLogger(__name__)\n",
 					"import pandas as pd\n",
-					"from pyspark.sql.types import StringType,BooleanType,DateType,TimestampType,IntegerType, FloatType, StructType\n",
-					"from delta.tables import DeltaTable\n",
-					"import re\n",
-					"from pyspark.sql.functions import col, lit\n",
 					"\n",
 					"spark = SparkSession.builder.getOrCreate()\n",
-					"spark.conf.set(\"spark.databricks.delta.schema.autoMerge.enabled\", \"true\")\n",
 					"\n",
 					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
 					"\n",
@@ -76,7 +69,7 @@
 					"config_container = \"abfss://odw-config@\" + storage_account\n",
 					"standardised_container = \"abfss://odw-standardised@\" + storage_account"
 				],
-				"execution_count": 19
+				"execution_count": 38
 			},
 			{
 				"cell_type": "code",
@@ -92,85 +85,30 @@
 					}
 				},
 				"source": [
-					"def ingest(definition, folder_path, filename, expected_from, expected_to):\n",
-					"\n",
-					"    standardised_path = definition['Standardised_Path'] + \"/\"\n",
-					"    standardised_table_loc = \"abfss://odw-config@\"+storage_account + definition['Standardised_Table_Definition']\n",
-					"    standardised_table_def_json = spark.read.text(standardised_table_loc, wholetext=True).first().value\n",
-					"\n",
-					"    standardised_table_name = definition['Standardised_Table_Name']\n",
-					"    standardised_container = \"abfss://odw-standardised@\"+storage_account\n",
-					"\n",
-					"    standardised_table_df = spark.read.format(\"delta\").load(standardised_container+standardised_path+standardised_table_name)\n",
-					"    rows = standardised_table_df.filter((standardised_table_df.expected_from == expected_from) &  (standardised_table_df.expected_to == expected_to)).count()\n",
-					"\n",
-					"    ### check if the file has already been ingested\n",
-					"    if rows > 0 :\n",
-					"        logger.info(filename + \" has already been ingested for \" + expected_from.strftime(\"%Y%m%d\"))\n",
-					"        return\n",
-					"\n",
-					"    jobId = mssparkutils.env.getJobId()\n",
-					"    ### mount the data lake storage in Synapse to the Synapse File Mount API\n",
-					"    mssparkutils.fs.unmount(\"/temp_raw\") \n",
-					"    mssparkutils.fs.mount( \n",
-					"    folder_path, \n",
-					"    \"/temp_raw\", \n",
-					"    {\"linkedService\":\"ls_storage\"} \n",
-					"    )   \n",
-					"    ### open .csv and .xlsx files using pandas\n",
-					"    if \".xlsx\" in filename.lower():\n",
-					"        df = pd.read_excel(f\"/synfs/{jobId}/temp_raw/{filename}\", dtype=str)\n",
-					"    elif '.csv' in filename.lower():\n",
-					"        df = pd.read_csv(f\"/synfs/{jobId}/temp_raw/{filename}\", quotechar='\"',escapechar='\\\\',encoding=\"utf8\",dtype=str)\n",
-					"    else:\n",
-					"        raise RuntimeError(f\"This file type for {filename} is unsupported\")\n",
-					"    ### drop headerless columns\n",
-					"    df = df.loc[:, ~df.columns.str.contains('^Unnamed')]\n",
-					"    rows_raw = len(df.index)\n",
-					"    mssparkutils.fs.unmount(\"/temp_raw\") \n",
-					"    ### convert to pandas dataframe\n",
-					"    sparkDF=spark.createDataFrame(df)\n",
-					"    ### add date columns included with every standardised table\n",
-					"    sparkDF = sparkDF.withColumn(\"ingested_datetime\",lit(datetime.now()))\n",
-					"    sparkDF = sparkDF.withColumn(\"expected_from\",lit(expected_from))\n",
-					"    sparkDF = sparkDF.withColumn(\"expected_to\",lit(expected_to))\n",
-					"\n",
-					"                    \n",
-					"    schema = StructType.fromJson(json.loads(standardised_table_def_json))\n",
-					"    \n",
-					"    ### remove characters that Delta can't allow in headers and add numbers to repeated column headers\n",
-					"    cols_orig = sparkDF.schema.names\n",
-					"    cols=[re.sub('[^0-9a-zA-Z]+', '_', i).lower() for i in cols_orig]\n",
-					"    cols=[colm.rstrip('_') for colm in cols]\n",
-					"    newlist = []\n",
-					"    for i, v in enumerate(cols):\n",
-					"        totalcount = cols.count(v)\n",
-					"        count = cols[:i].count(v)\n",
-					"        newlist.append(v + str(count + 1) if totalcount > 1 else v)\n",
-					"    for colix in range(len(cols_orig)):\n",
-					"        sparkDF = sparkDF.toDF(*newlist) \n",
-					"\n",
-					"    ### mappings for Json schema definitions to Pyspark data types\n",
-					"    mapping = {\n",
-					"        'string': StringType(),\n",
-					"        'timestamp': TimestampType(),\n",
-					"        'integer': IntegerType(),\n",
-					"        'date': DateType(),\n",
-					"        'float': FloatType()\n",
-					"    }\n",
-					"\n",
-					"    ### writing the dataframe to the existing standardised table\n",
-					"    sparkDF.write.option(\"mergeSchema\", \"true\").format(\"delta\").mode(\"append\").saveAsTable(f\"odw_standardised_db.{standardised_table_name}\")\n",
-					"\n",
-					"    standardised_table_df_new = spark.read.format(\"delta\").load(standardised_container+standardised_path+standardised_table_name)\n",
-					"    rows_new = standardised_table_df.filter((standardised_table_df.expected_from == expected_from) &  (standardised_table_df.expected_to == expected_to)).count()\n",
-					"\n",
-					"    ### test correct number of rows have written\n",
-					"    if rows_raw == rows_new:\n",
-					"        logger.info('All rows have successfully written')\n",
-					""
+					"%run \"1-odw-raw-to-standardised/Fileshare/SAP_HR/py_1_raw_to_standardised_hr_functions\""
 				],
-				"execution_count": 20
+				"execution_count": 39
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"tags": [
+						"parameters"
+					]
+				},
+				"source": [
+					"specific_folder=''"
+				],
+				"execution_count": 40
 			},
 			{
 				"cell_type": "code",
@@ -200,23 +138,25 @@
 					"folders_and_files = mssparkutils.fs.ls(history_files_source_path)\n",
 					"root_saphr_files = [f for f in folders_and_files if f.isFile]\n",
 					"\n",
-					"for file in root_saphr_files:\n",
-					"    definition = next((d for d in definitions if d['Source_ID'] == 2), None)\n",
-					"    expected_from = datetime.strptime(file.name[6:-5], \"%Y%m%d\")\n",
+					"if specific_folder == '':\n",
+					"    for file in root_saphr_files:\n",
+					"        definition = next((d for d in definitions if d['Source_ID'] == 2), None)\n",
+					"        expected_from = datetime.strptime(file.name[6:-5], \"%Y%m%d\")\n",
 					"\n",
-					"    if definition:\n",
-					"        expected_from = date(expected_from.year, expected_from.month, calendar.monthrange(expected_from.year, expected_from.month)[1]) + timedelta(days=1)\n",
-					"        expected_from = datetime.combine(expected_from, datetime.min.time())\n",
-					"        expected_to = expected_from + timedelta(days=definition['Expected_Within_Weekdays']) \n",
-					"        ingest(definition, history_files_source_path, file.name, expected_from, expected_to)\n",
+					"        if definition:\n",
+					"            expected_from = date(expected_from.year, expected_from.month, calendar.monthrange(expected_from.year, expected_from.month)[1]) + timedelta(days=1)\n",
+					"            expected_from = datetime.combine(expected_from, datetime.min.time())\n",
+					"            expected_to = expected_from + timedelta(days=definition['Expected_Within_Weekdays']) \n",
+					"            ingest_adhoc(storage_account, definition, history_files_source_path, file.name, expected_from, expected_to)\n",
 					"\n",
 					"\n",
 					"folders = [f for f in folders_and_files if f.isDir]\n",
-					"\n",
 					"new_folders_and_files = mssparkutils.fs.ls(new_files_source_path)\n",
 					"new_folders = [f for f in new_folders_and_files if f.isDir]\n",
-					"\n",
 					"folders = folders + new_folders\n",
+					"\n",
+					"if specific_folder != '':\n",
+					"    folders = [f for f in folders if f.name == specific_folder]\n",
 					"\n",
 					"for folder in folders:\n",
 					"    files = mssparkutils.fs.ls(folder.path)\n",
@@ -231,10 +171,14 @@
 					"                    expected_from = date(expected_from.year, expected_from.month, calendar.monthrange(expected_from.year, expected_from.month)[1]) + timedelta(days=1)\n",
 					"                    expected_from = datetime.combine(expected_from, datetime.min.time())\n",
 					"                    expected_to = expected_from + timedelta(days=definition['Expected_Within_Weekdays']) \n",
-					"                    ingest(definition, folder.path, file.name, expected_from, expected_to)\n",
-					"                    break"
+					"                    ingest_adhoc(storage_account, definition, folder.path, file.name, expected_from, expected_to)\n",
+					"                    break\n",
+					"\n",
+					"\n",
+					"if specific_folder != '':\n",
+					"    mssparkutils.notebook.exit('')"
 				],
-				"execution_count": 21
+				"execution_count": 41
 			},
 			{
 				"cell_type": "code",
@@ -252,7 +196,7 @@
 				"source": [
 					"# execute main source system fact"
 				],
-				"execution_count": 22
+				"execution_count": 42
 			},
 			{
 				"cell_type": "code",
@@ -270,7 +214,7 @@
 				"source": [
 					"%run /2-odw-standardised-to-harmonised/py_odw_harmonised_table_creation {\"specific_table\": \"main_sourcesystem_fact\"}"
 				],
-				"execution_count": 23
+				"execution_count": 43
 			},
 			{
 				"cell_type": "code",
@@ -289,7 +233,7 @@
 				"source": [
 					"%run /odw-harmonised/main_sourcesystem_fact"
 				],
-				"execution_count": 24
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -307,7 +251,7 @@
 				"source": [
 					"#pension rates"
 				],
-				"execution_count": 25
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -325,7 +269,7 @@
 				"source": [
 					"%run /1-odw-raw-to-standardised/Scheduling/outstanding_files_add_entry {\"jsonId\": 81,\"year\": 2023,\"month\": 3,\"day\": 22}"
 				],
-				"execution_count": 26
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -343,7 +287,7 @@
 				"source": [
 					"%run /1-odw-raw-to-standardised/Scheduling/py_1_initial_run_raw_to_standardised_scheduling {\"source_id\": 81}"
 				],
-				"execution_count": 27
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -361,7 +305,7 @@
 				"source": [
 					"# work schedule rules"
 				],
-				"execution_count": 28
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -379,7 +323,7 @@
 				"source": [
 					"%run /1-odw-raw-to-standardised/Scheduling/outstanding_files_add_entry {\"jsonId\": 83,\"year\": 2023,\"month\": 4,\"day\": 1}"
 				],
-				"execution_count": 29
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -397,7 +341,7 @@
 				"source": [
 					"%run /1-odw-raw-to-standardised/Scheduling/py_1_initial_run_raw_to_standardised_scheduling {\"source_id\": 83}"
 				],
-				"execution_count": 30
+				"execution_count": null
 			}
 		]
 	}

@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "817e736c-8799-4d76-82c8-7e304f37b59e"
+				"spark.autotune.trackingId": "be9a7407-56a7-49a6-94ca-5114521ae893"
 			}
 		},
 		"metadata": {
@@ -99,6 +99,10 @@
 					"    END                                     AS EventID,\r\n",
 					"    T4.EventID                              AS EventDimensionID,\r\n",
 					"    T1.eventtype                            AS EventType,\r\n",
+					"    T4.CaseReference                        AS Description,\r\n",
+					"    T4.StartDateOfEvent,\r\n",
+					"    T4.StartTimeOfEvent,\r\n",
+					"    T4.EndDateOfEvent,\r\n",
 					"    to_timestamp(T1.dateeventrequested)     AS DateEventRequested,\r\n",
 					"    T2.SourceSystemID,\r\n",
 					"    to_timestamp(T1.expected_from)          AS IngestionDate,\r\n",
@@ -126,22 +130,16 @@
 					"                    IFNULL(T1.eventtype,'.'),\r\n",
 					"                    IFNULL(T1.dateeventrequested,'.')\r\n",
 					"                )\r\n",
-					"            ) <> T3.RowID  -- same record, changed data\r\n",
+					"            ) <> COALESCE(T3.RowID, '')  -- same record, changed data\r\n",
 					"        THEN 'Y'\r\n",
 					"        -- WHEN T1.appealrefnumber IS NULL -- new record\r\n",
 					"        WHEN T4.EventID IS NULL -- new record\r\n",
 					"        THEN 'Y'\r\n",
 					"    ELSE 'N'\r\n",
 					"    END  = 'Y' ) \r\n",
-					";\r\n",
-					"\r\n",
-					"    SELECT COUNT(*) FROM odw_standardised_db.horizon_event;\r\n",
-					"    SELECT COUNT(*) FROM casework_event_fact_new;\r\n",
-					"    SELECT * FROM casework_event_fact_new WHERE DateEventRequested IS NOT NULL;\r\n",
-					"\r\n",
-					""
+					";"
 				],
-				"execution_count": 24
+				"execution_count": 60
 			},
 			{
 				"cell_type": "markdown",
@@ -208,7 +206,7 @@
 					"# else:\r\n",
 					"#     print(\"Unused codes under tolerance levels\")"
 				],
-				"execution_count": 25
+				"execution_count": 61
 			},
 			{
 				"cell_type": "markdown",
@@ -273,7 +271,7 @@
 					"#     else:\r\n",
 					"#         raise RuntimeError(\"Records to Add do not match\")"
 				],
-				"execution_count": 26
+				"execution_count": 62
 			},
 			{
 				"cell_type": "markdown",
@@ -321,6 +319,10 @@
 					"    EventID,\r\n",
 					"    EventDimensionID,\r\n",
 					"    EventType,\r\n",
+					"    Description,\r\n",
+					"    StartDateOfEvent,\r\n",
+					"    StartTimeOfEvent,\r\n",
+					"    EndDateOfEvent,\r\n",
 					"    DateEventRequested,\r\n",
 					"    SourceSystemID,\r\n",
 					"    IngestionDate,\r\n",
@@ -337,6 +339,10 @@
 					"    EventID,\r\n",
 					"    EventDimensionID,\r\n",
 					"    EventType,\r\n",
+					"    Description,\r\n",
+					"    StartDateOfEvent,\r\n",
+					"    StartTimeOfEvent,\r\n",
+					"    EndDateOfEvent,\r\n",
 					"    DateEventRequested,\r\n",
 					"    SourceSystemID,\r\n",
 					"    IngestionDate,\r\n",
@@ -347,7 +353,7 @@
 					"FROM odw_harmonised_db.casework_event_fact\r\n",
 					"WHERE EventDimensionID IN (SELECT EventDimensionID FROM casework_event_fact_new WHERE EventID IS NULL) AND IsActive = 'Y'; "
 				],
-				"execution_count": 27
+				"execution_count": 63
 			},
 			{
 				"cell_type": "markdown",
@@ -403,7 +409,7 @@
 					"WHEN NOT MATCHED \r\n",
 					"    THEN INSERT * ;  "
 				],
-				"execution_count": 28
+				"execution_count": 64
 			},
 			{
 				"cell_type": "markdown",
@@ -448,6 +454,10 @@
 					"    ROW_NUMBER() OVER (ORDER BY EventID NULLS LAST) AS EventID,\r\n",
 					"    EventDimensionID,\r\n",
 					"    EventType,\r\n",
+					"    Description,\r\n",
+					"    StartDateOfEvent,\r\n",
+					"    StartTimeOfEvent,\r\n",
+					"    EndDateOfEvent,\r\n",
 					"    DateEventRequested,\r\n",
 					"    SourceSystemID,\r\n",
 					"    IngestionDate,\r\n",
@@ -457,7 +467,7 @@
 					"FROM odw_harmonised_db.casework_event_fact;\r\n",
 					""
 				],
-				"execution_count": 29
+				"execution_count": null
 			}
 		]
 	}

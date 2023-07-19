@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5c97873c-9c32-45f6-a531-92d31bbf5ae2"
+				"spark.autotune.trackingId": "53a98d89-2359-407a-a735-95d438c8896a"
 			}
 		},
 		"metadata": {
@@ -41,14 +41,13 @@
 				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
 				"auth": {
 					"type": "AAD",
-					"authResource": "https://dev.azuresynapse.net",
-					"authHeader": null
+					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.2",
+				"sparkVersion": "3.3",
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 28,
-				"extraHeader": null
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -233,7 +232,8 @@
 					"    ### writing output\r\n",
 					"    df.to_parquet(targetpath)\r\n",
 					""
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -270,7 +270,8 @@
 					"    from delta.tables import DeltaTable\r\n",
 					"    if not DeltaTable.isDeltaTable(spark,target_delta_folder):\r\n",
 					"        deltaTable = DeltaTable.convertToDelta(spark, f\"parquet.`{target_delta_folder}`\") "
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -306,7 +307,114 @@
 					"    ### make delta table available to be queried in spark sql\r\n",
 					"    spark.sql(f\"drop table if exists {db_name}.{delta_lake_table_name};\")\r\n",
 					"    spark.sql(f\"CREATE TABLE {db_name}.{delta_lake_table_name} USING DELTA LOCATION '{target_delta_folder}'\")"
-				]
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"@logging_to_appins\n",
+					"def ingest_adhoc(storage_account, definition, folder_path, filename, expected_from, expected_to):\n",
+					"\n",
+					"    from pyspark.sql import SparkSession\n",
+					"    from notebookutils import mssparkutils\n",
+					"    import json\n",
+					"    from datetime import datetime, timedelta, date\n",
+					"    import pandas as pd\n",
+					"    from pyspark.sql.types import StringType,DateType,TimestampType,IntegerType, FloatType, StructType\n",
+					"    import re\n",
+					"\n",
+					"    spark = SparkSession.builder.getOrCreate()\n",
+					"    spark.conf.set(\"spark.databricks.delta.schema.autoMerge.enabled\", \"true\")\n",
+					"    \n",
+					"    standardised_path = definition['Standardised_Path'] + \"/\"\n",
+					"    standardised_table_loc = \"abfss://odw-config@\"+storage_account + definition['Standardised_Table_Definition']\n",
+					"    standardised_table_def_json = spark.read.text(standardised_table_loc, wholetext=True).first().value\n",
+					"\n",
+					"    standardised_table_name = definition['Standardised_Table_Name']\n",
+					"    standardised_container = \"abfss://odw-standardised@\"+storage_account\n",
+					"\n",
+					"    standardised_table_df = spark.read.format(\"delta\").load(standardised_container+standardised_path+standardised_table_name)\n",
+					"    rows = standardised_table_df.filter((standardised_table_df.expected_from == expected_from) &  (standardised_table_df.expected_to == expected_to)).count()\n",
+					"\n",
+					"    ### check if the file has already been ingested\n",
+					"    if rows > 0 :\n",
+					"        print(filename + \" has already been ingested for \" + expected_from.strftime(\"%Y%m%d\"))\n",
+					"        return\n",
+					"\n",
+					"    jobId = mssparkutils.env.getJobId()\n",
+					"    ### mount the data lake storage in Synapse to the Synapse File Mount API\n",
+					"    mssparkutils.fs.unmount(\"/temp_raw\") \n",
+					"    mssparkutils.fs.mount( \n",
+					"    folder_path, \n",
+					"    \"/temp_raw\", \n",
+					"    {\"linkedService\":\"ls_storage\"} \n",
+					"    )   \n",
+					"    ### open .csv and .xlsx files using pandas\n",
+					"    if \".xlsx\" in filename.lower():\n",
+					"        df = pd.read_excel(f\"/synfs/{jobId}/temp_raw/{filename}\", dtype=str)\n",
+					"    elif '.csv' in filename.lower():\n",
+					"        df = pd.read_csv(f\"/synfs/{jobId}/temp_raw/{filename}\", quotechar='\"',escapechar='\\\\',encoding=\"utf8\",dtype=str)\n",
+					"    else:\n",
+					"        raise RuntimeError(f\"This file type for {filename} is unsupported\")\n",
+					"    ### drop headerless columns\n",
+					"    df = df.loc[:, ~df.columns.str.contains('^Unnamed')]\n",
+					"    rows_raw = len(df.index)\n",
+					"    mssparkutils.fs.unmount(\"/temp_raw\") \n",
+					"    ### convert to pandas dataframe\n",
+					"    sparkDF=spark.createDataFrame(df)\n",
+					"    ### add date columns included with every standardised table\n",
+					"    sparkDF = sparkDF.withColumn(\"ingested_datetime\",lit(datetime.now()))\n",
+					"    sparkDF = sparkDF.withColumn(\"expected_from\",lit(expected_from))\n",
+					"    sparkDF = sparkDF.withColumn(\"expected_to\",lit(expected_to))\n",
+					"\n",
+					"                    \n",
+					"    schema = StructType.fromJson(json.loads(standardised_table_def_json))\n",
+					"    \n",
+					"    ### remove characters that Delta can't allow in headers and add numbers to repeated column headers\n",
+					"    cols_orig = sparkDF.schema.names\n",
+					"    cols=[re.sub('[^0-9a-zA-Z]+', '_', i).lower() for i in cols_orig]\n",
+					"    cols=[colm.rstrip('_') for colm in cols]\n",
+					"    newlist = []\n",
+					"    for i, v in enumerate(cols):\n",
+					"        totalcount = cols.count(v)\n",
+					"        count = cols[:i].count(v)\n",
+					"        newlist.append(v + str(count + 1) if totalcount > 1 else v)\n",
+					"    for colix in range(len(cols_orig)):\n",
+					"        sparkDF = sparkDF.toDF(*newlist) \n",
+					"\n",
+					"    ### mappings for Json schema definitions to Pyspark data types\n",
+					"    mapping = {\n",
+					"        'string': StringType(),\n",
+					"        'timestamp': TimestampType(),\n",
+					"        'integer': IntegerType(),\n",
+					"        'date': DateType(),\n",
+					"        'float': FloatType()\n",
+					"    }\n",
+					"\n",
+					"    ### writing the dataframe to the existing standardised table\n",
+					"    sparkDF.write.option(\"mergeSchema\", \"true\").format(\"delta\").mode(\"append\").saveAsTable(f\"odw_standardised_db.{standardised_table_name}\")\n",
+					"\n",
+					"    standardised_table_df_new = spark.read.format(\"delta\").load(standardised_container+standardised_path+standardised_table_name)\n",
+					"    rows_new = standardised_table_df.filter((standardised_table_df.expected_from == expected_from) &  (standardised_table_df.expected_to == expected_to)).count()\n",
+					"\n",
+					"    ### test correct number of rows have written\n",
+					"    if rows_raw == rows_new:\n",
+					"        print('All rows have successfully written')\n",
+					""
+				],
+				"execution_count": 1
 			}
 		]
 	}

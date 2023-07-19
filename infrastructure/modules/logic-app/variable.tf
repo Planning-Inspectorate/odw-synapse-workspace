@@ -14,8 +14,17 @@ variable "logic_app_enabled" {
   type        = bool
 }
 
+variable "key_vault_id" {
+  description = "The ID of the Key Vault to use for secret storage"
+  type        = string
+}
 variable "resource_group_name" {
   description = "The name of the resource group into which resources will be deployed"
+  type        = string
+}
+
+variable "resource_group_id" {
+  description = "The ID of the resource group into which resources will be deployed"
   type        = string
 }
 variable "service_name" {
