@@ -1,0 +1,191 @@
+{
+	"name": "pln_daily_run_high_court",
+	"properties": {
+		"activities": [
+			{
+				"name": "Ingest Harmonised",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Ingest Standardised",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "high_court_dim",
+						"type": "NotebookReference"
+					},
+					"snapshot": true
+				}
+			},
+			{
+				"name": "Ingest Curated",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Ingest Harmonised",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "mipins_high_court",
+						"type": "NotebookReference"
+					},
+					"snapshot": true
+				}
+			},
+			{
+				"name": "0_Raw_High_Court_Data_Copy",
+				"type": "ExecutePipeline",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "0_Raw_High_Court_Data_Copy",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
+				}
+			},
+			{
+				"name": "Add Outstanding Entry",
+				"description": "Adds Entry in odw_config_db.raw_to_std_outstanding_files table",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "0_Raw_High_Court_Data_Copy",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "outstanding_files_add_entry",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"jsonId": {
+							"value": "94",
+							"type": "int"
+						},
+						"year": {
+							"value": {
+								"value": "@formatDateTime(utcnow(), 'yyyy')",
+								"type": "Expression"
+							},
+							"type": "int"
+						},
+						"month": {
+							"value": {
+								"value": "@formatDateTime(utcnow(), 'MM')",
+								"type": "Expression"
+							},
+							"type": "int"
+						},
+						"day": {
+							"value": {
+								"value": "@formatDateTime(utcnow(), 'dd')",
+								"type": "Expression"
+							},
+							"type": "int"
+						},
+						"hour": {
+							"value": "0",
+							"type": "int"
+						},
+						"minute": {
+							"value": "0",
+							"type": "int"
+						},
+						"second": {
+							"value": "0",
+							"type": "int"
+						}
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Ingest Standardised",
+				"description": "Creates standardised table and ingests data",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Add Outstanding Entry",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_1_initial_run_raw_to_standardised_scheduling",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"source_id": {
+							"value": "94",
+							"type": "int"
+						}
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			}
+		],
+		"folder": {
+			"name": "high-court"
+		},
+		"annotations": []
+	}
+}
