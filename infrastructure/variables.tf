@@ -204,6 +204,32 @@ variable "odt_subscription_id" {
   type        = string
 }
 
+variable "apim_enabled" {
+  default     = false
+  description = "Determines whether the API Management instance should be deployed"
+  type        = bool
+}
+
+variable "api_management_failover_enabled" {
+  default     = false
+  description = "Determines whether the API Management instance should be deployed in a failover region"
+  type        = bool
+}
+variable "apim_publisher_email" {
+  description = "The email address of the publisher of the API Management instance"
+  type        = string
+}
+
+variable "apim_publisher_name" {
+  description = "The name of the publisher of the API Management instance"
+  type        = string
+}
+
+variable "apim_sku_name" {
+  description = "The SKU name of the API Management instance"
+  type        = string
+}
+
 variable "service_bus_failover_enabled" {
   default     = false
   description = "Determines whether the Service Bus Namespace will be provisioned with the Premium SKU for failover"
