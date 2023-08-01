@@ -10,8 +10,10 @@ locals {
   resource_suffix_failover = "${local.service_name}-${var.environment}-${module.azure_region.paired_location.location_short}"
   resource_suffix_global   = "${local.service_name}-${var.environment}-global"
 
+  apim_subnet_name    = "ApimSubnet"
   compute_subnet_name = "ComputeSubnet"
   synapse_subnet_name = "SynapseEndpointSubnet"
+
 
   tags = merge(
     var.tags,
