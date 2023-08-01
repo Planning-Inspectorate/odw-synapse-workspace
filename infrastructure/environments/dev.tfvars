@@ -5,6 +5,7 @@ alert_group_synapse_recipients           = ["chris.topping@planninginspectorate.
 alert_scope_service_health               = "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3"
 alert_threshold_data_lake_capacity_bytes = 10995116277760 # 10TiB
 
+<<<<<<< HEAD
 apim_enabled          = false
 <<<<<<< HEAD
 apim_publisher_email  = "alex.delany@planninginspectorate.gov.uk"
@@ -14,6 +15,12 @@ apim_failover_enabled = false
 apim_publisher_email  = ""
 apim_publisher_name   = ""
 >>>>>>> apim first commit
+=======
+apim_enabled          = true
+apim_failover_enabled = false
+apim_publisher_email  = "alex.delany@planninginspectorate.gov.uk"
+apim_publisher_name   = "Alex Delany"
+>>>>>>> Updated APIM
 apim_sku_name         = "Developer"
 
 bastion_host_enabled = true
