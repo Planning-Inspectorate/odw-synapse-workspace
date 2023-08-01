@@ -6,6 +6,7 @@ alert_scope_service_health               = "/subscriptions/ff442a29-fc06-4a13-8e
 alert_threshold_data_lake_capacity_bytes = 10995116277760 # 10TiB
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 apim_enabled          = false
 <<<<<<< HEAD
 apim_publisher_email  = "alex.delany@planninginspectorate.gov.uk"
@@ -17,6 +18,9 @@ apim_publisher_name   = ""
 >>>>>>> apim first commit
 =======
 apim_enabled          = true
+=======
+apim_enabled          = false
+>>>>>>> Updated APIM
 apim_failover_enabled = false
 apim_publisher_email  = "alex.delany@planninginspectorate.gov.uk"
 apim_publisher_name   = "Alex Delany"
@@ -160,7 +164,15 @@ vnet_subnets = [
     "new_bits" : 2 # /26
   },
   {
+<<<<<<< HEAD
     "name" : "ApimSubnet",
+=======
+    "name" : "APIMSubnet",
+    "new_bits" : 2 # /26 
+  },
+  {
+    "name" : null, # Reserved
+>>>>>>> Updated APIM
     "new_bits" : 2 # /26
   }
 ]
