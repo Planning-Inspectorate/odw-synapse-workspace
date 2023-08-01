@@ -1,7 +1,11 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 
 =======
 >>>>>>> apim first commit
+=======
+
+>>>>>>> Updated syntax
 variable "environment" {
   description = "The name of the environment in which resources will be deployed"
   type        = string
@@ -13,16 +17,22 @@ variable "location" {
 }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> Updated syntax
 # variable "key_vault_id" {
 #   description = "The ID of the Key Vault to use for secret storage"
 #   type        = string
 # }
+<<<<<<< HEAD
 =======
 variable "key_vault_id" {
   description = "The ID of the Key Vault to use for secret storage"
   type        = string
 }
 >>>>>>> apim first commit
+=======
+>>>>>>> Updated syntax
 
 variable "publisher_email" {
   description = "The email address of the publisher of the API Management instance"
@@ -39,9 +49,12 @@ variable "resource_group_name" {
   type        = string
 }
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 
 >>>>>>> apim first commit
+=======
+>>>>>>> Updated syntax
 variable "service_name" {
   description = "The short-format name of the overarching service being deployed"
   type        = string
@@ -52,6 +65,9 @@ variable "sku_name" {
   type        = string
 }
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> Updated syntax
 variable "synapse_apim_subnet_name" {
   default     = "ApimSubnet"
   description = "The name of the subnet into which the Bastion jumpbox VM should be deployed"
@@ -67,6 +83,7 @@ variable "synapse_vnet_subnet_names" {
   description = "A map of subnet names to IDs comprising the linked Virtual Network for Bastion host deployment"
   type        = map(string)
 }
+<<<<<<< HEAD
 
 # variable "synapse_vnet_subnet_prefixes" {
 #   description = "A map of subnet names to CIDR ranges"
@@ -75,6 +92,13 @@ variable "synapse_vnet_subnet_names" {
 =======
 
 >>>>>>> apim first commit
+=======
+
+# variable "synapse_vnet_subnet_prefixes" {
+#   description = "A map of subnet names to CIDR ranges"
+#   type        = map(string)
+# }
+>>>>>>> Updated syntax
 variable "tags" {
   default     = {}
   description = "A collection of tags to assign to taggable resources"
