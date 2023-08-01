@@ -1,6 +1,6 @@
 resource "azurerm_resource_group" "api_management" {
   count = var.apim_enabled ? 1 : 0
-  
+
   name     = "pins-rg-apim-${local.resource_suffix}"
   location = module.azure_region.location_cli
 
@@ -41,7 +41,7 @@ module "api_management_failover" {
 
   environment         = var.environment
   resource_group_name = azurerm_resource_group.api_management_failover[0].name
-  key_vault_id         = module.synapse_data_lake_failover.key_vault_id
+  key_vault_id        = module.synapse_data_lake_failover.key_vault_id
   location            = module.azure_region.paired_location.location_cli
   publisher_name      = var.apim_publisher_name
   publisher_email     = var.apim_publisher_email
