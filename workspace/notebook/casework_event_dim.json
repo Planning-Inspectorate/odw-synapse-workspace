@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "3c4ae2e8-8fee-4fb3-b2fc-b84bd524c084"
+				"spark.autotune.trackingId": "dbb38fea-90d7-43df-ada2-5685f33ca0f7"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				},
 				"sparkVersion": "3.3",
 				"nodeCount": 3,
-				"cores": 4,
-				"memory": 28,
+				"cores": 8,
+				"memory": 56,
 				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
@@ -382,6 +382,64 @@
 				"execution_count": 5
 			},
 			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					}
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW Loading_month\n",
+					"\n",
+					"    AS\n",
+					"\n",
+					"SELECT DISTINCT\n",
+					"    IngestionDate AS IngestionDate,\n",
+					"    to_timestamp(date_sub(IngestionDate,1)) AS ClosingDate,\n",
+					"    'Y' AS IsActive\n",
+					"\n",
+					"FROM casework_event_dim_new;\n",
+					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW casework_event_dim_changed_rows_final\n",
+					"\n",
+					"    AS\n",
+					"\n",
+					"SELECT \n",
+					"    EventID,\n",
+					"    AppealRefNumber,\n",
+					"    Casereference,\n",
+					"    ChartStatus,\n",
+					"    ParentKeyID,\n",
+					"    StartDateOfEvent,\n",
+					"    StartTimeOfEvent,\n",
+					"    EndDateOfEvent,\n",
+					"    ActualDuration,\n",
+					"    EstPrepTime,\n",
+					"    EstSitTime,\n",
+					"    EstRepTime,\n",
+					"    T1.SourceSystemID,\n",
+					"    T1.IngestionDate,\n",
+					"    T1.ValidTo,\n",
+					"    T1.RowID,\n",
+					"    T1.IsActive,\n",
+					"    T2.ClosingDate\n",
+					"FROM casework_event_dim_changed_rows T1\n",
+					"FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive"
+				],
+				"execution_count": null
+			},
+			{
 				"cell_type": "markdown",
 				"metadata": {
 					"nteract": {
@@ -419,7 +477,7 @@
 					"-- merge into dim table\r\n",
 					"\r\n",
 					"MERGE INTO odw_harmonised_db.casework_event_dim AS Target\r\n",
-					"USING casework_event_dim_changed_rows AS Source\r\n",
+					"USING casework_event_dim_changed_rows_final AS Source\r\n",
 					"\r\n",
 					"ON Source.EventID = Target.EventID\r\n",
 					"\r\n",
@@ -428,12 +486,49 @@
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
+					"    Target.ValidTo = to_timestamp(ClosingDate),\r\n",
 					"    Target.IsActive = 'N'\r\n",
 					"\r\n",
 					"-- Insert completely new rows\r\n",
+					"\r\n",
 					"WHEN NOT MATCHED \r\n",
-					"    THEN INSERT * ;  "
+					"    THEN INSERT (\r\n",
+					"        EventID,\r\n",
+					"        AppealRefNumber,\r\n",
+					"        Casereference,\r\n",
+					"        ChartStatus,\r\n",
+					"        ParentKeyID,\r\n",
+					"        StartDateOfEvent,\r\n",
+					"        StartTimeOfEvent,\r\n",
+					"        EndDateOfEvent,\r\n",
+					"        ActualDuration,\r\n",
+					"        EstPrepTime,\r\n",
+					"        EstSitTime,\r\n",
+					"        EstRepTime,\r\n",
+					"        SourceSystemID,\r\n",
+					"        IngestionDate,\r\n",
+					"        ValidTo,\r\n",
+					"        RowID,\r\n",
+					"        IsActive)\r\n",
+					"    VALUES (\r\n",
+					"        Source.EventID,\r\n",
+					"        Source.AppealRefNumber,\r\n",
+					"        Source.Casereference,\r\n",
+					"        Source.ChartStatus,\r\n",
+					"        Source.ParentKeyID,\r\n",
+					"        Source.StartDateOfEvent,\r\n",
+					"        Source.StartTimeOfEvent,\r\n",
+					"        Source.EndDateOfEvent,\r\n",
+					"        Source.ActualDuration,\r\n",
+					"        Source.EstPrepTime,\r\n",
+					"        Source.EstSitTime,\r\n",
+					"        Source.EstRepTime,\r\n",
+					"        Source.SourceSystemID,\r\n",
+					"        Source.IngestionDate,\r\n",
+					"        Source.ValidTo,\r\n",
+					"        Source.RowID,\r\n",
+					"        Source.IsActive)\r\n",
+					"     ;  "
 				],
 				"execution_count": 6
 			},

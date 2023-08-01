@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "4dcf581a-1dad-4820-b167-3c364e7066d9"
+				"spark.autotune.trackingId": "28b51fcf-92ca-418c-8ac1-123d239c7a69"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				},
 				"sparkVersion": "3.3",
 				"nodeCount": 3,
-				"cores": 4,
-				"memory": 28,
+				"cores": 8,
+				"memory": 56,
 				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
@@ -402,6 +402,68 @@
 				"execution_count": 8
 			},
 			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					}
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW Loading_month\n",
+					"\n",
+					"    AS\n",
+					"\n",
+					"SELECT DISTINCT\n",
+					"    IngestionDate AS IngestionDate,\n",
+					"    to_timestamp(date_sub(IngestionDate,1)) AS ClosingDate,\n",
+					"    'Y' AS IsActive\n",
+					"\n",
+					"FROM casework_specialist_modifications_dim_new;\n",
+					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW casework_specialist_modifications_dim_changed_rows_final\n",
+					"\n",
+					"    AS\n",
+					"\n",
+					"SELECT \n",
+					"    SpecialistModificationsID,\n",
+					"    AppealRefNumber,\n",
+					"    ModifyDate,\n",
+					"    ModificationEntry,\n",
+					"    ModificationNumber,\n",
+					"    DateProposedModsAdvertised,\n",
+					"    DateObjectionPeriodEnds,\n",
+					"    ProcedureConfirmedStartDate,\n",
+					"    DateLocalInquiryRequested,\n",
+					"    LastSittingDay,\n",
+					"    DateToReader,\n",
+					"    DateReturnedFromReader,\n",
+					"    DecisionOrRecommendation,\n",
+					"    ReceiptDateOfDecision,\n",
+					"    DateDecisionDespatched,\n",
+					"    Reader,\n",
+					"    T1.SourceSystemID,\n",
+					"    T1.IngestionDate,\n",
+					"    T1.ValidTo,\n",
+					"    T1.RowID,\n",
+					"    T1.IsActive,\n",
+					"    T2.ClosingDate\n",
+					"FROM casework_specialist_modifications_dim_changed_rows T1\n",
+					"FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive"
+				],
+				"execution_count": null
+			},
+			{
 				"cell_type": "markdown",
 				"metadata": {
 					"nteract": {
@@ -439,7 +501,7 @@
 					"-- merge into dim table\r\n",
 					"\r\n",
 					"MERGE INTO odw_harmonised_db.casework_specialist_modifications_dim AS Target\r\n",
-					"USING casework_specialist_modifications_dim_changed_rows AS Source\r\n",
+					"USING casework_specialist_modifications_dim_changed_rows_final AS Source\r\n",
 					"\r\n",
 					"ON Source.SpecialistModificationsID = Target.SpecialistModificationsID\r\n",
 					"\r\n",
@@ -448,13 +510,59 @@
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
+					"    Target.ValidTo = to_timestamp(ClosingDate),\r\n",
 					"    Target.IsActive = 'N'\r\n",
-					"        \r\n",
+					"\r\n",
 					"-- Insert completely new rows\r\n",
+					"\r\n",
 					"WHEN NOT MATCHED \r\n",
-					"    THEN INSERT * ; \r\n",
-					""
+					"    THEN INSERT (\r\n",
+					"        SpecialistModificationsID,\r\n",
+					"        AppealRefNumber,\r\n",
+					"        ModifyDate,\r\n",
+					"        ModificationEntry,\r\n",
+					"        ModificationNumber,\r\n",
+					"        DateProposedModsAdvertised,\r\n",
+					"        DateObjectionPeriodEnds,\r\n",
+					"        ProcedureConfirmedStartDate,\r\n",
+					"        DateLocalInquiryRequested,\r\n",
+					"        LastSittingDay,\r\n",
+					"        DateToReader,\r\n",
+					"        DateReturnedFromReader,\r\n",
+					"        DecisionOrRecommendation,\r\n",
+					"        ReceiptDateOfDecision,\r\n",
+					"        DateDecisionDespatched,\r\n",
+					"        Reader,\r\n",
+					"        SourceSystemID,\r\n",
+					"        IngestionDate,\r\n",
+					"        ValidTo,\r\n",
+					"        RowID,\r\n",
+					"        IsActive\r\n",
+					"    )\r\n",
+					"    VALUES (\r\n",
+					"        Source.SpecialistModificationsID,\r\n",
+					"        Source.AppealRefNumber,\r\n",
+					"        Source.ModifyDate,\r\n",
+					"        Source.ModificationEntry,\r\n",
+					"        Source.ModificationNumber,\r\n",
+					"        Source.DateProposedModsAdvertised,\r\n",
+					"        Source.DateObjectionPeriodEnds,\r\n",
+					"        Source.ProcedureConfirmedStartDate,\r\n",
+					"        Source.DateLocalInquiryRequested,\r\n",
+					"        Source.LastSittingDay,\r\n",
+					"        Source.DateToReader,\r\n",
+					"        Source.DateReturnedFromReader,\r\n",
+					"        Source.DecisionOrRecommendation,\r\n",
+					"        Source.ReceiptDateOfDecision,\r\n",
+					"        Source.DateDecisionDespatched,\r\n",
+					"        Source.Reader,\r\n",
+					"        Source.SourceSystemID,\r\n",
+					"        Source.IngestionDate,\r\n",
+					"        Source.ValidTo,\r\n",
+					"        Source.RowID,\r\n",
+					"        Source.IsActive\r\n",
+					"    )\r\n",
+					";"
 				],
 				"execution_count": 9
 			},

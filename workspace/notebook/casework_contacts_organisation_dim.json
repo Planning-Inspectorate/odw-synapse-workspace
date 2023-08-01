@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "36130865-f4b8-4d84-8a95-9b8558ed00ad"
+				"spark.autotune.trackingId": "c0dd0027-4899-4f15-be20-08d4d8bf2866"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				},
 				"sparkVersion": "3.3",
 				"nodeCount": 3,
-				"cores": 4,
-				"memory": 28,
+				"cores": 8,
+				"memory": 56,
 				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
@@ -355,6 +355,68 @@
 				"execution_count": 4
 			},
 			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					}
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW Loading_month\n",
+					"\n",
+					"    AS\n",
+					"\n",
+					"SELECT DISTINCT\n",
+					"    IngestionDate AS IngestionDate,\n",
+					"    to_timestamp(date_sub(IngestionDate,1)) AS ClosingDate,\n",
+					"    'Y' AS IsActive\n",
+					"\n",
+					"FROM casework_contacts_organisation_dim_new;\n",
+					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW casework_contacts_organisation_dim_changed_rows_final\n",
+					"\n",
+					"    AS\n",
+					"\n",
+					"SELECT \n",
+					"    ContactsOrganisationID,\n",
+					"    ContactID,\n",
+					"    Name,\n",
+					"    OrganisationTypeID,\n",
+					"    LPAID,\n",
+					"    POBox,\n",
+					"    Address1,\n",
+					"    Address2,\n",
+					"    City,\n",
+					"    County,\n",
+					"    PostCode,\n",
+					"    Country,\n",
+					"    TelephoneOffice,\n",
+					"    Fax,\n",
+					"    Email,\n",
+					"    LastUpdatedByID,\n",
+					"    T1.SourceSystemID,\n",
+					"    T1.IngestionDate,\n",
+					"    T1.ValidTo,\n",
+					"    T1.RowID,\n",
+					"    T1.IsActive,\n",
+					"    T2.ClosingDate\n",
+					"FROM casework_contacts_organisation_dim_changed_rows T1\n",
+					"FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive"
+				],
+				"execution_count": null
+			},
+			{
 				"cell_type": "markdown",
 				"metadata": {
 					"nteract": {
@@ -392,7 +454,7 @@
 					"-- merge into dim table\r\n",
 					"\r\n",
 					"MERGE INTO odw_harmonised_db.casework_contacts_organisation_dim AS Target\r\n",
-					"USING casework_contacts_organisation_dim_changed_rows AS Source\r\n",
+					"USING casework_contacts_organisation_dim_changed_rows_final AS Source\r\n",
 					"\r\n",
 					"ON Source.ContactsOrganisationID = Target.ContactsOrganisationID\r\n",
 					"\r\n",
@@ -401,12 +463,57 @@
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
+					"    Target.ValidTo = to_timestamp(ClosingDate),\r\n",
 					"    Target.IsActive = 'N'\r\n",
 					"\r\n",
 					"-- Insert completely new rows\r\n",
+					"\r\n",
 					"WHEN NOT MATCHED \r\n",
-					"    THEN INSERT * ;  "
+					"    THEN INSERT (\r\n",
+					"        ContactsOrganisationID,\r\n",
+					"        ContactID,\r\n",
+					"        Name,\r\n",
+					"        OrganisationTypeID,\r\n",
+					"        LPAID,\r\n",
+					"        POBox,\r\n",
+					"        Address1,\r\n",
+					"        Address2,\r\n",
+					"        City,\r\n",
+					"        County,\r\n",
+					"        PostCode,\r\n",
+					"        Country,\r\n",
+					"        TelephoneOffice,\r\n",
+					"        Fax,\r\n",
+					"        Email,\r\n",
+					"        LastUpdatedByID,\r\n",
+					"        SourceSystemID,\r\n",
+					"        IngestionDate,\r\n",
+					"        ValidTo,\r\n",
+					"        RowID,\r\n",
+					"        IsActive)\r\n",
+					"    VALUES (\r\n",
+					"        Source.ContactsOrganisationID,\r\n",
+					"        Source.ContactID,\r\n",
+					"        Source.Name,\r\n",
+					"        Source.OrganisationTypeID,\r\n",
+					"        Source.LPAID,\r\n",
+					"        Source.POBox,\r\n",
+					"        Source.Address1,\r\n",
+					"        Source.Address2,\r\n",
+					"        Source.City,\r\n",
+					"        Source.County,\r\n",
+					"        Source.PostCode,\r\n",
+					"        Source.Country,\r\n",
+					"        Source.TelephoneOffice,\r\n",
+					"        Source.Fax,\r\n",
+					"        Source.Email,\r\n",
+					"        Source.LastUpdatedByID,\r\n",
+					"        Source.SourceSystemID,\r\n",
+					"        Source.IngestionDate,\r\n",
+					"        Source.ValidTo,\r\n",
+					"        Source.RowID,\r\n",
+					"        Source.IsActive)\r\n",
+					"     ;  "
 				],
 				"execution_count": 5
 			},

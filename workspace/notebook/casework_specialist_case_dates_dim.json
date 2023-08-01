@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "1fac08e1-4a3c-4178-bf70-c915c60f6dfc"
+				"spark.autotune.trackingId": "c2bed32d-6211-48ee-9334-314e8952feff"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				},
 				"sparkVersion": "3.3",
 				"nodeCount": 3,
-				"cores": 4,
-				"memory": 28,
+				"cores": 8,
+				"memory": 56,
 				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
@@ -362,6 +362,61 @@
 				"execution_count": 10
 			},
 			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					}
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW Loading_month\n",
+					"\n",
+					"    AS\n",
+					"\n",
+					"SELECT DISTINCT\n",
+					"    IngestionDate AS IngestionDate,\n",
+					"    to_timestamp(date_sub(IngestionDate,1)) AS ClosingDate,\n",
+					"    'Y' AS IsActive\n",
+					"\n",
+					"FROM casework_specialist_case_dates_dim_new;\n",
+					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW casework_specialist_case_dates_dim_changed_rows_final\n",
+					"\n",
+					"    AS\n",
+					"\n",
+					"SELECT \n",
+					"    SpecialistCaseDatesID,\n",
+					"    AppealRefNumber,\n",
+					"    DateCostsReportDespatched,\n",
+					"    DateDecisionReportReceivedInPINS,\n",
+					"    DatePublicationProcedureCompleted,\n",
+					"    DateReturnedFromReader,\n",
+					"    DateSentToReader,\n",
+					"    OrderRejectedOrReturned,\n",
+					"    SourceSystemID,\n",
+					"    T1.SourceSystemID,\n",
+					"    T1.IngestionDate,\n",
+					"    T1.ValidTo,\n",
+					"    T1.RowID,\n",
+					"    T1.IsActive,\n",
+					"    T2.ClosingDate\n",
+					"FROM casework_specialist_case_dates_dim_changed_rows T1\n",
+					"FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive"
+				],
+				"execution_count": null
+			},
+			{
 				"cell_type": "markdown",
 				"metadata": {
 					"nteract": {
@@ -399,7 +454,7 @@
 					"-- merge into dim table\r\n",
 					"\r\n",
 					"MERGE INTO odw_harmonised_db.casework_specialist_case_dates_dim AS Target\r\n",
-					"USING casework_specialist_case_dates_dim_changed_rows AS Source\r\n",
+					"USING casework_specialist_case_dates_dim_changed_rows_final AS Source\r\n",
 					"\r\n",
 					"ON Source.SpecialistCaseDatesID = Target.SpecialistCaseDatesID\r\n",
 					"\r\n",
@@ -408,12 +463,43 @@
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
+					"    Target.ValidTo = to_timestamp(ClosingDate),\r\n",
 					"    Target.IsActive = 'N'\r\n",
-					"        \r\n",
+					"\r\n",
 					"-- Insert completely new rows\r\n",
+					"\r\n",
 					"WHEN NOT MATCHED \r\n",
-					"    THEN INSERT * ; \r\n",
+					"    THEN INSERT (\r\n",
+					"        SpecialistCaseDatesID,\r\n",
+					"        AppealRefNumber,\r\n",
+					"        DateCostsReportDespatched,\r\n",
+					"        DateDecisionReportReceivedInPINS,\r\n",
+					"        DatePublicationProcedureCompleted,\r\n",
+					"        DateReturnedFromReader,\r\n",
+					"        DateSentToReader,\r\n",
+					"        OrderRejectedOrReturned,\r\n",
+					"        SourceSystemID,\r\n",
+					"        IngestionDate,\r\n",
+					"        ValidTo,\r\n",
+					"        RowID,\r\n",
+					"        IsActive\r\n",
+					"    )\r\n",
+					"    VALUES (\r\n",
+					"        Source.SpecialistCaseDatesID,\r\n",
+					"        Source.AppealRefNumber,\r\n",
+					"        Source.DateCostsReportDespatched,\r\n",
+					"        Source.DateDecisionReportReceivedInPINS,\r\n",
+					"        Source.DatePublicationProcedureCompleted,\r\n",
+					"        Source.DateReturnedFromReader,\r\n",
+					"        Source.DateSentToReader,\r\n",
+					"        Source.OrderRejectedOrReturned,\r\n",
+					"        Source.SourceSystemID,\r\n",
+					"        Source.IngestionDate,\r\n",
+					"        Source.ValidTo,\r\n",
+					"        Source.RowID,\r\n",
+					"        Source.IsActive\r\n",
+					"    )\r\n",
+					";    \r\n",
 					""
 				],
 				"execution_count": 11
