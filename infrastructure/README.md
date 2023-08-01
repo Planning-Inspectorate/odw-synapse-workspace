@@ -178,6 +178,8 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 
 | Name | Source | Version |
 |------|--------|---------|
+| <a name="module_api_management"></a> [api\_management](#module\_api\_management) | ./modules/api-management | n/a |
+| <a name="module_api_management_failover"></a> [api\_management\_failover](#module\_api\_management\_failover) | ./modules/api-management | n/a |
 | <a name="module_azure_region"></a> [azure\_region](#module\_azure\_region) | claranet/regions/azurerm | 5.1.0 |
 | <a name="module_bastion_host"></a> [bastion\_host](#module\_bastion\_host) | ./modules/bastion-host | n/a |
 | <a name="module_bastion_host_failover"></a> [bastion\_host\_failover](#module\_bastion\_host\_failover) | ./modules/bastion-host | n/a |
@@ -219,6 +221,8 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 | [azurerm_private_dns_zone_virtual_network_link.key_vault_failover](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/private_dns_zone_virtual_network_link) | resource |
 | [azurerm_private_dns_zone_virtual_network_link.synapse](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/private_dns_zone_virtual_network_link) | resource |
 | [azurerm_private_dns_zone_virtual_network_link.synapse_failover](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/private_dns_zone_virtual_network_link) | resource |
+| [azurerm_resource_group.api_management](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
+| [azurerm_resource_group.api_management_failover](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
 | [azurerm_resource_group.data](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
 | [azurerm_resource_group.data_failover](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
 | [azurerm_resource_group.data_management](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
@@ -252,6 +256,11 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 | <a name="input_alert_group_synapse_recipients"></a> [alert\_group\_synapse\_recipients](#input\_alert\_group\_synapse\_recipients) | A list of email recipients to recieve Synapse alerts | `list(string)` | `[]` | no |
 | <a name="input_alert_scope_service_health"></a> [alert\_scope\_service\_health](#input\_alert\_scope\_service\_health) | The resource scope at which to alert on service health events | `string` | n/a | yes |
 | <a name="input_alert_threshold_data_lake_capacity_bytes"></a> [alert\_threshold\_data\_lake\_capacity\_bytes](#input\_alert\_threshold\_data\_lake\_capacity\_bytes) | The threshold at which to trigger an alert for exceeding Data Lake capacity in bytes | `number` | `1099511627776` | no |
+| <a name="input_api_management_failover_enabled"></a> [api\_management\_failover\_enabled](#input\_api\_management\_failover\_enabled) | Determines whether the API Management instance should be deployed in a failover region | `bool` | `false` | no |
+| <a name="input_apim_enabled"></a> [apim\_enabled](#input\_apim\_enabled) | Determines whether the API Management instance should be deployed | `bool` | `false` | no |
+| <a name="input_apim_publisher_email"></a> [apim\_publisher\_email](#input\_apim\_publisher\_email) | The email address of the publisher of the API Management instance | `string` | n/a | yes |
+| <a name="input_apim_publisher_name"></a> [apim\_publisher\_name](#input\_apim\_publisher\_name) | The name of the publisher of the API Management instance | `string` | n/a | yes |
+| <a name="input_apim_sku_name"></a> [apim\_sku\_name](#input\_apim\_sku\_name) | The SKU name of the API Management instance | `string` | n/a | yes |
 | <a name="input_bastion_host_enabled"></a> [bastion\_host\_enabled](#input\_bastion\_host\_enabled) | Determines if a Bastion Host should be provisioned for management purposes | `bool` | `false` | no |
 | <a name="input_bastion_vm_image"></a> [bastion\_vm\_image](#input\_bastion\_vm\_image) | An object describing the image specification to use for the Bastion jumpbox VM | `map(string)` | <pre>{<br>  "offer": "windows-11",<br>  "publisher": "MicrosoftWindowsDesktop",<br>  "sku": "win11-21h2-ent",<br>  "version": "latest"<br>}</pre> | no |
 | <a name="input_bastion_vm_size"></a> [bastion\_vm\_size](#input\_bastion\_vm\_size) | The size of the Bastion jumpbox VM to be deployed | `string` | `"Standard_F2s_v2"` | no |
