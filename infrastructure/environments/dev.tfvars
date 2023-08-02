@@ -7,6 +7,7 @@ alert_threshold_data_lake_capacity_bytes = 10995116277760 # 10TiB
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 apim_enabled          = false
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -29,6 +30,12 @@ apim_publisher_email  = "alex.delany@planninginspectorate.gov.uk"
 apim_publisher_name   = "Alex Delany"
 >>>>>>> Updated APIM
 apim_sku_name         = "Developer"
+=======
+apim_enabled         = false
+apim_publisher_email = "alex.delany@planninginspectorate.gov.uk"
+apim_publisher_name  = "Alex Delany"
+apim_sku_name        = "Developer"
+>>>>>>> Updated dev.tfvars
 
 bastion_host_enabled = true
 bastion_vm_username  = "basadmin"
@@ -179,6 +186,7 @@ vnet_subnets = [
     "new_bits" : 2 # /26
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
   }
 >>>>>>> Updated apim config
 =======
@@ -191,4 +199,7 @@ vnet_subnets = [
 =======
 >>>>>>> Updated subnet
   }
+=======
+  },
+>>>>>>> Updated dev.tfvars
 ]
