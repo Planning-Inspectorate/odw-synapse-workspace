@@ -14,7 +14,6 @@ locals {
   compute_subnet_name = "ComputeSubnet"
   synapse_subnet_name = "SynapseEndpointSubnet"
 
-
   tags = merge(
     var.tags,
     {

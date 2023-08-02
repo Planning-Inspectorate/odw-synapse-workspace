@@ -53,7 +53,7 @@ module "api_management_failover" {
   service_name             = local.service_name
   sku_name                 = var.apim_sku_name
   synapse_apim_subnet_name = local.apim_subnet_name
-  #ynapse_vnet_security_groups = module.synapse_network_failover.vnet_security_groups
+  # synapse_vnet_security_groups = module.synapse_network_failover.vnet_security_groups
   synapse_vnet_subnet_names = module.synapse_network_failover.vnet_subnets
   #synapse_vnet_subnet_prefixes = module.synapse_network_failover.vnet_subnet_prefixes
 
