@@ -9,6 +9,7 @@ alert_threshold_data_lake_capacity_bytes = 10995116277760 # 10TiB
 <<<<<<< HEAD
 apim_enabled          = false
 <<<<<<< HEAD
+<<<<<<< HEAD
 apim_publisher_email  = "alex.delany@planninginspectorate.gov.uk"
 apim_publisher_name   = "Alex Delany"
 =======
@@ -22,6 +23,8 @@ apim_enabled          = true
 apim_enabled          = false
 >>>>>>> Updated APIM
 apim_failover_enabled = false
+=======
+>>>>>>> Updated dev.tfars
 apim_publisher_email  = "alex.delany@planninginspectorate.gov.uk"
 apim_publisher_name   = "Alex Delany"
 >>>>>>> Updated APIM
