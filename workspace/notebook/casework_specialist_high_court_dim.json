@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "3db803e5-d205-4b89-862e-6196bc82f29d"
+				"spark.autotune.trackingId": "d670db3a-ef36-4540-9cb8-f9f657555084"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				},
 				"sparkVersion": "3.3",
 				"nodeCount": 3,
-				"cores": 4,
-				"memory": 28,
+				"cores": 8,
+				"memory": 56,
 				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
@@ -377,6 +377,63 @@
 				"execution_count": 4
 			},
 			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					}
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW Loading_month\n",
+					"\n",
+					"    AS\n",
+					"\n",
+					"SELECT DISTINCT\n",
+					"    IngestionDate AS IngestionDate,\n",
+					"    to_timestamp(date_sub(IngestionDate,1)) AS ClosingDate,\n",
+					"    'Y' AS IsActive\n",
+					"\n",
+					"FROM casework_specialist_high_court_dim_new;\n",
+					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW casework_specialist_high_court_dim_changed_rows_final\n",
+					"\n",
+					"    AS\n",
+					"\n",
+					"SELECT \n",
+					"    SpecialistHighCourtID,\n",
+					"    AppealRefNumber,\n",
+					"    DateNoticeOfMotionReceived,\n",
+					"    TSOLReference,\n",
+					"    DateNoticeOfMotionSentToInspector,\n",
+					"    DateInspectorsCommentsReceived,\n",
+					"    DateCaseFileSentToLegal,\n",
+					"    DatePINS1CommentsSentToLegal,\n",
+					"    Judgement,\n",
+					"    DateOfJudgement,\n",
+					"    FileReturnedForReDetermination,\n",
+					"    T1.SourceSystemID,\n",
+					"    T1.IngestionDate,\n",
+					"    T1.ValidTo,\n",
+					"    T1.RowID,\n",
+					"    T1.IsActive,\n",
+					"    T2.ClosingDate\n",
+					"FROM casework_specialist_high_court_dim_changed_rows T1\n",
+					"FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive"
+				],
+				"execution_count": null
+			},
+			{
 				"cell_type": "markdown",
 				"metadata": {
 					"nteract": {
@@ -414,7 +471,7 @@
 					"-- merge into dim table\r\n",
 					"\r\n",
 					"MERGE INTO odw_harmonised_db.casework_specialist_high_court_dim AS Target\r\n",
-					"USING casework_specialist_high_court_dim_changed_rows AS Source\r\n",
+					"USING casework_specialist_high_court_dim_changed_rows_final AS Source\r\n",
 					"\r\n",
 					"ON Source.SpecialistHighCourtID = Target.SpecialistHighCourtID\r\n",
 					"\r\n",
@@ -423,12 +480,49 @@
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
+					"    Target.ValidTo = to_timestamp(ClosingDate),\r\n",
 					"    Target.IsActive = 'N'\r\n",
-					"        \r\n",
+					"\r\n",
 					"-- Insert completely new rows\r\n",
+					"\r\n",
 					"WHEN NOT MATCHED \r\n",
-					"    THEN INSERT * ; "
+					"    THEN INSERT (\r\n",
+					"        SpecialistHighCourtID,\r\n",
+					"        AppealRefNumber,\r\n",
+					"        DateNoticeOfMotionReceived,\r\n",
+					"        TSOLReference,\r\n",
+					"        DateNoticeOfMotionSentToInspector,\r\n",
+					"        DateInspectorsCommentsReceived,\r\n",
+					"        DateCaseFileSentToLegal,\r\n",
+					"        DatePINS1CommentsSentToLegal,\r\n",
+					"        Judgement,\r\n",
+					"        DateOfJudgement,\r\n",
+					"        FileReturnedForReDetermination,\r\n",
+					"        SourceSystemID,\r\n",
+					"        IngestionDate,\r\n",
+					"        ValidTo,\r\n",
+					"        RowID,\r\n",
+					"        IsActive\r\n",
+					"    )\r\n",
+					"    VALUES (\r\n",
+					"        Source.SpecialistHighCourtID,\r\n",
+					"        Source.AppealRefNumber,\r\n",
+					"        Source.DateNoticeOfMotionReceived,\r\n",
+					"        Source.TSOLReference,\r\n",
+					"        Source.DateNoticeOfMotionSentToInspector,\r\n",
+					"        Source.DateInspectorsCommentsReceived,\r\n",
+					"        Source.DateCaseFileSentToLegal,\r\n",
+					"        Source.DatePINS1CommentsSentToLegal,\r\n",
+					"        Source.Judgement,\r\n",
+					"        Source.DateOfJudgement,\r\n",
+					"        Source.FileReturnedForReDetermination,\r\n",
+					"        Source.SourceSystemID,\r\n",
+					"        Source.IngestionDate,\r\n",
+					"        Source.ValidTo,\r\n",
+					"        Source.RowID,\r\n",
+					"        Source.IsActive\r\n",
+					"    )\r\n",
+					"; "
 				],
 				"execution_count": 5
 			},

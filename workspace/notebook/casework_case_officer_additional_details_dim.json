@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ddbabc47-a270-4d1a-9a3f-04b0c77d1316"
+				"spark.autotune.trackingId": "456e2f0e-8593-4eab-8e6f-2da6e5e79876"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				},
 				"sparkVersion": "3.3",
 				"nodeCount": 3,
-				"cores": 4,
-				"memory": 28,
+				"cores": 8,
+				"memory": 56,
 				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
@@ -112,11 +112,12 @@
 					"                    IFNULL(T1.caseofficername,'.'),\r\n",
 					"                    IFNULL(T1.email,'.')\r\n",
 					"            )) <> T3.RowID  -- same employee, changed data\r\n",
-					"        THEN 'Y'\r\n",
-					"        WHEN T3.AppealRefNumber IS NULL -- new PositionCode\r\n",
-					"        THEN 'Y'\r\n",
-					"    ELSE 'N'\r\n",
-					"    END  = 'Y' ) \r\n",
+					"            THEN 'Y'\r\n",
+					"            WHEN T3.AppealRefNumber IS NULL -- new PositionCode\r\n",
+					"            THEN 'Y'\r\n",
+					"        ELSE 'N'\r\n",
+					"        END  = 'Y' ) \r\n",
+					"    AND T1.appealrefnumber IS NOT NULL\r\n",
 					";\r\n",
 					""
 				],
@@ -333,6 +334,58 @@
 				"execution_count": 5
 			},
 			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					}
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW Loading_month\n",
+					"\n",
+					"    AS\n",
+					"\n",
+					"SELECT DISTINCT\n",
+					"    IngestionDate AS IngestionDate,\n",
+					"    to_timestamp(date_sub(IngestionDate,1)) AS ClosingDate,\n",
+					"    'Y' AS IsActive\n",
+					"\n",
+					"FROM casework_case_officer_additional_details_dim_new;\n",
+					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW casework_case_officer_additional_details_dim_changed_rows_final\n",
+					"\n",
+					"    AS\n",
+					"\n",
+					"SELECT \n",
+					"    CaseOfficerAdditionalDetailsID,\n",
+					"    AppealRefNumber,\n",
+					"    CaseReference,\n",
+					"    CaseOfficerLogin,\n",
+					"    CaseOfficerName,\n",
+					"    Email,\n",
+					"    T1.SourceSystemID,\n",
+					"    T1.IngestionDate,\n",
+					"    T1.ValidTo,\n",
+					"    T1.RowID,\n",
+					"    T1.IsActive,\n",
+					"    T2.ClosingDate\n",
+					"FROM casework_case_officer_additional_details_dim_changed_rows T1\n",
+					"FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive"
+				],
+				"execution_count": null
+			},
+			{
 				"cell_type": "markdown",
 				"metadata": {
 					"nteract": {
@@ -370,7 +423,7 @@
 					"-- merge into dim table\r\n",
 					"\r\n",
 					"MERGE INTO odw_harmonised_db.casework_case_officer_additional_details_dim AS Target\r\n",
-					"USING casework_case_officer_additional_details_dim_changed_rows AS Source\r\n",
+					"USING casework_case_officer_additional_details_dim_changed_rows_final AS Source\r\n",
 					"\r\n",
 					"ON Source.CaseOfficerAdditionalDetailsID = Target.CaseOfficerAdditionalDetailsID\r\n",
 					"\r\n",
@@ -379,12 +432,37 @@
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
+					"    Target.ValidTo = to_timestamp(ClosingDate),\r\n",
 					"    Target.IsActive = 'N'\r\n",
 					"\r\n",
 					"-- Insert completely new rows\r\n",
+					"\r\n",
 					"WHEN NOT MATCHED \r\n",
-					"    THEN INSERT * ;  "
+					"    THEN INSERT (\r\n",
+					"        CaseOfficerAdditionalDetailsID,\r\n",
+					"        AppealRefNumber,\r\n",
+					"        CaseReference,\r\n",
+					"        CaseOfficerLogin,\r\n",
+					"        CaseOfficerName,\r\n",
+					"        Email,\r\n",
+					"        SourceSystemID,\r\n",
+					"        IngestionDate,\r\n",
+					"        ValidTo,\r\n",
+					"        RowID,\r\n",
+					"        IsActive)\r\n",
+					"    VALUES (\r\n",
+					"        Source.CaseOfficerAdditionalDetailsID,\r\n",
+					"        Source.AppealRefNumber,\r\n",
+					"        Source.CaseReference,\r\n",
+					"        Source.CaseOfficerLogin,\r\n",
+					"        Source.CaseOfficerName,\r\n",
+					"        Source.Email,\r\n",
+					"        Source.SourceSystemID,\r\n",
+					"        Source.IngestionDate,\r\n",
+					"        Source.ValidTo,\r\n",
+					"        Source.RowID,\r\n",
+					"        Source.IsActive)\r\n",
+					"     ;  "
 				],
 				"execution_count": 6
 			},

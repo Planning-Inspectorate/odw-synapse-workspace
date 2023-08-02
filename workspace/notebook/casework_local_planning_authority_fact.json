@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "44293911-0128-4f5a-930d-fe9bcaac58c2"
+				"spark.autotune.trackingId": "1af059f4-37e8-4142-9ff5-87d520354de9"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				},
 				"sparkVersion": "3.3",
 				"nodeCount": 3,
-				"cores": 4,
-				"memory": 28,
+				"cores": 8,
+				"memory": 56,
 				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
@@ -82,9 +82,7 @@
 				"source": [
 					"%%sql\r\n",
 					"-- Build casework_local_planning_authority_fact table -- merge\r\n",
-					"\r\n",
 					"-- Notes - Addresses are only supplied for Inspectors - need to check inspector count against addresses data\r\n",
-					"\r\n",
 					"-- Gets modified or deleted from source rows\r\n",
 					"\r\n",
 					"CREATE OR REPLACE TEMPORARY VIEW casework_local_planning_authority_fact_new \r\n",
@@ -130,16 +128,17 @@
 					"        WHEN T3.LPAID IS NULL\r\n",
 					"        THEN 'Y'\r\n",
 					"    ELSE 'N'\r\n",
-					"    END  = 'Y' \r\n",
+					"    END  = 'Y'\r\n",
+					"    AND T1.lpa_code IS NOT NULL\r\n",
 					";\r\n",
 					"\r\n",
-					"-- SELECT COUNT(DISTINCT(lpa_code)) from odw_standardised_db.horizon_local_planning_authority;\r\n",
-					"-- SELECT COUNT(DISTINCT(LPACode)) from casework_local_planning_authority_fact_new;\r\n",
+					"SELECT COUNT(*) from odw_standardised_db.horizon_local_planning_authority;\r\n",
+					"SELECT COUNT(*) from casework_local_planning_authority_fact_new;\r\n",
 					"\r\n",
-					"-- SELECT * FROM casework_local_planning_authority_fact_new;\r\n",
+					"SELECT * from casework_local_planning_authority_fact_new;\r\n",
 					""
 				],
-				"execution_count": 13
+				"execution_count": 24
 			},
 			{
 				"cell_type": "markdown",
@@ -213,7 +212,57 @@
 					"WHERE LPACode IN (SELECT LPACode FROM casework_local_planning_authority_fact_new WHERE LPAID IS NULL) AND IsActive = 'Y';\r\n",
 					""
 				],
-				"execution_count": 14
+				"execution_count": 25
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW Loading_month\n",
+					"\n",
+					"    AS\n",
+					"\n",
+					"SELECT DISTINCT\n",
+					"    IngestionDate AS IngestionDate,\n",
+					"    to_timestamp(date_sub(IngestionDate,1)) AS ClosingDate,\n",
+					"    'Y' AS IsActive\n",
+					"\n",
+					"FROM casework_local_planning_authority_fact_new;\n",
+					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW casework_local_planning_authority_fact_changed_rows_final\n",
+					"\n",
+					"    AS\n",
+					"\n",
+					"SELECT \n",
+					"    LPAID,\n",
+					"    LPACode,\n",
+					"    LPAName,\n",
+					"    T1.SourceSystemID,\n",
+					"    T1.IngestionDate,\n",
+					"    T1.ValidTo,\n",
+					"    T1.RowID,\n",
+					"    T1.IsActive,\n",
+					"    T2.ClosingDate\n",
+					"FROM casework_local_planning_authority_fact_changed_rows T1\n",
+					"FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive"
+				],
+				"execution_count": 26
 			},
 			{
 				"cell_type": "markdown",
@@ -253,7 +302,7 @@
 					"-- merge into fact table\r\n",
 					"\r\n",
 					"MERGE INTO odw_harmonised_db.casework_local_planning_authority_fact AS Target\r\n",
-					"USING casework_local_planning_authority_fact_changed_rows AS Source\r\n",
+					"USING casework_local_planning_authority_fact_changed_rows_final AS Source\r\n",
 					"\r\n",
 					"ON Source.LPAID = Target.LPAID\r\n",
 					"\r\n",
@@ -262,14 +311,33 @@
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.ValidTo = to_timestamp(date_sub(Source.IngestionDate,1)),\r\n",
+					"    Target.ValidTo = to_timestamp(ClosingDate),\r\n",
 					"    Target.IsActive = 'N'\r\n",
-					"        \r\n",
+					"\r\n",
 					"-- Insert completely new rows\r\n",
+					"\r\n",
 					"WHEN NOT MATCHED \r\n",
-					"    THEN INSERT * ; "
+					"    THEN INSERT (\r\n",
+					"        LPAID,\r\n",
+					"        LPACode,\r\n",
+					"        LPAName,\r\n",
+					"        SourceSystemID,\r\n",
+					"        IngestionDate,\r\n",
+					"        ValidTo,\r\n",
+					"        RowID,\r\n",
+					"        IsActive)\r\n",
+					"    VALUES (\r\n",
+					"        Source.LPAID,\r\n",
+					"        Source.LPACode,\r\n",
+					"        Source.LPAName,\r\n",
+					"        Source.SourceSystemID,\r\n",
+					"        Source.IngestionDate,\r\n",
+					"        Source.ValidTo,\r\n",
+					"        Source.RowID,\r\n",
+					"        Source.IsActive)\r\n",
+					"     ;   "
 				],
-				"execution_count": 15
+				"execution_count": 27
 			},
 			{
 				"cell_type": "markdown",
@@ -321,7 +389,7 @@
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.casework_local_planning_authority_fact;"
 				],
-				"execution_count": 16
+				"execution_count": 28
 			}
 		]
 	}
