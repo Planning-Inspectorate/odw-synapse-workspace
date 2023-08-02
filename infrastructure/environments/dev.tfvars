@@ -148,9 +148,9 @@ vnet_subnets = [
     "new_bits" : 2 # /26
   },
   {
-    "name" : "APIMSubnet",
-    "new_bits" : 2 # /26 
-  },
+    "name" : "ApimSubnet",
+    "new_bits" : 2 # /26
+  }
   {
     "name" : null, # Reserved
     "new_bits" : 2 # /26
