@@ -96,6 +96,7 @@ module "api_management_failover" {
   sku_name                 = var.apim_sku_name
   synapse_apim_subnet_name = local.apim_subnet_name
 <<<<<<< HEAD
+<<<<<<< HEAD
   # synapse_vnet_security_groups = module.synapse_network_failover.vnet_security_groups
   synapse_vnet_subnet_names = module.synapse_network_failover.vnet_subnets
   #synapse_vnet_subnet_prefixes = module.synapse_network_failover.vnet_subnet_prefixes
@@ -114,6 +115,9 @@ module "api_management_failover" {
 >>>>>>> apim first commit
 =======
   #ynapse_vnet_security_groups = module.synapse_network_failover.vnet_security_groups
+=======
+  # synapse_vnet_security_groups = module.synapse_network_failover.vnet_security_groups
+>>>>>>> Updated apim config
   synapse_vnet_subnet_names = module.synapse_network_failover.vnet_subnets
   #synapse_vnet_subnet_prefixes = module.synapse_network_failover.vnet_subnet_prefixes
 >>>>>>> Updated syntax

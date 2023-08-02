@@ -165,11 +165,17 @@ vnet_subnets = [
   },
   {
 <<<<<<< HEAD
+<<<<<<< HEAD
     "name" : "ApimSubnet",
 =======
     "name" : "APIMSubnet",
     "new_bits" : 2 # /26 
   },
+=======
+    "name" : "ApimSubnet",
+    "new_bits" : 2 # /26
+  }
+>>>>>>> Updated apim config
   {
     "name" : null, # Reserved
 >>>>>>> Updated APIM
