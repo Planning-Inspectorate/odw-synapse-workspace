@@ -5,10 +5,10 @@ alert_group_synapse_recipients           = ["chris.topping@planninginspectorate.
 alert_scope_service_health               = "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3"
 alert_threshold_data_lake_capacity_bytes = 10995116277760 # 10TiB
 
-apim_enabled          = false
-apim_publisher_email  = "alex.delany@planninginspectorate.gov.uk"
-apim_publisher_name   = "Alex Delany"
-apim_sku_name         = "Developer"
+apim_enabled         = false
+apim_publisher_email = "alex.delany@planninginspectorate.gov.uk"
+apim_publisher_name  = "Alex Delany"
+apim_sku_name        = "Developer"
 
 bastion_host_enabled = true
 bastion_vm_username  = "basadmin"
@@ -149,5 +149,5 @@ vnet_subnets = [
   {
     "name" : "ApimSubnet",
     "new_bits" : 2 # /26
-  }
+  },
 ]
