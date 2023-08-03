@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "4aca0055-bb3a-4a3e-9d6f-8d6e6bfe6396"
+				"spark.autotune.trackingId": "4cb4103f-7296-48cf-ab51-c0c26735111f"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				},
 				"sparkVersion": "3.3",
 				"nodeCount": 3,
-				"cores": 8,
-				"memory": 56,
+				"cores": 4,
+				"memory": 28,
 				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
@@ -125,7 +125,7 @@
 					"FULL JOIN odw_harmonised_db.casework_nsip_examination_timetable_dim T3 ON T1.casereference = T3.CaseReference AND T3.IsActive = 'Y'\r\n",
 					"WHERE\r\n",
 					"    -- flags new data        \r\n",
-					"    CASE\r\n",
+					"    (CASE\r\n",
 					"        WHEN T1.casereference = T3.CaseReference AND md5(\r\n",
 					"            concat(\r\n",
 					"                IFNULL(T1.casereference,'.'),\r\n",
@@ -140,7 +140,9 @@
 					"        WHEN T3.CaseReference IS NULL -- new CaseReference\r\n",
 					"        THEN 'Y'\r\n",
 					"    ELSE 'N'\r\n",
-					"    END  = 'Y' \r\n",
+					"    END  = 'Y')\r\n",
+					"    AND T1.CaseReference IS NOT NULL\r\n",
+					"    AND T1.expected_from = (SELECT MAX(expected_from) FROM odw_standardised_db.horizon_examination_timetable)\r\n",
 					";"
 				],
 				"execution_count": 6

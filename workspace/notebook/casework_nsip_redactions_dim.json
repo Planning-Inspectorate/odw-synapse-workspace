@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "7dfaa675-399e-44bf-ac89-cbba7853bc6d"
+				"spark.autotune.trackingId": "dc4d3781-4a49-4e56-8933-47f168685f41"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				},
 				"sparkVersion": "3.3",
 				"nodeCount": 3,
-				"cores": 8,
-				"memory": 56,
+				"cores": 4,
+				"memory": 28,
 				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
@@ -116,7 +116,7 @@
 					"FULL JOIN odw_harmonised_db.casework_nsip_redactions_dim T3 ON T1.case_reference = T3.CaseReference AND T3.IsActive = 'Y'\r\n",
 					"WHERE\r\n",
 					"    -- flags new data        \r\n",
-					"    CASE\r\n",
+					"    (CASE\r\n",
 					"        WHEN T1.case_reference = T3.CaseReference AND md5(\r\n",
 					"            concat(\r\n",
 					"                IFNULL(T1.case_reference,'.'),\r\n",
@@ -127,7 +127,9 @@
 					"        WHEN T3.CaseReference IS NULL -- new record\r\n",
 					"        THEN 'Y'\r\n",
 					"    ELSE 'N'\r\n",
-					"    END  = 'Y' \r\n",
+					"    END  = 'Y' )\r\n",
+					"    AND T1.case_reference IS NOT NULL\r\n",
+					"    AND T1.expected_from = (SELECT MAX(expected_from) FROM odw_standardised_db.horizon_nsip_redactions)\r\n",
 					";\r\n",
 					""
 				],

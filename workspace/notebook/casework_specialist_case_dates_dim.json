@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "c2bed32d-6211-48ee-9334-314e8952feff"
+				"spark.autotune.trackingId": "dfc5ff0e-d62e-4d1a-b8e8-518e6a2e3179"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				},
 				"sparkVersion": "3.3",
 				"nodeCount": 3,
-				"cores": 8,
-				"memory": 56,
+				"cores": 4,
+				"memory": 28,
 				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
@@ -125,7 +125,7 @@
 					"FULL JOIN odw_harmonised_db.casework_specialist_case_dates_dim T3 ON T1.appealrefnumber = T3.AppealRefNumber AND T3.IsActive = 'Y'\r\n",
 					"WHERE\r\n",
 					"    -- flags new data        \r\n",
-					"    CASE\r\n",
+					"    (CASE\r\n",
 					"        WHEN T1.appealrefnumber = T3.AppealRefNumber AND \r\n",
 					"            md5(\r\n",
 					"                concat(\r\n",
@@ -142,7 +142,9 @@
 					"        WHEN T3.AppealRefNumber IS NULL -- new AppealRefNumber\r\n",
 					"        THEN 'Y'\r\n",
 					"    ELSE 'N'\r\n",
-					"    END  = 'Y'\r\n",
+					"    END  = 'Y')\r\n",
+					"    AND T1.appealrefnumber IS NOT NULL\r\n",
+					"    AND T1.expected_from = (SELECT MAX(expected_from) FROM odw_standardised_db.horizon_specialist_case_dates)\r\n",
 					";"
 				],
 				"execution_count": 7

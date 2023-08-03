@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "82f1c069-3da2-48f8-b8e2-35b743585860"
+				"spark.autotune.trackingId": "f6343809-6d9c-4022-a29f-7ca32ae25c05"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				},
 				"sparkVersion": "3.3",
 				"nodeCount": 3,
-				"cores": 8,
-				"memory": 56,
+				"cores": 4,
+				"memory": 28,
 				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
@@ -141,13 +141,15 @@
 					"FULL JOIN odw_harmonised_db.casework_specialist_case_string_dim T3 ON T1.appealrefnumber = T3.AppealRefNumber AND T3.IsActive = 'Y'\r\n",
 					"WHERE\r\n",
 					"    -- flags new data        \r\n",
-					"    CASE\r\n",
+					"    (CASE\r\n",
 					"        WHEN T1.appealrefnumber = T3.AppealRefNumber AND md5(concat(IFNULL(T1.appealrefnumber,'.'),\tIFNULL(T1.act,'.'),\tIFNULL(T1.appealagainst,'.'),\tIFNULL(T1.applicationsubtype,'.'),\tIFNULL(T1.deccref,'.'),\tIFNULL(T1.decisionclearfordespatch,'.'),\tIFNULL(T1.eprtype,'.'),\tIFNULL(T1.nfa,'.'),\tIFNULL(T1.omastance,'.'),\tIFNULL(T1.regulation,'.'),\tIFNULL(T1.regulator,'.'),\tIFNULL(T1.sch6notice,'.'),\tIFNULL(T1.section,'.'),\tIFNULL(T1.sladatemet,'.'),\tIFNULL(T1.targetdatemet,'.'))) <> T3.RowID  -- same row, changed data\r\n",
 					"        THEN 'Y'\r\n",
 					"        WHEN T3.AppealRefNumber IS NULL -- new AppealRefNumber\r\n",
 					"        THEN 'Y'\r\n",
 					"    ELSE 'N'\r\n",
-					"    END  = 'Y'\r\n",
+					"    END  = 'Y')\r\n",
+					"    AND T1.appealrefnumber IS NOT NULL\r\n",
+					"    AND T1.expected_from = (SELECT MAX(expected_from) FROM odw_standardised_db.horizon_specialist_case_string)\r\n",
 					";"
 				],
 				"execution_count": 2
