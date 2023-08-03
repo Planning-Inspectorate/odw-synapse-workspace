@@ -1,6 +1,7 @@
 {
 	"name": "zendesk_raw_to_standerdised",
 	"properties": {
+		"description": "standardised creation of zendesk system extract table. Also 2 fucntion wich create the custom fields and fields from the nested columns from the system extract table.",
 		"folder": {
 			"name": "odw-raw"
 		},
@@ -20,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "37bdf704-81df-48db-a101-4049520c5ad9"
+				"spark.autotune.trackingId": "020ede9a-a00b-4af1-9843-cf0be32eaf90"
 			}
 		},
 		"metadata": {
@@ -44,8 +45,8 @@
 				},
 				"sparkVersion": "3.3",
 				"nodeCount": 3,
-				"cores": 4,
-				"memory": 28,
+				"cores": 8,
+				"memory": 56,
 				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
@@ -53,6 +54,17 @@
 		"cells": [
 			{
 				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
 				"source": [
 					"from collections.abc import Mapping\r\n",
 					"from itertools import chain\r\n",
@@ -60,22 +72,15 @@
 					"#ignore FutureWarning messages \r\n",
 					"import warnings\r\n",
 					"warnings.filterwarnings(\"ignore\", message=\"iteritems is deprecated\")\r\n",
-					"from pyspark.sql import SparkSession \r\n",
-					"spark = SparkSession.builder.getOrCreate() \r\n",
-					"_FLAG_FIRST = object()\r\n",
-					"\r\n",
-					"#flatteb dict function\r\n",
-					"def flattenDict(d, join=add, lift=lambda x:(x,)):\r\n",
-					"    results = []\r\n",
-					"    def visit(subdict, results, partialKey):\r\n",
-					"        for k,v in subdict.items():\r\n",
-					"            newKey = lift(k) if partialKey==_FLAG_FIRST else join(partialKey,lift(k))\r\n",
-					"            if isinstance(v,Mapping):\r\n",
-					"                visit(v, results, newKey)\r\n",
-					"            else:\r\n",
-					"                results.append((newKey,v))\r\n",
-					"    visit(d, results, _FLAG_FIRST)\r\n",
-					"    return results"
+					"from notebookutils import mssparkutils\r\n",
+					"from pprint import pprint as pp\r\n",
+					"import json\r\n",
+					"import pyspark.sql.functions as F \r\n",
+					"import pandas as pd\r\n",
+					"from pyspark.sql.types import *\r\n",
+					"from pyspark.sql import SparkSession\r\n",
+					"spark = SparkSession.builder.getOrCreate()\r\n",
+					""
 				],
 				"execution_count": 1
 			},
@@ -96,10 +101,11 @@
 					"from notebookutils import mssparkutils\r\n",
 					"### mount the data lake storage in Synapse to the Synapse File Mount API\r\n",
 					"jobId = mssparkutils.env.getJobId()\r\n",
-					"mssparkutils.fs.unmount(\"/zendesk_folder\") \r\n",
+					"storage_acc_name = spark.sparkContext.environment.get('dataLakeAccountName', 'get')\r\n",
+					"mssparkutils.fs.unmount(\"/zendesk_items\") \r\n",
 					"mssparkutils.fs.mount( \r\n",
-					"'abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/JsonTest/', \r\n",
-					"\"/zendesk_folder\", \r\n",
+					"\"abfss://odw-raw@\"+storage_acc_name+\".dfs.core.windows.net/ZenDesk/Export/\",\r\n",
+					"\"/zendesk_items\", \r\n",
 					"{\"linkedService\":\"ls_storage\"} \r\n",
 					")   "
 				],
@@ -119,15 +125,10 @@
 					}
 				},
 				"source": [
-					"from pprint import pprint as pp\r\n",
-					"\r\n",
-					"with open(f\"/synfs/{jobId}/zendesk_folder/output_0.json\", 'r') as zendesk_raw:\r\n",
-					"\r\n",
-					"        import json\r\n",
-					"        \r\n",
-					"        zendesk_dict = json.load(zendesk_raw)\r\n",
-					"#flat dict statment for zendesk_dict flattening \r\n",
-					"FlatDict = dict( flattenDict(zendesk_dict, join=lambda a,b:a+'_'+b, lift=lambda x:x) )"
+					"from pyspark.sql import SparkSession \r\n",
+					"spark = SparkSession.builder.getOrCreate() \r\n",
+					"storage_acc_name = spark.sparkContext.environment.get('dataLakeAccountName', 'get')\r\n",
+					"shows = spark.read.json(\"abfss://odw-raw@\"+storage_acc_name+\".dfs.core.windows.net/ZenDesk/Export/output_*.json\",multiLine=True)"
 				],
 				"execution_count": 3
 			},
@@ -145,55 +146,20 @@
 					}
 				},
 				"source": [
-					"# pp(dict( flattenDict(zendesk_dict, join=lambda a,b:a+'_'+b, lift=lambda x:x) ))"
-				],
-				"execution_count": 4
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"CommentsListOfDict = zendesk_dict['comments']\r\n",
-					"#AnyOf\r\n",
-					"CustomFieldsDict = zendesk_dict['custom_fields']\r\n",
-					"FieldsDict = zendesk_dict['fields']\r\n",
-					"try:\r\n",
-					"    CollaboratorPhotoDict= zendesk_dict['collaborator']['photo']\r\n",
-					"except TypeError:\r\n",
-					"    print('collaborator_photo field is null/is a string)')\r\n",
-					"\r\n",
-					"try:\r\n",
-					"    SubmitterPhotoDict= zendesk_dict['submitter']['photo']\r\n",
-					"except TypeError:\r\n",
-					"    print('submitter_photo field is null/is a string)')\r\n",
-					"\r\n",
-					"try:\r\n",
-					"    RequesterPhotoDict= zendesk_dict['requester']['photo']\r\n",
-					"except TypeError:\r\n",
-					"    print('requester_photo field is null/is a string)')\r\n",
-					"\r\n",
-					"try:\r\n",
-					"    AssigneePhotoDict= zendesk_dict['assignee']['photo']\r\n",
-					"except TypeError:\r\n",
-					"    print('assignee_photo field is null/is a string)')\r\n",
-					"\r\n",
-					"OrganizationDict = zendesk_dict['organization']\r\n",
-					"AssigneeDict= zendesk_dict['assignee']\r\n",
-					"TagsList=zendesk_dict['tags']\r\n",
-					"FlatAssigneeDict = dict( flattenDict(AssigneeDict, join=lambda a,b:a+'_'+b, lift=lambda x:x) )\r\n",
+					"from pyspark.sql.functions import lit\r\n",
+					"from pyspark.sql.functions import row_number\r\n",
+					"from pyspark.sql.functions import *\r\n",
+					"from pyspark.sql.window import Window\r\n",
+					"partition = Window.partitionBy(\"SourceSystemID\").orderBy('id')\r\n",
+					"# add ingested date to df\r\n",
+					"pandasDF = shows.toPandas()\r\n",
+					"pandasDF = pandasDF.applymap(str)\r\n",
+					"sparkDF=spark.createDataFrame(pandasDF) \r\n",
+					"sparkDF = sparkDF.withColumn(\"SourceSystemID\",lit(6)).withColumn('IngestionDate', F.current_timestamp()).withColumn('ValidTo', lit(\"NULL\")).withColumn('IsActive', lit(\"Y\")).withColumn('RowID', row_number().over(partition))\r\n",
+					"# sparkDF.show(10)\r\n",
 					""
 				],
-				"execution_count": 5
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
@@ -209,216 +175,9 @@
 					}
 				},
 				"source": [
-					"#convert dictionaries into data frames \r\n",
-					"import pandas as pd\r\n",
-					"#comment array into dataframe 1.\r\n",
-					"\r\n",
-					"dfCustomFieldsDict =pd.DataFrame.from_records(CustomFieldsDict)\r\n",
-					"dfFieldsDict = pd.DataFrame.from_records(FieldsDict)\r\n",
-					"try:\r\n",
-					"    dfCollaboratorPhotoDict = pd.DataFrame.from_records(CollaboratorPhotoDict)\r\n",
-					"except NameError:\r\n",
-					"    print('no collaborator dict')\r\n",
-					"\r\n",
-					"try:\r\n",
-					"    dfSubmitterPhotoDict = pd.DataFrame.from_records(SubmitterPhotoDict)\r\n",
-					"except NameError:\r\n",
-					"    print('no submitter dict')\r\n",
-					"except TypeError:\r\n",
-					"    print('no submitter dict')\r\n",
-					"\r\n",
-					"\r\n",
-					"try:\r\n",
-					"    dfRequesterPhotoDict = pd.DataFrame.from_records(RequesterPhotoDict)\r\n",
-					"except NameError:\r\n",
-					"    print('no requester dict')\r\n",
-					"except TypeError:\r\n",
-					"    print('no requester dict')\r\n",
-					"\r\n",
-					"try:\r\n",
-					"    dfAssigneePhotoDict = pd.DataFrame.from_records(AssigneePhotoDict)\r\n",
-					"except NameError:\r\n",
-					"    print('no assignee dict')\r\n",
-					"except TypeError:\r\n",
-					"    print('no assignee dict')\r\n",
-					"\r\n",
-					"try:\r\n",
-					"    dfOrganizationDict = pd.DataFrame.from_records(OrganizationDict)\r\n",
-					"except TypeError:\r\n",
-					"    print('no organization column data in file')\r\n",
-					"\r\n",
-					"dfFlatAssigneeDict = pd.DataFrame.from_records(FlatAssigneeDict)\r\n",
-					"\r\n",
-					"# Delete the columns which are arrays from the dcit which will be flaten so we can create data farmes and tables out of them \r\n",
-					"\r\n",
-					"if 'comments' in FlatDict:\r\n",
-					"    del FlatDict['comments']\r\n",
-					"else:\r\n",
-					"    print('no column')\r\n",
-					"if 'custom_fields' in FlatDict:\r\n",
-					"    del FlatDict['custom_fields']\r\n",
-					"else:\r\n",
-					"    print('no column')\r\n",
-					"if 'fields' in FlatDict:\r\n",
-					"    del FlatDict['fields']\r\n",
-					"else:\r\n",
-					"    print('no column')\r\n",
-					"if 'photo' in FlatDict['collaborator']:\r\n",
-					"    del FlatDict['collaborator']['photo']\r\n",
-					"else:\r\n",
-					"    print('no column')\r\n",
-					"# if 'photo' in FlatDict['submitter']:\r\n",
-					"#     del FlatDict['submitter']['photo']\r\n",
-					"# else:\r\n",
-					"#     print('no column')\r\n",
-					"# if 'photo' in FlatDict['requester']:\r\n",
-					"#     del FlatDict['requester']['photo']\r\n",
-					"# else:\r\n",
-					"#     print('no column')\r\n",
-					"# if 'organization' in FlatDict:\r\n",
-					"#     del FlatDict['organization']\r\n",
-					"# else:\r\n",
-					"#     print('no column')\r\n",
-					"if 'assignee' in FlatDict:\r\n",
-					"    del FlatDict['assignee']\r\n",
-					"else:\r\n",
-					"    print('no column')\r\n",
-					"if 'tags' in FlatDict:\r\n",
-					"    del FlatDict['tags']\r\n",
-					"else:\r\n",
-					"    print('no column')\r\n",
-					"\r\n",
-					"\r\n",
-					""
-				],
-				"execution_count": 6
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"#make datadrame from dictionaries with key value payrs where the arrays match in size \r\n",
-					"dfFlatDict = pd.DataFrame({ key:pd.Series(value) for key, value in FlatDict.items() })\r\n",
-					"# print(dfFlatDict)\r\n",
-					"# keysList = list(dfFlatDict.keys())\r\n",
-					"#create table for fist output and insert data into it\r\n",
-					"spark.sql(f\"drop table if exists odw_standardised_db.output_0;\")\r\n",
-					"spark.sql(f\"drop table if exists odw_standardised_db.zendesk_output_0;\")\r\n",
-					"spark.createDataFrame(dfFlatDict).write.saveAsTable(\"odw_standardised_db.zendesk_output_0\")"
-				],
-				"execution_count": 7
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"#create tags table for the tags array\r\n",
-					"TagsDict = {}\r\n",
-					"TagsDict['id'] = FlatDict['id']\r\n",
-					"TagsDict['value'] = TagsList\r\n",
-					"#make a dataframe from  dict \r\n",
-					"dfTagsDict= pd.DataFrame({ key:pd.Series(value) for key, value in TagsDict.items() })\r\n",
-					"#fill in the NaN Values with the same ID \r\n",
-					"dfTagsDict[\"id\"].fillna(TagsDict['id'], inplace = True)\r\n",
-					"#convert the id column from float to int\r\n",
-					"dfTagsDict = dfTagsDict.astype({\"id\": int})\r\n",
-					"#create table zendesk_tags\r\n",
-					"spark.sql(f\"drop table if exists odw_standardised_db.zendesk_tags;\")\r\n",
-					"spark.createDataFrame(dfTagsDict).write.saveAsTable(\"odw_standardised_db.zendesk_tags\")\r\n",
-					"\r\n",
-					""
-				],
-				"execution_count": 8
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"pp(CommentsListOfDict[0]['id'])"
-				],
-				"execution_count": 9
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"import pyspark.sql.functions as F\r\n",
-					"from pyspark.sql.types import *\r\n",
-					"#comments DF\r\n",
-					"#create empty list to store the values of the comments \r\n",
-					"FlatCommentsDictList=[]\r\n",
-					"#create empty list to store the value of the attachments array within the commments column\r\n",
-					"FlatCommentsDictAttachmentsList=[]\r\n",
-					"#go through all comments \r\n",
-					"for CommentsDict in CommentsListOfDict:\r\n",
-					"    #adding the file id to the dictionary before converting into df and then table\r\n",
-					"    CommentsDict['file_id']=FlatDict['id']\r\n",
-					"    FlatCommentsDict = dict( flattenDict(CommentsDict, join=lambda a,b:a+'_'+b, lift=lambda x:x) )\r\n",
-					"    #go through all attachments within the comments column \r\n",
-					"    for attachments in CommentsDict['attachments']:\r\n",
-					"        #add the comments id and file id so we can late join the tables on them\r\n",
-					"        attachments['file_id']=FlatDict['id']\r\n",
-					"        attachments['comment_id']=CommentsDict['id']\r\n",
-					"        FlatCommentsDictAttachmentsList.append(attachments)\r\n",
-					"    #delete the attachment column because we already stored it in a list which will be made in a table \r\n",
-					"    del FlatCommentsDict['attachments']\r\n",
-					"    #flatten the comments column so we can make a table out of it \r\n",
-					"    FlatCommentsDictList.append(FlatCommentsDict)\r\n",
-					"#create a dataframe out of all comments of a file to put them in a table \r\n",
-					"dfFlatCommentsDictList =pd.DataFrame(FlatCommentsDictList)\r\n",
-					"#create a dataframe out of all commects_attachmenst of a file to create and store them in a table \r\n",
-					"dfFlatCommentsDictAttachmentsList = pd.DataFrame(FlatCommentsDictAttachmentsList)\r\n",
-					"#create tables for the comments and comments_attachments\r\n",
-					"# spark.sql(f\"drop table if exists odw_standardised_db.zendesk_comments;\")\r\n",
-					"# spark.createDataFrame(dfFlatCommentsDictList).write.saveAsTable(\"odw_standardised_db.zendesk_comments\")\r\n",
-					"\r\n",
-					"spark.sql(f\"drop table if exists odw_standardised_db.zendesk_comments_attachments;\")\r\n",
-					"sparkDF=spark.createDataFrame(dfFlatCommentsDictAttachmentsList)   \r\n",
-					"sparkDF1= sparkDF.withColumn(\"width\",F.col(\"width\").cast(\"string\")).withColumn(\"height\",F.col(\"height\").cast(\"string\")).withColumn(\"thumbnails\",F.col(\"thumbnails\").cast(ArrayType(StringType(),True)))\r\n",
-					"sparkDF1.printSchema\r\n",
-					"sparkDF1.write.saveAsTable(\"odw_standardised_db.zendesk_comments_attachments\")\r\n",
-					"\r\n",
-					"# dfCommentsListOfDict = pd.DataFrame({ key:pd.Series(value) for key, value in CommentsListOfDict.items() }) "
+					"#delete and create table \r\n",
+					"spark.sql(f\"drop table if exists odw_standardised_db.zendesk_system_extract;\")\r\n",
+					"sparkDF.write.format('delta').saveAsTable(\"odw_standardised_db.zendesk_system_extract\")"
 				],
 				"execution_count": 13
 			},
@@ -436,11 +195,90 @@
 					}
 				},
 				"source": [
-					"# sparkDF=spark.createDataFrame(dfFlatCommentsDictAttachmentsList)\r\n",
-					"# sparkDF.printSchema()\r\n",
-					"# sparkDF.show()"
+					"import pyspark.sql.functions as F \r\n",
+					"@logging_to_appins\r\n",
+					"def fields_table():\r\n",
+					"    fields = sparkDF.select(\r\n",
+					"    \"id\", F.explode(\"fields\").alias(\"fields\")\r\n",
+					"    )\r\n",
+					"\r\n",
+					"    fields_id_value = sparkDF.select(F.col(\"id\").alias(\"ticket_id\"),\r\n",
+					"        F.map_from_arrays(\r\n",
+					"        F.col(\"fields.id\"), F.col(\"fields.value\")\r\n",
+					"        ).alias(\"ID_VALUE\")\r\n",
+					"        )\r\n",
+					"    # fields_id_value.show()\r\n",
+					"    fields_id_value = fields_id_value.select(\"ticket_id\",\r\n",
+					"        F.posexplode(\"ID_VALUE\").alias(\"position\", \"id\", \"value\")\r\n",
+					"        )\r\n",
+					"    # fields_id_value.show()\r\n",
+					"    fields_id_value.drop(\"position\")\r\n",
+					"    spark.sql(f\"drop table if exists odw_harmonised_db.zendesk_fields_id_value;\")\r\n",
+					"    fields_id_value.write.format('delta').saveAsTable(\"odw_harmonised_db.zendesk_fields_id_value\")\r\n",
+					"fields_table()"
 				],
 				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"import pyspark.sql.functions as F \r\n",
+					"@logging_to_appins\r\n",
+					"def custom_fields_table():\r\n",
+					"    custom_fields = sparkDF.select(\r\n",
+					"    \"id\", F.explode(\"custom_fields\").alias(\"custom_fields\")\r\n",
+					"    )\r\n",
+					"\r\n",
+					"    custom_fields_id_value = sparkDF.select(F.col(\"id\").alias(\"ticket_id\"),\r\n",
+					"        F.map_from_arrays(\r\n",
+					"        F.col(\"custom_fields.id\"), F.col(\"custom_fields.value\")\r\n",
+					"        ).alias(\"ID_VALUE\")\r\n",
+					"        )\r\n",
+					"    # custom_fields_id_value.show()\r\n",
+					"    custom_fields_id_value = custom_fields_id_value.select(\"ticket_id\",\r\n",
+					"        F.posexplode(\"ID_VALUE\").alias(\"position\", \"id\", \"value\")\r\n",
+					"        )\r\n",
+					"    # custom_fields_id_value.show()\r\n",
+					"    custom_fields_id_value.drop(\"position\")\r\n",
+					"    spark.sql(f\"drop table if exists odw_harmonised_db.zendesk_custom_fields_id_value;\")\r\n",
+					"    custom_fields_id_value.write.format('delta').saveAsTable(\"odw_harmonised_db.zendesk_custom_fields_id_value\")\r\n",
+					"custom_fields_table()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"SELECT * from odw_standardised_db.zendesk_system_extract limit 10"
+				],
+				"execution_count": 16
 			}
 		]
 	}
