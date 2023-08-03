@@ -5,43 +5,10 @@ alert_group_synapse_recipients           = ["chris.topping@planninginspectorate.
 alert_scope_service_health               = "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3"
 alert_threshold_data_lake_capacity_bytes = 10995116277760 # 10TiB
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-apim_enabled          = false
-<<<<<<< HEAD
-<<<<<<< HEAD
-apim_publisher_email  = "alex.delany@planninginspectorate.gov.uk"
-apim_publisher_name   = "Alex Delany"
-=======
-apim_failover_enabled = false
-apim_publisher_email  = ""
-apim_publisher_name   = ""
->>>>>>> apim first commit
-=======
-apim_enabled          = true
-=======
-apim_enabled          = false
->>>>>>> Updated APIM
-apim_failover_enabled = false
-=======
->>>>>>> Updated dev.tfars
-apim_publisher_email  = "alex.delany@planninginspectorate.gov.uk"
-apim_publisher_name   = "Alex Delany"
->>>>>>> Updated APIM
-apim_sku_name         = "Developer"
-=======
-=======
->>>>>>> d71dcb5a7f09d48dcd5bf9c7c62bcc22e96b17ed
-apim_enabled         = false
+apim_enabled         = true
 apim_publisher_email = "alex.delany@planninginspectorate.gov.uk"
 apim_publisher_name  = "Alex Delany"
 apim_sku_name        = "Developer"
-<<<<<<< HEAD
->>>>>>> Updated dev.tfvars
-=======
->>>>>>> d71dcb5a7f09d48dcd5bf9c7c62bcc22e96b17ed
 
 bastion_host_enabled = true
 bastion_vm_username  = "basadmin"
@@ -180,38 +147,7 @@ vnet_subnets = [
     "new_bits" : 2 # /26
   },
   {
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-    "name" : "ApimSubnet",
-=======
-    "name" : "APIMSubnet",
-    "new_bits" : 2 # /26 
-  },
-=======
-    "name" : "ApimSubnet",
-    "new_bits" : 2 # /26
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-  }
->>>>>>> Updated apim config
-=======
-  },
->>>>>>> Syntax
-  {
-    "name" : null, # Reserved
->>>>>>> Updated APIM
-    "new_bits" : 2 # /26
-=======
->>>>>>> Updated subnet
-  }
-=======
-  },
->>>>>>> Updated dev.tfvars
-=======
     "name" : "ApimSubnet",
     "new_bits" : 2 # /26
   },
->>>>>>> d71dcb5a7f09d48dcd5bf9c7c62bcc22e96b17ed
 ]
