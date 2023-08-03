@@ -8,7 +8,7 @@ alert_threshold_data_lake_capacity_bytes = 10995116277760 # 10TiB
 apim_enabled         = true
 apim_publisher_email = "alex.delany@planninginspectorate.gov.uk"
 apim_publisher_name  = "Alex Delany"
-apim_sku_name        = "Developer"
+apim_sku_name        = "Developer_1"
 
 bastion_host_enabled = true
 bastion_vm_username  = "basadmin"
