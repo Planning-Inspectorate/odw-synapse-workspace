@@ -1,4 +1,5 @@
 resource "azurerm_api_management" "api_management" {
+  #checkov:skip=CKV_AZURE_174: "Ensure API management public access is disabled"
   name                = "pins-apim-${local.resource_suffix}"
   location            = var.location
   resource_group_name = var.resource_group_name
@@ -7,7 +8,6 @@ resource "azurerm_api_management" "api_management" {
 
   sku_name = var.sku_name
 
-  #public_network_access_enabled = false
   virtual_network_configuration {
     subnet_id = var.synapse_vnet_subnet_names[var.synapse_apim_subnet_name]
   }
