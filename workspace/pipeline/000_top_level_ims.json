@@ -1,0 +1,97 @@
+{
+	"name": "000_top_level_ims",
+	"properties": {
+		"activities": [
+			{
+				"name": "ForEach IMS Source",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "py_utils_get_storage_account",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@pipeline().parameters.source_array",
+						"type": "Expression"
+					},
+					"isSequential": false,
+					"activities": [
+						{
+							"name": "0_Raw_IMS",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "0_Raw_IMS",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"source": {
+										"value": "@item()",
+										"type": "Expression"
+									},
+									"storage_account": {
+										"value": "@replace(activity('py_utils_get_storage_account').output.status.Output.result.exitValue, '.dfs.core.windows.net/', '')",
+										"type": "Expression"
+									}
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "py_utils_get_storage_account",
+				"type": "SynapseNotebook",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_utils_get_storage_account",
+						"type": "NotebookReference"
+					},
+					"snapshot": true
+				}
+			}
+		],
+		"parameters": {
+			"source_array": {
+				"type": "array",
+				"defaultValue": [
+					"IMS_bdc_attribute",
+					"IMS_bdc_entity",
+					"IMS_dpia",
+					"IMS_data_flow",
+					"IMS_data_sharing",
+					"IMS_information_assets",
+					"IMS_integration",
+					"IMS_master_data_map",
+					"IMS_ropa"
+				]
+			}
+		},
+		"variables": {
+			"item": {
+				"type": "String"
+			}
+		},
+		"folder": {
+			"name": "ims"
+		},
+		"annotations": []
+	}
+}

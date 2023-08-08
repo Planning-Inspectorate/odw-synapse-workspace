@@ -1,5 +1,5 @@
 {
-	"name": "0_Raw_IMS_sample",
+	"name": "0_Raw_IMS",
 	"properties": {
 		"activities": [
 			{
@@ -277,7 +277,7 @@
 				}
 			},
 			{
-				"name": "IMS_dpia",
+				"name": "Get Meta Data",
 				"type": "WebActivity",
 				"dependsOn": [
 					{
@@ -296,7 +296,10 @@
 				},
 				"userProperties": [],
 				"typeProperties": {
-					"url": "https://pinsims.crmplace.com/Api/V8/meta/fields/IMS_dpia",
+					"url": {
+						"value": "@concat('https://pinsims.crmplace.com/Api/V8/meta/fields/', pipeline().parameters.source)",
+						"type": "Expression"
+					},
 					"connectVia": {
 						"referenceName": "AutoResolveIntegrationRuntime",
 						"type": "IntegrationRuntimeReference"
@@ -317,7 +320,7 @@
 				"type": "WebActivity",
 				"dependsOn": [
 					{
-						"activity": "IMS_dpia",
+						"activity": "Get Meta Data",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -332,7 +335,10 @@
 				},
 				"userProperties": [],
 				"typeProperties": {
-					"url": "https://pinsstodwdevuks9h80mb.blob.core.windows.net/odw-raw/IMS/API-Data/dpia.json",
+					"url": {
+						"value": "@concat('https://', pipeline().parameters.storage_account, '.blob.core.windows.net/odw-raw/IMS/API-Data/metadata/', pipeline().parameters.source, '.json')\n\n",
+						"type": "Expression"
+					},
 					"connectVia": {
 						"referenceName": "AutoResolveIntegrationRuntime",
 						"type": "IntegrationRuntimeReference"
@@ -343,7 +349,95 @@
 						"x-ms-version": "2023-01-03"
 					},
 					"body": {
-						"value": "@activity('IMS_dpia').output",
+						"value": "@activity('Get Meta Data').output",
+						"type": "Expression"
+					},
+					"linkedServices": [
+						{
+							"referenceName": "ls_storage",
+							"type": "LinkedServiceReference"
+						}
+					],
+					"authentication": {
+						"type": "MSI",
+						"resource": "https://storage.azure.com"
+					}
+				}
+			},
+			{
+				"name": "Get Data",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "set-ims-access-token",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"url": {
+						"value": "@concat('https://pinsims.crmplace.com/Api/V8/module/', pipeline().parameters.source)",
+						"type": "Expression"
+					},
+					"connectVia": {
+						"referenceName": "AutoResolveIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"method": "GET",
+					"headers": {
+						"Accept": "application/vnd.api+json",
+						"Content-Type": "application/vnd.api+json",
+						"Authorization": {
+							"value": "@concat('Bearer ', variables('ims-access-token'))",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "save-to-storage_copy",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "Get Data",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"url": {
+						"value": "@concat('https://', pipeline().parameters.storage_account, '.blob.core.windows.net/odw-raw/IMS/API-Data/', pipeline().parameters.source, '.json')\n\n",
+						"type": "Expression"
+					},
+					"connectVia": {
+						"referenceName": "AutoResolveIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"method": "PUT",
+					"headers": {
+						"x-ms-blob-type": "BlockBlob",
+						"x-ms-version": "2023-01-03"
+					},
+					"body": {
+						"value": "@activity('Get Data').output",
 						"type": "Expression"
 					},
 					"linkedServices": [
@@ -359,6 +453,16 @@
 				}
 			}
 		],
+		"parameters": {
+			"source": {
+				"type": "string",
+				"defaultValue": "IMS_dpia"
+			},
+			"storage_account": {
+				"type": "string",
+				"defaultValue": "pinsstodwdevuks9h80mb"
+			}
+		},
 		"variables": {
 			"client_secret": {
 				"type": "String"
@@ -373,6 +477,9 @@
 				"type": "String"
 			},
 			"ims-access-token": {
+				"type": "String"
+			},
+			"item": {
 				"type": "String"
 			}
 		},
