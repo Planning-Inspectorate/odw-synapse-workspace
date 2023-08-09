@@ -1,0 +1,166 @@
+{
+	"name": "py_convert_json_to_csv",
+	"properties": {
+		"folder": {
+			"name": "0-odw-source-to-raw/IMS"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "56g",
+			"driverCores": 8,
+			"executorMemory": "56g",
+			"executorCores": 8,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "e288aa50-20f1-4061-9740-13d6603d4ec9"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.3",
+				"nodeCount": 3,
+				"cores": 8,
+				"memory": 56,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql import SparkSession\r\n",
+					"spark = SparkSession.builder.getOrCreate()\r\n",
+					"from notebookutils import mssparkutils\r\n",
+					"### mount the data lake storage in Synapse to the Synapse File Mount API\r\n",
+					"jobId = mssparkutils.env.getJobId()\r\n",
+					"storage_acc_name = spark.sparkContext.environment.get('dataLakeAccountName', 'get')\r\n",
+					"mssparkutils.fs.unmount(\"/ims_items\") \r\n",
+					"mssparkutils.fs.mount( \r\n",
+					"\"abfss://odw-raw@\"+storage_acc_name+\".dfs.core.windows.net/IMS/API-Data/\",\r\n",
+					"\"/ims_items\", \r\n",
+					"{\"linkedService\":\"ls_storage\"} \r\n",
+					")   "
+				],
+				"execution_count": 2
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from datetime import date\r\n",
+					"# dd/mm/YY\r\n",
+					"\r\n",
+					"today = date.today()\r\n",
+					"todaysdate = today.strftime(\"%Y%m%d\")\r\n",
+					"print(todaysdate)"
+				],
+				"execution_count": 3
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"import json\r\n",
+					"import pandas as pd\r\n",
+					"import csv\r\n",
+					"def conversion_ims(source):\r\n",
+					"    attributesList=[]\r\n",
+					"    with open(f\"/synfs/{jobId}/ims_items/{source}.json\", \"r\",encoding='utf-8') as inputfile:\r\n",
+					"        ims_dict = json.load(inputfile)\r\n",
+					"        for items in ims_dict[\"data\"]:\r\n",
+					"            dict = items['attributes']\r\n",
+					"            attributesList.append(dict)\r\n",
+					"    sparkDF = spark.createDataFrame(attributesList)\r\n",
+					"    sparkDF.repartition(1).write.option(\"header\",True).csv(f\"abfss://odw-raw@{storage_acc_name}.dfs.core.windows.net/IMS/API-Data/{source}.csv\"+todaysdate)\r\n",
+					"\r\n",
+					""
+				],
+				"execution_count": 4
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"conversion_ims(\"IMS_bdc_attribute\")\r\n",
+					"conversion_ims(\"IMS_bdc_entity\")\r\n",
+					"conversion_ims(\"IMS_data_flow\")\r\n",
+					"conversion_ims(\"IMS_data_sharing\")\r\n",
+					"conversion_ims(\"IMS_dpia\")\r\n",
+					"conversion_ims(\"IMS_information_assets\")\r\n",
+					"conversion_ims(\"IMS_integration\")\r\n",
+					"conversion_ims(\"IMS_master_data_map\")\r\n",
+					"conversion_ims(\"IMS_ropa\")\r\n",
+					""
+				],
+				"execution_count": 7
+			}
+		]
+	}
+}
