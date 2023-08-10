@@ -1,0 +1,543 @@
+{
+	"name": "ims_entity_dim",
+	"properties": {
+		"folder": {
+			"name": "odw-harmonised/IMS"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"runAsWorkspaceSystemIdentity": false,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "3eec8268-2ee7-4e26-90f0-3df45a70e386"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.3",
+				"nodeCount": 3,
+				"cores": 8,
+				"memory": 56,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"-- Build ims_entity_dim table -- merge\r\n",
+					"\r\n",
+					"-- Notes - Addresses are only supplied for Inspectors - need to check inspector count against addresses data\r\n",
+					"\r\n",
+					"-- Gets modified or deleted from source rows\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW ims_entity_dim_new \r\n",
+					"\r\n",
+					"    AS\r\n",
+					"\r\n",
+					"-- gets data that matches of SourceID and flags that it is modified based on a row (md5) hash. Flags as \"NewData\"\r\n",
+					"-- gets data that is in the target but not in source. Flags as \"DeletedData\"\r\n",
+					"\r\n",
+					"SELECT DISTINCT\r\n",
+					"    CASE\r\n",
+					"        WHEN T1.bdce_id IS NULL\r\n",
+					"        THEN T3.IMSEntityID\r\n",
+					"        ELSE NULL\r\n",
+					"    END                                     AS IMSEntityID, -- surrogate key\r\n",
+					"    T1.bdce_id                              AS BDCID,\r\n",
+					"    T1.id                                   AS BDCIDCoded,\r\n",
+					"    T1.bdc_entity_name                      AS BDCEntityName,\r\n",
+					"    T1.ims_bdc_entity_number                AS BDCEntityNumber,\r\n",
+					"    T1.bdc_entity_name_container_c          AS BDCEntityNameContainer,\r\n",
+					"    T1.bdc_entity_num_container             AS BDCEntityNumberContainer,\r\n",
+					"    T1.business_area_c                      AS BDCEntityBusinessArea,\r\n",
+					"    T1.ims_bdc_entity_ims_data_flow_1       AS BDCEntityIMSDataFlow1,\r\n",
+					"    T1.ims_bdc_entity_ims_data_flow_2       AS BDCEntityIMSDataFlow2,\r\n",
+					"    T1.ims_bdc_entity_ims_bdc_attribute_1   AS BDCEntityBDCAttribute,\r\n",
+					"    T1.user_id_c                            AS BDCEntityUserID,\r\n",
+					"    T1.information_owner_c                  AS BDCEntityInformationOwner,\r\n",
+					"    T1.user_id1_c                           AS BDCEntityUser1ID,\r\n",
+					"    T1.information_expert_c                 AS BDCEntityInformationExpert,\r\n",
+					"    T1.type                                 AS BDCEntityType,\r\n",
+					"    T1.status                               AS BDCEntityStatus,\r\n",
+					"    T1.priority                             AS BDCEntityPriority,\r\n",
+					"    T1.resolution                           AS BDCEntityResolution,\r\n",
+					"    T1.work_log                             AS BDCEntityWorkLog,\r\n",
+					"    T1.business_criticality                 AS BDCEntityBusinessCriticality,\r\n",
+					"    T1.date_modified                        AS IMSEntityDateModified,\r\n",
+					"    T2.SourceSystemID                       AS SourceSystemID,\r\n",
+					"    to_timestamp(T1.expected_from)          AS IngestionDate,\r\n",
+					"    NULL                                    AS ValidTo,\r\n",
+					"    md5(concat( \r\n",
+					"        IFNULL(T1.bdce_id,'.'), \r\n",
+					"        IFNULL(T1.id,'.'), \r\n",
+					"        IFNULL(T1.bdc_entity_name,'.'), \r\n",
+					"        IFNULL(T1.ims_bdc_entity_number,'.'), \r\n",
+					"        IFNULL(T1.bdc_entity_name_container_c,'.'), \r\n",
+					"        IFNULL(T1.bdc_entity_num_container,'.'), \r\n",
+					"        IFNULL(T1.business_area_c,'.'), \r\n",
+					"        IFNULL(T1.ims_bdc_entity_ims_data_flow_1,'.'), \r\n",
+					"        IFNULL(T1.ims_bdc_entity_ims_data_flow_2,'.'), \r\n",
+					"        IFNULL(T1.ims_bdc_entity_ims_bdc_attribute_1,'.'), \r\n",
+					"        IFNULL(T1.user_id_c,'.'), \r\n",
+					"        IFNULL(T1.information_owner_c,'.'), \r\n",
+					"        IFNULL(T1.user_id1_c,'.'), \r\n",
+					"        IFNULL(T1.information_expert_c,'.'), \r\n",
+					"        IFNULL(T1.type,'.'), \r\n",
+					"        IFNULL(T1.status,'.'), \r\n",
+					"        IFNULL(T1.priority,'.'), \r\n",
+					"        IFNULL(T1.resolution,'.'), \r\n",
+					"        IFNULL(T1.work_log,'.'), \r\n",
+					"        IFNULL(T1.business_criticality,'.'), \r\n",
+					"        IFNULL(T1.date_modified,'.')))      AS RowID, \r\n",
+					"    'Y'                                     AS IsActive, \r\n",
+					"    T3.IsActive                             AS HistoricIsActive\r\n",
+					"\r\n",
+					"FROM odw_standardised_db.ims_entity T1\r\n",
+					"LEFT JOIN odw_harmonised_db.main_sourcesystem_fact T2 \r\n",
+					"    ON  \"IMS\" = T2.Description AND \r\n",
+					"        T2.IsActive = 'Y'\r\n",
+					"FULL JOIN odw_harmonised_db.ims_entity_dim T3 \r\n",
+					"    ON  T1.bdce_id = T3.BDCID AND \r\n",
+					"        T3.IsActive = 'Y'\r\n",
+					"\r\n",
+					"WHERE\r\n",
+					"        -- flags new data        \r\n",
+					"        ( CASE\r\n",
+					"            WHEN    T1.bdce_id = T3.BDCID AND \r\n",
+					"                    md5(concat(\r\n",
+					"                        IFNULL(T1.bdce_id,'.'), \r\n",
+					"                        IFNULL(T1.id,'.'), \r\n",
+					"                        IFNULL(T1.bdc_entity_name,'.'), \r\n",
+					"                        IFNULL(T1.ims_bdc_entity_number,'.'), \r\n",
+					"                        IFNULL(T1.bdc_entity_name_container_c,'.'), \r\n",
+					"                        IFNULL(T1.bdc_entity_num_container,'.'), \r\n",
+					"                        IFNULL(T1.business_area_c,'.'), \r\n",
+					"                        IFNULL(T1.ims_bdc_entity_ims_data_flow_1,'.'), \r\n",
+					"                        IFNULL(T1.ims_bdc_entity_ims_data_flow_2,'.'), \r\n",
+					"                        IFNULL(T1.ims_bdc_entity_ims_bdc_attribute_1,'.'), \r\n",
+					"                        IFNULL(T1.user_id_c,'.'), \r\n",
+					"                        IFNULL(T1.information_owner_c,'.'), \r\n",
+					"                        IFNULL(T1.user_id1_c,'.'), \r\n",
+					"                        IFNULL(T1.information_expert_c,'.'), \r\n",
+					"                        IFNULL(T1.type,'.'), \r\n",
+					"                        IFNULL(T1.status,'.'), \r\n",
+					"                        IFNULL(T1.priority,'.'), \r\n",
+					"                        IFNULL(T1.resolution,'.'), \r\n",
+					"                        IFNULL(T1.work_log,'.'), \r\n",
+					"                        IFNULL(T1.business_criticality,'.'), \r\n",
+					"                        IFNULL(T1.date_modified,'.'))) <> T3.RowID     \r\n",
+					"            THEN 'Y'\r\n",
+					"            WHEN T3.IMSEntityID IS NULL\r\n",
+					"            THEN 'Y'\r\n",
+					"            ELSE 'N'\r\n",
+					"        END  = 'Y' )\r\n",
+					"    AND T1.bdce_id IS NOT NULL\r\n",
+					"    AND T1.expected_from = (SELECT MAX(expected_from) FROM odw_standardised_db.ims_dpia);\r\n",
+					""
+				],
+				"execution_count": 1
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Dataset is created that contains changed data and corresponding target data\r\n",
+					"- This script combines data that has been updated, Deleted or is new, with corresponding target data\r\n",
+					"- View **ims_entity_dim_new** is unioned to the target data filter to only those rows where changes have been detected\r\n",
+					"## View ims_entity_dim_changed_rows is created"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"\r\n",
+					"-- Create new and updated dataset\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY  VIEW ims_entity_dim_changed_rows\r\n",
+					"\r\n",
+					"    AS\r\n",
+					"\r\n",
+					"-- gets updated, deleted and new rows \r\n",
+					"\r\n",
+					"SELECT DISTINCT\r\n",
+					"    IMSEntityID,\r\n",
+					"    BDCID,\r\n",
+					"    BDCIDCoded,\r\n",
+					"    BDCEntityName,\r\n",
+					"    BDCEntityNumber,\r\n",
+					"    BDCEntityNameContainer,\r\n",
+					"    BDCEntityNumberContainer,\r\n",
+					"    BDCEntityBusinessArea,\r\n",
+					"    BDCEntityIMSDataFlow1,\r\n",
+					"    BDCEntityIMSDataFlow2,\r\n",
+					"    BDCEntityBDCAttribute,\r\n",
+					"    BDCEntityUserID,\r\n",
+					"    BDCEntityInformationOwner,\r\n",
+					"    BDCEntityUser1ID,\r\n",
+					"    BDCEntityInformationExpert,\r\n",
+					"    BDCEntityType,\r\n",
+					"    BDCEntityStatus,\r\n",
+					"    BDCEntityPriority,\r\n",
+					"    BDCEntityResolution,\r\n",
+					"    BDCEntityWorkLog,\r\n",
+					"    BDCEntityBusinessCriticality,\r\n",
+					"    IMSEntityDateModified,\r\n",
+					"    SourceSystemID,\r\n",
+					"    IngestionDate,\r\n",
+					"    ValidTo,\r\n",
+					"    RowID,\r\n",
+					"    IsActive\r\n",
+					"From ims_entity_dim_new WHERE HistoricIsActive = 'Y' or HistoricIsActive IS NULL\r\n",
+					"\r\n",
+					"    UNION ALL\r\n",
+					"\r\n",
+					"-- gets original versions of updated rows so we can update EndDate and set IsActive flag to 'N'\r\n",
+					"\r\n",
+					"SELECT DISTINCT\r\n",
+					"    IMSEntityID,\r\n",
+					"    BDCID,\r\n",
+					"    BDCIDCoded,\r\n",
+					"    BDCEntityName,\r\n",
+					"    BDCEntityNumber,\r\n",
+					"    BDCEntityNameContainer,\r\n",
+					"    BDCEntityNumberContainer,\r\n",
+					"    BDCEntityBusinessArea,\r\n",
+					"    BDCEntityIMSDataFlow1,\r\n",
+					"    BDCEntityIMSDataFlow2,\r\n",
+					"    BDCEntityBDCAttribute,\r\n",
+					"    BDCEntityUserID,\r\n",
+					"    BDCEntityInformationOwner,\r\n",
+					"    BDCEntityUser1ID,\r\n",
+					"    BDCEntityInformationExpert,\r\n",
+					"    BDCEntityType,\r\n",
+					"    BDCEntityStatus,\r\n",
+					"    BDCEntityPriority,\r\n",
+					"    BDCEntityResolution,\r\n",
+					"    BDCEntityWorkLog,\r\n",
+					"    BDCEntityBusinessCriticality,\r\n",
+					"    IMSEntityDateModified,\r\n",
+					"    SourceSystemID,\r\n",
+					"    IngestionDate,\r\n",
+					"    ValidTo,\r\n",
+					"    RowID,\r\n",
+					"    IsActive\r\n",
+					"FROM odw_harmonised_db.ims_entity_dim\r\n",
+					"WHERE BDCID IN (SELECT BDCID FROM ims_entity_dim_new WHERE IMSEntityID IS NULL) AND IsActive = 'Y';\r\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW Loading_month\n",
+					"\n",
+					"    AS\n",
+					"\n",
+					"SELECT DISTINCT\n",
+					"    IngestionDate AS IngestionDate,\n",
+					"    to_timestamp(date_sub(IngestionDate,1)) AS ClosingDate,\n",
+					"    'Y' AS IsActive\n",
+					"\n",
+					"FROM ims_entity_dim_new;\n",
+					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW ims_entity_dim_changed_rows_final\n",
+					"\n",
+					"    AS\n",
+					"\n",
+					"SELECT \n",
+					"    IMSEntityID,\n",
+					"    BDCID,\n",
+					"    BDCIDCoded,\n",
+					"    BDCEntityName,\n",
+					"    BDCEntityNumber,\n",
+					"    BDCEntityNameContainer,\n",
+					"    BDCEntityNumberContainer,\n",
+					"    BDCEntityBusinessArea,\n",
+					"    BDCEntityIMSDataFlow1,\n",
+					"    BDCEntityIMSDataFlow2,\n",
+					"    BDCEntityBDCAttribute,\n",
+					"    BDCEntityUserID,\n",
+					"    BDCEntityInformationOwner,\n",
+					"    BDCEntityUser1ID,\n",
+					"    BDCEntityInformationExpert,\n",
+					"    BDCEntityType,\n",
+					"    BDCEntityStatus,\n",
+					"    BDCEntityPriority,\n",
+					"    BDCEntityResolution,\n",
+					"    BDCEntityWorkLog,\n",
+					"    BDCEntityBusinessCriticality,\n",
+					"    IMSEntityDateModified,\n",
+					"    T1.SourceSystemID,\n",
+					"    T1.IngestionDate,\n",
+					"    T1.ValidTo,\n",
+					"    T1.RowID,\n",
+					"    T1.IsActive,\n",
+					"    T2.ClosingDate\n",
+					"FROM ims_entity_dim_changed_rows T1\n",
+					"FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# View ims_entity_dim_changed_rows is used in a merge (Upsert) statement into the target table\r\n",
+					"- **WHEN MATCHED** ON the Business Key (i.e. Pers_No from SAP HR), EndDate is set to today -1 day and the IsActive flag is set to 'N'\r\n",
+					"- **WHEN NOT MATCHED** ON the business key, insert rows\r\n",
+					"## Table odw_harmonised.ims_entity_dim is updated"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"-- merge into fact table\r\n",
+					"\r\n",
+					"MERGE INTO odw_harmonised_db.ims_entity_dim AS Target\r\n",
+					"USING ims_entity_dim_changed_rows_final AS Source\r\n",
+					"\r\n",
+					"ON Source.IMSEntityID = Target.IMSEntityID\r\n",
+					"\r\n",
+					"-- For Updates existing rows\r\n",
+					"\r\n",
+					"WHEN MATCHED\r\n",
+					"    THEN \r\n",
+					"    UPDATE SET\r\n",
+					"    Target.ValidTo = to_timestamp(ClosingDate),\r\n",
+					"    Target.IsActive = 'N'\r\n",
+					"\r\n",
+					"-- Insert completely new rows\r\n",
+					"WHEN NOT MATCHED \r\n",
+					"    THEN INSERT (IMSEntityID,\r\n",
+					"        BDCID,\r\n",
+					"        BDCIDCoded,\r\n",
+					"        BDCEntityName,\r\n",
+					"        BDCEntityNumber,\r\n",
+					"        BDCEntityNameContainer,\r\n",
+					"        BDCEntityNumberContainer,\r\n",
+					"        BDCEntityBusinessArea,\r\n",
+					"        BDCEntityIMSDataFlow1,\r\n",
+					"        BDCEntityIMSDataFlow2,\r\n",
+					"        BDCEntityBDCAttribute,\r\n",
+					"        BDCEntityUserID,\r\n",
+					"        BDCEntityInformationOwner,\r\n",
+					"        BDCEntityUser1ID,\r\n",
+					"        BDCEntityInformationExpert,\r\n",
+					"        BDCEntityType,\r\n",
+					"        BDCEntityStatus,\r\n",
+					"        BDCEntityPriority,\r\n",
+					"        BDCEntityResolution,\r\n",
+					"        BDCEntityWorkLog,\r\n",
+					"        BDCEntityBusinessCriticality,\r\n",
+					"        IMSEntityDateModified,\r\n",
+					"        SourceSystemID,\r\n",
+					"        IngestionDate,\r\n",
+					"        ValidTo,\r\n",
+					"        RowID,\r\n",
+					"        IsActive)  \r\n",
+					"        VALUES (Source.IMSEntityID,\r\n",
+					"        Source.BDCID,\r\n",
+					"        Source.BDCIDCoded,\r\n",
+					"        Source.BDCEntityName,\r\n",
+					"        Source.BDCEntityNumber,\r\n",
+					"        Source.BDCEntityNameContainer,\r\n",
+					"        Source.BDCEntityNumberContainer,\r\n",
+					"        Source.BDCEntityBusinessArea,\r\n",
+					"        Source.BDCEntityIMSDataFlow1,\r\n",
+					"        Source.BDCEntityIMSDataFlow2,\r\n",
+					"        Source.BDCEntityBDCAttribute,\r\n",
+					"        Source.BDCEntityUserID,\r\n",
+					"        Source.BDCEntityInformationOwner,\r\n",
+					"        Source.BDCEntityUser1ID,\r\n",
+					"        Source.BDCEntityInformationExpert,\r\n",
+					"        Source.BDCEntityType,\r\n",
+					"        Source.BDCEntityStatus,\r\n",
+					"        Source.BDCEntityPriority,\r\n",
+					"        Source.BDCEntityResolution,\r\n",
+					"        Source.BDCEntityWorkLog,\r\n",
+					"        Source.BDCEntityBusinessCriticality,\r\n",
+					"        Source.IMSEntityDateModified,\r\n",
+					"        Source.SourceSystemID, \r\n",
+					"        Source.IngestionDate, \r\n",
+					"        Source.ValidTo, \r\n",
+					"        Source.RowID, \r\n",
+					"        Source.IsActive) ;  \r\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Fix the IDs\r\n",
+					"- No auto-increment feature is available in delta tables, therefore we need to create new IDs for the inserted rows\r\n",
+					"- This is done by select the target data and using INSERT OVERWRITE to re-insert the data is a new Row Number\r\n",
+					"## Table odw_harmonised.ims_entity_dim is updated"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"-- Insert new SecureInfoID\r\n",
+					"\r\n",
+					"INSERT OVERWRITE odw_harmonised_db.ims_entity_dim \r\n",
+					"\r\n",
+					"SELECT \r\n",
+					"    ROW_NUMBER() OVER (ORDER BY IMSEntityID,BDCID NULLS LAST) AS IMSEntityID,\r\n",
+					"    BDCID,\r\n",
+					"    BDCIDCoded,\r\n",
+					"    BDCEntityName,\r\n",
+					"    BDCEntityNumber,\r\n",
+					"    BDCEntityNameContainer,\r\n",
+					"    BDCEntityNumberContainer,\r\n",
+					"    BDCEntityBusinessArea,\r\n",
+					"    BDCEntityIMSDataFlow1,\r\n",
+					"    BDCEntityIMSDataFlow2,\r\n",
+					"    BDCEntityBDCAttribute,\r\n",
+					"    BDCEntityUserID,\r\n",
+					"    BDCEntityInformationOwner,\r\n",
+					"    BDCEntityUser1ID,\r\n",
+					"    BDCEntityInformationExpert,\r\n",
+					"    BDCEntityType,\r\n",
+					"    BDCEntityStatus,\r\n",
+					"    BDCEntityPriority,\r\n",
+					"    BDCEntityResolution,\r\n",
+					"    BDCEntityWorkLog,\r\n",
+					"    BDCEntityBusinessCriticality,\r\n",
+					"    IMSEntityDateModified,\r\n",
+					"    SourceSystemID,\r\n",
+					"    IngestionDate,\r\n",
+					"    ValidTo,\r\n",
+					"    RowID,\r\n",
+					"    IsActive\r\n",
+					"FROM odw_harmonised_db.ims_entity_dim ;"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
