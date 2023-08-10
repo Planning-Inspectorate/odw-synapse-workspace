@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "a84ab9d6-74d9-40b1-b08f-df3945f1d31e"
+				"spark.autotune.trackingId": "88c56a55-67b8-4dbd-92a9-b1c7165524dd"
 			}
 		},
 		"metadata": {
@@ -99,6 +99,7 @@
 					"    END                             AS LPAResponsibilityID,\r\n",
 					"    T1.lpacode                      AS LPACode,\r\n",
 					"    T1.lpaname                      AS LPAName,\r\n",
+					"    T4.LPAID                        AS LPAID,\r\n",
 					"    T1.appealtype                   AS AppealType,\r\n",
 					"    T1.login                        AS Login,\r\n",
 					"    T1.employeeid                   AS EmployeeID,\r\n",
@@ -122,6 +123,7 @@
 					"\r\n",
 					"FROM odw_standardised_db.horizon_lpa_responsibility T1\r\n",
 					"LEFT JOIN odw_harmonised_db.main_sourcesystem_fact T2 ON \"Casework\" = T2.Description AND T2.IsActive = 'Y'\r\n",
+					"LEFT JOIN odw_harmonised_db.casework_local_planning_authority_fact T4 ON T1.lpacode = T4.LPACode AND T4.IsActive = 'Y' \r\n",
 					"FULL JOIN odw_harmonised_db.casework_lpa_responsibility_dim T3 ON T1.lpacode = T3.LPACode AND T3.IsActive = 'Y'\r\n",
 					"WHERE\r\n",
 					"    -- flags new data        \r\n",
@@ -147,139 +149,7 @@
 					"    AND T1.expected_from = (SELECT MAX(expected_from) FROM odw_standardised_db.horizon_lpa_responsibility)\r\n",
 					";"
 				],
-				"execution_count": 10
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"# Run tests to check integrity of data by numbers\r\n",
-					"- This script checks for the total number of current codes in the harmonised table, and compare against the numbers for new data to be added and data to be set as inactive.\r\n",
-					"- **Changes tracking:** where it checks the data against active records in harmonised and compares with records to add and records to be set as inactive.\r\n",
-					"- **Changes tolerance levels:** if the total amount to be added and deleted surpasses the tolerance limit, it will interrupt the process of loading the data"
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"# from pyspark.sql import SparkSession\r\n",
-					"# spark = SparkSession.builder.getOrCreate()\r\n",
-					"\r\n",
-					"# Source_Number = spark.sql(\"SELECT COUNT(*) AS Source_Number FROM pins_casework_lpa_responsibility_grouped\")\r\n",
-					"# Current_Number = spark.sql(\"SELECT COUNT (DISTINCT RowID) AS Current_Number FROM odw_harmonised_db.casework_lpa_responsibility_dim where IsActive = 'Y' \")\r\n",
-					"# New_Data_Number = spark.sql(\"SELECT COUNT (DISTINCT RowID) AS New_Data_Number FROM casework_lpa_responsibility_dim WHERE NewData = 'Y'\")\r\n",
-					"# Deleted_Data_Number = spark.sql(\"SELECT COUNT (DISTINCT RowID) AS Deleted_Data_Number FROM casework_lpa_responsibility_dim WHERE DeletedData = 'Y'\")\r\n",
-					"\r\n",
-					"# Source_Number_Pandas = Source_Number.toPandas()\r\n",
-					"# Current_Number_Pandas =  Current_Number.toPandas()\r\n",
-					"# New_Data_Number_Pandas = New_Data_Number.toPandas()\r\n",
-					"# Deleted_Data_Number_Pandas = Deleted_Data_Number.toPandas()\r\n",
-					"\r\n",
-					"# # checking if new total number of registers matches the previously loaded, plus New ones, minus Deleted ones\r\n",
-					"# print(\"SET 1:\")\r\n",
-					"# Total_Number = Source_Number_Pandas['Source_Number'].tolist() \r\n",
-					"# Current_Loaded_Number = Current_Number_Pandas['Current_Number'].tolist() \r\n",
-					"# New_Data_Number = New_Data_Number_Pandas['New_Data_Number'].tolist() \r\n",
-					"# Deleted_Data_Number = Deleted_Data_Number_Pandas['Deleted_Data_Number'].tolist() \r\n",
-					"\r\n",
-					"# if Total_Number[0] != (Current_Loaded_Number[0] + New_Data_Number[0] - Deleted_Data_Number[0]):\r\n",
-					"#     raise RuntimeError(\"Loading Number do not match\")\r\n",
-					"# else:\r\n",
-					"#     print(\"Loading number matches with existing codes plus new, minus deleted!\")\r\n",
-					"\r\n",
-					"# if New_Data_Number[0] > 1000:\r\n",
-					"#     raise RuntimeError(\"ALERT: Too many new codes\")\r\n",
-					"# else:\r\n",
-					"#     print(\"New data under tolerance levels\")\r\n",
-					"\r\n",
-					"# if Deleted_Data_Number[0] > 500:\r\n",
-					"#     raise RuntimeError(\"ALERT: Too many deleted codes\")\r\n",
-					"# else:\r\n",
-					"#     print(\"Unused codes under tolerance levels\")"
-				],
-				"execution_count": 11
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"# Run tests to check integrity of data by comparison of codes\r\n",
-					"- This script checks for the total list of current codes in the harmonised table, and compare against the list for new data to be added and data to be set as inactive.\r\n",
-					"- **Changes tracking:** where it checks the data against active records in harmonised and compares with records to add and records to be set as inactive."
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"# from pyspark.sql import SparkSession\r\n",
-					"# spark = SparkSession.builder.getOrCreate()\r\n",
-					"\r\n",
-					"# Current_Records = spark.sql(\"SELECT DISTINCT RowID AS Current_Records FROM odw_harmonised_db.casework_lpa_responsibility_dim where IsActive = 'Y' \")\r\n",
-					"# New_Data_Records = spark.sql(\"SELECT DISTINCT RowID AS New_Data_Records FROM casework_lpa_responsibility_dim WHERE NewData = 'Y'\")\r\n",
-					"# Deleted_Data_Records = spark.sql(\"SELECT DISTINCT RowID AS Deleted_Data_Records FROM casework_lpa_responsibility_dim WHERE DeletedData = 'Y'\")\r\n",
-					"\r\n",
-					"# Current_Records_Pandas =  Current_Records.toPandas()\r\n",
-					"# New_Data_Records_Pandas = New_Data_Records.toPandas()\r\n",
-					"# Deleted_Data_Records_Pandas = Deleted_Data_Records.toPandas()\r\n",
-					"\r\n",
-					"# # checking if a deleted records are correcly flagged, not existing in the new data, but existing inpreviously loaded\r\n",
-					"# print(\"TEST 2:\")\r\n",
-					"\r\n",
-					"# Current_Records = Current_Records_Pandas['Current_Records'].tolist() \r\n",
-					"# Deleted_Records = Deleted_Data_Records_Pandas['Deleted_Data_Records'].tolist()\r\n",
-					"# New_Records = New_Data_Records_Pandas['New_Data_Records'].tolist()\r\n",
-					"\r\n",
-					"# print(Current_Records)\r\n",
-					"# print(Deleted_Records)\r\n",
-					"# print(New_Records)\r\n",
-					"\r\n",
-					"# for i in Deleted_Records:\r\n",
-					"#     if i in Current_Records: \r\n",
-					"#         print(i + \" to be deleted is in the current records\")\r\n",
-					"#     else:\r\n",
-					"#         raise RuntimeError(\"Records to Delete do not match\")\r\n",
-					"\r\n",
-					"# for j in New_Records:\r\n",
-					"#     if j not in Current_Records: \r\n",
-					"#         print(j + \" to be added is not in the current records\")\r\n",
-					"#     else:\r\n",
-					"#         raise RuntimeError(\"Records to Add do not match\")"
-				],
-				"execution_count": 12
+				"execution_count": 2
 			},
 			{
 				"cell_type": "markdown",
@@ -327,6 +197,7 @@
 					"    LPAResponsibilityID,\r\n",
 					"    LPACode,\r\n",
 					"    LPAName,\r\n",
+					"    LPAID,\r\n",
 					"    AppealType,\r\n",
 					"    Login,\r\n",
 					"    EmployeeID,\r\n",
@@ -347,6 +218,7 @@
 					"    LPAResponsibilityID,\r\n",
 					"    LPACode,\r\n",
 					"    LPAName,\r\n",
+					"    LPAID,\r\n",
 					"    AppealType,\r\n",
 					"    Login,\r\n",
 					"    EmployeeID,\r\n",
@@ -361,7 +233,7 @@
 					"FROM odw_harmonised_db.casework_lpa_responsibility_dim\r\n",
 					"WHERE LPACode IN (SELECT LPACode FROM casework_lpa_responsibility_dim_new WHERE LPAResponsibilityID IS NULL) AND IsActive = 'Y'; "
 				],
-				"execution_count": 13
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
@@ -377,7 +249,8 @@
 					},
 					"microsoft": {
 						"language": "sparksql"
-					}
+					},
+					"collapsed": false
 				},
 				"source": [
 					"%%sql\n",
@@ -401,6 +274,7 @@
 					"    LPAResponsibilityID,\n",
 					"    LPACode,\n",
 					"    LPAName,\n",
+					"    LPAID,\n",
 					"    AppealType,\n",
 					"    Login,\n",
 					"    EmployeeID,\n",
@@ -415,7 +289,7 @@
 					"FROM casework_lpa_responsibility_dim_changed_rows T1\n",
 					"FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive"
 				],
-				"execution_count": null
+				"execution_count": 6
 			},
 			{
 				"cell_type": "markdown",
@@ -474,6 +348,7 @@
 					"        LPAResponsibilityID,\r\n",
 					"        LPACode,\r\n",
 					"        LPAName,\r\n",
+					"        LPAID,\r\n",
 					"        AppealType,\r\n",
 					"        Login,\r\n",
 					"        EmployeeID,\r\n",
@@ -488,6 +363,7 @@
 					"        Source.LPAResponsibilityID,\r\n",
 					"        Source.LPACode,\r\n",
 					"        Source.LPAName,\r\n",
+					"        Source.LPAID,\r\n",
 					"        Source.AppealType,\r\n",
 					"        Source.Login,\r\n",
 					"        Source.EmployeeID,\r\n",
@@ -500,7 +376,7 @@
 					"        Source.IsActive)\r\n",
 					"     ;   "
 				],
-				"execution_count": 14
+				"execution_count": 7
 			},
 			{
 				"cell_type": "markdown",
@@ -545,6 +421,7 @@
 					"    ROW_NUMBER() OVER (ORDER BY LPAResponsibilityID NULLS LAST) AS LPAResponsibilityID,\r\n",
 					"    LPACode,\r\n",
 					"    LPAName,\r\n",
+					"    LPAID,\r\n",
 					"    AppealType,\r\n",
 					"    Login,\r\n",
 					"    EmployeeID,\r\n",
@@ -558,45 +435,7 @@
 					"FROM odw_harmonised_db.casework_lpa_responsibility_dim;\r\n",
 					""
 				],
-				"execution_count": 15
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"This last cell is just to check count of rows between source and target on first load, to be deleted!"
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
-				},
-				"source": [
-					"%%sql \n",
-					"\n",
-					"SELECT COUNT(*) FROM odw_standardised_db.horizon_lpa_responsibility;\n",
-					"SELECT COUNT(*) FROM odw_harmonised_db.casework_lpa_responsibility_dim;"
-				],
-				"execution_count": 16
+				"execution_count": 8
 			}
 		]
 	}
