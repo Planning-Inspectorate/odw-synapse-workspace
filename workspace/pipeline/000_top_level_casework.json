@@ -3,66 +3,121 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "0_Raw_Checkmark_Data",
-				"type": "ExecutePipeline",
-				"dependsOn": [],
+				"name": "py_casework_raw_to_std",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "pln_casework_source_to_raw",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
 				"userProperties": [],
 				"typeProperties": {
-					"pipeline": {
-						"referenceName": "0_Raw_Checkmark_Data_part1",
-						"type": "PipelineReference"
+					"notebook": {
+						"referenceName": "py_casework_raw_to_std",
+						"type": "NotebookReference"
 					},
-					"waitOnCompletion": true
-				}
-			},
-			{
-				"name": "0_Raw_Checkmark_Data_part2",
-				"type": "ExecutePipeline",
-				"dependsOn": [],
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "0_Raw_Checkmark_Data_part2",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true
-				}
-			},
-			{
-				"name": "Timesheets - Mondays",
-				"type": "IfCondition",
-				"dependsOn": [],
-				"userProperties": [],
-				"typeProperties": {
-					"expression": {
-						"value": "@equals(dayOfWeek(utcnow()),1)",
-						"type": "Expression"
-					},
-					"ifTrueActivities": [
-						{
-							"name": "0_Timesheets_Data_Copy_RAW",
-							"type": "ExecutePipeline",
-							"dependsOn": [],
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "0_Timesheets_Data_Copy_RAW",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true
-							}
+					"parameters": {
+						"date_folder": {
+							"value": {
+								"value": "@formatDateTime(utcnow(), 'yyyy-MM-dd')",
+								"type": "Expression"
+							},
+							"type": "string"
 						}
-					]
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
 				}
 			},
 			{
-				"name": "0_Raw_Horizon_Main",
+				"name": "casework-views",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "py_casework_raw_to_std",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "casework-views",
+						"type": "NotebookReference"
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "casework_master",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "casework-views",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "casework_master",
+						"type": "NotebookReference"
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "pln_casework_source_to_raw",
 				"type": "ExecutePipeline",
 				"dependsOn": [],
 				"userProperties": [],
 				"typeProperties": {
 					"pipeline": {
-						"referenceName": "0_Raw_Horizon_Main",
+						"referenceName": "pln_casework_source_to_raw",
 						"type": "PipelineReference"
 					},
 					"waitOnCompletion": true
