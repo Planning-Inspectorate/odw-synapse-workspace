@@ -1,0 +1,158 @@
+{
+	"name": "py_ims_raw_to_std",
+	"properties": {
+		"folder": {
+			"name": "1-odw-raw-to-standardised/IMS"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "c6522e1a-f5ee-477d-aeb0-e59dfd375b35"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.3",
+				"nodeCount": 3,
+				"cores": 16,
+				"memory": 112,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import SparkSession\n",
+					"from notebookutils import mssparkutils\n",
+					"import json\n",
+					"import calendar\n",
+					"from datetime import datetime, timedelta, date\n",
+					"import pandas as pd\n",
+					"\n",
+					"spark = SparkSession.builder.getOrCreate()\n",
+					"\n",
+					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"raw_container = \"abfss://odw-raw@\" + storage_account"
+				],
+				"execution_count": 31
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%run \"1-odw-raw-to-standardised/Fileshare/SAP_HR/py_1_raw_to_standardised_hr_functions\""
+				],
+				"execution_count": 33
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"tags": [
+						"parameters"
+					]
+				},
+				"source": [
+					"date_folder=''"
+				],
+				"execution_count": 34
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"if date_folder == '':\n",
+					"    date_folder = datetime.now().date()\n",
+					"else:\n",
+					"    date_folder = datetime.strptime(date_folder, \"%Y-%m-%d\")\n",
+					"\n",
+					"date_folder_str = date_folder.strftime('%Y-%m-%d')\n",
+					"\n",
+					"# READ ORCHESTRATION DATA\n",
+					"path_to_orchestration_file = \"abfss://odw-config@\"+storage_account+\"orchestration/orchestration.json\"\n",
+					"df = spark.read.option(\"multiline\",\"true\").json(path_to_orchestration_file)\n",
+					"definitions = json.loads(df.toJSON().first())['definitions']\n",
+					"\n",
+					"try:\n",
+					"    source_path = f\"{raw_container}IMS/New/{date_folder_str}\"\n",
+					"    files = mssparkutils.fs.ls(source_path)\n",
+					"    for file in files:\n",
+					"        definition = next((d for d in definitions if d['Source_Frequency_Folder'] == 'New' and d['Source_Filename_Format'] == file.name), None)\n",
+					"        \n",
+					"        if definition:\n",
+					"            expected_from = date_folder - timedelta(days=1)\n",
+					"            expected_from = datetime.combine(expected_from, datetime.min.time())\n",
+					"            expected_to = expected_from + timedelta(days=definition['Expected_Within_Weekdays']) \n",
+					"\n",
+					"            print(f\"Ingesting {file.name}\")\n",
+					"            ingest_adhoc(storage_account, definition, source_path, file.name, expected_from, expected_to)\n",
+					"\n",
+					"except Exception as e:\n",
+					"    print(\"An error occurred:\", e)\n",
+					"    print('Raw data not present for', date_folder)"
+				],
+				"execution_count": 35
+			}
+		]
+	}
+}
