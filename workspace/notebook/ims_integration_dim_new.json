@@ -1,5 +1,5 @@
 {
-	"name": "ims_integration_dim",
+	"name": "ims_integration_dim_new",
 	"properties": {
 		"folder": {
 			"name": "odw-harmonised/IMS"
@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "36154d68-4eb1-497d-b06e-8b8b62c13666"
+				"spark.autotune.trackingId": "c1bd4a20-9fa4-4f89-a958-73dddeef6e6c"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				},
 				"sparkVersion": "3.3",
 				"nodeCount": 3,
-				"cores": 8,
-				"memory": 56,
+				"cores": 16,
+				"memory": 112,
 				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
@@ -77,12 +77,12 @@
 					"\r\n",
 					"SELECT DISTINCT\r\n",
 					"    CASE\r\n",
-					"        WHEN T1.int_id IS NULL\r\n",
+					"        WHEN T1.ims_integration_number IS NULL\r\n",
 					"        THEN T3.IMSIntegrationID\r\n",
 					"        ELSE NULL\r\n",
 					"    END                                     AS IMSIntegrationID, -- surrogate key\r\n",
-					"    T1.int_id                               AS IntegrationID,\r\n",
-					"    T1.id                                   AS IntegrationIDCoded,\r\n",
+					"    'No Info'                               AS IntegrationID,\r\n",
+					"    'No Info'                               AS IntegrationIDCoded,\r\n",
 					"    T1.name                                 AS IMSIntegrationName,\r\n",
 					"    T1.date_entered                         AS IMSIntegrationDateEntered,\r\n",
 					"    T1.date_modified                        AS IMSIntegrationDateModified,\r\n",
@@ -119,8 +119,8 @@
 					"    to_timestamp(T1.expected_from)          AS IngestionDate,\r\n",
 					"    NULL                                    AS ValidTo,\r\n",
 					"    md5(concat( \r\n",
-					"        IFNULL(T1.int_id,'.'), \r\n",
-					"        IFNULL(T1.id,'.'), \r\n",
+					"        '.', \r\n",
+					"        '.', \r\n",
 					"        IFNULL(T1.name,'.'), \r\n",
 					"        IFNULL(T1.date_entered,'.'), \r\n",
 					"        IFNULL(T1.date_modified,'.'), \r\n",
@@ -157,21 +157,21 @@
 					"    'Y'                                     AS IsActive, \r\n",
 					"    T3.IsActive                             AS HistoricIsActive\r\n",
 					"\r\n",
-					"FROM odw_standardised_db.ims_intergration T1\r\n",
+					"FROM odw_standardised_db.ims_intergration_new T1\r\n",
 					"LEFT JOIN odw_harmonised_db.main_sourcesystem_fact T2 \r\n",
 					"    ON  \"IMS\" = T2.Description AND \r\n",
 					"        T2.IsActive = 'Y'\r\n",
 					"FULL JOIN odw_harmonised_db.ims_integration_dim T3 \r\n",
-					"    ON  T1.int_id = T3.IntegrationID AND \r\n",
+					"    ON  T1.ims_integration_number = T3.IMSIntegrationNumber AND \r\n",
 					"        T3.IsActive = 'Y'\r\n",
 					"\r\n",
 					"WHERE\r\n",
 					"        -- flags new data        \r\n",
 					"        ( CASE\r\n",
-					"            WHEN    T1.int_id = T3.IntegrationID AND \r\n",
+					"            WHEN    T1.ims_integration_number = T3.IMSIntegrationNumber AND \r\n",
 					"                    md5(concat(\r\n",
-					"                        IFNULL(T1.int_id,'.'), \r\n",
-					"                        IFNULL(T1.id,'.'), \r\n",
+					"                        '.',\r\n",
+					"                        '.',\r\n",
 					"                        IFNULL(T1.name,'.'), \r\n",
 					"                        IFNULL(T1.date_entered,'.'), \r\n",
 					"                        IFNULL(T1.date_modified,'.'), \r\n",
@@ -209,11 +209,11 @@
 					"            THEN 'Y'\r\n",
 					"            ELSE 'N'\r\n",
 					"        END  = 'Y' )\r\n",
-					"    AND T1.int_id IS NOT NULL\r\n",
-					"    AND T1.expected_from = (SELECT MAX(expected_from) FROM odw_standardised_db.ims_dpia);\r\n",
+					"    AND T1.ims_integration_number IS NOT NULL\r\n",
+					"    AND T1.expected_from = (SELECT MAX(expected_from) FROM odw_standardised_db.ims_intergration_new); \r\n",
 					""
 				],
-				"execution_count": 4
+				"execution_count": 3
 			},
 			{
 				"cell_type": "markdown",
@@ -348,10 +348,10 @@
 					"    RowID,\r\n",
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.ims_integration_dim\r\n",
-					"WHERE IntegrationID IN (SELECT IntegrationID FROM ims_integration_dim_new WHERE IMSIntegrationID IS NULL) AND IsActive = 'Y';\r\n",
+					"WHERE IMSIntegrationNumber IN (SELECT IMSIntegrationNumber FROM ims_integration_dim_new WHERE IMSIntegrationID IS NULL) AND IsActive = 'Y';\r\n",
 					""
 				],
-				"execution_count": 5
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -434,7 +434,7 @@
 					"FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive\n",
 					""
 				],
-				"execution_count": 6
+				"execution_count": 5
 			},
 			{
 				"cell_type": "markdown",
@@ -570,7 +570,7 @@
 					"        Source.IsActive) ;  \r\n",
 					""
 				],
-				"execution_count": 7
+				"execution_count": 6
 			},
 			{
 				"cell_type": "markdown",
@@ -612,7 +612,7 @@
 					"INSERT OVERWRITE odw_harmonised_db.ims_integration_dim \r\n",
 					"\r\n",
 					"SELECT \r\n",
-					"    ROW_NUMBER() OVER (ORDER BY IMSIntegrationID,IntegrationID NULLS LAST) AS IMSIntegrationID,\r\n",
+					"    ROW_NUMBER() OVER (ORDER BY IMSIntegrationID NULLS LAST) AS IMSIntegrationID,\r\n",
 					"    IntegrationID,\r\n",
 					"    IntegrationIDCoded,\r\n",
 					"    IMSIntegrationName,\r\n",
@@ -654,7 +654,7 @@
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.ims_integration_dim ;"
 				],
-				"execution_count": 8
+				"execution_count": 7
 			}
 		]
 	}
