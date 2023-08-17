@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "52e63e34-aec7-4cae-b4f1-1eee391376bc"
+				"spark.autotune.trackingId": "f72eaf61-52ec-49b1-ac83-df115d1ffdf1"
 			}
 		},
 		"metadata": {
@@ -77,12 +77,12 @@
 					"\r\n",
 					"SELECT DISTINCT\r\n",
 					"    CASE\r\n",
-					"        WHEN T1.name IS NULL\r\n",
+					"        WHEN T1.ims_data_flow_number IS NULL\r\n",
 					"        THEN T3.IMSDataflowID\r\n",
 					"        ELSE NULL\r\n",
 					"    END                                                                                     AS IMSDataflowID, -- surrogate key\r\n",
-					"    IFNULL(T1.df_id, 'No Info')                                                             AS DataflowID,\r\n",
-					"    IFNULL(T1.id, 'No Info')                                                                AS DataflowIDCoded,\r\n",
+					"    'No Info'                                                              AS DataflowID,\r\n",
+					"    'No Info'                                                                AS DataflowIDCoded,\r\n",
 					"    IFNULL(T1.name, 'No Info')                                                              AS IMSDataflowName,\r\n",
 					"    IFNULL(T1.date_entered, 'No Info')                                                      AS DataflowDateEntered,\r\n",
 					"    IFNULL(T1.date_modified, 'No Info')                                                     AS DataflowDateModified,\r\n",
@@ -124,17 +124,17 @@
 					"    IFNULL(T1.information_owner_c, 'No Info')                                               AS DataflowInformationOwner,\r\n",
 					"    IFNULL(T1.user_id1_c, 'No Info')                                                        AS DataflowUser1ID,\r\n",
 					"    IFNULL(T1.information_expert_c, 'No Info')                                              AS DataflowInformationExpert,\r\n",
-					"    IFNULL(T1.fk_bdc_ent_source_id, 'No Info')                                              AS DataflowBCDEntitySourceID,\r\n",
-					"    IFNULL(T1.fk_bdc_ent_dest_id, 'No Info')                                                AS DataflowBCDEntityDestinationID,\r\n",
-					"    IFNULL(T1.fk_int_id, 'No Info')                                                         AS DataflowInternalID,\r\n",
-					"    IFNULL(T1.fk_info_asset_source_id, 'No Info')                                           AS DataflowInfoAssetSourceID,\r\n",
-					"    IFNULL(T1.fk_info_asset_dest_id, 'No Info')                                             AS DataflowInfoAssetDestinationID,\r\n",
+					"    'No Info' AS DataflowBCDEntitySourceID,\r\n",
+					"    'No Info' AS DataflowBCDEntityDestinationID,\r\n",
+					"    'No Info' AS DataflowInternalID,\r\n",
+					"    'No Info' AS DataflowInfoAssetSourceID,\r\n",
+					"    'No Info' AS DataflowInfoAssetDestinationID,\r\n",
 					"    T2.SourceSystemID                                                                       AS SourceSystemID,\r\n",
 					"    to_timestamp(T1.expected_from)                                                          AS IngestionDate,\r\n",
 					"    NULL                                                                                    AS ValidTo,\r\n",
 					"    md5(concat( \r\n",
-					"        IFNULL(T1.df_id,'.'), \r\n",
-					"        IFNULL(T1.id,'.'), \r\n",
+					"        '.', \r\n",
+					"        '.', \r\n",
 					"        IFNULL(T1.name,'.'), \r\n",
 					"        IFNULL(T1.date_entered,'.'), \r\n",
 					"        IFNULL(T1.date_modified,'.'), \r\n",
@@ -176,29 +176,29 @@
 					"        IFNULL(T1.information_owner_c,'.'), \r\n",
 					"        IFNULL(T1.user_id1_c,'.'), \r\n",
 					"        IFNULL(T1.information_expert_c,'.'), \r\n",
-					"        IFNULL(T1.fk_bdc_ent_source_id,'.'), \r\n",
-					"        IFNULL(T1.fk_bdc_ent_dest_id,'.'), \r\n",
-					"        IFNULL(T1.fk_int_id,'.'), \r\n",
-					"        IFNULL(T1.fk_info_asset_source_id,'.'), \r\n",
-					"        IFNULL(T1.fk_info_asset_dest_id,'.')))                                              AS RowID, \r\n",
+					"        '.', \r\n",
+					"        '.', \r\n",
+					"        '.', \r\n",
+					"        '.',  \r\n",
+					"        '.'))                                              AS RowID, \r\n",
 					"    'Y'                                                                                     AS IsActive, \r\n",
 					"    T3.IsActive                                                                             AS HistoricIsActive\r\n",
 					"\r\n",
-					"FROM odw_standardised_db.ims_dataflow T1\r\n",
+					"FROM odw_standardised_db.ims_dataflow_new T1\r\n",
 					"LEFT JOIN odw_harmonised_db.main_sourcesystem_fact T2 \r\n",
 					"    ON  \"IMS\" = T2.Description AND \r\n",
 					"        T2.IsActive = 'Y'\r\n",
 					"FULL JOIN odw_harmonised_db.ims_dataflow_dim T3 \r\n",
-					"    ON  T1.name = T3.IMSDataflowName AND \r\n",
+					"    ON  T1.ims_data_flow_number = T3.IMSDataflowNumber AND \r\n",
 					"        T3.IsActive = 'Y'\r\n",
 					"\r\n",
 					"WHERE\r\n",
 					"        -- flags new data        \r\n",
 					"        ( CASE\r\n",
-					"            WHEN    T1.df_id = T3.DataflowID AND \r\n",
+					"            WHEN    T1.ims_data_flow_number = T3.IMSDataflowNumber AND \r\n",
 					"                    md5(concat(\r\n",
-					"                        IFNULL(T1.df_id,'.'), \r\n",
-					"                        IFNULL(T1.id,'.'), \r\n",
+					"                        '.', \r\n",
+					"                        '.',\r\n",
 					"                        IFNULL(T1.name,'.'), \r\n",
 					"                        IFNULL(T1.date_entered,'.'), \r\n",
 					"                        IFNULL(T1.date_modified,'.'), \r\n",
@@ -240,21 +240,23 @@
 					"                        IFNULL(T1.information_owner_c,'.'), \r\n",
 					"                        IFNULL(T1.user_id1_c,'.'), \r\n",
 					"                        IFNULL(T1.information_expert_c,'.'), \r\n",
-					"                        IFNULL(T1.fk_bdc_ent_source_id,'.'), \r\n",
-					"                        IFNULL(T1.fk_bdc_ent_dest_id,'.'), \r\n",
-					"                        IFNULL(T1.fk_int_id,'.'), \r\n",
-					"                        IFNULL(T1.fk_info_asset_source_id,'.'), \r\n",
-					"                        IFNULL(T1.fk_info_asset_dest_id,'.')))  <> T3.RowID     \r\n",
+					"                        '.', \r\n",
+					"                        '.', \r\n",
+					"                        '.', \r\n",
+					"                        '.',  \r\n",
+					"                        '.'))  <> T3.RowID     \r\n",
 					"            THEN 'Y'\r\n",
 					"            WHEN T3.IMSDataflowID IS NULL\r\n",
 					"            THEN 'Y'\r\n",
 					"            ELSE 'N'\r\n",
 					"        END  = 'Y' )\r\n",
-					"    AND T1.name IS NOT NULL\r\n",
-					"    AND T1.expected_from = (SELECT MAX(expected_from) FROM odw_standardised_db.ims_dataflow);\r\n",
+					"    AND T1.ims_data_flow_number IS NOT NULL\r\n",
+					"    AND T1.expected_from = (SELECT MAX(expected_from) FROM odw_standardised_db.ims_dataflow_new)\r\n",
+					"    ;\r\n",
+					"\r\n",
 					""
 				],
-				"execution_count": 6
+				"execution_count": 18
 			},
 			{
 				"cell_type": "markdown",
@@ -417,10 +419,10 @@
 					"    RowID,\r\n",
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.ims_dataflow_dim\r\n",
-					"WHERE DataflowID IN (SELECT DataflowID FROM ims_dataflow_dim_new WHERE IMSDataflowID IS NULL) AND IsActive = 'Y';\r\n",
+					"WHERE IMSDataflowNumber IN (SELECT IMSDataflowNumber FROM ims_dataflow_dim_new WHERE IMSDataflowID IS NULL) AND IsActive = 'Y';\r\n",
 					""
 				],
-				"execution_count": 7
+				"execution_count": 19
 			},
 			{
 				"cell_type": "code",
@@ -517,7 +519,7 @@
 					"FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive\n",
 					""
 				],
-				"execution_count": 8
+				"execution_count": 20
 			},
 			{
 				"cell_type": "markdown",
@@ -681,7 +683,7 @@
 					"        Source.IsActive) ;  \r\n",
 					""
 				],
-				"execution_count": 9
+				"execution_count": 21
 			},
 			{
 				"cell_type": "markdown",
@@ -779,7 +781,7 @@
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.ims_dataflow_dim ;"
 				],
-				"execution_count": 10
+				"execution_count": 22
 			}
 		]
 	}
