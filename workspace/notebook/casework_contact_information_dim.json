@@ -7,7 +7,7 @@
 		"nbformat": 4,
 		"nbformat_minor": 2,
 		"bigDataPool": {
-			"referenceName": "pinssynspodwpr",
+			"referenceName": "pinssynspodw",
 			"type": "BigDataPoolReference"
 		},
 		"sessionProperties": {
@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "bf992b5a-e63d-454c-901b-e28592811303"
+				"spark.autotune.trackingId": "12fd0550-8a40-4cd6-abd4-e1a4167000f7"
 			}
 		},
 		"metadata": {
@@ -35,15 +35,15 @@
 				"name": "python"
 			},
 			"a365ComputeOptions": {
-				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodwpr",
-				"name": "pinssynspodwpr",
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
 				"type": "Spark",
-				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodwpr",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
 				"auth": {
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.2",
+				"sparkVersion": "3.3",
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 28,
@@ -91,7 +91,7 @@
 					"-- gets data that matches of SourceID and flags that it is modified based on a row (md5) hash. Flags as \"NewData\"\r\n",
 					"-- gets data that is in the target but not in source. Flags as \"DeletedData\"\r\n",
 					"\r\n",
-					"SELECT \r\n",
+					"SELECT DISTINCT\r\n",
 					"    CASE\r\n",
 					"        WHEN T1.contactid IS NULL\r\n",
 					"        THEN T3.ContactInformationID\r\n",
@@ -159,11 +159,16 @@
 					"FROM odw_standardised_db.horizon_contact_information T1\r\n",
 					"LEFT JOIN odw_harmonised_db.main_sourcesystem_fact T2 ON \"Casework\" = T2.Description AND T2.IsActive = 'Y'\r\n",
 					"LEFT JOIN odw_harmonised_db.casework_local_planning_authority_fact T10 ON T1.lpacode = T10.LPACode AND T10.IsActive = 'Y'\r\n",
-					"FULL JOIN odw_harmonised_db.casework_contact_information_dim T3 ON T1.contactid = T3.ContactID AND T3.IsActive = 'Y'\r\n",
+					"FULL JOIN odw_harmonised_db.casework_contact_information_dim T3 ON T1.contactid = T3.ContactID AND\r\n",
+					"                                                                    T1.case_number = T3.CaseNumber AND\r\n",
+					"                                                                    T1.typeofinvolvement = T3.TypeOfInvolvement AND \r\n",
+					"                                                                    T3.IsActive = 'Y'\r\n",
 					"WHERE\r\n",
 					"    -- flags new data        \r\n",
 					"    (CASE\r\n",
 					"        WHEN T1.contactid = T3.ContactID AND \r\n",
+					"            T1.case_number = T3.CaseNumber AND\r\n",
+					"            T1.typeofinvolvement = T3.TypeOfInvolvement AND \r\n",
 					"        md5(\r\n",
 					"            concat(\r\n",
 					"                IFNULL(T1.case_number,'.'),\r\n",
@@ -202,7 +207,7 @@
 					";\r\n",
 					""
 				],
-				"execution_count": 5
+				"execution_count": 24
 			},
 			{
 				"cell_type": "markdown",
@@ -320,7 +325,7 @@
 					"FROM odw_harmonised_db.casework_contact_information_dim\r\n",
 					"WHERE ContactID IN (SELECT ContactID FROM casework_contact_information_dim_new WHERE ContactInformationID IS NULL) AND IsActive = 'Y'; "
 				],
-				"execution_count": 6
+				"execution_count": 27
 			},
 			{
 				"cell_type": "code",
@@ -393,7 +398,7 @@
 					"FROM casework_contact_information_dim_changed_rows T1\n",
 					"FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive"
 				],
-				"execution_count": 7
+				"execution_count": 28
 			},
 			{
 				"cell_type": "markdown",
@@ -514,7 +519,7 @@
 					"        Source.IsActive)\r\n",
 					"     ;  "
 				],
-				"execution_count": 8
+				"execution_count": 29
 			},
 			{
 				"cell_type": "markdown",
@@ -590,7 +595,7 @@
 					"FROM odw_harmonised_db.casework_contact_information_dim;\r\n",
 					""
 				],
-				"execution_count": 9
+				"execution_count": 30
 			}
 		]
 	}
