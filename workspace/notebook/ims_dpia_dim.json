@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "46b704d0-9bb3-42e6-a502-ef89b41767d0"
+				"spark.autotune.trackingId": "7add152b-8992-46c6-8a3e-ca2daa2d7b0c"
 			}
 		},
 		"metadata": {
@@ -205,13 +205,13 @@
 					"    ON  \"IMS\" = T2.Description AND \r\n",
 					"        T2.IsActive = 'Y'\r\n",
 					"FULL JOIN odw_harmonised_db.ims_dpia_dim T3 \r\n",
-					"    ON  T1.ims_dpia_number = T3.IMSDPIANumber AND \r\n",
+					"    ON  T1.dpia_num_container_c = T3.DPIANumberContainer AND \r\n",
 					"        T3.IsActive = 'Y'\r\n",
 					"\r\n",
 					"WHERE\r\n",
 					"        -- flags new data        \r\n",
 					"        ( CASE\r\n",
-					"            WHEN    T1.ims_dpia_number = T3.IMSDPIANumber AND \r\n",
+					"            WHEN    T1.dpia_num_container_c = T3.DPIANumberContainer AND \r\n",
 					"                    md5(concat(\r\n",
 					"                        '.',\r\n",
 					"                        '.',\r\n",
@@ -269,15 +269,15 @@
 					"                        IFNULL( T1.type\t,'.'),\r\n",
 					"                        IFNULL( T1.work_log\t,'.'))) <> T3.RowID     \r\n",
 					"            THEN 'Y'\r\n",
-					"            WHEN T3.IMSDPIAID IS NULL\r\n",
+					"            WHEN T3.DPIANumberContainer IS NULL\r\n",
 					"            THEN 'Y'\r\n",
 					"            ELSE 'N'\r\n",
 					"        END  = 'Y' )\r\n",
-					"    AND T1.ims_dpia_number IS NOT NULL\r\n",
+					"    AND T1.dpia_num_container_c IS NOT NULL\r\n",
 					"    AND T1.expected_from = (SELECT MAX(expected_from) FROM odw_standardised_db.ims_dpia_new);\r\n",
 					""
 				],
-				"execution_count": 6
+				"execution_count": 24
 			},
 			{
 				"cell_type": "markdown",
@@ -454,10 +454,10 @@
 					"    RowID,\r\n",
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.ims_dpia_dim\r\n",
-					"WHERE IMSDPIANumber IN (SELECT IMSDPIANumber FROM ims_dpia_dim_new WHERE IMSDPIANumber IS NULL) AND IsActive = 'Y';\r\n",
+					"WHERE DPIANumberContainer IN (SELECT DPIANumberContainer FROM ims_dpia_dim_new WHERE IMSDPIAID IS NULL) AND IsActive = 'Y';\r\n",
 					""
 				],
-				"execution_count": 7
+				"execution_count": 25
 			},
 			{
 				"cell_type": "code",
@@ -561,7 +561,7 @@
 					"FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive\n",
 					""
 				],
-				"execution_count": 8
+				"execution_count": 26
 			},
 			{
 				"cell_type": "markdown",
@@ -603,7 +603,7 @@
 					"MERGE INTO odw_harmonised_db.ims_dpia_dim AS Target\r\n",
 					"USING ims_dpia_dim_changed_rows_final AS Source\r\n",
 					"\r\n",
-					"ON Source.IMSDPIANumber = Target.IMSDPIANumber\r\n",
+					"ON Source.IMSDPIAID = Target.IMSDPIAID\r\n",
 					"\r\n",
 					"-- For Updates existing rows\r\n",
 					"\r\n",
@@ -739,7 +739,7 @@
 					"        Source.IsActive) ;  \r\n",
 					""
 				],
-				"execution_count": 9
+				"execution_count": 27
 			},
 			{
 				"cell_type": "markdown",
@@ -781,7 +781,7 @@
 					"INSERT OVERWRITE odw_harmonised_db.ims_dpia_dim \r\n",
 					"\r\n",
 					"SELECT \r\n",
-					"    ROW_NUMBER() OVER (ORDER BY IMSDPIANumber,IMSDPIANumber NULLS LAST) AS IMSDPIAID,\r\n",
+					"    ROW_NUMBER() OVER (ORDER BY IMSDPIAID NULLS LAST) AS IMSDPIAID,\r\n",
 					"    DPIAIDLegacy,\r\n",
 					"    DPIAIDCoded,\r\n",
 					"    DPIAName,\r\n",
@@ -844,7 +844,7 @@
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.ims_dpia_dim ;"
 				],
-				"execution_count": 10
+				"execution_count": 28
 			}
 		]
 	}
