@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "8e283c34-8171-4162-a423-3315eaa18a0c"
+				"spark.autotune.trackingId": "cc518e87-4121-48d8-803f-2c0911569b88"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				},
 				"sparkVersion": "3.3",
 				"nodeCount": 3,
-				"cores": 8,
-				"memory": 56,
+				"cores": 4,
+				"memory": 28,
 				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
@@ -65,7 +65,7 @@
 					"# Builds the calendar which holds the CY and FY info\r\n",
 					"# mssparkutils.notebook.run('/Calendar')"
 				],
-				"execution_count": 6
+				"execution_count": 56
 			},
 			{
 				"cell_type": "code",
@@ -87,43 +87,43 @@
 				"source": [
 					"%%sql\r\n",
 					"\r\n",
-					"CREATE OR REPLACE VIEW vw_mipins_hr_fact_sickness_union\r\n",
+					"CREATE OR REPLACE VIEW odw_curated_db.vw_mipins_hr_fact_sickness_union\r\n",
 					"\r\n",
 					"AS\r\n",
 					"\r\n",
-					"      SELECT DISTINCT\r\n",
+					"SELECT DISTINCT\r\n",
 					"\r\n",
-					"      abs.EmployeeID AS StaffNumber,\r\n",
-					"      date.financial_year AS MeasureYear,\r\n",
-					"      COUNT(*) as SicknessCount\r\n",
-					"\r\n",
-					"\r\n",
-					"      FROM odw_harmonised_db.hr_absence_dim abs\r\n",
-					"      FULL JOIN default.calendar_dim_plus date on date.calendarDate = abs.AbsenceEndDate\r\n",
-					"      WHERE AbsenceType in  ('Sickness') and financial_year in ('CurrentFY','PreviousFY')\r\n",
-					"      GROUP BY EmployeeID\r\n",
-					"            ,financial_year\r\n",
+					"abs.EmployeeID AS StaffNumber,\r\n",
+					"date.financial_year AS MeasureYear,\r\n",
+					"COUNT(*) as SicknessCount\r\n",
 					"\r\n",
 					"\r\n",
-					"      UNION\r\n",
-					"\r\n",
-					"      SELECT DISTINCT\r\n",
-					"\r\n",
-					"      abs.EmployeeID,\r\n",
-					"      date.calendar_year,\r\n",
-					"      COUNT(*) as SicknessCount\r\n",
+					"FROM odw_harmonised_db.hr_absence_dim abs\r\n",
+					"FULL JOIN default.calendar_dim_plus date on date.calendarDate = abs.AbsenceEndDate\r\n",
+					"WHERE AbsenceType in  ('Sickness') and financial_year in ('CurrentFY','PreviousFY') AND IsActive = 'Y'\r\n",
+					"GROUP BY EmployeeID\r\n",
+					"      ,financial_year\r\n",
 					"\r\n",
 					"\r\n",
-					"      FROM odw_harmonised_db.hr_absence_dim abs\r\n",
-					"      FULL JOIN default.calendar_dim_plus date on date.calendarDate = abs.AbsenceEndDate\r\n",
-					"      WHERE AbsenceType in  ('Sickness') and calendar_year in ('CurrentCY','PreviousCY')\r\n",
-					"      GROUP BY EmployeeID\r\n",
-					"            ,calendar_year\r\n",
+					"UNION\r\n",
+					"\r\n",
+					"SELECT DISTINCT\r\n",
+					"\r\n",
+					"abs.EmployeeID,\r\n",
+					"date.calendar_year,\r\n",
+					"COUNT(*) as SicknessCount\r\n",
+					"\r\n",
+					"\r\n",
+					"FROM odw_harmonised_db.hr_absence_dim abs\r\n",
+					"FULL JOIN default.calendar_dim_plus date on date.calendarDate = abs.AbsenceEndDate\r\n",
+					"WHERE AbsenceType in  ('Sickness') and calendar_year in ('CurrentCY','PreviousCY') AND IsActive = 'Y'\r\n",
+					"GROUP BY EmployeeID\r\n",
+					"      ,calendar_year\r\n",
 					"\r\n",
 					"\r\n",
 					""
 				],
-				"execution_count": 7
+				"execution_count": 57
 			},
 			{
 				"cell_type": "code",
@@ -149,7 +149,7 @@
 					"\r\n",
 					"AS\r\n",
 					"\r\n",
-					"SELECT * FROM vw_mipins_hr_fact_sickness_union\r\n",
+					"SELECT * FROM odw_curated_db.vw_mipins_hr_fact_sickness_union\r\n",
 					"PIVOT\r\n",
 					"(\r\n",
 					"      MAX(SicknessCount)\r\n",
@@ -158,7 +158,7 @@
 					"\r\n",
 					""
 				],
-				"execution_count": 8
+				"execution_count": 59
 			},
 			{
 				"cell_type": "code",
@@ -176,7 +176,7 @@
 				"source": [
 					"spark.sql(f\"drop table if exists odw_curated_db.mipins_hr_fact_sickness;\")"
 				],
-				"execution_count": 9
+				"execution_count": 61
 			},
 			{
 				"cell_type": "code",
@@ -197,13 +197,9 @@
 				},
 				"source": [
 					"%%sql\r\n",
-					"\r\n",
-					"create or replace table odw_curated_db.mipins_hr_fact_sickness\r\n",
-					"using delta\r\n",
-					"as\r\n",
-					"SELECT * FROM odw_curated_db.vw_mipins_hr_fact_sickness"
+					"create or replace table odw_curated_db.mipins_hr_fact_sickness using delta as SELECT * FROM odw_curated_db.vw_mipins_hr_fact_sickness"
 				],
-				"execution_count": 10
+				"execution_count": 62
 			}
 		]
 	}
