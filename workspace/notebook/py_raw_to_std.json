@@ -1,8 +1,8 @@
 {
-	"name": "py_ims_raw_to_std",
+	"name": "py_raw_to_std",
 	"properties": {
 		"folder": {
-			"name": "1-odw-raw-to-standardised/IMS"
+			"name": "1-odw-raw-to-standardised"
 		},
 		"nbformat": 4,
 		"nbformat_minor": 2,
@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "c6522e1a-f5ee-477d-aeb0-e59dfd375b35"
+				"spark.autotune.trackingId": "d38f62f8-a0a1-4813-896e-86b128ecc040"
 			}
 		},
 		"metadata": {
@@ -44,8 +44,8 @@
 				},
 				"sparkVersion": "3.3",
 				"nodeCount": 3,
-				"cores": 16,
-				"memory": 112,
+				"cores": 4,
+				"memory": 28,
 				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
@@ -66,7 +66,7 @@
 					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
 					"raw_container = \"abfss://odw-raw@\" + storage_account"
 				],
-				"execution_count": 31
+				"execution_count": 1
 			},
 			{
 				"cell_type": "code",
@@ -103,9 +103,11 @@
 					]
 				},
 				"source": [
-					"date_folder=''"
+					"date_folder=''\n",
+					"source_folder=''\n",
+					"source_frequency_folder=''"
 				],
-				"execution_count": 34
+				"execution_count": 22
 			},
 			{
 				"cell_type": "code",
@@ -127,6 +129,7 @@
 					"    date_folder = datetime.strptime(date_folder, \"%Y-%m-%d\")\n",
 					"\n",
 					"date_folder_str = date_folder.strftime('%Y-%m-%d')\n",
+					"source_folder_path = source_folder if source_frequency_folder == '' else f\"{source_folder}/{source_frequency_folder}\"\n",
 					"\n",
 					"# READ ORCHESTRATION DATA\n",
 					"path_to_orchestration_file = \"abfss://odw-config@\"+storage_account+\"orchestration/orchestration.json\"\n",
@@ -134,10 +137,10 @@
 					"definitions = json.loads(df.toJSON().first())['definitions']\n",
 					"\n",
 					"try:\n",
-					"    source_path = f\"{raw_container}IMS/New/{date_folder_str}\"\n",
+					"    source_path = f\"{raw_container}{source_folder_path}/{date_folder_str}\"\n",
 					"    files = mssparkutils.fs.ls(source_path)\n",
 					"    for file in files:\n",
-					"        definition = next((d for d in definitions if d['Source_Frequency_Folder'] == 'New' and d['Source_Filename_Format'] == file.name), None)\n",
+					"        definition = next((d for d in definitions if (source_frequency_folder == '' or d['Source_Frequency_Folder'] == source_frequency_folder) and d['Source_Filename_Format'] == file.name), None)\n",
 					"        \n",
 					"        if definition:\n",
 					"            expected_from = date_folder - timedelta(days=1)\n",
@@ -151,7 +154,7 @@
 					"    print(\"An error occurred:\", e)\n",
 					"    print('Raw data not present for', date_folder)"
 				],
-				"execution_count": 35
+				"execution_count": null
 			}
 		]
 	}

@@ -71,7 +71,14 @@
 			{
 				"name": "0_Raw_High_Court_Data_Copy",
 				"type": "ExecutePipeline",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "0_Raw_Horizon_BIS_Event",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
 				"userProperties": [],
 				"typeProperties": {
 					"pipeline": {
@@ -82,8 +89,7 @@
 				}
 			},
 			{
-				"name": "Add Outstanding Entry",
-				"description": "Adds Entry in odw_config_db.raw_to_std_outstanding_files table",
+				"name": "Ingest Standardised",
 				"type": "SynapseNotebook",
 				"dependsOn": [
 					{
@@ -102,96 +108,33 @@
 				},
 				"userProperties": [],
 				"typeProperties": {
-					"notebook": {
-						"referenceName": "outstanding_files_add_entry",
-						"type": "NotebookReference"
-					},
 					"parameters": {
-						"jsonId": {
-							"value": "94",
-							"type": "int"
+						"source_folder": {
+							"value": "HighCourt",
+							"type": "string"
 						},
-						"year": {
+						"date_folder": {
 							"value": {
-								"value": "@formatDateTime(utcnow(), 'yyyy')",
+								"value": "@formatDateTime(utcNow(), 'yyyy-MM-dd')",
 								"type": "Expression"
 							},
-							"type": "int"
-						},
-						"month": {
-							"value": {
-								"value": "@formatDateTime(utcnow(), 'MM')",
-								"type": "Expression"
-							},
-							"type": "int"
-						},
-						"day": {
-							"value": {
-								"value": "@formatDateTime(utcnow(), 'dd')",
-								"type": "Expression"
-							},
-							"type": "int"
-						},
-						"hour": {
-							"value": "0",
-							"type": "int"
-						},
-						"minute": {
-							"value": "0",
-							"type": "int"
-						},
-						"second": {
-							"value": "0",
-							"type": "int"
+							"type": "string"
 						}
 					},
-					"snapshot": true,
-					"conf": {
-						"spark.dynamicAllocation.enabled": null,
-						"spark.dynamicAllocation.minExecutors": null,
-						"spark.dynamicAllocation.maxExecutors": null
-					},
-					"numExecutors": null
+					"snapshot": true
 				}
 			},
 			{
-				"name": "Ingest Standardised",
-				"description": "Creates standardised table and ingests data",
-				"type": "SynapseNotebook",
-				"dependsOn": [
-					{
-						"activity": "Add Outstanding Entry",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
+				"name": "0_Raw_Horizon_BIS_Event",
+				"type": "ExecutePipeline",
+				"dependsOn": [],
 				"userProperties": [],
 				"typeProperties": {
-					"notebook": {
-						"referenceName": "py_1_initial_run_raw_to_standardised_scheduling",
-						"type": "NotebookReference"
+					"pipeline": {
+						"referenceName": "0_Raw_Horizon_BIS_Event",
+						"type": "PipelineReference"
 					},
-					"parameters": {
-						"source_id": {
-							"value": "94",
-							"type": "int"
-						}
-					},
-					"snapshot": true,
-					"conf": {
-						"spark.dynamicAllocation.enabled": null,
-						"spark.dynamicAllocation.minExecutors": null,
-						"spark.dynamicAllocation.maxExecutors": null
-					},
-					"numExecutors": null
+					"waitOnCompletion": true
 				}
 			}
 		],
