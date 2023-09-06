@@ -1,7 +1,106 @@
 {
-	"name": "000_top_level_casework",
+	"name": "pln_high_court_main",
 	"properties": {
 		"activities": [
+			{
+				"name": "Ingest Harmonised",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Ingest Standardised",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "high_court_dim",
+						"type": "NotebookReference"
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Ingest Curated",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Ingest Harmonised",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "mipins_high_court",
+						"type": "NotebookReference"
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Ingest Raw",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Ingest Raw Horizon_BIS_Event",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "0_Raw_High_Court_Data_Copy",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
+				}
+			},
+			{
+				"name": "Ingest Raw Horizon_BIS_Event",
+				"type": "ExecutePipeline",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "0_Raw_Horizon_BIS_Event",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
+				}
+			},
 			{
 				"name": "Ingest Standardised",
 				"type": "SynapseNotebook",
@@ -23,10 +122,14 @@
 				"userProperties": [],
 				"typeProperties": {
 					"notebook": {
-						"referenceName": "py_casework_raw_to_std",
+						"referenceName": "py_raw_to_std",
 						"type": "NotebookReference"
 					},
 					"parameters": {
+						"source_folder": {
+							"value": "HighCourt",
+							"type": "string"
+						},
 						"date_folder": {
 							"value": {
 								"value": "@formatDateTime(utcNow(), 'yyyy-MM-dd')",
@@ -43,89 +146,10 @@
 					},
 					"numExecutors": null
 				}
-			},
-			{
-				"name": "Prepare Views",
-				"type": "SynapseNotebook",
-				"dependsOn": [
-					{
-						"activity": "Ingest Standardised",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "casework-views",
-						"type": "NotebookReference"
-					},
-					"snapshot": true,
-					"conf": {
-						"spark.dynamicAllocation.enabled": null,
-						"spark.dynamicAllocation.minExecutors": null,
-						"spark.dynamicAllocation.maxExecutors": null
-					},
-					"numExecutors": null
-				}
-			},
-			{
-				"name": "Ingest Harmonised",
-				"type": "SynapseNotebook",
-				"dependsOn": [
-					{
-						"activity": "Prepare Views",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "casework_master",
-						"type": "NotebookReference"
-					},
-					"snapshot": true,
-					"conf": {
-						"spark.dynamicAllocation.enabled": null,
-						"spark.dynamicAllocation.minExecutors": null,
-						"spark.dynamicAllocation.maxExecutors": null
-					},
-					"numExecutors": null
-				}
-			},
-			{
-				"name": "Ingest Raw",
-				"type": "ExecutePipeline",
-				"dependsOn": [],
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_casework_source_to_raw",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true
-				}
 			}
 		],
 		"folder": {
-			"name": "casework"
+			"name": "high_court"
 		},
 		"annotations": []
 	}

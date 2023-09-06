@@ -1,26 +1,28 @@
 {
-	"name": "pln_utils_fail_activity_logging_example",
+	"name": "pln_listed_buildings_main",
 	"properties": {
 		"activities": [
 			{
-				"name": "Name",
-				"description": "Description",
-				"type": "Fail",
+				"name": "Ingest Raw",
+				"type": "ExecutePipeline",
 				"dependsOn": [],
 				"userProperties": [],
 				"typeProperties": {
-					"message": "This has failed",
-					"errorCode": "42"
+					"pipeline": {
+						"referenceName": "0_Listed_Buildings_API_to_RAW",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
 				}
 			},
 			{
-				"name": "Logging Failed Activities",
+				"name": "Ingest Standardised",
 				"type": "SynapseNotebook",
 				"dependsOn": [
 					{
-						"activity": "Name",
+						"activity": "Ingest Raw",
 						"dependencyConditions": [
-							"Completed"
+							"Succeeded"
 						]
 					}
 				],
@@ -34,15 +36,19 @@
 				"userProperties": [],
 				"typeProperties": {
 					"notebook": {
-						"referenceName": "py_fail_activity_logging",
+						"referenceName": "py_raw_to_std",
 						"type": "NotebookReference"
 					},
 					"parameters": {
-						"output": {
+						"date_folder": {
 							"value": {
-								"value": "@activity('Name').output.message",
+								"value": "@formatDateTime(utcNow(), 'yyyy-MM-dd')",
 								"type": "Expression"
 							},
+							"type": "string"
+						},
+						"source_folder": {
+							"value": "ListedBuildings",
 							"type": "string"
 						}
 					},
@@ -56,8 +62,9 @@
 				}
 			}
 		],
-		"annotations": [],
-		"lastPublishTime": "2023-01-19T12:53:52Z"
-	},
-	"type": "Microsoft.Synapse/workspaces/pipelines"
+		"folder": {
+			"name": "listed_buildings"
+		},
+		"annotations": []
+	}
 }
