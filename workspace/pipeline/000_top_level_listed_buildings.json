@@ -1,0 +1,64 @@
+{
+	"name": "000_top_level_listed_buildings",
+	"properties": {
+		"activities": [
+			{
+				"name": "Ingest Raw",
+				"type": "ExecutePipeline",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "0_Listed_Buildings_API_to_RAW",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
+				}
+			},
+			{
+				"name": "Ingest Standardised",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Ingest Raw",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_raw_to_std",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"date_folder": {
+							"value": {
+								"value": "@formatDateTime(utcNow(), 'yyyy-MM-dd')",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"source_folder": {
+							"value": "ListedBuildings",
+							"type": "string"
+						}
+					},
+					"snapshot": true
+				}
+			}
+		],
+		"folder": {
+			"name": "listed-buildings"
+		},
+		"annotations": []
+	}
+}
