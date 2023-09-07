@@ -1,8 +1,8 @@
 {
-	"name": "py_convert_json_to_csv",
+	"name": "py_convert_json_to_csv_listed_buildings",
 	"properties": {
 		"folder": {
-			"name": "0-odw-source-to-raw/IMS"
+			"name": "0-odw-source-to-raw/ListedBuildings"
 		},
 		"nbformat": 4,
 		"nbformat_minor": 2,
@@ -11,16 +11,16 @@
 			"type": "BigDataPoolReference"
 		},
 		"sessionProperties": {
-			"driverMemory": "56g",
-			"driverCores": 8,
-			"executorMemory": "56g",
-			"executorCores": 8,
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
 			"numExecutors": 2,
 			"conf": {
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "1ebee085-894f-4d52-936e-97e31aa85761"
+				"spark.autotune.trackingId": "808662a5-e1c1-475d-a0da-feb4d3066b6b"
 			}
 		},
 		"metadata": {
@@ -44,13 +44,34 @@
 				},
 				"sparkVersion": "3.3",
 				"nodeCount": 3,
-				"cores": 16,
-				"memory": 112,
+				"cores": 4,
+				"memory": 28,
 				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"tags": [
+						"parameters"
+					]
+				},
+				"source": [
+					"date_folder=''"
+				],
+				"execution_count": 1
+			},
 			{
 				"cell_type": "code",
 				"metadata": {
@@ -76,17 +97,14 @@
 					"### mount the data lake storage in Synapse to the Synapse File Mount API\r\n",
 					"jobId = mssparkutils.env.getJobId()\r\n",
 					"storage_acc_name = spark.sparkContext.environment.get('dataLakeAccountName', 'get')\r\n",
-					"mssparkutils.fs.unmount(\"/ims_items\") \r\n",
+					"mssparkutils.fs.unmount(\"/listed_buildings_items\") \r\n",
 					"mssparkutils.fs.mount( \r\n",
-					"    \"abfss://odw-raw@\"+storage_acc_name+\".dfs.core.windows.net/IMS/API-Data/\",\r\n",
-					"    \"/ims_items\", \r\n",
+					"    f\"abfss://odw-raw@{storage_acc_name}.dfs.core.windows.net/ListedBuildings/{date_folder}/\",\r\n",
+					"    \"/listed_buildings_items\", \r\n",
 					"    {\"linkedService\":\"ls_storage\"} \r\n",
-					")   \r\n",
-					"\r\n",
-					"today = date.today()\r\n",
-					"todaysdate = today.strftime(\"%Y-%m-%d\")"
+					")   "
 				],
-				"execution_count": 47
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
@@ -104,14 +122,11 @@
 				"source": [
 					"def json_to_csv(source):\r\n",
 					"    attributesList=[]\r\n",
-					"    with open(f\"/synfs/{jobId}/ims_items/{source}.json\", \"r\",encoding='utf-8') as inputfile:\r\n",
-					"        ims_dict = json.load(inputfile)\r\n",
-					"        for items in ims_dict[\"data\"]:\r\n",
-					"            dict = items['attributes']\r\n",
-					"            attributesList.append(dict)\r\n",
-					"    sparkDF = spark.createDataFrame(attributesList)\r\n",
+					"    with open(f\"/synfs/{jobId}/listed_buildings_items/{source}.json\", \"r\",encoding='utf-8-sig') as inputfile:\r\n",
+					"        data = json.load(inputfile)\r\n",
+					"        sparkDF = spark.createDataFrame(data[0][\"entities\"])\r\n",
 					"\r\n",
-					"    output_folder_path = f\"abfss://odw-raw@{storage_acc_name}.dfs.core.windows.net/IMS/New/{todaysdate}/{source}\"\r\n",
+					"    output_folder_path = f\"abfss://odw-raw@{storage_acc_name}.dfs.core.windows.net/ListedBuildings/{date_folder}/{source}\"\r\n",
 					"    sparkDF.repartition(1).write.mode('overwrite').option(\"header\",True).csv(output_folder_path)\r\n",
 					"\r\n",
 					"    output_files = mssparkutils.fs.ls(output_folder_path)\r\n",
@@ -122,7 +137,7 @@
 					"        mssparkutils.fs.mv(output_file.path, output_folder_path + '.csv', True)\r\n",
 					"        mssparkutils.fs.rm(output_folder_path, True)"
 				],
-				"execution_count": 48
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
@@ -138,18 +153,11 @@
 					}
 				},
 				"source": [
-					"json_to_csv(\"IMS_bdc_attribute\")\r\n",
-					"json_to_csv(\"IMS_bdc_entity\")\r\n",
-					"json_to_csv(\"IMS_data_flow\")\r\n",
-					"json_to_csv(\"IMS_data_sharing\")\r\n",
-					"json_to_csv(\"IMS_dpia\")\r\n",
-					"json_to_csv(\"IMS_information_assets\")\r\n",
-					"json_to_csv(\"IMS_integration\")\r\n",
-					"json_to_csv(\"IMS_master_data_map\")\r\n",
-					"json_to_csv(\"IMS_ropa\")\r\n",
+					"json_to_csv(\"listed_building\")\r\n",
+					"json_to_csv(\"listed_building_outline\")\r\n",
 					""
 				],
-				"execution_count": 49
+				"execution_count": 13
 			}
 		]
 	}
