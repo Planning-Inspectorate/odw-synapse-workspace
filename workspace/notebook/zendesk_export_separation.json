@@ -1,5 +1,5 @@
 {
-	"name": "zendesk_standerdised_and_harmonised",
+	"name": "zendesk_export_separation",
 	"properties": {
 		"folder": {
 			"name": "odw-raw"
@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "9561a88b-06bb-4f5f-a5a5-061661fccf39"
+				"spark.autotune.trackingId": "5c8867d3-4aef-41bc-ac08-8addca287b17"
 			}
 		},
 		"metadata": {
@@ -44,8 +44,8 @@
 				},
 				"sparkVersion": "3.3",
 				"nodeCount": 3,
-				"cores": 8,
-				"memory": 56,
+				"cores": 4,
+				"memory": 28,
 				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
@@ -203,26 +203,26 @@
 							"text": "'abfss://odw-raw@'+storage_acc_name+'.dfs.core.windows.net/ZenDesk/Schema_Validation/',",
 							"start": {
 								"line": 7,
-								"column": 1
+								"column": 3
 							},
 							"end": {
 								"line": 7,
-								"column": 88
+								"column": 90
 							}
 						}
 					}
 				},
 				"source": [
-					"from notebookutils import mssparkutils\r\n",
-					"### mount the data lake storage in Synapse to the Synapse File Mount API\r\n",
-					"jobId = mssparkutils.env.getJobId()\r\n",
-					"storage_acc_name = spark.sparkContext.environment.get('dataLakeAccountName', 'get')\r\n",
-					"mssparkutils.fs.unmount(\"/zendesk_schema\") \r\n",
-					"mssparkutils.fs.mount( \r\n",
-					"'abfss://odw-raw@'+storage_acc_name+'.dfs.core.windows.net/ZenDesk/Schema_Validation/',\r\n",
-					"\"/zendesk_schema\", \r\n",
-					"{\"linkedService\":\"ls_storage\"} \r\n",
-					")   "
+					"# from notebookutils import mssparkutils\r\n",
+					"# ### mount the data lake storage in Synapse to the Synapse File Mount API\r\n",
+					"# jobId = mssparkutils.env.getJobId()\r\n",
+					"# storage_acc_name = spark.sparkContext.environment.get('dataLakeAccountName', 'get')\r\n",
+					"# mssparkutils.fs.unmount(\"/zendesk_schema\") \r\n",
+					"# mssparkutils.fs.mount( \r\n",
+					"# 'abfss://odw-raw@'+storage_acc_name+'.dfs.core.windows.net/ZenDesk/Schema_Validation/',\r\n",
+					"# \"/zendesk_schema\", \r\n",
+					"# {\"linkedService\":\"ls_storage\"} \r\n",
+					"# )   "
 				],
 				"execution_count": 12
 			},
@@ -343,14 +343,14 @@
 					}
 				},
 				"source": [
-					"def read_schema():\r\n",
+					"# def read_schema():\r\n",
 					"\r\n",
-					"    with open(f\"/synfs/{jobId}/zendesk_schema/output_schema.json\", 'r') as schema:\r\n",
+					"#     with open(f\"/synfs/{jobId}/zendesk_schema/output_schema.json\", 'r') as schema:\r\n",
 					"\r\n",
-					"        schema_dict = json.load(schema)\r\n",
+					"#         schema_dict = json.load(schema)\r\n",
 					"\r\n",
-					"    return schema_dict\r\n",
-					"schema_dict = read_schema()"
+					"#     return schema_dict\r\n",
+					"# schema_dict = read_schema()"
 				],
 				"execution_count": 13
 			},
@@ -406,61 +406,61 @@
 					],
 					"ms_comment_ranges": {
 						"45a7f6d4-05e7-4918-a6d5-0820c6fb600b": {
-							"text": "        if i == 2802:\n            i=i+1",
+							"text": "        if i == 2802:\n#             i=i+1",
 							"start": {
 								"line": 8,
-								"column": 1
+								"column": 3
 							},
 							"end": {
 								"line": 9,
-								"column": 18
+								"column": 20
 							}
 						},
 						"f0a638a9-885a-4769-bb2b-b06f4fc38d58": {
-							"text": "                except jsonschema.exceptions.ValidationError as err:\n                    print(\"Schema could not validate file number:\")\n                    print(i)",
+							"text": "                except jsonschema.exceptions.ValidationError as err:\n#                     print(\"Schema could not validate file number:\")\n#                     print(i)",
 							"start": {
 								"line": 15,
-								"column": 1
+								"column": 3
 							},
 							"end": {
 								"line": 17,
-								"column": 29
+								"column": 31
 							}
 						},
 						"c95e30e1-6b8f-4606-9cee-e5ccbc004783": {
 							"text": "def read_zendesk(schema_dict):",
 							"start": {
 								"line": 6,
-								"column": 1
+								"column": 3
 							},
 							"end": {
 								"line": 6,
-								"column": 31
+								"column": 33
 							}
 						}
 					}
 				},
 				"source": [
-					"import json\r\n",
-					"import jsonschema\r\n",
-					"from jsonschema import validate\r\n",
-					"list_with_all_zendesk_dict = []\r\n",
-					"@logging_to_appins\r\n",
-					"def read_zendesk(schema_dict):\r\n",
-					"    for i in range(2918):\r\n",
-					"        if i == 2802:\r\n",
-					"            i=i+1\r\n",
-					"        else:\r\n",
-					"            with open(f\"/synfs/{jobId}/zendesk_items/output_{i}.json\", \"r\",encoding='utf-8') as big_json:\r\n",
-					"                zendesk_dict = json.load(big_json)\r\n",
-					"                try:\r\n",
-					"                    validate(instance=zendesk_dict, schema=schema_dict)\r\n",
-					"                except jsonschema.exceptions.ValidationError as err:\r\n",
-					"                    print(\"Schema could not validate file number:\")\r\n",
-					"                    print(i)\r\n",
-					"                list_with_all_zendesk_dict.append(zendesk_dict)\r\n",
-					"    return list_with_all_zendesk_dict\r\n",
-					"zendesk_dict = read_zendesk(schema_dict)"
+					"# import json\r\n",
+					"# import jsonschema\r\n",
+					"# from jsonschema import validate\r\n",
+					"# list_with_all_zendesk_dict = []\r\n",
+					"# @logging_to_appins\r\n",
+					"# def read_zendesk(schema_dict):\r\n",
+					"#     for i in range(2918):\r\n",
+					"#         if i == 2802:\r\n",
+					"#             i=i+1\r\n",
+					"#         else:\r\n",
+					"#             with open(f\"/synfs/{jobId}/zendesk_items/output_{i}.json\", \"r\",encoding='utf-8') as big_json:\r\n",
+					"#                 zendesk_dict = json.load(big_json)\r\n",
+					"#                 try:\r\n",
+					"#                     validate(instance=zendesk_dict, schema=schema_dict)\r\n",
+					"#                 except jsonschema.exceptions.ValidationError as err:\r\n",
+					"#                     print(\"Schema could not validate file number:\")\r\n",
+					"#                     print(i)\r\n",
+					"#                 list_with_all_zendesk_dict.append(zendesk_dict)\r\n",
+					"#     return list_with_all_zendesk_dict\r\n",
+					"# zendesk_dict = read_zendesk(schema_dict)"
 				],
 				"execution_count": 14
 			},
@@ -507,7 +507,7 @@
 							"text": "shows = spark.read.json(\"abfss://odw-raw@\"+storage_acc_name+\".dfs.core.windows.net/ZenDesk/Export/output_*.json\",multiLine=True)\n",
 							"start": {
 								"line": 4,
-								"column": 1
+								"column": 3
 							},
 							"end": {
 								"line": 5,
@@ -518,23 +518,23 @@
 							"text": "zendesk_s",
 							"start": {
 								"line": 7,
-								"column": 62
+								"column": 64
 							},
 							"end": {
 								"line": 7,
-								"column": 71
+								"column": 73
 							}
 						}
 					}
 				},
 				"source": [
-					"from pyspark.sql import SparkSession \r\n",
-					"spark = SparkSession.builder.getOrCreate() \r\n",
-					"storage_acc_name = spark.sparkContext.environment.get('dataLakeAccountName', 'get')\r\n",
-					"shows = spark.read.json(\"abfss://odw-raw@\"+storage_acc_name+\".dfs.core.windows.net/ZenDesk/Export/output_*.json\",multiLine=True)\r\n",
-					"# Create mega table\r\n",
-					"spark.sql(f\"drop table if exists odw_standardised_db.zendesk_system_extract;\")\r\n",
-					"shows.write.format('delta').saveAsTable(\"odw_standardised_db.zendesk_system_extract\")"
+					"# from pyspark.sql import SparkSession \r\n",
+					"# spark = SparkSession.builder.getOrCreate() \r\n",
+					"# storage_acc_name = spark.sparkContext.environment.get('dataLakeAccountName', 'get')\r\n",
+					"# shows = spark.read.json(\"abfss://odw-raw@\"+storage_acc_name+\".dfs.core.windows.net/ZenDesk/Export/output_*.json\",multiLine=True)\r\n",
+					"# # Create mega table\r\n",
+					"# spark.sql(f\"drop table if exists odw_standardised_db.zendesk_system_extract;\")\r\n",
+					"# shows.write.format('delta').saveAsTable(\"odw_standardised_db.zendesk_system_extract\")"
 				],
 				"execution_count": 15
 			},
@@ -552,7 +552,7 @@
 					}
 				},
 				"source": [
-					"storage_acc_name = spark.sparkContext.environment.get('dataLakeAccountName', 'get')"
+					"# storage_acc_name = spark.sparkContext.environment.get('dataLakeAccountName', 'get')"
 				],
 				"execution_count": 16
 			},
@@ -571,27 +571,27 @@
 					"ms_comments": []
 				},
 				"source": [
-					"import pyspark.sql.functions as F \r\n",
-					"@logging_to_appins\r\n",
-					"def fields_table():\r\n",
-					"    fields = shows.select(\r\n",
-					"    \"id\", F.explode(\"fields\").alias(\"fields\")\r\n",
-					"    )\r\n",
+					"# import pyspark.sql.functions as F \r\n",
+					"# @logging_to_appins\r\n",
+					"# def fields_table():\r\n",
+					"#     fields = shows.select(\r\n",
+					"#     \"id\", F.explode(\"fields\").alias(\"fields\")\r\n",
+					"#     )\r\n",
 					"\r\n",
-					"    fields_id_value = shows.select(F.col(\"id\").alias(\"ticket_id\"),\r\n",
-					"        F.map_from_arrays(\r\n",
-					"        F.col(\"fields.id\"), F.col(\"fields.value\")\r\n",
-					"        ).alias(\"ID_VALUE\")\r\n",
-					"        )\r\n",
-					"    # fields_id_value.show()\r\n",
-					"    fields_id_value = fields_id_value.select(\"ticket_id\",\r\n",
-					"        F.posexplode(\"ID_VALUE\").alias(\"position\", \"id\", \"value\")\r\n",
-					"        )\r\n",
-					"    # fields_id_value.show()\r\n",
-					"    fields_id_value.drop(\"position\")\r\n",
-					"    spark.sql(f\"drop table if exists odw_harmonised_db.zendesk_fields_id_value;\")\r\n",
-					"    fields_id_value.write.format('delta').saveAsTable(\"odw_harmonised_db.zendesk_fields_id_value\")\r\n",
-					"fields_table()"
+					"#     fields_id_value = shows.select(F.col(\"id\").alias(\"ticket_id\"),\r\n",
+					"#         F.map_from_arrays(\r\n",
+					"#         F.col(\"fields.id\"), F.col(\"fields.value\")\r\n",
+					"#         ).alias(\"ID_VALUE\")\r\n",
+					"#         )\r\n",
+					"#     # fields_id_value.show()\r\n",
+					"#     fields_id_value = fields_id_value.select(\"ticket_id\",\r\n",
+					"#         F.posexplode(\"ID_VALUE\").alias(\"position\", \"id\", \"value\")\r\n",
+					"#         )\r\n",
+					"#     # fields_id_value.show()\r\n",
+					"#     fields_id_value.drop(\"position\")\r\n",
+					"#     spark.sql(f\"drop table if exists odw_harmonised_db.zendesk_fields_id_value;\")\r\n",
+					"#     fields_id_value.write.format('delta').saveAsTable(\"odw_harmonised_db.zendesk_fields_id_value\")\r\n",
+					"# fields_table()"
 				],
 				"execution_count": 17
 			},
@@ -609,27 +609,27 @@
 					}
 				},
 				"source": [
-					"import pyspark.sql.functions as F \r\n",
-					"@logging_to_appins\r\n",
-					"def custom_fields_table():\r\n",
-					"    custom_fields = shows.select(\r\n",
-					"    \"id\", F.explode(\"custom_fields\").alias(\"custom_fields\")\r\n",
-					"    )\r\n",
+					"# import pyspark.sql.functions as F \r\n",
+					"# @logging_to_appins\r\n",
+					"# def custom_fields_table():\r\n",
+					"#     custom_fields = shows.select(\r\n",
+					"#     \"id\", F.explode(\"custom_fields\").alias(\"custom_fields\")\r\n",
+					"#     )\r\n",
 					"\r\n",
-					"    custom_fields_id_value = shows.select(F.col(\"id\").alias(\"ticket_id\"),\r\n",
-					"        F.map_from_arrays(\r\n",
-					"        F.col(\"custom_fields.id\"), F.col(\"custom_fields.value\")\r\n",
-					"        ).alias(\"ID_VALUE\")\r\n",
-					"        )\r\n",
-					"    # custom_fields_id_value.show()\r\n",
-					"    custom_fields_id_value = custom_fields_id_value.select(\"ticket_id\",\r\n",
-					"        F.posexplode(\"ID_VALUE\").alias(\"position\", \"id\", \"value\")\r\n",
-					"        )\r\n",
-					"    # custom_fields_id_value.show()\r\n",
-					"    custom_fields_id_value.drop(\"position\")\r\n",
-					"    spark.sql(f\"drop table if exists odw_harmonised_db.zendesk_custom_fields_id_value;\")\r\n",
-					"    custom_fields_id_value.write.format('delta').saveAsTable(\"odw_harmonised_db.zendesk_custom_fields_id_value\")\r\n",
-					"custom_fields_table()"
+					"#     custom_fields_id_value = shows.select(F.col(\"id\").alias(\"ticket_id\"),\r\n",
+					"#         F.map_from_arrays(\r\n",
+					"#         F.col(\"custom_fields.id\"), F.col(\"custom_fields.value\")\r\n",
+					"#         ).alias(\"ID_VALUE\")\r\n",
+					"#         )\r\n",
+					"#     # custom_fields_id_value.show()\r\n",
+					"#     custom_fields_id_value = custom_fields_id_value.select(\"ticket_id\",\r\n",
+					"#         F.posexplode(\"ID_VALUE\").alias(\"position\", \"id\", \"value\")\r\n",
+					"#         )\r\n",
+					"#     # custom_fields_id_value.show()\r\n",
+					"#     custom_fields_id_value.drop(\"position\")\r\n",
+					"#     spark.sql(f\"drop table if exists odw_harmonised_db.zendesk_custom_fields_id_value;\")\r\n",
+					"#     custom_fields_id_value.write.format('delta').saveAsTable(\"odw_harmonised_db.zendesk_custom_fields_id_value\")\r\n",
+					"# custom_fields_table()"
 				],
 				"execution_count": 18
 			},
@@ -710,80 +710,80 @@
 							"text": "tick",
 							"start": {
 								"line": 17,
-								"column": 31
+								"column": 33
 							},
 							"end": {
 								"line": 17,
-								"column": 35
+								"column": 37
 							}
 						},
 						"437e3dbd-79c9-4db6-bfb3-2bce1e8ea056": {
 							"text": " comments_and_attachments():",
 							"start": {
 								"line": 2,
-								"column": 4
+								"column": 6
 							},
 							"end": {
 								"line": 2,
-								"column": 32
+								"column": 34
 							}
 						},
 						"99e88483-8d34-41b4-882e-7e79a22f8872": {
 							"text": "sFlatCommentsDictList.write.saveAsTable(\"odw_harmonised_db.zendesk_comments\")",
 							"start": {
 								"line": 36,
-								"column": 5
+								"column": 7
 							},
 							"end": {
 								"line": 36,
-								"column": 82
+								"column": 84
 							}
 						}
 					}
 				},
 				"source": [
-					"@logging_to_appins\r\n",
-					"def comments_and_attachments():\r\n",
-					"    #create empty list to store the values of the comments \r\n",
-					"    FlatCommentsDictList=[]\r\n",
-					"    #create empty list to store the value of the attachments array within the commments column\r\n",
-					"    FlatCommentsDictAttachmentsList=[]\r\n",
-					"    for i in range(2918):\r\n",
-					"        # print(i)\r\n",
-					"        if i == 2802:\r\n",
-					"            i=i+1\r\n",
-					"        else:\r\n",
-					"            with open(f\"/synfs/{jobId}/zendesk_items/output_{i}.json\", \"r\",encoding='utf-8') as big_json:\r\n",
-					"                zendesk_dict = json.load(big_json)\r\n",
-					"            CommentsListOfDict = zendesk_dict['comments']\r\n",
-					"            for CommentsDict in CommentsListOfDict:\r\n",
-					"                #adding the file id to the dictionary before converting into df and then table\r\n",
-					"                CommentsDict['ticket_id']=zendesk_dict['id']\r\n",
-					"                FlatCommentsDict = dict( flattenDict(CommentsDict, join=lambda a,b:a+'_'+b, lift=lambda x:x) )\r\n",
-					"                #go through all attachments within the comments column \r\n",
-					"                for attachments in CommentsDict['attachments']:\r\n",
-					"                    #add the comments id and file id so we can late join the tables on them\r\n",
-					"                    attachments['ticket_id']=zendesk_dict['id']\r\n",
-					"                    attachments['comment_id']=CommentsDict['id']\r\n",
-					"                    FlatCommentsDictAttachmentsList.append(attachments)\r\n",
-					"                #delete the attachment column because we already stored it in a list which will be made in a table \r\n",
-					"                del FlatCommentsDict['attachments']\r\n",
-					"                #flatten the comments column so we can make a table out of it \r\n",
-					"                FlatCommentsDictList.append(FlatCommentsDict)\r\n",
-					"    #create a dataframe out of all comments of a file to put them in a table \r\n",
-					"    dfFlatCommentsDictList =pd.DataFrame(FlatCommentsDictList)\r\n",
-					"    #create a dataframe out of all commects_attachmenst of a file to create and store them in a table \r\n",
-					"    dfFlatCommentsDictAttachmentsList = pd.DataFrame(FlatCommentsDictAttachmentsList)\r\n",
-					"    dfFlatCommentsDictList.via_source_to_email_ccs = dfFlatCommentsDictList.via_source_to_email_ccs.astype(str)\r\n",
-					"    sFlatCommentsDictList = spark.createDataFrame(dfFlatCommentsDictList)\r\n",
-					"    spark.sql(f\"drop table if exists odw_harmonised_db.zendesk_comments;\")\r\n",
-					"    sFlatCommentsDictList.write.saveAsTable(\"odw_harmonised_db.zendesk_comments\")\r\n",
-					"    spark.sql(f\"drop table if exists odw_harmonised_db.zendesk_comments_attachments;\")\r\n",
-					"    sparkDF=spark.createDataFrame(dfFlatCommentsDictAttachmentsList)   \r\n",
-					"    sparkDF1= sparkDF.withColumn(\"width\",F.col(\"width\").cast(\"string\")).withColumn(\"height\",F.col(\"height\").cast(\"string\")).withColumn(\"thumbnails\",F.col(\"thumbnails\").cast(ArrayType(StringType(),True)))\r\n",
-					"    sparkDF1.printSchema\r\n",
-					"    sparkDF1.write.format('delta').saveAsTable(\"odw_harmonised_db.zendesk_comments_attachments\")      \r\n",
-					"comments_and_attachments()\r\n",
+					"# @logging_to_appins\r\n",
+					"# def comments_and_attachments():\r\n",
+					"#     #create empty list to store the values of the comments \r\n",
+					"#     FlatCommentsDictList=[]\r\n",
+					"#     #create empty list to store the value of the attachments array within the commments column\r\n",
+					"#     FlatCommentsDictAttachmentsList=[]\r\n",
+					"#     for i in range(2918):\r\n",
+					"#         # print(i)\r\n",
+					"#         if i == 2802:\r\n",
+					"#             i=i+1\r\n",
+					"#         else:\r\n",
+					"#             with open(f\"/synfs/{jobId}/zendesk_items/output_{i}.json\", \"r\",encoding='utf-8') as big_json:\r\n",
+					"#                 zendesk_dict = json.load(big_json)\r\n",
+					"#             CommentsListOfDict = zendesk_dict['comments']\r\n",
+					"#             for CommentsDict in CommentsListOfDict:\r\n",
+					"#                 #adding the file id to the dictionary before converting into df and then table\r\n",
+					"#                 CommentsDict['ticket_id']=zendesk_dict['id']\r\n",
+					"#                 FlatCommentsDict = dict( flattenDict(CommentsDict, join=lambda a,b:a+'_'+b, lift=lambda x:x) )\r\n",
+					"#                 #go through all attachments within the comments column \r\n",
+					"#                 for attachments in CommentsDict['attachments']:\r\n",
+					"#                     #add the comments id and file id so we can late join the tables on them\r\n",
+					"#                     attachments['ticket_id']=zendesk_dict['id']\r\n",
+					"#                     attachments['comment_id']=CommentsDict['id']\r\n",
+					"#                     FlatCommentsDictAttachmentsList.append(attachments)\r\n",
+					"#                 #delete the attachment column because we already stored it in a list which will be made in a table \r\n",
+					"#                 del FlatCommentsDict['attachments']\r\n",
+					"#                 #flatten the comments column so we can make a table out of it \r\n",
+					"#                 FlatCommentsDictList.append(FlatCommentsDict)\r\n",
+					"#     #create a dataframe out of all comments of a file to put them in a table \r\n",
+					"#     dfFlatCommentsDictList =pd.DataFrame(FlatCommentsDictList)\r\n",
+					"#     #create a dataframe out of all commects_attachmenst of a file to create and store them in a table \r\n",
+					"#     dfFlatCommentsDictAttachmentsList = pd.DataFrame(FlatCommentsDictAttachmentsList)\r\n",
+					"#     dfFlatCommentsDictList.via_source_to_email_ccs = dfFlatCommentsDictList.via_source_to_email_ccs.astype(str)\r\n",
+					"#     sFlatCommentsDictList = spark.createDataFrame(dfFlatCommentsDictList)\r\n",
+					"#     spark.sql(f\"drop table if exists odw_harmonised_db.zendesk_comments;\")\r\n",
+					"#     sFlatCommentsDictList.write.saveAsTable(\"odw_harmonised_db.zendesk_comments\")\r\n",
+					"#     spark.sql(f\"drop table if exists odw_harmonised_db.zendesk_comments_attachments;\")\r\n",
+					"#     sparkDF=spark.createDataFrame(dfFlatCommentsDictAttachmentsList)   \r\n",
+					"#     sparkDF1= sparkDF.withColumn(\"width\",F.col(\"width\").cast(\"string\")).withColumn(\"height\",F.col(\"height\").cast(\"string\")).withColumn(\"thumbnails\",F.col(\"thumbnails\").cast(ArrayType(StringType(),True)))\r\n",
+					"#     sparkDF1.printSchema\r\n",
+					"#     sparkDF1.write.format('delta').saveAsTable(\"odw_harmonised_db.zendesk_comments_attachments\")      \r\n",
+					"# comments_and_attachments()\r\n",
 					""
 				],
 				"execution_count": 20
@@ -819,47 +819,47 @@
 							"text": "schema = StructType([StructField(\"foo\", StringType(), True)])",
 							"start": {
 								"line": 24,
-								"column": 5
+								"column": 7
 							},
 							"end": {
 								"line": 24,
-								"column": 66
+								"column": 68
 							}
 						}
 					}
 				},
 				"source": [
-					"@logging_to_appins\r\n",
-					"def assignee_table(list_with_all_zendesk_dict):\r\n",
-					"    assigneelist=[]\r\n",
-					"    for assigneecolumn in list_with_all_zendesk_dict:\r\n",
-					"        AssigneeDict= assigneecolumn['assignee']\r\n",
-					"        if AssigneeDict is None:\r\n",
-					"            continue\r\n",
-					"        else:\r\n",
-					"            AssigneeDict['ticket_id']=assigneecolumn['id']\r\n",
-					"            assigneelist.append(AssigneeDict)\r\n",
+					"# @logging_to_appins\r\n",
+					"# def assignee_table(list_with_all_zendesk_dict):\r\n",
+					"#     assigneelist=[]\r\n",
+					"#     for assigneecolumn in list_with_all_zendesk_dict:\r\n",
+					"#         AssigneeDict= assigneecolumn['assignee']\r\n",
+					"#         if AssigneeDict is None:\r\n",
+					"#             continue\r\n",
+					"#         else:\r\n",
+					"#             AssigneeDict['ticket_id']=assigneecolumn['id']\r\n",
+					"#             assigneelist.append(AssigneeDict)\r\n",
 					"            \r\n",
 					"    \r\n",
-					"    dfassigneelist=pd.DataFrame(assigneelist)\r\n",
-					"    dfassigneelist.id = dfassigneelist.id.astype(str)\r\n",
-					"    dfassigneelist.locale_id = dfassigneelist.locale_id.astype(str)\r\n",
-					"    dfassigneelist.organization_id = dfassigneelist.organization_id.astype(str)\r\n",
-					"    dfassigneelist.role_type = dfassigneelist.role_type.astype(str)\r\n",
-					"    dfassigneelist.custom_role_id = dfassigneelist.custom_role_id.astype(str)\r\n",
-					"    dfassigneelist.organization_id = dfassigneelist.organization_id.astype(str)\r\n",
-					"    dfassigneelist.default_group_id = dfassigneelist.default_group_id.astype(str)\r\n",
+					"#     dfassigneelist=pd.DataFrame(assigneelist)\r\n",
+					"#     dfassigneelist.id = dfassigneelist.id.astype(str)\r\n",
+					"#     dfassigneelist.locale_id = dfassigneelist.locale_id.astype(str)\r\n",
+					"#     dfassigneelist.organization_id = dfassigneelist.organization_id.astype(str)\r\n",
+					"#     dfassigneelist.role_type = dfassigneelist.role_type.astype(str)\r\n",
+					"#     dfassigneelist.custom_role_id = dfassigneelist.custom_role_id.astype(str)\r\n",
+					"#     dfassigneelist.organization_id = dfassigneelist.organization_id.astype(str)\r\n",
+					"#     dfassigneelist.default_group_id = dfassigneelist.default_group_id.astype(str)\r\n",
 					"\r\n",
 					"\r\n",
-					"    from pyspark.sql.types import StructType, StructField, StringType\r\n",
-					"    schema = StructType([StructField(\"foo\", StringType(), True)])\r\n",
-					"    dfassigneelist = dfassigneelist.dropna(axis='columns', how='all') # Drops columns with all NA values\r\n",
+					"#     from pyspark.sql.types import StructType, StructField, StringType\r\n",
+					"#     schema = StructType([StructField(\"foo\", StringType(), True)])\r\n",
+					"#     dfassigneelist = dfassigneelist.dropna(axis='columns', how='all') # Drops columns with all NA values\r\n",
 					"\r\n",
-					"    sassigneelist = spark.createDataFrame(dfassigneelist)\r\n",
-					"    spark.sql(f\"drop table if exists odw_harmonised_db.zendesk_assignee;\")\r\n",
-					"    sassigneelist.write.format('delta').saveAsTable(\"odw_harmonised_db.zendesk_assignee\")\r\n",
+					"#     sassigneelist = spark.createDataFrame(dfassigneelist)\r\n",
+					"#     spark.sql(f\"drop table if exists odw_harmonised_db.zendesk_assignee;\")\r\n",
+					"#     sassigneelist.write.format('delta').saveAsTable(\"odw_harmonised_db.zendesk_assignee\")\r\n",
 					"\r\n",
-					"assignee_table(list_with_all_zendesk_dict)"
+					"# assignee_table(list_with_all_zendesk_dict)"
 				],
 				"execution_count": null
 			},
@@ -877,37 +877,37 @@
 					}
 				},
 				"source": [
-					"@logging_to_appins\r\n",
-					"def submitter_table(list_with_all_zendesk_dict):\r\n",
-					"    submitterlist=[]\r\n",
-					"    for submittercolumn in list_with_all_zendesk_dict:\r\n",
-					"        submitterDict= submittercolumn['submitter']\r\n",
-					"        if submitterDict is None:\r\n",
-					"            continue\r\n",
-					"        else:\r\n",
-					"            submitterDict['ticket_id']=submittercolumn['id']\r\n",
-					"            submitterlist.append(submitterDict)\r\n",
+					"# @logging_to_appins\r\n",
+					"# def submitter_table(list_with_all_zendesk_dict):\r\n",
+					"#     submitterlist=[]\r\n",
+					"#     for submittercolumn in list_with_all_zendesk_dict:\r\n",
+					"#         submitterDict= submittercolumn['submitter']\r\n",
+					"#         if submitterDict is None:\r\n",
+					"#             continue\r\n",
+					"#         else:\r\n",
+					"#             submitterDict['ticket_id']=submittercolumn['id']\r\n",
+					"#             submitterlist.append(submitterDict)\r\n",
 					"            \r\n",
 					"    \r\n",
-					"    dfsubmitterlist=pd.DataFrame(submitterlist)\r\n",
-					"    dfsubmitterlist.id = dfsubmitterlist.id.astype(str)\r\n",
-					"    dfsubmitterlist.locale_id = dfsubmitterlist.locale_id.astype(str)\r\n",
-					"    dfsubmitterlist.organization_id = dfsubmitterlist.organization_id.astype(str)\r\n",
-					"    dfsubmitterlist.role_type = dfsubmitterlist.role_type.astype(str)\r\n",
-					"    dfsubmitterlist.custom_role_id = dfsubmitterlist.custom_role_id.astype(str)\r\n",
-					"    dfsubmitterlist.organization_id = dfsubmitterlist.organization_id.astype(str)\r\n",
-					"    dfsubmitterlist.default_group_id = dfsubmitterlist.default_group_id.astype(str)\r\n",
+					"#     dfsubmitterlist=pd.DataFrame(submitterlist)\r\n",
+					"#     dfsubmitterlist.id = dfsubmitterlist.id.astype(str)\r\n",
+					"#     dfsubmitterlist.locale_id = dfsubmitterlist.locale_id.astype(str)\r\n",
+					"#     dfsubmitterlist.organization_id = dfsubmitterlist.organization_id.astype(str)\r\n",
+					"#     dfsubmitterlist.role_type = dfsubmitterlist.role_type.astype(str)\r\n",
+					"#     dfsubmitterlist.custom_role_id = dfsubmitterlist.custom_role_id.astype(str)\r\n",
+					"#     dfsubmitterlist.organization_id = dfsubmitterlist.organization_id.astype(str)\r\n",
+					"#     dfsubmitterlist.default_group_id = dfsubmitterlist.default_group_id.astype(str)\r\n",
 					"\r\n",
 					"\r\n",
-					"    from pyspark.sql.types import StructType, StructField, StringType\r\n",
-					"    schema = StructType([StructField(\"foo\", StringType(), True)])\r\n",
-					"    dfsubmitterlist = dfsubmitterlist.dropna(axis='columns', how='all') # Drops columns with all NA values\r\n",
+					"#     from pyspark.sql.types import StructType, StructField, StringType\r\n",
+					"#     schema = StructType([StructField(\"foo\", StringType(), True)])\r\n",
+					"#     dfsubmitterlist = dfsubmitterlist.dropna(axis='columns', how='all') # Drops columns with all NA values\r\n",
 					"\r\n",
-					"    ssubmitterlist = spark.createDataFrame(dfsubmitterlist)\r\n",
-					"    spark.sql(f\"drop table if exists odw_harmonised_db.zendesk_submitter;\")\r\n",
-					"    ssubmitterlist.write.format('delta').saveAsTable(\"odw_harmonised_db.zendesk_submitter\")\r\n",
+					"#     ssubmitterlist = spark.createDataFrame(dfsubmitterlist)\r\n",
+					"#     spark.sql(f\"drop table if exists odw_harmonised_db.zendesk_submitter;\")\r\n",
+					"#     ssubmitterlist.write.format('delta').saveAsTable(\"odw_harmonised_db.zendesk_submitter\")\r\n",
 					"\r\n",
-					"submitter_table(list_with_all_zendesk_dict)"
+					"# submitter_table(list_with_all_zendesk_dict)"
 				],
 				"execution_count": null
 			},
@@ -925,37 +925,37 @@
 					}
 				},
 				"source": [
-					"@logging_to_appins\r\n",
-					"def requester_table(list_with_all_zendesk_dict):\r\n",
-					"    requesterlist=[]\r\n",
-					"    for requestercolumn in list_with_all_zendesk_dict:\r\n",
-					"        requesterDict= requestercolumn['requester']\r\n",
-					"        if requesterDict is None:\r\n",
-					"            continue\r\n",
-					"        else:\r\n",
-					"            requesterDict['ticket_id']=requestercolumn['id']\r\n",
-					"            requesterlist.append(requesterDict)\r\n",
+					"# @logging_to_appins\r\n",
+					"# def requester_table(list_with_all_zendesk_dict):\r\n",
+					"#     requesterlist=[]\r\n",
+					"#     for requestercolumn in list_with_all_zendesk_dict:\r\n",
+					"#         requesterDict= requestercolumn['requester']\r\n",
+					"#         if requesterDict is None:\r\n",
+					"#             continue\r\n",
+					"#         else:\r\n",
+					"#             requesterDict['ticket_id']=requestercolumn['id']\r\n",
+					"#             requesterlist.append(requesterDict)\r\n",
 					"            \r\n",
 					"    \r\n",
-					"    dfrequesterlist=pd.DataFrame(requesterlist)\r\n",
-					"    dfrequesterlist.id = dfrequesterlist.id.astype(str)\r\n",
-					"    dfrequesterlist.locale_id = dfrequesterlist.locale_id.astype(str)\r\n",
-					"    dfrequesterlist.organization_id = dfrequesterlist.organization_id.astype(str)\r\n",
-					"    dfrequesterlist.role_type = dfrequesterlist.role_type.astype(str)\r\n",
-					"    dfrequesterlist.custom_role_id = dfrequesterlist.custom_role_id.astype(str)\r\n",
-					"    dfrequesterlist.organization_id = dfrequesterlist.organization_id.astype(str)\r\n",
-					"    dfrequesterlist.default_group_id = dfrequesterlist.default_group_id.astype(str)\r\n",
+					"#     dfrequesterlist=pd.DataFrame(requesterlist)\r\n",
+					"#     dfrequesterlist.id = dfrequesterlist.id.astype(str)\r\n",
+					"#     dfrequesterlist.locale_id = dfrequesterlist.locale_id.astype(str)\r\n",
+					"#     dfrequesterlist.organization_id = dfrequesterlist.organization_id.astype(str)\r\n",
+					"#     dfrequesterlist.role_type = dfrequesterlist.role_type.astype(str)\r\n",
+					"#     dfrequesterlist.custom_role_id = dfrequesterlist.custom_role_id.astype(str)\r\n",
+					"#     dfrequesterlist.organization_id = dfrequesterlist.organization_id.astype(str)\r\n",
+					"#     dfrequesterlist.default_group_id = dfrequesterlist.default_group_id.astype(str)\r\n",
 					"\r\n",
 					"\r\n",
-					"    from pyspark.sql.types import StructType, StructField, StringType\r\n",
-					"    schema = StructType([StructField(\"foo\", StringType(), True)])\r\n",
-					"    dfrequesterlist = dfrequesterlist.dropna(axis='columns', how='all') # Drops columns with all NA values\r\n",
+					"#     from pyspark.sql.types import StructType, StructField, StringType\r\n",
+					"#     schema = StructType([StructField(\"foo\", StringType(), True)])\r\n",
+					"#     dfrequesterlist = dfrequesterlist.dropna(axis='columns', how='all') # Drops columns with all NA values\r\n",
 					"\r\n",
-					"    srequesterlist = spark.createDataFrame(dfrequesterlist)\r\n",
-					"    spark.sql(f\"drop table if exists odw_harmonised_db.zendesk_requester;\")\r\n",
-					"    srequesterlist.write.format('delta').saveAsTable(\"odw_harmonised_db.zendesk_requester\")\r\n",
+					"#     srequesterlist = spark.createDataFrame(dfrequesterlist)\r\n",
+					"#     spark.sql(f\"drop table if exists odw_harmonised_db.zendesk_requester;\")\r\n",
+					"#     srequesterlist.write.format('delta').saveAsTable(\"odw_harmonised_db.zendesk_requester\")\r\n",
 					"\r\n",
-					"requester_table(list_with_all_zendesk_dict)"
+					"# requester_table(list_with_all_zendesk_dict)"
 				],
 				"execution_count": null
 			},
@@ -973,38 +973,38 @@
 					}
 				},
 				"source": [
-					"@logging_to_appins\r\n",
-					"def collaborator_table(list_with_all_zendesk_dict):\r\n",
-					"    collaboratorlist=[]\r\n",
-					"    for collaboratorcolumn in list_with_all_zendesk_dict:\r\n",
-					"        collaboratorDict= collaboratorcolumn['collaborator']\r\n",
-					"        if collaboratorDict is None:\r\n",
-					"            continue\r\n",
-					"        else:\r\n",
-					"            for dictionary in collaboratorDict:\r\n",
-					"                dictionary['ticket_id']=collaboratorcolumn['id']\r\n",
-					"                collaboratorlist.append(dictionary)\r\n",
+					"# @logging_to_appins\r\n",
+					"# def collaborator_table(list_with_all_zendesk_dict):\r\n",
+					"#     collaboratorlist=[]\r\n",
+					"#     for collaboratorcolumn in list_with_all_zendesk_dict:\r\n",
+					"#         collaboratorDict= collaboratorcolumn['collaborator']\r\n",
+					"#         if collaboratorDict is None:\r\n",
+					"#             continue\r\n",
+					"#         else:\r\n",
+					"#             for dictionary in collaboratorDict:\r\n",
+					"#                 dictionary['ticket_id']=collaboratorcolumn['id']\r\n",
+					"#                 collaboratorlist.append(dictionary)\r\n",
 					"            \r\n",
 					"    \r\n",
-					"    dfcollaboratorlist=pd.DataFrame(collaboratorlist)\r\n",
-					"    dfcollaboratorlist.id = dfcollaboratorlist.id.astype(str)\r\n",
-					"    dfcollaboratorlist.locale_id = dfcollaboratorlist.locale_id.astype(str)\r\n",
-					"    dfcollaboratorlist.organization_id = dfcollaboratorlist.organization_id.astype(str)\r\n",
-					"    dfcollaboratorlist.role_type = dfcollaboratorlist.role_type.astype(str)\r\n",
-					"    dfcollaboratorlist.custom_role_id = dfcollaboratorlist.custom_role_id.astype(str)\r\n",
-					"    dfcollaboratorlist.organization_id = dfcollaboratorlist.organization_id.astype(str)\r\n",
-					"    dfcollaboratorlist.default_group_id = dfcollaboratorlist.default_group_id.astype(str)\r\n",
+					"#     dfcollaboratorlist=pd.DataFrame(collaboratorlist)\r\n",
+					"#     dfcollaboratorlist.id = dfcollaboratorlist.id.astype(str)\r\n",
+					"#     dfcollaboratorlist.locale_id = dfcollaboratorlist.locale_id.astype(str)\r\n",
+					"#     dfcollaboratorlist.organization_id = dfcollaboratorlist.organization_id.astype(str)\r\n",
+					"#     dfcollaboratorlist.role_type = dfcollaboratorlist.role_type.astype(str)\r\n",
+					"#     dfcollaboratorlist.custom_role_id = dfcollaboratorlist.custom_role_id.astype(str)\r\n",
+					"#     dfcollaboratorlist.organization_id = dfcollaboratorlist.organization_id.astype(str)\r\n",
+					"#     dfcollaboratorlist.default_group_id = dfcollaboratorlist.default_group_id.astype(str)\r\n",
 					"\r\n",
 					"\r\n",
-					"    from pyspark.sql.types import StructType, StructField, StringType\r\n",
-					"    schema = StructType([StructField(\"foo\", StringType(), True)])\r\n",
-					"    dfcollaboratorlist = dfcollaboratorlist.dropna(axis='columns', how='all') # Drops columns with all NA values\r\n",
+					"#     from pyspark.sql.types import StructType, StructField, StringType\r\n",
+					"#     schema = StructType([StructField(\"foo\", StringType(), True)])\r\n",
+					"#     dfcollaboratorlist = dfcollaboratorlist.dropna(axis='columns', how='all') # Drops columns with all NA values\r\n",
 					"\r\n",
-					"    scollaboratorlist = spark.createDataFrame(dfcollaboratorlist)\r\n",
-					"    spark.sql(f\"drop table if exists odw_harmonised_db.zendesk_collaborator;\")\r\n",
-					"    scollaboratorlist.write.format('delta').saveAsTable(\"odw_harmonised_db.zendesk_collaborator\")\r\n",
+					"#     scollaboratorlist = spark.createDataFrame(dfcollaboratorlist)\r\n",
+					"#     spark.sql(f\"drop table if exists odw_harmonised_db.zendesk_collaborator;\")\r\n",
+					"#     scollaboratorlist.write.format('delta').saveAsTable(\"odw_harmonised_db.zendesk_collaborator\")\r\n",
 					"\r\n",
-					"collaborator_table(list_with_all_zendesk_dict)"
+					"# collaborator_table(list_with_all_zendesk_dict)"
 				],
 				"execution_count": null
 			},
