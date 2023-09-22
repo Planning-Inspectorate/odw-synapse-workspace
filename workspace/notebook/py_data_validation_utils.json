@@ -1,0 +1,968 @@
+{
+	"name": "py_data_validation_utils",
+	"properties": {
+		"folder": {
+			"name": "utils"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodwpr",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "48da954c-c5a4-4257-8c6d-3dfac836deee"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": true,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodwpr",
+				"name": "pinssynspodwpr",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodwpr",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.2",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Set global variables"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"account_name = 'pinsstodwdevuks9h80mb'\r\n",
+					"container_name = 'odw-config'\r\n",
+					"jobId = mssparkutils.env.getJobId()\r\n",
+					"data_validation_relative_path = \"data_validation\"\r\n",
+					"test_results_relative_path = \"data_validation/outputs/test_results\"\r\n",
+					"data_validation_json_files = [\"test_results_dict\", \"table_mapping\"]\r\n",
+					"akv_name = 'pinskvsynwodwdevuks'\r\n",
+					"secret_name = 'sql-mipins-password'\r\n",
+					"kv_linked_service = 'ls_kv'\r\n",
+					"source_password = mssparkutils.credentials.getSecret(akv_name, secret_name, kv_linked_service)\r\n",
+					"source_servername = \"jdbc:sqlserver://pins-prod-pdac-sql.database.windows.net:1433\"\r\n",
+					"source_dbname = \"MiPINS-PRD-ISS\"\r\n",
+					"source_url = source_servername + \";\" + \"databaseName=\" + source_dbname + \";\"\r\n",
+					"source_user = \"kincarta\""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Function to create adls path"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def create_adls_path(account_name: str, container_name: str, relative_path: str):\r\n",
+					"    file_path = f'abfss://{container_name}@{account_name}.dfs.core.windows.net/{relative_path}'\r\n",
+					"    return file_path"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Mount storage to work with json files as python dictionaries rather than use spark or pandas DataFrames"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def mount_storage(relative_path: str, jobId):\r\n",
+					"    path = create_adls_path(account_name, container_name, data_validation_relative_path)\r\n",
+					"    # print(f\"adls path: {path}\")\r\n",
+					"\r\n",
+					"    # unmount path first\r\n",
+					"    mssparkutils.fs.unmount(f\"/{relative_path}\")\r\n",
+					"\r\n",
+					"    # mount file path\r\n",
+					"    mssparkutils.fs.mount( \r\n",
+					"        f\"abfss://{container_name}@{account_name}.dfs.core.windows.net/{relative_path}\",\r\n",
+					"        f\"/{relative_path}\", \r\n",
+					"        {\"linkedService\":\"ls_storage\"} \r\n",
+					"    )\r\n",
+					"    # print(\"Path mounted\")\r\n",
+					"\r\n",
+					"    spark_fs_path = f\"synfs:/{jobId}/{relative_path}\"\r\n",
+					"    # print(f\"File path (mssparkutils fs API): {spark_fs_path}\")\r\n",
+					"    local_fs_path = f\"/synfs/{jobId}/{relative_path}\"\r\n",
+					"    # print(f\"File path (local file system path): {local_fs_path}\")\r\n",
+					"    # print(\"Listing files in path - size = 0 means it's a folder\")\r\n",
+					"    \r\n",
+					"    # return mssparkutils.fs.ls(spark_fs_path)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"mount_storage(data_validation_relative_path, jobId)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Set the json reference files in storage to dictionaries to work with"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def load_json_file_to_dict(json_file: str, jobId):\r\n",
+					"    json_path = f\"/synfs/{jobId}/{data_validation_relative_path}/{json_file}.json\"\r\n",
+					"    # print(f\"json path: {json_path}\")\r\n",
+					"    with open(f'{json_path}', \"r\", encoding=\"utf-8\") as data:\r\n",
+					"        json_file_dict = json.load(data)\r\n",
+					"\r\n",
+					"    return json_file_dict"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"json_file_dicts = {}\r\n",
+					"for json_file in data_validation_json_files:\r\n",
+					"    json_dict = load_json_file_to_dict(json_file=json_file, jobId=jobId)\r\n",
+					"    json_file_dicts[json_file] = json_dict\r\n",
+					"\r\n",
+					"table_mapping = json_file_dicts[\"table_mapping\"]\r\n",
+					"test_results_dict = json_file_dicts[\"test_results_dict\"]"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Function to define target dataset"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def targetdataset(target_dbtable: str):\r\n",
+					"    query = f\"SELECT * FROM `odw_curated_db`.`{target_dbtable}`\"\r\n",
+					"    target_df = spark.sql(query)\r\n",
+					"    target_df = target_df.toPandas()\r\n",
+					"\r\n",
+					"    return target_df"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Function to define source dataset"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def sourcedataset(source_dbtable: str):\r\n",
+					"        sourceData = spark.read \\\r\n",
+					"                .format(\"com.microsoft.sqlserver.jdbc.spark\") \\\r\n",
+					"                .option(\"url\", source_url) \\\r\n",
+					"                .option(\"dbtable\", source_dbtable) \\\r\n",
+					"                .option(\"user\", source_user) \\\r\n",
+					"                .option(\"password\", source_password).load()\r\n",
+					"\r\n",
+					"        source_df = sourceData.toPandas()\r\n",
+					"\r\n",
+					"        return source_df"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### test1_rows_in_source_not_in_target"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def test1_rows_in_source_not_in_target(test_source_df, test_target_df):\r\n",
+					"    result_df = test_source_df[~test_source_df.index.isin(test_target_df.index)]\r\n",
+					"    if len(result_df) > 0:\r\n",
+					"        result = True\r\n",
+					"    else:\r\n",
+					"        result = False\r\n",
+					"    return result"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### test1_export_values"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def test1_export_values(test_source_df, test_target_df):\r\n",
+					"    result_df = test_source_df[~test_source_df.index.isin(test_target_df.index)]\r\n",
+					"    if len(result_df) > 0:\r\n",
+					"        return result_df\r\n",
+					"    else:\r\n",
+					"        pass"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### test2_rows_in_target_not_in_source"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def test2_rows_in_target_not_in_source(test_source_df, test_target_df):\r\n",
+					"    result_df = test_target_df[~test_target_df.index.isin(test_source_df.index)]\r\n",
+					"    if len(result_df) > 0:\r\n",
+					"        result = True\r\n",
+					"    else:\r\n",
+					"        result = False\r\n",
+					"    return result"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### test2_export_values"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def test2_export_values(test_source_df, test_target_df):\r\n",
+					"    result_df = test_target_df[~test_target_df.index.isin(test_source_df.index)]\r\n",
+					"    if len(result_df) > 0:\r\n",
+					"        return result_df\r\n",
+					"    else:\r\n",
+					"        pass"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### test3_count_source_table_rows"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def test3_count_source_table_rows(test_source_df):\r\n",
+					"    return len(test_source_df)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### test4_count_target_table_rows"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def test4_count_target_table_rows(test_target_df):\r\n",
+					"    return len(test_target_df)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### test5_count_source_table_columns"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def test5_count_source_table_columns(test_source_df):\r\n",
+					"    return len(test_source_df.columns)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### test6_count_target_table_columns"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def test6_count_target_table_columns(test_target_df):\r\n",
+					"    return len(test_target_df.columns)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### test7_duplicates_in_odw"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def test7_duplicates_in_odw(test_target_df):\r\n",
+					"    duplicates_count = test_target_df.duplicated().sum()\r\n",
+					"    if duplicates_count > 0:\r\n",
+					"        duplicates = True\r\n",
+					"    else:\r\n",
+					"        duplicates = False\r\n",
+					"\r\n",
+					"    return duplicates"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### test8_source_target_shape_match"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def test8_source_target_shape_match(test_source_df, test_target_df) -> bool:\r\n",
+					"    if test_source_df.shape == test_target_df.shape:\r\n",
+					"        shape_match = True\r\n",
+					"    else:\r\n",
+					"        shape_match = False\r\n",
+					"    \r\n",
+					"    return shape_match"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Function to add a new test to the test results dictionary\r\n",
+					"\r\n",
+					"Pass a test name into the function and it sets the test result initially to \"\" (empty string)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def add_new_test_to_results_dict(test_name: str) -> None:\r\n",
+					"    for k, v in test_results_dict.items():\r\n",
+					"        value_dict = v\r\n",
+					"        value_dict[test_name] = \"\""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Function to add a new source table to the test results dictionary\r\n",
+					"\r\n",
+					"Pass the name of the new source table into the function and it will get added to the test results dictionary with the same values as the other source tables"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def add_new_source_table_to_test_results_dict(new_source_table: str) -> None:\r\n",
+					"    for k, v in test_results_dict.copy().items():\r\n",
+					"        if new_source_table not in test_results_dict.keys():\r\n",
+					"            test_results_dict[new_source_table] = v"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Write to storage account"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def write_to_storage(account_name: str, container_name: str, relative_path: str, data) -> None:\r\n",
+					"    account_name = account_name\r\n",
+					"    container_name = container_name\r\n",
+					"    relative_path = relative_path\r\n",
+					"    path = create_adls_path(account_name, container_name, relative_path)\r\n",
+					"\r\n",
+					"    # Write spark dataframe as a csv file \r\n",
+					"    print(\"adls path is \" + path)\r\n",
+					"    data.write.csv(path, mode = 'overwrite', header = 'true', sep = \",\")\r\n",
+					"\r\n",
+					"# # Write spark dataframe as a parquet file \r\n",
+					"# parquet_path = adls_path + ' Your file name ' \r\n",
+					"# data.write.parquet(parquet_path, mode = 'overwrite') \r\n",
+					"\r\n",
+					"# # Write spark dataframe as a json file \r\n",
+					"# json_path = adls_path + 'Your file name ' \r\n",
+					"# data.write.json(json_path, mode = 'overwrite')"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Function to rename csv files"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def rename_csv_files(old_path: str, new_path: str) -> None:\r\n",
+					"    # rename the file to a sensible name using the mssparkutils mv function\r\n",
+					"    files = list(mssparkutils.fs.ls(old_path))\r\n",
+					"    csv_files = [f for f in files if f.name.endswith('.csv')]\r\n",
+					"    file_path = csv_files[0].path\r\n",
+					"    mssparkutils.fs.mv(file_path, new_path)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Function to remove _SUCCESS files"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def remove_success_files(old_path: str, new_path: str) -> None:\r\n",
+					"    # delete the _SUCCESS file as it's not needed\r\n",
+					"    files = list(mssparkutils.fs.ls(old_path))\r\n",
+					"    success_files = [f for f in files if f.name.endswith('_SUCCESS')]\r\n",
+					"    success_file_path = success_files[0].path\r\n",
+					"    mssparkutils.fs.rm(success_file_path)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Function to write records to csv"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def write_records_to_csv(export_values_test, folder: str):\r\n",
+					"    # create a DataFrame of the mismatched records\r\n",
+					"    export_values_test = export_values_test\r\n",
+					"    values_df = export_values_test(test_source_df, test_target_df)\r\n",
+					"\r\n",
+					"    # pass in the source table name to the file path so the records for each source table are saved in their own folder\r\n",
+					"    relative_path = f'data_validation/outputs/test_results_records/{folder}/{source}'\r\n",
+					"    data = spark.createDataFrame(values_df)\r\n",
+					"\r\n",
+					"    # cast null columns to string to avoid errors\r\n",
+					"    data = data.select([f.lit(None).cast('string').alias(i.name) if isinstance(i.dataType, NullType) else i.name for i in data.schema])\r\n",
+					"\r\n",
+					"    # repartition so all data is written to a single file\r\n",
+					"    data = data.repartition(1)\r\n",
+					"\r\n",
+					"    # call the write_to_storage function, passing in the account, path and data variables\r\n",
+					"    path = create_adls_path(account_name, container_name, relative_path)\r\n",
+					"    write_to_storage(account_name, container_name, relative_path, data)\r\n",
+					"\r\n",
+					"    print(f'File {source} written to storage')\r\n",
+					"    print(\"Renaming file...\")\r\n",
+					"\r\n",
+					"    # rename the file to a sensible name using the mssparkutils mv function\r\n",
+					"    relative_path_new = f'data_validation/outputs/test_results_records/{folder}/{source}/{source}.csv'\r\n",
+					"    new_path = create_adls_path(account_name, container_name, relative_path_new)\r\n",
+					"    rename_csv_files(old_path=path, new_path=new_path)\r\n",
+					"\r\n",
+					"    print(f'File renamed - new file path: {new_path}')\r\n",
+					"\r\n",
+					"    print(\"Deleting _SUCCESS file\")\r\n",
+					"\r\n",
+					"    remove_success_files(old_path=path, new_path=new_path)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### pandas_compare_dataframes"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def pandas_compare_dataframes(test_source_df, test_target_df):\r\n",
+					"    comparison_df = test_source_df.compare(test_target_df, result_names = ('source', 'target'))\r\n",
+					"    if len(comparison_df) > 0:\r\n",
+					"        return comparison_df\r\n",
+					"    else:\r\n",
+					"        return print(\"No differences\")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}

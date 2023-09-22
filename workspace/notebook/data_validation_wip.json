@@ -1,0 +1,1360 @@
+{
+	"name": "data_validation_wip",
+	"properties": {
+		"folder": {
+			"name": "utils"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodwpr",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "79749495-4779-4b53-8662-0f5f1cc3d3cf"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": true,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodwpr",
+				"name": "pinssynspodwpr",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodwpr",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.2",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Data validation notebook  \r\n",
+					"\r\n",
+					"This contains a table mapping of source (MiPINS) and target (ODW) tables and various data validation tests to run to compare each source with its corresponding target table."
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Imports etc"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from notebookutils import mssparkutils\r\n",
+					"from pyspark.sql import SparkSession \r\n",
+					"from pyspark.sql.types import * \r\n",
+					"import pyspark.sql.functions as f\r\n",
+					"import pprint\r\n",
+					"import json\r\n",
+					"from tqdm import tqdm\r\n",
+					"\r\n",
+					"# update pandas to make use of pandas.compare \"result_names\" parameter\r\n",
+					"# however, %pip magic command is disabled when running a notebook from a pipeline so this needs sorting first\r\n",
+					"%pip install -U pandas\r\n",
+					"import pandas as pd\r\n",
+					"pd.DataFrame.iteritems = pd.DataFrame.items"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Run data_validation_utils notebook to reference all functions and variables from there  \r\n",
+					"\r\n",
+					"This keeps this notebook a lot smaller and tidier and just contains the bare minimum code"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%run utils/py_data_validation_utils"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"mssparkutils.notebook.run(\"utils/data_validation_utils\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Print lists of all callables and / or functions available in the current context.  \r\n",
+					"\r\n",
+					"This might be useful to see in one place here rather than switching between notebooks looking for the function names etc"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# print a list of everything that is callable within the current context (variables, functions, imports etc)\r\n",
+					"print(\"List of callables...\")\r\n",
+					"callables = [f for f in dir() if f[0] != '_']\r\n",
+					"callables.sort()\r\n",
+					"pprint.pprint(callables)\r\n",
+					"print(\"*********************************\")\r\n",
+					"print(\"*********************************\")\r\n",
+					"# print a list of functions available in the current context\r\n",
+					"function_list = ([f.__name__ for f in globals().values() if type(f) == type(lambda *args: None)])\r\n",
+					"# list of functions that I'm not interested in (maybe built-in notebook functions?)\r\n",
+					"unwanted = [\"trap_exit\", \"initializeLHContext\", \"display\"]\r\n",
+					"for i in unwanted:\r\n",
+					"    function_list.remove(i)\r\n",
+					"function_list.sort()\r\n",
+					"print(\"List of functions...\")\r\n",
+					"pprint.pprint(function_list)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# add a new test\r\n",
+					"# add_new_test_to_results_dict(\"test8_source_target_shape_match\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# # add a new source table\r\n",
+					"# add_new_source_table_to_test_result_dict(\"{table name}\")\r\n",
+					"# pprint.pprint(test_result_dict)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Loop through tables and run each test against each table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"for source, target in tqdm(table_mapping.items()):\r\n",
+					"    source_dbtable = source\r\n",
+					"    target_dbtable = target\r\n",
+					"    test_source_df = sourcedataset(source_dbtable)\r\n",
+					"    test_target_df = targetdataset(target_dbtable)\r\n",
+					"    \r\n",
+					"    # run test1_rows_in_source_not_in_target\r\n",
+					"    result = test1_rows_in_source_not_in_target(test_source_df, test_target_df)\r\n",
+					"    test_results_dict[source_dbtable]['target_table'] = target_dbtable\r\n",
+					"    test_results_dict[source_dbtable]['test1_rows_in_source_not_in_target'] = result\r\n",
+					"\r\n",
+					"    # run test2_rows_in_target_not_in_source\r\n",
+					"    result = test2_rows_in_target_not_in_source(test_source_df, test_target_df)\r\n",
+					"    test_results_dict[source_dbtable]['test2_rows_in_target_not_in_source'] = result\r\n",
+					"\r\n",
+					"    # run test3_count_source_table_rows\r\n",
+					"    result = test3_count_source_table_rows(test_source_df)\r\n",
+					"    test_results_dict[source_dbtable]['test3_count_source_table_rows'] = result\r\n",
+					"\r\n",
+					"    # run test4_count_target_table_rows\r\n",
+					"    result = test4_count_target_table_rows(test_target_df)\r\n",
+					"    test_results_dict[source_dbtable]['test4_count_target_table_rows'] = result\r\n",
+					"\r\n",
+					"    # run test5_count_source_table_columns\r\n",
+					"    result = test5_count_source_table_columns(test_source_df)\r\n",
+					"    test_results_dict[source_dbtable]['test5_count_source_table_columns'] = result\r\n",
+					"\r\n",
+					"    # run test6_count_target_table_columns\r\n",
+					"    result = test6_count_target_table_columns(test_source_df)\r\n",
+					"    test_results_dict[source_dbtable]['test6_count_target_table_columns'] = result\r\n",
+					"\r\n",
+					"    # run test7_duplicates_in_odw\r\n",
+					"    result = test7_duplicates_in_odw(test_target_df)\r\n",
+					"    test_results_dict[source_dbtable]['test7_duplicates_in_odw'] = result\r\n",
+					"\r\n",
+					"    # run test8_source_target_shape_match\r\n",
+					"    result = test8_source_target_shape_match(test_source_df, test_target_df)\r\n",
+					"    test_results_dict[source_dbtable]['test8_source_target_shape_match'] = result\r\n",
+					"\r\n",
+					"print(\"All tests complete!\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Show test results in a DataFrame"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"result_df = pd.DataFrame.from_dict(test_results_dict, orient=\"index\")\r\n",
+					"result_df.index.name = \"Source Table\"\r\n",
+					"result_df"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Write test results file to storage account"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Get full path\r\n",
+					"test_results_path = create_adls_path(account_name, container_name, test_results_relative_path)\r\n",
+					"\r\n",
+					"# convert result_df to spark DataFrame\r\n",
+					"data = spark.createDataFrame(result_df)\r\n",
+					"\r\n",
+					"# use repartition and set to 1 so all data is written to 1 file\r\n",
+					"data = data.repartition(1)\r\n",
+					"\r\n",
+					"# call the write_to_storage function, passing in the variables above\r\n",
+					"write_to_storage(account_name, container_name, test_results_relative_path, data)\r\n",
+					"print(\"File written to storage\")\r\n",
+					"\r\n",
+					"# Rename the file\r\n",
+					"print(\"Renaming file...\")\r\n",
+					"test_results_relative_path_new = 'data_validation/outputs/test_results/test_results.csv'\r\n",
+					"test_results_new_path = create_adls_path(account_name, container_name, test_results_relative_path_new)\r\n",
+					"rename_csv_files(old_path=test_results_path, new_path=test_results_new_path)\r\n",
+					"print(\"File renamed: \" + test_results_new_path)\r\n",
+					"\r\n",
+					"# Remove _SUCCESS file\r\n",
+					"print(\"Deleting _SUCCESS file...\")\r\n",
+					"remove_success_files(old_path=test_results_path, new_path=test_results_new_path)\r\n",
+					"print(\"_SUCCESS file deleted\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Write mismatched records to a csv file and send to storage account"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# loop through test results and set the source and target DataFrames\r\n",
+					"for source, target in tqdm(test_results_dict.items()):\r\n",
+					"    source_dbtable = source\r\n",
+					"    target_dbtable = target['target_table']\r\n",
+					"    test_source_df = sourcedataset(source_dbtable)\r\n",
+					"    test_target_df = targetdataset(target_dbtable)\r\n",
+					"\r\n",
+					"    # if certain tests are True then the records need exporting to csv and saved in storage\r\n",
+					"    if target['test1_rows_in_source_not_in_target'] == True:\r\n",
+					"        test = test1_export_values\r\n",
+					"        folder = 'test1_rows_in_source_not_in_target'\r\n",
+					"        write_records_to_csv(test, folder)\r\n",
+					"        print(\"test1 records saved to storage\")\r\n",
+					"    elif target['test2_rows_in_target_not_in_source'] == True:\r\n",
+					"        test = test2_export_values\r\n",
+					"        folder = 'test2_rows_in_target_not_in_source'\r\n",
+					"        write_records_to_csv(test, folder)\r\n",
+					"        print(\"test2 records saved to storage\")\r\n",
+					"    else:\r\n",
+					"        print(f'Table {source}: No records saved to storage')\r\n",
+					"\r\n",
+					"print(\"All files written to storage\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Set flag for pandas.compare ability (DataFrames must be same shape)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def pandas_compare_flag(row):\r\n",
+					"    if row['test8_source_target_shape_match'] == True:\r\n",
+					"        return True\r\n",
+					"    else:\r\n",
+					"        return False\r\n",
+					"\r\n",
+					"result_df['pandas_compare_flag'] = result_df.apply(pandas_compare_flag, axis = 1)\r\n",
+					"result_df"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Run pandas compare against DataFrames with the same shape"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"for source, target in tqdm(test_results_dict.items()):\r\n",
+					"    if source == 'live.dim_HR_work_contract':\r\n",
+					"        if target['test8_source_target_shape_match'] == True:\r\n",
+					"            source_dbtable = source\r\n",
+					"            target_dbtable = target['target_table']\r\n",
+					"            test_source_df = sourcedataset(source_dbtable)\r\n",
+					"            test_target_df = targetdataset(target_dbtable)\r\n",
+					"            print(f\"{source_dbtable} -> {target_dbtable}\")\r\n",
+					"            compare_df = pandas_compare_dataframes(test_source_df, test_target_df)\r\n",
+					"            print(compare_df)\r\n",
+					"        \r\n",
+					"print(\"Finished comparisons\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"test_source_df"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"test_target_df"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"test_source_df = test_source_df.applymap(str)\r\n",
+					"test_target_df = test_target_df.applymap(str)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"merge_df = test_source_df.merge(test_target_df, how='left', on='dim_work_contract_key', suffixes=('_MiPINS', '_ODW'))\r\n",
+					"merge_df"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def match_flag(row):\r\n",
+					"    if row['WorkContractCode_MiPINS'] == row['WorkContractCode_ODW']:\r\n",
+					"        return True\r\n",
+					"    else:\r\n",
+					"        return False\r\n",
+					"\r\n",
+					"merge_df['match'] = merge_df.apply(match_flag, axis = 1)\r\n",
+					"merge_df"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"merge_df_mipins = pd.DataFrame(merge_df, columns = ['dim_work_contract_key', 'WorkContractCode_MiPINS', 'WorkContractDesc_MiPINS'])\r\n",
+					"merge_df_mipins = merge_df_mipins.rename(columns={'WorkContractCode_MiPINS': 'WorkContractCode', 'WorkContractDesc_MiPINS': 'WorkContractDesc'})\r\n",
+					"merge_df_mipins"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"merge_df_odw = pd.DataFrame(merge_df, columns = ['dim_work_contract_key', 'WorkContractCode_ODW', 'WorkContractDesc_ODW'])\r\n",
+					"merge_df_odw = merge_df_odw.rename(columns={'WorkContractCode_ODW': 'WorkContractCode', 'WorkContractDesc_ODW': 'WorkContractDesc'})\r\n",
+					"merge_df_odw"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"merge_df_mipins.compare(merge_df_odw, result_names=('MiPINS', 'ODW'))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"test_source_df.compare(test_target_df, result_names=('source', 'target'))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"test_source_df.dtypes"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"test_source_df.astype('str').dtypes"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"type(test_source_df)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"test_target_df.astype('str').dtypes"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"print(type(test_source_df))\r\n",
+					"print(type(test_target_df))\r\n",
+					"print(test_source_df.dtypes)\r\n",
+					"print(test_target_df.dtypes)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"concat_df = pd.concat([test_source_df, test_target_df], ignore_index=True)\r\n",
+					"# concat_df['duplicate'] = concat_df.duplicated(subset=['dim_work_contract_key', 'WorkContractCode', 'WorkContractDesc'], keep='first')\r\n",
+					"concat_df.sort_values(by='WorkContractDesc')"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"type(concat_df)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"concat_df = concat_df.applymap(str)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"concat_df.dtypes"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"concat_df['duplicate'] = concat_df.duplicated(subset=['dim_work_contract_key', 'WorkContractCode', 'WorkContractDesc'], keep='first')"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"concat_df.sort_values(by = 'WorkContractDesc', ascending=True)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"len(concat_df)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"deduped_df = concat_df.drop_duplicates(inplace=False, keep=False)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"deduped_df.sort_values(by='WorkContractDesc')"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"len(deduped_df)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"my_test_df = pd.DataFrame({\r\n",
+					"    \"dim_work_contract_key\": [1, 1],\r\n",
+					"    \"WorkContractCode\": [\"AG\", \"AG\"]\r\n",
+					"})\r\n",
+					"\r\n",
+					"my_test_df['duplicate'] = my_test_df.duplicated()\r\n",
+					"my_test_df"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"my_test_df.drop_duplicates(inplace=True, keep=\"first\", subset=['dim_work_contract_key', 'WorkContractCode'])\r\n",
+					"my_test_df"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"test_source_df.compare(test_target_df, result_names = ('source', 'target'))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"new_source_df = test_source_df.set_index(['dim_work_contract_key', 'WorkContractCode', 'WorkContractDesc'], drop=False)\r\n",
+					"# new_source_df.sort_values(['dim_work_contract_key', 'WorkContractCode', 'WorkContractDesc'], ascending=True)\r\n",
+					"new_source_df"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"new_target_df = test_target_df.set_index(['dim_work_contract_key', 'WorkContractCode', 'WorkContractDesc'], drop=False)\r\n",
+					"new_target_df"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"source_index = new_source_df.index\r\n",
+					"target_index = new_target_df.index"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# change dtypes of all columns to strings\r\n",
+					"source_index.dtypes"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"target_index.dtypes"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"source_index = source_index.set_levels(source_index.levels[0].astype(str), level = 0)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"source_index.get_level_values(0)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"target_index.get_level_values(0)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# new_source_df.compare(new_target_df, result_names = ('source', 'target'))\r\n",
+					"# new_source_df.equals(new_target_df)\r\n",
+					"pd.testing.assert_index_equal(source_index, target_index, check_order=False)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"new_source_df.compare(new_target_df)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"test_source_df.compare(test_target_df, result_names = ('source', 'target'))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"test_source_df['hash'] = pd.Series((hash(tuple(row)) for _, row in test_source_df.iterrows()))\r\n",
+					"test_source_df"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"test_target_df['hash'] = pd.Series((hash(tuple(row)) for _, row in test_target_df.iterrows()))\r\n",
+					"test_target_df"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"concat_df = pd.concat([test_source_df, test_target_df])\r\n",
+					"concat_df = concat_df.reset_index(drop=True)\r\n",
+					"concat_df_groupby = concat_df.groupby(list(concat_df.columns))\r\n",
+					"idx = [x[0] for x in concat_df_groupby.groups.values() if len(x) == 1]\r\n",
+					"concat_df.reindex(idx)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"df_diff = pd.concat([test_source_df, test_target_df]).drop_duplicates(keep=False)\r\n",
+					"df_diff"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Set the exit value of the notebook  \r\n",
+					"\r\n",
+					"This can be anything - dictionary, list, single value. \r\n",
+					"\r\n",
+					"We could pass in a list of global variables for example and then make use of those in a pipeline."
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# mssparkutils.notebook.exit(test_results_dict)"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
