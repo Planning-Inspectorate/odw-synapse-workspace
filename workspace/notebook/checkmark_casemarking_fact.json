@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "6912d363-3db1-480a-ad16-850b1613e793"
+				"spark.autotune.trackingId": "7aa8720c-4fd2-4c58-9950-14868a5a8677"
 			}
 		},
 		"metadata": {
@@ -117,10 +117,11 @@
 					"    T1.CoverageDetail               AS CoverageReferenceID ,\r\n",
 					"    T1.CaseReference                AS CaseReference, \r\n",
 					"    T2.SourceSystemID               AS SourceSystemID,\r\n",
-					"    to_timestamp(T1.expected_from) AS IngestionDate,\r\n",
+					"    to_timestamp(T1.IngestionDate)  AS IngestionDate,\r\n",
 					"    NULL                            AS ValidTo,\r\n",
 					"    md5(\r\n",
 					"        concat(\r\n",
+					"            IFNULL(T1.CasemarkingDimID,'.'), \r\n",
 					"            IFNULL(T1.CaseReference,'.'), \r\n",
 					"            IFNULL(T1.InvalidNullity ,'.'),\r\n",
 					"            IFNULL(T1.StructureReasoningDetail,'.'),\r\n",
@@ -173,25 +174,26 @@
 					"        WHEN T1.CaseReference = T5.CaseReference \r\n",
 					"            AND md5(\r\n",
 					"                concat(\r\n",
-					"                    IFNULL(T1.CaseReference,'.'), \r\n",
-					"                    IFNULL(T1.InvalidNullity ,'.'),\r\n",
-					"                    IFNULL(T1.StructureReasoningDetail,'.'),\r\n",
-					"                    IFNULL(T1.Complexity,'.'),\r\n",
-					"                    IFNULL(T1.PresentationAccuracyDetail,'.'),\r\n",
-					"                    IFNULL(T1.Outcome,'.'),\r\n",
-					"                    IFNULL(T1.GroundAIITLevel,'.'),\r\n",
-					"                    IFNULL(T1.ConditionsDetail,'.'),\r\n",
-					"                    IFNULL(T1.CoverageDetail,'.'))) <> T5.RowID    -- same employee, changed data\r\n",
+					"                    IFNULL(T1.CasemarkingDimID,'.'), \r\n",
+					"            IFNULL(T1.CaseReference,'.'), \r\n",
+					"            IFNULL(T1.InvalidNullity ,'.'),\r\n",
+					"            IFNULL(T1.StructureReasoningDetail,'.'),\r\n",
+					"            IFNULL(T1.Complexity,'.'),\r\n",
+					"            IFNULL(T1.PresentationAccuracyDetail,'.'),\r\n",
+					"            IFNULL(T1.Outcome,'.'),\r\n",
+					"            IFNULL(T1.GroundAIITLevel,'.'),\r\n",
+					"            IFNULL(T1.ConditionsDetail,'.'),\r\n",
+					"            IFNULL(T1.CoverageDetail,'.'))) <> T5.RowID    -- same employee, changed data\r\n",
 					"        THEN 'Y'\r\n",
 					"        WHEN T5.CaseReference IS NULL -- new employee\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
 					"    END  = 'Y' )\r\n",
 					"    AND T1.CaseReference IS NOT NULL\r\n",
-					"    AND T1.expected_from = (SELECT MAX(expected_from) FROM odw_standardised_db.checkmark_casemarking_fact_new)\r\n",
+					"    AND T1.IngestionDate = (SELECT MAX(IngestionDate) FROM odw_harmonised_db.checkmark_casemarking_dim)\r\n",
 					";"
 				],
-				"execution_count": 17
+				"execution_count": 8
 			},
 			{
 				"cell_type": "markdown",
@@ -281,7 +283,7 @@
 					"WHERE CaseReference IN (SELECT CaseReference FROM checkmark_casemarking_fact_new WHERE CasemarkingFactID IS NULL) AND IsActive = 'Y';\r\n",
 					""
 				],
-				"execution_count": 22
+				"execution_count": 9
 			},
 			{
 				"cell_type": "code",
@@ -297,7 +299,8 @@
 					},
 					"microsoft": {
 						"language": "sparksql"
-					}
+					},
+					"collapsed": false
 				},
 				"source": [
 					"%%sql\n",
@@ -318,9 +321,17 @@
 					"    AS\n",
 					"\n",
 					"SELECT \n",
-					"    CaseID, \n",
-					"    DocumentsID,\n",
-					"    CaseReference,\n",
+					"    CasemarkingFactID,\n",
+					"    CasemarkingDimID,\n",
+					"    InvalidNullityReferenceID,\n",
+					"    StructureReasoningReferenceID,\n",
+					"    ComplexityReferenceID,\n",
+					"    PresentationAccuracyReferenceID,\n",
+					"    OutcomeReferenceID,\n",
+					"    GroundsReferenceID,\n",
+					"    ConditionsReferenceID,\n",
+					"    CoverageReferenceID ,\n",
+					"    CaseReference, \n",
 					"    T1.SourceSystemID,\n",
 					"    T1.IngestionDate,\n",
 					"    T1.ValidTo,\n",
@@ -330,7 +341,7 @@
 					"FROM checkmark_casemarking_fact_changed_rows T1\n",
 					"FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive"
 				],
-				"execution_count": null
+				"execution_count": 10
 			},
 			{
 				"cell_type": "markdown",
@@ -372,7 +383,7 @@
 					"MERGE INTO odw_harmonised_db.checkmark_casemarking_fact AS Target\r\n",
 					"USING checkmark_casemarking_fact_changed_rows_final AS Source\r\n",
 					"\r\n",
-					"ON Source.CasemarkingDimID = Target.CasemarkingDimID\r\n",
+					"ON Source.CasemarkingFactID = Target.CasemarkingFactID\r\n",
 					"\r\n",
 					"-- For Updates existing rows\r\n",
 					"\r\n",
@@ -419,7 +430,7 @@
 					";\r\n",
 					""
 				],
-				"execution_count": 23
+				"execution_count": 11
 			},
 			{
 				"cell_type": "markdown",
@@ -479,7 +490,7 @@
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.checkmark_casemarking_fact;"
 				],
-				"execution_count": 24
+				"execution_count": 12
 			}
 		]
 	}

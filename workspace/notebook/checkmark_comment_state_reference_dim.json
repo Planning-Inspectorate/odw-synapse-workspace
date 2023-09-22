@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "e59b071a-c94c-44ea-b9e0-dba6fb17bc63"
+				"spark.autotune.trackingId": "f9cd4adc-8783-4012-8943-ef54730a98e7"
 			}
 		},
 		"metadata": {
@@ -77,13 +77,14 @@
 					"    AS\r\n",
 					"\r\n",
 					"SELECT id,\r\n",
-					"value\r\n",
+					"value,\r\n",
+					"expected_from\r\n",
 					"\r\n",
 					"FROM odw_standardised_db.checkmark_comment_state_reference\r\n",
-					"Where id is not null\r\n",
-					"GROUP BY id,value"
+					"Where id IS NOT NULL\r\n",
+					"GROUP BY id,value,expected_from"
 				],
-				"execution_count": 22
+				"execution_count": 2
 			},
 			{
 				"cell_type": "markdown",
@@ -129,188 +130,41 @@
 					"        WHEN T1.id IS NULL\r\n",
 					"        THEN T3.CommentStateReferenceID\r\n",
 					"        ELSE NULL\r\n",
-					"    END AS CommentStateReferenceID, -- surrogate key\r\n",
-					"    T1.id AS StateID,\r\n",
-					"    T1.value AS Value,\r\n",
-					"    T2.SourceSystemID as SourceSystemID, -- NOT CORRECT\r\n",
-					"    to_timestamp(T1.expected_from)          AS IngestionDate,\r\n",
-					"    NULL AS ValidTo,\r\n",
-					"    md5(concat( IFNULL(T1.id,'.'), IFNULL(T1.value,'.'))) AS RowID,\r\n",
-					"    'Y' as IsActive,\r\n",
-					"    CASE\r\n",
-					"        WHEN T1.id = T3.StateID AND md5(concat(IFNULL(T1.id,'.'), IFNULL(T1.value,'.'))) <> T3.RowID\r\n",
-					"        THEN 'Y'\r\n",
-					"        WHEN T3.StateID IS NULL\r\n",
-					"        THEN 'Y'\r\n",
-					"        ELSE 'N'\r\n",
-					"    END as NewData,\r\n",
-					"    CASE\r\n",
-					"        WHEN T1.id IS NULL\r\n",
-					"        THEN 'Y'\r\n",
-					"        ELSE 'N'\r\n",
-					"    END AS  DeletedData,\r\n",
-					"    T3.IsActive as HistoricIsActive\r\n",
+					"    END                             AS CommentStateReferenceID, -- surrogate key\r\n",
+					"    T1.id                           AS StateID,\r\n",
+					"    T1.value                        AS Value,\r\n",
+					"    T2.SourceSystemID               AS SourceSystemID, -- NOT CORRECT\r\n",
+					"    to_timestamp(T1.expected_from)  AS IngestionDate,\r\n",
+					"    NULL                            AS ValidTo,\r\n",
+					"    md5(\r\n",
+					"        concat(\r\n",
+					"            IFNULL(T1.id,'.'), \r\n",
+					"            IFNULL(T1.value,'.')\r\n",
+					"        ))                          AS RowID,\r\n",
+					"    'Y'                             AS IsActive,\r\n",
+					"    T3.IsActive                     AS HistoricIsActive\r\n",
 					"\r\n",
 					"FROM comment_state_reference_grouped T1\r\n",
 					"LEFT JOIN odw_harmonised_db.main_sourcesystem_fact T2 ON \"Checkmark\" = T2.Description\r\n",
 					"FULL JOIN odw_harmonised_db.checkmark_comment_state_reference_dim T3 ON T1.id = T3.StateID and T3.IsActive = 'Y'\r\n",
 					"WHERE\r\n",
-					"    (-- flags new data        \r\n",
+					"    -- flags new data        \r\n",
 					"        (CASE\r\n",
-					"            WHEN T1.ID = T3.StateID AND md5(concat( IFNULL(T1.id,'.'), IFNULL(T1.value,'.'))) <> T3.RowID\r\n",
+					"            WHEN T1.ID = T3.StateID AND md5(\r\n",
+					"                concat(\r\n",
+					"                    IFNULL(T1.id,'.'), \r\n",
+					"                    IFNULL(T1.value,'.')\r\n",
+					"                )) <> T3.RowID\r\n",
 					"            THEN 'Y'\r\n",
 					"            WHEN T3.StateID IS NULL\r\n",
 					"            THEN 'Y'\r\n",
 					"            ELSE 'N'\r\n",
-					"        END  = 'Y' ) OR\r\n",
-					"        -- flags deleted data\r\n",
-					"        (CASE\r\n",
-					"            WHEN T1.id IS NULL\r\n",
-					"            THEN 'Y'\r\n",
-					"            ELSE 'N'\r\n",
-					"        END = 'Y' )\r\n",
-					"    )\r\n",
+					"        END  = 'Y' )\r\n",
+					"    AND T1.id IS NOT NULL\r\n",
+					"    AND T1.expected_from = (SELECT MAX(expected_from) FROM comment_state_reference_grouped)\r\n",
 					";"
 				],
-				"execution_count": 23
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"# Run tests to check integrity of data by numbers\n",
-					"- This script checks for the total number of current codes in the harmonised table, and compare against the numbers for new data to be added and data to be set as inactive.\n",
-					"- **Changes tracking:** where it checks the data against active records in harmonised and compares with records to add and records to be set as inactive.\n",
-					"- **Changes tolerance levels:** if the total amount to be added and deleted surpasses the tolerance limit, it will interrupt the proces of loading the data"
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"# from pyspark.sql import SparkSession\r\n",
-					"# spark = SparkSession.builder.getOrCreate()\r\n",
-					"\r\n",
-					"# Source_Number = spark.sql(\"SELECT COUNT(*) AS Source_Number FROM sxo_grouped\")\r\n",
-					"# Current_Number = spark.sql(\"SELECT COUNT (DISTINCT RowID) AS Current_Number FROM odw_harmonised_db.sxo_dim where IsActive = 'Y' \")\r\n",
-					"# New_Data_Number = spark.sql(\"SELECT COUNT (DISTINCT RowID) AS New_Data_Number FROM sxo_dim_new WHERE NewData = 'Y'\")\r\n",
-					"# Deleted_Data_Number = spark.sql(\"SELECT COUNT (DISTINCT RowID) AS Deleted_Data_Number FROM sxo_dim_new WHERE DeletedData = 'Y'\")\r\n",
-					"\r\n",
-					"# Source_Number_Pandas = Source_Number.toPandas()\r\n",
-					"# Current_Number_Pandas =  Current_Number.toPandas()\r\n",
-					"# New_Data_Number_Pandas = New_Data_Number.toPandas()\r\n",
-					"# Deleted_Data_Number_Pandas = Deleted_Data_Number.toPandas()\r\n",
-					"\r\n",
-					"# # checking if new total number of registers matches the previously loaded, plus New ones, minus Deleted ones\r\n",
-					"# print(\"SET 1:\")\r\n",
-					"# Total_Number = Source_Number_Pandas['Source_Number'].tolist() \r\n",
-					"# Current_Loaded_Number = Current_Number_Pandas['Current_Number'].tolist() \r\n",
-					"# New_Data_Number = New_Data_Number_Pandas['New_Data_Number'].tolist() \r\n",
-					"# Deleted_Data_Number = Deleted_Data_Number_Pandas['Deleted_Data_Number'].tolist() \r\n",
-					"\r\n",
-					"# print(Total_Number) \r\n",
-					"# print(Current_Loaded_Number) \r\n",
-					"# print(New_Data_Number) \r\n",
-					"# print(Deleted_Data_Number)\r\n",
-					"\r\n",
-					"#if Total_Number[0] != (Current_Loaded_Number[0] + New_Data_Number[0] - Deleted_Data_Number[0]):\r\n",
-					"    #raise RuntimeError(\"Loading Number do not match\")\r\n",
-					"#else:\r\n",
-					"#    print(\"Loading number matches with existing codes plus new, minus deleted!\")\r\n",
-					"\r\n",
-					"#if New_Data_Number[0] > 1000:\r\n",
-					"    #raise RuntimeError(\"ALERT: Too many new codes\")\r\n",
-					"#else:\r\n",
-					"#    print(\"New data under tolerance levels\")\r\n",
-					"\r\n",
-					"#if Deleted_Data_Number[0] > 500:\r\n",
-					"    #raise RuntimeError(\"ALERT: Too many deleted codes\")\r\n",
-					"#else:\r\n",
-					"#    print(\"Unused codes under tolerance levels\")"
-				],
-				"execution_count": 24
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"# Run tests to check integrity of data by comparison of codes\n",
-					"- This script checks for the total list of current codes in the harmonised table, and compare against the list for new data to be added and data to be set as inactive.\n",
-					"- **Changes tracking:** where it checks the data against active records in harmonised and compares with records to add and records to be set as inactive."
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"# from pyspark.sql import SparkSession\r\n",
-					"# spark = SparkSession.builder.getOrCreate()\r\n",
-					"\r\n",
-					"# Current_Records = spark.sql(\"SELECT DISTINCT RowID AS Current_Records FROM odw_harmonised_db.sxo_dim where IsActive = 'Y' \")\r\n",
-					"# New_Data_Records = spark.sql(\"SELECT DISTINCT RowID AS New_Data_Records FROM sxo_dim_new WHERE NewData = 'Y'\")\r\n",
-					"# Deleted_Data_Records = spark.sql(\"SELECT DISTINCT RowID AS Deleted_Data_Records FROM sxo_dim_new WHERE DeletedData = 'Y'\")\r\n",
-					"\r\n",
-					"# Current_Records_Pandas =  Current_Records.toPandas()\r\n",
-					"# New_Data_Records_Pandas = New_Data_Records.toPandas()\r\n",
-					"# Deleted_Data_Records_Pandas = Deleted_Data_Records.toPandas()\r\n",
-					"\r\n",
-					"# # checking if a deleted records are correcly flagged, not existing in the new data, but existing inpreviously loaded\r\n",
-					"# print(\"TEST 2:\")\r\n",
-					"\r\n",
-					"# Current_Records = Current_Records_Pandas['Current_Records'].tolist() \r\n",
-					"# Deleted_Records = Deleted_Data_Records_Pandas['Deleted_Data_Records'].tolist()\r\n",
-					"# New_Records = New_Data_Records_Pandas['New_Data_Records'].tolist()\r\n",
-					"\r\n",
-					"# print(Current_Records)\r\n",
-					"# print(Deleted_Records)\r\n",
-					"# print(New_Records)\r\n",
-					"\r\n",
-					"#for i in Deleted_Records:\r\n",
-					"#    if i in Current_Records: \r\n",
-					"#        print(i + \" to be deleted is in the current records\")\r\n",
-					"#    else:\r\n",
-					"#    else:\r\n",
-					"        #raise RuntimeError(\"Records to Delete do not match\")\r\n",
-					"\r\n",
-					"# for j in New_Records:\r\n",
-					"#     if j not in Current_Records: \r\n",
-					"#         print(j + \" to be added is not in the current records\")\r\n",
-					"#     else:\r\n",
-					"#         #raise RuntimeError(\"Records to Add do not match\")"
-				],
-				"execution_count": 25
+				"execution_count": 3
 			},
 			{
 				"cell_type": "markdown",
@@ -324,8 +178,8 @@
 				"source": [
 					"# Dataset is created that contains changed data and corresponding target data\n",
 					"- This script combines data that has been updated, Deleted or is new, with corresponding target data\n",
-					"- View **SXO_dim_new** is unioned to the target data filter to only those rows where changes have been detected\n",
-					"## View SXO_dim_changed_rows is created"
+					"- View **table_dim_new** is unioned to the target data filter to only those rows where changes have been detected\n",
+					"## View table_dim_changed_rows is created"
 				]
 			},
 			{
@@ -381,10 +235,61 @@
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.checkmark_comment_state_reference_dim\r\n",
 					"WHERE Value IN (SELECT Value FROM comment_state_reference_dim_new WHERE StateID IS NULL)\r\n",
-					"AND IsActive = 'Y'; \r\n",
+					"    AND IsActive = 'Y'; \r\n",
 					""
 				],
-				"execution_count": 26
+				"execution_count": 4
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW Loading_month\n",
+					"\n",
+					"    AS\n",
+					"\n",
+					"SELECT DISTINCT\n",
+					"    IngestionDate AS IngestionDate,\n",
+					"    to_timestamp(date_sub(IngestionDate,1)) AS ClosingDate,\n",
+					"    'Y' AS IsActive\n",
+					"\n",
+					"FROM comment_state_reference_dim_new;\n",
+					"\n",
+					"CREATE OR REPLACE TEMPORARY VIEW comment_state_reference_changed_rows_final\n",
+					"\n",
+					"    AS\n",
+					"\n",
+					"SELECT \n",
+					"    CommentStateReferenceID,\n",
+					"    StateID,\n",
+					"    Value,\n",
+					"    T1.SourceSystemID,\n",
+					"    T1.IngestionDate,\n",
+					"    T1.ValidTo,\n",
+					"    T1.RowID,\n",
+					"    T1.IsActive,\n",
+					"    T2.ClosingDate\n",
+					"FROM comment_state_reference_changed_rows T1\n",
+					"FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive\n",
+					";"
+				],
+				"execution_count": 5
 			},
 			{
 				"cell_type": "markdown",
@@ -396,10 +301,10 @@
 					}
 				},
 				"source": [
-					"# View SXO_dim_changed_rows is used in a merge (Upsert) statement into the target table\n",
-					"- **WHEN MATCHED** ON the Business Key (i.e. SxO from Personal Characteristics), EndDate is set to today -1 day and the IsActive flag is set to 'N'\n",
+					"# View table_dim_changed_rows is used in a merge (Upsert) statement into the target table\n",
+					"- **WHEN MATCHED** ON the Business Key (i.e. table from Personal Characteristics), EndDate is set to today -1 day and the IsActive flag is set to 'N'\n",
 					"- **WHEN NOT MATCHED** ON the business key, insert rows\n",
-					"## Table odw_harmonised.SXO_dim is updated"
+					"## Table odw_harmonised.table_dim is updated"
 				]
 			},
 			{
@@ -425,24 +330,40 @@
 					"-- merge into fact table\r\n",
 					"\r\n",
 					"MERGE INTO odw_harmonised_db.checkmark_comment_state_reference_dim AS Target\r\n",
-					"USING comment_state_reference_changed_rows AS Source\r\n",
+					"USING comment_state_reference_changed_rows_final AS Source\r\n",
 					"\r\n",
-					"ON Source.StateID = Target.StateID\r\n",
+					"ON Source.CommentStateReferenceID = Target.CommentStateReferenceID\r\n",
 					"\r\n",
 					"-- For Updates existing rows\r\n",
 					"\r\n",
 					"WHEN MATCHED\r\n",
 					"    THEN \r\n",
 					"    UPDATE SET\r\n",
-					"    Target.ValidTo = date_sub(current_timestamp,1),\r\n",
+					"    Target.ValidTo = to_timestamp(ClosingDate),\r\n",
 					"    Target.IsActive = 'N'\r\n",
 					"\r\n",
 					"-- Insert completely new rows\r\n",
 					"WHEN NOT MATCHED \r\n",
-					"    THEN INSERT * ;   \r\n",
+					"    THEN INSERT (CommentStateReferenceID,\r\n",
+					"        StateID,\r\n",
+					"        Value,\r\n",
+					"        SourceSystemID,\r\n",
+					"        IngestionDate,\r\n",
+					"        ValidTo,\r\n",
+					"        RowID,\r\n",
+					"        IsActive)  \r\n",
+					"        VALUES (Source.CommentStateReferenceID,\r\n",
+					"        Source.StateID,\r\n",
+					"        Source.Value,\r\n",
+					"        Source.SourceSystemID, \r\n",
+					"        Source.IngestionDate, \r\n",
+					"        Source.ValidTo, \r\n",
+					"        Source.RowID, \r\n",
+					"        Source.IsActive) \r\n",
+					";\r\n",
 					""
 				],
-				"execution_count": 27
+				"execution_count": 6
 			},
 			{
 				"cell_type": "markdown",
@@ -457,7 +378,7 @@
 					"# Fix the IDs\n",
 					"- No auto-increment feature is available in delta tables, therefore we need to create new IDs for the inserted rows\n",
 					"- This is done by select the target data and using INSERT OVERWRITE to re-insert the data is a new Row Number\n",
-					"## Table odw_harmonised.SXO_dim is updated"
+					"## Table odw_harmonised.table_dim is updated"
 				]
 			},
 			{
@@ -479,7 +400,7 @@
 				},
 				"source": [
 					"%%sql\r\n",
-					"-- Insert new SXOID\r\n",
+					"-- Insert new tableID\r\n",
 					"\r\n",
 					"INSERT OVERWRITE odw_harmonised_db.checkmark_comment_state_reference_dim\r\n",
 					"\r\n",
@@ -495,7 +416,7 @@
 					"FROM odw_harmonised_db.checkmark_comment_state_reference_dim;\r\n",
 					""
 				],
-				"execution_count": 29
+				"execution_count": 7
 			}
 		]
 	}

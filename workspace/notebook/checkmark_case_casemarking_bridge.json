@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "80eabfb1-b79a-4c77-ab17-fa5a1cf1c901"
+				"spark.autotune.trackingId": "f76cd90f-859e-4fb4-bcbe-a21b92f2ae93"
 			}
 		},
 		"metadata": {
@@ -110,7 +110,7 @@
 					"    T6.CaseID                       AS CaseFactID,\r\n",
 					"    T1.CaseReference                AS CaseReference,\r\n",
 					"    T2.SourceSystemID               AS SourceSystemID,\r\n",
-					"    to_timestamp(T1.expected_from)  AS IngestionDate,\r\n",
+					"    to_timestamp(T1.IngestionDate)  AS IngestionDate,\r\n",
 					"    NULL                            AS ValidTo,\r\n",
 					"    md5(\r\n",
 					"        concat(\r\n",
@@ -147,10 +147,10 @@
 					"        ELSE 'N'\r\n",
 					"    END  = 'Y' )\r\n",
 					"    AND T1.CaseReference IS NOT NULL\r\n",
-					"    AND T1.expected_from = (SELECT MAX(expected_from) FROM odw_standardised_db.checkmark_case_casemarking_bridge_new);\r\n",
+					"    AND T1.IngestionDate = (SELECT MAX(IngestionDate) FROM odw_harmonised_db.checkmark_casemarking_fact);\r\n",
 					";"
 				],
-				"execution_count": 20
+				"execution_count": 5
 			},
 			{
 				"cell_type": "markdown",
@@ -226,7 +226,7 @@
 					"WHERE CaseReference IN (SELECT CaseReference FROM checkmark_case_casemarking_bridge_new WHERE CasemarkingBridgeID IS NULL) AND IsActive = 'Y';\r\n",
 					""
 				],
-				"execution_count": 22
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
@@ -242,7 +242,8 @@
 					},
 					"microsoft": {
 						"language": "sparksql"
-					}
+					},
+					"collapsed": false
 				},
 				"source": [
 					"%%sql\n",
@@ -277,7 +278,7 @@
 					"FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 7
 			},
 			{
 				"cell_type": "markdown",
@@ -319,7 +320,7 @@
 					"MERGE INTO odw_harmonised_db.checkmark_case_casemarking_bridge AS Target\r\n",
 					"USING checkmark_case_casemarking_bridge_changed_rows_final AS Source\r\n",
 					"\r\n",
-					"ON Source.CaseReference = Target.CaseReference\r\n",
+					"ON Source.CasemarkingBridgeID = Target.CasemarkingBridgeID \r\n",
 					"\r\n",
 					"-- For Updates existing rows\r\n",
 					"\r\n",
@@ -351,7 +352,7 @@
 					"        Source.IsActive) \r\n",
 					";  "
 				],
-				"execution_count": 23
+				"execution_count": 9
 			},
 			{
 				"cell_type": "markdown",
@@ -404,7 +405,7 @@
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.checkmark_case_casemarking_bridge;"
 				],
-				"execution_count": 24
+				"execution_count": 10
 			}
 		]
 	}

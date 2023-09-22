@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "a24c9df8-80dc-49a0-b66e-90a5725a5584"
+				"spark.autotune.trackingId": "44a1a308-9a46-451e-977b-c709c2491dd6"
 			}
 		},
 		"metadata": {
@@ -105,15 +105,19 @@
 					"        WHEN T5.CaseReference IS NULL\r\n",
 					"        THEN T1.CaseID\r\n",
 					"        ELSE NULL\r\n",
-					"    END as CaseID, -- surrogate \r\n",
-					"    T5.DocumentsReferenceID AS DocumentsID,\r\n",
-					"    T5.CaseReference, -- source system id\r\n",
-					"    T2.SourceSystemID AS SourceSystemID,\r\n",
-					"    to_timestamp(T1.expected_from)          AS IngestionDate,\r\n",
-					"    NULL AS ValidTo,\r\n",
-					"    md5(concat(IFNULL(T5.CaseReference,'.'), IFNULL(T5.DocumentsReferenceID,'.'))) as RowID,\r\n",
-					"    'Y' as IsActive,\r\n",
-					"    T5.IsActive as HistoricIsActive\r\n",
+					"    END                             AS CaseID, -- surrogate \r\n",
+					"    T5.DocumentsReferenceID         AS DocumentsID,\r\n",
+					"    T5.CaseReference                AS CaseReference, -- source system id\r\n",
+					"    T2.SourceSystemID               AS SourceSystemID,\r\n",
+					"    to_timestamp(T1.IngestionDate)  AS IngestionDate,\r\n",
+					"    NULL                            AS ValidTo,\r\n",
+					"    md5(\r\n",
+					"        concat(\r\n",
+					"            IFNULL(T5.CaseReference,'.'), \r\n",
+					"            IFNULL(T5.DocumentsReferenceID,'.')\r\n",
+					"        ))                          AS RowID,\r\n",
+					"    'Y'                             AS IsActive,\r\n",
+					"    T5.IsActive                     AS HistoricIsActive\r\n",
 					"\r\n",
 					"FROM odw_harmonised_db.checkmark_case_fact T1\r\n",
 					"FULL JOIN odw_harmonised_db.checkmark_documents_dim T5 ON T1.CaseReference = T5.CaseReference AND T5.IsActive = 'Y'\r\n",
@@ -130,10 +134,10 @@
 					"        ELSE 'N'\r\n",
 					"    END  = 'Y' )\r\n",
 					"    AND T1.CaseReference IS NOT NULL\r\n",
-					"    AND T1.expected_from = (SELECT MAX(expected_from) FROM odw_standardised_db.checkmark_case_fact_new)\r\n",
+					"    AND T1.IngestionDate = (SELECT MAX(IngestionDate) FROM odw_harmonised_db.checkmark_documents_dim)\r\n",
 					";"
 				],
-				"execution_count": 4
+				"execution_count": 9
 			},
 			{
 				"cell_type": "markdown",
@@ -207,7 +211,7 @@
 					"WHERE CaseReference IN (SELECT CaseReference FROM checkmark_case_fact_new WHERE CaseID IS NULL) AND IsActive = 'Y';\r\n",
 					""
 				],
-				"execution_count": 6
+				"execution_count": 10
 			},
 			{
 				"cell_type": "code",
@@ -223,7 +227,8 @@
 					},
 					"microsoft": {
 						"language": "sparksql"
-					}
+					},
+					"collapsed": false
 				},
 				"source": [
 					"%%sql\n",
@@ -239,7 +244,7 @@
 					"\n",
 					"FROM checkmark_case_fact_new;\n",
 					"\n",
-					"CREATE OR REPLACE TEMPORARY VIEW checkmark_case_casemarking_bridge_changed_rows_final\n",
+					"CREATE OR REPLACE TEMPORARY VIEW checkmark_case_fact_changed_rows_final\n",
 					"\n",
 					"    AS\n",
 					"\n",
@@ -253,10 +258,10 @@
 					"    T1.RowID,\n",
 					"    T1.IsActive,\n",
 					"    T2.ClosingDate\n",
-					"FROM checkmark_case_casemarking_bridge_changed_rows T1\n",
+					"FROM checkmark_case_fact_changed_rows T1\n",
 					"FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive"
 				],
-				"execution_count": null
+				"execution_count": 11
 			},
 			{
 				"cell_type": "markdown",
@@ -296,9 +301,9 @@
 					"-- merge into fact table\r\n",
 					"\r\n",
 					"MERGE INTO odw_harmonised_db.checkmark_case_fact AS Target\r\n",
-					"USING checkmark_case_fact_changed_rows AS Source\r\n",
+					"USING checkmark_case_fact_changed_rows_final AS Source\r\n",
 					"\r\n",
-					"ON Source.CaseReference = Target.CaseReference\r\n",
+					"ON Source.CaseID = Target.CaseID\r\n",
 					"\r\n",
 					"-- For Updates existing rows\r\n",
 					"\r\n",
@@ -328,7 +333,7 @@
 					"        Source.IsActive) \r\n",
 					";  "
 				],
-				"execution_count": 7
+				"execution_count": 12
 			},
 			{
 				"cell_type": "markdown",
@@ -380,7 +385,7 @@
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.checkmark_case_fact;"
 				],
-				"execution_count": 8
+				"execution_count": 13
 			}
 		]
 	}

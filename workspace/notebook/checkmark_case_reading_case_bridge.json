@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "92e2b2f7-5dbd-4dfc-820b-ce4177a09af5"
+				"spark.autotune.trackingId": "7cec3ca0-4c09-414c-b67c-fa2f68006ef1"
 			}
 		},
 		"metadata": {
@@ -110,7 +110,7 @@
 					"    T1.CaseID           AS CaseID,\r\n",
 					"    T1.CaseReference    AS CaseReference,\r\n",
 					"    T2.SourceSystemID   AS SourceSystemID,\r\n",
-					"    to_timestamp(T1.expected_from) AS IngestionDate,\r\n",
+					"    to_timestamp(T1.IngestionDate) AS IngestionDate,\r\n",
 					"    NULL                AS ValidTo,\r\n",
 					"    md5(\r\n",
 					"        concat(\r\n",
@@ -144,10 +144,10 @@
 					"        ELSE 'N'\r\n",
 					"    END  = 'Y' ) \r\n",
 					"    AND T1.CaseReference IS NOT NULL\r\n",
-					"    AND T1.expected_from = (SELECT MAX(expected_from) FROM odw_standardised_db.checkmark_case_fact_new)\r\n",
+					"    AND T1.IngestionDate = (SELECT MAX(IngestionDate) FROM odw_harmonised_db.checkmark_case_fact)\r\n",
 					";"
 				],
-				"execution_count": 2
+				"execution_count": 6
 			},
 			{
 				"cell_type": "markdown",
@@ -223,7 +223,7 @@
 					"WHERE CaseReference IN (SELECT CaseReference FROM checkmark_case_reading_case_bridge_new WHERE ReadingCaseBridgeID IS NULL) AND IsActive = 'Y';\r\n",
 					""
 				],
-				"execution_count": 4
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
@@ -239,7 +239,8 @@
 					},
 					"microsoft": {
 						"language": "sparksql"
-					}
+					},
+					"collapsed": false
 				},
 				"source": [
 					"%%sql\n",
@@ -273,7 +274,7 @@
 					"FROM checkmark_case_reading_case_bridge_changed_rows T1\n",
 					"FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive"
 				],
-				"execution_count": null
+				"execution_count": 8
 			},
 			{
 				"cell_type": "markdown",
@@ -315,7 +316,7 @@
 					"MERGE INTO odw_harmonised_db.checkmark_case_reading_case_bridge AS Target\r\n",
 					"USING checkmark_case_reading_case_bridge_changed_rows_final AS Source\r\n",
 					"\r\n",
-					"ON Source.CaseReference = Target.CaseReference\r\n",
+					"ON Source.ReadingCaseBridgeID = Target.ReadingCaseBridgeID\r\n",
 					"\r\n",
 					"-- For Updates existing rows\r\n",
 					"\r\n",
@@ -347,7 +348,7 @@
 					"        Source.IsActive) \r\n",
 					"; "
 				],
-				"execution_count": 5
+				"execution_count": 9
 			},
 			{
 				"cell_type": "markdown",
@@ -400,7 +401,7 @@
 					"    IsActive\r\n",
 					"FROM odw_harmonised_db.checkmark_case_reading_case_bridge;"
 				],
-				"execution_count": 6
+				"execution_count": 10
 			}
 		]
 	}
