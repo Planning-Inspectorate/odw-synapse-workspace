@@ -1,0 +1,83 @@
+{
+	"name": "py_reload_hr_record_fact",
+	"properties": {
+		"folder": {
+			"name": "post-deployment"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "25da753e-e518-4bae-a7d5-9b004e33aa04"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.3",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import SparkSession\n",
+					"from notebookutils import mssparkutils\n",
+					"from datetime import datetime, date\n",
+					"from tqdm import tqdm\n",
+					"import pandas as pd\n",
+					"\n",
+					"spark = SparkSession.builder.getOrCreate()\n",
+					"\n",
+					"dates = [\"2020-11-01T00:00:00.000000\",\"2020-12-01T00:00:00.000000\"]\n",
+					"\n",
+					"timeout_in_seconds = 60 * 60\n",
+					"mssparkutils.notebook.run('/utils/py_delete_table_contents', timeout_in_seconds, arguments={\"db_name\": \"odw_harmonised_db\", \"table_name\": \"hr_record_fact\"})\n",
+					"\n",
+					"for date in tqdm(dates):\n",
+					"    print(f\"Processing: {date}\")\n",
+					"    mssparkutils.notebook.run('/odw-harmonised/SAP-HR/sap-hr-views-saphr', timeout_in_seconds, arguments={\"expected_from\": date})\n",
+					"    mssparkutils.notebook.run('/odw-harmonised/SAP-HR/hr_record_fact', timeout_in_seconds)\n",
+					"\n",
+					"mssparkutils.notebook.run('/odw-harmonised/SAP-HR/sap-hr-views-saphr', timeout_in_seconds, arguments={\"expected_from\": \"2021-01-01T00:00:00.000000\"})\n",
+					"\n",
+					""
+				],
+				"execution_count": 1
+			}
+		]
+	}
+}
