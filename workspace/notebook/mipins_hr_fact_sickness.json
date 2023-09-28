@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "cc518e87-4121-48d8-803f-2c0911569b88"
+				"spark.autotune.trackingId": "dc35268d-3130-428f-9b7e-adc979a4fc27"
 			}
 		},
 		"metadata": {
@@ -65,7 +65,7 @@
 					"# Builds the calendar which holds the CY and FY info\r\n",
 					"# mssparkutils.notebook.run('/Calendar')"
 				],
-				"execution_count": 56
+				"execution_count": 10
 			},
 			{
 				"cell_type": "code",
@@ -93,15 +93,15 @@
 					"\r\n",
 					"SELECT DISTINCT\r\n",
 					"\r\n",
-					"abs.EmployeeID AS StaffNumber,\r\n",
+					"vw.StaffNumber,\r\n",
 					"date.financial_year AS MeasureYear,\r\n",
 					"COUNT(*) as SicknessCount\r\n",
 					"\r\n",
 					"\r\n",
-					"FROM odw_harmonised_db.hr_absence_dim abs\r\n",
-					"FULL JOIN default.calendar_dim_plus date on date.calendarDate = abs.AbsenceEndDate\r\n",
-					"WHERE AbsenceType in  ('Sickness') and financial_year in ('CurrentFY','PreviousFY') AND IsActive = 'Y'\r\n",
-					"GROUP BY EmployeeID\r\n",
+					"FROM odw_curated_db.mipins_fact_absence_all vw\r\n",
+					"FULL JOIN default.calendar_dim_plus date on date.calendarDate = vw.AbsenceDate\r\n",
+					"WHERE vw.AbsenceType in  ('Sickness') and financial_year in ('CurrentFY','PreviousFY') \r\n",
+					"GROUP BY StaffNumber\r\n",
 					"      ,financial_year\r\n",
 					"\r\n",
 					"\r\n",
@@ -109,21 +109,19 @@
 					"\r\n",
 					"SELECT DISTINCT\r\n",
 					"\r\n",
-					"abs.EmployeeID,\r\n",
+					"vw.StaffNumber,\r\n",
 					"date.calendar_year,\r\n",
 					"COUNT(*) as SicknessCount\r\n",
 					"\r\n",
 					"\r\n",
-					"FROM odw_harmonised_db.hr_absence_dim abs\r\n",
-					"FULL JOIN default.calendar_dim_plus date on date.calendarDate = abs.AbsenceEndDate\r\n",
-					"WHERE AbsenceType in  ('Sickness') and calendar_year in ('CurrentCY','PreviousCY') AND IsActive = 'Y'\r\n",
-					"GROUP BY EmployeeID\r\n",
+					"FROM odw_curated_db.mipins_fact_absence_all vw\r\n",
+					"FULL JOIN default.calendar_dim_plus date on date.calendarDate = vw.AbsenceDate\r\n",
+					"WHERE vw.AbsenceType in  ('Sickness') and calendar_year in ('CurrentCY','PreviousCY') \r\n",
+					"GROUP BY StaffNumber\r\n",
 					"      ,calendar_year\r\n",
-					"\r\n",
-					"\r\n",
-					""
+					"ORDER BY StaffNumber"
 				],
-				"execution_count": 57
+				"execution_count": 11
 			},
 			{
 				"cell_type": "code",
@@ -158,7 +156,7 @@
 					"\r\n",
 					""
 				],
-				"execution_count": 59
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
@@ -176,7 +174,7 @@
 				"source": [
 					"spark.sql(f\"drop table if exists odw_curated_db.mipins_hr_fact_sickness;\")"
 				],
-				"execution_count": 61
+				"execution_count": 13
 			},
 			{
 				"cell_type": "code",
@@ -199,7 +197,7 @@
 					"%%sql\r\n",
 					"create or replace table odw_curated_db.mipins_hr_fact_sickness using delta as SELECT * FROM odw_curated_db.vw_mipins_hr_fact_sickness"
 				],
-				"execution_count": 62
+				"execution_count": 14
 			}
 		]
 	}
