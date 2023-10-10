@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "44bcbf6a-86e8-4253-95f7-d79dba2a7eb7"
+				"spark.autotune.trackingId": "02cb238c-1f31-4186-a821-c0ac49ceda29"
 			}
 		},
 		"metadata": {
@@ -70,9 +70,11 @@
 					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
 					"\n",
 					"is_dev_or_test_env = 'dev' in storage_account or 'test' in storage_account\n",
-					"spark.sql(f\"SET IS_DEV_OR_TEST = '{is_dev_or_test_env}'\")"
+					"max_limit = 20 if is_dev_or_test_env else 100000000\n",
+					"\n",
+					"spark.sql(f\"SET MAX_LIMIT = {max_limit}\")"
 				],
-				"execution_count": 18
+				"execution_count": 64
 			},
 			{
 				"cell_type": "code",
@@ -91,44 +93,14 @@
 					"\r\n",
 					"SELECT DISTINCT\r\n",
 					"\r\n",
+					"    SU.SUAreaID                                                 AS ID,\r\n",
 					"    SU.Salutation                                               AS salutation,\r\n",
-					"    \r\n",
-					"    CASE ${IS_DEV_OR_TEST}\r\n",
-					"        WHEN TRUE\r\n",
-					"        THEN '[Anonymized]'     \r\n",
-					"        ELSE SU.FirstName \r\n",
-					"    END                                                         AS firstName,\r\n",
-					"\r\n",
-					"    CASE ${IS_DEV_OR_TEST}\r\n",
-					"        WHEN TRUE\r\n",
-					"        THEN '[Anonymized]'     \r\n",
-					"        ELSE SU.LastName \r\n",
-					"    END                                                         AS lastName,\r\n",
-					"\r\n",
-					"    CASE ${IS_DEV_OR_TEST}\r\n",
-					"        WHEN TRUE\r\n",
-					"        THEN '[Anonymized]'     \r\n",
-					"        ELSE SU.EmailAddress \r\n",
-					"    END                                                         AS emailAddress,\r\n",
-					"\r\n",
-					"    CASE ${IS_DEV_OR_TEST}\r\n",
-					"        WHEN TRUE\r\n",
-					"        THEN '[Anonymized]'     \r\n",
-					"        ELSE SU.TelephoneNumber \r\n",
-					"    END                                                         AS telephoneNumber,\r\n",
-					"\r\n",
-					"    CASE ${IS_DEV_OR_TEST}\r\n",
-					"        WHEN TRUE\r\n",
-					"        THEN '[Anonymized]'     \r\n",
-					"        ELSE SU.OtherPhoneNumber \r\n",
-					"    END                                                         AS otherPhoneNumber,\r\n",
-					"\r\n",
-					"    CASE ${IS_DEV_OR_TEST}\r\n",
-					"        WHEN TRUE\r\n",
-					"        THEN '[Anonymized]'     \r\n",
-					"        ELSE SU.FaxNumber \r\n",
-					"    END                                                         AS faxNumber,\r\n",
-					"\r\n",
+					"    SU.FirstName                                                AS firstName,\r\n",
+					"    SU.LastName                                                 AS lastName,\r\n",
+					"    SU.EmailAddress                                             AS emailAddress,\r\n",
+					"    SU.TelephoneNumber                                          AS telephoneNumber,\r\n",
+					"    SU.OtherPhoneNumber                                         AS otherPhoneNumber,\r\n",
+					"    SU.FaxNumber                                                AS faxNumber,\r\n",
 					"    SU.AddressLine1                                             AS addressLine1,\r\n",
 					"    SU.AddressLine2                                             AS addressLine2,\r\n",
 					"    SU.AddressTown                                              AS addressTown,\r\n",
@@ -141,27 +113,11 @@
 					"    \r\n",
 					"FROM odw_harmonised_db.service_user_dim                        AS SU\r\n",
 					"WHERE SU.IsActive = 'Y'\r\n",
+					"\r\n",
+					"LIMIT ${MAX_LIMIT}\r\n",
 					""
 				],
-				"execution_count": 19
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"spark.sql(f\"drop table if exists odw_curated_db.service_user;\")"
-				],
-				"execution_count": 10
+				"execution_count": 65
 			},
 			{
 				"cell_type": "code",
@@ -187,7 +143,67 @@
 					"as\r\n",
 					"SELECT * FROM odw_curated_db.vw_service_user"
 				],
-				"execution_count": 11
+				"execution_count": 66
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "python"
+					}
+				},
+				"source": [
+					"%%pyspark\n",
+					"pip install Faker"
+				],
+				"execution_count": 67
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"if is_dev_or_test_env:\n",
+					"\n",
+					"    import pandas as pd\n",
+					"    from faker import Faker\n",
+					"    \n",
+					"    df = spark.sql(\"select * from odw_curated_db.service_user\").toPandas()\n",
+					"\n",
+					"    if(len(df) > 0):\n",
+					"        fake = Faker()\n",
+					"        \n",
+					"        df['firstName'] = [fake.first_name() for _ in range(len(df))]\n",
+					"        df['lastName'] = [fake.last_name() for _ in range(len(df))]\n",
+					"        df['emailAddress'] = [fake.email() for _ in range(len(df))]\n",
+					"        df['telephoneNumber'] = [fake.phone_number() for _ in range(len(df))]\n",
+					"        df['otherPhoneNumber'] = [fake.phone_number() for _ in range(len(df))]\n",
+					"        df['faxNumber'] = [fake.phone_number() for _ in range(len(df))]\n",
+					"        \n",
+					"        df = spark.createDataFrame(df)\n",
+					"\n",
+					"        table_loc = \"abfss://odw-curated@\"+storage_account+'service_user'\n",
+					"        df.write.format(\"delta\").mode(\"overwrite\").save(table_loc)  "
+				],
+				"execution_count": 69
 			}
 		]
 	}
