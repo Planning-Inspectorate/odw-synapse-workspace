@@ -6,6 +6,7 @@ data "azurerm_resources" "odt_pe_backoffice_sb" {
 }
 
 data "azurerm_servicebus_topic" "odt_backoffice_topic" {
+  provider     = azurerm.odt
   name         = "service_user"
   namespace_id = data.azurerm_resources.odt_pe_backoffice_sb.id
 }
