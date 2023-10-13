@@ -1,5 +1,11 @@
 ## Data Standards ##
 
+### IngestionDate ###
+It indicates the moment from when the record is active, and it exists (together with ValidTo) to be able to calculate what record was active at a certain moment in time.
+
+### ValidTo ###
+It indicates the moment the record is inactive, and it exists (together with ingestionDate) to be able to calculate what record was active at a certain moment in time.
+
 ### IsActive ###
 
 The use of IsActive flags should only be used to indicate the status of a row of data and never to indicate the status of an entity being described by a row of data.
