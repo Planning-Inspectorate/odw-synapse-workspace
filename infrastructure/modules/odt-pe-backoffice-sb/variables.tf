@@ -40,6 +40,17 @@ variable "synapse_private_endpoint_vnet_subnets" {
   type        = map(string)
 }
 
+# variable "synapse_workspace_failover_principal_id" {
+#   default     = null
+#   description = "The managed identity for the failover Synapse Workspace"
+#   type        = string
+# }
+
+variable "synapse_workspace_principal_id" {
+  description = "The managed identity for the Synapse Workspace"
+  type        = string
+}
+
 variable "tags" {
   default     = {}
   description = "A collection of tags to assign to taggable resources"
