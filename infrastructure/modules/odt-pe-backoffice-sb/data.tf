@@ -4,3 +4,8 @@ data "azurerm_resources" "odt_pe_backoffice_sb" {
   name                = var.odt_back_office_service_bus_name
   type                = "Microsoft.ServiceBus/namespaces"
 }
+
+data "azurerm_servicebus_topic" "odt_backoffice_topic" {
+  name         = "service_user"
+  namespace_id = data.azurerm_resources.odt_pe_backoffice_sb.id
+}
