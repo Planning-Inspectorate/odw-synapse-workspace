@@ -16,5 +16,5 @@ resource "azurerm_servicebus_subscription" "odt_backoffice_subscription" {
 resource "azurerm_role_assignment" "odt_backoffice_subscription_role_assignments" {
    scope                = azurerm_servicebus_subscription.odt_backoffice_subscription.id
    role_definition_name = "Azure Service Bus Data Receiver"
-   principal_id         = azurerm_synapse_workspace.synapse.identity[0].principal_id
+   principal_id         = module.synapse_workspace_private.service_principal_object_id
 }
