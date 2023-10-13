@@ -1,5 +1,5 @@
 resource "azurerm_servicebus_subscription" "odt_backoffice_subscription" {
-  name                                      = "service_user"
+  name                                      = "service-user"
   topic_id                                  = data.azurerm_servicebus_topic.odt_backoffice_topic.id
   status                                    = "Active"
   max_delivery_count                        = 1
@@ -13,9 +13,8 @@ resource "azurerm_servicebus_subscription" "odt_backoffice_subscription" {
   forward_to                                = ""
 }
 
-
-# resource "azurerm_role_assignment" "odt_backoffice_subscription_role_assignments" {
-#   scope                = azurerm_servicebus_subscription.odt_backoffice_subscription.id
-#   role_definition_name = each.value.role_definition_name
-#   principal_id         = module.synapse_workspace_private.synapse_principal_id
-# }
+resource "azurerm_role_assignment" "odt_backoffice_subscription_role_assignments" {
+   scope                = azurerm_servicebus_subscription.odt_backoffice_subscription.id
+   role_definition_name = "Azure Service Bus Data Receiver"
+   principal_id         = module.synapse_workspace_private.synapse_principal_id
+}
