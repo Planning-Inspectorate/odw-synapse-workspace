@@ -1,4 +1,4 @@
-resource "azurerm_servicebus_subscription" "odt_backoffice_subscription" {
+resource "azurerm_servicebus_subscription" "odt_backoffice_subscription" {=
   name                                      = "service-user"
   topic_id                                  = data.azurerm_servicebus_topic.odt_backoffice_topic.id
   status                                    = "Active"
@@ -14,7 +14,7 @@ resource "azurerm_servicebus_subscription" "odt_backoffice_subscription" {
 }
 
 resource "azurerm_role_assignment" "odt_backoffice_subscription_role_assignments" {
-   scope                = azurerm_servicebus_subscription.odt_backoffice_subscription.id
-   role_definition_name = "Azure Service Bus Data Receiver"
-   principal_id         = var.synapse_workspace_principal_id
+  scope                = azurerm_servicebus_subscription.odt_backoffice_subscription.id
+  role_definition_name = "Azure Service Bus Data Receiver"
+  principal_id         = var.synapse_workspace_principal_id
 }
