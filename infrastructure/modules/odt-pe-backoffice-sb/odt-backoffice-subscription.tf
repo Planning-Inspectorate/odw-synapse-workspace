@@ -1,4 +1,4 @@
-resource "azurerm_servicebus_subscription" "odt_backoffice_subscription" {=
+resource "azurerm_servicebus_subscription" "odt_backoffice_subscription" {
   name                                      = "service-user"
   topic_id                                  = data.azurerm_servicebus_topic.odt_backoffice_topic.id
   status                                    = "Active"
