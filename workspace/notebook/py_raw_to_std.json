@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "406cab64-0ce3-4924-9614-9f7e86eb3f6b"
+				"spark.autotune.trackingId": "18b6f069-0b0b-4e12-8a43-b73274fdc98e"
 			}
 		},
 		"metadata": {
@@ -66,7 +66,7 @@
 					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
 					"raw_container = \"abfss://odw-raw@\" + storage_account"
 				],
-				"execution_count": 31
+				"execution_count": 1
 			},
 			{
 				"cell_type": "code",
@@ -84,7 +84,7 @@
 				"source": [
 					"%run \"1-odw-raw-to-standardised/Fileshare/SAP_HR/py_1_raw_to_standardised_hr_functions\""
 				],
-				"execution_count": 32
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
@@ -107,9 +107,48 @@
 					"source_folder=''\n",
 					"source_frequency_folder=''\n",
 					"\n",
-					"specific_file='' # if not provided, it will ingest all files in the date_folder"
+					"specific_file='' # if not provided, it will ingest all files in the date_folder\n",
+					"\n",
+					"source_id = -1\n",
+					"is_source_from_function_app = False # has the source file come from the function app - in which case it will have a random filename "
 				],
-				"execution_count": 33
+				"execution_count": 3
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"\n",
+					"def get_creation_date(file_path):\n",
+					"    statinfo = os.stat(file_path)\n",
+					"    modified_date = datetime.fromtimestamp(statinfo.st_mtime)\n",
+					"    return datetime.fromtimestamp(statinfo.st_ctime)\n",
+					"\n",
+					"\n",
+					"def get_latest_file(source_path):\n",
+					"    import os\n",
+					"    from datetime import datetime\n",
+					"\n",
+					"    jobId = mssparkutils.env.getJobId()\n",
+					"    mssparkutils.fs.unmount(\"/temp_raw\") \n",
+					"    mssparkutils.fs.mount(source_path, \"/temp_raw\", {\"linkedService\":\"ls_storage\"})   \n",
+					"\n",
+					"    path = f\"/synfs/{jobId}/temp_raw/\"\n",
+					"    fpaths = [path + fd for fd in os.listdir(path)]\n",
+					"    \n",
+					"    return max(fpaths, key=get_creation_date).replace(path, '')"
+				],
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -139,10 +178,19 @@
 					"definitions = json.loads(df.toJSON().first())['definitions']\n",
 					"\n",
 					"try:\n",
-					"    source_path = f\"{raw_container}{source_folder_path}/{date_folder_str}\"\n",
+					"    source_path = f\"{raw_container}{source_folder_path}/{'' if is_source_from_function_app else date_folder_str}\"\n",
 					"    files = mssparkutils.fs.ls(source_path)\n",
+					"\n",
+					"    if is_source_from_function_app:\n",
+					"        latest_file = get_latest_file(source_path)\n",
+					"        files = [file for file in files if file.name == latest_file]\n",
+					"\n",
 					"    for file in files:\n",
-					"        definition = next((d for d in definitions if (specific_file == '' or d['Source_Filename_Start'] == specific_file) and (source_frequency_folder == '' or d['Source_Frequency_Folder'] == source_frequency_folder) and d['Source_Filename_Format'] == file.name), None)\n",
+					"\n",
+					"        if is_source_from_function_app:\n",
+					"            definition = next((d for d in definitions if source_id == d['Source_ID']))\n",
+					"        else:\n",
+					"            definition = next((d for d in definitions if (specific_file == '' or d['Source_Filename_Start'] == specific_file) and (source_frequency_folder == '' or d['Source_Frequency_Folder'] == source_frequency_folder) and d['Source_Filename_Format'] == file.name), None)\n",
 					"        \n",
 					"        if definition:\n",
 					"            expected_from = date_folder - timedelta(days=1)\n",
@@ -156,7 +204,7 @@
 					"    print(\"An error occurred:\", e)\n",
 					"    print('Raw data not present for', date_folder)"
 				],
-				"execution_count": null
+				"execution_count": 5
 			}
 		]
 	}
