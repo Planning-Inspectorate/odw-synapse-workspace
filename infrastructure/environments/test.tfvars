@@ -59,7 +59,7 @@ key_vault_role_assignments = {
 
 network_watcher_enabled = false
 
-odt_back_office_service_bus_enabled                      = true
+odt_back_office_service_bus_enabled                      = false
 odt_back_office_service_bus_failover_enabled             = false
 odt_back_office_service_bus_name                         = "pins-sb-back-office-test-ukw-001"
 odt_back_office_service_bus_name_failover                = "pins-sb-back-office-test-uks-001"
