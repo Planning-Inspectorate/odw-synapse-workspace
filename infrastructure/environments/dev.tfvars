@@ -59,12 +59,86 @@ key_vault_role_assignments = {
 
 network_watcher_enabled = false
 
-odt_back_office_service_bus_enabled                      = false
+odt_back_office_service_bus_enabled                      = true
 odt_back_office_service_bus_failover_enabled             = false
 odt_back_office_service_bus_name                         = "pins-sb-back-office-dev-ukw-001"
 odt_back_office_service_bus_name_failover                = "pins-sb-back-office-dev-uks-001"
 odt_back_office_service_bus_resource_group_name          = "pins-rg-back-office-dev-ukw-001"
 odt_back_office_service_bus_resource_group_name_failover = "pins-rg-back-office-dev-uks-001"
+odt_backoffice_sb_topic_subscriptions = [
+  {
+    subscription_name = "service-user"
+    topic_name        = "service-user"
+    role_assignments = {
+      "Azure Service Bus Data Receiver" = {
+        service_principals = ["pins-synw-odw-dev-uks"]
+      }
+    }
+  },
+  {
+    subscription_name = "nsip-project"
+    topic_name        = "nsip-project"
+    role_assignments = {
+      "Azure Service Bus Data Receiver" = {
+        service_principals = ["pins-synw-odw-dev-uks"]
+      }
+    }
+  },
+  {
+    subscription_name = "nsip-exam-timetable"
+    topic_name        = "nsip-exam-timetable"
+    role_assignments = {
+      "Azure Service Bus Data Receiver" = {
+        service_principals = ["pins-synw-odw-dev-uks"]
+      }
+    }
+  },
+  {
+    subscription_name = "nsip-document"
+    topic_name        = "nsip-document"
+    role_assignments = {
+      "Azure Service Bus Data Receiver" = {
+        service_principals = ["pins-synw-odw-dev-uks"]
+      }
+    }
+  },
+  {
+    subscription_name = "nsip-representation"
+    topic_name        = "nsip-representation"
+    role_assignments = {
+      "Azure Service Bus Data Receiver" = {
+        service_principals = ["pins-synw-odw-dev-uks"]
+      }
+    }
+  },
+  {
+    subscription_name = "nsip-s51-advice"
+    topic_name        = "nsip-s51-advice"
+    role_assignments = {
+      "Azure Service Bus Data Receiver" = {
+        service_principals = ["pins-synw-odw-dev-uks"]
+      }
+    }
+  },
+  {
+    subscription_name = "nsip-project-update"
+    topic_name        = "nsip-project-update"
+    role_assignments = {
+      "Azure Service Bus Data Receiver" = {
+        service_principals = ["pins-synw-odw-dev-uks"]
+      }
+    }
+  },
+  {
+    subscription_name = "nsip-subscription"
+    topic_name        = "nsip-subscription"
+    role_assignments = {
+      "Azure Service Bus Data Receiver" = {
+        service_principals = ["pins-synw-odw-dev-uks"]
+      }
+    }
+  }
+]
 
 service_bus_failover_enabled = false
 service_bus_role_assignments = {
@@ -94,6 +168,36 @@ service_bus_topics_and_subscriptions = [
       "service-user" = {},
     }
   },
+  {
+    name = "nsip-project"
+    subscriptions = {
+      "nsip-project" = {},
+    }
+  },
+  {
+    name = "nsip-exam-timetable"
+    subscriptions = {
+      "nsip-exam-timetable" = {},
+    }
+  },
+  {
+    name = "nsip-document"
+    subscriptions = {
+      "nsip-document" = {},
+    }
+  },
+  {
+    name = "nsip-representation"
+    subscriptions = {
+      "nsip-representation" = {},
+    }
+  },
+  {
+    name = "nsip-s51-advice"
+    subscriptions = {
+      "nsip-s51-advice" = {},
+    }
+  }
 ]
 
 spark_pool_enabled         = true

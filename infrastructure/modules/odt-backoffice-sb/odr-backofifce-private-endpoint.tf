@@ -1,4 +1,6 @@
 resource "azurerm_private_endpoint" "odt_backoffice_servicebus_private_endpoint" {
+  count = var.environment != "dev" ? 1 : 0
+
   name                = "pins-pe-backoffice-sb-${local.resource_suffix}"
   location            = var.location
   resource_group_name = var.resource_group_name
