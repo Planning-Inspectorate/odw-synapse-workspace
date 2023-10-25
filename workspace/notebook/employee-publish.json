@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "dd2bcfa3-cb33-4dc4-8334-ba9493b6aade"
+				"spark.autotune.trackingId": "e0184991-316a-430f-8b0f-87e76c8493e4"
 			}
 		},
 		"metadata": {
@@ -94,7 +94,7 @@
 					"    sender.send_messages(message)\n",
 					""
 				],
-				"execution_count": 56
+				"execution_count": 1
 			},
 			{
 				"cell_type": "markdown",
@@ -132,7 +132,7 @@
 					"table_name=\"odw_curated_db.employee\"\n",
 					"custom_props_attributes=[\"_change_type\"]"
 				],
-				"execution_count": 57
+				"execution_count": 2
 			},
 			{
 				"cell_type": "markdown",
@@ -168,7 +168,7 @@
 					"conn_str = mssparkutils.credentials.getSecret(akv_name, secret_name, kv_linked_service)\n",
 					""
 				],
-				"execution_count": 58
+				"execution_count": 3
 			},
 			{
 				"cell_type": "markdown",
@@ -202,7 +202,7 @@
 					"    topic_accessed_at=get_topic_accessed_at(servicebus_mgmt_client)\n",
 					"print(topic_accessed_at)"
 				],
-				"execution_count": 71
+				"execution_count": 4
 			},
 			{
 				"cell_type": "markdown",
@@ -236,7 +236,7 @@
 					"history_df = spark.sql(\"DESCRIBE HISTORY odw_curated_db.employee\")\r\n",
 					"hist_df_pandas = history_df.toPandas()"
 				],
-				"execution_count": 60
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
@@ -269,7 +269,7 @@
 					"else:\r\n",
 					"    starting_timestamp = topic_accessed_at"
 				],
-				"execution_count": 61
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
@@ -287,7 +287,7 @@
 				"source": [
 					"topic_accessed_at"
 				],
-				"execution_count": 67
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
@@ -310,7 +310,7 @@
 					"%%sql\r\n",
 					"DESCRIBE HISTORY odw_curated_db.employee"
 				],
-				"execution_count": 69
+				"execution_count": 8
 			},
 			{
 				"cell_type": "markdown",
@@ -344,24 +344,26 @@
 					"servicebus_client = ServiceBusClient.from_connection_string(conn_str=conn_str, logging_enable=True)\n",
 					"\n",
 					"try:\n",
-					"    cdf_df=(spark.read.format(\"delta\")\n",
-					"        .option(\"readChangeFeed\", \"true\")\n",
-					"        .option(\"startingTimestamp\", starting_timestamp)\n",
-					"        .table(table_name))\n",
-					"    cdf_df=cdf_df.filter(\"_change_type != 'update_preimage'\") #CDF provides preimage and postimage records\n",
+					"    # cdf_df=(spark.read.format(\"delta\")\n",
+					"    #     .option(\"readChangeFeed\", \"true\")\n",
+					"    #     .option(\"startingTimestamp\", starting_timestamp)\n",
+					"    #     .table(table_name))\n",
+					"    # cdf_df=cdf_df.filter(\"_change_type != 'update_preimage'\") #CDF provides preimage and postimage records\n",
 					"    with servicebus_client:\n",
 					"        sender = servicebus_client.get_topic_sender(topic_name=topic_name)\n",
 					"        with sender:\n",
-					"            df_json = cdf_df.toJSON()\n",
-					"            row_count=df_json.count()\n",
-					"            for row in df_json.collect(): \n",
-					"                send_single_message(sender,row,custom_props_attributes)\n",
-					"            print(\"Sent {} messages.\".format(row_count))\n",
+					"            # df_json = cdf_df.toJSON()\n",
+					"            # row_count=df_json.count()\n",
+					"            # for row in df_json.collect(): \n",
+					"            # send_single_message(sender,row,custom_props_attributes)\n",
+					"            message = ServiceBusMessage(\"Single Message for me\")\n",
+					"            sender.send_messages(message)\n",
+					"            # print(\"Sent {} messages.\".format(row_count))\n",
 					"\n",
 					"except Exception as e:  \n",
 					"        print(f\"{e}\") "
 				],
-				"execution_count": 70
+				"execution_count": 17
 			}
 		]
 	}

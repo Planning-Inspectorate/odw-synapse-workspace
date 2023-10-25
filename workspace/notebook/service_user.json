@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "179f7a40-4e15-45c3-aa1c-5690c3b3d9a8"
+				"spark.autotune.trackingId": "5acbfd4c-7777-4651-967c-61561a840012"
 			}
 		},
 		"metadata": {
@@ -74,7 +74,7 @@
 					"\n",
 					"spark.sql(f\"SET MAX_LIMIT = {max_limit}\")"
 				],
-				"execution_count": 72
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
@@ -110,15 +110,17 @@
 					"    SU.Organisation                                             AS organisation,\r\n",
 					"    SU.OrganisationType                                         AS organisationType,\r\n",
 					"    SU.Role                                                     AS serviceUserType,\r\n",
-					"    SU.CaseReference                                            AS caseReference\r\n",
+					"    SU.CaseReference                                            AS caseReference,\r\n",
+					"    SU.IngestionDate                                            AS ingestionDate\r\n",
 					"    \r\n",
 					"FROM odw_harmonised_db.service_user_dim                        AS SU\r\n",
 					"WHERE SU.IsActive = 'Y'\r\n",
+					"ORDER BY ingestionDate DESC\r\n",
 					"\r\n",
 					"LIMIT ${MAX_LIMIT}\r\n",
 					""
 				],
-				"execution_count": 73
+				"execution_count": 13
 			},
 			{
 				"cell_type": "code",
@@ -139,12 +141,32 @@
 				},
 				"source": [
 					"%%sql\r\n",
-					"create or replace table odw_curated_db.service_user\r\n",
-					"using delta\r\n",
-					"as\r\n",
-					"SELECT * FROM odw_curated_db.vw_service_user"
+					"CREATE OR REPLACE TABLE odw_curated_db.service_user\r\n",
+					"USING delta\r\n",
+					"AS\r\n",
+					"SELECT \r\n",
+					"    ID,\r\n",
+					"    SourceSystemID,\r\n",
+					"    salutation,\r\n",
+					"    firstName,\r\n",
+					"    lastName,\r\n",
+					"    emailAddress,\r\n",
+					"    telephoneNumber,\r\n",
+					"    otherPhoneNumber,\r\n",
+					"    faxNumber,\r\n",
+					"    addressLine1,\r\n",
+					"    addressLine2,\r\n",
+					"    addressTown,\r\n",
+					"    addressCounty,\r\n",
+					"    postcode,\r\n",
+					"    organisation,\r\n",
+					"    organisationType,\r\n",
+					"    serviceUserType,\r\n",
+					"    caseReference\r\n",
+					"    \r\n",
+					"FROM odw_curated_db.vw_service_user"
 				],
-				"execution_count": 74
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
@@ -166,7 +188,20 @@
 					"%%pyspark\n",
 					"pip install Faker"
 				],
-				"execution_count": 75
+				"execution_count": 15
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Anonymisation of sensitive fields"
+				]
 			},
 			{
 				"cell_type": "code",
@@ -204,7 +239,7 @@
 					"        table_loc = \"abfss://odw-curated@\"+storage_account+'service_user'\n",
 					"        df.write.format(\"delta\").mode(\"overwrite\").save(table_loc)  "
 				],
-				"execution_count": 76
+				"execution_count": 16
 			}
 		]
 	}
