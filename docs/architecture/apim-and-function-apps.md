@@ -33,11 +33,13 @@ Back Office (ODT) wants to send and receive data from ODW via Service Buses.
 ### Process
 The end-to-end process has been automated as follows.
 
-1. A **Service bus** will subscribe to `service-user` topic and trigger an **Azure Function** whenever it receives a new message from Back Office. This message is expected to be a json array of service users data.
+1. An **Azure Function** will be triggerred whenever the Back Office sends a new message to their **Service bus**. This message is expected to be in json format.
 2. **Azure Function** will write this data as a json blob in a **Storage Account** at `odw-raw/Service-Bus/Service-User/{rand-guid}.json`.
 3. A Storage Event trigger `tr_odw_raw_service_user` will be fired as a result of this write operation which then will trigger a **Synapse Pipeline** `pln_service_user_main`.
-4. This pipeline will ingest the new data in Standardised, Harmonised, and Curated layers within the ODW and as a final step, publish the data to a **Service Bus** at `service-user` topic.
-5. Back Office will be able to subscribe to this topic and consume the processed data.
+4. This pipeline will process and ingest the new data in Standardised, Harmonised, and Curated layers within the ODW and as a final step, publish the data the ODW **Service Bus** at `service-user` topic.
+5. In addition to the new data coming from the Back Office, ODW will also process/host legacy Service User data obtained from **Horizon**. This data is originally present at `odw-raw/Horizon/2023-05-19/CaseInvolvement.csv`.
+6. Back Office will be able to subscribe to this topic and consume the processed data.
+7. For other entities like NSIP, we will be able to re-use the above process.
 
 ### Service User architecture  
 
