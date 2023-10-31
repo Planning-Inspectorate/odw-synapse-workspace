@@ -1,0 +1,2 @@
+Transformation 4: Adding Constant Values
+- Several columns are added to `sparkDF` with constant values. For example, [here is the implementaion](https://github.com/Planning-Inspectorate/ODW-Service/blob/main/workspace/notebook/ims_dpia_dim_historic.json#L97-L100)
