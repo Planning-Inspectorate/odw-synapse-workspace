@@ -1,0 +1,160 @@
+{
+	"name": "service-user-inbound",
+	"properties": {
+		"folder": {
+			"name": "odw-sb"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "dfcaf870-61ea-4c89-864a-70d09143f439"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.3",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"kv_linked_service=\"ls_kv\"\n",
+					"secret_name='servicebus-connectionstring'\n",
+					"# secret_name='odt-servicebus-connectionstring'\n",
+					"\n",
+					"topic_name='service-user'\n",
+					"subscription_name = 'service-user'"
+				],
+				"execution_count": 1
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import SparkSession\n",
+					"spark = SparkSession.builder.getOrCreate()\n",
+					"akv_name=spark.sparkContext.environment.get('keyVaultName', 'get')\n",
+					"from notebookutils import mssparkutils\n",
+					"\n",
+					"servicebus_client = mssparkutils.notebook.run('/odw-sb/employee-publish')\n",
+					"# , arguments={'kv_linked_service'=kv_linked_service, 'secret_name': secret_name})"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"import json\n",
+					"\n",
+					"new_messages = []\n",
+					"\n",
+					"\n",
+					"with servicebus_client:\n",
+					"    receiver = servicebus_client.get_subscription_receiver(topic_name=topic_name, subscription_name=subscription_name, max_wait_time=5)\n",
+					"    with receiver:\n",
+					"        received_msgs = receiver.peek_messages(max_wait_time=5, max_message_count=20)\n",
+					"        for msg in received_msgs:\n",
+					"            msg = json.loads(str(msg))\n",
+					"            if isinstance(msg, list):\n",
+					"                new_messages.extend(msg)\n",
+					"            elif isinstance(msg, dict):\n",
+					"                new_messages.append(msg)\n",
+					"\n",
+					"new_messages = json.dumps(new_messages)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from datetime import date\n",
+					"\n",
+					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"todaysdate = date.today().strftime(\"%Y-%m-%d\")\n",
+					"\n",
+					"df = spark.read.json(spark.sparkContext.parallelize([new_messages]))\n",
+					"\n",
+					"output_folder_path = f\"abfss://odw-raw@{storage_account}Service-Bus/Service-User1/{todaysdate}/data.csv\"\n",
+					"df.repartition(1).write.mode('overwrite').option(\"header\",True).csv(output_folder_path)\n",
+					"\n",
+					"output_files = mssparkutils.fs.ls(output_folder_path)\n",
+					"output_files = [f for f in output_files if f.name.endswith('.csv')]\n",
+					"\n",
+					"if len(output_files) > 0:\n",
+					"    output_file = output_files[0]\n",
+					"    mssparkutils.fs.mv(output_file.path, output_folder_path.replace('data', 'ServiceUser'), True)\n",
+					"    mssparkutils.fs.rm(output_folder_path, True)"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
