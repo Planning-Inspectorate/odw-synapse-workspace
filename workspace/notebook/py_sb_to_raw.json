@@ -1,8 +1,8 @@
 {
-	"name": "service-user-inbound",
+	"name": "py_sb_to_raw",
 	"properties": {
 		"folder": {
-			"name": "odw-sb"
+			"name": "0-odw-source-to-raw"
 		},
 		"nbformat": 4,
 		"nbformat_minor": 2,
@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "dfcaf870-61ea-4c89-864a-70d09143f439"
+				"spark.autotune.trackingId": "7cd6a5f2-0ce2-44e2-b093-7c96738f42b8"
 			}
 		},
 		"metadata": {
@@ -52,6 +52,19 @@
 		},
 		"cells": [
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Set the notebook parameters"
+				]
+			},
+			{
 				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
@@ -62,17 +75,34 @@
 						"transient": {
 							"deleting": false
 						}
-					}
+					},
+					"tags": [
+						"parameters"
+					]
 				},
 				"source": [
 					"kv_linked_service=\"ls_kv\"\n",
-					"secret_name='servicebus-connectionstring'\n",
-					"# secret_name='odt-servicebus-connectionstring'\n",
+					"secret_name=''\n",
 					"\n",
-					"topic_name='service-user'\n",
-					"subscription_name = 'service-user'"
+					"topic_name=''\n",
+					"subscription_name=''\n",
+					"\n",
+					"output_file_name=''"
 				],
-				"execution_count": 1
+				"execution_count": 54
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Establish the connection with the Service Bus"
+				]
 			},
 			{
 				"cell_type": "code",
@@ -81,11 +111,25 @@
 					"spark = SparkSession.builder.getOrCreate()\n",
 					"akv_name=spark.sparkContext.environment.get('keyVaultName', 'get')\n",
 					"from notebookutils import mssparkutils\n",
+					"from azure.servicebus import ServiceBusClient, ServiceBusMessage\n",
 					"\n",
-					"servicebus_client = mssparkutils.notebook.run('/odw-sb/employee-publish')\n",
-					"# , arguments={'kv_linked_service'=kv_linked_service, 'secret_name': secret_name})"
+					"conn_str = mssparkutils.credentials.getSecret(akv_name, secret_name, kv_linked_service)\n",
+					"servicebus_client = ServiceBusClient.from_connection_string(conn_str=conn_str, logging_enable=True)"
 				],
-				"execution_count": null
+				"execution_count": 55
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Receive the new messages"
+				]
 			},
 			{
 				"cell_type": "code",
@@ -109,7 +153,7 @@
 					"with servicebus_client:\n",
 					"    receiver = servicebus_client.get_subscription_receiver(topic_name=topic_name, subscription_name=subscription_name, max_wait_time=5)\n",
 					"    with receiver:\n",
-					"        received_msgs = receiver.peek_messages(max_wait_time=5, max_message_count=20)\n",
+					"        received_msgs = receiver.receive_messages(max_wait_time=5, max_message_count=20) \n",
 					"        for msg in received_msgs:\n",
 					"            msg = json.loads(str(msg))\n",
 					"            if isinstance(msg, list):\n",
@@ -117,9 +161,25 @@
 					"            elif isinstance(msg, dict):\n",
 					"                new_messages.append(msg)\n",
 					"\n",
+					"if len(new_messages) == 0:\n",
+					"    mssparkutils.notebook.exit(True)\n",
+					"\n",
 					"new_messages = json.dumps(new_messages)"
 				],
-				"execution_count": null
+				"execution_count": 56
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Ingest the new messages in the data lake i.e odw-raw"
+				]
 			},
 			{
 				"cell_type": "code",
@@ -142,7 +202,7 @@
 					"\n",
 					"df = spark.read.json(spark.sparkContext.parallelize([new_messages]))\n",
 					"\n",
-					"output_folder_path = f\"abfss://odw-raw@{storage_account}Service-Bus/Service-User1/{todaysdate}/data.csv\"\n",
+					"output_folder_path = f\"abfss://odw-raw@{storage_account}Service-Bus/{output_file_name}/{todaysdate}/output.csv\"\n",
 					"df.repartition(1).write.mode('overwrite').option(\"header\",True).csv(output_folder_path)\n",
 					"\n",
 					"output_files = mssparkutils.fs.ls(output_folder_path)\n",
@@ -150,10 +210,10 @@
 					"\n",
 					"if len(output_files) > 0:\n",
 					"    output_file = output_files[0]\n",
-					"    mssparkutils.fs.mv(output_file.path, output_folder_path.replace('data', 'ServiceUser'), True)\n",
+					"    mssparkutils.fs.mv(output_file.path, output_folder_path.replace('output', output_file_name), True)\n",
 					"    mssparkutils.fs.rm(output_folder_path, True)"
 				],
-				"execution_count": null
+				"execution_count": 57
 			}
 		]
 	}

@@ -72,7 +72,14 @@
 				"name": "Ingest Std",
 				"description": "Ingests raw data into the new standardised table i.e horizon_service_user_new",
 				"type": "SynapseNotebook",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "Service Bus to Raw",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"timeout": "0.12:00:00",
 					"retry": 0,
@@ -158,6 +165,44 @@
 						"spark.dynamicAllocation.maxExecutors": null
 					},
 					"numExecutors": null
+				}
+			},
+			{
+				"name": "Service Bus to Raw",
+				"type": "SynapseNotebook",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_sb_to_raw",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"secret_name": {
+							"value": "servicebus-connectionstring",
+							"type": "string"
+						},
+						"topic_name": {
+							"value": "service-user",
+							"type": "string"
+						},
+						"subscription_name": {
+							"value": "service-user",
+							"type": "string"
+						},
+						"output_file_name": {
+							"value": "ServiceUser",
+							"type": "string"
+						}
+					},
+					"snapshot": true
 				}
 			}
 		],
