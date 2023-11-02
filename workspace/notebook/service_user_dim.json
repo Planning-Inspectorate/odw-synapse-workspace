@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "4d69f01f-6de9-4ae0-8c95-1a64832e33a5"
+				"spark.autotune.trackingId": "ca5ed97f-465b-48cc-a8da-0a6c1b2061cd"
 			}
 		},
 		"metadata": {
@@ -118,6 +118,7 @@
 					"    ON \"Appeals\" = T2.Description\r\n",
 					"FULL JOIN odw_standardised_db.horizon_service_user_new T3 \r\n",
 					"    ON T1.CaseReference = T3.casereference\r\n",
+					"        AND T1.TicketID = T3.id\r\n",
 					"        AND T1.IsActive = 'Y'\r\n",
 					"\r\n",
 					"WHERE\r\n",
@@ -145,7 +146,32 @@
 					";\r\n",
 					""
 				],
-				"execution_count": 2
+				"execution_count": 9
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"SELECT count(*) FROM service_user_dim_new;\n",
+					"SELECT * FROM service_user_dim_new;"
+				],
+				"execution_count": 10
 			},
 			{
 				"cell_type": "code",
@@ -234,12 +260,38 @@
 					"    ValidTo,\r\n",
 					"    RowID,\r\n",
 					"    IsActive\r\n",
-					"FROM odw_harmonised_db.service_user_dim\r\n",
-					"WHERE CaseReference IN (SELECT CaseReference FROM service_user_dim_new WHERE ServiceDataID IS NULL)\r\n",
-					"AND IsActive = 'Y'; \r\n",
+					"FROM odw_harmonised_db.service_user_dim T1\r\n",
+					"WHERE CaseReference IN (SELECT CaseReference FROM service_user_dim_new WHERE ServiceDataID IS NULL) \r\n",
+					"    AND TicketID IN (SELECT TicketID FROM service_user_dim_new WHERE CaseReference = T1.CaseReference AND CaseReference IS NULL)\r\n",
+					"    AND IsActive = 'Y'; \r\n",
 					""
 				],
-				"execution_count": 3
+				"execution_count": 11
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"SELECT * FROM service_user_dim_changed_rows;\n",
+					"SELECT count(*) FROM service_user_dim_changed_rows"
+				],
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
@@ -308,7 +360,31 @@
 					"FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive\n",
 					";"
 				],
-				"execution_count": 4
+				"execution_count": 13
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"SELECT * FROM service_user_dim_changed_rows_final;"
+				],
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
@@ -400,7 +476,7 @@
 					"        Source.IsActive)\r\n",
 					";  "
 				],
-				"execution_count": 5
+				"execution_count": 15
 			},
 			{
 				"cell_type": "code",
@@ -455,7 +531,7 @@
 					"FROM odw_harmonised_db.service_user_dim;\r\n",
 					""
 				],
-				"execution_count": 6
+				"execution_count": 16
 			}
 		]
 	}
