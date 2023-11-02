@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ac9d192d-ab63-4376-9a71-2967e428c86f"
+				"spark.autotune.trackingId": "cb4c694e-8423-4c88-ade5-223a12ef0aa8"
 			}
 		},
 		"metadata": {
@@ -45,7 +45,8 @@
 				"sparkVersion": "3.3",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 28
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -175,26 +176,29 @@
 					"definitions = json.loads(df.toJSON().first())['definitions']\n",
 					"\n",
 					"source_path = f\"{raw_container}{source_folder_path}/{'' if is_source_from_function_app else date_folder_str}\"\n",
-					"files = mssparkutils.fs.ls(source_path)\n",
 					"\n",
-					"if is_source_from_function_app:\n",
-					"    latest_file = get_latest_file(source_path)\n",
-					"    files = [file for file in files if file.name == latest_file]\n",
-					"\n",
-					"for file in files:\n",
-					"\n",
+					"try:\n",
+					"    files = mssparkutils.fs.ls(source_path)\n",
 					"    if is_source_from_function_app:\n",
-					"        definition = next((d for d in definitions if source_id == d['Source_ID']))\n",
-					"    else:\n",
-					"        definition = next((d for d in definitions if (specific_file == '' or d['Source_Filename_Start'] == specific_file) and (source_frequency_folder == '' or d['Source_Frequency_Folder'] == source_frequency_folder) and d['Source_Filename_Format'] == file.name), None)\n",
-					"    \n",
-					"    if definition:\n",
-					"        expected_from = date_folder - timedelta(days=1)\n",
-					"        expected_from = datetime.combine(expected_from, datetime.min.time())\n",
-					"        expected_to = expected_from + timedelta(days=definition['Expected_Within_Weekdays']) \n",
+					"        latest_file = get_latest_file(source_path)\n",
+					"        files = [file for file in files if file.name == latest_file]\n",
 					"\n",
-					"        print(f\"Ingesting {file.name}\")\n",
-					"        ingest_adhoc(storage_account, definition, source_path, file.name, expected_from, expected_to)"
+					"    for file in files:\n",
+					"\n",
+					"        if is_source_from_function_app:\n",
+					"            definition = next((d for d in definitions if source_id == d['Source_ID']))\n",
+					"        else:\n",
+					"            definition = next((d for d in definitions if (specific_file == '' or d['Source_Filename_Start'] == specific_file) and (source_frequency_folder == '' or d['Source_Frequency_Folder'] == source_frequency_folder) and d['Source_Filename_Format'] == file.name), None)\n",
+					"        \n",
+					"        if definition:\n",
+					"            expected_from = date_folder - timedelta(days=1)\n",
+					"            expected_from = datetime.combine(expected_from, datetime.min.time())\n",
+					"            expected_to = expected_from + timedelta(days=definition['Expected_Within_Weekdays']) \n",
+					"\n",
+					"            print(f\"Ingesting {file.name}\")\n",
+					"            ingest_adhoc(storage_account, definition, source_path, file.name, expected_from, expected_to)\n",
+					"except:  \n",
+					"   print('Raw data unavailable')"
 				],
 				"execution_count": 5
 			}
