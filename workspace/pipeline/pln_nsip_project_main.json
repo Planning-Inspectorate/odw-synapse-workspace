@@ -1,0 +1,152 @@
+{
+	"name": "pln_nsip_project_main",
+	"properties": {
+		"activities": [
+			{
+				"name": "Service Bus to Raw",
+				"type": "SynapseNotebook",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_sb_to_raw",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"secret_name": {
+							"value": "odt-servicebus-connectionstring",
+							"type": "string"
+						},
+						"topic_name": {
+							"value": "nsip-project",
+							"type": "string"
+						},
+						"subscription_name": {
+							"value": "nsip-project",
+							"type": "string"
+						},
+						"output_file_name": {
+							"value": "NSIPProject",
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "If New Data in Raw",
+				"description": "If there's new data ingested from the SB to odw-raw",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Service Bus to Raw",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@bool(activity('Service Bus to Raw').output.status.Output.result.exitValue)",
+						"type": "Expression"
+					},
+					"ifFalseActivities": [
+						{
+							"name": "No new messages from SB",
+							"type": "SynapseNotebook",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "py_fail_activity_logging",
+									"type": "NotebookReference"
+								},
+								"parameters": {
+									"output": {
+										"value": "No new messages received from Service Bus",
+										"type": "string"
+									}
+								},
+								"snapshot": true,
+								"conf": {
+									"spark.dynamicAllocation.enabled": false,
+									"spark.dynamicAllocation.minExecutors": null,
+									"spark.dynamicAllocation.maxExecutors": null
+								},
+								"numExecutors": null
+							}
+						}
+					],
+					"ifTrueActivities": [
+						{
+							"name": "Ingest Std",
+							"description": "Ingests raw data into the new standardised table i.e horizon_service_user_new",
+							"type": "SynapseNotebook",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "py_raw_to_std",
+									"type": "NotebookReference"
+								},
+								"parameters": {
+									"source_folder": {
+										"value": "ServiceBus",
+										"type": "string"
+									},
+									"source_frequency_folder": {
+										"value": "NSIPProject",
+										"type": "string"
+									},
+									"specific_file": {
+										"value": "NSIPProject",
+										"type": "string"
+									}
+								},
+								"snapshot": true,
+								"conf": {
+									"spark.dynamicAllocation.enabled": null,
+									"spark.dynamicAllocation.minExecutors": null,
+									"spark.dynamicAllocation.maxExecutors": null
+								},
+								"numExecutors": null
+							}
+						}
+					]
+				}
+			}
+		],
+		"folder": {
+			"name": "nsip project"
+		},
+		"annotations": []
+	}
+}
