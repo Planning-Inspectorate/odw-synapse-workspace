@@ -14,8 +14,8 @@ from azure.storage.blob import BlobServiceClient
 import json
 
 NAMESPACE = "https://pins-sb-odw-dev-uks-b9rt9m.servicebus.windows.net"
-SUBSCRIPTION = "nsip-exam-timetable"
-TOPIC = "nsip-exam-timetable"
+SUBSCRIPTION = "service-user"
+TOPIC = "service-user"
 MAX_MESSAGE_COUNT = 10
 STORAGE = "https://pinsstodwdevuks9h80mb.blob.core.windows.net"
 CONTAINER = "odw-raw/odt/test"
