@@ -7,10 +7,12 @@ Expected data types and constraints are also defined for each field.
 
 from pydantic import BaseModel, ValidationError, ConfigDict, Field
 from uuid import UUID
+import pprint
 from model_funcs import convert_to_lower
 
 
 def model() -> None:
+    
     """
     The 'model' function defines a class 'ServiceUser' and performs some operations on test data.
 
@@ -65,7 +67,22 @@ def model() -> None:
         serviceusertype: str = Field(max_length=150)
         casereference: str = Field(max_length=256)
 
-    test_data = {
+    class MessageInstances (BaseModel):
+
+        """
+        Represents a pydantic model for a list of ServiceUser instances.
+
+        Args:
+            messagedata (list[ServiceUser]): The list of ServiceUser instances.
+
+        Attributes:
+            messagedata (list[ServiceUser]): The list of ServiceUser instances.
+        """
+         
+        messagedata: list[ServiceUser]
+
+    test_data = [
+        {
         "ID": 99999999,
         "SourceSystemID": "gtfr1356hygr5432",
         "salutation": "teststring",
@@ -83,16 +100,39 @@ def model() -> None:
         "faxNumber": "teststring",
         "emailAddress": "teststring",
         "serviceUserType": "teststring",
-        "caseReference": "teststring",
+        "caseReference": "teststring"
+    },
+        {
+        "ID": 9999999989,
+        "SourceSystemID": "gtfr1356hygr5432",
+        "salutation": "teststring",
+        "firstName": "teststring",
+        "lastName": "teststring",
+        "addressLine1": "teststring",
+        "addressLine2": "teststring",
+        "addressTown": "teststring",
+        "addressCounty": "teststring",
+        "postcode": "mycode",
+        "organisation": "teststring",
+        "organisationType": "teststring",
+        "telephoneNumber": "teststring",
+        "otherPhoneNumber": "teststring",
+        "faxNumber": "teststring",
+        "emailAddress": "teststring",
+        "serviceUserType": "teststring",
+        "caseReference": "teststring"
     }
+    ]
 
     # convert input data dictionary keys to lowercase for comparison with model
-    test_data_lower = convert_to_lower(test_data)
-
-    try:
-        print(ServiceUser(**test_data_lower).model_dump())
-        print("Success!")
+    messages_lower = []
+    for message in test_data:
+        message_lower = convert_to_lower(message)
+        messages_lower.append(message_lower)
+    try:    
+        ServiceUserInstances = MessageInstances(messagedata=messages_lower)
+        print("VALIDATION SUCCEEDED!")
     except ValidationError as e:
         print(e)
-
+        pprint.pprint(e.errors())
 model()
