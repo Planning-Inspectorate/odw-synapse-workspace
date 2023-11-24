@@ -13,6 +13,13 @@ from model_funcs import convert_to_lower
 
 def model() -> None:
 
+    """
+    The 'model' function defines a class 'ServiceUser' and performs some operations on test data.
+
+    Returns:
+        None
+    """
+
     class ServiceUser(BaseModel):
 
         """
