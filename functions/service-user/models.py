@@ -9,15 +9,22 @@ from pydantic import BaseModel, ValidationError, ConfigDict, Field
 from uuid import UUID
 import pprint
 from model_funcs import convert_to_lower
+from servicebus_funcs import get_messages
+from azure.identity import DefaultAzureCredential
 
+_NAMESPACE = "https://pins-sb-odw-dev-uks-b9rt9m.servicebus.windows.net"
+_SUBSCRIPTION = "service-user"
+_TOPIC = "service-user"
+_MAX_MESSAGE_COUNT = 10
+_CREDENTIAL = DefaultAzureCredential()
 
-def model() -> None:
+def model() -> list[dict]:
     
     """
     The 'model' function defines a class 'ServiceUser' and performs some operations on test data.
 
     Returns:
-        None
+        data - a list of dictionaries containng Service Bus message data
     """
 
     class ServiceUser(BaseModel):
@@ -49,7 +56,7 @@ def model() -> None:
         model_config = ConfigDict(validate_assignment=True, extra="forbid")
 
         id: int = Field(le=99999999)
-        sourcesystemid: UUID = Field(max_length=25)
+        sourcesystemid: UUID
         salutation: str = Field(max_length=10)
         firstname: str = Field(max_length=256)
         lastname: str = Field(max_length=256)
@@ -83,8 +90,8 @@ def model() -> None:
 
     test_data = [
         {
-        "ID": 99999999,
-        "SourceSystemID": "gtfr1356hygr5432",
+        "ID": 123,
+        "SourceSystemID": "20f5484b88ae49b08af03a389b4917dd",
         "salutation": "teststring",
         "firstName": "teststring",
         "lastName": "teststring",
@@ -103,8 +110,8 @@ def model() -> None:
         "caseReference": "teststring"
     },
         {
-        "ID": 9999999989,
-        "SourceSystemID": "gtfr1356hygr5432",
+        "ID": 1234,
+        "SourceSystemID": "20f5484b88ae49b08af03a389b4917dd",
         "salutation": "teststring",
         "firstName": "teststring",
         "lastName": "teststring",
@@ -124,15 +131,25 @@ def model() -> None:
     }
     ]
 
+    # data=get_messages(
+    #     _NAMESPACE, _CREDENTIAL, _TOPIC, _SUBSCRIPTION, _MAX_MESSAGE_COUNT
+    # )
+    data = test_data
     # convert input data dictionary keys to lowercase for comparison with model
     messages_lower = []
-    for message in test_data:
+    for message in data:
         message_lower = convert_to_lower(message)
         messages_lower.append(message_lower)
-    try:    
-        ServiceUserInstances = MessageInstances(messagedata=messages_lower)
-        print("VALIDATION SUCCEEDED!")
-    except ValidationError as e:
-        print(e)
-        pprint.pprint(e.errors())
+    if not messages_lower:
+        print("NO MESSAGES TO PROCESS - VALIDATION OK")
+        return data
+    else:
+        try:    
+            ServiceUserInstances = MessageInstances(messagedata=messages_lower)
+            print("VALIDATION SUCCEEDED!")
+            print(f'{len(data)} MESSAGES PROCESSED')
+            return data
+        except ValidationError as e:
+            print(e)
+            pprint.pprint(e.errors())
 model()
