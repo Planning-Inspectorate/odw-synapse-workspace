@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ca5ed97f-465b-48cc-a8da-0a6c1b2061cd"
+				"spark.autotune.trackingId": "01d90cdd-c82d-4cda-b42b-6d2e4f67d2dc"
 			}
 		},
 		"metadata": {
@@ -76,30 +76,32 @@
 					"        WHEN T3.casereference IS NULL\r\n",
 					"        THEN T1.ServiceDataID\r\n",
 					"        ELSE NULL\r\n",
-					"    END                             AS ServiceDataID, -- surrogate key\r\n",
-					"    T3.id                           AS TicketID,\r\n",
-					"    T3.casereference                AS CaseReference,\r\n",
-					"    T3.sourcesuid                   AS SUAreaID,\r\n",
-					"    T3.salutation                   AS Salutation,\r\n",
-					"    T3.firstname                    AS FirstName, \r\n",
-					"    T3.lastname                     AS LastName,\r\n",
-					"    T3.addressline1                 AS AddressLine1,\r\n",
-					"    T3.addressline2                 AS AddressLine2,\r\n",
-					"    T3.addresstown                  AS AddressTown,\r\n",
-					"    T3.addresscounty                AS AddressCounty,\r\n",
-					"    T3.postcode                     AS Postcode,\r\n",
-					"    'United Kingdom'                AS AddressCountry,\r\n",
-					"    T3.organisation                 AS Organisation,\r\n",
-					"    T3.organisationtype             AS OrganisationType,\r\n",
-					"    T3.serviceusertype              AS ServiceUserType,\r\n",
-					"    T3.role                         AS Role,\r\n",
-					"    T3.telephonenumber              AS TelephoneNumber,\r\n",
-					"    T3.otherphonenumber             AS OtherPhoneNumber,\r\n",
-					"    T3.faxnumber                    AS FaxNumber,\r\n",
-					"    T3.emailaddress                 AS EmailAddress,\r\n",
-					"    T2.SourceSystemID               AS SourceSystemID, -- NOT CORRECT\r\n",
+					"    END                                 AS ServiceDataID, -- surrogate key\r\n",
+					"    T3.id                               AS TicketID,\r\n",
+					"    T3.casereference                    AS CaseReference,\r\n",
+					"    T3.sourcesuid                       AS SUAreaID,\r\n",
+					"    T3.salutation                       AS Salutation,\r\n",
+					"    T3.firstname                        AS FirstName, \r\n",
+					"    T3.lastname                         AS LastName,\r\n",
+					"    T3.addressline1                     AS AddressLine1,\r\n",
+					"    T3.addressline2                     AS AddressLine2,\r\n",
+					"    T3.addresstown                      AS AddressTown,\r\n",
+					"    T3.addresscounty                    AS AddressCounty,\r\n",
+					"    T3.postcode                         AS Postcode,\r\n",
+					"    'United Kingdom'                    AS AddressCountry,\r\n",
+					"    T3.organisation                     AS Organisation,\r\n",
+					"    T3.organisationtype                 AS OrganisationType,\r\n",
+					"    T3.serviceusertype                  AS ServiceUserType,\r\n",
+					"    T3.role                             AS Role,\r\n",
+					"    T3.telephonenumber                  AS TelephoneNumber,\r\n",
+					"    T3.otherphonenumber                 AS OtherPhoneNumber,\r\n",
+					"    T3.faxnumber                        AS FaxNumber,\r\n",
+					"    T3.emailaddress                     AS EmailAddress,\r\n",
+					"    '1'                                 AS Migrated,\r\n",
+					"    T3.sourcesystem                     AS SourceSystem,\r\n",
+					"    T2.SourceSystemID                   AS SourceSystemID, -- NOT CORRECT\r\n",
 					"    to_timestamp(T3.ingested_datetime)  AS IngestionDate,\r\n",
-					"    NULL                            AS ValidTo,\r\n",
+					"    NULL                                AS ValidTo,\r\n",
 					"    md5(\r\n",
 					"        concat(\r\n",
 					"            IFNULL(T3.casereference,'.'), \r\n",
@@ -115,7 +117,7 @@
 					"\r\n",
 					"FROM odw_harmonised_db.service_user_dim T1\r\n",
 					"LEFT JOIN odw_harmonised_db.main_sourcesystem_fact T2 \r\n",
-					"    ON \"Appeals\" = T2.Description\r\n",
+					"    ON T1.SourceSystemID = T2.SourceSystemID\r\n",
 					"FULL JOIN odw_standardised_db.horizon_service_user_new T3 \r\n",
 					"    ON T1.CaseReference = T3.casereference\r\n",
 					"        AND T1.TicketID = T3.id\r\n",
@@ -146,7 +148,7 @@
 					";\r\n",
 					""
 				],
-				"execution_count": 9
+				"execution_count": 1
 			},
 			{
 				"cell_type": "code",
@@ -171,7 +173,7 @@
 					"SELECT count(*) FROM service_user_dim_new;\n",
 					"SELECT * FROM service_user_dim_new;"
 				],
-				"execution_count": 10
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
@@ -222,6 +224,8 @@
 					"    OtherPhoneNumber,\r\n",
 					"    FaxNumber,\r\n",
 					"    EmailAddress,\r\n",
+					"    Migrated,\r\n",
+					"    ODTSourceSystem,\r\n",
 					"    SourceSystemID,\r\n",
 					"    IngestionDate,\r\n",
 					"    ValidTo,\r\n",
@@ -255,6 +259,8 @@
 					"    OtherPhoneNumber,\r\n",
 					"    FaxNumber,\r\n",
 					"    EmailAddress,\r\n",
+					"    Migrated,\r\n",
+					"    ODTSourceSystem,\r\n",
 					"    SourceSystemID,\r\n",
 					"    IngestionDate,\r\n",
 					"    ValidTo,\r\n",
@@ -266,7 +272,7 @@
 					"    AND IsActive = 'Y'; \r\n",
 					""
 				],
-				"execution_count": 11
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
@@ -291,7 +297,7 @@
 					"SELECT * FROM service_user_dim_changed_rows;\n",
 					"SELECT count(*) FROM service_user_dim_changed_rows"
 				],
-				"execution_count": 12
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -350,6 +356,8 @@
 					"    OtherPhoneNumber,\n",
 					"    FaxNumber,\n",
 					"    EmailAddress,\n",
+					"    Migrated,\n",
+					"    ODTSourceSystem,\n",
 					"    T1.SourceSystemID,\n",
 					"    T1.IngestionDate,\n",
 					"    T1.ValidTo,\n",
@@ -360,7 +368,7 @@
 					"FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive\n",
 					";"
 				],
-				"execution_count": 13
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
@@ -380,11 +388,12 @@
 					"collapsed": false
 				},
 				"source": [
+					"\n",
 					"%%sql\n",
 					"\n",
 					"SELECT * FROM service_user_dim_changed_rows_final;"
 				],
-				"execution_count": 14
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
@@ -443,6 +452,8 @@
 					"        OtherPhoneNumber,\r\n",
 					"        FaxNumber,\r\n",
 					"        EmailAddress,\r\n",
+					"        Migrated,\r\n",
+					"        ODTSourceSystem,\r\n",
 					"        SourceSystemID,\r\n",
 					"        IngestionDate,\r\n",
 					"        ValidTo,\r\n",
@@ -469,6 +480,8 @@
 					"        Source.OtherPhoneNumber,\r\n",
 					"        Source.FaxNumber,\r\n",
 					"        Source.EmailAddress,\r\n",
+					"        Source.Migrated,\r\n",
+					"        Source.ODTSourceSystem,\r\n",
 					"        Source.SourceSystemID, \r\n",
 					"        Source.IngestionDate, \r\n",
 					"        Source.ValidTo, \r\n",
@@ -476,7 +489,7 @@
 					"        Source.IsActive)\r\n",
 					";  "
 				],
-				"execution_count": 15
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
@@ -523,6 +536,8 @@
 					"    OtherPhoneNumber,\r\n",
 					"    FaxNumber,\r\n",
 					"    EmailAddress,\r\n",
+					"    Migrated,\r\n",
+					"    ODTSourceSystem,\r\n",
 					"    SourceSystemID,\r\n",
 					"    IngestionDate,\r\n",
 					"    ValidTo,\r\n",
@@ -531,7 +546,7 @@
 					"FROM odw_harmonised_db.service_user_dim;\r\n",
 					""
 				],
-				"execution_count": 16
+				"execution_count": 8
 			}
 		]
 	}
