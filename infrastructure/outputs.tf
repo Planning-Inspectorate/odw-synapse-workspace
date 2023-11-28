@@ -64,6 +64,12 @@ output "synapse_ssql_endpoint" {
   value       = var.failover_deployment ? one(module.synapse_workspace_private_failover).synapse_endpoints["sqlOnDemand"] : module.synapse_workspace_private.synapse_endpoints["sqlOnDemand"]
 }
 
+output "synapse_workspace_id" {
+  description = "The ARM ID of the Synapse Workspace"
+  value       = var.failover_deployment ? one(module.synapse_workspace_private_failover).synapse_workspace_id : module.synapse_workspace_private.synapse_workspace_id
+}
+
+
 output "synapse_workspace_name" {
   description = "The name of the Synapse Workspace"
   value       = var.failover_deployment ? one(module.synapse_workspace_private_failover).synapse_workspace_name : module.synapse_workspace_private.synapse_workspace_name
