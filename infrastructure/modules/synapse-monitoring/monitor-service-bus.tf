@@ -6,46 +6,21 @@ resource "azurerm_monitor_diagnostic_setting" "service_bus_namespace" {
   metric {
     category = "AllMetrics"
     enabled  = true
-
-    retention_policy {
-      days    = 0
-      enabled = false
-    }
   }
 
   enabled_log {
     category = "ApplicationMetricsLogs"
-
-    retention_policy {
-      days    = 0
-      enabled = false
-    }
   }
 
   enabled_log {
     category = "OperationalLogs"
-
-    retention_policy {
-      days    = 0
-      enabled = false
-    }
   }
 
   enabled_log {
     category = "RuntimeAuditLogs"
-
-    retention_policy {
-      days    = 0
-      enabled = false
-    }
   }
 
   enabled_log {
     category = "VNetAndIPFilteringLogs"
-
-    retention_policy {
-      days    = 0
-      enabled = false
-    }
   }
 }

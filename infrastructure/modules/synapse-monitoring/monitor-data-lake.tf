@@ -6,20 +6,10 @@ resource "azurerm_monitor_diagnostic_setting" "data_lake" {
   metric {
     category = "Capacity"
     enabled  = true
-
-    retention_policy {
-      days    = 0
-      enabled = false
-    }
   }
 
   metric {
     category = "Transaction"
     enabled  = true
-
-    retention_policy {
-      days    = 0
-      enabled = false
-    }
   }
 }

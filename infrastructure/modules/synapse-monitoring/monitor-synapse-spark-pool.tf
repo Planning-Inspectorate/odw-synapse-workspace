@@ -8,19 +8,9 @@ resource "azurerm_monitor_diagnostic_setting" "synapse_spark_pool" {
   metric {
     category = "Apache Spark Pool"
     enabled  = true
-
-    retention_policy {
-      days    = 0
-      enabled = false
-    }
   }
 
   enabled_log {
     category = "BigDataPoolAppsEnded"
-
-    retention_policy {
-      days    = 0
-      enabled = false
-    }
   }
 }

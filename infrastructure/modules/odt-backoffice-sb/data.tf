@@ -6,11 +6,10 @@ data "azurerm_resources" "odt_pe_backoffice_sb" {
 }
 
 data "azurerm_servicebus_topic" "topic_id" {
-  count               = length(local.odt_backoffice_sb_topic_names)
-  provider            = azurerm.odt
-  name                = local.odt_backoffice_sb_topic_names[count.index]
-  namespace_name      = var.odt_back_office_service_bus_name
-  resource_group_name = var.odt_back_office_service_bus_resource_group_name
+  count        = length(local.odt_backoffice_sb_topic_names)
+  provider     = azurerm.odt
+  name         = local.odt_backoffice_sb_topic_names[count.index]
+  namespace_id = data.azurerm_resources.odt_pe_backoffice_sb.resources[0].id
 }
 
 data "azuread_group" "groups" {

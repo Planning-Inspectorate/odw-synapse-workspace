@@ -143,6 +143,29 @@ variable "failover_deployment" {
   type        = bool
 }
 
+variable "function_app_enabled" {
+  default     = false
+  description = "Determines whether the resources for the Function App should be deployed"
+  type        = bool
+}
+
+variable "function_app_name" {
+  description = "The name of the Function App to be deployed"
+  type        = string
+}
+
+variable "function_app_settings" {
+  default     = {}
+  description = "A map of app settings to be applied to the Function App"
+  type        = map(string)
+}
+
+variable "function_app_site_config" {
+  default     = {}
+  description = "A map of site configuration settings to be applied to the Function App"
+  type        = map(any)
+}
+
 variable "key_vault_role_assignments" {
   default     = {}
   description = "An object mapping RBAC roles to principal IDs for Key Vault"
@@ -452,24 +475,14 @@ variable "vnet_base_cidr_block_failover" {
 }
 
 variable "vnet_subnets" {
-  default = [
-    {
-      name     = "ManagementSubnet"
-      new_bits = 2
-    },
-    {
-      name     = "SynapseEndpointSubnet"
-      new_bits = 2
-    },
-    {
-      name     = null
-      new_bits = 2
-    },
-    {
-      name     = null
-      new_bits = 2
-    }
-  ]
   description = "A collection of subnet definitions used to logically partition the Virtual Network"
-  type        = list(map(string))
+  type = list(object({
+    name              = string
+    new_bits          = number
+    service_endpoints = list(string)
+    service_delegation = list(object({
+      delegation_name = string
+      actions         = list(string)
+    }))
+  }))
 }

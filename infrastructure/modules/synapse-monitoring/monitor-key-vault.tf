@@ -6,28 +6,13 @@ resource "azurerm_monitor_diagnostic_setting" "key_vault" {
   metric {
     category = "AllMetrics"
     enabled  = true
-
-    retention_policy {
-      days    = 0
-      enabled = false
-    }
   }
 
   enabled_log {
     category = "AuditEvent"
-
-    retention_policy {
-      days    = 0
-      enabled = false
-    }
   }
 
   enabled_log {
     category = "AzurePolicyEvaluationDetails"
-
-    retention_policy {
-      days    = 0
-      enabled = false
-    }
   }
 }

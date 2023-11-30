@@ -32,3 +32,8 @@ output "vnet_subnet_prefixes" {
   description = "A map of subnet names to CIDR ranges deployed in this module"
   value       = { for k, v in azurerm_subnet.synapse : k => one(v.address_prefixes) }
 }
+
+output "vnet_subnet_ids" {
+  description = "A list of subnet IDs deployed in this module"
+  value       = values(azurerm_subnet.synapse)[*].id
+}

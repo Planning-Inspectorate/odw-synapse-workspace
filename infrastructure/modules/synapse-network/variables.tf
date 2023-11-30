@@ -45,23 +45,50 @@ variable "vnet_subnets" {
   default = [
     {
       "name" : "AzureBastionSubnet",
-      "new_bits" : 2 # /26
+      "new_bits" : 4 # /28
+      service_endpoints  = []
+      service_delegation = []
+    },
+    {
+      "name" : "FunctionAppSubnet",
+      "new_bits" : 4 # /28
+      service_endpoints = ["Microsoft.Storage", "Microsoft.KeyVault"]
+      service_delegation = [
+        {
+          delegation_name = "Microsoft.Web/serverFarms"
+          actions         = ["Microsoft.Network/virtualNetworks/subnets/action"]
+        }
+      ]
     },
     {
       "name" : "SynapseEndpointSubnet",
       "new_bits" : 2 # /26
+      service_endpoints  = []
+      service_delegation = []
     },
     {
       "name" : "ComputeSubnet"
       "new_bits" : 2 # /26
+      service_endpoints  = ["Microsoft.Storage", "Microsoft.KeyVault"]
+      service_delegation = []
     },
     {
-      "name" : null, # Reserved
+      "name" : "ApimSubnet",
       "new_bits" : 2 # /26
-    }
+      service_endpoints  = []
+      service_delegation = []
+    },
   ]
   description = "A collection of subnet definitions used to logically partition the Virtual Network"
-  type        = list(map(string))
+  type = list(object({
+    name              = string
+    new_bits          = number
+    service_endpoints = list(string)
+    service_delegation = list(object({
+      delegation_name = string
+      actions         = list(string)
+    }))
+  }))
 }
 
 variable "synapse_private_endpoint_subnet_name" {

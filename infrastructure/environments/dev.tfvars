@@ -44,8 +44,16 @@ devops_agent_pool_resource_group_name          = "pins-rg-devops-odw-dev-uks"
 devops_agent_pool_resource_group_name_failover = "pins-rg-devops-odw-dev-ukw"
 
 environment = "dev"
-location    = "uk-south"
 
+function_app_enabled = true
+function_app_name    = "fnapp01"
+function_app_site_config = {
+  application_stack = {
+    python_version = "3.11"
+  }
+}
+
+location          = "uk-south"
 logic_app_enabled = true
 
 key_vault_role_assignments = {
@@ -246,18 +254,37 @@ vnet_base_cidr_block_failover = "10.70.1.0/24"
 vnet_subnets = [
   {
     "name" : "AzureBastionSubnet",
-    "new_bits" : 2 # /26
+    "new_bits" : 4 # /28
+    service_endpoints  = []
+    service_delegation = []
+  },
+  {
+    "name" : "FunctionAppSubnet",
+    "new_bits" : 4 # /28
+    service_endpoints = ["Microsoft.Storage", "Microsoft.KeyVault"]
+    service_delegation = [
+      {
+        delegation_name = "Microsoft.Web/serverFarms"
+        actions         = ["Microsoft.Network/virtualNetworks/subnets/action"]
+      }
+    ]
   },
   {
     "name" : "SynapseEndpointSubnet",
     "new_bits" : 2 # /26
+    service_endpoints  = []
+    service_delegation = []
   },
   {
     "name" : "ComputeSubnet"
     "new_bits" : 2 # /26
+    service_endpoints  = ["Microsoft.Storage", "Microsoft.KeyVault"]
+    service_delegation = []
   },
   {
     "name" : "ApimSubnet",
     "new_bits" : 2 # /26
+    service_endpoints  = []
+    service_delegation = []
   },
 ]

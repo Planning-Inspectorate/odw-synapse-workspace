@@ -6,19 +6,9 @@ resource "azurerm_monitor_diagnostic_setting" "network" {
   metric {
     category = "AllMetrics"
     enabled  = true
-
-    retention_policy {
-      days    = 0
-      enabled = false
-    }
   }
 
   enabled_log {
     category = "VMProtectionAlerts"
-
-    retention_policy {
-      days    = 0
-      enabled = false
-    }
   }
 }

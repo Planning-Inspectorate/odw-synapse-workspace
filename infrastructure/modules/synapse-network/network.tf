@@ -16,11 +16,22 @@ resource "azurerm_virtual_network" "synapse" {
 }
 
 resource "azurerm_subnet" "synapse" {
-  for_each = module.subnets.network_cidr_blocks
+  for_each = local.subnets
 
   name                 = each.key
   resource_group_name  = var.resource_group_name
-  address_prefixes     = [each.value]
+  address_prefixes     = [each.value.cidr_block]
   virtual_network_name = azurerm_virtual_network.synapse.name
-  service_endpoints    = each.key == var.devops_agent_subnet_name ? local.devops_agent_subnet_service_endpoints : []
+  service_endpoints    = each.value.service_endpoints
+
+  dynamic "delegation" {
+    for_each = each.value.service_delegation
+    content {
+      name = each.key
+      service_delegation {
+        name    = delegation.value.delegation_name
+        actions = delegation.value.actions
+      }
+    }
+  }
 }
