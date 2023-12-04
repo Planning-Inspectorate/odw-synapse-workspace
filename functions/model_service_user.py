@@ -5,21 +5,19 @@ The model does not accept extra fields and all fields are mandatory.
 Expected data types and constraints are also defined for each field.
 """
 
-from pydantic import BaseModel, ValidationError, ConfigDict, Field
+from pydantic import BaseModel, ValidationError, Field
 from uuid import UUID
-import pprint
-from model_funcs import convert_to_lower
 from servicebus_funcs import get_messages
-from azure.identity import DefaultAzureCredential
+import config
 
-_NAMESPACE = "https://pins-sb-odw-dev-uks-b9rt9m.servicebus.windows.net"
-_SUBSCRIPTION = "service-user"
-_TOPIC = "service-user"
-_MAX_MESSAGE_COUNT = 10
-_CREDENTIAL = DefaultAzureCredential()
+_NAMESPACE = config.ODT_NAMESPACE
+_SUBSCRIPTION = config.SERVICE_USER_SUBSCRIPTION
+_TOPIC = config.SERVICE_USER_TOPIC
+_MAX_MESSAGE_COUNT = config.MAX_MESSAGE_COUNT
+_CREDENTIAL = config.CREDENTIAL
+
 
 def model() -> list[dict]:
-    
     """
     The 'model' function defines a class 'ServiceUser' and performs some operations on test data.
 
@@ -53,7 +51,7 @@ def model() -> list[dict]:
             caseReference (str): The case reference of the service user.
         """
 
-        model_config = ConfigDict(validate_assignment=True, extra="forbid")
+        model_config = config.MODEL_CONFIG
 
         id: int = Field(le=99999999)
         sourcesystemid: UUID
@@ -74,7 +72,7 @@ def model() -> list[dict]:
         serviceusertype: str = Field(max_length=150)
         casereference: str = Field(max_length=256)
 
-    class MessageInstances (BaseModel):
+    class MessageInstances(BaseModel):
 
         """
         Represents a pydantic model for a list of ServiceUser instances.
@@ -85,71 +83,26 @@ def model() -> list[dict]:
         Attributes:
             messagedata (list[ServiceUser]): The list of ServiceUser instances.
         """
-         
+
         messagedata: list[ServiceUser]
 
-    test_data = [
-        {
-        "ID": 123,
-        "SourceSystemID": "20f5484b88ae49b08af03a389b4917dd",
-        "salutation": "teststring",
-        "firstName": "teststring",
-        "lastName": "teststring",
-        "addressLine1": "teststring",
-        "addressLine2": "teststring",
-        "addressTown": "teststring",
-        "addressCounty": "teststring",
-        "postcode": "mycode",
-        "organisation": "teststring",
-        "organisationType": "teststring",
-        "telephoneNumber": "teststring",
-        "otherPhoneNumber": "teststring",
-        "faxNumber": "teststring",
-        "emailAddress": "teststring",
-        "serviceUserType": "teststring",
-        "caseReference": "teststring"
-    },
-        {
-        "ID": 1234,
-        "SourceSystemID": "20f5484b88ae49b08af03a389b4917dd",
-        "salutation": "teststring",
-        "firstName": "teststring",
-        "lastName": "teststring",
-        "addressLine1": "teststring",
-        "addressLine2": "teststring",
-        "addressTown": "teststring",
-        "addressCounty": "teststring",
-        "postcode": "mycode",
-        "organisation": "teststring",
-        "organisationType": "teststring",
-        "telephoneNumber": "teststring",
-        "otherPhoneNumber": "teststring",
-        "faxNumber": "teststring",
-        "emailAddress": "teststring",
-        "serviceUserType": "teststring",
-        "caseReference": "teststring"
-    }
-    ]
+    _data = get_messages(
+        _NAMESPACE, _CREDENTIAL, _TOPIC, _SUBSCRIPTION, _MAX_MESSAGE_COUNT
+    )
 
-    # data=get_messages(
-    #     _NAMESPACE, _CREDENTIAL, _TOPIC, _SUBSCRIPTION, _MAX_MESSAGE_COUNT
-    # )
-    data = test_data
-    # convert input data dictionary keys to lowercase for comparison with model
-    messages_lower = []
-    for message in data:
-        message_lower = convert_to_lower(message)
-        messages_lower.append(message_lower)
-    if not messages_lower:
+    _messages_lower = []
+    for message in _data:
+        _lowercase_message = {k.lower(): v for k, v in message.items()}
+        _messages_lower.append(_lowercase_message)
+    if not _messages_lower:
         print("NO MESSAGES TO PROCESS - VALIDATION OK")
-        return data
+        return _data
     else:
-        try:    
-            ServiceUserInstances = MessageInstances(messagedata=messages_lower)
+        try:
+            MessageInstances(messagedata=_messages_lower)
             print("VALIDATION SUCCEEDED!")
-            print(f'{len(data)} MESSAGES PROCESSED')
-            return data
+            print(f"{len(_messages_lower)} MESSAGES PROCESSED")
+            return _data
         except ValidationError as e:
             print(e)
-            pprint.pprint(e.errors())
-model()
+            raise e

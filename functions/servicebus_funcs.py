@@ -6,26 +6,10 @@ Functions:
 - send_to_storage: Upload data to Azure Blob Storage.
 """
 
-
-import datetime
 from azure.servicebus import ServiceBusClient
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
 import json
-
-NAMESPACE = "https://pins-sb-odw-dev-uks-b9rt9m.servicebus.windows.net"
-SUBSCRIPTION = "service-user"
-TOPIC = "service-user"
-MAX_MESSAGE_COUNT = 10
-STORAGE = "https://pinsstodwdevuks9h80mb.blob.core.windows.net"
-CONTAINER = "odw-raw/odt/test"
-CREDENTIAL = DefaultAzureCredential()
-UTC_TIMESTAMP = (
-    datetime.datetime.now(datetime.timezone.utc)
-    .replace(tzinfo=datetime.timezone.utc)
-    .isoformat()
-)
-FILENAME = f"messages_{UTC_TIMESTAMP}.json"
 
 
 def get_messages(
