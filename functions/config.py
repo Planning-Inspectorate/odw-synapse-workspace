@@ -6,7 +6,7 @@ from azure.identity import DefaultAzureCredential
 from pydantic import ConfigDict
 
 STORAGE = "https://pinsstodwdevuks9h80mb.blob.core.windows.net"
-CONTAINER = "odw-raw/odt/test"
+CONTAINER = "odw-raw/ServiceBus/"
 ODT_NAMESPACE = "pins-sb-back-office-dev-ukw-001.servicebus.windows.net"
 ODW_NAMESPACE = "pins-sb-odw-dev-uks-b9rt9m.servicebus.windows.net"
 SERVICE_USER_SUBSCRIPTION = "service-user"
@@ -19,5 +19,6 @@ UTC_TIMESTAMP = (
     .replace(tzinfo=datetime.timezone.utc)
     .isoformat()
 )
+CURRENT_DATE = datetime.datetime.now().strftime("%Y-%m-%d")
 CREDENTIAL = DefaultAzureCredential()
 MODEL_CONFIG = ConfigDict(validate_assignment=True, extra="forbid")
