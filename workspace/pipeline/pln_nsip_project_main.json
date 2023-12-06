@@ -3,147 +3,6 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "Service Bus to Raw",
-				"type": "SynapseNotebook",
-				"dependsOn": [],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "py_sb_to_raw",
-						"type": "NotebookReference"
-					},
-					"parameters": {
-						"secret_name": {
-							"value": "odt-servicebus-connectionstring",
-							"type": "string"
-						},
-						"topic_name": {
-							"value": "nsip-project",
-							"type": "string"
-						},
-						"subscription_name": {
-							"value": "nsip-project",
-							"type": "string"
-						},
-						"output_file_name": {
-							"value": "NSIPProject",
-							"type": "string"
-						}
-					},
-					"snapshot": true,
-					"conf": {
-						"spark.dynamicAllocation.enabled": null,
-						"spark.dynamicAllocation.minExecutors": null,
-						"spark.dynamicAllocation.maxExecutors": null
-					},
-					"numExecutors": null
-				}
-			},
-			{
-				"name": "If New Data in Raw",
-				"description": "If there's new data ingested from the SB to odw-raw",
-				"type": "IfCondition",
-				"dependsOn": [
-					{
-						"activity": "Service Bus to Raw",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"userProperties": [],
-				"typeProperties": {
-					"expression": {
-						"value": "@bool(activity('Service Bus to Raw').output.status.Output.result.exitValue)",
-						"type": "Expression"
-					},
-					"ifFalseActivities": [
-						{
-							"name": "No new messages from SB",
-							"type": "SynapseNotebook",
-							"dependsOn": [],
-							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"notebook": {
-									"referenceName": "py_fail_activity_logging",
-									"type": "NotebookReference"
-								},
-								"parameters": {
-									"output": {
-										"value": "No new messages received from Service Bus",
-										"type": "string"
-									}
-								},
-								"snapshot": true,
-								"conf": {
-									"spark.dynamicAllocation.enabled": false,
-									"spark.dynamicAllocation.minExecutors": null,
-									"spark.dynamicAllocation.maxExecutors": null
-								},
-								"numExecutors": null
-							}
-						}
-					],
-					"ifTrueActivities": [
-						{
-							"name": "Ingest Std",
-							"description": "Ingests raw data into the new standardised table i.e horizon_service_user_new",
-							"type": "SynapseNotebook",
-							"dependsOn": [],
-							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"notebook": {
-									"referenceName": "py_raw_to_std",
-									"type": "NotebookReference"
-								},
-								"parameters": {
-									"source_folder": {
-										"value": "ServiceBus",
-										"type": "string"
-									},
-									"source_frequency_folder": {
-										"value": "NSIPProject",
-										"type": "string"
-									},
-									"specific_file": {
-										"value": "NSIPProject",
-										"type": "string"
-									}
-								},
-								"snapshot": true,
-								"conf": {
-									"spark.dynamicAllocation.enabled": null,
-									"spark.dynamicAllocation.minExecutors": null,
-									"spark.dynamicAllocation.maxExecutors": null
-								},
-								"numExecutors": null
-							}
-						}
-					]
-				}
-			},
-			{
 				"name": "Std to Hrm NSIP Data",
 				"description": "Ingests data from standardised to harmonised for casework_nsip_project_info_internal_dim_legacy",
 				"type": "SynapseNotebook",
@@ -166,40 +25,6 @@
 				"typeProperties": {
 					"notebook": {
 						"referenceName": "casework_nsip_data_dim_legacy",
-						"type": "NotebookReference"
-					},
-					"snapshot": true,
-					"conf": {
-						"spark.dynamicAllocation.enabled": null,
-						"spark.dynamicAllocation.minExecutors": null,
-						"spark.dynamicAllocation.maxExecutors": null
-					},
-					"numExecutors": null
-				}
-			},
-			{
-				"name": "Std to Hrm Contact Information",
-				"description": "casework_contact_information_dim_legacy",
-				"type": "SynapseNotebook",
-				"dependsOn": [
-					{
-						"activity": "Raw to Std Contact Information",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "casework_contact_information_dim_legacy",
 						"type": "NotebookReference"
 					},
 					"snapshot": true,
@@ -1037,376 +862,6 @@
 				]
 			},
 			{
-				"name": "Hzn to Raw Contact Information",
-				"description": "This is copying data based on an SQL script to gather Contact Information data from Horizon",
-				"type": "Copy",
-				"dependsOn": [],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [
-					{
-						"name": "Source",
-						"value": "."
-					},
-					{
-						"name": "Destination",
-						"value": "odw-raw/@{concat('Horizon', '/', formatDateTime(utcnow(), 'yyyy-MM-dd'))}/@{'HorizonContactInformation.csv'}"
-					}
-				],
-				"typeProperties": {
-					"source": {
-						"type": "AzureSqlSource",
-						"sqlReaderQuery": "WITH cases as\n(\nSELECT DISTINCT\n      cases.CaseNodeId, \n\t  dtree.SubType,  \n\t  cases.CaseReference, \n\t  cases.CaseUniqueId as case_number\n      \nFROM\n      Horizon_CaseReference cases\n      INNER JOIN DTree dtree ON cases.CaseNodeId = dtree.DataID\n      INNER JOIN Horizon_TypeOfCase t ON cases.CaseTypeId = t.ID\nWHERE\n\t  dtree.OwnerID != -235834 \t-- Recycle bin ownerid\n\t  AND t.CaseworkType IN ('Appeal', 'CommonLand', 'Costs', 'Environment', 'RightsOfWay')\n)\n,\ncase_involvement(DataId, ContactID, ContactDetails, TypeOfInvolvement) AS\n       (SELECT DISTINCT d.DataId AS DataId, ll1.ValStr AS [ContactID], ll2.ValStr AS [ContactDetails], ll3.ValStr AS [TypeOfInvolvement]\n       FROM DTree d\n\t\t   INNER JOIN llattrdata ll1 ON d.DataId = ll1.Id\n\t\t   INNER JOIN llattrdata ll2 ON d.DataId = ll2.Id\n\t\t   INNER JOIN llattrdata ll3 ON d.DataId = ll3.Id\n       WHERE\n\t\t   ll1.DefId = 95501 AND ll1.AttrId = 20\n\t\t   AND ll2.DefId = 95501 AND ll2.AttrId = 19\n\t\t   AND ll3.DefId = 95501 AND ll3.AttrId = 3 \n\t\t   --exclude PINS staff case involvement roles\n\t\t   --AND ll3.ValStr NOT IN ('Case Manager', 'Case Officer', 'Inspector', 'Assistant Case Officer', 'Environmental Services Officer', 'Programme Officer', 'Legal Officer', 'Previous Inspector')\n\t\t   AND ll1.ParentKeyId = ll2.ParentKeyId\n\t\t   AND ll1.ParentKeyId = ll3.ParentKeyId)\n\nSELECT DISTINCT\n\tcr.case_number,\n\tD.CreateDate as case_created_date,\n\tci.ContactID,\n\tci.TypeOfInvolvement,\n\tv.ContactType,\n\tv.FirstName,\n\tv.LastName,\n\tv.PostName,\n\tv.Title,\n\tv.Salutation,\n\tv.Suffix,\n\tv.POBox,\n\tv.Address1,\n\tv.Address2,\n\tv.City,\n\tv.County,\n\tv.Postcode,\n\tv.Country,\n\tv.TelephoneOffice,\n\tv.TelephoneMobile,\n\tv.Fax,\n\tv.Email,\n\tv.LPACode,\n\tv.OrganisationName,\n\tt.OrganisationTypeName\nFROM \n\tcases cr\n\t\tINNER JOIN DTree D ON cr.CaseNodeId = D.DataID\n\t\tINNER JOIN case_involvement ci on D.DataID = ci.DataId\n\t\tLEFT JOIN [dbo].[Horizon_vw_AllContacts] v on ci.ContactID =v.Id\n\t\tLEFT JOIN Contacts_OrganisationType t on v.OrganisationTypeID = t.ID\n--WHERE\n--\t\t\tcase_number = 3000079",
-						"queryTimeout": "02:00:00",
-						"isolationLevel": "ReadCommitted",
-						"partitionOption": "None"
-					},
-					"sink": {
-						"type": "DelimitedTextSink",
-						"storeSettings": {
-							"type": "AzureBlobFSWriteSettings"
-						},
-						"formatSettings": {
-							"type": "DelimitedTextWriteSettings",
-							"quoteAllText": true,
-							"fileExtension": ".txt"
-						}
-					},
-					"enableStaging": false,
-					"validateDataConsistency": false,
-					"translator": {
-						"type": "TabularTranslator",
-						"mappings": [
-							{
-								"source": {
-									"name": "case_number",
-									"type": "Int32",
-									"physicalType": "int"
-								},
-								"sink": {
-									"name": "case_number",
-									"type": "String",
-									"physicalType": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "case_created_date",
-									"type": "DateTime",
-									"physicalType": "datetime"
-								},
-								"sink": {
-									"name": "case_created_date",
-									"type": "String",
-									"physicalType": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "ContactID",
-									"type": "String",
-									"physicalType": "nvarchar"
-								},
-								"sink": {
-									"name": "ContactID",
-									"type": "String",
-									"physicalType": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "TypeOfInvolvement",
-									"type": "String",
-									"physicalType": "nvarchar"
-								},
-								"sink": {
-									"name": "TypeOfInvolvement",
-									"type": "String",
-									"physicalType": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "ContactType",
-									"type": "String",
-									"physicalType": "varchar"
-								},
-								"sink": {
-									"name": "ContactType",
-									"type": "String",
-									"physicalType": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "FirstName",
-									"type": "String",
-									"physicalType": "nvarchar"
-								},
-								"sink": {
-									"name": "FirstName",
-									"type": "String",
-									"physicalType": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "LastName",
-									"type": "String",
-									"physicalType": "nvarchar"
-								},
-								"sink": {
-									"name": "LastName",
-									"type": "String",
-									"physicalType": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "PostName",
-									"type": "String",
-									"physicalType": "nvarchar"
-								},
-								"sink": {
-									"name": "PostName",
-									"type": "String",
-									"physicalType": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "Title",
-									"type": "String",
-									"physicalType": "nvarchar"
-								},
-								"sink": {
-									"name": "Title",
-									"type": "String",
-									"physicalType": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "Salutation",
-									"type": "String",
-									"physicalType": "nvarchar"
-								},
-								"sink": {
-									"name": "Salutation",
-									"type": "String",
-									"physicalType": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "Suffix",
-									"type": "String",
-									"physicalType": "nvarchar"
-								},
-								"sink": {
-									"name": "Suffix",
-									"type": "String",
-									"physicalType": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "POBox",
-									"type": "String",
-									"physicalType": "nvarchar"
-								},
-								"sink": {
-									"name": "POBox",
-									"type": "String",
-									"physicalType": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "Address1",
-									"type": "String",
-									"physicalType": "nvarchar"
-								},
-								"sink": {
-									"name": "Address1",
-									"type": "String",
-									"physicalType": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "Address2",
-									"type": "String",
-									"physicalType": "nvarchar"
-								},
-								"sink": {
-									"name": "Address2",
-									"type": "String",
-									"physicalType": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "City",
-									"type": "String",
-									"physicalType": "nvarchar"
-								},
-								"sink": {
-									"name": "City",
-									"type": "String",
-									"physicalType": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "County",
-									"type": "String",
-									"physicalType": "nvarchar"
-								},
-								"sink": {
-									"name": "County",
-									"type": "String",
-									"physicalType": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "Postcode",
-									"type": "String",
-									"physicalType": "nvarchar"
-								},
-								"sink": {
-									"name": "Postcode",
-									"type": "String",
-									"physicalType": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "Country",
-									"type": "String",
-									"physicalType": "nvarchar"
-								},
-								"sink": {
-									"name": "Country",
-									"type": "String",
-									"physicalType": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "TelephoneOffice",
-									"type": "String",
-									"physicalType": "nvarchar"
-								},
-								"sink": {
-									"name": "TelephoneOffice",
-									"type": "String",
-									"physicalType": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "TelephoneMobile",
-									"type": "String",
-									"physicalType": "nvarchar"
-								},
-								"sink": {
-									"name": "TelephoneMobile",
-									"type": "String",
-									"physicalType": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "Fax",
-									"type": "String",
-									"physicalType": "nvarchar"
-								},
-								"sink": {
-									"name": "Fax",
-									"type": "String",
-									"physicalType": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "Email",
-									"type": "String",
-									"physicalType": "nvarchar"
-								},
-								"sink": {
-									"name": "Email",
-									"type": "String",
-									"physicalType": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "LPACode",
-									"type": "String",
-									"physicalType": "nvarchar"
-								},
-								"sink": {
-									"name": "LPACode",
-									"type": "String",
-									"physicalType": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "OrganisationName",
-									"type": "String",
-									"physicalType": "nvarchar"
-								},
-								"sink": {
-									"name": "OrganisationName",
-									"type": "String",
-									"physicalType": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "OrganisationTypeName",
-									"type": "String",
-									"physicalType": "nvarchar"
-								},
-								"sink": {
-									"name": "OrganisationTypeName",
-									"type": "String",
-									"physicalType": "String"
-								}
-							}
-						],
-						"typeConversion": true,
-						"typeConversionSettings": {
-							"allowDataTruncation": true,
-							"treatBooleanAsNumber": false
-						}
-					}
-				},
-				"inputs": [
-					{
-						"referenceName": "HorizonContactInformation",
-						"type": "DatasetReference"
-					}
-				],
-				"outputs": [
-					{
-						"referenceName": "HorizonContactInfo",
-						"type": "DatasetReference",
-						"parameters": {
-							"FileName": "HorizonContactInformation.csv"
-						}
-					}
-				]
-			},
-			{
 				"name": "Raw to Std NSIP Data",
 				"type": "SynapseNotebook",
 				"dependsOn": [
@@ -1450,49 +905,6 @@
 				}
 			},
 			{
-				"name": "Raw to Std Contact Information",
-				"type": "SynapseNotebook",
-				"dependsOn": [
-					{
-						"activity": "Hzn to Raw Contact Information",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "py_raw_to_std",
-						"type": "NotebookReference"
-					},
-					"parameters": {
-						"source_folder": {
-							"value": "Horizon",
-							"type": "string"
-						},
-						"specific_file": {
-							"value": "HorizonContactInformation",
-							"type": "string"
-						}
-					},
-					"snapshot": true,
-					"conf": {
-						"spark.dynamicAllocation.enabled": null,
-						"spark.dynamicAllocation.minExecutors": null,
-						"spark.dynamicAllocation.maxExecutors": null
-					},
-					"numExecutors": null
-				}
-			},
-			{
 				"name": "Harmonised to Curated",
 				"type": "SynapseNotebook",
 				"dependsOn": [
@@ -1503,13 +915,7 @@
 						]
 					},
 					{
-						"activity": "Std to Hrm Contact Information",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					},
-					{
-						"activity": "If New Data in Raw",
+						"activity": "Ingest Hrm",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -1535,6 +941,79 @@
 						"spark.dynamicAllocation.maxExecutors": null
 					},
 					"numExecutors": null
+				}
+			},
+			{
+				"name": "Ingest Std",
+				"description": "Ingests raw data into the new standardised table i.e casework_nsip_data_dim",
+				"type": "SynapseNotebook",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_raw_to_std",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"source_folder": {
+							"value": "ServiceBus",
+							"type": "string"
+						},
+						"source_frequency_folder": {
+							"value": "NSIPProject",
+							"type": "string"
+						},
+						"specific_file": {
+							"value": "NSIPProject",
+							"type": "string"
+						},
+						"date_folder": {
+							"value": "2023-11-07",
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Ingest Hrm",
+				"description": "Ingests standardised data into the new harmonised table i.e casework_nsip_data_dim",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Ingest Std",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "casework_nsip_data_dim",
+						"type": "NotebookReference"
+					},
+					"snapshot": true
 				}
 			}
 		],
