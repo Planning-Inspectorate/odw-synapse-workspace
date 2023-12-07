@@ -6,7 +6,7 @@ variable "environment" {
 variable "location" {
   type        = string
   description = "The region resources will be deployed to"
-  default     = "ukwest"
+  default     = "uksouth"
 }
 
 variable "tags" {
@@ -79,6 +79,12 @@ variable "network_default_action" {
   default     = "Deny"
 }
 
+variable "network_rules_enabled" {
+  type        = bool
+  description = "Is network rules enabled for this storage account?"
+  default     = true
+}
+
 variable "network_rule_ips" {
   type        = list(string)
   description = "List of public IPs that are allowed to access the storage account. Private IPs in RFC1918 are not allowed here"
@@ -91,16 +97,10 @@ variable "network_rule_virtual_network_subnet_ids" {
   default     = []
 }
 
-variable "network_rule_virtual_network_subnet_ids_include_cicd_agents" {
-  type        = bool
-  description = "A boolean switch to allow for scenarios where the default set of cicd subnets (containing for example ADO agents) should not be added to the storage accounts network rules. An example would be a storage accounts used as a cloud witness for a windows failover cluster that exists outside of the paired regions of the cluster nodes"
-  default     = true
-}
-
 variable "network_rule_bypass" {
   type        = list(string)
   description = "Specifies whether traffic is bypassed for Logging/Metrics/AzureServices. Valid options are any combination of Logging, Metrics, AzureServices, or None"
-  default     = ["AzureServices"]
+  default     = ["AzureServices", "Logging", "Metrics"]
 }
 
 variable "container_name" {

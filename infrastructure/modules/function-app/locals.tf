@@ -12,6 +12,15 @@ locals {
     }
   )
 
+  app_settings = merge(
+    var.app_settings,
+    {
+      "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING" = "DefaultEndpointsProtocol=https;AccountName=${var.storage_account_name};AccountKey=${var.storage_account_access_key};EndpointSuffix=core.windows.net"
+      "WEBSITE_CONTENTSHARE"                     = var.file_share_name
+      "WEBSITE_CONTENTOVERVNET"                  = 1
+    }
+  )
+
   site_config = merge(
     var.site_config_defaults,
     var.site_config

@@ -54,3 +54,10 @@ output "share_id" {
     for share in azurerm_storage_share.share : share.id
   ])
 }
+
+output "share_name" {
+  description = "List of file share names"
+  value = tolist([
+    for share in azurerm_storage_share.share : share.name
+  ])
+}

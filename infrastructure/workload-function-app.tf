@@ -50,7 +50,14 @@ module "storage_account" {
   environment                             = var.environment
   location                                = module.azure_region.location_cli
   tags                                    = local.tags
-  network_rule_virtual_network_subnet_ids = [module.synapse_network.vnet_subnets[local.functionapp_subnet_name]]
+  network_rules_enabled                   = true
+  network_rule_virtual_network_subnet_ids = concat([module.synapse_network.vnet_subnets[local.functionapp_subnet_name], module.synapse_network.vnet_subnets[local.compute_subnet_name]])
+  shares = [
+    {
+      name  = "pins-${var.function_app_name}-${local.resource_suffix}"
+      quota = 5120
+    }
+  ]
 }
 
 module "storage_account_failover" {
@@ -63,7 +70,14 @@ module "storage_account_failover" {
   environment                             = var.environment
   location                                = module.azure_region.paired_location.location_cli
   tags                                    = local.tags
-  network_rule_virtual_network_subnet_ids = [module.synapse_network_failover.vnet_subnets[local.functionapp_subnet_name]]
+  network_rules_enabled                   = true
+  network_rule_virtual_network_subnet_ids = concat([module.synapse_network_failover.vnet_subnets[local.functionapp_subnet_name], module.synapse_network_failover.vnet_subnets[local.compute_subnet_name]])
+  shares = [
+    {
+      name  = "pins-${var.function_app_name}-${local.resource_suffix_failover}"
+      quota = 5120
+    }
+  ]
 }
 
 module "function_app" {
@@ -83,6 +97,7 @@ module "function_app" {
   synapse_vnet_subnet_names  = module.synapse_network.vnet_subnets
   app_settings               = var.function_app_settings
   site_config                = var.function_app_site_config
+  file_share_name            = "pins-${var.function_app_name}-${local.resource_suffix}"
 }
 
 module "function_app_failover" {
@@ -102,4 +117,5 @@ module "function_app_failover" {
   synapse_vnet_subnet_names  = module.synapse_network_failover.vnet_subnets
   app_settings               = var.function_app_settings
   site_config                = var.function_app_site_config
+  file_share_name            = "pins-${var.function_app_name}-${local.resource_suffix_failover}"
 }

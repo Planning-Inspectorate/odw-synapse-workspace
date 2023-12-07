@@ -9,7 +9,7 @@ variable "environment" {
 variable "location" {
   type        = string
   description = "The region resources will be deployed to"
-  default     = "northeurope"
+  default     = "uksouth"
 }
 
 variable "tags" {
@@ -22,6 +22,11 @@ variable "resource_group_name" {
   type        = string
   description = "The target resource group this module should be deployed into. If not specified one will be created for you with name like: environment-application-template-location"
   default     = ""
+}
+
+variable "file_share_name" {
+  type        = string
+  description = "The name of the file share to create"
 }
 
 variable "function_app_name" {
@@ -143,7 +148,7 @@ variable "site_config_defaults" {
     scm_use_main_ip_restriction = true
     use_32_bit_worker           = false
     websockets_enabled          = true
-    vnet_route_all_enabled      = false
+    vnet_route_all_enabled      = true
     application_stack = {
       dotnet_version          = ""
       use_dotnet_isolated     = false

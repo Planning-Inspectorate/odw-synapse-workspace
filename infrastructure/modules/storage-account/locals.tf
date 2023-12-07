@@ -9,8 +9,6 @@ locals {
     }
   )
 
-  cicd_subnet_ids = []
-
   soft_delete_retention_policy = var.soft_delete_retention_policy == true || substr(var.environment, 0, 2) == "production" ? true : var.soft_delete_retention_policy
 
 }
