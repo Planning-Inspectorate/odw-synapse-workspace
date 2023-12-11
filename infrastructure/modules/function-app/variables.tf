@@ -72,18 +72,16 @@ variable "functions_extension_version" {
   default     = "~4"
 }
 
-variable "auth_settings" {
-  type        = map(string)
-  description = "Function app auth settings"
-  default = {
-    enabled = true
-  }
-}
-
 variable "app_settings" {
   type        = map(string)
   description = "Function app settings"
   default     = {}
+}
+
+variable "servicebus_namespace" {
+  type        = string
+  description = "The name of the service bus namespace to use for the function app"
+  default     = null
 }
 
 variable "site_config_defaults" {
@@ -147,8 +145,8 @@ variable "site_config_defaults" {
     pre_warmed_instance_count   = null
     scm_use_main_ip_restriction = true
     use_32_bit_worker           = false
-    websockets_enabled          = true
-    vnet_route_all_enabled      = true
+    websockets_enabled          = false
+    vnet_route_all_enabled      = false
     application_stack = {
       dotnet_version          = ""
       use_dotnet_isolated     = false

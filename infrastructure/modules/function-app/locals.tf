@@ -15,9 +15,10 @@ locals {
   app_settings = merge(
     var.app_settings,
     {
-      "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING" = "DefaultEndpointsProtocol=https;AccountName=${var.storage_account_name};AccountKey=${var.storage_account_access_key};EndpointSuffix=core.windows.net"
-      "WEBSITE_CONTENTSHARE"                     = var.file_share_name
-      "WEBSITE_CONTENTOVERVNET"                  = 1
+      ServiceBusConnection__fullyQualifiedNamespace = "${var.servicebus_namespace}.servicebus.windows.net"
+      "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING"    = "DefaultEndpointsProtocol=https;AccountName=${var.storage_account_name};AccountKey=${var.storage_account_access_key};EndpointSuffix=core.windows.net"
+      "WEBSITE_CONTENTSHARE"                        = var.file_share_name
+      "WEBSITE_CONTENTOVERVNET"                     = 1
     }
   )
 

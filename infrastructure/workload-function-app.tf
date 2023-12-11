@@ -98,6 +98,7 @@ module "function_app" {
   app_settings               = var.function_app_settings
   site_config                = var.function_app_site_config
   file_share_name            = "pins-${var.function_app_name}-${local.resource_suffix}"
+  servicebus_namespace       = var.odt_back_office_service_bus_name
 }
 
 module "function_app_failover" {
@@ -118,4 +119,5 @@ module "function_app_failover" {
   app_settings               = var.function_app_settings
   site_config                = var.function_app_site_config
   file_share_name            = "pins-${var.function_app_name}-${local.resource_suffix_failover}"
+  servicebus_namespace       = var.odt_back_office_service_bus_name_failover
 }
