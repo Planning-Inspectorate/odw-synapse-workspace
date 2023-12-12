@@ -79,7 +79,7 @@ odt_backoffice_sb_topic_subscriptions = [
     topic_name        = "service-user"
     role_assignments = {
       "Azure Service Bus Data Receiver" = {
-        service_principals = ["pins-synw-odw-dev-uks", "pins-fnapp01-odw-dev-uks"]
+        service_principals = ["pins-synw-odw-dev-uks"]
       }
     }
   },
@@ -88,7 +88,7 @@ odt_backoffice_sb_topic_subscriptions = [
     topic_name        = "nsip-project"
     role_assignments = {
       "Azure Service Bus Data Receiver" = {
-        service_principals = ["pins-synw-odw-dev-uks", "pins-fnapp01-odw-dev-uks"]
+        service_principals = ["pins-synw-odw-dev-uks"]
       }
     }
   },
