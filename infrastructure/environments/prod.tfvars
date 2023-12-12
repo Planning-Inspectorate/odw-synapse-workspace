@@ -68,7 +68,7 @@ key_vault_role_assignments = {
 
 network_watcher_enabled = false
 
-odt_back_office_service_bus_enabled                      = false
+odt_back_office_service_bus_enabled                      = true
 odt_back_office_service_bus_failover_enabled             = false
 odt_back_office_service_bus_name                         = "pins-sb-back-office-prod-ukw-001"
 odt_back_office_service_bus_name_failover                = "pins-sb-back-office-prod-uks-001"
@@ -80,7 +80,7 @@ odt_backoffice_sb_topic_subscriptions = [
     topic_name        = "service-user"
     role_assignments = {
       "Azure Service Bus Data Receiver" = {
-        service_principals = ["pins-synw-odw-prod-uks"]
+        service_principals = ["pins-synw-odw-prod-uks", "pins-fnapp01-odw-prod-uks"]
       }
     }
   },
@@ -89,7 +89,7 @@ odt_backoffice_sb_topic_subscriptions = [
     topic_name        = "nsip-project"
     role_assignments = {
       "Azure Service Bus Data Receiver" = {
-        service_principals = ["pins-synw-odw-prod-uks"]
+        service_principals = ["pins-synw-odw-prod-uks", "pins-fnapp01-odw-prod-uks"]
       }
     }
   },
