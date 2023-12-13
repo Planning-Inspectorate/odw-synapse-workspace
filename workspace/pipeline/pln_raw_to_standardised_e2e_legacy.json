@@ -1,0 +1,181 @@
+{
+	"name": "pln_raw_to_standardised_e2e_legacy",
+	"properties": {
+		"activities": [
+			{
+				"name": "Generate Schema",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Copy Source File",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_generate_schema_script",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"target_folder": {
+							"value": {
+								"value": "@pipeline().parameters.standardised_schema_folder",
+								"type": "Expression"
+							},
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Logging Failed Activities_copy1",
+				"type": "SynapseNotebook",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_fail_activity_logging",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"output": {
+							"value": {
+								"value": "@activity('Create and Ingest failed').output.message",
+								"type": "Expression"
+							},
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Copy Source File",
+				"description": "copies source file to the schema_creation folder",
+				"type": "SynapseNotebook",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_1_copy_source_file_for_schema_creation",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"source_id": {
+							"value": {
+								"value": "@pipeline().parameters.source_id",
+								"type": "Expression"
+							},
+							"type": "int"
+						}
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Create Table and Ingest",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Generate Schema",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_raw_to_std",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"source_id": {
+							"value": {
+								"value": "@pipeline().parameters.source_id",
+								"type": "Expression"
+							},
+							"type": "int"
+						},
+						"date_folder": {
+							"value": {
+								"value": "@pipeline().parameters.source_folder_date",
+								"type": "Expression"
+							},
+							"type": "string"
+						}
+					},
+					"snapshot": true
+				}
+			}
+		],
+		"parameters": {
+			"source_id": {
+				"type": "int",
+				"defaultValue": 110
+			},
+			"source_folder_date": {
+				"type": "string",
+				"defaultValue": "2023-11-07"
+			},
+			"standardised_schema_folder": {
+				"type": "string",
+				"defaultValue": "NSIP/"
+			}
+		},
+		"folder": {
+			"name": "utils"
+		},
+		"annotations": []
+	}
+}

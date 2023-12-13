@@ -1,0 +1,96 @@
+{
+	"name": "pln_trigger_function_app",
+	"properties": {
+		"activities": [
+			{
+				"name": "Trigger Function",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "Get Function URL Secret",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"url": {
+						"value": "@replace(activity('Get Function URL Secret').output.status.Output.result.exitValue, ' ', '')",
+						"type": "Expression"
+					},
+					"connectVia": {
+						"referenceName": "AutoResolveIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"method": "GET"
+				}
+			},
+			{
+				"name": "Get Function URL Secret",
+				"type": "SynapseNotebook",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_utils_get_key_vault_secret",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"secret_name": {
+							"value": {
+								"value": "@concat('function-url-', pipeline().parameters.function_name)",
+								"type": "Expression"
+							},
+							"type": "string"
+						}
+					},
+					"snapshot": true
+				}
+			},
+			{
+				"name": "Function call failed",
+				"type": "Fail",
+				"dependsOn": [
+					{
+						"activity": "Trigger Function",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"message": {
+						"value": "@concat('Function call failed for ', pipeline().parameters.function_name)",
+						"type": "Expression"
+					},
+					"errorCode": "500"
+				}
+			}
+		],
+		"parameters": {
+			"function_name": {
+				"type": "string"
+			}
+		},
+		"folder": {
+			"name": "utils"
+		},
+		"annotations": []
+	}
+}

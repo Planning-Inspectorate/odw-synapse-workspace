@@ -947,7 +947,14 @@
 				"name": "Ingest Std",
 				"description": "Ingests raw data into the new standardised table i.e casework_nsip_data_dim",
 				"type": "SynapseNotebook",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "JSON to CSV",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"timeout": "0.12:00:00",
 					"retry": 0,
@@ -1021,8 +1028,75 @@
 					},
 					"numExecutors": null
 				}
+			},
+			{
+				"name": "JSON to CSV",
+				"description": "Converts the messages stored in json format to csv format",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Trigger Function",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_service_bus_json_to_csv",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"source_folder": {
+							"value": "ServiceBus",
+							"type": "string"
+						},
+						"source_frequency_folder": {
+							"value": {
+								"value": "@pipeline().parameters.topic_name",
+								"type": "Expression"
+							},
+							"type": "string"
+						}
+					},
+					"snapshot": true
+				}
+			},
+			{
+				"name": "Trigger Function",
+				"description": "Triggers Function App to read messages from Service Bus and write to odw-raw",
+				"type": "ExecutePipeline",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_trigger_function_app",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"function_name": {
+							"value": "@pipeline().parameters.topic_name",
+							"type": "Expression"
+						}
+					}
+				}
 			}
 		],
+		"parameters": {
+			"topic_name": {
+				"type": "string",
+				"defaultValue": "nsip-project"
+			}
+		},
 		"folder": {
 			"name": "nsip project"
 		},
