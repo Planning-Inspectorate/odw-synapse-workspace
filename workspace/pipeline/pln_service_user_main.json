@@ -3,17 +3,17 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "Ingest Curated",
+				"name": "Harmonised to Curated",
 				"type": "SynapseNotebook",
 				"dependsOn": [
 					{
-						"activity": "Ingest Legacy Harmonised",
+						"activity": "Hzn - Std to Hrm",
 						"dependencyConditions": [
 							"Succeeded"
 						]
 					},
 					{
-						"activity": "Ingest Harmonised",
+						"activity": "SB - Std to Hrm",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -42,7 +42,7 @@
 				}
 			},
 			{
-				"name": "Horizon to Raw",
+				"name": "Hzn - Src to Raw",
 				"description": "Copies migration data from Horizon to odw-raw",
 				"type": "ExecutePipeline",
 				"dependsOn": [],
@@ -56,12 +56,12 @@
 				}
 			},
 			{
-				"name": "Ingest Std Legacy",
+				"name": "Hzn - Raw to Std",
 				"description": "Ingests the raw migration data from Horizon to the standardised table i.e horizon_service_user",
 				"type": "SynapseNotebook",
 				"dependsOn": [
 					{
-						"activity": "Horizon to Raw",
+						"activity": "Hzn - Src to Raw",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -100,11 +100,11 @@
 				}
 			},
 			{
-				"name": "Ingest Legacy Harmonised",
+				"name": "Hzn - Std to Hrm",
 				"type": "SynapseNotebook",
 				"dependsOn": [
 					{
-						"activity": "Ingest Std Legacy",
+						"activity": "Hzn - Raw to Std",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -133,11 +133,11 @@
 				}
 			},
 			{
-				"name": "Ingest Harmonised",
+				"name": "SB - Std to Hrm",
 				"type": "SynapseNotebook",
 				"dependsOn": [
 					{
-						"activity": "Ingest Std",
+						"activity": "SB - Raw to Std",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -166,10 +166,17 @@
 				}
 			},
 			{
-				"name": "Ingest Std",
+				"name": "SB - Raw to Std",
 				"description": "Ingests raw data into the new standardised table i.e horizon_service_user_new",
 				"type": "SynapseNotebook",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "JSON to CSV",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"timeout": "0.12:00:00",
 					"retry": 0,
@@ -189,11 +196,84 @@
 							"type": "string"
 						},
 						"source_frequency_folder": {
-							"value": "ServiceUser",
+							"value": {
+								"value": "@pipeline().parameters.entity_name",
+								"type": "Expression"
+							},
 							"type": "string"
 						},
 						"specific_file": {
-							"value": "ServiceUser",
+							"value": {
+								"value": "@pipeline().parameters.entity_name",
+								"type": "Expression"
+							},
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "SB - Src to Raw",
+				"description": "Triggers Function App to read messages from Service Bus and write to odw-raw",
+				"type": "ExecutePipeline",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_trigger_function_app",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"function_name": {
+							"value": "@pipeline().parameters.topic_name",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "JSON to CSV",
+				"description": "Converts the messages stored in json format to csv format",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "SB - Src to Raw",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_service_bus_json_to_csv",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"source_folder": {
+							"value": "ServiceBus",
+							"type": "string"
+						},
+						"source_frequency_folder": {
+							"value": {
+								"value": "@pipeline().parameters.entity_name",
+								"type": "Expression"
+							},
 							"type": "string"
 						}
 					},
@@ -207,6 +287,12 @@
 				}
 			}
 		],
+		"parameters": {
+			"entity_name": {
+				"type": "string",
+				"defaultValue": "service-user"
+			}
+		},
 		"folder": {
 			"name": "service user"
 		},

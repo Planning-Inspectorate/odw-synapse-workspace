@@ -3,12 +3,12 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "Std to Hrm NSIP Data",
+				"name": "Hzn - Std to Hrm",
 				"description": "Ingests data from standardised to harmonised for casework_nsip_project_info_internal_dim_legacy",
 				"type": "SynapseNotebook",
 				"dependsOn": [
 					{
-						"activity": "Raw to Std NSIP Data",
+						"activity": "Hzn - Raw to Std",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -37,7 +37,7 @@
 				}
 			},
 			{
-				"name": "Hzn to Raw NSIP Data",
+				"name": "Hzn - Src to Raw",
 				"description": "This is copying data based on an SQL script to gather correct NSIP data from Horizon",
 				"type": "Copy",
 				"dependsOn": [],
@@ -862,11 +862,11 @@
 				]
 			},
 			{
-				"name": "Raw to Std NSIP Data",
+				"name": "Hzn - Raw to Std",
 				"type": "SynapseNotebook",
 				"dependsOn": [
 					{
-						"activity": "Hzn to Raw NSIP Data",
+						"activity": "Hzn - Src to Raw",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -905,46 +905,7 @@
 				}
 			},
 			{
-				"name": "Harmonised to Curated",
-				"type": "SynapseNotebook",
-				"dependsOn": [
-					{
-						"activity": "Std to Hrm NSIP Data",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					},
-					{
-						"activity": "Ingest Hrm",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "nsip_data",
-						"type": "NotebookReference"
-					},
-					"snapshot": true,
-					"conf": {
-						"spark.dynamicAllocation.enabled": null,
-						"spark.dynamicAllocation.minExecutors": null,
-						"spark.dynamicAllocation.maxExecutors": null
-					},
-					"numExecutors": null
-				}
-			},
-			{
-				"name": "Ingest Std",
+				"name": "SB - Raw to Std",
 				"description": "Ingests raw data into the new standardised table i.e casework_nsip_data_dim",
 				"type": "SynapseNotebook",
 				"dependsOn": [
@@ -974,15 +935,17 @@
 							"type": "string"
 						},
 						"source_frequency_folder": {
-							"value": "NSIPProject",
+							"value": {
+								"value": "@pipeline().parameters.entity_name",
+								"type": "Expression"
+							},
 							"type": "string"
 						},
 						"specific_file": {
-							"value": "NSIPProject",
-							"type": "string"
-						},
-						"date_folder": {
-							"value": "2023-12-01",
+							"value": {
+								"value": "@pipeline().parameters.entity_name",
+								"type": "Expression"
+							},
 							"type": "string"
 						}
 					},
@@ -996,12 +959,12 @@
 				}
 			},
 			{
-				"name": "Ingest Hrm",
-				"description": "Ingests standardised data into the new harmonised table i.e casework_nsip_data_dim",
+				"name": "SB - Std to Hrm",
+				"description": "Ingests the standardised data into the new harmonised table",
 				"type": "SynapseNotebook",
 				"dependsOn": [
 					{
-						"activity": "Ingest Std",
+						"activity": "SB - Raw to Std",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -1035,7 +998,7 @@
 				"type": "SynapseNotebook",
 				"dependsOn": [
 					{
-						"activity": "Trigger Function",
+						"activity": "SB - Src to Raw",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -1061,17 +1024,23 @@
 						},
 						"source_frequency_folder": {
 							"value": {
-								"value": "@pipeline().parameters.topic_name",
+								"value": "@pipeline().parameters.entity_name",
 								"type": "Expression"
 							},
 							"type": "string"
 						}
 					},
-					"snapshot": true
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
 				}
 			},
 			{
-				"name": "Trigger Function",
+				"name": "SB - Src to Raw",
 				"description": "Triggers Function App to read messages from Service Bus and write to odw-raw",
 				"type": "ExecutePipeline",
 				"dependsOn": [],
@@ -1084,15 +1053,48 @@
 					"waitOnCompletion": true,
 					"parameters": {
 						"function_name": {
-							"value": "@pipeline().parameters.topic_name",
+							"value": "@pipeline().parameters.entity_name",
 							"type": "Expression"
 						}
 					}
 				}
+			},
+			{
+				"name": "Hrmonised to Curated",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "SB - Std to Hrm",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Hzn - Std to Hrm",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "nsip_data",
+						"type": "NotebookReference"
+					},
+					"snapshot": true
+				}
 			}
 		],
 		"parameters": {
-			"topic_name": {
+			"entity_name": {
 				"type": "string",
 				"defaultValue": "nsip-project"
 			}
