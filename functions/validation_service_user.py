@@ -7,15 +7,15 @@ import model_service_user
 
 from pydantic import BaseModel, ValidationError
 from servicebus_funcs import get_messages
-import config
+import var_funcs
+from set_environment import current_config, config
 
-_NAMESPACE = config.ODW_NAMESPACE_DEV
-_SUBSCRIPTION = config.SERVICE_USER_SUBSCRIPTION
-_TOPIC = config.SERVICE_USER_TOPIC
-_CREDENTIAL = config.CREDENTIAL
+_NAMESPACE = current_config['servicebus_namespace_odt']
+_SUBSCRIPTION = config['global']['service-user-entity']
+_TOPIC = config['global']['service-user-entity']
+_CREDENTIAL = var_funcs.CREDENTIAL
 _MESSAGES = model_service_user.ServiceUser
-_MAX_MESSAGE_COUNT = config.MAX_MESSAGE_COUNT
-
+_MAX_MESSAGE_COUNT = config['global']['max_message_count']
 
 def validate() -> list:
     """

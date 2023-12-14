@@ -7,15 +7,15 @@ import model_nsip_project
 
 from pydantic import BaseModel, ValidationError
 from servicebus_funcs import get_messages
-import config
+import var_funcs
+from set_environment import current_config, config
 
-_NAMESPACE = config.ODW_NAMESPACE_DEV
-_SUBSCRIPTION = config.NSIP_PROJECT_SUBSCRIPTION
-_TOPIC = config.NSIP_PROJECT_TOPIC
-_CREDENTIAL = config.CREDENTIAL
+_NAMESPACE = current_config['servicebus_namespace_odt']
+_SUBSCRIPTION = config['global']['nsip-project-entity']
+_TOPIC = config['global']['nsip-project-entity']
+_CREDENTIAL = var_funcs.CREDENTIAL
 _MESSAGES = model_nsip_project.NsipProject
-_MAX_MESSAGE_COUNT = config.MAX_MESSAGE_COUNT
-
+_MAX_MESSAGE_COUNT = config['global']['max_message_count']
 
 def validate() -> list:
     """
