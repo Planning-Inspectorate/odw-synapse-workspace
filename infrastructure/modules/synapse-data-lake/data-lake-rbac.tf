@@ -13,3 +13,9 @@ resource "azurerm_role_assignment" "terraform" {
   role_definition_name = "Storage Blob Data Contributor"
   principal_id         = data.azurerm_client_config.current.object_id
 }
+
+resource "azurerm_role_assignment" "function_app" {
+  scope                = azurerm_storage_account.synapse.id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = var.function_app_principal_id
+}

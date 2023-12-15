@@ -134,7 +134,7 @@ variable "site_config_defaults" {
   default = {
     always_on = false
     cors = {
-      allowed_origins     = ["*"]
+      allowed_origins     = ["*", "https://portal.azure.com"]
       support_credentials = false
     }
     ftps_state                  = "Disabled"

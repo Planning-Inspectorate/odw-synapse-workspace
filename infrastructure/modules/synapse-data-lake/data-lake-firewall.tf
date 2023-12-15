@@ -5,6 +5,8 @@ resource "azurerm_storage_account_network_rules" "synapse" {
   ip_rules           = var.firewall_allowed_ip_addresses
   virtual_network_subnet_ids = [
     var.vnet_subnet_ids[var.devops_agent_subnet_name],
-    var.vnet_subnet_ids_failover[var.devops_agent_subnet_name]
+    var.vnet_subnet_ids_failover[var.devops_agent_subnet_name],
+    var.vnet_subnet_ids[var.function_app_subnet_name],
+    var.vnet_subnet_ids_failover[var.function_app_subnet_name]
   ]
 }

@@ -43,6 +43,11 @@ variable "environment" {
   type        = string
 }
 
+variable "function_app_id" {
+  description = "The ID of the Azure AD principal used by the function apps"
+  type        = string
+}
+
 variable "key_vault_id" {
   description = "The ID of the Key Vault from which to collect diagnostic logs"
   type        = string
