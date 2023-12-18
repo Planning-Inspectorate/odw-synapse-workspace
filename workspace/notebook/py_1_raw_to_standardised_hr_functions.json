@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "18dc16dd-7622-48d9-b03d-aef722688f6a"
+				"spark.autotune.trackingId": "ef60f735-e7c1-4170-ae03-e4384fdc8c43"
 			}
 		},
 		"metadata": {
@@ -402,7 +402,6 @@
 					"    sparkDF = sparkDF.withColumn(\"expected_from\",lit(expected_from))\n",
 					"    sparkDF = sparkDF.withColumn(\"expected_to\",lit(expected_to))\n",
 					"\n",
-					"                    \n",
 					"    schema = StructType.fromJson(json.loads(standardised_table_def_json))\n",
 					"    \n",
 					"    ### remove characters that Delta can't allow in headers and add numbers to repeated column headers\n",
@@ -417,6 +416,11 @@
 					"    for colix in range(len(cols_orig)):\n",
 					"        sparkDF = sparkDF.toDF(*newlist) \n",
 					"\n",
+					"    ### Cast any column in sparkDF with type mismatch into String\n",
+					"    for field in sparkDF.schema:\n",
+					"        table_field = next((f for f in schema if f.name == field.name), None)\n",
+					"        if table_field is not None and field.dataType != table_field.dataType:\n",
+					"            sparkDF = sparkDF.withColumn(field.name, col(field.name).cast(StringType()))\n",
 					"\n",
 					"    ### writing the dataframe to the existing standardised table\n",
 					"    sparkDF.write.option(\"mergeSchema\", \"true\").format(\"delta\").mode(\"append\").saveAsTable(f\"odw_standardised_db.{standardised_table_name}\")\n",
