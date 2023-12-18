@@ -16,6 +16,7 @@ _TOPIC = config['global']['service-user-entity']
 _CREDENTIAL = var_funcs.CREDENTIAL
 _MESSAGES = model_service_user.ServiceUser
 _MAX_MESSAGE_COUNT = config['global']['max_message_count']
+_MAX_WAIT_TIME = config['global']['max_wait_time']
 
 def validate() -> list:
     """
@@ -23,7 +24,7 @@ def validate() -> list:
     """
 
     _data = get_messages(
-    _NAMESPACE, _CREDENTIAL, _TOPIC, _SUBSCRIPTION, _MAX_MESSAGE_COUNT
+    _NAMESPACE, _CREDENTIAL, _TOPIC, _SUBSCRIPTION, _MAX_MESSAGE_COUNT, _MAX_WAIT_TIME
     )
 
     class MessageInstances(BaseModel):

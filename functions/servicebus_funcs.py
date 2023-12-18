@@ -18,6 +18,7 @@ def get_messages(
     topic: str,
     subscription: str,
     max_message_count: int,
+    max_wait_time: int,
 ) -> list:
     """
     Retrieve messages from a Service Bus topic subscription.
@@ -28,12 +29,15 @@ def get_messages(
         topic (str): The name of the topic.
         subscription (str): The name of the subscription.
         max_message_count (int): The maximum number of messages to retrieve.
+        max_wait_time (int): The maximum wait time in seconds.
 
     Returns:
         list: A list of messages retrieved from the topic subscription.
     """
 
     print("Creating Servicebus client...")
+
+    messages = []
 
     servicebus_client = ServiceBusClient(
         fully_qualified_namespace=namespace, credential=credential
@@ -48,21 +52,21 @@ def get_messages(
             topic_name=topic, subscription_name=subscription
         )
 
-        print("Peeking messages...")
+        print("Receiving messages...")
 
         with subscription_receiver:
-            messages = []
-            messages_peek = subscription_receiver.peek_messages(
-                max_message_count=max_message_count
+            received_msgs = subscription_receiver.receive_messages(
+                max_message_count,
+                max_wait_time
             )
-            for message in messages_peek:
+            for message in received_msgs:
                 message_body = json.loads(str(message))
                 messages.append(message_body)
+                subscription_receiver.complete_message(message)
 
     print(f"{len(messages)} messages received from topic")
 
     return messages
-
 
 def send_to_storage(
     account_url: str,
