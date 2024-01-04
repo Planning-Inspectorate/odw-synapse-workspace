@@ -14,40 +14,40 @@ class Method(Enum):
     How the enquiry was made
     """
 
-    phone = 'phone'
-    email = 'email'
-    meeting = 'meeting'
-    post = 'post'
+    phone = "phone"
+    email = "email"
+    meeting = "meeting"
+    post = "post"
 
 
 class Status(Enum):
-    checked = 'checked'
-    unchecked = 'unchecked'
-    readytopublish = 'readytopublish'
-    published = 'published'
-    donotpublish = 'donotpublish'
+    checked = "checked"
+    unchecked = "unchecked"
+    readytopublish = "readytopublish"
+    published = "published"
+    donotpublish = "donotpublish"
 
 
 class RedactionStatus(Enum):
-    unredacted = 'unredacted'
-    redacted = 'redacted'
+    unredacted = "unredacted"
+    redacted = "redacted"
 
 
 class S51Advice(BaseModel):
     adviceId: float = Field(..., examples=[1234])
-    adviceReference: str = Field(..., examples=['TR0200007-0005'])
+    adviceReference: str = Field(..., examples=["TR0200007-0005"])
     caseId: float | None = Field(None, examples=[1234])
-    caseReference: str | None = Field(None, examples=['BC0110002'])
+    caseReference: str | None = Field(None, examples=["BC0110002"])
     title: str = Field(
         ...,
         examples=[
-            'Advice following issue of decision to accept the application for examination'
+            "Advice following issue of decision to accept the application for examination"
         ],
     )
     """
     Title of the advice
     """
-    from_: str = Field(..., alias='from')
+    from_: str = Field(..., alias="from")
     """
     Who the enquiry is from
     """
@@ -60,7 +60,7 @@ class S51Advice(BaseModel):
     How the enquiry was made
     """
     enquiryDate: AwareDatetime | None = Field(
-        None, examples=['2023-03-26T00:00:00.000']
+        None, examples=["2023-03-26T00:00:00.000"]
     )
     """
     Date the enquiry was made
@@ -73,7 +73,7 @@ class S51Advice(BaseModel):
     """
     Who issued the advice
     """
-    adviceDate: AwareDatetime | None = Field(None, examples=['2023-03-26T00:00:00.000'])
+    adviceDate: AwareDatetime | None = Field(None, examples=["2023-03-26T00:00:00.000"])
     """
     Date the advice was given
     """

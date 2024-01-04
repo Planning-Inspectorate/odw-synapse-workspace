@@ -14,15 +14,15 @@ class SubscriptionType(Enum):
     which update does the subscriber want to get notified of. For multiple types, use multiple messages.
     """
 
-    allUpdates = 'allUpdates'
-    applicationSubmitted = 'applicationSubmitted'
-    applicationDecided = 'applicationDecided'
-    registrationOpen = 'registrationOpen'
+    allUpdates = "allUpdates"
+    applicationSubmitted = "applicationSubmitted"
+    applicationDecided = "applicationDecided"
+    registrationOpen = "registrationOpen"
 
 
 class Language(Enum):
-    English = 'English'
-    Welsh = 'Welsh'
+    English = "English"
+    Welsh = "Welsh"
 
 
 class NsipSubscription(BaseModel):
@@ -39,7 +39,7 @@ class NsipSubscription(BaseModel):
     the case reference the subscription relates to
     """
     emailAddress: EmailStr = Field(
-        ..., examples=['alan.turing@planninginspectorate.gov.uk']
+        ..., examples=["alan.turing@planninginspectorate.gov.uk"]
     )
     subscriptionType: SubscriptionType
     """
@@ -53,4 +53,4 @@ class NsipSubscription(BaseModel):
     """
     The date to stop getting updates
     """
-    language: Language | None = 'English'
+    language: Language | None = "English"

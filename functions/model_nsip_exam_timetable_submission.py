@@ -10,9 +10,9 @@ from pydantic import BaseModel
 
 
 class Status(Enum):
-    SUCCESS = 'SUCCESS'
-    VIRUS_DETECTED = 'VIRUS_DETECTED'
-    FAILURE = 'FAILURE'
+    SUCCESS = "SUCCESS"
+    VIRUS_DETECTED = "VIRUS_DETECTED"
+    FAILURE = "FAILURE"
 
 
 class NsipExamTimetableSubmission(BaseModel):
