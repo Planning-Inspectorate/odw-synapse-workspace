@@ -11,40 +11,40 @@ from pydantic import BaseModel, Field
 
 
 class Status(Enum):
-    awaiting_review = 'awaiting_review'
-    referred = 'referred'
-    valid = 'valid'
-    invalid = 'invalid'
-    published = 'published'
-    archived = 'archived'
+    awaiting_review = "awaiting_review"
+    referred = "referred"
+    valid = "valid"
+    invalid = "invalid"
+    published = "published"
+    archived = "archived"
 
 
 class RepresentationFrom(Enum):
-    PERSON = 'PERSON'
-    ORGANISATION = 'ORGANISATION'
-    AGENT = 'AGENT'
+    PERSON = "PERSON"
+    ORGANISATION = "ORGANISATION"
+    AGENT = "AGENT"
 
 
 class RegisterFor(Enum):
-    PERSON = 'PERSON'
-    ORGANISATION = 'ORGANISATION'
-    FAMILY_GROUP = 'FAMILY_GROUP'
+    PERSON = "PERSON"
+    ORGANISATION = "ORGANISATION"
+    FAMILY_GROUP = "FAMILY_GROUP"
 
 
 class RepresentationType(Enum):
-    Local_Authorities = 'Local Authorities'
-    Parish_Councils = 'Parish Councils'
-    Members_of_the_Public_Businesses = 'Members of the Public/Businesses'
-    Public___Businesses = 'Public & Businesses'
-    Statutory_Consultees = 'Statutory Consultees'
-    Non_Statutory_Organisations = 'Non-Statutory Organisations'
-    Another_Individual = 'Another Individual'
+    Local_Authorities = "Local Authorities"
+    Parish_Councils = "Parish Councils"
+    Members_of_the_Public_Businesses = "Members of the Public/Businesses"
+    Public___Businesses = "Public & Businesses"
+    Statutory_Consultees = "Statutory Consultees"
+    Non_Statutory_Organisations = "Non-Statutory Organisations"
+    Another_Individual = "Another Individual"
 
 
 class Representation(BaseModel):
     representationId: float
-    referenceId: str | None = Field(None, examples=['TR043003-000010'])
-    examinationLibraryRef: str | None = Field(None, examples=['RR-0001'])
+    referenceId: str | None = Field(None, examples=["TR043003-000010"])
+    examinationLibraryRef: str | None = Field(None, examples=["RR-0001"])
     caseRef: str
     caseId: float | None = Field(None, examples=[1242])
     """
@@ -54,9 +54,9 @@ class Representation(BaseModel):
     originalRepresentation: str
     redacted: bool | None = None
     redactedRepresentation: str | None = None
-    redactedBy: str | None = Field(None, examples=['Joe Blogs'])
+    redactedBy: str | None = Field(None, examples=["Joe Blogs"])
     redactedNotes: str | None = Field(
-        None, examples=['Removed names of family members']
+        None, examples=["Removed names of family members"]
     )
     representationFrom: RepresentationFrom | None = None
     representedId: str
@@ -69,5 +69,5 @@ class Representation(BaseModel):
     """
     registerFor: RegisterFor | None = None
     representationType: RepresentationType | None = None
-    dateReceived: Any = Field(..., examples=['2023-03-26T00:00:00.000'])
+    dateReceived: Any = Field(..., examples=["2023-03-26T00:00:00.000"])
     attachmentIds: list[str] | None = None

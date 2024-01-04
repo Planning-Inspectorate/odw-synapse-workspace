@@ -14,12 +14,12 @@ class UpdateStatus(Enum):
     The current status of this update
     """
 
-    draft = 'draft'
-    ready_to_publish = 'ready-to-publish'
-    published = 'published'
-    ready_to_unpublish = 'ready-to-unpublish'
-    unpublished = 'unpublished'
-    archived = 'archived'
+    draft = "draft"
+    ready_to_publish = "ready-to-publish"
+    published = "published"
+    ready_to_unpublish = "ready-to-unpublish"
+    unpublished = "unpublished"
+    archived = "archived"
 
 
 class NsipProjectUpdate(BaseModel):
