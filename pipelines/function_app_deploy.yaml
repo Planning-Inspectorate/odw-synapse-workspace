@@ -1,0 +1,40 @@
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - 'functions/*'
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+- task: UsePythonVersion@0
+  inputs:
+    versionSpec: '3.11'
+
+- script: |
+    # Install dependencies, build, or any other required commands
+    cd functions
+    pip install -r requirements.txt  # Adjust as per your requirements
+
+  displayName: 'Install dependencies'
+
+- task: ArchiveFiles@2
+  inputs:
+    rootFolderOrFile: '$(System.DefaultWorkingDirectory)'
+    includeRootFolder: false
+    archiveType: 'zip'
+    archiveFile: '$(Build.ArtifactStagingDirectory)/functionapp.zip'
+    replaceExistingArchive: true
+
+- task: AzureCLI@2
+  inputs:
+    azureSubscription: '<Your Azure Subscription>'
+    scriptType: 'bash'
+    scriptLocation: 'inlineScript'
+    inlineScript: |
+      az functionapp deployment source config-zip --resource-group <ResourceGroupName> --name <FunctionAppName> --src '$(Build.ArtifactStagingDirectory)/functionapp.zip'
+
+  displayName: 'Deploy to Azure Function App'
