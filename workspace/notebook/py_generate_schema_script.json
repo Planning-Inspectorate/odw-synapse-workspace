@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "7490e378-dd34-4d5a-b246-dc5564bb0ca0"
+				"spark.autotune.trackingId": "bf9be226-efd9-47d5-9071-7ceb20970938"
 			}
 		},
 		"metadata": {
@@ -69,14 +69,34 @@
 					"from notebookutils import mssparkutils\n",
 					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
 					"\n",
-					"path_to_file = \"abfss://odw-config@\"+storage_account+\"schema_creation/\"\n",
-					"file = mssparkutils.fs.ls(path_to_file)\n",
 					"path_to_target = \"abfss://odw-config@\"+storage_account+\"standardised_table_definitions/\"\n",
 					"\n",
 					"# array of file names with corresponding sheet name\n",
 					"files_with_specific_sheets = [{\"filename\": \"Specialist_TPO.xlsx\", \"sheet\": \"MiPINS-SQL\"},{\"filename\": \"Specialist_Hedgerow\", \"sheet\": \"MiPINS-SQL\"},{\"filename\": \"Specialist_HH\", \"sheet\": \"MiPINS-SQL\"}]"
 				],
-				"execution_count": 1
+				"execution_count": 25
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"tags": [
+						"parameters"
+					]
+				},
+				"source": [
+					"specific_file = ''\n",
+					"path_to_source = \"abfss://odw-config@\"+storage_account+\"schema_creation/\""
+				],
+				"execution_count": 26
 			},
 			{
 				"cell_type": "code",
@@ -100,7 +120,7 @@
 					"mssparkutils.fs.unmount(\"/schema\") \r\n",
 					"mssparkutils.fs.unmount(\"/source\") \r\n",
 					"mssparkutils.fs.unmount(\"/target\") \r\n",
-					"mssparkutils.fs.mount(path_to_file, \r\n",
+					"mssparkutils.fs.mount(path_to_source, \r\n",
 					"\"/source\", \r\n",
 					"{\"linkedService\":\"ls_storage\"} \r\n",
 					")   \r\n",
@@ -108,7 +128,14 @@
 					"\"/target\", \r\n",
 					"{\"linkedService\":\"ls_storage\"} \r\n",
 					")   \r\n",
+					"\r\n",
+					"file = mssparkutils.fs.ls(path_to_source)\r\n",
+					"\r\n",
 					"for fi in file:\r\n",
+					"\r\n",
+					"    if specific_file != '' and specific_file != fi.name:\r\n",
+					"        continue\r\n",
+					"\r\n",
 					"    f = fi.path\r\n",
 					"    print(f)\r\n",
 					"    if '.csv' in f:\r\n",
@@ -174,25 +201,7 @@
 					"    f.close()\r\n",
 					""
 				],
-				"execution_count": 2
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					""
-				],
-				"execution_count": null
+				"execution_count": 27
 			}
 		]
 	}

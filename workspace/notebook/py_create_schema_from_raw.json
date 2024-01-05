@@ -1,0 +1,180 @@
+{
+	"name": "py_create_schema_from_raw",
+	"properties": {
+		"folder": {
+			"name": "1-odw-raw-to-standardised"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "f3d46fa8-e13a-4829-a097-4f65780637e7"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.3",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"tags": [
+						"parameters"
+					]
+				},
+				"source": [
+					"source_id=-1"
+				],
+				"execution_count": 101
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%run  /0-odw-source-to-raw/Fileshare/SAP_HR/py_0_source_to_raw_hr_functions"
+				],
+				"execution_count": 102
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"import json\n",
+					"from pyspark.sql import SparkSession\n",
+					"from notebookutils import mssparkutils\n",
+					"spark = SparkSession.builder.getOrCreate()\n",
+					"\n",
+					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					""
+				],
+				"execution_count": 103
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def get_latest_file(definition):\n",
+					"    import calendar\n",
+					"    from datetime import datetime, timedelta, date\n",
+					"\n",
+					"    source_container_path = \"abfss://odw-raw@\" + storage_account\n",
+					"    if definition[\"Source_Frequency_Folder\"] == \"\":\n",
+					"        source_folder = definition['Source_Folder'] + \"/\"\n",
+					"    else:\n",
+					"        source_folder = definition['Source_Folder'] + \"/\" + definition[\"Source_Frequency_Folder\"] + \"/\"\n",
+					"\n",
+					"    try:\n",
+					"        date_folders = mssparkutils.fs.ls(source_container_path + source_folder)\n",
+					"        date_folders = sorted(date_folders, key=lambda x: x.name, reverse=True)\n",
+					"\n",
+					"        for datex in date_folders:\n",
+					"            source_folder_with_date = mssparkutils.fs.ls(source_container_path + source_folder + datex.name)\n",
+					"            for file in source_folder_with_date:\n",
+					"                if definition['Source_Filename_Start'] in file.name:\n",
+					"                    return file\n",
+					"    except:  \n",
+					"        print('File not found for SourceID: ', definition['Source_ID'])\n",
+					"        \n",
+					"    print('File not found for SourceID: ', definition['Source_ID'])"
+				],
+				"execution_count": 104
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# read orchestration data\n",
+					"path_to_file = \"abfss://odw-config@\"+storage_account+\"orchestration/orchestration.json\"\n",
+					"df = spark.read.option(\"multiline\",\"true\").json(path_to_file)\n",
+					"\n",
+					"definitions = json.loads(df.toJSON().first())['definitions']\n",
+					"definition = next((d for d in definitions if d['Source_ID'] == source_id), None)\n",
+					"\n",
+					"if definition:\n",
+					"    file = get_latest_file(definition)\n",
+					"    if file:\n",
+					"        print(file)\n",
+					"        mssparkutils.notebook.run('/utils/py_generate_schema_script', 300, arguments={'path_to_source': file.path})\n",
+					"        "
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
