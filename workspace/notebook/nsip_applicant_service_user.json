@@ -1,0 +1,630 @@
+{
+	"name": "nsip_applicant_service_user",
+	"properties": {
+		"description": "creating a NSIP applicant view of service user.",
+		"folder": {
+			"name": "odw-curated"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "016bb246-7e2a-4350-94fe-2247d064bfc9"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.3",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Checking the Environment\n",
+					"#### If dev or test, limiting the number of output rows and anonymisation of the sensitive fields is required."
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from notebookutils import mssparkutils\n",
+					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"\n",
+					"is_dev = 'dev' in storage_account\n",
+					"is_test = 'test' in storage_account\n",
+					"\n",
+					"# limiting the number of output to 20 rows for dev environment\n",
+					"max_limit = 20 if is_dev else 100000000\n",
+					"\n",
+					"spark.sql(f\"SET MAX_LIMIT = {max_limit}\")"
+				],
+				"execution_count": 22
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## View odw_curated_db.vw_nsip_service_user is created"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"\r\n",
+					"CREATE OR REPLACE VIEW odw_curated_db.vw_nsip_service_user\r\n",
+					"\r\n",
+					"AS\r\n",
+					"\r\n",
+					"---UNION SQL TO GET APPLICANTS, AGENTS AND REPRESENTATIONCONTACTS---\r\n",
+					"\r\n",
+					"-----------------------REPRESENTATION CONTACTS DATA-----------------\r\n",
+					"\r\n",
+					"SELECT DISTINCT\r\n",
+					"\r\n",
+					"    REPLACE(RR.ContactID, 'P_', '')                     AS id,\r\n",
+					"    'NO INFO'                                           AS salutation,\r\n",
+					"    CASE \r\n",
+					"        WHEN RR.Fullname IS NULL\r\n",
+					"            AND RR.OrganisationName IS NOT NULL\r\n",
+					"        THEN RR.OrganisationName\r\n",
+					"        WHEN RR.FullName IS NOT NULL\r\n",
+					"        THEN RR.FullName\r\n",
+					"        ELSE 'NO INFO'\r\n",
+					"    END                                                 AS firstName,\r\n",
+					"    CASE \r\n",
+					"        WHEN RR.Fullname IS NULL\r\n",
+					"            AND RR.OrganisationName IS NOT NULL\r\n",
+					"        THEN RR.OrganisationName\r\n",
+					"        WHEN RR.FullName IS NOT NULL\r\n",
+					"        THEN RR.FullName\r\n",
+					"        ELSE 'NO INFO'\r\n",
+					"    END                                                 AS lastName,\r\n",
+					"    CASE\r\n",
+					"        WHEN RR.BuildingNumber IS NOT NULL\r\n",
+					"        THEN RR.BuildingNumber\r\n",
+					"        WHEN RR.BuildingNumber IS NULL\r\n",
+					"        THEN 'NO INFO'\r\n",
+					"        ELSE 'ERROR'\r\n",
+					"    END                                                 AS addressLine1,\r\n",
+					"    CASE\r\n",
+					"        WHEN RR.Street IS NOT NULL\r\n",
+					"        THEN RR.Street\r\n",
+					"        WHEN RR.Street IS NULL\r\n",
+					"        THEN 'NO INFO'\r\n",
+					"        ELSE 'ERROR'\r\n",
+					"    END                                                 AS addressLine2,\r\n",
+					"    CASE \r\n",
+					"        WHEN RR.Town IS NOT NULL\r\n",
+					"        THEN RR.Town\r\n",
+					"        WHEN RR.Town IS NULL\r\n",
+					"        THEN 'NO INFO'\r\n",
+					"        ELSE 'ERROR'\r\n",
+					"    END                                                 AS addressTown,\r\n",
+					"    CASE\r\n",
+					"        WHEN RR.County IS NOT NULL\r\n",
+					"        THEN RR.County\r\n",
+					"        WHEN RR.County IS NULL\r\n",
+					"        THEN 'NO INFO'\r\n",
+					"        ELSE 'ERROR'  \r\n",
+					"    END                                                 AS addressCounty,\r\n",
+					"    CASE\r\n",
+					"        WHEN RR.Postcode IS NOT NULL\r\n",
+					"        THEN RR.Postcode\r\n",
+					"        WHEN RR.Postcode IS NULL\r\n",
+					"        THEN 'NO INFO'\r\n",
+					"        ELSE 'ERROR'\r\n",
+					"    END                                                 AS postcode,\r\n",
+					"    CASE\r\n",
+					"        WHEN RR.Country IS NOT NULL\r\n",
+					"        THEN RR.Country\r\n",
+					"        ELSE 'NO INFO'\r\n",
+					"    END                                                 AS addressCountry,\r\n",
+					"    CASE \r\n",
+					"        WHEN RR.OrganisationName IS NOT NULL\r\n",
+					"        THEN RR.OrganisationName\r\n",
+					"        WHEN RR.OrganisationName IS NULL\r\n",
+					"        THEN 'NO INFO'\r\n",
+					"        ELSE 'ERROR'\r\n",
+					"    END                                                 AS organisation,\r\n",
+					"    CASE\r\n",
+					"        WHEN RR.RelRepOrganisation IS NOT NULL\r\n",
+					"        THEN RR.RelRepOrganisation \r\n",
+					"        WHEN RR.RelRepOrganisation IS NULL\r\n",
+					"        THEN 'NO INFO'\r\n",
+					"        ELSE 'ERROR'\r\n",
+					"    END                                                 AS organisationType,\r\n",
+					"    CASE\r\n",
+					"        WHEN RR.JobTitle IS NOT NULL\r\n",
+					"        THEN RR.JobTitle \r\n",
+					"        WHEN RR.JobTitle IS NULL\r\n",
+					"        THEN 'NO INFO'\r\n",
+					"        ELSE 'ERROR'\r\n",
+					"    END                                                 AS role,\r\n",
+					"    CASE\r\n",
+					"        WHEN RR.PhoneNumber IS NOT NULL\r\n",
+					"        THEN RR.PhoneNumber\r\n",
+					"        WHEN RR.PhoneNumber IS NULL\r\n",
+					"        THEN 'NO INFO'\r\n",
+					"        ELSE 'ERROR'\r\n",
+					"    END                                                 AS telephoneNumber,\r\n",
+					"    'NO INFO'                                           AS otherPhoneNumber,\r\n",
+					"    'NO INFO'                                           AS faxNumber,\r\n",
+					"    CASE \r\n",
+					"        WHEN RR.EmailAddress IS NOT NULL\r\n",
+					"        THEN RR.EmailAddress\r\n",
+					"        WHEN RR.EmailAddress IS NULL\r\n",
+					"        THEN 'NO INFO'\r\n",
+					"        ELSE 'ERROR'\r\n",
+					"    END                                                 AS emailAddress,\r\n",
+					"    'NO INFO'                                           AS webAddress,\r\n",
+					"    'RepresentationContact'                             AS serviceUserType,\r\n",
+					"    CASE \r\n",
+					"        WHEN RR.CaseReference IS NOT NULL\r\n",
+					"        THEN RR.CaseReference\r\n",
+					"        WHEN RR.CaseReference IS NULL\r\n",
+					"        THEN 'NO INFO'\r\n",
+					"        ELSE 'ERROR'\r\n",
+					"    END                                                 AS caseReference,\r\n",
+					"    RR.IngestionDate                                    AS ingestionDate,\r\n",
+					"    CASE \r\n",
+					"        WHEN SS.Description = 'Casework' \r\n",
+					"        THEN 'Horizon'\r\n",
+					"        ELSE SS.Description\r\n",
+					"    END                                                 AS sourceSystem,\r\n",
+					"    RR.SourceSystemID                                   AS sourceSuid\r\n",
+					"    \r\n",
+					"FROM odw_harmonised_db.casework_nsip_relevant_representation_dim    AS RR\r\n",
+					"    JOIN odw_harmonised_db.main_sourcesystem_fact                   AS SS\r\n",
+					"        ON SS.SourceSystemID = RR.SourceSystemID\r\n",
+					"WHERE RR.IsActive = 'Y'\r\n",
+					"    --AND RR.CaseReference = 'TR020002' --TEST RECORD\r\n",
+					"        AND RR.AgentContactID IS NULL --THIS MEANS THEY ARE NOT AN AGENT\r\n",
+					"\r\n",
+					"\r\n",
+					"---------------------------------APPLICANTS DATA-----------------------------\r\n",
+					"\r\n",
+					"UNION ALL\r\n",
+					"\r\n",
+					"SELECT DISTINCT\r\n",
+					"NSIP.CaseNodeID                                         AS id,\r\n",
+					"'NO INFO'                                               AS salutation,\r\n",
+					"CASE\r\n",
+					"    WHEN NSIP.ApplicantFirstName IS NOT NULL\r\n",
+					"    THEN NSIP.ApplicantFirstName\r\n",
+					"    WHEN NSIP.ApplicantFirstName IS NULL\r\n",
+					"    THEN 'NO INFO'\r\n",
+					"    ELSE 'ERROR'\r\n",
+					"END                                                     AS firstName,\r\n",
+					"CASE \r\n",
+					"    WHEN NSIP.ApplicantLastName IS NOT NULL\r\n",
+					"    THEN NSIP.ApplicantLastName\r\n",
+					"    WHEN NSIP.ApplicantLastName IS NULL\r\n",
+					"    THEN 'NO INFO'\r\n",
+					"    ELSE 'ERROR'\r\n",
+					"END                                                     AS lastName,                                 \r\n",
+					"CASE\r\n",
+					"    WHEN NSIP.AddressLine1 IS NOT NULL\r\n",
+					"    THEN NSIP.AddressLine1\r\n",
+					"    WHEN NSIP.AddressLine1 IS NULL\r\n",
+					"    THEN 'NO INFO'\r\n",
+					"    ELSE 'ERROR'\r\n",
+					"END                                                     AS addressLine1,\r\n",
+					"CASE\r\n",
+					"    WHEN NSIP.AddressLine2 IS NOT NULL\r\n",
+					"    THEN NSIP.AddressLine2\r\n",
+					"    WHEN NSIP.AddressLine2 IS NULL\r\n",
+					"    THEN 'NO INFO'\r\n",
+					"    ELSE 'ERROR'\r\n",
+					"END                                                     AS addressLine2,\r\n",
+					"CASE\r\n",
+					"    WHEN NSIP.AddressTown IS NOT NULL\r\n",
+					"    THEN NSIP.AddressTown\r\n",
+					"    WHEN NSIP.AddressTown IS NULL\r\n",
+					"    THEN 'NO INFO'\r\n",
+					"    ELSE 'ERROR'\r\n",
+					"END                                                     AS addressTown,\r\n",
+					"CASE\r\n",
+					"    WHEN NSIP.AddressCounty IS NOT NULL\r\n",
+					"    THEN NSIP.AddressCounty\r\n",
+					"    WHEN NSIP.AddressCounty IS NULL\r\n",
+					"    THEN 'NO INFO'\r\n",
+					"    ELSE 'ERROR'\r\n",
+					"END                                                     AS addressCounty,\r\n",
+					"CASE\r\n",
+					"    WHEN NSIP.Postcode IS NOT NULL\r\n",
+					"    THEN NSIP.Postcode\r\n",
+					"    WHEN NSIP.Postcode IS NULL\r\n",
+					"    THEN 'NO INFO'\r\n",
+					"    ELSE 'ERROR'\r\n",
+					"END                                                     AS postcode,\r\n",
+					"'NO INFO'                                               AS addressCountry,\r\n",
+					"NSIP.PromoterName                                       AS organisation,\r\n",
+					"'NO INFO'                                               AS organisationType,\r\n",
+					"'NO INFO'                                               AS role,\r\n",
+					"CASE\r\n",
+					"    WHEN NSIP.ApplicantPhoneNumber IS NOT NULL\r\n",
+					"    THEN NSIP.ApplicantPhoneNumber\r\n",
+					"    WHEN NSIP.ApplicantPhoneNumber IS NULL\r\n",
+					"    THEN 'NO INFO'\r\n",
+					"    ELSE 'ERROR'\r\n",
+					"END                                                     AS telephoneNumber,\r\n",
+					"'NO INFO'                                               AS otherPhoneNumber,\r\n",
+					"'NO INFO'                                               AS faxNumber,\r\n",
+					"CASE\r\n",
+					"    WHEN NSIP.ApplicantEmailAddress IS NOT NULL\r\n",
+					"    THEN NSIP.ApplicantEmailAddress\r\n",
+					"    WHEN NSIP.ApplicantEmailAddress IS NULL\r\n",
+					"    THEN NSIP.ProjectEmailAddress\r\n",
+					"    ELSE 'ERROR'\r\n",
+					"END                                                     AS emailAddress,\r\n",
+					"CASE\r\n",
+					"    WHEN NSIP.ApplicantWebAddress IS NOT NULL\r\n",
+					"    THEN NSIP.ApplicantWebAddress\r\n",
+					"    WHEN NSIP.ApplicantWebAddress IS NULL\r\n",
+					"    THEN 'NO INFO'\r\n",
+					"    ELSE 'ERROR'\r\n",
+					"END                                                     AS webAddress,\r\n",
+					"'Applicant'                                             AS serviceUserType,\r\n",
+					"CASE \r\n",
+					"        WHEN NSIP.CaseReference IS NOT NULL\r\n",
+					"        THEN NSIP.CaseReference\r\n",
+					"        WHEN NSIP.CaseReference IS NULL\r\n",
+					"        THEN 'NO INFO'\r\n",
+					"        ELSE 'ERROR'\r\n",
+					"    END                                                 AS caseReference,\r\n",
+					"NSIP.IngestionDate                                      AS ingestionDate,\r\n",
+					"NSIP.ODTSourceSystem                                    AS sourceSystem,\r\n",
+					"NSIP.SourceSystemID                                     AS sourceSuid\r\n",
+					"\r\n",
+					"FROM odw_harmonised_db.casework_nsip_data_dim           AS NSIP\r\n",
+					"WHERE IsActive = 'Y'\r\n",
+					"    --AND NSIP.CaseReference = 'TR020002'-- TEST RECORD\r\n",
+					"\r\n",
+					"----------------------------------AGENTS DATA-----------------------------\r\n",
+					"\r\n",
+					"UNION ALL\r\n",
+					"\r\n",
+					"SELECT DISTINCT\r\n",
+					"\r\n",
+					"    REPLACE(RR.ContactID, 'P_', '')                     AS id,\r\n",
+					"    'NO INFO'                                           AS salutation,\r\n",
+					"    CASE \r\n",
+					"        WHEN RR.Fullname IS NULL\r\n",
+					"            AND RR.OrganisationName IS NOT NULL\r\n",
+					"        THEN RR.OrganisationName\r\n",
+					"        WHEN RR.FullName IS NOT NULL\r\n",
+					"        THEN RR.FullName\r\n",
+					"        ELSE 'NO INFO'\r\n",
+					"    END                                                 AS firstName,\r\n",
+					"    CASE \r\n",
+					"        WHEN RR.Fullname IS NULL\r\n",
+					"            AND RR.OrganisationName IS NOT NULL\r\n",
+					"        THEN RR.OrganisationName\r\n",
+					"        WHEN RR.FullName IS NOT NULL\r\n",
+					"        THEN RR.FullName\r\n",
+					"        ELSE 'NO INFO'\r\n",
+					"    END                                                 AS lastName,\r\n",
+					"    CASE\r\n",
+					"        WHEN RR.BuildingNumber IS NOT NULL\r\n",
+					"        THEN RR.BuildingNumber\r\n",
+					"        WHEN RR.BuildingNumber IS NULL\r\n",
+					"        THEN 'NO INFO'\r\n",
+					"        ELSE 'ERROR'\r\n",
+					"    END                                                 AS addressLine1,\r\n",
+					"    CASE\r\n",
+					"        WHEN RR.Street IS NOT NULL\r\n",
+					"        THEN RR.Street\r\n",
+					"        WHEN RR.Street IS NULL\r\n",
+					"        THEN 'NO INFO'\r\n",
+					"        ELSE 'ERROR'\r\n",
+					"    END                                                 AS addressLine2,\r\n",
+					"    CASE \r\n",
+					"        WHEN RR.Town IS NOT NULL\r\n",
+					"        THEN RR.Town\r\n",
+					"        WHEN RR.Town IS NULL\r\n",
+					"        THEN 'NO INFO'\r\n",
+					"        ELSE 'ERROR'\r\n",
+					"    END                                                 AS addressTown,\r\n",
+					"    CASE\r\n",
+					"        WHEN RR.County IS NOT NULL\r\n",
+					"        THEN RR.County\r\n",
+					"        WHEN RR.County IS NULL\r\n",
+					"        THEN 'NO INFO'\r\n",
+					"        ELSE 'ERROR'  \r\n",
+					"    END                                                 AS addressCounty,\r\n",
+					"    CASE\r\n",
+					"        WHEN RR.Postcode IS NOT NULL\r\n",
+					"        THEN RR.Postcode\r\n",
+					"        WHEN RR.Postcode IS NULL\r\n",
+					"        THEN 'NO INFO'\r\n",
+					"        ELSE 'ERROR'\r\n",
+					"    END                                                 AS postcode,\r\n",
+					"    CASE\r\n",
+					"        WHEN RR.Country IS NOT NULL\r\n",
+					"        THEN RR.Country\r\n",
+					"        ELSE 'NO INFO'\r\n",
+					"    END                                                 AS addressCountry,\r\n",
+					"    CASE \r\n",
+					"        WHEN RR.OrganisationName IS NOT NULL\r\n",
+					"        THEN RR.OrganisationName\r\n",
+					"        WHEN RR.OrganisationName IS NULL\r\n",
+					"        THEN 'NO INFO'\r\n",
+					"        ELSE 'ERROR'\r\n",
+					"    END                                                 AS organisation,\r\n",
+					"    CASE\r\n",
+					"        WHEN RR.RelRepOrganisation IS NOT NULL\r\n",
+					"        THEN RR.RelRepOrganisation \r\n",
+					"        WHEN RR.RelRepOrganisation IS NULL\r\n",
+					"        THEN 'NO INFO'\r\n",
+					"        ELSE 'ERROR'\r\n",
+					"    END                                                 AS organisationType,\r\n",
+					"    CASE\r\n",
+					"        WHEN RR.JobTitle IS NOT NULL\r\n",
+					"        THEN RR.JobTitle \r\n",
+					"        WHEN RR.JobTitle IS NULL\r\n",
+					"        THEN 'NO INFO'\r\n",
+					"        ELSE 'ERROR'\r\n",
+					"    END                                                 AS role,\r\n",
+					"    CASE\r\n",
+					"        WHEN RR.PhoneNumber IS NOT NULL\r\n",
+					"        THEN RR.PhoneNumber\r\n",
+					"        WHEN RR.PhoneNumber IS NULL\r\n",
+					"        THEN 'NO INFO'\r\n",
+					"        ELSE 'ERROR'\r\n",
+					"    END                                                 AS telephoneNumber,\r\n",
+					"    'NO INFO'                                           AS otherPhoneNumber,\r\n",
+					"    'NO INFO'                                           AS faxNumber,\r\n",
+					"    CASE \r\n",
+					"        WHEN RR.EmailAddress IS NOT NULL\r\n",
+					"        THEN RR.EmailAddress\r\n",
+					"        WHEN RR.EmailAddress IS NULL\r\n",
+					"        THEN 'NO INFO'\r\n",
+					"        ELSE 'ERROR'\r\n",
+					"    END                                                 AS emailAddress,\r\n",
+					"    'NO INFO'                                           AS webAddress,\r\n",
+					"    'Agent'                                             AS serviceUserType,\r\n",
+					"    CASE \r\n",
+					"        WHEN RR.CaseReference IS NOT NULL\r\n",
+					"        THEN RR.CaseReference\r\n",
+					"        WHEN RR.CaseReference IS NULL\r\n",
+					"        THEN 'NO INFO'\r\n",
+					"        ELSE 'ERROR'\r\n",
+					"    END                                                 AS caseReference,\r\n",
+					"    RR.IngestionDate                                    AS ingestionDate,\r\n",
+					"    CASE \r\n",
+					"        WHEN SS.Description = 'Casework' \r\n",
+					"        THEN 'Horizon'\r\n",
+					"        ELSE SS.Description\r\n",
+					"    END                                                 AS sourceSystem,\r\n",
+					"    RR.SourceSystemID                                   AS sourceSuid\r\n",
+					"    \r\n",
+					"FROM odw_harmonised_db.casework_nsip_relevant_representation_dim    AS RR\r\n",
+					"    JOIN odw_harmonised_db.main_sourcesystem_fact                   AS SS\r\n",
+					"        ON SS.SourceSystemID = RR.SourceSystemID\r\n",
+					"WHERE RR.IsActive = 'Y'\r\n",
+					"    --AND RR.CaseReference = 'TR020002'--TEST RECORD\r\n",
+					"        AND RR.AgentContactID IS NOT NULL --THIS MEANS THEY ARE AN AGENT\r\n",
+					"\r\n",
+					"ORDER BY ingestionDate DESC\r\n",
+					""
+				],
+				"execution_count": 23
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Table odw_curated_db.nsip_service_user is created"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"CREATE OR REPLACE TABLE odw_curated_db.nsip_service_user\r\n",
+					"USING delta\r\n",
+					"AS\r\n",
+					"SELECT \r\n",
+					"    id,\r\n",
+					"    salutation,\r\n",
+					"    firstName,\r\n",
+					"    lastName,\r\n",
+					"    addressLine1,\r\n",
+					"    addressLine2,\r\n",
+					"    addressTown,\r\n",
+					"    addressCounty,\r\n",
+					"    postcode,\r\n",
+					"    addressCountry,\r\n",
+					"    organisation,\r\n",
+					"    organisationType,\r\n",
+					"    role,\r\n",
+					"    telephoneNumber,\r\n",
+					"    otherPhoneNumber,\r\n",
+					"    faxNumber,\r\n",
+					"    emailAddress,\r\n",
+					"    webAddress,\r\n",
+					"    serviceUserType,\r\n",
+					"    caseReference,\r\n",
+					"    sourceSystem,\r\n",
+					"    sourceSuid\r\n",
+					"    \r\n",
+					"FROM odw_curated_db.vw_nsip_service_user"
+				],
+				"execution_count": 24
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Install anonymisation library i.e Faker"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "python"
+					}
+				},
+				"source": [
+					"%%pyspark\n",
+					"pip install Faker"
+				],
+				"execution_count": 25
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Anonymisation of sensitive fields in dev and test"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"if is_dev or is_test:\n",
+					"\n",
+					"    import pandas as pd\n",
+					"    from faker import Faker\n",
+					"    \n",
+					"    df = spark.sql(\"select * from odw_curated_db.nsip_service_user\").toPandas()\n",
+					"\n",
+					"    if(len(df) > 0):\n",
+					"        fake = Faker()\n",
+					"        \n",
+					"        df['firstName'] = [fake.first_name() for _ in range(len(df))]\n",
+					"        df['lastName'] = [fake.last_name() for _ in range(len(df))]\n",
+					"        df['emailAddress'] = [fake.email() for _ in range(len(df))]\n",
+					"        df['telephoneNumber'] = [fake.phone_number() for _ in range(len(df))]\n",
+					"        df['otherPhoneNumber'] = [fake.phone_number() for _ in range(len(df))]\n",
+					"        df['faxNumber'] = [fake.phone_number() for _ in range(len(df))]\n",
+					"        \n",
+					"        df = spark.createDataFrame(df)\n",
+					"\n",
+					"        table_loc = \"abfss://odw-curated@\"+storage_account+'service_user'\n",
+					"        df.write.format(\"delta\").mode(\"overwrite\").save(table_loc)  "
+				],
+				"execution_count": 26
+			}
+		]
+	}
+}
