@@ -22,7 +22,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "2fb13fd1-41c0-4550-8f12-b7282f07d026"
+				"spark.autotune.trackingId": "1f466f38-7064-4ead-baa8-a98ffc4ffd47"
 			}
 		},
 		"metadata": {
@@ -98,6 +98,7 @@
 					"        ELSE NULL\r\n",
 					"    END                                         AS NSIPAdviceID,\r\n",
 					"    T1.advicenodeid                             AS AdviceNodeID,\r\n",
+					"    T1.title                                    AS AdviceTitle,\r\n",
 					"    T1.casereference                            AS CaseReference,\r\n",
 					"    T1.advicereference                          AS AdviceReference,\r\n",
 					"    T1.advicestatus                             AS AdviceStatus,\r\n",
@@ -113,15 +114,17 @@
 					"    T1.advice                                   AS Advice,\r\n",
 					"    T1.advicelastmodified                       AS AdviceLastModified,\r\n",
 					"    T1.attachmentcount                          AS AttachmentCount,\r\n",
+					"    IFNULL(T1.attachmentdataID,'None')          AS AttachmentID,\r\n",
 					"    T1.attachmentslastmodified                  AS AttachmentLastModified,\r\n",
 					"    T1.lastpublisheddate                        AS LastPublishedDate,\r\n",
 					"    T1.casenodeid                               AS CaseNodeID,\r\n",
 					"    T1.welshlanguage                            AS WelshLanguage,\r\n",
 					"    T1.caseWorktype                             AS CaseWorkType,\r\n",
-					"    T2.SourceSystemID,\r\n",
+					"    T2.SourceSystemID                           AS SourceSystemID,\r\n",
 					"    to_timestamp(T1.expected_from)              AS IngestionDate,\r\n",
 					"    NULL                                        AS ValidTo,\r\n",
 					"    md5(concat(IFNULL(T1.advicenodeid,'.'),\t\r\n",
+					"        IFNULL(T1.title,'.'),\r\n",
 					"        IFNULL(T1.casereference,'.'),\t\r\n",
 					"        IFNULL(T1.advicereference,'.'),\t\r\n",
 					"        IFNULL(T1.advicestatus,'.'),\t\r\n",
@@ -137,6 +140,7 @@
 					"        IFNULL(T1.advice,'.'),\t\r\n",
 					"        IFNULL(T1.advicelastmodified,'.'),\t\r\n",
 					"        IFNULL(T1.attachmentcount,'.'),\t\r\n",
+					"        IFNULL(T1.attachmentdataID,'None'),\r\n",
 					"        IFNULL(T1.attachmentslastmodified,'.'),\t\r\n",
 					"        IFNULL(T1.lastpublisheddate,'.'),\t\r\n",
 					"        IFNULL(T1.casenodeid,'.'),\t\r\n",
@@ -151,14 +155,16 @@
 					"        AND T2.IsActive = 'Y'\r\n",
 					"\r\n",
 					"FULL JOIN odw_harmonised_db.casework_nsip_advice_dim T3 \r\n",
-					"    ON T1.advicenodeid = T3.AdviceNodeID      \r\n",
+					"    ON T1.advicenodeid = T3.AdviceNodeID AND \r\n",
+					"        IFNULL(T1.attachmentdataID,'None') = T3.AttachmentID\r\n",
 					"        AND T3.IsActive = 'Y'\r\n",
 					"WHERE\r\n",
 					"        -- flags new data        \r\n",
 					"        (   CASE\r\n",
-					"                WHEN T1.advicenodeid = T3.AdviceNodeID \r\n",
+					"                WHEN T1.advicenodeid = T3.AdviceNodeID AND IFNULL(T1.attachmentdataID,'None') = T3.AttachmentID\r\n",
 					"                AND  \r\n",
 					"                md5(concat(IFNULL(T1.advicenodeid,'.'),\t\r\n",
+					"                IFNULL(T1.title,'.'),\r\n",
 					"                IFNULL(T1.casereference,'.'),\t\r\n",
 					"                IFNULL(T1.advicereference,'.'),\t\r\n",
 					"                IFNULL(T1.advicestatus,'.'),\t\r\n",
@@ -174,6 +180,7 @@
 					"                IFNULL(T1.advice,'.'),\t\r\n",
 					"                IFNULL(T1.advicelastmodified,'.'),\t\r\n",
 					"                IFNULL(T1.attachmentcount,'.'),\t\r\n",
+					"                IFNULL(T1.attachmentdataID,'None'),\r\n",
 					"                IFNULL(T1.attachmentslastmodified,'.'),\t\r\n",
 					"                IFNULL(T1.lastpublisheddate,'.'),\t\r\n",
 					"                IFNULL(T1.casenodeid,'.'),\t\r\n",
@@ -189,7 +196,7 @@
 					"    AND T1.expected_from = (SELECT MAX(expected_from) FROM odw_standardised_db.horizon_nsip_advice)\r\n",
 					";"
 				],
-				"execution_count": 1
+				"execution_count": 64
 			},
 			{
 				"cell_type": "markdown",
@@ -235,6 +242,7 @@
 					"SELECT \r\n",
 					"    NSIPAdviceID,\r\n",
 					"    AdviceNodeID,\r\n",
+					"    AdviceTitle,\r\n",
 					"    CaseReference,\r\n",
 					"    AdviceReference,\r\n",
 					"    AdviceStatus,\r\n",
@@ -250,6 +258,7 @@
 					"    Advice,\r\n",
 					"    AdviceLastModified,\r\n",
 					"    AttachmentCount,\r\n",
+					"    AttachmentID,\r\n",
 					"    AttachmentLastModified,\r\n",
 					"    LastPublishedDate,\r\n",
 					"    CaseNodeID,\r\n",
@@ -268,6 +277,7 @@
 					"SELECT\r\n",
 					"    NSIPAdviceID,\r\n",
 					"    AdviceNodeID,\r\n",
+					"    AdviceTitle,\r\n",
 					"    CaseReference,\r\n",
 					"    AdviceReference,\r\n",
 					"    AdviceStatus,\r\n",
@@ -283,6 +293,7 @@
 					"    Advice,\r\n",
 					"    AdviceLastModified,\r\n",
 					"    AttachmentCount,\r\n",
+					"    AttachmentID,\r\n",
 					"    AttachmentLastModified,\r\n",
 					"    LastPublishedDate,\r\n",
 					"    CaseNodeID,\r\n",
@@ -294,16 +305,23 @@
 					"    RowID,\r\n",
 					"    IsActive\r\n",
 					"    \r\n",
-					"FROM odw_harmonised_db.casework_nsip_advice_dim\r\n",
+					"FROM odw_harmonised_db.casework_nsip_advice_dim T1\r\n",
 					"WHERE AdviceNodeID IN \r\n",
 					"(\r\n",
 					"    SELECT AdviceNodeID \r\n",
 					"    FROM casework_nsip_advice_dim_new \r\n",
 					"    WHERE NSIPAdviceID IS NULL\r\n",
 					") \r\n",
+					"AND AttachmentID IN\r\n",
+					"(\r\n",
+					"    SELECT AttachmentID \r\n",
+					"    FROM casework_nsip_advice_dim_new \r\n",
+					"    WHERE AdviceNodeID = T1.AdviceNodeID\r\n",
+					"        AND NSIPAdviceID IS NULL\r\n",
+					") \r\n",
 					"AND IsActive = 'Y'; "
 				],
-				"execution_count": 4
+				"execution_count": 58
 			},
 			{
 				"cell_type": "code",
@@ -319,7 +337,8 @@
 					},
 					"microsoft": {
 						"language": "sparksql"
-					}
+					},
+					"collapsed": false
 				},
 				"source": [
 					"%%sql\n",
@@ -342,6 +361,7 @@
 					"SELECT \n",
 					"    NSIPAdviceID,\n",
 					"    AdviceNodeID,\n",
+					"    AdviceTitle,\n",
 					"    CaseReference,\n",
 					"    AdviceReference,\n",
 					"    AdviceStatus,\n",
@@ -357,6 +377,7 @@
 					"    Advice,\n",
 					"    AdviceLastModified,\n",
 					"    AttachmentCount,\n",
+					"    AttachmentID,\n",
 					"    AttachmentLastModified,\n",
 					"    LastPublishedDate,\n",
 					"    CaseNodeID,\n",
@@ -371,7 +392,7 @@
 					"FROM casework_nsip_advice_dim_changed_rows T1\n",
 					"FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive"
 				],
-				"execution_count": null
+				"execution_count": 60
 			},
 			{
 				"cell_type": "markdown",
@@ -412,7 +433,7 @@
 					"\r\n",
 					"MERGE INTO odw_harmonised_db.casework_nsip_advice_dim AS Target\r\n",
 					"USING casework_nsip_advice_dim_changed_rows_final AS Source\r\n",
-					"ON Source.NSIPAdviceID = Target.NSIPAdviceID\r\n",
+					"ON Source.NSIPAdviceID = Target.NSIPAdviceID AND Source.AttachmentID = Target.AttachmentID AND Target.IsActive = 'Y' \r\n",
 					"\r\n",
 					"-- For Updates existing rows\r\n",
 					"\r\n",
@@ -428,6 +449,7 @@
 					"    THEN INSERT (\r\n",
 					"        NSIPAdviceID,\r\n",
 					"        AdviceNodeID,\r\n",
+					"        AdviceTitle,\r\n",
 					"        CaseReference,\r\n",
 					"        AdviceReference,\r\n",
 					"        AdviceStatus,\r\n",
@@ -443,6 +465,7 @@
 					"        Advice,\r\n",
 					"        AdviceLastModified,\r\n",
 					"        AttachmentCount,\r\n",
+					"        AttachmentID,\r\n",
 					"        AttachmentLastModified,\r\n",
 					"        LastPublishedDate,\r\n",
 					"        CaseNodeID,\r\n",
@@ -456,6 +479,7 @@
 					"    VALUES (\r\n",
 					"        Source.NSIPAdviceID,\r\n",
 					"        Source.AdviceNodeID,\r\n",
+					"        Source.AdviceTitle,\r\n",
 					"        Source.CaseReference,\r\n",
 					"        Source.AdviceReference,\r\n",
 					"        Source.AdviceStatus,\r\n",
@@ -471,6 +495,7 @@
 					"        Source.Advice,\r\n",
 					"        Source.AdviceLastModified,\r\n",
 					"        Source.AttachmentCount,\r\n",
+					"        Source.AttachmentID,\r\n",
 					"        Source.AttachmentLastModified,\r\n",
 					"        Source.LastPublishedDate,\r\n",
 					"        Source.CaseNodeID,\r\n",
@@ -483,7 +508,7 @@
 					"        Source.IsActive)\r\n",
 					"     ;   "
 				],
-				"execution_count": 5
+				"execution_count": 61
 			},
 			{
 				"cell_type": "markdown",
@@ -527,6 +552,7 @@
 					"SELECT \r\n",
 					"    ROW_NUMBER() OVER (ORDER BY NSIPAdviceID NULLS LAST) AS NSIPAdviceID,\r\n",
 					"    AdviceNodeID,\r\n",
+					"    AdviceTitle,\r\n",
 					"    CaseReference,\r\n",
 					"    AdviceReference,\r\n",
 					"    AdviceStatus,\r\n",
@@ -542,6 +568,7 @@
 					"    Advice,\r\n",
 					"    AdviceLastModified,\r\n",
 					"    AttachmentCount,\r\n",
+					"    AttachmentID,\r\n",
 					"    AttachmentLastModified,\r\n",
 					"    LastPublishedDate,\r\n",
 					"    CaseNodeID,\r\n",
@@ -555,7 +582,7 @@
 					"    FROM odw_harmonised_db.casework_nsip_advice_dim;\r\n",
 					""
 				],
-				"execution_count": 6
+				"execution_count": 62
 			}
 		]
 	}
