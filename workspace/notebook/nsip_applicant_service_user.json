@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "21ceeeb9-55b5-4616-aedc-c018031cf0b6"
+				"spark.autotune.trackingId": "25998c26-f802-4342-a207-b6b79de5fa14"
 			}
 		},
 		"metadata": {
@@ -91,7 +91,7 @@
 					"\n",
 					"spark.sql(f\"SET MAX_LIMIT = {max_limit}\")"
 				],
-				"execution_count": 19
+				"execution_count": 6
 			},
 			{
 				"cell_type": "markdown",
@@ -244,7 +244,7 @@
 					"        ON SS.SourceSystemID = RR.SourceSystemID\r\n",
 					"WHERE RR.IsActive = 'Y'\r\n",
 					"    --AND RR.CaseReference = 'TR020002' --TEST RECORD\r\n",
-					"        AND RR.AgentContactID IS NULL --THIS MEANS THEY ARE NOT AN AGENT\r\n",
+					"        -- AND RR.AgentContactID IS NULL --THIS WAS MEANT TO AVOID DUPLICATION OD RECORDS WITH AGENTS, BUT IS WAS PREFERRED WITHOUT\r\n",
 					"\r\n",
 					"\r\n",
 					"---------------------------------APPLICANTS DATA-----------------------------\r\n",
@@ -252,7 +252,11 @@
 					"UNION ALL\r\n",
 					"\r\n",
 					"SELECT DISTINCT\r\n",
-					"NSIP.CaseNodeID                                         AS id,\r\n",
+					"CASE\r\n",
+					"    WHEN NSIP.CaseNodeID IS NOT NULL\r\n",
+					"    THEN NSIP.CaseNodeID\r\n",
+					"    ELSE CaseID\r\n",
+					"END                                                     AS id,\r\n",
 					"'NO INFO'                                               AS salutation,\r\n",
 					"CASE\r\n",
 					"    WHEN NSIP.ApplicantFirstName IS NOT NULL\r\n",
@@ -474,7 +478,7 @@
 					"ORDER BY ingestionDate DESC\r\n",
 					""
 				],
-				"execution_count": 20
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -537,7 +541,7 @@
 					"    \r\n",
 					"FROM odw_curated_db.vw_nsip_service_user"
 				],
-				"execution_count": 21
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -572,7 +576,7 @@
 					"%%pyspark\n",
 					"pip install Faker"
 				],
-				"execution_count": 22
+				"execution_count": 4
 			},
 			{
 				"cell_type": "markdown",
@@ -623,7 +627,7 @@
 					"        table_loc = \"abfss://odw-curated@\"+storage_account+'service_user'\n",
 					"        df.write.format(\"delta\").mode(\"overwrite\").save(table_loc)  "
 				],
-				"execution_count": 23
+				"execution_count": 5
 			}
 		]
 	}
