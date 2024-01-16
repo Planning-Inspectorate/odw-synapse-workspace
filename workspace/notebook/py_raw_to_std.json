@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "98fb4363-d0be-483b-bce1-d32e210e0110"
+				"spark.autotune.trackingId": "75f8b4ea-f28a-4446-b394-51c28a42a2e1"
 			}
 		},
 		"metadata": {
@@ -240,7 +240,7 @@
 					"    date_folder = datetime.strptime(date_folder, \"%Y-%m-%d\")\n",
 					"\n",
 					"date_folder_str = date_folder.strftime('%Y-%m-%d')\n",
-					"source_folder_path = source_folder if source_frequency_folder == '' else f\"{source_folder}/{source_frequency_folder}\"\n",
+					"source_folder_path = source_folder if not source_frequency_folder else f\"{source_folder}/{source_frequency_folder}\"\n",
 					"\n",
 					"# READ ORCHESTRATION DATA\n",
 					"path_to_orchestration_file = \"abfss://odw-config@\"+storage_account+\"orchestration/orchestration.json\"\n",
@@ -260,9 +260,8 @@
 					"        if is_source_from_function_app:\n",
 					"            definition = next((d for d in definitions if source_id == d['Source_ID']), None)\n",
 					"        else:\n",
-					"            definition = next((d for d in definitions if (specific_file == '' or d['Source_Filename_Start'] == specific_file) and (source_frequency_folder == '' or d['Source_Frequency_Folder'] == source_frequency_folder) and file.name.startswith(d['Source_Filename_Start'])), None)\n",
+					"            definition = next((d for d in definitions if (specific_file == '' or d['Source_Filename_Start'] == specific_file) and (not source_frequency_folder or d['Source_Frequency_Folder'] == source_frequency_folder) and file.name.startswith(d['Source_Filename_Start'])), None)\n",
 					"        \n",
-					"        print(file.name)\n",
 					"        if definition:\n",
 					"            expected_from = date_folder - timedelta(days=1)\n",
 					"            expected_from = datetime.combine(expected_from, datetime.min.time())\n",
@@ -270,8 +269,8 @@
 					"\n",
 					"            print(f\"Ingesting {file.name}\")\n",
 					"            ingest_adhoc(storage_account, definition, source_path, file.name, expected_from, expected_to)\n",
-					"except:  \n",
-					"   print('Raw data unavailable')"
+					"except Exception as e:  \n",
+					"   print('Raw data unavailable', e)"
 				],
 				"execution_count": 39
 			}
