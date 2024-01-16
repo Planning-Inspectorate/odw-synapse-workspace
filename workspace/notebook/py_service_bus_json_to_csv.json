@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "0ee5b09f-75db-452f-ac2f-fbce9d04ef2d"
+				"spark.autotune.trackingId": "f3ead9e5-48e5-47d7-9481-750a72bf940f"
 			}
 		},
 		"metadata": {
@@ -220,10 +220,22 @@
 					"    df = spark.read.json(file.path)\n",
 					"    try:\n",
 					"        json_data = [json.loads(d) for d in df.toJSON().collect()]\n",
+					"\n",
+					"        # some entities have nested objects and have special requirements when converting to csv\n",
+					"        if source_frequency_folder == 'nsip-exam-timetable':\n",
+					"            json_data_new = []\n",
+					"\n",
+					"            for d in json_data:\n",
+					"                for e in d['events']:\n",
+					"                    e['caseReference'] = d['caseReference']\n",
+					"                    json_data_new.append(e)\n",
+					"\n",
+					"            json_data = json_data_new\n",
+					"\n",
 					"        json_data_parsed = [convert_json_array_to_csv(d) for d in json_data]\n",
+					"        data.extend(json_data_parsed)\n",
 					"    except Exception as e:\n",
 					"        print(f\"Unable to process {file.name}: {str(e)}\")\n",
-					"    data.extend(json_data_parsed)\n",
 					"\n",
 					"if len(data) == 0:\n",
 					"    print('No new data')\n",
