@@ -1,3 +1,23 @@
+
+parameters:
+  - name: environment
+    displayName: Environment
+    type: string
+    default: Dev
+    values:
+    - Dev
+    # - Test
+    # - Prod
+
+# Could/Should this be linked to ADO variables or use the steps/azure-login file
+  variables:
+  - group: Terraform ${{ parameters.environment }}
+  - name: environment
+    value: ${{ lower(parameters.environment) }}
+  - name: armServiceConnectionName
+    value: ${{ replace(format('ODW {0}', parameters.environment), 'Test', 'PreProd') }}
+
+# Do we want the trigger taken out or changed from main
 trigger:
   branches:
     include:
@@ -6,21 +26,26 @@ trigger:
     include:
       - 'functions/*'
 
+  # any files we need to exclude from here?
+
+pr: none
+
 pool:
   vmImage: 'ubuntu-latest'
 
 steps:
 - task: UsePythonVersion@0
   inputs:
-    versionSpec: '3.11'
+    versionSpec: '3.11' # Is this likely to change or need other versions and can use the strategy -> matrix block
+  displayName: 'Using python 3.11'
 
+# Install dependencies, build, or any other required commands - could change cd and just put func/require....
 - script: |
-    # Install dependencies, build, or any other required commands
     cd functions
-    pip install -r requirements.txt  # Adjust as per your requirements
-
+    pip install -r requirements.txt # Adjust as per your requirements
   displayName: 'Install dependencies'
 
+# Zipping Files
 - task: ArchiveFiles@2
   inputs:
     rootFolderOrFile: '$(System.DefaultWorkingDirectory)'
@@ -29,12 +54,69 @@ steps:
     archiveFile: '$(Build.ArtifactStagingDirectory)/functionapp.zip'
     replaceExistingArchive: true
 
+    # Upload required too?
+
+# find method to align resources to what environment you are launching into
 - task: AzureCLI@2
   inputs:
-    azureSubscription: '<Your Azure Subscription>'
+    azureSubscription: 'pins-odw-data-dev-sub'
     scriptType: 'bash'
     scriptLocation: 'inlineScript'
     inlineScript: |
-      az functionapp deployment source config-zip --resource-group <ResourceGroupName> --name <FunctionAppName> --src '$(Build.ArtifactStagingDirectory)/functionapp.zip'
+      az functionapp deployment source config-zip --resource-group 'pins-rg-function-app-odw-dev-uks' --name 'pins-fnapp01-odw-dev-uks' --src '$(Build.ArtifactStagingDirectory)/functionapp.zip'
 
   displayName: 'Deploy to Azure Function App'
+
+
+
+### Just notes for future
+
+# TO DO
+
+
+
+# stages:
+#   - stage: Validate
+#     jobs:
+#     - job: Validate
+#       steps:
+#       # Checkout repo
+#       - checkout: self
+#         displayName: 'Checkout Repo'
+
+#       # Login to Azure using Terraform service principal ##### do we need the task azurecli@2?
+#       - template: steps/azure-login.yaml
+
+
+
+
+# ##########
+# stages:
+#   - stage: Plan
+#     # displayName: Terraform Plan ${{ parameters.environment }}
+#     # jobs:
+#     # - job: Plan
+#     #   displayName: Terraform Plan
+#     #   pool: ${{ variables.poolName }}
+#     #   steps:
+#       # Checkout repo
+#       - checkout: self
+#         displayName: 'Checkout'
+
+#       # Copy Terraform plan files to artifact directory ##### Do we need to create an artifact?
+#       # - task: CopyFiles@2
+#       #   displayName: 'Create Artifact'
+#       #   inputs:
+#       #     sourceFolder: infrastructure
+#       #     co
+
+#       # Publish pipeline artifacts
+#       - publish: $(Build.ArtifactStagingDirectory)
+#         artifact: ${{ variables.artifactName }}
+#         displayName: 'Publish Artifact'
+
+
+#             # # Download pipeline artifacts
+#             # - download: current
+#             #   artifact: ${{ variables.artifactName }}
+#             #   displayName: 'Download Artifact'
