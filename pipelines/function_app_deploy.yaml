@@ -8,13 +8,20 @@ parameters:
     - Dev
     # - Test
     # - Prod
+  - name: servicePrincipalId
+    type: string
+    default: $(AZURE_SERVICE_PRINCIPAL_ID)
+  - name: servicePrincipalSecret
+    type: string
+    default: $(AZURE_SERVICE_PRINCIPAL_SECRET)
+
 
 # Could/Should this be linked to ADO variables or use the steps/azure-login file
 variables:
 - name: environment
   value: ${{ lower(parameters.environment) }}
 - name: armServiceConnectionName
-  value: 'ODW Dev'
+  value: 'ODW Dev' # change this to the SP
 
 # Do we want the trigger taken out or changed from main
 trigger:
@@ -35,7 +42,7 @@ pool:
 steps:
 - task: UsePythonVersion@0
   inputs:
-    versionSpec: '3.11' # Is this likely to change or need other versions and can use the strategy -> matrix block
+    versionSpec: '3.11'
   displayName: 'Using python 3.11'
 
 # Install dependencies, build, or any other required commands - could change cd and just put func/require....
@@ -53,9 +60,6 @@ steps:
     archiveFile: '$(Build.ArtifactStagingDirectory)/functionapp.zip'
     replaceExistingArchive: true
 
-    # Upload required too?
-
-# find method to align resources to what environment you are launching into
 - task: AzureCLI@2
   inputs:
     azureSubscription: 'ff442a29-fc06-4a13-8e3e-65fd5da513b3'
