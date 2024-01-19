@@ -32,42 +32,47 @@ pr: none
 pool:
   vmImage: ubuntu-22.04
 
-steps:
 
+stages:
+  - stage: Validate
+    jobs:
+    - job: Validate
+      steps:
+      # Checkout repo
+      - checkout: self
+        displayName: 'Checkout Repo'
 
-- template: steps/azure-login.yaml
+      # Login to Azure using Terraform service principal ##### do we need the task azurecli@2?
+      - template: steps/azure-login.yaml
 
+      - task: UsePythonVersion@0
+        inputs:
+          versionSpec: '3.11'
+        displayName: 'Using python 3.11'
 
+      - script: |
+          cd functions
+          pip install -r requirements.txt # Adjust as per your requirements
+        displayName: 'Install dependencies'
 
-- task: UsePythonVersion@0
-  inputs:
-    versionSpec: '3.11'
-  displayName: 'Using python 3.11'
+      # Zipping Files
+      - task: ArchiveFiles@2
+        inputs:
+          rootFolderOrFile: '$(System.DefaultWorkingDirectory)'
+          includeRootFolder: false
+          archiveType: 'zip'
+          archiveFile: '$(Build.ArtifactStagingDirectory)/functionapp.zip'
+          replaceExistingArchive: true
 
-# Install dependencies, build, or any other required commands - could change cd and just put func/require....
-- script: |
-    cd functions
-    pip install -r requirements.txt # Adjust as per your requirements
-  displayName: 'Install dependencies'
+      - task: AzureCLI@2
+        inputs:
+          azureSubscription: 'ODW Dev'
+          scriptType: 'bash'
+          scriptLocation: 'inlineScript'
+          inlineScript: |
+            az functionapp deployment source config-zip --resource-group 'pins-rg-function-app-odw-dev-uks' --name 'pins-fnapp01-odw-dev-uks' --src '$(Build.ArtifactStagingDirectory)/functionapp.zip'
 
-# Zipping Files
-- task: ArchiveFiles@2
-  inputs:
-    rootFolderOrFile: '$(System.DefaultWorkingDirectory)'
-    includeRootFolder: false
-    archiveType: 'zip'
-    archiveFile: '$(Build.ArtifactStagingDirectory)/functionapp.zip'
-    replaceExistingArchive: true
-
-- task: AzureCLI@2
-  inputs:
-    azureSubscription: '159bfcd2-914d-4b3b-8933-5bbb0584c72d'
-    scriptType: 'bash'
-    scriptLocation: 'inlineScript'
-    inlineScript: |
-      az functionapp deployment source config-zip --resource-group 'pins-rg-function-app-odw-dev-uks' --name 'pins-fnapp01-odw-dev-uks' --src '$(Build.ArtifactStagingDirectory)/functionapp.zip'
-
-  displayName: 'Deploy to Azure Function App'
+        displayName: 'Deploy to Azure Function App'
 
 
 
@@ -79,21 +84,6 @@ steps:
 ## It is an instant fail, doesn't run at all
 # does the Service conn need to be aligned with the subscription?
 # Change the sub id to the SP to connect
-
-
-# stages:
-#   - stage: Validate
-#     jobs:
-#     - job: Validate
-#       steps:
-#       # Checkout repo
-#       - checkout: self
-#         displayName: 'Checkout Repo'
-
-#       # Login to Azure using Terraform service principal ##### do we need the task azurecli@2?
-#       - template: steps/azure-login.yaml
-
-
 
 
 # ##########
