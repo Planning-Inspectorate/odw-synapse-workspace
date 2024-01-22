@@ -1,4 +1,3 @@
-# feat/ODW-937-cd-pipeline-func-app
 parameters:
   - name: environment
     displayName: Environment
@@ -6,17 +5,13 @@ parameters:
     default: Dev
     values:
     - Dev
-    # - Test
-    # - Prod
 
-# Could/Should this be linked to ADO variables or use the steps/azure-login file
 variables:
 - name: environment
   value: ${{ lower(parameters.environment) }}
 - name: armServiceConnectionName
   value: ${{ replace(format('ODW {0}', parameters.environment), 'Test', 'PreProd') }}
 
-# Do we want the trigger taken out or changed from main
 trigger:
   branches:
     include:
@@ -25,24 +20,20 @@ trigger:
     include:
       - 'functions/*'
 
-  # any files we need to exclude from here?
-
 pr: none
 
 pool:
   vmImage: ubuntu-22.04
-
 
 stages:
   - stage: Validate
     jobs:
     - job: Validate
       steps:
-      # Checkout repo
       - checkout: self
         displayName: 'Checkout Repo'
 
-      # Login to Azure using Terraform service principal ##### do we need the task azurecli@2?
+      # Login to Azure using Terraform service principal
       - template: steps/azure-login.yaml
 
       - task: UsePythonVersion@0
@@ -64,55 +55,12 @@ stages:
           archiveFile: '$(Build.ArtifactStagingDirectory)/functionapp.zip'
           replaceExistingArchive: true
 
-      - task: AzureCLI@2
-        inputs:
-          azureSubscription: 'ODW Dev'
-          scriptType: 'bash'
-          scriptLocation: 'inlineScript'
-          inlineScript: |
-            az functionapp deployment source config-zip --resource-group 'pins-rg-function-app-odw-dev-uks' --name 'pins-fnapp01-odw-dev-uks' --src '$(Build.ArtifactStagingDirectory)/functionapp.zip'
+      # - task: AzureCLI@2
+      #   inputs:
+      #     azureSubscription: 'ODW Dev'
+      #     scriptType: 'bash'
+      #     scriptLocation: 'inlineScript'
+      #     inlineScript: |
+      #       az functionapp deployment source config-zip --resource-group 'pins-rg-function-app-odw-dev-uks' --name 'pins-fnapp01-odw-dev-uks' --src '$(Build.ArtifactStagingDirectory)/functionapp.zip'
 
-        displayName: 'Deploy to Azure Function App'
-
-
-
-### Just notes for future
-
-# TO DO
-
-## Error on pipeline: pins-odw-data-dev-sub
-## It is an instant fail, doesn't run at all
-# does the Service conn need to be aligned with the subscription?
-# Change the sub id to the SP to connect
-
-
-# ##########
-# stages:
-#   - stage: Plan
-#     # displayName: Terraform Plan ${{ parameters.environment }}
-#     # jobs:
-#     # - job: Plan
-#     #   displayName: Terraform Plan
-#     #   pool: ${{ variables.poolName }}
-#     #   steps:
-#       # Checkout repo
-#       - checkout: self
-#         displayName: 'Checkout'
-
-#       # Copy Terraform plan files to artifact directory ##### Do we need to create an artifact?
-#       # - task: CopyFiles@2
-#       #   displayName: 'Create Artifact'
-#       #   inputs:
-#       #     sourceFolder: infrastructure
-#       #     co
-
-#       # Publish pipeline artifacts
-#       - publish: $(Build.ArtifactStagingDirectory)
-#         artifact: ${{ variables.artifactName }}
-#         displayName: 'Publish Artifact'
-
-
-#             # # Download pipeline artifacts
-#             # - download: current
-#             #   artifact: ${{ variables.artifactName }}
-#             #   displayName: 'Download Artifact'
+      #   displayName: 'Deploy to Azure Function App'
