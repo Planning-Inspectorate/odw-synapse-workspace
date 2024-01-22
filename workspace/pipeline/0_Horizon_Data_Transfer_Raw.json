@@ -3502,234 +3502,11 @@
 				}
 			},
 			{
-				"name": "Examination_Timetable",
-				"description": "NSIP Examination Timetable",
-				"type": "Copy",
-				"dependsOn": [
-					{
-						"activity": "HZN_Right_of_Way",
-						"dependencyConditions": [
-							"Completed"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"source": {
-						"type": "AzureSqlSource",
-						"sqlReaderQuery": "SELECT\r\nET.ID,\r\nCR.CaseReference,\r\nTOE.[Name] AS TypeOfExamination,\r\nET.[Name],\r\nREPLACE(CONVERT(VARCHAR(MAX), ET.[Description]), '\"', '') AS Description,\r\nET.[DeadlineStartDateTime],\r\nET.[Date],\r\nET.[Location]\r\nFROM horizon_ExamTimetable ET\r\nJOIN horizon_CaseReference CR on CR.CaseNodeID = ET.CaseId\r\nJOIN horizon_TypeOfExamination TOE on TOE.ID = ET.ExaminationTypeID\r\n;",
-						"queryTimeout": "02:00:00",
-						"isolationLevel": "ReadCommitted",
-						"partitionOption": "None"
-					},
-					"sink": {
-						"type": "DelimitedTextSink",
-						"storeSettings": {
-							"type": "AzureBlobFSWriteSettings"
-						},
-						"formatSettings": {
-							"type": "DelimitedTextWriteSettings",
-							"quoteAllText": true,
-							"fileExtension": ".txt"
-						}
-					},
-					"enableStaging": false,
-					"translator": {
-						"type": "TabularTranslator",
-						"mappings": [
-							{
-								"source": {
-									"name": "ID",
-									"type": "Int32",
-									"physicalType": "int"
-								},
-								"sink": {
-									"name": "ID",
-									"type": "String",
-									"physicalType": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "CaseReference",
-									"type": "String",
-									"physicalType": "varchar"
-								},
-								"sink": {
-									"name": "CaseReference",
-									"type": "String",
-									"physicalType": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "TypeOfExamination",
-									"type": "String",
-									"physicalType": "nvarchar"
-								},
-								"sink": {
-									"name": "TypeOfExamination",
-									"type": "String",
-									"physicalType": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "Name",
-									"type": "String",
-									"physicalType": "varchar"
-								},
-								"sink": {
-									"name": "Name",
-									"type": "String",
-									"physicalType": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "Description",
-									"type": "String",
-									"physicalType": "varchar"
-								},
-								"sink": {
-									"name": "Description",
-									"type": "String",
-									"physicalType": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "DeadlineStartDateTime",
-									"type": "DateTime",
-									"physicalType": "datetime"
-								},
-								"sink": {
-									"name": "DeadlineStartDateTime",
-									"type": "String",
-									"physicalType": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "Date",
-									"type": "DateTime",
-									"physicalType": "datetime"
-								},
-								"sink": {
-									"name": "Date",
-									"type": "String",
-									"physicalType": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "Location",
-									"type": "String",
-									"physicalType": "nvarchar"
-								},
-								"sink": {
-									"name": "Location",
-									"type": "String",
-									"physicalType": "String"
-								}
-							}
-						],
-						"typeConversion": true,
-						"typeConversionSettings": {
-							"allowDataTruncation": true,
-							"treatBooleanAsNumber": false
-						}
-					}
-				},
-				"inputs": [
-					{
-						"referenceName": "HZN_NSIP_Query",
-						"type": "DatasetReference"
-					}
-				],
-				"outputs": [
-					{
-						"referenceName": "ExaminationTimeTable",
-						"type": "DatasetReference",
-						"parameters": {
-							"FileName": "ExaminationTimetable.csv"
-						}
-					}
-				]
-			},
-			{
-				"name": "ExaminationTimetable_Data_Copy_Failure1",
-				"description": "ExaminationTimetable data loading into the RAW ODW Layer as csv has failed",
-				"type": "Fail",
-				"dependsOn": [
-					{
-						"activity": "Examination_Timetable",
-						"dependencyConditions": [
-							"Failed"
-						]
-					}
-				],
-				"userProperties": [],
-				"typeProperties": {
-					"message": "The Horizon ExaminationTimetable load to RAW has failed",
-					"errorCode": "HZN_Data_Copy_ExaminationTimetable"
-				}
-			},
-			{
-				"name": "Logging Failed Activities-12",
-				"type": "SynapseNotebook",
-				"dependsOn": [
-					{
-						"activity": "ExaminationTimetable_Data_Copy_Failure1",
-						"dependencyConditions": [
-							"Completed"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "py_fail_activity_logging",
-						"type": "NotebookReference"
-					},
-					"parameters": {
-						"output": {
-							"value": {
-								"value": "@activity('ExaminationTimetable_Data_Copy_Failure1').output.message",
-								"type": "Expression"
-							},
-							"type": "string"
-						}
-					},
-					"snapshot": true,
-					"conf": {
-						"spark.dynamicAllocation.enabled": null,
-						"spark.dynamicAllocation.minExecutors": null,
-						"spark.dynamicAllocation.maxExecutors": null
-					},
-					"numExecutors": null
-				}
-			},
-			{
 				"name": "NSIP_Relevant_Representation",
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
-						"activity": "Examination_Timetable",
+						"activity": "NSIP_Exam_Timetable",
 						"dependencyConditions": [
 							"Completed"
 						]
@@ -3759,6 +3536,26 @@
 				"typeProperties": {
 					"pipeline": {
 						"referenceName": "0_Raw_Horizon_NSIP_Data",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
+				}
+			},
+			{
+				"name": "NSIP_Exam_Timetable",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "HZN_Right_of_Way",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "0_Raw_Horizon_NSIP_Exam_Timetable",
 						"type": "PipelineReference"
 					},
 					"waitOnCompletion": true
