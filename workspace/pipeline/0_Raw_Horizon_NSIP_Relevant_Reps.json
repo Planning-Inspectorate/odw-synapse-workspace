@@ -1,0 +1,728 @@
+{
+	"name": "0_Raw_Horizon_NSIP_Relevant_Reps",
+	"properties": {
+		"activities": [
+			{
+				"name": "NSIP_Relevant_Representation",
+				"description": "SQL query to get Relevant Representation data to be linked to existing NSIP data",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [
+					{
+						"name": "Source",
+						"value": "."
+					},
+					{
+						"name": "Destination",
+						"value": "odw-raw/@{concat('Horizon', '/', formatDateTime(utcnow(), 'yyyy-MM-dd'))}/@{'NSIPReleventRepresentation.csv'}"
+					}
+				],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": "SELECT\r\n\tC.CaseReference\r\n\t,C.CaseNodeId\r\n\t,C.CaseUniqueId\r\n\t,C2.[ID] AS ContactID\r\n\t,C2.[OrganisationName]\r\n\t,C2.[JobTitle]\r\n\t,C2.[FullName]\r\n\t,C2.[PhoneNumber]\r\n\t,C2.[EmailAddress]\r\n\t,C2.[BuildingNumber]\r\n\t,C2.[Street]\r\n\t,C2.[Town]\r\n\t,C2.[County]\r\n\t,C2.[Country]\r\n\t,C2.[Postcode]\r\n\t,RR.[ID] AS RelevantRepID --\r\n\t,RR.[AttendPrelimMeeting]\r\n\t,RR.[DateReceived]\r\n\t-- Replacing ',' and new line characters with spaces\r\n\t,REPLACE(REPLACE(REPLACE(CAST(RR.[Notes] AS NVarchar(MAX)),',',' '), CHAR(13), ' '), CHAR(10), ' ') AS Notes\r\n\t,RR.[AgentContactId]\r\n\t,C3.[OrganisationName] as Agent_OrganisationName\r\n\t,C3.[JobTitle] as Agent_JobTitle\r\n\t,C3.[FullName] as Agent_FullName\r\n\t,C3.[PhoneNumber] as Agent_PhoneNumber\r\n\t,C3.[EmailAddress] as Agent_EmailAddress\r\n\t,C3.[BuildingNumber] as Agent_BuildingNumber\r\n\t,C3.[Street] as Agent_Street\r\n\t,C3.[Town] as Agent_Town\r\n\t,C3.[County] as Agent_County\r\n\t,C3.[Country] as Agent_COuntry\r\n\t,C3.[Postcode] as Agent_Postcode\r\n\t,RR.[RepresentAtCompAcqHearing]\r\n\t,RR.[RepresentAtIssueHearing]\r\n\t,RR.[RepresentAtOpenFloorHearing]\r\n\t,REPLACE(REPLACE(REPLACE(CAST(RR.[RepresentationOriginal] AS NVarchar(MAX)),',',' '), CHAR(13), ' '), CHAR(10), ' ') AS RepresentationOriginal\r\n\t,REPLACE(REPLACE(REPLACE(CAST(RR.[RepresentationRedacted] AS NVarchar(MAX)),',',' '), CHAR(13), ' '), CHAR(10), ' ') AS RepresentationRedacted\r\n\t,RR.[SubmitLaterReps]\r\n\t,RR.[WebReference]\r\n\t,RRS.[Name] AS RelevantRepStatus\r\n\t,RRL.[OwnerOrOccupier]\r\n\t,RRL.[PowerToSell]\r\n\t,RRL.[EntitledToClaim]\r\n\t,RRL.[Other]\r\n\t,RRL.[DescriptionIfOther]\r\n\t,RRB.[Name] AS RelRepOnBehalfOf\r\n\t,RRO.[Name] AS RelRepOrganisation\r\n\t,COM.[Name] AS PreferredContactMethod\r\n\t,RR.AttachmentId\r\n\t,K.FirstName + ' ' + K.LastName as RedactedBy\r\nFROM \r\n\t[otcs].[dbo].[Horizon_RelevantRepresentation] RR\r\n\t\tLEFT JOIN [otcs].[dbo].[Horizon_CaseReference] C ON RR.CaseId = C.CaseNodeId\r\n\t\tLEFT JOIN [otcs].[dbo].[Horizon_RelevantRepContact] C2 ON RR.ContactId = C2.ID\r\n\t\tLEFT JOIN [otcs].[dbo].[Horizon_RelevantRepContact] C3 ON RR.AgentContactId = C3.ID\r\n\t\tLEFT JOIN [otcs].[dbo].[Horizon_TypeOfRelevantRepState] RRS ON RR.RepresentationStateId = RRS.ID\r\n\t\tLEFT JOIN [otcs].[dbo].[Horizon_RelevantRepInterestInLand] RRL ON RR.InterestInLandId = RRL.ID\r\n\t\tLEFT JOIN [otcs].[dbo].[Horizon_TypeOfRelRepOnBehalfOf] RRB ON RR.OnBehalfOfId = RRB.ID\r\n\t\tLEFT JOIN [otcs].[dbo].[Horizon_TypeOfRelRepOrganisation] RRO ON RR.OrganisationTypeId = RRO.ID\r\n\t\tLEFT JOIN [otcs].[dbo].[Horizon_TypeOfCommunicationPreference] COM ON RR.PreferredContactMethodId = COM.ID\r\n\t\tLEFT JOIN [otcs].[dbo].[KUAF] K ON RR.RedactedBy = K.ID",
+						"queryTimeout": "02:00:00",
+						"isolationLevel": "ReadCommitted",
+						"partitionOption": "None"
+					},
+					"sink": {
+						"type": "DelimitedTextSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "DelimitedTextWriteSettings",
+							"quoteAllText": true,
+							"fileExtension": ".txt"
+						}
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"name": "CaseReference",
+									"type": "String",
+									"physicalType": "varchar"
+								},
+								"sink": {
+									"name": "CaseReference",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "CaseNodeId",
+									"type": "Int32",
+									"physicalType": "int"
+								},
+								"sink": {
+									"name": "CaseNodeId",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "CaseUniqueId",
+									"type": "Int32",
+									"physicalType": "int"
+								},
+								"sink": {
+									"name": "CaseUniqueId",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "ContactID",
+									"type": "Int32",
+									"physicalType": "int"
+								},
+								"sink": {
+									"name": "ContactID",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "OrganisationName",
+									"type": "String",
+									"physicalType": "varchar"
+								},
+								"sink": {
+									"name": "OrganisationName",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "JobTitle",
+									"type": "String",
+									"physicalType": "varchar"
+								},
+								"sink": {
+									"name": "JobTitle",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "FullName",
+									"type": "String",
+									"physicalType": "varchar"
+								},
+								"sink": {
+									"name": "FullName",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "PhoneNumber",
+									"type": "String",
+									"physicalType": "varchar"
+								},
+								"sink": {
+									"name": "PhoneNumber",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "EmailAddress",
+									"type": "String",
+									"physicalType": "varchar"
+								},
+								"sink": {
+									"name": "EmailAddress",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "BuildingNumber",
+									"type": "String",
+									"physicalType": "varchar"
+								},
+								"sink": {
+									"name": "BuildingNumber",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "Street",
+									"type": "String",
+									"physicalType": "varchar"
+								},
+								"sink": {
+									"name": "Street",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "Town",
+									"type": "String",
+									"physicalType": "varchar"
+								},
+								"sink": {
+									"name": "Town",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "County",
+									"type": "String",
+									"physicalType": "varchar"
+								},
+								"sink": {
+									"name": "County",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "Country",
+									"type": "String",
+									"physicalType": "varchar"
+								},
+								"sink": {
+									"name": "Country",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "Postcode",
+									"type": "String",
+									"physicalType": "varchar"
+								},
+								"sink": {
+									"name": "Postcode",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "RelevantRepID",
+									"type": "Int32",
+									"physicalType": "int"
+								},
+								"sink": {
+									"name": "RelevantRepID",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "AttendPrelimMeeting",
+									"type": "Boolean",
+									"physicalType": "bit"
+								},
+								"sink": {
+									"name": "AttendPrelimMeeting",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "DateReceived",
+									"type": "DateTime",
+									"physicalType": "datetime"
+								},
+								"sink": {
+									"name": "DateReceived",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "Notes",
+									"type": "String",
+									"physicalType": "nvarchar"
+								},
+								"sink": {
+									"name": "Notes",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "AgentContactId",
+									"type": "Int32",
+									"physicalType": "int"
+								},
+								"sink": {
+									"name": "AgentContactId",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "Agent_OrganisationName",
+									"type": "String",
+									"physicalType": "varchar"
+								},
+								"sink": {
+									"name": "Agent_OrganisationName",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "Agent_JobTitle",
+									"type": "String",
+									"physicalType": "varchar"
+								},
+								"sink": {
+									"name": "Agent_JobTitle",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "Agent_FullName",
+									"type": "String",
+									"physicalType": "varchar"
+								},
+								"sink": {
+									"name": "Agent_FullName",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "Agent_PhoneNumber",
+									"type": "String",
+									"physicalType": "varchar"
+								},
+								"sink": {
+									"name": "Agent_PhoneNumber",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "Agent_EmailAddress",
+									"type": "String",
+									"physicalType": "varchar"
+								},
+								"sink": {
+									"name": "Agent_EmailAddress",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "Agent_BuildingNumber",
+									"type": "String",
+									"physicalType": "varchar"
+								},
+								"sink": {
+									"name": "Agent_BuildingNumber",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "Agent_Street",
+									"type": "String",
+									"physicalType": "varchar"
+								},
+								"sink": {
+									"name": "Agent_Street",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "Agent_Town",
+									"type": "String",
+									"physicalType": "varchar"
+								},
+								"sink": {
+									"name": "Agent_Town",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "Agent_County",
+									"type": "String",
+									"physicalType": "varchar"
+								},
+								"sink": {
+									"name": "Agent_County",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "Agent_COuntry",
+									"type": "String",
+									"physicalType": "varchar"
+								},
+								"sink": {
+									"name": "Agent_COuntry",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "Agent_Postcode",
+									"type": "String",
+									"physicalType": "varchar"
+								},
+								"sink": {
+									"name": "Agent_Postcode",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "RepresentAtCompAcqHearing",
+									"type": "Boolean",
+									"physicalType": "bit"
+								},
+								"sink": {
+									"name": "RepresentAtCompAcqHearing",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "RepresentAtIssueHearing",
+									"type": "Boolean",
+									"physicalType": "bit"
+								},
+								"sink": {
+									"name": "RepresentAtIssueHearing",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "RepresentAtOpenFloorHearing",
+									"type": "Boolean",
+									"physicalType": "bit"
+								},
+								"sink": {
+									"name": "RepresentAtOpenFloorHearing",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "RepresentationOriginal",
+									"type": "String",
+									"physicalType": "nvarchar"
+								},
+								"sink": {
+									"name": "RepresentationOriginal",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "RepresentationRedacted",
+									"type": "String",
+									"physicalType": "nvarchar"
+								},
+								"sink": {
+									"name": "RepresentationRedacted",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "SubmitLaterReps",
+									"type": "Boolean",
+									"physicalType": "bit"
+								},
+								"sink": {
+									"name": "SubmitLaterReps",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "WebReference",
+									"type": "String",
+									"physicalType": "varchar"
+								},
+								"sink": {
+									"name": "WebReference",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "RelevantRepStatus",
+									"type": "String",
+									"physicalType": "nvarchar"
+								},
+								"sink": {
+									"name": "RelevantRepStatus",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "OwnerOrOccupier",
+									"type": "Boolean",
+									"physicalType": "bit"
+								},
+								"sink": {
+									"name": "OwnerOrOccupier",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "PowerToSell",
+									"type": "Boolean",
+									"physicalType": "bit"
+								},
+								"sink": {
+									"name": "PowerToSell",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "EntitledToClaim",
+									"type": "Boolean",
+									"physicalType": "bit"
+								},
+								"sink": {
+									"name": "EntitledToClaim",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "Other",
+									"type": "Boolean",
+									"physicalType": "bit"
+								},
+								"sink": {
+									"name": "Other",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "DescriptionIfOther",
+									"type": "String",
+									"physicalType": "varchar"
+								},
+								"sink": {
+									"name": "DescriptionIfOther",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "RelRepOnBehalfOf",
+									"type": "String",
+									"physicalType": "nvarchar"
+								},
+								"sink": {
+									"name": "RelRepOnBehalfOf",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "RelRepOrganisation",
+									"type": "String",
+									"physicalType": "nvarchar"
+								},
+								"sink": {
+									"name": "RelRepOrganisation",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "PreferredContactMethod",
+									"type": "String",
+									"physicalType": "nvarchar"
+								},
+								"sink": {
+									"name": "PreferredContactMethod",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "AttachmentId",
+									"type": "Int32",
+									"physicalType": "int"
+								},
+								"sink": {
+									"name": "AttachmentId",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "RedactedBy",
+									"type": "String",
+									"physicalType": "nvarchar"
+								},
+								"sink": {
+									"name": "RedactedBy",
+									"type": "String",
+									"physicalType": "String"
+								}
+							}
+						],
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "HZN_NSIP_Query",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "NSIP_ReleventRepresentation",
+						"type": "DatasetReference",
+						"parameters": {
+							"FileName": "NSIPReleventRepresentation.csv"
+						}
+					}
+				]
+			},
+			{
+				"name": "NSIPRelevantRepresentation_Data_Copy_Failure",
+				"description": "NSIPRelevantRepresentation data loading into the RAW ODW Layer as csv has failed",
+				"type": "Fail",
+				"dependsOn": [
+					{
+						"activity": "NSIP_Relevant_Representation",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"message": "The Horizon NSIPRelevantRepresentation load to RAW has failed",
+					"errorCode": "HZN_Data_Copy_NSIPRelevantRepresentation"
+				}
+			},
+			{
+				"name": "Logging Failed Activities-13",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "NSIPRelevantRepresentation_Data_Copy_Failure",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_fail_activity_logging",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"output": {
+							"value": {
+								"value": "@activity('NSIPRelevantRepresentation_Data_Copy_Failure').output.message",
+								"type": "Expression"
+							},
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			}
+		],
+		"folder": {
+			"name": "casework/layers/0-raw"
+		},
+		"annotations": []
+	}
+}

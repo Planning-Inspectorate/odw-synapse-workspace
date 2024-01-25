@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "443598d5-9362-484e-9acb-33d710606a84"
+				"spark.autotune.trackingId": "11fb5991-aac9-483a-9800-6877b5823f1d"
 			}
 		},
 		"metadata": {
@@ -150,13 +150,12 @@
 				},
 				"source": [
 					"date_folder=''\n",
-					"source_folder='Horizon'\n",
+					"source_folder=''\n",
 					"source_frequency_folder=''\n",
 					"\n",
-					"specific_file='TypeOfCase' # if not provided, it will ingest all files in the date_folder\n",
+					"specific_file='' # if not provided, it will ingest all files in the date_folder\n",
 					"\n",
-					"source_id = -1\n",
-					"is_source_from_function_app = False # has the source file come from the function app - in which case it will have a random filename "
+					"delete_existing_table=False"
 				],
 				"execution_count": 37
 			},
@@ -240,38 +239,33 @@
 					"    date_folder = datetime.strptime(date_folder, \"%Y-%m-%d\")\n",
 					"\n",
 					"date_folder_str = date_folder.strftime('%Y-%m-%d')\n",
-					"source_folder_path = source_folder if source_frequency_folder == '' else f\"{source_folder}/{source_frequency_folder}\"\n",
+					"source_folder_path = source_folder if not source_frequency_folder else f\"{source_folder}/{source_frequency_folder}\"\n",
 					"\n",
 					"# READ ORCHESTRATION DATA\n",
 					"path_to_orchestration_file = \"abfss://odw-config@\"+storage_account+\"orchestration/orchestration.json\"\n",
 					"df = spark.read.option(\"multiline\",\"true\").json(path_to_orchestration_file)\n",
 					"definitions = json.loads(df.toJSON().first())['definitions']\n",
 					"\n",
-					"source_path = f\"{raw_container}{source_folder_path}/{'' if is_source_from_function_app else date_folder_str}\"\n",
+					"source_path = f\"{raw_container}{source_folder_path}/{date_folder_str}\"\n",
 					"\n",
 					"try:\n",
 					"    files = mssparkutils.fs.ls(source_path)\n",
-					"    if is_source_from_function_app:\n",
-					"        latest_file = get_latest_file(source_path)\n",
-					"        files = [file for file in files if file.name == latest_file]\n",
-					"\n",
 					"    for file in files:\n",
-					"\n",
-					"        if is_source_from_function_app:\n",
-					"            definition = next((d for d in definitions if source_id == d['Source_ID']), None)\n",
-					"        else:\n",
-					"            definition = next((d for d in definitions if (specific_file == '' or d['Source_Filename_Start'] == specific_file) and (source_frequency_folder == '' or d['Source_Frequency_Folder'] == source_frequency_folder) and file.name.startswith(d['Source_Filename_Start'])), None)\n",
+					"        definition = next((d for d in definitions if (specific_file == '' or d['Source_Filename_Start'] == specific_file) and (not source_frequency_folder or d['Source_Frequency_Folder'] == source_frequency_folder) and file.name.startswith(d['Source_Filename_Start'])), None)\n",
 					"        \n",
-					"        print(file.name)\n",
 					"        if definition:\n",
 					"            expected_from = date_folder - timedelta(days=1)\n",
 					"            expected_from = datetime.combine(expected_from, datetime.min.time())\n",
 					"            expected_to = expected_from + timedelta(days=definition['Expected_Within_Weekdays']) \n",
 					"\n",
+					"            if delete_existing_table:\n",
+					"                print(f\"Deleting existing table if exists odw_standardised_db.{definition['Standardised_Table_Name']}\")\n",
+					"                mssparkutils.notebook.run('/utils/py_delete_table', 300, arguments={'db_name': 'odw_standardised_db', 'table_name': definition['Standardised_Table_Name']})\n",
+					"\n",
 					"            print(f\"Ingesting {file.name}\")\n",
 					"            ingest_adhoc(storage_account, definition, source_path, file.name, expected_from, expected_to)\n",
-					"except:  \n",
-					"   print('Raw data unavailable')"
+					"except Exception as e:  \n",
+					"   print('Raw data unavailable', e)"
 				],
 				"execution_count": 39
 			}

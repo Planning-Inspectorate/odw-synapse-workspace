@@ -1,91 +1,14 @@
 {
-	"name": "pln_raw_to_standardised_e2e_legacy",
+	"name": "pln_service_bus_nsip_exam_timetable",
 	"properties": {
 		"activities": [
 			{
-				"name": "Generate Schema",
+				"name": "Raw to Std",
+				"description": "Ingests raw data into the new standardised table",
 				"type": "SynapseNotebook",
 				"dependsOn": [
 					{
-						"activity": "Copy Source File",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "py_generate_schema_script",
-						"type": "NotebookReference"
-					},
-					"parameters": {
-						"target_folder": {
-							"value": {
-								"value": "@pipeline().parameters.standardised_schema_folder",
-								"type": "Expression"
-							},
-							"type": "string"
-						}
-					},
-					"snapshot": true,
-					"conf": {
-						"spark.dynamicAllocation.enabled": null,
-						"spark.dynamicAllocation.minExecutors": null,
-						"spark.dynamicAllocation.maxExecutors": null
-					},
-					"numExecutors": null
-				}
-			},
-			{
-				"name": "Copy Source File",
-				"description": "copies source file to the schema_creation folder",
-				"type": "SynapseNotebook",
-				"dependsOn": [],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "py_1_copy_source_file_for_schema_creation",
-						"type": "NotebookReference"
-					},
-					"parameters": {
-						"source_id": {
-							"value": {
-								"value": "@pipeline().parameters.source_id",
-								"type": "Expression"
-							},
-							"type": "int"
-						}
-					},
-					"snapshot": true,
-					"conf": {
-						"spark.dynamicAllocation.enabled": null,
-						"spark.dynamicAllocation.minExecutors": null,
-						"spark.dynamicAllocation.maxExecutors": null
-					},
-					"numExecutors": null
-				}
-			},
-			{
-				"name": "Create Table and Ingest",
-				"type": "SynapseNotebook",
-				"dependsOn": [
-					{
-						"activity": "Generate Schema",
+						"activity": "JSON to CSV",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -105,16 +28,20 @@
 						"type": "NotebookReference"
 					},
 					"parameters": {
-						"source_id": {
+						"source_folder": {
+							"value": "ServiceBus",
+							"type": "string"
+						},
+						"source_frequency_folder": {
 							"value": {
-								"value": "@pipeline().parameters.source_id",
+								"value": "@variables('entity_name')",
 								"type": "Expression"
 							},
-							"type": "int"
+							"type": "string"
 						},
-						"date_folder": {
+						"specific_file": {
 							"value": {
-								"value": "@pipeline().parameters.source_folder_date",
+								"value": "@variables('entity_name')",
 								"type": "Expression"
 							},
 							"type": "string"
@@ -128,24 +55,117 @@
 					},
 					"numExecutors": null
 				}
+			},
+			{
+				"name": "Std to Hrm",
+				"description": "Ingests the standardised data into the new harmonised table",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Raw to Std",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "casework_nsip_examination_timetable_dim",
+						"type": "NotebookReference"
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "JSON to CSV",
+				"description": "Converts the messages stored in json format to csv format",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Src to Raw",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_service_bus_json_to_csv",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"source_folder": {
+							"value": "ServiceBus",
+							"type": "string"
+						},
+						"source_frequency_folder": {
+							"value": {
+								"value": "@variables('entity_name')",
+								"type": "Expression"
+							},
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Src to Raw",
+				"description": "Triggers Function App to read messages from Service Bus and write to odw-raw",
+				"type": "ExecutePipeline",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_trigger_function_app",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"function_name": {
+							"value": "@variables('entity_name')",
+							"type": "Expression"
+						}
+					}
+				}
 			}
 		],
-		"parameters": {
-			"source_id": {
-				"type": "int",
-				"defaultValue": 110
-			},
-			"source_folder_date": {
-				"type": "string",
-				"defaultValue": "2023-11-07"
-			},
-			"standardised_schema_folder": {
-				"type": "string",
-				"defaultValue": "NSIP/"
+		"variables": {
+			"entity_name": {
+				"type": "String",
+				"defaultValue": "nsip-exam-timetable"
 			}
 		},
 		"folder": {
-			"name": "utils"
+			"name": "nsip exam timetable"
 		},
 		"annotations": []
 	}

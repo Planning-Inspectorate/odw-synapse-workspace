@@ -1,0 +1,137 @@
+{
+	"name": "pln_horizon_service_user",
+	"properties": {
+		"activities": [
+			{
+				"name": "Hzn - Src to Raw",
+				"description": "Copies migration data from Horizon to odw-raw",
+				"type": "ExecutePipeline",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "0_Horizon_Service_User",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
+				}
+			},
+			{
+				"name": "Hzn - Raw to Std",
+				"description": "Ingests the raw data into the standardised table",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Hzn - Src to Raw",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_raw_to_std",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"source_folder": {
+							"value": "Horizon",
+							"type": "string"
+						},
+						"specific_file": {
+							"value": "CaseInvolvement",
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Hzn - Std to Hrm",
+				"description": "Ingests data from standardised to harmonised",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Hzn - Raw to Std",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "legacy_service_user_dim",
+						"type": "NotebookReference"
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Hzn - Hrm to Cur",
+				"description": "Ingests data from harmonised to curated",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Hzn - Std to Hrm",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "service_user",
+						"type": "NotebookReference"
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			}
+		],
+		"folder": {
+			"name": "service user"
+		},
+		"annotations": []
+	}
+}
