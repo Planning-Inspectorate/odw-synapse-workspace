@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "0345a1d0-14d5-4fa4-acbc-6eccb93e96f2"
+				"spark.autotune.trackingId": "c3114525-cdcc-4e20-95fa-4c3958ce69d5"
 			}
 		},
 		"metadata": {
@@ -88,7 +88,46 @@
 					"\n",
 					"# spark.sql(f\"SET MAX_LIMIT = {max_limit}\")"
 				],
-				"execution_count": 27
+				"execution_count": 124
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Setting a Max Column Length since a dedicated SQL pool only supports upto VARCHAR(8000)\n",
+					"#### \n",
+					"https://learn.microsoft.com/en-us/azure/synapse-analytics/sql-data-warehouse/sql-data-warehouse-service-capacity-limits#database-objects\n",
+					""
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"SET MAX_LEN = 7900"
+				],
+				"execution_count": 125
 			},
 			{
 				"cell_type": "markdown",
@@ -121,9 +160,8 @@
 					"collapsed": false
 				},
 				"source": [
-					"%%sql\n",
 					"\n",
-					"---TEST TEST TEST----\n",
+					"%%sql\n",
 					"\n",
 					"CREATE OR REPLACE VIEW odw_curated_db.vw_nsip_s51_advice\n",
 					"\n",
@@ -140,10 +178,14 @@
 					"    AD.EnquirerOrganisation                                 AS agent,\n",
 					"    AD.EnquiryMethod                                        AS method,\n",
 					"    AD.EnquiryDate                                          AS enquiryDate,\n",
-					"    AD.Enquiry                                              AS enquiryDetails,\n",
+					"    SUBSTRING(AD.Enquiry, 1, ${MAX_LEN})                    AS enquiryDetails1,\n",
+					"    SUBSTRING(AD.Enquiry, ${MAX_LEN}+1, ${MAX_LEN})         AS enquiryDetails2,\n",
+					"    SUBSTRING(AD.Enquiry, (${MAX_LEN}*2)+1, ${MAX_LEN})     AS enquiryDetails3,\n",
 					"    AD.AdviceFrom                                           AS adviceGivenBy,\n",
 					"    AD.AdviceStatus                                         AS adviceDate,\n",
-					"    AD.Advice                                               AS adviceDetails,\n",
+					"    SUBSTRING(AD.Advice, 1, ${MAX_LEN})                     AS adviceDetails1,\n",
+					"    SUBSTRING(AD.Advice, ${MAX_LEN}+1, ${MAX_LEN})          AS adviceDetails2,\n",
+					"    SUBSTRING(AD.Advice, (${MAX_LEN}*2)+1, ${MAX_LEN})      AS adviceDetails3,\n",
 					"    AD.AdviceStatus                                         AS status,\n",
 					"    \"unredacted\"                                            AS redactionStatus,\n",
 					"    AD.AttachmentID                                         AS attachmentIds\n",
@@ -152,7 +194,7 @@
 					"\t\n",
 					"-- LIMIT ${MAX_LIMIT}"
 				],
-				"execution_count": 28
+				"execution_count": 126
 			},
 			{
 				"cell_type": "markdown",
@@ -187,8 +229,6 @@
 				"source": [
 					"%%sql\n",
 					"\n",
-					"---TEST TEST TEST----\n",
-					"\n",
 					"CREATE OR REPLACE TABLE odw_curated_db.nsip_s51_advice\n",
 					"\n",
 					"USING delta\n",
@@ -201,7 +241,7 @@
 					"    \n",
 					"FROM odw_curated_db.vw_nsip_s51_advice"
 				],
-				"execution_count": 29
+				"execution_count": 127
 			},
 			{
 				"cell_type": "markdown",
@@ -233,7 +273,7 @@
 					"# %%pyspark\n",
 					"# pip install Faker"
 				],
-				"execution_count": 30
+				"execution_count": 128
 			},
 			{
 				"cell_type": "markdown",
@@ -286,7 +326,7 @@
 					"#         table_loc = \"abfss://odw-curated@\"+storage_account+'nsip_data'\n",
 					"#         df.write.format(\"delta\").mode(\"overwrite\").save(table_loc)  "
 				],
-				"execution_count": 31
+				"execution_count": 129
 			}
 		]
 	}
