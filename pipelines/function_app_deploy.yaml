@@ -59,11 +59,10 @@ jobs:
       archiveFile: '$(Build.ArtifactStagingDirectory)/FunctionAppPackage.zip'
     displayName: 'Archive Function App Code'
 
-  - task: PublishPipelineArtifact@1
+  - task: PublishBuildArtifacts@1
     inputs:
-      targetPath: '$(Pipeline.Workspace)'
-      artifactName: 'FunctionCode'
-      publishLocation: 'pipeline'
+      PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+      ArtifactName: 'FunctionCode'
     displayName: 'Publish pipeline artifact'
 
   # - task: DownloadPipelineArtifact@2
@@ -84,17 +83,17 @@ jobs:
   - script: ls '$(Build.ArtifactStagingDirectory)'
     displayName: 'Build.ArtifactStagingDirectory files'
 
-# - job: DeployToAzureFunctions
-#   displayName: 'Deploy to Azure Functions'
-#   dependsOn: BuildAndPackage
+- job: DeployToAzureFunctions
+  displayName: 'Deploy to Azure Functions'
+  dependsOn: BuildAndPackage
   
-#   steps:
-#   - template: steps/azure-login.yaml
+  steps:
+  - template: steps/azure-login.yaml
 
-#   - task: AzureFunctionApp@2
-#     inputs:
-#       azureSubscription: '$(armServiceConnectionName)'
-#       appType: 'functionAppLinux'
-#       appName: 'pins-fnapp01-odw-dev-uks'
-#       package: '$(Pipeline.Workspace)/FunctionAppPackage.zip'
-#       runtimeStack: 'PYTHON|3.11'
+  - task: AzureFunctionApp@2
+    inputs:
+      azureSubscription: '$(armServiceConnectionName)'
+      appType: 'functionAppLinux'
+      appName: 'pins-fnapp01-odw-dev-uks'
+      package: '$(Build.ArtifactStagingDirectory)/FunctionAppPackage.zip'
+      runtimeStack: 'PYTHON|3.11'
