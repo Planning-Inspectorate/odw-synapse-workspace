@@ -20,48 +20,53 @@ trigger:
   paths:
     include:
       - 'functions/*'
+    exclude:
+      - 'functions/tests/*'
 
 pr: none
 
 pool:
   vmImage: ubuntu-22.04
 
-stages:
-  - stage: Validate
-    jobs:
-    - job: Validate
-      steps:
-      - checkout: self
-        displayName: 'Checkout Repo'
+jobs:
 
-      # Login to Azure using Terraform service principal
-      - template: steps/azure-login.yaml
+- job: AzureLogin
+  displayName: 'Azure login'
+  steps:
+  - template: steps/azure-login.yaml
 
-      - task: UsePythonVersion@0
-        inputs:
-          versionSpec: '3.11'
-        displayName: 'Using python 3.11'
+- job: BuildAndPackage
+  displayName: 'Build and Package'
+  dependsOn: AzureLogin
+  steps:
+  - checkout: self
+    displayName: 'Checkout repo'
 
-      - script: |
-          cd functions
-          pip install -r requirements.txt # Adjust as per your requirements
-        displayName: 'Install dependencies'
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '3.11'
+      addToPath: true
 
-      # Zipping Files
-      - task: ArchiveFiles@2
-        inputs:
-          rootFolderOrFile: '$(System.DefaultWorkingDirectory)'
-          includeRootFolder: false
-          archiveType: 'zip'
-          archiveFile: '$(Build.ArtifactStagingDirectory)/functionapp.zip'
-          replaceExistingArchive: true
+  - script: |
+      python -m pip install --upgrade pip
+      pip install -r $(Build.SourcesDirectory)/functions/requirements.txt
+    displayName: 'Install Python Dependencies'
 
-      # - task: AzureCLI@2
-      #   inputs:
-      #     azureSubscription: 'ODW Dev'
-      #     scriptType: 'bash'
-      #     scriptLocation: 'inlineScript'
-      #     inlineScript: |
-      #       az functionapp deployment source config-zip --resource-group 'pins-rg-function-app-odw-dev-uks' --name 'pins-fnapp01-odw-dev-uks' --src '$(Build.ArtifactStagingDirectory)/functionapp.zip'
+  - task: ArchiveFiles@2
+    inputs:
+      rootFolderOrFile: '$(Build.SourcesDirectory)/functions'
+      includeRootFolder: false
+      archiveFile: '$(Pipeline.Workspace)/FunctionAppPackage.zip'
+    displayName: 'Archive Function App Code'
 
-      #   displayName: 'Deploy to Azure Function App'
+- job: DeployToAzureFunctions
+  displayName: 'Deploy to Azure Functions'
+  dependsOn: BuildAndPackage
+  steps:
+  - task: AzureFunctionApp@2
+    inputs:
+      azureSubscription: ''
+      appType: 'functionAppLinux'
+      appName: 'pins-fnapp01-odw-dev-uks'
+      package: '$(Pipeline.Workspace)/FunctionAppPackage/FunctionAppPackage.zip'
+      runtimeStack: 'PYTHON|3.11'
