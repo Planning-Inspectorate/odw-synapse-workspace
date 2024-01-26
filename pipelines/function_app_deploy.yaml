@@ -52,12 +52,21 @@ jobs:
       pip install -r $(Build.SourcesDirectory)/functions/requirements.txt
     displayName: 'Install Python Dependencies'
 
-  - task: ArchiveFiles@2
-    inputs:
-      rootFolderOrFile: '$(Build.SourcesDirectory)/functions'
-      includeRootFolder: false
-      archiveFile: '$(Build.ArtifactStagingDirectory)/FunctionAppPackage.zip'
-    displayName: 'Archive Function App Code'
+  - script: |
+      cd $(Build.SourcesDirectory)/functions
+
+      find . -maxdepth 1 - type f > $(Build.SourcesDirectory)/functions/filelist.txt
+
+  - script: |
+      zip -r -@ $(Build.ArtifactStagingDirectory)/FunctionAppPackage.zip < $(Build.SourcesDirectory)/functions/filelist.txt
+    displayName: 'Archive top level files'
+
+  # - task: ArchiveFiles@2
+  #   inputs:
+  #     rootFolderOrFile: '$(Build.SourcesDirectory)/functions'
+  #     includeRootFolder: false
+  #     archiveFile: '$(Build.ArtifactStagingDirectory)/FunctionAppPackage.zip'
+  #   displayName: 'Archive Function App Code'
 
   - task: PublishBuildArtifacts@1
     inputs:
@@ -65,12 +74,12 @@ jobs:
       ArtifactName: 'FunctionCode'
     displayName: 'Publish build artifact'
 
-  - task: DownloadBuildArtifacts@1
-    inputs:
-      buildType: 'current'
-      artifactName: 'FunctionCode'
-      downloadPath: '$(System.ArtifactsDirectory)'
-    displayName: 'Download build artifact'
+  # - task: DownloadBuildArtifacts@1
+  #   inputs:
+  #     buildType: 'current'
+  #     artifactName: 'FunctionCode'
+  #     downloadPath: '$(System.ArtifactsDirectory)'
+  #   displayName: 'Download build artifact'
 
   - script: ls -a '$(Pipeline.Workspace)'
     displayName: 'Pipeline workspace files'
