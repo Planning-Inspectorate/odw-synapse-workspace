@@ -131,11 +131,19 @@ jobs:
   - script: ls -a '$(System.ArtifactsDirectory)/FunctionCode'
     displayName: 'System.ArtifactsDirectory files'
 
-  - task: AzureFunctionApp@2
+  # - task: AzureFunctionApp@2
+  #   inputs:
+  #     azureSubscription: '$(armServiceConnectionName)'
+  #     appType: 'functionAppLinux'
+  #     appName: 'pins-fnapp01-odw-dev-uks'
+  #     package: '$(System.ArtifactsDirectory)/FunctionCode/functions.zip'
+  #     runtimeStack: 'PYTHON|3.11'
+  #     additionalArguments: '--no-remote-settings'
+
+  - task: AzureCLI@2
     inputs:
       azureSubscription: '$(armServiceConnectionName)'
-      appType: 'functionAppLinux'
-      appName: 'pins-fnapp01-odw-dev-uks'
-      package: '$(System.ArtifactsDirectory)/FunctionCode/functions.zip'
-      runtimeStack: 'PYTHON|3.11'
-      additionalArguments: '--no-remote-settings'
+      scriptType: 'bash'
+      scriptLocation: 'inlineScript'
+      inlineScript: |
+        az functionapp deployment source config-zip --resource-group 'pins-rg-function-app-odw-dev-uks' --name 'pins-fnapp01-odw-dev-uks' --src '$(System.ArtifactsDirectory)/FunctionCode/functions.zip'
