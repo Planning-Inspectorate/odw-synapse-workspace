@@ -1,3 +1,9 @@
+###
+# Pipeline to deploy function app code to an existing function app in Azure.
+# The pipeline is triggered by code changes in the main branch to the functions code.
+###
+
+---
 # Set environment parameter. This can be set at runtime if running manually.
 parameters:
   - name: environment
@@ -53,58 +59,69 @@ jobs:
 # Login to Azure using the service connection according to the environment.
 - job: AzureLogin
   displayName: 'Azure login'
+
   steps:
+
   - template: steps/azure-login.yaml
 
 # Build and package the code.
 - job: BuildAndPackage
   displayName: 'Build and Package'
   dependsOn: AzureLogin
+
   steps:
+
 # Checkout the Github repo, in this case ODW-Service.
   - checkout: self
     displayName: 'Checkout repo'
 
-# Set the python version to be used on the agent.
-  - task: UsePythonVersion@0
-    displayName: 'Specify python version'
-    inputs:
-      versionSpec: '3.11'
-      addToPath: true
+# # Set the python version to be used on the agent.
+#   - task: UsePythonVersion@0
+#     displayName: 'Specify python version'
+#     inputs:
+#       versionSpec: '3.11'
+#       addToPath: true
 
 # Install python dependencies
-  - script: |
-      python -m pip install --upgrade pip
-      pip install -r $(Build.SourcesDirectory)/functions/requirements.txt
-    displayName: 'Install Python Dependencies'
+  # - script: |
+
+  #     python -m pip install --upgrade pip
+
+  #     pip install -r $(Build.SourcesDirectory)/functions/requirements.txt
+
+  #   displayName: 'Install Python Dependencies'
 
 # Switch to functions directory and create a file containing a list of all files in the top level folder.
   - script: |
-  
-      cd $(Build.SourcesDirectory)/functions
 
+      cd $(Build.SourcesDirectory)/functions
       find . -maxdepth 1 -type f | sed 's|^\./||' > $(Build.SourcesDirectory)/functions/filelist.txt
 
     displayName: 'Creating top level files list'
 
+# Create a zip file of all the files in the filelist.
   - script: |
-      cd $(Build.SourcesDirectory)/functions
-      cat $(Build.SourcesDirectory)/functions/filelist.txt | xargs zip -r $(Build.ArtifactStagingDirectory)/functions.zip
-      
+
+        cd $(Build.SourcesDirectory)/functions
+        cat $(Build.SourcesDirectory)/functions/filelist.txt | xargs zip -r $(Build.ArtifactStagingDirectory)/functions.zip
+
     displayName: 'Archive top level files'
 
+# Publish the zip file as an artifact to be used further in the pipeline.
   - task: PublishBuildArtifacts@1
+    displayName: 'Publish build artifact'
     inputs:
       PathtoPublish: '$(Build.ArtifactStagingDirectory)'
       ArtifactName: 'FunctionCode'
-    displayName: 'Publish build artifact'
 
+# Job to deploy the zip file to an existing Azure Function App.
 - job: DeployToAzureFunctions
   displayName: 'Deploy to Azure Functions'
   dependsOn: BuildAndPackage
   
   steps:
 
+# Download the artifact first - the zip file.
   - task: DownloadBuildArtifacts@1
     displayName: 'Download build artifact'
     inputs:
@@ -112,7 +129,9 @@ jobs:
       artifactName: 'FunctionCode'
       downloadPath: '$(System.ArtifactsDirectory)'
 
+# Use the Azure CLI to deploy the zip file to the Function App in Azure.
   - task: AzureCLI@2
+    displayName: 'Deploy to function app'
     inputs:
       azureSubscription: '$(armServiceConnectionName)'
       scriptType: 'bash'
