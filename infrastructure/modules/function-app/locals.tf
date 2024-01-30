@@ -19,7 +19,6 @@ locals {
       "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING"    = "DefaultEndpointsProtocol=https;AccountName=${var.storage_account_name};AccountKey=${var.storage_account_access_key};EndpointSuffix=core.windows.net"
       "WEBSITE_CONTENTSHARE"                        = var.file_share_name
       "WEBSITE_CONTENTOVERVNET"                     = 1
-      "WEBSITE_RUN_FROM_PACKAGE"                    = 1
     }
   )
 
