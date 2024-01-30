@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "c3114525-cdcc-4e20-95fa-4c3958ce69d5"
+				"spark.autotune.trackingId": "15daf4b6-4c84-44e3-8068-becbca5c9d59"
 			}
 		},
 		"metadata": {
@@ -52,83 +52,6 @@
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"## Checking the Environment\n",
-					"#### If dev or test, limiting the number of output rows and anonymisation of the sensitive fields is required."
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"# from notebookutils import mssparkutils\n",
-					"# storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
-					"\n",
-					"# is_dev_or_test_env = 'dev' in storage_account or 'test' in storage_account\n",
-					"# max_limit = 20 if is_dev_or_test_env else 100000000\n",
-					"\n",
-					"# spark.sql(f\"SET MAX_LIMIT = {max_limit}\")"
-				],
-				"execution_count": 124
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"#### Setting a Max Column Length since a dedicated SQL pool only supports upto VARCHAR(8000)\n",
-					"#### \n",
-					"https://learn.microsoft.com/en-us/azure/synapse-analytics/sql-data-warehouse/sql-data-warehouse-service-capacity-limits#database-objects\n",
-					""
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
-				},
-				"source": [
-					"%%sql\n",
-					"SET MAX_LEN = 7900"
-				],
-				"execution_count": 125
-			},
 			{
 				"cell_type": "markdown",
 				"metadata": {
@@ -178,23 +101,17 @@
 					"    AD.EnquirerOrganisation                                 AS agent,\n",
 					"    AD.EnquiryMethod                                        AS method,\n",
 					"    AD.EnquiryDate                                          AS enquiryDate,\n",
-					"    SUBSTRING(AD.Enquiry, 1, ${MAX_LEN})                    AS enquiryDetails1,\n",
-					"    SUBSTRING(AD.Enquiry, ${MAX_LEN}+1, ${MAX_LEN})         AS enquiryDetails2,\n",
-					"    SUBSTRING(AD.Enquiry, (${MAX_LEN}*2)+1, ${MAX_LEN})     AS enquiryDetails3,\n",
+					"    AD.Enquiry                                              AS enquiryDetails,\n",
 					"    AD.AdviceFrom                                           AS adviceGivenBy,\n",
 					"    AD.AdviceStatus                                         AS adviceDate,\n",
-					"    SUBSTRING(AD.Advice, 1, ${MAX_LEN})                     AS adviceDetails1,\n",
-					"    SUBSTRING(AD.Advice, ${MAX_LEN}+1, ${MAX_LEN})          AS adviceDetails2,\n",
-					"    SUBSTRING(AD.Advice, (${MAX_LEN}*2)+1, ${MAX_LEN})      AS adviceDetails3,\n",
+					"    AD.Advice                                               AS adviceDetails,\n",
 					"    AD.AdviceStatus                                         AS status,\n",
 					"    \"unredacted\"                                            AS redactionStatus,\n",
 					"    AD.AttachmentID                                         AS attachmentIds\n",
 					"\n",
-					"FROM odw_harmonised_db.casework_nsip_advice_dim \t        AS AD\n",
-					"\t\n",
-					"-- LIMIT ${MAX_LIMIT}"
+					"FROM odw_harmonised_db.casework_nsip_advice_dim \t        AS AD"
 				],
-				"execution_count": 126
+				"execution_count": 12
 			},
 			{
 				"cell_type": "markdown",
@@ -220,113 +137,15 @@
 						"transient": {
 							"deleting": false
 						}
-					},
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
+					}
 				},
 				"source": [
-					"%%sql\n",
-					"\n",
-					"CREATE OR REPLACE TABLE odw_curated_db.nsip_s51_advice\n",
-					"\n",
-					"USING delta\n",
-					"\n",
-					"AS\n",
-					"\n",
-					"SELECT \t\t\t\t\t\t\t\t\n",
-					"    \t\t\t\t\t\t\n",
-					"*\n",
-					"    \n",
-					"FROM odw_curated_db.vw_nsip_s51_advice"
+					"from pyspark.sql import SparkSession\n",
+					"spark = SparkSession.builder.getOrCreate()\n",
+					"view_df = spark.sql('SELECT * FROM odw_curated_db.vw_nsip_s51_advice')\n",
+					"view_df.write.mode(\"overwrite\").saveAsTable('odw_curated_db.nsip_s51_advice')"
 				],
-				"execution_count": 127
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"## Install anonymisation library i.e Faker"
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"# %%pyspark\n",
-					"# pip install Faker"
-				],
-				"execution_count": 128
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"## Anonymisation of sensitive fields"
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"# if is_dev_or_test_env:\n",
-					"\n",
-					"#     import pandas as pd\n",
-					"#     import uuid\n",
-					"    \n",
-					"#     df = spark.sql(\"select * from odw_curated_db.nsip_data\").toPandas()\n",
-					"\n",
-					"#     if(len(df) > 0):\n",
-					"        \n",
-					"#         df['OperationsLeadID'] = [str(uuid.uuid4()) for _ in range(len(df))]\n",
-					"#         df['OperationsManagerID'] = [str(uuid.uuid4()) for _ in range(len(df))]\n",
-					"#         df['CaseManagerID'] = [str(uuid.uuid4()) for _ in range(len(df))]\n",
-					"#         df['NSIPAdministrationOfficerID'] = [str(uuid.uuid4()) for _ in range(len(df))]\n",
-					"#         df['LeadInspectorID'] = [str(uuid.uuid4()) for _ in range(len(df))]\n",
-					"#         df['InspectorID'] = [str(uuid.uuid4()) for _ in range(len(df))]\n",
-					"#         df['EnvironmentalServicesOfficerID'] = [str(uuid.uuid4()) for _ in range(len(df))]\n",
-					"#         df['LegalOfficerID'] = [str(uuid.uuid4()) for _ in range(len(df))]\n",
-					"\n",
-					"        \n",
-					"#         df = spark.createDataFrame(df)\n",
-					"\n",
-					"#         table_loc = \"abfss://odw-curated@\"+storage_account+'nsip_data'\n",
-					"#         df.write.format(\"delta\").mode(\"overwrite\").save(table_loc)  "
-				],
-				"execution_count": 129
+				"execution_count": 13
 			}
 		]
 	}
