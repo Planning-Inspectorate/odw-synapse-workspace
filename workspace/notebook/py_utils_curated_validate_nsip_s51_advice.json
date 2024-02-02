@@ -1,0 +1,509 @@
+{
+	"name": "py_utils_curated_validate_nsip_s51_advice",
+	"properties": {
+		"description": "Validation notebook for validating curated layer tables against the json schema.",
+		"folder": {
+			"name": "utils/data-validation"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodwpr",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "a54aa551-2bc3-4d3d-8c84-c3786755f6bd"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodwpr",
+				"name": "pinssynspodwpr",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodwpr",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.2",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Validation notebook for validating curated layer tables against the json schema"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Install packages"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%pip install --quiet --upgrade pip\r\n",
+					"%pip install --quiet jsonschema==4.20.0 iso8601==2.1.0"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Imports"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"import pandas as pd\r\n",
+					"import json\r\n",
+					"from collections import defaultdict\r\n",
+					"import pprint\r\n",
+					"from jsonschema import validate, FormatChecker, ValidationError\r\n",
+					"from iso8601 import parse_date, ParseError"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Define constants"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"DATABASE = \"odw_curated_db\"\r\n",
+					"TABLE = \"nsip_s51_advice\"\r\n",
+					"QUERY = f\"SELECT * FROM `{DATABASE}`.`{TABLE}`\""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Validation functions"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def is_iso8601_date_time(instance):\r\n",
+					"\r\n",
+					"    \"\"\"\r\n",
+					"    Function to check if a date matches ISO-8601 format\r\n",
+					"    \"\"\"\r\n",
+					"\r\n",
+					"    try:\r\n",
+					"        parse_date(instance)\r\n",
+					"        return True\r\n",
+					"    except ParseError:\r\n",
+					"        return False\r\n",
+					"\r\n",
+					"def validate_data(data: list, schema: dict) -> list:\r\n",
+					"\r\n",
+					"    \"\"\"\r\n",
+					"    Function to validate a list of servicebus messages.\r\n",
+					"    Validation includes a format check against ISO-8601.\r\n",
+					"    \"\"\"\r\n",
+					"    \r\n",
+					"    format_checker = FormatChecker()\r\n",
+					"    format_checker.checks(\"date-time\")(is_iso8601_date_time)\r\n",
+					"\r\n",
+					"    success = True\r\n",
+					"\r\n",
+					"    for message in data:\r\n",
+					"        try:\r\n",
+					"            validate(instance = message, schema = schema, format_checker = format_checker)\r\n",
+					"        except ValidationError as e:\r\n",
+					"            print(e)\r\n",
+					"            success = False\r\n",
+					"            # raise e\r\n",
+					"    return success"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### json schema for the relevant entity\r\n",
+					"\r\n",
+					"This needs pasting here manually from https://github.com/Planning-Inspectorate/data-model/tree/main/schemas as the spark pool is using python 3.8 and the schema package was written using python 3.11 and there are incompatibilities so the package can't be imported."
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"schema = {\r\n",
+					"\t\"$schema\": \"http://json-schema.org/draft-07/schema#\",\r\n",
+					"\t\"$id\": \"s51-advice.schema.json\",\r\n",
+					"\t\"title\": \"S51 Advice\",\r\n",
+					"\t\"type\": \"object\",\r\n",
+					"\t\"required\": [\"adviceId\", \"adviceReference\", \"title\"],\r\n",
+					"\t\"properties\": {\r\n",
+					"\t\t\"adviceId\": {\r\n",
+					"\t\t\t\"type\": \"integer\",\r\n",
+					"\t\t\t\"examples\": [1234]\r\n",
+					"\t\t},\r\n",
+					"\t\t\"adviceReference\": {\r\n",
+					"\t\t\t\"type\": \"string\",\r\n",
+					"\t\t\t\"examples\": [\"TR0200007-0005\"]\r\n",
+					"\t\t},\r\n",
+					"\t\t\"caseId\": {\r\n",
+					"\t\t\t\"type\": \"integer\",\r\n",
+					"\t\t\t\"examples\": [1234]\r\n",
+					"\t\t},\r\n",
+					"\t\t\"caseReference\": {\r\n",
+					"\t\t\t\"type\": \"string\",\r\n",
+					"\t\t\t\"examples\": [\"BC0110002\"]\r\n",
+					"\t\t},\r\n",
+					"\t\t\"title\": {\r\n",
+					"\t\t\t\"type\": \"string\",\r\n",
+					"\t\t\t\"description\": \"Title of the advice\",\r\n",
+					"\t\t\t\"examples\": [\"Advice following issue of decision to accept the application for examination\"]\r\n",
+					"\t\t},\r\n",
+					"\t\t\"from\": {\r\n",
+					"\t\t\t\"type\": \"string\",\r\n",
+					"\t\t\t\"description\": \"Who the enquiry is from\"\r\n",
+					"\t\t},\r\n",
+					"\t\t\"agent\": {\r\n",
+					"\t\t\t\"type\": \"string\",\r\n",
+					"\t\t\t\"description\": \"Who the enquiry is on behalf of\"\r\n",
+					"\t\t},\r\n",
+					"\t\t\"method\": {\r\n",
+					"\t\t\t\"type\": \"string\",\r\n",
+					"\t\t\t\"description\": \"How the enquiry was made\",\r\n",
+					"\t\t\t\"enum\": [\"phone\", \"email\", \"meeting\", \"post\"]\r\n",
+					"\t\t},\r\n",
+					"\t\t\"enquiryDate\": {\r\n",
+					"\t\t\t\"type\": \"string\",\r\n",
+					"\t\t\t\"description\": \"Date the enquiry was made\",\r\n",
+					"\t\t\t\"format\": \"date-time\",\r\n",
+					"\t\t\t\"examples\": [\"2023-07-27T20:30:00.000Z\"]\r\n",
+					"\t\t},\r\n",
+					"\t\t\"enquiryDetails\": {\r\n",
+					"\t\t\t\"type\": \"string\",\r\n",
+					"\t\t\t\"description\": \"Details of the enquiry\"\r\n",
+					"\t\t},\r\n",
+					"\t\t\"adviceGivenBy\": {\r\n",
+					"\t\t\t\"type\": \"string\",\r\n",
+					"\t\t\t\"description\": \"Who issued the advice\"\r\n",
+					"\t\t},\r\n",
+					"\t\t\"adviceDate\": {\r\n",
+					"\t\t\t\"type\": \"string\",\r\n",
+					"\t\t\t\"description\": \"Date the advice was given\",\r\n",
+					"\t\t\t\"format\": \"date-time\",\r\n",
+					"\t\t\t\"examples\": [\"2023-07-27T20:30:00.000Z\"]\r\n",
+					"\t\t},\r\n",
+					"\t\t\"adviceDetails\": {\r\n",
+					"\t\t\t\"type\": \"string\",\r\n",
+					"\t\t\t\"description\": \"Details of the advice\"\r\n",
+					"\t\t},\r\n",
+					"\t\t\"status\": {\r\n",
+					"\t\t\t\"type\": \"string\",\r\n",
+					"\t\t\t\"enum\": [\"checked\", \"unchecked\", \"readytopublish\", \"published\", \"donotpublish\"]\r\n",
+					"\t\t},\r\n",
+					"\t\t\"redactionStatus\": {\r\n",
+					"\t\t\t\"type\": \"string\",\r\n",
+					"\t\t\t\"enum\": [\"unredacted\", \"redacted\"]\r\n",
+					"\t\t},\r\n",
+					"\t\t\"attachmentIds\": {\r\n",
+					"\t\t\t\"type\": \"array\",\r\n",
+					"\t\t\t\"items\": {\r\n",
+					"\t\t\t\t\"type\": \"string\",\r\n",
+					"\t\t\t\t\"description\": \"Collection of document IDs which are related to the S51 Advice\"\r\n",
+					"\t\t\t}\r\n",
+					"\t\t}\r\n",
+					"\t}\r\n",
+					"}"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Create dataframe of the data from the table\r\n",
+					"\r\n",
+					"For certain tables it may be necessary to rename a column or two in order to create the array and avoid duplicate field names"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"df = spark.sql(QUERY)\r\n",
+					"data = df.toPandas()\r\n",
+					"data.rename(columns={\"attachmentIds\": \"attachmentId\"}, inplace=True)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Function to convert the rows in the table into a list of dictionaries\r\n",
+					"\r\n",
+					"This mapps the columns in the table to the json schema and creates the array(s) if needed to allow accurate validation of the data against the schema"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def create_json_from_table(data: pd.DataFrame) -> list:\r\n",
+					"\r\n",
+					"    \"\"\"\r\n",
+					"    Args:\r\n",
+					"        data: pandas dataframe\r\n",
+					"\r\n",
+					"    Returns:\r\n",
+					"        list of dictionaries\r\n",
+					"    \"\"\"\r\n",
+					"\r\n",
+					"    data_dict = defaultdict(dict)\r\n",
+					"\r\n",
+					"    array_fields_to_exclude = [\"attachmentId\"]\r\n",
+					"\r\n",
+					"    date_format = \"%Y-%m-%d %H:%M:%S\"\r\n",
+					"\r\n",
+					"    for index, row in data.iterrows():\r\n",
+					"\r\n",
+					"        caseReference = row[\"caseReference\"]\r\n",
+					"\r\n",
+					"        if caseReference not in data_dict:\r\n",
+					"\r\n",
+					"            data_dict[caseReference][\"attachmentIds\"] = []\r\n",
+					"\r\n",
+					"            for column, value in row.items():\r\n",
+					"                if column in array_fields_to_exclude:\r\n",
+					"                    continue\r\n",
+					"                data_dict[caseReference][column] = value.strftime(date_format) if isinstance(value, pd.Timestamp) else value\r\n",
+					"\r\n",
+					"        attachments = data_dict[caseReference][\"attachmentIds\"]\r\n",
+					"        new_attachment = row[\"attachmentId\"]\r\n",
+					"        if new_attachment not in attachments:\r\n",
+					"            attachments.append(new_attachment)\r\n",
+					"\r\n",
+					"    final_dict = {key: dict(value) for key, value in data_dict.items()}\r\n",
+					"\r\n",
+					"    data_to_compare = list(final_dict.values())\r\n",
+					"\r\n",
+					"    return data_to_compare"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Validate against the schema\r\n",
+					"\r\n",
+					"The validate variable can then be returned as the exit value of the notebook"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"validate = validate_data(create_json_from_table(data), schema)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Set notebook exit value to the validate variable above\r\n",
+					"\r\n",
+					"True for successful validation\r\n",
+					"False for faield validation"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"mssparkutils.notebook.exit(validate)"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
