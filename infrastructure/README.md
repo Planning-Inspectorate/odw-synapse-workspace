@@ -251,11 +251,9 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 | [azurerm_resource_group.shir_failover](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
 | [azurerm_resource_group.sql_server](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
 | [azurerm_resource_group.sql_server_failover](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
-| [azurerm_role_assignment.servicebus_data_receiver](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/role_assignment) | resource |
 | [azurerm_role_assignment.servicebus_receiver](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/role_assignment) | resource |
 | [azurerm_virtual_network_peering.pri_sec](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/virtual_network_peering) | resource |
 | [azurerm_virtual_network_peering.sec_pri](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/virtual_network_peering) | resource |
-| [azurerm_linux_function_app.odt_ingestion_function_app](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/data-sources/linux_function_app) | data source |
 
 ## Inputs
 
@@ -290,10 +288,8 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 | <a name="input_devops_agent_vm_sku"></a> [devops\_agent\_vm\_sku](#input\_devops\_agent\_vm\_sku) | The size of the devops agent VMs to be deployed | `string` | `"Standard_F2s_v2"` | no |
 | <a name="input_environment"></a> [environment](#input\_environment) | The name of the environment in which resources will be deployed | `string` | n/a | yes |
 | <a name="input_failover_deployment"></a> [failover\_deployment](#input\_failover\_deployment) | Determines if this is a failover deployment such that resources will deployed to the failover region | `bool` | `false` | no |
+| <a name="input_function_app"></a> [function\_app](#input\_function\_app) | A map containing the configuration for the Function App to be created | `any` | n/a | yes |
 | <a name="input_function_app_enabled"></a> [function\_app\_enabled](#input\_function\_app\_enabled) | Determines whether the resources for the Function App should be deployed | `bool` | `false` | no |
-| <a name="input_function_app_name"></a> [function\_app\_name](#input\_function\_app\_name) | The name of the Function App to be deployed | `string` | n/a | yes |
-| <a name="input_function_app_settings"></a> [function\_app\_settings](#input\_function\_app\_settings) | A map of app settings to be applied to the Function App | `map(string)` | `{}` | no |
-| <a name="input_function_app_site_config"></a> [function\_app\_site\_config](#input\_function\_app\_site\_config) | A map of site configuration settings to be applied to the Function App | `map(any)` | `{}` | no |
 | <a name="input_key_vault_role_assignments"></a> [key\_vault\_role\_assignments](#input\_key\_vault\_role\_assignments) | An object mapping RBAC roles to principal IDs for Key Vault | `map(list(string))` | `{}` | no |
 | <a name="input_location"></a> [location](#input\_location) | The short-format Azure region into which resources will be deployed | `string` | n/a | yes |
 | <a name="input_logic_app_enabled"></a> [logic\_app\_enabled](#input\_logic\_app\_enabled) | Determines whether the resources for the App Service Plan, Storage Account and Logic App Standard should be deployed | `bool` | `false` | no |

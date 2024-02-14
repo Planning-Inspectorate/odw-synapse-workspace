@@ -149,21 +149,9 @@ variable "function_app_enabled" {
   type        = bool
 }
 
-variable "function_app_name" {
-  description = "The name of the Function App to be deployed"
-  type        = string
-}
-
-variable "function_app_settings" {
-  default     = {}
-  description = "A map of app settings to be applied to the Function App"
-  type        = map(string)
-}
-
-variable "function_app_site_config" {
-  default     = {}
-  description = "A map of site configuration settings to be applied to the Function App"
-  type        = map(any)
+variable "function_app" {
+  description = "A map containing the configuration for the Function App to be created"
+  type        = any
 }
 
 variable "key_vault_role_assignments" {

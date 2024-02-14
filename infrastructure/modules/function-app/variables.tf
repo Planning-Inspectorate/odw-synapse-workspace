@@ -54,13 +54,13 @@ variable "service_name" {
 }
 
 variable "storage_account_name" {
-  type        = string
+  type        = any
   description = "The name of the backend storage account"
   default     = null
 }
 
 variable "storage_account_access_key" {
-  type        = string
+  type        = any
   description = "The key to access the backend storage account"
   default     = null
   sensitive   = true

@@ -69,7 +69,7 @@ variable "service_bus_topics_and_subscriptions" {
     requires_duplicate_detection            = true
     support_ordering                        = false
     subscriptions                           = {
-      "sunscription_name" { =
+      "subscription_name" { =
         status                                    = "Active"
         max_delivery_count                        = 1
         auto_delete_on_idle                       = "PT5M"

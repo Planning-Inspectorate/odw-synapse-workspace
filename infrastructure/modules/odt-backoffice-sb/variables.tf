@@ -9,7 +9,6 @@ variable "resource_group_name" {
   type        = string
 }
 
-
 variable "odt_backoffice_sb_topic_subscriptions" {
   default     = {}
   type        = any
