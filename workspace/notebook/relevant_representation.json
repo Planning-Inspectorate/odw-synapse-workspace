@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "4a110e00-d576-4c31-a258-a49d18c84806"
+				"spark.autotune.trackingId": "6211a03e-cf28-47e6-845e-8062703d0e64"
 			}
 		},
 		"metadata": {
@@ -89,7 +89,7 @@
 					"''                                                                     AS examinationLibraryRef,\r\n",
 					"RR.CaseReference                                                       AS caseRef,\r\n",
 					"CAST(RR.CaseNodeID AS INT)                                             AS caseId,\r\n",
-					"RR.RelevantRepStatus                                                   AS Status,\r\n",
+					"RR.RelevantRepStatus                                                   AS status,\r\n",
 					"RR.RepresentationOriginal                                              AS originalRepresentation,\r\n",
 					"RR.RepresentationRedacted IS NOT NULL                                  AS redacted,\r\n",
 					"RR.RepresentationRedacted                                              AS redactedRepresentation,\r\n",
@@ -116,7 +116,11 @@
 					"    THEN RR.AgentContactID\r\n",
 					"    ELSE ''\r\n",
 					"END                                                                    AS representativeId,\r\n",
-					"RR.RelRepOrganisation                                                  AS representationType,\r\n",
+					"CASE\r\n",
+					"    WHEN RR.RelRepOrganisation = 'Other Statutory Consultees'\r\n",
+					"        THEN 'Statutory Consultees'\r\n",
+					"        ELSE RR.RelRepOrganisation\r\n",
+					"END                                                                    AS representationType,\r\n",
 					"RR.DateReceived                                                        AS dateReceived,\r\n",
 					"RR.AttachmentID                                                        AS attachmentIds\r\n",
 					"\r\n",
@@ -124,11 +128,99 @@
 					"FROM odw_harmonised_db.casework_nsip_relevant_representation_dim       AS RR\r\n",
 					"JOIN odw_curated_db.nsip_service_user                                  AS SU\r\n",
 					"    ON SU.ID = RR.ContactID\r\n",
-					"JOIN odw_curated_db.nsip_service_user                                  AS SU2\r\n",
+					"LEFT JOIN odw_curated_db.nsip_service_user                             AS SU2\r\n",
 					"    ON SU2.ID = RR.AgentContactID\r\n",
 					"WHERE RR.ISActive = 'Y'"
 				],
-				"execution_count": 13
+				"execution_count": 19
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"SELECT * FROM odw_curated_db.vw_relevant_representation WHERE representationId ='30225';\n",
+					"SELECT DISTINCT(representationType) FROM odw_curated_db.vw_relevant_representation;\n",
+					"\n",
+					"-- SELECT * FROM odw_curated_db.vw_relevant_representation WHERE caseRef = 'TR020002' AND representativeID = '33307';\n",
+					"\n",
+					"-- SELECT DISTINCT(status) FROM odw_curated_db.vw_relevant_representation;\n",
+					"\n",
+					"-- SELECT count(*) FROM odw_curated_db.nsip_service_user WHERE caseReference = 'TR020002';\n",
+					"\n",
+					"-- SELECT count(*) FROM odw_harmonised_db.casework_nsip_relevant_representation_dim WHERE CaseReference = 'TR020002';\n",
+					"\n",
+					"-- SELECT count(*) FROM odw_curated_db.vw_relevant_representation WHERE caseRef = 'TR020002'; --- it should be 2210\n",
+					"\n",
+					"-- SELECT count(*) FROM odw_curated_db.vw_relevant_representation\n",
+					"-- WHERE caseRef = 'TR020002'\n",
+					"-- AND status = 'Published'; --- it should be 2052\n",
+					"\n",
+					"-- SELECT count(*) FROM odw_curated_db.vw_relevant_representation\n",
+					"-- WHERE caseRef = 'TR020002' AND (representativeId is not null OR representativeId != ''); --- should be 53\n",
+					"\n",
+					"-- SELECT count(*) FROM odw_curated_db.vw_relevant_representation\n",
+					"-- WHERE caseRef = 'TR020002'\n",
+					"-- AND representationFrom = 'AGENT'; --- should be 53\n",
+					""
+				],
+				"execution_count": 20
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"SELECT count(*) \n",
+					"FROM odw_curated_db.nsip_service_user \n",
+					"WHERE caseReference = 'TR020002' \n",
+					"    AND ID NOT IN (\n",
+					"        SELECT ContactID \n",
+					"        FROM odw_harmonised_db.casework_nsip_relevant_representation_dim \n",
+					"        WHERE CaseReference = 'TR020002');\n",
+					"\n",
+					"\n",
+					"SELECT * \n",
+					"FROM odw_curated_db.nsip_service_user \n",
+					"WHERE caseReference = 'TR020002' \n",
+					"    AND ID NOT IN (\n",
+					"        SELECT ContactID \n",
+					"        FROM odw_harmonised_db.casework_nsip_relevant_representation_dim \n",
+					"        WHERE CaseReference = 'TR020002');\n",
+					"\n",
+					""
+				],
+				"execution_count": 21
 			},
 			{
 				"cell_type": "markdown",
@@ -162,7 +254,7 @@
 					"view_df = spark.sql('SELECT * FROM odw_curated_db.vw_relevant_representation')\r\n",
 					"view_df.write.mode(\"overwrite\").saveAsTable('odw_curated_db.relevant_representation')"
 				],
-				"execution_count": 14
+				"execution_count": 22
 			}
 		]
 	}
