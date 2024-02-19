@@ -5,7 +5,7 @@ alert_group_synapse_recipients           = ["chris.topping@planninginspectorate.
 alert_scope_service_health               = "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3"
 alert_threshold_data_lake_capacity_bytes = 10995116277760 # 10TiB
 
-apim_enabled         = true
+apim_enabled         = false
 apim_publisher_email = "alex.delany@planninginspectorate.gov.uk"
 apim_publisher_name  = "Alex Delany"
 apim_sku_name        = "Developer_1"
@@ -66,7 +66,7 @@ function_app = [
 ]
 
 location          = "uk-south"
-logic_app_enabled = true
+logic_app_enabled = false
 
 key_vault_role_assignments = {
   "Key Vault Administrator" = [

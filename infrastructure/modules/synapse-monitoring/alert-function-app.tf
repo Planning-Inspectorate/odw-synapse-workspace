@@ -1,5 +1,5 @@
 resource "azurerm_monitor_metric_alert" "function_app_http_5xx" {
-  for_each = var.function_app_ids
+  for_each = var.function_app_ids == null ? {} : var.function_app_ids
 
   name                = "Http 5xx - ${each.key}"
   resource_group_name = var.resource_group_name
@@ -27,7 +27,7 @@ resource "azurerm_monitor_metric_alert" "function_app_http_5xx" {
 }
 
 resource "azurerm_monitor_metric_alert" "function_app_response_time" {
-  for_each = var.function_app_ids
+  for_each = var.function_app_ids == null ? {} : var.function_app_ids
 
   name                = "Response Time - ${each.key}"
   resource_group_name = var.resource_group_name
@@ -55,7 +55,7 @@ resource "azurerm_monitor_metric_alert" "function_app_response_time" {
 }
 
 resource "azurerm_monitor_activity_log_alert" "function_app_stop" {
-  for_each = var.function_app_ids
+  for_each = var.function_app_ids == null ? {} : var.function_app_ids
 
   name                = "Function App Stopped - ${each.key}"
   resource_group_name = var.resource_group_name
@@ -78,7 +78,7 @@ resource "azurerm_monitor_activity_log_alert" "function_app_stop" {
 }
 
 resource "azurerm_monitor_activity_log_alert" "function_app_delete" {
-  for_each = var.function_app_ids
+  for_each = var.function_app_ids == null ? {} : var.function_app_ids
 
   name                = "Function App Deleted - ${each.key}"
   resource_group_name = var.resource_group_name

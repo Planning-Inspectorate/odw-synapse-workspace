@@ -132,7 +132,7 @@ module "function_app_failover" {
 
 resource "azurerm_role_assignment" "servicebus_receiver" {
   for_each = {
-    for function in local.function_app_subscriptions : "${function.name}.${function.subscription_ids}" => function
+    for function in local.function_app_subscriptions : "${function.name}.${function.subscription_ids}" => function if var.function_app_enabled == true
   }
 
   scope                = each.value.subscription_ids
