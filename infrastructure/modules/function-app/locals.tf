@@ -20,6 +20,8 @@ locals {
       "WEBSITE_CONTENTSHARE"                        = var.file_share_name
       "WEBSITE_CONTENTOVERVNET"                     = 1
       "WEBSITE_RUN_FROM_PACKAGE"                    = 1
+      "ENABLE_ORYX_BUILD"                           = true
+      "SCM_DO_BUILD_DURING_DEPLOYMENT"              = true
     }
   )
 
