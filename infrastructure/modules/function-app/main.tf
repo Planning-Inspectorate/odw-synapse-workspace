@@ -65,6 +65,7 @@ resource "azurerm_linux_function_app" "function" {
         action                    = subnet_ids.value["action"]
       }
     }
+    application_insights_key = var.application_insights_key == null ? null : var.application_insights_key
   }
 
   identity {

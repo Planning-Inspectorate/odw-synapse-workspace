@@ -1,6 +1,12 @@
 /*
     Terraform configuration file defining variables
 */
+variable "application_insights_key" {
+  type        = string
+  description = "The key for the application insights instance"
+  default     = null
+}
+
 variable "environment" {
   type        = string
   description = "The environment name. Used as a tag and in naming the resource group"

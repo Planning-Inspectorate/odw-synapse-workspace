@@ -100,6 +100,7 @@ module "function_app" {
   environment                = var.environment
   location                   = module.azure_region.location_cli
   tags                       = local.tags
+  application_insights_key   = azurerm_application_insights.function_app_insights[each.key].instrumentation_key
   synapse_vnet_subnet_names  = module.synapse_network.vnet_subnets
   app_settings               = try(each.value.app_settings, null)
   site_config                = each.value.site_config
@@ -123,6 +124,7 @@ module "function_app_failover" {
   environment                = var.environment
   location                   = module.azure_region.paired_location.location_cli
   tags                       = local.tags
+  application_insights_key   = azurerm_application_insights.function_app_insights[each.key].instrumentation_key
   synapse_vnet_subnet_names  = module.synapse_network_failover.vnet_subnets
   app_settings               = try(each.value.app_settings, null)
   site_config                = each.value.site_config
@@ -138,4 +140,19 @@ resource "azurerm_role_assignment" "servicebus_receiver" {
   scope                = each.value.subscription_ids
   role_definition_name = "Azure Service Bus Data Receiver"
   principal_id         = module.function_app[each.value.name].identity[0].principal_id
+}
+
+resource "azurerm_application_insights" "function_app_insights" {
+  for_each = {
+    for function_app in var.function_app : function_app.name => function_app if var.function_app_enabled == true
+  }
+
+  name                = "pins-${each.key}-${local.resource_suffix}-app-insights"
+  location            = module.azure_region.location_cli
+  resource_group_name = azurerm_resource_group.monitoring.name
+  application_type    = "web"
+  retention_in_days   = 30
+  workspace_id        = module.synapse_monitoring.log_analytics_workspace_id
+
+  tags = local.tags
 }
