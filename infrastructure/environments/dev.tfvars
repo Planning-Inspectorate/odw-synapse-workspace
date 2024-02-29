@@ -28,7 +28,7 @@ data_lake_role_assignments = {
   "Storage Blob Data Contributor" = [
     "ebcc4498-4abe-4457-8970-7fa08bf87543", # pins-odw-dev-administrators
     "48bd5755-6d7d-4a17-b044-7522c54e9c7d", # pins-odw-dev-dataengineers
-    "875e931a-ee45-425e-acde-1ec24a8a290d"  # Azure DevOps Pipelines - ODW DEV - Infrastructure 
+    "875e931a-ee45-425e-acde-1ec24a8a290d"  # Azure DevOps Pipelines - ODW Dev - Infrastructure"
   ]
 }
 data_lake_storage_containers = [
@@ -49,14 +49,6 @@ function_app_enabled = true
 function_app = [
   {
     name = "fnapp01"
-    site_config = {
-      application_stack = {
-        python_version = "3.11"
-      }
-    }
-  },
-  {
-    name = "fnapp02"
     site_config = {
       application_stack = {
         python_version = "3.11"

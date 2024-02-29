@@ -28,7 +28,7 @@ data_lake_role_assignments = {
   "Storage Blob Data Contributor" = [
     "1fa42635-5dc3-43bc-b5da-77578f3dabb7", # pins-odw-prod-administrators
     "5c56c7a0-6845-43e7-877c-c8dd527107a3", # pins-odw-prod-dataengineers
-    "d1761ac5-c65f-4b48-bee9-a2179b989adc"  # planninginspectorate-operational-data-warehouse-a82fd28d-5989-4e06-a0bb-1a5d859f9e0c
+    "0cad1989-27de-4242-a06b-7cad373497e7"  # Azure DevOps Pipelines - ODW Prod - Infrastructure
   ]
 }
 data_lake_storage_containers = [
@@ -46,12 +46,16 @@ devops_agent_pool_resource_group_name_failover = "pins-rg-devops-odw-prod-ukw"
 environment = "prod"
 
 function_app_enabled = true
-function_app_name    = "fnapp01"
-function_app_site_config = {
-  application_stack = {
-    python_version = "3.11"
+function_app = [
+  {
+    name = "fnapp01"
+    site_config = {
+      application_stack = {
+        python_version = "3.11"
+      }
+    }
   }
-}
+]
 
 location = "uk-south"
 
@@ -236,7 +240,7 @@ synapse_sql_administrator_username = "synadmin"
 synapse_role_assignments = {
   "Synapse Administrator" = [
     "a2568721-f55c-4cbe-8cef-3d4fa2e1cee7", # pins-odw-data-prod-syn-ws-administrators
-    "d1761ac5-c65f-4b48-bee9-a2179b989adc"  # planninginspectorate-operational-data-warehouse-a82fd28d-5989-4e06-a0bb-1a5d859f9e0c
+    "0cad1989-27de-4242-a06b-7cad373497e7"  # Azure DevOps Pipelines - ODW Prod - Infrastructure
   ],
   "Synapse Contributor" = [
     "76259388-176a-4db7-a5b7-db2861ef7220" # pins-odw-data-prod-syn-ws-contributors
