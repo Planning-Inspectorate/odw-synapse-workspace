@@ -1,0 +1,216 @@
+{
+	"name": "0_Raw_Horizon_Folder",
+	"properties": {
+		"activities": [
+			{
+				"name": "Horizon_Folder_Entity",
+				"description": "This is pulling all data from SQL view to gather folder data for use with the document data",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [
+					{
+						"name": "Source",
+						"value": "dbo.Horizon_ODW_vw_FolderEntity"
+					},
+					{
+						"name": "Destination",
+						"value": "odw-raw/Horizon/"
+					}
+				],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"queryTimeout": "02:00:00",
+						"isolationLevel": "ReadCommitted",
+						"partitionOption": "None"
+					},
+					"sink": {
+						"type": "DelimitedTextSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "DelimitedTextWriteSettings",
+							"quoteAllText": true,
+							"fileExtension": ".txt"
+						}
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"name": "id",
+									"type": "Int32",
+									"physicalType": "int"
+								},
+								"sink": {
+									"name": "id",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "caseReference",
+									"type": "String",
+									"physicalType": "varchar"
+								},
+								"sink": {
+									"name": "caseReference",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "displayNameEnglish",
+									"type": "String",
+									"physicalType": "nvarchar"
+								},
+								"sink": {
+									"name": "displayNameEnglish",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "displayNameWelsh",
+									"type": "Int32",
+									"physicalType": "int"
+								},
+								"sink": {
+									"name": "displayNameWelsh",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "parentFolderID",
+									"type": "Int32",
+									"physicalType": "int"
+								},
+								"sink": {
+									"name": "parentFolderID",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "caseNodeId",
+									"type": "Int32",
+									"physicalType": "int"
+								},
+								"sink": {
+									"name": "caseNodeId",
+									"type": "String",
+									"physicalType": "String"
+								}
+							}
+						],
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "Folder_Entity",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "Horizon_Folder_Entity",
+						"type": "DatasetReference",
+						"parameters": {
+							"FileName": "HorizonFolder.csv"
+						}
+					}
+				]
+			},
+			{
+				"name": "Folder_Entity_Copy_Failure",
+				"description": "The copy activity from Horizon has failed",
+				"type": "Fail",
+				"dependsOn": [
+					{
+						"activity": "Horizon_Folder_Entity",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"userProperties": [
+					{
+						"name": "Michael Cross",
+						"value": "michael.cross@planninginspectorate.gov.uk"
+					}
+				],
+				"typeProperties": {
+					"message": "Folder copy to Raw has failed",
+					"errorCode": "Horizon_Folder_Entity_Copy"
+				}
+			},
+			{
+				"name": "Logging Failed Activities_Folder_Entity",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Folder_Entity_Copy_Failure",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_fail_activity_logging",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"output": {
+							"value": {
+								"value": "@activity('Folder_Entity_Copy_Failure').output.message",
+								"type": "Expression"
+							},
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			}
+		],
+		"folder": {
+			"name": "casework/layers/0-raw"
+		},
+		"annotations": []
+	}
+}
