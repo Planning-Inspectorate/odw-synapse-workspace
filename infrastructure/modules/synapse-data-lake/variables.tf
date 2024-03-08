@@ -4,12 +4,6 @@ variable "data_lake_account_tier" {
   type        = string
 }
 
-variable "data_lake_config_container_name" {
-  default     = ""
-  description = "The name of the data lake Storage Account container to store configuration files"
-  type        = string
-}
-
 variable "data_lake_private_endpoint_dns_zone_id" {
   description = "The ID of the Private DNS Zone hosting privatelink.dfs.core.windows.net"
   type        = string

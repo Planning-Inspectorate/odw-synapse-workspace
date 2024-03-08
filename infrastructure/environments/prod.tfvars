@@ -21,7 +21,6 @@ bastion_vm_image = {
 }
 
 data_lake_account_tier          = "Standard"
-data_lake_config_container_name = "odw-config"
 data_lake_replication_type      = "GRS"
 data_lake_retention_days        = 28
 data_lake_role_assignments = {
