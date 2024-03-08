@@ -4,18 +4,6 @@ variable "data_lake_account_tier" {
   type        = string
 }
 
-variable "data_lake_config_files" {
-  default     = []
-  description = "The configuration files to copy to the Synapse data lake Storage Account"
-  type        = list(string)
-}
-
-variable "data_lake_config_files_path" {
-  default     = ""
-  description = "The path to the configuration files for the Synapse data lake Storage Account"
-  type        = string
-}
-
 variable "data_lake_config_container_name" {
   default     = ""
   description = "The name of the data lake Storage Account container to store configuration files"
