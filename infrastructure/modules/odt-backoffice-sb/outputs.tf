@@ -25,3 +25,8 @@ output "subscription_ids" {
     subscription.name => subscription.id
   }
 }
+
+output "namespace_id" {
+  description = "The ID of the Service Bus Namespace."
+  value       = data.azurerm_resources.odt_pe_backoffice_sb.resources[0].id
+}
