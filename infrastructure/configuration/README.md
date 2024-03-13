@@ -59,6 +59,10 @@ The `allowed_ip_addresses.yaml` file in this directory is a placeholder file. IP
 - "192.168.10.0/24"   # Ranges of addresses require a CIDR prefix
 ```
 
+More information can also be found in the onboarding guide in Confluence here - [Onboarding engineers](https://pins-ds.atlassian.net/wiki/spaces/ODTDO/pages/1369899009/Onboarding+Data+Engineers+-+Groups+Permissions+and+adding+an+IP+to+the+Firewall)  
+
+This file here remains empty and is overwritten by a pipeline task which downloads the secure file from the Azure DevOps library and overwrites this before being applied in further tasks.
+
 ## Spark Pool
 The `spark-requirements.txt` file in this directory is used as an input for the Synapse Workspace and defines which Python packages (and optionally, their version) should be installed and made available for use within the Spark pool environment. The format for this file is outlined below:
 
