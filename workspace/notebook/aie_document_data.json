@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5451652e-192b-4074-bb98-f0c057388c04"
+				"spark.autotune.trackingId": "626dbc1b-f3b2-4ce7-a1ea-c29b842bc379"
 			}
 		},
 		"metadata": {
@@ -218,7 +218,17 @@
 					"                IFNULL(T1.filter2,'.')\r\n",
 					"            )) <> T3.RowID  -- same record, changed data\r\n",
 					"        THEN 'Y'\r\n",
-					"        WHEN T3.DocumentID IS NULL -- AND T3.DateCreated IS NULL-- new record\r\n",
+					"        WHEN T1.documentid NOT IN (\r\n",
+					"            SELECT DISTINCT(DocumentID) \r\n",
+					"            FROM odw_harmonised_db.aie_document_data)\r\n",
+					"        THEN 'Y'\r\n",
+					"        WHEN T1.documentid IN (\r\n",
+					"            SELECT DISTINCT(DocumentID) \r\n",
+					"            FROM odw_harmonised_db.aie_document_data) AND\r\n",
+					"            T1.datecreated NOT IN (\r\n",
+					"            SELECT DISTINCT(DateCreated) \r\n",
+					"            FROM odw_harmonised_db.aie_document_data) \r\n",
+					"\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
 					"    END  = 'Y' )\r\n",
@@ -226,36 +236,7 @@
 					"    AND T1.expected_from = (SELECT MAX(expected_from) FROM odw_standardised_db.aie_document_data)\r\n",
 					";"
 				],
-				"execution_count": 3
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
-				},
-				"source": [
-					"%%sql\n",
-					"\n",
-					"SELECT count(*) FROM odw_standardised_db.aie_document_data;\n",
-					"SELECT count(*) FROM aie_document_data_new;\n",
-					"SELECT count(*) FROM odw_harmonised_db.aie_document_data;\n",
-					"\n",
-					"SELECT * FROM aie_document_data_new WHERE DocumentID = '15325199';\n",
-					"SELECT * FROM odw_harmonised_db.aie_document_data WHERE DocumentID = '15325199';"
-				],
-				"execution_count": 4
+				"execution_count": 8
 			},
 			{
 				"cell_type": "markdown",
