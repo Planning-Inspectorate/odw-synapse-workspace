@@ -2,17 +2,13 @@ resource "azurerm_monitor_action_group" "platform_alerts" {
   name                = "pins-ag-platform-${local.resource_suffix}"
   resource_group_name = var.resource_group_name
   short_name          = "ODW Platform"
-  enabled             = var.alert_group_platform_enabled
 
-  dynamic "email_receiver" {
-    for_each = toset(var.alert_group_platform_recipients)
-    iterator = mapping
-
-    content {
-      name                    = "Send to ${mapping.key}"
-      email_address           = mapping.key
-      use_common_alert_schema = true
-    }
+  # we set emails in the action groups in Azure Portal - to avoid needing to manage
+  # emails in terraform
+  lifecycle {
+    ignore_changes = [
+      email_receiver
+    ]
   }
 
   tags = local.tags
@@ -24,15 +20,12 @@ resource "azurerm_monitor_action_group" "synapse_alerts" {
   short_name          = "ODW Synapse"
   enabled             = var.alert_group_synapse_enabled
 
-  dynamic "email_receiver" {
-    for_each = toset(var.alert_group_synapse_recipients)
-    iterator = mapping
-
-    content {
-      name                    = "Send to ${mapping.key}"
-      email_address           = mapping.key
-      use_common_alert_schema = true
-    }
+  # we set emails in the action groups in Azure Portal - to avoid needing to manage
+  # emails in terraform
+  lifecycle {
+    ignore_changes = [
+      email_receiver
+    ]
   }
 
   tags = local.tags

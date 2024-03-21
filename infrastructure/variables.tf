@@ -4,22 +4,10 @@ variable "alert_group_platform_enabled" {
   type        = bool
 }
 
-variable "alert_group_platform_recipients" {
-  default     = []
-  description = "A list of email recipients to recieve platform alerts"
-  type        = list(string)
-}
-
 variable "alert_group_synapse_enabled" {
   default     = false
   description = "Determines whether the alert group for Synapse alerts is enabled"
   type        = bool
-}
-
-variable "alert_group_synapse_recipients" {
-  default     = []
-  description = "A list of email recipients to recieve Synapse alerts"
-  type        = list(string)
 }
 
 variable "alert_scope_service_health" {
