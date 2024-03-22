@@ -66,6 +66,10 @@ key_vault_role_assignments = {
   ]
 }
 
+message_storage_account = "https://pinsstodwdevuks9h80mb.blob.core.windows.net"
+
+message_storage_container = "odw-raw/ServiceBus"
+
 network_watcher_enabled = false
 
 odt_back_office_service_bus_enabled                      = true

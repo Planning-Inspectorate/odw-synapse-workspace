@@ -59,6 +59,18 @@ variable "service_name" {
   description = "Name of the service"
 }
 
+variable "message_storage_account" {
+  type        = string
+  description = "Name of the storage account for service bus messages"
+  default     = null
+}
+
+variable "message_storage_container" {
+  type        = string
+  description = "Name of the storage account container for service bus messages"
+  default     = null
+}
+
 variable "storage_account_name" {
   type        = any
   description = "The name of the backend storage account"
