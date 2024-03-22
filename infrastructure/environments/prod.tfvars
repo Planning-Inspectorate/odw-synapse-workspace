@@ -1,7 +1,5 @@
 alert_group_platform_enabled             = true
-alert_group_platform_recipients          = ["odw_support@planninginspectorate.gov.uk", "nasir.rahman@planninginspectorate.gov.uk", "alex.delany@planninginspectorate.gov.uk", "michael.juckes@planninginspectorate.gov.uk"]
 alert_group_synapse_enabled              = true
-alert_group_synapse_recipients           = ["odw_support@planninginspectorate.gov.uk"]
 alert_scope_service_health               = "/subscriptions/a82fd28d-5989-4e06-a0bb-1a5d859f9e0c"
 alert_threshold_data_lake_capacity_bytes = 10995116277760 # 10TiB
 
@@ -81,74 +79,38 @@ odt_backoffice_sb_topic_subscriptions = [
   {
     subscription_name = "service-user"
     topic_name        = "service-user"
-    role_assignments = {
-      "Azure Service Bus Data Receiver" = {
-        service_principals = ["pins-synw-odw-prod-uks"]
-      }
-    }
   },
   {
     subscription_name = "nsip-project"
     topic_name        = "nsip-project"
-    role_assignments = {
-      "Azure Service Bus Data Receiver" = {
-        service_principals = ["pins-synw-odw-prod-uks"]
-      }
-    }
   },
   {
     subscription_name = "nsip-exam-timetable"
     topic_name        = "nsip-exam-timetable"
-    role_assignments = {
-      "Azure Service Bus Data Receiver" = {
-        service_principals = ["pins-synw-odw-prod-uks"]
-      }
-    }
   },
   {
     subscription_name = "nsip-document"
     topic_name        = "nsip-document"
-    role_assignments = {
-      "Azure Service Bus Data Receiver" = {
-        service_principals = ["pins-synw-odw-prod-uks"]
-      }
-    }
   },
   {
     subscription_name = "nsip-representation"
     topic_name        = "nsip-representation"
-    role_assignments = {
-      "Azure Service Bus Data Receiver" = {
-        service_principals = ["pins-synw-odw-prod-uks"]
-      }
-    }
   },
   {
     subscription_name = "nsip-s51-advice"
     topic_name        = "nsip-s51-advice"
-    role_assignments = {
-      "Azure Service Bus Data Receiver" = {
-        service_principals = ["pins-synw-odw-prod-uks"]
-      }
-    }
   },
   {
     subscription_name = "nsip-project-update"
     topic_name        = "nsip-project-update"
-    role_assignments = {
-      "Azure Service Bus Data Receiver" = {
-        service_principals = ["pins-synw-odw-prod-uks"]
-      }
-    }
   },
   {
     subscription_name = "nsip-subscription"
     topic_name        = "nsip-subscription"
-    role_assignments = {
-      "Azure Service Bus Data Receiver" = {
-        service_principals = ["pins-synw-odw-prod-uks"]
-      }
-    }
+  },
+  {
+    subscription_name = "folder"
+    topic_name        = "folder"
   }
 ]
 
