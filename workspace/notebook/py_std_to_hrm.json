@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "54ca62cb-5ea9-44ac-9133-49e878c9d1b2"
+				"spark.autotune.trackingId": "983372d0-0502-423a-a05c-0f0055d8e519"
 			}
 		},
 		"metadata": {
@@ -150,14 +150,16 @@
 					}
 				},
 				"source": [
-					"latest_ingestion = spark.sql(f\"SELECT * FROM {std_db}.{std_table} WHERE expected_from = (SELECT MAX(expected_from) FROM {std_db}.{std_table}) ORDER BY message_enqueued_time_utc\")\n",
+					"try:\n",
+					"    latest_ingestion = spark.sql(f\"SELECT * FROM {std_db}.{std_table} WHERE expected_from = (SELECT MAX(expected_from) FROM {std_db}.{std_table}) ORDER BY message_enqueued_time_utc\")\n",
+					"except Exception as e\n",
 					"\n",
 					"# remove the column ingested_datetime and then removing duplicates\n",
 					"latest_ingestion = latest_ingestion.toPandas()\n",
 					"latest_ingestion = latest_ingestion.drop(columns=['ingested_datetime']).drop_duplicates()\n",
 					"\n",
-					"create_df = latest_ingestion[latest_ingestion['message_type'].isin(['Create', 'Publish'])]\n",
-					"update_df = latest_ingestion[latest_ingestion['message_type'] == 'Update']\n",
+					"create_df = latest_ingestion[latest_ingestion['message_type'] == 'Create']\n",
+					"update_df = latest_ingestion[latest_ingestion['message_type'].isin(['Update', 'Publish'])]\n",
 					"delete_df = latest_ingestion[latest_ingestion['message_type'] == 'Delete']\n",
 					"\n",
 					"target_df = spark.sql(f\"SELECT * FROM {hrm_db}.{hrm_table}\").toPandas()"

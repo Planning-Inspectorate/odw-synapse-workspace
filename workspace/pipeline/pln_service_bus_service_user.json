@@ -3,94 +3,6 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "Std to Hrm",
-				"description": "Ingests the standardised data into the harmonised table",
-				"type": "SynapseNotebook",
-				"dependsOn": [
-					{
-						"activity": "Raw to Std",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "casework_nsip_service_user_dim",
-						"type": "NotebookReference"
-					},
-					"snapshot": true,
-					"conf": {
-						"spark.dynamicAllocation.enabled": null,
-						"spark.dynamicAllocation.minExecutors": null,
-						"spark.dynamicAllocation.maxExecutors": null
-					},
-					"numExecutors": null
-				}
-			},
-			{
-				"name": "Raw to Std",
-				"description": "Ingests raw data into the standardised table ",
-				"type": "SynapseNotebook",
-				"dependsOn": [
-					{
-						"activity": "JSON to CSV",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "py_raw_to_std",
-						"type": "NotebookReference"
-					},
-					"parameters": {
-						"source_folder": {
-							"value": "ServiceBus",
-							"type": "string"
-						},
-						"source_frequency_folder": {
-							"value": {
-								"value": "@variables('entity_name')",
-								"type": "Expression"
-							},
-							"type": "string"
-						},
-						"specific_file": {
-							"value": {
-								"value": "@variables('entity_name')",
-								"type": "Expression"
-							},
-							"type": "string"
-						}
-					},
-					"snapshot": true,
-					"conf": {
-						"spark.dynamicAllocation.enabled": null,
-						"spark.dynamicAllocation.minExecutors": null,
-						"spark.dynamicAllocation.maxExecutors": null
-					},
-					"numExecutors": null
-				}
-			},
-			{
 				"name": "Src to Raw",
 				"description": "Triggers Function App to read messages from Service Bus and write to odw-raw",
 				"type": "ExecutePipeline",
@@ -111,9 +23,8 @@
 				}
 			},
 			{
-				"name": "JSON to CSV",
-				"description": "Converts the messages stored in json format to csv format",
-				"type": "SynapseNotebook",
+				"name": "If New Messages",
+				"type": "IfCondition",
 				"dependsOn": [
 					{
 						"activity": "Src to Raw",
@@ -122,73 +33,176 @@
 						]
 					}
 				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
 				"userProperties": [],
 				"typeProperties": {
-					"notebook": {
-						"referenceName": "py_service_bus_json_to_csv",
-						"type": "NotebookReference"
+					"expression": {
+						"value": "@greater(activity('Src to Raw').output.pipelineReturnValue.Messages, 0)",
+						"type": "Expression"
 					},
-					"parameters": {
-						"source_folder": {
-							"value": "ServiceBus",
-							"type": "string"
-						},
-						"source_frequency_folder": {
-							"value": {
-								"value": "@variables('entity_name')",
-								"type": "Expression"
+					"ifTrueActivities": [
+						{
+							"name": "Std to Hrm",
+							"description": "Ingests the standardised data into the harmonised table",
+							"type": "SynapseNotebook",
+							"dependsOn": [
+								{
+									"activity": "Raw to Std",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
 							},
-							"type": "string"
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "casework_nsip_service_user_dim",
+									"type": "NotebookReference"
+								},
+								"snapshot": true,
+								"conf": {
+									"spark.dynamicAllocation.enabled": null,
+									"spark.dynamicAllocation.minExecutors": null,
+									"spark.dynamicAllocation.maxExecutors": null
+								},
+								"numExecutors": null
+							}
+						},
+						{
+							"name": "Raw to Std",
+							"description": "Ingests raw data into the standardised table ",
+							"type": "SynapseNotebook",
+							"dependsOn": [
+								{
+									"activity": "JSON to CSV",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "py_raw_to_std",
+									"type": "NotebookReference"
+								},
+								"parameters": {
+									"source_folder": {
+										"value": "ServiceBus",
+										"type": "string"
+									},
+									"source_frequency_folder": {
+										"value": {
+											"value": "@variables('entity_name')",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"specific_file": {
+										"value": {
+											"value": "@variables('entity_name')",
+											"type": "Expression"
+										},
+										"type": "string"
+									}
+								},
+								"snapshot": true,
+								"conf": {
+									"spark.dynamicAllocation.enabled": null,
+									"spark.dynamicAllocation.minExecutors": null,
+									"spark.dynamicAllocation.maxExecutors": null
+								},
+								"numExecutors": null
+							}
+						},
+						{
+							"name": "JSON to CSV",
+							"description": "Converts the messages stored in json format to csv format",
+							"type": "SynapseNotebook",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "py_service_bus_json_to_csv",
+									"type": "NotebookReference"
+								},
+								"parameters": {
+									"source_folder": {
+										"value": "ServiceBus",
+										"type": "string"
+									},
+									"source_frequency_folder": {
+										"value": {
+											"value": "@variables('entity_name')",
+											"type": "Expression"
+										},
+										"type": "string"
+									}
+								},
+								"snapshot": true,
+								"conf": {
+									"spark.dynamicAllocation.enabled": null,
+									"spark.dynamicAllocation.minExecutors": null,
+									"spark.dynamicAllocation.maxExecutors": null
+								},
+								"numExecutors": null
+							}
+						},
+						{
+							"name": "Hrm to Cur",
+							"description": "Ingests the harmonised data into the curated table",
+							"type": "SynapseNotebook",
+							"dependsOn": [
+								{
+									"activity": "Std to Hrm",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "service_user",
+									"type": "NotebookReference"
+								},
+								"snapshot": true,
+								"conf": {
+									"spark.dynamicAllocation.enabled": null,
+									"spark.dynamicAllocation.minExecutors": null,
+									"spark.dynamicAllocation.maxExecutors": null
+								},
+								"numExecutors": null
+							}
 						}
-					},
-					"snapshot": true,
-					"conf": {
-						"spark.dynamicAllocation.enabled": null,
-						"spark.dynamicAllocation.minExecutors": null,
-						"spark.dynamicAllocation.maxExecutors": null
-					},
-					"numExecutors": null
-				}
-			},
-			{
-				"name": "Hrm to Cur",
-				"description": "Ingests the harmonised data into the curated table",
-				"type": "SynapseNotebook",
-				"dependsOn": [
-					{
-						"activity": "Std to Hrm",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "service_user",
-						"type": "NotebookReference"
-					},
-					"snapshot": true,
-					"conf": {
-						"spark.dynamicAllocation.enabled": null,
-						"spark.dynamicAllocation.minExecutors": null,
-						"spark.dynamicAllocation.maxExecutors": null
-					},
-					"numExecutors": null
+					]
 				}
 			}
 		],
