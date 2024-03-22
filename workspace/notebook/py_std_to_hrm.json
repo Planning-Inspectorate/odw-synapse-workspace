@@ -1,0 +1,422 @@
+{
+	"name": "py_std_to_hrm",
+	"properties": {
+		"folder": {
+			"name": "odw-harmonised"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "54ca62cb-5ea9-44ac-9133-49e878c9d1b2"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.3",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"tags": [
+						"parameters"
+					]
+				},
+				"source": [
+					"entity_name = ''"
+				],
+				"execution_count": 495
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql import SparkSession\n",
+					"from notebookutils import mssparkutils\n",
+					"import json\n",
+					"from datetime import datetime, date\n",
+					"import pandas as pd\n",
+					"from IPython.display import display\n",
+					"\n",
+					"spark = SparkSession.builder.getOrCreate()\n",
+					"\n",
+					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"\n",
+					"path_to_orchestration_file = \"abfss://odw-config@\"+storage_account+\"orchestration/orchestration.json\"\n",
+					"df = spark.read.option(\"multiline\",\"true\").json(path_to_orchestration_file)\n",
+					"definitions = json.loads(df.toJSON().first())['definitions']\n",
+					"\n",
+					"definition = next((d for d in definitions if entity_name == d['Source_Filename_Start']), None)\n",
+					"\n",
+					"if not definition:\n",
+					"    mssparkutils.notebook.exit(f\"Definition not found for {entity_name}\")"
+				],
+				"execution_count": 496
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"std_db = 'odw_standardised_db'\n",
+					"hrm_db = 'odw_harmonised_db'\n",
+					"\n",
+					"std_table = definition['Standardised_Table_Name']\n",
+					"hrm_table = definition['Harmonised_Table_Name']\n",
+					"hrm_incremental_key = definition['Harmonised_Incremental_Key']\n",
+					"entity_primary_key = definition['Entity_Primary_Key']\n",
+					"\n",
+					"mapping = definition['Std_To_Hrm_Mapping']"
+				],
+				"execution_count": 498
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Get the latest ingested data in Standardised"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"latest_ingestion = spark.sql(f\"SELECT * FROM {std_db}.{std_table} WHERE expected_from = (SELECT MAX(expected_from) FROM {std_db}.{std_table}) ORDER BY message_enqueued_time_utc\")\n",
+					"\n",
+					"# remove the column ingested_datetime and then removing duplicates\n",
+					"latest_ingestion = latest_ingestion.toPandas()\n",
+					"latest_ingestion = latest_ingestion.drop(columns=['ingested_datetime']).drop_duplicates()\n",
+					"\n",
+					"create_df = latest_ingestion[latest_ingestion['message_type'].isin(['Create', 'Publish'])]\n",
+					"update_df = latest_ingestion[latest_ingestion['message_type'] == 'Update']\n",
+					"delete_df = latest_ingestion[latest_ingestion['message_type'] == 'Delete']\n",
+					"\n",
+					"target_df = spark.sql(f\"SELECT * FROM {hrm_db}.{hrm_table}\").toPandas()"
+				],
+				"execution_count": 499
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Utility functions"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"import hashlib\n",
+					"\n",
+					"date_output_format = '%Y-%m-%d %H:%M:%S'\n",
+					"\n",
+					"def calculate_md5(row):\n",
+					"    row_str = ''.join(map(str, row))\n",
+					"    md5_hash = hashlib.md5(row_str.encode()).hexdigest()\n",
+					"    return md5_hash\n",
+					"\n",
+					"def apply_mapping(df):\n",
+					"    output_df = pd.DataFrame()\n",
+					"    for target_col, source_col in mapping.items():\n",
+					"        output_df['IngestionDate'] = df['message_enqueued_time_utc'].apply(fix_date_format)\n",
+					"        if source_col in df.columns:\n",
+					"            if 'Date' in target_col:\n",
+					"                output_df[target_col] = pd.to_datetime(df[source_col])\n",
+					"            else:\n",
+					"                output_df[target_col] = df[source_col].astype(str)\n",
+					"        else:\n",
+					"            output_df[target_col] = source_col\n",
+					"\n",
+					"    output_df['RowID'] = output_df.apply(calculate_md5, axis=1)\n",
+					"\n",
+					"    source_system_df = spark.sql(f\"SELECT * FROM {hrm_db}.main_sourcesystem_fact WHERE Description = 'Casework' AND IsActive = 'Y'\")\n",
+					"    output_df['SourceSystemID'] = source_system_df.toPandas().at[0, 'SourceSystemID']\n",
+					"\n",
+					"    output_df['Migrated'] = '1'\n",
+					"    output_df['ODTSourceSystem'] = 'ODT'\n",
+					"    output_df['ValidTo'] = None\n",
+					"    output_df['IsActive'] = 'Y'\n",
+					"    output_df[hrm_incremental_key] = ''\n",
+					"\n",
+					"    return output_df\n",
+					"\n",
+					"def insert_rows_in_df(source_df, target_df, incremental_key):\n",
+					"    # appending the incremental key\n",
+					"    max_id = int(target_df[incremental_key].astype(int).max())\n",
+					"    for index, row in source_df.iterrows():\n",
+					"        max_id += 1\n",
+					"        source_df.loc[index, incremental_key] = str(max_id)\n",
+					"\n",
+					"    return pd.concat([target_df, source_df], ignore_index=True)\n",
+					"\n",
+					"def fix_date_format(date_str):\n",
+					"    date_str = datetime.strptime(date_str, '%Y-%m-%dT%H:%M:%S.%f%z').strftime(date_output_format)\n",
+					"    return datetime.strptime(date_str, date_output_format)"
+				],
+				"execution_count": 500
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Handling new rows"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"source_df = apply_mapping(create_df).drop_duplicates()\n",
+					"target_df = insert_rows_in_df(source_df, target_df, hrm_incremental_key)"
+				],
+				"execution_count": 501
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Handling updated rows"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"source_df = apply_mapping(update_df)\n",
+					"source_df = source_df.drop_duplicates().sort_values(by='IngestionDate')\n",
+					"\n",
+					"for index, row in source_df.iterrows():\n",
+					"    mask = (target_df['IsActive'] == 'Y') & (target_df[entity_primary_key] == row[entity_primary_key])\n",
+					"    target_df.loc[mask, 'IsActive'] = 'N'\n",
+					"    target_df.loc[mask, 'ValidTo'] = row['IngestionDate']\n",
+					"    target_df = insert_rows_in_df(pd.DataFrame([row]), target_df, hrm_incremental_key)"
+				],
+				"execution_count": 502
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Handling deleted rows"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"source_df = apply_mapping(delete_df)\n",
+					"for index, row in source_df.iterrows():\n",
+					"    mask = (target_df['IsActive'] == 'Y') & (target_df[entity_primary_key] == row[entity_primary_key])\n",
+					"    target_df.loc[mask, 'IsActive'] = 'N'\n",
+					"    target_df.loc[mask, 'ValidTo'] = row['IngestionDate']"
+				],
+				"execution_count": 503
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Writing the dataframe to the harmonised table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# replace NaN with None\n",
+					"target_df.replace({pd.NA: None}, inplace=True)\n",
+					"\n",
+					"for column in target_df.columns:\n",
+					"    # Check if the column is of type Timestamp\n",
+					"    if target_df[column].apply(lambda x: isinstance(x, pd.Timestamp)).any():\n",
+					"        # Format the column\n",
+					"        target_df[column] = pd.to_datetime(target_df[column], format=date_output_format, utc=True, errors='coerce')\n",
+					"    else:\n",
+					"        target_df[column] = target_df[column].astype(str)\n",
+					"\n",
+					"# remove duplicates\n",
+					"target_df = target_df.drop_duplicates(subset=target_df.columns.difference([hrm_incremental_key]))\n",
+					"\n",
+					"# overwrite onto existing harmonised table\n",
+					"df_to_update = spark.createDataFrame(target_df)\n",
+					"df_to_update.write.format(\"delta\").mode(\"overwrite\").saveAsTable(f\"{hrm_db}.{hrm_table}\")\n",
+					"\n",
+					"# .option(\"overwriteSchema\", \"true\")"
+				],
+				"execution_count": 504
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# distinct_types = set(target_df['DeadlineStartDateTime'].apply(type))\n",
+					"\n",
+					"# # Print the distinct data types\n",
+					"# print(\"Distinct data types in the column:\")\n",
+					"# for data_type in distinct_types:\n",
+					"#     print(data_type)"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
