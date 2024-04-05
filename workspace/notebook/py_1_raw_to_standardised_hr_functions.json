@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "f23d09d0-32b9-481c-b203-4f998ee56a8d"
+				"spark.autotune.trackingId": "97eb022a-754d-4ee7-b4bb-8eddc18367ef"
 			}
 		},
 		"metadata": {
@@ -344,8 +344,6 @@
 					"    else:\n",
 					"        standardised_table_def_json = mssparkutils.notebook.run('/py_get_schema_from_url', 30, {'db_name': 'odw_standardised_db', 'entity_name': definition['Source_Frequency_Folder']})\n",
 					"\n",
-					"    schema = StructType.fromJson(json.loads(standardised_table_def_json))\n",
-					"\n",
 					"    if not any([table.name == standardised_table_name for table in spark.catalog.listTables('odw_standardised_db')]):\n",
 					"        create_table_from_schema(standardised_table_def_json, \"odw_standardised_db\", standardised_table_name,standardised_container , standardised_path+standardised_table_name)   \n",
 					"                        \n",
@@ -385,6 +383,13 @@
 					"    sparkDF = sparkDF.withColumn(\"expected_from\",lit(expected_from))\n",
 					"    sparkDF = sparkDF.withColumn(\"expected_to\",lit(expected_to))\n",
 					"    \n",
+					"    ### change any array field to string\n",
+					"    schema = json.loads(standardised_table_def_json)\n",
+					"    for field in schema['fields']:\n",
+					"        if field['type'] == 'array':\n",
+					"            field['type'] = 'string'\n",
+					"    schema = StructType.fromJson(schema)\n",
+					"\n",
 					"    ### remove characters that Delta can't allow in headers and add numbers to repeated column headers\n",
 					"    cols_orig = sparkDF.schema.names\n",
 					"    cols=[re.sub('[^0-9a-zA-Z]+', '_', i).lower() for i in cols_orig]\n",
@@ -399,7 +404,7 @@
 					"\n",
 					"    ### Cast any column in sparkDF with type mismatch\n",
 					"    for field in sparkDF.schema:\n",
-					"        table_field = next((f for f in schema if f.name == field.name), None)\n",
+					"        table_field = next((f for f in schema if f.name.lower() == field.name.lower()), None)\n",
 					"        if table_field is not None and field.dataType != table_field.dataType:\n",
 					"            sparkDF = sparkDF.withColumn(field.name, col(field.name).cast(table_field.dataType))\n",
 					"\n",
@@ -411,7 +416,7 @@
 					"\n",
 					"    ### test correct number of rows have written\n",
 					"    if rows_raw == rows_new:\n",
-					"        print('All rows have successfully written')\n",
+					"        print('All rows have successfully been written')\n",
 					""
 				],
 				"execution_count": 1
