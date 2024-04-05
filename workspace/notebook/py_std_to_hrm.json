@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ac5dfb8a-34ca-4889-85dd-b1b05001c501"
+				"spark.autotune.trackingId": "d2ca01d4-5f96-47c5-bbb6-378691abf0c6"
 			}
 		},
 		"metadata": {
@@ -278,7 +278,13 @@
 					"    md5_hash = hashlib.md5(row_str.encode()).hexdigest()\n",
 					"    return md5_hash\n",
 					"\n",
-					"def apply_mapping(df):\n",
+					"def cast_dtypes(source_df, target_df):\n",
+					"    for source_column, source_dtype in source_df.dtypes.iteritems():\n",
+					"        for target_column, target_dtype in target_df.dtypes.iteritems():\n",
+					"            if source_column.lower() == target_column.lower() and source_dtype != target_dtype:\n",
+					"                source_df[source_column] = source_df[source_column].astype(target_dtype)\n",
+					"\n",
+					"def apply_mapping(df, target_df):\n",
 					"    output_df = pd.DataFrame()\n",
 					"\n",
 					"    for target_col, source_col in mapping.items():\n",
@@ -302,6 +308,7 @@
 					"    output_df['IsActive'] = 'Y'\n",
 					"    output_df[hrm_incremental_key] = ''\n",
 					"\n",
+					"    cast_dtypes(output_df, target_df)\n",
 					"    return output_df\n",
 					"\n",
 					"def insert_rows_in_df(source_df, target_df, incremental_key):\n",
@@ -310,12 +317,8 @@
 					"    for index, row in source_df.iterrows():\n",
 					"        max_id += 1\n",
 					"        source_df.loc[index, incremental_key] = str(max_id)\n",
-					"\n",
-					"    for source_column, source_dtype in source_df.dtypes.iteritems():\n",
-					"        for target_column, target_dtype in target_df.dtypes.iteritems():\n",
-					"            if source_column.lower() == target_column.lower() and source_dtype != target_dtype:\n",
-					"                source_df[source_column] = source_df[source_column].astype(target_dtype)\n",
-					"                \n",
+					"             \n",
+					"    cast_dtypes(source_df, target_df)\n",
 					"    return pd.concat([target_df, source_df], ignore_index=True)\n",
 					"\n",
 					"def fix_date_format(date_str):\n",
@@ -351,7 +354,7 @@
 					}
 				},
 				"source": [
-					"source_df = apply_mapping(create_df).drop_duplicates()\n",
+					"source_df = apply_mapping(create_df, target_df).drop_duplicates()\n",
 					"\n",
 					"if len(source_df) > 0:\n",
 					"    target_df = insert_rows_in_df(source_df, target_df, hrm_incremental_key)"
@@ -385,7 +388,7 @@
 					}
 				},
 				"source": [
-					"source_df = apply_mapping(update_df)\n",
+					"source_df = apply_mapping(update_df, target_df)\n",
 					"\n",
 					"if len(source_df) > 0:\n",
 					"    source_df = source_df.drop_duplicates().sort_values(by='IngestionDate')\n",
@@ -425,7 +428,7 @@
 					}
 				},
 				"source": [
-					"source_df = apply_mapping(delete_df)\n",
+					"source_df = apply_mapping(delete_df, target_df)\n",
 					"\n",
 					"if len(source_df) > 0:\n",
 					"    for index, row in source_df.iterrows():\n",
