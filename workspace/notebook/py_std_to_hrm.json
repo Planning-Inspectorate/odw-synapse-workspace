@@ -7,7 +7,7 @@
 		"nbformat": 4,
 		"nbformat_minor": 2,
 		"bigDataPool": {
-			"referenceName": "pinssynspodw",
+			"referenceName": "pinssynspodwpr",
 			"type": "BigDataPoolReference"
 		},
 		"sessionProperties": {
@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d2ca01d4-5f96-47c5-bbb6-378691abf0c6"
+				"spark.autotune.trackingId": "651c0d44-b743-475e-83fe-c292fa1ab2f6"
 			}
 		},
 		"metadata": {
@@ -34,15 +34,15 @@
 				"name": "python"
 			},
 			"a365ComputeOptions": {
-				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
-				"name": "pinssynspodw",
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodwpr",
+				"name": "pinssynspodwpr",
 				"type": "Spark",
-				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodwpr",
 				"auth": {
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.3",
+				"sparkVersion": "3.2",
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 28,
@@ -70,7 +70,7 @@
 				"source": [
 					"entity_name = ''"
 				],
-				"execution_count": 122
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -86,16 +86,35 @@
 					}
 				},
 				"source": [
-					"from pyspark.sql import SparkSession\n",
-					"from notebookutils import mssparkutils\n",
-					"import json\n",
-					"from datetime import datetime, date\n",
-					"import pandas as pd\n",
-					"from IPython.display import display\n",
-					"\n",
+					"from pyspark.sql import SparkSession\r\n",
+					"from notebookutils import mssparkutils\r\n",
+					"import json\r\n",
+					"from datetime import datetime, date\r\n",
+					"import pandas as pd\r\n",
+					"from IPython.display import display\r\n",
+					"import pprint\r\n",
+					"from pyspark.sql.types import *"
+				],
+				"execution_count": 268
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
 					"spark = SparkSession.builder.getOrCreate()\n",
 					"\n",
 					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"harmonised_container = f\"abfss://odw-harmonised@{storage_account}lib/\"\n",
 					"\n",
 					"path_to_orchestration_file = \"abfss://odw-config@\"+storage_account+\"orchestration/orchestration.json\"\n",
 					"df = spark.read.option(\"multiline\",\"true\").json(path_to_orchestration_file)\n",
@@ -106,7 +125,7 @@
 					"if not definition:\n",
 					"    mssparkutils.notebook.exit(f\"Definition not found for {entity_name}\")"
 				],
-				"execution_count": 123
+				"execution_count": 269
 			},
 			{
 				"cell_type": "code",
@@ -131,7 +150,7 @@
 					"hrm_incremental_key = definition['Harmonised_Incremental_Key']\n",
 					"entity_primary_key = definition['Entity_Primary_Key']"
 				],
-				"execution_count": 124
+				"execution_count": 270
 			},
 			{
 				"cell_type": "markdown",
@@ -162,7 +181,7 @@
 				"source": [
 					"%run  /0-odw-source-to-raw/Fileshare/SAP_HR/py_0_source_to_raw_hr_functions"
 				],
-				"execution_count": 125
+				"execution_count": 271
 			},
 			{
 				"cell_type": "code",
@@ -179,7 +198,6 @@
 				},
 				"source": [
 					"if not any([table.name == definition['Harmonised_Table_Name'] for table in spark.catalog.listTables(hrm_db)]):\n",
-					"    harmonised_container = f\"abfss://odw-harmonised@{storage_account}lib/\"\n",
 					"    schema = mssparkutils.notebook.run('/py_get_schema_from_url', 30, {'db_name': hrm_db, 'entity_name': entity_name, 'incremental_key': hrm_incremental_key})\n",
 					"    if schema:\n",
 					"        create_table_from_schema(schema, hrm_db, definition['Harmonised_Table_Name'], harmonised_container, definition['Harmonised_Table_Name'])   \n",
@@ -188,7 +206,7 @@
 					"else:\n",
 					"    print(f\"Table {definition['Harmonised_Table_Name']} already exists.\")"
 				],
-				"execution_count": 126
+				"execution_count": 272
 			},
 			{
 				"cell_type": "markdown",
@@ -240,7 +258,7 @@
 					"    schema = json.loads(schema)\n",
 					"    mapping = {field[\"name\"]: field[\"name\"] for field in schema[\"fields\"]}"
 				],
-				"execution_count": 133
+				"execution_count": 284
 			},
 			{
 				"cell_type": "markdown",
@@ -271,8 +289,6 @@
 				"source": [
 					"import hashlib\n",
 					"\n",
-					"date_output_format = '%Y-%m-%d %H:%M:%S'\n",
-					"\n",
 					"def calculate_md5(row):\n",
 					"    row_str = ''.join(map(str, row))\n",
 					"    md5_hash = hashlib.md5(row_str.encode()).hexdigest()\n",
@@ -282,18 +298,16 @@
 					"    for source_column, source_dtype in source_df.dtypes.iteritems():\n",
 					"        for target_column, target_dtype in target_df.dtypes.iteritems():\n",
 					"            if source_column.lower() == target_column.lower() and source_dtype != target_dtype:\n",
+					"                source_df[source_column] = source_df[source_column].replace([None, 'None'], '')\n",
 					"                source_df[source_column] = source_df[source_column].astype(target_dtype)\n",
 					"\n",
 					"def apply_mapping(df, target_df):\n",
 					"    output_df = pd.DataFrame()\n",
 					"\n",
 					"    for target_col, source_col in mapping.items():\n",
-					"        output_df['IngestionDate'] = df['message_enqueued_time_utc'].apply(fix_date_format)\n",
+					"        output_df['IngestionDate'] = df['message_enqueued_time_utc']\n",
 					"        if source_col in df.columns:\n",
-					"            if 'Date' in target_col:\n",
-					"                output_df[target_col] = pd.to_datetime(df[source_col])\n",
-					"            else:\n",
-					"                output_df[target_col] = df[source_col].astype(str)\n",
+					"            output_df[target_col] = df[source_col].astype(str)\n",
 					"        else:\n",
 					"            output_df[target_col] = None\n",
 					"\n",
@@ -319,13 +333,9 @@
 					"        source_df.loc[index, incremental_key] = str(max_id)\n",
 					"             \n",
 					"    cast_dtypes(source_df, target_df)\n",
-					"    return pd.concat([target_df, source_df], ignore_index=True)\n",
-					"\n",
-					"def fix_date_format(date_str):\n",
-					"    date_str = datetime.strptime(date_str, '%Y-%m-%dT%H:%M:%S.%f%z').strftime(date_output_format)\n",
-					"    return datetime.strptime(date_str, date_output_format)"
+					"    return pd.concat([target_df, source_df], ignore_index=True)"
 				],
-				"execution_count": 128
+				"execution_count": 274
 			},
 			{
 				"cell_type": "markdown",
@@ -359,7 +369,7 @@
 					"if len(source_df) > 0:\n",
 					"    target_df = insert_rows_in_df(source_df, target_df, hrm_incremental_key)"
 				],
-				"execution_count": 129
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -389,7 +399,6 @@
 				},
 				"source": [
 					"source_df = apply_mapping(update_df, target_df)\n",
-					"\n",
 					"if len(source_df) > 0:\n",
 					"    source_df = source_df.drop_duplicates().sort_values(by='IngestionDate')\n",
 					"\n",
@@ -399,7 +408,7 @@
 					"        target_df.loc[mask, 'ValidTo'] = row['IngestionDate']\n",
 					"        target_df = insert_rows_in_df(pd.DataFrame([row]), target_df, hrm_incremental_key)"
 				],
-				"execution_count": 130
+				"execution_count": 288
 			},
 			{
 				"cell_type": "markdown",
@@ -436,7 +445,7 @@
 					"        target_df.loc[mask, 'IsActive'] = 'N'\n",
 					"        target_df.loc[mask, 'ValidTo'] = row['IngestionDate']"
 				],
-				"execution_count": 131
+				"execution_count": 277
 			},
 			{
 				"cell_type": "markdown",
@@ -472,21 +481,48 @@
 					"target_df = target_df.drop_duplicates(subset=target_df.columns.difference([hrm_incremental_key]))\n",
 					"\n",
 					"# overwrite onto existing harmonised table\n",
-					"df_to_update = spark.createDataFrame(target_df)\n",
-					"df_to_update.write.format(\"delta\").mode(\"overwrite\").saveAsTable(f\"{hrm_db}.{hrm_table}\")\n",
+					"new_df = spark.createDataFrame(target_df)\n",
+					"existing_df = spark.read.format('delta').load(f\"{harmonised_container}{hrm_table}\")\n",
+					"\n",
+					"for field in existing_df.schema.fields:\n",
+					"    column_name = field.name\n",
+					"    delta_data_type = field.dataType\n",
+					"    \n",
+					"    if column_name in new_df.columns:\n",
+					"        pandas_data_type = str(new_df.schema[column_name].dataType)\n",
+					"        if pandas_data_type != delta_data_type.simpleString():\n",
+					"            new_df = new_df.withColumn(column_name, new_df[column_name].cast(delta_data_type))\n",
 					"\n",
 					"\n",
-					"# for column in target_df.columns:\n",
-					"#     # Check if the column is of type Timestamp\n",
-					"#     if target_df[column].apply(lambda x: isinstance(x, pd.Timestamp)).any():\n",
-					"#         # Format the column\n",
-					"#         target_df[column] = pd.to_datetime(target_df[column], format=date_output_format, utc=True, errors='coerce')\n",
-					"#     else:\n",
-					"#         target_df[column] = target_df[column].astype(str)\n",
-					"\n",
-					"# .option(\"overwriteSchema\", \"true\")"
+					"new_df.write.format(\"delta\").mode(\"overwrite\").saveAsTable(f\"{hrm_db}.{hrm_table}\")"
 				],
-				"execution_count": 132
+				"execution_count": 278
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# column_names = target_df.columns\n",
+					"\n",
+					"# print(\"Column names:\")\n",
+					"# for column_name in column_names:\n",
+					"#     if 'Tra' in column_name:\n",
+					"#         print(column_name)\n",
+					"\n",
+					"# distinct_types = target_df['ValidTo'].apply(type).unique()\n",
+					"# distinct_types"
+				],
+				"execution_count": 289
 			}
 		]
 	}
