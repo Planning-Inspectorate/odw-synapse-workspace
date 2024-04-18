@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "205e389c-4b9e-4e23-83f4-2e937e924b99"
+				"spark.autotune.trackingId": "a306b34c-2056-4fc1-9a15-e1cc7d830bdf"
 			}
 		},
 		"metadata": {
@@ -93,8 +93,8 @@
 					"SELECT DISTINCT\n",
 					"\n",
 					"    CAST(AD.AdviceNodeID as INT)\t\t\t\t\t\t    AS adviceId,\n",
-					"    CAST(\"-1\" as INT)                                       AS caseId,\n",
 					"    AD.AdviceReference\t\t\t\t\t\t\t\t\t    AS adviceReference,\n",
+					"    CAST(\"-1\" as INT)                                       AS caseId,\n",
 					"    AD.CaseReference\t\t\t\t\t\t\t\t\t    AS caseReference,\n",
 					"    AD.AdviceTitle\t\t\t\t\t\t\t\t\t        AS title,\n",
 					"    AD.Enquirer                                             AS from,\n",
@@ -105,7 +105,13 @@
 					"    AD.AdviceFrom                                           AS adviceGivenBy,\n",
 					"    AD.AdviceDate                                           AS adviceDate,\n",
 					"    AD.Advice                                               AS adviceDetails,\n",
-					"    LOWER(AD.AdviceStatus)                                  AS status,\n",
+					"    CASE\n",
+					"        WHEN AD.AdviceStatus IN ('Not Checked','unchecked','Depublished')\n",
+					"        THEN \"unchecked\"\n",
+					"        WHEN AD.AdviceStatus = 'Do Not Publish'\n",
+					"        THEN 'donotpublish'\n",
+					"        ELSE LOWER(AD.AdviceStatus)\n",
+					"    END                                                     AS status,\n",
 					"    \"unredacted\"                                            AS redactionStatus,\n",
 					"    CASE\n",
 					"        WHEN AD.AttachmentID = 'None'\n",
@@ -116,7 +122,7 @@
 					"FROM odw_harmonised_db.casework_nsip_advice_dim \t        AS AD\n",
 					"WHERE AD.IsActive = 'Y'"
 				],
-				"execution_count": 6
+				"execution_count": 56
 			},
 			{
 				"cell_type": "markdown",
@@ -150,7 +156,7 @@
 					"view_df = spark.sql('SELECT * FROM odw_curated_db.vw_nsip_s51_advice')\n",
 					"view_df.write.mode(\"overwrite\").saveAsTable('odw_curated_db.nsip_s51_advice')"
 				],
-				"execution_count": 7
+				"execution_count": 57
 			}
 		]
 	}
