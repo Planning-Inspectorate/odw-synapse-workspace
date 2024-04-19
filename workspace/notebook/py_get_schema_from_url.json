@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "753a3117-784e-45b8-9f47-4eca127eeb5f"
+				"spark.autotune.trackingId": "402f4fa0-2d03-42b8-b39e-537040281d25"
 			}
 		},
 		"metadata": {
@@ -72,6 +72,19 @@
 				"execution_count": 6
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"This gets the json schema from the data model repo and then uses that to produce a spark schema with some additional fields"
+				]
+			},
+			{
 				"cell_type": "code",
 				"source": [
 					"def get_schema_from_url(url):\n",
@@ -90,11 +103,13 @@
 					"    data_model = {'fields': []}\n",
 					"\n",
 					"    for key in schema['properties'].keys():\n",
+					"        value = schema['properties'][key]\n",
 					"        data_model['fields'].append({\n",
 					"            'metadata': {},\n",
 					"            'name': key,\n",
-					"            'type': 'string' if isinstance(schema['properties'][key]['type'], list) else schema['properties'][key]['type'],\n",
-					"            'nullable': 'null' in schema['properties'][key]['type']\n",
+					"            # type doesn't exist for all fields, hence adding this check\n",
+					"            'type': 'string' if 'type' not in value else ('string' if isinstance(value['type'], list) else value['type']),\n",
+					"            'nullable': 'type' not in value or 'null' in value.get('type', [])\n",
 					"        })\n",
 					"    \n",
 					"    if db_name == 'odw_standardised_db':\n",
@@ -185,6 +200,7 @@
 					"                'nullable': True\n",
 					"            }\n",
 					"        ])\n",
+					"\n",
 					"    return data_model"
 				],
 				"execution_count": 7
