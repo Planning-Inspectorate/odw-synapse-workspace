@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "a86ac1c3-1b07-4a0e-947b-923dc3a9e0f6"
+				"spark.autotune.trackingId": "772c59cc-fe33-4b6f-84b4-4adebdb4bd4a"
 			}
 		},
 		"metadata": {
@@ -91,7 +91,7 @@
 					"\n",
 					"spark.sql(f\"SET MAX_LIMIT = {max_limit}\")"
 				],
-				"execution_count": 1
+				"execution_count": 36
 			},
 			{
 				"cell_type": "markdown",
@@ -125,7 +125,7 @@
 					"\r\n",
 					"-----------------------REPRESENTATION CONTACTS DATA-----------------\r\n",
 					"\r\n",
-					"SELECT DISTINCT\r\n",
+					"SELECT\r\n",
 					"\r\n",
 					"    REPLACE(RR.ContactID, 'P_', '')                     AS id,\r\n",
 					"    NULL                                                AS salutation,\r\n",
@@ -175,9 +175,9 @@
 					"\r\n",
 					"---------------------------------APPLICANTS DATA-----------------------------\r\n",
 					"\r\n",
-					"UNION ALL\r\n",
+					"UNION\r\n",
 					"\r\n",
-					"SELECT DISTINCT\r\n",
+					"SELECT\r\n",
 					"CASE\r\n",
 					"    WHEN NSIP.CaseNodeID IS NOT NULL\r\n",
 					"    THEN NSIP.CaseNodeID\r\n",
@@ -214,9 +214,9 @@
 					"\r\n",
 					"----------------------------------AGENTS DATA-----------------------------\r\n",
 					"\r\n",
-					"UNION ALL\r\n",
+					"UNION\r\n",
 					"\r\n",
-					"SELECT DISTINCT\r\n",
+					"SELECT\r\n",
 					"\r\n",
 					"    REPLACE(RR.AgentContactID, 'P_', '')                AS id,\r\n",
 					"    ''                                                  AS salutation,\r\n",
@@ -251,7 +251,7 @@
 					"    RR.EmailAddress                                     AS emailAddress,\r\n",
 					"    NULL                                                AS webAddress,\r\n",
 					"    'Agent'                                             AS serviceUserType,\r\n",
-					"    RR.CaseReference                                    AS caseReference,\r\n",
+					"    RR.CaseReference                                    AS caseReference,   \r\n",
 					"    RR.IngestionDate                                    AS ingestionDate,\r\n",
 					"    'Horizon'                                           AS sourceSuid,\r\n",
 					"    SS.Description                                      AS sourceSystem\r\n",
@@ -263,10 +263,43 @@
 					"    --AND RR.CaseReference = 'TR020002'--TEST RECORD\r\n",
 					"        AND RR.AgentContactID IS NOT NULL --THIS MEANS THEY ARE AN AGENT\r\n",
 					"\r\n",
-					"ORDER BY ingestionDate DESC\r\n",
+					"\r\n",
+					"--------------------- Appeals data -----------------------------------\r\n",
+					"UNION\r\n",
+					"SELECT \r\n",
+					"    service_user.id    \r\n",
+					"    ,service_user.salutation\r\n",
+					"    ,service_user.firstName\r\n",
+					"    ,service_user.lastName\r\n",
+					"    ,service_user.addressLine1\r\n",
+					"    ,service_user.addressLine2\r\n",
+					"    ,service_user.addressTown\r\n",
+					"    ,service_user.addressCounty\r\n",
+					"    ,service_user.postcode\r\n",
+					"    ,service_user.addressCountry\r\n",
+					"    ,service_user.organisation\r\n",
+					"    ,service_user.organisationType\r\n",
+					"    ,service_user.role\r\n",
+					"    ,service_user.telephoneNumber\r\n",
+					"    ,service_user.otherPhoneNumber\r\n",
+					"    ,service_user.faxNumber\r\n",
+					"    ,service_user.emailAddress\r\n",
+					"    ,service_user.webAddress\r\n",
+					"    ,service_user.serviceUserType\r\n",
+					"    ,service_user.caseReference\r\n",
+					"    ,service_user.ingestionDate\r\n",
+					"    ,service_user.sourceSuid\r\n",
+					"    ,service_user.SourceSystem As Description\r\n",
+					"FROM \r\n",
+					"    odw_harmonised_db.service_user AS service_user\r\n",
+					"WHERE \r\n",
+					"    service_user.sourceSystem = 'back-office-appeals'\r\n",
+					"    AND service_user.IsActive = 'Y'\r\n",
+					"\r\n",
+					"\r\n",
 					""
 				],
-				"execution_count": 2
+				"execution_count": 37
 			},
 			{
 				"cell_type": "markdown",
@@ -329,7 +362,7 @@
 					"    \r\n",
 					"FROM odw_curated_db.vw_nsip_service_user"
 				],
-				"execution_count": 3
+				"execution_count": 38
 			},
 			{
 				"cell_type": "markdown",
@@ -364,7 +397,7 @@
 					"%%pyspark\n",
 					"pip install Faker"
 				],
-				"execution_count": 4
+				"execution_count": 39
 			},
 			{
 				"cell_type": "markdown",
@@ -415,7 +448,7 @@
 					"        table_loc = \"abfss://odw-curated@\"+storage_account+'service_user'\n",
 					"        df.write.format(\"delta\").mode(\"overwrite\").save(table_loc)  "
 				],
-				"execution_count": 5
+				"execution_count": 40
 			}
 		]
 	}
