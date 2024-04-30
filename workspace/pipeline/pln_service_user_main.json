@@ -7,6 +7,9 @@
 				"description": "Processes and ingests Relevant Reps data sourced by Horizon from raw layer up to the harmonised layer",
 				"type": "ExecutePipeline",
 				"dependsOn": [],
+				"policy": {
+					"secureInput": false
+				},
 				"userProperties": [],
 				"typeProperties": {
 					"pipeline": {
@@ -21,6 +24,9 @@
 				"description": "Processes and ingests Service User data sourced by Service Bus from raw layer up to the harmonised layer",
 				"type": "ExecutePipeline",
 				"dependsOn": [],
+				"policy": {
+					"secureInput": false
+				},
 				"userProperties": [],
 				"typeProperties": {
 					"pipeline": {
@@ -35,21 +41,21 @@
 				"type": "SynapseNotebook",
 				"dependsOn": [
 					{
-						"activity": "SB - Service User",
+						"activity": "Hzn - Rel Reps",
 						"dependencyConditions": [
-							"Completed"
+							"Succeeded"
 						]
 					},
 					{
-						"activity": "Hzn - Rel Reps",
+						"activity": "SB - Service User",
 						"dependencyConditions": [
-							"Completed"
+							"Succeeded"
 						]
 					},
 					{
 						"activity": "NSIP Project",
 						"dependencyConditions": [
-							"Completed"
+							"Succeeded"
 						]
 					}
 				],
@@ -79,6 +85,9 @@
 				"name": "NSIP Project",
 				"type": "ExecutePipeline",
 				"dependsOn": [],
+				"policy": {
+					"secureInput": false
+				},
 				"userProperties": [],
 				"typeProperties": {
 					"pipeline": {
@@ -86,6 +95,39 @@
 						"type": "PipelineReference"
 					},
 					"waitOnCompletion": true
+				}
+			},
+			{
+				"name": "relevant representation",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "NSIP Applicant Service User Curated",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "relevant_representation",
+						"type": "NotebookReference"
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
 				}
 			}
 		],
