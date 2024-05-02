@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "97099c73-e1ac-4fb8-a71f-eb881ef6b813"
+				"spark.autotune.trackingId": "1b4ba333-5565-486e-9ae1-1d2777c69233"
 			}
 		},
 		"metadata": {
@@ -125,7 +125,7 @@
 					"MD.Filter1\t                            AS filter1,\n",
 					"MD.Filter2\t                            AS filter2,\n",
 					"MD.ParentID\t                            AS horizonFolderId,\n",
-					"NULL\t                                    AS transcriptId\t\n",
+					"NULL\t                                AS transcriptId\t\n",
 					"\n",
 					"FROM odw_harmonised_db.document_meta_data   AS MD\n",
 					"JOIN odw_harmonised_db.aie_document_data    AS AMD\n",
@@ -133,7 +133,7 @@
 					"WHERE AMD.IsActive = 'Y' \n",
 					"    AND MD.IsActive = 'Y'"
 				],
-				"execution_count": 4
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -149,10 +149,22 @@
 					}
 				},
 				"source": [
-					"spark.sql(f\"drop table if exists odw_curated_db.document_meta_data;\")\n",
-					""
+					"spark.sql(f\"drop table if exists odw_curated_db.document_meta_data;\")"
 				],
-				"execution_count": 5
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"This table has a column \"transcriptId\" which is set to NULL. The column is in the json schema but is not in any of the source data sets (yet). The spark data type is set to \"void\" as there is no data in the column and this prevents the table being created using SQL create table as delta command. Setting this column to StringType and creating the table using spark instead avoids this issue."
+				]
 			},
 			{
 				"cell_type": "code",
@@ -165,26 +177,18 @@
 						"transient": {
 							"deleting": false
 						}
-					},
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
+					}
 				},
 				"source": [
-					"%%sql\r\n",
-					"\r\n",
-					"CREATE OR REPLACE TABLE odw_curated_db.document_meta_data\r\n",
-					"\r\n",
-					"USING delta\r\n",
-					"\r\n",
-					"AS\r\n",
-					"\r\n",
-					"SELECT \r\n",
-					"* \r\n",
-					"FROM odw_curated_db.vw_document_metadata"
+					"from pyspark.sql import SparkSession\r\n",
+					"from pyspark.sql.types import StringType\r\n",
+					"spark = SparkSession.builder.getOrCreate()\r\n",
+					"view_df = spark.sql(\"SELECT * FROM odw_curated_db.vw_document_metadata\")\r\n",
+					"view_df2 = view_df.withColumn(\"transcriptId\", view_df[\"transcriptId\"].cast(StringType()))\r\n",
+					"view_df2.write.mode(\"overwrite\").saveAsTable(\"odw_curated_db.document_meta_data\")\r\n",
+					"print(\"Table created\")"
 				],
-				"execution_count": 6
+				"execution_count": null
 			}
 		]
 	}
