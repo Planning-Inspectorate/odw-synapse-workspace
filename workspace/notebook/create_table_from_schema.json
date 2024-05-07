@@ -1,0 +1,288 @@
+{
+	"name": "create_table_from_schema",
+	"properties": {
+		"folder": {
+			"name": "utils"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "394fffc2-0234-46aa-a61b-f2ed127167a7"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": true,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.3",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Example of creating a table from a json schema in the data-model repo"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"import pprint\r\n",
+					"from pyspark.sql.types import *\r\n",
+					"import json\r\n",
+					"from pyspark.sql.functions import col"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"schema = mssparkutils.notebook.run('/py_get_schema_from_url', 30, {'db_name': \"odw_standardised_db\", 'entity_name': \"folder\"})"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"spark_schema = StructType.fromJson(json.loads(schema))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"pprint.pprint(spark_schema)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"fields = spark_schema.fields\r\n",
+					"\r\n",
+					"# Iterate over the fields and update the data type for the 'id' field\r\n",
+					"updated_fields = []\r\n",
+					"for field in fields:\r\n",
+					"    if field.name == 'id':\r\n",
+					"        updated_fields.append(StructField('id', LongType(), field.nullable))\r\n",
+					"    else:\r\n",
+					"        updated_fields.append(field)\r\n",
+					"\r\n",
+					"# Create a new schema with the updated field\r\n",
+					"new_schema = StructType(updated_fields)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"my_table = spark.createDataFrame([], schema=new_schema)\r\n",
+					"my_table.printSchema()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"spark.sql(\"drop table if exists odw_standardised_db.folder_test_ct\")"
+				],
+				"execution_count": 1
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"my_table.write.saveAsTable(\"odw_standardised_db.folder_test_ct\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"df = spark.createDataFrame([{\"id\":\"123456\",\r\n",
+					"                            \"caseReference\":\"EN0510012\",\r\n",
+					"                            \"displayNameEnglish\":\"Correspondence\",\r\n",
+					"                            \"displayNameWelsh\":\"Correspondence\",\r\n",
+					"                            \"parentFolderId\":\"12345\",\r\n",
+					"                            \"caseStage\":\"correspondence\",\r\n",
+					"                            \"ingested_datetime\": \"2024-05-03 12:00:00\",\r\n",
+					"                            \"expected_from\": \"2024-05-03 12:00:00\",\r\n",
+					"                            \"expected_to\": \"2024-05-03 12:00:00\",\r\n",
+					"                            \"message_type\": \"Create\",\r\n",
+					"                            \"message_enqueued_time_utc\": \"2024-05-03 12:00:00\"}])\r\n",
+					"df.printSchema()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"df.write.format(\"delta\").mode(\"overwrite\").saveAsTable(\"odw_standardised_db.folder_test_ct\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"select * from odw_standardised_db.folder_test_ct"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
