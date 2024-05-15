@@ -1,5 +1,5 @@
 {
-	"name": "zendesk_get_created_tickets",
+	"name": "zendesk_get_tickets",
 	"properties": {
 		"description": "zendesk_insert_new_data_into_standerdised_from_raw",
 		"folder": {
@@ -17,16 +17,17 @@
 			"executorMemory": "28g",
 			"executorCores": 4,
 			"numExecutors": 2,
+			"runAsWorkspaceSystemIdentity": true,
 			"conf": {
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "cd5df490-50d2-4ae4-ab30-8f20b5106db9"
+				"spark.autotune.trackingId": "17ff07ae-4ce3-4de0-9dd3-409c0480ed3e"
 			}
 		},
 		"metadata": {
 			"saveOutput": true,
-			"enableDebugMode": false,
+			"enableDebugMode": true,
 			"kernelspec": {
 				"name": "synapse_pyspark",
 				"display_name": "Synapse PySpark"
@@ -63,124 +64,64 @@
 						"transient": {
 							"deleting": false
 						}
+					},
+					"tags": [
+						"parameters"
+					]
+				},
+				"source": [
+					"action=''"
+				],
+				"execution_count": 81
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
 					}
 				},
 				"source": [
 					"from collections.abc import Mapping\r\n",
-					"from itertools import chain\r\n",
-					"from operator import add\r\n",
-					"#ignore FutureWarning messages \r\n",
-					"import warnings\r\n",
-					"warnings.filterwarnings(\"ignore\", message=\"iteritems is deprecated\")\r\n",
 					"from notebookutils import mssparkutils\r\n",
 					"from pprint import pprint as pp\r\n",
 					"import json\r\n",
 					"import pyspark.sql.functions as F \r\n",
 					"import pandas as pd\r\n",
 					"from pyspark.sql.types import *\r\n",
-					"from pyspark.sql import SparkSession\r\n",
-					"spark = SparkSession.builder.getOrCreate()\r\n",
-					""
-				],
-				"execution_count": 18
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"from notebookutils import mssparkutils\r\n",
-					"### mount the data lake storage in Synapse to the Synapse File Mount API\r\n",
-					"jobId = mssparkutils.env.getJobId()\r\n",
-					"storage_acc_name = spark.sparkContext.environment.get('dataLakeAccountName', 'get')\r\n",
-					"mssparkutils.fs.unmount(\"/zendesk_new_items\") \r\n",
-					"mssparkutils.fs.mount( \r\n",
-					"\"abfss://odw-raw@\"+storage_acc_name+\".dfs.core.windows.net/ZenDesk/created/\",\r\n",
-					"\"/zendesk_new_items\", \r\n",
-					"{\"linkedService\":\"ls_storage\"} \r\n",
-					")   "
-				],
-				"execution_count": 19
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
 					"from datetime import date\r\n",
-					"# dd/mm/YY\r\n",
-					"\r\n",
-					"today = date.today()\r\n",
-					"todaysdate = today.strftime(\"%Y-%m-%d\")\r\n",
-					"print(todaysdate)"
-				],
-				"execution_count": 20
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"# from pyspark.sql.types import StructType, StructField, StringType\r\n",
-					"# schema = StructType([StructField(\"foo\", StringType(), True)])\r\n",
-					"from pyspark.sql.functions import lit\r\n",
-					"from pyspark.sql.functions import row_number\r\n",
 					"from pyspark.sql.functions import *\r\n",
 					"from pyspark.sql.window import Window\r\n",
-					"def created_tickets():\r\n",
-					"    \r\n",
+					"import pprint\r\n",
+					"from pyspark.sql import DataFrame\r\n",
 					"\r\n",
-					"    with open(f\"/synfs/{jobId}/zendesk_new_items/created_24hours_\"+todaysdate+\".json\", 'r',encoding=\"utf-8-sig\") as json_file:\r\n",
-					"        zendesk_list = json.load(json_file)\r\n",
-					"        zendesk_dict=zendesk_list[0]\r\n",
-					"        result = zendesk_dict[\"results\"]\r\n",
-					"        # pddf = pd.DataFrame(data=result)\r\n",
-					"        # print(pddf.dtypes)\r\n",
-					"        #clear int 64 data types\r\n",
-					"        pddf=pd.DataFrame(result)\r\n",
-					"        pddf=pddf.applymap(str)\r\n",
-					"        pddf = pddf.dropna(axis='columns', how='all') # Drops columns with all NA values\r\n",
-					"        print(pddf.dtypes)\r\n",
-					"        df = spark.createDataFrame(pddf)\r\n",
+					"from pyspark.sql import SparkSession\r\n",
+					"spark = SparkSession.builder.getOrCreate()\r\n",
 					"\r\n",
-					"        \r\n",
-					"\r\n",
-					"        partition = Window.partitionBy(\"SourceSystemID\").orderBy('id')\r\n",
-					"        df = df.withColumn(\"SourceSystemID\",lit(6)).withColumn('IngestionDate', F.current_timestamp()).withColumn('ValidTo', lit(\"NULL\")).withColumn('IsActive', lit(\"Y\")).withColumn('RowID', row_number().over(partition))\r\n",
-					"\r\n",
-					"        # Insert created data into the table\r\n",
-					"        return df\r\n",
-					"        \r\n",
-					"created_tickets()"
+					"#ignore FutureWarning messages \r\n",
+					"import warnings\r\n",
+					"warnings.filterwarnings(\"ignore\", message=\"iteritems is deprecated\")"
 				],
-				"execution_count": 21
+				"execution_count": 82
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Defining standardised table name, source file name and path"
+				]
 			},
 			{
 				"cell_type": "code",
@@ -196,12 +137,104 @@
 					}
 				},
 				"source": [
-					"# Insert created data into the table\r\n",
-					"# table_name = \"odw_standardised_db.zendesk_system_extract\"\r\n",
-					"# created_tickets().write.insertInto(table_name, overwrite=False)\r\n",
+					"table_name = f\"odw_standardised_db.zendesk_{action}_tickets\"\r\n",
+					"spark.sql(f\"SET TABLE_NAME = {table_name}}\")\r\n",
+					"\r\n",
+					"today = date.today().strftime(\"%Y-%m-%d\")\r\n",
+					"\r\n",
+					"storage_acc_name = spark.sparkContext.environment.get('dataLakeAccountName', 'get')\r\n",
+					"file_name = f\"{action}_24hours_{today}.json\"\r\n",
+					"file_path = f\"abfss://odw-raw@{storage_acc_name}.dfs.core.windows.net/ZenDesk/{action}/{file_name}\""
+				],
+				"execution_count": 83
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Reading source file and converting it into a dataframe"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def get_zendesk_data(file_path: str) -> DataFrame:\r\n",
+					"    \"\"\"\r\n",
+					"    Reads Zendesk json files into a DataFrame\r\n",
+					"\r\n",
+					"    Returns:\r\n",
+					"        Spark DataFrame\r\n",
+					"    \"\"\"\r\n",
+					"\r\n",
+					"    file_rdd = spark.read.text(file_path, wholetext=True).rdd\r\n",
+					"    data = file_rdd.take(1)[0]['value']\r\n",
+					"    if data.startswith('\\ufeff'):\r\n",
+					"        data = data[1:]\r\n",
+					"    json_data = json.loads(data)\r\n",
+					"    results = json_data[0][\"results\"]\r\n",
+					"\r\n",
+					"    pddf=pd.DataFrame(results)\r\n",
+					"\r\n",
+					"    pddf=pddf.applymap(str)\r\n",
+					"    pddf = pddf.dropna(axis='columns', how='all') # Drops columns with all NA values\r\n",
+					"\r\n",
+					"    df = spark.createDataFrame(pddf)\r\n",
+					"\r\n",
+					"    partition = Window.partitionBy(\"SourceSystemID\").orderBy('id')\r\n",
+					"    df = df.withColumn(\"SourceSystemID\",lit(6)).withColumn('IngestionDate', F.current_timestamp()).withColumn('ValidTo', lit(\"NULL\")).withColumn('IsActive', lit(\"Y\")).withColumn('RowID', row_number().over(partition))\r\n",
+					"\r\n",
+					"    return df"
+				],
+				"execution_count": 84
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"df = get_zendesk_data(file_path)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Dropping the existing table, creating, and ingesting into the new table\n",
 					""
-				],
-				"execution_count": null
+				]
 			},
 			{
 				"cell_type": "code",
@@ -217,19 +250,14 @@
 					}
 				},
 				"source": [
-					"# Create table\r\n",
-					"spark.sql(f\"drop table if exists odw_standardised_db.zendesk_new_tickets;\")\r\n",
-					"created_tickets().write.format('delta').saveAsTable(\"odw_standardised_db.zendesk_new_tickets\")"
+					"spark.sql(f\"drop table if exists {table_name};\")\r\n",
+					"df.write.format('delta').saveAsTable(f\"{table_name}}\")"
 				],
-				"execution_count": null
+				"execution_count": 85
 			},
 			{
-				"cell_type": "code",
+				"cell_type": "markdown",
 				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
 					"nteract": {
 						"transient": {
 							"deleting": false
@@ -237,9 +265,8 @@
 					}
 				},
 				"source": [
-					"created_tickets().createOrReplaceTempView(\"zendesk_new_tickets\")"
-				],
-				"execution_count": null
+					"Merging the new data into the Zendesk System Extract"
+				]
 			},
 			{
 				"cell_type": "code",
@@ -261,7 +288,7 @@
 				"source": [
 					"%%sql\r\n",
 					"MERGE INTO odw_standardised_db.zendesk_system_extract AS Target\r\n",
-					"USING odw_standardised_db.zendesk_new_tickets\tAS Source\r\n",
+					"USING ${TABLE_NAME} AS Source\r\n",
 					"ON Source.id = Target.id\r\n",
 					"    \r\n",
 					"    -- For Inserts\r\n",
@@ -365,7 +392,7 @@
 					"        IFNULL(Source.RowID, \"NO INFO\")\r\n",
 					"    )"
 				],
-				"execution_count": null
+				"execution_count": 86
 			}
 		]
 	}
