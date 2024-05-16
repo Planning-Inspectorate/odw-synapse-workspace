@@ -231,6 +231,43 @@ variable "odt_backoffice_sb_topic_subscriptions" {
   EOT
 }
 
+variable "odt_appeals_back_office" {
+  description = "Appeals Back Office configuration"
+  type = object({
+    resource_group_name = string
+    service_bus_enabled = bool
+    service_bus_name    = string
+  })
+}
+
+variable "odt_appeals_back_office_sb_topic_subscriptions" {
+  default     = {}
+  type        = any
+  description = <<-EOT
+    "A map containing the configuration for Service Bus Subscriptions to be created in the Appeals Back Office Service Bus Namespace.
+    {
+    subscription_name                         = "subscription_name"
+    topic_name                                = "topic_name"
+    status                                    = "Active"
+    max_delivery_count                        = 1
+    auto_delete_on_idle                       = "PT5M"
+    default_message_ttl                       = "P14D"
+    lock_duration                             = "P0DT0H1M0S"
+    dead_lettering_on_message_expiration      = false
+    dead_lettering_on_filter_evaluation_error = true
+    enable_batched_operations                 = false
+    requires_session                          = false
+    forward_to                                = ""
+    role_assignments                          = {
+      "role_name" = {
+        users = []
+        groups = []
+        service_principals = []
+      }
+    }"
+  EOT
+}
+
 variable "odt_subscription_id" {
   description = "The subscription ID of the ODT subscription"
   type        = string
