@@ -102,6 +102,12 @@ variable "servicebus_namespace" {
   default     = null
 }
 
+variable "servicebus_namespace_appeals" {
+  type        = string
+  description = "The name of the appeals service bus namespace to use for the function app"
+  default     = null
+}
+
 variable "site_config_defaults" {
   type = object({
     always_on = bool

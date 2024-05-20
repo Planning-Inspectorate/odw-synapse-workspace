@@ -21,6 +21,7 @@ locals {
       "WEBSITE_CONTENTOVERVNET"                     = 1
       "MESSAGE_STORAGE_ACCOUNT"                     = var.message_storage_account
       "MESSAGE_STORAGE_CONTAINER"                   = var.message_storage_container
+      "SERVICEBUS_NAMESPACE_APPEALS"                = "${var.servicebus_namespace_appeals}.servicebus.windows.net"
     }
   )
 

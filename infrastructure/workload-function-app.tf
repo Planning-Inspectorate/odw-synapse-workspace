@@ -91,23 +91,24 @@ module "function_app" {
 
   source = "./modules/function-app"
 
-  resource_group_name        = azurerm_resource_group.function_app[0].name
-  function_app_name          = each.key
-  service_name               = local.service_name
-  service_plan_id            = module.service_plan[0].id
-  storage_account_name       = module.storage_account[each.key].storage_name
-  storage_account_access_key = module.storage_account[each.key].primary_access_key
-  environment                = var.environment
-  location                   = module.azure_region.location_cli
-  tags                       = local.tags
-  application_insights_key   = azurerm_application_insights.function_app_insights[each.key].instrumentation_key
-  synapse_vnet_subnet_names  = module.synapse_network.vnet_subnets
-  app_settings               = try(each.value.app_settings, null)
-  site_config                = each.value.site_config
-  file_share_name            = "pins-${each.key}-${local.resource_suffix}"
-  servicebus_namespace       = var.odt_back_office_service_bus_name
-  message_storage_account    = var.message_storage_account
-  message_storage_container  = var.message_storage_container
+  resource_group_name          = azurerm_resource_group.function_app[0].name
+  function_app_name            = each.key
+  service_name                 = local.service_name
+  service_plan_id              = module.service_plan[0].id
+  storage_account_name         = module.storage_account[each.key].storage_name
+  storage_account_access_key   = module.storage_account[each.key].primary_access_key
+  environment                  = var.environment
+  location                     = module.azure_region.location_cli
+  tags                         = local.tags
+  application_insights_key     = azurerm_application_insights.function_app_insights[each.key].instrumentation_key
+  synapse_vnet_subnet_names    = module.synapse_network.vnet_subnets
+  app_settings                 = try(each.value.app_settings, null)
+  site_config                  = each.value.site_config
+  file_share_name              = "pins-${each.key}-${local.resource_suffix}"
+  servicebus_namespace         = var.odt_back_office_service_bus_name
+  servicebus_namespace_appeals = var.odt_appeals_back_office.service_bus_name
+  message_storage_account      = var.message_storage_account
+  message_storage_container    = var.message_storage_container
 }
 
 module "function_app_failover" {
