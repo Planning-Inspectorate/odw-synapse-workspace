@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ec34035f-67b1-4540-8973-c0104349ef3c"
+				"spark.autotune.trackingId": "d74d2d90-7eae-45b2-b6c3-6eb365bc857d"
 			}
 		},
 		"metadata": {
@@ -83,6 +83,7 @@
 					"SELECT DISTINCT\r\n",
 					"\r\n",
 					"    ET.CaseReference                                            AS caseReference,\r\n",
+					"    ET.Published                                                AS published,\r\n",
 					"    CAST(ET.ID AS integer)                                      AS eventId,\r\n",
 					"    CASE    \r\n",
 					"        WHEN ET.TypeOfExamination  =  'Site Visit (Unaccompanied)'\r\n",
@@ -102,7 +103,7 @@
 					"ORDER BY caseReference,eventTitle DESC\r\n",
 					""
 				],
-				"execution_count": 8
+				"execution_count": 11
 			},
 			{
 				"cell_type": "markdown",
@@ -129,28 +130,15 @@
 							"deleting": false
 						}
 					},
-					"microsoft": {
-						"language": "sparksql"
-					},
 					"collapsed": false
 				},
 				"source": [
-					"%%sql\r\n",
-					"CREATE OR REPLACE TABLE odw_curated_db.examination_timetable\r\n",
-					"USING delta\r\n",
-					"AS\r\n",
-					"SELECT \r\n",
-					"    caseReference,\r\n",
-					"    eventId,\r\n",
-					"    type,\r\n",
-					"    eventTitle,\r\n",
-					"    eventDeadlineStartDate,\r\n",
-					"    date,\r\n",
-					"    eventLineItems,\r\n",
-					"    description    \r\n",
-					"FROM odw_curated_db.vw_examination_timetable"
+					"from pyspark.sql import SparkSession\r\n",
+					"spark = SparkSession.builder.getOrCreate()\r\n",
+					"view_df = spark.sql('SELECT * FROM odw_curated_db.vw_examination_timetable')\r\n",
+					"view_df.write.mode(\"overwrite\").saveAsTable('odw_curated_db.examination_timetable')"
 				],
-				"execution_count": 9
+				"execution_count": 12
 			}
 		]
 	}
