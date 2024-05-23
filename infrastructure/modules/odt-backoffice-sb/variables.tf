@@ -1,4 +1,10 @@
 
+variable "back_office_name" {
+  description = "The name of the back office service being connected to"
+  type        = string
+  default     = "backoffice"
+}
+
 variable "environment" {
   description = "The name of the environment in which resources will be deployed"
   type        = string

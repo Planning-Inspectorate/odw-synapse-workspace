@@ -100,6 +100,7 @@ module "odt_appeals_back_office_sb" {
 
   source = "./modules/odt-backoffice-sb"
 
+  back_office_name                                = "appeals-backoffice"
   environment                                     = var.environment
   resource_group_name                             = azurerm_resource_group.odt_backoffice_sb[0].name
   location                                        = module.azure_region.location_cli
