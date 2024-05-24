@@ -1,0 +1,2264 @@
+{
+	"name": "pln_master",
+	"properties": {
+		"activities": [
+			{
+				"name": "Record pipeline starting",
+				"type": "SynapseNotebook",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_utils_log_stage",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"Stage": {
+							"value": "Start",
+							"type": "string"
+						},
+						"PipelineName": {
+							"value": {
+								"value": "@pipeline().Pipeline",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineRunID": {
+							"value": {
+								"value": "@pipeline().RunId",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"Inserts": {
+							"value": "0",
+							"type": "int"
+						},
+						"Updates": {
+							"value": "0",
+							"type": "int"
+						},
+						"Deletes": {
+							"value": "0",
+							"type": "int"
+						},
+						"ErrorMessage": {
+							"value": "",
+							"type": "string"
+						},
+						"StatusMessage": {
+							"value": "Overall Status",
+							"type": "string"
+						},
+						"PipelineTriggerID": {
+							"value": {
+								"value": "@pipeline().TriggerId",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggerName": {
+							"value": {
+								"value": "@pipeline().TriggerName",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggerType": {
+							"value": {
+								"value": "@pipeline().TriggerType",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": {
+								"value": "@pipeline()?.TriggeredByPipelineName",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": {
+								"value": "@pipeline()?.TriggeredByPipelineRunId",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"ActivityType": {
+							"value": "Pipeline",
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"sparkPool": {
+						"referenceName": "pinssynspodw",
+						"type": "BigDataPoolReference"
+					},
+					"conf": {
+						"spark.dynamicAllocation.enabled": true,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Record moving on to loading Horizon data",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Record pipeline starting",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_utils_log_stage",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"Stage": {
+							"value": "OnProgress",
+							"type": "string"
+						},
+						"PipelineName": {
+							"value": {
+								"value": "@pipeline().Pipeline",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineRunID": {
+							"value": {
+								"value": "@pipeline().RunId",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"Inserts": {
+							"value": "0",
+							"type": "int"
+						},
+						"Updates": {
+							"value": "0",
+							"type": "int"
+						},
+						"Deletes": {
+							"value": "0",
+							"type": "int"
+						},
+						"ErrorMessage": {
+							"value": "",
+							"type": "string"
+						},
+						"StatusMessage": {
+							"value": "Progressing to load Horizon data",
+							"type": "string"
+						},
+						"PipelineTriggerID": {
+							"value": {
+								"value": "@pipeline().TriggerId",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggerName": {
+							"value": {
+								"value": "@pipeline().TriggerName",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggerType": {
+							"value": {
+								"value": "@pipeline().TriggerType",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": {
+								"value": "@pipeline()?.TriggeredByPipelineName",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": {
+								"value": "@pipeline()?.TriggeredByPipelineRunId",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"ActivityType": {
+							"value": "Pipeline",
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"sparkPool": {
+						"referenceName": "pinssynspodw",
+						"type": "BigDataPoolReference"
+					},
+					"conf": {
+						"spark.dynamicAllocation.enabled": true,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Load Horizon data",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Send progressing to Horizon data",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Record moving on to loading Horizon data",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_horizon",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"webhook_url": {
+							"value": "@variables('webhook_url')",
+							"type": "Expression"
+						},
+						"subscription_id": {
+							"value": "@variables('subscription_id')",
+							"type": "Expression"
+						},
+						"resource_group": {
+							"value": "@variables('resource_group')",
+							"type": "Expression"
+						},
+						"starting_colour": {
+							"value": "@variables('starting_colour')",
+							"type": "Expression"
+						},
+						"on_progress_colour": {
+							"value": "@variables('on_progress_colour')",
+							"type": "Expression"
+						},
+						"failed_colour": {
+							"value": "@variables('failed_colour')",
+							"type": "Expression"
+						},
+						"start_time": {
+							"value": "@variables('start_time')",
+							"type": "Expression"
+						},
+						"starting_image": {
+							"value": "@variables('starting_image')",
+							"type": "Expression"
+						},
+						"progress_image": {
+							"value": "@variables('progress_image')",
+							"type": "Expression"
+						},
+						"warning_image": {
+							"value": "@variables('warning_image')",
+							"type": "Expression"
+						},
+						"failed_image": {
+							"value": "@variables('failed_image')",
+							"type": "Expression"
+						},
+						"warning_colour": {
+							"value": "@variables('warning_colour')",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Record moving on to loading service bus data",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Load Horizon data",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_utils_log_stage",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"Stage": {
+							"value": "OnProgress",
+							"type": "string"
+						},
+						"PipelineName": {
+							"value": {
+								"value": "@pipeline().Pipeline",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineRunID": {
+							"value": {
+								"value": "@pipeline().RunId",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"Inserts": {
+							"value": "0",
+							"type": "int"
+						},
+						"Updates": {
+							"value": "0",
+							"type": "int"
+						},
+						"Deletes": {
+							"value": "0",
+							"type": "int"
+						},
+						"ErrorMessage": {
+							"value": "",
+							"type": "string"
+						},
+						"StatusMessage": {
+							"value": "Progressing to load Service Bus data",
+							"type": "string"
+						},
+						"PipelineTriggerID": {
+							"value": {
+								"value": "@pipeline().TriggerId",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggerName": {
+							"value": {
+								"value": "@pipeline().TriggerName",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggerType": {
+							"value": {
+								"value": "@pipeline().TriggerType",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": {
+								"value": "@pipeline()?.TriggeredByPipelineName",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": {
+								"value": "@pipeline()?.TriggeredByPipelineRunId",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"ActivityType": {
+							"value": "Pipeline",
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"sparkPool": {
+						"referenceName": "pinssynspodw",
+						"type": "BigDataPoolReference"
+					},
+					"conf": {
+						"spark.dynamicAllocation.enabled": true,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Get service bus feeds",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Record moving on to loading service bus data",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Send progressing to service bus data",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_utils_get_service_bus_feeds",
+						"type": "NotebookReference"
+					},
+					"snapshot": true,
+					"sparkPool": {
+						"referenceName": "pinssynspodw",
+						"type": "BigDataPoolReference"
+					},
+					"conf": {
+						"spark.dynamicAllocation.enabled": true
+					}
+				}
+			},
+			{
+				"name": "Service bus loads",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Get service bus feeds",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@json(activity('Get service bus feeds').output.status.Output.result.exitValue)",
+						"type": "Expression"
+					},
+					"isSequential": false,
+					"activities": [
+						{
+							"name": "Get config",
+							"type": "SynapseNotebook",
+							"dependsOn": [
+								{
+									"activity": "Random wait to allow parallelism",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "py_utils_get_pipeline_config",
+									"type": "NotebookReference"
+								},
+								"parameters": {
+									"system_name": {
+										"value": "Service bus",
+										"type": "string"
+									},
+									"Object": {
+										"value": {
+											"value": "@string(item())",
+											"type": "Expression"
+										},
+										"type": "string"
+									}
+								},
+								"snapshot": true,
+								"sparkPool": {
+									"referenceName": "pinssynspodw",
+									"type": "BigDataPoolReference"
+								},
+								"conf": {
+									"spark.dynamicAllocation.enabled": true
+								}
+							}
+						},
+						{
+							"name": "Check if item enabled",
+							"type": "IfCondition",
+							"dependsOn": [
+								{
+									"activity": "Get config",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"expression": {
+									"value": "@equals(activity('Get config').output.status.Output.result.exitValue, '[True]')",
+									"type": "Expression"
+								},
+								"ifFalseActivities": [
+									{
+										"name": "Record relevant reps warning",
+										"type": "SynapseNotebook",
+										"dependsOn": [
+											{
+												"activity": "Get entity_name_1",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"notebook": {
+												"referenceName": "py_utils_log_stage",
+												"type": "NotebookReference"
+											},
+											"parameters": {
+												"Stage": {
+													"value": "Warning",
+													"type": "string"
+												},
+												"PipelineName": {
+													"value": {
+														"value": "@concat(replace(replace(activity('Get entity_name_1').output.status.Output.result.exitValue, '[''', ''), ''']', ''), ' ', pipeline().Pipeline)",
+														"type": "Expression"
+													},
+													"type": "string"
+												},
+												"PipelineRunID": {
+													"value": {
+														"value": "@pipeline().RunId",
+														"type": "Expression"
+													},
+													"type": "string"
+												},
+												"Inserts": {
+													"value": "0",
+													"type": "int"
+												},
+												"Updates": {
+													"value": "0",
+													"type": "int"
+												},
+												"Deletes": {
+													"value": "0",
+													"type": "int"
+												},
+												"ErrorMessage": {
+													"value": {
+														"value": "@concat('Service bus item disabled: ', replace(replace(activity('Get entity_name_1').output.status.Output.result.exitValue, '[''', ''), ''']', ''))",
+														"type": "Expression"
+													},
+													"type": "string"
+												},
+												"StatusMessage": {
+													"value": "Warning",
+													"type": "string"
+												},
+												"PipelineTriggerID": {
+													"value": {
+														"value": "@pipeline().TriggerId",
+														"type": "Expression"
+													},
+													"type": "string"
+												},
+												"PipelineTriggerName": {
+													"value": {
+														"value": "@pipeline().TriggerName",
+														"type": "Expression"
+													},
+													"type": "string"
+												},
+												"PipelineTriggerType": {
+													"value": {
+														"value": "@pipeline().TriggerType",
+														"type": "Expression"
+													},
+													"type": "string"
+												},
+												"PipelineTriggeredbyPipelineName": {
+													"value": {
+														"value": "@pipeline()?.TriggeredByPipelineName",
+														"type": "Expression"
+													},
+													"type": "string"
+												},
+												"PipelineTriggeredbyPipelineRunID": {
+													"value": {
+														"value": "@pipeline()?.TriggeredByPipelineRunId",
+														"type": "Expression"
+													},
+													"type": "string"
+												},
+												"ActivityType": {
+													"value": "Pipeline",
+													"type": "string"
+												}
+											},
+											"snapshot": true,
+											"sparkPool": {
+												"referenceName": "pinssynspodw",
+												"type": "BigDataPoolReference"
+											},
+											"conf": {
+												"spark.dynamicAllocation.enabled": true,
+												"spark.dynamicAllocation.minExecutors": null,
+												"spark.dynamicAllocation.maxExecutors": null
+											},
+											"numExecutors": null
+										}
+									},
+									{
+										"name": "Send service bus warning",
+										"type": "ExecutePipeline",
+										"dependsOn": [
+											{
+												"activity": "Get entity_name_1",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureInput": true
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"pipeline": {
+												"referenceName": "pln_utl_Send_Teams_Message",
+												"type": "PipelineReference"
+											},
+											"waitOnCompletion": true,
+											"parameters": {
+												"dataFactorySubscription": {
+													"value": "@variables('subscription_id')",
+													"type": "Expression"
+												},
+												"dataFactoryResourceGroup": {
+													"value": "@variables('resource_group')",
+													"type": "Expression"
+												},
+												"pipelineRunId": {
+													"value": "@pipeline().RunId",
+													"type": "Expression"
+												},
+												"teamsWebhookUrl": {
+													"value": "@variables('webhook_url')",
+													"type": "Expression"
+												},
+												"activityName": {
+													"value": "@pipeline().Pipeline",
+													"type": "Expression"
+												},
+												"activityMessage": {
+													"value": "@concat('Service bus ',replace(replace(activity('Get entity_name_1').output.status.Output.result.exitValue, '[''', ''), ''']', '') ,': Data load disabled')",
+													"type": "Expression"
+												},
+												"activityDuration": {
+													"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(variables('start_time'),'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(variables('start_time'),'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
+													"type": "Expression"
+												},
+												"activityStatus": "Warning",
+												"Colour": {
+													"value": "@variables('warning_colour')",
+													"type": "Expression"
+												},
+												"Image": {
+													"value": "@variables('warning_image')",
+													"type": "Expression"
+												},
+												"Message_title": "ODW - Master pipeline Warning",
+												"Message_subtitle": {
+													"value": "@concat('Loading ',replace(replace(activity('Get entity_name_1').output.status.Output.result.exitValue, '[''', ''), ''']', ''),' from the service bus is disabled. Any messages in the subscription have not been loaded.')",
+													"type": "Expression"
+												}
+											}
+										}
+									},
+									{
+										"name": "Get entity_name_1",
+										"type": "SynapseNotebook",
+										"dependsOn": [],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"notebook": {
+												"referenceName": "py_utils_get_service_bus_config",
+												"type": "NotebookReference"
+											},
+											"parameters": {
+												"system_name": {
+													"value": "Service bus",
+													"type": "string"
+												},
+												"Object": {
+													"value": {
+														"value": "@string(item())",
+														"type": "Expression"
+													},
+													"type": "string"
+												}
+											},
+											"snapshot": true,
+											"sparkPool": {
+												"referenceName": "pinssynspodw",
+												"type": "BigDataPoolReference"
+											},
+											"conf": {
+												"spark.dynamicAllocation.enabled": true
+											}
+										}
+									}
+								],
+								"ifTrueActivities": [
+									{
+										"name": "Get entity_name",
+										"type": "SynapseNotebook",
+										"dependsOn": [],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"notebook": {
+												"referenceName": "py_utils_get_service_bus_config",
+												"type": "NotebookReference"
+											},
+											"parameters": {
+												"system_name": {
+													"value": "Service bus",
+													"type": "string"
+												},
+												"Object": {
+													"value": {
+														"value": "@string(item())",
+														"type": "Expression"
+													},
+													"type": "string"
+												}
+											},
+											"snapshot": true,
+											"sparkPool": {
+												"referenceName": "pinssynspodw",
+												"type": "BigDataPoolReference"
+											},
+											"conf": {
+												"spark.dynamicAllocation.enabled": true
+											}
+										}
+									},
+									{
+										"name": "Execute Pipeline",
+										"type": "ExecutePipeline",
+										"dependsOn": [
+											{
+												"activity": "Get entity_name",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"pipeline": {
+												"referenceName": "pln_service_bus",
+												"type": "PipelineReference"
+											},
+											"waitOnCompletion": true,
+											"parameters": {
+												"entity_name_input": {
+													"value": "@activity('Get entity_name').output.status.Output.result.exitValue",
+													"type": "Expression"
+												}
+											}
+										}
+									}
+								]
+							}
+						},
+						{
+							"name": "Random wait to allow parallelism",
+							"type": "SynapseNotebook",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "py_utils_random_sleep",
+									"type": "NotebookReference"
+								},
+								"snapshot": true,
+								"conf": {
+									"spark.dynamicAllocation.enabled": null,
+									"spark.dynamicAllocation.minExecutors": null,
+									"spark.dynamicAllocation.maxExecutors": null
+								},
+								"numExecutors": null
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Record horizon failure",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Load Horizon data",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_utils_log_stage",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"Stage": {
+							"value": "Fail",
+							"type": "string"
+						},
+						"PipelineName": {
+							"value": {
+								"value": "@pipeline().Pipeline",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineRunID": {
+							"value": {
+								"value": "@pipeline().RunId",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"Inserts": {
+							"value": "0",
+							"type": "int"
+						},
+						"Updates": {
+							"value": "0",
+							"type": "int"
+						},
+						"Deletes": {
+							"value": "0",
+							"type": "int"
+						},
+						"ErrorMessage": {
+							"value": {
+								"value": "@activity('Load Horizon data').Error.message ",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"StatusMessage": {
+							"value": "Failed",
+							"type": "string"
+						},
+						"PipelineTriggerID": {
+							"value": {
+								"value": "@pipeline().TriggerId",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggerName": {
+							"value": {
+								"value": "@pipeline().TriggerName",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggerType": {
+							"value": {
+								"value": "@pipeline().TriggerType",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": {
+								"value": "@pipeline()?.TriggeredByPipelineName",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": {
+								"value": "@pipeline()?.TriggeredByPipelineRunId",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"ActivityType": {
+							"value": "Pipeline",
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"sparkPool": {
+						"referenceName": "pinssynspodw",
+						"type": "BigDataPoolReference"
+					},
+					"conf": {
+						"spark.dynamicAllocation.enabled": true,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Record service bus failure",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Service bus loads",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_utils_log_stage",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"Stage": {
+							"value": "Fail",
+							"type": "string"
+						},
+						"PipelineName": {
+							"value": {
+								"value": "@pipeline().Pipeline",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineRunID": {
+							"value": {
+								"value": "@pipeline().RunId",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"Inserts": {
+							"value": "0",
+							"type": "int"
+						},
+						"Updates": {
+							"value": "0",
+							"type": "int"
+						},
+						"Deletes": {
+							"value": "0",
+							"type": "int"
+						},
+						"ErrorMessage": {
+							"value": {
+								"value": "@activity('Service bus loads').Error.message ",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"StatusMessage": {
+							"value": "Failed",
+							"type": "string"
+						},
+						"PipelineTriggerID": {
+							"value": {
+								"value": "@pipeline().TriggerId",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggerName": {
+							"value": {
+								"value": "@pipeline().TriggerName",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggerType": {
+							"value": {
+								"value": "@pipeline().TriggerType",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": {
+								"value": "@pipeline()?.TriggeredByPipelineName",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": {
+								"value": "@pipeline()?.TriggeredByPipelineRunId",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"ActivityType": {
+							"value": "Pipeline",
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"sparkPool": {
+						"referenceName": "pinssynspodw",
+						"type": "BigDataPoolReference"
+					},
+					"conf": {
+						"spark.dynamicAllocation.enabled": true,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Record moving on to loading curated",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Service bus loads",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_utils_log_stage",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"Stage": {
+							"value": "OnProgress",
+							"type": "string"
+						},
+						"PipelineName": {
+							"value": {
+								"value": "@pipeline().Pipeline",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineRunID": {
+							"value": {
+								"value": "@pipeline().RunId",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"Inserts": {
+							"value": "0",
+							"type": "int"
+						},
+						"Updates": {
+							"value": "0",
+							"type": "int"
+						},
+						"Deletes": {
+							"value": "0",
+							"type": "int"
+						},
+						"ErrorMessage": {
+							"value": "",
+							"type": "string"
+						},
+						"StatusMessage": {
+							"value": "Progressing to load data to curated",
+							"type": "string"
+						},
+						"PipelineTriggerID": {
+							"value": {
+								"value": "@pipeline().TriggerId",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggerName": {
+							"value": {
+								"value": "@pipeline().TriggerName",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggerType": {
+							"value": {
+								"value": "@pipeline().TriggerType",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": {
+								"value": "@pipeline()?.TriggeredByPipelineName",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": {
+								"value": "@pipeline()?.TriggeredByPipelineRunId",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"ActivityType": {
+							"value": "Pipeline",
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"sparkPool": {
+						"referenceName": "pinssynspodw",
+						"type": "BigDataPoolReference"
+					},
+					"conf": {
+						"spark.dynamicAllocation.enabled": true,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Load curated data",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Record moving on to loading curated",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Send progressing to load curated",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_curated",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
+				}
+			},
+			{
+				"name": "Record pipeline completed",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Load curated data",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_utils_log_stage",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"Stage": {
+							"value": "Completion",
+							"type": "string"
+						},
+						"PipelineName": {
+							"value": {
+								"value": "@pipeline().Pipeline",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineRunID": {
+							"value": {
+								"value": "@pipeline().RunId",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"Inserts": {
+							"value": "0",
+							"type": "int"
+						},
+						"Updates": {
+							"value": "0",
+							"type": "int"
+						},
+						"Deletes": {
+							"value": "0",
+							"type": "int"
+						},
+						"ErrorMessage": {
+							"value": "",
+							"type": "string"
+						},
+						"StatusMessage": {
+							"value": "Overall Status",
+							"type": "string"
+						},
+						"PipelineTriggerID": {
+							"value": {
+								"value": "@pipeline().TriggerId",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggerName": {
+							"value": {
+								"value": "@pipeline().TriggerName",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggerType": {
+							"value": {
+								"value": "@pipeline().TriggerType",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": {
+								"value": "@pipeline()?.TriggeredByPipelineName",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": {
+								"value": "@pipeline()?.TriggeredByPipelineRunId",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"ActivityType": {
+							"value": "Pipeline",
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"sparkPool": {
+						"referenceName": "pinssynspodw",
+						"type": "BigDataPoolReference"
+					},
+					"conf": {
+						"spark.dynamicAllocation.enabled": true,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Record curated failure",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Load curated data",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_utils_log_stage",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"Stage": {
+							"value": "Fail",
+							"type": "string"
+						},
+						"PipelineName": {
+							"value": {
+								"value": "@pipeline().Pipeline",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineRunID": {
+							"value": {
+								"value": "@pipeline().RunId",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"Inserts": {
+							"value": "0",
+							"type": "int"
+						},
+						"Updates": {
+							"value": "0",
+							"type": "int"
+						},
+						"Deletes": {
+							"value": "0",
+							"type": "int"
+						},
+						"ErrorMessage": {
+							"value": {
+								"value": "@activity('Load curated data').Error.message ",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"StatusMessage": {
+							"value": "Failed",
+							"type": "string"
+						},
+						"PipelineTriggerID": {
+							"value": {
+								"value": "@pipeline().TriggerId",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggerName": {
+							"value": {
+								"value": "@pipeline().TriggerName",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggerType": {
+							"value": {
+								"value": "@pipeline().TriggerType",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": {
+								"value": "@pipeline()?.TriggeredByPipelineName",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": {
+								"value": "@pipeline()?.TriggeredByPipelineRunId",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"ActivityType": {
+							"value": "Pipeline",
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"sparkPool": {
+						"referenceName": "pinssynspodw",
+						"type": "BigDataPoolReference"
+					},
+					"conf": {
+						"spark.dynamicAllocation.enabled": true,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Send starting teams notification",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Set subscription",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Set resource group",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Set webhook",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_utl_Send_Teams_Message",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"dataFactorySubscription": {
+							"value": "@variables('subscription_id')",
+							"type": "Expression"
+						},
+						"dataFactoryResourceGroup": {
+							"value": "@variables('resource_group')",
+							"type": "Expression"
+						},
+						"pipelineRunId": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"teamsWebhookUrl": {
+							"value": "@variables('webhook_url')",
+							"type": "Expression"
+						},
+						"activityName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"activityMessage": "Starting master pipeline run",
+						"activityDuration": "0H:00M:00s",
+						"activityStatus": "Starting",
+						"Colour": {
+							"value": "@variables('starting_colour')",
+							"type": "Expression"
+						},
+						"Image": {
+							"value": "@variables('starting_image')",
+							"type": "Expression"
+						},
+						"Message_title": "ODW - Master pipeline starting",
+						"Message_subtitle": "The master pipeline for loading data to ODW is starting with the following parameters:"
+					}
+				}
+			},
+			{
+				"name": "Send progressing to Horizon data",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Send starting teams notification",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Record pipeline starting",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_utl_Send_Teams_Message",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"dataFactorySubscription": {
+							"value": "@variables('subscription_id')",
+							"type": "Expression"
+						},
+						"dataFactoryResourceGroup": {
+							"value": "@variables('resource_group')",
+							"type": "Expression"
+						},
+						"pipelineRunId": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"teamsWebhookUrl": {
+							"value": "@variables('webhook_url')",
+							"type": "Expression"
+						},
+						"activityName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"activityMessage": "Loading Horizon data",
+						"activityDuration": {
+							"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(variables('start_time'),'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(variables('start_time'),'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
+							"type": "Expression"
+						},
+						"activityStatus": "On Progress",
+						"Colour": {
+							"value": "@variables('on_progress_colour')",
+							"type": "Expression"
+						},
+						"Image": {
+							"value": "@variables('progress_image')",
+							"type": "Expression"
+						},
+						"Message_title": "ODW - Master pipeline progressing",
+						"Message_subtitle": "ODW is starting to load data from Horizon"
+					}
+				}
+			},
+			{
+				"name": "Set start time",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "start_time",
+					"value": {
+						"value": "@utcnow()",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Send Horizon failed",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Load Horizon data",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_utl_Send_Teams_Message",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"dataFactorySubscription": {
+							"value": "@variables('subscription_id')",
+							"type": "Expression"
+						},
+						"dataFactoryResourceGroup": {
+							"value": "@variables('resource_group')",
+							"type": "Expression"
+						},
+						"pipelineRunId": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"teamsWebhookUrl": {
+							"value": "@variables('webhook_url')",
+							"type": "Expression"
+						},
+						"activityName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"activityMessage": "Horizon data failed",
+						"activityDuration": {
+							"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(variables('start_time'),'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(variables('start_time'),'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
+							"type": "Expression"
+						},
+						"activityStatus": "Failed",
+						"Colour": {
+							"value": "@variables('failed_colour')",
+							"type": "Expression"
+						},
+						"Image": {
+							"value": "@variables('failed_image')",
+							"type": "Expression"
+						},
+						"Message_title": "ODW - Master pipeline failed",
+						"Message_subtitle": "ODW failed to load data from Horizon"
+					}
+				}
+			},
+			{
+				"name": "Send progressing to service bus data",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Load Horizon data",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_utl_Send_Teams_Message",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"dataFactorySubscription": {
+							"value": "@variables('subscription_id')",
+							"type": "Expression"
+						},
+						"dataFactoryResourceGroup": {
+							"value": "@variables('resource_group')",
+							"type": "Expression"
+						},
+						"pipelineRunId": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"teamsWebhookUrl": {
+							"value": "@variables('webhook_url')",
+							"type": "Expression"
+						},
+						"activityName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"activityMessage": "Loading service bus data",
+						"activityDuration": {
+							"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(variables('start_time'),'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(variables('start_time'),'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
+							"type": "Expression"
+						},
+						"activityStatus": "On Progress",
+						"Colour": {
+							"value": "@variables('on_progress_colour')",
+							"type": "Expression"
+						},
+						"Image": {
+							"value": "@variables('progress_image')",
+							"type": "Expression"
+						},
+						"Message_title": "ODW - Master pipeline progressing",
+						"Message_subtitle": "ODW is starting to load data from the service bus"
+					}
+				}
+			},
+			{
+				"name": "Send service bus failed",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Service bus loads",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_utl_Send_Teams_Message",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"dataFactorySubscription": {
+							"value": "@variables('subscription_id')",
+							"type": "Expression"
+						},
+						"dataFactoryResourceGroup": {
+							"value": "@variables('resource_group')",
+							"type": "Expression"
+						},
+						"pipelineRunId": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"teamsWebhookUrl": {
+							"value": "@variables('webhook_url')",
+							"type": "Expression"
+						},
+						"activityName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"activityMessage": "Service bus data failed",
+						"activityDuration": {
+							"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(variables('start_time'),'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(variables('start_time'),'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
+							"type": "Expression"
+						},
+						"activityStatus": "Failed",
+						"Colour": {
+							"value": "@variables('failed_colour')",
+							"type": "Expression"
+						},
+						"Image": {
+							"value": "@variables('failed_image')",
+							"type": "Expression"
+						},
+						"Message_title": "ODW - Master pipeline failed",
+						"Message_subtitle": "ODW failed to load data from service bus"
+					}
+				}
+			},
+			{
+				"name": "Send progressing to load curated",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Service bus loads",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_utl_Send_Teams_Message",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"dataFactorySubscription": {
+							"value": "@variables('subscription_id')",
+							"type": "Expression"
+						},
+						"dataFactoryResourceGroup": {
+							"value": "@variables('resource_group')",
+							"type": "Expression"
+						},
+						"pipelineRunId": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"teamsWebhookUrl": {
+							"value": "@variables('webhook_url')",
+							"type": "Expression"
+						},
+						"activityName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"activityMessage": "Loading curated layer",
+						"activityDuration": {
+							"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(variables('start_time'),'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(variables('start_time'),'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
+							"type": "Expression"
+						},
+						"activityStatus": "On Progress",
+						"Colour": {
+							"value": "@variables('on_progress_colour')",
+							"type": "Expression"
+						},
+						"Image": {
+							"value": "@variables('progress_image')",
+							"type": "Expression"
+						},
+						"Message_title": "ODW - Master pipeline progressing",
+						"Message_subtitle": "ODW is starting to load data to the curated layer"
+					}
+				}
+			},
+			{
+				"name": "Send curated failed",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Load curated data",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_utl_Send_Teams_Message",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"dataFactorySubscription": {
+							"value": "@variables('subscription_id')",
+							"type": "Expression"
+						},
+						"dataFactoryResourceGroup": {
+							"value": "@variables('resource_group')",
+							"type": "Expression"
+						},
+						"pipelineRunId": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"teamsWebhookUrl": {
+							"value": "@variables('webhook_url')",
+							"type": "Expression"
+						},
+						"activityName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"activityMessage": "Curated layer build failed",
+						"activityDuration": {
+							"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(variables('start_time'),'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(variables('start_time'),'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
+							"type": "Expression"
+						},
+						"activityStatus": "Failed",
+						"Colour": {
+							"value": "@variables('failed_colour')",
+							"type": "Expression"
+						},
+						"Image": {
+							"value": "@variables('failed_image')",
+							"type": "Expression"
+						},
+						"Message_title": "ODW - Master pipeline failed",
+						"Message_subtitle": "ODW failed to load data to curated layer"
+					}
+				}
+			},
+			{
+				"name": "Send completion notification",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Load curated data",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_utl_Send_Teams_Message",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"dataFactorySubscription": {
+							"value": "@variables('subscription_id')",
+							"type": "Expression"
+						},
+						"dataFactoryResourceGroup": {
+							"value": "@variables('resource_group')",
+							"type": "Expression"
+						},
+						"pipelineRunId": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"teamsWebhookUrl": {
+							"value": "@variables('webhook_url')",
+							"type": "Expression"
+						},
+						"activityName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"activityMessage": "Master pipeline run complete",
+						"activityDuration": {
+							"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(variables('start_time'),'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(variables('start_time'),'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
+							"type": "Expression"
+						},
+						"activityStatus": "Completed",
+						"Colour": {
+							"value": "@variables('completed_colour')",
+							"type": "Expression"
+						},
+						"Image": {
+							"value": "@variables('completed_image')",
+							"type": "Expression"
+						},
+						"Message_title": "ODW - Master pipeline completed",
+						"Message_subtitle": "The master pipeline for loading data to ODW completed successfully."
+					}
+				}
+			},
+			{
+				"name": "Set subscription",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Get subscription",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": true,
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "subscription_id",
+					"value": {
+						"value": "@activity('Get subscription').output.value",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Set resource group",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Get resource group",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": true,
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "resource_group",
+					"value": {
+						"value": "@activity('Get resource group').output.value",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Set webhook",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Get Webhook",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": true,
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "webhook_url",
+					"value": {
+						"value": "@activity('Get Webhook').output.value",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Get subscription",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "Set start time",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": true,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "GET",
+					"url": {
+						"value": "@concat(variables('Key_Vault_Url'), 'SubscriptionId',variables('Key_Vault_API'))",
+						"type": "Expression"
+					},
+					"connectVia": {
+						"referenceName": "AutoResolveIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"authentication": {
+						"type": "MSI",
+						"resource": "https://vault.azure.net"
+					}
+				}
+			},
+			{
+				"name": "Get Webhook",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "Set start time",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": true,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "GET",
+					"url": {
+						"value": "@concat(variables('Key_Vault_Url'), 'TeamsWebhook',variables('Key_Vault_API'))",
+						"type": "Expression"
+					},
+					"connectVia": {
+						"referenceName": "AutoResolveIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"authentication": {
+						"type": "MSI",
+						"resource": "https://vault.azure.net"
+					}
+				}
+			},
+			{
+				"name": "Get resource group",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "Set start time",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": true,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "GET",
+					"url": {
+						"value": "@concat(variables('Key_Vault_Url'), 'DBResourceGroup',variables('Key_Vault_API'))",
+						"type": "Expression"
+					},
+					"connectVia": {
+						"referenceName": "AutoResolveIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"authentication": {
+						"type": "MSI",
+						"resource": "https://vault.azure.net"
+					}
+				}
+			}
+		],
+		"variables": {
+			"service_bus_feeds": {
+				"type": "String"
+			},
+			"webhook_url": {
+				"type": "String"
+			},
+			"subscription_id": {
+				"type": "String"
+			},
+			"resource_group": {
+				"type": "String"
+			},
+			"starting_colour": {
+				"type": "String",
+				"defaultValue": "27AEB7"
+			},
+			"on_progress_colour": {
+				"type": "String",
+				"defaultValue": "D9D9D9"
+			},
+			"failed_colour": {
+				"type": "String",
+				"defaultValue": "FF0303"
+			},
+			"start_time": {
+				"type": "String"
+			},
+			"starting_image": {
+				"type": "String",
+				"defaultValue": "https://tse1.mm.bing.net/th?q=Go+Green+Light+PNG&w=120&h=120&c=1&rs=1&qlt=90&cb=1&dpr=1.5&pid=InlineBlock&mkt=en-GB&cc=GB&setlang=en&adlt=strict&t=1&mw=247"
+			},
+			"progress_image": {
+				"type": "String",
+				"defaultValue": "https://tse2.mm.bing.net/th/id/OIP.1-FXYnONJTX2Hxzqf3wERAAAAA?w=192&h=190&c=7&r=0&o=5&dpr=1.5&pid=1.7"
+			},
+			"warning_image": {
+				"type": "String",
+				"defaultValue": "https://tse2.mm.bing.net/th/id/OIP.FCX8ixVm5MGoziIpTpdTJwHaMc?w=115&h=184&c=7&r=0&o=5&dpr=1.5&pid=1.7"
+			},
+			"failed_image": {
+				"type": "String",
+				"defaultValue": "https://tse4.mm.bing.net/th/id/OIP.QvdayQCDbhZL5DsXkaBObwAAAA?w=160&h=180&c=7&r=0&o=5&dpr=1.5&pid=1.7"
+			},
+			"warning_colour": {
+				"type": "String",
+				"defaultValue": "FE9000"
+			},
+			"completed_colour": {
+				"type": "String",
+				"defaultValue": "0AFCA8"
+			},
+			"completed_image": {
+				"type": "String",
+				"defaultValue": "https://tse3.mm.bing.net/th/id/OIP.YbfIXY-IWYnBkzHvhrXiXAHaHa?w=177&h=180&c=7&r=0&o=5&dpr=1.5&pid=1.7"
+			},
+			"Key_Vault_Url": {
+				"type": "String",
+				"defaultValue": "https://pinskvsynwodwdevuks.vault.azure.net/secrets/"
+			},
+			"Key_Vault_API": {
+				"type": "String",
+				"defaultValue": "?api-version=7.0"
+			}
+		},
+		"folder": {
+			"name": "utils/Master"
+		},
+		"annotations": []
+	}
+}

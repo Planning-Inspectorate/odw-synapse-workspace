@@ -1,0 +1,119 @@
+{
+	"name": "pln_utl_Send_Teams_Message",
+	"properties": {
+		"description": "Use this pipeline template to send notification on a teams channel. \n\nhttps://adf.azure.com/en-us/monitoring/pipelineruns/f90465ff-b8ea-4f0f-9110-178164bc8ee4?factory=/subscriptions/7b68d2b5-dfbe-46e1-938f-98ed143b7953/resourceGroups/demo101-rg/providers/Microsoft.DataFactory/factories/demofactory101",
+		"activities": [
+			{
+				"name": "Set Facts",
+				"description": "Details on Fact schema for teams messages: https://adaptivecards.io/explorer/Fact.html",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "messageCardString",
+					"value": {
+						"value": "{\n    \"@type\": \"MessageCard\",\n    \"@context\": \"http://schema.org/extensions\",\n    \"themeColor\": \"@{pipeline().parameters.Colour}\",\n    \"summary\": \"Pipeline status alert message​​​​\",\n    \"sections\": [\n        {\n            \"activityTitle\": \"@{pipeline().parameters.Message_title}​​​​\",\n            \"activitySubtitle\": \"@{pipeline().parameters.Message_subtitle}\",\n            \"activityImage\": \"@{pipeline().parameters.Image}\",\n            \"facts\": [\n                {\n                    \"name\": \"Pipeline RunId:\",\n                    \"value\": \"@{pipeline().parameters.pipelineRunId}\"\n                },\n                {\n                    \"name\": \"Activity name:\",\n                    \"value\": \"@{pipeline().parameters.activityName}\"\n                },\n                {\n                    \"name\": \"Activity status:\",\n                    \"value\": \"@{pipeline().parameters.activityStatus}\"\n                },\n                {\n                    \"name\": \"Pipeline duration:\",\n                    \"value\": \"@{pipeline().parameters.activityDuration}\"\n                },\n                {\n                    \"name\": \"Message\",\n                    \"value\": \"@{pipeline().parameters.activityMessage}\"\n                },\n                {\n                    \"name\": \"Notification time (UTC):\",\n                    \"value\": \"@{utcNow()}\"\n                },\n                {\n                    \"name\": \"Data Factory name:\",\n                    \"value\": \"@{pipeline().DataFactory}\"\n                }\n            ],\n            \"markdown\": true\n        }\n    ],\n    \"potentialAction\": [\n        {\n            \"@type\": \"OpenUri\",\n            \"name\": \"View pipeline run\",\n            \"targets\": [\n                {\n                    \"os\": \"default\",\n                    \"uri\": \"@{concat('https://web.azuresynapse.net/en/monitoring/pipelineruns/',pipeline().parameters.pipelineRunId,'?workspace=/subscriptions/',pipeline().parameters.dataFactorySubscription,'/resourceGroups/',pipeline().parameters.dataFactoryResourceGroup,'/providers/Microsoft.Synapse/workspaces/',pipeline().DataFactory,'&filter.pipelinename=', pipeline().parameters.activityName)}\"\n                }\n            ]\n        }\n    ]\n}",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Call Teams Webhook",
+				"description": "Invokes teams channel's webbook.",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "Set Facts",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "POST",
+					"url": {
+						"value": "@pipeline().parameters.teamsWebhookUrl",
+						"type": "Expression"
+					},
+					"connectVia": {
+						"referenceName": "AutoResolveIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"body": {
+						"value": "@json(variables('messageCardString'))",
+						"type": "Expression"
+					}
+				}
+			}
+		],
+		"parameters": {
+			"dataFactorySubscription": {
+				"type": "string",
+				"defaultValue": "<Update value>"
+			},
+			"dataFactoryResourceGroup": {
+				"type": "string",
+				"defaultValue": "<Update value>"
+			},
+			"pipelineRunId": {
+				"type": "string",
+				"defaultValue": "Overwrite the value from the calling activity "
+			},
+			"teamsWebhookUrl": {
+				"type": "string",
+				"defaultValue": "<Update value>"
+			},
+			"activityName": {
+				"type": "string",
+				"defaultValue": "Overwrite the value from the calling activity "
+			},
+			"activityMessage": {
+				"type": "string",
+				"defaultValue": "Overwrite the value from the calling activity "
+			},
+			"activityDuration": {
+				"type": "string",
+				"defaultValue": "Overwrite the value from the calling activity "
+			},
+			"activityStatus": {
+				"type": "string",
+				"defaultValue": "Failed"
+			},
+			"Colour": {
+				"type": "string",
+				"defaultValue": "0076D7"
+			},
+			"Image": {
+				"type": "string"
+			},
+			"Message_title": {
+				"type": "string"
+			},
+			"Message_subtitle": {
+				"type": "string"
+			}
+		},
+		"variables": {
+			"messageCardString": {
+				"type": "String"
+			}
+		},
+		"folder": {
+			"name": "utils/Master"
+		},
+		"annotations": [],
+		"lastPublishTime": "2021-06-01T09:19:35Z"
+	}
+}

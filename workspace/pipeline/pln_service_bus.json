@@ -1,0 +1,1600 @@
+{
+	"name": "pln_service_bus",
+	"properties": {
+		"activities": [
+			{
+				"name": "Src to Raw",
+				"description": "Triggers Function App to read messages from Service Bus and write to odw-raw",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Record checking data on service bus",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_trigger_function_app",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"function_name": {
+							"value": "@variables('entity_name')",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "If New Messages",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Set number of messages received",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@greater(variables('Number_of_messages'), 0)",
+						"type": "Expression"
+					},
+					"ifFalseActivities": [
+						{
+							"name": "Record no messages found",
+							"type": "SynapseNotebook",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "py_utils_log_stage",
+									"type": "NotebookReference"
+								},
+								"parameters": {
+									"Stage": {
+										"value": "Warning",
+										"type": "string"
+									},
+									"PipelineName": {
+										"value": {
+											"value": "@variables('pipeline name')",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineRunID": {
+										"value": {
+											"value": "@pipeline().RunId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"Inserts": {
+										"value": "0",
+										"type": "int"
+									},
+									"Updates": {
+										"value": "0",
+										"type": "int"
+									},
+									"Deletes": {
+										"value": "0",
+										"type": "int"
+									},
+									"ErrorMessage": {
+										"value": {
+											"value": "@concat(variables('entity_name'), ': Zero messages found on service bus subscription')",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"StatusMessage": {
+										"value": "Warning",
+										"type": "string"
+									},
+									"PipelineTriggerID": {
+										"value": {
+											"value": "@pipeline().TriggerId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggerName": {
+										"value": {
+											"value": "@pipeline().TriggerName",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggerType": {
+										"value": {
+											"value": "@pipeline().TriggerType",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": {
+											"value": "@pipeline()?.TriggeredByPipelineName",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": {
+											"value": "@pipeline()?.TriggeredByPipelineRunId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"ActivityType": {
+										"value": "Pipeline",
+										"type": "string"
+									}
+								},
+								"snapshot": true,
+								"sparkPool": {
+									"referenceName": "pinssynspodw",
+									"type": "BigDataPoolReference"
+								},
+								"conf": {
+									"spark.dynamicAllocation.enabled": true,
+									"spark.dynamicAllocation.minExecutors": null,
+									"spark.dynamicAllocation.maxExecutors": null
+								},
+								"numExecutors": null
+							}
+						}
+					],
+					"ifTrueActivities": [
+						{
+							"name": "Raw to Std",
+							"description": "Ingests raw data into the standardised table",
+							"type": "SynapseNotebook",
+							"dependsOn": [
+								{
+									"activity": "Record raw to std",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "py_raw_to_std",
+									"type": "NotebookReference"
+								},
+								"parameters": {
+									"source_folder": {
+										"value": "ServiceBus",
+										"type": "string"
+									},
+									"source_frequency_folder": {
+										"value": {
+											"value": "@variables('entity_name')",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"specific_file": {
+										"value": {
+											"value": "@variables('entity_name')",
+											"type": "Expression"
+										},
+										"type": "string"
+									}
+								},
+								"snapshot": true,
+								"conf": {
+									"spark.dynamicAllocation.enabled": null,
+									"spark.dynamicAllocation.minExecutors": null,
+									"spark.dynamicAllocation.maxExecutors": null
+								},
+								"numExecutors": null
+							}
+						},
+						{
+							"name": "JSON to CSV",
+							"description": "Converts the messages stored in json format to csv format",
+							"type": "SynapseNotebook",
+							"dependsOn": [
+								{
+									"activity": "Record progressing to convert json to csv",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "py_service_bus_json_to_csv",
+									"type": "NotebookReference"
+								},
+								"parameters": {
+									"source_folder": {
+										"value": "ServiceBus",
+										"type": "string"
+									},
+									"source_frequency_folder": {
+										"value": {
+											"value": "@variables('entity_name')",
+											"type": "Expression"
+										},
+										"type": "string"
+									}
+								},
+								"snapshot": true,
+								"conf": {
+									"spark.dynamicAllocation.enabled": null,
+									"spark.dynamicAllocation.minExecutors": null,
+									"spark.dynamicAllocation.maxExecutors": null
+								},
+								"numExecutors": null
+							}
+						},
+						{
+							"name": "Std to Hrm",
+							"description": "Ingests standardised data into the harmonised table",
+							"type": "SynapseNotebook",
+							"dependsOn": [
+								{
+									"activity": "Record std to hrm",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "py_std_to_hrm",
+									"type": "NotebookReference"
+								},
+								"parameters": {
+									"entity_name": {
+										"value": {
+											"value": "@variables('entity_name')",
+											"type": "Expression"
+										},
+										"type": "string"
+									}
+								},
+								"snapshot": true,
+								"conf": {
+									"spark.dynamicAllocation.enabled": null,
+									"spark.dynamicAllocation.minExecutors": null,
+									"spark.dynamicAllocation.maxExecutors": null
+								},
+								"numExecutors": null
+							}
+						},
+						{
+							"name": "Record number messages found",
+							"type": "SynapseNotebook",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "py_utils_log_stage",
+									"type": "NotebookReference"
+								},
+								"parameters": {
+									"Stage": {
+										"value": "OnProgress",
+										"type": "string"
+									},
+									"PipelineName": {
+										"value": {
+											"value": "@variables('pipeline name')",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineRunID": {
+										"value": {
+											"value": "@pipeline().RunId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"Inserts": {
+										"value": {
+											"value": "@variables('Number_of_messages')",
+											"type": "Expression"
+										},
+										"type": "int"
+									},
+									"Updates": {
+										"value": "0",
+										"type": "int"
+									},
+									"Deletes": {
+										"value": "0",
+										"type": "int"
+									},
+									"ErrorMessage": {
+										"value": " ",
+										"type": "string"
+									},
+									"StatusMessage": {
+										"value": {
+											"value": "@concat(variables('entity_name'), ': Messages found on service bus subscription')",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggerID": {
+										"value": {
+											"value": "@pipeline().TriggerId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggerName": {
+										"value": {
+											"value": "@pipeline().TriggerName",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggerType": {
+										"value": {
+											"value": "@pipeline().TriggerType",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": {
+											"value": "@pipeline()?.TriggeredByPipelineName",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": {
+											"value": "@pipeline()?.TriggeredByPipelineRunId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"ActivityType": {
+										"value": "Pipeline",
+										"type": "string"
+									}
+								},
+								"snapshot": true,
+								"sparkPool": {
+									"referenceName": "pinssynspodw",
+									"type": "BigDataPoolReference"
+								},
+								"conf": {
+									"spark.dynamicAllocation.enabled": true,
+									"spark.dynamicAllocation.minExecutors": null,
+									"spark.dynamicAllocation.maxExecutors": null
+								},
+								"numExecutors": null
+							}
+						},
+						{
+							"name": "Record progressing to convert json to csv",
+							"type": "SynapseNotebook",
+							"dependsOn": [
+								{
+									"activity": "Record number messages found",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "py_utils_log_stage",
+									"type": "NotebookReference"
+								},
+								"parameters": {
+									"Stage": {
+										"value": "OnProgress",
+										"type": "string"
+									},
+									"PipelineName": {
+										"value": {
+											"value": "@variables('pipeline name')",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineRunID": {
+										"value": {
+											"value": "@pipeline().RunId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"Inserts": {
+										"value": "0",
+										"type": "int"
+									},
+									"Updates": {
+										"value": "0",
+										"type": "int"
+									},
+									"Deletes": {
+										"value": "0",
+										"type": "int"
+									},
+									"ErrorMessage": {
+										"value": " ",
+										"type": "string"
+									},
+									"StatusMessage": {
+										"value": {
+											"value": "@concat(variables('entity_name'), ': Converting JSON to CSV')",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggerID": {
+										"value": {
+											"value": "@pipeline().TriggerId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggerName": {
+										"value": {
+											"value": "@pipeline().TriggerName",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggerType": {
+										"value": {
+											"value": "@pipeline().TriggerType",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": {
+											"value": "@pipeline()?.TriggeredByPipelineName",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": {
+											"value": "@pipeline()?.TriggeredByPipelineRunId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"ActivityType": {
+										"value": "Pipeline",
+										"type": "string"
+									}
+								},
+								"snapshot": true,
+								"sparkPool": {
+									"referenceName": "pinssynspodw",
+									"type": "BigDataPoolReference"
+								},
+								"conf": {
+									"spark.dynamicAllocation.enabled": true,
+									"spark.dynamicAllocation.minExecutors": null,
+									"spark.dynamicAllocation.maxExecutors": null
+								},
+								"numExecutors": null
+							}
+						},
+						{
+							"name": "Record raw to std",
+							"type": "SynapseNotebook",
+							"dependsOn": [
+								{
+									"activity": "JSON to CSV",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "py_utils_log_stage",
+									"type": "NotebookReference"
+								},
+								"parameters": {
+									"Stage": {
+										"value": "OnProgress",
+										"type": "string"
+									},
+									"PipelineName": {
+										"value": {
+											"value": "@variables('pipeline name')",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineRunID": {
+										"value": {
+											"value": "@pipeline().RunId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"Inserts": {
+										"value": "0",
+										"type": "int"
+									},
+									"Updates": {
+										"value": "0",
+										"type": "int"
+									},
+									"Deletes": {
+										"value": "0",
+										"type": "int"
+									},
+									"ErrorMessage": {
+										"value": " ",
+										"type": "string"
+									},
+									"StatusMessage": {
+										"value": {
+											"value": "@concat(variables('entity_name'), ': Processing raw CSV to standardised')",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggerID": {
+										"value": {
+											"value": "@pipeline().TriggerId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggerName": {
+										"value": {
+											"value": "@pipeline().TriggerName",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggerType": {
+										"value": {
+											"value": "@pipeline().TriggerType",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": {
+											"value": "@pipeline()?.TriggeredByPipelineName",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": {
+											"value": "@pipeline()?.TriggeredByPipelineRunId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"ActivityType": {
+										"value": "Pipeline",
+										"type": "string"
+									}
+								},
+								"snapshot": true,
+								"sparkPool": {
+									"referenceName": "pinssynspodw",
+									"type": "BigDataPoolReference"
+								},
+								"conf": {
+									"spark.dynamicAllocation.enabled": true,
+									"spark.dynamicAllocation.minExecutors": null,
+									"spark.dynamicAllocation.maxExecutors": null
+								},
+								"numExecutors": null
+							}
+						},
+						{
+							"name": "Record std to hrm",
+							"type": "SynapseNotebook",
+							"dependsOn": [
+								{
+									"activity": "Raw to Std",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "py_utils_log_stage",
+									"type": "NotebookReference"
+								},
+								"parameters": {
+									"Stage": {
+										"value": "OnProgress",
+										"type": "string"
+									},
+									"PipelineName": {
+										"value": {
+											"value": "@variables('pipeline name')",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineRunID": {
+										"value": {
+											"value": "@pipeline().RunId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"Inserts": {
+										"value": "0",
+										"type": "int"
+									},
+									"Updates": {
+										"value": "0",
+										"type": "int"
+									},
+									"Deletes": {
+										"value": "0",
+										"type": "int"
+									},
+									"ErrorMessage": {
+										"value": " ",
+										"type": "string"
+									},
+									"StatusMessage": {
+										"value": {
+											"value": "@concat(variables('entity_name'), ': Processing standardised to harmonised')",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggerID": {
+										"value": {
+											"value": "@pipeline().TriggerId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggerName": {
+										"value": {
+											"value": "@pipeline().TriggerName",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggerType": {
+										"value": {
+											"value": "@pipeline().TriggerType",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": {
+											"value": "@pipeline()?.TriggeredByPipelineName",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": {
+											"value": "@pipeline()?.TriggeredByPipelineRunId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"ActivityType": {
+										"value": "Pipeline",
+										"type": "string"
+									}
+								},
+								"snapshot": true,
+								"sparkPool": {
+									"referenceName": "pinssynspodw",
+									"type": "BigDataPoolReference"
+								},
+								"conf": {
+									"spark.dynamicAllocation.enabled": true,
+									"spark.dynamicAllocation.minExecutors": null,
+									"spark.dynamicAllocation.maxExecutors": null
+								},
+								"numExecutors": null
+							}
+						},
+						{
+							"name": "Record convert json to csv failed",
+							"type": "SynapseNotebook",
+							"dependsOn": [
+								{
+									"activity": "JSON to CSV",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "py_utils_log_stage",
+									"type": "NotebookReference"
+								},
+								"parameters": {
+									"Stage": {
+										"value": "Fail",
+										"type": "string"
+									},
+									"PipelineName": {
+										"value": {
+											"value": "@variables('pipeline name')",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineRunID": {
+										"value": {
+											"value": "@pipeline().RunId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"Inserts": {
+										"value": "0",
+										"type": "int"
+									},
+									"Updates": {
+										"value": "0",
+										"type": "int"
+									},
+									"Deletes": {
+										"value": "0",
+										"type": "int"
+									},
+									"ErrorMessage": {
+										"value": {
+											"value": "@activity('JSON to CSV').Error.message ",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"StatusMessage": {
+										"value": {
+											"value": "@concat(variables('entity_name'), ': Converting JSON to CSV failed')",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggerID": {
+										"value": {
+											"value": "@pipeline().TriggerId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggerName": {
+										"value": {
+											"value": "@pipeline().TriggerName",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggerType": {
+										"value": {
+											"value": "@pipeline().TriggerType",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": {
+											"value": "@pipeline()?.TriggeredByPipelineName",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": {
+											"value": "@pipeline()?.TriggeredByPipelineRunId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"ActivityType": {
+										"value": "Pipeline",
+										"type": "string"
+									}
+								},
+								"snapshot": true,
+								"sparkPool": {
+									"referenceName": "pinssynspodw",
+									"type": "BigDataPoolReference"
+								},
+								"conf": {
+									"spark.dynamicAllocation.enabled": true,
+									"spark.dynamicAllocation.minExecutors": null,
+									"spark.dynamicAllocation.maxExecutors": null
+								},
+								"numExecutors": null
+							}
+						},
+						{
+							"name": "Record convert raw to std failed",
+							"type": "SynapseNotebook",
+							"dependsOn": [
+								{
+									"activity": "Raw to Std",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "py_utils_log_stage",
+									"type": "NotebookReference"
+								},
+								"parameters": {
+									"Stage": {
+										"value": "Fail",
+										"type": "string"
+									},
+									"PipelineName": {
+										"value": {
+											"value": "@variables('pipeline name')",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineRunID": {
+										"value": {
+											"value": "@pipeline().RunId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"Inserts": {
+										"value": "0",
+										"type": "int"
+									},
+									"Updates": {
+										"value": "0",
+										"type": "int"
+									},
+									"Deletes": {
+										"value": "0",
+										"type": "int"
+									},
+									"ErrorMessage": {
+										"value": {
+											"value": "@activity('Raw to Std').Error.message ",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"StatusMessage": {
+										"value": {
+											"value": "@concat(variables('entity_name'), ': Raw to Std failed')",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggerID": {
+										"value": {
+											"value": "@pipeline().TriggerId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggerName": {
+										"value": {
+											"value": "@pipeline().TriggerName",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggerType": {
+										"value": {
+											"value": "@pipeline().TriggerType",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": {
+											"value": "@pipeline()?.TriggeredByPipelineName",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": {
+											"value": "@pipeline()?.TriggeredByPipelineRunId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"ActivityType": {
+										"value": "Pipeline",
+										"type": "string"
+									}
+								},
+								"snapshot": true,
+								"sparkPool": {
+									"referenceName": "pinssynspodw",
+									"type": "BigDataPoolReference"
+								},
+								"conf": {
+									"spark.dynamicAllocation.enabled": true,
+									"spark.dynamicAllocation.minExecutors": null,
+									"spark.dynamicAllocation.maxExecutors": null
+								},
+								"numExecutors": null
+							}
+						},
+						{
+							"name": "Record convert std to hrm failed",
+							"type": "SynapseNotebook",
+							"dependsOn": [
+								{
+									"activity": "Std to Hrm",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "py_utils_log_stage",
+									"type": "NotebookReference"
+								},
+								"parameters": {
+									"Stage": {
+										"value": "Fail",
+										"type": "string"
+									},
+									"PipelineName": {
+										"value": {
+											"value": "@variables('pipeline name')",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineRunID": {
+										"value": {
+											"value": "@pipeline().RunId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"Inserts": {
+										"value": "0",
+										"type": "int"
+									},
+									"Updates": {
+										"value": "0",
+										"type": "int"
+									},
+									"Deletes": {
+										"value": "0",
+										"type": "int"
+									},
+									"ErrorMessage": {
+										"value": {
+											"value": "@activity('Std to Hrm').Error.message ",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"StatusMessage": {
+										"value": {
+											"value": "@concat(variables('entity_name'), ': Std to Hrm failed')",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggerID": {
+										"value": {
+											"value": "@pipeline().TriggerId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggerName": {
+										"value": {
+											"value": "@pipeline().TriggerName",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggerType": {
+										"value": {
+											"value": "@pipeline().TriggerType",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": {
+											"value": "@pipeline()?.TriggeredByPipelineName",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": {
+											"value": "@pipeline()?.TriggeredByPipelineRunId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"ActivityType": {
+										"value": "Pipeline",
+										"type": "string"
+									}
+								},
+								"snapshot": true,
+								"sparkPool": {
+									"referenceName": "pinssynspodw",
+									"type": "BigDataPoolReference"
+								},
+								"conf": {
+									"spark.dynamicAllocation.enabled": true,
+									"spark.dynamicAllocation.minExecutors": null,
+									"spark.dynamicAllocation.maxExecutors": null
+								},
+								"numExecutors": null
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Set entity_name",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "entity_name",
+					"value": {
+						"value": "@replace(replace(pipeline().parameters.entity_name_input, '[''', ''), ''']', '')",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Record checking data on service bus",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Record starting service bus stage",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_utils_log_stage",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"Stage": {
+							"value": "OnProgress",
+							"type": "string"
+						},
+						"PipelineName": {
+							"value": {
+								"value": "@variables('pipeline name')",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineRunID": {
+							"value": {
+								"value": "@pipeline().RunId",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"Inserts": {
+							"value": "0",
+							"type": "int"
+						},
+						"Updates": {
+							"value": "0",
+							"type": "int"
+						},
+						"Deletes": {
+							"value": "0",
+							"type": "int"
+						},
+						"ErrorMessage": {
+							"value": "",
+							"type": "string"
+						},
+						"StatusMessage": {
+							"value": {
+								"value": "@concat(variables('entity_name'), ': Checking service bus subscription for messages')",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggerID": {
+							"value": {
+								"value": "@pipeline().TriggerId",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggerName": {
+							"value": {
+								"value": "@pipeline().TriggerName",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggerType": {
+							"value": {
+								"value": "@pipeline().TriggerType",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": {
+								"value": "@pipeline()?.TriggeredByPipelineName",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": {
+								"value": "@pipeline()?.TriggeredByPipelineRunId",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"ActivityType": {
+							"value": "Pipeline",
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"sparkPool": {
+						"referenceName": "pinssynspodw",
+						"type": "BigDataPoolReference"
+					},
+					"conf": {
+						"spark.dynamicAllocation.enabled": true,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Set number of messages received",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Src to Raw",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "Number_of_messages",
+					"value": {
+						"value": "@int(coalesce(activity('Src to Raw').output.pipelineReturnValue.Messages, '0'))",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Record starting service bus stage",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Set pipeline name",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_utils_log_stage",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"Stage": {
+							"value": "OnProgress",
+							"type": "string"
+						},
+						"PipelineName": {
+							"value": {
+								"value": "@variables('pipeline name')",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineRunID": {
+							"value": {
+								"value": "@pipeline().RunId",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"Inserts": {
+							"value": "0",
+							"type": "int"
+						},
+						"Updates": {
+							"value": "0",
+							"type": "int"
+						},
+						"Deletes": {
+							"value": "0",
+							"type": "int"
+						},
+						"ErrorMessage": {
+							"value": "",
+							"type": "string"
+						},
+						"StatusMessage": {
+							"value": {
+								"value": "@concat('Progressing to load service bus: ', variables('entity_name'))",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggerID": {
+							"value": {
+								"value": "@pipeline().TriggerId",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggerName": {
+							"value": {
+								"value": "@pipeline().TriggerName",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggerType": {
+							"value": {
+								"value": "@pipeline().TriggerType",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": {
+								"value": "@pipeline()?.TriggeredByPipelineName",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": {
+								"value": "@pipeline()?.TriggeredByPipelineRunId",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"ActivityType": {
+							"value": "Pipeline",
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"sparkPool": {
+						"referenceName": "pinssynspodw",
+						"type": "BigDataPoolReference"
+					},
+					"conf": {
+						"spark.dynamicAllocation.enabled": true,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Record service bus completion",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "If New Messages",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_utils_log_stage",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"Stage": {
+							"value": "Completion",
+							"type": "string"
+						},
+						"PipelineName": {
+							"value": {
+								"value": "@variables('pipeline name')",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineRunID": {
+							"value": {
+								"value": "@pipeline().RunId",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"Inserts": {
+							"value": "0",
+							"type": "int"
+						},
+						"Updates": {
+							"value": "0",
+							"type": "int"
+						},
+						"Deletes": {
+							"value": "0",
+							"type": "int"
+						},
+						"ErrorMessage": {
+							"value": "",
+							"type": "string"
+						},
+						"StatusMessage": {
+							"value": {
+								"value": "@concat('Progressing to load service bus: ', variables('entity_name'))",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggerID": {
+							"value": {
+								"value": "@pipeline().TriggerId",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggerName": {
+							"value": {
+								"value": "@pipeline().TriggerName",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggerType": {
+							"value": {
+								"value": "@pipeline().TriggerType",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": {
+								"value": "@pipeline()?.TriggeredByPipelineName",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": {
+								"value": "@pipeline()?.TriggeredByPipelineRunId",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"ActivityType": {
+							"value": "Pipeline",
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"sparkPool": {
+						"referenceName": "pinssynspodw",
+						"type": "BigDataPoolReference"
+					},
+					"conf": {
+						"spark.dynamicAllocation.enabled": true,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Set pipeline name",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Set entity_name",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "pipeline name",
+					"value": {
+						"value": "@concat(concat(pipeline().Pipeline, ' - '), variables('entity_name'))",
+						"type": "Expression"
+					}
+				}
+			}
+		],
+		"parameters": {
+			"entity_name_input": {
+				"type": "string",
+				"defaultValue": "['nsip-representation']"
+			}
+		},
+		"variables": {
+			"entity_name": {
+				"type": "String",
+				"defaultValue": "test"
+			},
+			"Number_of_messages": {
+				"type": "Integer",
+				"defaultValue": 0
+			},
+			"pipeline name": {
+				"type": "String",
+				"defaultValue": "test"
+			}
+		},
+		"folder": {
+			"name": "utils/Master"
+		},
+		"annotations": []
+	}
+}
