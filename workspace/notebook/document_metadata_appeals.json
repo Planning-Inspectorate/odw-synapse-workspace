@@ -1,0 +1,182 @@
+{
+	"name": "document_metadata_appeals",
+	"properties": {
+		"folder": {
+			"name": "odw-curated"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "0236714b-5b6e-49b4-b3c7-2842b75fca7f"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.3",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"CREATE OR REPLACE VIEW odw_curated_db.vw_appeals_document_metadata\n",
+					"\n",
+					"AS\n",
+					"\n",
+					"SELECT DISTINCT \n",
+					"ADM.documentId\t                        AS documentId,\n",
+					"CAST(ADM.caseId AS INT)\t            AS caseId,\n",
+					"ADM.caseReference\t                    AS caseReference,\n",
+					"CAST(ADM.Version AS INT)                 AS version,\n",
+					"ADM.filename\t                                AS filename,\n",
+					"ADM.filename\t                                AS originalFilename,\n",
+					"CAST(ADM.size AS INT)\t            AS size,\n",
+					"ADM.mime\t                            AS mime,\n",
+					"ADM.DocumentURI\t                        AS documentURI,\n",
+					"ADM.DocumentURI\t\t                    AS publishedDocumentURI,\n",
+					"ADM.virusCheckStatus\t                    AS virusCheckStatus,\n",
+					"ADM.fileMd5\t                            AS fileMD5,\n",
+					"CAST(ADM.dateCreated AS TIMESTAMP)\t    AS dateCreated,\n",
+					"CAST(ADM.lastModified AS TIMESTAMP)\t    AS lastModified,\n",
+					"LOWER(ADM.caseType)\t                AS caseType,\n",
+					"CASE\n",
+					"    WHEN ADM.redactedStatus = ' '   \n",
+					"    THEN '-1'\n",
+					"    ELSE ADM.redactedStatus                \n",
+					"END                                     AS redactedStatus,\n",
+					"CASE\n",
+					"    WHEN ADM.PublishedStatus = 'Depublished'\n",
+					"    THEN 'unpublished'\n",
+					"    ELSE REPLACE(\n",
+					"        LOWER(ADM.PublishedStatus),\n",
+					"        ' ',\n",
+					"        '_')\n",
+					"END                  \t                AS publishedStatus,\n",
+					"CAST(ADM.DatePublished AS TIMESTAMP)\t    AS datePublished,\n",
+					"ADM.DocumentType\t                        AS documentType,\n",
+					"'-1'\t                                    AS securityClassification,\n",
+					"ADM.SourceSystem\t                        AS sourceSystem,\n",
+					"CASE\n",
+					"    WHEN ADM.origin  = ' '\n",
+					"    THEN '-1'\n",
+					"    ELSE ADM.origin\n",
+					"END\t                                    AS origin,\n",
+					"ADM.owner                               AS owner,\n",
+					"ADM.Author\t                            AS author,\n",
+					"ADM.description\t                AS description,\n",
+					"CASE\n",
+					"    WHEN ADM.caseStage = \"Developer's Application\"\n",
+					"    THEN 'developers_application'\n",
+					"    WHEN ADM.caseStage = 'Post decision'\n",
+					"    THEN 'post_decision'\n",
+					"    ELSE LOWER(ADM.caseStage)\t            \n",
+					"END                                     AS caseStage,\n",
+					"ADM.horizonFolderId\t                    AS horizonFolderId,\n",
+					"'-1'\t                                AS transcriptId\t\n",
+					"\n",
+					"FROM odw_harmonised_db.appeals_document_metadata AS ADM\n",
+					"WHERE ADM.IsActive = 'Y'"
+				],
+				"execution_count": 23
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"spark.sql(f\"drop table if exists odw_curated_db.appeals_document_metadata;\")"
+				],
+				"execution_count": 24
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"This table has a column \"transcriptId\" which is set to NULL. The column is in the json schema but is not in any of the source data sets (yet). The spark data type is set to \"void\" as there is no data in the column and this prevents the table being created using SQL create table as delta command. Setting this column to StringType and creating the table using spark instead avoids this issue."
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql import SparkSession\r\n",
+					"from pyspark.sql.types import StringType\r\n",
+					"spark = SparkSession.builder.getOrCreate()\r\n",
+					"view_df = spark.sql(\"SELECT * FROM odw_curated_db.vw_appeals_document_metadata\")\r\n",
+					"view_df2 = view_df.withColumn(\"transcriptId\", view_df[\"transcriptId\"].cast(StringType()))\r\n",
+					"view_df2.write.mode(\"overwrite\").saveAsTable(\"odw_curated_db.appeals_document_metadata\")\r\n",
+					"print(\"Table created\")"
+				],
+				"execution_count": 25
+			}
+		]
+	}
+}
