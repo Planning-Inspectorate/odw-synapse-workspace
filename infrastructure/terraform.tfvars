@@ -3,8 +3,12 @@
 
 odt_appeals_back_office_sb_topic_subscriptions = [
   {
-    subscription_name = "appeal-odw-sub"
-    topic_name        = "appeal"
+    subscription_name = "appeal-has-odw-sub"
+    topic_name        = "appeal-has"
+  },
+  {
+    subscription_name = "appeal-s78-odw-sub"
+    topic_name        = "appeal-s78"
   },
   {
     subscription_name = "appeal-document-odw-sub"
