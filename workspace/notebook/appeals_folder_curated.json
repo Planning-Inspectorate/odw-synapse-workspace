@@ -1,0 +1,186 @@
+{
+	"name": "appeals_folder_curated",
+	"properties": {
+		"folder": {
+			"name": "odw-curated"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "da9c48fb-7a34-458b-bde8-2a508cf4deb9"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.3",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## View odw_curated_db.vw_appeals_folder_curated is created"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"\n",
+					"%%sql\n",
+					"\n",
+					"CREATE OR REPLACE VIEW vw_appeals_folder_curated\n",
+					"\n",
+					"    AS\n",
+					"\n",
+					"SELECT DISTINCT\n",
+					"\n",
+					"    -- CAST(LFD.HorizonFolderID AS INT)    AS horizonFolderId,\n",
+					"    CAST(LFD.ID AS INT)                 AS id,\n",
+					"    LFD.CaseReference                   AS caseReference,\n",
+					"    LFD.DisplayNameEnglish              AS displayNameEnglish,\n",
+					"    LFD.DisplayNameWelsh                AS displayNameWelsh,\n",
+					"    CASE\n",
+					"        WHEN ParentFolderID = CaseNodeId\n",
+					"        THEN NULL\n",
+					"        ELSE CAST(LFD.ParentFolderID AS INT)     \n",
+					"        END                             AS parentFolderId,\n",
+					"    -- CAST(LFD.CaseNodeId AS INT)         AS caseNodeId,\n",
+					"    CASE\n",
+					"        WHEN LFD.caseStage = 'Pre-application'\n",
+					"        THEN 'pre-application'\n",
+					"        WHEN LFD.caseStage = 'Acceptance'\n",
+					"        THEN 'acceptance'\n",
+					"        WHEN LFD.caseStage = 'Pre-examination'\n",
+					"        THEN 'pre-examination'\n",
+					"        WHEN LFD.caseStage = 'Examination'\n",
+					"        THEN 'examination'\n",
+					"        WHEN LFD.caseStage = 'Recommendation'\n",
+					"        THEN 'recommendation'\n",
+					"        WHEN LFD.caseStage = 'Decision'\n",
+					"        THEN 'decision'\n",
+					"        WHEN LFD.caseStage = 'Post decision'\n",
+					"        THEN 'post_decision'\n",
+					"        WHEN LFD.caseStage = 'Withdrawn'\n",
+					"        THEN 'withdrawn'\n",
+					"        ELSE Lower(LFD.caseStage)\n",
+					"        END                            AS caseStage\n",
+					"\n",
+					"FROM odw_harmonised_db.appeals_folder   AS LFD\n",
+					"\n",
+					"-- WHERE LEFT(LFD.CaseReference,3) IN (\"TR0\",\"WW0\",\"BC0\",\"WA0\",\"WS0\",\"EN0\");\n",
+					""
+				],
+				"execution_count": 8
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"spark.sql(f\"drop table if exists odw_curated_db.appeals_folder_curated;\")"
+				],
+				"execution_count": 9
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Table odw_curated_db.appeals_folder_curated is created"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql import SparkSession\n",
+					"spark = SparkSession.builder.getOrCreate()\n",
+					"view_df = spark.sql('SELECT * FROM vw_appeals_folder_curated')\n",
+					"view_df.write.mode(\"overwrite\").saveAsTable('odw_curated_db.appeals_folder_curated')"
+				],
+				"execution_count": 10
+			}
+		]
+	}
+}
