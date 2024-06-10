@@ -54,6 +54,14 @@ function_app = [
   }
 ]
 
+horizon_integration_config = {
+  networking = {
+    resource_group_name  = "PREHZN"
+    vnet_name            = "VNPRE-10.0.0.0-16"
+    database_subnet_name = "SN-VNPRE-DB-10.0.3.0-24"
+  }
+}
+
 location = "uk-south"
 
 logic_app_enabled = false

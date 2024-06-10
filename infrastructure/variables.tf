@@ -136,6 +136,22 @@ variable "function_app" {
   type        = any
 }
 
+variable "horizon_subscription_id" {
+  description = "The subscription ID of the Horizon subscription"
+  type        = string
+}
+
+variable "horizon_integration_config" {
+  description = "The configuration for integration with Horizon and associated systems"
+  type = object({
+    networking = object({
+      resource_group_name  = string
+      vnet_name            = string
+      database_subnet_name = string
+    })
+  })
+}
+
 variable "key_vault_role_assignments" {
   default     = {}
   description = "An object mapping RBAC roles to principal IDs for Key Vault"

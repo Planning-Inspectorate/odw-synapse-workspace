@@ -29,3 +29,9 @@ provider "azurerm" {
   subscription_id = var.odt_subscription_id
   alias           = "odt"
 }
+
+provider "azurerm" {
+  features {}
+  subscription_id = var.horizon_subscription_id
+  alias           = "horizon"
+}

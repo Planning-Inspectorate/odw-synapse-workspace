@@ -54,6 +54,14 @@ function_app = [
   }
 ]
 
+horizon_integration_config = {
+  networking = {
+    resource_group_name  = "PRDHZN"
+    vnet_name            = "VNPRD-192.168.0.0-16"
+    database_subnet_name = "SN-VNPRD-DB-192.168.3.0-24"
+  }
+}
+
 location = "uk-south"
 
 logic_app_enabled = false
