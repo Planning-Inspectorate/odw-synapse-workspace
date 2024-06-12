@@ -1,0 +1,648 @@
+{
+	"name": "py_sb_std_to_hrm",
+	"properties": {
+		"folder": {
+			"name": "service-bus"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "3250f37f-b93c-4dea-8f8e-41b37d9723e9"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": true,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.3",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### The entity name\r\n",
+					"\r\n",
+					"This is populated by the pipeline parameter but for testing can be entered manually here"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"tags": [
+						"parameters"
+					]
+				},
+				"source": [
+					"entity_name = ''"
+				],
+				"execution_count": 147
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%run \"service-bus/py_spark_df_ingestion_functions\""
+				],
+				"execution_count": 149
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql import SparkSession\r\n",
+					"from notebookutils import mssparkutils\r\n",
+					"import json\r\n",
+					"from datetime import datetime, date\r\n",
+					"import pprint\r\n",
+					"from pyspark.sql import DataFrame\r\n",
+					"from pyspark.sql.types import *\r\n",
+					"from pyspark.sql.functions import col, when, lit, row_number, desc\r\n",
+					"from pyspark.sql.window import Window"
+				],
+				"execution_count": 108
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Create spark session and read the orchestration file and table definition from config"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"spark: SparkSession = SparkSession.builder.getOrCreate()\n",
+					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"harmonised_container: str = f\"abfss://odw-harmonised@{storage_account}lib/\"\n",
+					"path_to_orchestration_file: str = \"abfss://odw-config@\"+storage_account+\"orchestration/orchestration.json\"\n",
+					"df: DataFrame = spark.read.option(\"multiline\",\"true\").json(path_to_orchestration_file)\n",
+					"definitions: list = json.loads(df.toJSON().first())['definitions']\n",
+					"definition: dict = next((d for d in definitions if entity_name == d['Source_Filename_Start']), None)\n",
+					"if not definition:\n",
+					"    mssparkutils.notebook.exit(f\"Definition not found for {entity_name}\")"
+				],
+				"execution_count": 109
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Define variables for database, tables and keys"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"std_db: str = \"odw_standardised_db\"\n",
+					"hrm_db: str = \"odw_harmonised_db\"\n",
+					"\n",
+					"std_table: str = definition[\"Standardised_Table_Name\"]\n",
+					"hrm_table: str = definition[\"Harmonised_Table_Name\"]\n",
+					"\n",
+					"hrm_incremental_key: str = definition[\"Harmonised_Incremental_Key\"]\n",
+					"entity_primary_key: str = definition[\"Entity_Primary_Key\"]"
+				],
+				"execution_count": 112
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Utility functions\n",
+					"\n",
+					"`set_harmonised_master_columns`: Adds the master columns for the harmonised schema and drops the master columns of the standardised schema\n",
+					"\n",
+					"`insert_rows_in_df`: Insert new rows in an existing df while incrementing the incremental_key"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def set_harmonised_master_columns(df: DataFrame) -> DataFrame:\n",
+					"    source_system_df: DataFrame = spark.sql(f\"SELECT * FROM {hrm_db}.main_sourcesystem_fact WHERE Description = 'Casework' AND IsActive = 'Y'\")\n",
+					"    # Set source system ID\n",
+					"    df: DataFrame = df.withColumn(\"SourceSystemID\", lit(source_system_df.select('SourceSystemID').collect()[0][0]))\n",
+					"    # Set master column values\n",
+					"    df: DataFrame = df.withColumn(\"RowID\", lit(''))\n",
+					"    df: DataFrame = df.withColumn(\"Migrated\", lit('1'))\n",
+					"    df: DataFrame = df.withColumn(\"ODTSourceSystem\", lit('ODT'))\n",
+					"    df: DataFrame = df.withColumn(\"ValidTo\", lit(''))\n",
+					"    df: DataFrame = df.withColumn(\"IsActive\", lit('Y'))\n",
+					"    df: DataFrame = df.withColumn(hrm_incremental_key, lit(''))\n",
+					"    df: DataFrame = df.withColumn(\"IngestionDate\", col(\"message_enqueued_time_utc\"))\n",
+					"    # drop standardised columns from DataFrame\n",
+					"    df: DataFrame = df.drop(\"message_enqueued_time_utc\")\n",
+					"    df: DataFrame = df.drop(\"message_id\")\n",
+					"    df: DataFrame = df.drop(\"expected_from\")\n",
+					"    df: DataFrame = df.drop(\"expected_to\")\n",
+					"    \n",
+					"    return df"
+				],
+				"execution_count": 113
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def insert_rows_in_df(source_df: DataFrame, target_df: DataFrame, incremental_key: str) -> DataFrame:\r\n",
+					"    # appending the incremental key\r\n",
+					"    max_id: int = target_df.count()\r\n",
+					"\r\n",
+					"    w: Window = Window.orderBy(lit(1))\r\n",
+					"    source_df: DataFrame = source_df.withColumn(incremental_key, (max_id + row_number().over(w)).cast(\"string\"))\r\n",
+					"\r\n",
+					"    return target_df.union(source_df)"
+				],
+				"execution_count": 114
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Get the latest ingested data in Standardised"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Get the latest data from the standardised table and create dataframes containing:\r\n",
+					"\r\n",
+					"All of the data\r\n",
+					"Created messages\r\n",
+					"Updated messages\r\n",
+					"Deleted messages\r\n",
+					"\r\n",
+					"And a further dataframe containing the harmonised data which is the target to be merged with"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def get_latest_ingested_data() -> tuple:\n",
+					"    # latest_ingestion = spark.sql(f\"SELECT * FROM {std_db}.{std_table} WHERE expected_from = (SELECT MAX(expected_from) FROM {std_db}.{std_table}) ORDER BY message_enqueued_time_utc\")\n",
+					"    latest_ingestion: DataFrame = spark.sql(f\"SELECT * FROM {std_db}.{std_table}\")\n",
+					"    if latest_ingestion.count() == 0:\n",
+					"        mssparkutils.notebook.exit(f\"Standardised data not available for {entity_name}\")\n",
+					"\n",
+					"    # remove the column ingested_datetime and then remove duplicates\n",
+					"    latest_ingestion = latest_ingestion.drop(\"ingested_datetime\").dropDuplicates()\n",
+					"    latest_ingestion = set_harmonised_master_columns(latest_ingestion)\n",
+					"    # create dataframes for each message type and the target dataframe (the harmonised target table)\n",
+					"    create_df: DataFrame = latest_ingestion[latest_ingestion[\"message_type\"] == \"Create\"]\n",
+					"    update_df: DataFrame = latest_ingestion[latest_ingestion[\"message_type\"].isin([\"Update\", \"Publish\", \"Unpublish\"])]\n",
+					"    delete_df: DataFrame = latest_ingestion[latest_ingestion[\"message_type\"] == \"Delete\"]\n",
+					"    target_df: DataFrame = spark.table(f\"{hrm_db}.{hrm_table}\")\n",
+					"\n",
+					"    return (latest_ingestion,\n",
+					"            create_df, \n",
+					"            update_df,\n",
+					"            delete_df,\n",
+					"            target_df)"
+				],
+				"execution_count": 127
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"latest_ingestion, create_df, update_df, delete_df, target_df = get_latest_ingested_data()"
+				],
+				"execution_count": 120
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Drop the `message_type` column since it's not needed in the table, compare and merge the schema of latest ingestion and existing harmonised table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"latest_ingestion: DataFrame = latest_ingestion.drop(\"message_type\")\n",
+					"create_df: DataFrame = create_df.drop(\"message_type\").select(target_df.columns)\n",
+					"update_df: DataFrame = update_df.drop(\"message_type\").select(target_df.columns)\n",
+					"delete_df: DataFrame = delete_df.drop(\"message_type\").select(target_df.columns)"
+				],
+				"execution_count": 131
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"compare_and_merge_schema(latest_ingestion, f\"{hrm_db}.{hrm_table}\")"
+				],
+				"execution_count": 132
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Print counts of rows in each dataframe for reference"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"print(f\"Latest ingestion: {latest_ingestion.count()}\")\r\n",
+					"print(f\"Create: {create_df.count()}\")\r\n",
+					"print(f\"Update: {update_df.count()}\")\r\n",
+					"print(f\"Delete: {delete_df.count()}\")\r\n",
+					"print(f\"Target: {target_df.count()}\")"
+				],
+				"execution_count": 133
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Handling new rows"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"if create_df.count() > 0:\n",
+					"    target_df = insert_rows_in_df(create_df, target_df, hrm_incremental_key)\n",
+					"\n",
+					"print(f\"New rows: {create_df.count()}\\nTarget dataframe: {target_df.count()}\")"
+				],
+				"execution_count": 140
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Handling updated rows"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"if update_df.count() > 0:\n",
+					"    update_df = update_df.dropDuplicates().orderBy(\"IngestionDate\")\n",
+					"\n",
+					"    for row in update_df.collect():\n",
+					"        mask = (target_df[\"IsActive\"] == \"Y\") & (target_df[entity_primary_key] == row[entity_primary_key])\n",
+					"\n",
+					"        target_df = target_df.withColumn(\"ValidTo\", when(mask, row[\"IngestionDate\"]).otherwise(target_df[\"ValidTo\"]))\n",
+					"        target_df = target_df.withColumn(\"IsActive\", when(mask, \"N\").otherwise(target_df[\"IsActive\"]))\n",
+					"\n",
+					"        # Filter rows to insert\n",
+					"        rows_to_insert = spark.createDataFrame([row], target_df.schema)\n",
+					"        target_df = insert_rows_in_df(rows_to_insert, target_df, hrm_incremental_key)\n",
+					"\n",
+					"\n",
+					"print(f\"Updated rows: {update_df.count()}\\nTarget dataframe: {target_df.count()}\")"
+				],
+				"execution_count": 142
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Handling deleted rows"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"if delete_df.count() > 0:\n",
+					"\n",
+					"    for row in delete_df.collect():\n",
+					"        mask = (target_df['IsActive'] == 'Y') & (target_df[entity_primary_key] == row[entity_primary_key])\n",
+					"        target_df = target_df.withColumn('ValidTo', when(mask, row['IngestionDate']).otherwise(target_df['ValidTo']))\n",
+					"        target_df = target_df.withColumn('IsActive', when(mask, 'N').otherwise(target_df['IsActive']))\n",
+					"\n",
+					"print(f\"Deleted rows: {delete_df.count()}\\nTarget dataframe: {target_df.count()}\")"
+				],
+				"execution_count": 143
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### De-dupe the target dataframe based on a subset of columns, i.e. all columns apart from the incremental key and ValidTo"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"columns_to_consider = [c for c in target_df.columns if c not in [hrm_incremental_key, \"ValidTo\"]]\n",
+					"target_df = target_df.orderBy(hrm_incremental_key).dropDuplicates(subset=columns_to_consider).orderBy(\"IngestionDate\")"
+				],
+				"execution_count": 144
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Apply the target dataframe to the harmonised table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"apply_df_to_table(target_df, hrm_db, hrm_table)"
+				],
+				"execution_count": 146
+			}
+		]
+	}
+}

@@ -2,7 +2,7 @@
 	"name": "create_table_from_schema",
 	"properties": {
 		"folder": {
-			"name": "utils"
+			"name": "service-bus"
 		},
 		"nbformat": 4,
 		"nbformat_minor": 2,
@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "394fffc2-0234-46aa-a61b-f2ed127167a7"
+				"spark.autotune.trackingId": "ed342c47-d3a0-4562-8c06-2003bfad4733"
 			}
 		},
 		"metadata": {
@@ -75,20 +75,14 @@
 						"transient": {
 							"deleting": false
 						}
-					}
+					},
+					"tags": [
+						"parameters"
+					]
 				},
 				"source": [
-					"import pprint\r\n",
-					"from pyspark.sql.types import *\r\n",
-					"import json\r\n",
-					"from pyspark.sql.functions import col"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"schema = mssparkutils.notebook.run('/py_get_schema_from_url', 30, {'db_name': \"odw_standardised_db\", 'entity_name': \"folder\"})"
+					"db_name: str = ''\r\n",
+					"entity_name: str = ''"
 				],
 				"execution_count": null
 			},
@@ -106,25 +100,11 @@
 					}
 				},
 				"source": [
-					"spark_schema = StructType.fromJson(json.loads(schema))"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"pprint.pprint(spark_schema)"
+					"table_name_replace: str = entity_name.replace(\"-\", \"_\")\r\n",
+					"table_name: str = f\"sb_{table_name_replace}\"\r\n",
+					"full_table_name: str = f\"{db_name}.{table_name}\"\r\n",
+					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\r\n",
+					"path_to_orchestration_file: str = \"abfss://odw-config@\"+storage_account+\"orchestration/orchestration.json\""
 				],
 				"execution_count": null
 			},
@@ -142,18 +122,12 @@
 					}
 				},
 				"source": [
-					"fields = spark_schema.fields\r\n",
-					"\r\n",
-					"# Iterate over the fields and update the data type for the 'id' field\r\n",
-					"updated_fields = []\r\n",
-					"for field in fields:\r\n",
-					"    if field.name == 'id':\r\n",
-					"        updated_fields.append(StructField('id', LongType(), field.nullable))\r\n",
-					"    else:\r\n",
-					"        updated_fields.append(field)\r\n",
-					"\r\n",
-					"# Create a new schema with the updated field\r\n",
-					"new_schema = StructType(updated_fields)"
+					"import pprint\r\n",
+					"from pyspark.sql.types import *\r\n",
+					"import json\r\n",
+					"from pyspark.sql.functions import col\r\n",
+					"from pyspark.sql import DataFrame\r\n",
+					"from notebookutils import mssparkutils"
 				],
 				"execution_count": null
 			},
@@ -171,8 +145,11 @@
 					}
 				},
 				"source": [
-					"my_table = spark.createDataFrame([], schema=new_schema)\r\n",
-					"my_table.printSchema()"
+					"def test_table_exists(db_name: str, table_name: str) -> bool:\r\n",
+					"    spark.sql(f\"USE {db_name}\")\r\n",
+					"    tables_df: DataFrame = spark.sql(\"SHOW TABLES\")\r\n",
+					"    table_names: list = [row['tableName'] for row in tables_df.collect()]\r\n",
+					"    return table_name in table_names"
 				],
 				"execution_count": null
 			},
@@ -190,55 +167,8 @@
 					}
 				},
 				"source": [
-					"spark.sql(\"drop table if exists odw_standardised_db.folder_test_ct\")"
-				],
-				"execution_count": 1
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"my_table.write.saveAsTable(\"odw_standardised_db.folder_test_ct\")"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"collapsed": false
-				},
-				"source": [
-					"df = spark.createDataFrame([{\"id\":\"123456\",\r\n",
-					"                            \"caseReference\":\"EN0510012\",\r\n",
-					"                            \"displayNameEnglish\":\"Correspondence\",\r\n",
-					"                            \"displayNameWelsh\":\"Correspondence\",\r\n",
-					"                            \"parentFolderId\":\"12345\",\r\n",
-					"                            \"caseStage\":\"correspondence\",\r\n",
-					"                            \"ingested_datetime\": \"2024-05-03 12:00:00\",\r\n",
-					"                            \"expected_from\": \"2024-05-03 12:00:00\",\r\n",
-					"                            \"expected_to\": \"2024-05-03 12:00:00\",\r\n",
-					"                            \"message_type\": \"Create\",\r\n",
-					"                            \"message_enqueued_time_utc\": \"2024-05-03 12:00:00\"}])\r\n",
-					"df.printSchema()"
+					"if test_table_exists(db_name, table_name):\n",
+					"    mssparkutils.notebook.exit('')"
 				],
 				"execution_count": null
 			},
@@ -256,7 +186,12 @@
 					}
 				},
 				"source": [
-					"df.write.format(\"delta\").mode(\"overwrite\").saveAsTable(\"odw_standardised_db.folder_test_ct\")"
+					"def get_incremental_key(entity_name: str, storage_account: str, path_to_orchestration_file: str) -> str:\n",
+					"    # getting the incremental key from the odw-config/orchestration\n",
+					"    df: DataFrame = spark.read.option(\"multiline\",\"true\").json(path_to_orchestration_file)\n",
+					"    definitions: list = json.loads(df.toJSON().first())['definitions']\n",
+					"    definition: dict = next((d for d in definitions if entity_name == d['Source_Filename_Start']), None)\n",
+					"    return definition['Harmonised_Incremental_Key'] if definition and 'Harmonised_Incremental_Key' in definition else None"
 				],
 				"execution_count": null
 			},
@@ -271,15 +206,80 @@
 						"transient": {
 							"deleting": false
 						}
-					},
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
+					}
 				},
 				"source": [
-					"%%sql\r\n",
-					"select * from odw_standardised_db.folder_test_ct"
+					"def create_spark_schema(db_name: str, entity_name: str) -> StructType:\r\n",
+					"    incremental_key: str = get_incremental_key(entity_name, storage_account, path_to_orchestration_file) if db_name == 'odw_harmonised_db' else None\r\n",
+					"    json_schema: str = mssparkutils.notebook.run(\"/py_get_schema_from_url\", 30, {\"db_name\": db_name, \"entity_name\": entity_name, \"incremental_key\": incremental_key})\r\n",
+					"    spark_schema: StructType = StructType.fromJson(json.loads(json_schema))\r\n",
+					"    return spark_schema"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def create_spark_dataframe() -> DataFrame:\r\n",
+					"    spark_dataframe: DataFrame = spark.createDataFrame([], schema=create_spark_schema(db_name, entity_name))\r\n",
+					"    return spark_dataframe"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def create_spark_table(db_name: str, table_name: str, spark_dataframe: DataFrame) -> None:\r\n",
+					"    spark_dataframe.write.saveAsTable(f\"{db_name}.{table_name}\")\r\n",
+					"    print(\"Table created\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"spark_dataframe = create_spark_dataframe()\r\n",
+					"create_spark_table(db_name, table_name, spark_dataframe)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"test_table_exists(db_name, table_name)"
 				],
 				"execution_count": null
 			}

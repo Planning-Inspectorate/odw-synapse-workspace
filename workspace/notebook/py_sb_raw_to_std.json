@@ -1,0 +1,284 @@
+{
+	"name": "py_sb_raw_to_std",
+	"properties": {
+		"folder": {
+			"name": "service-bus"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "e30a4b3e-3f8c-4378-a793-24c697613f24"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": true,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.3",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"tags": [
+						"parameters"
+					]
+				},
+				"source": [
+					"entity_name=''"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%run \"service-bus/py_spark_df_ingestion_functions\""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import SparkSession\n",
+					"from notebookutils import mssparkutils\n",
+					"import json\n",
+					"from datetime import datetime, date\n",
+					"from pyspark.sql.functions import current_timestamp, expr, to_timestamp, lit\n",
+					"from pyspark.sql import DataFrame"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"spark: SparkSession = SparkSession.builder.getOrCreate()\r\n",
+					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\r\n",
+					"table_name: str = f\"odw_standardised_db.sb_{entity_name.replace('-', '_')}\"\r\n",
+					"today: str = datetime.now().date().strftime('%Y-%m-%d')\r\n",
+					"source_path: str = f\"abfss://odw-raw@{storage_account}ServiceBus/{entity_name}/{today}/\""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Reading raw data and adding standardised master columns to the dataframe"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def read_raw_messages(source_path: str) -> DataFrame:\n",
+					"    try: \n",
+					"        df: DataFrame = spark.read.json(source_path)\n",
+					"        print(f\"Found {df.count()} new rows.\")\n",
+					"\n",
+					"        # adding the standardised columns\n",
+					"        df: DataFrame = df.withColumn(\"expected_from\", current_timestamp())\n",
+					"        df: DataFrame = df.withColumn(\"expected_to\", expr(\"current_timestamp() + INTERVAL 1 DAY\"))\n",
+					"        df: DataFrame = df.withColumn(\"ingested_datetime\", to_timestamp(df.message_enqueued_time_utc))\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        print('Raw data not found at ', source_path, e)\n",
+					"        mssparkutils.notebook.exit('')\n",
+					"\n",
+					"    return df"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"df: DataFrame = read_raw_messages(source_path)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Comparing and altering the table's schema based on the current data's schema"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"compare_and_merge_schema(df, table_name)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Appending the new dataframe into the existing dataframe and removing duplicates"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def create_dataframe_to_load(df: DataFrame, table_name: str) -> DataFrame:\n",
+					"    table_df: DataFrame = spark.table(table_name)\n",
+					"    df: DataFrame = df.select(table_df.columns)\n",
+					"    table_df: DataFrame = table_df.union(df)\n",
+					"\n",
+					"    # removing duplicates while ignoring the ingestion dates columns\n",
+					"    columns_to_ignore: list = ['expected_to', 'expected_from', 'ingested_datetime']\n",
+					"    columns_to_consider: list = [c for c in table_df.columns if c not in columns_to_ignore]\n",
+					"    table_df: DataFrame = table_df.dropDuplicates(subset=columns_to_consider)\n",
+					"\n",
+					"    return table_df"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"table_df: DataFrame = create_dataframe_to_load(df, table_name)\r\n",
+					"apply_df_to_table(table_df, table_name.split('.')[0], table_name.split('.')[1])"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
