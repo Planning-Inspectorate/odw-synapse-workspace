@@ -3,7 +3,7 @@ The standardised layer makes the raw layer, which is a sink of data from various
 
 ## Understanding Orchestration.json
 
-- Head over to `infrastructure/configuration/data-lake/orchestration/orchestration.json`. This file contains an array of definitions where each definition is a raw source. Consider the following definition for an example
+- Head over to ODW-config reporo and edit `data-lake/orchestration/orchestration.json`. This file contains an array of definitions where each definition is a raw source. Consider the following definition for an example
 
 ```
 {

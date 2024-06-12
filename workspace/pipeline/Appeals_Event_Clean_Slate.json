@@ -1,0 +1,60 @@
+{
+	"name": "Appeals_Event_Clean_Slate",
+	"properties": {
+		"activities": [
+			{
+				"name": "Extract data from Horizon",
+				"type": "ExecutePipeline",
+				"dependsOn": [],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "0_Raw_Horizon_Appeals_Event",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
+				}
+			},
+			{
+				"name": "Run process to build up to standarnised",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Extract data from Horizon",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_raw_to_standardised_e2e",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"source_id": 124,
+						"source_folder_date": {
+							"value": "@formatDateTime(utcnow(),'yyyy-MM-dd')",
+							"type": "Expression"
+						},
+						"source_folder": "Horizon",
+						"specific_file": "HorizonAppealsEvent",
+						"delete_existing_table": true
+					}
+				}
+			}
+		],
+		"folder": {
+			"name": "Appeals event/Deployment"
+		},
+		"annotations": []
+	}
+}

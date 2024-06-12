@@ -1,0 +1,131 @@
+{
+	"name": "0_Raw_Horizon_Appeals_Event",
+	"properties": {
+		"activities": [
+			{
+				"name": "Appeal_Event_Entity_Copy_Failure",
+				"description": "The copy appeal event from Horizon has failed",
+				"type": "Fail",
+				"dependsOn": [
+					{
+						"activity": "Copy appeal events",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"userProperties": [
+					{
+						"name": "Michael Cross",
+						"value": "michael.cross@planninginspectorate.gov.uk"
+					}
+				],
+				"typeProperties": {
+					"message": "Appeal Event copy to Raw has failed",
+					"errorCode": "Horizon_Appeal_Event_Entity_Copy"
+				}
+			},
+			{
+				"name": "Logging Failed Appeal_Event_Entity",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Appeal_Event_Entity_Copy_Failure",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_fail_activity_logging",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"output": {
+							"value": {
+								"value": "@activity('Appeal_Event_Entity_Copy_Failure').output.message",
+								"type": "Expression"
+							},
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Copy appeal events",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SqlServerSource",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"sink": {
+						"type": "DelimitedTextSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "DelimitedTextWriteSettings",
+							"quoteAllText": true,
+							"fileExtension": ".txt"
+						}
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "Horizon_ODW_vw_event",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "raw_appeal_event",
+						"type": "DatasetReference",
+						"parameters": {
+							"FileName": "HorizonAppealsEvent.csv"
+						}
+					}
+				]
+			}
+		],
+		"folder": {
+			"name": "casework/layers/0-raw"
+		},
+		"annotations": []
+	}
+}

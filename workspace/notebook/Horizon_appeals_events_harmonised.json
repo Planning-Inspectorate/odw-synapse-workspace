@@ -1,0 +1,154 @@
+{
+	"name": "Horizon_appeals_events_harmonised",
+	"properties": {
+		"folder": {
+			"name": "odw-harmonised/Appeals Event"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "bbe4e45a-6b24-4c90-be16-44b408f9b962"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.3",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW vw_Horizon_Appeals_Event_Latest_Standardised\r\n",
+					"AS\r\n",
+					"SELECT DISTINCT\r\n",
+					"    casenumber -- PK\r\n",
+					"    ,eventId -- PK\r\n",
+					"    ,caseReference\r\n",
+					"    ,eventtype\r\n",
+					"    ,eventname\r\n",
+					"    ,eventstatus\r\n",
+					"    ,isurgent\r\n",
+					"    ,eventpublished\r\n",
+					"    ,eventstartdatetime\r\n",
+					"    ,eventenddatetime\r\n",
+					"    ,notificationofsitevisit\r\n",
+					"    ,dateeventrequested\r\n",
+					"    ,actualduration\r\n",
+					"    ,eventaddressline1\r\n",
+					"    ,eventaddressline2\r\n",
+					"    ,eventaddresstown\r\n",
+					"    ,eventaddresscounty\r\n",
+					"    ,eventaddresspostcode\r\n",
+					"    ,\"0\" AS Migrated\r\n",
+					"    ,\"Horizon\" AS ODTSourceSystem\r\n",
+					"    ,Source.SourceSystemID AS SourceSystemID\r\n",
+					"    ,to_timestamp(Appeals_event.expected_from) AS ingestionDate\r\n",
+					"    ,to_timestamp(NULL) AS ValidTo\r\n",
+					"    ,md5(\r\n",
+					"        concat(\r\n",
+					"            IFNULL(casenumber,'.')\r\n",
+					"            ,IFNULL(eventId,'.')\r\n",
+					"            ,IFNULL(caseReference,'.')\r\n",
+					"            ,IFNULL(eventtype,'.')\r\n",
+					"            ,IFNULL(eventname,'.')\r\n",
+					"            ,IFNULL(eventstatus,'.')\r\n",
+					"            ,IFNULL(CAST(isurgent AS String),'.')\r\n",
+					"            ,IFNULL(CAST(eventpublished AS String),'.')\r\n",
+					"            ,IFNULL(eventstartdatetime,'.')\r\n",
+					"            ,IFNULL(eventenddatetime,'.')\r\n",
+					"            ,IFNULL(notificationofsitevisit,'.')\r\n",
+					"            ,IFNULL(dateeventrequested,'.')\r\n",
+					"            ,IFNULL(actualduration,'.')\r\n",
+					"            ,IFNULL(eventaddressline1,'.')\r\n",
+					"            ,IFNULL(eventaddressline2,'.')\r\n",
+					"            ,IFNULL(eventaddresstown,'.')\r\n",
+					"            ,IFNULL(eventaddresscounty,'.')\r\n",
+					"            ,IFNULL(eventaddresspostcode,'.')\r\n",
+					"        )) AS RowID -- this hash should contain all the defining fields\r\n",
+					"    ,'Y' AS IsActive\r\n",
+					"FROM  \r\n",
+					"    odw_standardised_db.horizon_appeals_event AS Appeals_event\r\n",
+					"    INNER JOIN odw_harmonised_db.main_sourcesystem_fact AS Source\r\n",
+					"        ON Source.Description = 'Casework'\r\n",
+					"        AND Source.IsActive = 'Y'\r\n",
+					"WHERE\r\n",
+					"    Appeals_event.Expected_from = (SELECT MAX(expected_from) FROM odw_standardised_db.horizon_appeals_event)"
+				],
+				"execution_count": 4
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"df = spark.sql(\"SELECT * FROM vw_Horizon_Appeals_Event_Latest_Standardised\")\r\n",
+					"\r\n",
+					"df.write.mode('overwrite').format('delta').saveAsTable('odw_harmonised_db.horizon_appeals_event')"
+				],
+				"execution_count": 7
+			}
+		]
+	}
+}

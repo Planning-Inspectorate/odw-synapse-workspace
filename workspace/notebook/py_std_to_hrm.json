@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "a7f9e17c-b5bf-4a13-89a8-a47050bf4b8f"
+				"spark.autotune.trackingId": "0f9901a3-9221-4762-8209-e9d6064d11ad"
 			}
 		},
 		"metadata": {
@@ -89,7 +89,7 @@
 					"    }\n",
 					"}"
 				],
-				"execution_count": 68
+				"execution_count": 102
 			},
 			{
 				"cell_type": "code",
@@ -108,9 +108,9 @@
 					]
 				},
 				"source": [
-					"entity_name = ''"
+					"entity_name = 'appeal-event'"
 				],
-				"execution_count": 69
+				"execution_count": 103
 			},
 			{
 				"cell_type": "code",
@@ -136,7 +136,7 @@
 					"from pyspark.sql.types import *\r\n",
 					"pd.DataFrame.iteritems = pd.DataFrame.items"
 				],
-				"execution_count": 70
+				"execution_count": 104
 			},
 			{
 				"cell_type": "markdown",
@@ -179,7 +179,7 @@
 					"if not definition:\n",
 					"    mssparkutils.notebook.exit(f\"Definition not found for {entity_name}\")"
 				],
-				"execution_count": 71
+				"execution_count": 105
 			},
 			{
 				"cell_type": "code",
@@ -197,7 +197,7 @@
 				"source": [
 					"pprint.pprint(definition)"
 				],
-				"execution_count": 72
+				"execution_count": 106
 			},
 			{
 				"cell_type": "markdown",
@@ -235,7 +235,7 @@
 					"hrm_incremental_key = definition['Harmonised_Incremental_Key']\n",
 					"entity_primary_key = definition['Entity_Primary_Key']"
 				],
-				"execution_count": 73
+				"execution_count": 107
 			},
 			{
 				"cell_type": "markdown",
@@ -279,7 +279,7 @@
 				"source": [
 					"%run  /0-odw-source-to-raw/Fileshare/SAP_HR/py_0_source_to_raw_hr_functions"
 				],
-				"execution_count": 74
+				"execution_count": 108
 			},
 			{
 				"cell_type": "markdown",
@@ -317,7 +317,7 @@
 					"else:\n",
 					"    print(f\"Table {hrm_table} already exists.\")"
 				],
-				"execution_count": 75
+				"execution_count": 109
 			},
 			{
 				"cell_type": "markdown",
@@ -389,7 +389,7 @@
 					"    schema = json.loads(schema)\n",
 					"    mapping = {field[\"name\"]: field[\"name\"] for field in schema[\"fields\"]}"
 				],
-				"execution_count": 76
+				"execution_count": 110
 			},
 			{
 				"cell_type": "code",
@@ -407,7 +407,7 @@
 				"source": [
 					"target_df.info()"
 				],
-				"execution_count": 77
+				"execution_count": 111
 			},
 			{
 				"cell_type": "markdown",
@@ -442,7 +442,7 @@
 					"print(f\"Delete: {len(delete_df)}\")\r\n",
 					"print(f\"Target: {len(target_df)}\")"
 				],
-				"execution_count": 78
+				"execution_count": 112
 			},
 			{
 				"cell_type": "markdown",
@@ -499,8 +499,18 @@
 					"    for source_column, source_dtype in source_df.dtypes.items():\n",
 					"        for target_column, target_dtype in target_df.dtypes.items():\n",
 					"            if source_column.lower() == target_column.lower() and source_dtype != target_dtype:\n",
+					"                \n",
+					"                print('Source column:' + str(source_column) + ', data type:' + str(source_dtype))\n",
+					"                print('Target column:' + str(target_column) + ', data type:' + str(target_dtype))\n",
+					"                \n",
 					"                source_df[source_column] = source_df[source_column].replace(['None'], '')\n",
-					"                source_df[source_column] = source_df[source_column].astype(target_dtype)\n",
+					"                \n",
+					"                if target_dtype == 'bool':\n",
+					"                    source_df[source_column] = source_df[source_column].map({'False': False, 'True': True})\n",
+					"                else:\n",
+					"                    source_df[source_column] = source_df[source_column].astype(target_dtype)\n",
+					"\n",
+					"               \n",
 					"\n",
 					"def apply_mapping(df: pd.DataFrame, target_df: pd.DataFrame) -> pd.DataFrame:\n",
 					"    output_df = pd.DataFrame()\n",
@@ -536,7 +546,7 @@
 					"    cast_dtypes(source_df, target_df)\n",
 					"    return pd.concat([target_df, source_df], ignore_index=True)"
 				],
-				"execution_count": 79
+				"execution_count": 113
 			},
 			{
 				"cell_type": "markdown",
@@ -570,27 +580,10 @@
 					"if len(new_rows_df) > 0:\n",
 					"    target_df = insert_rows_in_df(new_rows_df, target_df, hrm_incremental_key)\n",
 					"\n",
-					"print(f\"New rows: {len(new_rows_df)}\\nTarget dataframe: {len(target_df)}\")"
+					"print(f\"New rows: {len(new_rows_df)}\\nTarget dataframe: {len(target_df)}\")\n",
+					""
 				],
-				"execution_count": 80
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"new_rows_df.info()"
-				],
-				"execution_count": 81
+				"execution_count": 114
 			},
 			{
 				"cell_type": "code",
@@ -608,7 +601,7 @@
 				"source": [
 					"target_df.info()"
 				],
-				"execution_count": 82
+				"execution_count": 115
 			},
 			{
 				"cell_type": "markdown",
@@ -649,7 +642,7 @@
 					"\n",
 					"print(f\"Updated rows: {len(updated_rows_df)}\\nTarget dataframe: {len(target_df)}\")"
 				],
-				"execution_count": 83
+				"execution_count": 116
 			},
 			{
 				"cell_type": "code",
@@ -667,7 +660,7 @@
 				"source": [
 					"updated_rows_df.info()"
 				],
-				"execution_count": 84
+				"execution_count": 117
 			},
 			{
 				"cell_type": "markdown",
@@ -706,7 +699,7 @@
 					"\n",
 					"print(f\"Deleted rows: {len(deleted_rows_df)}\\nTarget dataframe: {len(target_df)}\")"
 				],
-				"execution_count": 85
+				"execution_count": 118
 			},
 			{
 				"cell_type": "code",
@@ -724,7 +717,7 @@
 				"source": [
 					"deleted_rows_df.info()"
 				],
-				"execution_count": 86
+				"execution_count": 119
 			},
 			{
 				"cell_type": "markdown",
@@ -756,7 +749,7 @@
 					"for column in target_df.columns:\r\n",
 					"    target_df[column] = target_df[column].astype(str)"
 				],
-				"execution_count": 87
+				"execution_count": 120
 			},
 			{
 				"cell_type": "code",
@@ -774,7 +767,7 @@
 				"source": [
 					"target_df.info()"
 				],
-				"execution_count": 88
+				"execution_count": 121
 			},
 			{
 				"cell_type": "markdown",
@@ -836,7 +829,7 @@
 					"\n",
 					"print(\"Harmonised table updated\")"
 				],
-				"execution_count": 89
+				"execution_count": 122
 			}
 		]
 	}
