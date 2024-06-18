@@ -7,6 +7,9 @@
 				"description": "Triggers Function App to read messages from Service Bus and write to odw-raw",
 				"type": "ExecutePipeline",
 				"dependsOn": [],
+				"policy": {
+					"secureInput": false
+				},
 				"userProperties": [],
 				"typeProperties": {
 					"pipeline": {
@@ -41,60 +44,6 @@
 					},
 					"ifTrueActivities": [
 						{
-							"name": "Raw to Std",
-							"description": "Ingests raw data into the standardised table ",
-							"type": "SynapseNotebook",
-							"dependsOn": [
-								{
-									"activity": "JSON to CSV",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"notebook": {
-									"referenceName": "py_raw_to_std",
-									"type": "NotebookReference"
-								},
-								"parameters": {
-									"source_folder": {
-										"value": "ServiceBus",
-										"type": "string"
-									},
-									"source_frequency_folder": {
-										"value": {
-											"value": "@variables('entity_name')",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"specific_file": {
-										"value": {
-											"value": "@variables('entity_name')",
-											"type": "Expression"
-										},
-										"type": "string"
-									}
-								},
-								"snapshot": true,
-								"conf": {
-									"spark.dynamicAllocation.enabled": null,
-									"spark.dynamicAllocation.minExecutors": null,
-									"spark.dynamicAllocation.maxExecutors": null
-								},
-								"numExecutors": null
-							}
-						},
-						{
 							"name": "Std to Hrm",
 							"description": "Ingests the standardised data into the harmonised table",
 							"type": "SynapseNotebook",
@@ -116,7 +65,7 @@
 							"userProperties": [],
 							"typeProperties": {
 								"notebook": {
-									"referenceName": "py_std_to_hrm",
+									"referenceName": "py_sb_std_to_hrm",
 									"type": "NotebookReference"
 								},
 								"parameters": {
@@ -138,8 +87,7 @@
 							}
 						},
 						{
-							"name": "JSON to CSV",
-							"description": "Converts the messages stored in json format to csv format",
+							"name": "Raw to Std",
 							"type": "SynapseNotebook",
 							"dependsOn": [],
 							"policy": {
@@ -152,15 +100,11 @@
 							"userProperties": [],
 							"typeProperties": {
 								"notebook": {
-									"referenceName": "py_service_bus_json_to_csv",
+									"referenceName": "py_sb_raw_to_std",
 									"type": "NotebookReference"
 								},
 								"parameters": {
-									"source_folder": {
-										"value": "ServiceBus",
-										"type": "string"
-									},
-									"source_frequency_folder": {
+									"entity_name": {
 										"value": {
 											"value": "@variables('entity_name')",
 											"type": "Expression"
@@ -168,13 +112,7 @@
 										"type": "string"
 									}
 								},
-								"snapshot": true,
-								"conf": {
-									"spark.dynamicAllocation.enabled": null,
-									"spark.dynamicAllocation.minExecutors": null,
-									"spark.dynamicAllocation.maxExecutors": null
-								},
-								"numExecutors": null
+								"snapshot": true
 							}
 						}
 					]

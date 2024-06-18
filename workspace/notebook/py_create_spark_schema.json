@@ -1,0 +1,385 @@
+{
+	"name": "py_create_spark_schema",
+	"properties": {
+		"folder": {
+			"name": "service-bus"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "d9db6715-feea-4fee-8f39-bcb9951e3ac2"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": true,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.3",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"tags": [
+						"parameters"
+					]
+				},
+				"source": [
+					"entity_name = ''\r\n",
+					"db_name = ''\r\n",
+					"incremental_key = ''"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql.types import *\r\n",
+					"from pyspark.sql import DataFrame\r\n",
+					"import pprint\r\n",
+					"import json\r\n",
+					"import requests"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"type_mapping = {\r\n",
+					"    'string': StringType(),\r\n",
+					"    'number': DoubleType(),\r\n",
+					"    'integer': LongType(),\r\n",
+					"    'boolean': BooleanType(),\r\n",
+					"    'null': NullType(),\r\n",
+					"    'date-time': TimestampType()\r\n",
+					"    }"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"standardised_fields = StructType([\r\n",
+					"    StructField(\"ingested_datetime\", TimestampType(), False),\r\n",
+					"    StructField(\"expected_from\", TimestampType(), False),\r\n",
+					"    StructField(\"expected_to\", TimestampType(), False),\r\n",
+					"    StructField(\"message_id\", StringType(), False),\r\n",
+					"    StructField(\"message_type\", StringType(), False),\r\n",
+					"    StructField(\"message_enqueued_time_utc\", StringType(), False)\r\n",
+					"])\r\n",
+					"\r\n",
+					"if incremental_key:\r\n",
+					"    incremental_key_field = StructType([\r\n",
+					"        StructField(incremental_key, LongType(), False)\r\n",
+					"    ])\r\n",
+					"else:\r\n",
+					"    incremental_key_field = None\r\n",
+					"\r\n",
+					"harmonised_fields = StructType([\r\n",
+					"    StructField(\"migrated\", StringType(), False),\r\n",
+					"    StructField(\"ODTSourceSystem\", StringType(), True),\r\n",
+					"    StructField(\"SourceSystemID\", StringType(), True),\r\n",
+					"    StructField(\"IngestionDate\", StringType(), True),\r\n",
+					"    StructField(\"ValidTo\", StringType(), True),\r\n",
+					"    StructField(\"RowID\", StringType(), True),\r\n",
+					"    StructField(\"IsActive\", StringType(), True)\r\n",
+					"])"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def get_schema_from_url(url: str) -> dict:\r\n",
+					"    try:\r\n",
+					"        response = requests.get(url)\r\n",
+					"        if response.status_code == 200:\r\n",
+					"            data = response.json()\r\n",
+					"            return data\r\n",
+					"        else:\r\n",
+					"            print(\"Failed to fetch data from URL. Status code:\", response.status_code)\r\n",
+					"    except requests.exceptions.RequestException as e:\r\n",
+					"        print(\"Error fetching data:\", e)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def get_spark_type(field_schema: dict) -> dict:\r\n",
+					"    json_type: str = field_schema.get('type')\r\n",
+					"    \r\n",
+					"    if isinstance(json_type, list):\r\n",
+					"        json_type = json_type[0]  # Consider the first type in the list for simplicity\r\n",
+					"\r\n",
+					"    if json_type == 'array':\r\n",
+					"        element_schema = field_schema['items']\r\n",
+					"        element_type = get_spark_type(element_schema)\r\n",
+					"        return ArrayType(element_type)\r\n",
+					"    elif json_type == 'object':\r\n",
+					"        return transform_schema(field_schema)\r\n",
+					"    elif json_type in type_mapping:\r\n",
+					"        return type_mapping[json_type]\r\n",
+					"    else:\r\n",
+					"        raise ValueError(f\"Unsupported type: {json_type}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def transform_schema(schema: dict) -> StructType:\r\n",
+					"    fields: list = []\r\n",
+					"    for field_name, field_schema in schema['properties'].items():\r\n",
+					"        if field_schema != {}:\r\n",
+					"            spark_type = get_spark_type(field_schema)\r\n",
+					"            field_nullable = 'null' in field_schema.get('type', []) if isinstance(field_schema.get('type'), list) else False\r\n",
+					"            fields.append(StructField(field_name, spark_type, field_nullable))\r\n",
+					"    return StructType(fields)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def resolve_refs(schema: dict, definitions: dict) -> dict:\r\n",
+					"    if isinstance(schema, dict):\r\n",
+					"        if '$ref' in schema:\r\n",
+					"            ref = schema['$ref']\r\n",
+					"            ref_path = ref.split('/')\r\n",
+					"            if ref_path[0] == '#' and ref_path[1] == '$defs':\r\n",
+					"                return resolve_refs(definitions[ref_path[2]], definitions)\r\n",
+					"        return {k: resolve_refs(v, definitions) for k, v in schema.items()}\r\n",
+					"    elif isinstance(schema, list):\r\n",
+					"        return [resolve_refs(item, definitions) for item in schema]\r\n",
+					"    else:\r\n",
+					"        return schema"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def add_master_columns_to_schema(db_name: str) -> StructType:\r\n",
+					"    if db_name == \"odw_standardised_db\":\r\n",
+					"        master_fields: StructType = standardised_fields\r\n",
+					"        all_fields: list = spark_schema.fields + master_fields.fields\r\n",
+					"\r\n",
+					"    elif db_name == \"odw_harmonised_db\":\r\n",
+					"        master_fields: StructType = harmonised_fields\r\n",
+					"        all_fields: list = spark_schema.fields + master_fields.fields\r\n",
+					"        if incremental_key_field:\r\n",
+					"            all_fields.insert(0, incremental_key_field.fields[0])\r\n",
+					"\r\n",
+					"    elif db_name == \"odw_curated_db\":\r\n",
+					"        all_fields: list = spark_schema.fields\r\n",
+					"\r\n",
+					"    final_schema = StructType(all_fields)\r\n",
+					"\r\n",
+					"    return final_schema"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"url: str = f\"https://raw.githubusercontent.com/Planning-Inspectorate/data-model/main/schemas/{entity_name}.schema.json\"\r\n",
+					"json_schema: dict = get_schema_from_url(url)\r\n",
+					"if not json_schema:\r\n",
+					"    mssparkutils.notebook.exit('')"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"resolved_schema: dict = resolve_refs(json_schema, json_schema.get('$defs', {}))\r\n",
+					"spark_schema: StructType = transform_schema(resolved_schema)\r\n",
+					"final_schema: StructType = add_master_columns_to_schema(db_name)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def test_schemas_match(existing_table: str, final_schema: StructType) -> bool:\r\n",
+					"    return spark.table(existing_table).schema == final_schema\r\n",
+					"\r\n",
+					"test_schemas_match(\"odw_curated_db.appeal_event\", final_schema)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"mssparkutils.notebook.exit(final_schema.json())"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
