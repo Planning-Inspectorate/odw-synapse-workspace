@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "a199569d-ba54-442f-b036-dc5c6992f1b9"
+				"spark.autotune.trackingId": "11600b47-3229-4c4b-866c-abcb94bfd953"
 			}
 		},
 		"metadata": {
@@ -110,7 +110,7 @@
 					"    T1.path\t                        AS Path,\r\n",
 					"    T1.viruscheckstatus\t            AS VirusCheckStatus,\r\n",
 					"    T1.filemd5\t                    AS FileMD5,\r\n",
-					"    T1.datecreated\t                AS DateCreated,\r\n",
+					"    IFNULL(T1.datecreated,'00/00/0000 00:00:00')\tAS DateCreated,\r\n",
 					"    T1.lastmodified\t                AS LastModified,\r\n",
 					"    T1.casetype\t                    AS CaseType,\r\n",
 					"    T1.documentstatus\t            AS DocumentStatus,\r\n",
@@ -176,7 +176,7 @@
 					"        T2.IsActive = 'Y'\r\n",
 					"FULL JOIN odw_harmonised_db.aie_document_data T3 \r\n",
 					"    ON  T1.documentid = T3.DocumentID AND \r\n",
-					"        T1.datecreated = T3.DateCreated AND\r\n",
+					"        IFNULL(T1.datecreated,'00/00/0000 00:00:00') = T3.DateCreated AND\r\n",
 					"        T3.IsActive = 'Y'\r\n",
 					"WHERE\r\n",
 					"    -- flags new data        \r\n",
@@ -228,15 +228,16 @@
 					"            T1.datecreated NOT IN (\r\n",
 					"            SELECT DISTINCT(DateCreated) \r\n",
 					"            FROM odw_harmonised_db.aie_document_data) \r\n",
-					"\r\n",
+					"        THEN 'Y'\r\n",
+					"        WHEN T3.DateCreated IS NULL AND T1.documentid = T3.DocumentID\r\n",
 					"        THEN 'Y'\r\n",
 					"        ELSE 'N'\r\n",
-					"    END  = 'Y' )\r\n",
-					"    AND T1.documentid IS NOT NULL\r\n",
+					"    END  = 'Y' ) AND\r\n",
+					"    T1.documentid IS NOT NULL\r\n",
 					"    AND T1.expected_from = (SELECT MAX(expected_from) FROM odw_standardised_db.aie_document_data)\r\n",
 					";"
 				],
-				"execution_count": 1
+				"execution_count": 35
 			},
 			{
 				"cell_type": "markdown",
@@ -380,7 +381,7 @@
 					"AND IsActive = 'Y'; \r\n",
 					""
 				],
-				"execution_count": 2
+				"execution_count": 36
 			},
 			{
 				"cell_type": "code",
@@ -461,20 +462,7 @@
 					"FROM aie_document_data_changed_rows T1\n",
 					"FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive"
 				],
-				"execution_count": 3
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					""
-				]
+				"execution_count": 37
 			},
 			{
 				"cell_type": "markdown",
@@ -614,7 +602,7 @@
 					"        Source.IsActive)\r\n",
 					"     ;   "
 				],
-				"execution_count": 4
+				"execution_count": 38
 			},
 			{
 				"cell_type": "markdown",
@@ -698,7 +686,7 @@
 					"FROM odw_harmonised_db.aie_document_data;\r\n",
 					""
 				],
-				"execution_count": 5
+				"execution_count": 39
 			}
 		]
 	}
