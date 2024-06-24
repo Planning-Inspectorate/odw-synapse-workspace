@@ -45,62 +45,7 @@
 					},
 					"ifTrueActivities": [
 						{
-							"name": "Raw to Std",
-							"description": "Ingests raw data into the standardised table",
-							"type": "SynapseNotebook",
-							"dependsOn": [
-								{
-									"activity": "JSON to CSV",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"notebook": {
-									"referenceName": "py_raw_to_std",
-									"type": "NotebookReference"
-								},
-								"parameters": {
-									"source_folder": {
-										"value": "ServiceBus",
-										"type": "string"
-									},
-									"source_frequency_folder": {
-										"value": {
-											"value": "@variables('entity_name')",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"specific_file": {
-										"value": {
-											"value": "@variables('entity_name')",
-											"type": "Expression"
-										},
-										"type": "string"
-									}
-								},
-								"snapshot": true,
-								"conf": {
-									"spark.dynamicAllocation.enabled": null,
-									"spark.dynamicAllocation.minExecutors": null,
-									"spark.dynamicAllocation.maxExecutors": null
-								},
-								"numExecutors": null
-							}
-						},
-						{
-							"name": "JSON to CSV",
-							"description": "Converts the messages stored in json format to csv format",
+							"name": "create_table_from_schema",
 							"type": "SynapseNotebook",
 							"dependsOn": [],
 							"policy": {
@@ -113,38 +58,18 @@
 							"userProperties": [],
 							"typeProperties": {
 								"notebook": {
-									"referenceName": "py_service_bus_json_to_csv",
+									"referenceName": "create_table_from_schema",
 									"type": "NotebookReference"
 								},
-								"parameters": {
-									"source_folder": {
-										"value": "ServiceBus",
-										"type": "string"
-									},
-									"source_frequency_folder": {
-										"value": {
-											"value": "@variables('entity_name')",
-											"type": "Expression"
-										},
-										"type": "string"
-									}
-								},
-								"snapshot": true,
-								"conf": {
-									"spark.dynamicAllocation.enabled": null,
-									"spark.dynamicAllocation.minExecutors": null,
-									"spark.dynamicAllocation.maxExecutors": null
-								},
-								"numExecutors": null
+								"snapshot": true
 							}
 						},
 						{
-							"name": "Std to Hrm",
-							"description": "Ingests standardised data into the harmonised table",
+							"name": "py_sb_raw_to_std",
 							"type": "SynapseNotebook",
 							"dependsOn": [
 								{
-									"activity": "Raw to Std",
+									"activity": "create_table_from_schema",
 									"dependencyConditions": [
 										"Succeeded"
 									]
@@ -160,25 +85,64 @@
 							"userProperties": [],
 							"typeProperties": {
 								"notebook": {
-									"referenceName": "py_std_to_hrm",
+									"referenceName": "py_sb_raw_to_std",
 									"type": "NotebookReference"
 								},
-								"parameters": {
-									"entity_name": {
-										"value": {
-											"value": "@variables('entity_name')",
-											"type": "Expression"
-										},
-										"type": "string"
-									}
+								"snapshot": true
+							}
+						},
+						{
+							"name": "py_sb_std_to_hrm",
+							"type": "SynapseNotebook",
+							"dependsOn": [
+								{
+									"activity": "py_sb_raw_to_std",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "py_sb_std_to_hrm",
+									"type": "NotebookReference"
 								},
-								"snapshot": true,
-								"conf": {
-									"spark.dynamicAllocation.enabled": null,
-									"spark.dynamicAllocation.minExecutors": null,
-									"spark.dynamicAllocation.maxExecutors": null
+								"snapshot": true
+							}
+						},
+						{
+							"name": "curated_appeal_has",
+							"type": "SynapseNotebook",
+							"dependsOn": [
+								{
+									"activity": "py_sb_std_to_hrm",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "appeal_has",
+									"type": "NotebookReference"
 								},
-								"numExecutors": null
+								"snapshot": true
 							}
 						}
 					]
