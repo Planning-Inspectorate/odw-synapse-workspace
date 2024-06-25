@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "8cd14cff-d3f4-42c4-9be9-92c2f88d51fe"
+				"spark.autotune.trackingId": "36df23c5-9fca-4192-95a7-322ce4102ebd"
 			}
 		},
 		"metadata": {
@@ -56,7 +56,79 @@
 				"source": [
 					"from pyspark.sql import DataFrame\r\n",
 					"from pyspark.sql.functions import *\r\n",
-					"import pprint"
+					"import pprint\r\n",
+					"from pyspark.sql.functions import col, lit\r\n",
+					"from pyspark.sql.types import LongType"
+				],
+				"execution_count": 1
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"entity_name = \"nsip-project\"\r\n",
+					"std_db_name = \"odw_standardised_db\"\r\n",
+					"hrm_db_name = \"odw_harmonised_db\"\r\n",
+					"table_name = \"sb_nsip_project\"\r\n",
+					"raw_table_name = \"odw_standardised_db.sb_nsip_project_tmp\"\r\n",
+					"raw_table = \"sb_nsip_project_tmp\"\r\n",
+					"std_table_name_full = f\"{std_db_name}.{table_name}\"\r\n",
+					"hrm_table_name_full = f\"{hrm_db_name}.{table_name}\"\r\n",
+					""
+				],
+				"execution_count": 2
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"#%%sql\r\n",
+					"#DROP TABLE IF EXISTS odw_standardised_db.sb_nsip_project_tmp\r\n",
+					"\r\n",
+					"spark.sql(f\"DROP TABLE IF EXISTS {raw_table_name}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"#%%sql\r\n",
+					"#DROP TABLE IF EXISTS odw_standardised_db.sb_nsip_project\r\n",
+					"\r\n",
+					"spark.sql(f\"DROP TABLE IF EXISTS {std_table_name_full}\")"
 				],
 				"execution_count": null
 			},
@@ -74,10 +146,81 @@
 					}
 				},
 				"source": [
-					"entity_name = \"nsip-project\"\r\n",
-					"table_name = \"odw_standardised_db.sb_nsip_project\""
+					"##Go create our standardised table\r\n",
+					"mssparkutils.notebook.run(\"create_table_from_schema\", 6100, {\"db_name\": std_db_name, \"entity_name\": entity_name})"
 				],
 				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"#%%sql\r\n",
+					"#ALTER TABLE odw_standardised_db.sb_nsip_project RENAME TO sb_nsip_project_tmp;\r\n",
+					"spark.sql(f\"ALTER TABLE {std_table_name_full} RENAME TO {raw_table_name}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##Go create our standardised table again\r\n",
+					"mssparkutils.notebook.run(\"create_table_from_schema\", 6100, {\"db_name\": std_db_name, \"entity_name\": entity_name})"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"spark.table(raw_table_name).printSchema()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Load all historic files into a table that we can use for processing"
+				]
 			},
 			{
 				"cell_type": "code",
@@ -95,7 +238,7 @@
 				"source": [
 					"%run service-bus/py_spark_df_ingestion_functions"
 				],
-				"execution_count": null
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
@@ -114,10 +257,10 @@
 					"def create_valid_dataframe() -> DataFrame:\r\n",
 					"    df: DataFrame = collect_all_raw_sb_data(f\"{entity_name}\")\r\n",
 					"    # drop corrupt records loaded with bad files and any test columns created during testing\r\n",
-					"    valid_df: DataFrame = df.filter(col(\"_corrupt_record\").isNull()).drop(\"_corrupt_record\", \"baddata\", \"interestedpartyids\", \"applicantIds\")\r\n",
+					"    valid_df: DataFrame = df.filter(col(\"_corrupt_record\").isNull()).drop(\"_corrupt_record\", \"baddata\", \"interestedpartyids\", \"applicantIds\", \"ProjectStatus\")\r\n",
 					"    return valid_df"
 				],
-				"execution_count": null
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
@@ -136,7 +279,7 @@
 					"def test_schemas_match(schema1: StructType, schema2: StructType) -> bool:\r\n",
 					"    return schema1 == schema2"
 				],
-				"execution_count": null
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -161,7 +304,7 @@
 					"    \r\n",
 					"    return in_schema1_not_in_schema2, in_schema2_not_in_schema1"
 				],
-				"execution_count": null
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
@@ -179,9 +322,9 @@
 				},
 				"source": [
 					"historical_df: DataFrame = create_valid_dataframe().alias(\"historical\")\r\n",
-					"old_table_df = spark.sql(\"select message_id, ingested_datetime, expected_from, expected_to from odw_standardised_db.nsip_project\").alias(\"old\")\r\n",
+					"old_table_df = spark.sql(f\"select message_id, ingested_datetime, expected_from, expected_to from {raw_table_name}\").alias(\"old\")\r\n",
 					"historical_schema = historical_df.schema\r\n",
-					"table_schema = spark.table(f\"{table_name}\").schema\r\n",
+					"table_schema = spark.table(f\"{raw_table_name}\").schema\r\n",
 					"joined_df = historical_df.join(old_table_df, on=\"message_id\", how=\"left\")\r\n",
 					"joined_df_schema = joined_df.schema"
 				],
@@ -395,7 +538,7 @@
 					"        df = df.withColumn(field.name, col(field.name).cast(field.dataType))\r\n",
 					"    return df"
 				],
-				"execution_count": null
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
@@ -429,7 +572,47 @@
 					}
 				},
 				"source": [
-					"final_df.printSchema()"
+					"# drop the input_file column as that's just for analysis\r\n",
+					"final_df = final_df.drop(\"input_file\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"in_schema1_not_in_schema2, in_schema2_not_in_schema1 = compare_schemas(final_df.schema, table_schema)\r\n",
+					"\r\n",
+					"print(in_schema1_not_in_schema2)\r\n",
+					"print(in_schema2_not_in_schema1)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"test_schemas_match(final_df.schema, table_schema)"
 				],
 				"execution_count": null
 			},
@@ -475,8 +658,247 @@
 					}
 				},
 				"source": [
-					"table_df: DataFrame = create_dataframe_to_load(final_df, table_name)\r\n",
-					"apply_df_to_table(table_df, table_name.split('.')[0], table_name.split('.')[1])"
+					"table_df: DataFrame = create_dataframe_to_load(final_df, raw_table_name)\r\n",
+					"\r\n",
+					"apply_df_to_table(table_df, std_db_name, raw_table)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"SELECT * FROM odw_standardised_db.sb_nsip_project_tmp limit 10"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Load data into standardised and harmonised\r\n",
+					"\r\n",
+					"Now load the data into standardised. We need to replay each of the loads, that way we ensure that updates and deletes are handled correctly. If we try to do this in a bulk load, we'll only load the last file in the set (as standard code is only designed for single loads)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"DROP TABLE IF EXISTS odw_harmonised_db.sb_nsip_project"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##Go create our harmonised table\r\n",
+					"mssparkutils.notebook.run(\"create_table_from_schema\", 6100, {\"db_name\": hrm_db_name, \"entity_name\": \"nsip-project\"})"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"spark.table(\"odw_harmonised_db.sb_nsip_project\").printSchema()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"REFRESH TABLE odw_harmonised_db.sb_nsip_project"
+				],
+				"execution_count": 8
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"base = spark.sql(f\"\"\"\r\n",
+					"                SELECT DISTINCT\r\n",
+					"                    CAST(ingested_datetime AS Date) AS ingested_datetime\r\n",
+					"                FROM\r\n",
+					"                    {raw_table_name}\r\n",
+					"                WHERE\r\n",
+					"                    ingested_datetime IS NOT NULL\r\n",
+					"                ORDER BY \r\n",
+					"                    1 ASC\r\n",
+					"                \"\"\")\r\n",
+					"\r\n",
+					"for rows in base.collect():\r\n",
+					"    processing = rows[\"ingested_datetime\"]\r\n",
+					"    \r\n",
+					"    print(f\"Processing {processing}\")\r\n",
+					"\r\n",
+					"    #Get associated data from standardised as we need to test if we've already inserted this data for processing\r\n",
+					"    std = spark.sql(f\"\"\"SELECT \r\n",
+					"                            * \r\n",
+					"                        FROM \r\n",
+					"                            {std_table_name_full}\r\n",
+					"                        WHERE \r\n",
+					"                            CAST(ingested_datetime AS Date) = '{processing}'\r\n",
+					"                        \"\"\")\r\n",
+					"    \r\n",
+					"    if std.count() == 0:\r\n",
+					"        print(f\"Inserting into {std_table_name_full}\")\r\n",
+					"        ##Add the data into standardised for processing if we haven't processed it\r\n",
+					"        rw = spark.sql(f\"\"\"SELECT \r\n",
+					"                            * \r\n",
+					"                        FROM \r\n",
+					"                            {raw_table_name}\r\n",
+					"                        WHERE \r\n",
+					"                            CAST(ingested_datetime AS Date) = '{processing}'\r\n",
+					"                        \"\"\")\r\n",
+					"        \r\n",
+					"        rw.write.mode(\"append\").format(\"delta\").option(\"mergeSchema\", \"true\").saveAsTable(std_table_name_full)\r\n",
+					"        spark.sql(f\"REFRESH TABLE {std_table_name_full}\")\r\n",
+					"\r\n",
+					"    #Check if we've already processed the data or not\r\n",
+					"    hrm = spark.sql(f\"\"\"SELECT \r\n",
+					"                            * \r\n",
+					"                        FROM \r\n",
+					"                            {hrm_table_name_full}\r\n",
+					"                        WHERE \r\n",
+					"                            CAST(IngestionDate AS DATE) = '{processing}'\r\n",
+					"                        \"\"\")\r\n",
+					"\r\n",
+					"    \r\n",
+					"    \r\n",
+					"    if hrm.count() == 0:\r\n",
+					"         print(f\"Running py_sb_std_to_hrm to load data into {hrm_table_name_full}\")\r\n",
+					"         ## Run the standard process if we haven't already\r\n",
+					"         mssparkutils.notebook.run(\"py_sb_std_to_hrm\", 6100, {\"entity_name\": entity_name})\r\n",
+					"         spark.sql(f\"REFRESH TABLE {hrm_table_name_full}\")\r\n",
+					"        \r\n",
+					"\r\n",
+					""
+				],
+				"execution_count": 9
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"SELECT * FROM odw_standardised_db.sb_nsip_project --limit 10"
+				],
+				"execution_count": 12
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					""
 				],
 				"execution_count": null
 			}
