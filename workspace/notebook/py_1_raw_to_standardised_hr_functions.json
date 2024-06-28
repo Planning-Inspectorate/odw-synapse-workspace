@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "97eb022a-754d-4ee7-b4bb-8eddc18367ef"
+				"spark.autotune.trackingId": "58e6aac4-f4ef-4deb-8a36-073df420ff71"
 			}
 		},
 		"metadata": {
@@ -66,9 +66,29 @@
 					}
 				},
 				"source": [
-					"%run  /0-odw-source-to-raw/Fileshare/SAP_HR/py_0_source_to_raw_hr_functions"
+					"#ignore FutureWarning messages \n",
+					"import warnings\n",
+					"warnings.filterwarnings(\"ignore\", message=\"iteritems is deprecated\")"
 				],
 				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%run  /0-odw-source-to-raw/Fileshare/SAP_HR/py_0_source_to_raw_hr_functions"
+				],
+				"execution_count": 1
 			},
 			{
 				"cell_type": "code",
@@ -137,7 +157,7 @@
 					"        raise TypeError(\"Header row should be an integer value\")\r\n",
 					""
 				],
-				"execution_count": 21
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
@@ -231,7 +251,7 @@
 					"    df.to_parquet(targetpath)\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
@@ -268,7 +288,7 @@
 					"    if not DeltaTable.isDeltaTable(spark,target_delta_folder):\r\n",
 					"        deltaTable = DeltaTable.convertToDelta(spark, f\"parquet.`{target_delta_folder}`\") "
 				],
-				"execution_count": null
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -304,7 +324,7 @@
 					"    spark.sql(f\"drop table if exists {db_name}.{delta_lake_table_name};\")\r\n",
 					"    spark.sql(f\"CREATE TABLE {db_name}.{delta_lake_table_name} USING DELTA LOCATION '{target_delta_folder}'\")"
 				],
-				"execution_count": null
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
@@ -320,7 +340,7 @@
 					}
 				},
 				"source": [
-					"def ingest_adhoc(storage_account, definition, folder_path, filename, expected_from, expected_to):\n",
+					"def ingest_adhoc(storage_account, definition, folder_path, filename, expected_from, expected_to, isMultilineJSON=False, dataAttribute=None):\n",
 					"\n",
 					"    from pyspark.sql import SparkSession\n",
 					"    from notebookutils import mssparkutils\n",
@@ -367,7 +387,19 @@
 					"        df = spark.read.options(quote='\"', escape='\\\\', encoding='utf8', header=True, multiLine=True).csv(f\"{folder_path}/{filename}\")\n",
 					"        df = df.toPandas()\n",
 					"    elif '.json' in filename.lower():\n",
-					"        df = spark.read.json(f\"{folder_path}/{filename}\")\n",
+					"        if isMultilineJSON == False:\n",
+					"            df = spark.read.json(f\"{folder_path}/{filename}\")\n",
+					"        else:\n",
+					"            print(\"Reading multiline JSON\")\n",
+					"            df = spark.read.option(\"multiline\", \"true\").json(f\"{folder_path}/{filename}\")\n",
+					"\n",
+					"            #we need to pull the data from a specific data attribute\n",
+					"            if dataAttribute:\n",
+					"                dfs: list = [] # an empty list to store the data frames\n",
+					"                for row in df.select(dataAttribute).collect():\n",
+					"                    for data in row[dataAttribute]:\n",
+					"                        dfs.append(data)\n",
+					"                df = spark.createDataFrame(dfs)\n",
 					"        df = df.toPandas()\n",
 					"    else:\n",
 					"        raise RuntimeError(f\"This file type for {filename} is unsupported\")\n",
@@ -417,9 +449,10 @@
 					"    ### test correct number of rows have written\n",
 					"    if rows_raw == rows_new:\n",
 					"        print('All rows have successfully been written')\n",
+					"    return rows_raw\n",
 					""
 				],
-				"execution_count": 1
+				"execution_count": 6
 			}
 		]
 	}

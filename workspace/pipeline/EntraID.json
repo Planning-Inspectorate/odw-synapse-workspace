@@ -1,0 +1,116 @@
+{
+	"name": "EntraID",
+	"properties": {
+		"activities": [
+			{
+				"name": "Src to Raw",
+				"type": "ExecutePipeline",
+				"dependsOn": [],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "0_Raw_EntraID",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
+				}
+			},
+			{
+				"name": "Raw to Std",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Src to Raw",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_raw_to_std",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"source_folder": {
+							"value": "entraid",
+							"type": "string"
+						},
+						"specific_file": {
+							"value": "users.json",
+							"type": "string"
+						},
+						"isMultiLine": {
+							"value": "True",
+							"type": "bool"
+						},
+						"dataAttribute": {
+							"value": "value",
+							"type": "string"
+						},
+						"delete_existing_table": {
+							"value": "True",
+							"type": "bool"
+						}
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Std to Harmonised",
+				"description": "Ingests data from standardised to harmonised ",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Raw to Std",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "entraid",
+						"type": "NotebookReference"
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			}
+		],
+		"folder": {
+			"name": "EntraID"
+		},
+		"annotations": []
+	}
+}
