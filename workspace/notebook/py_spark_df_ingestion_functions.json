@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ae404f30-af0b-4804-a313-c487eb039c2d"
+				"spark.autotune.trackingId": "06ea3cef-5c78-4bd9-9f2f-c855afdaeb25"
 			}
 		},
 		"metadata": {
@@ -118,8 +118,9 @@
 				},
 				"source": [
 					"def compare_schemas(schema1: StructType, schema2: StructType) -> tuple:\n",
-					"    fields1 = set((field.name, field.dataType, field.nullable) for field in schema1.fields)\n",
-					"    fields2 = set((field.name, field.dataType, field.nullable) for field in schema2.fields)\n",
+					"    \n",
+					"    fields1 = set((field.name, field.dataType) for field in schema1.fields)\n",
+					"    fields2 = set((field.name, field.dataType) for field in schema2.fields)\n",
 					"\n",
 					"    in_schema1_not_in_schema2 = fields1 - fields2\n",
 					"    in_schema2_not_in_schema1 = fields2 - fields1\n",
@@ -210,13 +211,28 @@
 					}
 				},
 				"source": [
-					"def collect_all_raw_sb_data(folder_name: str):\r\n",
+					"def collect_all_raw_sb_data(folder_name: str, schema: StructType) -> DataFrame:\r\n",
+					"\r\n",
+					"    \"\"\"\r\n",
+					"    Function to loop through all sub-folders in a given folder path and collect all\r\n",
+					"    json data into a single DataFrame. To be used for a reload of an entity from all\r\n",
+					"    data in the RAW layer.\r\n",
+					"\r\n",
+					"    Args:\r\n",
+					"        folder_name: the name of the folder in the storage account. May be different from the\r\n",
+					"        entity name.\r\n",
+					"        schema: a spark schema of type StructType to apply to the RAW data.\r\n",
+					"\r\n",
+					"    Returns:\r\n",
+					"        A spark DataFrame of all json data from the RAW layer for a given root folder\r\n",
+					"    \"\"\"\r\n",
 					"\r\n",
 					"    storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\r\n",
 					"\r\n",
 					"    folder: str = f\"abfss://odw-raw@{storage_account}ServiceBus/{folder_name}\"\r\n",
 					"\r\n",
-					"    df: DataFrame = (spark.read.format(\"json\") \r\n",
+					"    df: DataFrame = (spark.read.format(\"json\")\r\n",
+					"        .schema(schema) \r\n",
 					"        .option(\"recursiveFileLookup\", \"true\")\r\n",
 					"        .option(\"pathGlobFilter\",\"*.json\")\r\n",
 					"        .load(folder))\r\n",
