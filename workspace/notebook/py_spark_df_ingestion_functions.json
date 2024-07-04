@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "06ea3cef-5c78-4bd9-9f2f-c855afdaeb25"
+				"spark.autotune.trackingId": "a5a5a2aa-a644-4d61-ad7a-770cb8eba57e"
 			}
 		},
 		"metadata": {
@@ -118,7 +118,6 @@
 				},
 				"source": [
 					"def compare_schemas(schema1: StructType, schema2: StructType) -> tuple:\n",
-					"    \n",
 					"    fields1 = set((field.name, field.dataType) for field in schema1.fields)\n",
 					"    fields2 = set((field.name, field.dataType) for field in schema2.fields)\n",
 					"\n",
@@ -242,6 +241,50 @@
 					"    return df_with_filename"
 				],
 				"execution_count": 5
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def collect_all_raw_sb_data_historic(folder_name: str) -> DataFrame:\r\n",
+					"\r\n",
+					"    \"\"\"\r\n",
+					"    Function to loop through all sub-folders in a given folder path and collect all\r\n",
+					"    json data into a single DataFrame. To be used for a reload of an entity from all\r\n",
+					"    data in the RAW layer.\r\n",
+					"\r\n",
+					"    Args:\r\n",
+					"        folder_name: the name of the folder in the storage account. May be different from the\r\n",
+					"        entity name.\r\n",
+					"\r\n",
+					"    Returns:\r\n",
+					"        A spark DataFrame of all json data from the RAW layer for a given root folder\r\n",
+					"    \"\"\"\r\n",
+					"\r\n",
+					"    storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\r\n",
+					"\r\n",
+					"    folder: str = f\"abfss://odw-raw@{storage_account}ServiceBus/{folder_name}\"\r\n",
+					"\r\n",
+					"    df: DataFrame = (spark.read.format(\"json\")\r\n",
+					"        .option(\"recursiveFileLookup\", \"true\")\r\n",
+					"        .option(\"pathGlobFilter\",\"*.json\")\r\n",
+					"        .load(folder))\r\n",
+					"\r\n",
+					"    df_with_filename: DataFrame = df.withColumn(\"input_file\", input_file_name())\r\n",
+					"\r\n",
+					"    return df_with_filename"
+				],
+				"execution_count": null
 			}
 		]
 	}

@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "624ec5c0-4180-43d5-82d6-a75a945cd2cd"
+				"spark.autotune.trackingId": "0e9984cf-53a0-46b8-9620-51905ea60689"
 			}
 		},
 		"metadata": {
@@ -53,41 +53,13 @@
 		},
 		"cells": [
 			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"#### Sample notebook showing how to join a flat table with a spark table with arrays\r\n",
-					"\r\n",
-					"The example below shows the following:  \r\n",
-					"\r\n",
-					"You have a table from Service Bus which has an array field for attachmentIds.  \r\n",
-					"You have a similar table from Horizon with attachmentIds in a flat schema - 1 row per attachmentId.  \r\n",
-					"You want to merge them together into a final table, e.g. curated layer, joining on the primary key, in this case \"caseId\".  \r\n",
-					"\r\n",
-					"1. Create spark dataframes for each table.  \r\n",
-					"2. Explode the service bus array field \"attachmentIds\" so you have 1 attachmentId per row.  \r\n",
-					"3. Union the 2 dataframes as they have the same column names.  \r\n",
-					"4. Group all the attachmentIds into an array using the collect_list function, grouping by the primary key, \"caseId\".  \r\n",
-					"5. Use this final dataframe to load / create the final table.  \r\n",
-					"\r\n",
-					"**NB: this is just an example of how this can be achieved. Each use case should be examined to see if this approach is appropriate for that particular entity**"
-				]
-			},
-			{
 				"cell_type": "code",
 				"source": [
 					"from pyspark.sql.types import IntegerType, ArrayType, StructType, StructField\r\n",
 					"from pyspark.sql import Row\r\n",
-					"from pyspark.sql.functions import *\r\n",
-					""
+					"from pyspark.sql.functions import *"
 				],
-				"execution_count": 76
+				"execution_count": 1
 			},
 			{
 				"cell_type": "code",
@@ -107,7 +79,7 @@
 					"horizon_table = \"odw_standardised_db.horizon_nsip_data\"\r\n",
 					"spark_table_final = \"odw_harmonised_db.nsip_project\""
 				],
-				"execution_count": 77
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
@@ -123,7 +95,8 @@
 					}
 				},
 				"source": [
-					"service_bus_data = spark.sql(\"\"\"\r\n",
+					"# Get data out of the service bus with additional fields needed for Horizon data\r\n",
+					"service_bus_data = spark.sql(f\"\"\"\r\n",
 					"                    SELECT \r\n",
 					"                        NSIPProjectInfoInternalID\r\n",
 					"                        ,caseId\r\n",
@@ -154,9 +127,13 @@
 					"                        ,anticipatedSubmissionDateNonSpecific\r\n",
 					"                        ,anticipatedDateOfSubmission\r\n",
 					"                        ,screeningOpinionSought\r\n",
+					"                        ,screeningOpinionIssued\r\n",
+					"                        ,scopingOpinionSought\r\n",
 					"                        ,scopingOpinionIssued\r\n",
 					"                        ,section46Notification\r\n",
 					"                        ,dateOfDCOSubmission\r\n",
+					"                        ,deadlineForAcceptanceDecision\r\n",
+					"                        ,dateOfDCOAcceptance\r\n",
 					"                        ,dateOfNonAcceptance\r\n",
 					"                        ,dateOfRepresentationPeriodOpen\r\n",
 					"                        ,dateOfRelevantRepresentationClose\r\n",
@@ -176,6 +153,9 @@
 					"                        ,deadlineForSubmissionOfRecommendation\r\n",
 					"                        ,dateOfRecommendations\r\n",
 					"                        ,stage5ExtensionToRecommendationDeadline\r\n",
+					"                        ,deadlineForDecision\r\n",
+					"                        ,confirmedDateOfDecision\r\n",
+					"                        ,stage5ExtensionToDecisionDeadline\r\n",
 					"                        ,jRPeriodEndDate\r\n",
 					"                        ,dateProjectWithdrawn\r\n",
 					"                        ,operationsLeadId\r\n",
@@ -218,10 +198,10 @@
 					"                        ,CAST(NULL AS String) AS caseNodeId\r\n",
 					"                        --End Horizon only fields\r\n",
 					"                    FROM \r\n",
-					"                        odw_harmonised_db.sb_nsip_project\r\n",
+					"                        {service_bus_table}\r\n",
 					"                    \"\"\")"
 				],
-				"execution_count": 78
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
@@ -237,18 +217,19 @@
 					}
 				},
 				"source": [
-					"horizon_data = spark.sql(\"\"\"\r\n",
+					"# Get data out of Horizon and matching the SB schema (with additional fields and ensure data types match)\r\n",
+					"horizon_data = spark.sql(f\"\"\"\r\n",
 					"                SELECT\r\n",
 					"                        CAST(NULL AS Long) AS NSIPProjectInfoInternalID\r\n",
-					"                        ,HorizonCaseNumber AS caseid\r\n",
-					"                        ,casereference\r\n",
-					"                        ,projectname\r\n",
+					"                        ,Horizon.HorizonCaseNumber AS caseid\r\n",
+					"                        ,Horizon.casereference\r\n",
+					"                        ,Horizon.projectname\r\n",
 					"                        ,CAST(NULL AS String) AS projectNameWelsh\r\n",
-					"                        ,summary AS projectDescription\r\n",
+					"                        ,Horizon.summary AS projectDescription\r\n",
 					"                        ,CAST(NULL AS String) AS projectDescriptionWelsh\r\n",
-					"                        ,caseCreatedDate\r\n",
+					"                        ,Horizon.caseCreatedDate\r\n",
 					"                        ,CAST(NULL AS String) AS decision\r\n",
-					"                        ,projectstatus AS publishStatus\r\n",
+					"                        ,CASE WHEN LOWER(projectstatus) = 'not published' THEN 'unpublished' ELSE LOWER(projectstatus) END AS publishStatus\r\n",
 					"                        ,sector\r\n",
 					"                        ,projecttype AS projectType\r\n",
 					"                        ,'Horizon' AS sourceSystem\r\n",
@@ -256,21 +237,25 @@
 					"                        ,projectLocation\r\n",
 					"                        ,CAST(NULL AS Date) AS projectLocationWelsh\r\n",
 					"                        ,projectEmailAddress\r\n",
-					"                        ,Region\r\n",
+					"                        ,LOWER(Region) AS Region\r\n",
 					"                        ,CAST(transboundary AS Boolean) AS transboundary\r\n",
 					"                        ,easting\r\n",
 					"                        ,northing\r\n",
 					"                        ,CAST(welshLanguage AS Boolean) AS welshLanguage\r\n",
-					"                        ,mapZoomLevel\r\n",
+					"                        ,LOWER(mapZoomLevel) AS mapZoomLevel\r\n",
 					"                        ,sos AS secretaryOfState\r\n",
 					"                        ,datePINSFirstNotifiedOfProject\r\n",
 					"                        ,dateProjectAppearsOnWebsite\r\n",
 					"                        ,anticipatedSubmissionDateNonSpecific\r\n",
 					"                        ,anticipatedDateOfSubmission\r\n",
 					"                        ,screeningOpinionSought\r\n",
+					"                        ,screeningOpinionIssued\r\n",
+					"                        ,scopingOpinionSought\r\n",
 					"                        ,scopingOpinionIssued\r\n",
 					"                        ,section46Notification\r\n",
 					"                        ,dateOfDCOSubmission\r\n",
+					"                        ,deadlineForAcceptanceDecision\r\n",
+					"                        ,dateOfDCOAcceptance\r\n",
 					"                        ,CAST(NULL AS Date) AS dateOfNonAcceptance\r\n",
 					"                        ,dateOfRepresentationPeriodOpen\r\n",
 					"                        ,dateOfRelevantRepresentationClose\r\n",
@@ -290,6 +275,9 @@
 					"                        ,deadlineForSubmissionOfRecommendation\r\n",
 					"                        ,dateOfRecommendations\r\n",
 					"                        ,stage5ExtensionToRecommendationDeadline\r\n",
+					"                        ,deadlineForDecision\r\n",
+					"                        ,confirmedDateOfDecision\r\n",
+					"                        ,stage5ExtensionToDecisionDeadline\r\n",
 					"                        ,jRPeriodEndDate\r\n",
 					"                        ,dateProjectWithdrawn\r\n",
 					"                        ,CAST(NULL AS String) AS operationsLeadId\r\n",
@@ -332,13 +320,13 @@
 					"                        ,'' AS RowID\r\n",
 					"                        ,'Y' AS IsActive\r\n",
 					"FROM\r\n",
-					"    odw_standardised_db.horizon_nsip_data\r\n",
+					"    {horizon_table} AS Horizon\r\n",
 					"WHERE\r\n",
-					"    ingested_datetime = (SELECT MAX(ingested_datetime) FROM odw_standardised_db.horizon_nsip_data)\r\n",
+					"    ingested_datetime = (SELECT MAX(ingested_datetime) FROM {horizon_table})\r\n",
 					"\r\n",
 					"                \"\"\")"
 				],
-				"execution_count": 79
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -379,7 +367,7 @@
 					"#sort columns into same order as service bus\r\n",
 					"horizon_data = horizon_data.select(service_bus_data.columns)"
 				],
-				"execution_count": 80
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
@@ -397,7 +385,7 @@
 				"source": [
 					"results = service_bus_data.union(horizon_data)"
 				],
-				"execution_count": 81
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
@@ -416,7 +404,7 @@
 				"source": [
 					"results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
 				],
-				"execution_count": 82
+				"execution_count": 7
 			},
 			{
 				"cell_type": "markdown",
@@ -468,7 +456,7 @@
 					"FROM\r\n",
 					"    odw_harmonised_db.nsip_project"
 				],
-				"execution_count": 83
+				"execution_count": 8
 			},
 			{
 				"cell_type": "code",
@@ -541,9 +529,13 @@
 					"        ,anticipatedSubmissionDateNonSpecific\r\n",
 					"        ,anticipatedDateOfSubmission\r\n",
 					"        ,screeningOpinionSought\r\n",
+					"        ,screeningOpinionIssued\r\n",
+					"        ,scopingOpinionSought\r\n",
 					"        ,scopingOpinionIssued\r\n",
 					"        ,section46Notification\r\n",
 					"        ,dateOfDCOSubmission\r\n",
+					"        ,deadlineForAcceptanceDecision\r\n",
+					"        ,dateOfDCOAcceptance\r\n",
 					"        ,dateOfNonAcceptance\r\n",
 					"        ,dateOfRepresentationPeriodOpen\r\n",
 					"        ,dateOfRelevantRepresentationClose\r\n",
@@ -563,6 +555,9 @@
 					"        ,deadlineForSubmissionOfRecommendation\r\n",
 					"        ,dateOfRecommendations\r\n",
 					"        ,stage5ExtensionToRecommendationDeadline\r\n",
+					"        ,deadlineForDecision\r\n",
+					"        ,confirmedDateOfDecision\r\n",
+					"        ,stage5ExtensionToDecisionDeadline\r\n",
 					"        ,jRPeriodEndDate\r\n",
 					"        ,dateProjectWithdrawn\r\n",
 					"        ,operationsLeadId\r\n",
@@ -632,9 +627,13 @@
 					"                    ,IFNULL(CAST(anticipatedSubmissionDateNonSpecific AS String), '.')\r\n",
 					"                    ,IFNULL(CAST(anticipatedDateOfSubmission AS String), '.')\r\n",
 					"                    ,IFNULL(CAST(screeningOpinionSought AS String), '.')\r\n",
+					"                    ,IFNULL(CAST(screeningOpinionIssued AS String), '.')\r\n",
+					"                    ,IFNULL(CAST(scopingOpinionSought AS String), '.')\r\n",
 					"                    ,IFNULL(CAST(scopingOpinionIssued AS String), '.')\r\n",
 					"                    ,IFNULL(CAST(section46Notification AS String), '.')\r\n",
 					"                    ,IFNULL(CAST(dateOfDCOSubmission AS String), '.')\r\n",
+					"                    ,IFNULL(CAST(deadlineForAcceptanceDecision AS String), '.')\r\n",
+					"                    ,IFNULL(CAST(dateOfDCOAcceptance AS String), '.')\r\n",
 					"                    ,IFNULL(CAST(dateOfNonAcceptance AS String), '.')\r\n",
 					"                    ,IFNULL(CAST(dateOfRepresentationPeriodOpen AS String), '.')\r\n",
 					"                    ,IFNULL(CAST(dateOfRelevantRepresentationClose AS String), '.')\r\n",
@@ -654,6 +653,9 @@
 					"                    ,IFNULL(CAST(deadlineForSubmissionOfRecommendation AS String), '.')\r\n",
 					"                    ,IFNULL(CAST(dateOfRecommendations AS String), '.')\r\n",
 					"                    ,IFNULL(CAST(stage5ExtensionToRecommendationDeadline AS String), '.')\r\n",
+					"                    ,IFNULL(CAST(deadlineForDecision AS String), '.')\r\n",
+					"                    ,IFNULL(CAST(confirmedDateOfDecision AS String), '.')\r\n",
+					"                    ,IFNULL(CAST(stage5ExtensionToDecisionDeadline AS String), '.')\r\n",
 					"                    ,IFNULL(CAST(jRPeriodEndDate AS String), '.')\r\n",
 					"                    ,IFNULL(CAST(dateProjectWithdrawn AS String), '.')\r\n",
 					"                    ,IFNULL(CAST(operationsLeadId AS String), '.')\r\n",
@@ -707,7 +709,7 @@
 					"\r\n",
 					"final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
 				],
-				"execution_count": 84
+				"execution_count": 9
 			}
 		]
 	}
