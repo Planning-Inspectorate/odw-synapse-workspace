@@ -1,0 +1,203 @@
+{
+	"name": "0_Raw_Horizon_s62a_ViewCases",
+	"properties": {
+		"activities": [
+			{
+				"name": "Horizon_S62A_ViewCases",
+				"description": "This is pulling all data from SQL view to gather folder data for use with the document data",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [
+					{
+						"name": "Source",
+						"value": "dbo.S62AViewCases"
+					},
+					{
+						"name": "Destination",
+						"value": "odw-raw/Horizon/"
+					}
+				],
+				"typeProperties": {
+					"source": {
+						"type": "SqlServerSource",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"sink": {
+						"type": "DelimitedTextSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "DelimitedTextWriteSettings",
+							"quoteAllText": true,
+							"fileExtension": ".txt"
+						}
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"name": "Name",
+									"type": "String",
+									"physicalType": "nvarchar"
+								},
+								"sink": {
+									"name": "Name",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "CaseRef",
+									"type": "String",
+									"physicalType": "nvarchar"
+								},
+								"sink": {
+									"name": "CaseRef",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "CommentsDataID",
+									"type": "Int32",
+									"physicalType": "int"
+								},
+								"sink": {
+									"name": "CommentsDataID",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "CaseDataID",
+									"type": "Int32",
+									"physicalType": "int"
+								},
+								"sink": {
+									"name": "CaseDataID",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "Description",
+									"type": "String",
+									"physicalType": "nvarchar"
+								},
+								"sink": {
+									"name": "Description",
+									"type": "String",
+									"physicalType": "String"
+								}
+							}
+						],
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "S62A_ViewCases_Entity",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "S62A_ViewCases",
+						"type": "DatasetReference",
+						"parameters": {
+							"FileName": "S62AViewCases.csv"
+						}
+					}
+				]
+			},
+			{
+				"name": "Horizon_S62A_View_Cases_Copy_Failure",
+				"description": "The copy activity from Horizon has failed",
+				"type": "Fail",
+				"dependsOn": [
+					{
+						"activity": "Horizon_S62A_ViewCases",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"userProperties": [
+					{
+						"name": "Maria Valero",
+						"value": "maria.valero-gonzalez@planninginspectorate.gov.uk"
+					}
+				],
+				"typeProperties": {
+					"message": "S62A ViewCases copy to Raw has failed",
+					"errorCode": "Horizon_S62A_View_Cases_Entity"
+				}
+			},
+			{
+				"name": "Logging Failed Activities S62A-ViewCases Entity",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Horizon_S62A_View_Cases_Copy_Failure",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_fail_activity_logging",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"output": {
+							"value": {
+								"value": "@activity('Horizon_S62A_View_Cases_Copy_Failure').output.message",
+								"type": "Expression"
+							},
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			}
+		],
+		"folder": {
+			"name": "s62a-casework/layers"
+		},
+		"annotations": []
+	}
+}
