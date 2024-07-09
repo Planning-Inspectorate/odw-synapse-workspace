@@ -1,0 +1,588 @@
+{
+	"name": "py_sb_horizon_harmonised_nsip_representation",
+	"properties": {
+		"description": "Sample notebook showing how to join a flat table with a spark table with arrays.",
+		"folder": {
+			"name": "odw-harmonised"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "86ced83a-695c-4876-a12d-cb042b7737b6"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.3",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql.types import IntegerType, ArrayType, StructType, StructField\r\n",
+					"from pyspark.sql import Row\r\n",
+					"from pyspark.sql.functions import *"
+				],
+				"execution_count": 19
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"service_bus_table = \"odw_harmonised_db.sb_nsip_representation\"\r\n",
+					"horizon_table = \"odw_standardised_db.horizon_nsip_relevant_representation\"\r\n",
+					"spark_table_final = \"odw_harmonised_db.nsip_relevant_representation\""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Got this far modifying for nsip relevant reps"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"# Get data out of the service bus with additional fields needed for Horizon data\r\n",
+					"service_bus_data = spark.sql(f\"\"\"\r\n",
+					"                    SELECT \r\n",
+					"                        NSIPRepresentaionID\r\n",
+					"                        ,representationId\r\n",
+					"                        ,referenceId\r\n",
+					"                        ,examinationLibraryRef\r\n",
+					"                        ,caseRef\r\n",
+					"                        ,caseId\r\n",
+					"                        ,status\r\n",
+					"                        ,originalRepresentation\r\n",
+					"                        ,redacted\r\n",
+					"                        ,redactedRepresentation\r\n",
+					"                        ,redactedBy\r\n",
+					"                        ,redactedNotes\r\n",
+					"                        ,representationFrom\r\n",
+					"                        ,representedId\r\n",
+					"                        ,representativeId\r\n",
+					"                        ,registerFor\r\n",
+					"                        ,representationType\r\n",
+					"                        ,dateReceived\r\n",
+					"                        ,attachmentIds\r\n",
+					"                        --Start Horizon only fields\r\n",
+					"                        ,CAST(NULL AS String) AS casenodeid\r\n",
+					"                        ,CAST(NULL AS String) AS organisationname\r\n",
+					"                        ,CAST(NULL AS String) AS jobtitle\r\n",
+					"                        ,CAST(NULL AS String) AS fullname\r\n",
+					"                        ,CAST(NULL AS String) AS phonenumber\r\n",
+					"                        ,CAST(NULL AS String) AS emailaddress\r\n",
+					"                        ,CAST(NULL AS String) AS buildingnumber\r\n",
+					"                        ,CAST(NULL AS String) AS street\r\n",
+					"                        ,CAST(NULL AS String) AS town\r\n",
+					"                        ,CAST(NULL AS String) AS county\r\n",
+					"                        ,CAST(NULL AS String) AS country\r\n",
+					"                        ,CAST(NULL AS String) AS postcode\r\n",
+					"                        ,CAST(NULL AS String) AS attendprelimmeeting\r\n",
+					"                        ,CAST(NULL AS String) AS notes\r\n",
+					"                        ,CAST(NULL AS String) AS agentcontactid\r\n",
+					"                        ,CAST(NULL AS String) AS AgentFullName\r\n",
+					"                        ,CAST(NULL AS String) AS AgentOrganisationName\r\n",
+					"                        ,CAST(NULL AS String) AS agent_phonenumber\r\n",
+					"                        ,CAST(NULL AS String) AS agent_emailaddress\r\n",
+					"                        ,CAST(NULL AS String) AS AgentBuildingNumber\r\n",
+					"                        ,CAST(NULL AS String) AS AgentStreet\r\n",
+					"                        ,CAST(NULL AS String) AS AgentTown\r\n",
+					"                        ,CAST(NULL AS String) AS AgentCounty\r\n",
+					"                        ,CAST(NULL AS String) AS AgentCountry\r\n",
+					"                        ,CAST(NULL AS String) AS AgentPostcode\r\n",
+					"                        ,CAST(NULL AS String) AS representatcompacqhearing\r\n",
+					"                        ,CAST(NULL AS String) AS representatissuehearing\r\n",
+					"                        ,CAST(NULL AS String) AS representatopenfloorhearing\r\n",
+					"                        ,CAST(NULL AS String) AS submitlaterreps\r\n",
+					"                        ,CAST(NULL AS String) AS webreference\r\n",
+					"                        ,CAST(NULL AS String) AS relevantrepstatus\r\n",
+					"                        ,CAST(NULL AS String) AS owneroroccupier\r\n",
+					"                        ,CAST(NULL AS String) AS powertosell\r\n",
+					"                        ,CAST(NULL AS String) AS entitledtoclaim\r\n",
+					"                        ,CAST(NULL AS String) AS other\r\n",
+					"                        ,CAST(NULL AS String) AS descriptionifother\r\n",
+					"                        ,CAST(NULL AS String) AS relreponbehalfof\r\n",
+					"                        ,CAST(NULL AS String) AS relreporganisation\r\n",
+					"                        ,CAST(NULL AS String) AS preferredcontactmethod\r\n",
+					"                        --End Horizon only fields\r\n",
+					"                        ,migrated\r\n",
+					"                        ,ODTSourceSystem\r\n",
+					"                        ,SourceSystemID\r\n",
+					"                        ,IngestionDate\r\n",
+					"                        ,ValidTo\r\n",
+					"                        ,'' AS RowID\r\n",
+					"                        ,IsActive\r\n",
+					"                    FROM \r\n",
+					"                        {service_bus_table}\r\n",
+					"                    \"\"\")\r\n",
+					"\r\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"# Get data out of Horizon and matching the SB schema (with additional fields and ensure data types match)\r\n",
+					"horizon_data = spark.sql(f\"\"\"\r\n",
+					"                SELECT\r\n",
+					"                        coalese(caseuniqueid,'-',contactid) AS NSIPRepresentaionID\r\n",
+					"                        ,contactid AS representationId\r\n",
+					"                        ,CAST(NULL AS String) AS referenceId\r\n",
+					"                        ,CAST(NULL AS String) AS examinationLibraryRef\r\n",
+					"                        ,casereference AS caseRef\r\n",
+					"                        ,caseuniqueid AS caseId\r\n",
+					"                        ,RelevantRepStatus AS status\r\n",
+					"                        ,representationoriginal AS originalRepresentation\r\n",
+					"                        ,CAST(NULL AS boolean) AS redacted\r\n",
+					"                        ,representationredacted AS redactedRepresentation\r\n",
+					"                        ,redactedBy\r\n",
+					"                        ,CAST(NULL AS String) AS redactedNotes\r\n",
+					"                        ,RelRepOnBehalfOf AS representationFrom\r\n",
+					"                        ,CAST(NULL AS String) AS representedId\r\n",
+					"                        ,relevantrepid AS representativeId\r\n",
+					"                        ,RelRepOnBehalfOf AS registerFor\r\n",
+					"                        ,RelRepOrganisation AS representationType\r\n",
+					"                        ,dateReceived\r\n",
+					"                        ,attachmentId\r\n",
+					"                        --Start Horizon only fields\r\n",
+					"                        ,casenodeid\r\n",
+					"                        ,organisationname\r\n",
+					"                        ,jobtitle\r\n",
+					"                        ,fullname\r\n",
+					"                        ,phonenumber\r\n",
+					"                        ,emailaddress\r\n",
+					"                        ,buildingnumber\r\n",
+					"                        ,street\r\n",
+					"                        ,town\r\n",
+					"                        ,county\r\n",
+					"                        ,country\r\n",
+					"                        ,postcode\r\n",
+					"                        ,attendprelimmeeting\r\n",
+					"                        ,notes\r\n",
+					"                        ,agentcontactid\r\n",
+					"                        ,agent_fullname AS AgentFullName\r\n",
+					"                        ,agent_organisationname AS AgentOrganisationName\r\n",
+					"                        ,agent_phonenumber\r\n",
+					"                        ,agent_emailaddress\r\n",
+					"                        ,agent_buildingnumber AS AgentBuildingNumber\r\n",
+					"                        ,agent_street AS AgentStreet\r\n",
+					"                        ,agent_town AS AgentTown\r\n",
+					"                        ,Agent_County AS AgentCounty\r\n",
+					"                        ,Agent_Country AS AgentCountry\r\n",
+					"                        ,agent_postcode AS AgentPostcode\r\n",
+					"                        ,representatcompacqhearing\r\n",
+					"                        ,representatissuehearing\r\n",
+					"                        ,representatopenfloorhearing\r\n",
+					"                        ,submitlaterreps\r\n",
+					"                        ,webreference\r\n",
+					"                        ,relevantrepstatus\r\n",
+					"                        ,owneroroccupier\r\n",
+					"                        ,powertosell\r\n",
+					"                        ,entitledtoclaim\r\n",
+					"                        ,other\r\n",
+					"                        ,descriptionifother\r\n",
+					"                        ,relreponbehalfof\r\n",
+					"                        ,relreporganisation\r\n",
+					"                        ,preferredcontactmethod\r\n",
+					"                        --End Horizon only fields\r\n",
+					"                        ,0 AS migrated\r\n",
+					"                        ,'Horizon' AS ODTSourceSystem\r\n",
+					"                        ,source.SourceSystemID\r\n",
+					"                        ,IngestionDate\r\n",
+					"                        ,ValidTo\r\n",
+					"                        ,'' AS RowID\r\n",
+					"                        ,IsActive\r\n",
+					"FROM\r\n",
+					"    {horizon_table} AS Horizon\r\n",
+					"    INNER JOIN odw_harmonised_db.main_sourcesystem_fact AS source \r\n",
+					"        ON source.Description = \"Casework\"\r\n",
+					"        AND source.IsActive = 'Y'\r\n",
+					"WHERE\r\n",
+					"    ingested_datetime = (SELECT MAX(ingested_datetime) FROM {horizon_table})\r\n",
+					"\r\n",
+					"                \"\"\")\r\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"#Establish aggregated view of attachmentId\r\n",
+					"horizon_region = horizon_data.groupBy(\"caseid\").agg(collect_list(\"attachmentId\").alias(\"attachmentIds\"))\r\n",
+					"horizon_data = horizon_data.join(horizon_region, on=\"caseid\", how=\"inner\").drop(\"attachmentId\")\r\n",
+					"\r\n",
+					"#sort columns into same order as service bus\r\n",
+					"horizon_data = horizon_data.select(service_bus_data.columns)"
+				],
+				"execution_count": 14
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"results = service_bus_data.union(horizon_data)"
+				],
+				"execution_count": 15
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
+				],
+				"execution_count": 16
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Now need to sort internal ids, IsActive flags, and valid_to dates"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW vw_nsip_relevant_representation_calculations_base\r\n",
+					"AS\r\n",
+					"SELECT  \r\n",
+					"    row_number() OVER(PARTITION BY representationId ORDER BY IngestionDate DESC) AS ReverseOrderProcessed\r\n",
+					"    ,row_number() OVER(ORDER BY IngestionDate ASC, NSIPRepresentaionID ASC) AS NSIPRepresentInfoInternalID\r\n",
+					"    ,NSIPRepresentaionID\r\n",
+					"    ,IngestionDate\r\n",
+					"    ,ValidTo\r\n",
+					"    ,'0' AS migrated\r\n",
+					"    ,CASE row_number() OVER(PARTITION BY representationId ORDER BY IngestionDate DESC)\r\n",
+					"        WHEN 1 THEN\r\n",
+					"            'Y'\r\n",
+					"        ELSE\r\n",
+					"            'N'\r\n",
+					"    END AS IsActive       \r\n",
+					"FROM\r\n",
+					"    odw_harmonised_db.nsip_relevant_representation"
+				],
+				"execution_count": 17
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"df_calcs = spark.sql(\"\"\"\r\n",
+					"                        SELECT\r\n",
+					"                            CurrentRow.NSIPRepresentInfoInternalID\r\n",
+					"                            ,CurrentRow.NSIPRepresentaionID \r\n",
+					"                            ,CurrentRow.IngestionDate\r\n",
+					"                            ,COALESCE(CurrentRow.ValidTo, NextRow.IngestionDate) AS ValidTo\r\n",
+					"                            ,CASE\r\n",
+					"                                WHEN raw.NSIPRepresentaionID IS NOT NULL THEN \r\n",
+					"                                    \"1\"\r\n",
+					"                                ELSE \r\n",
+					"                                    \"0\"\r\n",
+					"                            END AS migrated\r\n",
+					"                            ,CurrentRow.IsActive\r\n",
+					"                        FROM\r\n",
+					"                            vw_nsip_relevant_representation_calculations_base AS CurrentRow\r\n",
+					"                            LEFT OUTER JOIN vw_nsip_relevant_representation_calculations_base AS NextRow\r\n",
+					"                                ON CurrentRow.NSIPRepresentaionID = NextRow.NSIPRepresentaionID\r\n",
+					"                                AND CurrentRow.ReverseOrderProcessed - 1 = NextRow.ReverseOrderProcessed\r\n",
+					"                            LEFT OUTER JOIN (SELECT DISTINCT NSIPRepresentaionID FROM odw_harmonised_db.sb_nsip_representation) AS Raw\r\n",
+					"                                ON CurrentRow.NSIPRepresentaionID = Raw.NSIPRepresentaionID \"\"\")\r\n",
+					"\r\n",
+					"df_calcs =df_calcs.withColumnRenamed(\"NSIPRepresentaionID\", \"temp_NSIPRepresentaionID\").withColumnRenamed(\"IngestionDate\", \"temp_IngestionDate\")\r\n",
+					"\r\n",
+					"\r\n",
+					"#To Do: Need to complete this statement. At the moment will return duplicate fields called RowID\r\n",
+					"results = spark.sql(f\"\"\"\r\n",
+					"                    SELECT \r\n",
+					"                        Target.NSIPRepresentaionID\r\n",
+					"                        ,representationId\r\n",
+					"                        ,referenceId\r\n",
+					"                        ,examinationLibraryRef\r\n",
+					"                        ,caseRef\r\n",
+					"                        ,caseId\r\n",
+					"                        ,status\r\n",
+					"                        ,originalRepresentation\r\n",
+					"                        ,redacted\r\n",
+					"                        ,redactedRepresentation\r\n",
+					"                        ,redactedBy\r\n",
+					"                        ,redactedNotes\r\n",
+					"                        ,representationFrom\r\n",
+					"                        ,representedId\r\n",
+					"                        ,representativeId\r\n",
+					"                        ,registerFor\r\n",
+					"                        ,representationType\r\n",
+					"                        ,dateReceived\r\n",
+					"                        ,attachmentIds\r\n",
+					"                        --Start Horizon only fields\r\n",
+					"                        ,casenodeid\r\n",
+					"                        ,organisationname\r\n",
+					"                        ,jobtitle\r\n",
+					"                        ,fullname\r\n",
+					"                        ,phonenumber\r\n",
+					"                        ,emailaddress\r\n",
+					"                        ,buildingnumber\r\n",
+					"                        ,street\r\n",
+					"                        ,town\r\n",
+					"                        ,county\r\n",
+					"                        ,country\r\n",
+					"                        ,postcode\r\n",
+					"                        ,attendprelimmeeting\r\n",
+					"                        ,notes\r\n",
+					"                        ,agentcontactid\r\n",
+					"                        ,AgentFullName\r\n",
+					"                        ,AgentOrganisationName\r\n",
+					"                        ,agent_phonenumber\r\n",
+					"                        ,agent_emailaddress\r\n",
+					"                        ,AgentBuildingNumber\r\n",
+					"                        ,AgentStreet\r\n",
+					"                        ,AgentTown\r\n",
+					"                        ,AgentCounty\r\n",
+					"                        ,AgentCountry\r\n",
+					"                        ,AgentPostcode\r\n",
+					"                        ,representatcompacqhearing\r\n",
+					"                        ,representatissuehearing\r\n",
+					"                        ,representatopenfloorhearing\r\n",
+					"                        ,submitlaterreps\r\n",
+					"                        ,webreference\r\n",
+					"                        ,relevantrepstatus\r\n",
+					"                        ,owneroroccupier\r\n",
+					"                        ,powertosell\r\n",
+					"                        ,entitledtoclaim\r\n",
+					"                        ,other\r\n",
+					"                        ,descriptionifother\r\n",
+					"                        ,relreponbehalfof\r\n",
+					"                        ,relreporganisation\r\n",
+					"                        ,preferredcontactmethod\r\n",
+					"                        --End Horizon only fields\r\n",
+					"                        ,0 AS migrated\r\n",
+					"                        ,ODTSourceSystem\r\n",
+					"                        ,SourceSystemID\r\n",
+					"                        ,IngestionDate\r\n",
+					"                        ,ValidTo\r\n",
+					"                        ,MD5(\r\n",
+					"                            COALESCE(\r\n",
+					"                                    IFNULL(CAST(Target.NSIPRepresentaionID AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(representationId AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(referenceId AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(examinationLibraryRef AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(caseRef AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(caseId AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(status AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(originalRepresentation AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(redacted AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(redactedRepresentation AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(redactedBy AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(redactedNotes AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(representationFrom AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(representedId AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(representativeId AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(registerFor AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(representationType AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(dateReceived AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(attachmentIds AS String), '.')\r\n",
+					"                                        --Start Horizon only fields\r\n",
+					"                                    ,IFNULL(CAST(casenodeid AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(organisationname AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(jobtitle AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(fullname AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(phonenumber AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(emailaddress AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(buildingnumber AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(street AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(town AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(county AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(country AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(postcode AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(attendprelimmeeting AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(notes AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(agentcontactid AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(AgentFullName AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(AgentOrganisationName AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(agent_phonenumber AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(agent_emailaddress AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(AgentBuildingNumber AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(AgentStreet AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(AgentTown AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(AgentCounty AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(AgentCountry AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(AgentPostcode AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(representatcompacqhearing AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(representatissuehearing AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(representatopenfloorhearing AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(submitlaterreps AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(webreference AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(relevantrepstatus AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(owneroroccupier AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(powertosell AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(entitledtoclaim AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(other AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(descriptionifother AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(relreponbehalfof AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(relreporganisation AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(preferredcontactmethod AS String), '.')\r\n",
+					"                                        --End Horizon only fields\r\n",
+					"                            )\r\n",
+					"                        ) AS RowID\r\n",
+					"                        ,IsActive\r\n",
+					"                    FROM \r\n",
+					"                        {spark_table_final} AS Target\"\"\")\r\n",
+					"\r\n",
+					"columns = results.columns\r\n",
+					"\r\n",
+					"results = results.drop(\"NSIPRepresentInfoInternalID\", \"ValidTo\", \"migrated\", \"IsActive\")\r\n",
+					"\r\n",
+					"final_df = results.join(df_calcs, (df_calcs[\"temp_NSIPRepresentaionID\"] == results[\"NSIPRepresentaionID\"]) & (df_calcs[\"temp_IngestionDate\"] == results[\"IngestionDate\"])).select(columns)\r\n",
+					"\r\n",
+					"final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
+				],
+				"execution_count": 18
+			}
+		]
+	}
+}
