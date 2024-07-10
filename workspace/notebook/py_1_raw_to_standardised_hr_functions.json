@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "06e6134a-dae5-4a6f-8700-e68225599ef3"
+				"spark.autotune.trackingId": "5e93f2cb-9a57-4a5a-8937-3dc45afa5878"
 			}
 		},
 		"metadata": {
@@ -70,7 +70,7 @@
 					"import warnings\n",
 					"warnings.filterwarnings(\"ignore\", message=\"iteritems is deprecated\")"
 				],
-				"execution_count": null
+				"execution_count": 1
 			},
 			{
 				"cell_type": "code",
@@ -365,6 +365,12 @@
 					"    standardised_path = definition['Standardised_Path'] + \"/\"\n",
 					"    standardised_table_name = definition['Standardised_Table_Name']\n",
 					"\n",
+					"    if 'Standardised_Table_Definition' in definition:\n",
+					"        standardised_table_loc = \"abfss://odw-config@\"+storage_account + definition['Standardised_Table_Definition']\n",
+					"        standardised_table_def_json = spark.read.text(standardised_table_loc, wholetext=True).first().value\n",
+					"    else:\n",
+					"        standardised_table_def_json = mssparkutils.notebook.run('/py_get_schema_from_url', 30, {'db_name': 'odw_standardised_db', 'entity_name': definition['Source_Frequency_Folder']})\n",
+					" \n",
 					"    if not any([table.name == standardised_table_name for table in spark.catalog.listTables('odw_standardised_db')]):\n",
 					"        create_table_from_schema(standardised_table_def_json, \"odw_standardised_db\", standardised_table_name,standardised_container , standardised_path+standardised_table_name)   \n",
 					"\n",
@@ -382,14 +388,7 @@
 					"        # Rename the temporary table to replace the original table\n",
 					"        spark.sql(f\"ALTER TABLE odw_standardised_db.{standardised_table_name}_new RENAME TO odw_standardised_db.{standardised_table_name}\")\n",
 					"\n",
-					"   \n",
-					"\n",
-					"    if 'Standardised_Table_Definition' in definition:\n",
-					"        standardised_table_loc = \"abfss://odw-config@\"+storage_account + definition['Standardised_Table_Definition']\n",
-					"        standardised_table_def_json = spark.read.text(standardised_table_loc, wholetext=True).first().value\n",
-					"    else:\n",
-					"        standardised_table_def_json = mssparkutils.notebook.run('/py_get_schema_from_url', 30, {'db_name': 'odw_standardised_db', 'entity_name': definition['Source_Frequency_Folder']})\n",
-					"                        \n",
+					"                   \n",
 					"    standardised_table_df = spark.read.format(\"delta\").load(standardised_container+standardised_path+standardised_table_name)\n",
 					"    rows = standardised_table_df.filter((standardised_table_df.expected_from == expected_from) &  (standardised_table_df.expected_to == expected_to)).count()\n",
 					"\n",
