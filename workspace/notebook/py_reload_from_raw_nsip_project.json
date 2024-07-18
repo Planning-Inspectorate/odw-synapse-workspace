@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "568d306c-a372-42ed-bcc2-f0fe94293819"
+				"spark.autotune.trackingId": "8bdcd603-8ac2-49b3-a660-557a588294b2"
 			}
 		},
 		"metadata": {
@@ -256,8 +256,17 @@
 				"source": [
 					"def create_valid_dataframe() -> DataFrame:\r\n",
 					"    df: DataFrame = collect_all_raw_sb_data_historic(f\"{entity_name}\")\r\n",
-					"    # drop corrupt records loaded with bad files and any test columns created during testing\r\n",
-					"    valid_df: DataFrame = df.filter(col(\"_corrupt_record\").isNull()).drop(\"_corrupt_record\", \"baddata\", \"interestedpartyids\", \"applicantIds\", \"ProjectStatus\")\r\n",
+					"\r\n",
+					"    # compare the df with the table created from the data model schema\r\n",
+					"    in_current_not_in_existing, in_existing_not_in_current = compare_schema_fields_only(df.schema, spark.table(raw_table_name).schema)\r\n",
+					"    in_current_not_in_existing.discard('input_file')\r\n",
+					"\r\n",
+					"    # drop corrupt records loaded with bad files and any columns not present in the data model\r\n",
+					"    if '_corrupt_record' in df.columns:\r\n",
+					"        valid_df: DataFrame =  df.filter(col(\"_corrupt_record\").isNull()).drop(*in_current_not_in_existing)\r\n",
+					"    else:\r\n",
+					"        valid_df: DataFrame =  df.drop(*in_current_not_in_existing)\r\n",
+					"    \r\n",
 					"    return valid_df"
 				],
 				"execution_count": 138
