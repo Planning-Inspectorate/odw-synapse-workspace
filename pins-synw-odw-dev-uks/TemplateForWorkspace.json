@@ -1643,6 +1643,10 @@
 			"type": "string",
 			"defaultValue": "pinssynspodw"
 		},
+		"py_reload_from_raw_s51_advice_properties_bigDataPool_referenceName": {
+			"type": "string",
+			"defaultValue": "pinssynspodw"
+		},
 		"py_reload_hr_leavers_properties_bigDataPool_referenceName": {
 			"type": "string",
 			"defaultValue": "pinssynspodw"
@@ -1660,6 +1664,10 @@
 			"defaultValue": "pinssynspodw"
 		},
 		"py_sb_horizon_harmonised_nsip_representation_properties_bigDataPool_referenceName": {
+			"type": "string",
+			"defaultValue": "pinssynspodw"
+		},
+		"py_sb_horizon_harmonised_nsip_s51_advice_properties_bigDataPool_referenceName": {
 			"type": "string",
 			"defaultValue": "pinssynspodw"
 		},
@@ -1696,6 +1704,10 @@
 			"defaultValue": "pinssynspodw"
 		},
 		"py_testing_change_table_schema_properties_bigDataPool_referenceName": {
+			"type": "string",
+			"defaultValue": "pinssynspodw"
+		},
+		"py_unit_tests_nsip_s51_advice_properties_bigDataPool_referenceName": {
 			"type": "string",
 			"defaultValue": "pinssynspodw"
 		},
@@ -68307,14 +68319,7 @@
 									"name": "Raw to Std",
 									"description": "Ingests raw data into the standardised table",
 									"type": "SynapseNotebook",
-									"dependsOn": [
-										{
-											"activity": "JSON to CSV",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
+									"dependsOn": [],
 									"policy": {
 										"timeout": "0.12:00:00",
 										"retry": 0,
@@ -68325,7 +68330,7 @@
 									"userProperties": [],
 									"typeProperties": {
 										"notebook": {
-											"referenceName": "py_raw_to_std",
+											"referenceName": "py_sb_raw_to_std",
 											"type": "NotebookReference"
 										},
 										"parameters": {
@@ -68341,46 +68346,6 @@
 												"type": "string"
 											},
 											"specific_file": {
-												"value": {
-													"value": "@variables('entity_name')",
-													"type": "Expression"
-												},
-												"type": "string"
-											}
-										},
-										"snapshot": true,
-										"conf": {
-											"spark.dynamicAllocation.enabled": null,
-											"spark.dynamicAllocation.minExecutors": null,
-											"spark.dynamicAllocation.maxExecutors": null
-										},
-										"numExecutors": null
-									}
-								},
-								{
-									"name": "JSON to CSV",
-									"description": "Converts the messages stored in json format to csv format",
-									"type": "SynapseNotebook",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "0.12:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"notebook": {
-											"referenceName": "py_service_bus_json_to_csv",
-											"type": "NotebookReference"
-										},
-										"parameters": {
-											"source_folder": {
-												"value": "ServiceBus",
-												"type": "string"
-											},
-											"source_frequency_folder": {
 												"value": {
 													"value": "@variables('entity_name')",
 													"type": "Expression"
@@ -68419,7 +68384,7 @@
 									"userProperties": [],
 									"typeProperties": {
 										"notebook": {
-											"referenceName": "py_std_to_hrm",
+											"referenceName": "py_sb_std_to_hrm",
 											"type": "NotebookReference"
 										},
 										"parameters": {
@@ -68460,9 +68425,8 @@
 			},
 			"dependsOn": [
 				"[concat(variables('workspaceId'), '/pipelines/pln_trigger_function_app')]",
-				"[concat(variables('workspaceId'), '/notebooks/py_raw_to_std')]",
-				"[concat(variables('workspaceId'), '/notebooks/py_service_bus_json_to_csv')]",
-				"[concat(variables('workspaceId'), '/notebooks/py_std_to_hrm')]"
+				"[concat(variables('workspaceId'), '/notebooks/py_sb_raw_to_std')]",
+				"[concat(variables('workspaceId'), '/notebooks/py_sb_std_to_hrm')]"
 			]
 		},
 		{
@@ -175324,7 +175288,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "aa093164-74d9-41cb-b874-e0a096c40ef8"
+						"spark.autotune.trackingId": "074cd04b-2234-4bf8-9359-7bedb0776859"
 					}
 				},
 				"metadata": {
@@ -175394,74 +175358,46 @@
 							"\n",
 							"SELECT DISTINCT\n",
 							"\n",
-							"    CAST(AD.AdviceNodeID as INT)\t\t\t\t\t\t    AS adviceId,\n",
-							"    AD.AdviceReference\t\t\t\t\t\t\t\t\t    AS adviceReference,\n",
+							"    AD.adviceId,\n",
+							"    AD.adviceReference ,\n",
 							"    CASE\n",
-							"        WHEN AD.CaseNodeID = 'None'\n",
+							"        WHEN AD.caseId = 'None'\n",
 							"        THEN CAST(\"-1\" as INT)\n",
-							"        ELSE AD.CaseNodeID\n",
+							"        ELSE AD.caseId\n",
 							"    END                                                     AS caseId,\n",
-							"    AD.CaseReference\t\t\t\t\t\t\t\t\t    AS caseReference,\n",
-							"    AD.AdviceTitle\t\t\t\t\t\t\t\t\t        AS title,\n",
-							"    AD.Enquirer                                             AS from,\n",
+							"    AD.caseReference,\n",
+							"    AD.title,\n",
+							"    AD.from,\n",
 							"    CASE\n",
-							"        WHEN LOWER(AD.EnquirerOrganisation) = 'none'\n",
+							"        WHEN LOWER(AD.agent) = 'none'\n",
 							"        THEN NULL\n",
-							"        ELSE AD.EnquirerOrganisation\n",
+							"        ELSE AD.agent\n",
 							"    END                                                     AS agent,\n",
 							"    CASE \n",
-							"        WHEN LOWER(AD.EnquiryMethod) = 'none'\n",
+							"        WHEN LOWER(AD.method) = 'none'\n",
 							"        THEN NULL\n",
-							"        ELSE LOWER(AD.EnquiryMethod)\n",
+							"        ELSE LOWER(AD.method)\n",
 							"        END                                                 AS method,\n",
-							"    AD.EnquiryDate                                          AS enquiryDate,\n",
-							"    AD.Enquiry                                              AS enquiryDetails,\n",
-							"    AD.AdviceFrom                                           AS adviceGivenBy,\n",
-							"    AD.AdviceDate                                           AS adviceDate,\n",
-							"    AD.Advice                                               AS adviceDetails,\n",
+							"    AD.enquiryDate,\n",
+							"    AD.enquiryDetails,\n",
+							"    AD.adviceGivenBy,\n",
+							"    AD.adviceDate,\n",
+							"    AD.adviceDetails,\n",
 							"    CASE\n",
-							"        WHEN AD.AdviceStatus IN ('Not Checked','unchecked','Depublished')\n",
+							"        WHEN AD.status IN ('Not Checked','unchecked','Depublished')\n",
 							"        THEN \"unchecked\"\n",
-							"        WHEN AD.AdviceStatus = 'Do Not Publish'\n",
+							"        WHEN AD.status = 'Do Not Publish'\n",
 							"        THEN 'donotpublish'\n",
-							"        ELSE LOWER(AD.AdviceStatus)\n",
+							"        ELSE LOWER(AD.status)\n",
 							"    END                                                     AS status,\n",
-							"    \"unredacted\"                                            AS redactionStatus,\n",
-							"    CASE\n",
-							"        WHEN LOWER(AD.AttachmentID) = 'none'\n",
-							"        THEN NULL\n",
-							"        ELSE AD.AttachmentID\n",
-							"    END                                                     AS attachmentIds\n",
+							"    AD.redactionStatus,\n",
+							"    AD.attachmentIds\n",
 							"\n",
-							"FROM odw_harmonised_db.casework_nsip_advice_dim \t        AS AD\n",
+							"FROM odw_harmonised_db.nsip_s51_advice \t        AS AD\n",
 							"WHERE AD.IsActive = 'Y'"
 						],
 						"outputs": [],
-						"execution_count": 4
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							},
-							"microsoft": {
-								"language": "sparksql"
-							},
-							"collapsed": false
-						},
-						"source": [
-							"%%sql\r\n",
-							"Select * from odw_curated_db.nsip_s51_advice where adviceId = 32842535"
-						],
-						"outputs": [],
-						"execution_count": 5
+						"execution_count": 1
 					},
 					{
 						"cell_type": "markdown",
@@ -175496,34 +175432,7 @@
 							"view_df.write.mode(\"overwrite\").saveAsTable('odw_curated_db.nsip_s51_advice')"
 						],
 						"outputs": [],
-						"execution_count": 6
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							},
-							"microsoft": {
-								"language": "sparksql"
-							},
-							"collapsed": false
-						},
-						"source": [
-							"%%sql\n",
-							"\n",
-							"SELECT * FROM odw_harmonised_db.casework_nsip_advice_dim WHERE caseReference = 'EN010049' AND AdviceReference = 'EN010049-Advice-00005';\n",
-							"-- SELECT * FROM odw_curated_db.nsip_s51_advice;\n",
-							"SELECT * FROM odw_curated_db.nsip_s51_advice WHERE caseReference = 'EN010049' ORDER BY adviceReference;"
-						],
-						"outputs": [],
-						"execution_count": 6
+						"execution_count": null
 					}
 				]
 			},
@@ -194983,6 +194892,930 @@
 			"dependsOn": []
 		},
 		{
+			"name": "[concat(parameters('workspaceName'), '/py_reload_from_raw_s51_advice')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"folder": {
+					"name": "service-bus"
+				},
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "[parameters('py_reload_from_raw_s51_advice_properties_bigDataPool_referenceName')]",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "e06f976b-45d6-4899-a12d-adeaa6e3704f"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": true,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/6b18ba9d-2399-48b5-a834-e0f267be122d/resourceGroups/pins-rg-data-odw-test-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-test-uks/bigDataPools/pinssynspodw",
+						"name": "pinssynspodw",
+						"type": "Spark",
+						"endpoint": "https://pins-synw-odw-test-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "3.3",
+						"nodeCount": 3,
+						"cores": 4,
+						"memory": 28
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "code",
+						"source": [
+							"from pyspark.sql import DataFrame\r\n",
+							"from pyspark.sql.functions import *\r\n",
+							"import pprint\r\n",
+							"from pyspark.sql.functions import col, lit\r\n",
+							"from pyspark.sql.types import *"
+						],
+						"outputs": [],
+						"execution_count": 136
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"entity_name = \"s51-advice\"\r\n",
+							"std_db_name = \"odw_standardised_db\"\r\n",
+							"hrm_db_name = \"odw_harmonised_db\"\r\n",
+							"table_name = \"sb_s51_advice\"\r\n",
+							"raw_table_name = \"odw_standardised_db.sb_s51_advice_tmp\"\r\n",
+							"raw_table = \"sb_s51_advice_tmp\"\r\n",
+							"folder_name = \"nsip-s51-advice\"\r\n",
+							"std_table_name_full = f\"{std_db_name}.{table_name}\"\r\n",
+							"hrm_table_name_full = f\"{hrm_db_name}.{table_name}\""
+						],
+						"outputs": [],
+						"execution_count": 139
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"spark.sql(f\"DROP TABLE IF EXISTS {raw_table_name}\")"
+						],
+						"outputs": [],
+						"execution_count": 138
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"spark.sql(f\"DROP TABLE IF EXISTS {std_table_name_full}\")"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##Go create our standardised table\r\n",
+							"mssparkutils.notebook.run(\"create_table_from_schema\", 6100, {\"db_name\": std_db_name, \"entity_name\": entity_name})"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"spark.sql(f\"ALTER TABLE {std_table_name_full} RENAME TO {raw_table_name}\")"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##Go create our standardised table again\r\n",
+							"mssparkutils.notebook.run(\"create_table_from_schema\", 6100, {\"db_name\": std_db_name, \"entity_name\": entity_name})"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"table_schema =spark.table(raw_table_name).schema\r\n",
+							"print(table_schema)"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"### Load all historic files into a table that we can use for processing"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"%run service-bus/py_spark_df_ingestion_functions"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"def create_valid_dataframe() -> DataFrame:\r\n",
+							"    df: DataFrame = collect_all_raw_sb_data(folder_name,table_schema)\r\n",
+							"    return df"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"def test_schemas_match(schema1: StructType, schema2: StructType) -> bool:\r\n",
+							"    return schema1 == schema2"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"def compare_schema_fields_only(schema1: StructType, schema2: StructType) -> tuple:\r\n",
+							"    fields1 = set((field.name) for field in schema1.fields)\r\n",
+							"    fields2 = set((field.name) for field in schema2.fields)\r\n",
+							"    \r\n",
+							"    in_schema1_not_in_schema2: set = fields1 - fields2\r\n",
+							"    in_schema2_not_in_schema1: set = fields2 - fields1\r\n",
+							"    \r\n",
+							"    return in_schema1_not_in_schema2, in_schema2_not_in_schema1"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"historical_df: DataFrame = create_valid_dataframe().alias(\"historical\")\r\n",
+							"historical_schema = historical_df.schema"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"test_schemas_match(historical_schema, table_schema)"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"in_schema1_not_in_schema2, in_schema2_not_in_schema1 = compare_schemas(historical_schema, table_schema)\r\n",
+							"\r\n",
+							"print(in_schema1_not_in_schema2)\r\n",
+							"print(in_schema2_not_in_schema1)"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"historical_df.printSchema()"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"display(historical_df.head(5))"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"historical_df: DataFrame = historical_df.withColumn(\"expected_from\", current_timestamp())\r\n",
+							"historical_df: DataFrame = historical_df.withColumn(\"expected_to\", expr(\"current_timestamp() + INTERVAL 1 DAY\"))\r\n",
+							"historical_df: DataFrame = historical_df.withColumn(\"ingested_datetime\", to_timestamp(col(\"message_enqueued_time_utc\")))"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"display(historical_df.filter(\"ingested_datetime is not null\").head(3))"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"def cast_columns(df: DataFrame, schema: StructType) -> DataFrame:\r\n",
+							"    for field in schema.fields:\r\n",
+							"        df = df.withColumn(field.name, col(field.name).cast(field.dataType))\r\n",
+							"    return df"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"def check_null_message_enqueued_time_utc(df) -> DataFrame:\r\n",
+							"    # define date pattern to extract the dates from the input file path\r\n",
+							"    date_pattern = r'(\\d{4}-\\d{2}-\\d{2})'\r\n",
+							"    df_final = df.withColumn(\"message_enqueued_time_utc\", when(col(\"message_enqueued_time_utc\").isNull(),regexp_extract(df[\"input_file\"], date_pattern,1)).otherwise(col(\"message_enqueued_time_utc\")))\r\n",
+							"\r\n",
+							"    return df_final"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"final_df = check_null_message_enqueued_time_utc(historical_df)"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"final_df: DataFrame = final_df.withColumn(\"expected_from\", current_timestamp())\r\n",
+							"final_df: DataFrame = final_df.withColumn(\"expected_to\", expr(\"current_timestamp() + INTERVAL 1 DAY\"))\r\n",
+							"final_df: DataFrame = final_df.withColumn(\"ingested_datetime\", to_timestamp(col(\"message_enqueued_time_utc\")))\r\n",
+							"final_df: DataFrame = final_df.withColumn(\"message_enqueued_time_utc\", final_df[\"message_enqueued_time_utc\"].cast(StringType()))"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"# drop the input_file column as that's just for analysis\r\n",
+							"final_df = final_df.drop(\"input_file\")"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"display(final_df.filter(\"message_type is null\"))"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"final_df.printSchema()"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"in_schema1_not_in_schema2, in_schema2_not_in_schema1 = compare_schemas(final_df.schema, table_schema)\r\n",
+							"\r\n",
+							"print(in_schema1_not_in_schema2)\r\n",
+							"print(in_schema2_not_in_schema1)"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"test_schemas_match(final_df.schema, table_schema)"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"def create_dataframe_to_load(df: DataFrame, table_name: str) -> DataFrame:\r\n",
+							"    table_df: DataFrame = spark.table(table_name)\r\n",
+							"    df: DataFrame = df.select(table_df.columns)\r\n",
+							"    table_df: DataFrame = table_df.union(df)\r\n",
+							"\r\n",
+							"    # removing duplicates while ignoring the ingestion dates columns\r\n",
+							"    columns_to_ignore: list = ['expected_to', 'expected_from', 'ingested_datetime']\r\n",
+							"    columns_to_consider: list = [c for c in table_df.columns if c not in columns_to_ignore]\r\n",
+							"    table_df: DataFrame = table_df.dropDuplicates(subset=columns_to_consider)\r\n",
+							"\r\n",
+							"    return table_df"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"table_df: DataFrame = create_dataframe_to_load(final_df, raw_table_name)\r\n",
+							"\r\n",
+							"apply_df_to_table(table_df, std_db_name, raw_table)"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"SELECT * FROM odw_standardised_db.sb_s51_advice_tmp limit 10"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"### Load data into standardised and harmonised\r\n",
+							"\r\n",
+							"Now load the data into standardised. We need to replay each of the loads, that way we ensure that updates and deletes are handled correctly. If we try to do this in a bulk load, we'll only load the last file in the set (as standard code is only designed for single loads)"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"DROP TABLE IF EXISTS odw_harmonised_db.sb_s51_advice"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##Go create our harmonised table\r\n",
+							"mssparkutils.notebook.run(\"create_table_from_schema\", 6100, {\"db_name\": hrm_db_name, \"entity_name\": entity_name})"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"spark.table(\"odw_harmonised_db.sb_s51_advice\").printSchema()"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"REFRESH TABLE odw_harmonised_db.sb_s51_advice"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"base = spark.sql(f\"\"\"\r\n",
+							"                SELECT DISTINCT\r\n",
+							"                    CAST(ingested_datetime AS Date) AS ingested_datetime\r\n",
+							"                FROM\r\n",
+							"                    {raw_table_name}\r\n",
+							"                WHERE\r\n",
+							"                    ingested_datetime IS NOT NULL\r\n",
+							"                ORDER BY \r\n",
+							"                    1 ASC\r\n",
+							"                \"\"\")\r\n",
+							"\r\n",
+							"for rows in base.collect():\r\n",
+							"    processing = rows[\"ingested_datetime\"]\r\n",
+							"    \r\n",
+							"    print(f\"Processing {processing}\")\r\n",
+							"\r\n",
+							"    #Get associated data from standardised as we need to test if we've already inserted this data for processing\r\n",
+							"    std = spark.sql(f\"\"\"SELECT \r\n",
+							"                            * \r\n",
+							"                        FROM \r\n",
+							"                            {std_table_name_full}\r\n",
+							"                        WHERE \r\n",
+							"                            CAST(ingested_datetime AS Date) = '{processing}'\r\n",
+							"                        \"\"\")\r\n",
+							"    \r\n",
+							"    if std.count() == 0:\r\n",
+							"        print(f\"Inserting into {std_table_name_full}\")\r\n",
+							"        ##Add the data into standardised for processing if we haven't processed it\r\n",
+							"        rw = spark.sql(f\"\"\"SELECT \r\n",
+							"                            * \r\n",
+							"                        FROM \r\n",
+							"                            {raw_table_name}\r\n",
+							"                        WHERE \r\n",
+							"                            CAST(ingested_datetime AS Date) = '{processing}'\r\n",
+							"                        \"\"\")\r\n",
+							"        \r\n",
+							"        rw.write.mode(\"append\").format(\"delta\").option(\"mergeSchema\", \"true\").saveAsTable(std_table_name_full)\r\n",
+							"        spark.sql(f\"REFRESH TABLE {std_table_name_full}\")\r\n",
+							"        print(f\"Rows Count in {std_table_name_full}: {spark.table(std_table_name_full).count()}\")\r\n",
+							"\r\n",
+							"\r\n",
+							"    #Check if we've already processed the data or not\r\n",
+							"    hrm = spark.sql(f\"\"\"SELECT \r\n",
+							"                            * \r\n",
+							"                        FROM \r\n",
+							"                            {hrm_table_name_full}\r\n",
+							"                        WHERE \r\n",
+							"                            CAST(IngestionDate AS DATE) = '{processing}'\r\n",
+							"                        \"\"\")\r\n",
+							"\r\n",
+							"    \r\n",
+							"    \r\n",
+							"    if hrm.count() == 0:\r\n",
+							"         print(f\"Running py_sb_std_to_hrm to load data into {hrm_table_name_full}\")\r\n",
+							"         ## Run the standard process if we haven't already\r\n",
+							"         mssparkutils.notebook.run(\"py_sb_std_to_hrm\", 6100, {\"entity_name\": folder_name})\r\n",
+							"         spark.sql(f\"REFRESH TABLE {hrm_table_name_full}\")\r\n",
+							"         print(f\"Rows Count in {hrm_table_name_full}: {spark.table(hrm_table_name_full).count()}\")\r\n",
+							"        "
+						],
+						"outputs": [],
+						"execution_count": 140
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"SELECT * FROM odw_harmonised_db.sb_s51_advice --limit 10"
+						],
+						"outputs": [],
+						"execution_count": null
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('workspaceName'), '/py_reload_hr_leavers')]",
 			"type": "Microsoft.Synapse/workspaces/notebooks",
 			"apiVersion": "2019-06-01-preview",
@@ -196642,6 +197475,620 @@
 						],
 						"outputs": [],
 						"execution_count": 18
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/py_sb_horizon_harmonised_nsip_s51_advice')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"folder": {
+					"name": "odw-harmonised"
+				},
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "[parameters('py_sb_horizon_harmonised_nsip_s51_advice_properties_bigDataPool_referenceName')]",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "50973b0d-4ed5-483d-aaf3-f4da37044e99"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": false,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/6b18ba9d-2399-48b5-a834-e0f267be122d/resourceGroups/pins-rg-data-odw-test-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-test-uks/bigDataPools/pinssynspodw",
+						"name": "pinssynspodw",
+						"type": "Spark",
+						"endpoint": "https://pins-synw-odw-test-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "3.3",
+						"nodeCount": 3,
+						"cores": 4,
+						"memory": 28
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "code",
+						"source": [
+							"from pyspark.sql.types import IntegerType, ArrayType, StructType, StructField\r\n",
+							"from pyspark.sql import Row\r\n",
+							"from pyspark.sql.functions import *"
+						],
+						"outputs": [],
+						"execution_count": 6
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"service_bus_table = \"odw_harmonised_db.sb_s51_advice\"\r\n",
+							"horizon_table = \"odw_standardised_db.horizon_nsip_advice\"\r\n",
+							"spark_table_final = \"odw_harmonised_db.nsip_s51_advice\""
+						],
+						"outputs": [],
+						"execution_count": 7
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"# Get data out of the service bus with additional fields needed for Horizon data\r\n",
+							"service_bus_data = spark.sql(\"\"\"\r\n",
+							"                    SELECT DISTINCT\r\n",
+							"                        CAST(NULL AS Long) as NSIPAdviceID\r\n",
+							"                        ,cast(adviceId as integer)\r\n",
+							"                        ,advicereference AS adviceReference\r\n",
+							"                        ,cast(caseid as integer)\r\n",
+							"                        ,casereference\r\n",
+							"                        ,title\r\n",
+							"                        ,titleWelsh\r\n",
+							"                        ,from\r\n",
+							"                        ,agent\r\n",
+							"                        ,method\r\n",
+							"                        ,enquirydate as enquiryDate\r\n",
+							"                        ,enquirydetails as enquiryDetails\r\n",
+							"                        ,advicegivenby as adviceGivenBy\r\n",
+							"                        ,advicedate as adviceDate\r\n",
+							"                        ,advicedetails as adviceDetails\r\n",
+							"                        ,enquiryDetailsWelsh\r\n",
+							"                        ,status\r\n",
+							"                        ,redactionstatus as redactionStatus\r\n",
+							"                        ,attachmentIds\r\n",
+							"\r\n",
+							"                        -- Start Horizon columns\r\n",
+							"                        ,'Yes' as Section51Advice\r\n",
+							"                        ,CAST(NULL AS String) as EnquirerFirstName\r\n",
+							"                        ,CAST(NULL AS String) as EnquirerOrganisation\r\n",
+							"                        ,CAST(NULL AS String) as Enquiry\r\n",
+							"                        ,CAST(NULL AS String) as Advice\r\n",
+							"                        ,CAST(NULL AS String) as AdviceLastModified\r\n",
+							"                        ,CAST(NULL AS String) as AttachmentCount\r\n",
+							"                        ,CAST(NULL AS String) as AttachmentLastModified\r\n",
+							"                        ,CAST(NULL AS String) as LastPublishedDate\r\n",
+							"                        ,CAST(NULL AS String) as WelshLanguage\r\n",
+							"                        ,CAST(NULL AS String) as CaseWorkType\r\n",
+							"                        -- End Horizon columns\r\n",
+							"                        \r\n",
+							"                        ,migrated\r\n",
+							"                        ,ODTSourceSystem\r\n",
+							"                        ,SourceSystemID\r\n",
+							"                        ,IngestionDate \r\n",
+							"                        ,NULLIF(ValidTo, '') AS ValidTo\r\n",
+							"                        ,'' as RowID\r\n",
+							"                        ,IsActive\r\n",
+							"                    FROM \r\n",
+							"                        odw_harmonised_db.sb_s51_advice\r\n",
+							"\r\n",
+							"                    \"\"\")"
+						],
+						"outputs": [],
+						"execution_count": 8
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"# Get data out of Horizon and matching the SB schema (with additional fields and ensure data types match)\r\n",
+							"horizon_data = spark.sql(f\"\"\"\r\n",
+							"                SELECT DISTINCT \r\n",
+							"                        advicenodeid as NSIPAdviceID\r\n",
+							"                        ,Cast(advicenodeid as integer) as adviceId\r\n",
+							"                        ,AdviceReference as adviceReference\r\n",
+							"                        ,casenodeid as caseid\r\n",
+							"                        ,CaseReference as caseReference\r\n",
+							"                        ,title\r\n",
+							"                        ,null as titleWelsh\r\n",
+							"                        ,concat(enquirerfirstname,' ',enquirerlastname)  as from\r\n",
+							"                        ,EnquirerOrganisation as agent\r\n",
+							"                        ,enqirymethod as method\r\n",
+							"                        ,enquirydate as enquiryDate\r\n",
+							"                        ,enquiry as EnquiryDetails\r\n",
+							"                        ,AdviceFrom as adviceGivenBy --AdviceFrom\r\n",
+							"                        ,AdviceDate as adviceDate\r\n",
+							"                        ,advice as adviceDetails\r\n",
+							"                        ,null as enquiryDetailsWelsh\r\n",
+							"                        ,AdviceStatus as status\r\n",
+							"                        ,null as redactionStatus\r\n",
+							"                        ,attachmentdataID as attachmentIds\r\n",
+							"                        \r\n",
+							"                        ,section51advice as Section51Advice\r\n",
+							"                        ,enquirerfirstname as EnquirerFirstName\r\n",
+							"                        ,enquirerorganisation as EnquirerOrganisation\r\n",
+							"                        ,enquiry as Enquiry\r\n",
+							"                        ,advice as Advice\r\n",
+							"                        ,advicelastmodified as AdviceLastModified\r\n",
+							"                        ,attachmentcount as AttachmentCount\r\n",
+							"                        ,attachmentslastmodified as AttachmentLastModified\r\n",
+							"                        ,lastpublisheddate as LastPublishedDate\r\n",
+							"                        ,welshlanguage as WelshLanguage\r\n",
+							"                        ,caseWorktype as CaseWorkType\r\n",
+							"\r\n",
+							"                        ,\"0\" as migrated\r\n",
+							"                        ,\"Horizon\" as ODTSourceSystem\r\n",
+							"                        ,NULL AS SourceSystemID\r\n",
+							"                        , to_timestamp(expected_from)  AS IngestionDate\r\n",
+							"                        ,CAST(null as string) as ValidTo -- to avoid any null descrepancies\r\n",
+							"                        ,'' as RowID\r\n",
+							"                        ,'Y' as IsActive\r\n",
+							"FROM\r\n",
+							"    {horizon_table} AS Horizon\r\n",
+							"WHERE\r\n",
+							"    ingested_datetime = (SELECT MAX(ingested_datetime) FROM {horizon_table}) \r\n",
+							"\r\n",
+							"                \"\"\")"
+						],
+						"outputs": [],
+						"execution_count": 9
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"#Establish aggregated view of attachmentIds\r\n",
+							"horizon_attachement= horizon_data.groupBy(\"adviceid\").agg(collect_list(\"attachmentIds\").alias(\"attachmentIds\"))\r\n",
+							"horizon_data = horizon_data.drop(\"attachmentIds\")\r\n",
+							"horizon_data = horizon_data.join(horizon_attachement, on=\"adviceid\", how=\"inner\")\r\n",
+							"\r\n",
+							"#sort columns into same order as service bus\r\n",
+							"horizon_data = horizon_data.select(service_bus_data.columns)"
+						],
+						"outputs": [],
+						"execution_count": 10
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"results = service_bus_data.union(horizon_data)"
+						],
+						"outputs": [],
+						"execution_count": 11
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
+						],
+						"outputs": [],
+						"execution_count": 12
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"\r\n",
+							"Now need to sort internal ids, IsActive flags, and valid_to dates"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"CREATE OR REPLACE TEMPORARY VIEW vw_nsip_s51_advice_calculations_base\r\n",
+							"AS\r\n",
+							"SELECT  \r\n",
+							"    row_number() OVER(PARTITION BY adviceid ORDER BY IngestionDate DESC) AS ReverseOrderProcessed\r\n",
+							"    ,row_number() OVER(ORDER BY IngestionDate asc, adviceid asc) AS NSIPAdviceID\r\n",
+							"    ,adviceid\r\n",
+							"    ,IngestionDate\r\n",
+							"    ,ValidTo\r\n",
+							"    ,'0' AS migrated\r\n",
+							"    ,CASE row_number() OVER(PARTITION BY adviceid ORDER BY IngestionDate DESC)\r\n",
+							"        WHEN 1 THEN\r\n",
+							"            'Y'\r\n",
+							"        ELSE\r\n",
+							"            'N'\r\n",
+							"    END AS IsActive                \r\n",
+							"FROM\r\n",
+							"    odw_harmonised_db.nsip_s51_advice"
+						],
+						"outputs": [],
+						"execution_count": 13
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"df_calcs = spark.sql(\"\"\"\r\n",
+							"                        SELECT\r\n",
+							"                            CurrentRow.NSIPAdviceID\r\n",
+							"                            ,CurrentRow.adviceid \r\n",
+							"                            ,CurrentRow.IngestionDate\r\n",
+							"                            ,COALESCE(NULLIF(CurrentRow.ValidTo,''), NextRow.IngestionDate) AS ValidTo\r\n",
+							"                            ,CASE\r\n",
+							"                                WHEN raw.adviceid IS NOT NULL THEN \r\n",
+							"                                    \"1\"\r\n",
+							"                                ELSE \r\n",
+							"                                    \"0\"\r\n",
+							"                            END AS migrated\r\n",
+							"                            ,CurrentRow.IsActive\r\n",
+							"                        FROM\r\n",
+							"                            vw_nsip_s51_advice_calculations_base AS CurrentRow\r\n",
+							"                            LEFT OUTER JOIN vw_nsip_s51_advice_calculations_base AS NextRow\r\n",
+							"                                ON CurrentRow.adviceid = NextRow.adviceid\r\n",
+							"                                AND CurrentRow.ReverseOrderProcessed - 1 = NextRow.ReverseOrderProcessed\r\n",
+							"                            LEFT OUTER JOIN (SELECT DISTINCT adviceid FROM  odw_harmonised_db.sb_s51_advice) AS Raw\r\n",
+							"                                ON CurrentRow.adviceid = Raw.adviceid \r\n",
+							"                            ORDER BY currentRow.ReverseOrderProcessed\r\n",
+							"                    \"\"\")"
+						],
+						"outputs": [],
+						"execution_count": 14
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"df_calcs =df_calcs.withColumnRenamed(\"adviceid\", \"temp_adviceid\").withColumnRenamed(\"IngestionDate\", \"temp_IngestionDate\")\r\n",
+							""
+						],
+						"outputs": [],
+						"execution_count": 15
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"results = spark.sql(f\"\"\"\r\n",
+							"                    SELECT DISTINCT NSIPAdviceID\r\n",
+							"                        ,adviceId\r\n",
+							"                        ,adviceReference\r\n",
+							"                        ,caseId\r\n",
+							"                        ,caseReference\r\n",
+							"                        ,title\r\n",
+							"                        ,titleWelsh\r\n",
+							"                        ,from\r\n",
+							"                        ,agent\r\n",
+							"                        ,method\r\n",
+							"                        ,enquiryDate\r\n",
+							"                        ,enquiryDetails\r\n",
+							"                        ,adviceGivenBy \r\n",
+							"                        ,adviceDate\r\n",
+							"                        ,adviceDetails\r\n",
+							"                        ,EnquiryDetailsWelsh\r\n",
+							"                        ,status\r\n",
+							"                        ,redactionStatus\r\n",
+							"                        ,attachmentIds\r\n",
+							"                        ,ValidTo\r\n",
+							"                        --Start Horizon only fields\r\n",
+							"                        ,Section51Advice\r\n",
+							"                        ,EnquirerFirstName\r\n",
+							"                        ,EnquirerOrganisation\r\n",
+							"                        ,Enquiry\r\n",
+							"                        ,Advice\r\n",
+							"                        ,AdviceLastModified\r\n",
+							"                        ,AttachmentCount\r\n",
+							"                        ,AttachmentLastModified\r\n",
+							"                        ,LastPublishedDate\r\n",
+							"                        ,WelshLanguage\r\n",
+							"                        ,CaseWorkType\r\n",
+							"                        ,Migrated\r\n",
+							"                        ,ODTSourceSystem\r\n",
+							"                        ,ingestionDate\r\n",
+							"                        ,MD5(CONCAT(\r\n",
+							"                           \r\n",
+							"                                    IFNULL(CAST(NSIPAdviceID AS bigint), '.')\r\n",
+							"                                    ,IFNULL(CAST(adviceId AS integer), '.')\r\n",
+							"                                    ,IFNULL(CAST(adviceReference AS String), '.')\r\n",
+							"                                    ,IFNULL(CAST(caseid AS integer), '.')\r\n",
+							"                                    ,IFNULL(CAST(caseReference AS String), '.')\r\n",
+							"                                    ,IFNULL(CAST(title AS String), '.')\r\n",
+							"                                    ,IFNULL(CAST(titleWelsh AS String), '.')\r\n",
+							"                                    ,IFNULL(CAST(from AS String), '.')\r\n",
+							"                                    ,IFNULL(CAST(agent AS String), '.')\r\n",
+							"                                    ,IFNULL(CAST(method AS String), '.')\r\n",
+							"                                    ,IFNULL(CAST(enquiryDate AS String), '.')\r\n",
+							"                                    ,IFNULL(CAST(enquiryDetails AS String), '.')\r\n",
+							"                                    ,IFNULL(CAST(adviceGivenBy AS String), '.')\r\n",
+							"                                    ,IFNULL(CAST(adviceDate AS String), '.')\r\n",
+							"                                    ,IFNULL(CAST(adviceDetails AS String), '.')\r\n",
+							"                                    ,IFNULL(CAST(EnquiryDetailsWelsh AS String), '.')\r\n",
+							"                                    ,IFNULL(CAST(status AS String), '.')\r\n",
+							"                                    ,IFNULL(CAST(attachmentIds AS String), '.')\r\n",
+							"                                    ,IFNULL(CAST(ValidTo AS String), '.')\r\n",
+							"                                    ,IFNULL(CAST(RowID AS String), '.')\r\n",
+							"                                    ,IFNULL(CAST(Section51Advice AS String), '.')\r\n",
+							"                                    ,IFNULL(CAST(EnquirerFirstName AS String), '.')\r\n",
+							"                                    ,IFNULL(CAST(EnquirerOrganisation AS String), '.')\r\n",
+							"                                    ,IFNULL(CAST(Enquiry AS String), '.')\r\n",
+							"                                    ,IFNULL(CAST(Advice AS String), '.')\r\n",
+							"                                    ,IFNULL(CAST(AdviceLastModified AS String), '.')\r\n",
+							"                                    ,IFNULL(CAST(LastPublishedDate AS String), '.')\r\n",
+							"                                    ,IFNULL(CAST(WelshLanguage AS String), '.')\r\n",
+							"                                    ,IFNULL(CAST(Migrated AS String), '.')\r\n",
+							"                                    ,IFNULL(CAST(ODTSourceSystem AS String), '.')\r\n",
+							"                                    ,IFNULL(CAST(ingestionDate AS String), '.')\r\n",
+							"                            )\r\n",
+							"                        ) AS RowID\r\n",
+							"                        ,IsActive\r\n",
+							"    FROM \r\n",
+							"        {spark_table_final}\"\"\")\r\n",
+							"    "
+						],
+						"outputs": [],
+						"execution_count": 16
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"columns = results.columns\r\n",
+							"\r\n",
+							"results = results.drop(\"NSIPAdviceID\", \"ValidTo\", \"migrated\", \"IsActive\")"
+						],
+						"outputs": [],
+						"execution_count": 17
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"final_df = results.join(df_calcs, (df_calcs[\"temp_adviceid\"] == results[\"adviceid\"]) & (df_calcs[\"temp_IngestionDate\"] == results[\"IngestionDate\"])).select(columns)\n",
+							"final_df = final_df.drop_duplicates()"
+						],
+						"outputs": [],
+						"execution_count": 18
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"\r\n",
+							"final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
+						],
+						"outputs": [],
+						"execution_count": 19
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\n",
+							"select distinct adviceid from odw_harmonised_db.nsip_s51_advice where adviceid not in (select distinct adviceid from odw_curated_db.nsip_s51_advice)"
+						],
+						"outputs": [],
+						"execution_count": 20
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\n",
+							"select count(*) from odw_harmonised_db.nsip_s51_advice where isactive='Y'"
+						],
+						"outputs": [],
+						"execution_count": 21
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							""
+						]
 					}
 				]
 			},
@@ -200931,6 +202378,405 @@
 						],
 						"outputs": [],
 						"execution_count": 76
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/py_unit_tests_nsip_s51_advice')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"folder": {
+					"name": "utils"
+				},
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "[parameters('py_unit_tests_nsip_s51_advice_properties_bigDataPool_referenceName')]",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "b9f72394-483c-414b-9461-3ccb856b8394"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": false,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+						"name": "pinssynspodw",
+						"type": "Spark",
+						"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "3.3",
+						"nodeCount": 3,
+						"cores": 4,
+						"memory": 28
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "code",
+						"source": [
+							"import json\r\n",
+							"from pyspark.sql.types import *\r\n",
+							"from pyspark.sql import DataFrame\r\n",
+							"import pprint"
+						],
+						"outputs": [],
+						"execution_count": 12
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"entity_name: str = 's51-advice'\r\n",
+							"std_db_name: str = 'odw_standardised_db'\r\n",
+							"hrm_db_name: str = 'odw_harmonised_db'\r\n",
+							"curated_db_name: str = 'odw_curated_db'\r\n",
+							"std_table_name: str = 'sb_s51_advice'\r\n",
+							"hrm_table_name: str = 'sb_s51_advice'\r\n",
+							"hrm_table_final: str = 'sb_s51_advice'\r\n",
+							"curated_table_name: str = 's51_advice'"
+						],
+						"outputs": [],
+						"execution_count": 18
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\r\n",
+							"path_to_orchestration_file: str = \"abfss://odw-config@\"+storage_account+\"orchestration/orchestration.json\""
+						],
+						"outputs": [],
+						"execution_count": 19
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"def get_incremental_key(entity_name: str, storage_account: str, path_to_orchestration_file: str) -> str:\r\n",
+							"    # getting the incremental key from the odw-config/orchestration\r\n",
+							"    df: DataFrame = spark.read.option(\"multiline\",\"true\").json(path_to_orchestration_file)\r\n",
+							"    definitions: list = json.loads(df.toJSON().first())['definitions']\r\n",
+							"    definition: dict = next((d for d in definitions if entity_name == d['Source_Filename_Start']), None)\r\n",
+							"    return definition['Harmonised_Incremental_Key'] if definition and 'Harmonised_Incremental_Key' in definition else None"
+						],
+						"outputs": [],
+						"execution_count": 15
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"sb_std_schema = create_spark_schema(std_db_name, entity_name)\r\n",
+							"sb_std_table_schema = spark.table(f\"{std_db_name}.{std_table_name}\").schema\r\n",
+							"sb_hrm_schema = create_spark_schema(hrm_db_name, entity_name)\r\n",
+							"sb_hrm_table_schema = spark.table(f\"{hrm_db_name}.{hrm_table_name}\").schema"
+						],
+						"outputs": [],
+						"execution_count": 16
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"def extract_schema_structure(schema: StructType) -> dict:\r\n",
+							"    def extract_field(field):\r\n",
+							"        if isinstance(field.dataType, StructType):\r\n",
+							"            return {field.name: {subfield.name: str(subfield.dataType) for subfield in field.dataType.fields}}\r\n",
+							"        elif isinstance(field.dataType, ArrayType):\r\n",
+							"            element_type = field.dataType.elementType\r\n",
+							"            if isinstance(element_type, StructType):\r\n",
+							"                return {field.name: {subfield.name: str(subfield.dataType) for subfield in element_type.fields}}\r\n",
+							"            else:\r\n",
+							"                return {field.name: f'array<{str(element_type)}>'}\r\n",
+							"        else:\r\n",
+							"            return {field.name: str(field.dataType)}\r\n",
+							"    \r\n",
+							"    result = {}\r\n",
+							"    for field in schema.fields:\r\n",
+							"        result.update(extract_field(field))\r\n",
+							"    return result"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"def test_compare_schemas(schema1: StructType, schema2: StructType) -> bool:\r\n",
+							"    structure1: dict = extract_schema_structure(schema1)\r\n",
+							"    structure2: dict = extract_schema_structure(schema2)\r\n",
+							"    \r\n",
+							"    differences: list[tuple] = []\r\n",
+							"    \r\n",
+							"    all_fields: set = set(structure1.keys()).union(set(structure2.keys()))\r\n",
+							"    \r\n",
+							"    for field in all_fields:\r\n",
+							"        if field not in structure1:\r\n",
+							"            differences.append((field, \"Field not in schema1\", structure2[field]))\r\n",
+							"        elif field not in structure2:\r\n",
+							"            differences.append((field, structure1[field], \"Field not in schema2\"))\r\n",
+							"        else:\r\n",
+							"            if structure1[field] != structure2[field]:\r\n",
+							"                if isinstance(structure1[field], dict) and isinstance(structure2[field], dict):\r\n",
+							"                    subfields: set = set(structure1[field].keys()).union(set(structure2[field].keys()))\r\n",
+							"                    for subfield in subfields:\r\n",
+							"                        if subfield not in structure1[field]:\r\n",
+							"                            differences.append((f\"{field}.{subfield}\", \"Field not in schema1\", structure2[field][subfield]))\r\n",
+							"                        elif subfield not in structure2[field]:\r\n",
+							"                            differences.append((f\"{field}.{subfield}\", structure1[field][subfield], \"Field not in schema2\"))\r\n",
+							"                        elif structure1[field][subfield] != structure2[field][subfield]:\r\n",
+							"                            differences.append((f\"{field}.{subfield}\", structure1[field][subfield], structure2[field][subfield]))\r\n",
+							"                else:\r\n",
+							"                    differences.append((field, structure1[field], structure2[field]))\r\n",
+							"    \r\n",
+							"    if differences:\r\n",
+							"        # Create a Spark DataFrame to display the differences\r\n",
+							"        differences_df: DataFrame = spark.createDataFrame(differences, [\"Field\", \"Schema 1\", \"Schema 2\"])\r\n",
+							"        display(differences_df)\r\n",
+							"        return False\r\n",
+							"    else:\r\n",
+							"        return True"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"def test_std_same_rows_hrm(std_table: str, hrm_table: str) -> tuple[int, int, bool]:\r\n",
+							"    std_table_full: str = f\"{std_db_name}.{std_table}\"\r\n",
+							"    hrm_table_full: str = f\"{hrm_db_name}.{hrm_table}\"\r\n",
+							"    std_count: int = spark.table(std_table_full).count()\r\n",
+							"    hrm_count: int = spark.table(hrm_table_full).count()\r\n",
+							"    return (std_count, hrm_count, std_count == hrm_count)"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"def test_curated_row_count(hrm_table_final: str, curated_table: str) -> tuple[int, int, bool]:\r\n",
+							"    hrm_table_full: str = f\"{hrm_db_name}.{hrm_table_final}\"\r\n",
+							"    curated_table_full: str = f\"{curated_db_name}.{curated_table_name}\"\r\n",
+							"    hrm_count: int = spark.sql(f\"select * from {hrm_table_full} where IsActive = 'Y'\").count()\r\n",
+							"    curated_count: int = spark.table(curated_table_full).count()\r\n",
+							"    return (hrm_count, curated_count, hrm_count == curated_count)"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"Compare schemas"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"std_schema_correct: bool = test_compare_schemas(sb_std_schema, sb_std_table_schema)\r\n",
+							"print(f\"Service bus standardised schema correct: {std_schema_correct}\\nTable: {std_db_name}.{std_table_name}\\nDifferences shown above (if any)\")\r\n",
+							"hrm_schema_correct: bool = test_compare_schemas(sb_hrm_schema, sb_hrm_table_schema)\r\n",
+							"print(f\"Service bus harmonised schema correct: {hrm_schema_correct}\\nTable: {hrm_db_name}.{hrm_table_name}\\nDifferences shown above (if any)\")"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"Compare service bus standardised with harmonised\r\n",
+							"Should be the same count"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"standardised_count, harmonised_count, counts_match = test_std_same_rows_hrm(std_table_name, hrm_table_name)\r\n",
+							"print(f\"Standardised Count: {standardised_count: ,}\\nHarmonised Count: {harmonised_count: ,}\\nCounts match: {counts_match}\")"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"Compare final harmonised table (if combined with Horizon) with curated table\r\n",
+							"Comparing where IsActive = Y in harmonised = curated row count"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"harmonised_final_count, curated_count, counts_match = test_curated_row_count(hrm_table_final, curated_table_name)\r\n",
+							"print(f\"Harmonised Final Count: {harmonised_final_count: ,}\\nCurated Count: {curated_count: ,}\\nCounts match: {counts_match}\")"
+						],
+						"outputs": [],
+						"execution_count": null
 					}
 				]
 			},
