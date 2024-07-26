@@ -7,6 +7,9 @@
 				"description": "Triggers Function App to read messages from Service Bus and write to odw-raw",
 				"type": "ExecutePipeline",
 				"dependsOn": [],
+				"policy": {
+					"secureInput": false
+				},
 				"userProperties": [],
 				"typeProperties": {
 					"pipeline": {
@@ -44,14 +47,7 @@
 							"name": "Raw to Std",
 							"description": "Ingests raw data into the standardised table",
 							"type": "SynapseNotebook",
-							"dependsOn": [
-								{
-									"activity": "JSON to CSV",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
+							"dependsOn": [],
 							"policy": {
 								"timeout": "0.12:00:00",
 								"retry": 0,
@@ -62,7 +58,7 @@
 							"userProperties": [],
 							"typeProperties": {
 								"notebook": {
-									"referenceName": "py_raw_to_std",
+									"referenceName": "py_sb_raw_to_std",
 									"type": "NotebookReference"
 								},
 								"parameters": {
@@ -78,46 +74,6 @@
 										"type": "string"
 									},
 									"specific_file": {
-										"value": {
-											"value": "@variables('entity_name')",
-											"type": "Expression"
-										},
-										"type": "string"
-									}
-								},
-								"snapshot": true,
-								"conf": {
-									"spark.dynamicAllocation.enabled": null,
-									"spark.dynamicAllocation.minExecutors": null,
-									"spark.dynamicAllocation.maxExecutors": null
-								},
-								"numExecutors": null
-							}
-						},
-						{
-							"name": "JSON to CSV",
-							"description": "Converts the messages stored in json format to csv format",
-							"type": "SynapseNotebook",
-							"dependsOn": [],
-							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"notebook": {
-									"referenceName": "py_service_bus_json_to_csv",
-									"type": "NotebookReference"
-								},
-								"parameters": {
-									"source_folder": {
-										"value": "ServiceBus",
-										"type": "string"
-									},
-									"source_frequency_folder": {
 										"value": {
 											"value": "@variables('entity_name')",
 											"type": "Expression"
@@ -156,7 +112,7 @@
 							"userProperties": [],
 							"typeProperties": {
 								"notebook": {
-									"referenceName": "py_std_to_hrm",
+									"referenceName": "py_sb_std_to_hrm",
 									"type": "NotebookReference"
 								},
 								"parameters": {
