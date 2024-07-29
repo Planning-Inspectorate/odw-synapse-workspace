@@ -201952,12 +201952,12 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "bb728409-e334-4a85-8688-171cc278c0e9"
+						"spark.autotune.trackingId": "03ecc54d-da25-4a7c-acde-f4c197eb1b2b"
 					}
 				},
 				"metadata": {
 					"saveOutput": true,
-					"enableDebugMode": false,
+					"enableDebugMode": true,
 					"kernelspec": {
 						"name": "synapse_pyspark",
 						"display_name": "Synapse PySpark"
@@ -201976,8 +201976,8 @@
 						},
 						"sparkVersion": "3.3",
 						"nodeCount": 3,
-						"cores": 4,
-						"memory": 28
+						"cores": 8,
+						"memory": 56
 					},
 					"sessionKeepAliveTimeout": 30
 				},
@@ -202015,7 +202015,10 @@
 								"transient": {
 									"deleting": false
 								}
-							}
+							},
+							"tags": [
+								"parameters"
+							]
 						},
 						"source": [
 							"entity_name: str = 'appeal-document'\r\n",
@@ -202026,6 +202029,26 @@
 							"hrm_table_name: str = 'sb_appeal_document'\r\n",
 							"hrm_table_final: str = 'appeals_document_metadata'\r\n",
 							"curated_table_name: str = 'appeal_document'"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"#keep track of the exitCodes, if the exit code is not zero then we've had failures, we flip the boolean\n",
+							"exitCode: int = 0"
 						],
 						"outputs": [],
 						"execution_count": null
@@ -202311,8 +202334,10 @@
 						},
 						"source": [
 							"std_schema_correct: bool = test_compare_schemas(sb_std_schema, sb_std_table_schema)\r\n",
+							"exitCode += !std_schema_correct\r\n",
 							"print(f\"Service bus standardised schema correct: {std_schema_correct}\\nTable: {std_db_name}.{std_table_name}\\nDifferences shown above (if any)\")\r\n",
 							"hrm_schema_correct: bool = test_compare_schemas(sb_hrm_schema, sb_hrm_table_schema)\r\n",
+							"exitCode += !hrm_schema_correct\r\n",
 							"print(f\"Service bus harmonised schema correct: {hrm_schema_correct}\\nTable: {hrm_db_name}.{hrm_table_name}\\nDifferences shown above (if any)\")"
 						],
 						"outputs": [],
@@ -202347,6 +202372,7 @@
 						},
 						"source": [
 							"standardised_count, harmonised_count, counts_match = test_std_same_rows_hrm(std_table_name, hrm_table_name)\r\n",
+							"exitCode += !counts_match\r\n",
 							"print(f\"Standardised Count: {standardised_count: ,}\\nHarmonised Count: {harmonised_count: ,}\\nCounts match: {counts_match}\")"
 						],
 						"outputs": [],
@@ -202381,7 +202407,40 @@
 						},
 						"source": [
 							"harmonised_final_count, curated_count, counts_match = test_curated_row_count(hrm_table_final, curated_table_name)\r\n",
+							"exitCode += !counts_match\r\n",
 							"print(f\"Harmonised Final Count: {harmonised_final_count: ,}\\nCurated Count: {curated_count: ,}\\nCounts match: {counts_match}\")"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"#### Return whether or not this was successful"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"mssparkutils.notebook.exit(exitCode)"
 						],
 						"outputs": [],
 						"execution_count": null
