@@ -163,6 +163,10 @@
 			"type": "string",
 			"defaultValue": "https://files.planning.data.gov.uk/"
 		},
+		"ls_ms_graph_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://graph.microsoft.com/v1.0"
+		},
 		"ls_preprod_high_court_properties_typeProperties_connectionString_secretName": {
 			"type": "string",
 			"defaultValue": "sql-high-court-connectionstring"
@@ -65001,8 +65005,9 @@
 						"type": "SynapseNotebook",
 						"dependsOn": [
 							{
-								"activity": "Reload nsip-subscription",
+								"activity": "Reload nsip-repesentation",
 								"dependencyConditions": [
+									"Skipped",
 									"Completed"
 								]
 							}
@@ -65044,9 +65049,10 @@
 						"type": "SynapseNotebook",
 						"dependsOn": [
 							{
-								"activity": "Reload nsip-project",
+								"activity": "Reload appeal-event",
 								"dependencyConditions": [
-									"Completed"
+									"Completed",
+									"Skipped"
 								]
 							}
 						],
@@ -65085,7 +65091,17 @@
 					{
 						"name": "Reload appeal-event",
 						"type": "SynapseNotebook",
-						"dependsOn": [],
+						"state": "Inactive",
+						"onInactiveMarkAs": "Succeeded",
+						"dependsOn": [
+							{
+								"activity": "Reload nsip-subscription",
+								"dependencyConditions": [
+									"Skipped",
+									"Completed"
+								]
+							}
+						],
 						"policy": {
 							"timeout": "0.12:00:00",
 							"retry": 0,
@@ -65125,7 +65141,8 @@
 							{
 								"activity": "Reload folder",
 								"dependencyConditions": [
-									"Completed"
+									"Completed",
+									"Skipped"
 								]
 							}
 						],
@@ -65164,7 +65181,17 @@
 					{
 						"name": "Reload folder",
 						"type": "SynapseNotebook",
-						"dependsOn": [],
+						"state": "Inactive",
+						"onInactiveMarkAs": "Succeeded",
+						"dependsOn": [
+							{
+								"activity": "Reload appeal-document",
+								"dependencyConditions": [
+									"Completed",
+									"Skipped"
+								]
+							}
+						],
 						"policy": {
 							"timeout": "0.12:00:00",
 							"retry": 0,
@@ -65204,7 +65231,8 @@
 							{
 								"activity": "Reload appeal-has",
 								"dependencyConditions": [
-									"Completed"
+									"Completed",
+									"Skipped"
 								]
 							}
 						],
@@ -65247,7 +65275,8 @@
 							{
 								"activity": "Reload nsip-project-update",
 								"dependencyConditions": [
-									"Completed"
+									"Completed",
+									"Skipped"
 								]
 							}
 						],
@@ -65286,7 +65315,17 @@
 					{
 						"name": "Reload nsip-project-update",
 						"type": "SynapseNotebook",
-						"dependsOn": [],
+						"state": "Inactive",
+						"onInactiveMarkAs": "Succeeded",
+						"dependsOn": [
+							{
+								"activity": "Reload nsip-document",
+								"dependencyConditions": [
+									"Completed",
+									"Skipped"
+								]
+							}
+						],
 						"policy": {
 							"timeout": "0.12:00:00",
 							"retry": 0,
@@ -65326,7 +65365,8 @@
 							{
 								"activity": "Reload nsip-exam-timetable",
 								"dependencyConditions": [
-									"Completed"
+									"Completed",
+									"Skipped"
 								]
 							}
 						],
@@ -65365,11 +65405,14 @@
 					{
 						"name": "Reload nsip-subscription",
 						"type": "SynapseNotebook",
+						"state": "Inactive",
+						"onInactiveMarkAs": "Succeeded",
 						"dependsOn": [
 							{
 								"activity": "Reload s51-advice",
 								"dependencyConditions": [
-									"Completed"
+									"Completed",
+									"Skipped"
 								]
 							}
 						],
@@ -65410,8 +65453,9 @@
 						"type": "SynapseNotebook",
 						"dependsOn": [
 							{
-								"activity": "Reload appeal-event",
+								"activity": "Reload service-user",
 								"dependencyConditions": [
+									"Skipped",
 									"Completed"
 								]
 							}
@@ -84859,7 +84903,7 @@
 			"apiVersion": "2019-06-01-preview",
 			"properties": {
 				"linkedServiceName": {
-					"referenceName": "ls_listed_building",
+					"referenceName": "ls_ms_graph",
 					"type": "LinkedServiceReference"
 				},
 				"parameters": {
@@ -84879,7 +84923,7 @@
 				"schema": []
 			},
 			"dependsOn": [
-				"[concat(variables('workspaceId'), '/linkedServices/ls_listed_building')]"
+				"[concat(variables('workspaceId'), '/linkedServices/ls_ms_graph')]"
 			]
 		},
 		{
@@ -87362,6 +87406,40 @@
 			},
 			"dependsOn": [
 				"[concat(variables('workspaceId'), '/integrationRuntimes/PinsIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/ls_ms_graph')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "RestService",
+				"typeProperties": {
+					"url": "[parameters('ls_ms_graph_properties_typeProperties_url')]",
+					"enableServerCertificateValidation": true,
+					"authenticationType": "AadServicePrincipal",
+					"servicePrincipalId": "9a76d5d1-3c76-4197-a7a8-af759f63d9ef",
+					"servicePrincipalKey": {
+						"type": "AzureKeyVaultSecret",
+						"store": {
+							"referenceName": "ls_kv",
+							"type": "LinkedServiceReference"
+						},
+						"secretName": "synapse-graph-client-secret",
+						"secretVersion": "bebc1b7da0ee4512bcf17033e6018325"
+					},
+					"tenant": "5878df98-6f88-48ab-9322-998ce557088d",
+					"aadResourceId": "https://graph.microsoft.com "
+				},
+				"connectVia": {
+					"referenceName": "PinsIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/PinsIntegrationRuntime')]",
+				"[concat(variables('workspaceId'), '/linkedServices/ls_kv')]"
 			]
 		},
 		{
@@ -195974,7 +196052,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "50973b0d-4ed5-483d-aaf3-f4da37044e99"
+						"spark.autotune.trackingId": "33dba3c1-c0bf-4d91-8518-f6d8f2906156"
 					}
 				},
 				"metadata": {
@@ -195988,18 +196066,18 @@
 						"name": "python"
 					},
 					"a365ComputeOptions": {
-						"id": "/subscriptions/6b18ba9d-2399-48b5-a834-e0f267be122d/resourceGroups/pins-rg-data-odw-test-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-test-uks/bigDataPools/pinssynspodw",
+						"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
 						"name": "pinssynspodw",
 						"type": "Spark",
-						"endpoint": "https://pins-synw-odw-test-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+						"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
 						"auth": {
 							"type": "AAD",
 							"authResource": "https://dev.azuresynapse.net"
 						},
 						"sparkVersion": "3.3",
 						"nodeCount": 3,
-						"cores": 4,
-						"memory": 28
+						"cores": 16,
+						"memory": 112
 					},
 					"sessionKeepAliveTimeout": 30
 				},
@@ -196518,30 +196596,6 @@
 						},
 						"source": [
 							"%%sql\n",
-							"select distinct adviceid from odw_harmonised_db.nsip_s51_advice where adviceid not in (select distinct adviceid from odw_curated_db.nsip_s51_advice)"
-						],
-						"outputs": [],
-						"execution_count": 20
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							},
-							"microsoft": {
-								"language": "sparksql"
-							},
-							"collapsed": false
-						},
-						"source": [
-							"%%sql\n",
 							"select count(*) from odw_harmonised_db.nsip_s51_advice where isactive='Y'"
 						],
 						"outputs": [],
@@ -196883,7 +196937,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "2d9287d9-e48e-4fae-8034-e9d630857f2f"
+						"spark.autotune.trackingId": "426395c1-bb15-4743-b68f-4972a383d93e"
 					}
 				},
 				"metadata": {
@@ -197533,6 +197587,7 @@
 						"source": [
 							"table_df: DataFrame = create_dataframe_to_load(final_df, raw_table_name)\r\n",
 							"\r\n",
+							"print(table_df, std_db_name, raw_table)\r\n",
 							"apply_df_to_table(table_df, std_db_name, raw_table)"
 						],
 						"outputs": [],
@@ -206154,7 +206209,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "83dc77ef-ed90-4bc4-aa8c-9e9f108a7ce6"
+						"spark.autotune.trackingId": "d09b04f9-7ad8-4c14-bfce-e8891764dfcb"
 					}
 				},
 				"metadata": {
@@ -206178,8 +206233,8 @@
 						},
 						"sparkVersion": "3.3",
 						"nodeCount": 3,
-						"cores": 16,
-						"memory": 112
+						"cores": 4,
+						"memory": 28
 					},
 					"sessionKeepAliveTimeout": 30
 				},
@@ -206204,7 +206259,7 @@
 							"import pprint"
 						],
 						"outputs": [],
-						"execution_count": 1
+						"execution_count": 26
 					},
 					{
 						"cell_type": "code",
@@ -206231,7 +206286,7 @@
 							"curated_table_name: str = 'nsip_s51_advice'"
 						],
 						"outputs": [],
-						"execution_count": 58
+						"execution_count": 27
 					},
 					{
 						"cell_type": "code",
@@ -206251,7 +206306,7 @@
 							"path_to_orchestration_file: str = \"abfss://odw-config@\"+storage_account+\"orchestration/orchestration.json\""
 						],
 						"outputs": [],
-						"execution_count": 59
+						"execution_count": 28
 					},
 					{
 						"cell_type": "code",
@@ -206275,7 +206330,7 @@
 							"    return definition['Harmonised_Incremental_Key'] if definition and 'Harmonised_Incremental_Key' in definition else None"
 						],
 						"outputs": [],
-						"execution_count": 60
+						"execution_count": 29
 					},
 					{
 						"cell_type": "code",
@@ -206298,7 +206353,7 @@
 							"    return spark_schema"
 						],
 						"outputs": [],
-						"execution_count": 61
+						"execution_count": 30
 					},
 					{
 						"cell_type": "code",
@@ -206319,7 +206374,7 @@
 							"    return spark_dataframe"
 						],
 						"outputs": [],
-						"execution_count": 62
+						"execution_count": 31
 					},
 					{
 						"cell_type": "code",
@@ -206341,7 +206396,7 @@
 							"sb_hrm_table_schema = spark.table(f\"{hrm_db_name}.{hrm_table_name}\").schema"
 						],
 						"outputs": [],
-						"execution_count": 63
+						"execution_count": 32
 					},
 					{
 						"cell_type": "code",
@@ -206377,7 +206432,7 @@
 							"    return result"
 						],
 						"outputs": [],
-						"execution_count": 64
+						"execution_count": 33
 					},
 					{
 						"cell_type": "code",
@@ -206429,7 +206484,7 @@
 							"        return True"
 						],
 						"outputs": [],
-						"execution_count": 65
+						"execution_count": 34
 					},
 					{
 						"cell_type": "code",
@@ -206459,7 +206514,7 @@
 							"    return (std_count, hrm_count, std_count == hrm_count)"
 						],
 						"outputs": [],
-						"execution_count": 74
+						"execution_count": 35
 					},
 					{
 						"cell_type": "code",
@@ -206506,7 +206561,7 @@
 							"    return (hrm_count, curated_count, hrm_count == curated_count)"
 						],
 						"outputs": [],
-						"execution_count": 90
+						"execution_count": 36
 					},
 					{
 						"cell_type": "markdown",
@@ -206542,7 +206597,7 @@
 							"print(f\"Service bus harmonised schema correct: {hrm_schema_correct}\\nTable: {hrm_db_name}.{hrm_table_name}\\nDifferences shown above (if any)\")"
 						],
 						"outputs": [],
-						"execution_count": 68
+						"execution_count": 37
 					},
 					{
 						"cell_type": "markdown",
@@ -206576,7 +206631,7 @@
 							"print(f\"Standardised Count: {standardised_count: ,}\\nHarmonised Count: {harmonised_count: ,}\\nCounts match: {counts_match}\")"
 						],
 						"outputs": [],
-						"execution_count": 75
+						"execution_count": 38
 					},
 					{
 						"cell_type": "code",
@@ -206634,7 +206689,7 @@
 							""
 						],
 						"outputs": [],
-						"execution_count": 82
+						"execution_count": 39
 					},
 					{
 						"cell_type": "markdown",
@@ -206668,7 +206723,7 @@
 							"print(f\"Harmonised Final Count: {harmonised_final_count: ,}\\nCurated Count: {curated_count: ,}\\nCounts match: {counts_match}\")"
 						],
 						"outputs": [],
-						"execution_count": 91
+						"execution_count": 40
 					},
 					{
 						"cell_type": "markdown",
@@ -206732,7 +206787,7 @@
 							"    2 DESC"
 						],
 						"outputs": [],
-						"execution_count": 92
+						"execution_count": 41
 					},
 					{
 						"cell_type": "code",
@@ -206752,10 +206807,10 @@
 						},
 						"source": [
 							"%%sql\n",
-							"select attachmentIds FROM [odw_curated_db].[dbo].[nsip_s51_advice] where adviceId = 16347955"
+							"select attachmentIds FROM odw_curated_db.nsip_s51_advice where adviceId = 16347955"
 						],
 						"outputs": [],
-						"execution_count": null
+						"execution_count": 42
 					},
 					{
 						"cell_type": "markdown",
@@ -206862,7 +206917,7 @@
 							"     horizoncasenumber = '3222228'"
 						],
 						"outputs": [],
-						"execution_count": 25
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -206958,7 +207013,7 @@
 							"    ingestiondate DESC"
 						],
 						"outputs": [],
-						"execution_count": 24
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -207005,7 +207060,7 @@
 							"    2 desc"
 						],
 						"outputs": [],
-						"execution_count": 234
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -207039,7 +207094,7 @@
 							"    2 desc"
 						],
 						"outputs": [],
-						"execution_count": 233
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -207070,7 +207125,7 @@
 							"    ingestiondate DESC"
 						],
 						"outputs": [],
-						"execution_count": 32
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -207112,7 +207167,7 @@
 							"     adviceid = '100000913'"
 						],
 						"outputs": [],
-						"execution_count": 33
+						"execution_count": null
 					}
 				]
 			},
