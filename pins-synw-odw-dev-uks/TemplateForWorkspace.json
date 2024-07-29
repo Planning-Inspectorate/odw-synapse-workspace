@@ -70771,6 +70771,164 @@
 							"driverSize": "Small",
 							"numExecutors": null
 						}
+					},
+					{
+						"name": "Reload s51-advice",
+						"type": "SynapseNotebook",
+						"dependsOn": [
+							{
+								"activity": "Create s51 standardised table",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "Create s51 harmonised table",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "Create s51 curated table",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "py_sb_reload_from_raw_storage",
+								"type": "NotebookReference"
+							},
+							"parameters": {
+								"entity_name": {
+									"value": "s51-advice",
+									"type": "string"
+								},
+								"folder_name": {
+									"value": "nsip-s51-advice",
+									"type": "string"
+								},
+								"table_name": {
+									"value": "sb_s51_advice",
+									"type": "string"
+								}
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "Ingest Hrm Final",
+						"type": "SynapseNotebook",
+						"dependsOn": [
+							{
+								"activity": "Reload s51-advice",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "py_sb_horizon_harmonised_nsip_s51_advice",
+								"type": "NotebookReference"
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "Ingest Curated",
+						"type": "SynapseNotebook",
+						"dependsOn": [
+							{
+								"activity": "Ingest Hrm Final",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "nsip_s51_advice",
+								"type": "NotebookReference"
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "py_unit_tests_nsip_s51_advice",
+						"type": "SynapseNotebook",
+						"dependsOn": [
+							{
+								"activity": "Ingest Curated",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "py_unit_tests_nsip_s51_advice",
+								"type": "NotebookReference"
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
 					}
 				],
 				"policy": {
@@ -70783,7 +70941,11 @@
 			},
 			"dependsOn": [
 				"[concat(variables('workspaceId'), '/notebooks/create_table_from_schema')]",
-				"[concat(variables('workspaceId'), '/bigDataPools/pinssynspodw')]"
+				"[concat(variables('workspaceId'), '/bigDataPools/pinssynspodw')]",
+				"[concat(variables('workspaceId'), '/notebooks/py_sb_reload_from_raw_storage')]",
+				"[concat(variables('workspaceId'), '/notebooks/py_sb_horizon_harmonised_nsip_s51_advice')]",
+				"[concat(variables('workspaceId'), '/notebooks/nsip_s51_advice')]",
+				"[concat(variables('workspaceId'), '/notebooks/py_unit_tests_nsip_s51_advice')]"
 			]
 		},
 		{
@@ -206209,7 +206371,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "d09b04f9-7ad8-4c14-bfce-e8891764dfcb"
+						"spark.autotune.trackingId": "e2f360a6-f051-4944-88bb-9559461d7ebc"
 					}
 				},
 				"metadata": {
@@ -206259,7 +206421,7 @@
 							"import pprint"
 						],
 						"outputs": [],
-						"execution_count": 26
+						"execution_count": 61
 					},
 					{
 						"cell_type": "code",
@@ -206286,7 +206448,7 @@
 							"curated_table_name: str = 'nsip_s51_advice'"
 						],
 						"outputs": [],
-						"execution_count": 27
+						"execution_count": 62
 					},
 					{
 						"cell_type": "code",
@@ -206306,7 +206468,7 @@
 							"path_to_orchestration_file: str = \"abfss://odw-config@\"+storage_account+\"orchestration/orchestration.json\""
 						],
 						"outputs": [],
-						"execution_count": 28
+						"execution_count": 63
 					},
 					{
 						"cell_type": "code",
@@ -206330,7 +206492,7 @@
 							"    return definition['Harmonised_Incremental_Key'] if definition and 'Harmonised_Incremental_Key' in definition else None"
 						],
 						"outputs": [],
-						"execution_count": 29
+						"execution_count": 64
 					},
 					{
 						"cell_type": "code",
@@ -206353,7 +206515,7 @@
 							"    return spark_schema"
 						],
 						"outputs": [],
-						"execution_count": 30
+						"execution_count": 65
 					},
 					{
 						"cell_type": "code",
@@ -206374,7 +206536,7 @@
 							"    return spark_dataframe"
 						],
 						"outputs": [],
-						"execution_count": 31
+						"execution_count": 66
 					},
 					{
 						"cell_type": "code",
@@ -206396,7 +206558,7 @@
 							"sb_hrm_table_schema = spark.table(f\"{hrm_db_name}.{hrm_table_name}\").schema"
 						],
 						"outputs": [],
-						"execution_count": 32
+						"execution_count": 67
 					},
 					{
 						"cell_type": "code",
@@ -206432,7 +206594,7 @@
 							"    return result"
 						],
 						"outputs": [],
-						"execution_count": 33
+						"execution_count": 68
 					},
 					{
 						"cell_type": "code",
@@ -206484,7 +206646,7 @@
 							"        return True"
 						],
 						"outputs": [],
-						"execution_count": 34
+						"execution_count": 69
 					},
 					{
 						"cell_type": "code",
@@ -206514,7 +206676,7 @@
 							"    return (std_count, hrm_count, std_count == hrm_count)"
 						],
 						"outputs": [],
-						"execution_count": 35
+						"execution_count": 70
 					},
 					{
 						"cell_type": "code",
@@ -206561,7 +206723,7 @@
 							"    return (hrm_count, curated_count, hrm_count == curated_count)"
 						],
 						"outputs": [],
-						"execution_count": 36
+						"execution_count": 71
 					},
 					{
 						"cell_type": "markdown",
@@ -206597,7 +206759,7 @@
 							"print(f\"Service bus harmonised schema correct: {hrm_schema_correct}\\nTable: {hrm_db_name}.{hrm_table_name}\\nDifferences shown above (if any)\")"
 						],
 						"outputs": [],
-						"execution_count": 37
+						"execution_count": 72
 					},
 					{
 						"cell_type": "markdown",
@@ -206627,11 +206789,42 @@
 							}
 						},
 						"source": [
-							"standardised_count, harmonised_count, counts_match = test_std_same_rows_hrm(std_table_name, hrm_table_name)\r\n",
-							"print(f\"Standardised Count: {standardised_count: ,}\\nHarmonised Count: {harmonised_count: ,}\\nCounts match: {counts_match}\")"
+							"def differentiate_std_and_hrm(std_table_full, hrm_table_full):\n",
+							"    # filter standardised df with non-null message_type and exclude 'Delete' message_type since it doesn't add a new row in hrm\n",
+							"    std_df: DataFrame = spark.table(std_table_full)\n",
+							"    std_df = std_df.filter((std_df.message_type != 'Delete') & (std_df.message_type.isNotNull()))\n",
+							"\n",
+							"    hrm_df  = spark.table(hrm_table_full)\n",
+							"\n",
+							"    selected_columns = [\"adviceId\",\n",
+							"            \"adviceReference\",\n",
+							"            \"caseId\",\n",
+							"            \"caseReference\",\n",
+							"            \"title\",\n",
+							"            \"from\",\n",
+							"            \"agent\",\n",
+							"            \"method\",\n",
+							"            \"enquiryDate\",\n",
+							"            \"enquiryDetails\",\n",
+							"            \"adviceGivenBy\",\n",
+							"            \"adviceDate\",\n",
+							"            \"adviceDetails\",\n",
+							"            \"status\",\n",
+							"            \"redactionStatus\",\n",
+							"            \"attachmentIds\"]\n",
+							"\n",
+							"\n",
+							"    # Find rows in the original table that are not in the new table\n",
+							"    missing_rows_in_std = hrm_df.select(selected_columns).subtract(std_df.select(selected_columns))\n",
+							"\n",
+							"    # Show the missing rows\n",
+							"    display(missing_rows_in_std)\n",
+							"\n",
+							"    missing_rows_in_hrm = std_df.select(selected_columns).subtract(hrm_df.select(selected_columns))\n",
+							"    display(missing_rows_in_hrm)"
 						],
 						"outputs": [],
-						"execution_count": 38
+						"execution_count": 73
 					},
 					{
 						"cell_type": "code",
@@ -206648,48 +206841,15 @@
 							"collapsed": false
 						},
 						"source": [
-							"std_table_full: str = f\"{std_db_name}.{std_table_name}\"\n",
-							"hrm_table_full: str = f\"{hrm_db_name}.{hrm_table_name}\"\n",
-							"\n",
-							"# filter standardised df with non-null message_type and exclude 'Delete' message_type since it doesn't add a new row in hrm\n",
-							"std_df: DataFrame = spark.table(std_table_full)\n",
-							"std_df = std_df.filter((std_df.message_type != 'Delete') & (std_df.message_type.isNotNull()))\n",
-							"\n",
-							"hrm_df  = spark.table(hrm_table_full)\n",
-							"\n",
-							"print(std_df.count())\n",
-							"print(hrm_df.count())\n",
-							"\n",
-							"selected_columns = [\"adviceId\",\n",
-							"\t\t\"adviceReference\",\n",
-							"\t\t\"caseId\",\n",
-							"\t\t\"caseReference\",\n",
-							"\t\t\"title\",\n",
-							"\t\t\"from\",\n",
-							"\t\t\"agent\",\n",
-							"\t\t\"method\",\n",
-							"\t\t\"enquiryDate\",\n",
-							"\t\t\"enquiryDetails\",\n",
-							"\t\t\"adviceGivenBy\",\n",
-							"\t\t\"adviceDate\",\n",
-							"\t\t\"adviceDetails\",\n",
-							"\t\t\"status\",\n",
-							"\t\t\"redactionStatus\",\n",
-							"\t\t\"attachmentIds\"]\n",
-							"\n",
-							"\n",
-							"# Find rows in the original table that are not in the new table\n",
-							"missing_rows_in_std = hrm_df.select(selected_columns).subtract(std_df.select(selected_columns))\n",
-							"\n",
-							"# Show the missing rows\n",
-							"display(missing_rows_in_std)\n",
-							"\n",
-							"missing_rows_in_hrm = std_df.select(selected_columns).subtract(hrm_df.select(selected_columns))\n",
-							"display(missing_rows_in_hrm)\n",
-							""
+							"standardised_count, harmonised_count, counts_match = test_std_same_rows_hrm(std_table_name, hrm_table_name)\r\n",
+							"print(f\"Standardised Count: {standardised_count: ,}\\nHarmonised Count: {harmonised_count: ,}\\nCounts match: {counts_match}\")\r\n",
+							"\r\n",
+							"if standardised_count > harmonised_count:\r\n",
+							"    print(f\"{standardised_count - harmonised_count} rows from Standardised are missing in Harmonised.\" )\r\n",
+							"    differentiate_std_and_hrm(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\")"
 						],
 						"outputs": [],
-						"execution_count": 39
+						"execution_count": 74
 					},
 					{
 						"cell_type": "markdown",
@@ -206723,7 +206883,7 @@
 							"print(f\"Harmonised Final Count: {harmonised_final_count: ,}\\nCurated Count: {curated_count: ,}\\nCounts match: {counts_match}\")"
 						],
 						"outputs": [],
-						"execution_count": 40
+						"execution_count": 75
 					},
 					{
 						"cell_type": "markdown",
@@ -206787,7 +206947,7 @@
 							"    2 DESC"
 						],
 						"outputs": [],
-						"execution_count": 41
+						"execution_count": 76
 					},
 					{
 						"cell_type": "code",
@@ -206803,14 +206963,15 @@
 							},
 							"microsoft": {
 								"language": "sparksql"
-							}
+							},
+							"collapsed": false
 						},
 						"source": [
 							"%%sql\n",
 							"select attachmentIds FROM odw_curated_db.nsip_s51_advice where adviceId = 16347955"
 						],
 						"outputs": [],
-						"execution_count": 42
+						"execution_count": 77
 					},
 					{
 						"cell_type": "markdown",
@@ -206845,79 +207006,14 @@
 						"source": [
 							"%%sql\r\n",
 							"SELECT DISTINCT\r\n",
-							"    caseCreatedDate\r\n",
-							"    ,projectName\r\n",
-							"    ,projectstatus\r\n",
-							"    ,examtimetablepublishstatus\r\n",
-							"    ,sector\r\n",
-							"    ,projectType\r\n",
-							"    ,stage\r\n",
-							"    ,caseReference\r\n",
-							"    ,horizoncasenumber\r\n",
-							"    ,projectLocation\r\n",
-							"    ,projectEmailAddress\r\n",
-							"    ,twitteraccountname\r\n",
-							"    ,region\r\n",
-							"    ,easting\r\n",
-							"    ,northing\r\n",
-							"    ,transboundary\r\n",
-							"    ,welshLanguage\r\n",
-							"    ,exasize\r\n",
-							"    ,mapZoomLevel\r\n",
-							"    ,projectDescription\r\n",
-							"    ,sos\r\n",
-							"    ,tene\r\n",
-							"    ,anticipatedDateOfSubmission\r\n",
-							"    ,dateProjectAppearsOnWebsite\r\n",
-							"    ,dateOfDCOAcceptance\r\n",
-							"    ,anticipatedDateOfSubmission\r\n",
-							"    ,dateOfDCOSubmission\r\n",
-							"    ,dateOfRepresentationPeriodOpen\r\n",
-							"    ,dateOfRelevantRepresentationClose\r\n",
-							"    ,dateRRepAppearOnWebsite\r\n",
-							"    ,confirmedStartOfExamination\r\n",
-							"    ,dateTimeExaminationEnds\r\n",
-							"    ,stage4ExtensionToExamCloseDate\r\n",
-							"    ,stage5ExtensionToRecommendationDeadline\r\n",
-							"    ,dateOfRecommendations\r\n",
-							"    ,confirmedDateOfDecision\r\n",
-							"    ,stage5ExtensionToDecisionDeadline\r\n",
-							"    ,dateProjectWithdrawn\r\n",
-							"    ,section46Notification\r\n",
-							"    ,datePINSFirstNotifiedOfProject\r\n",
-							"    ,screeningOpinionSought\r\n",
-							"    ,screeningOpinionIssued\r\n",
-							"    ,scopingOpinionSought\r\n",
-							"    ,scopingOpinionIssued\r\n",
-							"    ,deadlineForAcceptanceDecision\r\n",
-							"    ,dateSection58NoticeReceived\r\n",
-							"    ,preliminaryMeetingStartDate\r\n",
-							"    ,deadlineForCloseOfExamination\r\n",
-							"    ,deadlineForSubmissionOfRecommendation\r\n",
-							"    ,deadlineForDecision\r\n",
-							"    ,jRPeriodEndDate\r\n",
-							"    ,extensionToDateRelevantRepresentationsClose\r\n",
-							"    ,summary\r\n",
-							"    ,promotername\r\n",
-							"    ,applicantfirstname\r\n",
-							"    ,applicantlastname\r\n",
-							"    ,addressLine1\r\n",
-							"    ,addressLine2\r\n",
-							"    ,addressTown\r\n",
-							"    ,addressCounty\r\n",
-							"    ,postcode\r\n",
-							"    ,applicantemailaddress\r\n",
-							"    ,applicantwebaddress\r\n",
-							"    ,applicantphonenumber\r\n",
-							"    ,applicantdescriptionofproject\r\n",
-							"    ,casenodeid\r\n",
+							"    *\r\n",
 							"FROM\r\n",
-							"    odw_standardised_db.horizon_nsip_data\r\n",
+							"    odw_standardised_db.horizon_nsip_advice\r\n",
 							"WHERE\r\n",
-							"     horizoncasenumber = '3222228'"
+							"     advicenodeid = '15179883'"
 						],
 						"outputs": [],
-						"execution_count": null
+						"execution_count": 78
 					},
 					{
 						"cell_type": "code",
@@ -206938,82 +207034,17 @@
 						},
 						"source": [
 							"%%sql\r\n",
-							"SELECT\r\n",
-							"    caseCreatedDate\r\n",
-							"    ,projectName\r\n",
-							"    ,publishStatus\r\n",
-							"    ,examTimetablePublishStatus\r\n",
-							"    ,sector\r\n",
-							"    ,projectType\r\n",
-							"    ,stage\r\n",
-							"    ,caseReference\r\n",
-							"    ,caseId\r\n",
-							"    ,projectLocation\r\n",
-							"    ,projectEmailAddress\r\n",
-							"    ,twitteraccountname\r\n",
-							"    ,regions\r\n",
-							"    ,easting\r\n",
-							"    ,northing\r\n",
-							"    ,transboundary\r\n",
-							"    ,welshLanguage\r\n",
-							"    ,exasize\r\n",
-							"    ,mapZoomLevel\r\n",
-							"    ,projectDescription\r\n",
-							"    ,secretaryOfState\r\n",
-							"    ,tene\r\n",
-							"    ,anticipatedDateOfSubmission\r\n",
-							"    ,dateProjectAppearsOnWebsite\r\n",
-							"    ,dateOfDCOAcceptance\r\n",
-							"    ,anticipatedDateOfSubmission\r\n",
-							"    ,dateOfDCOSubmission\r\n",
-							"    ,dateOfRepresentationPeriodOpen\r\n",
-							"    ,dateOfRelevantRepresentationClose\r\n",
-							"    ,dateRRepAppearOnWebsite\r\n",
-							"    ,confirmedStartOfExamination\r\n",
-							"    ,dateTimeExaminationEnds\r\n",
-							"    ,stage4ExtensionToExamCloseDate\r\n",
-							"    ,stage5ExtensionToRecommendationDeadline\r\n",
-							"    ,dateOfRecommendations\r\n",
-							"    ,confirmedDateOfDecision\r\n",
-							"    ,stage5ExtensionToDecisionDeadline\r\n",
-							"    ,dateProjectWithdrawn\r\n",
-							"    ,section46Notification\r\n",
-							"    ,datePINSFirstNotifiedOfProject\r\n",
-							"    ,screeningOpinionSought\r\n",
-							"    ,screeningOpinionIssued\r\n",
-							"    ,scopingOpinionSought\r\n",
-							"    ,scopingOpinionIssued\r\n",
-							"    ,deadlineForAcceptanceDecision\r\n",
-							"    ,dateSection58NoticeReceived\r\n",
-							"    ,preliminaryMeetingStartDate\r\n",
-							"    ,deadlineForCloseOfExamination\r\n",
-							"    ,deadlineForSubmissionOfRecommendation\r\n",
-							"    ,deadlineForDecision\r\n",
-							"    ,jRPeriodEndDate\r\n",
-							"    ,extensionToDateRelevantRepresentationsClose\r\n",
-							"    --,summary\r\n",
-							"    ,promotername\r\n",
-							"    ,applicantfirstname\r\n",
-							"    ,applicantlastname\r\n",
-							"    ,addressLine1\r\n",
-							"    ,addressLine2\r\n",
-							"    ,addressTown\r\n",
-							"    ,addressCounty\r\n",
-							"    ,postcode\r\n",
-							"    ,applicantemailaddress\r\n",
-							"    ,applicantwebaddress\r\n",
-							"    ,applicantphonenumber\r\n",
-							"    ,applicantdescriptionofproject\r\n",
-							"    ,casenodeid\r\n",
+							"SELECT DISTINCT\r\n",
+							"    *\r\n",
 							"FROM\r\n",
-							"    odw_harmonised_db.nsip_project\r\n",
+							"    odw_harmonised_db.nsip_s51_advice\r\n",
 							"WHERE\r\n",
-							"     caseid = '3222228'\r\n",
+							"     adviceid = '15179883'\r\n",
 							"order BY\r\n",
 							"    ingestiondate DESC"
 						],
 						"outputs": [],
-						"execution_count": null
+						"execution_count": 79
 					},
 					{
 						"cell_type": "markdown",
@@ -207060,7 +207091,7 @@
 							"    2 desc"
 						],
 						"outputs": [],
-						"execution_count": null
+						"execution_count": 80
 					},
 					{
 						"cell_type": "code",
@@ -207094,7 +207125,7 @@
 							"    2 desc"
 						],
 						"outputs": [],
-						"execution_count": null
+						"execution_count": 81
 					},
 					{
 						"cell_type": "code",
@@ -207120,12 +207151,12 @@
 							"FROM\r\n",
 							"    odw_harmonised_db.nsip_s51_advice\r\n",
 							"WHERE\r\n",
-							"     adviceid = '100000913'\r\n",
+							"     adviceid = '15179883'\r\n",
 							"order BY\r\n",
 							"    ingestiondate DESC"
 						],
 						"outputs": [],
-						"execution_count": null
+						"execution_count": 82
 					},
 					{
 						"cell_type": "markdown",
@@ -207164,10 +207195,10 @@
 							"FROM\r\n",
 							"    odw_curated_db.nsip_s51_advice\r\n",
 							"WHERE\r\n",
-							"     adviceid = '100000913'"
+							"     adviceid = '15179883'"
 						],
 						"outputs": [],
-						"execution_count": null
+						"execution_count": 83
 					}
 				]
 			},
