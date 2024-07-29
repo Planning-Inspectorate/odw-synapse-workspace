@@ -29,20 +29,23 @@ classDiagram
              CaseID:int
         }
 
-        class nsip_s51_advice {
-            
+        class sb_s51_advice-std {
+            adviceId: int
         }
 
     }
 
     namespace Harmonised {
 
-
-        class casework_nsip_advice_dim {
+        class nsip_s51_advice-hrm {
+            sb_s51_advice-hrm 
             horizon_nsip_advice
-            nsip_s51_advice 
         }
 
+        class sb_s51_advice-hrm {
+            adviceId: int
+        }
+    
     }
 
     namespace Curated {
@@ -53,13 +56,12 @@ classDiagram
     }
 
 
+`nsip-s51-advice` --> `sb_s51_advice-std`
+`sb_s51_advice-std` --> `sb_s51_advice-hrm`
+`sb_s51_advice-hrm` --> `nsip_s51_advice-hrm`
+`nsip_s51_advice-hrm` --> `nsip_s51_advice`
+
 `Horizon_NSIP_Advice` --> `horizon_nsip_advice`
-`nsip-s51-advice` -->` nsip_s51_advice `
-
-`horizon_nsip_advice` --> `casework_nsip_advice_dim`
-
-` nsip_s51_advice `--> `casework_nsip_advice_dim`
-
-`casework_nsip_advice_dim` --> `nsip_s51_advice`
+`horizon_nsip_advice` --> `nsip_s51_advice-hrm`
 
 ```
