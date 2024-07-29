@@ -159,18 +159,6 @@ variable "synapse_data_exfiltration_enabled" {
   type        = bool
 }
 
-variable "synapse_integration_runtime_name" {
-  description = "The name of the integration runtime"
-  type        = string
-}
-
-variable "synapse_linked_service_graph" {
-  description = "Configuration for the graph linked service"
-  type = object({
-    client_id = string
-  })
-}
-
 variable "synapse_private_endpoint_dns_zone_id" {
   description = "The ID of the Private DNS Zone hosting privatelink.azuresynapse.net"
   type        = string

@@ -215,10 +215,6 @@ synapse_aad_administrator = {
   object_id = "f0e4d89f-3288-48c9-ada9-1227a069c76e"
 }
 
-synapse_linked_service_graph = {
-  client_id = "e43812ea-09c7-422e-9545-6c941d791fa6"
-}
-
 synapse_data_exfiltration_enabled  = false
 synapse_sql_administrator_username = "synadmin"
 synapse_role_assignments = {
