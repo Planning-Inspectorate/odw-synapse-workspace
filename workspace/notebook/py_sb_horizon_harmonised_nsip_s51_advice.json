@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "33dba3c1-c0bf-4d91-8518-f6d8f2906156"
+				"spark.autotune.trackingId": "de1b40ed-07f2-4d7e-8204-4c687e113b89"
 			}
 		},
 		"metadata": {
@@ -44,8 +44,8 @@
 				},
 				"sparkVersion": "3.3",
 				"nodeCount": 3,
-				"cores": 16,
-				"memory": 112,
+				"cores": 4,
+				"memory": 28,
 				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
@@ -58,7 +58,7 @@
 					"from pyspark.sql import Row\r\n",
 					"from pyspark.sql.functions import *"
 				],
-				"execution_count": 6
+				"execution_count": 29
 			},
 			{
 				"cell_type": "code",
@@ -78,7 +78,7 @@
 					"horizon_table = \"odw_standardised_db.horizon_nsip_advice\"\r\n",
 					"spark_table_final = \"odw_harmonised_db.nsip_s51_advice\""
 				],
-				"execution_count": 7
+				"execution_count": 30
 			},
 			{
 				"cell_type": "code",
@@ -97,41 +97,41 @@
 					"# Get data out of the service bus with additional fields needed for Horizon data\r\n",
 					"service_bus_data = spark.sql(\"\"\"\r\n",
 					"                    SELECT DISTINCT\r\n",
-					"                        CAST(NULL AS Long) as NSIPAdviceID\r\n",
-					"                        ,cast(adviceId as integer)\r\n",
-					"                        ,advicereference AS adviceReference\r\n",
-					"                        ,cast(caseid as integer)\r\n",
-					"                        ,casereference\r\n",
+					"                        NSIPAdviceID\r\n",
+					"                        ,adviceId\r\n",
+					"                        ,adviceReference\r\n",
+					"                        ,caseId\r\n",
+					"                        ,caseReference\r\n",
 					"                        ,title\r\n",
 					"                        ,titleWelsh\r\n",
 					"                        ,from\r\n",
 					"                        ,agent\r\n",
 					"                        ,method\r\n",
-					"                        ,enquirydate as enquiryDate\r\n",
-					"                        ,enquirydetails as enquiryDetails\r\n",
-					"                        ,advicegivenby as adviceGivenBy\r\n",
-					"                        ,advicedate as adviceDate\r\n",
-					"                        ,advicedetails as adviceDetails\r\n",
+					"                        ,enquiryDate\r\n",
+					"                        ,enquiryDetails\r\n",
 					"                        ,enquiryDetailsWelsh\r\n",
+					"                        ,adviceGivenBy\r\n",
+					"                        ,adviceDate\r\n",
+					"                        ,adviceDetails\r\n",
+					"                        ,adviceDetailsWelsh\r\n",
 					"                        ,status\r\n",
-					"                        ,redactionstatus as redactionStatus\r\n",
+					"                        ,redactionStatus\r\n",
 					"                        ,attachmentIds\r\n",
 					"\r\n",
 					"                        -- Start Horizon columns\r\n",
 					"                        ,'Yes' as Section51Advice\r\n",
 					"                        ,CAST(NULL AS String) as EnquirerFirstName\r\n",
-					"                        ,CAST(NULL AS String) as EnquirerOrganisation\r\n",
-					"                        ,CAST(NULL AS String) as Enquiry\r\n",
-					"                        ,CAST(NULL AS String) as Advice\r\n",
+					"                        ,CAST(NULL AS String) as EnquirerLastName\r\n",
 					"                        ,CAST(NULL AS String) as AdviceLastModified\r\n",
 					"                        ,CAST(NULL AS String) as AttachmentCount\r\n",
-					"                        ,CAST(NULL AS String) as AttachmentLastModified\r\n",
+					"                        ,CAST(NULL AS String) as AttachmentsLastModified\r\n",
 					"                        ,CAST(NULL AS String) as LastPublishedDate\r\n",
 					"                        ,CAST(NULL AS String) as WelshLanguage\r\n",
 					"                        ,CAST(NULL AS String) as CaseWorkType\r\n",
+					"                        ,CAST(NULL AS String) as AttachmentModifyDate\r\n",
 					"                        -- End Horizon columns\r\n",
 					"                        \r\n",
-					"                        ,migrated\r\n",
+					"                        ,Migrated\r\n",
 					"                        ,ODTSourceSystem\r\n",
 					"                        ,SourceSystemID\r\n",
 					"                        ,IngestionDate \r\n",
@@ -143,7 +143,7 @@
 					"\r\n",
 					"                    \"\"\")"
 				],
-				"execution_count": 8
+				"execution_count": 31
 			},
 			{
 				"cell_type": "code",
@@ -162,39 +162,41 @@
 					"# Get data out of Horizon and matching the SB schema (with additional fields and ensure data types match)\r\n",
 					"horizon_data = spark.sql(f\"\"\"\r\n",
 					"                SELECT DISTINCT \r\n",
-					"                        advicenodeid as NSIPAdviceID\r\n",
+					"                        CAST(NULL AS Long) as NSIPAdviceID\r\n",
 					"                        ,Cast(advicenodeid as integer) as adviceId\r\n",
-					"                        ,AdviceReference as adviceReference\r\n",
-					"                        ,casenodeid as caseid\r\n",
-					"                        ,CaseReference as caseReference\r\n",
+					"                        ,adviceReference\r\n",
+					"                        ,Cast(casenodeid as integer) as caseId\r\n",
+					"                        ,caseReference\r\n",
 					"                        ,title\r\n",
-					"                        ,null as titleWelsh\r\n",
+					"                        ,CAST(NULL AS String) as titleWelsh\r\n",
 					"                        ,concat(enquirerfirstname,' ',enquirerlastname)  as from\r\n",
-					"                        ,EnquirerOrganisation as agent\r\n",
+					"                        ,enquirerOrganisation as agent\r\n",
 					"                        ,enqirymethod as method\r\n",
-					"                        ,enquirydate as enquiryDate\r\n",
-					"                        ,enquiry as EnquiryDetails\r\n",
-					"                        ,AdviceFrom as adviceGivenBy --AdviceFrom\r\n",
-					"                        ,AdviceDate as adviceDate\r\n",
+					"                        ,enquiryDate\r\n",
+					"                        ,enquiry as enquiryDetails\r\n",
+					"                        ,CAST(NULL AS String) as enquiryDetailsWelsh\r\n",
+					"                        ,adviceFrom as adviceGivenBy\r\n",
+					"                        ,adviceDate\r\n",
 					"                        ,advice as adviceDetails\r\n",
-					"                        ,null as enquiryDetailsWelsh\r\n",
-					"                        ,AdviceStatus as status\r\n",
+					"                        ,CAST(NULL AS String) as adviceDetailsWelsh\r\n",
+					"                        ,adviceStatus as status\r\n",
 					"                        ,null as redactionStatus\r\n",
 					"                        ,attachmentdataID as attachmentIds\r\n",
 					"                        \r\n",
-					"                        ,section51advice as Section51Advice\r\n",
-					"                        ,enquirerfirstname as EnquirerFirstName\r\n",
-					"                        ,enquirerorganisation as EnquirerOrganisation\r\n",
-					"                        ,enquiry as Enquiry\r\n",
-					"                        ,advice as Advice\r\n",
-					"                        ,advicelastmodified as AdviceLastModified\r\n",
-					"                        ,attachmentcount as AttachmentCount\r\n",
-					"                        ,attachmentslastmodified as AttachmentLastModified\r\n",
-					"                        ,lastpublisheddate as LastPublishedDate\r\n",
-					"                        ,welshlanguage as WelshLanguage\r\n",
-					"                        ,caseWorktype as CaseWorkType\r\n",
+					"                        -- Start Horizon Fields Not in SB\r\n",
+					"                        ,Section51Advice\r\n",
+					"                        ,EnquirerFirstName\r\n",
+					"                        ,EnquirerLastName\r\n",
+					"                        ,AdviceLastModified\r\n",
+					"                        ,AttachmentCount\r\n",
+					"                        ,AttachmentsLastModified\r\n",
+					"                        ,LastPublishedDate\r\n",
+					"                        ,WelshLanguage\r\n",
+					"                        ,CaseWorkType\r\n",
+					"                        ,AttachmentModifyDate\r\n",
+					"                        -- END Horizon Fields Not in SB\r\n",
 					"\r\n",
-					"                        ,\"0\" as migrated\r\n",
+					"                        ,\"0\" as Migrated\r\n",
 					"                        ,\"Horizon\" as ODTSourceSystem\r\n",
 					"                        ,NULL AS SourceSystemID\r\n",
 					"                        , to_timestamp(expected_from)  AS IngestionDate\r\n",
@@ -208,7 +210,7 @@
 					"\r\n",
 					"                \"\"\")"
 				],
-				"execution_count": 9
+				"execution_count": 32
 			},
 			{
 				"cell_type": "code",
@@ -232,7 +234,7 @@
 					"#sort columns into same order as service bus\r\n",
 					"horizon_data = horizon_data.select(service_bus_data.columns)"
 				],
-				"execution_count": 10
+				"execution_count": 33
 			},
 			{
 				"cell_type": "code",
@@ -250,7 +252,7 @@
 				"source": [
 					"results = service_bus_data.union(horizon_data)"
 				],
-				"execution_count": 11
+				"execution_count": 34
 			},
 			{
 				"cell_type": "code",
@@ -268,7 +270,7 @@
 				"source": [
 					"results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
 				],
-				"execution_count": 12
+				"execution_count": 35
 			},
 			{
 				"cell_type": "markdown",
@@ -311,7 +313,7 @@
 					"    ,adviceid\r\n",
 					"    ,IngestionDate\r\n",
 					"    ,ValidTo\r\n",
-					"    ,'0' AS migrated\r\n",
+					"    ,'0' AS Migrated\r\n",
 					"    ,CASE row_number() OVER(PARTITION BY adviceid ORDER BY IngestionDate DESC)\r\n",
 					"        WHEN 1 THEN\r\n",
 					"            'Y'\r\n",
@@ -321,7 +323,7 @@
 					"FROM\r\n",
 					"    odw_harmonised_db.nsip_s51_advice"
 				],
-				"execution_count": 13
+				"execution_count": 36
 			},
 			{
 				"cell_type": "code",
@@ -348,7 +350,7 @@
 					"                                    \"1\"\r\n",
 					"                                ELSE \r\n",
 					"                                    \"0\"\r\n",
-					"                            END AS migrated\r\n",
+					"                            END AS Migrated\r\n",
 					"                            ,CurrentRow.IsActive\r\n",
 					"                        FROM\r\n",
 					"                            vw_nsip_s51_advice_calculations_base AS CurrentRow\r\n",
@@ -360,7 +362,7 @@
 					"                            ORDER BY currentRow.ReverseOrderProcessed\r\n",
 					"                    \"\"\")"
 				],
-				"execution_count": 14
+				"execution_count": 37
 			},
 			{
 				"cell_type": "code",
@@ -379,7 +381,7 @@
 					"df_calcs =df_calcs.withColumnRenamed(\"adviceid\", \"temp_adviceid\").withColumnRenamed(\"IngestionDate\", \"temp_IngestionDate\")\r\n",
 					""
 				],
-				"execution_count": 15
+				"execution_count": 38
 			},
 			{
 				"cell_type": "code",
@@ -409,35 +411,36 @@
 					"                        ,method\r\n",
 					"                        ,enquiryDate\r\n",
 					"                        ,enquiryDetails\r\n",
+					"                        ,enquiryDetailsWelsh\r\n",
 					"                        ,adviceGivenBy \r\n",
 					"                        ,adviceDate\r\n",
 					"                        ,adviceDetails\r\n",
-					"                        ,EnquiryDetailsWelsh\r\n",
+					"                        ,adviceDetailsWelsh\r\n",
 					"                        ,status\r\n",
 					"                        ,redactionStatus\r\n",
 					"                        ,attachmentIds\r\n",
-					"                        ,ValidTo\r\n",
+					"\r\n",
 					"                        --Start Horizon only fields\r\n",
 					"                        ,Section51Advice\r\n",
 					"                        ,EnquirerFirstName\r\n",
-					"                        ,EnquirerOrganisation\r\n",
-					"                        ,Enquiry\r\n",
-					"                        ,Advice\r\n",
+					"                        ,EnquirerLastName\r\n",
 					"                        ,AdviceLastModified\r\n",
 					"                        ,AttachmentCount\r\n",
-					"                        ,AttachmentLastModified\r\n",
+					"                        ,AttachmentsLastModified\r\n",
 					"                        ,LastPublishedDate\r\n",
 					"                        ,WelshLanguage\r\n",
 					"                        ,CaseWorkType\r\n",
+					"                        --End Horizon only fields\r\n",
+					"\r\n",
 					"                        ,Migrated\r\n",
 					"                        ,ODTSourceSystem\r\n",
-					"                        ,ingestionDate\r\n",
+					"                        ,IngestionDate\r\n",
+					"                        ,ValidTo\r\n",
 					"                        ,MD5(CONCAT(\r\n",
-					"                           \r\n",
 					"                                    IFNULL(CAST(NSIPAdviceID AS bigint), '.')\r\n",
 					"                                    ,IFNULL(CAST(adviceId AS integer), '.')\r\n",
 					"                                    ,IFNULL(CAST(adviceReference AS String), '.')\r\n",
-					"                                    ,IFNULL(CAST(caseid AS integer), '.')\r\n",
+					"                                    ,IFNULL(CAST(caseId AS integer), '.')\r\n",
 					"                                    ,IFNULL(CAST(caseReference AS String), '.')\r\n",
 					"                                    ,IFNULL(CAST(title AS String), '.')\r\n",
 					"                                    ,IFNULL(CAST(titleWelsh AS String), '.')\r\n",
@@ -446,25 +449,29 @@
 					"                                    ,IFNULL(CAST(method AS String), '.')\r\n",
 					"                                    ,IFNULL(CAST(enquiryDate AS String), '.')\r\n",
 					"                                    ,IFNULL(CAST(enquiryDetails AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(enquiryDetailsWelsh AS String), '.')\r\n",
 					"                                    ,IFNULL(CAST(adviceGivenBy AS String), '.')\r\n",
 					"                                    ,IFNULL(CAST(adviceDate AS String), '.')\r\n",
 					"                                    ,IFNULL(CAST(adviceDetails AS String), '.')\r\n",
-					"                                    ,IFNULL(CAST(EnquiryDetailsWelsh AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(adviceDetailsWelsh AS String), '.')\r\n",
 					"                                    ,IFNULL(CAST(status AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(redactionStatus AS String), '.')\r\n",
 					"                                    ,IFNULL(CAST(attachmentIds AS String), '.')\r\n",
-					"                                    ,IFNULL(CAST(ValidTo AS String), '.')\r\n",
-					"                                    ,IFNULL(CAST(RowID AS String), '.')\r\n",
+					"\r\n",
 					"                                    ,IFNULL(CAST(Section51Advice AS String), '.')\r\n",
 					"                                    ,IFNULL(CAST(EnquirerFirstName AS String), '.')\r\n",
-					"                                    ,IFNULL(CAST(EnquirerOrganisation AS String), '.')\r\n",
-					"                                    ,IFNULL(CAST(Enquiry AS String), '.')\r\n",
-					"                                    ,IFNULL(CAST(Advice AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(EnquirerLastName AS String), '.')\r\n",
 					"                                    ,IFNULL(CAST(AdviceLastModified AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(AttachmentCount AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(AttachmentsLastModified AS String), '.')\r\n",
 					"                                    ,IFNULL(CAST(LastPublishedDate AS String), '.')\r\n",
 					"                                    ,IFNULL(CAST(WelshLanguage AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(CaseWorkType AS String), '.')\r\n",
+					"\r\n",
 					"                                    ,IFNULL(CAST(Migrated AS String), '.')\r\n",
 					"                                    ,IFNULL(CAST(ODTSourceSystem AS String), '.')\r\n",
-					"                                    ,IFNULL(CAST(ingestionDate AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(IngestionDate AS String), '.')\r\n",
+					"                                    ,IFNULL(CAST(ValidTo AS String), '.')\r\n",
 					"                            )\r\n",
 					"                        ) AS RowID\r\n",
 					"                        ,IsActive\r\n",
@@ -472,7 +479,7 @@
 					"        {spark_table_final}\"\"\")\r\n",
 					"    "
 				],
-				"execution_count": 16
+				"execution_count": 39
 			},
 			{
 				"cell_type": "code",
@@ -490,9 +497,9 @@
 				"source": [
 					"columns = results.columns\r\n",
 					"\r\n",
-					"results = results.drop(\"NSIPAdviceID\", \"ValidTo\", \"migrated\", \"IsActive\")"
+					"results = results.drop(\"NSIPAdviceID\", \"ValidTo\", \"Migrated\", \"IsActive\")"
 				],
-				"execution_count": 17
+				"execution_count": 40
 			},
 			{
 				"cell_type": "code",
@@ -511,7 +518,7 @@
 					"final_df = results.join(df_calcs, (df_calcs[\"temp_adviceid\"] == results[\"adviceid\"]) & (df_calcs[\"temp_IngestionDate\"] == results[\"IngestionDate\"])).select(columns)\n",
 					"final_df = final_df.drop_duplicates()"
 				],
-				"execution_count": 18
+				"execution_count": 41
 			},
 			{
 				"cell_type": "code",
@@ -530,7 +537,7 @@
 					"\r\n",
 					"final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
 				],
-				"execution_count": 19
+				"execution_count": 42
 			},
 			{
 				"cell_type": "code",
@@ -553,20 +560,7 @@
 					"%%sql\n",
 					"select count(*) from odw_harmonised_db.nsip_s51_advice where isactive='Y'"
 				],
-				"execution_count": 21
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					""
-				]
+				"execution_count": 43
 			}
 		]
 	}
