@@ -12,7 +12,6 @@ def test_entraid_pipeline(credential_name, azure_credential, synapse_endpoint: s
     # run the pipeline
     pipelinename: str = "rel_1262_entra_id"
     
-    # Trigger the Master Pipeline for Landing to Raw Zone
     pipeline_raw_params = {
         "sparkPool": "pinssynspodw",
         "pipeline": pipelinename,
@@ -29,7 +28,7 @@ def test_entraid_pipeline(credential_name, azure_credential, synapse_endpoint: s
     #run the pipeline
     pipeline_run_result = pipelineutils.run_and_observe_pipeline(credential_name, azure_credential, synapse_endpoint, pipelinename, pipeline_raw_params)
     assert pipeline_run_result == constants.PIPELINE_SUCCESS_STATUS
-    print("test_entraid Completed")
+    print("test_entraid_pipeline Completed")
 
 
 def test_entraid_notebook(credential_name, azure_credential, synapse_endpoint: str):
@@ -54,7 +53,7 @@ def test_entraid_notebook(credential_name, azure_credential, synapse_endpoint: s
         "parameters": {
             "entity_name": {
                "type": "String",
-               "value": "appeal-document",
+               "value": "entraid",
             },
             "std_db_name": {
                "type": "String",
@@ -70,19 +69,15 @@ def test_entraid_notebook(credential_name, azure_credential, synapse_endpoint: s
             },
             "std_table_name": {
                "type": "String",
-               "value": "sb_appeal_document",
+               "value": "entraid",
             },
             "hrm_table_name": {
                "type": "String",
-               "value": "sb_appeal_document",
+               "value": "entraid",
             },
-            "hrm_table_final": {
-               "type": "String",
-               "value": "appeals_document_metadata",
-            },
-            "curated_table_name": {
-               "type": "String",
-               "value": "appeal_document",
+            "isServiceBusSchema": {
+               "type": "Boolean",
+               "value": "False",
             }
         }
     }
@@ -92,7 +87,7 @@ def test_entraid_notebook(credential_name, azure_credential, synapse_endpoint: s
     print("Notebook response *" +str(exitMessage) +"*")
     assert notebook_run_result == constants.NOTEBOOK_SUCCESS_STATUS 
     assert exitMessage == constants.NOTEBOOK_EXIT_CODE_SUCCESS
-    print("test_entraid Completed")
+    print("test_entraid_notebook Completed")
 
 @pytest.fixture(autouse=True)
 def run_before_and_after_tests():
