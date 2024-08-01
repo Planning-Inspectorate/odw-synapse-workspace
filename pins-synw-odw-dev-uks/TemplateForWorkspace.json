@@ -644,6 +644,10 @@
 			"type": "string",
 			"defaultValue": "pinssynspodw"
 		},
+		"Horizon_appeal_event_harmonised_properties_bigDataPool_referenceName": {
+			"type": "string",
+			"defaultValue": "pinssynspodw"
+		},
 		"Horizon_appeals_events_harmonised_properties_bigDataPool_referenceName": {
 			"type": "string",
 			"defaultValue": "pinssynspodw"
@@ -665,6 +669,10 @@
 			"defaultValue": "pinssynspodw"
 		},
 		"aie_document_data_properties_bigDataPool_referenceName": {
+			"type": "string",
+			"defaultValue": "pinssynspodw"
+		},
+		"appeal_event_properties_bigDataPool_referenceName": {
 			"type": "string",
 			"defaultValue": "pinssynspodw"
 		},
@@ -1081,6 +1089,10 @@
 			"defaultValue": "pinssynspodw"
 		},
 		"high_court_dim_properties_bigDataPool_referenceName": {
+			"type": "string",
+			"defaultValue": "pinssynspodw"
+		},
+		"horizon_appeals_folder_properties_bigDataPool_referenceName": {
 			"type": "string",
 			"defaultValue": "pinssynspodw"
 		},
@@ -1700,6 +1712,10 @@
 			"type": "string",
 			"defaultValue": "pinssynspodw"
 		},
+		"py_unit_tests_entraid_properties_bigDataPool_referenceName": {
+			"type": "string",
+			"defaultValue": "pinssynspodw"
+		},
 		"py_unit_tests_has_appeals_properties_bigDataPool_referenceName": {
 			"type": "string",
 			"defaultValue": "pinssynspodw"
@@ -1725,6 +1741,10 @@
 			"defaultValue": "pinssynspodw"
 		},
 		"py_util_partition_document_metadata_properties_bigDataPool_referenceName": {
+			"type": "string",
+			"defaultValue": "pinssynspodw"
+		},
+		"py_utils_curated_validate_appeal_event_properties_bigDataPool_referenceName": {
 			"type": "string",
 			"defaultValue": "pinssynspodw"
 		},
@@ -31602,6 +31622,167 @@
 								"delete_existing_table": true
 							}
 						}
+					},
+					{
+						"name": "Build service bus standardised",
+						"type": "SynapseNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "create_table_from_schema",
+								"type": "NotebookReference"
+							},
+							"parameters": {
+								"db_name": {
+									"value": "odw_standardised_db",
+									"type": "string"
+								},
+								"entity_name": {
+									"value": "appeal-event",
+									"type": "string"
+								}
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "Build service bus harmonised",
+						"type": "SynapseNotebook",
+						"dependsOn": [
+							{
+								"activity": "Build service bus standardised",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "create_table_from_schema",
+								"type": "NotebookReference"
+							},
+							"parameters": {
+								"db_name": {
+									"value": "odw_harmonised_db",
+									"type": "string"
+								},
+								"entity_name": {
+									"value": "appeal-event",
+									"type": "string"
+								}
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "Load curated",
+						"type": "SynapseNotebook",
+						"dependsOn": [
+							{
+								"activity": "Run process to build up to standarnised",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "Build curated",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "appeal_event",
+								"type": "NotebookReference"
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "Build curated",
+						"type": "SynapseNotebook",
+						"dependsOn": [
+							{
+								"activity": "Build service bus harmonised",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "create_table_from_schema",
+								"type": "NotebookReference"
+							},
+							"parameters": {
+								"db_name": {
+									"value": "odw_curated_db",
+									"type": "string"
+								},
+								"entity_name": {
+									"value": "appeal-event",
+									"type": "string"
+								}
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
 					}
 				],
 				"policy": {
@@ -31614,7 +31795,9 @@
 			},
 			"dependsOn": [
 				"[concat(variables('workspaceId'), '/pipelines/0_Raw_Horizon_Appeals_Event_copy1')]",
-				"[concat(variables('workspaceId'), '/pipelines/pln_raw_to_standardised_e2e')]"
+				"[concat(variables('workspaceId'), '/pipelines/pln_raw_to_standardised_e2e')]",
+				"[concat(variables('workspaceId'), '/notebooks/create_table_from_schema')]",
+				"[concat(variables('workspaceId'), '/notebooks/appeal_event')]"
 			]
 		},
 		{
@@ -36887,7 +37070,7 @@
 						"userProperties": [],
 						"typeProperties": {
 							"notebook": {
-								"referenceName": "appeals_event",
+								"referenceName": "appeal_event",
 								"type": "NotebookReference"
 							},
 							"snapshot": true,
@@ -36919,7 +37102,7 @@
 				"[concat(variables('workspaceId'), '/notebooks/nsip_s51_advice')]",
 				"[concat(variables('workspaceId'), '/notebooks/legacy_folder_data')]",
 				"[concat(variables('workspaceId'), '/notebooks/document_metadata')]",
-				"[concat(variables('workspaceId'), '/notebooks/appeals_event')]"
+				"[concat(variables('workspaceId'), '/notebooks/appeal_event')]"
 			]
 		},
 		{
@@ -43161,7 +43344,7 @@
 						"userProperties": [],
 						"typeProperties": {
 							"notebook": {
-								"referenceName": "Horizon_appeals_events_harmonised",
+								"referenceName": "Horizon_appeal_event_harmonised",
 								"type": "NotebookReference"
 							},
 							"snapshot": true,
@@ -43243,122 +43426,7 @@
 				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('workspaceId'), '/notebooks/Horizon_appeals_events_harmonised')]",
-				"[concat(variables('workspaceId'), '/notebooks/py_raw_to_std')]",
-				"[concat(variables('workspaceId'), '/pipelines/0_Raw_Horizon_Appeals_Event_copy1')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('workspaceName'), '/pln_horizon_appeals_Event_copy1')]",
-			"type": "Microsoft.Synapse/workspaces/pipelines",
-			"apiVersion": "2019-06-01-preview",
-			"properties": {
-				"activities": [
-					{
-						"name": "Std to Hrm",
-						"description": "Ingests data from standardised to harmonised ",
-						"type": "SynapseNotebook",
-						"dependsOn": [
-							{
-								"activity": "Raw to Std",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"notebook": {
-								"referenceName": "Horizon_appeals_events_harmonised",
-								"type": "NotebookReference"
-							},
-							"snapshot": true,
-							"conf": {
-								"spark.dynamicAllocation.enabled": null,
-								"spark.dynamicAllocation.minExecutors": null,
-								"spark.dynamicAllocation.maxExecutors": null
-							},
-							"numExecutors": null
-						}
-					},
-					{
-						"name": "Raw to Std",
-						"type": "SynapseNotebook",
-						"dependsOn": [
-							{
-								"activity": "Src to Raw",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"notebook": {
-								"referenceName": "py_raw_to_std",
-								"type": "NotebookReference"
-							},
-							"parameters": {
-								"source_folder": {
-									"value": "Horizon",
-									"type": "string"
-								},
-								"specific_file": {
-									"value": "AppealsEvent",
-									"type": "string"
-								}
-							},
-							"snapshot": true,
-							"conf": {
-								"spark.dynamicAllocation.enabled": null,
-								"spark.dynamicAllocation.minExecutors": null,
-								"spark.dynamicAllocation.maxExecutors": null
-							},
-							"numExecutors": null
-						}
-					},
-					{
-						"name": "Src to Raw",
-						"type": "ExecutePipeline",
-						"dependsOn": [],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "0_Raw_Horizon_Appeals_Event_copy1",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"folder": {
-					"name": "Appeals event"
-				},
-				"annotations": []
-			},
-			"dependsOn": [
-				"[concat(variables('workspaceId'), '/notebooks/Horizon_appeals_events_harmonised')]",
+				"[concat(variables('workspaceId'), '/notebooks/Horizon_appeal_event_harmonised')]",
 				"[concat(variables('workspaceId'), '/notebooks/py_raw_to_std')]",
 				"[concat(variables('workspaceId'), '/pipelines/0_Raw_Horizon_Appeals_Event_copy1')]"
 			]
@@ -70361,10 +70429,6 @@
 						},
 						"userProperties": [],
 						"typeProperties": {
-							"pipeline": {
-								"referenceName": "pln_horizon_appeals_Event_copy1",
-								"type": "PipelineReference"
-							},
 							"waitOnCompletion": true,
 							"parameters": {}
 						}
@@ -70379,8 +70443,7 @@
 				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('workspaceId'), '/notebooks/create_table_from_schema')]",
-				"[concat(variables('workspaceId'), '/pipelines/pln_horizon_appeals_Event_copy1')]"
+				"[concat(variables('workspaceId'), '/notebooks/create_table_from_schema')]"
 			]
 		},
 		{
@@ -91259,7 +91322,7 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('workspaceName'), '/Horizon_appeals_events_harmonised')]",
+			"name": "[concat(parameters('workspaceName'), '/Horizon_appeal_event_harmonised')]",
 			"type": "Microsoft.Synapse/workspaces/notebooks",
 			"apiVersion": "2019-06-01-preview",
 			"properties": {
@@ -91269,7 +91332,7 @@
 				"nbformat": 4,
 				"nbformat_minor": 2,
 				"bigDataPool": {
-					"referenceName": "[parameters('Horizon_appeals_events_harmonised_properties_bigDataPool_referenceName')]",
+					"referenceName": "[parameters('Horizon_appeal_event_harmonised_properties_bigDataPool_referenceName')]",
 					"type": "BigDataPoolReference"
 				},
 				"sessionProperties": {
@@ -91282,7 +91345,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "bbe4e45a-6b24-4c90-be16-44b408f9b962"
+						"spark.autotune.trackingId": "41ad3ed9-e9d0-4fe9-ab62-9d98649c2c15"
 					}
 				},
 				"metadata": {
@@ -91331,64 +91394,93 @@
 						},
 						"source": [
 							"%%sql\r\n",
-							"CREATE OR REPLACE TEMPORARY VIEW vw_Horizon_Appeals_Event_Latest_Standardised\r\n",
+							"-- First step is to work out the data in standardised that we need to move to harmonised\r\n",
+							"CREATE OR REPLACE TEMPORARY VIEW vw_Horizon_appeals_event\r\n",
 							"AS\r\n",
-							"SELECT DISTINCT\r\n",
-							"    casenumber -- PK\r\n",
-							"    ,eventId -- PK\r\n",
-							"    ,caseReference\r\n",
-							"    ,eventtype\r\n",
-							"    ,eventname\r\n",
-							"    ,eventstatus\r\n",
-							"    ,isurgent\r\n",
-							"    ,eventpublished\r\n",
-							"    ,eventstartdatetime\r\n",
-							"    ,eventenddatetime\r\n",
-							"    ,notificationofsitevisit\r\n",
-							"    ,dateeventrequested\r\n",
-							"    ,actualduration\r\n",
-							"    ,eventaddressline1\r\n",
-							"    ,eventaddressline2\r\n",
-							"    ,eventaddresstown\r\n",
-							"    ,eventaddresscounty\r\n",
-							"    ,eventaddresspostcode\r\n",
-							"    ,\"0\" AS Migrated\r\n",
-							"    ,\"Horizon\" AS ODTSourceSystem\r\n",
-							"    ,Source.SourceSystemID AS SourceSystemID\r\n",
-							"    ,to_timestamp(Appeals_event.expected_from) AS ingestionDate\r\n",
-							"    ,to_timestamp(NULL) AS ValidTo\r\n",
+							"SELECT\r\n",
+							"    CONCAT(raw.casenumber, '-',raw.eventId) AS eventId\r\n",
+							"    ,raw.caseReference\r\n",
+							"    ,raw.eventType\r\n",
+							"    ,raw.eventName\r\n",
+							"    ,raw.eventstatus\r\n",
+							"    ,raw.isUrgent\r\n",
+							"    ,raw.eventPublished\r\n",
+							"    ,raw.eventStartDatetime\r\n",
+							"    ,raw.eventEndDatetime\r\n",
+							"    ,raw.notificationOfSitevisit\r\n",
+							"    ,raw.AddressLine1\r\n",
+							"    ,raw.AddressLine2\r\n",
+							"    ,raw.AddressTown\r\n",
+							"    ,raw.AddressCounty\r\n",
+							"    ,raw.AddressPostcode\r\n",
+							"    ,0 AS Migrated\r\n",
+							"    ,'Horizon' AS ODTSourceSystem\r\n",
+							"    ,9 AS SourceSystemID -- ID for appeals in odw_harmonised_db.main_sourcesystem_fact\r\n",
+							"    ,raw.ingested_datetime AS IngestionDate\r\n",
+							"    ,NULL AS ValidTo\r\n",
 							"    ,md5(\r\n",
 							"        concat(\r\n",
-							"            IFNULL(casenumber,'.')\r\n",
-							"            ,IFNULL(eventId,'.')\r\n",
-							"            ,IFNULL(caseReference,'.')\r\n",
-							"            ,IFNULL(eventtype,'.')\r\n",
-							"            ,IFNULL(eventname,'.')\r\n",
-							"            ,IFNULL(eventstatus,'.')\r\n",
-							"            ,IFNULL(CAST(isurgent AS String),'.')\r\n",
-							"            ,IFNULL(CAST(eventpublished AS String),'.')\r\n",
-							"            ,IFNULL(eventstartdatetime,'.')\r\n",
-							"            ,IFNULL(eventenddatetime,'.')\r\n",
-							"            ,IFNULL(notificationofsitevisit,'.')\r\n",
-							"            ,IFNULL(dateeventrequested,'.')\r\n",
-							"            ,IFNULL(actualduration,'.')\r\n",
-							"            ,IFNULL(eventaddressline1,'.')\r\n",
-							"            ,IFNULL(eventaddressline2,'.')\r\n",
-							"            ,IFNULL(eventaddresstown,'.')\r\n",
-							"            ,IFNULL(eventaddresscounty,'.')\r\n",
-							"            ,IFNULL(eventaddresspostcode,'.')\r\n",
-							"        )) AS RowID -- this hash should contain all the defining fields\r\n",
-							"    ,'Y' AS IsActive\r\n",
-							"FROM  \r\n",
-							"    odw_standardised_db.horizon_appeals_event AS Appeals_event\r\n",
-							"    INNER JOIN odw_harmonised_db.main_sourcesystem_fact AS Source\r\n",
-							"        ON Source.Description = 'Casework'\r\n",
-							"        AND Source.IsActive = 'Y'\r\n",
-							"WHERE\r\n",
-							"    Appeals_event.Expected_from = (SELECT MAX(expected_from) FROM odw_standardised_db.horizon_appeals_event)"
+							"                IFNULL(raw.eventId,'.')\r\n",
+							"                ,IFNULL(raw.caseReference,'.')\r\n",
+							"                ,IFNULL(raw.eventtype,'.')\r\n",
+							"                ,IFNULL(raw.eventname,'.')\r\n",
+							"                ,IFNULL(raw.eventstatus,'.')\r\n",
+							"                ,IFNULL(CAST(raw.isurgent AS String),'.')\r\n",
+							"                ,IFNULL(CAST(raw.eventpublished AS String),'.')\r\n",
+							"                ,IFNULL(raw.eventstartdatetime,'.')\r\n",
+							"                ,IFNULL(raw.eventenddatetime,'.')\r\n",
+							"                ,IFNULL(raw.notificationofsitevisit,'.')\r\n",
+							"                ,IFNULL(raw.addressLine1,'.')\r\n",
+							"                ,IFNULL(raw.addressLine2,'.')\r\n",
+							"                ,IFNULL(raw.addressTown,'.')\r\n",
+							"                ,IFNULL(raw.addressCounty,'.')\r\n",
+							"                ,IFNULL(raw.addressPostcode,'.')\r\n",
+							"    )) AS RowID\r\n",
+							"   ,CASE\r\n",
+							"        WHEN From_ODT.eventId IS NOT NULL THEN\r\n",
+							"           'N' -- Service bus is the master, never overwrite data that has come from that source. Not going this means we will end up in a perminant update process between ODT and Horizon - or updating data that should be updated in ODT not Horizon\r\n",
+							"        WHEN Newer_record.eventID IS NOT NULL THEN\r\n",
+							"            'N' -- Never overwrite newer data sets\r\n",
+							"        ELSE\r\n",
+							"            'Y'\r\n",
+							"    END AS IsActive\r\n",
+							"FROM \r\n",
+							"    odw_standardised_db.horizon_appeals_event AS raw\r\n",
+							"    INNER JOIN (\r\n",
+							"                SELECT -- Get only the latest data for cases that haven't been migrated\r\n",
+							"                    Horizon.casenumber\r\n",
+							"                    ,Horizon.eventId\r\n",
+							"                    ,MAX(Horizon.ingested_datetime) AS Last_update\r\n",
+							"                FROM\r\n",
+							"                    odw_standardised_db.horizon_appeals_event AS Horizon\r\n",
+							"                GROUP BY\r\n",
+							"                    Horizon.casenumber\r\n",
+							"                    ,Horizon.eventId) AS Dedupe\r\n",
+							"        ON raw.casenumber = Dedupe.casenumber\r\n",
+							"        AND raw.casenumber = Dedupe.casenumber\r\n",
+							"        AND raw.ingested_datetime = Dedupe.Last_update\r\n",
+							"    LEFT OUTER JOIN (SELECT DISTINCT \r\n",
+							"                        Target.eventId \r\n",
+							"                    FROM \r\n",
+							"                       odw_harmonised_db.sb_appeal_event AS Target \r\n",
+							"                    WHERE \r\n",
+							"                        Target.ODTSourceSystem = 'ODT') AS From_ODT\r\n",
+							"        ON CONCAT(raw.casenumber, '-',raw.eventId) = From_ODT.eventId\r\n",
+							"    LEFT OUTER JOIN (SELECT  \r\n",
+							"                        Target.eventId \r\n",
+							"                        ,MAX(IngestionDate) AS Latest_Record\r\n",
+							"                    FROM \r\n",
+							"                        odw_harmonised_db.sb_appeal_event AS Target \r\n",
+							"                    WHERE \r\n",
+							"                       Target.ODTSourceSystem = 'Horizon' \r\n",
+							"                    GROUP BY\r\n",
+							"                        Target.eventId) AS Newer_record\r\n",
+							"        ON CONCAT(raw.casenumber, '-',raw.eventId) = Newer_record.eventId\r\n",
+							"        AND raw.ingested_datetime < Newer_record.Latest_Record\r\n",
+							""
 						],
 						"outputs": [],
-						"execution_count": 4
+						"execution_count": 19
 					},
 					{
 						"cell_type": "code",
@@ -91402,15 +91494,724 @@
 									"deleting": false
 								}
 							},
+							"microsoft": {
+								"language": "sparksql"
+							},
 							"collapsed": false
 						},
 						"source": [
-							"df = spark.sql(\"SELECT * FROM vw_Horizon_Appeals_Event_Latest_Standardised\")\r\n",
-							"\r\n",
-							"df.write.mode('overwrite').format('delta').saveAsTable('odw_harmonised_db.horizon_appeals_event')"
+							"%%sql\r\n",
+							"-- Need to add next step of working out if we have an insert or an update and handling appropriately. For updates need to also set isActive to N on existing records\r\n",
+							"CREATE OR REPLACE TEMPORARY VIEW vw_Horizon_Event_Delta\r\n",
+							"AS\r\n",
+							"SELECT -- Step 1: Identify net new records\r\n",
+							"    raw.eventId\r\n",
+							"    ,raw.caseReference\r\n",
+							"    ,raw.eventType\r\n",
+							"    ,raw.eventName\r\n",
+							"    ,raw.eventstatus\r\n",
+							"    ,raw.isUrgent\r\n",
+							"    ,raw.eventPublished\r\n",
+							"    ,raw.eventStartDatetime\r\n",
+							"    ,raw.eventEndDatetime\r\n",
+							"    ,raw.notificationOfSitevisit\r\n",
+							"    ,raw.AddressLine1\r\n",
+							"    ,raw.AddressLine2\r\n",
+							"    ,raw.AddressTown\r\n",
+							"    ,raw.AddressCounty\r\n",
+							"    ,raw.AddressPostcode\r\n",
+							"    ,raw.Migrated\r\n",
+							"    ,raw.ODTSourceSystem\r\n",
+							"    ,raw.SourceSystemID -- ID for appeals in odw_harmonised_db.main_sourcesystem_fact\r\n",
+							"    ,raw.IngestionDate\r\n",
+							"    ,raw.ValidTo\r\n",
+							"    ,raw.RowID\r\n",
+							"    ,raw.IsActive\r\n",
+							"    ,'Insert' AS UpdateMode\r\n",
+							"FROM\r\n",
+							"    vw_Horizon_appeals_event AS raw\r\n",
+							"    LEFT OUTER JOIN odw_harmonised_db.sb_appeal_event AS Target \r\n",
+							"        ON raw.eventId = Target.eventId\r\n",
+							"WHERE\r\n",
+							"    Target.eventId IS NULL\r\n",
+							"UNION -- Using union to deal with interdupes\r\n",
+							"SELECT -- Step 2: Identify records that are updates\r\n",
+							"    raw.eventId\r\n",
+							"    ,raw.caseReference\r\n",
+							"    ,raw.eventType\r\n",
+							"    ,raw.eventName\r\n",
+							"    ,raw.eventstatus\r\n",
+							"    ,raw.isUrgent\r\n",
+							"    ,raw.eventPublished\r\n",
+							"    ,raw.eventStartDatetime\r\n",
+							"    ,raw.eventEndDatetime\r\n",
+							"    ,raw.notificationOfSitevisit\r\n",
+							"    ,raw.AddressLine1\r\n",
+							"    ,raw.AddressLine2\r\n",
+							"    ,raw.AddressTown\r\n",
+							"    ,raw.AddressCounty\r\n",
+							"    ,raw.AddressPostcode\r\n",
+							"    ,raw.Migrated\r\n",
+							"    ,raw.ODTSourceSystem\r\n",
+							"    ,raw.SourceSystemID -- ID for appeals in odw_harmonised_db.main_sourcesystem_fact\r\n",
+							"    ,raw.IngestionDate\r\n",
+							"    ,raw.ValidTo\r\n",
+							"    ,raw.RowID\r\n",
+							"    ,raw.IsActive\r\n",
+							"    ,'Update' AS UpdateMode\r\n",
+							"FROM\r\n",
+							"    vw_Horizon_appeals_event AS raw\r\n",
+							"    INNER JOIN odw_harmonised_db.sb_appeal_event AS Target \r\n",
+							"        ON raw.eventId = Target.eventId\r\n",
+							"        AND raw.RowID <> Target.RowID\r\n",
+							"        AND raw.IsActive = 'Y' -- Only care about updates for records that are active as we could have older records we've never seen before\r\n",
+							"        AND Target.IsActive = 'Y'\r\n",
+							"UNION -- Using union to deal with interdupes\r\n",
+							"SELECT -- Step 3: Bring records in to archive\r\n",
+							"    Target.eventId\r\n",
+							"    ,Target.caseReference\r\n",
+							"    ,Target.eventType\r\n",
+							"    ,Target.eventName\r\n",
+							"    ,Target.eventstatus\r\n",
+							"    ,CAST(Target.isUrgent AS boolean) AS isUrgent\r\n",
+							"    ,CAST(Target.eventPublished AS boolean) AS eventPublished\r\n",
+							"    ,Target.eventStartDatetime\r\n",
+							"    ,Target.eventEndDatetime\r\n",
+							"    ,Target.notificationOfSitevisit\r\n",
+							"    ,Target.AddressLine1\r\n",
+							"    ,Target.AddressLine2\r\n",
+							"    ,Target.AddressTown\r\n",
+							"    ,Target.AddressCounty\r\n",
+							"    ,Target.AddressPostcode\r\n",
+							"    ,Target.Migrated\r\n",
+							"    ,Target.ODTSourceSystem\r\n",
+							"    ,Target.SourceSystemID -- ID for appeals in odw_harmonised_db.main_sourcesystem_fact\r\n",
+							"    ,Target.IngestionDate\r\n",
+							"    ,to_timestamp(date_sub(raw.IngestionDate,1)) AS ValidTo\r\n",
+							"    ,Target.RowID\r\n",
+							"    ,'N' AS IsActive\r\n",
+							"    ,'Update' AS UpdateMode\r\n",
+							"FROM\r\n",
+							"    vw_Horizon_appeals_event AS raw\r\n",
+							"    INNER JOIN odw_harmonised_db.sb_appeal_event AS Target \r\n",
+							"        ON raw.eventId = Target.eventId\r\n",
+							"        AND raw.RowID <> Target.RowID\r\n",
+							"        AND raw.IsActive = 'Y' -- Only care about updates for records that are active as we could have older records we've never seen before\r\n",
+							"        AND Target.IsActive = 'Y'\r\n",
+							"UNION\r\n",
+							"SELECT -- Lastly deal with new versions of existing events\r\n",
+							"    raw.eventId\r\n",
+							"    ,raw.caseReference\r\n",
+							"    ,raw.eventType\r\n",
+							"    ,raw.eventName\r\n",
+							"    ,raw.eventstatus\r\n",
+							"    ,raw.isUrgent\r\n",
+							"    ,raw.eventPublished\r\n",
+							"    ,raw.eventStartDatetime\r\n",
+							"    ,raw.eventEndDatetime\r\n",
+							"    ,raw.notificationOfSitevisit\r\n",
+							"    ,raw.AddressLine1\r\n",
+							"    ,raw.AddressLine2\r\n",
+							"    ,raw.AddressTown\r\n",
+							"    ,raw.AddressCounty\r\n",
+							"    ,raw.AddressPostcode\r\n",
+							"    ,raw.Migrated\r\n",
+							"    ,raw.ODTSourceSystem\r\n",
+							"    ,raw.SourceSystemID -- ID for appeals in odw_harmonised_db.main_sourcesystem_fact\r\n",
+							"    ,raw.IngestionDate\r\n",
+							"    ,raw.ValidTo\r\n",
+							"    ,raw.RowID\r\n",
+							"    ,raw.IsActive\r\n",
+							"    ,'Insert' AS UpdateMode\r\n",
+							"FROM\r\n",
+							"   odw_harmonised_db.sb_appeal_event AS Target \r\n",
+							"    INNER JOIN vw_Horizon_appeals_event AS raw\r\n",
+							"        ON Target.eventId = raw.eventId\r\n",
+							"    LEFT OUTER JOIN odw_harmonised_db.sb_appeal_event AS Perm\r\n",
+							"        ON raw.eventId = Perm.eventId\r\n",
+							"        AND raw.RowID = Perm.RowID\r\n",
+							"WHERE\r\n",
+							"    Perm.eventId IS NULL"
 						],
 						"outputs": [],
-						"execution_count": 7
+						"execution_count": 25
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"MERGE INTO odw_harmonised_db.sb_appeal_event AS Target \r\n",
+							"USING vw_Horizon_Event_Delta AS Raw\r\n",
+							"    ON Target.eventId = Raw.eventId\r\n",
+							"    AND Target.RowID = Raw.RowID\r\n",
+							"WHEN MATCHED THEN \r\n",
+							"    UPDATE\r\n",
+							"    SET\r\n",
+							"        Target.ValidTo = raw.ValidTo,\r\n",
+							"        Target.IsActive = 'N'\r\n",
+							"WHEN NOT MATCHED THEN\r\n",
+							"    INSERT (eventId\r\n",
+							"            ,caseReference\r\n",
+							"            ,eventType\r\n",
+							"            ,eventName\r\n",
+							"            ,eventstatus\r\n",
+							"            ,isUrgent\r\n",
+							"            ,eventPublished\r\n",
+							"            ,eventStartDatetime\r\n",
+							"            ,eventEndDatetime\r\n",
+							"            ,notificationOfSitevisit\r\n",
+							"            ,AddressLine1\r\n",
+							"            ,AddressLine2\r\n",
+							"            ,AddressTown\r\n",
+							"            ,AddressCounty\r\n",
+							"            ,AddressPostcode\r\n",
+							"            ,Migrated\r\n",
+							"            ,ODTSourceSystem\r\n",
+							"            ,SourceSystemID \r\n",
+							"            ,IngestionDate\r\n",
+							"            ,ValidTo\r\n",
+							"            ,RowID\r\n",
+							"            ,IsActive)\r\n",
+							"    VALUES  (raw.eventId\r\n",
+							"            ,raw.caseReference\r\n",
+							"            ,raw.eventType\r\n",
+							"            ,raw.eventName\r\n",
+							"            ,raw.eventstatus\r\n",
+							"            ,raw.isUrgent\r\n",
+							"            ,raw.eventPublished\r\n",
+							"            ,raw.eventStartDatetime\r\n",
+							"            ,raw.eventEndDatetime\r\n",
+							"            ,raw.notificationOfSitevisit\r\n",
+							"            ,raw.AddressLine1\r\n",
+							"            ,raw.AddressLine2\r\n",
+							"            ,raw.AddressTown\r\n",
+							"            ,raw.AddressCounty\r\n",
+							"            ,raw.AddressPostcode\r\n",
+							"            ,raw.Migrated\r\n",
+							"            ,raw.ODTSourceSystem\r\n",
+							"            ,raw.SourceSystemID \r\n",
+							"            ,raw.IngestionDate\r\n",
+							"            ,raw.ValidTo\r\n",
+							"            ,raw.RowID\r\n",
+							"            ,raw.IsActive)"
+						],
+						"outputs": [],
+						"execution_count": 26
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"-- Fix identity column\r\n",
+							"INSERT OVERWRITE odw_harmonised_db.sb_appeal_event\r\n",
+							"SELECT \r\n",
+							"    ROW_NUMBER() OVER (ORDER BY AppealsEventId NULLS LAST) AS AppealsEventId\r\n",
+							"    ,eventId\r\n",
+							"    ,caseReference\r\n",
+							"    ,eventType\r\n",
+							"    ,eventName\r\n",
+							"    ,eventstatus\r\n",
+							"    ,isUrgent\r\n",
+							"    ,eventPublished\r\n",
+							"    ,eventStartDatetime\r\n",
+							"    ,eventEndDatetime\r\n",
+							"    ,notificationOfSitevisit\r\n",
+							"    ,AddressLine1\r\n",
+							"    ,AddressLine2\r\n",
+							"    ,AddressTown\r\n",
+							"    ,AddressCounty\r\n",
+							"    ,AddressPostcode\r\n",
+							"    ,Migrated\r\n",
+							"    ,ODTSourceSystem\r\n",
+							"    ,SourceSystemID \r\n",
+							"    ,IngestionDate\r\n",
+							"    ,ValidTo\r\n",
+							"    ,RowID\r\n",
+							"    ,IsActive\r\n",
+							"FROM \r\n",
+							"    odw_harmonised_db.sb_appeal_event;\r\n",
+							""
+						],
+						"outputs": [],
+						"execution_count": 23
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/Horizon_appeals_events_harmonised')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"folder": {
+					"name": "odw-harmonised/Appeals Event"
+				},
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "[parameters('Horizon_appeals_events_harmonised_properties_bigDataPool_referenceName')]",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "27986b74-a482-4a84-a43a-e2b6a52686e1"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": false,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+						"name": "pinssynspodw",
+						"type": "Spark",
+						"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "3.3",
+						"nodeCount": 3,
+						"cores": 4,
+						"memory": 28
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"-- First step is to work out the data in standardised that we need to move to harmonised\r\n",
+							"CREATE OR REPLACE TEMPORARY VIEW vw_Horizon_appeals_event\r\n",
+							"AS\r\n",
+							"SELECT\r\n",
+							"    CONCAT(raw.casenumber, '-',raw.eventId) AS eventId\r\n",
+							"    ,raw.caseReference\r\n",
+							"    ,raw.eventType\r\n",
+							"    ,raw.eventName\r\n",
+							"    ,raw.eventstatus\r\n",
+							"    ,raw.isUrgent\r\n",
+							"    ,raw.eventPublished\r\n",
+							"    ,raw.eventStartDatetime\r\n",
+							"    ,raw.eventEndDatetime\r\n",
+							"    ,raw.notificationOfSitevisit\r\n",
+							"    ,raw.AddressLine1\r\n",
+							"    ,raw.AddressLine2\r\n",
+							"    ,raw.AddressTown\r\n",
+							"    ,raw.AddressCounty\r\n",
+							"    ,raw.AddressPostcode\r\n",
+							"    ,0 AS Migrated\r\n",
+							"    ,'Horizon' AS ODTSourceSystem\r\n",
+							"    ,9 AS SourceSystemID -- ID for appeals in odw_harmonised_db.main_sourcesystem_fact\r\n",
+							"    ,raw.ingested_datetime AS IngestionDate\r\n",
+							"    ,NULL AS ValidTo\r\n",
+							"    ,md5(\r\n",
+							"        concat(\r\n",
+							"                IFNULL(raw.eventId,'.')\r\n",
+							"                ,IFNULL(raw.caseReference,'.')\r\n",
+							"                ,IFNULL(raw.eventtype,'.')\r\n",
+							"                ,IFNULL(raw.eventname,'.')\r\n",
+							"                ,IFNULL(raw.eventstatus,'.')\r\n",
+							"                ,IFNULL(CAST(raw.isurgent AS String),'.')\r\n",
+							"                ,IFNULL(CAST(raw.eventpublished AS String),'.')\r\n",
+							"                ,IFNULL(raw.eventstartdatetime,'.')\r\n",
+							"                ,IFNULL(raw.eventenddatetime,'.')\r\n",
+							"                ,IFNULL(raw.notificationofsitevisit,'.')\r\n",
+							"                ,IFNULL(raw.addressLine1,'.')\r\n",
+							"                ,IFNULL(raw.addressLine2,'.')\r\n",
+							"                ,IFNULL(raw.addressTown,'.')\r\n",
+							"                ,IFNULL(raw.addressCounty,'.')\r\n",
+							"                ,IFNULL(raw.addressPostcode,'.')\r\n",
+							"    )) AS RowID\r\n",
+							"   ,CASE\r\n",
+							"        WHEN From_ODT.eventId IS NOT NULL THEN\r\n",
+							"           'N' -- Service bus is the master, never overwrite data that has come from that source. Not going this means we will end up in a perminant update process between ODT and Horizon - or updating data that should be updated in ODT not Horizon\r\n",
+							"        WHEN Newer_record.eventID IS NOT NULL THEN\r\n",
+							"            'N' -- Never overwrite newer data sets\r\n",
+							"        ELSE\r\n",
+							"            'Y'\r\n",
+							"    END AS IsActive\r\n",
+							"FROM \r\n",
+							"    odw_standardised_db.horizon_appeals_event AS raw\r\n",
+							"    INNER JOIN (\r\n",
+							"                SELECT -- Get only the latest data for cases that haven't been migrated\r\n",
+							"                    Horizon.casenumber\r\n",
+							"                    ,Horizon.eventId\r\n",
+							"                    ,MAX(Horizon.ingested_datetime) AS Last_update\r\n",
+							"                FROM\r\n",
+							"                    odw_standardised_db.horizon_appeals_event AS Horizon\r\n",
+							"                GROUP BY\r\n",
+							"                    Horizon.casenumber\r\n",
+							"                    ,Horizon.eventId) AS Dedupe\r\n",
+							"        ON raw.casenumber = Dedupe.casenumber\r\n",
+							"        AND raw.casenumber = Dedupe.casenumber\r\n",
+							"        AND raw.ingested_datetime = Dedupe.Last_update\r\n",
+							"    LEFT OUTER JOIN (SELECT DISTINCT \r\n",
+							"                        Target.eventId \r\n",
+							"                    FROM \r\n",
+							"                       odw_harmonised_db.sb_appeal_event AS Target \r\n",
+							"                    WHERE \r\n",
+							"                        Target.ODTSourceSystem = 'ODT') AS From_ODT\r\n",
+							"        ON CONCAT(raw.casenumber, '-',raw.eventId) = From_ODT.eventId\r\n",
+							"    LEFT OUTER JOIN (SELECT  \r\n",
+							"                        Target.eventId \r\n",
+							"                        ,MAX(IngestionDate) AS Latest_Record\r\n",
+							"                    FROM \r\n",
+							"                        odw_harmonised_db.sb_appeal_event AS Target \r\n",
+							"                    WHERE \r\n",
+							"                       Target.ODTSourceSystem = 'Horizon' \r\n",
+							"                    GROUP BY\r\n",
+							"                        Target.eventId) AS Newer_record\r\n",
+							"        ON CONCAT(raw.casenumber, '-',raw.eventId) = Newer_record.eventId\r\n",
+							"        AND raw.ingested_datetime < Newer_record.Latest_Record\r\n",
+							""
+						],
+						"outputs": [],
+						"execution_count": 19
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"-- Need to add next step of working out if we have an insert or an update and handling appropriately. For updates need to also set isActive to N on existing records\r\n",
+							"CREATE OR REPLACE TEMPORARY VIEW vw_Horizon_Event_Delta\r\n",
+							"AS\r\n",
+							"SELECT -- Step 1: Identify net new records\r\n",
+							"    raw.eventId\r\n",
+							"    ,raw.caseReference\r\n",
+							"    ,raw.eventType\r\n",
+							"    ,raw.eventName\r\n",
+							"    ,raw.eventstatus\r\n",
+							"    ,raw.isUrgent\r\n",
+							"    ,raw.eventPublished\r\n",
+							"    ,raw.eventStartDatetime\r\n",
+							"    ,raw.eventEndDatetime\r\n",
+							"    ,raw.notificationOfSitevisit\r\n",
+							"    ,raw.AddressLine1\r\n",
+							"    ,raw.AddressLine2\r\n",
+							"    ,raw.AddressTown\r\n",
+							"    ,raw.AddressCounty\r\n",
+							"    ,raw.AddressPostcode\r\n",
+							"    ,raw.Migrated\r\n",
+							"    ,raw.ODTSourceSystem\r\n",
+							"    ,raw.SourceSystemID -- ID for appeals in odw_harmonised_db.main_sourcesystem_fact\r\n",
+							"    ,raw.IngestionDate\r\n",
+							"    ,raw.ValidTo\r\n",
+							"    ,raw.RowID\r\n",
+							"    ,raw.IsActive\r\n",
+							"    ,'Insert' AS UpdateMode\r\n",
+							"FROM\r\n",
+							"    vw_Horizon_appeals_event AS raw\r\n",
+							"    LEFT OUTER JOIN odw_harmonised_db.sb_appeal_event AS Target \r\n",
+							"        ON raw.eventId = Target.eventId\r\n",
+							"WHERE\r\n",
+							"    Target.eventId IS NULL\r\n",
+							"UNION -- Using union to deal with interdupes\r\n",
+							"SELECT -- Step 2: Identify records that are updates\r\n",
+							"    raw.eventId\r\n",
+							"    ,raw.caseReference\r\n",
+							"    ,raw.eventType\r\n",
+							"    ,raw.eventName\r\n",
+							"    ,raw.eventstatus\r\n",
+							"    ,raw.isUrgent\r\n",
+							"    ,raw.eventPublished\r\n",
+							"    ,raw.eventStartDatetime\r\n",
+							"    ,raw.eventEndDatetime\r\n",
+							"    ,raw.notificationOfSitevisit\r\n",
+							"    ,raw.AddressLine1\r\n",
+							"    ,raw.AddressLine2\r\n",
+							"    ,raw.AddressTown\r\n",
+							"    ,raw.AddressCounty\r\n",
+							"    ,raw.AddressPostcode\r\n",
+							"    ,raw.Migrated\r\n",
+							"    ,raw.ODTSourceSystem\r\n",
+							"    ,raw.SourceSystemID -- ID for appeals in odw_harmonised_db.main_sourcesystem_fact\r\n",
+							"    ,raw.IngestionDate\r\n",
+							"    ,raw.ValidTo\r\n",
+							"    ,raw.RowID\r\n",
+							"    ,raw.IsActive\r\n",
+							"    ,'Update' AS UpdateMode\r\n",
+							"FROM\r\n",
+							"    vw_Horizon_appeals_event AS raw\r\n",
+							"    INNER JOIN odw_harmonised_db.sb_appeal_event AS Target \r\n",
+							"        ON raw.eventId = Target.eventId\r\n",
+							"        AND raw.RowID <> Target.RowID\r\n",
+							"        AND raw.IsActive = 'Y' -- Only care about updates for records that are active as we could have older records we've never seen before\r\n",
+							"        AND Target.IsActive = 'Y'\r\n",
+							"UNION -- Using union to deal with interdupes\r\n",
+							"SELECT -- Step 3: Bring records in to archive\r\n",
+							"    Target.eventId\r\n",
+							"    ,Target.caseReference\r\n",
+							"    ,Target.eventType\r\n",
+							"    ,Target.eventName\r\n",
+							"    ,Target.eventstatus\r\n",
+							"    ,CAST(Target.isUrgent AS boolean) AS isUrgent\r\n",
+							"    ,CAST(Target.eventPublished AS boolean) AS eventPublished\r\n",
+							"    ,Target.eventStartDatetime\r\n",
+							"    ,Target.eventEndDatetime\r\n",
+							"    ,Target.notificationOfSitevisit\r\n",
+							"    ,Target.AddressLine1\r\n",
+							"    ,Target.AddressLine2\r\n",
+							"    ,Target.AddressTown\r\n",
+							"    ,Target.AddressCounty\r\n",
+							"    ,Target.AddressPostcode\r\n",
+							"    ,Target.Migrated\r\n",
+							"    ,Target.ODTSourceSystem\r\n",
+							"    ,Target.SourceSystemID -- ID for appeals in odw_harmonised_db.main_sourcesystem_fact\r\n",
+							"    ,Target.IngestionDate\r\n",
+							"    ,to_timestamp(date_sub(raw.IngestionDate,1)) AS ValidTo\r\n",
+							"    ,Target.RowID\r\n",
+							"    ,'N' AS IsActive\r\n",
+							"    ,'Update' AS UpdateMode\r\n",
+							"FROM\r\n",
+							"    vw_Horizon_appeals_event AS raw\r\n",
+							"    INNER JOIN odw_harmonised_db.sb_appeal_event AS Target \r\n",
+							"        ON raw.eventId = Target.eventId\r\n",
+							"        AND raw.RowID <> Target.RowID\r\n",
+							"        AND raw.IsActive = 'Y' -- Only care about updates for records that are active as we could have older records we've never seen before\r\n",
+							"        AND Target.IsActive = 'Y'\r\n",
+							"UNION\r\n",
+							"SELECT -- Lastly deal with new versions of existing events\r\n",
+							"    raw.eventId\r\n",
+							"    ,raw.caseReference\r\n",
+							"    ,raw.eventType\r\n",
+							"    ,raw.eventName\r\n",
+							"    ,raw.eventstatus\r\n",
+							"    ,raw.isUrgent\r\n",
+							"    ,raw.eventPublished\r\n",
+							"    ,raw.eventStartDatetime\r\n",
+							"    ,raw.eventEndDatetime\r\n",
+							"    ,raw.notificationOfSitevisit\r\n",
+							"    ,raw.AddressLine1\r\n",
+							"    ,raw.AddressLine2\r\n",
+							"    ,raw.AddressTown\r\n",
+							"    ,raw.AddressCounty\r\n",
+							"    ,raw.AddressPostcode\r\n",
+							"    ,raw.Migrated\r\n",
+							"    ,raw.ODTSourceSystem\r\n",
+							"    ,raw.SourceSystemID -- ID for appeals in odw_harmonised_db.main_sourcesystem_fact\r\n",
+							"    ,raw.IngestionDate\r\n",
+							"    ,raw.ValidTo\r\n",
+							"    ,raw.RowID\r\n",
+							"    ,raw.IsActive\r\n",
+							"    ,'Insert' AS UpdateMode\r\n",
+							"FROM\r\n",
+							"   odw_harmonised_db.sb_appeal_event AS Target \r\n",
+							"    INNER JOIN vw_Horizon_appeals_event AS raw\r\n",
+							"        ON Target.eventId = raw.eventId\r\n",
+							"    LEFT OUTER JOIN odw_harmonised_db.sb_appeal_event AS Perm\r\n",
+							"        ON raw.eventId = Perm.eventId\r\n",
+							"        AND raw.RowID = Perm.RowID\r\n",
+							"WHERE\r\n",
+							"    Perm.eventId IS NULL"
+						],
+						"outputs": [],
+						"execution_count": 25
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"MERGE INTO odw_harmonised_db.sb_appeal_event AS Target \r\n",
+							"USING vw_Horizon_Event_Delta AS Raw\r\n",
+							"    ON Target.eventId = Raw.eventId\r\n",
+							"    AND Target.RowID = Raw.RowID\r\n",
+							"WHEN MATCHED THEN \r\n",
+							"    UPDATE\r\n",
+							"    SET\r\n",
+							"        Target.ValidTo = raw.ValidTo,\r\n",
+							"        Target.IsActive = 'N'\r\n",
+							"WHEN NOT MATCHED THEN\r\n",
+							"    INSERT (eventId\r\n",
+							"            ,caseReference\r\n",
+							"            ,eventType\r\n",
+							"            ,eventName\r\n",
+							"            ,eventstatus\r\n",
+							"            ,isUrgent\r\n",
+							"            ,eventPublished\r\n",
+							"            ,eventStartDatetime\r\n",
+							"            ,eventEndDatetime\r\n",
+							"            ,notificationOfSitevisit\r\n",
+							"            ,AddressLine1\r\n",
+							"            ,AddressLine2\r\n",
+							"            ,AddressTown\r\n",
+							"            ,AddressCounty\r\n",
+							"            ,AddressPostcode\r\n",
+							"            ,Migrated\r\n",
+							"            ,ODTSourceSystem\r\n",
+							"            ,SourceSystemID \r\n",
+							"            ,IngestionDate\r\n",
+							"            ,ValidTo\r\n",
+							"            ,RowID\r\n",
+							"            ,IsActive)\r\n",
+							"    VALUES  (raw.eventId\r\n",
+							"            ,raw.caseReference\r\n",
+							"            ,raw.eventType\r\n",
+							"            ,raw.eventName\r\n",
+							"            ,raw.eventstatus\r\n",
+							"            ,raw.isUrgent\r\n",
+							"            ,raw.eventPublished\r\n",
+							"            ,raw.eventStartDatetime\r\n",
+							"            ,raw.eventEndDatetime\r\n",
+							"            ,raw.notificationOfSitevisit\r\n",
+							"            ,raw.AddressLine1\r\n",
+							"            ,raw.AddressLine2\r\n",
+							"            ,raw.AddressTown\r\n",
+							"            ,raw.AddressCounty\r\n",
+							"            ,raw.AddressPostcode\r\n",
+							"            ,raw.Migrated\r\n",
+							"            ,raw.ODTSourceSystem\r\n",
+							"            ,raw.SourceSystemID \r\n",
+							"            ,raw.IngestionDate\r\n",
+							"            ,raw.ValidTo\r\n",
+							"            ,raw.RowID\r\n",
+							"            ,raw.IsActive)"
+						],
+						"outputs": [],
+						"execution_count": 26
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"-- Fix identity column\r\n",
+							"INSERT OVERWRITE odw_harmonised_db.sb_appeal_event\r\n",
+							"SELECT \r\n",
+							"    ROW_NUMBER() OVER (ORDER BY AppealsEventId NULLS LAST) AS AppealsEventId\r\n",
+							"    ,eventId\r\n",
+							"    ,caseReference\r\n",
+							"    ,eventType\r\n",
+							"    ,eventName\r\n",
+							"    ,eventstatus\r\n",
+							"    ,isUrgent\r\n",
+							"    ,eventPublished\r\n",
+							"    ,eventStartDatetime\r\n",
+							"    ,eventEndDatetime\r\n",
+							"    ,notificationOfSitevisit\r\n",
+							"    ,AddressLine1\r\n",
+							"    ,AddressLine2\r\n",
+							"    ,AddressTown\r\n",
+							"    ,AddressCounty\r\n",
+							"    ,AddressPostcode\r\n",
+							"    ,Migrated\r\n",
+							"    ,ODTSourceSystem\r\n",
+							"    ,SourceSystemID \r\n",
+							"    ,IngestionDate\r\n",
+							"    ,ValidTo\r\n",
+							"    ,RowID\r\n",
+							"    ,IsActive\r\n",
+							"FROM \r\n",
+							"    odw_harmonised_db.sb_appeal_event;\r\n",
+							""
+						],
+						"outputs": [],
+						"execution_count": 23
 					}
 				]
 			},
@@ -93104,6 +93905,150 @@
 						],
 						"outputs": [],
 						"execution_count": 18
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/appeal_event')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"folder": {
+					"name": "odw-curated"
+				},
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "[parameters('appeal_event_properties_bigDataPool_referenceName')]",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "bab4a6f3-a816-42c7-b047-c95b233931f3"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": false,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+						"name": "pinssynspodw",
+						"type": "Spark",
+						"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "3.3",
+						"nodeCount": 3,
+						"cores": 4,
+						"memory": 28
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"CREATE OR REPLACE TEMPORARY VIEW vw_Appeal_event \r\n",
+							"AS\r\n",
+							"SELECT\r\n",
+							"    eventId\r\n",
+							"    ,caseReference\r\n",
+							"    ,eventType\r\n",
+							"    ,eventName\r\n",
+							"    ,eventStatus\r\n",
+							"    ,CAST(IsUrgent AS Boolean) AS IsUrgent\r\n",
+							"    ,CAST(eventPublished AS Boolean) AS eventPublished\r\n",
+							"    ,CAST(eventStartDateTime AS Timestamp) AS eventStartDateTime\r\n",
+							"    ,CAST(eventEndDateTime AS Timestamp)  AS eventEndDateTime\r\n",
+							"    ,CAST(NotificationOfSiteVisit AS Timestamp) AS NotificationOfSiteVisit\r\n",
+							"    ,addressLine1\r\n",
+							"    ,addressLine2\r\n",
+							"    ,addressTown\r\n",
+							"    ,addressCounty\r\n",
+							"    ,addressPostcode\r\n",
+							"FROM\r\n",
+							"    odw_harmonised_db.sb_appeal_event\r\n",
+							"WHERE\r\n",
+							"    IsActive = 'Y'"
+						],
+						"outputs": [],
+						"execution_count": 1
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"df = spark.sql(\"\"\"\r\n",
+							"                SELECT\r\n",
+							"                    eventId\r\n",
+							"                    ,caseReference\r\n",
+							"                    ,eventType\r\n",
+							"                    ,eventName\r\n",
+							"                    ,eventStatus\r\n",
+							"                    ,isUrgent\r\n",
+							"                    ,eventPublished\r\n",
+							"                    ,eventStartDateTime\r\n",
+							"                    ,eventEndDateTime\r\n",
+							"                    ,NotificationOfSiteVisit\r\n",
+							"                    ,addressLine1\r\n",
+							"                    ,addressLine2\r\n",
+							"                    ,addressTown\r\n",
+							"                    ,addressCounty\r\n",
+							"                    ,addressPostcode\r\n",
+							"                FROM\r\n",
+							"                    vw_Appeal_event\r\n",
+							"            \"\"\")\r\n",
+							"\r\n",
+							"df.write.format(\"delta\").mode(\"Overwrite\").saveAsTable(\"odw_curated_db.appeal_event\")"
+						],
+						"outputs": [],
+						"execution_count": 6
 					}
 				]
 			},
@@ -136243,9 +137188,8 @@
 						},
 						"source": [
 							"table_name_replace: str = entity_name.replace(\"-\", \"_\")\r\n",
-							"\r\n",
 							"if db_name == \"odw_curated_db\":\r\n",
-							"    table_name: str = table_name_replace\r\n",
+							"\ttable_name: str = table_name_replace\r\n",
 							"else:\r\n",
 							"    table_name: str = f\"sb_{table_name_replace}\"\r\n",
 							"\r\n",
@@ -144846,6 +145790,466 @@
 						],
 						"outputs": [],
 						"execution_count": 22
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/horizon_appeals_folder')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"folder": {
+					"name": "odw-harmonised/DocumentTree"
+				},
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "[parameters('horizon_appeals_folder_properties_bigDataPool_referenceName')]",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"runAsWorkspaceSystemIdentity": false,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "5f25f071-f285-4aa7-80ed-f8628e54e82d"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": false,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+						"name": "pinssynspodw",
+						"type": "Spark",
+						"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "3.3",
+						"nodeCount": 3,
+						"cores": 4,
+						"memory": 28
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"# Check for new, updated or deleted data\n",
+							"- This script checks for new, updated or deleted data by checking the source data (horizon tables) against the target (odw_harmonised_db.casework tables)\n",
+							"- **New Data:** where an main Reference in the source does not exist in the target, then NewData flag is set to 'Y'\n",
+							"- **Updated data:** Comparison occurs on Reference Fields in source and in target where the row hash is different i.e. there is a change in one of the columns. NewData flag is set to 'Y'\n",
+							"- **Deleted data:** where an Reference info in the target exists but the same identifyers don't exist in the source. DeletedData flag is set to 'Y'\n",
+							"\n",
+							"## View horizon_appeals_folder is created"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"-- Build horizon_appeals_folder table\r\n",
+							"-- Gets modified or deleted from source rows\r\n",
+							"\r\n",
+							"CREATE OR REPLACE TEMPORARY VIEW horizon_appeals_folder_new\r\n",
+							"\r\n",
+							"     AS\r\n",
+							"\r\n",
+							"-- gets data that matches of SourceID and flags that it is modified based on a row (md5) hash. Flags as \"NewData\"\r\n",
+							"-- gets data that is in the target but not in source. Flags as \"DeletedData\"\r\n",
+							"\r\n",
+							"SELECT DISTINCT\r\n",
+							"    CASE\r\n",
+							"        WHEN T1.id IS NULL\r\n",
+							"        THEN T3.HorizonAppealFolderId\r\n",
+							"        ELSE NULL\r\n",
+							"    END                             AS HorizonAppealFolderId,\r\n",
+							"    T1.id                           AS ID,\r\n",
+							"    T1.casereference\t            AS CaseReference,\r\n",
+							"    T1.displaynameenglish\t        AS DisplayNameEnglish,\r\n",
+							"    T1.displaynamewelsh\t            AS DisplayNameWelsh,\r\n",
+							"    T1.parentfolderid\t            AS ParentFolderID,\r\n",
+							"    T1.casenodeid\t                AS CaseNodeId,\r\n",
+							"    T1.casestage\t                AS CaseStage,\r\n",
+							"    T2.SourceSystemID               AS SourceSystemID,\r\n",
+							"    to_timestamp(T1.expected_from)  AS IngestionDate,\r\n",
+							"    NULL                            AS ValidTo,\r\n",
+							"    md5(\r\n",
+							"        concat(\r\n",
+							"            IFNULL(T1.id,'.'),\r\n",
+							"            IFNULL(T1.casereference,'.'),\r\n",
+							"            IFNULL(T1.displaynameenglish,'.'),\r\n",
+							"            IFNULL(T1.displaynamewelsh,'.'),\r\n",
+							"            IFNULL(T1.parentfolderid,'.'),\r\n",
+							"            IFNULL(T1.casenodeid,'.'),\r\n",
+							"            IFNULL(T1.casestage,'.')\r\n",
+							"        ))                          AS RowID, -- this hash should contain all the defining fields\r\n",
+							"    'Y'                             AS IsActive,\r\n",
+							"    T3.IsActive                     AS HistoricIsActive\r\n",
+							"\r\n",
+							"FROM odw_standardised_db.horizon_appeals_folder T1\r\n",
+							"LEFT JOIN odw_harmonised_db.main_sourcesystem_fact T2 \r\n",
+							"    ON \"DocumentTree\" = T2.Description AND \r\n",
+							"        T2.IsActive = 'Y'\r\n",
+							"FULL JOIN odw_harmonised_db.horizon_appeals_folder T3 \r\n",
+							"    ON T1.id = T3.ID AND \r\n",
+							"        T3.IsActive = 'Y'\r\n",
+							"WHERE\r\n",
+							"    -- flags new data        \r\n",
+							"    (CASE\r\n",
+							"        WHEN T1.casereference = T3.CaseReference AND md5(\r\n",
+							"            concat(\r\n",
+							"                IFNULL(T1.id,'.'),\r\n",
+							"                IFNULL(T1.casereference,'.'),\r\n",
+							"                IFNULL(T1.displaynameenglish,'.'),\r\n",
+							"                IFNULL(T1.displaynamewelsh,'.'),\r\n",
+							"                IFNULL(T1.parentfolderid,'.'),\r\n",
+							"                IFNULL(T1.casenodeid,'.'),\r\n",
+							"                IFNULL(T1.casestage,'.')\r\n",
+							"            )) <> T3.RowID  -- same record, changed data\r\n",
+							"        THEN 'Y'\r\n",
+							"        WHEN T3.ID IS NULL -- new record\r\n",
+							"        THEN 'Y'\r\n",
+							"    ELSE 'N'\r\n",
+							"    END  = 'Y' )\r\n",
+							"    AND T1.id IS NOT NULL\r\n",
+							"    AND NOT(T1.id = '29309932' AND T1.casestage = 'Initial Documents') --- Hardcoded exception as per Gareth request for data consistency\r\n",
+							"    AND T1.expected_from = (SELECT MAX(expected_from) FROM odw_standardised_db.horizon_appeals_folder)\r\n",
+							";"
+						],
+						"outputs": [],
+						"execution_count": 14
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"# Dataset is created that contains changed data and corresponding target data\n",
+							"- This script combines data that has been updated, Deleted or is new, with corresponding target data\n",
+							"- View **casework_all_appeals_new** is unioned to the target data filter to only those rows where changes have been detected\n",
+							"## View horizon_appeals_folder_changed_rows is created"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"-- Create new and updated dataset\r\n",
+							"\r\n",
+							"CREATE OR REPLACE TEMPORARY VIEW horizon_appeals_folder_changed_rows\r\n",
+							"\r\n",
+							"    AS\r\n",
+							"\r\n",
+							"-- gets updated, deleted and new rows \r\n",
+							"SELECT \r\n",
+							"    HorizonAppealFolderId,\r\n",
+							"    ID,\r\n",
+							"    CaseReference,\r\n",
+							"    DisplayNameEnglish,\r\n",
+							"    DisplayNameWelsh,\r\n",
+							"    ParentFolderID,\r\n",
+							"    CaseNodeId,\r\n",
+							"    CaseStage,\r\n",
+							"    SourceSystemID,\r\n",
+							"    IngestionDate,\r\n",
+							"    ValidTo,\r\n",
+							"    RowID,\r\n",
+							"    IsActive\r\n",
+							"    \r\n",
+							"\r\n",
+							"From horizon_appeals_folder_new WHERE HistoricIsActive = 'Y' or HistoricIsActive IS NULL\r\n",
+							"\r\n",
+							"    UNION ALL\r\n",
+							"\r\n",
+							"-- gets original versions of updated rows so we can update EndDate and set IsActive flag to 'N'\r\n",
+							"SELECT\r\n",
+							"    \r\n",
+							"    HorizonAppealFolderId,\r\n",
+							"    ID,\r\n",
+							"    CaseReference,\r\n",
+							"    DisplayNameEnglish,\r\n",
+							"    DisplayNameWelsh,\r\n",
+							"    ParentFolderID,\r\n",
+							"    CaseNodeId,\r\n",
+							"    CaseStage,\r\n",
+							"    SourceSystemID,\r\n",
+							"    IngestionDate,\r\n",
+							"    ValidTo,\r\n",
+							"    RowID,\r\n",
+							"    IsActive\r\n",
+							"    \r\n",
+							"FROM odw_harmonised_db.horizon_appeals_folder\r\n",
+							"WHERE ID IN (SELECT ID FROM horizon_appeals_folder_new WHERE HorizonAppealFolderId IS NULL) AND IsActive = 'Y'; "
+						],
+						"outputs": [],
+						"execution_count": 15
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\n",
+							"\n",
+							"CREATE OR REPLACE TEMPORARY VIEW Loading_month\n",
+							"\n",
+							"    AS\n",
+							"\n",
+							"SELECT DISTINCT\n",
+							"    IngestionDate AS IngestionDate,\n",
+							"    to_timestamp(date_sub(IngestionDate,1)) AS ClosingDate,\n",
+							"    'Y' AS IsActive\n",
+							"\n",
+							"FROM horizon_appeals_folder_new;\n",
+							"\n",
+							"CREATE OR REPLACE TEMPORARY VIEW horizon_appeals_folder_changed_rows_final\n",
+							"\n",
+							"    AS\n",
+							"\n",
+							"SELECT \n",
+							"    HorizonAppealFolderId,\n",
+							"    ID,\n",
+							"    CaseReference,\n",
+							"    DisplayNameEnglish,\n",
+							"    DisplayNameWelsh,\n",
+							"    ParentFolderID,\n",
+							"    CaseNodeId,\n",
+							"    CaseStage,\n",
+							"    T1.SourceSystemID,\n",
+							"    T1.IngestionDate,\n",
+							"    T1.ValidTo,\n",
+							"    T1.RowID,\n",
+							"    T1.IsActive,\n",
+							"    T2.ClosingDate\n",
+							"FROM horizon_appeals_folder_changed_rows T1\n",
+							"FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive"
+						],
+						"outputs": [],
+						"execution_count": 16
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							""
+						]
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"# View horizon_appeals_folder_changed_rows is used in a merge (Upsert) statement into the target table\n",
+							"- **WHEN MATCHED** ON the surrogate Key (i.e. AllAppealsID), EndDate is set to today -1 day and the IsActive flag is set to 'N'\n",
+							"- **WHEN NOT MATCHED** ON the surrogate Key, insert rows\n",
+							"## Table odw_harmonised_db.horizon_appeals_folder is updated"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"-- merge into dim table\r\n",
+							"\r\n",
+							"MERGE INTO odw_harmonised_db.horizon_appeals_folder AS Target\r\n",
+							"USING horizon_appeals_folder_changed_rows_final AS Source\r\n",
+							"\r\n",
+							"ON Source.HorizonAppealFolderId = Target.HorizonAppealFolderId AND Target.IsActive = 'Y'\r\n",
+							"\r\n",
+							"-- For Updates existing rows\r\n",
+							"\r\n",
+							"WHEN MATCHED\r\n",
+							"    THEN \r\n",
+							"    UPDATE SET\r\n",
+							"    Target.ValidTo = to_timestamp(ClosingDate),\r\n",
+							"    Target.IsActive = 'N'\r\n",
+							"\r\n",
+							"-- Insert completely new rows\r\n",
+							"\r\n",
+							"WHEN NOT MATCHED \r\n",
+							"    THEN INSERT (\r\n",
+							"        HorizonAppealFolderId,\r\n",
+							"        ID,\r\n",
+							"        CaseReference,\r\n",
+							"        DisplayNameEnglish,\r\n",
+							"        DisplayNameWelsh,\r\n",
+							"        ParentFolderID,\r\n",
+							"        CaseNodeId,\r\n",
+							"        CaseStage,\r\n",
+							"        SourceSystemID,\r\n",
+							"        IngestionDate,\r\n",
+							"        ValidTo,\r\n",
+							"        RowID,\r\n",
+							"        IsActive    \r\n",
+							"        )\r\n",
+							"    VALUES (\r\n",
+							"        Source.HorizonAppealFolderId,\r\n",
+							"        Source.ID,\r\n",
+							"        Source.CaseReference,\r\n",
+							"        Source.DisplayNameEnglish,\r\n",
+							"        Source.DisplayNameWelsh,\r\n",
+							"        Source.ParentFolderID,\r\n",
+							"        Source.CaseNodeId,\r\n",
+							"        Source.CaseStage,\r\n",
+							"        Source.SourceSystemID,\r\n",
+							"        Source.IngestionDate,\r\n",
+							"        Source.ValidTo,\r\n",
+							"        Source.RowID,\r\n",
+							"        Source.IsActive)\r\n",
+							"     ;   "
+						],
+						"outputs": [],
+						"execution_count": 17
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"# Fix the IDs\n",
+							"- No auto-increment feature is available in delta tables, therefore we need to create new IDs for the inserted rows\n",
+							"- This is done by select the target data and using INSERT OVERWRITE to re-insert the data is a new Row Number\n",
+							"## Table odw_harmonised_db.horizon_appeals_folder is updated"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"-- Insert new horizon_appeals_folder\r\n",
+							"\r\n",
+							"INSERT OVERWRITE odw_harmonised_db.horizon_appeals_folder\r\n",
+							"\r\n",
+							"SELECT \r\n",
+							"    ROW_NUMBER() OVER (ORDER BY CaseReference NULLS LAST) AS  HorizonAppealFolderId\t,\r\n",
+							"    ID,\r\n",
+							"    CaseReference,\r\n",
+							"    DisplayNameEnglish,\r\n",
+							"    DisplayNameWelsh,\r\n",
+							"    ParentFolderID,\r\n",
+							"    CaseNodeId,\r\n",
+							"    CaseStage,\r\n",
+							"    SourceSystemID,\r\n",
+							"    IngestionDate,\r\n",
+							"    ValidTo,\r\n",
+							"    RowID,\r\n",
+							"    IsActive\r\n",
+							"FROM odw_harmonised_db.horizon_appeals_folder;\r\n",
+							""
+						],
+						"outputs": [],
+						"execution_count": 18
 					}
 				]
 			},
@@ -199931,7 +201335,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "0f9901a3-9221-4762-8209-e9d6064d11ad"
+						"spark.autotune.trackingId": "25463855-e331-479c-9b2b-77302f553b3a"
 					}
 				},
 				"metadata": {
@@ -200000,7 +201404,7 @@
 							"}"
 						],
 						"outputs": [],
-						"execution_count": 102
+						"execution_count": 53
 					},
 					{
 						"cell_type": "code",
@@ -200022,7 +201426,7 @@
 							"entity_name = 'appeal-event'"
 						],
 						"outputs": [],
-						"execution_count": 103
+						"execution_count": 54
 					},
 					{
 						"cell_type": "code",
@@ -200049,7 +201453,7 @@
 							"pd.DataFrame.iteritems = pd.DataFrame.items"
 						],
 						"outputs": [],
-						"execution_count": 104
+						"execution_count": 55
 					},
 					{
 						"cell_type": "markdown",
@@ -200093,7 +201497,7 @@
 							"    mssparkutils.notebook.exit(f\"Definition not found for {entity_name}\")"
 						],
 						"outputs": [],
-						"execution_count": 105
+						"execution_count": 56
 					},
 					{
 						"cell_type": "code",
@@ -200112,7 +201516,7 @@
 							"pprint.pprint(definition)"
 						],
 						"outputs": [],
-						"execution_count": 106
+						"execution_count": 57
 					},
 					{
 						"cell_type": "markdown",
@@ -200151,7 +201555,7 @@
 							"entity_primary_key = definition['Entity_Primary_Key']"
 						],
 						"outputs": [],
-						"execution_count": 107
+						"execution_count": 58
 					},
 					{
 						"cell_type": "markdown",
@@ -200196,7 +201600,7 @@
 							"%run  /0-odw-source-to-raw/Fileshare/SAP_HR/py_0_source_to_raw_hr_functions"
 						],
 						"outputs": [],
-						"execution_count": 108
+						"execution_count": 59
 					},
 					{
 						"cell_type": "markdown",
@@ -200235,7 +201639,7 @@
 							"    print(f\"Table {hrm_table} already exists.\")"
 						],
 						"outputs": [],
-						"execution_count": 109
+						"execution_count": 60
 					},
 					{
 						"cell_type": "markdown",
@@ -200308,7 +201712,7 @@
 							"    mapping = {field[\"name\"]: field[\"name\"] for field in schema[\"fields\"]}"
 						],
 						"outputs": [],
-						"execution_count": 110
+						"execution_count": 61
 					},
 					{
 						"cell_type": "code",
@@ -200327,7 +201731,7 @@
 							"target_df.info()"
 						],
 						"outputs": [],
-						"execution_count": 111
+						"execution_count": 62
 					},
 					{
 						"cell_type": "markdown",
@@ -200363,7 +201767,7 @@
 							"print(f\"Target: {len(target_df)}\")"
 						],
 						"outputs": [],
-						"execution_count": 112
+						"execution_count": 63
 					},
 					{
 						"cell_type": "markdown",
@@ -200468,7 +201872,7 @@
 							"    return pd.concat([target_df, source_df], ignore_index=True)"
 						],
 						"outputs": [],
-						"execution_count": 113
+						"execution_count": 64
 					},
 					{
 						"cell_type": "markdown",
@@ -200506,7 +201910,7 @@
 							""
 						],
 						"outputs": [],
-						"execution_count": 114
+						"execution_count": 65
 					},
 					{
 						"cell_type": "code",
@@ -200525,7 +201929,7 @@
 							"target_df.info()"
 						],
 						"outputs": [],
-						"execution_count": 115
+						"execution_count": 66
 					},
 					{
 						"cell_type": "markdown",
@@ -200567,7 +201971,7 @@
 							"print(f\"Updated rows: {len(updated_rows_df)}\\nTarget dataframe: {len(target_df)}\")"
 						],
 						"outputs": [],
-						"execution_count": 116
+						"execution_count": 67
 					},
 					{
 						"cell_type": "code",
@@ -200586,7 +201990,7 @@
 							"updated_rows_df.info()"
 						],
 						"outputs": [],
-						"execution_count": 117
+						"execution_count": 68
 					},
 					{
 						"cell_type": "markdown",
@@ -200626,7 +202030,7 @@
 							"print(f\"Deleted rows: {len(deleted_rows_df)}\\nTarget dataframe: {len(target_df)}\")"
 						],
 						"outputs": [],
-						"execution_count": 118
+						"execution_count": 69
 					},
 					{
 						"cell_type": "code",
@@ -200645,7 +202049,7 @@
 							"deleted_rows_df.info()"
 						],
 						"outputs": [],
-						"execution_count": 119
+						"execution_count": 70
 					},
 					{
 						"cell_type": "markdown",
@@ -200678,7 +202082,7 @@
 							"    target_df[column] = target_df[column].astype(str)"
 						],
 						"outputs": [],
-						"execution_count": 120
+						"execution_count": 71
 					},
 					{
 						"cell_type": "code",
@@ -200697,7 +202101,7 @@
 							"target_df.info()"
 						],
 						"outputs": [],
-						"execution_count": 121
+						"execution_count": 72
 					},
 					{
 						"cell_type": "markdown",
@@ -200736,7 +202140,7 @@
 							"\n",
 							"# overwrite onto existing harmonised table\n",
 							"new_df = spark.createDataFrame(target_df)\n",
-							"existing_df = spark.read.format('delta').load(f\"{harmonised_container}{hrm_table}\")\n",
+							"existing_df = spark.sql(f\"SELECT * FROM {hrm_db}.{hrm_table}\")\n",
 							"\n",
 							"print(f\"Spark dataframe created with {new_df.count()} rows\")\n",
 							"\n",
@@ -200760,7 +202164,26 @@
 							"print(\"Harmonised table updated\")"
 						],
 						"outputs": [],
-						"execution_count": 122
+						"execution_count": 73
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"display(new_df)"
+						],
+						"outputs": [],
+						"execution_count": 74
 					}
 				]
 			},
@@ -204517,6 +205940,501 @@
 						],
 						"outputs": [],
 						"execution_count": null
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/py_unit_tests_entraid')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"folder": {
+					"name": "utils/unit-tests"
+				},
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "[parameters('py_unit_tests_entraid_properties_bigDataPool_referenceName')]",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "14efb405-afb8-4791-b6f7-fafb8c3b15b0"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": true,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+						"name": "pinssynspodw",
+						"type": "Spark",
+						"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "3.3",
+						"nodeCount": 3,
+						"cores": 4,
+						"memory": 28
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"import json\r\n",
+							"from pyspark.sql.types import *\r\n",
+							"from pyspark.sql import DataFrame\r\n",
+							"import pprint"
+						],
+						"outputs": [],
+						"execution_count": 140
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"tags": [
+								"parameters"
+							]
+						},
+						"source": [
+							"entity_name: str = 'entraid'\r\n",
+							"std_db_name: str = 'odw_standardised_db'\r\n",
+							"hrm_db_name: str = 'odw_harmonised_db'\r\n",
+							"curated_db_name: str = 'odw_curated_db'\r\n",
+							"std_table_name: str = 'entraid'\r\n",
+							"hrm_table_name: str = 'entraid'\r\n",
+							"isServiceBusSchema: bool = False"
+						],
+						"outputs": [],
+						"execution_count": 141
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"#keep track of the exitCodes, if the exit code is not zero then we've had failures, we flip the boolean\n",
+							"exitCode: int = 0"
+						],
+						"outputs": [],
+						"execution_count": 142
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\r\n",
+							"path_to_orchestration_file: str = \"abfss://odw-config@\"+storage_account+\"orchestration/orchestration.json\""
+						],
+						"outputs": [],
+						"execution_count": 143
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"def get_incremental_key(entity_name: str, storage_account: str, path_to_orchestration_file: str) -> str:\r\n",
+							"    # getting the incremental key from the odw-config/orchestration\r\n",
+							"    df: DataFrame = spark.read.option(\"multiline\",\"true\").json(path_to_orchestration_file)\r\n",
+							"    definitions: list = json.loads(df.toJSON().first())['definitions']\r\n",
+							"    definition: dict = next((d for d in definitions if entity_name == d['Source_Filename_Start']), None)\r\n",
+							"    return definition['Harmonised_Incremental_Key'] if definition and 'Harmonised_Incremental_Key' in definition else None"
+						],
+						"outputs": [],
+						"execution_count": 144
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"#this is not a service bus schema so doesn't need all of the field\r\n",
+							"\r\n",
+							"def create_spark_schema(db_name: str, entity_name: str) -> StructType:\r\n",
+							"    incremental_key: str = get_incremental_key(entity_name, storage_account, path_to_orchestration_file) if db_name == 'odw_harmonised_db' else None\r\n",
+							"    schema = mssparkutils.notebook.run(\"/py_create_spark_schema\", 30, {\"db_name\": db_name, \"entity_name\": entity_name, \"incremental_key\": incremental_key, \"is_servicebus_schema\": isServiceBusSchema})\r\n",
+							"    spark_schema = StructType.fromJson(json.loads(schema))\r\n",
+							"    return spark_schema"
+						],
+						"outputs": [],
+						"execution_count": 145
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"def create_spark_dataframe() -> DataFrame:\r\n",
+							"    spark_dataframe: DataFrame = spark.createDataFrame([], schema=create_spark_schema(db_name, entity_name))\r\n",
+							"    return spark_dataframe"
+						],
+						"outputs": [],
+						"execution_count": 146
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"sb_std_schema = create_spark_schema(std_db_name, entity_name)\r\n",
+							"sb_std_table_schema = spark.table(f\"{std_db_name}.{std_table_name}\").schema\r\n",
+							"sb_hrm_schema = create_spark_schema(hrm_db_name, entity_name)\r\n",
+							"sb_hrm_table_schema = spark.table(f\"{hrm_db_name}.{hrm_table_name}\").schema"
+						],
+						"outputs": [],
+						"execution_count": 147
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"def extract_schema_structure(schema: StructType) -> dict:\r\n",
+							"    def extract_field(field):\r\n",
+							"        if isinstance(field.dataType, StructType):\r\n",
+							"            return {field.name: {subfield.name: str(subfield.dataType) for subfield in field.dataType.fields}}\r\n",
+							"        elif isinstance(field.dataType, ArrayType):\r\n",
+							"            element_type = field.dataType.elementType\r\n",
+							"            if isinstance(element_type, StructType):\r\n",
+							"                return {field.name: {subfield.name: str(subfield.dataType) for subfield in element_type.fields}}\r\n",
+							"            else:\r\n",
+							"                return {field.name: f'array<{str(element_type)}>'}\r\n",
+							"        else:\r\n",
+							"            return {field.name: str(field.dataType)}\r\n",
+							"    \r\n",
+							"    result = {}\r\n",
+							"    for field in schema.fields:\r\n",
+							"        result.update(extract_field(field))\r\n",
+							"    return result"
+						],
+						"outputs": [],
+						"execution_count": 148
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"def test_compare_schemas(schema1: StructType, schema2: StructType) -> bool:\r\n",
+							"    structure1: dict = extract_schema_structure(schema1)\r\n",
+							"    structure2: dict = extract_schema_structure(schema2)\r\n",
+							"    \r\n",
+							"    differences: list[tuple] = []\r\n",
+							"    \r\n",
+							"    all_fields: set = set(structure1.keys()).union(set(structure2.keys()))\r\n",
+							"    \r\n",
+							"    for field in all_fields:\r\n",
+							"        if field not in structure1:\r\n",
+							"            differences.append((field, \"Field not in schema1\", structure2[field]))\r\n",
+							"        elif field not in structure2:\r\n",
+							"            differences.append((field, structure1[field], \"Field not in schema2\"))\r\n",
+							"        else:\r\n",
+							"            if structure1[field] != structure2[field]:\r\n",
+							"                if isinstance(structure1[field], dict) and isinstance(structure2[field], dict):\r\n",
+							"                    subfields: set = set(structure1[field].keys()).union(set(structure2[field].keys()))\r\n",
+							"                    for subfield in subfields:\r\n",
+							"                        if subfield not in structure1[field]:\r\n",
+							"                            differences.append((f\"{field}.{subfield}\", \"Field not in schema1\", structure2[field][subfield]))\r\n",
+							"                        elif subfield not in structure2[field]:\r\n",
+							"                            differences.append((f\"{field}.{subfield}\", structure1[field][subfield], \"Field not in schema2\"))\r\n",
+							"                        elif structure1[field][subfield] != structure2[field][subfield]:\r\n",
+							"                            differences.append((f\"{field}.{subfield}\", structure1[field][subfield], structure2[field][subfield]))\r\n",
+							"                else:\r\n",
+							"                    differences.append((field, structure1[field], structure2[field]))\r\n",
+							"    \r\n",
+							"    if differences:\r\n",
+							"        # Create a Spark DataFrame to display the differences\r\n",
+							"        differences_df: DataFrame = spark.createDataFrame(differences, [\"Field\", \"Schema 1\", \"Schema 2\"])\r\n",
+							"        display(differences_df)\r\n",
+							"        return False\r\n",
+							"    else:\r\n",
+							"        return True"
+						],
+						"outputs": [],
+						"execution_count": 149
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"def test_std_same_rows_hrm(std_table: str, hrm_table: str) -> tuple[int, int, bool]:\r\n",
+							"    std_table_full: str = f\"{std_db_name}.{std_table}\"\r\n",
+							"    hrm_table_full: str = f\"{hrm_db_name}.{hrm_table}\"\r\n",
+							"\r\n",
+							"    # filter standardised df with non-null message_type and exclude 'Delete' message_type since it doesn't add a new row in hrm\r\n",
+							"    std_df: DataFrame = spark.table(std_table_full)\r\n",
+							"    if isServiceBusSchema:\r\n",
+							"        std_df = std_df.filter((std_df.message_type != 'Delete') & (std_df.message_type.isNotNull()))\r\n",
+							"    \r\n",
+							"    std_count: int = std_df.count()\r\n",
+							"    hrm_count: int = spark.table(hrm_table_full).count()\r\n",
+							"\r\n",
+							"    return (std_count, hrm_count, std_count == hrm_count)"
+						],
+						"outputs": [],
+						"execution_count": 150
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"def test_curated_row_count(hrm_table_final: str, curated_table: str) -> tuple[int, int, bool]:\r\n",
+							"    hrm_table_full: str = f\"{hrm_db_name}.{hrm_table_final}\"\r\n",
+							"    curated_table_full: str = f\"{curated_db_name}.{curated_table_name}\"\r\n",
+							"    hrm_count: int = spark.sql(f\"select * from {hrm_table_full} where IsActive = 'Y'\").count()\r\n",
+							"    curated_count: int = spark.table(curated_table_full).count()\r\n",
+							"    return (hrm_count, curated_count, hrm_count == curated_count)"
+						],
+						"outputs": [],
+						"execution_count": 151
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Compare schemas"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"std_schema_correct: bool = test_compare_schemas(sb_std_schema, sb_std_table_schema)\r\n",
+							"exitCode += int(not std_schema_correct)\r\n",
+							"print(f\"standardised schema correct: {std_schema_correct}\\nTable: {std_db_name}.{std_table_name}\\nDifferences shown above (if any)\")\r\n",
+							"hrm_schema_correct: bool = test_compare_schemas(sb_hrm_schema, sb_hrm_table_schema)\r\n",
+							"exitCode += int(not hrm_schema_correct)\r\n",
+							"print(f\"harmonised schema correct: {hrm_schema_correct}\\nTable: {hrm_db_name}.{hrm_table_name}\\nDifferences shown above (if any)\")"
+						],
+						"outputs": [],
+						"execution_count": 152
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Compare service bus standardised with harmonised\r\n",
+							"Should be the same count"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"standardised_count, harmonised_count, counts_match = test_std_same_rows_hrm(std_table_name, hrm_table_name)\r\n",
+							"exitCode += int(not counts_match)\r\n",
+							"print(f\"Standardised Count: {standardised_count: ,}\\nHarmonised Count: {harmonised_count: ,}\\nCounts match: {counts_match}\")\r\n",
+							"\r\n",
+							"#check for empty data..this is a failure really as something SHOULD be there\r\n",
+							"exitCode += int((standardised_count == 0))\r\n",
+							"\r\n",
+							"if standardised_count == 0:\r\n",
+							"    print(\"No Data in Standardised.. this is a failure\")   \r\n",
+							""
+						],
+						"outputs": [],
+						"execution_count": 153
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"#### Return whether or not this was successful"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"mssparkutils.notebook.exit(exitCode)"
+						],
+						"outputs": [],
+						"execution_count": 154
 					}
 				]
 			},
@@ -209014,6 +210932,964 @@
 						],
 						"outputs": [],
 						"execution_count": 22
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/py_utils_curated_validate_appeal_event')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"description": "Validation notebook for validating curated layer tables against the json schema.",
+				"folder": {
+					"name": "utils/data-validation"
+				},
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "[parameters('py_utils_curated_validate_appeal_event_properties_bigDataPool_referenceName')]",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "39045409-908a-4ed8-b6fe-01627147594b"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": true,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+						"name": "pinssynspodw",
+						"type": "Spark",
+						"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "3.3",
+						"nodeCount": 3,
+						"cores": 4,
+						"memory": 28
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"### Validation notebook for validating curated layer tables against the json schema\r\n",
+							"\r\n",
+							"#### NB: PLEASE ATTACH TO THE SPARK POOL \"PINSSYNSPODW\" AS THIS IS RUNNING PYTHON 3.10 WHICH IS NEEDED"
+						]
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"#### Install packages"
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"%pip install --quiet --upgrade pip\r\n",
+							"%pip install --quiet jsonschema==4.20.0 iso8601==2.1.0 git+https://github.com/Planning-Inspectorate/data-model@main#egg=pins_data_model"
+						],
+						"outputs": [],
+						"execution_count": 1
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"#### Imports"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"import pandas as pd\r\n",
+							"import numpy as np\r\n",
+							"import json\r\n",
+							"from collections import defaultdict\r\n",
+							"import pprint\r\n",
+							"from jsonschema import validate, FormatChecker, ValidationError, Draft202012Validator\r\n",
+							"from iso8601 import parse_date, ParseError\r\n",
+							"from pins_data_model import load_schemas"
+						],
+						"outputs": [],
+						"execution_count": 2
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"#### Import validation functions notebook"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"%run utils/data-validation/py_utils_curated_validate_functions"
+						],
+						"outputs": [],
+						"execution_count": 3
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"#### Define constants"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"SCHEMAS = load_schemas.load_all_schemas()[\"schemas\"]\r\n",
+							"SCHEMA = SCHEMAS[\"appeal-event.schema.json\"]\r\n",
+							"PRIMARY_KEY = \"eventId\"\r\n",
+							"DATABASE = \"odw_curated_db\"\r\n",
+							"TABLE = \"appeal_event\"\r\n",
+							"QUERY = f\"SELECT * FROM `{DATABASE}`.`{TABLE}`\"\r\n",
+							"OUTPUT_FILE = f\"{TABLE}.txt\""
+						],
+						"outputs": [],
+						"execution_count": 4
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"#### Create dataframe of the data from the table\r\n",
+							"\r\n",
+							"For certain tables it may be necessary to rename a column or two in order to create the array and avoid duplicate field names"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"df = spark.sql(QUERY)\r\n",
+							"data = df.toPandas()\r\n",
+							"for column in data:\r\n",
+							"    data[column].replace({pd.NaT: None, np.nan: None},inplace=True)"
+						],
+						"outputs": [],
+						"execution_count": 5
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"data.head(5)"
+						],
+						"outputs": [],
+						"execution_count": 6
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"#### Validate against the schema\r\n",
+							"\r\n",
+							"%%capture magic command is used to capture the cell output and assign it to the variable \"output\". This can then be used later as the data to be written to file.\r\n",
+							"\r\n",
+							"The validate variable can be used and returned as the exit value of the notebook."
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"select * from odw_curated_db.appeal_event where eventID = '3001106-3'"
+						],
+						"outputs": [],
+						"execution_count": 7
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"Erros with validation are due to data not being populated in Horizon but being required in the schema. Data is not due to be migrated at this stage, and checked with Gareth and correct with source system. Given the Appeals team don't plan to do any migration, taking as a non issue"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"validate_data(data=create_json_from_table_flat(data),\r\n",
+							"                        schema = SCHEMA,\r\n",
+							"                        primary_key = PRIMARY_KEY)"
+						],
+						"outputs": [],
+						"execution_count": 8
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"%%capture output\r\n",
+							"\r\n",
+							"validate = validate_data(data=create_json_from_table_flat(data),\r\n",
+							"                        schema = SCHEMA,\r\n",
+							"                        primary_key = PRIMARY_KEY)"
+						],
+						"outputs": [],
+						"execution_count": 9
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"display(output.stdout)"
+						],
+						"outputs": [],
+						"execution_count": 10
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"#### Print the validation output\r\n",
+							"\r\n",
+							"Output is sent to storage so commented out but can be printed here if need be"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"result = output.stdout\r\n",
+							"print(result)"
+						],
+						"outputs": [],
+						"execution_count": 11
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"#### Write output to storage"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"write_file_to_storage(path, OUTPUT_FILE, result)"
+						],
+						"outputs": [],
+						"execution_count": 12
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"#### Set notebook exit value to the validate variable above\r\n",
+							"\r\n",
+							"True for successful validation\r\n",
+							"False for faield validation"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"mssparkutils.notebook.exit(validate)"
+						],
+						"outputs": [],
+						"execution_count": 13
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"#### Test service bus"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"SELECT\r\n",
+							"    count(*)\r\n",
+							"FROM\r\n",
+							"    odw_standardised_db.sb_appeal_event"
+						],
+						"outputs": [],
+						"execution_count": 1
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"SELECT\r\n",
+							"    count(*)\r\n",
+							"FROM\r\n",
+							"    odw_harmonised_db.sb_appeal_event"
+						],
+						"outputs": [],
+						"execution_count": 2
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"SELECT\r\n",
+							"   COUNT(*)\r\n",
+							"FROM\r\n",
+							"    odw_standardised_db.sb_appeal_event"
+						],
+						"outputs": [],
+						"execution_count": 3
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"SELECT\r\n",
+							"    count(*)\r\n",
+							"FROM\r\n",
+							"    odw_harmonised_db.sb_appeal_event"
+						],
+						"outputs": [],
+						"execution_count": 4
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"SELECT\r\n",
+							"    count(*)\r\n",
+							"FROM\r\n",
+							"    odw_harmonised_db.sb_appeal_event\r\n",
+							"WHERE\r\n",
+							"    IsActive = 'Y'"
+						],
+						"outputs": [],
+						"execution_count": 5
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"SELECT\r\n",
+							"    count(*)\r\n",
+							"FROM\r\n",
+							"    odw_curated_db.Appeal_event"
+						],
+						"outputs": [],
+						"execution_count": 6
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"SELECT\r\n",
+							"    *\r\n",
+							"FROM\r\n",
+							"     odw_standardised_db.sb_appeal_event"
+						],
+						"outputs": [],
+						"execution_count": 7
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"SELECT\r\n",
+							"    *\r\n",
+							"FROM\r\n",
+							"     odw_harmonised_db.sb_appeal_event"
+						],
+						"outputs": [],
+						"execution_count": 8
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"SELECT\r\n",
+							"    *\r\n",
+							"FROM\r\n",
+							"     odw_harmonised_db.sb_appeal_event\r\n",
+							"WHERE\r\n",
+							"    IsActive = 'Y'"
+						],
+						"outputs": [],
+						"execution_count": 9
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"SELECT\r\n",
+							"    *\r\n",
+							"FROM\r\n",
+							"      odw_curated_db.Appeal_event\r\n",
+							"    "
+						],
+						"outputs": [],
+						"execution_count": 10
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"#### Test Horizon data feed"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"SELECT\r\n",
+							"    count(*)\r\n",
+							"FROM\r\n",
+							"    odw_standardised_db.horizon_appeals_event\r\n",
+							"WHERE\r\n",
+							"    Ingested_datetime = (SELECT MAX(Ingested_datetime) FROM odw_standardised_db.horizon_appeals_event)"
+						],
+						"outputs": [],
+						"execution_count": 19
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"SELECT\r\n",
+							"    count(*)\r\n",
+							"FROM\r\n",
+							"    odw_harmonised_db.sb_appeal_event\r\n",
+							"WHERE\r\n",
+							"    ODTSourceSystem = 'Horizon'\r\n",
+							"    AND IsActive = 'Y'"
+						],
+						"outputs": [],
+						"execution_count": 20
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"SELECT\r\n",
+							"    COUNT(*)\r\n",
+							"FROM\r\n",
+							"    odw_curated_db.Appeal_event\r\n",
+							"WHERE\r\n",
+							"    eventId NOT IN (SELECT DISTINCT EventId FROM odw_standardised_db.sb_appeal_event) -- Drop records from SB"
+						],
+						"outputs": [],
+						"execution_count": 23
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"SELECT\r\n",
+							"    *\r\n",
+							"FROM\r\n",
+							"    odw_standardised_db.horizon_appeals_event\r\n",
+							"WHERE\r\n",
+							"    CaseNumber = '2218112'\r\n",
+							"    AND Ingested_datetime = (SELECT MAX(Ingested_datetime) FROM odw_standardised_db.horizon_appeals_event)"
+						],
+						"outputs": [],
+						"execution_count": 29
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"SELECT\r\n",
+							"    *\r\n",
+							"FROM\r\n",
+							"    odw_harmonised_db.sb_appeal_event\r\n",
+							"WHERE\r\n",
+							"    ODTSourceSystem = 'Horizon'\r\n",
+							"    AND eventId = '2218112-2'"
+						],
+						"outputs": [],
+						"execution_count": 28
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"SELECT\r\n",
+							"    *\r\n",
+							"FROM\r\n",
+							"    odw_curated_db.Appeal_event\r\n",
+							"WHERE\r\n",
+							"    eventId = '2218112-2'"
+						],
+						"outputs": [],
+						"execution_count": 31
 					}
 				]
 			},
@@ -231502,21 +234378,21 @@
 					"maxNodeCount": 12,
 					"minNodeCount": 3
 				},
-				"nodeCount": 0,
+				"nodeCount": 3,
 				"nodeSize": "Small",
 				"nodeSizeFamily": "MemoryOptimized",
 				"sparkVersion": "3.3",
 				"libraryRequirements": {
 					"content": "# Azure Application Insights\r\nopencensus.ext.azure\r\n\r\n# Azure Storage\r\nazure-storage-file-datalake\r\nazure-storage-file-share\r\n\r\n# Azure Servicebus\r\nazure-servicebus\r\n\r\n# Linting\r\nmypy\r\n\r\n# Machine Learning\r\nprotobuf==3.19.6\r\n\r\n# Time\r\ncroniter\r\ntzlocal\r\n\r\n",
 					"filename": "requirements.txt",
-					"time": "2024-07-31T10:42:45.8472286Z"
+					"time": "2024-07-31T14:13:18.5807456Z"
 				},
 				"isComputeIsolationEnabled": false,
 				"sparkConfigProperties": {
 					"configurationType": "File",
 					"filename": "configuration.txt",
 					"content": "spark.executorEnv.dataLakeAccountName pinsstodwdevuks9h80mb\r\nspark.executorEnv.keyVaultName pinskvsynwodwdevuks\r\nspark.sql.parquet.int96RebaseModeInWrite CORRECTED\r\nspark.sql.constraintPropagation.enabled false\r\n",
-					"time": "2024-07-31T10:42:45.8472286Z"
+					"time": "2024-07-31T14:13:18.5807456Z"
 				},
 				"sessionLevelPackagesEnabled": true,
 				"annotations": []
