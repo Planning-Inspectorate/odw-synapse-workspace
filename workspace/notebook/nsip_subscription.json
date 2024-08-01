@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "c3563acd-4385-4465-b223-a65f9ffd36b3"
+				"spark.autotune.trackingId": "7db674b6-159a-4253-a2e8-beb878acd46b"
 			}
 		},
 		"metadata": {
@@ -53,6 +53,25 @@
 		},
 		"cells": [
 			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql.functions import *\r\n",
+					"from pyspark.sql.types import *"
+				],
+				"execution_count": null
+			},
+			{
 				"cell_type": "markdown",
 				"metadata": {
 					"nteract": {
@@ -62,7 +81,7 @@
 					}
 				},
 				"source": [
-					"## View odw_curated_db.vw_nsip_subscription is created"
+					"##### View odw_curated_db.vw_nsip_subscription is created"
 				]
 			},
 			{
@@ -83,29 +102,158 @@
 					"collapsed": false
 				},
 				"source": [
-					"\n",
 					"%%sql\n",
 					"\n",
 					"CREATE OR REPLACE VIEW odw_curated_db.vw_nsip_subscription\n",
 					"\n",
-					"    AS\n",
+					"AS\n",
 					"\n",
 					"SELECT DISTINCT\n",
 					"\n",
-					"    CAST(subscriptionId\tAS integer),\n",
-					"    caseReference\t,\n",
-					"    emailAddress\t,\n",
-					"    subscriptionType\t,\n",
-					"    startDate\t,\n",
-					"    endDate\t,\n",
-					"    language\t\n",
+					"subscriptionId,\n",
+					"caseReference,\n",
+					"emailAddress,\n",
+					"subscriptionType,\n",
+					"startDate,\n",
+					"endDate,\n",
+					"language\t\n",
 					"\n",
-					"\n",
-					"FROM odw_harmonised_db.nsip_subscription\n",
+					"FROM odw_harmonised_db.sb_nsip_subscription\n",
 					"\n",
 					"WHERE IsActive = 'Y'"
 				],
-				"execution_count": 3
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Create a DataFrame of the data from the view"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"data = spark.sql(\"SELECT * FROM odw_curated_db.vw_nsip_subscription\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Specify the schema for the data, taken from the curated table which has already been created in advance from the data model"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"schema = spark.table(\"odw_curated_db.nsip_subscription\").schema"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Cast all field data types in the data to the data types from the curated table schema\r\n",
+					"\r\n",
+					"Not a huge issue here as it's only service bus data but if Horizon data were to be joined withi this then this ensures accuracy."
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"df = data.select(\r\n",
+					"    *[\r\n",
+					"        col(field.name).cast(field.dataType).alias(field.name)\r\n",
+					"        for field in schema.fields\r\n",
+					"    ]\r\n",
+					")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Print the schema as a visual check"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"df.printSchema()"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -134,12 +282,9 @@
 					}
 				},
 				"source": [
-					"from pyspark.sql import SparkSession\n",
-					"spark = SparkSession.builder.getOrCreate()\n",
-					"view_df = spark.sql('SELECT * FROM odw_curated_db.vw_nsip_subscription')\n",
-					"view_df.write.mode(\"overwrite\").saveAsTable('odw_curated_db.nsip_subscription')"
+					"df.write.mode(\"overwrite\").format(\"delta\").saveAsTable(\"odw_curated_db.nsip_subscription\")"
 				],
-				"execution_count": 4
+				"execution_count": null
 			}
 		]
 	}

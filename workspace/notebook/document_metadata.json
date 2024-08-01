@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "b225b92d-69ac-44c9-b871-cbea80b64227"
+				"spark.autotune.trackingId": "37a72b72-1e14-44fc-8c90-c9c2014c5b17"
 			}
 		},
 		"metadata": {
@@ -54,6 +54,39 @@
 			{
 				"cell_type": "code",
 				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql.functions import *\r\n",
+					"from pyspark.sql.types import *\r\n",
+					"from pyspark.sql import DataFrame"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Create a view for the data, joining harmonised tables where necessary"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
 					"microsoft": {
 						"language": "sparksql"
 					},
@@ -62,28 +95,28 @@
 				"source": [
 					"%%sql\n",
 					"\n",
-					"CREATE OR REPLACE VIEW odw_curated_db.vw_document_metadata\n",
+					"CREATE OR REPLACE VIEW odw_curated_db.vw_nsip_document\n",
 					"\n",
 					"AS\n",
 					"\n",
 					"SELECT DISTINCT \n",
 					"MD.DataId\t                            AS documentId,\n",
-					"CAST(MD.CaseNodeId AS INT)\t            AS caseId,\n",
+					"MD.CaseNodeId\t                        AS caseId,\n",
 					"MD.caseReference\t                    AS caseRef,\n",
 					"MD.documentReference\t                AS documentReference,\n",
-					"CAST(MD.Version AS INT)                 AS version,\n",
+					"MD.Version                              AS version,\n",
 					"AMD.examinationRefNo\t                AS examinationRefNo,\n",
 					"MD.Name\t                                AS filename,\n",
 					"MD.Name\t                                AS originalFilename,\n",
-					"CAST(MD.DataSize AS INT)\t            AS size,\n",
+					"MD.DataSize\t                            AS size,\n",
 					"AMD.mime\t                            AS mime,\n",
 					"AMD.DocumentURI\t                        AS documentURI,\n",
 					"AMD.DocumentURI\t\t                    AS publishedDocumentURI,\n",
 					"AMD.Path                                AS path,\n",
 					"MD.virusCheckStatus\t                    AS virusCheckStatus,\n",
 					"AMD.fileMd5\t                            AS fileMD5,\n",
-					"CAST(MD.CreateDate AS TIMESTAMP)\t    AS dateCreated,\n",
-					"CAST(MD.ModifyDate AS TIMESTAMP)\t    AS lastModified,\n",
+					"MD.CreateDate                   \t    AS dateCreated,\n",
+					"MD.ModifyDate                   \t    AS lastModified,\n",
 					"LOWER(MD.CaseworkType)\t                AS caseType,\n",
 					"CASE\n",
 					"    WHEN AMD.redactedStatus = ' '   \n",
@@ -98,7 +131,7 @@
 					"        ' ',\n",
 					"        '_')\n",
 					"END                  \t                AS publishedStatus,\n",
-					"CAST(MD.DatePublished AS TIMESTAMP)\t    AS datePublished,\n",
+					"MD.DatePublished                        AS datePublished,\n",
 					"MD.DocumentType\t                        AS documentType,\n",
 					"CASE\n",
 					"    WHEN AMD.securityClassification = ' '\n",
@@ -113,8 +146,10 @@
 					"END\t                                    AS origin,\n",
 					"AMD.owner                               AS owner,\n",
 					"MD.Author\t                            AS author,\n",
+					"NULL                                    AS authorWelsh,\n",
 					"MD.Representative\t                    AS representative,\n",
 					"MD.DocumentDescription\t                AS description,\n",
+					"NULL                                    AS descriptionWelsh,\n",
 					"CASE\n",
 					"    WHEN MD.DocumentCaseStage = \"Developer's Application\"\n",
 					"    THEN 'developers_application'\n",
@@ -123,6 +158,7 @@
 					"    ELSE LOWER(MD.DocumentCaseStage)\t            \n",
 					"END                                     AS documentCaseStage,\n",
 					"MD.Filter1\t                            AS filter1,\n",
+					"NULL                                    AS filter1Welsh,\n",
 					"MD.Filter2\t                            AS filter2,\n",
 					"MD.ParentID\t                            AS horizonFolderId,\n",
 					"NULL\t                                AS transcriptId\t\n",
@@ -134,29 +170,9 @@
 					"        AND AMD.Size = MD.DataSize\n",
 					"WHERE AMD.IsActive = 'Y' \n",
 					"    AND MD.IsActive = 'Y'\n",
-					";\n",
-					"\n",
-					""
+					";"
 				],
-				"execution_count": 26
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"spark.sql(f\"drop table if exists odw_curated_db.document_meta_data;\")"
-				],
-				"execution_count": 27
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -168,7 +184,7 @@
 					}
 				},
 				"source": [
-					"This table has a column \"transcriptId\" which is set to NULL. The column is in the json schema but is not in any of the source data sets (yet). The spark data type is set to \"void\" as there is no data in the column and this prevents the table being created using SQL create table as delta command. Setting this column to StringType and creating the table using spark instead avoids this issue."
+					"##### Create a DataFrame of the data from the view"
 				]
 			},
 			{
@@ -185,15 +201,141 @@
 					}
 				},
 				"source": [
-					"from pyspark.sql import SparkSession\r\n",
-					"from pyspark.sql.types import StringType\r\n",
-					"spark = SparkSession.builder.getOrCreate()\r\n",
-					"view_df = spark.sql(\"SELECT * FROM odw_curated_db.vw_document_metadata\")\r\n",
-					"view_df2 = view_df.withColumn(\"transcriptId\", view_df[\"transcriptId\"].cast(StringType()))\r\n",
-					"view_df2.write.mode(\"overwrite\").saveAsTable(\"odw_curated_db.document_meta_data\")\r\n",
-					"print(\"Table created\")"
+					"data: DataFrame = spark.sql(\"SELECT * FROM odw_curated_db.vw_nsip_document\")"
 				],
-				"execution_count": 28
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Specify the schema for the data, taken from the curated table which has already been created in advance from the data model"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"schema: StructType = spark.table(\"odw_curated_db.nsip_document\").schema"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Cast all field data types in the data to the data types from the curated table schema\r\n",
+					"\r\n",
+					"This is necessary because the view generated above is joining harmonised tables, many of which are sourced from Horizon and will have a different schema to the final table and fields will have different data types. Therefore, taking the curated schema as defined in thr data model and casting all fields correctly, ensures accuracy."
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"df: DataFrame = data.select(\r\n",
+					"    *[\r\n",
+					"        col(field.name).cast(field.dataType).alias(field.name)\r\n",
+					"        for field in schema.fields\r\n",
+					"    ]\r\n",
+					")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Print the schema as a visual check"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"df.printSchema()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Write the data to the curated table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"df.write.mode(\"overwrite\").format(\"delta\").saveAsTable(\"odw_curated_db.nsip_document\")"
+				],
+				"execution_count": null
 			}
 		]
 	}

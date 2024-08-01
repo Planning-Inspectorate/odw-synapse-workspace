@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "499387f9-7c64-4afa-b9f4-6b546ea34904"
+				"spark.autotune.trackingId": "4d4d4647-b59f-457b-9783-61227773b3d2"
 			}
 		},
 		"metadata": {
@@ -54,6 +54,38 @@
 			{
 				"cell_type": "code",
 				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql.functions import *\r\n",
+					"from pyspark.sql.types import *"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Create a view for the data, joining harmonised tables where necessary"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
 					"microsoft": {
 						"language": "sparksql"
 					},
@@ -68,19 +100,20 @@
 					"\n",
 					"SELECT DISTINCT \n",
 					"ADM.documentId\t                        AS documentId,\n",
-					"CAST(ADM.caseId AS INT)\t                AS caseId,\n",
+					"ADM.caseId          \t                AS caseId,\n",
 					"ADM.caseReference\t                    AS caseReference,\n",
-					"CAST(ADM.Version AS INT)                AS version,\n",
+					"ADM.Version                             AS version,\n",
 					"ADM.filename\t                        AS filename,\n",
 					"ADM.filename\t                        AS originalFilename,\n",
-					"CAST(ADM.size AS INT)\t                AS size,\n",
+					"ADM.size            \t                AS size,\n",
 					"ADM.mime\t                            AS mime,\n",
 					"ADM.DocumentURI\t                        AS documentURI,\n",
 					"ADM.DocumentURI\t\t                    AS publishedDocumentURI,\n",
 					"ADM.virusCheckStatus\t                AS virusCheckStatus,\n",
 					"ADM.fileMd5\t                            AS fileMD5,\n",
-					"CAST(ADM.dateCreated AS TIMESTAMP)\t    AS dateCreated,\n",
-					"CAST(ADM.lastModified AS TIMESTAMP)\t    AS lastModified,\n",
+					"ADM.dateCreated                 \t    AS dateCreated,\n",
+					"ADM.dateReceived                        AS dateReceived,\n",
+					"ADM.lastModified                \t    AS lastModified,\n",
 					"LOWER(ADM.caseType)\t                    AS caseType,\n",
 					"CASE\n",
 					"    WHEN ADM.redactedStatus = ' '   \n",
@@ -95,7 +128,7 @@
 					"        ' ',\n",
 					"        '_')\n",
 					"END                  \t                AS publishedStatus,\n",
-					"CAST(ADM.DatePublished AS TIMESTAMP)\tAS datePublished,\n",
+					"ADM.DatePublished                   \tAS datePublished,\n",
 					"ADM.DocumentType\t                    AS documentType,\n",
 					"'-1'\t                                AS securityClassification,\n",
 					"ADM.SourceSystem\t                    AS sourceSystem,\n",
@@ -120,25 +153,7 @@
 					"FROM odw_harmonised_db.appeals_document_metadata AS ADM\n",
 					"WHERE ADM.IsActive = 'Y'"
 				],
-				"execution_count": 23
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"spark.sql(f\"drop table if exists odw_curated_db.appeal_document;\")"
-				],
-				"execution_count": 24
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -150,7 +165,7 @@
 					}
 				},
 				"source": [
-					"This table has a column \"transcriptId\" which is set to NULL. The column is in the json schema but is not in any of the source data sets (yet). The spark data type is set to \"void\" as there is no data in the column and this prevents the table being created using SQL create table as delta command. Setting this column to StringType and creating the table using spark instead avoids this issue."
+					"##### Create a DataFrame of the data from the view"
 				]
 			},
 			{
@@ -167,15 +182,140 @@
 					}
 				},
 				"source": [
-					"from pyspark.sql import SparkSession\r\n",
-					"from pyspark.sql.types import StringType\r\n",
-					"spark = SparkSession.builder.getOrCreate()\r\n",
-					"view_df = spark.sql(\"SELECT * FROM odw_curated_db.vw_appeals_document_metadata\")\r\n",
-					"view_df2 = view_df.withColumn(\"transcriptId\", view_df[\"transcriptId\"].cast(StringType()))\r\n",
-					"view_df2.write.mode(\"overwrite\").saveAsTable(\"odw_curated_db.appeal_document\")\r\n",
-					"print(\"Table created\")"
+					"data: DataFrame = spark.sql(\"SELECT * FROM odw_curated_db.vw_appeals_document_metadata\")"
 				],
-				"execution_count": 25
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Specify the schema for the data, taken from the curated table which has already been created in advance from the data model"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"schema: StructType = spark.table(\"odw_curated_db.appeal_document\").schema"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Cast all field data types in the data to the data types from the curated table schema\r\n",
+					"\r\n",
+					"This is necessary because the view generated above is joining harmonised tables, many of which are sourced from Horizon and will have a different schema to the final table and fields will have different data types. Therefore, taking the curated schema as defined in thr data model and casting all fields correctly, ensures accuracy."
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"df: DataFrame = data.select(\r\n",
+					"    *[\r\n",
+					"        col(field.name).cast(field.dataType).alias(field.name)\r\n",
+					"        for field in schema.fields\r\n",
+					"    ]\r\n",
+					")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Print the schema as a visual check"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"df.printSchema()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Write the data to the curated table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"df.write.mode(\"overwrite\").saveAsTable(\"odw_curated_db.appeal_document\")"
+				],
+				"execution_count": null
 			}
 		]
 	}
