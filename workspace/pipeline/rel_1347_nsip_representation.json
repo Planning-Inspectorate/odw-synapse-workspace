@@ -1,0 +1,318 @@
+{
+	"name": "rel_1347_nsip_representation",
+	"properties": {
+		"activities": [
+			{
+				"name": "Create standardised table",
+				"type": "SynapseNotebook",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "create_table_from_schema",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"db_name": {
+							"value": "odw_standardised_db",
+							"type": "string"
+						},
+						"entity_name": {
+							"value": "nsip-representation",
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"sparkPool": {
+						"referenceName": "pinssynspodw",
+						"type": "BigDataPoolReference"
+					},
+					"executorSize": "Small",
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"driverSize": "Small",
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Create harmonised table",
+				"type": "SynapseNotebook",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "create_table_from_schema",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"db_name": {
+							"value": "odw_harmonised_db",
+							"type": "string"
+						},
+						"entity_name": {
+							"value": "nsip-representation",
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"sparkPool": {
+						"referenceName": "pinssynspodw",
+						"type": "BigDataPoolReference"
+					},
+					"executorSize": "Small",
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"driverSize": "Small",
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Create curated table",
+				"type": "SynapseNotebook",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "create_table_from_schema",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"db_name": {
+							"value": "odw_curated_db",
+							"type": "string"
+						},
+						"entity_name": {
+							"value": "nsip-representation",
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"sparkPool": {
+						"referenceName": "pinssynspodw",
+						"type": "BigDataPoolReference"
+					},
+					"executorSize": "Small",
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"driverSize": "Small",
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Reload nsip-representation",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Create standardised table",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Create harmonised table",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Create curated table",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_sb_reload_from_raw_storage",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"entity_name": {
+							"value": "nsip-representation",
+							"type": "string"
+						},
+						"table_name": {
+							"value": "sb_nsip_representation",
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Ingest Hrm Final",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Reload nsip-representation",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_sb_horizon_harmonised_nsip_representation",
+						"type": "NotebookReference"
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Ingest Curated",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Ingest Hrm Final",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "nsip_representation",
+						"type": "NotebookReference"
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Run Unit Tests",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Data Validation",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_unit_tests_relevant_representation",
+						"type": "NotebookReference"
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Data Validation",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Ingest Curated",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_utils_curated_validate_nsip_representation",
+						"type": "NotebookReference"
+					},
+					"snapshot": true
+				}
+			}
+		],
+		"folder": {
+			"name": "Releases/1.1.3"
+		},
+		"annotations": []
+	}
+}

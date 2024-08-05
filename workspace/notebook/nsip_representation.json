@@ -1,5 +1,5 @@
 {
-	"name": "relevant_representation",
+	"name": "nsip_representation",
 	"properties": {
 		"description": "Creation of the Relevant Representation Curated layer for use by ODT",
 		"folder": {
@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "11b3779a-5e43-4c55-902d-e2f39d7fec41"
+				"spark.autotune.trackingId": "5e3a19fd-623f-4b7b-8c6a-c418c4e021c0"
 			}
 		},
 		"metadata": {
@@ -66,6 +66,21 @@
 				]
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### **NOTE**: The curated layer needs to be joined with Service User but since that's not available right now, we're ignoring the two columns. This NEEDS to be fixed once the Service User curated layer is available\n",
+					"\n",
+					"Columns from Service User are representedId, and representativeId"
+				]
+			},
+			{
 				"cell_type": "code",
 				"metadata": {
 					"microsoft": {
@@ -79,14 +94,14 @@
 				"source": [
 					"%%sql\r\n",
 					"\r\n",
-					"CREATE OR REPLACE VIEW odw_curated_db.vw_relevant_representation\r\n",
+					"CREATE OR REPLACE VIEW odw_curated_db.vw_nsip_representation\r\n",
 					"AS\r\n",
 					"\r\n",
 					"SELECT DISTINCT\r\n",
 					"    RR.representationId\r\n",
-					"    ,referenceId AS referenceId\r\n",
-					"    ,examinationLibraryRef\r\n",
-					"    ,RR.CaseRef AS caseRef\r\n",
+					"    ,RR.referenceId\r\n",
+					"    ,RR.examinationLibraryRef\r\n",
+					"    ,COALESCE(RR.caseRef, '') AS caseRef\r\n",
 					"    ,RR.caseId\r\n",
 					"    ,CASE\r\n",
 					"        WHEN RR.status = 'New' OR RR.status = 'In Progress' THEN \r\n",
@@ -98,11 +113,11 @@
 					"    ELSE \r\n",
 					"        LOWER(RR.status)\r\n",
 					"    END AS status\r\n",
-					"    ,RR.originalRepresentation AS originalRepresentation\r\n",
-					"    ,RR.redactedRepresentation IS NOT NULL  AS redacted\r\n",
-					"    ,RR.redactedRepresentation AS redactedRepresentation\r\n",
-					"    ,RR.RedactedBy AS redactedBy\r\n",
-					"    ,RR.Notes AS redactedNotes\r\n",
+					"    ,COALESCE(RR.originalRepresentation, '') AS originalRepresentation\r\n",
+					"    ,RR.redacted\r\n",
+					"    ,RR.redactedRepresentation\r\n",
+					"    ,RR.redactedBy\r\n",
+					"    ,RR.redactedNotes\r\n",
 					"    ,CASE\r\n",
 					"        WHEN RR.representationFrom = 'An Organisation' THEN \r\n",
 					"            'ORGANISATION'\r\n",
@@ -113,20 +128,22 @@
 					"        WHEN RR.representationFrom = 'Myself' THEN \r\n",
 					"            'PERSON'\r\n",
 					"        ELSE \r\n",
-					"            RR.RelRepOnBehalfOf\r\n",
+					"            RR.representationFrom\r\n",
 					"    END AS representationFrom   \r\n",
-					"    ,CASE \r\n",
-					"        WHEN SU.serviceUserType = 'RepresentationContact' THEN \r\n",
-					"            RR.NSIPRepresentaionID\r\n",
-					"        ELSE \r\n",
-					"            ''\r\n",
-					"    END AS representedId\r\n",
-					"    ,CASE \r\n",
-					"        WHEN SU2.serviceUserType = 'Agent'THEN \r\n",
-					"            RR.agentcontactid\r\n",
-					"        ELSE \r\n",
-					"            ''\r\n",
-					"    END AS representativeId\r\n",
+					"    -- ,CASE \r\n",
+					"    --     WHEN SU.serviceUserType = 'RepresentationContact' THEN \r\n",
+					"    --         RR.NSIPRepresentaionID\r\n",
+					"    --     ELSE \r\n",
+					"    --         ''\r\n",
+					"    -- END AS representedId\r\n",
+					"    -- ,CASE \r\n",
+					"    --     WHEN SU2.serviceUserType = 'Agent'THEN \r\n",
+					"    --         RR.agentcontactid\r\n",
+					"    --     ELSE \r\n",
+					"    --         ''\r\n",
+					"    -- END AS representativeId\r\n",
+					"    ,COALESCE(RR.representedId, '') AS representedId\r\n",
+					"    ,COALESCE(RR.representativeId, '') AS representativeId\r\n",
 					"    ,CASE\r\n",
 					"        WHEN RR.registerFor = 'An Organisation' THEN \r\n",
 					"            'ORGANISATION'\r\n",
@@ -145,19 +162,17 @@
 					"        ELSE \r\n",
 					"            RR.representationType\r\n",
 					"    END AS representationType\r\n",
-					"    ,RR.DateReceived AS dateReceived\r\n",
-					"    ,RR.AttachmentIDs AS attachmentIds\r\n",
+					"    ,RR.dateReceived\r\n",
+					"    ,RR.attachmentIds\r\n",
 					"FROM \r\n",
-					"    odw_harmonised_db.nsip_relevant_representation AS RR\r\n",
-					"    INNER JOIN odw_curated_db.nsip_service_user  AS SU\r\n",
-					"        ON SU.ID = RR.representationId\r\n",
-					"        AND RR.ISActive = 'Y'\r\n",
-					"    LEFT OUTER JOIN odw_curated_db.nsip_service_user  AS SU2\r\n",
-					"        ON SU2.ID = RR.agentcontactid\r\n",
-					"\r\n",
-					"--Need to fix this view returning 4 records as IsActive flag is not right"
+					"    odw_harmonised_db.nsip_representation AS RR\r\n",
+					"    -- LEFT OUTER JOIN odw_curated_db.nsip_service_user  AS SU\r\n",
+					"    --     ON SU.ID = RR.representationId\r\n",
+					"    -- LEFT OUTER JOIN odw_curated_db.nsip_service_user  AS SU2\r\n",
+					"    --     ON SU2.ID = RR.agentcontactid\r\n",
+					"    WHERE RR.IsActive = 'Y'"
 				],
-				"execution_count": 10
+				"execution_count": 2
 			},
 			{
 				"cell_type": "markdown",
@@ -188,10 +203,10 @@
 				"source": [
 					"from pyspark.sql import SparkSession\r\n",
 					"spark = SparkSession.builder.getOrCreate()\r\n",
-					"view_df = spark.sql('SELECT * FROM odw_curated_db.vw_relevant_representation')\r\n",
-					"view_df.write.mode(\"overwrite\").saveAsTable('odw_curated_db.relevant_representation')"
+					"view_df = spark.sql('SELECT * FROM odw_curated_db.vw_nsip_representation')\r\n",
+					"view_df.write.mode(\"overwrite\").saveAsTable('odw_curated_db.nsip_representation')"
 				],
-				"execution_count": 11
+				"execution_count": 3
 			}
 		]
 	}
