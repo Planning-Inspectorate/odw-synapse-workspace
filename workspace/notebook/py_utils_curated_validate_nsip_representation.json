@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "447ada7c-b0ef-47c2-a858-d2ffae9bc43e"
+				"spark.autotune.trackingId": "68710bfc-f328-477a-b0fb-e8f161490b35"
 			}
 		},
 		"metadata": {
@@ -136,7 +136,7 @@
 					}
 				},
 				"source": [
-					"#### Import validation funcitons notebook"
+					"#### Function to validate a list of rows of data."
 				]
 			},
 			{
@@ -153,7 +153,42 @@
 					}
 				},
 				"source": [
-					"%run utils/data-validation/py_utils_curated_validate_functions"
+					"def validate_data(data: list, schema: dict, primary_key: str) -> str:\n",
+					"\n",
+					"    \"\"\"\n",
+					"    Function to validate a list of rows of data.\n",
+					"    Validation includes a format check against ISO-8601.\n",
+					"\n",
+					"    Args:\n",
+					"        data: list\n",
+					"        schema: dictionary\n",
+					"        primary_key: string\n",
+					"\n",
+					"    Returns:\n",
+					"        success: string\n",
+					"        \"Success\" or \"Failed\" for the result of the validation\n",
+					"    \"\"\"\n",
+					"    \n",
+					"    format_checker = FormatChecker()\n",
+					"    format_checker.checks(\"date-time\")(is_iso8601_date_time)\n",
+					"    validator = Draft202012Validator(schema, format_checker=format_checker)\n",
+					"\n",
+					"    success = \"Success\"\n",
+					"\n",
+					"    for index, row in enumerate(data, start=1):\n",
+					"        errors = list(validator.iter_errors(row))\n",
+					"        if errors:\n",
+					"            success = \"Failed\"\n",
+					"            print(f\"{len(errors)} error(s) found in row {index}\")\n",
+					"            key_value = row.get(primary_key)\n",
+					"            print(f\"{primary_key}: {key_value}\")\n",
+					"            for error in errors:\n",
+					"                print(error.message)\n",
+					"                print(\"-\"*100)\n",
+					"            print(\"#\"*100)\n",
+					"            print(\"#\"*100)\n",
+					"\n",
+					"    return success"
 				],
 				"execution_count": 14
 			},
