@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5e3a19fd-623f-4b7b-8c6a-c418c4e021c0"
+				"spark.autotune.trackingId": "b4b09ffa-4744-4df6-9b52-6ad56293bb34"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				},
 				"sparkVersion": "3.3",
 				"nodeCount": 3,
-				"cores": 4,
-				"memory": 28,
+				"cores": 64,
+				"memory": 400,
 				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
@@ -83,6 +83,29 @@
 			{
 				"cell_type": "code",
 				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"REFRESH TABLE odw_harmonised_db.curated_service_user"
+				],
+				"execution_count": 26
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
 					"microsoft": {
 						"language": "sparksql"
 					},
@@ -96,7 +119,6 @@
 					"\r\n",
 					"CREATE OR REPLACE VIEW odw_curated_db.vw_nsip_representation\r\n",
 					"AS\r\n",
-					"\r\n",
 					"SELECT DISTINCT\r\n",
 					"    RR.representationId\r\n",
 					"    ,RR.referenceId\r\n",
@@ -119,12 +141,18 @@
 					"    ,RR.redactedBy\r\n",
 					"    ,RR.redactedNotes\r\n",
 					"    ,CASE\r\n",
+					"        WHEN su2.serviceUserType = 'Agent' THEN\r\n",
+					"            'AGENT'\r\n",
 					"        WHEN RR.representationFrom = 'An Organisation' THEN \r\n",
 					"            'ORGANISATION'\r\n",
-					"        WHEN RR.representationFrom = 'Members of the Public/Businesses'THEN \r\n",
+					"        WHEN RR.representationFrom = 'Members of the Public/Businesses' and SU2.Organisation IS NOT NULL THEN \r\n",
+					"            'ORGANISATION'\r\n",
+					"        WHEN RR.representationFrom = 'Members of the Public/Businesses' THEN \r\n",
+					"            'PERSON'\r\n",
+					"        WHEN RR.representationFrom = 'Another Individual or Organisation' and SU2.Organisation IS NOT NULL THEN \r\n",
 					"            'ORGANISATION'\r\n",
 					"        WHEN RR.representationFrom = 'Another Individual or Organisation' THEN \r\n",
-					"            'AGENT'\r\n",
+					"            'PERSON'\r\n",
 					"        WHEN RR.representationFrom = 'Myself' THEN \r\n",
 					"            'PERSON'\r\n",
 					"        ELSE \r\n",
@@ -145,13 +173,17 @@
 					"    ,COALESCE(RR.representedId, '') AS representedId\r\n",
 					"    ,COALESCE(RR.representativeId, '') AS representativeId\r\n",
 					"    ,CASE\r\n",
-					"        WHEN RR.registerFor = 'An Organisation' THEN \r\n",
+					"        WHEN RR.representationFrom = 'An Organisation' THEN \r\n",
 					"            'ORGANISATION'\r\n",
-					"        WHEN RR.registerFor = 'Members of the Public/Businesses' THEN \r\n",
+					"        WHEN RR.representationFrom = 'Members of the Public/Businesses' and SU.Organisation IS NOT NULL THEN \r\n",
 					"            'ORGANISATION'\r\n",
-					"        WHEN RR.registerFor = 'Another Individual or Organisation' THEN \r\n",
+					"        WHEN RR.representationFrom = 'Members of the Public/Businesses'THEN \r\n",
+					"            'PERSON'\r\n",
+					"        WHEN RR.representationFrom = 'Another Individual or Organisation' and SU.Organisation IS NOT NULL THEN \r\n",
 					"            'ORGANISATION'\r\n",
-					"        WHEN RR.registerFor = 'Myself' THEN \r\n",
+					"        WHEN RR.representationFrom = 'Another Individual or Organisation' THEN \r\n",
+					"            'PERSON'\r\n",
+					"        WHEN RR.representationFrom = 'Myself' THEN \r\n",
 					"            'PERSON'\r\n",
 					"        ELSE \r\n",
 					"            RR.registerFor\r\n",

@@ -1,0 +1,158 @@
+{
+	"name": "appeal_service_user",
+	"properties": {
+		"description": "creating a NSIP applicant view of service user.",
+		"folder": {
+			"name": "odw-curated"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "379632e1-b69c-4966-95da-efbd2f6d4414"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.3",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Checking the Environment\n",
+					"#### If dev or test, limiting the number of output rows and anonymisation of the sensitive fields is required."
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Table odw_curated_db.nsip_service_user is created"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"REFRESH TABLE odw_curated_db.service_user"
+				],
+				"execution_count": 1
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"\r\n",
+					"df = spark.sql(\"\"\"\r\n",
+					"        SELECT \r\n",
+					"            id\r\n",
+					"            ,salutation\r\n",
+					"            ,firstName\r\n",
+					"            ,lastName\r\n",
+					"            ,addressLine1\r\n",
+					"            ,addressLine2\r\n",
+					"            ,addressTown\r\n",
+					"            ,addressCounty\r\n",
+					"            ,postcode\r\n",
+					"            ,addressCountry\r\n",
+					"            ,organisation\r\n",
+					"            ,organisationType\r\n",
+					"            ,role\r\n",
+					"            ,telephoneNumber\r\n",
+					"            ,otherPhoneNumber\r\n",
+					"            ,faxNumber\r\n",
+					"            ,emailAddress\r\n",
+					"            ,webAddress\r\n",
+					"            ,serviceUserType\r\n",
+					"            ,caseReference\r\n",
+					"            ,sourceSuid\r\n",
+					"            ,sourceSystem\r\n",
+					"        FROM \r\n",
+					"            odw_curated_db.service_user\r\n",
+					"        WHERE\r\n",
+					"            sourceSystem = 'back-office-appeals'\r\n",
+					"            OR serviceUserType = 'Appellant'\"\"\"\r\n",
+					"    )\r\n",
+					"\r\n",
+					"df.write.mode(\"overwrite\").saveAsTable(\"odw_curated_db.appeal_service_user\")"
+				],
+				"execution_count": 2
+			}
+		]
+	}
+}
