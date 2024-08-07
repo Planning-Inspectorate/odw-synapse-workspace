@@ -7,6 +7,10 @@
 			"metadata": "Workspace name",
 			"defaultValue": "pins-synw-odw-dev-uks"
 		},
+		"Mipins_Dev_password": {
+			"type": "secureString",
+			"metadata": "Secure string for 'password' of 'Mipins_Dev'"
+		},
 		"ls_dsql_connectionString": {
 			"type": "secureString",
 			"metadata": "Secure string for 'connectionString' of 'ls_dsql'",
@@ -16,6 +20,10 @@
 			"type": "secureString",
 			"metadata": "Secure string for 'connectionString' of 'ls_odw_sql_mipins'",
 			"defaultValue": "Integrated Security=False;Encrypt=True;Connection Timeout=30;Data Source=sql-odw-dev-uks.database.windows.net;Initial Catalog=@{linkedService().db_name}"
+		},
+		"ls_sql_mipins_dev_password": {
+			"type": "secureString",
+			"metadata": "Secure string for 'password' of 'ls_sql_mipins_dev'"
 		},
 		"ls_ssql_builtin_connectionString": {
 			"type": "secureString",
@@ -36209,6 +36217,157 @@
 				"[concat(variables('workspaceId'), '/pipelines/0_Raw_Checkmark_Data_part2')]",
 				"[concat(variables('workspaceId'), '/pipelines/0_Raw_Horizon_Main')]",
 				"[concat(variables('workspaceId'), '/pipelines/0_Timesheets_Data_Copy_RAW')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/pln_copy_appeals_has_curated_mipins')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "Copy_appeals_has_curated_mipins",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [
+							{
+								"name": "Source",
+								"value": "Load.appeals_has_curated_mipins"
+							},
+							{
+								"name": "Destination",
+								"value": "Load.appeals_has_curated_mipins"
+							}
+						],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "AzureSqlSink",
+								"preCopyScript": "drop table [load].[appeals_has_curated_mipins]",
+								"writeBehavior": "insert",
+								"sqlWriterUseTableLock": false,
+								"tableOption": "autoCreate",
+								"disableMetricsCollection": false
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "AzureSqlTable_appeals_has_curated_mipins",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "AzureSqlTableMiPinsDev",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"folder": {
+					"name": "mipins"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/datasets/AzureSqlTable_appeals_has_curated_mipins')]",
+				"[concat(variables('workspaceId'), '/datasets/AzureSqlTableMiPinsDev')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/pln_copy_entraid_curated_mipins')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "Copy-Entraid-curated-mipins",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "AzureSqlSink",
+								"preCopyScript": "drop table [load].[Entraid_curated]",
+								"writeBehavior": "insert",
+								"sqlWriterUseTableLock": false,
+								"tableOption": "autoCreate",
+								"disableMetricsCollection": false
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "AzureSqlTable_EntraID",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "Entraid_sink",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"folder": {
+					"name": "mipins"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/datasets/AzureSqlTable_EntraID')]",
+				"[concat(variables('workspaceId'), '/datasets/Entraid_sink')]"
 			]
 		},
 		{
@@ -72545,6 +72704,132 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('workspaceName'), '/AzureSqlTableMiPinsDev')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_sql_mipins_dev",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [],
+				"typeProperties": {
+					"schema": "load",
+					"table": "appeals_has_curated_mipins"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/ls_sql_mipins_dev')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/AzureSqlTable_EntraID')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_ssql_builtin",
+					"type": "LinkedServiceReference",
+					"parameters": {
+						"db_name": "odw_curated_db"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "EmployeeEntraId",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "ID",
+						"type": "nvarchar"
+					},
+					{
+						"name": "EmployeeID",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "GivenName",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Surname",
+						"type": "nvarchar"
+					},
+					{
+						"name": "UserPrincipalName",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Migrated",
+						"type": "nvarchar"
+					},
+					{
+						"name": "ODTSourceSystem",
+						"type": "nvarchar"
+					},
+					{
+						"name": "SourceSystemID",
+						"type": "nvarchar"
+					},
+					{
+						"name": "IngestionDate",
+						"type": "datetime2",
+						"scale": 7
+					},
+					{
+						"name": "ValidTo",
+						"type": "datetime2",
+						"scale": 7
+					},
+					{
+						"name": "RowID",
+						"type": "nvarchar"
+					},
+					{
+						"name": "IsActive",
+						"type": "nvarchar"
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "Entraid_curated_mipins"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/ls_ssql_builtin')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/AzureSqlTable_appeals_has_curated_mipins')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_ssql_builtin",
+					"type": "LinkedServiceReference",
+					"parameters": {
+						"db_name": "odw_curated_db"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "appeals_has_curated_mipins"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/ls_ssql_builtin')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('workspaceName'), '/BISHighCourtEventDates')]",
 			"type": "Microsoft.Synapse/workspaces/datasets",
 			"apiVersion": "2019-06-01-preview",
@@ -74309,6 +74594,27 @@
 			},
 			"dependsOn": [
 				"[concat(variables('workspaceId'), '/linkedServices/ls_storage')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/Entraid_sink')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "Mipins_Dev",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [],
+				"typeProperties": {
+					"schema": "load",
+					"table": "Entraid_curated"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/Mipins_Dev')]"
 			]
 		},
 		{
@@ -88051,6 +88357,34 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('workspaceName'), '/Mipins_Dev')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSqlDatabase",
+				"typeProperties": {
+					"server": "pins-prod-pdac-sql.database.windows.net",
+					"database": "MiPINS-DEV-ISS",
+					"encrypt": "mandatory",
+					"trustServerCertificate": false,
+					"authenticationType": "SQL",
+					"userName": "bi_developer",
+					"password": {
+						"type": "SecureString",
+						"value": "[parameters('Mipins_Dev_password')]"
+					}
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('workspaceName'), '/ls_backup_destination')]",
 			"type": "Microsoft.Synapse/workspaces/linkedServices",
 			"apiVersion": "2019-06-01-preview",
@@ -88371,6 +88705,34 @@
 			"dependsOn": [
 				"[concat(variables('workspaceId'), '/integrationRuntimes/PinsIntegrationRuntime')]",
 				"[concat(variables('workspaceId'), '/linkedServices/ls_kv')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/ls_sql_mipins_dev')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSqlDatabase",
+				"typeProperties": {
+					"server": "pins-prod-pdac-sql.database.windows.net",
+					"database": "MiPINS-DEV-ISS",
+					"encrypt": "mandatory",
+					"trustServerCertificate": false,
+					"authenticationType": "SQL",
+					"userName": "bi_developer",
+					"password": {
+						"type": "SecureString",
+						"value": "[parameters('ls_sql_mipins_dev_password')]"
+					}
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
 			]
 		},
 		{
@@ -229320,7 +229682,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "bd699840-84e9-4cc3-827e-eb31acb9d331"
+						"spark.autotune.trackingId": "2af1fec3-ce0c-4872-8c6a-1f911a9eeced"
 					}
 				},
 				"metadata": {
@@ -229345,8 +229707,7 @@
 						"sparkVersion": "3.3",
 						"nodeCount": 3,
 						"cores": 4,
-						"memory": 28,
-						"automaticScaleJobs": false
+						"memory": 28
 					},
 					"sessionKeepAliveTimeout": 30
 				},
