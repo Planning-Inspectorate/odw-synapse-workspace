@@ -36300,6 +36300,119 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('workspaceName'), '/pln_copy_appeals_has_curated_mipins_copy_Update_datastatus')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "Copy_appeals_has_curated_mipins",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [
+							{
+								"name": "Source",
+								"value": "Load.appeals_has_curated_mipins"
+							},
+							{
+								"name": "Destination",
+								"value": "Load.appeals_has_curated_mipins"
+							}
+						],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "AzureSqlSink",
+								"preCopyScript": "drop table [load].[appeals_has_curated_mipins]",
+								"writeBehavior": "insert",
+								"sqlWriterUseTableLock": false,
+								"tableOption": "autoCreate",
+								"disableMetricsCollection": false
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "AzureSqlTable_appeals_has_curated_mipins",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "AzureSqlTableMiPinsDev",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
+					},
+					{
+						"name": "Lookup1",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "Copy_appeals_has_curated_mipins",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "insert into [Audit].[ODWLog] values(getdate(),'Back Office')\nselect 1 as one\n",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "AzureSqlTableMiPinsDev",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"folder": {
+					"name": "mipins"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/datasets/AzureSqlTable_appeals_has_curated_mipins')]",
+				"[concat(variables('workspaceId'), '/datasets/AzureSqlTableMiPinsDev')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('workspaceName'), '/pln_copy_entraid_curated_mipins')]",
 			"type": "Microsoft.Synapse/workspaces/pipelines",
 			"apiVersion": "2019-06-01-preview",
@@ -42879,6 +42992,8 @@
 					{
 						"name": "Get Entraid config",
 						"type": "SynapseNotebook",
+						"state": "Inactive",
+						"onInactiveMarkAs": "Succeeded",
 						"dependsOn": [
 							{
 								"activity": "Random wait to allow parallelism",
@@ -42923,6 +43038,8 @@
 					{
 						"name": "entraid",
 						"type": "IfCondition",
+						"state": "Inactive",
+						"onInactiveMarkAs": "Succeeded",
 						"dependsOn": [
 							{
 								"activity": "Get Entraid config",
@@ -43220,7 +43337,7 @@
 									}
 								},
 								{
-									"name": "Horizon Relevant reps",
+									"name": "Entra",
 									"type": "ExecutePipeline",
 									"dependsOn": [
 										{
@@ -43248,7 +43365,7 @@
 									"type": "SynapseNotebook",
 									"dependsOn": [
 										{
-											"activity": "Horizon Relevant reps",
+											"activity": "Entra",
 											"dependencyConditions": [
 												"Succeeded"
 											]
@@ -43364,7 +43481,7 @@
 									"type": "ExecutePipeline",
 									"dependsOn": [
 										{
-											"activity": "Horizon Relevant reps",
+											"activity": "Entra",
 											"dependencyConditions": [
 												"Failed"
 											]
@@ -43426,6 +43543,8 @@
 					{
 						"name": "Random wait to allow parallelism",
 						"type": "SynapseNotebook",
+						"state": "Inactive",
+						"onInactiveMarkAs": "Succeeded",
 						"dependsOn": [],
 						"policy": {
 							"timeout": "0.12:00:00",
