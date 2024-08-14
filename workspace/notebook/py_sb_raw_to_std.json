@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "cf8fa10b-d996-4e79-92b1-5bcb8e03510e"
+				"spark.autotune.trackingId": "44e02983-3a6b-4fa7-97a3-d85111c0040a"
 			}
 		},
 		"metadata": {
@@ -70,7 +70,7 @@
 				"source": [
 					"entity_name=''"
 				],
-				"execution_count": null
+				"execution_count": 83
 			},
 			{
 				"cell_type": "code",
@@ -80,9 +80,11 @@
 					"import json\n",
 					"from datetime import datetime, date\n",
 					"from pyspark.sql.functions import current_timestamp, expr, to_timestamp, lit\n",
-					"from pyspark.sql import DataFrame"
+					"from pyspark.sql import DataFrame\n",
+					"from pyspark.sql.types import StructType\n",
+					"from pyspark.sql.functions import *"
 				],
-				"execution_count": 2
+				"execution_count": 84
 			},
 			{
 				"cell_type": "code",
@@ -98,13 +100,16 @@
 					}
 				},
 				"source": [
-					"spark: SparkSession = SparkSession.builder.getOrCreate()\r\n",
-					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\r\n",
-					"table_name: str = f\"odw_standardised_db.sb_{entity_name.replace('-', '_')}\"\r\n",
-					"today: str = datetime.now().date().strftime('%Y-%m-%d')\r\n",
-					"source_path: str = f\"abfss://odw-raw@{storage_account}ServiceBus/{entity_name}/{today}/\""
+					"spark: SparkSession = SparkSession.builder.getOrCreate()\n",
+					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"table_name: str = f\"odw_standardised_db.sb_{entity_name.replace('-', '_')}\"\n",
+					"today: str = datetime.now().date().strftime('%Y-%m-%d')\n",
+					"source_path: str = f\"abfss://odw-raw@{storage_account}ServiceBus/{entity_name}/{today}/\"\n",
+					"\n",
+					"schema = mssparkutils.notebook.run(\"/py_create_spark_schema\", 30, {\"db_name\": 'odw_standardised_db', \"entity_name\": entity_name})\n",
+					"spark_schema = StructType.fromJson(json.loads(schema)) if schema != '' else ''"
 				],
-				"execution_count": null
+				"execution_count": 85
 			},
 			{
 				"cell_type": "code",
@@ -122,7 +127,7 @@
 				"source": [
 					"%run \"service-bus/py_spark_df_ingestion_functions\""
 				],
-				"execution_count": 4
+				"execution_count": 86
 			},
 			{
 				"cell_type": "markdown",
@@ -167,7 +172,7 @@
 					"\n",
 					"    return df"
 				],
-				"execution_count": null
+				"execution_count": 88
 			},
 			{
 				"cell_type": "code",
@@ -185,7 +190,39 @@
 				"source": [
 					"df: DataFrame = read_raw_messages(source_path)"
 				],
-				"execution_count": null
+				"execution_count": 89
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Some columns may have null values in the service bus data, while reading json, it will automatically become StringType and may cause schema mismatch. The function below casts the null columns to their actual type according to the schema. "
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"if spark_schema:\n",
+					"    df = cast_null_columns(df, spark_schema)"
+				],
+				"execution_count": 90
 			},
 			{
 				"cell_type": "markdown",
@@ -216,7 +253,7 @@
 				"source": [
 					"compare_and_merge_schema(df, table_name)"
 				],
-				"execution_count": null
+				"execution_count": 91
 			},
 			{
 				"cell_type": "markdown",
@@ -257,7 +294,7 @@
 					"\n",
 					"    return table_df"
 				],
-				"execution_count": null
+				"execution_count": 92
 			},
 			{
 				"cell_type": "code",
@@ -274,10 +311,10 @@
 					"collapsed": false
 				},
 				"source": [
-					"table_df: DataFrame = create_dataframe_to_load(df, table_name)\r\n",
+					"table_df: DataFrame = create_dataframe_to_load(df, table_name)\n",
 					"apply_df_to_table(table_df, table_name.split('.')[0], table_name.split('.')[1])"
 				],
-				"execution_count": null
+				"execution_count": 93
 			}
 		]
 	}

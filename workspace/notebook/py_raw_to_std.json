@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "512add4f-97b5-4f27-865a-f9c950dca118"
+				"spark.autotune.trackingId": "a9f02da7-8784-40a4-8e55-694639e77b40"
 			}
 		},
 		"metadata": {
@@ -45,7 +45,8 @@
 				"sparkVersion": "3.3",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 28
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -120,7 +121,7 @@
 					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
 					"raw_container = \"abfss://odw-raw@\" + storage_account"
 				],
-				"execution_count": 56
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
@@ -138,7 +139,7 @@
 				"source": [
 					"%run \"1-odw-raw-to-standardised/Fileshare/SAP_HR/py_1_raw_to_standardised_hr_functions\""
 				],
-				"execution_count": 57
+				"execution_count": 6
 			},
 			{
 				"cell_type": "markdown",
@@ -178,7 +179,7 @@
 					"delete_existing_table=False\n",
 					"dataAttribute = \"\""
 				],
-				"execution_count": 58
+				"execution_count": 28
 			},
 			{
 				"cell_type": "markdown",
@@ -223,7 +224,7 @@
 					"    \n",
 					"    return max(fpaths, key=get_creation_date).replace(path, '')"
 				],
-				"execution_count": 59
+				"execution_count": 8
 			},
 			{
 				"cell_type": "markdown",
@@ -262,7 +263,7 @@
 					"#isMultiLine = True\n",
 					"#dataAttribute = \"value\""
 				],
-				"execution_count": 60
+				"execution_count": 9
 			},
 			{
 				"cell_type": "code",
@@ -294,11 +295,20 @@
 					"\n",
 					"source_path = f\"{raw_container}{source_folder_path}/{date_folder_str}\"\n",
 					"\n",
-					"files = mssparkutils.fs.ls(source_path)\n",
+					"try:\n",
+					"    files = mssparkutils.fs.ls(source_path)\n",
+					"except Exception as e:\n",
+					"    mssparkutils.notebook.exit(f\"Raw file not found at {source_path}\")\n",
+					"\n",
+					"\n",
 					"for file in files:\n",
 					"\n",
 					"    # ignore json raw files if source is service bus\n",
 					"    if source_folder == 'ServiceBus' and file.name.endswith('.json'):\n",
+					"        continue\n",
+					"\n",
+					"    # ignore files other than specified file \n",
+					"    if specific_file != '' and not file.name.startswith(specific_file + '.'):\n",
 					"        continue\n",
 					"        \n",
 					"    definition = next((d for d in definitions if (specific_file == '' or d['Source_Filename_Start'] == specific_file) \n",
@@ -318,10 +328,13 @@
 					"        row_count = ingest_adhoc(storage_account, definition, source_path, file.name, expected_from, expected_to, isMultiLine, dataAttribute)\n",
 					"        print(f\"Ingested {row_count} rows\")\n",
 					"    else:\n",
-					"        print(\"No definition found\")    \n",
+					"        if specific_file != '':\n",
+					"            raise ValueError(f\"No definition found for {specific_file}\")\n",
+					"        else:\n",
+					"            print(\"No definition found\")\n",
 					""
 				],
-				"execution_count": 61
+				"execution_count": 29
 			}
 		]
 	}
