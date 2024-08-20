@@ -13,7 +13,7 @@ classDiagram
     namespace Sources {
 
         class Horizon_NSIP_Relevant_Representation {
-            ContactID:int
+            RelevantRepID:int
         }
 
         class nsip-representation{
@@ -26,7 +26,7 @@ classDiagram
     namespace Standardised {
 
         class horizon_nsip_relevant_representation {
-             ContactID:int
+             RelevantRepID:int
         }
 
         class sb_nsip_representation-std {

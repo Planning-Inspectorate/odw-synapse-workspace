@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "4ed744cb-5e97-42a3-bfde-5aa7c76f68dd"
+				"spark.autotune.trackingId": "7f0632b7-abf2-4ee7-a80b-e7589facce13"
 			}
 		},
 		"metadata": {
@@ -34,10 +34,10 @@
 				"name": "python"
 			},
 			"a365ComputeOptions": {
-				"id": "/subscriptions/6b18ba9d-2399-48b5-a834-e0f267be122d/resourceGroups/pins-rg-data-odw-test-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-test-uks/bigDataPools/pinssynspodw",
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
 				"name": "pinssynspodw",
 				"type": "Spark",
-				"endpoint": "https://pins-synw-odw-test-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
 				"auth": {
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
@@ -65,12 +65,12 @@
 					}
 				},
 				"source": [
-					"import json\r\n",
-					"from pyspark.sql.types import *\r\n",
-					"from pyspark.sql import DataFrame\r\n",
+					"import json\n",
+					"from pyspark.sql.types import *\n",
+					"from pyspark.sql import DataFrame\n",
 					"import pprint"
 				],
-				"execution_count": 15
+				"execution_count": 61
 			},
 			{
 				"cell_type": "code",
@@ -86,16 +86,17 @@
 					}
 				},
 				"source": [
-					"entity_name: str = 'nsip-exam-timetable'\r\n",
-					"std_db_name: str = 'odw_standardised_db'\r\n",
-					"hrm_db_name: str = 'odw_harmonised_db'\r\n",
-					"curated_db_name: str = 'odw_curated_db'\r\n",
-					"std_table_name: str = 'nsip_exam_timetable'\r\n",
-					"hrm_table_name: str = 'casework_nsip_examination_timetable_dim'\r\n",
-					"hrm_table_final: str = 'casework_nsip_examination_timetable_dim'\r\n",
-					"curated_table_name: str = 'examination_timetable'"
+					"entity_name: str = 'nsip-exam-timetable'\n",
+					"folder_name: str = 'nsip-exam-timetable'\n",
+					"std_db_name: str = 'odw_standardised_db'\n",
+					"hrm_db_name: str = 'odw_harmonised_db'\n",
+					"curated_db_name: str = 'odw_curated_db'\n",
+					"std_table_name: str = 'sb_nsip_exam_timetable'\n",
+					"hrm_table_name: str = 'sb_nsip_exam_timetable'\n",
+					"hrm_table_final: str = 'nsip_exam_timetable'\n",
+					"curated_table_name: str = 'nsip_exam_timetable'"
 				],
-				"execution_count": 16
+				"execution_count": 62
 			},
 			{
 				"cell_type": "code",
@@ -111,10 +112,49 @@
 					}
 				},
 				"source": [
-					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\r\n",
+					"#keep track of the exitCodes, if the exit code is not zero then we've had failures, we flip the boolean\n",
+					"exitCode: int = 0"
+				],
+				"execution_count": 63
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"data_model_columns = [\"caseReference\",\n",
+					"            \"published\",\n",
+					"            \"events\"]"
+				],
+				"execution_count": 64
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
 					"path_to_orchestration_file: str = \"abfss://odw-config@\"+storage_account+\"orchestration/orchestration.json\""
 				],
-				"execution_count": 17
+				"execution_count": 65
 			},
 			{
 				"cell_type": "code",
@@ -130,14 +170,14 @@
 					}
 				},
 				"source": [
-					"def get_incremental_key(entity_name: str, storage_account: str, path_to_orchestration_file: str) -> str:\r\n",
-					"    # getting the incremental key from the odw-config/orchestration\r\n",
-					"    df: DataFrame = spark.read.option(\"multiline\",\"true\").json(path_to_orchestration_file)\r\n",
-					"    definitions: list = json.loads(df.toJSON().first())['definitions']\r\n",
-					"    definition: dict = next((d for d in definitions if entity_name == d['Source_Filename_Start']), None)\r\n",
+					"def get_incremental_key(entity_name: str, storage_account: str, path_to_orchestration_file: str) -> str:\n",
+					"    # getting the incremental key from the odw-config/orchestration\n",
+					"    df: DataFrame = spark.read.option(\"multiline\",\"true\").json(path_to_orchestration_file)\n",
+					"    definitions: list = json.loads(df.toJSON().first())['definitions']\n",
+					"    definition: dict = next((d for d in definitions if entity_name == d['Source_Filename_Start']), None)\n",
 					"    return definition['Harmonised_Incremental_Key'] if definition and 'Harmonised_Incremental_Key' in definition else None"
 				],
-				"execution_count": 18
+				"execution_count": 66
 			},
 			{
 				"cell_type": "code",
@@ -153,13 +193,13 @@
 					}
 				},
 				"source": [
-					"def create_spark_schema(db_name: str, entity_name: str) -> StructType:\r\n",
-					"    incremental_key: str = get_incremental_key(entity_name, storage_account, path_to_orchestration_file) if db_name == 'odw_harmonised_db' else None\r\n",
-					"    schema = mssparkutils.notebook.run(\"/py_create_spark_schema\", 30, {\"db_name\": db_name, \"entity_name\": entity_name, \"incremental_key\": incremental_key})\r\n",
-					"    spark_schema = StructType.fromJson(json.loads(schema))\r\n",
+					"def create_spark_schema(db_name: str, entity_name: str) -> StructType:\n",
+					"    incremental_key: str = get_incremental_key(folder_name, storage_account, path_to_orchestration_file) if db_name == 'odw_harmonised_db' else None\n",
+					"    schema = mssparkutils.notebook.run(\"/py_create_spark_schema\", 30, {\"db_name\": db_name, \"entity_name\": entity_name, \"incremental_key\": incremental_key})\n",
+					"    spark_schema = StructType.fromJson(json.loads(schema))\n",
 					"    return spark_schema"
 				],
-				"execution_count": 19
+				"execution_count": 67
 			},
 			{
 				"cell_type": "code",
@@ -175,11 +215,11 @@
 					}
 				},
 				"source": [
-					"def create_spark_dataframe() -> DataFrame:\r\n",
-					"    spark_dataframe: DataFrame = spark.createDataFrame([], schema=create_spark_schema(db_name, entity_name))\r\n",
+					"def create_spark_dataframe() -> DataFrame:\n",
+					"    spark_dataframe: DataFrame = spark.createDataFrame([], schema=create_spark_schema(db_name, entity_name))\n",
 					"    return spark_dataframe"
 				],
-				"execution_count": 20
+				"execution_count": 68
 			},
 			{
 				"cell_type": "code",
@@ -195,12 +235,12 @@
 					}
 				},
 				"source": [
-					"sb_std_schema = create_spark_schema(std_db_name, entity_name)\r\n",
-					"sb_std_table_schema = spark.table(f\"{std_db_name}.{std_table_name}\").schema\r\n",
-					"sb_hrm_schema = create_spark_schema(hrm_db_name, entity_name)\r\n",
+					"sb_std_schema = create_spark_schema(std_db_name, entity_name)\n",
+					"sb_std_table_schema = spark.table(f\"{std_db_name}.{std_table_name}\").schema\n",
+					"sb_hrm_schema = create_spark_schema(hrm_db_name, entity_name)\n",
 					"sb_hrm_table_schema = spark.table(f\"{hrm_db_name}.{hrm_table_name}\").schema"
 				],
-				"execution_count": 21
+				"execution_count": 69
 			},
 			{
 				"cell_type": "code",
@@ -217,25 +257,32 @@
 					"collapsed": false
 				},
 				"source": [
-					"def extract_schema_structure(schema: StructType) -> dict:\r\n",
-					"    def extract_field(field):\r\n",
-					"        if isinstance(field.dataType, StructType):\r\n",
-					"            return {field.name: {subfield.name: str(subfield.dataType) for subfield in field.dataType.fields}}\r\n",
-					"        elif isinstance(field.dataType, ArrayType):\r\n",
-					"            element_type = field.dataType.elementType\r\n",
-					"            if isinstance(element_type, StructType):\r\n",
-					"                return {field.name: {subfield.name: str(subfield.dataType) for subfield in element_type.fields}}\r\n",
-					"            else:\r\n",
-					"                return {field.name: f'array<{str(element_type)}>'}\r\n",
-					"        else:\r\n",
-					"            return {field.name: str(field.dataType)}\r\n",
-					"    \r\n",
-					"    result = {}\r\n",
-					"    for field in schema.fields:\r\n",
-					"        result.update(extract_field(field))\r\n",
+					"def extract_schema_structure(schema: StructType) -> dict:\n",
+					"    def extract_field(field):\n",
+					"        if isinstance(field.dataType, StructType):\n",
+					"            return {field.name: {subfield.name: str(subfield.dataType) for subfield in field.dataType.fields}}\n",
+					"        elif isinstance(field.dataType, ArrayType):\n",
+					"            element_type = field.dataType.elementType\n",
+					"            if isinstance(element_type, StructType):\n",
+					"                subfield_extract = {}\n",
+					"                for subfield in element_type.fields:\n",
+					"                    if isinstance(subfield.dataType, ArrayType):\n",
+					"                        subfield_extract.update(extract_field(subfield))\n",
+					"                    else:\n",
+					"                        subfield_extract.update({subfield.name: str(subfield.dataType)})\n",
+					"                return {field.name: subfield_extract}\n",
+					"            else:\n",
+					"                return {field.name: f'array<{str(element_type)}>'}\n",
+					"        else:\n",
+					"            return {field.name: str(field.dataType)}\n",
+					"        \n",
+					"    \n",
+					"    result = {}\n",
+					"    for field in schema.fields:\n",
+					"        result.update(extract_field(field))\n",
 					"    return result"
 				],
-				"execution_count": 22
+				"execution_count": 70
 			},
 			{
 				"cell_type": "code",
@@ -251,42 +298,52 @@
 					}
 				},
 				"source": [
-					"def test_compare_schemas(schema1: StructType, schema2: StructType) -> bool:\r\n",
-					"    structure1: dict = extract_schema_structure(schema1)\r\n",
-					"    structure2: dict = extract_schema_structure(schema2)\r\n",
-					"    \r\n",
-					"    differences: list[tuple] = []\r\n",
-					"    \r\n",
-					"    all_fields: set = set(structure1.keys()).union(set(structure2.keys()))\r\n",
-					"    \r\n",
-					"    for field in all_fields:\r\n",
-					"        if field not in structure1:\r\n",
-					"            differences.append((field, \"Field not in schema1\", structure2[field]))\r\n",
-					"        elif field not in structure2:\r\n",
-					"            differences.append((field, structure1[field], \"Field not in schema2\"))\r\n",
-					"        else:\r\n",
-					"            if structure1[field] != structure2[field]:\r\n",
-					"                if isinstance(structure1[field], dict) and isinstance(structure2[field], dict):\r\n",
-					"                    subfields: set = set(structure1[field].keys()).union(set(structure2[field].keys()))\r\n",
-					"                    for subfield in subfields:\r\n",
-					"                        if subfield not in structure1[field]:\r\n",
-					"                            differences.append((f\"{field}.{subfield}\", \"Field not in schema1\", structure2[field][subfield]))\r\n",
-					"                        elif subfield not in structure2[field]:\r\n",
-					"                            differences.append((f\"{field}.{subfield}\", structure1[field][subfield], \"Field not in schema2\"))\r\n",
-					"                        elif structure1[field][subfield] != structure2[field][subfield]:\r\n",
-					"                            differences.append((f\"{field}.{subfield}\", structure1[field][subfield], structure2[field][subfield]))\r\n",
-					"                else:\r\n",
-					"                    differences.append((field, structure1[field], structure2[field]))\r\n",
-					"    \r\n",
-					"    if differences:\r\n",
-					"        # Create a Spark DataFrame to display the differences\r\n",
-					"        differences_df: DataFrame = spark.createDataFrame(differences, [\"Field\", \"Schema 1\", \"Schema 2\"])\r\n",
-					"        display(differences_df)\r\n",
-					"        return False\r\n",
-					"    else:\r\n",
+					"def test_compare_schemas(schema1: StructType, schema2: StructType) -> bool:\n",
+					"    structure1: dict = extract_schema_structure(schema1)\n",
+					"    structure2: dict = extract_schema_structure(schema2)\n",
+					"    \n",
+					"    differences: list[tuple] = []\n",
+					"    \n",
+					"    all_fields: set = set(structure1.keys()).union(set(structure2.keys()))\n",
+					"    \n",
+					"    for field in all_fields:\n",
+					"        if field not in structure1:\n",
+					"            print(1)\n",
+					"            differences.append((field, \"Field not in schema1\", structure2[field]))\n",
+					"        elif field not in structure2:\n",
+					"            print(2)\n",
+					"            differences.append((field, structure1[field], \"Field not in schema2\"))\n",
+					"        else:\n",
+					"            if structure1[field] != structure2[field]:\n",
+					"                if isinstance(structure1[field], dict) and isinstance(structure2[field], dict):\n",
+					"                    subfields: set = set(structure1[field].keys()).union(set(structure2[field].keys()))\n",
+					"                    for subfield in subfields:\n",
+					"                        if subfield not in structure1[field]:\n",
+					"                            print(3)\n",
+					"                            differences.append((f\"{field}.{subfield}\", \"Field not in schema1\", structure2[field][subfield]))\n",
+					"                        elif subfield not in structure2[field]:\n",
+					"                            print(4)\n",
+					"                            differences.append((f\"{field}.{subfield}\", structure1[field][subfield], \"Field not in schema2\"))\n",
+					"                        elif structure1[field][subfield] != structure2[field][subfield]:\n",
+					"                            \n",
+					"                            print(5)\n",
+					"                            print(structure1[field][subfield])\n",
+					"                            print(structure2[field][subfield])\n",
+					"                            differences.append((f\"{field}.{subfield}\", structure1[field][subfield], structure2[field][subfield]))\n",
+					"                else:\n",
+					"                    \n",
+					"                    print(6)\n",
+					"                    differences.append((field, structure1[field], structure2[field]))\n",
+					"    \n",
+					"    if differences:\n",
+					"        # Create a Spark DataFrame to display the differences\n",
+					"        differences_df: DataFrame = spark.createDataFrame(differences, [\"Field\", \"Schema 1\", \"Schema 2\"])\n",
+					"        display(differences_df)\n",
+					"        return False\n",
+					"    else:\n",
 					"        return True"
 				],
-				"execution_count": 23
+				"execution_count": 71
 			},
 			{
 				"cell_type": "code",
@@ -302,14 +359,20 @@
 					}
 				},
 				"source": [
-					"def test_std_same_rows_hrm(std_table: str, hrm_table: str) -> tuple[int, int, bool]:\r\n",
-					"    std_table_full: str = f\"{std_db_name}.{std_table}\"\r\n",
-					"    hrm_table_full: str = f\"{hrm_db_name}.{hrm_table}\"\r\n",
-					"    std_count: int = spark.table(std_table_full).count()\r\n",
-					"    hrm_count: int = spark.table(hrm_table_full).count()\r\n",
+					"def test_std_same_rows_hrm(std_table: str, hrm_table: str) -> tuple[int, int, bool]:\n",
+					"    std_table_full: str = f\"{std_db_name}.{std_table}\"\n",
+					"    hrm_table_full: str = f\"{hrm_db_name}.{hrm_table}\"\n",
+					"\n",
+					"    # filter standardised df with non-null message_type and exclude 'Delete' message_type since it doesn't add a new row in hrm\n",
+					"    std_df: DataFrame = spark.table(std_table_full)\n",
+					"    std_df = std_df.filter((std_df.message_type != 'Delete') & std_df.message_type.isNotNull() & std_df.message_id.isNotNull())\n",
+					"    \n",
+					"    std_count: int = std_df.count()\n",
+					"    hrm_count: int = spark.table(hrm_table_full).count()\n",
+					"\n",
 					"    return (std_count, hrm_count, std_count == hrm_count)"
 				],
-				"execution_count": 24
+				"execution_count": 72
 			},
 			{
 				"cell_type": "code",
@@ -325,14 +388,18 @@
 					}
 				},
 				"source": [
-					"def test_curated_row_count(hrm_table_final: str, curated_table: str) -> tuple[int, int, bool]:\r\n",
-					"    hrm_table_full: str = f\"{hrm_db_name}.{hrm_table_final}\"\r\n",
-					"    curated_table_full: str = f\"{curated_db_name}.{curated_table_name}\"\r\n",
-					"    hrm_count: int = spark.sql(f\"select * from {hrm_table_full} where IsActive = 'Y'\").count()\r\n",
-					"    curated_count: int = spark.table(curated_table_full).count()\r\n",
+					"def test_curated_row_count(hrm_table_final: str, curated_table: str) -> tuple[int, int, bool]:\n",
+					"    hrm_table_full: str = f\"{hrm_db_name}.{hrm_table_final}\"\n",
+					"    curated_table_full: str = f\"{curated_db_name}.{curated_table_name}\"\n",
+					"    \n",
+					"    hrm_df: DataFrame = spark.sql(f\"select * from {hrm_table_full} where IsActive = 'Y'\").select(data_model_columns).drop_duplicates()\n",
+					"    hrm_count: int = hrm_df.count()\n",
+					"\n",
+					"    curated_count: int = spark.table(curated_table_full).count()\n",
+					"    \n",
 					"    return (hrm_count, curated_count, hrm_count == curated_count)"
 				],
-				"execution_count": 25
+				"execution_count": 73
 			},
 			{
 				"cell_type": "markdown",
@@ -362,12 +429,14 @@
 					"collapsed": false
 				},
 				"source": [
-					"std_schema_correct: bool = test_compare_schemas(sb_std_schema, sb_std_table_schema)\r\n",
-					"print(f\"Service bus standardised schema correct: {std_schema_correct}\\nTable: {std_db_name}.{std_table_name}\\nDifferences shown above (if any)\")\r\n",
-					"hrm_schema_correct: bool = test_compare_schemas(sb_hrm_schema, sb_hrm_table_schema)\r\n",
-					"print(f\"Service bus harmonised schema correct: {hrm_schema_correct}\\nTable: {hrm_db_name}.{hrm_table_name}\\nDifferences shown above (if any)\")"
+					"std_schema_correct: bool = test_compare_schemas(sb_std_schema, sb_std_table_schema)\n",
+					"exitCode += int(not std_schema_correct)\n",
+					"print(f\"Service bus standardised schema correct: {std_schema_correct}\\nTable: {std_db_name}.{std_table_name}\\nDifferences shown above (if any)\")\n",
+					"hrm_schema_correct: bool = test_compare_schemas(sb_hrm_schema, sb_hrm_table_schema)\n",
+					"print(f\"Service bus harmonised schema correct: {hrm_schema_correct}\\nTable: {hrm_db_name}.{hrm_table_name}\\nDifferences shown above (if any)\")\n",
+					"exitCode += int(not hrm_schema_correct)"
 				],
-				"execution_count": 26
+				"execution_count": 74
 			},
 			{
 				"cell_type": "markdown",
@@ -379,7 +448,7 @@
 					}
 				},
 				"source": [
-					"##### Compare service bus standardised with harmonised\r\n",
+					"##### Compare service bus standardised with harmonised\n",
 					"Should be the same count"
 				]
 			},
@@ -397,10 +466,49 @@
 					}
 				},
 				"source": [
-					"standardised_count, harmonised_count, counts_match = test_std_same_rows_hrm(std_table_name, hrm_table_name)\r\n",
-					"print(f\"Standardised Count: {standardised_count: ,}\\nHarmonised Count: {harmonised_count: ,}\\nCounts match: {counts_match}\")"
+					"def differentiate_std_and_hrm(std_table_full, hrm_table_full):\n",
+					"    # filter standardised df with non-null message_type and exclude 'Delete' message_type since it doesn't add a new row in hrm\n",
+					"    std_df: DataFrame = spark.table(std_table_full)\n",
+					"    std_df = std_df.filter((std_df.message_type != 'Delete') & (std_df.message_type.isNotNull()))\n",
+					"\n",
+					"    hrm_df  = spark.table(hrm_table_full)\n",
+					"\n",
+					"    # Find rows in the original table that are not in the new table\n",
+					"    missing_rows_in_std = hrm_df.select(data_model_columns).subtract(std_df.select(data_model_columns))\n",
+					"\n",
+					"    # Show the missing rows\n",
+					"    display(missing_rows_in_std)\n",
+					"\n",
+					"    missing_rows_in_hrm = std_df.select(data_model_columns).subtract(hrm_df.select(data_model_columns))\n",
+					"    display(missing_rows_in_hrm)"
 				],
-				"execution_count": 27
+				"execution_count": 75
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"standardised_count, harmonised_count, counts_match = test_std_same_rows_hrm(std_table_name, hrm_table_name)\n",
+					"print(f\"Standardised Count: {standardised_count: ,}\\nHarmonised Count: {harmonised_count: ,}\\nCounts match: {counts_match}\")\n",
+					"\n",
+					"if standardised_count > harmonised_count:\n",
+					"    print(f\"{standardised_count - harmonised_count} rows from Standardised are missing in Harmonised.\" )\n",
+					"    differentiate_std_and_hrm(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\")\n",
+					"    #this is classed as an error\n",
+					"    exitCode += 1 "
+				],
+				"execution_count": 76
 			},
 			{
 				"cell_type": "markdown",
@@ -412,8 +520,21 @@
 					}
 				},
 				"source": [
-					"##### Compare final harmonised table (if combined with Horizon) with curated table\r\n",
+					"##### Compare final harmonised table (if combined with Horizon) with curated table\n",
 					"Comparing where IsActive = Y in harmonised = curated row count"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"**<u>NOTE:</u> We might have some discrepancies between harmonised and curated as when we created the curated layer for the exam timetable we have to make sure the case reference that existsin nsip prject, exists in exam timetable.**"
 				]
 			},
 			{
@@ -430,10 +551,268 @@
 					}
 				},
 				"source": [
-					"harmonised_final_count, curated_count, counts_match = test_curated_row_count(hrm_table_final, curated_table_name)\r\n",
-					"print(f\"Harmonised Final Count: {harmonised_final_count: ,}\\nCurated Count: {curated_count: ,}\\nCounts match: {counts_match}\")"
+					"harmonised_final_count, curated_count, counts_match = test_curated_row_count(hrm_table_final, curated_table_name)\n",
+					"print(f\"Harmonised Final Count: {harmonised_final_count: ,}\\nCurated Count: {curated_count: ,}\\nCounts match: {counts_match}\")\n",
+					"exitCode += int(not counts_match)"
 				],
-				"execution_count": 28
+				"execution_count": 77
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Trace service bus data from standardised to harmonised\n",
+					"We need to make sure the data has loaded through correctly. To do this efficiently, we will select a sample record and check that the data is maintained as it moves through the medallian architecture."
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"df_std = spark.sql(\"SELECT * FROM odw_standardised_db.sb_nsip_exam_timetable WHERE casereference = 'BC0110001' ORDER BY ingested_datetime\")\n",
+					"display(df_std)\n",
+					"\n",
+					"df_hrm = spark.sql(\"SELECT * FROM odw_harmonised_db.sb_nsip_exam_timetable WHERE casereference = 'BC0110001' ORDER BY IngestionDate\")\n",
+					"display(df_hrm)"
+				],
+				"execution_count": 78
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Check array fields are aggregated properly\n",
+					"Go and find examples"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"SELECT\n",
+					"    casereference,\n",
+					"    COUNT(DISTINCT ID)\n",
+					"FROM\n",
+					"    odw_standardised_db.horizon_examination_timetable\n",
+					"WHERE\n",
+					"    ingested_datetime = (SELECT MAX(ingested_datetime) FROM odw_standardised_db.horizon_examination_timetable)\n",
+					"GROUP BY\n",
+					"    casereference\n",
+					"HAVING\n",
+					"    COUNT(DISTINCT ID) > 1\n",
+					"ORDER BY\n",
+					"    2 DESC"
+				],
+				"execution_count": 79
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"df = spark.sql(\"SELECT * FROM odw_curated_db.nsip_exam_timetable WHERE casereference = 'EN010020'\")\n",
+					"display(df)"
+				],
+				"execution_count": 80
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Trace Horizon data to Harmonised"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"df = spark.sql(\"\"\"\n",
+					"        SELECT DISTINCT\n",
+					"            *\n",
+					"        FROM\n",
+					"            odw_standardised_db.horizon_examination_timetable\n",
+					"        WHERE\n",
+					"            casereference = 'EN010120' and\n",
+					"            ingested_datetime = (select max(ingested_datetime) from odw_standardised_db.horizon_examination_timetable)\n",
+					"        order by ingested_datetime\n",
+					"    \"\"\")\n",
+					"    \n",
+					"display(df)"
+				],
+				"execution_count": 81
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"df = spark.sql(f\"\"\"\n",
+					"    SELECT DISTINCT\n",
+					"      *\n",
+					"    FROM\n",
+					"        odw_harmonised_db.nsip_exam_timetable\n",
+					"    WHERE\n",
+					"        casereference = 'EN010120' \n",
+					"    order BY\n",
+					"        ingestiondate DESC\n",
+					"  \"\"\")\n",
+					"    \n",
+					"display(df)"
+				],
+				"execution_count": 82
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Horizon and Service Bus data successfully combined and flags set appropriately"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"df_hzn_std = spark.sql(\"SELECT * from odw_standardised_db.horizon_examination_timetable where casereference = 'BC010006' and ingested_datetime = (select max(ingested_datetime) from odw_standardised_db.horizon_examination_timetable)\")\n",
+					"df_sb_hrm = spark.sql(\"select * from odw_harmonised_db.sb_nsip_exam_timetable where casereference = 'BC010006'\")\n",
+					"df_hrm_final = spark.sql(\"select * from odw_harmonised_db.nsip_exam_timetable where casereference = 'BC010006'\")\n",
+					"df_cur = spark.sql(\"select * from odw_curated_db.nsip_exam_timetable where casereference = 'BC010006'\")\n",
+					"\n",
+					"\n",
+					"display(df_hzn_std)\n",
+					"display(df_sb_hrm)\n",
+					"display(df_hrm_final)\n",
+					"display(df_cur)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Horizon and Service Bus data successfully combined and flags set appropriately"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"mssparkutils.notebook.exit(exitCode)"
+				],
+				"execution_count": 84
 			}
 		]
 	}

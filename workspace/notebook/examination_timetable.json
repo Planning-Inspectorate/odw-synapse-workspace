@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d74d2d90-7eae-45b2-b6c3-6eb365bc857d"
+				"spark.autotune.trackingId": "4f4a8f93-618a-466e-92a4-c7a4001547ef"
 			}
 		},
 		"metadata": {
@@ -74,36 +74,29 @@
 					"collapsed": false
 				},
 				"source": [
-					"%%sql\r\n",
-					"\r\n",
-					"CREATE OR REPLACE VIEW odw_curated_db.vw_examination_timetable\r\n",
-					"\r\n",
-					"AS\r\n",
-					"\r\n",
-					"SELECT DISTINCT\r\n",
-					"\r\n",
-					"    ET.CaseReference                                            AS caseReference,\r\n",
-					"    ET.Published                                                AS published,\r\n",
-					"    CAST(ET.ID AS integer)                                      AS eventId,\r\n",
-					"    CASE    \r\n",
-					"        WHEN ET.TypeOfExamination  =  'Site Visit (Unaccompanied)'\r\n",
-					"        THEN 'Accompanied Site Inspection'       \r\n",
-					"        WHEN ET.TypeOfExamination  =   'Site Visit (Accompanied)'\r\n",
-					"        THEN 'Accompanied Site Inspection'\r\n",
-					"        ELSE ET.TypeOfExamination   \r\n",
-					"    END                                                         AS type,\r\n",
-					"    ET.Name                                                     AS eventTitle,\r\n",
-					"    CAST(ET.DeadlineStartDateTime AS string)                    AS eventDeadlineStartDate,\r\n",
-					"    CAST(ET.Date AS string)                                     AS date,\r\n",
-					"    ET.EventLineItems                                           AS eventLineItems,\r\n",
-					"    ET.Description                                              AS description \r\n",
-					"    \r\n",
-					"FROM odw_harmonised_db.casework_nsip_examination_timetable_dim  AS ET\r\n",
-					"WHERE ET.IsActive = 'Y'\r\n",
-					"ORDER BY caseReference,eventTitle DESC\r\n",
-					""
+					"%%sql\n",
+					"\n",
+					"CREATE OR REPLACE VIEW odw_curated_db.vw_nsip_exam_timetable\n",
+					"\n",
+					"AS\n",
+					"\n",
+					"SELECT DISTINCT\n",
+					"\n",
+					"    exam_tbl.caseReference,\n",
+					"    published,\n",
+					"    events\n",
+					"\n",
+					"FROM odw_harmonised_db.nsip_exam_timetable exam_tbl\n",
+					"--- inner joining with nsiproject as we need to make sure the casereference exists in the project too\n",
+					"-- INNER JOIN odw_curated_db.nsip_project proj_tbl -- nsip_project or nsip_data?\n",
+					"-- on exam_tbl.caseReference = proj_tbl.caseReference\n",
+					"\n",
+					"WHERE exam_tbl.IsActive = 'Y'\n",
+					"\n",
+					"\n",
+					"ORDER BY caseReference"
 				],
-				"execution_count": 11
+				"execution_count": 1
 			},
 			{
 				"cell_type": "markdown",
@@ -133,12 +126,12 @@
 					"collapsed": false
 				},
 				"source": [
-					"from pyspark.sql import SparkSession\r\n",
-					"spark = SparkSession.builder.getOrCreate()\r\n",
-					"view_df = spark.sql('SELECT * FROM odw_curated_db.vw_examination_timetable')\r\n",
-					"view_df.write.mode(\"overwrite\").saveAsTable('odw_curated_db.examination_timetable')"
+					"from pyspark.sql import SparkSession\n",
+					"spark = SparkSession.builder.getOrCreate()\n",
+					"view_df = spark.sql('SELECT * FROM odw_curated_db.vw_nsip_exam_timetable')\n",
+					"view_df.write.mode(\"overwrite\").saveAsTable('odw_curated_db.nsip_exam_timetable')"
 				],
-				"execution_count": 12
+				"execution_count": 4
 			}
 		]
 	}
