@@ -473,6 +473,13 @@ variable "synapse_data_exfiltration_enabled" {
   type        = bool
 }
 
+variable "synapse_linked_service_graph" {
+  description = "Configuration for the graph linked service"
+  type = object({
+    client_id = string
+  })
+}
+
 variable "synapse_role_assignments" {
   default     = {}
   description = "An object mapping RBAC roles to principal IDs for the Synapse Workspace"

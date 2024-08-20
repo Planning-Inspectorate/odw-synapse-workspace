@@ -31,6 +31,8 @@ module "synapse_workspace_private" {
   sql_pool_sku_name                     = var.sql_pool_sku_name
   synapse_aad_administrator             = var.synapse_aad_administrator
   synapse_data_exfiltration_enabled     = var.synapse_data_exfiltration_enabled
+  synapse_linked_service_graph          = var.synapse_linked_service_graph
+  synapse_integration_runtime_name      = module.synapse_shir.integration_runtime_name
   synapse_private_endpoint_dns_zone_id  = azurerm_private_dns_zone.synapse.id
   synapse_private_endpoint_subnet_name  = local.synapse_subnet_name
   synapse_private_endpoint_vnet_subnets = module.synapse_network.vnet_subnets
@@ -76,6 +78,8 @@ module "synapse_workspace_private_failover" {
   sql_pool_sku_name                     = var.sql_pool_sku_name
   synapse_aad_administrator             = var.synapse_aad_administrator
   synapse_data_exfiltration_enabled     = var.synapse_data_exfiltration_enabled
+  synapse_integration_runtime_name      = module.synapse_shir_failover[0].integration_runtime_name
+  synapse_linked_service_graph          = var.synapse_linked_service_graph
   synapse_private_endpoint_dns_zone_id  = azurerm_private_dns_zone.synapse.id
   synapse_private_endpoint_subnet_name  = local.synapse_subnet_name
   synapse_private_endpoint_vnet_subnets = module.synapse_network_failover.vnet_subnets
