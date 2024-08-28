@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "37a72b72-1e14-44fc-8c90-c9c2014c5b17"
+				"spark.autotune.trackingId": "93b2db12-9061-453e-9d8b-594e11a9c02a"
 			}
 		},
 		"metadata": {
@@ -65,11 +65,11 @@
 					}
 				},
 				"source": [
-					"from pyspark.sql.functions import *\r\n",
-					"from pyspark.sql.types import *\r\n",
+					"from pyspark.sql.functions import *\n",
+					"from pyspark.sql.types import *\n",
 					"from pyspark.sql import DataFrame"
 				],
-				"execution_count": null
+				"execution_count": 10
 			},
 			{
 				"cell_type": "markdown",
@@ -102,7 +102,7 @@
 					"SELECT DISTINCT \n",
 					"MD.DataId\t                            AS documentId,\n",
 					"MD.CaseNodeId\t                        AS caseId,\n",
-					"MD.caseReference\t                    AS caseRef,\n",
+					"DT.caseReference\t                    AS caseRef,\n",
 					"MD.documentReference\t                AS documentReference,\n",
 					"MD.Version                              AS version,\n",
 					"AMD.examinationRefNo\t                AS examinationRefNo,\n",
@@ -138,7 +138,7 @@
 					"    THEN NULL\n",
 					"    ELSE AMD.securityClassification\n",
 					"END\t                                    AS securityClassification,\n",
-					"MD.SourceSystem\t                        AS sourceSystem,\n",
+					"DT.SourceSystem\t                        AS sourceSystem,\n",
 					"CASE\n",
 					"    WHEN AMD.origin  = ' '\n",
 					"    THEN NULL\n",
@@ -163,8 +163,10 @@
 					"MD.ParentID\t                            AS horizonFolderId,\n",
 					"NULL\t                                AS transcriptId\t\n",
 					"\n",
-					"FROM odw_harmonised_db.document_meta_data   AS MD\n",
-					"FULL JOIN odw_harmonised_db.aie_document_data    AS AMD\n",
+					"FROM odw_curated_db.nsip_data DT\n",
+					"LEFT JOIN odw_harmonised_db.document_meta_data   AS MD\n",
+					"    ON DT.casereference = MD.caseReference\n",
+					"LEFT JOIN odw_harmonised_db.aie_document_data    AS AMD\n",
 					"    ON MD.DataID = AMD.DocumentID \n",
 					"        AND AMD.Version = MD.Version \n",
 					"        AND AMD.Size = MD.DataSize\n",
@@ -172,7 +174,7 @@
 					"    AND MD.IsActive = 'Y'\n",
 					";"
 				],
-				"execution_count": null
+				"execution_count": 11
 			},
 			{
 				"cell_type": "markdown",
@@ -203,7 +205,7 @@
 				"source": [
 					"data: DataFrame = spark.sql(\"SELECT * FROM odw_curated_db.vw_nsip_document\")"
 				],
-				"execution_count": null
+				"execution_count": 12
 			},
 			{
 				"cell_type": "markdown",
@@ -234,7 +236,7 @@
 				"source": [
 					"schema: StructType = spark.table(\"odw_curated_db.nsip_document\").schema"
 				],
-				"execution_count": null
+				"execution_count": 13
 			},
 			{
 				"cell_type": "markdown",
@@ -246,8 +248,8 @@
 					}
 				},
 				"source": [
-					"##### Cast all field data types in the data to the data types from the curated table schema\r\n",
-					"\r\n",
+					"##### Cast all field data types in the data to the data types from the curated table schema\n",
+					"\n",
 					"This is necessary because the view generated above is joining harmonised tables, many of which are sourced from Horizon and will have a different schema to the final table and fields will have different data types. Therefore, taking the curated schema as defined in thr data model and casting all fields correctly, ensures accuracy."
 				]
 			},
@@ -265,14 +267,14 @@
 					}
 				},
 				"source": [
-					"df: DataFrame = data.select(\r\n",
-					"    *[\r\n",
-					"        col(field.name).cast(field.dataType).alias(field.name)\r\n",
-					"        for field in schema.fields\r\n",
-					"    ]\r\n",
+					"df: DataFrame = data.select(\n",
+					"    *[\n",
+					"        col(field.name).cast(field.dataType).alias(field.name)\n",
+					"        for field in schema.fields\n",
+					"    ]\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 14
 			},
 			{
 				"cell_type": "markdown",
@@ -304,7 +306,7 @@
 				"source": [
 					"df.printSchema()"
 				],
-				"execution_count": null
+				"execution_count": 15
 			},
 			{
 				"cell_type": "markdown",
@@ -335,7 +337,7 @@
 				"source": [
 					"df.write.mode(\"overwrite\").format(\"delta\").saveAsTable(\"odw_curated_db.nsip_document\")"
 				],
-				"execution_count": null
+				"execution_count": 16
 			}
 		]
 	}
