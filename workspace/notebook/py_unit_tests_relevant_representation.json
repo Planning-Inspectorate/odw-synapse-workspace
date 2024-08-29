@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "6ca0c6d3-e619-4958-8534-645c4c737384"
+				"spark.autotune.trackingId": "ea72d9dd-03c9-4938-9eed-da83bbca87b8"
 			}
 		},
 		"metadata": {
@@ -54,10 +54,91 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"import json\n",
-					"from pyspark.sql.types import *\n",
-					"from pyspark.sql import DataFrame\n",
+					"import json\r\n",
+					"from pyspark.sql.types import *\r\n",
+					"from pyspark.sql import DataFrame\r\n",
 					"import pprint"
+				],
+				"execution_count": 73
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"entity_name: str = 'nsip-representation'\r\n",
+					"std_db_name: str = 'odw_standardised_db'\r\n",
+					"hrm_db_name: str = 'odw_harmonised_db'\r\n",
+					"curated_db_name: str = 'odw_curated_db'\r\n",
+					"std_table_name: str = 'sb_nsip_representation'\r\n",
+					"hrm_table_name: str = 'sb_nsip_representation'\r\n",
+					"hrm_table_final: str = 'nsip_representation'\r\n",
+					"curated_table_name: str = 'nsip_representation'"
+				],
+				"execution_count": 74
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#This needs to be updated in case there is an addition of columns. Or in the future can be extracted automatically 01/08/2024\r\n",
+					"data_model_columns = [\"representationId\",\r\n",
+					"\t\t\"referenceId\",\r\n",
+					"\t\t\"examinationLibraryRef\",\r\n",
+					"\t\t\"caseRef\",\r\n",
+					"\t\t\"caseId\",\r\n",
+					"\t\t\"status\",\r\n",
+					"\t\t\"originalRepresentation\",\r\n",
+					"\t\t\"redacted\",\r\n",
+					"\t\t\"redactedRepresentation\",\r\n",
+					"\t\t\"redactedBy\",\r\n",
+					"\t\t\"redactedNotes\",\r\n",
+					"\t\t\"representationFrom\",\r\n",
+					"\t\t\"representedId\",\r\n",
+					"\t\t\"representativeId\",\r\n",
+					"\t\t\"registerFor\",\r\n",
+					"\t\t\"representationType\",\r\n",
+					"\t\t\"dateReceived\",\r\n",
+					"\t\t\"attachmentIds\"\r\n",
+					"\t]"
+				],
+				"execution_count": 75
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\r\n",
+					"path_to_orchestration_file: str = \"abfss://odw-config@\"+storage_account+\"orchestration/orchestration.json\""
 				],
 				"execution_count": 76
 			},
@@ -75,14 +156,12 @@
 					}
 				},
 				"source": [
-					"entity_name: str = 'nsip-representation'\n",
-					"std_db_name: str = 'odw_standardised_db'\n",
-					"hrm_db_name: str = 'odw_harmonised_db'\n",
-					"curated_db_name: str = 'odw_curated_db'\n",
-					"std_table_name: str = 'sb_nsip_representation'\n",
-					"hrm_table_name: str = 'sb_nsip_representation'\n",
-					"hrm_table_final: str = 'nsip_representation'\n",
-					"curated_table_name: str = 'nsip_representation'"
+					"def get_incremental_key(entity_name: str, storage_account: str, path_to_orchestration_file: str) -> str:\r\n",
+					"    # getting the incremental key from the odw-config/orchestration\r\n",
+					"    df: DataFrame = spark.read.option(\"multiline\",\"true\").json(path_to_orchestration_file)\r\n",
+					"    definitions: list = json.loads(df.toJSON().first())['definitions']\r\n",
+					"    definition: dict = next((d for d in definitions if entity_name == d['Source_Filename_Start']), None)\r\n",
+					"    return definition['Harmonised_Incremental_Key'] if definition and 'Harmonised_Incremental_Key' in definition else None"
 				],
 				"execution_count": 77
 			},
@@ -100,26 +179,11 @@
 					}
 				},
 				"source": [
-					"#This needs to be updated in case there is an addition of columns. Or in the future can be extracted automatically 01/08/2024\n",
-					"data_model_columns = [\"representationId\",\n",
-					"\t\t\"referenceId\",\n",
-					"\t\t\"examinationLibraryRef\",\n",
-					"\t\t\"caseRef\",\n",
-					"\t\t\"caseId\",\n",
-					"\t\t\"status\",\n",
-					"\t\t\"originalRepresentation\",\n",
-					"\t\t\"redacted\",\n",
-					"\t\t\"redactedRepresentation\",\n",
-					"\t\t\"redactedBy\",\n",
-					"\t\t\"redactedNotes\",\n",
-					"\t\t\"representationFrom\",\n",
-					"\t\t\"representedId\",\n",
-					"\t\t\"representativeId\",\n",
-					"\t\t\"registerFor\",\n",
-					"\t\t\"representationType\",\n",
-					"\t\t\"dateReceived\",\n",
-					"\t\t\"attachmentIds\"\n",
-					"\t]"
+					"def create_spark_schema(db_name: str, entity_name: str) -> StructType:\r\n",
+					"    incremental_key: str = get_incremental_key(entity_name, storage_account, path_to_orchestration_file) if db_name == 'odw_harmonised_db' else None\r\n",
+					"    schema = mssparkutils.notebook.run(\"/py_create_spark_schema\", 30, {\"db_name\": db_name, \"entity_name\": entity_name, \"incremental_key\": incremental_key})\r\n",
+					"    spark_schema = StructType.fromJson(json.loads(schema))\r\n",
+					"    return spark_schema"
 				],
 				"execution_count": 78
 			},
@@ -137,8 +201,9 @@
 					}
 				},
 				"source": [
-					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
-					"path_to_orchestration_file: str = \"abfss://odw-config@\"+storage_account+\"orchestration/orchestration.json\""
+					"def create_spark_dataframe() -> DataFrame:\r\n",
+					"    spark_dataframe: DataFrame = spark.createDataFrame([], schema=create_spark_schema(db_name, entity_name))\r\n",
+					"    return spark_dataframe"
 				],
 				"execution_count": 79
 			},
@@ -156,12 +221,10 @@
 					}
 				},
 				"source": [
-					"def get_incremental_key(entity_name: str, storage_account: str, path_to_orchestration_file: str) -> str:\n",
-					"    # getting the incremental key from the odw-config/orchestration\n",
-					"    df: DataFrame = spark.read.option(\"multiline\",\"true\").json(path_to_orchestration_file)\n",
-					"    definitions: list = json.loads(df.toJSON().first())['definitions']\n",
-					"    definition: dict = next((d for d in definitions if entity_name == d['Source_Filename_Start']), None)\n",
-					"    return definition['Harmonised_Incremental_Key'] if definition and 'Harmonised_Incremental_Key' in definition else None"
+					"sb_std_schema = create_spark_schema(std_db_name, entity_name)\r\n",
+					"sb_std_table_schema = spark.table(f\"{std_db_name}.{std_table_name}\").schema\r\n",
+					"sb_hrm_schema = create_spark_schema(hrm_db_name, entity_name)\r\n",
+					"sb_hrm_table_schema = spark.table(f\"{hrm_db_name}.{hrm_table_name}\").schema"
 				],
 				"execution_count": 80
 			},
@@ -179,11 +242,23 @@
 					}
 				},
 				"source": [
-					"def create_spark_schema(db_name: str, entity_name: str) -> StructType:\n",
-					"    incremental_key: str = get_incremental_key(entity_name, storage_account, path_to_orchestration_file) if db_name == 'odw_harmonised_db' else None\n",
-					"    schema = mssparkutils.notebook.run(\"/py_create_spark_schema\", 30, {\"db_name\": db_name, \"entity_name\": entity_name, \"incremental_key\": incremental_key})\n",
-					"    spark_schema = StructType.fromJson(json.loads(schema))\n",
-					"    return spark_schema"
+					"def extract_schema_structure(schema: StructType) -> dict:\r\n",
+					"    def extract_field(field):\r\n",
+					"        if isinstance(field.dataType, StructType):\r\n",
+					"            return {field.name: {subfield.name: str(subfield.dataType) for subfield in field.dataType.fields}}\r\n",
+					"        elif isinstance(field.dataType, ArrayType):\r\n",
+					"            element_type = field.dataType.elementType\r\n",
+					"            if isinstance(element_type, StructType):\r\n",
+					"                return {field.name: {subfield.name: str(subfield.dataType) for subfield in element_type.fields}}\r\n",
+					"            else:\r\n",
+					"                return {field.name: f'array<{str(element_type)}>'}\r\n",
+					"        else:\r\n",
+					"            return {field.name: str(field.dataType)}\r\n",
+					"    \r\n",
+					"    result = {}\r\n",
+					"    for field in schema.fields:\r\n",
+					"        result.update(extract_field(field))\r\n",
+					"    return result"
 				],
 				"execution_count": 81
 			},
@@ -201,9 +276,40 @@
 					}
 				},
 				"source": [
-					"def create_spark_dataframe() -> DataFrame:\n",
-					"    spark_dataframe: DataFrame = spark.createDataFrame([], schema=create_spark_schema(db_name, entity_name))\n",
-					"    return spark_dataframe"
+					"def test_compare_schemas(schema1: StructType, schema2: StructType) -> bool:\r\n",
+					"    structure1: dict = extract_schema_structure(schema1)\r\n",
+					"    structure2: dict = extract_schema_structure(schema2)\r\n",
+					"    \r\n",
+					"    differences: list[tuple] = []\r\n",
+					"    \r\n",
+					"    all_fields: set = set(structure1.keys()).union(set(structure2.keys()))\r\n",
+					"    \r\n",
+					"    for field in all_fields:\r\n",
+					"        if field not in structure1:\r\n",
+					"            differences.append((field, \"Field not in schema1\", structure2[field]))\r\n",
+					"        elif field not in structure2:\r\n",
+					"            differences.append((field, structure1[field], \"Field not in schema2\"))\r\n",
+					"        else:\r\n",
+					"            if structure1[field] != structure2[field]:\r\n",
+					"                if isinstance(structure1[field], dict) and isinstance(structure2[field], dict):\r\n",
+					"                    subfields: set = set(structure1[field].keys()).union(set(structure2[field].keys()))\r\n",
+					"                    for subfield in subfields:\r\n",
+					"                        if subfield not in structure1[field]:\r\n",
+					"                            differences.append((f\"{field}.{subfield}\", \"Field not in schema1\", structure2[field][subfield]))\r\n",
+					"                        elif subfield not in structure2[field]:\r\n",
+					"                            differences.append((f\"{field}.{subfield}\", structure1[field][subfield], \"Field not in schema2\"))\r\n",
+					"                        elif structure1[field][subfield] != structure2[field][subfield]:\r\n",
+					"                            differences.append((f\"{field}.{subfield}\", structure1[field][subfield], structure2[field][subfield]))\r\n",
+					"                else:\r\n",
+					"                    differences.append((field, structure1[field], structure2[field]))\r\n",
+					"    \r\n",
+					"    if differences:\r\n",
+					"        # Create a Spark DataFrame to display the differences\r\n",
+					"        differences_df: DataFrame = spark.createDataFrame(differences, [\"Field\", \"Schema 1\", \"Schema 2\"])\r\n",
+					"        display(differences_df)\r\n",
+					"        return False\r\n",
+					"    else:\r\n",
+					"        return True"
 				],
 				"execution_count": 82
 			},
@@ -221,126 +327,20 @@
 					}
 				},
 				"source": [
-					"sb_std_schema = create_spark_schema(std_db_name, entity_name)\n",
-					"sb_std_table_schema = spark.table(f\"{std_db_name}.{std_table_name}\").schema\n",
-					"sb_hrm_schema = create_spark_schema(hrm_db_name, entity_name)\n",
-					"sb_hrm_table_schema = spark.table(f\"{hrm_db_name}.{hrm_table_name}\").schema"
-				],
-				"execution_count": 83
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"def extract_schema_structure(schema: StructType) -> dict:\n",
-					"    def extract_field(field):\n",
-					"        if isinstance(field.dataType, StructType):\n",
-					"            return {field.name: {subfield.name: str(subfield.dataType) for subfield in field.dataType.fields}}\n",
-					"        elif isinstance(field.dataType, ArrayType):\n",
-					"            element_type = field.dataType.elementType\n",
-					"            if isinstance(element_type, StructType):\n",
-					"                return {field.name: {subfield.name: str(subfield.dataType) for subfield in element_type.fields}}\n",
-					"            else:\n",
-					"                return {field.name: f'array<{str(element_type)}>'}\n",
-					"        else:\n",
-					"            return {field.name: str(field.dataType)}\n",
-					"    \n",
-					"    result = {}\n",
-					"    for field in schema.fields:\n",
-					"        result.update(extract_field(field))\n",
-					"    return result"
-				],
-				"execution_count": 84
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"def test_compare_schemas(schema1: StructType, schema2: StructType) -> bool:\n",
-					"    structure1: dict = extract_schema_structure(schema1)\n",
-					"    structure2: dict = extract_schema_structure(schema2)\n",
-					"    \n",
-					"    differences: list[tuple] = []\n",
-					"    \n",
-					"    all_fields: set = set(structure1.keys()).union(set(structure2.keys()))\n",
-					"    \n",
-					"    for field in all_fields:\n",
-					"        if field not in structure1:\n",
-					"            differences.append((field, \"Field not in schema1\", structure2[field]))\n",
-					"        elif field not in structure2:\n",
-					"            differences.append((field, structure1[field], \"Field not in schema2\"))\n",
-					"        else:\n",
-					"            if structure1[field] != structure2[field]:\n",
-					"                if isinstance(structure1[field], dict) and isinstance(structure2[field], dict):\n",
-					"                    subfields: set = set(structure1[field].keys()).union(set(structure2[field].keys()))\n",
-					"                    for subfield in subfields:\n",
-					"                        if subfield not in structure1[field]:\n",
-					"                            differences.append((f\"{field}.{subfield}\", \"Field not in schema1\", structure2[field][subfield]))\n",
-					"                        elif subfield not in structure2[field]:\n",
-					"                            differences.append((f\"{field}.{subfield}\", structure1[field][subfield], \"Field not in schema2\"))\n",
-					"                        elif structure1[field][subfield] != structure2[field][subfield]:\n",
-					"                            differences.append((f\"{field}.{subfield}\", structure1[field][subfield], structure2[field][subfield]))\n",
-					"                else:\n",
-					"                    differences.append((field, structure1[field], structure2[field]))\n",
-					"    \n",
-					"    if differences:\n",
-					"        # Create a Spark DataFrame to display the differences\n",
-					"        differences_df: DataFrame = spark.createDataFrame(differences, [\"Field\", \"Schema 1\", \"Schema 2\"])\n",
-					"        display(differences_df)\n",
-					"        return False\n",
-					"    else:\n",
-					"        return True"
-				],
-				"execution_count": 85
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"def test_std_same_rows_hrm(std_table: str, hrm_table: str) -> tuple[int, int, bool]:\n",
-					"    std_table_full: str = f\"{std_db_name}.{std_table}\"\n",
-					"    hrm_table_full: str = f\"{hrm_db_name}.{hrm_table}\"\n",
-					"\n",
-					"    # filter standardised df with non-null message_type and exclude 'Delete' message_type since it doesn't add a new row in hrm\n",
-					"    std_df: DataFrame = spark.table(std_table_full)\n",
-					"    std_df = std_df.filter((std_df.message_type != 'Delete') & std_df.message_type.isNotNull() & std_df.message_id.isNotNull())\n",
-					"    \n",
-					"    std_count: int = std_df.count()\n",
-					"    hrm_count: int = spark.table(hrm_table_full).count()\n",
-					"\n",
+					"def test_std_same_rows_hrm(std_table: str, hrm_table: str) -> tuple[int, int, bool]:\r\n",
+					"    std_table_full: str = f\"{std_db_name}.{std_table}\"\r\n",
+					"    hrm_table_full: str = f\"{hrm_db_name}.{hrm_table}\"\r\n",
+					"\r\n",
+					"    # filter standardised df with non-null message_type and exclude 'Delete' message_type since it doesn't add a new row in hrm\r\n",
+					"    std_df: DataFrame = spark.table(std_table_full)\r\n",
+					"    std_df = std_df.filter((std_df.message_type != 'Delete') & std_df.message_type.isNotNull() & std_df.message_id.isNotNull())\r\n",
+					"    \r\n",
+					"    std_count: int = std_df.count()\r\n",
+					"    hrm_count: int = spark.table(hrm_table_full).count()\r\n",
+					"\r\n",
 					"    return (std_count, hrm_count, std_count == hrm_count)"
 				],
-				"execution_count": 86
+				"execution_count": 83
 			},
 			{
 				"cell_type": "code",
@@ -390,7 +390,7 @@
 					"    \n",
 					"    return (hrm_count, curated_count, hrm_count == curated_count)"
 				],
-				"execution_count": 87
+				"execution_count": 84
 			},
 			{
 				"cell_type": "markdown",
@@ -419,12 +419,12 @@
 					}
 				},
 				"source": [
-					"std_schema_correct: bool = test_compare_schemas(sb_std_schema, sb_std_table_schema)\n",
-					"print(f\"Service bus standardised schema correct: {std_schema_correct}\\nTable: {std_db_name}.{std_table_name}\\nDifferences shown above (if any)\")\n",
-					"hrm_schema_correct: bool = test_compare_schemas(sb_hrm_schema, sb_hrm_table_schema)\n",
+					"std_schema_correct: bool = test_compare_schemas(sb_std_schema, sb_std_table_schema)\r\n",
+					"print(f\"Service bus standardised schema correct: {std_schema_correct}\\nTable: {std_db_name}.{std_table_name}\\nDifferences shown above (if any)\")\r\n",
+					"hrm_schema_correct: bool = test_compare_schemas(sb_hrm_schema, sb_hrm_table_schema)\r\n",
 					"print(f\"Service bus harmonised schema correct: {hrm_schema_correct}\\nTable: {hrm_db_name}.{hrm_table_name}\\nDifferences shown above (if any)\")"
 				],
-				"execution_count": 88
+				"execution_count": 85
 			},
 			{
 				"cell_type": "markdown",
@@ -436,7 +436,7 @@
 					}
 				},
 				"source": [
-					"**Compare service bus standardised with harmonised\n",
+					"**Compare service bus standardised with harmonised\r\n",
 					"Should be the same count**"
 				]
 			},
@@ -454,23 +454,23 @@
 					}
 				},
 				"source": [
-					"def differentiate_std_and_hrm(std_table_full, hrm_table_full):\n",
-					"    # filter standardised df with non-null message_type and exclude 'Delete' message_type since it doesn't add a new row in hrm\n",
-					"    std_df: DataFrame = spark.table(std_table_full)\n",
-					"    std_df = std_df.filter((std_df.message_type != 'Delete') & (std_df.message_type.isNotNull()))\n",
-					"\n",
-					"    hrm_df  = spark.table(hrm_table_full)\n",
-					"\n",
-					"    # Find rows in the original table that are not in the new table\n",
-					"    missing_rows_in_std = hrm_df.select(data_model_columns).subtract(std_df.select(data_model_columns))\n",
-					"\n",
-					"    # Show the missing rows\n",
-					"    display(missing_rows_in_std)\n",
-					"\n",
-					"    missing_rows_in_hrm = std_df.select(data_model_columns).subtract(hrm_df.select(data_model_columns))\n",
+					"def differentiate_std_and_hrm(std_table_full, hrm_table_full):\r\n",
+					"    # filter standardised df with non-null message_type and exclude 'Delete' message_type since it doesn't add a new row in hrm\r\n",
+					"    std_df: DataFrame = spark.table(std_table_full)\r\n",
+					"    std_df = std_df.filter((std_df.message_type != 'Delete') & (std_df.message_type.isNotNull()))\r\n",
+					"\r\n",
+					"    hrm_df  = spark.table(hrm_table_full)\r\n",
+					"\r\n",
+					"    # Find rows in the original table that are not in the new table\r\n",
+					"    missing_rows_in_std = hrm_df.select(data_model_columns).subtract(std_df.select(data_model_columns))\r\n",
+					"\r\n",
+					"    # Show the missing rows\r\n",
+					"    display(missing_rows_in_std)\r\n",
+					"\r\n",
+					"    missing_rows_in_hrm = std_df.select(data_model_columns).subtract(hrm_df.select(data_model_columns))\r\n",
 					"    display(missing_rows_in_hrm)"
 				],
-				"execution_count": 89
+				"execution_count": 86
 			},
 			{
 				"cell_type": "code",
@@ -486,14 +486,14 @@
 					}
 				},
 				"source": [
-					"standardised_count, harmonised_count, counts_match = test_std_same_rows_hrm(std_table_name, hrm_table_name)\n",
-					"print(f\"Standardised Count: {standardised_count: ,}\\nHarmonised Count: {harmonised_count: ,}\\nCounts match: {counts_match}\")\n",
-					"\n",
-					"if standardised_count > harmonised_count:\n",
-					"    print(f\"{standardised_count - harmonised_count} rows from Standardised are missing in Harmonised.\" )\n",
+					"standardised_count, harmonised_count, counts_match = test_std_same_rows_hrm(std_table_name, hrm_table_name)\r\n",
+					"print(f\"Standardised Count: {standardised_count: ,}\\nHarmonised Count: {harmonised_count: ,}\\nCounts match: {counts_match}\")\r\n",
+					"\r\n",
+					"if standardised_count > harmonised_count:\r\n",
+					"    print(f\"{standardised_count - harmonised_count} rows from Standardised are missing in Harmonised.\" )\r\n",
 					"    differentiate_std_and_hrm(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\")"
 				],
-				"execution_count": 90
+				"execution_count": 87
 			},
 			{
 				"cell_type": "markdown",
@@ -505,7 +505,7 @@
 					}
 				},
 				"source": [
-					"**Compare final harmonised table (if combined with Horizon) with curated table\n",
+					"**Compare final harmonised table (if combined with Horizon) with curated table\r\n",
 					"Comparing where IsActive = Y in harmonised = curated row count***"
 				]
 			},
@@ -523,10 +523,10 @@
 					}
 				},
 				"source": [
-					"harmonised_final_count, curated_count, counts_match = test_curated_row_count(hrm_table_final, curated_table_name)\n",
+					"harmonised_final_count, curated_count, counts_match = test_curated_row_count(hrm_table_final, curated_table_name)\r\n",
 					"print(f\"Harmonised Final Count: {harmonised_final_count: ,}\\nCurated Count: {curated_count: ,}\\nCounts match: {counts_match}\")"
 				],
-				"execution_count": 91
+				"execution_count": 88
 			},
 			{
 				"cell_type": "markdown",
@@ -559,22 +559,22 @@
 					"collapsed": false
 				},
 				"source": [
-					"%%sql\n",
-					"SELECT\n",
-					"    RelevantRepID,\n",
-					"    COUNT(DISTINCT attachmentid)\n",
-					"FROM\n",
-					"    odw_standardised_db.horizon_nsip_relevant_representation\n",
-					"WHERE\n",
-					"    ingested_datetime = (SELECT MAX(ingested_datetime) FROM odw_standardised_db.horizon_nsip_relevant_representation)\n",
-					"GROUP BY\n",
-					"    RelevantRepID\n",
-					"HAVING\n",
-					"    COUNT(DISTINCT attachmentid) > 1\n",
-					"ORDER BY\n",
+					"%%sql\r\n",
+					"SELECT\r\n",
+					"    RelevantRepID,\r\n",
+					"    COUNT(DISTINCT attachmentid)\r\n",
+					"FROM\r\n",
+					"    odw_standardised_db.horizon_nsip_relevant_representation\r\n",
+					"WHERE\r\n",
+					"    ingested_datetime = (SELECT MAX(ingested_datetime) FROM odw_standardised_db.horizon_nsip_relevant_representation)\r\n",
+					"GROUP BY\r\n",
+					"    RelevantRepID\r\n",
+					"HAVING\r\n",
+					"    COUNT(DISTINCT attachmentid) > 1\r\n",
+					"ORDER BY\r\n",
 					"    2 DESC"
 				],
-				"execution_count": 92
+				"execution_count": 89
 			},
 			{
 				"cell_type": "code",
@@ -594,10 +594,10 @@
 					"collapsed": false
 				},
 				"source": [
-					"%%sql\n",
+					"%%sql\r\n",
 					"select attachmentids FROM odw_curated_db.nsip_representation where representationid = 33574"
 				],
-				"execution_count": 93
+				"execution_count": 90
 			},
 			{
 				"cell_type": "markdown",
@@ -647,7 +647,7 @@
 					"SELECT * FROM odw_standardised_db.sb_nsip_representation WHERE representationId = 100006245 ORDER BY ingested_datetime;\n",
 					"SELECT * FROM odw_harmonised_db.sb_nsip_representation WHERE representationId = 100006245 ORDER BY IngestionDate;"
 				],
-				"execution_count": 94
+				"execution_count": 91
 			},
 			{
 				"cell_type": "markdown",
@@ -689,7 +689,7 @@
 					"     relevantRepID = 11303 AND \n",
 					"     ingested_datetime = (select max(ingested_datetime) from odw_standardised_db.horizon_nsip_relevant_representation) limit 10;"
 				],
-				"execution_count": 95
+				"execution_count": 92
 			},
 			{
 				"cell_type": "code",
@@ -709,17 +709,17 @@
 					"collapsed": false
 				},
 				"source": [
-					"%%sql\n",
-					"SELECT DISTINCT\n",
-					"    *\n",
-					"FROM\n",
-					"    odw_harmonised_db.nsip_representation\n",
-					"WHERE\n",
-					"     representationId = 11303 and IsActive = 'Y'\n",
-					"order BY\n",
+					"%%sql\r\n",
+					"SELECT DISTINCT\r\n",
+					"    *\r\n",
+					"FROM\r\n",
+					"    odw_harmonised_db.nsip_representation\r\n",
+					"WHERE\r\n",
+					"     representationId = 11303 and IsActive = 'Y'\r\n",
+					"order BY\r\n",
 					"    ingestiondate DESC"
 				],
-				"execution_count": 96
+				"execution_count": 94
 			},
 			{
 				"cell_type": "markdown",
@@ -752,16 +752,16 @@
 					"collapsed": false
 				},
 				"source": [
-					"%%sql\n",
-					"SELECT\n",
-					"    count(*)\n",
-					"\n",
-					"FROM\n",
-					"    odw_standardised_db.horizon_nsip_relevant_representation\n",
-					"WHERE\n",
+					"%%sql\r\n",
+					"SELECT\r\n",
+					"    count(*)\r\n",
+					"\r\n",
+					"FROM\r\n",
+					"    odw_standardised_db.horizon_nsip_relevant_representation\r\n",
+					"WHERE\r\n",
 					"    contactid= 37039 and ingested_datetime =(select max(ingested_datetime) from odw_standardised_db.horizon_nsip_relevant_representation)"
 				],
-				"execution_count": 97
+				"execution_count": 95
 			},
 			{
 				"cell_type": "code",
@@ -781,17 +781,17 @@
 					"collapsed": false
 				},
 				"source": [
-					"%%sql\n",
-					"SELECT\n",
-					"    *\n",
-					"\n",
-					"FROM\n",
-					"    odw_harmonised_db.nsip_representation\n",
-					"WHERE\n",
-					"    ODTSourceSystem = 'Horizon' and representationid= 37039\n",
+					"%%sql\r\n",
+					"SELECT\r\n",
+					"    *\r\n",
+					"\r\n",
+					"FROM\r\n",
+					"    odw_harmonised_db.nsip_representation\r\n",
+					"WHERE\r\n",
+					"    ODTSourceSystem = 'Horizon' and representationid= 37039\r\n",
 					""
 				],
-				"execution_count": 98
+				"execution_count": 96
 			},
 			{
 				"cell_type": "code",
@@ -811,20 +811,20 @@
 					"collapsed": false
 				},
 				"source": [
-					"%%sql\n",
-					"SELECT\n",
-					"    representationId\n",
-					"    ,count(*)\n",
-					"FROM\n",
-					"    odw_harmonised_db.nsip_representation\n",
-					"WHERE\n",
-					"    ODTSourceSystem = 'Horizon' and isActive = 'Y'\n",
-					"GROUP BY\n",
-					"    1\n",
-					"ORDER BY\n",
+					"%%sql\r\n",
+					"SELECT\r\n",
+					"    representationId\r\n",
+					"    ,count(*)\r\n",
+					"FROM\r\n",
+					"    odw_harmonised_db.nsip_representation\r\n",
+					"WHERE\r\n",
+					"    ODTSourceSystem = 'Horizon' and isActive = 'Y'\r\n",
+					"GROUP BY\r\n",
+					"    1\r\n",
+					"ORDER BY\r\n",
 					"    2 desc"
 				],
-				"execution_count": 99
+				"execution_count": 97
 			},
 			{
 				"cell_type": "markdown",
@@ -857,18 +857,18 @@
 					"collapsed": false
 				},
 				"source": [
-					"%%sql\n",
-					"SELECT\n",
-					"\n",
-					"*\n",
-					"FROM\n",
-					"    odw_harmonised_db.nsip_representation\n",
-					"WHERE\n",
-					"    ODTSourceSystem = 'ODT'\n",
-					"    and representationid = 100006295\n",
+					"%%sql\r\n",
+					"SELECT\r\n",
+					"\r\n",
+					"*\r\n",
+					"FROM\r\n",
+					"    odw_harmonised_db.nsip_representation\r\n",
+					"WHERE\r\n",
+					"    ODTSourceSystem = 'ODT'\r\n",
+					"    and representationid = 100006295\r\n",
 					"    order by ingestiondate"
 				],
-				"execution_count": 100
+				"execution_count": 98
 			},
 			{
 				"cell_type": "code",
@@ -888,20 +888,20 @@
 					"collapsed": false
 				},
 				"source": [
-					"%%sql\n",
-					"SELECT\n",
-					"    representationid\n",
-					"    ,count(*)\n",
-					"FROM\n",
-					"    odw_harmonised_db.nsip_representation\n",
-					"WHERE\n",
-					"    ODTSourceSystem = 'ODT'\n",
-					"GROUP BY\n",
-					"    1\n",
-					"ORDER BY\n",
+					"%%sql\r\n",
+					"SELECT\r\n",
+					"    representationid\r\n",
+					"    ,count(*)\r\n",
+					"FROM\r\n",
+					"    odw_harmonised_db.nsip_representation\r\n",
+					"WHERE\r\n",
+					"    ODTSourceSystem = 'ODT'\r\n",
+					"GROUP BY\r\n",
+					"    1\r\n",
+					"ORDER BY\r\n",
 					"    2 desc"
 				],
-				"execution_count": 101
+				"execution_count": 99
 			},
 			{
 				"cell_type": "markdown",
@@ -934,17 +934,17 @@
 					"collapsed": false
 				},
 				"source": [
-					"%%sql\n",
-					"SELECT DISTINCT\n",
-					"    *\n",
-					"FROM\n",
-					"    odw_harmonised_db.nsip_representation\n",
-					"WHERE\n",
-					"     representationid = '100006295' and IsActive = 'Y'\n",
-					"order BY\n",
+					"%%sql\r\n",
+					"SELECT DISTINCT\r\n",
+					"    *\r\n",
+					"FROM\r\n",
+					"    odw_harmonised_db.nsip_representation\r\n",
+					"WHERE\r\n",
+					"     representationid = '100006295' and IsActive = 'Y'\r\n",
+					"order BY\r\n",
 					"    ingestiondate DESC"
 				],
-				"execution_count": 102
+				"execution_count": 34
 			},
 			{
 				"cell_type": "code",
@@ -964,15 +964,15 @@
 					"collapsed": false
 				},
 				"source": [
-					"%%sql\n",
-					"SELECT\n",
-					"    *\n",
-					"FROM\n",
-					"    odw_curated_db.nsip_representation\n",
-					"WHERE\n",
+					"%%sql\r\n",
+					"SELECT\r\n",
+					"    *\r\n",
+					"FROM\r\n",
+					"    odw_curated_db.nsip_representation\r\n",
+					"WHERE\r\n",
 					"    representationid = '100006295'"
 				],
-				"execution_count": 103
+				"execution_count": 35
 			},
 			{
 				"cell_type": "markdown",
@@ -1018,126 +1018,15 @@
 					"collapsed": false
 				},
 				"source": [
-					"%%sql\n",
-					"-- representationid is the primary key, in odw_standardised_db.horizon_nsip_relevant_representation table relevantRepID is the same as representationid\n",
-					"select * from odw_standardised_db.horizon_nsip_relevant_representation where relevantRepID = 29845 and ingested_datetime = (select max(ingested_datetime) from odw_standardised_db.horizon_nsip_relevant_representation);\n",
-					"select * from odw_harmonised_db.sb_nsip_representation where representationid = 29845;\n",
-					"select * from odw_harmonised_db.nsip_representation where representationid = 29845;\n",
-					"select * from odw_curated_db.nsip_representation where representationid = 29845;\n",
+					"%%sql\r\n",
+					"-- representationid is the primary key, in odw_standardised_db.horizon_nsip_relevant_representation table relevantRepID is the same as representationid\r\n",
+					"select * from odw_standardised_db.horizon_nsip_relevant_representation where relevantRepID = 29845 and ingested_datetime = (select max(ingested_datetime) from odw_standardised_db.horizon_nsip_relevant_representation);\r\n",
+					"select * from odw_harmonised_db.sb_nsip_representation where representationid = 29845;\r\n",
+					"select * from odw_harmonised_db.nsip_representation where representationid = 29845;\r\n",
+					"select * from odw_curated_db.nsip_representation where representationid = 29845;\r\n",
 					""
 				],
-				"execution_count": 104
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"##### Bug 1383 unit tests"
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"df = spark.sql(\n",
-					"    \"\"\"\n",
-					"    SELECT * \n",
-					"    FROM\n",
-					"    odw_curated_db.nsip_representation AS reps \n",
-					"    INNER JOIN odw_curated_db.nsip_service_user AS suser\n",
-					"    ON reps.representativeId = suser.id \n",
-					"    OR reps.representedId = suser.id\n",
-					"    WHERE caseRef = 'TR020002' \n",
-					"    AND sourceSystem IN ('horizon','Horizon')\n",
-					"    \"\"\"\n",
-					"    )"
-				],
-				"execution_count": 105
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"df2 = spark.sql(\n",
-					"    \"\"\"\n",
-					"    SELECT *\n",
-					"    FROM\n",
-					"    odw_curated_db.nsip_representation AS reps \n",
-					"    INNER JOIN odw_curated_db.nsip_service_user AS suser\n",
-					"    ON reps.representativeId = suser.id \n",
-					"    OR reps.representedId = suser.id\n",
-					"    WHERE caseRef = 'TR020002' \n",
-					"    AND sourceSystem IN ('horizon','Horizon')\n",
-					"    AND suser.caseReference = '3148447' \n",
-					"    \"\"\"\n",
-					"    )\n",
-					""
-				],
-				"execution_count": 106
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"collapsed": false
-				},
-				"source": [
-					"def test_reps_count_match(df1: DataFrame, df2: DataFrame) -> bool:\n",
-					"    return df.count() == df2.count()"
-				],
-				"execution_count": 107
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"test_reps_count_match(df, df2)"
-				],
-				"execution_count": 108
+				"execution_count": 37
 			}
 		]
 	}
