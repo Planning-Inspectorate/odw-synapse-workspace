@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "f7c1d0b0-cfa5-4983-87c2-93d7b047b363"
+				"spark.autotune.trackingId": "6e671e8f-2014-48b4-93af-7bec8042f7cd"
 			}
 		},
 		"metadata": {
@@ -35,18 +35,18 @@
 				"name": "python"
 			},
 			"a365ComputeOptions": {
-				"id": "/subscriptions/6b18ba9d-2399-48b5-a834-e0f267be122d/resourceGroups/pins-rg-data-odw-test-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-test-uks/bigDataPools/pinssynspodw",
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
 				"name": "pinssynspodw",
 				"type": "Spark",
-				"endpoint": "https://pins-synw-odw-test-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
 				"auth": {
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
 				"sparkVersion": "3.3",
 				"nodeCount": 3,
-				"cores": 8,
-				"memory": 56,
+				"cores": 4,
+				"memory": 28,
 				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
@@ -180,9 +180,10 @@
 					"FROM \n",
 					"\todw_harmonised_db.nsip_project AS Project\n",
 					"WHERE \n",
-					"\tProject.IsActive='Y'"
+					"\tProject.IsActive='Y'\n",
+					"\tAND project.caseReference IS NOT NULL -- We have nsip project references that don't have a case reference. Case reference is used for migration to link tables. Dropping these records to keep integrity"
 				],
-				"execution_count": 1
+				"execution_count": 2
 			},
 			{
 				"cell_type": "markdown",
@@ -214,9 +215,9 @@
 					"from pyspark.sql import SparkSession\n",
 					"spark = SparkSession.builder.getOrCreate()\n",
 					"view_df = spark.sql('SELECT * FROM odw_curated_db.vw_nsip_data')\n",
-					"view_df.write.mode(\"overwrite\").option(\"overwriteSchema\", \"true\").format(\"delta\").saveAsTable('odw_curated_db.nsip_data')"
+					"view_df.write.mode(\"overwrite\").option(\"overwriteSchema\", \"true\").saveAsTable('odw_curated_db.nsip_Project')"
 				],
-				"execution_count": 2
+				"execution_count": 3
 			}
 		]
 	}

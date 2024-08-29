@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5368e8d4-0ad8-446c-9b38-4bdb4617cc4f"
+				"spark.autotune.trackingId": "82d370aa-f70b-4535-87d9-fe2620717b47"
 			}
 		},
 		"metadata": {
@@ -83,49 +83,30 @@
 					"collapsed": false
 				},
 				"source": [
-					"\n",
 					"%%sql\n",
-					"\n",
 					"CREATE OR REPLACE VIEW odw_curated_db.vw_legacy_folder_data\n",
-					"\n",
-					"    AS\n",
-					"\n",
+					"AS\n",
 					"SELECT DISTINCT\n",
-					"\n",
-					"    -- CAST(LFD.HorizonFolderID AS INT)    AS horizonFolderId,\n",
-					"    CAST(LFD.ID AS INT)                 AS id,\n",
-					"    LFD.CaseReference                   AS caseReference,\n",
-					"    LFD.DisplayNameEnglish              AS displayNameEnglish,\n",
-					"    LFD.DisplayNameWelsh                AS displayNameWelsh,\n",
-					"    CASE\n",
-					"        WHEN ParentFolderID = CaseNodeId\n",
-					"        THEN NULL\n",
-					"        ELSE CAST(LFD.ParentFolderID AS INT)     \n",
-					"        END                             AS parentFolderId,\n",
-					"    -- CAST(LFD.CaseNodeId AS INT)         AS caseNodeId,\n",
-					"    CASE\n",
-					"        WHEN LFD.caseStage = 'Pre-application'\n",
-					"        THEN 'pre-application'\n",
-					"        WHEN LFD.caseStage = 'Acceptance'\n",
-					"        THEN 'acceptance'\n",
-					"        WHEN LFD.caseStage = 'Pre-examination'\n",
-					"        THEN 'pre-examination'\n",
-					"        WHEN LFD.caseStage = 'Examination'\n",
-					"        THEN 'examination'\n",
-					"        WHEN LFD.caseStage = 'Recommendation'\n",
-					"        THEN 'recommendation'\n",
-					"        WHEN LFD.caseStage = 'Decision'\n",
-					"        THEN 'decision'\n",
-					"        WHEN LFD.caseStage = 'Post decision'\n",
-					"        THEN 'post_decision'\n",
-					"        WHEN LFD.caseStage = 'Withdrawn'\n",
-					"        THEN 'withdrawn'\n",
-					"        ELSE Lower(LFD.caseStage)\n",
-					"        END                            AS caseStage\n",
-					"\n",
-					"FROM odw_harmonised_db.horizon_folder   AS LFD\n",
-					"\n",
-					"-- WHERE LEFT(LFD.CaseReference,3) IN (\"TR0\",\"WW0\",\"BC0\",\"WA0\",\"WS0\",\"EN0\");\n",
+					"    CAST(folder.ID AS INT) AS id\n",
+					"    ,proj.CaseReference AS caseReference\n",
+					"    ,folder.DisplayNameEnglish AS displayNameEnglish\n",
+					"    ,folder.DisplayNameWelsh AS displayNameWelsh\n",
+					"    ,CASE\n",
+					"        WHEN ParentFolderID = CaseNodeId THEN \n",
+					"            NULL\n",
+					"        ELSE \n",
+					"            CAST(folder.ParentFolderID AS INT)     \n",
+					"        END AS parentFolderId\n",
+					"    ,CASE folder.caseStage\n",
+					"        WHEN 'Post decision' THEN \n",
+					"            'post_decision'\n",
+					"        ELSE \n",
+					"            Lower(folder.caseStage)\n",
+					"    END AS caseStage\n",
+					"FROM \n",
+					"    odw_harmonised_db.horizon_folder AS folder\n",
+					"    INNER JOIN odw_curated_db.nsip_data as proj -- make sure we've had the application cases through for records we present to curated\n",
+					"        ON folder.CaseReference = proj.caseReference\n",
 					""
 				],
 				"execution_count": 2
@@ -161,31 +142,6 @@
 					"spark = SparkSession.builder.getOrCreate()\n",
 					"view_df = spark.sql('SELECT * FROM odw_curated_db.vw_legacy_folder_data')\n",
 					"view_df.write.mode(\"overwrite\").saveAsTable('odw_curated_db.legacy_folder_data')"
-				],
-				"execution_count": 3
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
-				},
-				"source": [
-					"%%sql\n",
-					"\n",
-					"SELECT * FROM odw_curated_db.legacy_folder_data WHERE id = '31001250';\n",
-					"SELECT count(*) FROM odw_curated_db.legacy_folder_data;"
 				],
 				"execution_count": 3
 			}
