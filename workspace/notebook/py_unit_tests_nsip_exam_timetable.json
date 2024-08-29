@@ -20,12 +20,12 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "7f0632b7-abf2-4ee7-a80b-e7589facce13"
+				"spark.autotune.trackingId": "9a69de65-ddcf-455d-8f9e-1cd046a8c964"
 			}
 		},
 		"metadata": {
 			"saveOutput": true,
-			"enableDebugMode": false,
+			"enableDebugMode": true,
 			"kernelspec": {
 				"name": "synapse_pyspark",
 				"display_name": "Synapse PySpark"
@@ -70,7 +70,7 @@
 					"from pyspark.sql import DataFrame\n",
 					"import pprint"
 				],
-				"execution_count": 61
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
@@ -96,7 +96,7 @@
 					"hrm_table_final: str = 'nsip_exam_timetable'\n",
 					"curated_table_name: str = 'nsip_exam_timetable'"
 				],
-				"execution_count": 62
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
@@ -115,7 +115,7 @@
 					"#keep track of the exitCodes, if the exit code is not zero then we've had failures, we flip the boolean\n",
 					"exitCode: int = 0"
 				],
-				"execution_count": 63
+				"execution_count": 8
 			},
 			{
 				"cell_type": "code",
@@ -135,7 +135,7 @@
 					"            \"published\",\n",
 					"            \"events\"]"
 				],
-				"execution_count": 64
+				"execution_count": 9
 			},
 			{
 				"cell_type": "code",
@@ -151,75 +151,9 @@
 					}
 				},
 				"source": [
-					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
-					"path_to_orchestration_file: str = \"abfss://odw-config@\"+storage_account+\"orchestration/orchestration.json\""
+					"%run /utils/unit-tests/py_unit_tests_functions"
 				],
-				"execution_count": 65
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"def get_incremental_key(entity_name: str, storage_account: str, path_to_orchestration_file: str) -> str:\n",
-					"    # getting the incremental key from the odw-config/orchestration\n",
-					"    df: DataFrame = spark.read.option(\"multiline\",\"true\").json(path_to_orchestration_file)\n",
-					"    definitions: list = json.loads(df.toJSON().first())['definitions']\n",
-					"    definition: dict = next((d for d in definitions if entity_name == d['Source_Filename_Start']), None)\n",
-					"    return definition['Harmonised_Incremental_Key'] if definition and 'Harmonised_Incremental_Key' in definition else None"
-				],
-				"execution_count": 66
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"def create_spark_schema(db_name: str, entity_name: str) -> StructType:\n",
-					"    incremental_key: str = get_incremental_key(folder_name, storage_account, path_to_orchestration_file) if db_name == 'odw_harmonised_db' else None\n",
-					"    schema = mssparkutils.notebook.run(\"/py_create_spark_schema\", 30, {\"db_name\": db_name, \"entity_name\": entity_name, \"incremental_key\": incremental_key})\n",
-					"    spark_schema = StructType.fromJson(json.loads(schema))\n",
-					"    return spark_schema"
-				],
-				"execution_count": 67
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"def create_spark_dataframe() -> DataFrame:\n",
-					"    spark_dataframe: DataFrame = spark.createDataFrame([], schema=create_spark_schema(db_name, entity_name))\n",
-					"    return spark_dataframe"
-				],
-				"execution_count": 68
+				"execution_count": 10
 			},
 			{
 				"cell_type": "code",
@@ -240,166 +174,7 @@
 					"sb_hrm_schema = create_spark_schema(hrm_db_name, entity_name)\n",
 					"sb_hrm_table_schema = spark.table(f\"{hrm_db_name}.{hrm_table_name}\").schema"
 				],
-				"execution_count": 69
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"collapsed": false
-				},
-				"source": [
-					"def extract_schema_structure(schema: StructType) -> dict:\n",
-					"    def extract_field(field):\n",
-					"        if isinstance(field.dataType, StructType):\n",
-					"            return {field.name: {subfield.name: str(subfield.dataType) for subfield in field.dataType.fields}}\n",
-					"        elif isinstance(field.dataType, ArrayType):\n",
-					"            element_type = field.dataType.elementType\n",
-					"            if isinstance(element_type, StructType):\n",
-					"                subfield_extract = {}\n",
-					"                for subfield in element_type.fields:\n",
-					"                    if isinstance(subfield.dataType, ArrayType):\n",
-					"                        subfield_extract.update(extract_field(subfield))\n",
-					"                    else:\n",
-					"                        subfield_extract.update({subfield.name: str(subfield.dataType)})\n",
-					"                return {field.name: subfield_extract}\n",
-					"            else:\n",
-					"                return {field.name: f'array<{str(element_type)}>'}\n",
-					"        else:\n",
-					"            return {field.name: str(field.dataType)}\n",
-					"        \n",
-					"    \n",
-					"    result = {}\n",
-					"    for field in schema.fields:\n",
-					"        result.update(extract_field(field))\n",
-					"    return result"
-				],
-				"execution_count": 70
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"def test_compare_schemas(schema1: StructType, schema2: StructType) -> bool:\n",
-					"    structure1: dict = extract_schema_structure(schema1)\n",
-					"    structure2: dict = extract_schema_structure(schema2)\n",
-					"    \n",
-					"    differences: list[tuple] = []\n",
-					"    \n",
-					"    all_fields: set = set(structure1.keys()).union(set(structure2.keys()))\n",
-					"    \n",
-					"    for field in all_fields:\n",
-					"        if field not in structure1:\n",
-					"            print(1)\n",
-					"            differences.append((field, \"Field not in schema1\", structure2[field]))\n",
-					"        elif field not in structure2:\n",
-					"            print(2)\n",
-					"            differences.append((field, structure1[field], \"Field not in schema2\"))\n",
-					"        else:\n",
-					"            if structure1[field] != structure2[field]:\n",
-					"                if isinstance(structure1[field], dict) and isinstance(structure2[field], dict):\n",
-					"                    subfields: set = set(structure1[field].keys()).union(set(structure2[field].keys()))\n",
-					"                    for subfield in subfields:\n",
-					"                        if subfield not in structure1[field]:\n",
-					"                            print(3)\n",
-					"                            differences.append((f\"{field}.{subfield}\", \"Field not in schema1\", structure2[field][subfield]))\n",
-					"                        elif subfield not in structure2[field]:\n",
-					"                            print(4)\n",
-					"                            differences.append((f\"{field}.{subfield}\", structure1[field][subfield], \"Field not in schema2\"))\n",
-					"                        elif structure1[field][subfield] != structure2[field][subfield]:\n",
-					"                            \n",
-					"                            print(5)\n",
-					"                            print(structure1[field][subfield])\n",
-					"                            print(structure2[field][subfield])\n",
-					"                            differences.append((f\"{field}.{subfield}\", structure1[field][subfield], structure2[field][subfield]))\n",
-					"                else:\n",
-					"                    \n",
-					"                    print(6)\n",
-					"                    differences.append((field, structure1[field], structure2[field]))\n",
-					"    \n",
-					"    if differences:\n",
-					"        # Create a Spark DataFrame to display the differences\n",
-					"        differences_df: DataFrame = spark.createDataFrame(differences, [\"Field\", \"Schema 1\", \"Schema 2\"])\n",
-					"        display(differences_df)\n",
-					"        return False\n",
-					"    else:\n",
-					"        return True"
-				],
-				"execution_count": 71
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"def test_std_same_rows_hrm(std_table: str, hrm_table: str) -> tuple[int, int, bool]:\n",
-					"    std_table_full: str = f\"{std_db_name}.{std_table}\"\n",
-					"    hrm_table_full: str = f\"{hrm_db_name}.{hrm_table}\"\n",
-					"\n",
-					"    # filter standardised df with non-null message_type and exclude 'Delete' message_type since it doesn't add a new row in hrm\n",
-					"    std_df: DataFrame = spark.table(std_table_full)\n",
-					"    std_df = std_df.filter((std_df.message_type != 'Delete') & std_df.message_type.isNotNull() & std_df.message_id.isNotNull())\n",
-					"    \n",
-					"    std_count: int = std_df.count()\n",
-					"    hrm_count: int = spark.table(hrm_table_full).count()\n",
-					"\n",
-					"    return (std_count, hrm_count, std_count == hrm_count)"
-				],
-				"execution_count": 72
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"def test_curated_row_count(hrm_table_final: str, curated_table: str) -> tuple[int, int, bool]:\n",
-					"    hrm_table_full: str = f\"{hrm_db_name}.{hrm_table_final}\"\n",
-					"    curated_table_full: str = f\"{curated_db_name}.{curated_table_name}\"\n",
-					"    \n",
-					"    hrm_df: DataFrame = spark.sql(f\"select * from {hrm_table_full} where IsActive = 'Y'\").select(data_model_columns).drop_duplicates()\n",
-					"    hrm_count: int = hrm_df.count()\n",
-					"\n",
-					"    curated_count: int = spark.table(curated_table_full).count()\n",
-					"    \n",
-					"    return (hrm_count, curated_count, hrm_count == curated_count)"
-				],
-				"execution_count": 73
+				"execution_count": 11
 			},
 			{
 				"cell_type": "markdown",
@@ -436,7 +211,7 @@
 					"print(f\"Service bus harmonised schema correct: {hrm_schema_correct}\\nTable: {hrm_db_name}.{hrm_table_name}\\nDifferences shown above (if any)\")\n",
 					"exitCode += int(not hrm_schema_correct)"
 				],
-				"execution_count": 74
+				"execution_count": 12
 			},
 			{
 				"cell_type": "markdown",
@@ -463,38 +238,6 @@
 						"transient": {
 							"deleting": false
 						}
-					}
-				},
-				"source": [
-					"def differentiate_std_and_hrm(std_table_full, hrm_table_full):\n",
-					"    # filter standardised df with non-null message_type and exclude 'Delete' message_type since it doesn't add a new row in hrm\n",
-					"    std_df: DataFrame = spark.table(std_table_full)\n",
-					"    std_df = std_df.filter((std_df.message_type != 'Delete') & (std_df.message_type.isNotNull()))\n",
-					"\n",
-					"    hrm_df  = spark.table(hrm_table_full)\n",
-					"\n",
-					"    # Find rows in the original table that are not in the new table\n",
-					"    missing_rows_in_std = hrm_df.select(data_model_columns).subtract(std_df.select(data_model_columns))\n",
-					"\n",
-					"    # Show the missing rows\n",
-					"    display(missing_rows_in_std)\n",
-					"\n",
-					"    missing_rows_in_hrm = std_df.select(data_model_columns).subtract(hrm_df.select(data_model_columns))\n",
-					"    display(missing_rows_in_hrm)"
-				],
-				"execution_count": 75
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
 					},
 					"collapsed": false
 				},
@@ -508,7 +251,7 @@
 					"    #this is classed as an error\n",
 					"    exitCode += 1 "
 				],
-				"execution_count": 76
+				"execution_count": 13
 			},
 			{
 				"cell_type": "markdown",
@@ -551,11 +294,11 @@
 					}
 				},
 				"source": [
-					"harmonised_final_count, curated_count, counts_match = test_curated_row_count(hrm_table_final, curated_table_name)\n",
+					"harmonised_final_count, curated_count, counts_match = test_curated_row_count(hrm_table_final, curated_table_name, data_model_columns)\n",
 					"print(f\"Harmonised Final Count: {harmonised_final_count: ,}\\nCurated Count: {curated_count: ,}\\nCounts match: {counts_match}\")\n",
 					"exitCode += int(not counts_match)"
 				],
-				"execution_count": 77
+				"execution_count": 14
 			},
 			{
 				"cell_type": "markdown",
@@ -592,7 +335,7 @@
 					"df_hrm = spark.sql(\"SELECT * FROM odw_harmonised_db.sb_nsip_exam_timetable WHERE casereference = 'BC0110001' ORDER BY IngestionDate\")\n",
 					"display(df_hrm)"
 				],
-				"execution_count": 78
+				"execution_count": 15
 			},
 			{
 				"cell_type": "markdown",
@@ -638,7 +381,7 @@
 					"ORDER BY\n",
 					"    2 DESC"
 				],
-				"execution_count": 79
+				"execution_count": 16
 			},
 			{
 				"cell_type": "code",
@@ -658,7 +401,7 @@
 					"df = spark.sql(\"SELECT * FROM odw_curated_db.nsip_exam_timetable WHERE casereference = 'EN010020'\")\n",
 					"display(df)"
 				],
-				"execution_count": 80
+				"execution_count": 17
 			},
 			{
 				"cell_type": "markdown",
@@ -704,7 +447,7 @@
 					"    \n",
 					"display(df)"
 				],
-				"execution_count": 81
+				"execution_count": 18
 			},
 			{
 				"cell_type": "code",
@@ -737,7 +480,7 @@
 					"    \n",
 					"display(df)"
 				],
-				"execution_count": 82
+				"execution_count": 19
 			},
 			{
 				"cell_type": "markdown",
@@ -781,7 +524,7 @@
 					"display(df_hrm_final)\n",
 					"display(df_cur)"
 				],
-				"execution_count": null
+				"execution_count": 20
 			},
 			{
 				"cell_type": "markdown",
@@ -812,7 +555,7 @@
 				"source": [
 					"mssparkutils.notebook.exit(exitCode)"
 				],
-				"execution_count": 84
+				"execution_count": 21
 			}
 		]
 	}

@@ -1,0 +1,461 @@
+{
+	"name": "py_utils_curated_validate_table",
+	"properties": {
+		"description": "Validation notebook for validating curated layer tables against the json schema.",
+		"folder": {
+			"name": "utils/data-validation"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"targetSparkConfiguration": {
+			"referenceName": "MaxBuffer",
+			"type": "SparkConfigurationReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "2540eddf-0323-4d8f-b0b3-fe5c5a30878c"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": true,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.3",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30,
+			"targetSparkConfiguration": "MaxBuffer"
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Validation notebook for validating curated layer tables against the json schema\n",
+					"\n",
+					"#### NB: PLEASE ATTACH TO THE SPARK POOL \"PINSSYNSPODW\" AS THIS IS RUNNING PYTHON 3.10 WHICH IS NEEDED"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Install packages"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%pip install --quiet --upgrade pip\n",
+					"%pip install --quiet jsonschema==4.20.0 iso8601==2.1.0 git+https://github.com/Planning-Inspectorate/data-model@main#egg=pins_data_model"
+				],
+				"execution_count": 1
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Params"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"tags": [
+						"parameters"
+					]
+				},
+				"source": [
+					"entity_name=''\n",
+					"table_name=''\n",
+					"primary_key=''\n",
+					"aggregated_column=''"
+				],
+				"execution_count": 2
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Imports"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"import pandas as pd\n",
+					"import numpy as np\n",
+					"import json\n",
+					"from collections import defaultdict\n",
+					"import pprint\n",
+					"from jsonschema import validate, FormatChecker, ValidationError, Draft202012Validator\n",
+					"from iso8601 import parse_date, ParseError\n",
+					"from pins_data_model import load_schemas"
+				],
+				"execution_count": 3
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Function to validate a list of rows of data."
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def is_iso8601_date_time(instance):\n",
+					"\n",
+					"    \"\"\"\n",
+					"    Function to check if a date matches ISO-8601 format\n",
+					"    \"\"\"\n",
+					"    if instance is None:\n",
+					"        return True\n",
+					"    try:\n",
+					"        parse_date(instance)\n",
+					"        return True\n",
+					"    except ParseError:\n",
+					"        return False\n",
+					"\n",
+					"def validate_data(data: list, schema: dict, primary_key: str) -> str:\n",
+					"\n",
+					"    \"\"\"\n",
+					"    Function to validate a list of rows of data.\n",
+					"    Validation includes a format check against ISO-8601.\n",
+					"\n",
+					"    Args:\n",
+					"        data: list\n",
+					"        schema: dictionary\n",
+					"        primary_key: string\n",
+					"\n",
+					"    Returns:\n",
+					"        success: string\n",
+					"        \"Success\" or \"Failed\" for the result of the validation\n",
+					"    \"\"\"\n",
+					"    \n",
+					"    format_checker = FormatChecker()\n",
+					"    format_checker.checks(\"date-time\")(is_iso8601_date_time)\n",
+					"    validator = Draft202012Validator(schema, format_checker=format_checker)\n",
+					"\n",
+					"    success = \"Success\"\n",
+					"\n",
+					"    for index, row in enumerate(data, start=1):\n",
+					"        errors = list(validator.iter_errors(row))\n",
+					"        if errors:\n",
+					"            success = \"Failed\"\n",
+					"            print(f\"{len(errors)} error(s) found in row {index}\")\n",
+					"            key_value = row.get(primary_key)\n",
+					"            print(f\"{primary_key}: {key_value}\")\n",
+					"            for error in errors:\n",
+					"                print(error.message)\n",
+					"                print(\"-\"*100)\n",
+					"            print(\"#\"*100)\n",
+					"            print(\"#\"*100)\n",
+					"\n",
+					"    return success"
+				],
+				"execution_count": 4
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Define constants"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"SCHEMAS = load_schemas.load_all_schemas()[\"schemas\"]\n",
+					"SCHEMA = SCHEMAS[f\"{entity_name}.schema.json\"]\n",
+					"PRIMARY_KEY = primary_key\n",
+					"DATABASE = \"odw_curated_db\"\n",
+					"TABLE = table_name\n",
+					"QUERY = f\"SELECT * FROM `{DATABASE}`.`{TABLE}`\"\n",
+					"OUTPUT_FILE = f\"{TABLE}.txt\""
+				],
+				"execution_count": 5
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Create dataframe of the data from the table\n",
+					"\n",
+					"For certain tables it may be necessary to rename a column or two in order to create the array and avoid duplicate field names.\n",
+					"\n",
+					"It's also necessary to convert None and NaT values to empty strings. A NULL value in SQL is shown as None for strings or NaT for timestamps in pandas so converting to an empty string will match the expected schema as we're validating using a pandas dataframe.\n",
+					"\n",
+					"The replace() function is used to convert NaT values to None and then these are converted to empty strings using fillna()."
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"spark.sql(f\"REFRESH TABLE {DATABASE}.{TABLE}\")"
+				],
+				"execution_count": 6
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"df = spark.sql(QUERY)\n",
+					"data = df.toPandas()\n",
+					"for column in data:\n",
+					"    data[column].replace({pd.NaT: None, np.nan: None},inplace=True)\n",
+					"\n",
+					"if aggregated_column != '':\n",
+					"    data[aggregated_column] = data[aggregated_column].apply(lambda x: x.tolist() if isinstance(x, np.ndarray) else x)\n",
+					"\n",
+					"json_data = data.to_dict(orient='records')"
+				],
+				"execution_count": 7
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Validate against the schema\n",
+					"\n",
+					"%%capture magic command is used to capture the cell output and assign it to the variable \"output\". This can then be used later as the data to be written to file.\n",
+					"\n",
+					"The validate variable can be used and returned as the exit value of the notebook."
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%%capture output\n",
+					"\n",
+					"validate = validate_data(data=json_data, \n",
+					"                        schema=SCHEMA,\n",
+					"                        primary_key = PRIMARY_KEY)"
+				],
+				"execution_count": 8
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Print the validation output\n",
+					"\n",
+					"Output is sent to storage so commented out but can be printed here if need be"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"result = output.stdout\n",
+					"print(result)"
+				],
+				"execution_count": 9
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Set notebook exit value to the validate variable above\n",
+					"\n",
+					"Success for successful validation\n",
+					"Failed for faield validation"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"mssparkutils.notebook.exit(validate)"
+				],
+				"execution_count": 11
+			}
+		]
+	}
+}

@@ -1,0 +1,555 @@
+{
+	"name": "py_sb_horizon_harmonised_appeal_document",
+	"properties": {
+		"folder": {
+			"name": "odw-harmonised"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "a2d76946-a915-49b8-928d-c465f6936576"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.3",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql.types import IntegerType, ArrayType, StructType, StructField\n",
+					"from pyspark.sql import Row\n",
+					"from pyspark.sql.functions import *"
+				],
+				"execution_count": 1
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"service_bus_table = \"odw_harmonised_db.sb_appeal_document\"\n",
+					"horizon_table = \"odw_standardised_db.horizon_appeals_document_metadata\"\n",
+					"aie_extracts_table = \"odw_harmonised_db.aie_document_data\"\n",
+					"spark_table_final = \"odw_harmonised_db.appeal_document\""
+				],
+				"execution_count": 2
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Get data out of the service bus with additional fields needed for Horizon data\n",
+					"service_bus_data = spark.sql(f\"\"\"\n",
+					"                    SELECT DISTINCT\n",
+					"                        AppealsDocumentMetadataID\n",
+					"                        ,documentId\n",
+					"                        ,caseId\n",
+					"                        ,caseReference\n",
+					"                        ,version\n",
+					"                        ,filename\n",
+					"                        ,originalFilename\n",
+					"                        ,size\n",
+					"                        ,mime\n",
+					"                        ,documentURI\n",
+					"                        ,publishedDocumentURI\n",
+					"                        ,virusCheckStatus\n",
+					"                        ,fileMD5\n",
+					"                        ,dateCreated\n",
+					"                        ,dateReceived\n",
+					"                        ,datePublished\n",
+					"                        ,lastModified\n",
+					"                        ,caseType\n",
+					"                        ,redactedStatus\n",
+					"                        ,documentType\n",
+					"                        ,sourceSystem\n",
+					"                        ,origin\n",
+					"                        ,owner\n",
+					"                        ,author\n",
+					"                        ,description\n",
+					"                        ,caseStage\n",
+					"                        ,horizonFolderId\n",
+					"\n",
+					"                        -- Start Horizon columns\n",
+					"                        ,CAST(NULL AS String) AS caseNumber\n",
+					"                        ,CAST(NULL AS String) AS caseworkTypeGroup\n",
+					"                        ,CAST(NULL AS String) AS caseworkTypeAbbreviation\n",
+					"                        ,CAST(NULL AS String) AS versionFilename\n",
+					"                        ,CAST(NULL AS String) AS incomingOutgoingExternal\n",
+					"                        ,CAST(NULL AS String) AS publishedStatus\n",
+					"                        -- End Horizon columns\n",
+					"                        \n",
+					"                        ,Migrated\n",
+					"                        ,ODTSourceSystem\n",
+					"                        ,SourceSystemID\n",
+					"                        ,IngestionDate \n",
+					"                        ,NULLIF(ValidTo, '') AS ValidTo\n",
+					"                        ,'' as RowID\n",
+					"                        ,IsActive\n",
+					"                        \n",
+					"                    FROM \n",
+					"                        {service_bus_table}\n",
+					"\n",
+					"                    \"\"\")"
+				],
+				"execution_count": 3
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Get data out of Horizon and matching the SB schema (with additional fields and ensure data types match)\n",
+					"horizon_data = spark.sql(f\"\"\"\n",
+					"                SELECT DISTINCT \n",
+					"                    CAST(NULL AS LONG) AS AppealsDocumentMetadataID\n",
+					"                    ,Doc.documentId\n",
+					"                    ,CAST(Doc.casenodeid AS INTEGER) AS caseId\n",
+					"                    ,Doc.caseReference\n",
+					"                    ,CAST(Doc.version AS INTEGER) AS version\n",
+					"                    ,Doc.filename as filename\n",
+					"                    ,Doc.filename as originalFilename\n",
+					"                    ,CAST(Doc.size AS INTEGER) AS size\n",
+					"                    ,Aie.mime\n",
+					"                    ,Aie.documentURI\n",
+					"                    ,CAST(NULL AS String) AS publishedDocumentURI\n",
+					"                    ,Doc.virusCheckStatus\n",
+					"                    ,Aie.fileMD5\n",
+					"                    ,Doc.dateCreated\n",
+					"                    ,CAST(NULL AS String) AS dateReceived\n",
+					"                    ,Doc.datePublished\n",
+					"                    ,Doc.lastModified\n",
+					"                    ,Doc.caseworkType as caseType\n",
+					"                    ,Doc.redactedStatus\n",
+					"                    ,Doc.documentType\n",
+					"                    ,Doc.sourceSystem -- set to horizon\n",
+					"                    ,CAST(NULL AS String) AS origin\n",
+					"                    ,Aie.owner\n",
+					"                    ,Aie.author\n",
+					"                    ,Doc.documentDescription AS description\n",
+					"                    ,CAST(NULL AS String) AS caseStage\n",
+					"                    ,Doc.folderid AS horizonFolderId\n",
+					"                    \n",
+					"                    -- Start Horizon Fields Not in SB\n",
+					"                    ,Doc.caseNumber\n",
+					"                    ,Doc.caseworkTypeGroup\n",
+					"                    ,Doc.caseworkTypeAbbreviation\n",
+					"                    ,Doc.versionFilename\n",
+					"                    ,Doc.incomingOutgoingExternal\n",
+					"                    ,Doc.publishedStatus\n",
+					"                    -- END Horizon Fields Not in SB\n",
+					"\n",
+					"                    ,\"0\" as Migrated\n",
+					"                    ,\"Horizon\" as ODTSourceSystem\n",
+					"                    ,NULL AS SourceSystemID\n",
+					"                    , to_timestamp(Doc.expected_from)  AS IngestionDate\n",
+					"                    ,CAST(null as string) as ValidTo -- to avoid any null descrepancies\n",
+					"                    ,'' as RowID\n",
+					"                    ,'Y' as IsActive\n",
+					"                FROM\n",
+					"                    {horizon_table} AS Doc\n",
+					"                LEFT JOIN {aie_extracts_table} AS Aie ON Doc.DocumentId = Aie.DocumentId\n",
+					"                WHERE\n",
+					"                    Doc.ingested_datetime = (SELECT MAX(ingested_datetime) FROM {horizon_table})\n",
+					"            \"\"\")"
+				],
+				"execution_count": 4
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"horizon_data = horizon_data.select(service_bus_data.columns)\n",
+					"results = service_bus_data.union(horizon_data)"
+				],
+				"execution_count": 5
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
+				],
+				"execution_count": 6
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"\n",
+					"Now need to sort internal ids, IsActive flags, and valid_to dates"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"spark.sql(f\"\"\"\n",
+					"    CREATE OR REPLACE TEMPORARY VIEW vw_appeal_document_calculations_base\n",
+					"        AS\n",
+					"        SELECT  \n",
+					"            row_number() OVER(PARTITION BY documentId ORDER BY IngestionDate DESC) AS ReverseOrderProcessed\n",
+					"            ,row_number() OVER(ORDER BY IngestionDate asc, documentId asc) AS AppealsDocumentMetadataID\n",
+					"            ,documentId\n",
+					"            ,IngestionDate\n",
+					"            ,ValidTo\n",
+					"            ,'0' AS Migrated\n",
+					"            ,CASE row_number() OVER(PARTITION BY documentId ORDER BY IngestionDate DESC)\n",
+					"                WHEN 1 THEN\n",
+					"                    'Y'\n",
+					"                ELSE\n",
+					"                    'N'\n",
+					"            END AS IsActive                \n",
+					"        FROM\n",
+					"            {spark_table_final}\n",
+					"    \"\"\")"
+				],
+				"execution_count": 7
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"df_calcs = spark.sql(f\"\"\"\n",
+					"                        SELECT\n",
+					"                            CurrentRow.AppealsDocumentMetadataID\n",
+					"                            ,CurrentRow.documentId \n",
+					"                            ,CurrentRow.IngestionDate\n",
+					"                            ,COALESCE(NULLIF(CurrentRow.ValidTo,''), NextRow.IngestionDate) AS ValidTo\n",
+					"                            ,CASE\n",
+					"                                WHEN raw.documentId IS NOT NULL THEN \n",
+					"                                    \"1\"\n",
+					"                                ELSE \n",
+					"                                    \"0\"\n",
+					"                            END AS Migrated\n",
+					"                            ,CurrentRow.IsActive\n",
+					"                        FROM\n",
+					"                            vw_appeal_document_calculations_base AS CurrentRow\n",
+					"                            LEFT OUTER JOIN vw_appeal_document_calculations_base AS NextRow\n",
+					"                                ON CurrentRow.documentId = NextRow.documentId\n",
+					"                                AND CurrentRow.ReverseOrderProcessed - 1 = NextRow.ReverseOrderProcessed\n",
+					"                            LEFT OUTER JOIN (SELECT DISTINCT documentId FROM  odw_harmonised_db.sb_appeal_document) AS Raw\n",
+					"                                ON CurrentRow.documentId = Raw.documentId \n",
+					"                            ORDER BY currentRow.ReverseOrderProcessed\n",
+					"                    \"\"\")"
+				],
+				"execution_count": 8
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"df_calcs =df_calcs.withColumnRenamed(\"documentId\", \"temp_documentId\").withColumnRenamed(\"IngestionDate\", \"temp_IngestionDate\")"
+				],
+				"execution_count": 9
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"results = spark.sql(f\"\"\"\n",
+					"                    SELECT DISTINCT AppealsDocumentMetadataID\n",
+					"                        ,documentId\n",
+					"                        ,caseId\n",
+					"                        ,caseReference\n",
+					"                        ,version\n",
+					"                        ,filename\n",
+					"                        ,originalFilename\n",
+					"                        ,size\n",
+					"                        ,mime\n",
+					"                        ,documentURI\n",
+					"                        ,publishedDocumentURI\n",
+					"                        ,virusCheckStatus\n",
+					"                        ,fileMD5\n",
+					"                        ,dateCreated\n",
+					"                        ,dateReceived\n",
+					"                        ,datePublished\n",
+					"                        ,lastModified\n",
+					"                        ,caseType\n",
+					"                        ,redactedStatus\n",
+					"                        ,documentType\n",
+					"                        ,sourceSystem\n",
+					"                        ,origin\n",
+					"                        ,owner\n",
+					"                        ,author\n",
+					"                        ,description\n",
+					"                        ,caseStage\n",
+					"                        ,horizonFolderId\n",
+					"\n",
+					"                        --Start Horizon only fields\n",
+					"                        ,caseNumber\n",
+					"                        ,caseworkTypeGroup\n",
+					"                        ,caseworkTypeAbbreviation\n",
+					"                        ,versionFilename\n",
+					"                        ,incomingOutgoingExternal\n",
+					"                        ,publishedStatus\n",
+					"                        --End Horizon only fields\n",
+					"\n",
+					"                        ,Migrated\n",
+					"                        ,ODTSourceSystem\n",
+					"                        ,IngestionDate\n",
+					"                        ,ValidTo\n",
+					"                        ,MD5(CONCAT(\n",
+					"                                IFNULL(CAST(AppealsDocumentMetadataID AS bigint), '.')\n",
+					"                                ,IFNULL(CAST(documentId AS String), '.')\n",
+					"                                ,IFNULL(CAST(caseId AS integer), '.')\n",
+					"                                ,IFNULL(CAST(caseReference AS String), '.')\n",
+					"                                ,IFNULL(CAST(version AS integer), '.')\n",
+					"                                ,IFNULL(CAST(filename AS String), '.')\n",
+					"                                ,IFNULL(CAST(originalFilename AS String), '.')\n",
+					"                                ,IFNULL(CAST(size AS integer), '.')\n",
+					"                                ,IFNULL(CAST(mime AS String), '.')\n",
+					"                                ,IFNULL(CAST(documentURI AS String), '.')\n",
+					"                                ,IFNULL(CAST(publishedDocumentURI AS String), '.')\n",
+					"                                ,IFNULL(CAST(virusCheckStatus AS String), '.')\n",
+					"                                ,IFNULL(CAST(fileMD5 AS String), '.')\n",
+					"                                ,IFNULL(CAST(dateCreated AS String), '.')\n",
+					"                                ,IFNULL(CAST(dateReceived AS String), '.')\n",
+					"                                ,IFNULL(CAST(datePublished AS String), '.')\n",
+					"                                ,IFNULL(CAST(lastModified AS String), '.')\n",
+					"                                ,IFNULL(CAST(caseType AS String), '.')\n",
+					"                                ,IFNULL(CAST(redactedStatus AS String), '.')\n",
+					"                                ,IFNULL(CAST(documentType AS String), '.')\n",
+					"                                ,IFNULL(CAST(sourceSystem AS String), '.')\n",
+					"                                ,IFNULL(CAST(origin AS String), '.')\n",
+					"                                ,IFNULL(CAST(owner AS String), '.')\n",
+					"                                ,IFNULL(CAST(author AS String), '.')\n",
+					"                                ,IFNULL(CAST(description AS String), '.')\n",
+					"                                ,IFNULL(CAST(caseStage AS String), '.')\n",
+					"                                ,IFNULL(CAST(horizonFolderId AS String), '.')\n",
+					"\n",
+					"                                ,IFNULL(CAST(caseNumber AS String), '.')\n",
+					"                                ,IFNULL(CAST(caseworkTypeGroup AS String), '.')\n",
+					"                                ,IFNULL(CAST(caseworkTypeAbbreviation AS String), '.')\n",
+					"                                ,IFNULL(CAST(versionFilename AS String), '.')\n",
+					"                                ,IFNULL(CAST(incomingOutgoingExternal AS String), '.')\n",
+					"                                ,IFNULL(CAST(publishedStatus AS String), '.')\n",
+					"                                \n",
+					"                                ,IFNULL(CAST(Migrated AS String), '.')\n",
+					"                                ,IFNULL(CAST(ODTSourceSystem AS String), '.')\n",
+					"                                ,IFNULL(CAST(IngestionDate AS String), '.')\n",
+					"                                ,IFNULL(CAST(ValidTo AS String), '.')\n",
+					"                            )\n",
+					"                        ) AS RowID\n",
+					"                        ,IsActive\n",
+					"                    FROM \n",
+					"                        {spark_table_final}\n",
+					"                \"\"\")\n",
+					"    "
+				],
+				"execution_count": 10
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"columns = results.columns\n",
+					"\n",
+					"results = results.drop(\"AppealsDocumentMetadataID\", \"ValidTo\", \"Migrated\", \"IsActive\")"
+				],
+				"execution_count": 11
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"final_df = results.join(df_calcs, (df_calcs[\"temp_documentId\"] == results[\"documentId\"]) & (df_calcs[\"temp_IngestionDate\"] == results[\"IngestionDate\"])).select(columns)\n",
+					"final_df = final_df.drop_duplicates()"
+				],
+				"execution_count": 12
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
+				],
+				"execution_count": 13
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					""
+				],
+				"execution_count": null
+			}
+		]
+	}
+}

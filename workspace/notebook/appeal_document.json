@@ -1,5 +1,5 @@
 {
-	"name": "document_metadata_appeals",
+	"name": "appeal_document",
 	"properties": {
 		"folder": {
 			"name": "odw-curated"
@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "4d4d4647-b59f-457b-9783-61227773b3d2"
+				"spark.autotune.trackingId": "f0e25c9b-4a24-4add-90ec-d40f12acdd8c"
 			}
 		},
 		"metadata": {
@@ -65,10 +65,10 @@
 					}
 				},
 				"source": [
-					"from pyspark.sql.functions import *\r\n",
+					"from pyspark.sql.functions import *\n",
 					"from pyspark.sql.types import *"
 				],
-				"execution_count": null
+				"execution_count": 14
 			},
 			{
 				"cell_type": "markdown",
@@ -94,66 +94,59 @@
 				"source": [
 					"%%sql\n",
 					"\n",
-					"CREATE OR REPLACE VIEW odw_curated_db.vw_appeals_document_metadata\n",
+					"CREATE OR REPLACE VIEW odw_curated_db.vw_appeal_document\n",
 					"\n",
 					"AS\n",
 					"\n",
 					"SELECT DISTINCT \n",
-					"ADM.documentId\t                        AS documentId,\n",
-					"ADM.caseId          \t                AS caseId,\n",
-					"ADM.caseReference\t                    AS caseReference,\n",
-					"ADM.Version                             AS version,\n",
-					"ADM.filename\t                        AS filename,\n",
-					"ADM.filename\t                        AS originalFilename,\n",
-					"ADM.size            \t                AS size,\n",
-					"ADM.mime\t                            AS mime,\n",
-					"ADM.DocumentURI\t                        AS documentURI,\n",
-					"ADM.DocumentURI\t\t                    AS publishedDocumentURI,\n",
-					"ADM.virusCheckStatus\t                AS virusCheckStatus,\n",
-					"ADM.fileMd5\t                            AS fileMD5,\n",
-					"ADM.dateCreated                 \t    AS dateCreated,\n",
-					"ADM.dateReceived                        AS dateReceived,\n",
-					"ADM.lastModified                \t    AS lastModified,\n",
-					"LOWER(ADM.caseType)\t                    AS caseType,\n",
-					"CASE\n",
-					"    WHEN ADM.redactedStatus = ' '   \n",
-					"    THEN '-1'\n",
-					"    ELSE ADM.redactedStatus                \n",
-					"END                                     AS redactedStatus,\n",
-					"CASE\n",
-					"    WHEN ADM.PublishedStatus = 'Depublished'\n",
-					"    THEN 'unpublished'\n",
-					"    ELSE REPLACE(\n",
-					"        LOWER(ADM.PublishedStatus),\n",
-					"        ' ',\n",
-					"        '_')\n",
-					"END                  \t                AS publishedStatus,\n",
-					"ADM.DatePublished                   \tAS datePublished,\n",
-					"ADM.DocumentType\t                    AS documentType,\n",
-					"'-1'\t                                AS securityClassification,\n",
-					"ADM.SourceSystem\t                    AS sourceSystem,\n",
-					"CASE\n",
-					"    WHEN ADM.origin  = ' '\n",
-					"    THEN '-1'\n",
-					"    ELSE ADM.origin\n",
-					"END\t                                    AS origin,\n",
-					"ADM.owner                               AS owner,\n",
-					"ADM.Author\t                            AS author,\n",
-					"ADM.description\t                        AS description,\n",
-					"CASE\n",
-					"    WHEN ADM.caseStage = \"Developer's Application\"\n",
-					"    THEN 'developers_application'\n",
-					"    WHEN ADM.caseStage = 'Post decision'\n",
-					"    THEN 'post_decision'\n",
-					"    ELSE LOWER(ADM.caseStage)\t            \n",
-					"END                                     AS caseStage,\n",
-					"ADM.horizonFolderId\t                    AS horizonFolderId,\n",
-					"'-1'\t                                AS transcriptId\t\n",
-					"\n",
-					"FROM odw_harmonised_db.appeals_document_metadata AS ADM\n",
-					"WHERE ADM.IsActive = 'Y'"
+					"    documentId,\n",
+					"    caseId,\n",
+					"    caseReference,\n",
+					"    version,\n",
+					"    filename,\n",
+					"    originalFilename,\n",
+					"    size,\n",
+					"    COALESCE(mime, '') AS mime,\n",
+					"    COALESCE(documentURI, '') AS documentURI,\n",
+					"    publishedDocumentURI,\n",
+					"    virusCheckStatus,\n",
+					"    fileMD5,\n",
+					"    dateCreated,\n",
+					"    dateReceived,\n",
+					"    datePublished,\n",
+					"    lastModified,\n",
+					"    CASE\n",
+					"        WHEN caseType = 'Planning Listed Building and Conservation Area Appeal (Y)' THEN 'Y'\n",
+					"        WHEN caseType = 'Lawful Development Certificate Appeal' THEN 'X'\n",
+					"        WHEN caseType = 'Planning Obligation Appeal' THEN 'Q'\n",
+					"        WHEN caseType = 'Commercial (CAS) Appeal' THEN 'Z'\n",
+					"        WHEN caseType = 'Enforcement Listed Building and Conservation Area Appeal' THEN 'F'\n",
+					"        WHEN caseType = 'Advertisement Appeal' THEN 'H'\n",
+					"        WHEN caseType = 'Planning Appeal (A)' THEN 'W'\n",
+					"        WHEN caseType = 'Enforcement Notice Appeal' THEN 'C'\n",
+					"        WHEN caseType = 'Discontinuance Notice Appeal' THEN 'G'\n",
+					"        WHEN caseType = 'Community Infrastructure Levy' THEN 'L'\n",
+					"        WHEN caseType = 'Planning Appeal (W)' THEN 'W'\n",
+					"        WHEN caseType = 'Call-In Application' THEN 'V'\n",
+					"        WHEN caseType = 'Affordable Housing Obligation Appeal' THEN 'S'\n",
+					"        WHEN caseType = 'Householder (HAS) Appeal' THEN 'D'\n",
+					"        ELSE CAST(NULL AS String) \n",
+					"    END\n",
+					"    AS caseType,\n",
+					"    redactedStatus,\n",
+					"    documentType,\n",
+					"    sourceSystem,\n",
+					"    origin,\n",
+					"    owner,\n",
+					"    author,\n",
+					"    description,\n",
+					"    caseStage,\n",
+					"    horizonFolderId\n",
+					"    \n",
+					"FROM odw_harmonised_db.appeal_document\n",
+					"WHERE IsActive = 'Y'"
 				],
-				"execution_count": null
+				"execution_count": 16
 			},
 			{
 				"cell_type": "markdown",
@@ -182,9 +175,9 @@
 					}
 				},
 				"source": [
-					"data: DataFrame = spark.sql(\"SELECT * FROM odw_curated_db.vw_appeals_document_metadata\")"
+					"data: DataFrame = spark.sql(\"SELECT * FROM odw_curated_db.vw_appeal_document\")"
 				],
-				"execution_count": null
+				"execution_count": 17
 			},
 			{
 				"cell_type": "markdown",
@@ -215,7 +208,7 @@
 				"source": [
 					"schema: StructType = spark.table(\"odw_curated_db.appeal_document\").schema"
 				],
-				"execution_count": null
+				"execution_count": 18
 			},
 			{
 				"cell_type": "markdown",
@@ -227,8 +220,8 @@
 					}
 				},
 				"source": [
-					"##### Cast all field data types in the data to the data types from the curated table schema\r\n",
-					"\r\n",
+					"##### Cast all field data types in the data to the data types from the curated table schema\n",
+					"\n",
 					"This is necessary because the view generated above is joining harmonised tables, many of which are sourced from Horizon and will have a different schema to the final table and fields will have different data types. Therefore, taking the curated schema as defined in thr data model and casting all fields correctly, ensures accuracy."
 				]
 			},
@@ -246,14 +239,14 @@
 					}
 				},
 				"source": [
-					"df: DataFrame = data.select(\r\n",
-					"    *[\r\n",
-					"        col(field.name).cast(field.dataType).alias(field.name)\r\n",
-					"        for field in schema.fields\r\n",
-					"    ]\r\n",
+					"df: DataFrame = data.select(\n",
+					"    *[\n",
+					"        col(field.name).cast(field.dataType).alias(field.name)\n",
+					"        for field in schema.fields\n",
+					"    ]\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 19
 			},
 			{
 				"cell_type": "markdown",
@@ -284,7 +277,7 @@
 				"source": [
 					"df.printSchema()"
 				],
-				"execution_count": null
+				"execution_count": 20
 			},
 			{
 				"cell_type": "markdown",
@@ -315,7 +308,7 @@
 				"source": [
 					"df.write.mode(\"overwrite\").saveAsTable(\"odw_curated_db.appeal_document\")"
 				],
-				"execution_count": null
+				"execution_count": 21
 			}
 		]
 	}
