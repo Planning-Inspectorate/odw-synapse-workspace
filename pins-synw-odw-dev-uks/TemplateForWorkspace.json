@@ -66447,7 +66447,7 @@
 			"properties": {
 				"activities": [
 					{
-						"name": "rel_1349_appeal_document",
+						"name": "pln_rel_1_1_13",
 						"type": "ExecutePipeline",
 						"dependsOn": [],
 						"policy": {
@@ -66456,7 +66456,7 @@
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
-								"referenceName": "rel_1349_appeal_document",
+								"referenceName": "pln_rel_1_1_13",
 								"type": "PipelineReference"
 							},
 							"waitOnCompletion": true,
@@ -66473,7 +66473,7 @@
 				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('workspaceId'), '/pipelines/rel_1349_appeal_document')]"
+				"[concat(variables('workspaceId'), '/pipelines/pln_rel_1_1_13')]"
 			]
 		},
 		{
@@ -66625,6 +66625,101 @@
 			"dependsOn": [
 				"[concat(variables('workspaceId'), '/notebooks/py_create_schema_from_raw')]",
 				"[concat(variables('workspaceId'), '/notebooks/py_raw_to_std')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/pln_rel_1_1_13')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "Run config notebook",
+						"type": "SynapseNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "py_deployment_manage_main_config",
+								"type": "NotebookReference"
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "Run AIE pipeline",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "Run config notebook",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pln_aie_document_data",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "Run master pipeline",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "Run AIE pipeline",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pln_master",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"folder": {
+					"name": "Releases/1.1.13"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/notebooks/py_deployment_manage_main_config')]",
+				"[concat(variables('workspaceId'), '/pipelines/pln_aie_document_data')]",
+				"[concat(variables('workspaceId'), '/pipelines/pln_master')]"
 			]
 		},
 		{
