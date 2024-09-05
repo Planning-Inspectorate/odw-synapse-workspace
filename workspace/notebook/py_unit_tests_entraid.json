@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "14efb405-afb8-4791-b6f7-fafb8c3b15b0"
+				"spark.autotune.trackingId": "ae08efbc-1689-492f-86f4-2b0b42ba8acf"
 			}
 		},
 		"metadata": {
@@ -65,12 +65,12 @@
 					}
 				},
 				"source": [
-					"import json\r\n",
-					"from pyspark.sql.types import *\r\n",
-					"from pyspark.sql import DataFrame\r\n",
+					"import json\n",
+					"from pyspark.sql.types import *\n",
+					"from pyspark.sql import DataFrame\n",
 					"import pprint"
 				],
-				"execution_count": 140
+				"execution_count": 8
 			},
 			{
 				"cell_type": "code",
@@ -83,21 +83,19 @@
 						"transient": {
 							"deleting": false
 						}
-					},
-					"tags": [
-						"parameters"
-					]
+					}
 				},
 				"source": [
-					"entity_name: str = 'entraid'\r\n",
-					"std_db_name: str = 'odw_standardised_db'\r\n",
-					"hrm_db_name: str = 'odw_harmonised_db'\r\n",
-					"curated_db_name: str = 'odw_curated_db'\r\n",
-					"std_table_name: str = 'entraid'\r\n",
-					"hrm_table_name: str = 'entraid'\r\n",
-					"isServiceBusSchema: bool = False"
+					"entity_name: str = 'entraid'\n",
+					"std_db_name: str = 'odw_standardised_db'\n",
+					"hrm_db_name: str = 'odw_harmonised_db'\n",
+					"curated_db_name: str = 'odw_curated_db'\n",
+					"\n",
+					"std_table_name: str = 'entraid'\n",
+					"hrm_table_name: str = 'entraid'\n",
+					"curated_table_name: str = 'entraid'"
 				],
-				"execution_count": 141
+				"execution_count": 9
 			},
 			{
 				"cell_type": "code",
@@ -116,7 +114,7 @@
 					"#keep track of the exitCodes, if the exit code is not zero then we've had failures, we flip the boolean\n",
 					"exitCode: int = 0"
 				],
-				"execution_count": 142
+				"execution_count": 10
 			},
 			{
 				"cell_type": "code",
@@ -132,10 +130,9 @@
 					}
 				},
 				"source": [
-					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\r\n",
-					"path_to_orchestration_file: str = \"abfss://odw-config@\"+storage_account+\"orchestration/orchestration.json\""
+					"%run /utils/unit-tests/py_unit_tests_functions"
 				],
-				"execution_count": 143
+				"execution_count": 11
 			},
 			{
 				"cell_type": "code",
@@ -151,218 +148,12 @@
 					}
 				},
 				"source": [
-					"def get_incremental_key(entity_name: str, storage_account: str, path_to_orchestration_file: str) -> str:\r\n",
-					"    # getting the incremental key from the odw-config/orchestration\r\n",
-					"    df: DataFrame = spark.read.option(\"multiline\",\"true\").json(path_to_orchestration_file)\r\n",
-					"    definitions: list = json.loads(df.toJSON().first())['definitions']\r\n",
-					"    definition: dict = next((d for d in definitions if entity_name == d['Source_Filename_Start']), None)\r\n",
-					"    return definition['Harmonised_Incremental_Key'] if definition and 'Harmonised_Incremental_Key' in definition else None"
-				],
-				"execution_count": 144
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"#this is not a service bus schema so doesn't need all of the field\r\n",
-					"\r\n",
-					"def create_spark_schema(db_name: str, entity_name: str) -> StructType:\r\n",
-					"    incremental_key: str = get_incremental_key(entity_name, storage_account, path_to_orchestration_file) if db_name == 'odw_harmonised_db' else None\r\n",
-					"    schema = mssparkutils.notebook.run(\"/py_create_spark_schema\", 30, {\"db_name\": db_name, \"entity_name\": entity_name, \"incremental_key\": incremental_key, \"is_servicebus_schema\": isServiceBusSchema})\r\n",
-					"    spark_schema = StructType.fromJson(json.loads(schema))\r\n",
-					"    return spark_schema"
-				],
-				"execution_count": 145
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"def create_spark_dataframe() -> DataFrame:\r\n",
-					"    spark_dataframe: DataFrame = spark.createDataFrame([], schema=create_spark_schema(db_name, entity_name))\r\n",
-					"    return spark_dataframe"
-				],
-				"execution_count": 146
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"sb_std_schema = create_spark_schema(std_db_name, entity_name)\r\n",
-					"sb_std_table_schema = spark.table(f\"{std_db_name}.{std_table_name}\").schema\r\n",
-					"sb_hrm_schema = create_spark_schema(hrm_db_name, entity_name)\r\n",
+					"sb_std_schema = create_spark_schema(std_db_name, entity_name, None, False)\n",
+					"sb_std_table_schema = spark.table(f\"{std_db_name}.{std_table_name}\").schema\n",
+					"sb_hrm_schema = create_spark_schema(hrm_db_name, entity_name, None, False)\n",
 					"sb_hrm_table_schema = spark.table(f\"{hrm_db_name}.{hrm_table_name}\").schema"
 				],
-				"execution_count": 147
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"collapsed": false
-				},
-				"source": [
-					"def extract_schema_structure(schema: StructType) -> dict:\r\n",
-					"    def extract_field(field):\r\n",
-					"        if isinstance(field.dataType, StructType):\r\n",
-					"            return {field.name: {subfield.name: str(subfield.dataType) for subfield in field.dataType.fields}}\r\n",
-					"        elif isinstance(field.dataType, ArrayType):\r\n",
-					"            element_type = field.dataType.elementType\r\n",
-					"            if isinstance(element_type, StructType):\r\n",
-					"                return {field.name: {subfield.name: str(subfield.dataType) for subfield in element_type.fields}}\r\n",
-					"            else:\r\n",
-					"                return {field.name: f'array<{str(element_type)}>'}\r\n",
-					"        else:\r\n",
-					"            return {field.name: str(field.dataType)}\r\n",
-					"    \r\n",
-					"    result = {}\r\n",
-					"    for field in schema.fields:\r\n",
-					"        result.update(extract_field(field))\r\n",
-					"    return result"
-				],
-				"execution_count": 148
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"def test_compare_schemas(schema1: StructType, schema2: StructType) -> bool:\r\n",
-					"    structure1: dict = extract_schema_structure(schema1)\r\n",
-					"    structure2: dict = extract_schema_structure(schema2)\r\n",
-					"    \r\n",
-					"    differences: list[tuple] = []\r\n",
-					"    \r\n",
-					"    all_fields: set = set(structure1.keys()).union(set(structure2.keys()))\r\n",
-					"    \r\n",
-					"    for field in all_fields:\r\n",
-					"        if field not in structure1:\r\n",
-					"            differences.append((field, \"Field not in schema1\", structure2[field]))\r\n",
-					"        elif field not in structure2:\r\n",
-					"            differences.append((field, structure1[field], \"Field not in schema2\"))\r\n",
-					"        else:\r\n",
-					"            if structure1[field] != structure2[field]:\r\n",
-					"                if isinstance(structure1[field], dict) and isinstance(structure2[field], dict):\r\n",
-					"                    subfields: set = set(structure1[field].keys()).union(set(structure2[field].keys()))\r\n",
-					"                    for subfield in subfields:\r\n",
-					"                        if subfield not in structure1[field]:\r\n",
-					"                            differences.append((f\"{field}.{subfield}\", \"Field not in schema1\", structure2[field][subfield]))\r\n",
-					"                        elif subfield not in structure2[field]:\r\n",
-					"                            differences.append((f\"{field}.{subfield}\", structure1[field][subfield], \"Field not in schema2\"))\r\n",
-					"                        elif structure1[field][subfield] != structure2[field][subfield]:\r\n",
-					"                            differences.append((f\"{field}.{subfield}\", structure1[field][subfield], structure2[field][subfield]))\r\n",
-					"                else:\r\n",
-					"                    differences.append((field, structure1[field], structure2[field]))\r\n",
-					"    \r\n",
-					"    if differences:\r\n",
-					"        # Create a Spark DataFrame to display the differences\r\n",
-					"        differences_df: DataFrame = spark.createDataFrame(differences, [\"Field\", \"Schema 1\", \"Schema 2\"])\r\n",
-					"        display(differences_df)\r\n",
-					"        return False\r\n",
-					"    else:\r\n",
-					"        return True"
-				],
-				"execution_count": 149
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"def test_std_same_rows_hrm(std_table: str, hrm_table: str) -> tuple[int, int, bool]:\r\n",
-					"    std_table_full: str = f\"{std_db_name}.{std_table}\"\r\n",
-					"    hrm_table_full: str = f\"{hrm_db_name}.{hrm_table}\"\r\n",
-					"\r\n",
-					"    # filter standardised df with non-null message_type and exclude 'Delete' message_type since it doesn't add a new row in hrm\r\n",
-					"    std_df: DataFrame = spark.table(std_table_full)\r\n",
-					"    if isServiceBusSchema:\r\n",
-					"        std_df = std_df.filter((std_df.message_type != 'Delete') & (std_df.message_type.isNotNull()))\r\n",
-					"    \r\n",
-					"    std_count: int = std_df.count()\r\n",
-					"    hrm_count: int = spark.table(hrm_table_full).count()\r\n",
-					"\r\n",
-					"    return (std_count, hrm_count, std_count == hrm_count)"
-				],
-				"execution_count": 150
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"def test_curated_row_count(hrm_table_final: str, curated_table: str) -> tuple[int, int, bool]:\r\n",
-					"    hrm_table_full: str = f\"{hrm_db_name}.{hrm_table_final}\"\r\n",
-					"    curated_table_full: str = f\"{curated_db_name}.{curated_table_name}\"\r\n",
-					"    hrm_count: int = spark.sql(f\"select * from {hrm_table_full} where IsActive = 'Y'\").count()\r\n",
-					"    curated_count: int = spark.table(curated_table_full).count()\r\n",
-					"    return (hrm_count, curated_count, hrm_count == curated_count)"
-				],
-				"execution_count": 151
+				"execution_count": 12
 			},
 			{
 				"cell_type": "markdown",
@@ -392,14 +183,14 @@
 					"collapsed": false
 				},
 				"source": [
-					"std_schema_correct: bool = test_compare_schemas(sb_std_schema, sb_std_table_schema)\r\n",
-					"exitCode += int(not std_schema_correct)\r\n",
-					"print(f\"standardised schema correct: {std_schema_correct}\\nTable: {std_db_name}.{std_table_name}\\nDifferences shown above (if any)\")\r\n",
-					"hrm_schema_correct: bool = test_compare_schemas(sb_hrm_schema, sb_hrm_table_schema)\r\n",
-					"exitCode += int(not hrm_schema_correct)\r\n",
-					"print(f\"harmonised schema correct: {hrm_schema_correct}\\nTable: {hrm_db_name}.{hrm_table_name}\\nDifferences shown above (if any)\")"
+					"std_schema_correct: bool = test_compare_schemas(sb_std_schema, sb_std_table_schema)\n",
+					"exitCode += int(not std_schema_correct)\n",
+					"print(f\"Service bus standardised schema correct: {std_schema_correct}\\nTable: {std_db_name}.{std_table_name}\\nDifferences shown above (if any)\")\n",
+					"hrm_schema_correct: bool = test_compare_schemas(sb_hrm_schema, sb_hrm_table_schema)\n",
+					"print(f\"Service bus harmonised schema correct: {hrm_schema_correct}\\nTable: {hrm_db_name}.{hrm_table_name}\\nDifferences shown above (if any)\")\n",
+					"exitCode += int(not hrm_schema_correct)"
 				],
-				"execution_count": 152
+				"execution_count": 13
 			},
 			{
 				"cell_type": "markdown",
@@ -411,7 +202,7 @@
 					}
 				},
 				"source": [
-					"##### Compare service bus standardised with harmonised\r\n",
+					"##### Compare service bus standardised with harmonised\n",
 					"Should be the same count"
 				]
 			},
@@ -429,18 +220,16 @@
 					}
 				},
 				"source": [
-					"standardised_count, harmonised_count, counts_match = test_std_same_rows_hrm(std_table_name, hrm_table_name)\r\n",
-					"exitCode += int(not counts_match)\r\n",
-					"print(f\"Standardised Count: {standardised_count: ,}\\nHarmonised Count: {harmonised_count: ,}\\nCounts match: {counts_match}\")\r\n",
-					"\r\n",
-					"#check for empty data..this is a failure really as something SHOULD be there\r\n",
-					"exitCode += int((standardised_count == 0))\r\n",
-					"\r\n",
-					"if standardised_count == 0:\r\n",
-					"    print(\"No Data in Standardised.. this is a failure\")   \r\n",
-					""
+					"standardised_count, harmonised_count, counts_match = test_std_same_rows_hrm(std_table_name, hrm_table_name)\n",
+					"print(f\"Standardised Count: {standardised_count: ,}\\nHarmonised Count: {harmonised_count: ,}\\nCounts match: {counts_match}\")\n",
+					"\n",
+					"if standardised_count > harmonised_count:\n",
+					"    print(f\"{standardised_count - harmonised_count} rows from Standardised are missing in Harmonised.\" )\n",
+					"    differentiate_std_and_hrm(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\")\n",
+					"    #this is classed as an error\n",
+					"    exitCode += 1 "
 				],
-				"execution_count": 153
+				"execution_count": 14
 			},
 			{
 				"cell_type": "markdown",
@@ -452,8 +241,63 @@
 					}
 				},
 				"source": [
-					"#### Return whether or not this was successful"
+					"##### Compare final harmonised table with curated table\n",
+					"Comparing where IsActive = Y in harmonised = curated row count"
 				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"harmonised_final_count, curated_count, counts_match = test_curated_row_count(hrm_table_name, curated_table_name)\n",
+					"print(f\"Harmonised Final Count: {harmonised_final_count: ,}\\nCurated Count: {curated_count: ,}\\nCounts match: {counts_match}\")\n",
+					"exitCode += int(not counts_match)"
+				],
+				"execution_count": 15
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Validate Curated Data against the data model\n",
+					"https://github.com/Planning-Inspectorate/data-model/blob/main/schemas/entraid.schema.json"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"is_valid_data = mssparkutils.notebook.run(\"/utils/data-validation/py_utils_curated_validate_table\", 30, {\"entity_name\": entity_name, \"table_name\": curated_table_name, \"primary_key\": \"Id\"})\n",
+					"print(f\"Is Curated Data Valid: {is_valid_data}\")\n",
+					"exitCode += int(not is_valid_data)"
+				],
+				"execution_count": 16
 			},
 			{
 				"cell_type": "code",
@@ -471,7 +315,7 @@
 				"source": [
 					"mssparkutils.notebook.exit(exitCode)"
 				],
-				"execution_count": 154
+				"execution_count": 17
 			}
 		]
 	}

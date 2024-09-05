@@ -1,0 +1,233 @@
+{
+	"name": "rel_1403_entraid",
+	"properties": {
+		"activities": [
+			{
+				"name": "Delete std",
+				"type": "SynapseNotebook",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_delete_table",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"db_name": {
+							"value": "odw_standardised_db",
+							"type": "string"
+						},
+						"table_name": {
+							"value": "entraid",
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Delete Hrm",
+				"type": "SynapseNotebook",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_delete_table",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"db_name": {
+							"value": "odw_harmonised_db",
+							"type": "string"
+						},
+						"table_name": {
+							"value": "entraid",
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Create hrm",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Delete Hrm",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "create_table_from_schema",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"db_name": {
+							"value": "odw_harmonised_db",
+							"type": "string"
+						},
+						"entity_name": {
+							"value": "entraid",
+							"type": "string"
+						},
+						"is_servicebus_schema": {
+							"value": "False",
+							"type": "bool"
+						}
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Create Std",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Delete std",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "create_table_from_schema",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"db_name": {
+							"value": "odw_standardised_db",
+							"type": "string"
+						},
+						"entity_name": {
+							"value": "entraid",
+							"type": "string"
+						},
+						"is_servicebus_schema": {
+							"value": "False",
+							"type": "bool"
+						}
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "EntraID",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Create hrm",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Create Std",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "EntraID",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
+				}
+			},
+			{
+				"name": "py_unit_tests_entraid",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "EntraID",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_unit_tests_entraid",
+						"type": "NotebookReference"
+					},
+					"snapshot": true
+				}
+			}
+		],
+		"folder": {
+			"name": "Releases/1.1.14"
+		},
+		"annotations": []
+	}
+}
