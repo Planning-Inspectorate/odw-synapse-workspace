@@ -19753,7 +19753,7 @@
 								"referenceName": "entra_id_users",
 								"type": "DatasetReference",
 								"parameters": {
-									"FileName": "users.json"
+									"FileName": "entraid.json"
 								}
 							}
 						]
@@ -31933,7 +31933,7 @@
 									"type": "string"
 								},
 								"specific_file": {
-									"value": "users",
+									"value": "entraid",
 									"type": "string"
 								},
 								"isMultiLine": {
@@ -31959,7 +31959,7 @@
 						}
 					},
 					{
-						"name": "Std to Harmonised",
+						"name": "Std to Hrm",
 						"description": "Ingests data from standardised to harmonised ",
 						"type": "SynapseNotebook",
 						"dependsOn": [
@@ -31991,6 +31991,39 @@
 							},
 							"numExecutors": null
 						}
+					},
+					{
+						"name": "Hrm to Cur",
+						"type": "SynapseNotebook",
+						"dependsOn": [
+							{
+								"activity": "Std to Hrm",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "entraid_cu",
+								"type": "NotebookReference"
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
 					}
 				],
 				"policy": {
@@ -32004,7 +32037,8 @@
 			"dependsOn": [
 				"[concat(variables('workspaceId'), '/pipelines/0_Raw_EntraID')]",
 				"[concat(variables('workspaceId'), '/notebooks/py_raw_to_std')]",
-				"[concat(variables('workspaceId'), '/notebooks/entraid')]"
+				"[concat(variables('workspaceId'), '/notebooks/entraid')]",
+				"[concat(variables('workspaceId'), '/notebooks/entraid_cu')]"
 			]
 		},
 		{
@@ -37713,6 +37747,23 @@
 							},
 							"numExecutors": null
 						}
+					},
+					{
+						"name": "pln_curated_mipins",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pln_curated_mipins",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
 					}
 				],
 				"policy": {
@@ -37737,7 +37788,8 @@
 				"[concat(variables('workspaceId'), '/notebooks/appeal_event')]",
 				"[concat(variables('workspaceId'), '/notebooks/appeal_service_user')]",
 				"[concat(variables('workspaceId'), '/notebooks/appeal_document')]",
-				"[concat(variables('workspaceId'), '/notebooks/appeals_has')]"
+				"[concat(variables('workspaceId'), '/notebooks/appeals_has')]",
+				"[concat(variables('workspaceId'), '/pipelines/pln_curated_mipins')]"
 			]
 		},
 		{
@@ -37812,6 +37864,105 @@
 			"dependsOn": [
 				"[concat(variables('workspaceId'), '/notebooks/service_user')]",
 				"[concat(variables('workspaceId'), '/notebooks/nsip_data')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/pln_curated_mipins')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "appeal_service_user_curated_mipins",
+						"type": "SynapseNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "appeal_service_user_curated_mipins",
+								"type": "NotebookReference"
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "appeal_event_curated_mipins",
+						"type": "SynapseNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "appeal_event_curated_mipins",
+								"type": "NotebookReference"
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "appeals_has_curated_mipins",
+						"type": "SynapseNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "appeals_has_curated_mipins",
+								"type": "NotebookReference"
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"folder": {
+					"name": "utils/Master"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/notebooks/appeal_service_user_curated_mipins')]",
+				"[concat(variables('workspaceId'), '/notebooks/appeal_event_curated_mipins')]",
+				"[concat(variables('workspaceId'), '/notebooks/appeals_has_curated_mipins')]"
 			]
 		},
 		{
@@ -67285,7 +67436,19 @@
 						"type": "ExecutePipeline",
 						"dependsOn": [
 							{
-								"activity": "Record checking data on service bus",
+								"activity": "Create standardised table",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "Create harmonised table",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "Create curated table",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -68807,6 +68970,144 @@
 								}
 							]
 						}
+					},
+					{
+						"name": "Create standardised table",
+						"type": "SynapseNotebook",
+						"dependsOn": [
+							{
+								"activity": "Record checking data on service bus",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "create_table_from_schema",
+								"type": "NotebookReference"
+							},
+							"parameters": {
+								"db_name": {
+									"value": "odw_standardised_db",
+									"type": "string"
+								},
+								"entity_name": {
+									"value": {
+										"value": "@variables('entity_name')",
+										"type": "Expression"
+									},
+									"type": "string"
+								}
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "Create harmonised table",
+						"type": "SynapseNotebook",
+						"dependsOn": [
+							{
+								"activity": "Record checking data on service bus",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "create_table_from_schema",
+								"type": "NotebookReference"
+							},
+							"parameters": {
+								"db_name": {
+									"value": "odw_harmonised_db",
+									"type": "string"
+								},
+								"entity_name": {
+									"value": {
+										"value": "@variables('entity_name')",
+										"type": "Expression"
+									},
+									"type": "string"
+								}
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "Create curated table",
+						"type": "SynapseNotebook",
+						"dependsOn": [
+							{
+								"activity": "Record checking data on service bus",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "create_table_from_schema",
+								"type": "NotebookReference"
+							},
+							"parameters": {
+								"db_name": {
+									"value": "odw_curated_db",
+									"type": "string"
+								},
+								"entity_name": {
+									"value": {
+										"value": "@variables('entity_name')",
+										"type": "Expression"
+									},
+									"type": "string"
+								}
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
 					}
 				],
 				"policy": {
@@ -68841,6 +69142,7 @@
 				"[concat(variables('workspaceId'), '/pipelines/pln_trigger_function_app')]",
 				"[concat(variables('workspaceId'), '/notebooks/py_utils_log_stage')]",
 				"[concat(variables('workspaceId'), '/bigDataPools/pinssynspodw')]",
+				"[concat(variables('workspaceId'), '/notebooks/create_table_from_schema')]",
 				"[concat(variables('workspaceId'), '/notebooks/py_sb_raw_to_std')]",
 				"[concat(variables('workspaceId'), '/notebooks/py_sb_std_to_hrm')]",
 				"[concat(variables('workspaceId'), '/notebooks/py_sb_horizon_harmonised_nsip_project')]",
@@ -74512,6 +74814,257 @@
 				"[concat(variables('workspaceId'), '/notebooks/appeals_has')]",
 				"[concat(variables('workspaceId'), '/notebooks/create_table_from_schema')]",
 				"[concat(variables('workspaceId'), '/bigDataPools/pinssynspodw')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/rel_1403_entraid')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "Delete std",
+						"type": "SynapseNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "py_delete_table",
+								"type": "NotebookReference"
+							},
+							"parameters": {
+								"db_name": {
+									"value": "odw_standardised_db",
+									"type": "string"
+								},
+								"table_name": {
+									"value": "entraid",
+									"type": "string"
+								}
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "Delete Hrm",
+						"type": "SynapseNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "py_delete_table",
+								"type": "NotebookReference"
+							},
+							"parameters": {
+								"db_name": {
+									"value": "odw_harmonised_db",
+									"type": "string"
+								},
+								"table_name": {
+									"value": "entraid",
+									"type": "string"
+								}
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "Create hrm",
+						"type": "SynapseNotebook",
+						"dependsOn": [
+							{
+								"activity": "Delete Hrm",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "create_table_from_schema",
+								"type": "NotebookReference"
+							},
+							"parameters": {
+								"db_name": {
+									"value": "odw_harmonised_db",
+									"type": "string"
+								},
+								"entity_name": {
+									"value": "entraid",
+									"type": "string"
+								},
+								"is_servicebus_schema": {
+									"value": "False",
+									"type": "bool"
+								}
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "Create Std",
+						"type": "SynapseNotebook",
+						"dependsOn": [
+							{
+								"activity": "Delete std",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "create_table_from_schema",
+								"type": "NotebookReference"
+							},
+							"parameters": {
+								"db_name": {
+									"value": "odw_standardised_db",
+									"type": "string"
+								},
+								"entity_name": {
+									"value": "entraid",
+									"type": "string"
+								},
+								"is_servicebus_schema": {
+									"value": "False",
+									"type": "bool"
+								}
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "EntraID",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "Create hrm",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "Create Std",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "EntraID",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "py_unit_tests_entraid",
+						"type": "SynapseNotebook",
+						"dependsOn": [
+							{
+								"activity": "EntraID",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "py_unit_tests_entraid",
+								"type": "NotebookReference"
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"folder": {
+					"name": "Releases/1.1.14"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/notebooks/py_delete_table')]",
+				"[concat(variables('workspaceId'), '/notebooks/create_table_from_schema')]",
+				"[concat(variables('workspaceId'), '/pipelines/EntraID')]",
+				"[concat(variables('workspaceId'), '/notebooks/py_unit_tests_entraid')]"
 			]
 		},
 		{
@@ -98390,7 +98943,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "f0e25c9b-4a24-4add-90ec-d40f12acdd8c"
+						"spark.autotune.trackingId": "cd84ec49-d406-4f8e-97f5-0c70cb0884d1"
 					}
 				},
 				"metadata": {
@@ -98500,7 +99053,7 @@
 							"        WHEN caseType = 'Call-In Application' THEN 'V'\n",
 							"        WHEN caseType = 'Affordable Housing Obligation Appeal' THEN 'S'\n",
 							"        WHEN caseType = 'Householder (HAS) Appeal' THEN 'D'\n",
-							"        ELSE CAST(NULL AS String) \n",
+							"        ELSE caseType\n",
 							"    END\n",
 							"    AS caseType,\n",
 							"    redactedStatus,\n",
@@ -142652,7 +143205,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "06ea49b8-07fb-4bac-8086-9e029ca5f26b"
+						"spark.autotune.trackingId": "aa51901f-d63c-485f-97da-a33ebe1decad"
 					}
 				},
 				"metadata": {
@@ -142696,15 +143249,15 @@
 							}
 						},
 						"source": [
-							"import pprint\r\n",
-							"from pyspark.sql.types import *\r\n",
-							"import json\r\n",
-							"from pyspark.sql.functions import col\r\n",
-							"from pyspark.sql import DataFrame\r\n",
+							"import pprint\n",
+							"from pyspark.sql.types import *\n",
+							"import json\n",
+							"from pyspark.sql.functions import col\n",
+							"from pyspark.sql import DataFrame\n",
 							"from notebookutils import mssparkutils"
 						],
 						"outputs": [],
-						"execution_count": null
+						"execution_count": 32
 					},
 					{
 						"cell_type": "markdown",
@@ -142736,11 +143289,12 @@
 							]
 						},
 						"source": [
-							"db_name: str = ''\r\n",
-							"entity_name: str = ''"
+							"db_name: str = ''\n",
+							"entity_name: str = ''\n",
+							"is_servicebus_schema: bool = True"
 						],
 						"outputs": [],
-						"execution_count": 1
+						"execution_count": 33
 					},
 					{
 						"cell_type": "code",
@@ -142756,18 +143310,18 @@
 							}
 						},
 						"source": [
-							"table_name_replace: str = entity_name.replace(\"-\", \"_\")\r\n",
-							"if db_name == \"odw_curated_db\":\r\n",
-							"\ttable_name: str = table_name_replace\r\n",
-							"else:\r\n",
-							"    table_name: str = f\"sb_{table_name_replace}\"\r\n",
-							"\r\n",
-							"full_table_name: str = f\"{db_name}.{table_name}\"\r\n",
-							"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\r\n",
+							"table_name_replace: str = entity_name.replace(\"-\", \"_\")\n",
+							"if db_name == \"odw_curated_db\" or not is_servicebus_schema:\n",
+							"\ttable_name: str = table_name_replace\n",
+							"else:\n",
+							"    table_name: str = f\"sb_{table_name_replace}\"\n",
+							"\n",
+							"full_table_name: str = f\"{db_name}.{table_name}\"\n",
+							"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
 							"path_to_orchestration_file: str = \"abfss://odw-config@\"+storage_account+\"orchestration/orchestration.json\""
 						],
 						"outputs": [],
-						"execution_count": 2
+						"execution_count": 34
 					},
 					{
 						"cell_type": "code",
@@ -142783,14 +143337,14 @@
 							}
 						},
 						"source": [
-							"def test_table_exists(db_name: str, table_name: str) -> bool:\r\n",
-							"    spark.sql(f\"USE {db_name}\")\r\n",
-							"    tables_df: DataFrame = spark.sql(\"SHOW TABLES\")\r\n",
-							"    table_names: list = [row['tableName'] for row in tables_df.collect()]\r\n",
+							"def test_table_exists(db_name: str, table_name: str) -> bool:\n",
+							"    spark.sql(f\"USE {db_name}\")\n",
+							"    tables_df: DataFrame = spark.sql(\"SHOW TABLES\")\n",
+							"    table_names: list = [row['tableName'] for row in tables_df.collect()]\n",
 							"    return table_name in table_names"
 						],
 						"outputs": [],
-						"execution_count": 4
+						"execution_count": 35
 					},
 					{
 						"cell_type": "code",
@@ -142810,7 +143364,7 @@
 							"    mssparkutils.notebook.exit('')"
 						],
 						"outputs": [],
-						"execution_count": 5
+						"execution_count": 36
 					},
 					{
 						"cell_type": "code",
@@ -142834,7 +143388,7 @@
 							"    return definition['Harmonised_Incremental_Key'] if definition and 'Harmonised_Incremental_Key' in definition else None"
 						],
 						"outputs": [],
-						"execution_count": 6
+						"execution_count": 37
 					},
 					{
 						"cell_type": "code",
@@ -142850,14 +143404,14 @@
 							}
 						},
 						"source": [
-							"def create_spark_schema(db_name: str, entity_name: str) -> StructType:\r\n",
-							"    incremental_key: str = get_incremental_key(entity_name, storage_account, path_to_orchestration_file) if db_name == 'odw_harmonised_db' else None\r\n",
-							"    schema = mssparkutils.notebook.run(\"/py_create_spark_schema\", 30, {\"db_name\": db_name, \"entity_name\": entity_name, \"incremental_key\": incremental_key})\r\n",
-							"    spark_schema = StructType.fromJson(json.loads(schema))\r\n",
+							"def create_spark_schema(db_name: str, entity_name: str) -> StructType:\n",
+							"    incremental_key: str = get_incremental_key(entity_name, storage_account, path_to_orchestration_file) if db_name == 'odw_harmonised_db' else None\n",
+							"    schema = mssparkutils.notebook.run(\"/py_create_spark_schema\", 30, {\"db_name\": db_name, \"entity_name\": entity_name, \"incremental_key\": incremental_key, \"is_servicebus_schema\": is_servicebus_schema})\n",
+							"    spark_schema = StructType.fromJson(json.loads(schema))\n",
 							"    return spark_schema"
 						],
 						"outputs": [],
-						"execution_count": 7
+						"execution_count": 38
 					},
 					{
 						"cell_type": "code",
@@ -142873,12 +143427,12 @@
 							}
 						},
 						"source": [
-							"def create_spark_dataframe() -> DataFrame:\r\n",
-							"    spark_dataframe: DataFrame = spark.createDataFrame([], schema=create_spark_schema(db_name, entity_name))\r\n",
+							"def create_spark_dataframe() -> DataFrame:\n",
+							"    spark_dataframe: DataFrame = spark.createDataFrame([], schema=create_spark_schema(db_name, entity_name))\n",
 							"    return spark_dataframe"
 						],
 						"outputs": [],
-						"execution_count": 8
+						"execution_count": 39
 					},
 					{
 						"cell_type": "code",
@@ -142894,21 +143448,21 @@
 							}
 						},
 						"source": [
-							"def create_spark_table(db_name: str, table_name: str, spark_dataframe: DataFrame) -> None:\r\n",
-							"    spark_dataframe.write.format(\"delta\").saveAsTable(f\"{db_name}.{table_name}\")\r\n",
+							"def create_spark_table(db_name: str, table_name: str, spark_dataframe: DataFrame) -> None:\n",
+							"    spark_dataframe.write.format(\"delta\").saveAsTable(f\"{db_name}.{table_name}\")\n",
 							"    print(\"Table created\")"
 						],
 						"outputs": [],
-						"execution_count": 9
+						"execution_count": 40
 					},
 					{
 						"cell_type": "code",
 						"source": [
-							"spark_dataframe = create_spark_dataframe()\r\n",
+							"spark_dataframe = create_spark_dataframe()\n",
 							"create_spark_table(db_name, table_name, spark_dataframe)"
 						],
 						"outputs": [],
-						"execution_count": 10
+						"execution_count": 41
 					},
 					{
 						"cell_type": "code",
@@ -142927,7 +143481,7 @@
 							"test_table_exists(db_name, table_name)"
 						],
 						"outputs": [],
-						"execution_count": null
+						"execution_count": 42
 					}
 				]
 			},
@@ -150352,7 +150906,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "1cba71e3-01d0-45f9-b4bc-0c8a392a4fbd"
+						"spark.autotune.trackingId": "8ef2a1d9-f331-4f39-8f96-f7e47504380a"
 					}
 				},
 				"metadata": {
@@ -150397,20 +150951,19 @@
 							"\n",
 							"AS\n",
 							"\n",
-							"SELECT DISTINCT \n",
-							"    CAST(EA.employeeId AS INTEGER) AS employeeId,\n",
-							"    CAST(EA.id AS STRING) AS id,\n",
-							"    CAST(EA.givenName AS STRING) AS givenName,\n",
-							"    CAST(EA.surname AS STRING) AS surname,\n",
-							"    CAST(EA.userPrincipalName AS STRING) AS userPrincipalNameMigrated\n",
-							"    --CAST(EA.Migrated AS STRING) As Migrated\n",
+							"SELECT DISTINCT\n",
 							"\n",
+							"    COALESCE(employeeId, '') AS employeeId,\n",
+							"    id,\n",
+							"    COALESCE(givenName, '') AS givenName,\n",
+							"    COALESCE(surname, '') AS surname,\n",
+							"    COALESCE(userPrincipalName, '') AS userPrincipalName\n",
 							"\n",
-							"FROM odw_harmonised_db.entraid AS EA\n",
-							"WHERE EA.IsActive = 'Y'"
+							"FROM odw_harmonised_db.entraid\n",
+							"WHERE IsActive = 'Y'"
 						],
 						"outputs": [],
-						"execution_count": 1
+						"execution_count": 4
 					},
 					{
 						"cell_type": "code",
@@ -150432,26 +150985,7 @@
 							"view_df.write.mode(\"overwrite\").saveAsTable(\"odw_curated_db.entraid\")"
 						],
 						"outputs": [],
-						"execution_count": 2
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"# spark.sql(f\"drop table if exists odw_curated_db.entraid;\")"
-						],
-						"outputs": [],
-						"execution_count": 3
+						"execution_count": 5
 					}
 				]
 			},
@@ -185250,7 +185784,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "5e93f2cb-9a57-4a5a-8937-3dc45afa5878"
+						"spark.autotune.trackingId": "08891b3b-ca3a-4783-a8f7-ae9c154be0b4"
 					}
 				},
 				"metadata": {
@@ -185334,57 +185868,57 @@
 							}
 						},
 						"source": [
-							"def validate_parameters(storage_acc, raw_container, raw_source_folder, raw_name, standardised_container, standardised_source_folder, standardised_name, linked_service, sheet_name=0, header_row=0):\r\n",
-							"    \r\n",
-							"    ''' \r\n",
-							"    Type check the parameters that will be used in the ETL processing with pyspark in subsequent functions    \r\n",
-							"\r\n",
-							"    Args:\r\n",
-							"\r\n",
-							"    Returns:\r\n",
-							"\r\n",
-							"    Actions:\r\n",
-							"    \r\n",
-							"    Raises:\r\n",
-							"     '''\r\n",
-							"    \r\n",
-							"    ### imports\r\n",
-							"    from notebookutils import mssparkutils\r\n",
-							"    import logging\r\n",
-							"    \r\n",
-							"    ### creating filepath\r\n",
-							"    filepath = raw_container + raw_source_folder + raw_name\r\n",
-							"\r\n",
-							"    ### checking abfss path\r\n",
-							"    if filepath.split('abfss://')[0] != '':\r\n",
-							"        raise ValueError(\"File path string is not of abfss:// type\")\r\n",
-							"        \r\n",
-							"    \r\n",
-							"    ### checking filepath has xlsx file in it \r\n",
-							"\r\n",
-							"    ### checking str data types\r\n",
-							"    # defining parameters to check\r\n",
-							"    parameters = {\r\n",
-							"        'filepath':filepath,\r\n",
-							"        'storage_acc':storage_acc,\r\n",
-							"        'linked_service':linked_service\r\n",
-							"    }\r\n",
-							"\r\n",
-							"    # checking str type\r\n",
-							"    str_errors = ''\r\n",
-							"    for para in parameters:\r\n",
-							"        if type(parameters[para]) != str:\r\n",
-							"            str_errors += para\r\n",
-							"        if str_errors != '':\r\n",
-							"            raise TypeError(f\"Parameters: {str_errors} not of type string\")   \r\n",
-							"            \r\n",
-							"    # checking sheet name type is str or int\r\n",
-							"    if type(sheet_name) != str and type(sheet_name) != int:\r\n",
-							"        raise TypeError(\"Sheet name should either be a string or a integer\")\r\n",
-							"        \r\n",
-							"    # checking int type\r\n",
-							"    if type(header_row) != int:\r\n",
-							"        raise TypeError(\"Header row should be an integer value\")\r\n",
+							"def validate_parameters(storage_acc, raw_container, raw_source_folder, raw_name, standardised_container, standardised_source_folder, standardised_name, linked_service, sheet_name=0, header_row=0):\n",
+							"    \n",
+							"    ''' \n",
+							"    Type check the parameters that will be used in the ETL processing with pyspark in subsequent functions    \n",
+							"\n",
+							"    Args:\n",
+							"\n",
+							"    Returns:\n",
+							"\n",
+							"    Actions:\n",
+							"    \n",
+							"    Raises:\n",
+							"     '''\n",
+							"    \n",
+							"    ### imports\n",
+							"    from notebookutils import mssparkutils\n",
+							"    import logging\n",
+							"    \n",
+							"    ### creating filepath\n",
+							"    filepath = raw_container + raw_source_folder + raw_name\n",
+							"\n",
+							"    ### checking abfss path\n",
+							"    if filepath.split('abfss://')[0] != '':\n",
+							"        raise ValueError(\"File path string is not of abfss:// type\")\n",
+							"        \n",
+							"    \n",
+							"    ### checking filepath has xlsx file in it \n",
+							"\n",
+							"    ### checking str data types\n",
+							"    # defining parameters to check\n",
+							"    parameters = {\n",
+							"        'filepath':filepath,\n",
+							"        'storage_acc':storage_acc,\n",
+							"        'linked_service':linked_service\n",
+							"    }\n",
+							"\n",
+							"    # checking str type\n",
+							"    str_errors = ''\n",
+							"    for para in parameters:\n",
+							"        if type(parameters[para]) != str:\n",
+							"            str_errors += para\n",
+							"        if str_errors != '':\n",
+							"            raise TypeError(f\"Parameters: {str_errors} not of type string\")   \n",
+							"            \n",
+							"    # checking sheet name type is str or int\n",
+							"    if type(sheet_name) != str and type(sheet_name) != int:\n",
+							"        raise TypeError(\"Sheet name should either be a string or a integer\")\n",
+							"        \n",
+							"    # checking int type\n",
+							"    if type(header_row) != int:\n",
+							"        raise TypeError(\"Header row should be an integer value\")\n",
 							""
 						],
 						"outputs": [],
@@ -185404,82 +185938,82 @@
 							}
 						},
 						"source": [
-							"def _cleanse_headers(df):\r\n",
-							"    '''\r\n",
-							"    NOT A PURE FUNCTION\r\n",
-							"    Take a dataframe and appropriately cleanse headers in a file\r\n",
-							"    '''\r\n",
-							"    ### imports\r\n",
-							"    import pandas as pd\r\n",
-							"    import re\r\n",
-							"\r\n",
-							"    ### type checks\r\n",
-							"    if not isinstance(df, pd.DataFrame):\r\n",
-							"        raise TypeError(\"Expecting a pandas dataframe\")\r\n",
-							"        \r\n",
-							"    cols = df.columns\r\n",
-							"    cols=[re.sub(\"( |\\#|\\# |\\.|\\(|\\)|\\/)\",\"_\",i) for i in cols] # replace chars with _\r\n",
-							"    cols=[re.sub(\"([\\_]{2,})\",\"_\",i) for i in cols] #replace consecutive _ with one _\r\n",
-							"    cols=[re.sub(\"(\\_)$\",\"\",i) for i in cols] #remove trailing _\r\n",
-							"    cols = [item.replace(',','') for item in cols]\r\n",
-							"    df.columns = cols\r\n",
-							"\r\n",
-							"    return df \r\n",
-							"\r\n",
-							"def _change_types(df):\r\n",
-							"    '''\r\n",
-							"    NOT A PURE FUNCTION\r\n",
-							"    Take a dataframe and appropriately make all data types a string\r\n",
-							"    '''\r\n",
-							"\r\n",
-							"    ### imports\r\n",
-							"    import pandas as pd\r\n",
-							"    \r\n",
-							"    ### type checks\r\n",
-							"    if not isinstance(df, pd.DataFrame):\r\n",
-							"        raise TypeError(\"Expecting a pandas dataframe\")\r\n",
-							"        \r\n",
-							"    return df.astype(str, errors='ignore')\r\n",
-							"\r\n",
-							"def ingest_excel_to_parquet(storage_acc, raw_container, raw_source_folder, raw_name, standardised_container, standardised_source_folder, standardised_name, linked_service, sheet_name=0, header=0):\r\n",
-							"\r\n",
-							"    '''\r\n",
-							"    Create a parquet file with delta capabilities from a source excel file\r\n",
-							"    '''\r\n",
-							"\r\n",
-							"    ### initialising spark session\r\n",
-							"    from pyspark.sql import SparkSession\r\n",
-							"    spark = SparkSession.builder.getOrCreate()\r\n",
-							"\r\n",
-							"    ### setting appopriate spark variables\r\n",
-							"    source_full_storage_account_name = storage_acc\r\n",
-							"    spark.conf.set(f\"spark.storage.synapse.{source_full_storage_account_name}.linkedServiceName\", linked_service )\r\n",
-							"    spark.conf.set(f\"fs.azure.account.oauth.provider.type.{source_full_storage_account_name}\", \"com.microsoft.azure.synapse.tokenlibrary.LinkedServiceBasedTokenProvider\")\r\n",
-							"\r\n",
-							"    ### creating targetpath variable\r\n",
-							"    filepath = raw_container + raw_source_folder + raw_name\r\n",
-							"    targetpath = standardised_container + standardised_source_folder + standardised_name\r\n",
-							"\r\n",
-							"    ### reading file with abfss file location format\r\n",
-							"    import pandas as pd\r\n",
-							"    from notebookutils import mssparkutils\r\n",
-							"    jobId = mssparkutils.env.getJobId()\r\n",
-							"    mssparkutils.fs.unmount(\"/temp_raw\") \r\n",
-							"    mssparkutils.fs.mount( \r\n",
-							"    raw_container + raw_source_folder, \r\n",
-							"    \"/temp_raw\", \r\n",
-							"    {\"linkedService\":\"ls_storage\"} \r\n",
-							"    )   \r\n",
-							"    df = pd.read_excel(f\"/synfs/{jobId}/temp_raw/{raw_name}\", sheet_name=sheet_name, header=header, dtype='object')\r\n",
-							"    mssparkutils.fs.unmount(\"/temp_raw\") \r\n",
-							"    ### cleanse headers \r\n",
-							"    df = _cleanse_headers(df)\r\n",
-							"    \r\n",
-							"    ### change all types to string\r\n",
-							"    df = _change_types(df)\r\n",
-							"\r\n",
-							"    ### writing output\r\n",
-							"    df.to_parquet(targetpath)\r\n",
+							"def _cleanse_headers(df):\n",
+							"    '''\n",
+							"    NOT A PURE FUNCTION\n",
+							"    Take a dataframe and appropriately cleanse headers in a file\n",
+							"    '''\n",
+							"    ### imports\n",
+							"    import pandas as pd\n",
+							"    import re\n",
+							"\n",
+							"    ### type checks\n",
+							"    if not isinstance(df, pd.DataFrame):\n",
+							"        raise TypeError(\"Expecting a pandas dataframe\")\n",
+							"        \n",
+							"    cols = df.columns\n",
+							"    cols=[re.sub(\"( |\\#|\\# |\\.|\\(|\\)|\\/)\",\"_\",i) for i in cols] # replace chars with _\n",
+							"    cols=[re.sub(\"([\\_]{2,})\",\"_\",i) for i in cols] #replace consecutive _ with one _\n",
+							"    cols=[re.sub(\"(\\_)$\",\"\",i) for i in cols] #remove trailing _\n",
+							"    cols = [item.replace(',','') for item in cols]\n",
+							"    df.columns = cols\n",
+							"\n",
+							"    return df \n",
+							"\n",
+							"def _change_types(df):\n",
+							"    '''\n",
+							"    NOT A PURE FUNCTION\n",
+							"    Take a dataframe and appropriately make all data types a string\n",
+							"    '''\n",
+							"\n",
+							"    ### imports\n",
+							"    import pandas as pd\n",
+							"    \n",
+							"    ### type checks\n",
+							"    if not isinstance(df, pd.DataFrame):\n",
+							"        raise TypeError(\"Expecting a pandas dataframe\")\n",
+							"        \n",
+							"    return df.astype(str, errors='ignore')\n",
+							"\n",
+							"def ingest_excel_to_parquet(storage_acc, raw_container, raw_source_folder, raw_name, standardised_container, standardised_source_folder, standardised_name, linked_service, sheet_name=0, header=0):\n",
+							"\n",
+							"    '''\n",
+							"    Create a parquet file with delta capabilities from a source excel file\n",
+							"    '''\n",
+							"\n",
+							"    ### initialising spark session\n",
+							"    from pyspark.sql import SparkSession\n",
+							"    spark = SparkSession.builder.getOrCreate()\n",
+							"\n",
+							"    ### setting appopriate spark variables\n",
+							"    source_full_storage_account_name = storage_acc\n",
+							"    spark.conf.set(f\"spark.storage.synapse.{source_full_storage_account_name}.linkedServiceName\", linked_service )\n",
+							"    spark.conf.set(f\"fs.azure.account.oauth.provider.type.{source_full_storage_account_name}\", \"com.microsoft.azure.synapse.tokenlibrary.LinkedServiceBasedTokenProvider\")\n",
+							"\n",
+							"    ### creating targetpath variable\n",
+							"    filepath = raw_container + raw_source_folder + raw_name\n",
+							"    targetpath = standardised_container + standardised_source_folder + standardised_name\n",
+							"\n",
+							"    ### reading file with abfss file location format\n",
+							"    import pandas as pd\n",
+							"    from notebookutils import mssparkutils\n",
+							"    jobId = mssparkutils.env.getJobId()\n",
+							"    mssparkutils.fs.unmount(\"/temp_raw\") \n",
+							"    mssparkutils.fs.mount( \n",
+							"    raw_container + raw_source_folder, \n",
+							"    \"/temp_raw\", \n",
+							"    {\"linkedService\":\"ls_storage\"} \n",
+							"    )   \n",
+							"    df = pd.read_excel(f\"/synfs/{jobId}/temp_raw/{raw_name}\", sheet_name=sheet_name, header=header, dtype='object')\n",
+							"    mssparkutils.fs.unmount(\"/temp_raw\") \n",
+							"    ### cleanse headers \n",
+							"    df = _cleanse_headers(df)\n",
+							"    \n",
+							"    ### change all types to string\n",
+							"    df = _change_types(df)\n",
+							"\n",
+							"    ### writing output\n",
+							"    df.to_parquet(targetpath)\n",
 							""
 						],
 						"outputs": [],
@@ -185499,25 +186033,25 @@
 							}
 						},
 						"source": [
-							"def enable_delta_on_parquet(standardised_container, standardised_source_folder):\r\n",
-							"    '''\r\n",
-							"    Take a standard parquet file and enable delta lake capabiltiies on the file\r\n",
-							"    '''\r\n",
-							"\r\n",
-							"    ### initialise spark session\r\n",
-							"    from pyspark.sql import SparkSession\r\n",
-							"    spark = SparkSession.builder.getOrCreate()\r\n",
-							"    spark.conf.set('spark.hadoop.orc.overwrite.output.file','true')\r\n",
-							"\r\n",
-							"    ### create target delta folder variable\r\n",
-							"    target_delta_folder = standardised_container + standardised_source_folder\r\n",
-							"\r\n",
-							"    ### check parquet file in targetpath exists\r\n",
-							"    ### OUTSTANDING\r\n",
-							"\r\n",
-							"    ### converting parquet to delta table\r\n",
-							"    from delta.tables import DeltaTable\r\n",
-							"    if not DeltaTable.isDeltaTable(spark,target_delta_folder):\r\n",
+							"def enable_delta_on_parquet(standardised_container, standardised_source_folder):\n",
+							"    '''\n",
+							"    Take a standard parquet file and enable delta lake capabiltiies on the file\n",
+							"    '''\n",
+							"\n",
+							"    ### initialise spark session\n",
+							"    from pyspark.sql import SparkSession\n",
+							"    spark = SparkSession.builder.getOrCreate()\n",
+							"    spark.conf.set('spark.hadoop.orc.overwrite.output.file','true')\n",
+							"\n",
+							"    ### create target delta folder variable\n",
+							"    target_delta_folder = standardised_container + standardised_source_folder\n",
+							"\n",
+							"    ### check parquet file in targetpath exists\n",
+							"    ### OUTSTANDING\n",
+							"\n",
+							"    ### converting parquet to delta table\n",
+							"    from delta.tables import DeltaTable\n",
+							"    if not DeltaTable.isDeltaTable(spark,target_delta_folder):\n",
 							"        deltaTable = DeltaTable.convertToDelta(spark, f\"parquet.`{target_delta_folder}`\") "
 						],
 						"outputs": [],
@@ -185537,24 +186071,24 @@
 							}
 						},
 						"source": [
-							"def lakedb_table_sparksql(db_name,delta_lake_table_name,standardised_container, standardised_source_folder):\r\n",
-							"    '''\r\n",
-							"    Make delta parquet file available in lake database\r\n",
-							"    '''\r\n",
-							"\r\n",
-							"    ### imports and spark session creation\r\n",
-							"    from pyspark.sql import SparkSession\r\n",
-							"    from delta.tables import DeltaTable\r\n",
-							"    spark = SparkSession.builder.getOrCreate()\r\n",
-							"\r\n",
-							"    ### create target delta folder variable\r\n",
-							"    target_delta_folder = standardised_container + standardised_source_folder\r\n",
-							"\r\n",
-							"    ### check parquet file is now delta table\r\n",
-							"    ### outstanding\r\n",
-							"\r\n",
-							"    ### make delta table available to be queried in spark sql\r\n",
-							"    spark.sql(f\"drop table if exists {db_name}.{delta_lake_table_name};\")\r\n",
+							"def lakedb_table_sparksql(db_name,delta_lake_table_name,standardised_container, standardised_source_folder):\n",
+							"    '''\n",
+							"    Make delta parquet file available in lake database\n",
+							"    '''\n",
+							"\n",
+							"    ### imports and spark session creation\n",
+							"    from pyspark.sql import SparkSession\n",
+							"    from delta.tables import DeltaTable\n",
+							"    spark = SparkSession.builder.getOrCreate()\n",
+							"\n",
+							"    ### create target delta folder variable\n",
+							"    target_delta_folder = standardised_container + standardised_source_folder\n",
+							"\n",
+							"    ### check parquet file is now delta table\n",
+							"    ### outstanding\n",
+							"\n",
+							"    ### make delta table available to be queried in spark sql\n",
+							"    spark.sql(f\"drop table if exists {db_name}.{delta_lake_table_name};\")\n",
 							"    spark.sql(f\"CREATE TABLE {db_name}.{delta_lake_table_name} USING DELTA LOCATION '{target_delta_folder}'\")"
 						],
 						"outputs": [],
@@ -185622,8 +186156,15 @@
 							"        # Rename the temporary table to replace the original table\n",
 							"        spark.sql(f\"ALTER TABLE odw_standardised_db.{standardised_table_name}_new RENAME TO odw_standardised_db.{standardised_table_name}\")\n",
 							"\n",
+							"    try:\n",
+							"        standardised_table_location = spark.sql(f\"DESCRIBE FORMATTED odw_standardised_db.{standardised_table_name}\") \\\n",
+							"                    .filter(\"col_name = 'Location'\") \\\n",
+							"                    .select(\"data_type\") \\\n",
+							"                    .collect()[0][0] \n",
+							"    except:\n",
+							"        standardised_table_location = standardised_container+standardised_path+standardised_table_name\n",
 							"                   \n",
-							"    standardised_table_df = spark.read.format(\"delta\").load(standardised_container+standardised_path+standardised_table_name)\n",
+							"    standardised_table_df = spark.read.format(\"delta\").load(standardised_table_location)\n",
 							"    rows = standardised_table_df.filter((standardised_table_df.expected_from == expected_from) &  (standardised_table_df.expected_to == expected_to)).count()\n",
 							"\n",
 							"    jobId = mssparkutils.env.getJobId()\n",
@@ -185699,7 +186240,7 @@
 							"    ### writing the dataframe to the existing standardised table\n",
 							"    sparkDF.write.option(\"mergeSchema\", \"true\").format(\"delta\").mode(\"append\").saveAsTable(f\"odw_standardised_db.{standardised_table_name}\")\n",
 							"    \n",
-							"    standardised_table_df_new = spark.read.format(\"delta\").load(standardised_container+standardised_path+standardised_table_name)\n",
+							"    standardised_table_df_new = spark.read.format(\"delta\").load(standardised_table_location)\n",
 							"    rows_new = standardised_table_df.filter((standardised_table_df.expected_from == expected_from) &  (standardised_table_df.expected_to == expected_to)).count()\n",
 							"\n",
 							"    ### test correct number of rows have written\n",
@@ -199781,7 +200322,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "a9f02da7-8784-40a4-8e55-694639e77b40"
+						"spark.autotune.trackingId": "a82236b7-88c0-4fec-bf7f-69504ca0ce27"
 					}
 				},
 				"metadata": {
@@ -199851,7 +200392,7 @@
 							"}"
 						],
 						"outputs": [],
-						"execution_count": 55
+						"execution_count": 43
 					},
 					{
 						"cell_type": "markdown",
@@ -199883,7 +200424,7 @@
 							"raw_container = \"abfss://odw-raw@\" + storage_account"
 						],
 						"outputs": [],
-						"execution_count": 5
+						"execution_count": 44
 					},
 					{
 						"cell_type": "code",
@@ -199902,7 +200443,7 @@
 							"%run \"1-odw-raw-to-standardised/Fileshare/SAP_HR/py_1_raw_to_standardised_hr_functions\""
 						],
 						"outputs": [],
-						"execution_count": 6
+						"execution_count": 45
 					},
 					{
 						"cell_type": "markdown",
@@ -199943,7 +200484,7 @@
 							"dataAttribute = \"\""
 						],
 						"outputs": [],
-						"execution_count": 28
+						"execution_count": 46
 					},
 					{
 						"cell_type": "markdown",
@@ -199989,7 +200530,7 @@
 							"    return max(fpaths, key=get_creation_date).replace(path, '')"
 						],
 						"outputs": [],
-						"execution_count": 8
+						"execution_count": 47
 					},
 					{
 						"cell_type": "markdown",
@@ -200004,32 +200545,6 @@
 							"### Ingest the data from the raw/source into the standardised table. \n",
 							"If the table doesn't already exist, this will create the table first and ingest the data."
 						]
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							},
-							"collapsed": false
-						},
-						"source": [
-							"#date_folder='2024-06-21'\n",
-							"#source_folder='entraid'\n",
-							"#source_frequency_folder=''\n",
-							"#specific_file='' # if not provided, it will ingest all files in the date_folder\n",
-							"#delete_existing_table=False\n",
-							"#isMultiLine = True\n",
-							"#dataAttribute = \"value\""
-						],
-						"outputs": [],
-						"execution_count": 9
 					},
 					{
 						"cell_type": "code",
@@ -200101,7 +200616,7 @@
 							""
 						],
 						"outputs": [],
-						"execution_count": 29
+						"execution_count": 49
 					}
 				]
 			},
@@ -213005,7 +213520,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "14efb405-afb8-4791-b6f7-fafb8c3b15b0"
+						"spark.autotune.trackingId": "ae08efbc-1689-492f-86f4-2b0b42ba8acf"
 					}
 				},
 				"metadata": {
@@ -213049,13 +213564,13 @@
 							}
 						},
 						"source": [
-							"import json\r\n",
-							"from pyspark.sql.types import *\r\n",
-							"from pyspark.sql import DataFrame\r\n",
+							"import json\n",
+							"from pyspark.sql.types import *\n",
+							"from pyspark.sql import DataFrame\n",
 							"import pprint"
 						],
 						"outputs": [],
-						"execution_count": 140
+						"execution_count": 8
 					},
 					{
 						"cell_type": "code",
@@ -213068,22 +213583,20 @@
 								"transient": {
 									"deleting": false
 								}
-							},
-							"tags": [
-								"parameters"
-							]
+							}
 						},
 						"source": [
-							"entity_name: str = 'entraid'\r\n",
-							"std_db_name: str = 'odw_standardised_db'\r\n",
-							"hrm_db_name: str = 'odw_harmonised_db'\r\n",
-							"curated_db_name: str = 'odw_curated_db'\r\n",
-							"std_table_name: str = 'entraid'\r\n",
-							"hrm_table_name: str = 'entraid'\r\n",
-							"isServiceBusSchema: bool = False"
+							"entity_name: str = 'entraid'\n",
+							"std_db_name: str = 'odw_standardised_db'\n",
+							"hrm_db_name: str = 'odw_harmonised_db'\n",
+							"curated_db_name: str = 'odw_curated_db'\n",
+							"\n",
+							"std_table_name: str = 'entraid'\n",
+							"hrm_table_name: str = 'entraid'\n",
+							"curated_table_name: str = 'entraid'"
 						],
 						"outputs": [],
-						"execution_count": 141
+						"execution_count": 9
 					},
 					{
 						"cell_type": "code",
@@ -213103,7 +213616,7 @@
 							"exitCode: int = 0"
 						],
 						"outputs": [],
-						"execution_count": 142
+						"execution_count": 10
 					},
 					{
 						"cell_type": "code",
@@ -213119,11 +213632,10 @@
 							}
 						},
 						"source": [
-							"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\r\n",
-							"path_to_orchestration_file: str = \"abfss://odw-config@\"+storage_account+\"orchestration/orchestration.json\""
+							"%run /utils/unit-tests/py_unit_tests_functions"
 						],
 						"outputs": [],
-						"execution_count": 143
+						"execution_count": 11
 					},
 					{
 						"cell_type": "code",
@@ -213139,226 +213651,13 @@
 							}
 						},
 						"source": [
-							"def get_incremental_key(entity_name: str, storage_account: str, path_to_orchestration_file: str) -> str:\r\n",
-							"    # getting the incremental key from the odw-config/orchestration\r\n",
-							"    df: DataFrame = spark.read.option(\"multiline\",\"true\").json(path_to_orchestration_file)\r\n",
-							"    definitions: list = json.loads(df.toJSON().first())['definitions']\r\n",
-							"    definition: dict = next((d for d in definitions if entity_name == d['Source_Filename_Start']), None)\r\n",
-							"    return definition['Harmonised_Incremental_Key'] if definition and 'Harmonised_Incremental_Key' in definition else None"
-						],
-						"outputs": [],
-						"execution_count": 144
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"#this is not a service bus schema so doesn't need all of the field\r\n",
-							"\r\n",
-							"def create_spark_schema(db_name: str, entity_name: str) -> StructType:\r\n",
-							"    incremental_key: str = get_incremental_key(entity_name, storage_account, path_to_orchestration_file) if db_name == 'odw_harmonised_db' else None\r\n",
-							"    schema = mssparkutils.notebook.run(\"/py_create_spark_schema\", 30, {\"db_name\": db_name, \"entity_name\": entity_name, \"incremental_key\": incremental_key, \"is_servicebus_schema\": isServiceBusSchema})\r\n",
-							"    spark_schema = StructType.fromJson(json.loads(schema))\r\n",
-							"    return spark_schema"
-						],
-						"outputs": [],
-						"execution_count": 145
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"def create_spark_dataframe() -> DataFrame:\r\n",
-							"    spark_dataframe: DataFrame = spark.createDataFrame([], schema=create_spark_schema(db_name, entity_name))\r\n",
-							"    return spark_dataframe"
-						],
-						"outputs": [],
-						"execution_count": 146
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"sb_std_schema = create_spark_schema(std_db_name, entity_name)\r\n",
-							"sb_std_table_schema = spark.table(f\"{std_db_name}.{std_table_name}\").schema\r\n",
-							"sb_hrm_schema = create_spark_schema(hrm_db_name, entity_name)\r\n",
+							"sb_std_schema = create_spark_schema(std_db_name, entity_name, None, False)\n",
+							"sb_std_table_schema = spark.table(f\"{std_db_name}.{std_table_name}\").schema\n",
+							"sb_hrm_schema = create_spark_schema(hrm_db_name, entity_name, None, False)\n",
 							"sb_hrm_table_schema = spark.table(f\"{hrm_db_name}.{hrm_table_name}\").schema"
 						],
 						"outputs": [],
-						"execution_count": 147
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							},
-							"collapsed": false
-						},
-						"source": [
-							"def extract_schema_structure(schema: StructType) -> dict:\r\n",
-							"    def extract_field(field):\r\n",
-							"        if isinstance(field.dataType, StructType):\r\n",
-							"            return {field.name: {subfield.name: str(subfield.dataType) for subfield in field.dataType.fields}}\r\n",
-							"        elif isinstance(field.dataType, ArrayType):\r\n",
-							"            element_type = field.dataType.elementType\r\n",
-							"            if isinstance(element_type, StructType):\r\n",
-							"                return {field.name: {subfield.name: str(subfield.dataType) for subfield in element_type.fields}}\r\n",
-							"            else:\r\n",
-							"                return {field.name: f'array<{str(element_type)}>'}\r\n",
-							"        else:\r\n",
-							"            return {field.name: str(field.dataType)}\r\n",
-							"    \r\n",
-							"    result = {}\r\n",
-							"    for field in schema.fields:\r\n",
-							"        result.update(extract_field(field))\r\n",
-							"    return result"
-						],
-						"outputs": [],
-						"execution_count": 148
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"def test_compare_schemas(schema1: StructType, schema2: StructType) -> bool:\r\n",
-							"    structure1: dict = extract_schema_structure(schema1)\r\n",
-							"    structure2: dict = extract_schema_structure(schema2)\r\n",
-							"    \r\n",
-							"    differences: list[tuple] = []\r\n",
-							"    \r\n",
-							"    all_fields: set = set(structure1.keys()).union(set(structure2.keys()))\r\n",
-							"    \r\n",
-							"    for field in all_fields:\r\n",
-							"        if field not in structure1:\r\n",
-							"            differences.append((field, \"Field not in schema1\", structure2[field]))\r\n",
-							"        elif field not in structure2:\r\n",
-							"            differences.append((field, structure1[field], \"Field not in schema2\"))\r\n",
-							"        else:\r\n",
-							"            if structure1[field] != structure2[field]:\r\n",
-							"                if isinstance(structure1[field], dict) and isinstance(structure2[field], dict):\r\n",
-							"                    subfields: set = set(structure1[field].keys()).union(set(structure2[field].keys()))\r\n",
-							"                    for subfield in subfields:\r\n",
-							"                        if subfield not in structure1[field]:\r\n",
-							"                            differences.append((f\"{field}.{subfield}\", \"Field not in schema1\", structure2[field][subfield]))\r\n",
-							"                        elif subfield not in structure2[field]:\r\n",
-							"                            differences.append((f\"{field}.{subfield}\", structure1[field][subfield], \"Field not in schema2\"))\r\n",
-							"                        elif structure1[field][subfield] != structure2[field][subfield]:\r\n",
-							"                            differences.append((f\"{field}.{subfield}\", structure1[field][subfield], structure2[field][subfield]))\r\n",
-							"                else:\r\n",
-							"                    differences.append((field, structure1[field], structure2[field]))\r\n",
-							"    \r\n",
-							"    if differences:\r\n",
-							"        # Create a Spark DataFrame to display the differences\r\n",
-							"        differences_df: DataFrame = spark.createDataFrame(differences, [\"Field\", \"Schema 1\", \"Schema 2\"])\r\n",
-							"        display(differences_df)\r\n",
-							"        return False\r\n",
-							"    else:\r\n",
-							"        return True"
-						],
-						"outputs": [],
-						"execution_count": 149
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"def test_std_same_rows_hrm(std_table: str, hrm_table: str) -> tuple[int, int, bool]:\r\n",
-							"    std_table_full: str = f\"{std_db_name}.{std_table}\"\r\n",
-							"    hrm_table_full: str = f\"{hrm_db_name}.{hrm_table}\"\r\n",
-							"\r\n",
-							"    # filter standardised df with non-null message_type and exclude 'Delete' message_type since it doesn't add a new row in hrm\r\n",
-							"    std_df: DataFrame = spark.table(std_table_full)\r\n",
-							"    if isServiceBusSchema:\r\n",
-							"        std_df = std_df.filter((std_df.message_type != 'Delete') & (std_df.message_type.isNotNull()))\r\n",
-							"    \r\n",
-							"    std_count: int = std_df.count()\r\n",
-							"    hrm_count: int = spark.table(hrm_table_full).count()\r\n",
-							"\r\n",
-							"    return (std_count, hrm_count, std_count == hrm_count)"
-						],
-						"outputs": [],
-						"execution_count": 150
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"def test_curated_row_count(hrm_table_final: str, curated_table: str) -> tuple[int, int, bool]:\r\n",
-							"    hrm_table_full: str = f\"{hrm_db_name}.{hrm_table_final}\"\r\n",
-							"    curated_table_full: str = f\"{curated_db_name}.{curated_table_name}\"\r\n",
-							"    hrm_count: int = spark.sql(f\"select * from {hrm_table_full} where IsActive = 'Y'\").count()\r\n",
-							"    curated_count: int = spark.table(curated_table_full).count()\r\n",
-							"    return (hrm_count, curated_count, hrm_count == curated_count)"
-						],
-						"outputs": [],
-						"execution_count": 151
+						"execution_count": 12
 					},
 					{
 						"cell_type": "markdown",
@@ -213388,15 +213687,15 @@
 							"collapsed": false
 						},
 						"source": [
-							"std_schema_correct: bool = test_compare_schemas(sb_std_schema, sb_std_table_schema)\r\n",
-							"exitCode += int(not std_schema_correct)\r\n",
-							"print(f\"standardised schema correct: {std_schema_correct}\\nTable: {std_db_name}.{std_table_name}\\nDifferences shown above (if any)\")\r\n",
-							"hrm_schema_correct: bool = test_compare_schemas(sb_hrm_schema, sb_hrm_table_schema)\r\n",
-							"exitCode += int(not hrm_schema_correct)\r\n",
-							"print(f\"harmonised schema correct: {hrm_schema_correct}\\nTable: {hrm_db_name}.{hrm_table_name}\\nDifferences shown above (if any)\")"
+							"std_schema_correct: bool = test_compare_schemas(sb_std_schema, sb_std_table_schema)\n",
+							"exitCode += int(not std_schema_correct)\n",
+							"print(f\"Service bus standardised schema correct: {std_schema_correct}\\nTable: {std_db_name}.{std_table_name}\\nDifferences shown above (if any)\")\n",
+							"hrm_schema_correct: bool = test_compare_schemas(sb_hrm_schema, sb_hrm_table_schema)\n",
+							"print(f\"Service bus harmonised schema correct: {hrm_schema_correct}\\nTable: {hrm_db_name}.{hrm_table_name}\\nDifferences shown above (if any)\")\n",
+							"exitCode += int(not hrm_schema_correct)"
 						],
 						"outputs": [],
-						"execution_count": 152
+						"execution_count": 13
 					},
 					{
 						"cell_type": "markdown",
@@ -213408,7 +213707,7 @@
 							}
 						},
 						"source": [
-							"##### Compare service bus standardised with harmonised\r\n",
+							"##### Compare service bus standardised with harmonised\n",
 							"Should be the same count"
 						]
 					},
@@ -213426,19 +213725,17 @@
 							}
 						},
 						"source": [
-							"standardised_count, harmonised_count, counts_match = test_std_same_rows_hrm(std_table_name, hrm_table_name)\r\n",
-							"exitCode += int(not counts_match)\r\n",
-							"print(f\"Standardised Count: {standardised_count: ,}\\nHarmonised Count: {harmonised_count: ,}\\nCounts match: {counts_match}\")\r\n",
-							"\r\n",
-							"#check for empty data..this is a failure really as something SHOULD be there\r\n",
-							"exitCode += int((standardised_count == 0))\r\n",
-							"\r\n",
-							"if standardised_count == 0:\r\n",
-							"    print(\"No Data in Standardised.. this is a failure\")   \r\n",
-							""
+							"standardised_count, harmonised_count, counts_match = test_std_same_rows_hrm(std_table_name, hrm_table_name)\n",
+							"print(f\"Standardised Count: {standardised_count: ,}\\nHarmonised Count: {harmonised_count: ,}\\nCounts match: {counts_match}\")\n",
+							"\n",
+							"if standardised_count > harmonised_count:\n",
+							"    print(f\"{standardised_count - harmonised_count} rows from Standardised are missing in Harmonised.\" )\n",
+							"    differentiate_std_and_hrm(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\")\n",
+							"    #this is classed as an error\n",
+							"    exitCode += 1 "
 						],
 						"outputs": [],
-						"execution_count": 153
+						"execution_count": 14
 					},
 					{
 						"cell_type": "markdown",
@@ -213450,8 +213747,65 @@
 							}
 						},
 						"source": [
-							"#### Return whether or not this was successful"
+							"##### Compare final harmonised table with curated table\n",
+							"Comparing where IsActive = Y in harmonised = curated row count"
 						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"harmonised_final_count, curated_count, counts_match = test_curated_row_count(hrm_table_name, curated_table_name)\n",
+							"print(f\"Harmonised Final Count: {harmonised_final_count: ,}\\nCurated Count: {curated_count: ,}\\nCounts match: {counts_match}\")\n",
+							"exitCode += int(not counts_match)"
+						],
+						"outputs": [],
+						"execution_count": 15
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Validate Curated Data against the data model\n",
+							"https://github.com/Planning-Inspectorate/data-model/blob/main/schemas/entraid.schema.json"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"is_valid_data = mssparkutils.notebook.run(\"/utils/data-validation/py_utils_curated_validate_table\", 30, {\"entity_name\": entity_name, \"table_name\": curated_table_name, \"primary_key\": \"Id\"})\n",
+							"print(f\"Is Curated Data Valid: {is_valid_data}\")\n",
+							"exitCode += int(not is_valid_data)"
+						],
+						"outputs": [],
+						"execution_count": 16
 					},
 					{
 						"cell_type": "code",
@@ -213470,7 +213824,7 @@
 							"mssparkutils.notebook.exit(exitCode)"
 						],
 						"outputs": [],
-						"execution_count": 154
+						"execution_count": 17
 					}
 				]
 			},
@@ -213500,7 +213854,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "2f7d6c12-b3b9-4e2e-a7dd-0678b5282600"
+						"spark.autotune.trackingId": "9919bee7-9816-4442-86ba-d2ceca209d44"
 					}
 				},
 				"metadata": {
@@ -213582,9 +213936,9 @@
 							}
 						},
 						"source": [
-							"def create_spark_schema(db_name: str, entity_name: str, folder_name: str = None) -> StructType:\n",
+							"def create_spark_schema(db_name: str, entity_name: str, folder_name: str = None, is_servicebus_schema: str = True) -> StructType:\n",
 							"    incremental_key: str = get_incremental_key(folder_name if folder_name else entity_name, storage_account, path_to_orchestration_file) if db_name == 'odw_harmonised_db' else None\n",
-							"    schema = mssparkutils.notebook.run(\"/py_create_spark_schema\", 30, {\"db_name\": db_name, \"entity_name\": entity_name, \"incremental_key\": incremental_key})\n",
+							"    schema = mssparkutils.notebook.run(\"/py_create_spark_schema\", 30, {\"db_name\": db_name, \"entity_name\": entity_name, \"incremental_key\": incremental_key, \"is_servicebus_schema\": is_servicebus_schema})\n",
 							"    spark_schema = StructType.fromJson(json.loads(schema))\n",
 							"    return spark_schema"
 						],
@@ -213726,7 +214080,9 @@
 							"\n",
 							"    # filter standardised df with non-null message_type and exclude 'Delete' message_type since it doesn't add a new row in hrm\n",
 							"    std_df: DataFrame = spark.table(std_table_full)\n",
-							"    std_df = std_df.filter((std_df.message_type != 'Delete') & std_df.message_type.isNotNull() & std_df.message_id.isNotNull())\n",
+							"\n",
+							"    if \"message_type\" in std_df.columns:\n",
+							"        std_df = std_df.filter((std_df.message_type != 'Delete') & std_df.message_type.isNotNull() & std_df.message_id.isNotNull())\n",
 							"    \n",
 							"    std_count: int = std_df.count()\n",
 							"    hrm_count: int = spark.table(hrm_table_full).count()\n",
@@ -213750,7 +214106,7 @@
 							}
 						},
 						"source": [
-							"def test_curated_row_count(hrm_table_final: str, curated_table: str, data_model_columns: list) -> tuple[int, int, bool]:\n",
+							"def test_curated_row_count(hrm_table_final: str, curated_table: str, data_model_columns: list = None) -> tuple[int, int, bool]:\n",
 							"    hrm_table_full: str = f\"{hrm_db_name}.{hrm_table_final}\"\n",
 							"    curated_table_full: str = f\"{curated_db_name}.{curated_table_name}\"\n",
 							"    \n",
@@ -213829,7 +214185,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "36ffdaa0-b17e-483e-bbeb-ea0ecc651c1e"
+						"spark.autotune.trackingId": "e2a19f0c-5dae-4f9e-b1c7-a9fde98537d2"
 					}
 				},
 				"metadata": {
@@ -213899,9 +214255,8 @@
 							"std_db_name: str = 'odw_standardised_db'\n",
 							"hrm_db_name: str = 'odw_harmonised_db'\n",
 							"curated_db_name: str = 'odw_curated_db'\n",
-							"std_table_name: str = 'sb_appeal_document'\n",
-							"hrm_table_name: str = 'sb_appeal_document'\n",
-							"hrm_table_final: str = 'appeals_document_metadata'\n",
+							"std_table_name: str = 'sb_appeal_has'\n",
+							"hrm_table_name: str = 'sb_appeal_has'\n",
 							"curated_table_name: str = 'appeal_has'"
 						],
 						"outputs": [],
@@ -214028,7 +214383,7 @@
 							}
 						},
 						"source": [
-							"##### Compare final harmonised table (if combined with Horizon) with curated table\n",
+							"##### Compare harmonised table with curated table\n",
 							"Comparing where IsActive = Y in harmonised = curated row count"
 						]
 					},
@@ -214046,7 +214401,7 @@
 							}
 						},
 						"source": [
-							"harmonised_final_count, curated_count, counts_match = test_curated_row_count(hrm_table_final, curated_table_name)\n",
+							"harmonised_final_count, curated_count, counts_match = test_curated_row_count(hrm_table_name, curated_table_name)\n",
 							"print(f\"Harmonised Final Count: {harmonised_final_count: ,}\\nCurated Count: {curated_count: ,}\\nCounts match: {counts_match}\")"
 						],
 						"outputs": [],
@@ -225110,7 +225465,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "2540eddf-0323-4d8f-b0b3-fe5c5a30878c"
+						"spark.autotune.trackingId": "43d5fb5c-57ea-4144-a64b-8052c3eaeb61"
 					}
 				},
 				"metadata": {
@@ -225171,12 +225526,25 @@
 					},
 					{
 						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
 						"source": [
-							"%pip install --quiet --upgrade pip\n",
-							"%pip install --quiet jsonschema==4.20.0 iso8601==2.1.0 git+https://github.com/Planning-Inspectorate/data-model@main#egg=pins_data_model"
+							"import subprocess\n",
+							"\n",
+							"subprocess.run([\"pip\", \"install\", \"--quiet\", \"--upgrade\", \"pip\"])\n",
+							"subprocess.run([\"pip\", \"install\", \"--quiet\", \"jsonschema==4.20.0\", \"iso8601==2.1.0\", \"git+https://github.com/Planning-Inspectorate/data-model@main#egg=pins_data_model\"])"
 						],
 						"outputs": [],
-						"execution_count": 1
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -225295,7 +225663,7 @@
 							"    except ParseError:\n",
 							"        return False\n",
 							"\n",
-							"def validate_data(data: list, schema: dict, primary_key: str) -> str:\n",
+							"def validate_data(data: list, schema: dict, primary_key: str) -> bool:\n",
 							"\n",
 							"    \"\"\"\n",
 							"    Function to validate a list of rows of data.\n",
@@ -225307,20 +225675,20 @@
 							"        primary_key: string\n",
 							"\n",
 							"    Returns:\n",
-							"        success: string\n",
-							"        \"Success\" or \"Failed\" for the result of the validation\n",
+							"        success: bool\n",
+							"        True or False for the result of the validation\n",
 							"    \"\"\"\n",
 							"    \n",
 							"    format_checker = FormatChecker()\n",
 							"    format_checker.checks(\"date-time\")(is_iso8601_date_time)\n",
 							"    validator = Draft202012Validator(schema, format_checker=format_checker)\n",
 							"\n",
-							"    success = \"Success\"\n",
+							"    success = True\n",
 							"\n",
 							"    for index, row in enumerate(data, start=1):\n",
 							"        errors = list(validator.iter_errors(row))\n",
 							"        if errors:\n",
-							"            success = \"Failed\"\n",
+							"            success = False\n",
 							"            print(f\"{len(errors)} error(s) found in row {index}\")\n",
 							"            key_value = row.get(primary_key)\n",
 							"            print(f\"{primary_key}: {key_value}\")\n",
