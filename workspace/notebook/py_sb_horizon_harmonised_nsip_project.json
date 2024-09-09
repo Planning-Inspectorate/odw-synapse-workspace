@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "8b3513be-9675-404e-bd1f-db545520d13d"
+				"spark.autotune.trackingId": "5c999eae-00e6-4432-930d-ef9cd0ca68d4"
 			}
 		},
 		"metadata": {
@@ -59,7 +59,7 @@
 					"from pyspark.sql import Row\n",
 					"from pyspark.sql.functions import *"
 				],
-				"execution_count": 1
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
@@ -79,7 +79,7 @@
 					"horizon_table = \"odw_standardised_db.horizon_nsip_data\"\n",
 					"spark_table_final = \"odw_harmonised_db.nsip_project\""
 				],
-				"execution_count": 2
+				"execution_count": 15
 			},
 			{
 				"cell_type": "code",
@@ -104,8 +104,8 @@
 					"                        ,projectName\n",
 					"                        ,projectNameWelsh\n",
 					"                        ,projectDescription\n",
-					"                        ,CAST(NULL AS string) AS summary\n",
 					"                        ,projectDescriptionWelsh\n",
+					"                        ,CAST(NULL AS string) AS summary\n",
 					"                        ,CAST(NULL AS Timestamp) AS caseCreatedDate\n",
 					"                        ,decision\n",
 					"                        ,publishStatus\n",
@@ -202,7 +202,7 @@
 					"                        {service_bus_table}\n",
 					"                    \"\"\")"
 				],
-				"execution_count": 3
+				"execution_count": 16
 			},
 			{
 				"cell_type": "code",
@@ -225,10 +225,10 @@
 					"                        ,CAST(Horizon.HorizonCaseNumber AS Int) AS caseid\n",
 					"                        ,Horizon.casereference\n",
 					"                        ,Horizon.projectname\n",
-					"                        ,CAST(NULL AS String) AS projectNameWelsh\n",
+					"                        ,Horizon.projectNameWelsh AS projectNameWelsh\n",
 					"                        ,Horizon.projectDescription AS projectDescription\n",
+					"                        ,Horizon.projectDescriptionWelsh AS projectDescriptionWelsh\n",
 					"                        ,Horizon.summary\n",
-					"                        ,CAST(NULL AS String) AS projectDescriptionWelsh\n",
 					"                        ,Horizon.caseCreatedDate\n",
 					"                        ,CAST(NULL AS String) AS decision\n",
 					"                        ,CASE WHEN LOWER(projectstatus) = 'not published' THEN 'unpublished' ELSE LOWER(projectstatus) END AS publishStatus\n",
@@ -237,7 +237,7 @@
 					"                        ,'Horizon' AS sourceSystem\n",
 					"                        ,stage\n",
 					"                        ,projectLocation\n",
-					"                        ,CAST(NULL AS Date) AS projectLocationWelsh\n",
+					"                        ,Horizon.projectLocationWelsh AS projectLocationWelsh\n",
 					"                        ,projectEmailAddress\n",
 					"                        ,LOWER(Region) AS Region\n",
 					"                        ,CAST(transboundary AS Boolean) AS transboundary\n",
@@ -340,7 +340,9 @@
 					"    CAST(Horizon.HorizonCaseNumber AS Int)\n",
 					"    ,Horizon.casereference\n",
 					"    ,Horizon.projectname\n",
+					"    ,Horizon.projectNameWelsh\n",
 					"    ,Horizon.projectDescription\n",
+					"    ,Horizon.projectDescriptionWelsh\n",
 					"    ,Horizon.summary\n",
 					"    ,Horizon.caseCreatedDate\n",
 					"    ,CASE WHEN LOWER(projectstatus) = 'not published' THEN 'unpublished' ELSE LOWER(projectstatus) END\n",
@@ -348,6 +350,7 @@
 					"    ,projecttype\n",
 					"    ,stage\n",
 					"    ,projectLocation\n",
+					"    ,Horizon.projectLocationWelsh\n",
 					"    ,projectEmailAddress\n",
 					"    ,LOWER(Region)\n",
 					"    ,CAST(transboundary AS Boolean) \n",
@@ -407,7 +410,7 @@
 					"\n",
 					"                \"\"\")"
 				],
-				"execution_count": 4
+				"execution_count": 17
 			},
 			{
 				"cell_type": "code",
@@ -449,7 +452,7 @@
 					"#sort columns into same order as service bus\n",
 					"horizon_data = horizon_data.select(service_bus_data.columns)"
 				],
-				"execution_count": 5
+				"execution_count": 18
 			},
 			{
 				"cell_type": "code",
@@ -467,7 +470,7 @@
 				"source": [
 					"results = service_bus_data.union(horizon_data)"
 				],
-				"execution_count": 6
+				"execution_count": 19
 			},
 			{
 				"cell_type": "code",
@@ -486,7 +489,7 @@
 				"source": [
 					"results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
 				],
-				"execution_count": 7
+				"execution_count": 20
 			},
 			{
 				"cell_type": "markdown",
@@ -538,7 +541,7 @@
 					"FROM\n",
 					"    odw_harmonised_db.nsip_project"
 				],
-				"execution_count": 8
+				"execution_count": 21
 			},
 			{
 				"cell_type": "code",
@@ -793,7 +796,7 @@
 					"\n",
 					"final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
 				],
-				"execution_count": 9
+				"execution_count": 22
 			},
 			{
 				"cell_type": "code",
