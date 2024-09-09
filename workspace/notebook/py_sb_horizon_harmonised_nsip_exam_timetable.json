@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d70944eb-94a6-4294-9549-7cc56e76bc46"
+				"spark.autotune.trackingId": "7a9ca84f-87e2-4a8e-a8d0-25ca1f0f6d7c"
 			}
 		},
 		"metadata": {
@@ -58,7 +58,7 @@
 					"from pyspark.sql import Row\n",
 					"from pyspark.sql.functions import *"
 				],
-				"execution_count": 35
+				"execution_count": 1
 			},
 			{
 				"cell_type": "code",
@@ -78,7 +78,7 @@
 					"horizon_table = \"odw_standardised_db.horizon_examination_timetable\" \n",
 					"spark_table_final = \"odw_harmonised_db.nsip_exam_timetable\""
 				],
-				"execution_count": 36
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
@@ -112,7 +112,7 @@
 					"                            {service_bus_table}\n",
 					"                    \"\"\")"
 				],
-				"execution_count": 37
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
@@ -137,9 +137,9 @@
 					"                        ,CAST(Horizon.ID AS Integer) As eventId\n",
 					"                        ,Horizon.typeofexamination As type\n",
 					"                        ,Horizon.Name As eventTitle\n",
-					"                        ,CAST(NULL As String) As eventTitleWelsh\n",
+					"                        ,Horizon.NameWelsh As eventTitleWelsh\n",
 					"                        ,Horizon.Description As description\n",
-					"                        ,CAST(NULL As String) As descriptionWelsh\n",
+					"                        ,Horizon.DescriptionWelsh As descriptionWelsh\n",
 					"                        ,Horizon.DeadlineStartDateTime As eventDeadlineStartDate\n",
 					"                        ,Horizon.Date As date\n",
 					"                        ,\"0\" as Migrated\n",
@@ -154,26 +154,7 @@
 					"                    WHERE ingested_datetime = (SELECT MAX(ingested_datetime) FROM {horizon_table})\n",
 					"                \"\"\")"
 				],
-				"execution_count": 38
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"collapsed": false
-				},
-				"source": [
-					"display(horizon_data.filter(\"caseReference = 'EN010120'\"))"
-				],
-				"execution_count": 39
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -206,7 +187,7 @@
 					"#sort columns into same order as service bus\n",
 					"horizon_data = horizon_data.select(service_bus_data.columns).drop_duplicates()"
 				],
-				"execution_count": 40
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
@@ -225,7 +206,7 @@
 					"results = service_bus_data.union(horizon_data)\n",
 					"results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
 				],
-				"execution_count": 42
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
@@ -238,6 +219,9 @@
 						"transient": {
 							"deleting": false
 						}
+					},
+					"microsoft": {
+						"language": "sparksql"
 					},
 					"collapsed": false
 				},
@@ -261,7 +245,7 @@
 					"FROM\n",
 					"    odw_harmonised_db.nsip_exam_timetable"
 				],
-				"execution_count": 43
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
@@ -302,7 +286,7 @@
 					"\n",
 					"df_calcs = df_calcs.withColumnRenamed(\"caseReference\", \"temp_caseReference\").withColumnRenamed(\"IngestionDate\", \"temp_IngestionDate\")"
 				],
-				"execution_count": 44
+				"execution_count": 8
 			},
 			{
 				"cell_type": "code",
@@ -344,7 +328,7 @@
 					"        {spark_table_final}\"\"\")\n",
 					"    "
 				],
-				"execution_count": 45
+				"execution_count": 9
 			},
 			{
 				"cell_type": "code",
@@ -365,7 +349,7 @@
 					"final_df = results.join(df_calcs, (df_calcs[\"temp_caseReference\"] == results[\"caseReference\"]) & (df_calcs[\"temp_IngestionDate\"] == results[\"IngestionDate\"])).select(columns)\n",
 					"final_df = final_df.drop_duplicates()"
 				],
-				"execution_count": 46
+				"execution_count": 10
 			},
 			{
 				"cell_type": "code",
@@ -383,32 +367,7 @@
 				"source": [
 					"final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
 				],
-				"execution_count": 47
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"collapsed": false
-				},
-				"source": [
-					"df_hzn_std = spark.sql(\"select * from odw_standardised_db.horizon_examination_timetable where casereference = 'EN010120' and ingested_datetime = (select max(ingested_datetime) from odw_standardised_db.horizon_examination_timetable)\")\n",
-					"df_sb_hrm = spark.sql(\"select * from odw_harmonised_db.sb_nsip_exam_timetable where casereference = 'EN010120'\")\n",
-					"df_hrm = spark.sql(\"select * from odw_harmonised_db.nsip_exam_timetable where casereference = 'EN010120'\")\n",
-					"\n",
-					"display(df_hzn_std)\n",
-					"display(df_sb_hrm)\n",
-					"display(df_hrm)"
-				],
-				"execution_count": 51
+				"execution_count": 11
 			}
 		]
 	}
