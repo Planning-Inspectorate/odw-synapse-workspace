@@ -1,1 +1,0 @@
-SELECT TOP (100) * FROM [odw_standardised_db].[dbo].[horizon_s62a_view_cases]
