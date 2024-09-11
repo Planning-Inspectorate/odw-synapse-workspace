@@ -1,5 +1,5 @@
 {
-	"name": "document_metadata",
+	"name": "nsip_document",
 	"properties": {
 		"folder": {
 			"name": "odw-curated"
@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "93b2db12-9061-453e-9d8b-594e11a9c02a"
+				"spark.autotune.trackingId": "4bad4713-5275-444f-a4d0-f2856e2f2473"
 			}
 		},
 		"metadata": {
@@ -69,7 +69,7 @@
 					"from pyspark.sql.types import *\n",
 					"from pyspark.sql import DataFrame"
 				],
-				"execution_count": 10
+				"execution_count": 13
 			},
 			{
 				"cell_type": "markdown",
@@ -87,94 +87,86 @@
 			{
 				"cell_type": "code",
 				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
 					"microsoft": {
 						"language": "sparksql"
 					},
 					"collapsed": false
 				},
 				"source": [
-					"%%sql\n",
-					"\n",
-					"CREATE OR REPLACE VIEW odw_curated_db.vw_nsip_document\n",
-					"\n",
-					"AS\n",
-					"\n",
-					"SELECT DISTINCT \n",
-					"MD.DataId\t                            AS documentId,\n",
-					"MD.CaseNodeId\t                        AS caseId,\n",
-					"DT.caseReference\t                    AS caseRef,\n",
-					"MD.documentReference\t                AS documentReference,\n",
-					"MD.Version                              AS version,\n",
-					"AMD.examinationRefNo\t                AS examinationRefNo,\n",
-					"MD.Name\t                                AS filename,\n",
-					"MD.Name\t                                AS originalFilename,\n",
-					"MD.DataSize\t                            AS size,\n",
-					"AMD.mime\t                            AS mime,\n",
-					"AMD.DocumentURI\t                        AS documentURI,\n",
-					"AMD.DocumentURI\t\t                    AS publishedDocumentURI,\n",
-					"AMD.Path                                AS path,\n",
-					"MD.virusCheckStatus\t                    AS virusCheckStatus,\n",
-					"AMD.fileMd5\t                            AS fileMD5,\n",
-					"MD.CreateDate                   \t    AS dateCreated,\n",
-					"MD.ModifyDate                   \t    AS lastModified,\n",
-					"LOWER(MD.CaseworkType)\t                AS caseType,\n",
-					"CASE\n",
-					"    WHEN AMD.redactedStatus = ' '   \n",
-					"    THEN NULL\n",
-					"    ELSE AMD.redactedStatus                \n",
-					"END                                     AS redactedStatus,\n",
-					"CASE\n",
-					"    WHEN MD.PublishedStatus = 'Depublished'\n",
-					"    THEN 'unpublished'\n",
-					"    ELSE REPLACE(\n",
-					"        LOWER(MD.PublishedStatus),\n",
-					"        ' ',\n",
-					"        '_')\n",
-					"END                  \t                AS publishedStatus,\n",
-					"MD.DatePublished                        AS datePublished,\n",
-					"MD.DocumentType\t                        AS documentType,\n",
-					"CASE\n",
-					"    WHEN AMD.securityClassification = ' '\n",
-					"    THEN NULL\n",
-					"    ELSE AMD.securityClassification\n",
-					"END\t                                    AS securityClassification,\n",
-					"DT.SourceSystem\t                        AS sourceSystem,\n",
-					"CASE\n",
-					"    WHEN AMD.origin  = ' '\n",
-					"    THEN NULL\n",
-					"    ELSE AMD.origin\n",
-					"END\t                                    AS origin,\n",
-					"AMD.owner                               AS owner,\n",
-					"MD.Author\t                            AS author,\n",
-					"NULL                                    AS authorWelsh,\n",
-					"MD.Representative\t                    AS representative,\n",
-					"MD.DocumentDescription\t                AS description,\n",
-					"NULL                                    AS descriptionWelsh,\n",
-					"CASE\n",
-					"    WHEN MD.DocumentCaseStage = \"Developer's Application\"\n",
-					"    THEN 'developers_application'\n",
-					"    WHEN MD.DocumentCaseStage = 'Post decision'\n",
-					"    THEN 'post_decision'\n",
-					"    ELSE LOWER(MD.DocumentCaseStage)\t            \n",
-					"END                                     AS documentCaseStage,\n",
-					"MD.Filter1\t                            AS filter1,\n",
-					"NULL                                    AS filter1Welsh,\n",
-					"MD.Filter2\t                            AS filter2,\n",
-					"MD.ParentID\t                            AS horizonFolderId,\n",
-					"NULL\t                                AS transcriptId\t\n",
-					"\n",
-					"FROM odw_curated_db.nsip_data DT\n",
-					"LEFT JOIN odw_harmonised_db.document_meta_data   AS MD\n",
-					"    ON DT.casereference = MD.caseReference\n",
-					"LEFT JOIN odw_harmonised_db.aie_document_data    AS AMD\n",
-					"    ON MD.DataID = AMD.DocumentID \n",
-					"        AND AMD.Version = MD.Version \n",
-					"        AND AMD.Size = MD.DataSize\n",
-					"WHERE AMD.IsActive = 'Y' \n",
-					"    AND MD.IsActive = 'Y'\n",
-					";"
+					"%%sql\r\n",
+					"\r\n",
+					"CREATE OR REPLACE VIEW odw_curated_db.vw_nsip_document\r\n",
+					"\r\n",
+					"AS\r\n",
+					"\r\n",
+					"SELECT DISTINCT \r\n",
+					"Doc.documentId,\r\n",
+					"Doc.caseId,\r\n",
+					"Doc.caseRef,\r\n",
+					"Doc.documentReference,\r\n",
+					"Doc.version,\r\n",
+					"Doc.examinationRefNo,\r\n",
+					"Doc.filename,\r\n",
+					"Doc.originalFilename,\r\n",
+					"Doc.size,\r\n",
+					"Doc.mime,\r\n",
+					"COALESCE(Doc.documentURI, '') AS documentURI,\r\n",
+					"Doc.publishedDocumentURI,\r\n",
+					"Doc.path,\r\n",
+					"Doc.virusCheckStatus,\r\n",
+					"Doc.fileMD5,\r\n",
+					"Doc.dateCreated,\r\n",
+					"Doc.lastModified,\r\n",
+					"LOWER(Doc.caseType) AS caseType,\r\n",
+					"Doc.redactedStatus,\r\n",
+					"CASE\r\n",
+					"    WHEN Doc.PublishedStatus = 'Depublished'\r\n",
+					"    THEN 'unpublished'\r\n",
+					"    ELSE REPLACE(\r\n",
+					"        LOWER(Doc.PublishedStatus),\r\n",
+					"        ' ',\r\n",
+					"        '_')\r\n",
+					"END AS publishedStatus,\r\n",
+					"Doc.datePublished,\r\n",
+					"Doc.documentType,\r\n",
+					"Doc.securityClassification,\r\n",
+					"Doc.sourceSystem,\r\n",
+					"Doc.origin,\r\n",
+					"Doc.owner,\r\n",
+					"Doc.author,\r\n",
+					"Doc.authorWelsh,\r\n",
+					"Doc.representative,\r\n",
+					"Doc.description,\r\n",
+					"Doc.descriptionWelsh,\r\n",
+					"CASE\r\n",
+					"    WHEN Doc.DocumentCaseStage = \"Developer's Application\"\r\n",
+					"    THEN 'developers_application'\r\n",
+					"    WHEN Doc.DocumentCaseStage = 'Post decision'\r\n",
+					"    THEN 'post_decision'\r\n",
+					"    ELSE LOWER(Doc.DocumentCaseStage)\t            \r\n",
+					"END AS documentCaseStage,\r\n",
+					"Doc.filter1,\r\n",
+					"Doc.filter1Welsh,\r\n",
+					"Doc.filter2,\r\n",
+					"Doc.horizonFolderId,\r\n",
+					"Doc.transcriptId\t\r\n",
+					"\r\n",
+					"FROM odw_harmonised_db.nsip_document AS Doc\r\n",
+					"LEFT JOIN odw_curated_db.nsip_data Dat\r\n",
+					"    ON Dat.casereference = Doc.caseRef\r\n",
+					"\r\n",
+					"WHERE Doc.IsActive = 'Y';"
 				],
-				"execution_count": 11
+				"execution_count": 14
 			},
 			{
 				"cell_type": "markdown",
@@ -203,9 +195,43 @@
 					}
 				},
 				"source": [
-					"data: DataFrame = spark.sql(\"SELECT * FROM odw_curated_db.vw_nsip_document\")"
+					"from pyspark.sql import SparkSession\r\n",
+					"spark = SparkSession.builder.getOrCreate()\r\n",
+					"view_df = spark.sql('SELECT * FROM odw_curated_db.vw_nsip_document')\r\n",
+					"view_df.write.mode(\"overwrite\").saveAsTable('odw_curated_db.nsip_document')"
 				],
-				"execution_count": 12
+				"execution_count": 15
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"view_df.printSchema()"
+				],
+				"execution_count": 16
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## THE BELOW IS OLDER CODE, AND IT CHANGED THE SCHEMA"
+				]
 			},
 			{
 				"cell_type": "markdown",
@@ -234,9 +260,10 @@
 					}
 				},
 				"source": [
+					"data: DataFrame = spark.sql(\"SELECT * FROM odw_curated_db.vw_nsip_document\")\r\n",
 					"schema: StructType = spark.table(\"odw_curated_db.nsip_document\").schema"
 				],
-				"execution_count": 13
+				"execution_count": 17
 			},
 			{
 				"cell_type": "markdown",
@@ -274,7 +301,7 @@
 					"    ]\n",
 					")"
 				],
-				"execution_count": 14
+				"execution_count": 18
 			},
 			{
 				"cell_type": "markdown",
@@ -306,7 +333,7 @@
 				"source": [
 					"df.printSchema()"
 				],
-				"execution_count": 15
+				"execution_count": 19
 			},
 			{
 				"cell_type": "markdown",
@@ -335,9 +362,9 @@
 					}
 				},
 				"source": [
-					"df.write.mode(\"overwrite\").format(\"delta\").saveAsTable(\"odw_curated_db.nsip_document\")"
+					"data.write.mode(\"overwrite\").format(\"delta\").saveAsTable(\"odw_curated_db.nsip_document\")"
 				],
-				"execution_count": 16
+				"execution_count": 20
 			}
 		]
 	}
