@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "8593e94c-8e40-47a3-b6d4-08f5e43518d6"
+				"spark.autotune.trackingId": "5b5c445f-dc3d-4688-af49-2fc5c62c7613"
 			}
 		},
 		"metadata": {
@@ -52,6 +52,52 @@
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"The below cell is creating the table if it does not exist"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from notebookutils import mssparkutils\n",
+					"\n",
+					"db_name: str = 'odw_harmonised_db'\n",
+					"table_name: str = 's62a_view_cases_dim'\n",
+					"def test_table_exists(db_name: str, table_name: str) -> bool:\n",
+					"    spark.sql(f\"USE {db_name}\")\n",
+					"    tables_df: DataFrame = spark.sql(\"SHOW TABLES\")\n",
+					"    table_names: list = [row['tableName'] for row in tables_df.collect()]\n",
+					"    return table_name in table_names\n",
+					"\n",
+					"if test_table_exists(db_name, table_name):\n",
+					"    print(\"Table exists in harmonised, updating the harmonised layer.r\")\n",
+					"else:\n",
+					"    print(\"Table doesn't exist, creating table first.\")\n",
+					"    mssparkutils.notebook.run(\"/py_odw_harmonised_table_creation\",300,{'specific_table': table_name } )\n",
+					""
+				],
+				"execution_count": 24
+			},
 			{
 				"cell_type": "markdown",
 				"metadata": {
@@ -141,7 +187,7 @@
 					"    AND T1.expected_from = (SELECT MAX(expected_from) FROM odw_standardised_db.horizon_s62a_view_cases)\r\n",
 					";"
 				],
-				"execution_count": 3
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -223,7 +269,7 @@
 					"FROM odw_harmonised_db.s62a_view_cases_dim\r\n",
 					"WHERE CaseDataID IN (SELECT CaseDataID FROM s62a_view_cases_dim_new WHERE CaseDataID IS NULL) AND IsActive = 'Y'; "
 				],
-				"execution_count": 4
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -278,7 +324,7 @@
 					"FROM s62a_view_cases_dim_changed_rows T1\n",
 					"FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive"
 				],
-				"execution_count": 5
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
