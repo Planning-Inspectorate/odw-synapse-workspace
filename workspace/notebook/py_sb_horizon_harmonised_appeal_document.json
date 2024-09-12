@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "a2d76946-a915-49b8-928d-c465f6936576"
+				"spark.autotune.trackingId": "0075a9e5-43d4-484b-b14a-22819a9d7147"
 			}
 		},
 		"metadata": {
@@ -58,7 +58,7 @@
 					"from pyspark.sql import Row\n",
 					"from pyspark.sql.functions import *"
 				],
-				"execution_count": 1
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -77,9 +77,11 @@
 					"service_bus_table = \"odw_harmonised_db.sb_appeal_document\"\n",
 					"horizon_table = \"odw_standardised_db.horizon_appeals_document_metadata\"\n",
 					"aie_extracts_table = \"odw_harmonised_db.aie_document_data\"\n",
-					"spark_table_final = \"odw_harmonised_db.appeal_document\""
+					"spark_table_final = \"odw_harmonised_db.appeal_document\"\n",
+					"\n",
+					"primary_key = 'TEMP_PK'"
 				],
-				"execution_count": 2
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -98,7 +100,8 @@
 					"# Get data out of the service bus with additional fields needed for Horizon data\n",
 					"service_bus_data = spark.sql(f\"\"\"\n",
 					"                    SELECT DISTINCT\n",
-					"                        AppealsDocumentMetadataID\n",
+					"                        MD5(CONCAT(documentId, filename, version)) AS {primary_key}\n",
+					"                        ,AppealsDocumentMetadataID\n",
 					"                        ,documentId\n",
 					"                        ,caseId\n",
 					"                        ,caseReference\n",
@@ -148,7 +151,7 @@
 					"\n",
 					"                    \"\"\")"
 				],
-				"execution_count": 3
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -167,7 +170,14 @@
 					"# Get data out of Horizon and matching the SB schema (with additional fields and ensure data types match)\n",
 					"horizon_data = spark.sql(f\"\"\"\n",
 					"                SELECT DISTINCT \n",
-					"                    CAST(NULL AS LONG) AS AppealsDocumentMetadataID\n",
+					"                    MD5(\n",
+					"                        CONCAT(\n",
+					"                            COALESCE(CAST(Doc.documentId AS INTEGER), ''), \n",
+					"                            COALESCE(Doc.filename, ''), \n",
+					"                            COALESCE(CAST(Doc.version AS INTEGER), '')\n",
+					"                        )\n",
+					"                    ) AS {primary_key}\n",
+					"                    ,CAST(NULL AS LONG) AS AppealsDocumentMetadataID\n",
 					"                    ,Doc.documentId\n",
 					"                    ,CAST(Doc.casenodeid AS INTEGER) AS caseId\n",
 					"                    ,Doc.caseReference\n",
@@ -218,7 +228,7 @@
 					"                    Doc.ingested_datetime = (SELECT MAX(ingested_datetime) FROM {horizon_table})\n",
 					"            \"\"\")"
 				],
-				"execution_count": 4
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -237,7 +247,7 @@
 					"horizon_data = horizon_data.select(service_bus_data.columns)\n",
 					"results = service_bus_data.union(horizon_data)"
 				],
-				"execution_count": 5
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -255,7 +265,7 @@
 				"source": [
 					"results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
 				],
-				"execution_count": 6
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -283,9 +293,6 @@
 							"deleting": false
 						}
 					},
-					"microsoft": {
-						"language": "sparksql"
-					},
 					"collapsed": false
 				},
 				"source": [
@@ -293,13 +300,13 @@
 					"    CREATE OR REPLACE TEMPORARY VIEW vw_appeal_document_calculations_base\n",
 					"        AS\n",
 					"        SELECT  \n",
-					"            row_number() OVER(PARTITION BY documentId ORDER BY IngestionDate DESC) AS ReverseOrderProcessed\n",
-					"            ,row_number() OVER(ORDER BY IngestionDate asc, documentId asc) AS AppealsDocumentMetadataID\n",
-					"            ,documentId\n",
+					"            row_number() OVER(PARTITION BY {primary_key} ORDER BY IngestionDate DESC) AS ReverseOrderProcessed\n",
+					"            ,row_number() OVER(ORDER BY IngestionDate asc, {primary_key} asc) AS AppealsDocumentMetadataID\n",
+					"            ,{primary_key}\n",
 					"            ,IngestionDate\n",
 					"            ,ValidTo\n",
 					"            ,'0' AS Migrated\n",
-					"            ,CASE row_number() OVER(PARTITION BY documentId ORDER BY IngestionDate DESC)\n",
+					"            ,CASE row_number() OVER(PARTITION BY {primary_key} ORDER BY IngestionDate DESC)\n",
 					"                WHEN 1 THEN\n",
 					"                    'Y'\n",
 					"                ELSE\n",
@@ -307,9 +314,10 @@
 					"            END AS IsActive                \n",
 					"        FROM\n",
 					"            {spark_table_final}\n",
-					"    \"\"\")"
+					"    \"\"\")\n",
+					""
 				],
-				"execution_count": 7
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -328,11 +336,11 @@
 					"df_calcs = spark.sql(f\"\"\"\n",
 					"                        SELECT\n",
 					"                            CurrentRow.AppealsDocumentMetadataID\n",
-					"                            ,CurrentRow.documentId \n",
+					"                            ,CurrentRow.{primary_key} \n",
 					"                            ,CurrentRow.IngestionDate\n",
 					"                            ,COALESCE(NULLIF(CurrentRow.ValidTo,''), NextRow.IngestionDate) AS ValidTo\n",
 					"                            ,CASE\n",
-					"                                WHEN raw.documentId IS NOT NULL THEN \n",
+					"                                WHEN raw.{primary_key} IS NOT NULL THEN \n",
 					"                                    \"1\"\n",
 					"                                ELSE \n",
 					"                                    \"0\"\n",
@@ -341,14 +349,14 @@
 					"                        FROM\n",
 					"                            vw_appeal_document_calculations_base AS CurrentRow\n",
 					"                            LEFT OUTER JOIN vw_appeal_document_calculations_base AS NextRow\n",
-					"                                ON CurrentRow.documentId = NextRow.documentId\n",
+					"                                ON CurrentRow.{primary_key} = NextRow.{primary_key}\n",
 					"                                AND CurrentRow.ReverseOrderProcessed - 1 = NextRow.ReverseOrderProcessed\n",
-					"                            LEFT OUTER JOIN (SELECT DISTINCT documentId FROM  odw_harmonised_db.sb_appeal_document) AS Raw\n",
-					"                                ON CurrentRow.documentId = Raw.documentId \n",
+					"                            LEFT OUTER JOIN (SELECT DISTINCT MD5(CONCAT(documentId, filename, version)) AS {primary_key} FROM  odw_harmonised_db.sb_appeal_document) AS Raw\n",
+					"                                ON CurrentRow.{primary_key} = Raw.{primary_key} \n",
 					"                            ORDER BY currentRow.ReverseOrderProcessed\n",
 					"                    \"\"\")"
 				],
-				"execution_count": 8
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -364,9 +372,9 @@
 					}
 				},
 				"source": [
-					"df_calcs =df_calcs.withColumnRenamed(\"documentId\", \"temp_documentId\").withColumnRenamed(\"IngestionDate\", \"temp_IngestionDate\")"
+					"df_calcs = df_calcs.withColumnRenamed(primary_key, f\"temp_{primary_key}\").withColumnRenamed(\"IngestionDate\", \"temp_IngestionDate\")"
 				],
-				"execution_count": 9
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -385,6 +393,7 @@
 				"source": [
 					"results = spark.sql(f\"\"\"\n",
 					"                    SELECT DISTINCT AppealsDocumentMetadataID\n",
+					"                        ,{primary_key}\n",
 					"                        ,documentId\n",
 					"                        ,caseId\n",
 					"                        ,caseReference\n",
@@ -473,7 +482,7 @@
 					"                \"\"\")\n",
 					"    "
 				],
-				"execution_count": 10
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -493,7 +502,7 @@
 					"\n",
 					"results = results.drop(\"AppealsDocumentMetadataID\", \"ValidTo\", \"Migrated\", \"IsActive\")"
 				],
-				"execution_count": 11
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -509,10 +518,10 @@
 					}
 				},
 				"source": [
-					"final_df = results.join(df_calcs, (df_calcs[\"temp_documentId\"] == results[\"documentId\"]) & (df_calcs[\"temp_IngestionDate\"] == results[\"IngestionDate\"])).select(columns)\n",
-					"final_df = final_df.drop_duplicates()"
+					"final_df = results.join(df_calcs, (df_calcs[f\"temp_{primary_key}\"] == results[primary_key]) & (df_calcs[\"temp_IngestionDate\"] == results[\"IngestionDate\"])).select(columns).distinct()\n",
+					"final_df = final_df.drop(primary_key).drop_duplicates()"
 				],
-				"execution_count": 12
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -529,24 +538,6 @@
 				},
 				"source": [
 					"final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
-				],
-				"execution_count": 13
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					""
 				],
 				"execution_count": null
 			}
