@@ -382,6 +382,12 @@
 		"REL REPS TEST SCRIPT_properties_content_currentConnection_poolName": {
 			"type": "string"
 		},
+		"S62a API Query_properties_content_currentConnection_databaseName": {
+			"type": "string"
+		},
+		"S62a API Query_properties_content_currentConnection_poolName": {
+			"type": "string"
+		},
 		"Table without duplicates_properties_content_currentConnection_databaseName": {
 			"type": "string"
 		},
@@ -67671,6 +67677,23 @@
 			"properties": {
 				"activities": [
 					{
+						"name": "pln_odw_1333",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pln_odw_1333",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
 						"name": "rel_1403_entraid",
 						"type": "ExecutePipeline",
 						"dependsOn": [],
@@ -67681,6 +67704,23 @@
 						"typeProperties": {
 							"pipeline": {
 								"referenceName": "rel_1403_entraid",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "pln_1335_release",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pln_1335_release",
 								"type": "PipelineReference"
 							},
 							"waitOnCompletion": true,
@@ -67697,7 +67737,9 @@
 				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('workspaceId'), '/pipelines/rel_1403_entraid')]"
+				"[concat(variables('workspaceId'), '/pipelines/pln_odw_1333')]",
+				"[concat(variables('workspaceId'), '/pipelines/rel_1403_entraid')]",
+				"[concat(variables('workspaceId'), '/pipelines/pln_1335_release')]"
 			]
 		},
 		{
@@ -94057,6 +94099,26 @@
 					"currentConnection": {
 						"databaseName": "[parameters('REL REPS TEST SCRIPT_properties_content_currentConnection_databaseName')]",
 						"poolName": "[parameters('REL REPS TEST SCRIPT_properties_content_currentConnection_poolName')]"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/S62a API Query')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "DECLARE @searchCriteria VARCHAR(200);\n\nSET @searchCriteria = 'frosty';\n\n\nSELECT [name]\n,[caseReference]\n,[applicationType]\n,[applicationValidated]\n,[description]\n,[lpa]\n,[permissionSought]\n,[procedureType]\n,[status]\n,[applicantName]\n,[siteAddress]\n,[sitePostcode]\n,[siteGridReference]\n,[agentName]\n,[agentAddress]\n,[dateReceived]\n,[dateValid]\n,[consultationStatDate]\n,[consultationEndDate]\n,[targetDecisionDate]\n,[decisionDate]\n,[decisionType]\n,[appointedPerson]\n,[caseAdministrator]\n,[caseLeader]\n,[caseOfficer]\n,[eiaOfficer]\n,[legalOfficer]\n FROM [odw_curated_db].[dbo].[s62a] \n WHERE\nUPPER([Name]) LIKE Concat(Char(37), UPPER(@searchCriteria), Char(37)) OR\nUPPER([caseReference]) LIKE Concat(Char(37), UPPER(@searchCriteria), Char(37)) OR\nUPPER([description]) LIKE Concat(Char(37), UPPER(@searchCriteria), Char(37)) OR\nUPPER([applicantName]) LIKE Concat(Char(37), UPPER(@searchCriteria), Char(37)) OR\nUPPER([siteAddress]) LIKE Concat(Char(37), UPPER(@searchCriteria), Char(37)) OR\nUPPER([sitePostcode]) LIKE Concat(Char(37), UPPER(@searchCriteria), Char(37)) OR\nUPPER([siteGridReference]) LIKE Concat(Char(37), UPPER(@searchCriteria), Char(37)) ",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "[parameters('S62a API Query_properties_content_currentConnection_databaseName')]",
+						"poolName": "[parameters('S62a API Query_properties_content_currentConnection_poolName')]"
 					},
 					"resultLimit": 5000
 				},
@@ -208310,7 +208372,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "44e02983-3a6b-4fa7-97a3-d85111c0040a"
+						"spark.autotune.trackingId": "cbaa297c-850e-4a41-b6ba-0fa924ede294"
 					}
 				},
 				"metadata": {
@@ -208357,7 +208419,8 @@
 							]
 						},
 						"source": [
-							"entity_name=''"
+							"entity_name=''\n",
+							"date_folder=''"
 						],
 						"outputs": [],
 						"execution_count": 83
@@ -208394,8 +208457,8 @@
 							"spark: SparkSession = SparkSession.builder.getOrCreate()\n",
 							"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
 							"table_name: str = f\"odw_standardised_db.sb_{entity_name.replace('-', '_')}\"\n",
-							"today: str = datetime.now().date().strftime('%Y-%m-%d')\n",
-							"source_path: str = f\"abfss://odw-raw@{storage_account}ServiceBus/{entity_name}/{today}/\"\n",
+							"date_folder = datetime.now().date().strftime('%Y-%m-%d') if date_folder == '' else date_folder\n",
+							"source_path: str = f\"abfss://odw-raw@{storage_account}ServiceBus/{entity_name}/{date_folder}/\"\n",
 							"\n",
 							"schema = mssparkutils.notebook.run(\"/py_create_spark_schema\", 30, {\"db_name\": 'odw_standardised_db', \"entity_name\": entity_name})\n",
 							"spark_schema = StructType.fromJson(json.loads(schema)) if schema != '' else ''"
@@ -208643,7 +208706,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "44def7ae-e0a7-4a00-aa00-72d89ca4a435"
+						"spark.autotune.trackingId": "19c012dd-2321-440a-bb32-7acb1858ec7c"
 					}
 				},
 				"metadata": {
@@ -208651,7 +208714,7 @@
 					"enableDebugMode": true,
 					"kernelspec": {
 						"name": "synapse_pyspark",
-						"display_name": "Synapse PySpark"
+						"display_name": "python"
 					},
 					"language_info": {
 						"name": "python"
@@ -209450,6 +209513,8 @@
 							"        spark.sql(f\"REFRESH TABLE {std_table_name_full}\")\n",
 							"        print(f\"Rows Count in {std_table_name_full}: {spark.table(std_table_name_full).count()}\")\n",
 							"\n",
+							"        # print(f\"Running py_sb_raw_to_std to load data into {std_table_name_full}\")\n",
+							"        # mssparkutils.notebook.run(\"/py_sb_raw_to_std\", timeout_seconds=610000, arguments={\"entity_name\": folder_name, \"date_folder\": str(processing)})\n",
 							"\n",
 							"    #Check if we've already processed the data or not\n",
 							"    hrm = spark.sql(f\"\"\"SELECT \n",
@@ -210948,7 +211013,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "37c3deea-f29b-4579-ba45-375c49970082"
+						"spark.autotune.trackingId": "cb1781be-2608-41e3-8ed6-66d765c4d303"
 					}
 				},
 				"metadata": {
@@ -211006,7 +211071,7 @@
 						},
 						"source": [
 							"from pyspark.sql import DataFrame\n",
-							"from pyspark.sql.types import StructType\n",
+							"from pyspark.sql.types import StructType, StructField, ArrayType, StringType, IntegerType\n",
 							"from pyspark.sql.functions import *"
 						],
 						"outputs": [],
@@ -211046,17 +211111,34 @@
 							}
 						},
 						"source": [
-							"def compare_schemas(schema1: StructType, schema2: StructType) -> tuple:\n",
-							"    fields1 = set((field.name, field.dataType) for field in schema1.fields)\n",
-							"    fields2 = set((field.name, field.dataType) for field in schema2.fields)\n",
+							"def normalize_field(field):\n",
+							"    \"\"\" Normalize field for comparison by ignoring nullable differences and sorting fields. \"\"\"\n",
+							"    if isinstance(field.dataType, StructType):\n",
+							"        # Sort fields within the StructType and convert to tuple\n",
+							"        return (field.name, tuple(sorted(normalize_field(f) for f in field.dataType.fields)))\n",
+							"    elif isinstance(field.dataType, ArrayType):\n",
+							"        # Normalize the elementType and convert to tuple\n",
+							"        return (field.name, ('ArrayType', normalize_field(StructField('element', field.dataType.elementType, True))))\n",
+							"    else:\n",
+							"        return (field.name, field.dataType.simpleString().replace(\"NullableType\", \"\"))\n",
 							"\n",
+							"def compare_schemas(schema1: StructType, schema2: StructType) -> tuple:\n",
+							"    def get_field_set(schema):\n",
+							"        \"\"\" Convert schema fields to a set ignoring nullable differences and order of fields. \"\"\"\n",
+							"        return set(normalize_field(field) for field in schema.fields)\n",
+							"    \n",
+							"    fields1 = get_field_set(schema1)\n",
+							"    fields2 = get_field_set(schema2)\n",
+							"    \n",
 							"    in_schema1_not_in_schema2 = fields1 - fields2\n",
 							"    in_schema2_not_in_schema1 = fields2 - fields1\n",
 							"    \n",
+							"    # Sort for consistent output\n",
 							"    in_schema1_not_in_schema2_sorted = sorted(in_schema1_not_in_schema2, key=lambda x: x[0])\n",
 							"    in_schema2_not_in_schema1_sorted = sorted(in_schema2_not_in_schema1, key=lambda x: x[0])\n",
 							"    \n",
-							"    return in_schema1_not_in_schema2_sorted, in_schema2_not_in_schema1_sorted"
+							"    return in_schema1_not_in_schema2_sorted, in_schema2_not_in_schema1_sorted\n",
+							""
 						],
 						"outputs": [],
 						"execution_count": null
@@ -211116,9 +211198,12 @@
 							"\n",
 							"    if in_current_not_in_existing or in_existing_not_in_current:\n",
 							"        print('Schemas do not match')\n",
-							"        print('Columns in new data not in existing table', in_current_not_in_existing)\n",
-							"        print('Columns in existing table not in data', in_existing_not_in_current)\n",
-							"        \n",
+							"        print(\"#\" * 100)\n",
+							"        print('Columns in new data not in existing table: \\n', in_current_not_in_existing)\n",
+							"        print(\"#\" * 100)\n",
+							"        print('Columns in existing table not in data: \\n', in_existing_not_in_current)\n",
+							"        print(\"#\" * 100)\n",
+							"\n",
 							"        # merging schema if there is any schema mismatch\n",
 							"        merge_schema(table_name, table_df, in_current_not_in_existing, in_existing_not_in_current)\n",
 							"        \n",
@@ -211234,6 +211319,16 @@
 							}
 						},
 						"source": [
+							"\n",
+							"def is_array_of_struct(field):\n",
+							"    field_type = field.dataType\n",
+							"    return isinstance(field_type, ArrayType) and isinstance(field_type.elementType, StructType)\n",
+							"\n",
+							"\n",
+							"def get_empty_array_of_structs(schema):\n",
+							"    empty_struct = F.struct([F.lit(\"\").cast(field.dataType).alias(field.name) for field in schema.fields])\n",
+							"    return F.array(empty_struct)\n",
+							"\n",
 							"def cast_null_columns(df: DataFrame, schema: StructType) -> DataFrame:\n",
 							"\n",
 							"    \"\"\"\n",
@@ -211267,10 +211362,24 @@
 							"        # Cast the column if it's null\n",
 							"        all_null = df.filter(F.col(col).isNotNull()).count() == 0\n",
 							"        if all_null or df_schema[col] == 'bigint':\n",
+							"            result = False\n",
 							"            try:\n",
 							"                df = df.withColumn(col, F.col(col).cast(schema_dict[col]))\n",
-							"                print(f\"Column '{col}' was cast from {df_schema[col]} to {schema_dict[col]}.\")\n",
+							"                result = True\n",
 							"            except:\n",
+							"                if is_array_of_struct(schema[col]):\n",
+							"                    try:\n",
+							"                        df = df.withColumn(col, get_empty_array_of_structs(schema[col].dataType.elementType))\n",
+							"                        result = True\n",
+							"                    except Exception as e:\n",
+							"                        print(e)\n",
+							"                elif isinstance(schema_dict[col], ArrayType):\n",
+							"                    df = df.withColumn(col, F.array(F.lit(None).cast(StringType())))\n",
+							"                    result = True\n",
+							"            \n",
+							"            if result:\n",
+							"                print(f\"Column '{col}' was cast from {df_schema[col]} to {schema_dict[col]}.\")\n",
+							"            else:\n",
 							"                print(f\"Failed to cast Column '{col}' from {df_schema[col]} to {schema_dict[col]}.\")\n",
 							"\n",
 							"    return df\n",
