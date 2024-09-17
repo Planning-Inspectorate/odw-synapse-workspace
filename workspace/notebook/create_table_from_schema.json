@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "aa51901f-d63c-485f-97da-a33ebe1decad"
+				"spark.autotune.trackingId": "dd6c12b8-b2ab-40aa-b7f7-d71ca0745e37"
 			}
 		},
 		"metadata": {
@@ -70,7 +70,8 @@
 					"import json\n",
 					"from pyspark.sql.functions import col\n",
 					"from pyspark.sql import DataFrame\n",
-					"from notebookutils import mssparkutils"
+					"from notebookutils import mssparkutils\n",
+					"import pyspark.sql.utils"
 				],
 				"execution_count": 32
 			},
@@ -264,9 +265,40 @@
 			},
 			{
 				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def get_container_name(db_name: str) -> str:\n",
+					"    if db_name == 'odw_standardised_db':\n",
+					"        return 'odw-standardised'\n",
+					"    if db_name == 'odw_harmonised_db':\n",
+					"        return 'odw-harmonised'\n",
+					"    if db_name == 'odw_curated_db':\n",
+					"        return 'odw-curated'"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
 				"source": [
 					"spark_dataframe = create_spark_dataframe()\n",
-					"create_spark_table(db_name, table_name, spark_dataframe)"
+					"\n",
+					"try:\n",
+					"    create_spark_table(db_name, table_name, spark_dataframe)\n",
+					"except pyspark.sql.utils.AnalysisException as e:\n",
+					"    table_loc = f\"abfss://{get_container_name(db_name)}@{storage_account}{table_name}\"\n",
+					"    print(f\"Unable to create table because the location ({table_loc}) is not empty. Emptying the location and retrying\")\n",
+					"    mssparkutils.fs.rm(table_loc, True)\n",
+					"    create_spark_table(db_name, table_name, spark_dataframe)"
 				],
 				"execution_count": 41
 			},
