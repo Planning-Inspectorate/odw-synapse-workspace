@@ -3,53 +3,11 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "Src to Raw",
-				"description": "Triggers Function App to read messages from Service Bus and write to odw-raw",
-				"type": "ExecutePipeline",
-				"dependsOn": [
-					{
-						"activity": "Create standardised table",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					},
-					{
-						"activity": "Create harmonised table",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					},
-					{
-						"activity": "Create curated table",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_trigger_function_app",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"function_name": {
-							"value": "@variables('entity_name')",
-							"type": "Expression"
-						}
-					}
-				}
-			},
-			{
 				"name": "If New Messages",
 				"type": "IfCondition",
 				"dependsOn": [
 					{
-						"activity": "Set number of messages received",
+						"activity": "If service user",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -999,30 +957,6 @@
 				}
 			},
 			{
-				"name": "Set number of messages received",
-				"type": "SetVariable",
-				"dependsOn": [
-					{
-						"activity": "Src to Raw",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"variableName": "Number_of_messages",
-					"value": {
-						"value": "@int(coalesce(activity('Src to Raw').output.pipelineReturnValue.Messages, '0'))",
-						"type": "Expression"
-					}
-				}
-			},
-			{
 				"name": "Record starting service bus stage",
 				"type": "SynapseNotebook",
 				"dependsOn": [
@@ -1733,12 +1667,170 @@
 						}
 					]
 				}
+			},
+			{
+				"name": "If service user",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Create standardised table",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Create harmonised table",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Create curated table",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(variables('entity_name'), 'service-user')",
+						"type": "Expression"
+					},
+					"ifFalseActivities": [
+						{
+							"name": "Src to Raw - non service user",
+							"description": "Triggers Function App to read messages from Service Bus and write to odw-raw",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_trigger_function_app",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"function_name": {
+										"value": "@variables('entity_name')",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Set number of messages received - non service user",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Src to Raw - non service user",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "Number_of_messages",
+								"value": {
+									"value": "@int(coalesce(activity('Src to Raw - non service user').output.pipelineReturnValue.Messages, '0'))",
+									"type": "Expression"
+								}
+							}
+						}
+					],
+					"ifTrueActivities": [
+						{
+							"name": "Src to Raw - service user",
+							"description": "Triggers Function App to read messages from Service Bus and write to odw-raw",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_trigger_function_app",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"function_name": {
+										"value": "service-user",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Src to Raw - appeal service user",
+							"description": "Triggers Function App to read messages from Service Bus and write to odw-raw",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_trigger_function_app",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"function_name": {
+										"value": "appeal-service-user",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Set number of messages received - service user",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Src to Raw - service user",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								},
+								{
+									"activity": "Src to Raw - appeal service user",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "Number_of_messages",
+								"value": {
+									"value": "@add(\n    int(coalesce(activity('Src to Raw - service user').output.pipelineReturnValue.Messages, '0')),\n    int(coalesce(activity('Src to Raw - appeal service user').output.pipelineReturnValue.Messages, '0'))\n    )",
+									"type": "Expression"
+								}
+							}
+						}
+					]
+				}
 			}
 		],
 		"parameters": {
 			"entity_name_input": {
 				"type": "string",
-				"defaultValue": "['nsip-representation']"
+				"defaultValue": "['nsip-document']"
 			}
 		},
 		"variables": {
