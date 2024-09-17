@@ -7,10 +7,6 @@
 			"metadata": "Workspace name",
 			"defaultValue": "pins-synw-odw-dev-uks"
 		},
-		"Mipins_Dev_password": {
-			"type": "secureString",
-			"metadata": "Secure string for 'password' of 'Mipins_Dev'"
-		},
 		"ls_dsql_connectionString": {
 			"type": "secureString",
 			"metadata": "Secure string for 'connectionString' of 'ls_dsql'",
@@ -20,10 +16,6 @@
 			"type": "secureString",
 			"metadata": "Secure string for 'connectionString' of 'ls_odw_sql_mipins'",
 			"defaultValue": "Integrated Security=False;Encrypt=True;Connection Timeout=30;Data Source=sql-odw-dev-uks.database.windows.net;Initial Catalog=@{linkedService().db_name}"
-		},
-		"ls_sql_mipins_dev_password": {
-			"type": "secureString",
-			"metadata": "Secure string for 'password' of 'ls_sql_mipins_dev'"
 		},
 		"ls_ssql_builtin_connectionString": {
 			"type": "secureString",
@@ -36329,7 +36321,7 @@
 							},
 							"sink": {
 								"type": "AzureSqlSink",
-								"preCopyScript": "drop table load.appeal_event_curated_mipins",
+								"preCopyScript": "drop table if exists load.appeal_event_curated_mipins",
 								"writeBehavior": "insert",
 								"sqlWriterUseTableLock": false,
 								"tableOption": "autoCreate",
@@ -36375,6 +36367,120 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('workspaceName'), '/pln_copy_appeal_has_curated_mipins')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "Copy_appeals_has_curated_mipins",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [
+							{
+								"name": "Source",
+								"value": "Load.appeals_has_curated_mipins"
+							},
+							{
+								"name": "Destination",
+								"value": "Load.appeals_has_curated_mipins"
+							}
+						],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "AzureSqlSink",
+								"preCopyScript": "drop table if exists load.appeals_has_curated_mipins",
+								"writeBehavior": "insert",
+								"sqlWriterUseTableLock": false,
+								"tableOption": "autoCreate",
+								"disableMetricsCollection": false
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "AzureSqlTable_appeals_has_curated_mipins",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "Appeal_has_sink_con",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
+					},
+					{
+						"name": "RefreshDateUpdate-Mipins",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "Copy_appeals_has_curated_mipins",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "insert into [Audit].[ODWLog] values(getdate(),'Back Office')\nselect 1 as one",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "AzureMiPINS_audit",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"folder": {
+					"name": "mipins"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/datasets/AzureSqlTable_appeals_has_curated_mipins')]",
+				"[concat(variables('workspaceId'), '/datasets/Appeal_has_sink_con')]",
+				"[concat(variables('workspaceId'), '/datasets/AzureMiPINS_audit')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('workspaceName'), '/pln_copy_appeal_service_user_curated_mipins')]",
 			"type": "Microsoft.Synapse/workspaces/pipelines",
 			"apiVersion": "2019-06-01-preview",
@@ -36400,7 +36506,7 @@
 							},
 							"sink": {
 								"type": "AzureSqlSink",
-								"preCopyScript": "drop table if exists load.appeal_service_user_curated_mipins",
+								"preCopyScript": "drop table if exists load.appeal_service_user_curated_mipins_main",
 								"writeBehavior": "insert",
 								"sqlWriterUseTableLock": false,
 								"tableOption": "autoCreate",
@@ -36443,383 +36549,6 @@
 			"dependsOn": [
 				"[concat(variables('workspaceId'), '/datasets/appeal_service_user_conn')]",
 				"[concat(variables('workspaceId'), '/datasets/appeal_service_user_mipinsdevconn')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('workspaceName'), '/pln_copy_appeal_service_user_curated_mipins_updated')]",
-			"type": "Microsoft.Synapse/workspaces/pipelines",
-			"apiVersion": "2019-06-01-preview",
-			"properties": {
-				"activities": [
-					{
-						"name": "copy_service_user_curated_mipins",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "AzureSqlSource",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"sink": {
-								"type": "AzureSqlSink",
-								"preCopyScript": "drop table if exists appeal_service_user_curated_mipins_main",
-								"writeBehavior": "insert",
-								"sqlWriterUseTableLock": false,
-								"tableOption": "autoCreate",
-								"disableMetricsCollection": false
-							},
-							"enableStaging": false,
-							"translator": {
-								"type": "TabularTranslator",
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "appeal_service_user_conn",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "appeal_service_user_mipinsdevconn",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						]
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"folder": {
-					"name": "mipins"
-				},
-				"annotations": []
-			},
-			"dependsOn": [
-				"[concat(variables('workspaceId'), '/datasets/appeal_service_user_conn')]",
-				"[concat(variables('workspaceId'), '/datasets/appeal_service_user_mipinsdevconn')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('workspaceName'), '/pln_copy_appeals_has_curated_mipins')]",
-			"type": "Microsoft.Synapse/workspaces/pipelines",
-			"apiVersion": "2019-06-01-preview",
-			"properties": {
-				"activities": [
-					{
-						"name": "Copy_appeals_has_curated_mipins",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [
-							{
-								"name": "Source",
-								"value": "Load.appeals_has_curated_mipins"
-							},
-							{
-								"name": "Destination",
-								"value": "Load.appeals_has_curated_mipins"
-							}
-						],
-						"typeProperties": {
-							"source": {
-								"type": "AzureSqlSource",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"sink": {
-								"type": "AzureSqlSink",
-								"preCopyScript": "drop table [load].[appeals_has_curated_mipins]",
-								"writeBehavior": "insert",
-								"sqlWriterUseTableLock": false,
-								"tableOption": "autoCreate",
-								"disableMetricsCollection": false
-							},
-							"enableStaging": false,
-							"translator": {
-								"type": "TabularTranslator",
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "AzureSqlTable_appeals_has_curated_mipins",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "AzureSqlTableMiPinsDev",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						]
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"folder": {
-					"name": "mipins"
-				},
-				"annotations": []
-			},
-			"dependsOn": [
-				"[concat(variables('workspaceId'), '/datasets/AzureSqlTable_appeals_has_curated_mipins')]",
-				"[concat(variables('workspaceId'), '/datasets/AzureSqlTableMiPinsDev')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('workspaceName'), '/pln_copy_appeals_has_curated_mipins_copy_Update_datastatus')]",
-			"type": "Microsoft.Synapse/workspaces/pipelines",
-			"apiVersion": "2019-06-01-preview",
-			"properties": {
-				"activities": [
-					{
-						"name": "Copy_appeals_has_curated_mipins",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [
-							{
-								"name": "Source",
-								"value": "Load.appeals_has_curated_mipins"
-							},
-							{
-								"name": "Destination",
-								"value": "Load.appeals_has_curated_mipins"
-							}
-						],
-						"typeProperties": {
-							"source": {
-								"type": "AzureSqlSource",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"sink": {
-								"type": "AzureSqlSink",
-								"preCopyScript": "drop table [load].[appeals_has_curated_mipins]",
-								"writeBehavior": "insert",
-								"sqlWriterUseTableLock": false,
-								"tableOption": "autoCreate",
-								"disableMetricsCollection": false
-							},
-							"enableStaging": false,
-							"translator": {
-								"type": "TabularTranslator",
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "AzureSqlTable_appeals_has_curated_mipins",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "AzureSqlTableMiPinsDev",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						]
-					},
-					{
-						"name": "Lookup1",
-						"type": "Lookup",
-						"dependsOn": [
-							{
-								"activity": "Copy_appeals_has_curated_mipins",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "AzureSqlSource",
-								"sqlReaderQuery": "insert into [Audit].[ODWLog] values(getdate(),'Back Office')\nselect 1 as one\n",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "AzureSqlTableMiPinsDev",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"folder": {
-					"name": "mipins"
-				},
-				"annotations": []
-			},
-			"dependsOn": [
-				"[concat(variables('workspaceId'), '/datasets/AzureSqlTable_appeals_has_curated_mipins')]",
-				"[concat(variables('workspaceId'), '/datasets/AzureSqlTableMiPinsDev')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('workspaceName'), '/pln_copy_appeals_has_curated_mipins_copy_Update_datastatus_updated')]",
-			"type": "Microsoft.Synapse/workspaces/pipelines",
-			"apiVersion": "2019-06-01-preview",
-			"properties": {
-				"activities": [
-					{
-						"name": "Copy_appeals_has_curated_mipins",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [
-							{
-								"name": "Source",
-								"value": "Load.appeals_has_curated_mipins"
-							},
-							{
-								"name": "Destination",
-								"value": "Load.appeals_has_curated_mipins"
-							}
-						],
-						"typeProperties": {
-							"source": {
-								"type": "AzureSqlSource",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"sink": {
-								"type": "AzureSqlSink",
-								"preCopyScript": "drop table if exists [load].[appeals_has_curated_mipins]",
-								"writeBehavior": "insert",
-								"sqlWriterUseTableLock": false,
-								"tableOption": "autoCreate",
-								"disableMetricsCollection": false
-							},
-							"enableStaging": false,
-							"translator": {
-								"type": "TabularTranslator",
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "AzureSqlTable_appeals_has_curated_mipins",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "AzureSqlTableMiPinsDev",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						]
-					},
-					{
-						"name": "Lookup1",
-						"type": "Lookup",
-						"dependsOn": [
-							{
-								"activity": "Copy_appeals_has_curated_mipins",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "AzureSqlSource",
-								"sqlReaderQuery": "insert into [Audit].[ODWLog] values(getdate(),'Back Office')\nselect 1 as one\n",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "AzureSqlTableMiPinsDev",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"folder": {
-					"name": "mipins"
-				},
-				"annotations": []
-			},
-			"dependsOn": [
-				"[concat(variables('workspaceId'), '/datasets/AzureSqlTable_appeals_has_curated_mipins')]",
-				"[concat(variables('workspaceId'), '/datasets/AzureSqlTableMiPinsDev')]"
 			]
 		},
 		{
@@ -36848,7 +36577,7 @@
 							},
 							"sink": {
 								"type": "AzureSqlSink",
-								"preCopyScript": "drop table [load].[Entraid_curated]",
+								"preCopyScript": "drop table if exists load.Entraid_curated",
 								"writeBehavior": "insert",
 								"sqlWriterUseTableLock": false,
 								"tableOption": "autoCreate",
@@ -38230,6 +37959,128 @@
 							},
 							"numExecutors": null
 						}
+					},
+					{
+						"name": "Entraid_curated_mipins",
+						"type": "SynapseNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "Entraid_curated_mipins",
+								"type": "NotebookReference"
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "pln_copy_appeal_event_curated_mipins",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "appeal_event_curated_mipins",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pln_copy_appeal_event_curated_mipins",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "pln_copy_appeal_has_curated_mipins",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "appeals_has_curated_mipins",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pln_copy_appeal_has_curated_mipins",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "pln_copy_appeal_service_user_curated_mipins",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "appeal_service_user_curated_mipins",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pln_copy_appeal_service_user_curated_mipins",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "pln_copy_entraid_curated_mipins",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "Entraid_curated_mipins",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pln_copy_entraid_curated_mipins",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
 					}
 				],
 				"policy": {
@@ -38243,7 +38094,12 @@
 			"dependsOn": [
 				"[concat(variables('workspaceId'), '/notebooks/appeal_service_user_curated_mipins')]",
 				"[concat(variables('workspaceId'), '/notebooks/appeal_event_curated_mipins')]",
-				"[concat(variables('workspaceId'), '/notebooks/appeals_has_curated_mipins')]"
+				"[concat(variables('workspaceId'), '/notebooks/appeals_has_curated_mipins')]",
+				"[concat(variables('workspaceId'), '/notebooks/Entraid_curated_mipins')]",
+				"[concat(variables('workspaceId'), '/pipelines/pln_copy_appeal_event_curated_mipins')]",
+				"[concat(variables('workspaceId'), '/pipelines/pln_copy_appeal_has_curated_mipins')]",
+				"[concat(variables('workspaceId'), '/pipelines/pln_copy_appeal_service_user_curated_mipins')]",
+				"[concat(variables('workspaceId'), '/pipelines/pln_copy_entraid_curated_mipins')]"
 			]
 		},
 		{
@@ -68546,53 +68402,11 @@
 			"properties": {
 				"activities": [
 					{
-						"name": "Src to Raw",
-						"description": "Triggers Function App to read messages from Service Bus and write to odw-raw",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "Create standardised table",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							},
-							{
-								"activity": "Create harmonised table",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							},
-							{
-								"activity": "Create curated table",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "pln_trigger_function_app",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"function_name": {
-									"value": "@variables('entity_name')",
-									"type": "Expression"
-								}
-							}
-						}
-					},
-					{
 						"name": "If New Messages",
 						"type": "IfCondition",
 						"dependsOn": [
 							{
-								"activity": "Set number of messages received",
+								"activity": "If service user",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -69542,30 +69356,6 @@
 						}
 					},
 					{
-						"name": "Set number of messages received",
-						"type": "SetVariable",
-						"dependsOn": [
-							{
-								"activity": "Src to Raw",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"variableName": "Number_of_messages",
-							"value": {
-								"value": "@int(coalesce(activity('Src to Raw').output.pipelineReturnValue.Messages, '0'))",
-								"type": "Expression"
-							}
-						}
-					},
-					{
 						"name": "Record starting service bus stage",
 						"type": "SynapseNotebook",
 						"dependsOn": [
@@ -70276,6 +70066,164 @@
 								}
 							]
 						}
+					},
+					{
+						"name": "If service user",
+						"type": "IfCondition",
+						"dependsOn": [
+							{
+								"activity": "Create standardised table",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "Create harmonised table",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "Create curated table",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@equals(variables('entity_name'), 'service-user')",
+								"type": "Expression"
+							},
+							"ifFalseActivities": [
+								{
+									"name": "Src to Raw - non service user",
+									"description": "Triggers Function App to read messages from Service Bus and write to odw-raw",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"policy": {
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "pln_trigger_function_app",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"function_name": {
+												"value": "@variables('entity_name')",
+												"type": "Expression"
+											}
+										}
+									}
+								},
+								{
+									"name": "Set number of messages received - non service user",
+									"type": "SetVariable",
+									"dependsOn": [
+										{
+											"activity": "Src to Raw - non service user",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"variableName": "Number_of_messages",
+										"value": {
+											"value": "@int(coalesce(activity('Src to Raw - non service user').output.pipelineReturnValue.Messages, '0'))",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"ifTrueActivities": [
+								{
+									"name": "Src to Raw - service user",
+									"description": "Triggers Function App to read messages from Service Bus and write to odw-raw",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"policy": {
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "pln_trigger_function_app",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"function_name": {
+												"value": "service-user",
+												"type": "Expression"
+											}
+										}
+									}
+								},
+								{
+									"name": "Src to Raw - appeal service user",
+									"description": "Triggers Function App to read messages from Service Bus and write to odw-raw",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"policy": {
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "pln_trigger_function_app",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"function_name": {
+												"value": "appeal-service-user",
+												"type": "Expression"
+											}
+										}
+									}
+								},
+								{
+									"name": "Set number of messages received - service user",
+									"type": "SetVariable",
+									"dependsOn": [
+										{
+											"activity": "Src to Raw - service user",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										},
+										{
+											"activity": "Src to Raw - appeal service user",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"variableName": "Number_of_messages",
+										"value": {
+											"value": "@add(\n    int(coalesce(activity('Src to Raw - service user').output.pipelineReturnValue.Messages, '0')),\n    int(coalesce(activity('Src to Raw - appeal service user').output.pipelineReturnValue.Messages, '0'))\n    )",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						}
 					}
 				],
 				"policy": {
@@ -70284,7 +70232,7 @@
 				"parameters": {
 					"entity_name_input": {
 						"type": "string",
-						"defaultValue": "['nsip-representation']"
+						"defaultValue": "['nsip-document']"
 					}
 				},
 				"variables": {
@@ -70307,7 +70255,6 @@
 				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('workspaceId'), '/pipelines/pln_trigger_function_app')]",
 				"[concat(variables('workspaceId'), '/notebooks/py_utils_log_stage')]",
 				"[concat(variables('workspaceId'), '/bigDataPools/pinssynspodw')]",
 				"[concat(variables('workspaceId'), '/notebooks/create_table_from_schema')]",
@@ -70318,7 +70265,8 @@
 				"[concat(variables('workspaceId'), '/notebooks/py_sb_horizon_harmonised_nsip_exam_timetable')]",
 				"[concat(variables('workspaceId'), '/notebooks/py_sb_horizon_harmonised_appeal_document')]",
 				"[concat(variables('workspaceId'), '/notebooks/py_sb_horizon_harmonised_nsip_s51_advice')]",
-				"[concat(variables('workspaceId'), '/notebooks/py_sb_horizon_harmonised_nsip_document')]"
+				"[concat(variables('workspaceId'), '/notebooks/py_sb_horizon_harmonised_nsip_document')]",
+				"[concat(variables('workspaceId'), '/pipelines/pln_trigger_function_app')]"
 			]
 		},
 		{
@@ -76963,6 +76911,354 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('workspaceName'), '/Appeal_has_sink_con')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_sql_mipins",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "caseId",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "caseReference",
+						"type": "nvarchar"
+					},
+					{
+						"name": "caseStatus",
+						"type": "nvarchar"
+					},
+					{
+						"name": "caseType",
+						"type": "nvarchar"
+					},
+					{
+						"name": "caseProcedure",
+						"type": "nvarchar"
+					},
+					{
+						"name": "lpaCode",
+						"type": "nvarchar"
+					},
+					{
+						"name": "caseOfficerId",
+						"type": "nvarchar"
+					},
+					{
+						"name": "inspectorId",
+						"type": "nvarchar"
+					},
+					{
+						"name": "allocationLevel",
+						"type": "nvarchar"
+					},
+					{
+						"name": "allocationBand",
+						"type": "decimal",
+						"precision": 10,
+						"scale": 0
+					},
+					{
+						"name": "caseSpecialisms",
+						"type": "nvarchar"
+					},
+					{
+						"name": "caseSubmittedDate",
+						"type": "nvarchar"
+					},
+					{
+						"name": "caseCreatedDate",
+						"type": "nvarchar"
+					},
+					{
+						"name": "caseUpdatedDate",
+						"type": "nvarchar"
+					},
+					{
+						"name": "caseValidDate",
+						"type": "nvarchar"
+					},
+					{
+						"name": "caseValidationDate",
+						"type": "nvarchar"
+					},
+					{
+						"name": "caseValidationOutcome",
+						"type": "nvarchar"
+					},
+					{
+						"name": "caseValidationInvalidDetails",
+						"type": "nvarchar"
+					},
+					{
+						"name": "caseValidationIncompleteDetails",
+						"type": "nvarchar"
+					},
+					{
+						"name": "caseExtensionDate",
+						"type": "nvarchar"
+					},
+					{
+						"name": "caseStartedDate",
+						"type": "nvarchar"
+					},
+					{
+						"name": "casePublishedDate",
+						"type": "nvarchar"
+					},
+					{
+						"name": "linkedCaseStatus",
+						"type": "nvarchar"
+					},
+					{
+						"name": "leadCaseReference",
+						"type": "nvarchar"
+					},
+					{
+						"name": "lpaQuestionnaireDueDate",
+						"type": "nvarchar"
+					},
+					{
+						"name": "lpaQuestionnaireSubmittedDate",
+						"type": "nvarchar"
+					},
+					{
+						"name": "lpaQuestionnaireCreatedDate",
+						"type": "nvarchar"
+					},
+					{
+						"name": "lpaQuestionnairePublishedDate",
+						"type": "nvarchar"
+					},
+					{
+						"name": "lpaQuestionnaireValidationOutcome",
+						"type": "nvarchar"
+					},
+					{
+						"name": "lpaQuestionnaireValidationOutcomeDate",
+						"type": "nvarchar"
+					},
+					{
+						"name": "lpaQuestionnaireValidationDetails",
+						"type": "nvarchar"
+					},
+					{
+						"name": "lpaStatement",
+						"type": "nvarchar"
+					},
+					{
+						"name": "caseWithdrawnDate",
+						"type": "nvarchar"
+					},
+					{
+						"name": "caseTransferredDate",
+						"type": "nvarchar"
+					},
+					{
+						"name": "caseClosedDate",
+						"type": "nvarchar"
+					},
+					{
+						"name": "caseDecisionOutcomeDate",
+						"type": "nvarchar"
+					},
+					{
+						"name": "caseDecisionPublishedDate",
+						"type": "nvarchar"
+					},
+					{
+						"name": "caseDecisionOutcome",
+						"type": "nvarchar"
+					},
+					{
+						"name": "caseCompletedDate",
+						"type": "nvarchar"
+					},
+					{
+						"name": "enforcementNotice",
+						"type": "bit"
+					},
+					{
+						"name": "applicationReference",
+						"type": "nvarchar"
+					},
+					{
+						"name": "applicationDate",
+						"type": "nvarchar"
+					},
+					{
+						"name": "applicationDecision",
+						"type": "nvarchar"
+					},
+					{
+						"name": "applicationDecisionDate",
+						"type": "nvarchar"
+					},
+					{
+						"name": "caseSubmissionDueDate",
+						"type": "nvarchar"
+					},
+					{
+						"name": "siteAddressLine1",
+						"type": "nvarchar"
+					},
+					{
+						"name": "siteAddressLine2",
+						"type": "nvarchar"
+					},
+					{
+						"name": "siteAddressTown",
+						"type": "nvarchar"
+					},
+					{
+						"name": "siteAddressCounty",
+						"type": "nvarchar"
+					},
+					{
+						"name": "siteAddressPostcode",
+						"type": "nvarchar"
+					},
+					{
+						"name": "siteAccessDetails",
+						"type": "nvarchar"
+					},
+					{
+						"name": "siteSafetyDetails",
+						"type": "nvarchar"
+					},
+					{
+						"name": "siteAreaSquareMetres",
+						"type": "bit"
+					},
+					{
+						"name": "floorSpaceSquareMetres",
+						"type": "decimal",
+						"precision": 10,
+						"scale": 0
+					},
+					{
+						"name": "isCorrectAppealType",
+						"type": "bit"
+					},
+					{
+						"name": "isGreenBelt",
+						"type": "bit"
+					},
+					{
+						"name": "inConservationArea",
+						"type": "bit"
+					},
+					{
+						"name": "ownsAllLand",
+						"type": "bit"
+					},
+					{
+						"name": "ownsSomeLand",
+						"type": "bit"
+					},
+					{
+						"name": "knowsOtherOwners",
+						"type": "nvarchar"
+					},
+					{
+						"name": "knowsAllOwners",
+						"type": "nvarchar"
+					},
+					{
+						"name": "advertisedAppeal",
+						"type": "bit"
+					},
+					{
+						"name": "notificationMethod",
+						"type": "nvarchar"
+					},
+					{
+						"name": "ownersInformed",
+						"type": "bit"
+					},
+					{
+						"name": "originalDevelopmentDescription",
+						"type": "nvarchar"
+					},
+					{
+						"name": "changedDevelopmentDescription",
+						"type": "bit"
+					},
+					{
+						"name": "newConditionDetails",
+						"type": "nvarchar"
+					},
+					{
+						"name": "nearbyCaseReferences",
+						"type": "nvarchar"
+					},
+					{
+						"name": "neighbouringSiteAddresses",
+						"type": "nvarchar"
+					},
+					{
+						"name": "affectedListedBuildingNumbers",
+						"type": "nvarchar"
+					},
+					{
+						"name": "appellantCostsAppliedFor",
+						"type": "bit"
+					},
+					{
+						"name": "lpaCostsAppliedFor",
+						"type": "bit"
+					},
+					{
+						"name": "IngestionDate",
+						"type": "nvarchar"
+					},
+					{
+						"name": "ValidTo",
+						"type": "nvarchar"
+					},
+					{
+						"name": "IsActive",
+						"type": "nvarchar"
+					}
+				],
+				"typeProperties": {
+					"schema": "load",
+					"table": "appeals_has_curated_mipins"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/ls_sql_mipins')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/AzureMiPINS_audit')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_sql_mipins",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [],
+				"typeProperties": {
+					"schema": "Audit",
+					"table": "ODWLog"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/ls_sql_mipins')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('workspaceName'), '/AzureSqlTable1')]",
 			"type": "Microsoft.Synapse/workspaces/datasets",
 			"apiVersion": "2019-06-01-preview",
@@ -77093,7 +77389,7 @@
 			"apiVersion": "2019-06-01-preview",
 			"properties": {
 				"linkedServiceName": {
-					"referenceName": "ls_sql_mipins_dev",
+					"referenceName": "ls_sql_mipins",
 					"type": "LinkedServiceReference"
 				},
 				"annotations": [],
@@ -77101,11 +77397,11 @@
 				"schema": [],
 				"typeProperties": {
 					"schema": "load",
-					"table": "[appeals_has_curated_mipins]"
+					"table": "appeal_event_curated_mipins"
 				}
 			},
 			"dependsOn": [
-				"[concat(variables('workspaceId'), '/linkedServices/ls_sql_mipins_dev')]"
+				"[concat(variables('workspaceId'), '/linkedServices/ls_sql_mipins')]"
 			]
 		},
 		{
@@ -78986,7 +79282,7 @@
 			"apiVersion": "2019-06-01-preview",
 			"properties": {
 				"linkedServiceName": {
-					"referenceName": "Mipins_Dev",
+					"referenceName": "ls_sql_mipins",
 					"type": "LinkedServiceReference"
 				},
 				"annotations": [],
@@ -78998,7 +79294,7 @@
 				}
 			},
 			"dependsOn": [
-				"[concat(variables('workspaceId'), '/linkedServices/Mipins_Dev')]"
+				"[concat(variables('workspaceId'), '/linkedServices/ls_sql_mipins')]"
 			]
 		},
 		{
@@ -88932,7 +89228,7 @@
 			"apiVersion": "2019-06-01-preview",
 			"properties": {
 				"linkedServiceName": {
-					"referenceName": "ls_sql_mipins_dev",
+					"referenceName": "ls_sql_mipins",
 					"type": "LinkedServiceReference"
 				},
 				"annotations": [],
@@ -88944,7 +89240,7 @@
 				}
 			},
 			"dependsOn": [
-				"[concat(variables('workspaceId'), '/linkedServices/ls_sql_mipins_dev')]"
+				"[concat(variables('workspaceId'), '/linkedServices/ls_sql_mipins')]"
 			]
 		},
 		{
@@ -93011,34 +93307,6 @@
 			]
 		},
 		{
-			"name": "[concat(parameters('workspaceName'), '/Mipins_Dev')]",
-			"type": "Microsoft.Synapse/workspaces/linkedServices",
-			"apiVersion": "2019-06-01-preview",
-			"properties": {
-				"annotations": [],
-				"type": "AzureSqlDatabase",
-				"typeProperties": {
-					"server": "pins-prod-pdac-sql.database.windows.net",
-					"database": "MiPINS-DEV-ISS",
-					"encrypt": "mandatory",
-					"trustServerCertificate": false,
-					"authenticationType": "SQL",
-					"userName": "bi_developer",
-					"password": {
-						"type": "SecureString",
-						"value": "[parameters('Mipins_Dev_password')]"
-					}
-				},
-				"connectVia": {
-					"referenceName": "AutoResolveIntegrationRuntime",
-					"type": "IntegrationRuntimeReference"
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
-			]
-		},
-		{
 			"name": "[concat(parameters('workspaceName'), '/ls_backup_destination')]",
 			"type": "Microsoft.Synapse/workspaces/linkedServices",
 			"apiVersion": "2019-06-01-preview",
@@ -93366,34 +93634,6 @@
 			"dependsOn": [
 				"[concat(variables('workspaceId'), '/integrationRuntimes/PinsIntegrationRuntime')]",
 				"[concat(variables('workspaceId'), '/linkedServices/ls_kv')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('workspaceName'), '/ls_sql_mipins_dev')]",
-			"type": "Microsoft.Synapse/workspaces/linkedServices",
-			"apiVersion": "2019-06-01-preview",
-			"properties": {
-				"annotations": [],
-				"type": "AzureSqlDatabase",
-				"typeProperties": {
-					"server": "pins-prod-pdac-sql.database.windows.net",
-					"database": "MiPINS-DEV-ISS",
-					"encrypt": "mandatory",
-					"trustServerCertificate": false,
-					"authenticationType": "SQL",
-					"userName": "bi_developer",
-					"password": {
-						"type": "SecureString",
-						"value": "[parameters('ls_sql_mipins_dev_password')]"
-					}
-				},
-				"connectVia": {
-					"referenceName": "AutoResolveIntegrationRuntime",
-					"type": "IntegrationRuntimeReference"
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
 			]
 		},
 		{
