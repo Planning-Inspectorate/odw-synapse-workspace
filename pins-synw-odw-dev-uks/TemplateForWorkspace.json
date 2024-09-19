@@ -1718,6 +1718,10 @@
 			"type": "string",
 			"defaultValue": "pinssynspodw"
 		},
+		"py_unit_tests_gets62function_properties_bigDataPool_referenceName": {
+			"type": "string",
+			"defaultValue": "pinssynspodwpr"
+		},
 		"py_unit_tests_has_appeals_properties_bigDataPool_referenceName": {
 			"type": "string",
 			"defaultValue": "pinssynspodw"
@@ -67805,6 +67809,170 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('workspaceName'), '/pln_run_function_app_unit_test')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "Get Function URL Secret",
+						"type": "SynapseNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "py_utils_get_key_vault_secret",
+								"type": "NotebookReference"
+							},
+							"parameters": {
+								"secret_name": {
+									"value": {
+										"value": "@concat('function-url-', replace(pipeline().parameters.function_name, '-', ''))",
+										"type": "Expression"
+									},
+									"type": "string"
+								}
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "Run Function Unit Test",
+						"type": "SynapseNotebook",
+						"dependsOn": [
+							{
+								"activity": "Get Function URL Secret",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": {
+									"value": "@concat('py_unit_tests_',pipeline().parameters.function_name,'function')",
+									"type": "Expression"
+								},
+								"type": "NotebookReference"
+							},
+							"parameters": {
+								"url": {
+									"value": {
+										"value": "@replace(activity('Get Function URL Secret').output.status.Output.result.exitValue, ' ', '')",
+										"type": "Expression"
+									},
+									"type": "string"
+								}
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "Set ReturnCode Success",
+						"type": "SetVariable",
+						"dependsOn": [
+							{
+								"activity": "Run Function Unit Test",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "pipelineReturnValue",
+							"value": [
+								{
+									"key": "ReturnCode",
+									"value": {
+										"type": "Int",
+										"content": 0
+									}
+								}
+							],
+							"setSystemVariable": true
+						}
+					},
+					{
+						"name": "Set ReturnCode Fail",
+						"type": "SetVariable",
+						"dependsOn": [
+							{
+								"activity": "Run Function Unit Test",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"policy": {
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "pipelineReturnValue",
+							"value": [
+								{
+									"key": "ReturnCode",
+									"value": {
+										"type": "Int",
+										"content": 1
+									}
+								}
+							],
+							"setSystemVariable": true
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"function_name": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "utils"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/notebooks/py_utils_get_key_vault_secret')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('workspaceName'), '/pln_sb_reload')]",
 			"type": "Microsoft.Synapse/workspaces/pipelines",
 			"apiVersion": "2019-06-01-preview",
@@ -69463,7 +69631,7 @@
 								]
 							},
 							{
-								"activity": "nsip s51 advise - custom harmonised",
+								"activity": "s51 advice - custom harmonised",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -69796,7 +69964,7 @@
 						}
 					},
 					{
-						"name": "nsip s51 advise - custom harmonised",
+						"name": "s51 advice - custom harmonised",
 						"type": "IfCondition",
 						"dependsOn": [
 							{
@@ -69809,12 +69977,12 @@
 						"userProperties": [],
 						"typeProperties": {
 							"expression": {
-								"value": "@equals(variables('entity_name'), 'nsip-s51-advice')",
+								"value": "@equals(variables('entity_name'), 's51-advice')",
 								"type": "Expression"
 							},
 							"ifTrueActivities": [
 								{
-									"name": "Harmonised step for nsip-s51-advice",
+									"name": "Harmonised step for s51-advice",
 									"type": "SynapseNotebook",
 									"dependsOn": [],
 									"policy": {
@@ -185242,7 +185410,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "934733a4-dde1-4b71-a89e-896b4c727cdf"
+						"spark.autotune.trackingId": "31e64b74-1595-436f-a636-5cd303a5ca37"
 					}
 				},
 				"metadata": {
@@ -185282,7 +185450,7 @@
 							}
 						},
 						"source": [
-							"## View odw_curated_db.vw_nsip_s51_advice is created"
+							"## View odw_curated_db.vw_s51_advice is created"
 						]
 					},
 					{
@@ -185306,7 +185474,7 @@
 							"\n",
 							"%%sql\n",
 							"\n",
-							"CREATE OR REPLACE VIEW odw_curated_db.vw_nsip_s51_advice\n",
+							"CREATE OR REPLACE VIEW odw_curated_db.vw_s51_advice\n",
 							"\n",
 							"    AS\n",
 							"\n",
@@ -185354,7 +185522,7 @@
 							"WHERE AD.IsActive = 'Y'"
 						],
 						"outputs": [],
-						"execution_count": 6
+						"execution_count": 1
 					},
 					{
 						"cell_type": "markdown",
@@ -185366,7 +185534,7 @@
 							}
 						},
 						"source": [
-							"## Table odw_curated_db.nsip_data is created"
+							"## Table odw_curated_db.s51_advice is created"
 						]
 					},
 					{
@@ -185385,11 +185553,11 @@
 						"source": [
 							"from pyspark.sql import SparkSession\n",
 							"spark = SparkSession.builder.getOrCreate()\n",
-							"view_df = spark.sql('SELECT * FROM odw_curated_db.vw_nsip_s51_advice')\n",
-							"view_df.write.mode(\"overwrite\").saveAsTable('odw_curated_db.nsip_s51_advice')"
+							"view_df = spark.sql('SELECT * FROM odw_curated_db.vw_s51_advice')\n",
+							"view_df.write.mode(\"overwrite\").saveAsTable('odw_curated_db.s51_advice')"
 						],
 						"outputs": [],
-						"execution_count": 7
+						"execution_count": 2
 					}
 				]
 			},
@@ -216173,6 +216341,142 @@
 						],
 						"outputs": [],
 						"execution_count": 19
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/py_unit_tests_gets62function')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"folder": {
+					"name": "utils/unit-tests"
+				},
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "[parameters('py_unit_tests_gets62function_properties_bigDataPool_referenceName')]",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "6317a2f1-4935-40d3-9aaa-98b95a2dfc00"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": true,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodwpr",
+						"name": "pinssynspodwpr",
+						"type": "Spark",
+						"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodwpr",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "3.2",
+						"nodeCount": 3,
+						"cores": 4,
+						"memory": 28
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"tags": [
+								"parameters"
+							]
+						},
+						"source": [
+							"url = ''\n",
+							"searchCriteria=''"
+						],
+						"outputs": [],
+						"execution_count": 105
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"import json\n",
+							"from pyspark.sql.types import *\n",
+							"from pyspark.sql import DataFrame\n",
+							"import pprint\n",
+							"import requests as req"
+						],
+						"outputs": [],
+						"execution_count": 107
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"url += f\"&searchCriteria={searchCriteria}\"\n",
+							"print(url)\n",
+							"response = req.get(url)\n",
+							"if response.status_code == 200:\n",
+							"    text:str = response.text\n",
+							"    parsed_json = json.loads(text)\n",
+							"    print(len(parsed_json))\n",
+							"    if len(parsed_json) > 0:\n",
+							"        #we have some results, everything else is a failure\n",
+							"        mssparkutils.notebook.exit(\"0\")\n",
+							"    else:\n",
+							"        raise Exception(\"Invalid Response\")\n",
+							"else:\n",
+							"    raise Exception(\"Invalid Response\")"
+						],
+						"outputs": [],
+						"execution_count": 108
 					}
 				]
 			},
