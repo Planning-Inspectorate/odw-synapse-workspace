@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "64cbdfe9-8dec-48f7-a42c-9d0e4ffe4202"
+				"spark.autotune.trackingId": "011e8982-e7d7-4265-9c2c-74717c6c935b"
 			}
 		},
 		"metadata": {
@@ -58,7 +58,7 @@
 					"from pyspark.sql import Row\n",
 					"from pyspark.sql.functions import *"
 				],
-				"execution_count": 75
+				"execution_count": 1
 			},
 			{
 				"cell_type": "code",
@@ -81,7 +81,7 @@
 					"\n",
 					"primary_key = 'TEMP_PK'"
 				],
-				"execution_count": 76
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
@@ -153,7 +153,7 @@
 					"\r\n",
 					"                    \"\"\")"
 				],
-				"execution_count": 77
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
@@ -232,7 +232,7 @@
 					"                    Doc.expected_from = (SELECT MAX(expected_from) FROM {horizon_table})\n",
 					"            \"\"\")"
 				],
-				"execution_count": 78
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -251,7 +251,7 @@
 					"horizon_data = horizon_data.select(service_bus_data.columns)\n",
 					"results = service_bus_data.union(horizon_data)"
 				],
-				"execution_count": 80
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -269,7 +269,7 @@
 				"source": [
 					"results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
 				],
-				"execution_count": 81
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -301,7 +301,7 @@
 				},
 				"source": [
 					"spark.sql(f\"\"\"\n",
-					"    CREATE OR REPLACE TEMPORARY VIEW vw_appeal_document_calculations_base\n",
+					"    CREATE OR REPLACE TEMPORARY VIEW vw_nsip_document_calculations_base\n",
 					"        AS\n",
 					"        SELECT  \n",
 					"            row_number() OVER(PARTITION BY {primary_key} ORDER BY IngestionDate DESC) AS ReverseOrderProcessed\n",
@@ -320,7 +320,7 @@
 					"            {spark_table_final}\n",
 					"    \"\"\")"
 				],
-				"execution_count": 82
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -350,8 +350,8 @@
 					"                            END AS Migrated\n",
 					"                            ,CurrentRow.IsActive\n",
 					"                        FROM\n",
-					"                            vw_appeal_document_calculations_base AS CurrentRow\n",
-					"                            LEFT OUTER JOIN vw_appeal_document_calculations_base AS NextRow\n",
+					"                            vw_nsip_document_calculations_base AS CurrentRow\n",
+					"                            LEFT OUTER JOIN vw_nsip_document_calculations_base AS NextRow\n",
 					"                                ON CurrentRow.{primary_key} = NextRow.{primary_key}\n",
 					"                                AND CurrentRow.ReverseOrderProcessed - 1 = NextRow.ReverseOrderProcessed\n",
 					"                            LEFT OUTER JOIN (SELECT DISTINCT MD5(CONCAT(documentId, filename, version)) AS {primary_key} FROM {service_bus_table}) AS Raw\n",
@@ -360,7 +360,7 @@
 					"                    \"\"\")\n",
 					"                    "
 				],
-				"execution_count": 83
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -378,7 +378,7 @@
 				"source": [
 					"df_calcs =df_calcs.withColumnRenamed(primary_key, f\"temp_{primary_key}\").withColumnRenamed(\"IngestionDate\", \"temp_IngestionDate\")"
 				],
-				"execution_count": 84
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -490,7 +490,7 @@
 					"                \"\"\")\n",
 					"    "
 				],
-				"execution_count": 85
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -510,7 +510,7 @@
 					"\n",
 					"results = results.drop(\"NSIPDocumentID\", \"ValidTo\", \"Migrated\", \"IsActive\")"
 				],
-				"execution_count": 86
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -529,7 +529,7 @@
 					"final_df = results.join(df_calcs, (df_calcs[f\"temp_{primary_key}\"] == results[primary_key]) & (df_calcs[\"temp_IngestionDate\"] == results[\"IngestionDate\"])).select(columns)\n",
 					"final_df = final_df.drop(primary_key).drop_duplicates()"
 				],
-				"execution_count": 87
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -547,7 +547,7 @@
 				"source": [
 					"final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
 				],
-				"execution_count": 88
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -565,7 +565,7 @@
 				"source": [
 					"final_df.printSchema()"
 				],
-				"execution_count": 98
+				"execution_count": null
 			}
 		]
 	}

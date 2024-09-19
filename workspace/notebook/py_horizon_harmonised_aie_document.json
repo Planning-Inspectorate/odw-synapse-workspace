@@ -1,0 +1,438 @@
+{
+	"name": "py_horizon_harmonised_aie_document",
+	"properties": {
+		"folder": {
+			"name": "odw-harmonised"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "166d0611-6b7f-48da-9d18-27aa76191a30"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.3",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql.types import IntegerType, ArrayType, StructType, StructField\n",
+					"from pyspark.sql import Row\n",
+					"from pyspark.sql.functions import *"
+				],
+				"execution_count": 56
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"horizon_table = \"odw_standardised_db.aie_document_data\"\n",
+					"spark_table_final = \"odw_harmonised_db.aie_document_data\"\n",
+					"\n",
+					"primary_key = 'TEMP_PK'"
+				],
+				"execution_count": 57
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"results = spark.sql(f\"\"\"\n",
+					"                SELECT DISTINCT \n",
+					"                    MD5(\n",
+					"                        CONCAT(\n",
+					"                            COALESCE(CAST(documentId AS INTEGER), ''), \n",
+					"                            COALESCE(filename, ''), \n",
+					"                            COALESCE(CAST(version AS INTEGER), ''),\n",
+					"                            COALESCE(CAST(size AS INTEGER), '')\n",
+					"                        )\n",
+					"                    ) AS {primary_key}\n",
+					"                    ,CAST(NULL AS LONG) AS AIEDocumentDataID\n",
+					"                    ,documentId\n",
+					"                    ,caseRef\n",
+					"                    ,documentReference\n",
+					"                    ,version\n",
+					"                    ,examinationRefNo\n",
+					"                    ,filename\n",
+					"                    ,originalFilename\n",
+					"                    ,size\n",
+					"                    ,mime\n",
+					"                    ,documentUri\n",
+					"                    ,path\n",
+					"                    ,virusCheckStatus\n",
+					"                    ,fileMD5\n",
+					"                    ,dateCreated\n",
+					"                    ,lastModified\n",
+					"                    ,caseType\n",
+					"                    ,documentStatus\n",
+					"                    ,redactedStatus\n",
+					"                    ,publishedStatus\n",
+					"                    ,datePublished\n",
+					"                    ,documentType\n",
+					"                    ,securityClassification\n",
+					"                    ,sourceSystem\n",
+					"                    ,origin\n",
+					"                    ,owner\n",
+					"                    ,author\n",
+					"                    ,representative\n",
+					"                    ,description\n",
+					"                    ,stage\n",
+					"                    ,filter1\n",
+					"                    ,filter2\n",
+					"\n",
+					"                    ,\"0\" as Migrated\n",
+					"                    ,\"Horizon\" as ODTSourceSystem\n",
+					"                    ,NULL AS SourceSystemID\n",
+					"                    , to_timestamp(expected_from)  AS IngestionDate\n",
+					"                    ,CAST(null as string) as ValidTo -- to avoid any null descrepancies\n",
+					"                    ,'' as RowID\n",
+					"                    ,'Y' as IsActive\n",
+					"                FROM\n",
+					"                    {horizon_table} AS Doc\n",
+					"                WHERE\n",
+					"                    expected_from = (SELECT MAX(expected_from) FROM {horizon_table})\n",
+					"            \"\"\")"
+				],
+				"execution_count": 58
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
+				],
+				"execution_count": 59
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"\n",
+					"Now need to sort internal ids, IsActive flags, and valid_to dates"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"spark.sql(f\"\"\"\n",
+					"    CREATE OR REPLACE TEMPORARY VIEW vw_aie_document_data_calculations_base\n",
+					"        AS\n",
+					"        SELECT  \n",
+					"            row_number() OVER(PARTITION BY {primary_key} ORDER BY IngestionDate DESC) AS ReverseOrderProcessed\n",
+					"            ,row_number() OVER(ORDER BY IngestionDate asc, {primary_key} asc) AS AIEDocumentDataID\n",
+					"            ,{primary_key}\n",
+					"            ,IngestionDate\n",
+					"            ,ValidTo\n",
+					"            ,'0' AS Migrated\n",
+					"            ,CASE row_number() OVER(PARTITION BY {primary_key} ORDER BY IngestionDate DESC)\n",
+					"                WHEN 1 THEN\n",
+					"                    'Y'\n",
+					"                ELSE\n",
+					"                    'N'\n",
+					"            END AS IsActive                \n",
+					"        FROM\n",
+					"            {spark_table_final}\n",
+					"    \"\"\")"
+				],
+				"execution_count": 60
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"df_calcs = spark.sql(f\"\"\"\n",
+					"                        SELECT\n",
+					"                            CurrentRow.AIEDocumentDataID\n",
+					"                            ,CurrentRow.{primary_key} \n",
+					"                            ,CurrentRow.IngestionDate\n",
+					"                            ,COALESCE(NULLIF(CurrentRow.ValidTo,''), NextRow.IngestionDate) AS ValidTo\n",
+					"                            ,\"0\" AS Migrated\n",
+					"                            ,CurrentRow.IsActive\n",
+					"                        FROM\n",
+					"                            vw_aie_document_data_calculations_base AS CurrentRow\n",
+					"                            LEFT OUTER JOIN vw_aie_document_data_calculations_base AS NextRow\n",
+					"                                ON CurrentRow.{primary_key} = NextRow.{primary_key}\n",
+					"                                AND CurrentRow.ReverseOrderProcessed - 1 = NextRow.ReverseOrderProcessed\n",
+					"                            ORDER BY currentRow.ReverseOrderProcessed\n",
+					"                    \"\"\")\n",
+					"                    "
+				],
+				"execution_count": 61
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"df_calcs =df_calcs.withColumnRenamed(primary_key, f\"temp_{primary_key}\").withColumnRenamed(\"IngestionDate\", \"temp_IngestionDate\")"
+				],
+				"execution_count": 62
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"results = spark.sql(f\"\"\"\n",
+					"                    SELECT DISTINCT \n",
+					"                        {primary_key}\n",
+					"                        ,AIEDocumentDataID\n",
+					"                        ,documentId\n",
+					"                        ,caseRef\n",
+					"                        ,documentReference\n",
+					"                        ,version\n",
+					"                        ,examinationRefNo\n",
+					"                        ,filename\n",
+					"                        ,originalFilename\n",
+					"                        ,size\n",
+					"                        ,mime\n",
+					"                        ,documentUri\n",
+					"                        ,path\n",
+					"                        ,virusCheckStatus\n",
+					"                        ,fileMD5\n",
+					"                        ,dateCreated\n",
+					"                        ,lastModified\n",
+					"                        ,caseType\n",
+					"                        ,documentStatus\n",
+					"                        ,redactedStatus\n",
+					"                        ,publishedStatus\n",
+					"                        ,datePublished\n",
+					"                        ,documentType\n",
+					"                        ,securityClassification\n",
+					"                        ,sourceSystem\n",
+					"                        ,origin\n",
+					"                        ,owner\n",
+					"                        ,author\n",
+					"                        ,representative\n",
+					"                        ,description\n",
+					"                        ,stage\n",
+					"                        ,filter1\n",
+					"                        ,filter2\n",
+					"\n",
+					"                        ,Migrated\n",
+					"                        ,ODTSourceSystem\n",
+					"                        ,IngestionDate\n",
+					"                        ,ValidTo\n",
+					"                        ,MD5(CONCAT(\n",
+					"                                IFNULL(AIEDocumentDataID, '.')\n",
+					"                                ,IFNULL(documentId,'.')\n",
+					"                                ,IFNULL(caseRef,'.')\n",
+					"                                ,IFNULL(documentReference,'.')\n",
+					"                                ,IFNULL(version,'.')\n",
+					"                                ,IFNULL(examinationRefno,'.')\n",
+					"                                ,IFNULL(filename,'.')\n",
+					"                                ,IFNULL(originalFilename,'.')\n",
+					"                                ,IFNULL(size,'.')\n",
+					"                                ,IFNULL(mime,'.')\n",
+					"                                ,IFNULL(documentUri,'.')\n",
+					"                                ,IFNULL(path,'.')\n",
+					"                                ,IFNULL(virusCheckStatus,'.')\n",
+					"                                ,IFNULL(fileMD5,'.')\n",
+					"                                ,IFNULL(dateCreated,'.')\n",
+					"                                ,IFNULL(lastModified,'.')\n",
+					"                                ,IFNULL(caseType,'.')\n",
+					"                                ,IFNULL(documentStatus,'.')\n",
+					"                                ,IFNULL(redactedStatus,'.')\n",
+					"                                ,IFNULL(publishedStatus,'.')\n",
+					"                                ,IFNULL(datePublished,'.')\n",
+					"                                ,IFNULL(documentType,'.')\n",
+					"                                ,IFNULL(securityClassification,'.')\n",
+					"                                ,IFNULL(sourceSystem,'.')\n",
+					"                                ,IFNULL(origin,'.')\n",
+					"                                ,IFNULL(owner,'.')\n",
+					"                                ,IFNULL(author,'.')\n",
+					"                                ,IFNULL(representative,'.')\n",
+					"                                ,IFNULL(description,'.')\n",
+					"                                ,IFNULL(stage\t,'.')\n",
+					"                                ,IFNULL(filter1,'.')\n",
+					"                                ,IFNULL(filter2,'.')\n",
+					"                                ,IFNULL(publishedStatus, '.')\n",
+					"                                ,IFNULL(Migrated, '.')\n",
+					"                                ,IFNULL(ODTSourceSystem, '.')\n",
+					"                                ,IFNULL(IngestionDate, '.')\n",
+					"                                ,IFNULL(ValidTo, '.')\n",
+					"                            )\n",
+					"                        ) AS RowID\n",
+					"                        ,IsActive\n",
+					"                    FROM \n",
+					"                        {spark_table_final}\n",
+					"                \"\"\")\n",
+					"    "
+				],
+				"execution_count": 63
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"columns = results.columns\n",
+					"\n",
+					"results = results.drop(\"AIEDocumentDataID\", \"ValidTo\", \"Migrated\", \"IsActive\")"
+				],
+				"execution_count": 64
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"final_df = results.join(df_calcs, (df_calcs[f\"temp_{primary_key}\"] == results[primary_key]) & (df_calcs[\"temp_IngestionDate\"] == results[\"IngestionDate\"])).select(columns)\n",
+					"final_df = final_df.drop(primary_key).drop_duplicates()"
+				],
+				"execution_count": 65
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
+				],
+				"execution_count": 66
+			}
+		]
+	}
+}
