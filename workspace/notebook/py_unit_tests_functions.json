@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "1f2bb4be-4386-4be1-8094-bbd1aad47b71"
+				"spark.autotune.trackingId": "80f7bd63-f449-4a0c-b43f-8cd6ecf55431"
 			}
 		},
 		"metadata": {
@@ -315,6 +315,124 @@
 					"    display(missing_rows_in_hrm)"
 				],
 				"execution_count": 19
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Define the harmonise table that only includes horizon data, and the latest record per primary id.\r\n",
+					"def harmonise_df_hzn(hrm_db: str, hrm_table: str, primary_key: str) -> DataFrame:\r\n",
+					"    df_harmonise_only_hzn: DataFrame = spark.sql(f\"\"\"\r\n",
+					"    select *\r\n",
+					"    from {hrm_db}.{hrm_table} tbl_1\r\n",
+					"    where SourceSystem='Horizon'\r\n",
+					"\tand tbl_1.IngestionDate = (select max(IngestionDate) from {hrm_db}.{hrm_table} tbl_2  WHERE tbl_1.{primary_key} = tbl_2.{primary_key} group by {primary_key})\r\n",
+					"    \"\"\")\r\n",
+					"\r\n",
+					"    return df_harmonise_only_hzn"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def test_counts_hrm_cur(hrm_db: str, hrm_table: str, curated_db: str, curated_table: str, primary_key: str) -> tuple[int, int, bool]:   \r\n",
+					"\r\n",
+					"    ## Define harmonise and curated dataframes\r\n",
+					"\r\n",
+					"    df_harmonise_hzn = harmonise_df_hzn(hrm_db, hrm_table, primary_key)\r\n",
+					"\r\n",
+					"    df_curated: DataFrame =  spark.sql(f\"SELECT * FROM {curated_db}.{curated_table}\")\r\n",
+					"    \r\n",
+					"    ## calculate counts\r\n",
+					"\r\n",
+					"    hrm_count = df_harmonise_hzn.count()\r\n",
+					"    cur_count = df_curated.count()\r\n",
+					"    return (hrm_count, cur_count, hrm_count == cur_count)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def test_curated_unique_hzn_only(curated_db: str, curated_table: str, primary_key:str) -> tuple[bool,int,int,bool]: \r\n",
+					"\r\n",
+					"    df_curated: DataFrame = spark.sql(f\"SELECT * FROM {curated_db}.{curated_table}\")\r\n",
+					"\r\n",
+					"    count_not_hzn_records: int = df_curated.filter(\"sourceSystem != 'horizon' AND sourceSystem != 'Horizon'\").count()\r\n",
+					"\r\n",
+					"    total_count = df_curated.count()\r\n",
+					"\r\n",
+					"    #Count of distinct caseid (primary id)\r\n",
+					"    distinct_count = df_curated.select(primary_key).distinct().count()\r\n",
+					"\r\n",
+					"\r\n",
+					"    return (count_not_hzn_records == 0, total_count, distinct_count, total_count == distinct_count)\r\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def test_hrm_to_curated_no_dropping_primary_ids_only_records(hrm_db: str, hrm_table: str, curated_db: str, curated_table: str, primary_key: str) -> bool:\r\n",
+					"    df: DataFrame = spark.sql(f\"\"\"\r\n",
+					"                                SELECT {primary_key}\r\n",
+					"                                FROM {hrm_db}.{hrm_table}\r\n",
+					"                                WHERE LOWER(sourcesystem) = 'horizon'\r\n",
+					"                                AND {primary_key} NOT IN\r\n",
+					"                                (\r\n",
+					"                                    SELECT {primary_key}\r\n",
+					"                                    FROM {curated_db}.{curated_table}\r\n",
+					"                                )\r\n",
+					"                            \"\"\")\r\n",
+					"\r\n",
+					"    return df.count() == 0"
+				],
+				"execution_count": null
 			}
 		]
 	}
