@@ -1382,6 +1382,10 @@
 			"type": "string",
 			"defaultValue": "pinssynspodw"
 		},
+		"nsip_project_migration_properties_bigDataPool_referenceName": {
+			"type": "string",
+			"defaultValue": "pinssynspodw"
+		},
 		"nsip_project_update_properties_bigDataPool_referenceName": {
 			"type": "string",
 			"defaultValue": "pinssynspodw"
@@ -36400,7 +36404,7 @@
 							},
 							"sink": {
 								"type": "AzureSqlSink",
-								"preCopyScript": "drop table if exists load.appeal_service_user_curated_mipins_main",
+								"preCopyScript": "drop table if exists load.appeal_service_user_curated_mipins",
 								"writeBehavior": "insert",
 								"sqlWriterUseTableLock": false,
 								"tableOption": "autoCreate",
@@ -37593,6 +37597,12 @@
 								"dependencyConditions": [
 									"Succeeded"
 								]
+							},
+							{
+								"activity": "entraid",
+								"dependencyConditions": [
+									"Succeeded"
+								]
 							}
 						],
 						"policy": {
@@ -37666,6 +37676,23 @@
 							},
 							"numExecutors": null
 						}
+					},
+					{
+						"name": "pln_curated_migration",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pln_curated_migration",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
 					}
 				],
 				"policy": {
@@ -37693,7 +37720,8 @@
 				"[concat(variables('workspaceId'), '/notebooks/appeals_has')]",
 				"[concat(variables('workspaceId'), '/pipelines/pln_curated_mipins')]",
 				"[concat(variables('workspaceId'), '/notebooks/entraid_cu')]",
-				"[concat(variables('workspaceId'), '/notebooks/appeals_folder_curated')]"
+				"[concat(variables('workspaceId'), '/notebooks/appeals_folder_curated')]",
+				"[concat(variables('workspaceId'), '/pipelines/pln_curated_migration')]"
 			]
 		},
 		{
@@ -37768,6 +37796,51 @@
 			"dependsOn": [
 				"[concat(variables('workspaceId'), '/notebooks/service_user')]",
 				"[concat(variables('workspaceId'), '/notebooks/nsip_data')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/pln_curated_migration')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "nsip_project_migration",
+						"type": "SynapseNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "nsip_project_migration",
+								"type": "NotebookReference"
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"folder": {
+					"name": "utils/Master"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/notebooks/nsip_project_migration')]"
 			]
 		},
 		{
@@ -67448,7 +67521,7 @@
 			"properties": {
 				"activities": [
 					{
-						"name": "rel_1374_aie",
+						"name": "rel_1047_migration_db",
 						"type": "ExecutePipeline",
 						"dependsOn": [],
 						"policy": {
@@ -67457,7 +67530,7 @@
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
-								"referenceName": "rel_1374_aie",
+								"referenceName": "rel_1047_migration_db",
 								"type": "PipelineReference"
 							},
 							"waitOnCompletion": true,
@@ -67474,7 +67547,7 @@
 				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('workspaceId'), '/pipelines/rel_1374_aie')]"
+				"[concat(variables('workspaceId'), '/pipelines/rel_1047_migration_db')]"
 			]
 		},
 		{
@@ -73490,6 +73563,85 @@
 			},
 			"dependsOn": [
 				"[concat(variables('workspaceId'), '/pipelines/0_Zendesk_API_to_RAW')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/rel_1047_migration_db')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "py_create_lake_databases",
+						"type": "SynapseNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "py_create_lake_databases",
+								"type": "NotebookReference"
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "nsip_project_migration",
+						"type": "SynapseNotebook",
+						"dependsOn": [
+							{
+								"activity": "py_create_lake_databases",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "nsip_project_migration",
+								"type": "NotebookReference"
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"folder": {
+					"name": "Releases/1.1.17"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/notebooks/py_create_lake_databases')]",
+				"[concat(variables('workspaceId'), '/notebooks/nsip_project_migration')]"
 			]
 		},
 		{
@@ -89458,7 +89610,7 @@
 				],
 				"typeProperties": {
 					"schema": "dbo",
-					"table": "appeal_service_user_curated_mipins_main"
+					"table": "appeal_service_user_curated_mipins"
 				}
 			},
 			"dependsOn": [
@@ -89479,7 +89631,7 @@
 				"schema": [],
 				"typeProperties": {
 					"schema": "load",
-					"table": "appeal_service_user_curated_mipins_main"
+					"table": "appeal_service_user_curated_mipins"
 				}
 			},
 			"dependsOn": [
@@ -184996,7 +185148,236 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "2af36ff4-2b20-4026-b769-76f7b5ceb2f3"
+						"spark.autotune.trackingId": "f8dcae1f-bf57-4f8d-a3eb-5617fe9ba0f8"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": false,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+						"name": "pinssynspodw",
+						"type": "Spark",
+						"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "3.3",
+						"nodeCount": 3,
+						"cores": 4,
+						"memory": 28
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"## View odw_curated_migration_db.vw_nsip_project is created"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\n",
+							"CREATE OR REPLACE VIEW odw_curated_migration_db.vw_nsip_project\n",
+							"AS\n",
+							"SELECT\n",
+							"\tProject.caseId\n",
+							"\t,Project.caseReference\n",
+							"\t,Project.projectName\n",
+							"\t,Project.projectNameWelsh\n",
+							"\t,Project.projectDescription\n",
+							"\t,Project.projectDescriptionWelsh\n",
+							"\t,Project.decision\n",
+							"\t,LOWER(project.publishStatus) AS publishStatus\n",
+							"\t,Project.sector\n",
+							"\t,CASE\n",
+							"\t\tWHEN Project.ProjectType = 'WW01 - Waste Water treatment Plants' THEN\n",
+							"\t\t\t'WW01 - Waste Water Treatment Plants'\n",
+							"\t\tELSE \n",
+							"\t\t\tProject.ProjectType\n",
+							"\tEND AS projectType\n",
+							"\t,LOWER(\tCASE \n",
+							"\t\t\t\tWHEN Project.ODTSourceSystem = 'ODT' THEN \n",
+							"\t\t\t\t\t'back-office-applications' \n",
+							"\t\t\t\tELSE \n",
+							"\t\t\t\t\tProject.ODTSourceSystem \n",
+							"\t\t\tEND) AS sourceSystem\n",
+							"\t,LOWER(REPLACE(REPLACE(Project.Stage,'-', '_'),' ', '_')) AS stage\n",
+							"\t,Project.projectLocation\n",
+							"\t,Project.projectLocationWelsh\n",
+							"\t,Project.projectEmailAddress\n",
+							"\t,Project.regions\n",
+							"\t,Project.transboundary\n",
+							"\t,CAST(project.Easting AS INT) AS easting\n",
+							"\t,CAST(project.Northing AS INT) AS northing\n",
+							"\t,Project.WelshLanguage AS welshLanguage\n",
+							"\t,Project.mapZoomLevel\n",
+							"\t,Project.SecretaryOfState AS secretaryOfState\n",
+							"\t-- Pre-application dates\n",
+							"\t,Project.datePINSFirstNotifiedOfProject\n",
+							"\t,Project.dateProjectAppearsOnWebsite\t\n",
+							"\t,Project.anticipatedSubmissionDateNonSpecific\n",
+							"\t,Project.anticipatedDateOfSubmission\n",
+							"\t,Project.screeningOpinionSought\t\n",
+							"\t,Project.screeningOpinionIssued\n",
+							"\t,Project.scopingOpinionSought\n",
+							"\t,Project.scopingOpinionIssued\n",
+							"\t,Project.section46Notification\n",
+							"\t-- acceptance dates\n",
+							"\t,Project.dateOfDCOSubmission\n",
+							"\t,Project.deadlineForAcceptanceDecision\n",
+							"\t,Project.dateOfDCOAcceptance\n",
+							"\t,Project.dateOfNonAcceptance\n",
+							"\t--pre examination dates\n",
+							"\t,Project.dateOfRepresentationPeriodOpen\n",
+							"\t,Project.dateOfRelevantRepresentationClose\n",
+							"\t,Project.extensionToDateRelevantRepresentationsClose\n",
+							"\t,Project.dateRRepAppearOnWebsite\n",
+							"\t,Project.dateIAPIDue\n",
+							"\t,Project.rule6LetterPublishDate\n",
+							"\t,Project.preliminaryMeetingStartDate\n",
+							"\t,Project.notificationDateForPMAndEventsDirectlyFollowingPM\n",
+							"\t,Project.notificationDateForEventsDeveloper\n",
+							"\t-- examination dates\n",
+							"\t,Project.dateSection58NoticeReceived\n",
+							"\t,Project.confirmedStartOfExamination\n",
+							"\t,Project.rule8LetterPublishDate\n",
+							"\t,Project.deadlineForCloseOfExamination\n",
+							"\t,Project.dateTimeExaminationEnds\n",
+							"\t,Project.stage4ExtensionToExamCloseDate\n",
+							"\t--recommendation dates\n",
+							"\t,Project.deadlineForSubmissionOfRecommendation\n",
+							"\t,Project.dateOfRecommendations\n",
+							"\t,Project.stage5ExtensionToRecommendationDeadline\n",
+							"\t--decision dates\n",
+							"\t,Project.deadlineForDecision\n",
+							"\t,Project.confirmedDateOfDecision\n",
+							"\t,Project.stage5ExtensionToDecisionDeadline\n",
+							"\t--post decision dates\n",
+							"\t,Project.jRPeriodEndDate\n",
+							"\t--withdrawl dates\n",
+							"\t,Project.dateProjectWithdrawn\n",
+							"\t-- Additional fields\n",
+							"\t,Project.operationsLeadId\n",
+							"\t,Project.operationsManagerId\n",
+							"\t,Project.caseManagerId\n",
+							"\t,Project.nsipOfficerIds\n",
+							"\t,Project.nsipAdministrationOfficerIds\n",
+							"\t,Project.leadInspectorId\n",
+							"\t,Project.inspectorIds\n",
+							"\t,Project.environmentalServicesOfficerId\n",
+							"\t,Project.legalOfficerId\n",
+							"\t,Project.applicantId\n",
+							"\t,Project.migrationStatus\n",
+							"\t,Project.dateOfReOpenRelevantRepresentationStart\n",
+							"\t,Project.dateOfReOpenRelevantRepresentationClose\n",
+							"FROM \n",
+							"\todw_harmonised_db.nsip_project AS Project\n",
+							"WHERE \n",
+							"--- get only horizon records, and the latest record per caseid\n",
+							"\tProject.SourceSystem='Horizon'\n",
+							"\tand Project.IngestionDate = (select max(IngestionDate) from odw_harmonised_db.nsip_project tbl_2  WHERE Project.caseid = tbl_2.caseid group by caseid)"
+						],
+						"outputs": [],
+						"execution_count": 2
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"## Table odw_curated_db.nsip_project spark table is created"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"from pyspark.sql import SparkSession\n",
+							"spark = SparkSession.builder.getOrCreate()\n",
+							"view_df = spark.sql('SELECT * FROM odw_curated_migration_db.vw_nsip_project')\n",
+							"view_df.write.mode(\"overwrite\").option(\"overwriteSchema\", \"true\").saveAsTable('odw_curated_migration_db.nsip_project')"
+						],
+						"outputs": [],
+						"execution_count": 3
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/nsip_project_migration')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"description": "please refer to the NSIP Entity Message Topic Requirements  documentation",
+				"folder": {
+					"name": "odw-curated/migration"
+				},
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "[parameters('nsip_project_migration_properties_bigDataPool_referenceName')]",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "5d71ed14-c0e3-41bd-827b-35686fba1365"
 					}
 				},
 				"metadata": {
@@ -190837,7 +191218,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "dabb209e-6531-416c-86dd-91a1f6799487"
+						"spark.autotune.trackingId": "2f6c0d92-eb50-429a-9f84-9b34391a395b"
 					}
 				},
 				"metadata": {
@@ -190857,14 +191238,12 @@
 						"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
 						"auth": {
 							"type": "AAD",
-							"authResource": "https://dev.azuresynapse.net",
-							"authHeader": null
+							"authResource": "https://dev.azuresynapse.net"
 						},
-						"sparkVersion": "3.2",
+						"sparkVersion": "3.3",
 						"nodeCount": 3,
 						"cores": 4,
-						"memory": 28,
-						"extraHeader": null
+						"memory": 28
 					},
 					"sessionKeepAliveTimeout": 30
 				},
@@ -190887,7 +191266,7 @@
 							"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')"
 						],
 						"outputs": [],
-						"execution_count": 21
+						"execution_count": 1
 					},
 					{
 						"cell_type": "code",
@@ -190914,10 +191293,13 @@
 							"curated_database_name = 'odw_curated_db'\r\n",
 							"curated_database_location = 'abfss://odw-curated@' + storage_account + '/'\r\n",
 							"config_database_name = 'odw_config_db'\r\n",
-							"config_database_location = 'abfss://odw-config@' + storage_account + '/'"
+							"config_database_location = 'abfss://odw-config@' + storage_account + '/'\r\n",
+							"\r\n",
+							"curated_migration_database_name = 'odw_curated_migration_db'\r\n",
+							"curated_migration_database_location = 'abfss://odw-curated-migration@' + storage_account + '/'"
 						],
 						"outputs": [],
-						"execution_count": 23
+						"execution_count": 2
 					},
 					{
 						"cell_type": "code",
@@ -190926,10 +191308,12 @@
 							"spark.sql(\"CREATE DATABASE IF NOT EXISTS {0} LOCATION '{1}'\".format(standardised_database_name, standardised_database_location))\r\n",
 							"spark.sql(\"CREATE DATABASE IF NOT EXISTS {0} LOCATION '{1}'\".format(harmonised_database_name, harmonised_database_location))\r\n",
 							"spark.sql(\"CREATE DATABASE IF NOT EXISTS {0} LOCATION '{1}'\".format(curated_database_name, curated_database_location))\r\n",
-							"spark.sql(\"CREATE DATABASE IF NOT EXISTS {0} LOCATION '{1}'\".format(config_database_name, config_database_location))"
+							"spark.sql(\"CREATE DATABASE IF NOT EXISTS {0} LOCATION '{1}'\".format(config_database_name, config_database_location))\r\n",
+							"\r\n",
+							"spark.sql(\"CREATE DATABASE IF NOT EXISTS {0} LOCATION '{1}'\".format(curated_migration_database_name, curated_migration_database_location))"
 						],
 						"outputs": [],
-						"execution_count": 24
+						"execution_count": 4
 					}
 				]
 			},
