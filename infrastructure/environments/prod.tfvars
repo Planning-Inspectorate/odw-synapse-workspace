@@ -46,6 +46,13 @@ function_app_enabled = true
 function_app = [
   {
     name = "fnapp01"
+    connection_strings = [
+      {
+        name  = "SqlConnectionString",
+        type  = "SQLAzure",
+        value = "Server=tcp:pins-synw-odw-prod-uks-ondemand.sql.azuresynapse.net,1433;Persist Security Info=False;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Database=odw_curated_db;Authentication=Active Directory Managed Identity;"
+      }
+    ]
     site_config = {
       application_stack = {
         python_version = "3.11"

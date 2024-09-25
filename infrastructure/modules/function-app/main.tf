@@ -11,6 +11,18 @@ resource "azurerm_linux_function_app" "function" {
   functions_extension_version   = var.functions_extension_version
   virtual_network_subnet_id     = var.synapse_vnet_subnet_names[var.synapse_function_app_subnet_name]
   app_settings                  = local.app_settings
+
+  dynamic "connection_string" {
+    for_each = var.connection_strings
+
+    iterator = connection
+    content {
+      name  = connection.value["name"]
+      type  = connection.value["type"]
+      value = connection.value["value"]
+    }
+  }
+
   site_config {
     always_on = local.site_config["always_on"]
     cors {

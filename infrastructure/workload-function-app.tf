@@ -103,6 +103,7 @@ module "function_app" {
   application_insights_key     = azurerm_application_insights.function_app_insights[each.key].instrumentation_key
   synapse_vnet_subnet_names    = module.synapse_network.vnet_subnets
   app_settings                 = try(each.value.app_settings, null)
+  connection_strings           = each.value.connection_strings
   site_config                  = each.value.site_config
   file_share_name              = "pins-${each.key}-${local.resource_suffix}"
   servicebus_namespace         = var.odt_back_office_service_bus_name
