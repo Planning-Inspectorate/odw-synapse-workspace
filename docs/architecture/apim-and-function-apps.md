@@ -158,14 +158,14 @@ Back Office (ODT) wants to read data from ODW. An API needs to be provided which
 To simply things, the code exists within the service bus functions **functions/function_app.py** file. This makes deploying and maintaining it easier
 
 ```python
-@_app.function_name(name="gets62")
-@_app.route(route="gets62", methods=["get"], auth_level=func.AuthLevel.FUNCTION)
+@_app.function_name(name="gettimesheets")
+@_app.route(route="gettimesheets", methods=["get"], auth_level=func.AuthLevel.FUNCTION)
 @_app.sql_input(arg_name="timesheet",
-                command_text="SELECT [name],[caseReference],[applicationType],[applicationValidated],[description],[lpa],[permissionSought],[procedureType],[status],[applicantName],[siteAddress],[sitePostcode],[siteGridReference],[agentName],[agentAddress],[dateReceived],[dateValid],[consultationStatDate],[consultationEndDate],[targetDecisionDate],[decisionDate],[decisionType],[appointedPerson],[caseAdministrator],[caseLeader],[caseOfficer],[eiaOfficer],[legalOfficer] FROM [odw_curated_db].[dbo].[s62a] WHERE UPPER([Name]) LIKE Concat(Char(37), UPPER(@searchCriteria), Char(37)) OR UPPER([caseReference]) LIKE Concat(Char(37), UPPER(@searchCriteria), Char(37)) OR UPPER([description]) LIKE Concat(Char(37), UPPER(@searchCriteria), Char(37)) OR UPPER([applicantName]) LIKE Concat(Char(37), UPPER(@searchCriteria), Char(37)) OR UPPER([siteAddress]) LIKE Concat(Char(37), UPPER(@searchCriteria), Char(37)) OR UPPER([sitePostcode]) LIKE Concat(Char(37), UPPER(@searchCriteria), Char(37)) OR UPPER([siteGridReference]) LIKE Concat(Char(37), UPPER(@searchCriteria), Char(37))",
+                command_text="SELECT [caseReference], [applicationReference], [siteAddressLine1], [siteAddressLine2], [siteAddressTown], [siteAddressCounty], [siteAddressPostcode] FROM [odw_curated_db].[dbo].[appeal_has] WHERE UPPER([caseReference]) LIKE Concat(Char(37), UPPER(@searchCriteria), Char(37)) OR UPPER([applicationReference]) LIKE Concat(Char(37), UPPER(@searchCriteria), Char(37)) OR UPPER([siteAddressLine1]) LIKE Concat(Char(37), UPPER(@searchCriteria), Char(37)) OR UPPER([siteAddressLine2]) LIKE Concat(Char(37), UPPER(@searchCriteria), Char(37)) OR UPPER([siteAddressTown]) LIKE Concat(Char(37), UPPER(@searchCriteria), Char(37)) OR UPPER([siteAddressCounty]) LIKE Concat(Char(37), UPPER(@searchCriteria), Char(37)) OR UPPER([siteAddressPostcode]) LIKE Concat(Char(37), UPPER(@searchCriteria), Char(37))",
                 command_type="Text",
                 parameters="@searchCriteria={searchCriteria}",
                 connection_string_setting="SqlConnectionString")
-def gets62(req: func.HttpRequest, timesheet: func.SqlRowList) -> func.HttpResponse:
+def gettimesheets(req: func.HttpRequest, timesheet: func.SqlRowList) -> func.HttpResponse:
     """
     We need to use Char(37) to escape the % 
     https://stackoverflow.com/questions/71914897/how-do-i-use-sql-like-value-operator-with-azure-functions-sql-binding
@@ -187,18 +187,18 @@ This function exposes an endpoint which can be called from external applications
 
 The URL looks a little like this:
 
-```https://<FUNCTION_APP_URL>/api/gets62?code=<ACCESS_TOKEN>==&searchCriteria=<SEARCH CRITERIA>```
+```https://<FUNCTION_APP_URL>/api/gettimesheets?code=<ACCESS_TOKEN>==&searchCriteria=<SEARCH CRITERIA>```
 
 ```<SEARCH_CRITERIA>``` is expected to be a free text string which is resolved to ```%<SEARCH_CRITERIA>%``` internally and searches across the following columns. The sql_input decorator handles SQL injection protection.
 
 ```
-[name]
-[caseReference]
-[description]
-[applicantName]
-[siteAddress]
-[sitePostcode]
-[siteGridReference]
+[caseReference],
+[applicationReference],
+[siteAddressLine1],
+[siteAddressLine2],
+[siteAddressTown],
+[siteAddressCounty],
+[siteAddressPostcode]
 ```
 
 CORS headers are returned which means that Web UIs from other origins can access the API.
