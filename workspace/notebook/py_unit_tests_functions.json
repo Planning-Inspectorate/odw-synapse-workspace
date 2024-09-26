@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "80f7bd63-f449-4a0c-b43f-8cd6ecf55431"
+				"spark.autotune.trackingId": "b8473532-56e9-454b-9e7f-585f3533e12b"
 			}
 		},
 		"metadata": {
@@ -128,6 +128,54 @@
 					"    return spark_dataframe"
 				],
 				"execution_count": 14
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def get_dataframe(query: str) -> DataFrame:\n",
+					"    return spark.sql(query)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def compare_dataframes(df1: DataFrame, df2: DataFrame, columns: list) -> bool:\n",
+					"    df1_selected = df1.select(columns)\n",
+					"    df2_selected = df2.select(columns)\n",
+					"    \n",
+					"    diff_df = df1_selected.exceptAll(df2_selected).union(df2_selected.exceptAll(df1_selected))\n",
+					"    if diff_df.count() == 0:\n",
+					"        print(\"DataFrames match for the specified columns.\")\n",
+					"        return True\n",
+					"    else:\n",
+					"        print(\"DataFrames do not match for the specified columns.\")\n",
+					"        diff_df.show()\n",
+					"        return False"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -431,6 +479,199 @@
 					"                            \"\"\")\r\n",
 					"\r\n",
 					"    return df.count() == 0"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def test_sb_std_to_sb_hrm_no_dropping_records(sb_std_table: str, sb_hrm_table: str) -> bool:\n",
+					"    df: DataFrame = spark.sql(f\"\"\"\n",
+					"    select documentId\n",
+					"    from {std_db_name}.{sb_std_table}\n",
+					"    where documentId not in\n",
+					"    (\n",
+					"        select documentId\n",
+					"        from {hrm_db_name}.{sb_hrm_table}\n",
+					"    )\n",
+					"    \"\"\")\n",
+					"\n",
+					"    return df.count() == 0"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def test_sb_hrm_to_hrm_final_no_dropping_records(sb_hrm_table: str, hrm_table_final: str) -> bool:\n",
+					"    df: DataFrame = spark.sql(f\"\"\"\n",
+					"    select documentId\n",
+					"    from {hrm_db_name}.{sb_hrm_table}\n",
+					"    where documentId not in\n",
+					"    (\n",
+					"        select documentId\n",
+					"        from {hrm_db_name}.{hrm_table_final}\n",
+					"    )\n",
+					"    \"\"\")\n",
+					"\n",
+					"    return df.count() == 0"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def test_hrm_to_curated_no_dropping_records(hrm_table_final: str, curated_table_name: str) -> bool:\n",
+					"    df: DataFrame = spark.sql(f\"\"\"\n",
+					"    select documentId\n",
+					"    from {hrm_db_name}.{hrm_table_final}\n",
+					"    where IsActive = 'Y'\n",
+					"    and documentId not in\n",
+					"    (\n",
+					"        select documentId\n",
+					"        from {curated_db_name}.{curated_table_name}\n",
+					"    )\n",
+					"    \"\"\")\n",
+					"\n",
+					"    return df.count() == 0"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def test_horizon_to_hrm_final_no_dropping_records(horizon_std_table_name: str, hrm_table_final: str) -> bool:\n",
+					"    df: DataFrame = spark.sql(f\"\"\"\n",
+					"    select documentId\n",
+					"    from {std_db_name}.{horizon_std_table_name}\n",
+					"    where ingested_datetime = (select max(ingested_datetime) from {std_db_name}.{horizon_std_table_name})\n",
+					"    and documentId not in\n",
+					"    (\n",
+					"        select documentId\n",
+					"        from {hrm_db_name}.{hrm_table_final}\n",
+					"    )\n",
+					"    \"\"\")\n",
+					"\n",
+					"    return df.count() == 0"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def test_aie_std_to_hrm_no_dropping_records(aie_std_table_name: str, aie_hrm_table_name: str) -> bool:\n",
+					"    df: DataFrame = aie_std_documentIds.subtract(aie_hrm_documentIds)\n",
+					"    return df.count() == 0"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def test_aie_hrm_to_hrm_final_no_dropping_records(aie_hrm_table_name: str, hrm_table_final: str) -> bool:\n",
+					"    if aie_appeals_documents_count > 0:\n",
+					"        df: DataFrame = aie_hrm_documentIds.subtract(hrm_final_documentIds)\n",
+					"        return df.count() == 0\n",
+					"    else:\n",
+					"        return True"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def test_document_row_counts_match(hrm_table_final: str, curated_table_name: str) -> DataFrame:\n",
+					"    # Count rows per documentId in harmonised final table\n",
+					"    hrm_final_counts: DataFrame = hrm_final_df_active.groupBy(\"documentId\").agg(F.count(\"*\").alias(\"hrm_final_count\"))\n",
+					"\n",
+					"    # Count rows per documentId in curated table\n",
+					"    curated_counts: DataFrame = curated_df.groupBy(\"documentId\").agg(F.count(\"*\").alias(\"curated_count\"))\n",
+					"\n",
+					"    # Join both tables on documentId to compare the counts\n",
+					"    comparison_df: DataFrame = hrm_final_counts.join(curated_counts, \"documentId\", how=\"outer\")\n",
+					"\n",
+					"    comparison_df: DataFrame = comparison_df.withColumn(\"count_difference\", F.col(\"hrm_final_count\") - F.col(\"curated_count\"))\n",
+					"\n",
+					"    non_zero_differences: DataFrame = comparison_df.filter(\"count_difference > 0\")\n",
+					"\n",
+					"    return non_zero_differences.count() == 0"
 				],
 				"execution_count": null
 			}
