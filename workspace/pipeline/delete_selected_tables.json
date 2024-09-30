@@ -1,0 +1,148 @@
+{
+	"name": "delete_selected_tables",
+	"properties": {
+		"description": "Pipeline to delete a selection of tables as part of a clean up activity",
+		"activities": [
+			{
+				"name": "delete standardised tables",
+				"description": "Deleting a selection of standardised tables as part of a clean up activity",
+				"type": "ForEach",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@variables('std_tables')",
+						"type": "Expression"
+					},
+					"isSequential": false,
+					"activities": [
+						{
+							"name": "delete standardised table",
+							"type": "SynapseNotebook",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "py_delete_table",
+									"type": "NotebookReference"
+								},
+								"parameters": {
+									"db_name": {
+										"value": {
+											"value": "@variables('std_db')",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"table_name": {
+										"value": {
+											"value": "@item()",
+											"type": "Expression"
+										},
+										"type": "string"
+									}
+								},
+								"snapshot": true
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "delete curated tables",
+				"description": "Deleting a selection of curated tables as part of a clean up activity",
+				"type": "ForEach",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@variables('cu_tables')",
+						"type": "Expression"
+					},
+					"isSequential": false,
+					"activities": [
+						{
+							"name": "delete curated table",
+							"type": "SynapseNotebook",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "py_delete_table",
+									"type": "NotebookReference"
+								},
+								"parameters": {
+									"db_name": {
+										"value": {
+											"value": "@variables('cu_db')",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"table_name": {
+										"value": {
+											"value": "@item()",
+											"type": "Expression"
+										},
+										"type": "string"
+									}
+								},
+								"snapshot": true
+							}
+						}
+					]
+				}
+			}
+		],
+		"variables": {
+			"std_tables": {
+				"type": "Array",
+				"defaultValue": [
+					"nsip_project",
+					"nsip_project_update",
+					"nsip_representation",
+					"nsip_s51_advice",
+					"nsip_subscription"
+				]
+			},
+			"std_db": {
+				"type": "String",
+				"defaultValue": "odw_standardised_db"
+			},
+			"cu_db": {
+				"type": "String",
+				"defaultValue": "odw_curated_db"
+			},
+			"cu_tables": {
+				"type": "Array",
+				"defaultValue": [
+					"employee",
+					"examination_timetable",
+					"legacy_folder_data",
+					"relevant_representation",
+					"s51_advice",
+					"nsip_data",
+					"nsip_service_user"
+				]
+			}
+		},
+		"folder": {
+			"name": "Releases/2.0.0"
+		},
+		"annotations": []
+	}
+}

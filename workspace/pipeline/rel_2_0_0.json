@@ -1,0 +1,101 @@
+{
+	"name": "rel_2_0_0",
+	"properties": {
+		"description": "Pipeline for release 2.0.0 into Production.",
+		"activities": [
+			{
+				"name": "delete_selected_tables",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "py_deployment_manage_main_config",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "delete_selected_tables",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
+				}
+			},
+			{
+				"name": "create_selected_tables",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "delete_selected_tables",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "create_selected_tables",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
+				}
+			},
+			{
+				"name": "pln_master",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "create_selected_tables",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_master",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
+				}
+			},
+			{
+				"name": "py_deployment_manage_main_config",
+				"type": "SynapseNotebook",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_deployment_manage_main_config",
+						"type": "NotebookReference"
+					},
+					"snapshot": true
+				}
+			}
+		],
+		"folder": {
+			"name": "Releases/2.0.0"
+		},
+		"annotations": []
+	}
+}
