@@ -8,7 +8,7 @@ def test_appeal_document_notebook(credential_name, azure_credential, synapse_end
     warnings.filterwarnings("ignore", category=DeprecationWarning) 
 
     # run the testing notebook
-    notebookname: str = "py_unit_tests"
+    notebookname: str = "py_unit_tests_appeal_document"
     
     notebook_raw_params = {
         "sparkPool": "pinssynspodw",
