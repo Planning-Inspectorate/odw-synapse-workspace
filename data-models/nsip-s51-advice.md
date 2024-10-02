@@ -50,7 +50,7 @@ classDiagram
 
     namespace Curated {
 
-        class nsip_s51_advice {
+        class s51_advice {
             NSIPAdviceID: int
         }
     }
@@ -59,7 +59,7 @@ classDiagram
 `nsip-s51-advice` --> `sb_s51_advice-std`
 `sb_s51_advice-std` --> `sb_s51_advice-hrm`
 `sb_s51_advice-hrm` --> `nsip_s51_advice-hrm`
-`nsip_s51_advice-hrm` --> `nsip_s51_advice`
+`nsip_s51_advice-hrm` --> `s51_advice`
 
 `Horizon_NSIP_Advice` --> `horizon_nsip_advice`
 `horizon_nsip_advice` --> `nsip_s51_advice-hrm`
