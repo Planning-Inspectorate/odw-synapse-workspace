@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "bab4a6f3-a816-42c7-b047-c95b233931f3"
+				"spark.autotune.trackingId": "94d81fc4-31a0-4bf0-9f69-d9e4466d21c2"
 			}
 		},
 		"metadata": {
@@ -62,6 +62,25 @@
 						"transient": {
 							"deleting": false
 						}
+					}
+				},
+				"source": [
+					"from pyspark.sql.functions import *\r\n",
+					"from pyspark.sql.types import *"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
 					},
 					"microsoft": {
 						"language": "sparksql"
@@ -70,7 +89,7 @@
 				},
 				"source": [
 					"%%sql\r\n",
-					"CREATE OR REPLACE TEMPORARY VIEW vw_Appeal_event \r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW vw_appeal_event \r\n",
 					"AS\r\n",
 					"SELECT\r\n",
 					"    eventId\r\n",
@@ -78,11 +97,11 @@
 					"    ,eventType\r\n",
 					"    ,eventName\r\n",
 					"    ,eventStatus\r\n",
-					"    ,CAST(IsUrgent AS Boolean) AS IsUrgent\r\n",
-					"    ,CAST(eventPublished AS Boolean) AS eventPublished\r\n",
-					"    ,CAST(eventStartDateTime AS Timestamp) AS eventStartDateTime\r\n",
-					"    ,CAST(eventEndDateTime AS Timestamp)  AS eventEndDateTime\r\n",
-					"    ,CAST(NotificationOfSiteVisit AS Timestamp) AS NotificationOfSiteVisit\r\n",
+					"    ,IsUrgent\r\n",
+					"    ,eventPublished\r\n",
+					"    ,eventStartDateTime\r\n",
+					"    ,eventEndDateTime\r\n",
+					"    ,notificationOfSitevisit\r\n",
 					"    ,addressLine1\r\n",
 					"    ,addressLine2\r\n",
 					"    ,addressTown\r\n",
@@ -93,7 +112,151 @@
 					"WHERE\r\n",
 					"    IsActive = 'Y'"
 				],
-				"execution_count": 1
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Create a DataFrame of the data from the view"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"data: DataFrame = spark.sql(\"SELECT * FROM vw_appeal_event\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Specify the schema for the data, taken from the curated table which has already been created in advance from the data model"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"schema: StructType = spark.table(\"odw_curated_db.appeal_event\").schema"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Cast all field data types in the data to the data types from the curated table schema\r\n",
+					"\r\n",
+					"This is necessary because the view generated above is joining harmonised tables, many of which are sourced from Horizon and will have a different schema to the final table and fields will have different data types. Therefore, taking the curated schema as defined in thr data model and casting all fields correctly, ensures accuracy."
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"df: DataFrame = data.select(\r\n",
+					"    *[\r\n",
+					"        col(field.name).cast(field.dataType).alias(field.name)\r\n",
+					"        for field in schema.fields\r\n",
+					"    ]\r\n",
+					")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Print the schema as a visual check"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"df.printSchema()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Write the data to the curated table"
+				]
 			},
 			{
 				"cell_type": "code",
@@ -110,30 +273,9 @@
 					"collapsed": false
 				},
 				"source": [
-					"df = spark.sql(\"\"\"\r\n",
-					"                SELECT\r\n",
-					"                    eventId\r\n",
-					"                    ,caseReference\r\n",
-					"                    ,eventType\r\n",
-					"                    ,eventName\r\n",
-					"                    ,eventStatus\r\n",
-					"                    ,isUrgent\r\n",
-					"                    ,eventPublished\r\n",
-					"                    ,eventStartDateTime\r\n",
-					"                    ,eventEndDateTime\r\n",
-					"                    ,NotificationOfSiteVisit\r\n",
-					"                    ,addressLine1\r\n",
-					"                    ,addressLine2\r\n",
-					"                    ,addressTown\r\n",
-					"                    ,addressCounty\r\n",
-					"                    ,addressPostcode\r\n",
-					"                FROM\r\n",
-					"                    vw_Appeal_event\r\n",
-					"            \"\"\")\r\n",
-					"\r\n",
-					"df.write.format(\"delta\").mode(\"Overwrite\").saveAsTable(\"odw_curated_db.appeal_event\")"
+					"df.write.mode(\"overwrite\").saveAsTable(\"odw_curated_db.appeal_event\")"
 				],
-				"execution_count": 6
+				"execution_count": null
 			}
 		]
 	}
