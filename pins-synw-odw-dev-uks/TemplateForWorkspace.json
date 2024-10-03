@@ -115,9 +115,6 @@
 			"type": "object",
 			"defaultValue": {}
 		},
-		"pln_post_deployment_properties_0_typeProperties": {
-			"type": "int"
-		},
 		"pln_temp_employee_syn_raw_to_curated_webUrl": {
 			"type": "string"
 		},
@@ -68137,12 +68134,20 @@
 			"properties": {
 				"activities": [
 					{
-						"name": "Wait1",
-						"type": "Wait",
+						"name": "rel_2_0_3",
+						"type": "ExecutePipeline",
 						"dependsOn": [],
+						"policy": {
+							"secureInput": false
+						},
 						"userProperties": [],
 						"typeProperties": {
-							"waitTimeInSeconds": "[parameters('pln_post_deployment_properties_0_typeProperties')]"
+							"pipeline": {
+								"referenceName": "rel_2_0_3",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
 						}
 					}
 				],
@@ -68154,7 +68159,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/pipelines/rel_2_0_3')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('workspaceName'), '/pln_raw_to_standardised_e2e')]",
@@ -77245,6 +77252,130 @@
 				"[concat(variables('workspaceId'), '/pipelines/create_selected_tables')]",
 				"[concat(variables('workspaceId'), '/pipelines/pln_master')]",
 				"[concat(variables('workspaceId'), '/notebooks/py_deployment_manage_main_config')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/rel_2_0_3')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "create appeal event curated table",
+						"type": "SynapseNotebook",
+						"dependsOn": [
+							{
+								"activity": "drop appeal event curated table_copy1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "create_table_from_schema",
+								"type": "NotebookReference"
+							},
+							"parameters": {
+								"db_name": {
+									"value": "odw_curated_db",
+									"type": "string"
+								},
+								"entity_name": {
+									"value": "appeal-event",
+									"type": "string"
+								}
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "drop appeal event curated table_copy1",
+						"type": "SynapseNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "py_delete_table",
+								"type": "NotebookReference"
+							},
+							"parameters": {
+								"db_name": {
+									"value": "odw_curated_db",
+									"type": "string"
+								},
+								"table_name": {
+									"value": "appeal_event",
+									"type": "string"
+								}
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "pln_curated",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "create appeal event curated table",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pln_curated",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"folder": {
+					"name": "Releases/2.0.3"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/notebooks/create_table_from_schema')]",
+				"[concat(variables('workspaceId'), '/notebooks/py_delete_table')]",
+				"[concat(variables('workspaceId'), '/pipelines/pln_curated')]"
 			]
 		},
 		{
