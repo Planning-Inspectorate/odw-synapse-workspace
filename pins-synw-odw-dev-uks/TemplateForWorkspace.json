@@ -102095,7 +102095,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "cd84ec49-d406-4f8e-97f5-0c70cb0884d1"
+						"spark.autotune.trackingId": "037a12f0-f6e6-4597-b1a0-d442e359b1b2"
 					}
 				},
 				"metadata": {
@@ -102143,7 +102143,7 @@
 							"from pyspark.sql.types import *"
 						],
 						"outputs": [],
-						"execution_count": 14
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -102174,55 +102174,57 @@
 							"AS\n",
 							"\n",
 							"SELECT DISTINCT \n",
-							"    documentId,\n",
-							"    caseId,\n",
-							"    caseReference,\n",
-							"    version,\n",
-							"    filename,\n",
-							"    originalFilename,\n",
-							"    size,\n",
-							"    COALESCE(mime, '') AS mime,\n",
-							"    COALESCE(documentURI, '') AS documentURI,\n",
-							"    publishedDocumentURI,\n",
-							"    virusCheckStatus,\n",
-							"    fileMD5,\n",
-							"    dateCreated,\n",
-							"    dateReceived,\n",
-							"    datePublished,\n",
-							"    lastModified,\n",
+							"    doc.documentId,\n",
+							"    doc.caseId,\n",
+							"    doc.caseReference,\n",
+							"    doc.version,\n",
+							"    doc.filename,\n",
+							"    doc.originalFilename,\n",
+							"    doc.size,\n",
+							"    COALESCE(doc.mime, '') AS mime,\n",
+							"    COALESCE(doc.documentURI, '') AS documentURI,\n",
+							"    doc.publishedDocumentURI,\n",
+							"    doc.virusCheckStatus,\n",
+							"    doc.fileMD5,\n",
+							"    doc.dateCreated,\n",
+							"    doc.dateReceived,\n",
+							"    doc.datePublished,\n",
+							"    doc.lastModified,\n",
 							"    CASE\n",
-							"        WHEN caseType = 'Planning Listed Building and Conservation Area Appeal (Y)' THEN 'Y'\n",
-							"        WHEN caseType = 'Lawful Development Certificate Appeal' THEN 'X'\n",
-							"        WHEN caseType = 'Planning Obligation Appeal' THEN 'Q'\n",
-							"        WHEN caseType = 'Commercial (CAS) Appeal' THEN 'Z'\n",
-							"        WHEN caseType = 'Enforcement Listed Building and Conservation Area Appeal' THEN 'F'\n",
-							"        WHEN caseType = 'Advertisement Appeal' THEN 'H'\n",
-							"        WHEN caseType = 'Planning Appeal (A)' THEN 'W'\n",
-							"        WHEN caseType = 'Enforcement Notice Appeal' THEN 'C'\n",
-							"        WHEN caseType = 'Discontinuance Notice Appeal' THEN 'G'\n",
-							"        WHEN caseType = 'Community Infrastructure Levy' THEN 'L'\n",
-							"        WHEN caseType = 'Planning Appeal (W)' THEN 'W'\n",
-							"        WHEN caseType = 'Call-In Application' THEN 'V'\n",
-							"        WHEN caseType = 'Affordable Housing Obligation Appeal' THEN 'S'\n",
-							"        WHEN caseType = 'Householder (HAS) Appeal' THEN 'D'\n",
-							"        ELSE caseType\n",
+							"        WHEN doc.caseType = 'Planning Listed Building and Conservation Area Appeal (Y)' THEN 'Y'\n",
+							"        WHEN doc.caseType = 'Lawful Development Certificate Appeal' THEN 'X'\n",
+							"        WHEN doc.caseType = 'Planning Obligation Appeal' THEN 'Q'\n",
+							"        WHEN doc.caseType = 'Commercial (CAS) Appeal' THEN 'Z'\n",
+							"        WHEN doc.caseType = 'Enforcement Listed Building and Conservation Area Appeal' THEN 'F'\n",
+							"        WHEN doc.caseType = 'Advertisement Appeal' THEN 'H'\n",
+							"        WHEN doc.caseType = 'Planning Appeal (A)' THEN 'W'\n",
+							"        WHEN doc.caseType = 'Enforcement Notice Appeal' THEN 'C'\n",
+							"        WHEN doc.caseType = 'Discontinuance Notice Appeal' THEN 'G'\n",
+							"        WHEN doc.caseType = 'Community Infrastructure Levy' THEN 'L'\n",
+							"        WHEN doc.caseType = 'Planning Appeal (W)' THEN 'W'\n",
+							"        WHEN doc.caseType = 'Call-In Application' THEN 'V'\n",
+							"        WHEN doc.caseType = 'Affordable Housing Obligation Appeal' THEN 'S'\n",
+							"        WHEN doc.caseType = 'Householder (HAS) Appeal' THEN 'D'\n",
+							"        ELSE doc.caseType\n",
 							"    END\n",
 							"    AS caseType,\n",
-							"    redactedStatus,\n",
-							"    documentType,\n",
-							"    sourceSystem,\n",
-							"    origin,\n",
-							"    owner,\n",
-							"    author,\n",
-							"    description,\n",
-							"    caseStage,\n",
-							"    horizonFolderId\n",
+							"    doc.redactedStatus,\n",
+							"    doc.documentType,\n",
+							"    doc.sourceSystem,\n",
+							"    doc.origin,\n",
+							"    doc.owner,\n",
+							"    doc.author,\n",
+							"    doc.description,\n",
+							"    doc.caseStage,\n",
+							"    doc.horizonFolderId\n",
 							"    \n",
-							"FROM odw_harmonised_db.appeal_document\n",
-							"WHERE IsActive = 'Y'"
+							"FROM odw_harmonised_db.appeal_document as doc\n",
+							"LEFT JOIN odw_curated_db.nsip_data as proj\n",
+							"ON doc.caseReference = proj.caseReference\n",
+							"WHERE doc.IsActive = 'Y'"
 						],
 						"outputs": [],
-						"execution_count": 16
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -102254,7 +102256,7 @@
 							"data: DataFrame = spark.sql(\"SELECT * FROM odw_curated_db.vw_appeal_document\")"
 						],
 						"outputs": [],
-						"execution_count": 17
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -102286,7 +102288,7 @@
 							"schema: StructType = spark.table(\"odw_curated_db.appeal_document\").schema"
 						],
 						"outputs": [],
-						"execution_count": 18
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -102325,7 +102327,7 @@
 							")"
 						],
 						"outputs": [],
-						"execution_count": 19
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -102357,7 +102359,7 @@
 							"df.printSchema()"
 						],
 						"outputs": [],
-						"execution_count": 20
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -102389,7 +102391,7 @@
 							"df.write.mode(\"overwrite\").saveAsTable(\"odw_curated_db.appeal_document\")"
 						],
 						"outputs": [],
-						"execution_count": 21
+						"execution_count": null
 					}
 				]
 			},
@@ -185860,7 +185862,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "9828f6c1-05a4-493d-b334-b82b90c8f7ce"
+						"spark.autotune.trackingId": "6ef482d7-9b20-497b-9f1d-2e7d4a6f89af"
 					}
 				},
 				"metadata": {
@@ -185909,7 +185911,7 @@
 							"from pyspark.sql import DataFrame"
 						],
 						"outputs": [],
-						"execution_count": 13
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -185949,119 +185951,65 @@
 							"AS\r\n",
 							"\r\n",
 							"SELECT DISTINCT \r\n",
-							"Doc.documentId,\r\n",
-							"Doc.caseId,\r\n",
-							"Doc.caseRef,\r\n",
-							"Doc.documentReference,\r\n",
-							"Doc.version,\r\n",
-							"Doc.examinationRefNo,\r\n",
-							"Doc.filename,\r\n",
-							"Doc.originalFilename,\r\n",
-							"Doc.size,\r\n",
-							"Doc.mime,\r\n",
-							"COALESCE(Doc.documentURI, '') AS documentURI,\r\n",
-							"Doc.publishedDocumentURI,\r\n",
-							"Doc.path,\r\n",
-							"Doc.virusCheckStatus,\r\n",
-							"Doc.fileMD5,\r\n",
-							"Doc.dateCreated,\r\n",
-							"Doc.lastModified,\r\n",
-							"LOWER(Doc.caseType) AS caseType,\r\n",
-							"Doc.redactedStatus,\r\n",
+							"doc.documentId,\r\n",
+							"doc.caseId,\r\n",
+							"doc.caseRef,\r\n",
+							"doc.documentReference,\r\n",
+							"doc.version,\r\n",
+							"doc.examinationRefNo,\r\n",
+							"doc.filename,\r\n",
+							"doc.originalFilename,\r\n",
+							"doc.size,\r\n",
+							"doc.mime,\r\n",
+							"COALESCE(doc.documentURI, '') AS documentURI,\r\n",
+							"doc.publisheddocumentURI,\r\n",
+							"doc.path,\r\n",
+							"doc.virusCheckStatus,\r\n",
+							"doc.fileMD5,\r\n",
+							"doc.dateCreated,\r\n",
+							"doc.lastModified,\r\n",
+							"LOWER(doc.caseType) AS caseType,\r\n",
+							"doc.redactedStatus,\r\n",
 							"CASE\r\n",
-							"    WHEN Doc.PublishedStatus = 'Depublished'\r\n",
+							"    WHEN doc.PublishedStatus = 'Depublished'\r\n",
 							"    THEN 'unpublished'\r\n",
 							"    ELSE REPLACE(\r\n",
-							"        LOWER(Doc.PublishedStatus),\r\n",
+							"        LOWER(doc.PublishedStatus),\r\n",
 							"        ' ',\r\n",
 							"        '_')\r\n",
 							"END AS publishedStatus,\r\n",
-							"Doc.datePublished,\r\n",
-							"Doc.documentType,\r\n",
-							"Doc.securityClassification,\r\n",
-							"Doc.sourceSystem,\r\n",
-							"Doc.origin,\r\n",
-							"Doc.owner,\r\n",
-							"Doc.author,\r\n",
-							"Doc.authorWelsh,\r\n",
-							"Doc.representative,\r\n",
-							"Doc.description,\r\n",
-							"Doc.descriptionWelsh,\r\n",
+							"doc.datePublished,\r\n",
+							"doc.documentType,\r\n",
+							"doc.securityClassification,\r\n",
+							"doc.sourceSystem,\r\n",
+							"doc.origin,\r\n",
+							"doc.owner,\r\n",
+							"doc.author,\r\n",
+							"doc.authorWelsh,\r\n",
+							"doc.representative,\r\n",
+							"doc.description,\r\n",
+							"doc.descriptionWelsh,\r\n",
 							"CASE\r\n",
-							"    WHEN Doc.DocumentCaseStage = \"Developer's Application\"\r\n",
+							"    WHEN doc.documentCaseStage = \"Developer's Application\"\r\n",
 							"    THEN 'developers_application'\r\n",
-							"    WHEN Doc.DocumentCaseStage = 'Post decision'\r\n",
+							"    WHEN doc.documentCaseStage = 'Post decision'\r\n",
 							"    THEN 'post_decision'\r\n",
-							"    ELSE LOWER(Doc.DocumentCaseStage)\t            \r\n",
+							"    ELSE LOWER(doc.documentCaseStage)\t            \r\n",
 							"END AS documentCaseStage,\r\n",
-							"Doc.filter1,\r\n",
-							"Doc.filter1Welsh,\r\n",
-							"Doc.filter2,\r\n",
-							"Doc.horizonFolderId,\r\n",
-							"Doc.transcriptId\t\r\n",
+							"doc.filter1,\r\n",
+							"doc.filter1Welsh,\r\n",
+							"doc.filter2,\r\n",
+							"doc.horizonFolderId,\r\n",
+							"doc.transcriptId\t\r\n",
 							"\r\n",
-							"FROM odw_harmonised_db.nsip_document AS Doc\r\n",
-							"LEFT JOIN odw_curated_db.nsip_project Dat\r\n",
-							"    ON Dat.casereference = Doc.caseRef\r\n",
+							"FROM odw_harmonised_db.nsip_document AS doc\r\n",
+							"LEFT JOIN odw_curated_db.nsip_data proj\r\n",
+							"    ON proj.caseReference = doc.caseRef\r\n",
 							"\r\n",
-							"WHERE Doc.IsActive = 'Y';"
+							"WHERE doc.IsActive = 'Y';"
 						],
 						"outputs": [],
-						"execution_count": 14
-					},
-					{
-						"cell_type": "markdown",
-						"metadata": {
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"##### Create a DataFrame of the data from the view"
-						]
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"from pyspark.sql import SparkSession\r\n",
-							"spark = SparkSession.builder.getOrCreate()\r\n",
-							"view_df = spark.sql('SELECT * FROM odw_curated_db.vw_nsip_document')\r\n",
-							"view_df.write.mode(\"overwrite\").saveAsTable('odw_curated_db.nsip_document')"
-						],
-						"outputs": [],
-						"execution_count": 15
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"view_df.printSchema()"
-						],
-						"outputs": [],
-						"execution_count": 16
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -186107,7 +186055,7 @@
 							"schema: StructType = spark.table(\"odw_curated_db.nsip_document\").schema"
 						],
 						"outputs": [],
-						"execution_count": 17
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -186146,7 +186094,7 @@
 							")"
 						],
 						"outputs": [],
-						"execution_count": 18
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -186179,7 +186127,7 @@
 							"df.printSchema()"
 						],
 						"outputs": [],
-						"execution_count": 19
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -186208,10 +186156,10 @@
 							}
 						},
 						"source": [
-							"data.write.mode(\"overwrite\").format(\"delta\").saveAsTable(\"odw_curated_db.nsip_document\")"
+							"data.write.mode(\"overwrite\").saveAsTable(\"odw_curated_db.nsip_document\")"
 						],
 						"outputs": [],
-						"execution_count": 20
+						"execution_count": null
 					}
 				]
 			},
@@ -196696,7 +196644,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "166d0611-6b7f-48da-9d18-27aa76191a30"
+						"spark.autotune.trackingId": "1656784c-07bf-427e-ba37-af48a106899e"
 					}
 				},
 				"metadata": {
@@ -196734,7 +196682,7 @@
 							"from pyspark.sql.functions import *"
 						],
 						"outputs": [],
-						"execution_count": 56
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -196756,7 +196704,7 @@
 							"primary_key = 'TEMP_PK'"
 						],
 						"outputs": [],
-						"execution_count": 57
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -196778,8 +196726,7 @@
 							"                        CONCAT(\n",
 							"                            COALESCE(CAST(documentId AS INTEGER), ''), \n",
 							"                            COALESCE(filename, ''), \n",
-							"                            COALESCE(CAST(version AS INTEGER), ''),\n",
-							"                            COALESCE(CAST(size AS INTEGER), '')\n",
+							"                            COALESCE(CAST(version AS INTEGER), '')\n",
 							"                        )\n",
 							"                    ) AS {primary_key}\n",
 							"                    ,CAST(NULL AS LONG) AS AIEDocumentDataID\n",
@@ -196818,7 +196765,7 @@
 							"                    ,\"0\" as Migrated\n",
 							"                    ,\"Horizon\" as ODTSourceSystem\n",
 							"                    ,NULL AS SourceSystemID\n",
-							"                    , to_timestamp(expected_from)  AS IngestionDate\n",
+							"                    ,to_timestamp(expected_from)  AS IngestionDate\n",
 							"                    ,CAST(null as string) as ValidTo -- to avoid any null descrepancies\n",
 							"                    ,'' as RowID\n",
 							"                    ,'Y' as IsActive\n",
@@ -196829,7 +196776,7 @@
 							"            \"\"\")"
 						],
 						"outputs": [],
-						"execution_count": 58
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -196848,7 +196795,7 @@
 							"results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
 						],
 						"outputs": [],
-						"execution_count": 59
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -196900,7 +196847,7 @@
 							"    \"\"\")"
 						],
 						"outputs": [],
-						"execution_count": 60
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -196934,7 +196881,7 @@
 							"                    "
 						],
 						"outputs": [],
-						"execution_count": 61
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -196953,7 +196900,7 @@
 							"df_calcs =df_calcs.withColumnRenamed(primary_key, f\"temp_{primary_key}\").withColumnRenamed(\"IngestionDate\", \"temp_IngestionDate\")"
 						],
 						"outputs": [],
-						"execution_count": 62
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -197057,7 +197004,7 @@
 							"    "
 						],
 						"outputs": [],
-						"execution_count": 63
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -197078,7 +197025,7 @@
 							"results = results.drop(\"AIEDocumentDataID\", \"ValidTo\", \"Migrated\", \"IsActive\")"
 						],
 						"outputs": [],
-						"execution_count": 64
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -197098,7 +197045,7 @@
 							"final_df = final_df.drop(primary_key).drop_duplicates()"
 						],
 						"outputs": [],
-						"execution_count": 65
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -197117,7 +197064,7 @@
 							"final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
 						],
 						"outputs": [],
-						"execution_count": 66
+						"execution_count": null
 					}
 				]
 			},
@@ -206614,7 +206561,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "0075a9e5-43d4-484b-b14a-22819a9d7147"
+						"spark.autotune.trackingId": "d1d9722e-4ec8-4745-a7f5-d9af4c0367e5"
 					}
 				},
 				"metadata": {
@@ -206695,7 +206642,7 @@
 							"# Get data out of the service bus with additional fields needed for Horizon data\n",
 							"service_bus_data = spark.sql(f\"\"\"\n",
 							"                    SELECT DISTINCT\n",
-							"                        MD5(CONCAT(documentId, filename, version)) AS {primary_key}\n",
+							"                        MD5(CONCAT(documentId, filename, version, documentURI)) AS {primary_key}\n",
 							"                        ,AppealsDocumentMetadataID\n",
 							"                        ,documentId\n",
 							"                        ,caseId\n",
@@ -206768,9 +206715,10 @@
 							"                SELECT DISTINCT \n",
 							"                    MD5(\n",
 							"                        CONCAT(\n",
-							"                            COALESCE(CAST(Doc.documentId AS INTEGER), ''), \n",
+							"                            COALESCE(Doc.documentId, ''), \n",
 							"                            COALESCE(Doc.filename, ''), \n",
-							"                            COALESCE(CAST(Doc.version AS INTEGER), '')\n",
+							"                            COALESCE(CAST(Doc.version AS INTEGER), ''),\n",
+							"                            COALESCE(Aie.documentURI, '')\n",
 							"                        )\n",
 							"                    ) AS {primary_key}\n",
 							"                    ,CAST(NULL AS LONG) AS AppealsDocumentMetadataID\n",
@@ -206819,7 +206767,10 @@
 							"                    ,'Y' as IsActive\n",
 							"                FROM\n",
 							"                    {horizon_table} AS Doc\n",
-							"                LEFT JOIN {aie_extracts_table} AS Aie ON Doc.DocumentId = Aie.DocumentId\n",
+							"                LEFT JOIN {aie_extracts_table} AS Aie\n",
+							"                ON Doc.documentId = Aie.documentid\n",
+							"                AND Doc.filename = Aie.filename\n",
+							"                AND Doc.version = Aie.version\n",
 							"                WHERE\n",
 							"                    Doc.ingested_datetime = (SELECT MAX(ingested_datetime) FROM {horizon_table})\n",
 							"            \"\"\")"
@@ -207175,7 +207126,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "011e8982-e7d7-4265-9c2c-74717c6c935b"
+						"spark.autotune.trackingId": "548e11f1-5740-493a-919e-02954cbdd8ec"
 					}
 				},
 				"metadata": {
@@ -207213,7 +207164,7 @@
 							"from pyspark.sql.functions import *"
 						],
 						"outputs": [],
-						"execution_count": 1
+						"execution_count": 18
 					},
 					{
 						"cell_type": "code",
@@ -207237,7 +207188,7 @@
 							"primary_key = 'TEMP_PK'"
 						],
 						"outputs": [],
-						"execution_count": 2
+						"execution_count": 19
 					},
 					{
 						"cell_type": "code",
@@ -207259,26 +207210,26 @@
 							"                        MD5(CONCAT(documentId, filename, version)) AS {primary_key}\r\n",
 							"                        ,NSIPDocumentID\r\n",
 							"                        ,documentId\r\n",
-							"                        ,CAST(caseId AS INTEGER) AS caseId\r\n",
+							"                        ,caseId\r\n",
 							"                        ,caseRef\r\n",
 							"                        ,documentReference\r\n",
-							"                        ,CAST(version AS INTEGER) AS version\r\n",
+							"                        ,version\r\n",
 							"                        ,examinationRefNo\r\n",
 							"                        ,filename\r\n",
 							"                        ,originalFilename\r\n",
-							"                        ,CAST(size AS INTEGER) AS size\r\n",
+							"                        ,size\r\n",
 							"                        ,mime\r\n",
 							"                        ,documentURI\r\n",
 							"                        ,publishedDocumentURI\r\n",
 							"                        ,path\r\n",
 							"                        ,virusCheckStatus\r\n",
 							"                        ,fileMD5\r\n",
-							"                        ,Cast(dateCreated as string) as dateCreated\r\n",
+							"                        ,dateCreated\r\n",
 							"                        ,lastModified\r\n",
 							"                        ,caseType\r\n",
 							"                        ,redactedStatus\r\n",
 							"                        ,publishedStatus\r\n",
-							"                        ,Cast(datePublished as string) as datePublished\r\n",
+							"                        ,datePublished\r\n",
 							"                        ,documentType\r\n",
 							"                        ,securityClassification\r\n",
 							"                        ,sourceSystem\r\n",
@@ -207310,7 +207261,7 @@
 							"                    \"\"\")"
 						],
 						"outputs": [],
-						"execution_count": 3
+						"execution_count": 20
 					},
 					{
 						"cell_type": "code",
@@ -207331,7 +207282,7 @@
 							"                SELECT DISTINCT \n",
 							"                    MD5(\n",
 							"                        CONCAT(\n",
-							"                            COALESCE(CAST(Doc.dataId AS INTEGER), ''), \n",
+							"                            COALESCE(Doc.dataId, ''), \n",
 							"                            COALESCE(Doc.name, ''), \n",
 							"                            COALESCE(CAST(Doc.version AS INTEGER), '')\n",
 							"                        )\n",
@@ -207384,13 +207335,16 @@
 							"                    ,'Y' as IsActive\n",
 							"                FROM\n",
 							"                    {horizon_table} AS Doc\n",
-							"                LEFT JOIN {aie_extracts_table} AS Aie ON Doc.dataid=Aie.DocumentId and Doc.version=Aie.version and Doc.name=Aie.filename\n",
+							"                LEFT JOIN {aie_extracts_table} AS Aie\n",
+							"                ON Doc.dataid = Aie.DocumentId \n",
+							"                AND Doc.version = Aie.version\n",
+							"                AND Doc.name = Aie.filename\n",
 							"                WHERE\n",
 							"                    Doc.expected_from = (SELECT MAX(expected_from) FROM {horizon_table})\n",
 							"            \"\"\")"
 						],
 						"outputs": [],
-						"execution_count": 4
+						"execution_count": 21
 					},
 					{
 						"cell_type": "code",
@@ -207410,7 +207364,7 @@
 							"results = service_bus_data.union(horizon_data)"
 						],
 						"outputs": [],
-						"execution_count": null
+						"execution_count": 22
 					},
 					{
 						"cell_type": "code",
@@ -207429,7 +207383,7 @@
 							"results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
 						],
 						"outputs": [],
-						"execution_count": null
+						"execution_count": 23
 					},
 					{
 						"cell_type": "markdown",
@@ -207481,7 +207435,7 @@
 							"    \"\"\")"
 						],
 						"outputs": [],
-						"execution_count": null
+						"execution_count": 24
 					},
 					{
 						"cell_type": "code",
@@ -207522,7 +207476,7 @@
 							"                    "
 						],
 						"outputs": [],
-						"execution_count": null
+						"execution_count": 25
 					},
 					{
 						"cell_type": "code",
@@ -207541,7 +207495,7 @@
 							"df_calcs =df_calcs.withColumnRenamed(primary_key, f\"temp_{primary_key}\").withColumnRenamed(\"IngestionDate\", \"temp_IngestionDate\")"
 						],
 						"outputs": [],
-						"execution_count": null
+						"execution_count": 26
 					},
 					{
 						"cell_type": "code",
@@ -207654,7 +207608,7 @@
 							"    "
 						],
 						"outputs": [],
-						"execution_count": null
+						"execution_count": 27
 					},
 					{
 						"cell_type": "code",
@@ -207675,7 +207629,7 @@
 							"results = results.drop(\"NSIPDocumentID\", \"ValidTo\", \"Migrated\", \"IsActive\")"
 						],
 						"outputs": [],
-						"execution_count": null
+						"execution_count": 28
 					},
 					{
 						"cell_type": "code",
@@ -207695,7 +207649,28 @@
 							"final_df = final_df.drop(primary_key).drop_duplicates()"
 						],
 						"outputs": [],
-						"execution_count": null
+						"execution_count": 29
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"columns_to_consider = ['documentId', 'filename', 'version', 'Migrated', 'ODTSourceSystem', 'IngestionDate', 'ValidTo', 'IsActive']\n",
+							"final_df = final_df.drop_duplicates(subset=columns_to_consider)"
+						],
+						"outputs": [],
+						"execution_count": 56
 					},
 					{
 						"cell_type": "code",
@@ -207714,26 +207689,7 @@
 							"final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
 						],
 						"outputs": [],
-						"execution_count": null
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"final_df.printSchema()"
-						],
-						"outputs": [],
-						"execution_count": null
+						"execution_count": 58
 					}
 				]
 			},
@@ -217985,7 +217941,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "b8473532-56e9-454b-9e7f-585f3533e12b"
+						"spark.autotune.trackingId": "5ff5fea9-6803-4b5e-bb58-c53e255d5d01"
 					}
 				},
 				"metadata": {
@@ -218939,7 +218895,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "06686951-9d10-485e-b731-398d2cb1a7b4"
+						"spark.autotune.trackingId": "f5806f22-67c3-47bd-97db-95849f17edae"
 					}
 				},
 				"metadata": {
@@ -219093,42 +219049,42 @@
 						"source": [
 							"data_model_columns = [\n",
 							"  \"documentId\",\n",
-							"\t\t\"caseId\",\n",
-							"\t\t\"caseRef\",\n",
-							"\t\t\"documentReference\",\n",
-							"\t\t\"version\",\n",
-							"\t\t\"examinationRefNo\",\n",
-							"\t\t\"filename\",\n",
-							"\t\t\"originalFilename\",\n",
-							"\t\t\"size\",\n",
-							"\t\t\"mime\",\n",
-							"\t\t\"documentURI\",\n",
-							"\t\t\"publishedDocumentURI\",\n",
-							"\t\t\"path\",\n",
-							"\t\t\"virusCheckStatus\",\n",
-							"\t\t\"fileMD5\",\n",
-							"\t\t\"dateCreated\",\n",
-							"\t\t\"lastModified\",\n",
-							"\t\t\"caseType\",\n",
-							"\t\t\"redactedStatus\",\n",
-							"\t\t\"publishedStatus\",\n",
-							"\t\t\"datePublished\",\n",
-							"\t\t\"documentType\",\n",
-							"\t\t\"securityClassification\",\n",
-							"\t\t\"sourceSystem\",\n",
-							"\t\t\"origin\",\n",
-							"\t\t\"owner\",\n",
-							"\t\t\"author\",\n",
+							"\t\"caseId\",\n",
+							"\t\"caseRef\",\n",
+							"\t\"documentReference\",\n",
+							"\t\"version\",\n",
+							"\t\"examinationRefNo\",\n",
+							"\t\"filename\",\n",
+							"\t\"originalFilename\",\n",
+							"\t\"size\",\n",
+							"\t\"mime\",\n",
+							"\t\"documentURI\",\n",
+							"\t\"publishedDocumentURI\",\n",
+							"\t\"path\",\n",
+							"\t\"virusCheckStatus\",\n",
+							"\t\"fileMD5\",\n",
+							"\t\"dateCreated\",\n",
+							"\t\"lastModified\",\n",
+							"\t\"caseType\",\n",
+							"\t\"redactedStatus\",\n",
+							"\t\"publishedStatus\",\n",
+							"\t\"datePublished\",\n",
+							"\t\"documentType\",\n",
+							"\t\"securityClassification\",\n",
+							"\t\"sourceSystem\",\n",
+							"\t\"origin\",\n",
+							"\t\"owner\",\n",
+							"\t\"author\",\n",
 							"    \"authorWelsh\",\n",
-							"\t\t\"representative\",\n",
-							"\t\t\"description\",\n",
+							"\t\"representative\",\n",
+							"\t\"description\",\n",
 							"    \"descriptionWelsh\",\n",
-							"\t\t\"documentCaseStage\",\n",
-							"\t\t\"filter1\",\n",
+							"\t\"documentCaseStage\",\n",
+							"\t\"filter1\",\n",
 							"    \"filter1Welsh\",\n",
-							"\t\t\"filter2\",\n",
-							"\t\t\"horizonFolderId\",\n",
-							"\t\t\"transcriptId\"\n",
+							"\t\"filter2\",\n",
+							"\t\"horizonFolderId\",\n",
+							"\t\"transcriptId\"\n",
 							"]"
 						],
 						"outputs": [],
@@ -219247,7 +219203,7 @@
 							"\n",
 							"if standardised_count > harmonised_count:\n",
 							"    print(f\"{standardised_count - harmonised_count} rows from Standardised are missing in Harmonised.\" )\n",
-							"    differentiate_std_and_hrm(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\")\n",
+							"    differentiate_std_and_hrm(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\", data_model_columns)\n",
 							"    #this is classed as an error\n",
 							"    exitCode += 1 "
 						],
@@ -219473,7 +219429,7 @@
 							"ORDER BY ingested_datetime"
 						],
 						"outputs": [],
-						"execution_count": 49
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -219498,7 +219454,7 @@
 							"SELECT DISTINCT * FROM odw_harmonised_db.nsip_document WHERE documentId = '15258121' AND IsActive = 'Y';"
 						],
 						"outputs": [],
-						"execution_count": 50
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -219542,25 +219498,6 @@
 							"display(df_cur)"
 						],
 						"outputs": [],
-						"execution_count": 51
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"mssparkutils.notebook.exit(exitCode)"
-						],
-						"outputs": [],
 						"execution_count": null
 					},
 					{
@@ -219598,6 +219535,50 @@
 							}
 						},
 						"source": [
+							"def read_csvs_recursively(storage_account: str = None, folder: str = None) -> DataFrame:\r\n",
+							"    \"\"\"\r\n",
+							"    Example of how to read csv files in a folder recursively.\r\n",
+							"    Each file is combined into a final DataFrame.\r\n",
+							"    The input_file column is added to show which file that record came from.\r\n",
+							"    Amend the folder path accordingly.\r\n",
+							"    \"\"\"\r\n",
+							"    storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\r\n",
+							"\r\n",
+							"    folder: str = f\"abfss://odw-raw@{storage_account}AIEDocumentData/2024-09-24\"\r\n",
+							"\r\n",
+							"    df: DataFrame = (spark.read.format(\"csv\")\r\n",
+							"        .option(\"recursiveFileLookup\", \"true\")\r\n",
+							"        .option(\"pathGlobFilter\", \"*.csv\")\r\n",
+							"        .option(\"header\", \"true\")\r\n",
+							"        .option(\"quote\", '\"')\r\n",
+							"        .option(\"escape\", '\"')\r\n",
+							"        .option(\"encoding\", \"UTF-8\")\r\n",
+							"        .option(\"multiLine\", \"true\")\r\n",
+							"        .option(\"ignoreLeadingWhiteSpace\", \"true\")\r\n",
+							"        .option(\"ignoreTrailingWhiteSpace\", \"true\")\r\n",
+							"        .load(folder))\r\n",
+							"\r\n",
+							"    df_with_path: DataFrame = df.withColumn(\"input_file\", F.input_file_name())\r\n",
+							"\r\n",
+							"    return df_with_path"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
 							"def test_sb_std_to_sb_hrm_no_dropping_records(sb_std_table: str, sb_hrm_table: str) -> bool:\n",
 							"    df: DataFrame = spark.sql(f\"\"\"\n",
 							"    select documentId\n",
@@ -219612,7 +219593,7 @@
 							"    return df.count() == 0"
 						],
 						"outputs": [],
-						"execution_count": 28
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -219642,7 +219623,7 @@
 							"    return df.count() == 0"
 						],
 						"outputs": [],
-						"execution_count": 29
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -219673,7 +219654,7 @@
 							"    return df.count() == 0"
 						],
 						"outputs": [],
-						"execution_count": 30
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -219704,7 +219685,7 @@
 							"    return df.count() == 0"
 						],
 						"outputs": [],
-						"execution_count": 41
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -219725,31 +219706,7 @@
 							"    return df.count() == 0 "
 						],
 						"outputs": [],
-						"execution_count": 32
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"def test_aie_hrm_to_hrm_final_no_dropping_records(aie_hrm_table_name: str, hrm_table_final: str) -> bool:\n",
-							"    if aie_appeals_documents_count > 0:\n",
-							"        df: DataFrame = aie_hrm_documentIds.subtract(hrm_final_documentIds)\n",
-							"        return df.count() == 0\n",
-							"    else:\n",
-							"        return True"
-						],
-						"outputs": [],
-						"execution_count": 33
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -219779,31 +219736,10 @@
 							"\r\n",
 							"    non_zero_differences = comparison_df.filter(\"count_difference > 0\")\r\n",
 							"\r\n",
-							"    return non_zero_differences.count() == 0\r\n",
-							""
+							"    return non_zero_differences.count() == 0"
 						],
 						"outputs": [],
-						"execution_count": 34
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							},
-							"collapsed": false
-						},
-						"source": [
-							"display(test_document_row_counts_match(hrm_table_final, curated_table_name))"
-						],
-						"outputs": [],
-						"execution_count": 35
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -219822,7 +219758,7 @@
 							"print(f\"Service bus std to hrm no documentIds dropped: {test_sb_std_to_sb_hrm_no_dropping_records(std_table_name, hrm_table_name)}\")"
 						],
 						"outputs": [],
-						"execution_count": 37
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -219841,7 +219777,7 @@
 							"print(f\"Service bus hrm to hrm table final no documentIds dropped: {test_sb_hrm_to_hrm_final_no_dropping_records(hrm_table_name, hrm_table_final)}\")"
 						],
 						"outputs": [],
-						"execution_count": 38
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -219860,7 +219796,7 @@
 							"print(f\"hrm table final to curated no documentIds dropped: {test_hrm_to_curated_no_dropping_records(hrm_table_final, curated_table_name)}\")"
 						],
 						"outputs": [],
-						"execution_count": 39
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -219879,7 +219815,7 @@
 							"print(f\"Horizon std table to hrm table final no documentIds dropped: {test_horizon_to_hrm_final_no_dropping_records(horizon_std_table_name, hrm_table_final)}\")"
 						],
 						"outputs": [],
-						"execution_count": 42
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -219898,26 +219834,7 @@
 							"print(f\"AIE std table to hrm table no documentIds dropped: {test_aie_std_to_hrm_no_dropping_records(aie_std_table_name, aie_hrm_table_name)}\")"
 						],
 						"outputs": [],
-						"execution_count": 43
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"print(f\"AIE hrm table to hrm table final no documentIds dropped: {test_aie_hrm_to_hrm_final_no_dropping_records(aie_hrm_table_name, hrm_table_final)}\")"
-						],
-						"outputs": [],
-						"execution_count": 44
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -219936,7 +219853,7 @@
 							"print(f\"Document row counts match for each document in harmonised final to curated: {test_document_row_counts_match(hrm_table_final, curated_table_name)}\")"
 						],
 						"outputs": [],
-						"execution_count": 45
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -219949,18 +219866,13 @@
 								"transient": {
 									"deleting": false
 								}
-							},
-							"microsoft": {
-								"language": "sparksql"
-							},
-							"collapsed": false
+							}
 						},
 						"source": [
-							"%%sql\n",
-							"SELECT * FROM odw_curated_db.nsip_document where caseref in ('TR050004','EN010080', 'EN010082', 'TR030003') order by caseref;"
+							"mssparkutils.notebook.exit(exitCode)"
 						],
 						"outputs": [],
-						"execution_count": 53
+						"execution_count": null
 					}
 				]
 			},
