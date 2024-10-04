@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "bcb366fc-cff7-4222-83a3-4b5df3097cb4"
+				"spark.autotune.trackingId": "87dbc746-802f-4477-9f20-7a6c30561c04"
 			}
 		},
 		"metadata": {
@@ -70,7 +70,25 @@
 					"from pyspark.sql import DataFrame\n",
 					"import pprint"
 				],
-				"execution_count": 19
+				"execution_count": 28
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"spark.catalog.refreshTable('odw_curated_migration_db.s51_advice')"
+				],
+				"execution_count": 29
 			},
 			{
 				"cell_type": "code",
@@ -87,16 +105,21 @@
 				},
 				"source": [
 					"entity_name: str = 's51-advice'\n",
-					"folder_name: str = 'nsip-s51-advice'\n",
+					"folder_name: str = 's51-advice'\n",
 					"std_db_name: str = 'odw_standardised_db'\n",
 					"hrm_db_name: str = 'odw_harmonised_db'\n",
 					"curated_db_name: str = 'odw_curated_db'\n",
 					"std_table_name: str = 'sb_s51_advice'\n",
 					"hrm_table_name: str = 'sb_s51_advice'\n",
 					"hrm_table_final: str = 'nsip_s51_advice'\n",
-					"curated_table_name: str = 'nsip_s51_advice'"
+					"curated_table_name: str = 's51_advice'\n",
+					"\n",
+					"## new curated database\n",
+					"curated_db_migration_name: str = 'odw_curated_migration_db'\n",
+					"curated_table_migration_name: str = 's51_advice'\n",
+					"primary_key: str = 'adviceId'"
 				],
-				"execution_count": 20
+				"execution_count": 30
 			},
 			{
 				"cell_type": "code",
@@ -115,7 +138,7 @@
 					"#keep track of the exitCodes, if the exit code is not zero then we've had failures, we flip the boolean\n",
 					"exitCode: int = 0"
 				],
-				"execution_count": 21
+				"execution_count": 31
 			},
 			{
 				"cell_type": "code",
@@ -151,7 +174,7 @@
 					"            \"redactionStatus\",\n",
 					"            \"attachmentIds\"]"
 				],
-				"execution_count": 22
+				"execution_count": 32
 			},
 			{
 				"cell_type": "code",
@@ -169,7 +192,7 @@
 				"source": [
 					"%run /utils/unit-tests/py_unit_tests_functions"
 				],
-				"execution_count": 23
+				"execution_count": 33
 			},
 			{
 				"cell_type": "code",
@@ -190,7 +213,7 @@
 					"sb_hrm_schema = create_spark_schema(hrm_db_name, entity_name, folder_name)\n",
 					"sb_hrm_table_schema = spark.table(f\"{hrm_db_name}.{hrm_table_name}\").schema"
 				],
-				"execution_count": 24
+				"execution_count": 34
 			},
 			{
 				"cell_type": "markdown",
@@ -227,7 +250,7 @@
 					"print(f\"Service bus harmonised schema correct: {hrm_schema_correct}\\nTable: {hrm_db_name}.{hrm_table_name}\\nDifferences shown above (if any)\")\n",
 					"exitCode += int(not hrm_schema_correct)"
 				],
-				"execution_count": 25
+				"execution_count": 35
 			},
 			{
 				"cell_type": "markdown",
@@ -267,7 +290,7 @@
 					"    #this is classed as an error\n",
 					"    exitCode += 1 "
 				],
-				"execution_count": 26
+				"execution_count": 36
 			},
 			{
 				"cell_type": "markdown",
@@ -298,10 +321,10 @@
 				},
 				"source": [
 					"harmonised_final_count, curated_count, counts_match = test_curated_row_count(hrm_table_final, curated_table_name, data_model_columns)\n",
-					"print(f\"Harmonised Final Count: {harmonised_final_count: ,}\\nCurated Count: {curated_count: ,}\\nCounts match: {counts_match}\")\n",
+					"print(f\"Harmonised Final Row Count (Where Active = Y): {harmonised_final_count: ,}\\nCurated Count: {curated_count: ,}\\nCounts match: {counts_match}\")\n",
 					"exitCode += int(not counts_match)"
 				],
-				"execution_count": 27
+				"execution_count": 37
 			},
 			{
 				"cell_type": "markdown",
@@ -313,7 +336,178 @@
 					}
 				},
 				"source": [
-					"##### Trace service bus data from standardised to curated\n",
+					"### The below tests are for the curated_migration_db table\n",
+					"##### Test 1:  Counts match in harmonised and curated\n",
+					""
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Define the harmonise table that only includes horizon data, and the latest record per primary id.\r\n",
+					"##SourceColumns are not named consistently across different data types\r\n",
+					"def harmonise_df_hzn(hrm_db: str, hrm_table: str, primary_key: str, sourceColumn:str ) -> DataFrame:\r\n",
+					"    df_harmonise_only_hzn: DataFrame = spark.sql(f\"\"\"\r\n",
+					"    Select Distinct   \r\n",
+					"    AD.adviceId,\r\n",
+					"    AD.adviceReference ,\r\n",
+					"    CASE\r\n",
+					"        WHEN AD.caseId = 'None'\r\n",
+					"        THEN CAST(\"-1\" as INT)\r\n",
+					"        ELSE AD.caseId\r\n",
+					"    END                                                     AS caseId,\r\n",
+					"    AD.caseReference,\r\n",
+					"    AD.title,\r\n",
+					"    AD.titleWelsh,\r\n",
+					"    AD.from,\r\n",
+					"    CASE\r\n",
+					"        WHEN LOWER(AD.agent) = 'none'\r\n",
+					"        THEN NULL\r\n",
+					"        ELSE AD.agent\r\n",
+					"    END                                                     AS agent,\r\n",
+					"    CASE \r\n",
+					"        WHEN LOWER(AD.method) = 'none'\r\n",
+					"        THEN NULL\r\n",
+					"        ELSE LOWER(AD.method)\r\n",
+					"        END                                                 AS method,\r\n",
+					"    AD.enquiryDate,\r\n",
+					"    AD.enquiryDetails,\r\n",
+					"    AD.enquiryDetailsWelsh,\r\n",
+					"    AD.adviceGivenBy,\r\n",
+					"    AD.adviceDate,\r\n",
+					"    AD.adviceDetails,\r\n",
+					"    AD.adviceDetailsWelsh,\r\n",
+					"    CASE\r\n",
+					"        WHEN AD.status IN ('Not Checked','unchecked','Depublished')\r\n",
+					"        THEN 'unchecked'\r\n",
+					"        WHEN AD.status = 'Do Not Publish'\r\n",
+					"        THEN 'donotpublish'\r\n",
+					"        ELSE LOWER(AD.status)\r\n",
+					"    END                                                     AS status,\r\n",
+					"    AD.redactionStatus,\r\n",
+					"    AD.attachmentIds\r\n",
+					"\r\n",
+					"    from {hrm_db}.{hrm_table} AD\r\n",
+					"    INNER JOIN (\r\n",
+					"            SELECT {primary_key}, MAX(IngestionDate) AS latest_date\r\n",
+					"            FROM {hrm_db}.{hrm_table} AD\r\n",
+					"            WHERE LOWER({sourceColumn}) ='horizon'\r\n",
+					"            GROUP BY {primary_key}) latest \r\n",
+					"            ON AD.{primary_key} = latest.{primary_key} AND AD.IngestionDate = latest.latest_date \"\"\").drop_duplicates()\r\n",
+					"\r\n",
+					"    return df_harmonise_only_hzn"
+				],
+				"execution_count": 38
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"harmonised_count, curated_count, counts_match = test_counts_hrm_cur(hrm_db_name, hrm_table_final, curated_db_migration_name, curated_table_migration_name, primary_key, \"ODTSourceSystem\")\n",
+					"print(f\"Harmonised Count horizon records: {harmonised_count: ,}\\nMigrated Curated Count: {curated_count: ,}\\nCounts match: {counts_match}\")\n",
+					"exitCode += int(not counts_match)"
+				],
+				"execution_count": 39
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Test 2: Check curated layer only has horizon data and unique records (distinct primary ids)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"no_horizon_records, total_curated_count, distinct_curated_count, counts_match = test_curated_unique_hzn_only(curated_db_migration_name, curated_table_migration_name, primary_key, \"SourceSystem\")\n",
+					"print(f\"There is no other records than Horizon: {no_horizon_records:}\\nCurated Count: {total_curated_count: ,}\\n Distinct Curated Count: {distinct_curated_count:,}\\nCounts match: {counts_match}\")\n",
+					"exitCode += int(not counts_match)"
+				],
+				"execution_count": 40
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Test 3: Check we are not losing caseids, only rows, as we are getting the latest ingestionDate"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"result = test_hrm_to_curated_no_dropping_primary_ids_only_records(hrm_db_name, hrm_table_final, curated_db_migration_name, curated_table_migration_name, primary_key, \"ODTSourceSystem\")\n",
+					"print(f\"Horizon to curated no caseids are dropped: {result}\")\n",
+					"exitCode += int(not result)"
+				],
+				"execution_count": 41
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Trace service bus data from standardised to curated\n",
 					"We need to make sure the data has loaded through correctly. To do this efficiently, we will select a sample record and check that the data is maintained as it moves through the medallian architecture."
 				]
 			},
@@ -364,7 +558,7 @@
 					"ORDER BY\n",
 					"    2 DESC"
 				],
-				"execution_count": 28
+				"execution_count": 42
 			},
 			{
 				"cell_type": "code",
@@ -385,9 +579,9 @@
 				},
 				"source": [
 					"%%sql\n",
-					"select attachmentIds FROM odw_curated_db.nsip_s51_advice where adviceId = 16347955"
+					"select attachmentIds FROM odw_curated_db.s51_advice where adviceId = 16347955"
 				],
-				"execution_count": 29
+				"execution_count": 43
 			},
 			{
 				"cell_type": "markdown",
@@ -429,7 +623,7 @@
 					"     advicenodeid = '15179883' AND \n",
 					"     ingested_datetime = (select max(ingested_datetime) from odw_standardised_db.horizon_nsip_advice);"
 				],
-				"execution_count": 30
+				"execution_count": 44
 			},
 			{
 				"cell_type": "code",
@@ -459,7 +653,7 @@
 					"order BY\n",
 					"    ingestiondate DESC"
 				],
-				"execution_count": 31
+				"execution_count": 45
 			},
 			{
 				"cell_type": "markdown",
@@ -505,7 +699,7 @@
 					"ORDER BY\n",
 					"    2 desc"
 				],
-				"execution_count": 32
+				"execution_count": 46
 			},
 			{
 				"cell_type": "code",
@@ -538,7 +732,7 @@
 					"ORDER BY\n",
 					"    2 desc"
 				],
-				"execution_count": 33
+				"execution_count": 47
 			},
 			{
 				"cell_type": "markdown",
@@ -581,7 +775,20 @@
 					"order BY\n",
 					"    ingestiondate DESC"
 				],
-				"execution_count": 34
+				"execution_count": 48
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Data Validation against the curated table"
+				]
 			},
 			{
 				"cell_type": "code",
@@ -605,24 +812,11 @@
 					"SELECT\n",
 					"    *\n",
 					"FROM\n",
-					"    odw_curated_db.nsip_s51_advice\n",
+					"    odw_curated_db.s51_advice\n",
 					"WHERE\n",
 					"     adviceid = '15179883'"
 				],
-				"execution_count": 35
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"#### Data Validation against the curated table"
-				]
+				"execution_count": 49
 			},
 			{
 				"cell_type": "markdown",
@@ -659,9 +853,9 @@
 					"select * from odw_standardised_db.horizon_nsip_advice where adviceNodeId = 25680508 and ingested_datetime = (select max(ingested_datetime) from odw_standardised_db.horizon_nsip_advice);\n",
 					"select * from odw_harmonised_db.sb_s51_advice where adviceId = 25680508;\n",
 					"select * from odw_harmonised_db.nsip_s51_advice where adviceId = 25680508;\n",
-					"select * from odw_curated_db.nsip_s51_advice where adviceId = 25680508;"
+					"select * from odw_curated_db.s51_advice where adviceId = 25680508;"
 				],
-				"execution_count": 36
+				"execution_count": 50
 			},
 			{
 				"cell_type": "code",
@@ -679,7 +873,7 @@
 				"source": [
 					"mssparkutils.notebook.exit(exitCode)"
 				],
-				"execution_count": 37
+				"execution_count": 51
 			}
 		]
 	}
