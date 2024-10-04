@@ -1754,6 +1754,10 @@
 			"type": "string",
 			"defaultValue": "pinssynspodw"
 		},
+		"py_unit_tests_s62a_view_cases_properties_bigDataPool_referenceName": {
+			"type": "string",
+			"defaultValue": "pinssynspodw"
+		},
 		"py_unit_tests_service_user_properties_bigDataPool_referenceName": {
 			"type": "string",
 			"defaultValue": "pinssynspodw"
@@ -1883,6 +1887,10 @@
 			"defaultValue": "pinssynspodw"
 		},
 		"py_vw_SAP_PINS_email_harmonised_layer1_transform_properties_bigDataPool_referenceName": {
+			"type": "string",
+			"defaultValue": "pinssynspodw"
+		},
+		"s62a_properties_bigDataPool_referenceName": {
 			"type": "string",
 			"defaultValue": "pinssynspodw"
 		},
@@ -223109,6 +223117,327 @@
 			"dependsOn": []
 		},
 		{
+			"name": "[concat(parameters('workspaceName'), '/py_unit_tests_s62a_view_cases')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"folder": {
+					"name": "utils/unit-tests"
+				},
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "[parameters('py_unit_tests_s62a_view_cases_properties_bigDataPool_referenceName')]",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "4edb9cbb-537f-4ac7-98fc-f943d7a28b2b"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": true,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+						"name": "pinssynspodw",
+						"type": "Spark",
+						"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "3.3",
+						"nodeCount": 3,
+						"cores": 4,
+						"memory": 28
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"import json\n",
+							"from pyspark.sql.types import *\n",
+							"from pyspark.sql import DataFrame\n",
+							"import pprint"
+						],
+						"outputs": [],
+						"execution_count": 28
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"\n",
+							"std_db_name: str = 'odw_standardised_db'\n",
+							"hrm_db_name: str = 'odw_harmonised_db'\n",
+							"curated_db_name: str = 'odw_curated_db'\n",
+							"\n",
+							"s62a_view_cases_std_table_name: str = 'horizon_s62a_view_cases'\n",
+							"s62a_view_cases_hrm_table_name: str = 's62a_view_cases_dim'\n",
+							"\n",
+							"s62a_view_case_officers_std_table_name: str = 'horizon_s62a_view_case_officers'\n",
+							"s62a_view_case_officers_hrm_table_name: str = 's62a_view_case_officers_dim'\n",
+							"\n",
+							"s62a_view_case_extended_data_std_table_name: str = 'horizon_s62a_view_case_extended_data'\n",
+							"s62a_view_case_extended_data_hrm_table_name: str = 's62a_view_case_extended_data_dim'\n",
+							"\n",
+							"s62a_view_case_dates_std_table_name: str = 'horizon_s62a_view_case_dates'\n",
+							"s62a_view_case_dates_hrm_table_name: str = 's62a_view_case_dates_dim'\n",
+							"\n",
+							"s62a_view_case_basic_data_std_table_name: str = 'horizon_s62a_view_case_basic_data'\n",
+							"s62a_view_case_basic_data_hrm_table_name: str = 's62a_view_case_basic_data_dim'\n",
+							"\n",
+							"curated_table_name: str = 's62a'"
+						],
+						"outputs": [],
+						"execution_count": 29
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"#keep track of the exitCodes, if the exit code is not zero then we've had failures, we flip the boolean\n",
+							"exitCode: int = 0"
+						],
+						"outputs": [],
+						"execution_count": 30
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"%run /utils/unit-tests/py_unit_tests_functions"
+						],
+						"outputs": [],
+						"execution_count": 31
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"## Trace Horizon data from Standardised to Harmonised to Curated"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"SELECT * FROM odw_standardised_db.horizon_s62a_view_cases where caseRef = 'S62A/2023/0077';\r\n",
+							"SELECT * FROM odw_harmonised_db.s62a_view_cases_dim where caseReference = 'S62A/2023/0077';\r\n",
+							"SELECT * FROM odw_curated_db.s62a where caseReference ='S62A/2023/0077';\r\n",
+							""
+						],
+						"outputs": [],
+						"execution_count": 32
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"SELECT * FROM odw_standardised_db.horizon_s62a_view_case_officers where CaseDataID = '32665868';\r\n",
+							"SELECT * FROM odw_harmonised_db.s62a_view_case_officers_dim where CaseDataID = '32665868';\r\n",
+							"SELECT * FROM odw_curated_db.s62a where caseDataID = '32665868';"
+						],
+						"outputs": [],
+						"execution_count": 38
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"SELECT * FROM odw_standardised_db.horizon_s62a_view_case_extended_data where CaseDataID = '32665868';\r\n",
+							"SELECT * FROM odw_harmonised_db.s62a_view_case_extended_data_dim where CaseDataID = '32665868';\r\n",
+							"SELECT * FROM odw_curated_db.s62a where caseDataID = '32665868';"
+						],
+						"outputs": [],
+						"execution_count": 37
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"SELECT * FROM odw_standardised_db.horizon_s62a_view_case_dates where CaseDataID = '16780598' ;\r\n",
+							"SELECT * FROM odw_harmonised_db.s62a_view_case_dates_dim where CaseDataID = '16780598' ;\r\n",
+							"SELECT * FROM odw_curated_db.s62a where caseDataID = '16780598';"
+						],
+						"outputs": [],
+						"execution_count": 41
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"SELECT * FROM odw_standardised_db.horizon_s62a_view_case_basic_data where CaseDataID = '16780598' ;\r\n",
+							"SELECT * FROM odw_harmonised_db.s62a_view_case_basic_data_dim where CaseDataID = '16780598' ;\r\n",
+							"SELECT * FROM odw_curated_db.s62a where caseDataID = '16780598';"
+						],
+						"outputs": [],
+						"execution_count": 42
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"mssparkutils.notebook.exit(exitCode)"
+						],
+						"outputs": [],
+						"execution_count": 34
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('workspaceName'), '/py_unit_tests_service_user')]",
 			"type": "Microsoft.Synapse/workspaces/notebooks",
 			"apiVersion": "2019-06-01-preview",
@@ -235917,6 +236246,306 @@
 						],
 						"outputs": [],
 						"execution_count": 20
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/s62a')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"folder": {
+					"name": "odw-curated"
+				},
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "[parameters('s62a_properties_bigDataPool_referenceName')]",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "09029cdb-fd73-4390-923c-f7d5c1691ea4"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": false,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+						"name": "pinssynspodw",
+						"type": "Spark",
+						"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "3.3",
+						"nodeCount": 3,
+						"cores": 4,
+						"memory": 28
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "code",
+						"source": [
+							"from pyspark.sql.functions import *\r\n",
+							"from pyspark.sql.types import *\r\n",
+							"from pyspark.sql import DataFrame"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"\r\n",
+							"CREATE OR REPLACE VIEW odw_curated_db.vw_s62a\r\n",
+							"\r\n",
+							"AS\r\n",
+							"\r\n",
+							"SELECT \r\n",
+							"    C.Name as name\r\n",
+							"    ,C.CaseDataID As caseDataID\r\n",
+							"    ,C.casereference as caseReference      \r\n",
+							"    ,C1.ApplicationType as applicationType\r\n",
+							"    ,C1.ApplicationValidated as applicationValidated\r\n",
+							"    ,C1.Description as description\r\n",
+							"    ,C1.LPA as lpa\r\n",
+							"    ,C1.PermissionSought as permissionSought\r\n",
+							"    ,C1.ProcedureType as procedureType\r\n",
+							"    ,C1.Status as status\r\n",
+							"    ,C2.ApplicantName as applicantName\r\n",
+							"    ,C2.SiteAddress as siteAddress\r\n",
+							"    ,C2.SitePostcode as sitePostcode\r\n",
+							"    ,C2.SiteGridReference as siteGridReference\r\n",
+							"    ,C2.AgentName as agentName\r\n",
+							"    ,C2.AgentAddress as agentAddress\r\n",
+							"    ,C3.DateReceived as dateReceived\r\n",
+							"    ,C3.DateValid as dateValid\r\n",
+							"    ,C3.ConsultationStartDate as consultationStatDate\r\n",
+							"    ,C3.ConsultationEndDate as consultationEndDate\r\n",
+							"    ,C3.TargetDecisionDate as targetDecisionDate\r\n",
+							"    ,C3.DecisionDate as decisionDate\r\n",
+							"    ,C3.DecisionType as decisionType\r\n",
+							"    ,C4.AppointedPerson as appointedPerson\r\n",
+							"    ,C4.CaseAdministrator as caseAdministrator\r\n",
+							"    ,C4.CaseLeader as caseLeader\r\n",
+							"    ,C4.CaseOfficer as caseOfficer\r\n",
+							"    ,C4.EIAOfficer as eiaOfficer\r\n",
+							"    ,C4.LegalOfficer as legalOfficer\r\n",
+							"FROM odw_harmonised_db.s62a_view_cases_dim C \r\n",
+							"    left join odw_harmonised_db.s62a_view_case_basic_data_dim C1 on C.CaseDataID = C1.CaseDataID AND C1.IsActive = 'Y'\r\n",
+							"    left join odw_harmonised_db.s62a_view_case_extended_data_dim C2 on C.CaseDataID = C2.CaseDataID AND C2.IsActive = 'Y'\r\n",
+							"    left join odw_harmonised_db.s62a_view_case_dates_dim C3 on C.CaseDataID = C3.CaseDataID AND C3.IsActive = 'Y'\r\n",
+							"    left join odw_harmonised_db.s62a_view_case_officers_dim C4 on C.CaseDataID = C4.CaseDataID AND C4.IsActive = 'Y'\r\n",
+							"WHERE C.IsActive = 'Y'\r\n",
+							""
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Create a DataFrame of the data from the view"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"data: DataFrame = spark.sql(\"SELECT * FROM odw_curated_db.vw_s62a\")"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Specify the schema for the data, taken from the curated table which has already been created in advance from the data model"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"schema: StructType = spark.table(\"odw_curated_db.s62a\").schema"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Cast all field data types in the data to the data types from the curated table schema\r\n",
+							"\r\n",
+							"This is necessary because the view generated above is joining harmonised tables, many of which are sourced from Horizon and will have a different schema to the final table and fields will have different data types. Therefore, taking the curated schema as defined in thr data model and casting all fields correctly, ensures accuracy."
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"df: DataFrame = data.select(\r\n",
+							"    *[\r\n",
+							"        col(field.name).cast(field.dataType).alias(field.name)\r\n",
+							"        for field in schema.fields\r\n",
+							"    ]\r\n",
+							")"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Print the schema as a visual check"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"df.printSchema()"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Write the data to the curated table"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"df.write.mode(\"overwrite\").saveAsTable(\"odw_curated_db.s62a\")"
+						],
+						"outputs": [],
+						"execution_count": null
 					}
 				]
 			},
