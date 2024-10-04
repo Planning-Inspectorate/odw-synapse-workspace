@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "cd84ec49-d406-4f8e-97f5-0c70cb0884d1"
+				"spark.autotune.trackingId": "037a12f0-f6e6-4597-b1a0-d442e359b1b2"
 			}
 		},
 		"metadata": {
@@ -68,7 +68,7 @@
 					"from pyspark.sql.functions import *\n",
 					"from pyspark.sql.types import *"
 				],
-				"execution_count": 14
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -99,54 +99,56 @@
 					"AS\n",
 					"\n",
 					"SELECT DISTINCT \n",
-					"    documentId,\n",
-					"    caseId,\n",
-					"    caseReference,\n",
-					"    version,\n",
-					"    filename,\n",
-					"    originalFilename,\n",
-					"    size,\n",
-					"    COALESCE(mime, '') AS mime,\n",
-					"    COALESCE(documentURI, '') AS documentURI,\n",
-					"    publishedDocumentURI,\n",
-					"    virusCheckStatus,\n",
-					"    fileMD5,\n",
-					"    dateCreated,\n",
-					"    dateReceived,\n",
-					"    datePublished,\n",
-					"    lastModified,\n",
+					"    doc.documentId,\n",
+					"    doc.caseId,\n",
+					"    doc.caseReference,\n",
+					"    doc.version,\n",
+					"    doc.filename,\n",
+					"    doc.originalFilename,\n",
+					"    doc.size,\n",
+					"    COALESCE(doc.mime, '') AS mime,\n",
+					"    COALESCE(doc.documentURI, '') AS documentURI,\n",
+					"    doc.publishedDocumentURI,\n",
+					"    doc.virusCheckStatus,\n",
+					"    doc.fileMD5,\n",
+					"    doc.dateCreated,\n",
+					"    doc.dateReceived,\n",
+					"    doc.datePublished,\n",
+					"    doc.lastModified,\n",
 					"    CASE\n",
-					"        WHEN caseType = 'Planning Listed Building and Conservation Area Appeal (Y)' THEN 'Y'\n",
-					"        WHEN caseType = 'Lawful Development Certificate Appeal' THEN 'X'\n",
-					"        WHEN caseType = 'Planning Obligation Appeal' THEN 'Q'\n",
-					"        WHEN caseType = 'Commercial (CAS) Appeal' THEN 'Z'\n",
-					"        WHEN caseType = 'Enforcement Listed Building and Conservation Area Appeal' THEN 'F'\n",
-					"        WHEN caseType = 'Advertisement Appeal' THEN 'H'\n",
-					"        WHEN caseType = 'Planning Appeal (A)' THEN 'W'\n",
-					"        WHEN caseType = 'Enforcement Notice Appeal' THEN 'C'\n",
-					"        WHEN caseType = 'Discontinuance Notice Appeal' THEN 'G'\n",
-					"        WHEN caseType = 'Community Infrastructure Levy' THEN 'L'\n",
-					"        WHEN caseType = 'Planning Appeal (W)' THEN 'W'\n",
-					"        WHEN caseType = 'Call-In Application' THEN 'V'\n",
-					"        WHEN caseType = 'Affordable Housing Obligation Appeal' THEN 'S'\n",
-					"        WHEN caseType = 'Householder (HAS) Appeal' THEN 'D'\n",
-					"        ELSE caseType\n",
+					"        WHEN doc.caseType = 'Planning Listed Building and Conservation Area Appeal (Y)' THEN 'Y'\n",
+					"        WHEN doc.caseType = 'Lawful Development Certificate Appeal' THEN 'X'\n",
+					"        WHEN doc.caseType = 'Planning Obligation Appeal' THEN 'Q'\n",
+					"        WHEN doc.caseType = 'Commercial (CAS) Appeal' THEN 'Z'\n",
+					"        WHEN doc.caseType = 'Enforcement Listed Building and Conservation Area Appeal' THEN 'F'\n",
+					"        WHEN doc.caseType = 'Advertisement Appeal' THEN 'H'\n",
+					"        WHEN doc.caseType = 'Planning Appeal (A)' THEN 'W'\n",
+					"        WHEN doc.caseType = 'Enforcement Notice Appeal' THEN 'C'\n",
+					"        WHEN doc.caseType = 'Discontinuance Notice Appeal' THEN 'G'\n",
+					"        WHEN doc.caseType = 'Community Infrastructure Levy' THEN 'L'\n",
+					"        WHEN doc.caseType = 'Planning Appeal (W)' THEN 'W'\n",
+					"        WHEN doc.caseType = 'Call-In Application' THEN 'V'\n",
+					"        WHEN doc.caseType = 'Affordable Housing Obligation Appeal' THEN 'S'\n",
+					"        WHEN doc.caseType = 'Householder (HAS) Appeal' THEN 'D'\n",
+					"        ELSE doc.caseType\n",
 					"    END\n",
 					"    AS caseType,\n",
-					"    redactedStatus,\n",
-					"    documentType,\n",
-					"    sourceSystem,\n",
-					"    origin,\n",
-					"    owner,\n",
-					"    author,\n",
-					"    description,\n",
-					"    caseStage,\n",
-					"    horizonFolderId\n",
+					"    doc.redactedStatus,\n",
+					"    doc.documentType,\n",
+					"    doc.sourceSystem,\n",
+					"    doc.origin,\n",
+					"    doc.owner,\n",
+					"    doc.author,\n",
+					"    doc.description,\n",
+					"    doc.caseStage,\n",
+					"    doc.horizonFolderId\n",
 					"    \n",
-					"FROM odw_harmonised_db.appeal_document\n",
-					"WHERE IsActive = 'Y'"
+					"FROM odw_harmonised_db.appeal_document as doc\n",
+					"LEFT JOIN odw_curated_db.nsip_data as proj\n",
+					"ON doc.caseReference = proj.caseReference\n",
+					"WHERE doc.IsActive = 'Y'"
 				],
-				"execution_count": 16
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -177,7 +179,7 @@
 				"source": [
 					"data: DataFrame = spark.sql(\"SELECT * FROM odw_curated_db.vw_appeal_document\")"
 				],
-				"execution_count": 17
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -208,7 +210,7 @@
 				"source": [
 					"schema: StructType = spark.table(\"odw_curated_db.appeal_document\").schema"
 				],
-				"execution_count": 18
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -246,7 +248,7 @@
 					"    ]\n",
 					")"
 				],
-				"execution_count": 19
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -277,7 +279,7 @@
 				"source": [
 					"df.printSchema()"
 				],
-				"execution_count": 20
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -308,7 +310,7 @@
 				"source": [
 					"df.write.mode(\"overwrite\").saveAsTable(\"odw_curated_db.appeal_document\")"
 				],
-				"execution_count": 21
+				"execution_count": null
 			}
 		]
 	}

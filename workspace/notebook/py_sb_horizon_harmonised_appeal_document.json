@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "0075a9e5-43d4-484b-b14a-22819a9d7147"
+				"spark.autotune.trackingId": "d1d9722e-4ec8-4745-a7f5-d9af4c0367e5"
 			}
 		},
 		"metadata": {
@@ -100,7 +100,7 @@
 					"# Get data out of the service bus with additional fields needed for Horizon data\n",
 					"service_bus_data = spark.sql(f\"\"\"\n",
 					"                    SELECT DISTINCT\n",
-					"                        MD5(CONCAT(documentId, filename, version)) AS {primary_key}\n",
+					"                        MD5(CONCAT(documentId, filename, version, documentURI)) AS {primary_key}\n",
 					"                        ,AppealsDocumentMetadataID\n",
 					"                        ,documentId\n",
 					"                        ,caseId\n",
@@ -172,9 +172,10 @@
 					"                SELECT DISTINCT \n",
 					"                    MD5(\n",
 					"                        CONCAT(\n",
-					"                            COALESCE(CAST(Doc.documentId AS INTEGER), ''), \n",
+					"                            COALESCE(Doc.documentId, ''), \n",
 					"                            COALESCE(Doc.filename, ''), \n",
-					"                            COALESCE(CAST(Doc.version AS INTEGER), '')\n",
+					"                            COALESCE(CAST(Doc.version AS INTEGER), ''),\n",
+					"                            COALESCE(Aie.documentURI, '')\n",
 					"                        )\n",
 					"                    ) AS {primary_key}\n",
 					"                    ,CAST(NULL AS LONG) AS AppealsDocumentMetadataID\n",
@@ -223,7 +224,10 @@
 					"                    ,'Y' as IsActive\n",
 					"                FROM\n",
 					"                    {horizon_table} AS Doc\n",
-					"                LEFT JOIN {aie_extracts_table} AS Aie ON Doc.DocumentId = Aie.DocumentId\n",
+					"                LEFT JOIN {aie_extracts_table} AS Aie\n",
+					"                ON Doc.documentId = Aie.documentid\n",
+					"                AND Doc.filename = Aie.filename\n",
+					"                AND Doc.version = Aie.version\n",
 					"                WHERE\n",
 					"                    Doc.ingested_datetime = (SELECT MAX(ingested_datetime) FROM {horizon_table})\n",
 					"            \"\"\")"

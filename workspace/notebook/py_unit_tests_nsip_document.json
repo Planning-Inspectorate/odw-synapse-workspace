@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "06686951-9d10-485e-b731-398d2cb1a7b4"
+				"spark.autotune.trackingId": "f5806f22-67c3-47bd-97db-95849f17edae"
 			}
 		},
 		"metadata": {
@@ -171,42 +171,42 @@
 				"source": [
 					"data_model_columns = [\n",
 					"  \"documentId\",\n",
-					"\t\t\"caseId\",\n",
-					"\t\t\"caseRef\",\n",
-					"\t\t\"documentReference\",\n",
-					"\t\t\"version\",\n",
-					"\t\t\"examinationRefNo\",\n",
-					"\t\t\"filename\",\n",
-					"\t\t\"originalFilename\",\n",
-					"\t\t\"size\",\n",
-					"\t\t\"mime\",\n",
-					"\t\t\"documentURI\",\n",
-					"\t\t\"publishedDocumentURI\",\n",
-					"\t\t\"path\",\n",
-					"\t\t\"virusCheckStatus\",\n",
-					"\t\t\"fileMD5\",\n",
-					"\t\t\"dateCreated\",\n",
-					"\t\t\"lastModified\",\n",
-					"\t\t\"caseType\",\n",
-					"\t\t\"redactedStatus\",\n",
-					"\t\t\"publishedStatus\",\n",
-					"\t\t\"datePublished\",\n",
-					"\t\t\"documentType\",\n",
-					"\t\t\"securityClassification\",\n",
-					"\t\t\"sourceSystem\",\n",
-					"\t\t\"origin\",\n",
-					"\t\t\"owner\",\n",
-					"\t\t\"author\",\n",
+					"\t\"caseId\",\n",
+					"\t\"caseRef\",\n",
+					"\t\"documentReference\",\n",
+					"\t\"version\",\n",
+					"\t\"examinationRefNo\",\n",
+					"\t\"filename\",\n",
+					"\t\"originalFilename\",\n",
+					"\t\"size\",\n",
+					"\t\"mime\",\n",
+					"\t\"documentURI\",\n",
+					"\t\"publishedDocumentURI\",\n",
+					"\t\"path\",\n",
+					"\t\"virusCheckStatus\",\n",
+					"\t\"fileMD5\",\n",
+					"\t\"dateCreated\",\n",
+					"\t\"lastModified\",\n",
+					"\t\"caseType\",\n",
+					"\t\"redactedStatus\",\n",
+					"\t\"publishedStatus\",\n",
+					"\t\"datePublished\",\n",
+					"\t\"documentType\",\n",
+					"\t\"securityClassification\",\n",
+					"\t\"sourceSystem\",\n",
+					"\t\"origin\",\n",
+					"\t\"owner\",\n",
+					"\t\"author\",\n",
 					"    \"authorWelsh\",\n",
-					"\t\t\"representative\",\n",
-					"\t\t\"description\",\n",
+					"\t\"representative\",\n",
+					"\t\"description\",\n",
 					"    \"descriptionWelsh\",\n",
-					"\t\t\"documentCaseStage\",\n",
-					"\t\t\"filter1\",\n",
+					"\t\"documentCaseStage\",\n",
+					"\t\"filter1\",\n",
 					"    \"filter1Welsh\",\n",
-					"\t\t\"filter2\",\n",
-					"\t\t\"horizonFolderId\",\n",
-					"\t\t\"transcriptId\"\n",
+					"\t\"filter2\",\n",
+					"\t\"horizonFolderId\",\n",
+					"\t\"transcriptId\"\n",
 					"]"
 				],
 				"execution_count": null
@@ -321,7 +321,7 @@
 					"\n",
 					"if standardised_count > harmonised_count:\n",
 					"    print(f\"{standardised_count - harmonised_count} rows from Standardised are missing in Harmonised.\" )\n",
-					"    differentiate_std_and_hrm(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\")\n",
+					"    differentiate_std_and_hrm(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\", data_model_columns)\n",
 					"    #this is classed as an error\n",
 					"    exitCode += 1 "
 				],
@@ -540,7 +540,7 @@
 					"\n",
 					"ORDER BY ingested_datetime"
 				],
-				"execution_count": 49
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -564,7 +564,7 @@
 					"SELECT DISTINCT * FROM odw_harmonised_db.aie_document_data WHERE documentId = '15258121' AND IsActive = 'Y';\n",
 					"SELECT DISTINCT * FROM odw_harmonised_db.nsip_document WHERE documentId = '15258121' AND IsActive = 'Y';"
 				],
-				"execution_count": 50
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -607,24 +607,6 @@
 					"display(df_hrm_final)\n",
 					"display(df_cur)"
 				],
-				"execution_count": 51
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"mssparkutils.notebook.exit(exitCode)"
-				],
 				"execution_count": null
 			},
 			{
@@ -661,6 +643,49 @@
 					}
 				},
 				"source": [
+					"def read_csvs_recursively(storage_account: str = None, folder: str = None) -> DataFrame:\r\n",
+					"    \"\"\"\r\n",
+					"    Example of how to read csv files in a folder recursively.\r\n",
+					"    Each file is combined into a final DataFrame.\r\n",
+					"    The input_file column is added to show which file that record came from.\r\n",
+					"    Amend the folder path accordingly.\r\n",
+					"    \"\"\"\r\n",
+					"    storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\r\n",
+					"\r\n",
+					"    folder: str = f\"abfss://odw-raw@{storage_account}AIEDocumentData/2024-09-24\"\r\n",
+					"\r\n",
+					"    df: DataFrame = (spark.read.format(\"csv\")\r\n",
+					"        .option(\"recursiveFileLookup\", \"true\")\r\n",
+					"        .option(\"pathGlobFilter\", \"*.csv\")\r\n",
+					"        .option(\"header\", \"true\")\r\n",
+					"        .option(\"quote\", '\"')\r\n",
+					"        .option(\"escape\", '\"')\r\n",
+					"        .option(\"encoding\", \"UTF-8\")\r\n",
+					"        .option(\"multiLine\", \"true\")\r\n",
+					"        .option(\"ignoreLeadingWhiteSpace\", \"true\")\r\n",
+					"        .option(\"ignoreTrailingWhiteSpace\", \"true\")\r\n",
+					"        .load(folder))\r\n",
+					"\r\n",
+					"    df_with_path: DataFrame = df.withColumn(\"input_file\", F.input_file_name())\r\n",
+					"\r\n",
+					"    return df_with_path"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
 					"def test_sb_std_to_sb_hrm_no_dropping_records(sb_std_table: str, sb_hrm_table: str) -> bool:\n",
 					"    df: DataFrame = spark.sql(f\"\"\"\n",
 					"    select documentId\n",
@@ -674,7 +699,7 @@
 					"\n",
 					"    return df.count() == 0"
 				],
-				"execution_count": 28
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -703,7 +728,7 @@
 					"\n",
 					"    return df.count() == 0"
 				],
-				"execution_count": 29
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -733,7 +758,7 @@
 					"\n",
 					"    return df.count() == 0"
 				],
-				"execution_count": 30
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -763,7 +788,7 @@
 					"\n",
 					"    return df.count() == 0"
 				],
-				"execution_count": 41
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -783,30 +808,7 @@
 					"    df: DataFrame = aie_std_documentIds.subtract(aie_hrm_documentIds)\n",
 					"    return df.count() == 0 "
 				],
-				"execution_count": 32
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"def test_aie_hrm_to_hrm_final_no_dropping_records(aie_hrm_table_name: str, hrm_table_final: str) -> bool:\n",
-					"    if aie_appeals_documents_count > 0:\n",
-					"        df: DataFrame = aie_hrm_documentIds.subtract(hrm_final_documentIds)\n",
-					"        return df.count() == 0\n",
-					"    else:\n",
-					"        return True"
-				],
-				"execution_count": 33
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -836,29 +838,9 @@
 					"\r\n",
 					"    non_zero_differences = comparison_df.filter(\"count_difference > 0\")\r\n",
 					"\r\n",
-					"    return non_zero_differences.count() == 0\r\n",
-					""
+					"    return non_zero_differences.count() == 0"
 				],
-				"execution_count": 34
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"collapsed": false
-				},
-				"source": [
-					"display(test_document_row_counts_match(hrm_table_final, curated_table_name))"
-				],
-				"execution_count": 35
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -876,7 +858,7 @@
 				"source": [
 					"print(f\"Service bus std to hrm no documentIds dropped: {test_sb_std_to_sb_hrm_no_dropping_records(std_table_name, hrm_table_name)}\")"
 				],
-				"execution_count": 37
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -894,7 +876,7 @@
 				"source": [
 					"print(f\"Service bus hrm to hrm table final no documentIds dropped: {test_sb_hrm_to_hrm_final_no_dropping_records(hrm_table_name, hrm_table_final)}\")"
 				],
-				"execution_count": 38
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -912,7 +894,7 @@
 				"source": [
 					"print(f\"hrm table final to curated no documentIds dropped: {test_hrm_to_curated_no_dropping_records(hrm_table_final, curated_table_name)}\")"
 				],
-				"execution_count": 39
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -930,7 +912,7 @@
 				"source": [
 					"print(f\"Horizon std table to hrm table final no documentIds dropped: {test_horizon_to_hrm_final_no_dropping_records(horizon_std_table_name, hrm_table_final)}\")"
 				],
-				"execution_count": 42
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -948,25 +930,7 @@
 				"source": [
 					"print(f\"AIE std table to hrm table no documentIds dropped: {test_aie_std_to_hrm_no_dropping_records(aie_std_table_name, aie_hrm_table_name)}\")"
 				],
-				"execution_count": 43
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"print(f\"AIE hrm table to hrm table final no documentIds dropped: {test_aie_hrm_to_hrm_final_no_dropping_records(aie_hrm_table_name, hrm_table_final)}\")"
-				],
-				"execution_count": 44
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -984,7 +948,7 @@
 				"source": [
 					"print(f\"Document row counts match for each document in harmonised final to curated: {test_document_row_counts_match(hrm_table_final, curated_table_name)}\")"
 				],
-				"execution_count": 45
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -997,17 +961,12 @@
 						"transient": {
 							"deleting": false
 						}
-					},
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
+					}
 				},
 				"source": [
-					"%%sql\n",
-					"SELECT * FROM odw_curated_db.nsip_document where caseref in ('TR050004','EN010080', 'EN010082', 'TR030003') order by caseref;"
+					"mssparkutils.notebook.exit(exitCode)"
 				],
-				"execution_count": 53
+				"execution_count": null
 			}
 		]
 	}
