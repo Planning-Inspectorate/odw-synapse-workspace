@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "fbc7c060-0358-4fd1-8b52-47f2484ee82c"
+				"spark.autotune.trackingId": "5c6edc08-e188-4286-91ed-acfcf402811d"
 			}
 		},
 		"metadata": {
@@ -355,12 +355,14 @@
 					"\n",
 					"    # Find rows in the original table that are not in the new table\n",
 					"    missing_rows_in_std = hrm_df.select(data_model_columns).subtract(std_df.select(data_model_columns))\n",
-					"\n",
-					"    # Show the missing rows\n",
-					"    display(missing_rows_in_std)\n",
+					"    if missing_rows_in_std.count() > 0:\n",
+					"        print(f\"Data in Harmonised not in Standardised: {missing_rows_in_std.count()} rows\")\n",
+					"        display(missing_rows_in_std)\n",
 					"\n",
 					"    missing_rows_in_hrm = std_df.select(data_model_columns).subtract(hrm_df.select(data_model_columns))\n",
-					"    display(missing_rows_in_hrm)"
+					"    if missing_rows_in_hrm.count() > 0:\n",
+					"        print(f\"Data in Standardised not in Harmonised: {missing_rows_in_hrm.count()} rows\")\n",
+					"        display(missing_rows_in_hrm)"
 				],
 				"execution_count": 29
 			},
@@ -673,6 +675,201 @@
 					"    non_zero_differences: DataFrame = comparison_df.filter(\"count_difference > 0\")\n",
 					"\n",
 					"    return non_zero_differences.count() == 0"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Unit tests for Migration Tables"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def test_hzn_and_curated_count_matched(hzn_table: str, curated_table: str, primary_key: str) -> bool: \n",
+					"    df_hzn: Dataframe = spark.sql(f\"\"\"\n",
+					"                                SELECT DISTINCT {primary_key}\n",
+					"                                FROM odw_standardised_db.{hzn_table}\n",
+					"                                WHERE expected_from = (\n",
+					"                                        SELECT MAX(expected_from)\n",
+					"                                        FROM odw_standardised_db.{hzn_table}\n",
+					"                                    )\n",
+					"                            \"\"\")\n",
+					"\n",
+					"    df_cur: Dataframe = spark.sql(f\"\"\"\n",
+					"                                SELECT DISTINCT {primary_key}\n",
+					"                                FROM odw_curated_migration_db.{curated_table}\n",
+					"                            \"\"\")\n",
+					"\n",
+					"    return df_hzn.count() == df_cur.count()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def test_hzn_to_curated_no_record_dropped(hzn_table: str, curated_table: str, primary_key: str) -> bool:\n",
+					"    df: DataFrame = spark.sql(f\"\"\"\n",
+					"                                SELECT DISTINCT {primary_key}\n",
+					"                                FROM odw_standardised_db.{hzn_table}\n",
+					"                                WHERE expected_from = (\n",
+					"                                        SELECT MAX(expected_from)\n",
+					"                                        FROM odw_standardised_db.{hzn_table}\n",
+					"                                    )\n",
+					"                                AND {primary_key} NOT IN (\n",
+					"                                        SELECT DISTINCT {primary_key}\n",
+					"                                        FROM odw_curated_migration_db.{curated_table}\n",
+					"                                    )\n",
+					"                            \"\"\")\n",
+					"\n",
+					"    return df.count() == 0"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def test_curated_unique_hzn_only(curated_db: str, curated_table: str, primary_key:str) -> tuple[bool,int,int,bool]: \n",
+					"\n",
+					"    df_curated: DataFrame = spark.sql(f\"SELECT * FROM {curated_db}.{curated_table}\")\n",
+					"\n",
+					"    if 'sourceSystem' in df_curated.columns:\n",
+					"        count_not_hzn_records: int = df_curated.filter(\"sourceSystem != 'horizon' AND sourceSystem != 'Horizon'\").count()\n",
+					"    else:\n",
+					"        count_not_hzn_records = 0\n",
+					"        \n",
+					"    total_count = df_curated.count()\n",
+					"\n",
+					"    #Count of distinct caseid (primary id)\n",
+					"    distinct_count = df_curated.select(primary_key).distinct().count()\n",
+					"\n",
+					"\n",
+					"    return (count_not_hzn_records == 0, total_count, distinct_count, total_count == distinct_count)\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Below are the customised unit tests for document entities only (nsip-document and appeal-document) because of composite primary key"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def test_documents_hzn_and_curated_count_matched(hzn_table: str, curated_table: str) -> bool: \n",
+					"    df_hzn: Dataframe = spark.sql(f\"\"\"\n",
+					"                                SELECT DISTINCT dataId, name, version\n",
+					"                                FROM odw_standardised_db.{hzn_table}\n",
+					"                                WHERE expected_from = (\n",
+					"                                        SELECT MAX(expected_from)\n",
+					"                                        FROM odw_standardised_db.{hzn_table}\n",
+					"                                    )\n",
+					"                            \"\"\")\n",
+					"\n",
+					"    df_cur: Dataframe = spark.sql(f\"\"\"\n",
+					"                                SELECT DISTINCT documentId, filename, version\n",
+					"                                FROM odw_curated_migration_db.{curated_table}\n",
+					"                            \"\"\")\n",
+					"\n",
+					"    return df_hzn.count() == df_cur.count()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def test_documents_hzn_to_curated_no_record_dropped(hzn_table: str, curated_table: str) -> bool:\n",
+					"\n",
+					"    df: DataFrame = spark.sql(f\"\"\"\n",
+					"                                SELECT DISTINCT\n",
+					"                                    MD5(CONCAT(COALESCE(dataId, ''), COALESCE(name, ''), COALESCE(version, '')))\n",
+					"                                FROM odw_standardised_db.{hzn_table}\n",
+					"                                WHERE expected_from = (\n",
+					"                                        SELECT MAX(expected_from)\n",
+					"                                        FROM odw_standardised_db.{hzn_table}\n",
+					"                                    )\n",
+					"                                AND \n",
+					"                                    MD5(CONCAT(COALESCE(dataId, ''), COALESCE(name, ''), COALESCE(version, '')))\n",
+					"                                    NOT IN (\n",
+					"                                        SELECT DISTINCT \n",
+					"                                            MD5(CONCAT(COALESCE(documentId, ''), COALESCE(filename, ''), COALESCE(version, '')))\n",
+					"                                        FROM odw_curated_migration_db.{curated_table}\n",
+					"                                    )\n",
+					"                            \"\"\")\n",
+					"\n",
+					"    return df.count() == 0"
 				],
 				"execution_count": null
 			}

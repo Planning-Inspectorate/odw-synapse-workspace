@@ -1,0 +1,215 @@
+{
+	"name": "nsip_document_migration",
+	"properties": {
+		"folder": {
+			"name": "odw-curated/migration"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "fd46c926-4120-4b8b-8032-0fc2147ac2f3"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.3",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql.functions import *\n",
+					"from pyspark.sql.types import *\n",
+					"from pyspark.sql import DataFrame"
+				],
+				"execution_count": 1
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Create a view for the data, joining harmonised tables where necessary"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"\r\n",
+					"CREATE OR REPLACE VIEW odw_curated_migration_db.vw_nsip_document\r\n",
+					"\r\n",
+					"AS\r\n",
+					"\r\n",
+					"SELECT DISTINCT \r\n",
+					"\r\n",
+					"tbl.documentId,\r\n",
+					"tbl.caseId,\r\n",
+					"tbl.caseRef,\r\n",
+					"tbl.documentReference,\r\n",
+					"tbl.version,\r\n",
+					"tbl.examinationRefNo,\r\n",
+					"tbl.filename,\r\n",
+					"tbl.originalFilename,\r\n",
+					"tbl.size,\r\n",
+					"tbl.mime,\r\n",
+					"COALESCE(tbl.documentURI, '') AS documentURI,\r\n",
+					"tbl.publishedDocumentURI,\r\n",
+					"tbl.path,\r\n",
+					"tbl.virusCheckStatus,\r\n",
+					"tbl.fileMD5,\r\n",
+					"tbl.dateCreated,\r\n",
+					"tbl.lastModified,\r\n",
+					"LOWER(tbl.caseType) AS caseType,\r\n",
+					"tbl.redactedStatus,\r\n",
+					"CASE\r\n",
+					"    WHEN tbl.PublishedStatus = 'Depublished'\r\n",
+					"    THEN 'unpublished'\r\n",
+					"    ELSE REPLACE(\r\n",
+					"        LOWER(tbl.PublishedStatus),\r\n",
+					"        ' ',\r\n",
+					"        '_')\r\n",
+					"END AS publishedStatus,\r\n",
+					"tbl.datePublished,\r\n",
+					"tbl.documentType,\r\n",
+					"tbl.securityClassification,\r\n",
+					"tbl.sourceSystem,\r\n",
+					"tbl.origin,\r\n",
+					"tbl.owner,\r\n",
+					"tbl.author,\r\n",
+					"tbl.authorWelsh,\r\n",
+					"tbl.representative,\r\n",
+					"tbl.description,\r\n",
+					"tbl.descriptionWelsh,\r\n",
+					"CASE\r\n",
+					"    WHEN tbl.DocumentCaseStage = \"Developer's Application\"\r\n",
+					"    THEN 'developers_application'\r\n",
+					"    WHEN tbl.DocumentCaseStage = 'Post decision'\r\n",
+					"    THEN 'post_decision'\r\n",
+					"    ELSE LOWER(tbl.DocumentCaseStage)\t            \r\n",
+					"END AS documentCaseStage,\r\n",
+					"tbl.filter1,\r\n",
+					"tbl.filter1Welsh,\r\n",
+					"tbl.filter2,\r\n",
+					"tbl.horizonFolderId,\r\n",
+					"tbl.transcriptId\t\r\n",
+					"\r\n",
+					"FROM odw_harmonised_db.nsip_document tbl\r\n",
+					"\r\n",
+					"INNER JOIN (\r\n",
+					"\r\n",
+					"    SELECT documentId, filename, version, MAX(IngestionDate) AS latest_date\r\n",
+					"    FROM odw_harmonised_db.nsip_document\r\n",
+					"    WHERE LOWER(ODTSourceSystem) = 'horizon'\r\n",
+					"    GROUP BY documentId, filename, version\r\n",
+					"    \r\n",
+					") latest ON tbl.documentId = latest.documentId AND tbl.filename = latest.filename AND tbl.version = latest.version AND tbl.IngestionDate = latest.latest_date   \r\n",
+					"\r\n",
+					"WHERE LOWER(tbl.ODTSourceSystem) = 'horizon';"
+				],
+				"execution_count": 2
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Create a DataFrame of the data from the view"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql import SparkSession\r\n",
+					"spark = SparkSession.builder.getOrCreate()\r\n",
+					"view_df = spark.sql('SELECT * FROM odw_curated_migration_db.vw_nsip_document')\r\n",
+					"view_df.write.mode(\"overwrite\").saveAsTable('odw_curated_migration_db.nsip_document')"
+				],
+				"execution_count": 3
+			}
+		]
+	}
+}
