@@ -1379,6 +1379,10 @@
 			"type": "string",
 			"defaultValue": "pinssynspodw"
 		},
+		"nsip_representation_migration_properties_bigDataPool_referenceName": {
+			"type": "string",
+			"defaultValue": "pinssynspodw"
+		},
 		"nsip_s51_advice_properties_bigDataPool_referenceName": {
 			"type": "string",
 			"defaultValue": "pinssynspodw"
@@ -1663,6 +1667,10 @@
 			"type": "string",
 			"defaultValue": "pinssynspodw"
 		},
+		"py_sb_horizon_harmonised_service_user_properties_bigDataPool_referenceName": {
+			"type": "string",
+			"defaultValue": "pinssynspodw"
+		},
 		"py_sb_raw_to_std_properties_bigDataPool_referenceName": {
 			"type": "string",
 			"defaultValue": "pinssynspodw"
@@ -1863,10 +1871,6 @@
 			"type": "string",
 			"defaultValue": "pinssynspodw"
 		},
-		"py_utils_service_user_tests_properties_bigDataPool_referenceName": {
-			"type": "string",
-			"defaultValue": "pinssynspodw"
-		},
 		"py_versions_properties_bigDataPool_referenceName": {
 			"type": "string",
 			"defaultValue": "pinssynspodw"
@@ -1944,6 +1948,10 @@
 			"defaultValue": "pinssynspodw"
 		},
 		"service_user_properties_bigDataPool_referenceName": {
+			"type": "string",
+			"defaultValue": "pinssynspodw"
+		},
+		"service_user_migration_properties_bigDataPool_referenceName": {
 			"type": "string",
 			"defaultValue": "pinssynspodw"
 		},
@@ -37743,77 +37751,11 @@
 						}
 					},
 					{
-						"name": "service-user",
-						"type": "SynapseNotebook",
-						"dependsOn": [
-							{
-								"activity": "nsip-project",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"notebook": {
-								"referenceName": "service_user",
-								"type": "NotebookReference"
-							},
-							"snapshot": true,
-							"conf": {
-								"spark.dynamicAllocation.enabled": null,
-								"spark.dynamicAllocation.minExecutors": null,
-								"spark.dynamicAllocation.maxExecutors": null
-							},
-							"numExecutors": null
-						}
-					},
-					{
-						"name": "NSIP Applicant Service User Curated",
-						"type": "SynapseNotebook",
-						"dependsOn": [
-							{
-								"activity": "service-user",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"notebook": {
-								"referenceName": "nsip_applicant_service_user",
-								"type": "NotebookReference"
-							},
-							"snapshot": true,
-							"conf": {
-								"spark.dynamicAllocation.enabled": null,
-								"spark.dynamicAllocation.minExecutors": null,
-								"spark.dynamicAllocation.maxExecutors": null
-							},
-							"numExecutors": null
-						}
-					},
-					{
 						"name": "nsip-representation",
 						"type": "SynapseNotebook",
 						"dependsOn": [
 							{
-								"activity": "NSIP Applicant Service User Curated",
+								"activity": "nsip-project",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -38046,7 +37988,7 @@
 						"type": "SynapseNotebook",
 						"dependsOn": [
 							{
-								"activity": "service-user",
+								"activity": "nsip-project",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -38318,8 +38260,6 @@
 			"dependsOn": [
 				"[concat(variables('workspaceId'), '/notebooks/nsip_data')]",
 				"[concat(variables('workspaceId'), '/bigDataPools/pinssynspodw')]",
-				"[concat(variables('workspaceId'), '/notebooks/service_user')]",
-				"[concat(variables('workspaceId'), '/notebooks/nsip_applicant_service_user')]",
 				"[concat(variables('workspaceId'), '/notebooks/nsip_representation')]",
 				"[concat(variables('workspaceId'), '/notebooks/examination_timetable')]",
 				"[concat(variables('workspaceId'), '/notebooks/nsip_subscription')]",
@@ -38419,7 +38359,14 @@
 					{
 						"name": "nsip_project_migration",
 						"type": "SynapseNotebook",
-						"dependsOn": [],
+						"dependsOn": [
+							{
+								"activity": "service_user_migration",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
 						"policy": {
 							"timeout": "0.12:00:00",
 							"retry": 0,
@@ -38526,6 +38473,67 @@
 							},
 							"numExecutors": null
 						}
+					},
+					{
+						"name": "service_user_migration",
+						"type": "SynapseNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "service_user_migration",
+								"type": "NotebookReference"
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "nsip_representation_migration",
+						"type": "SynapseNotebook",
+						"state": "Inactive",
+						"onInactiveMarkAs": "Succeeded",
+						"dependsOn": [
+							{
+								"activity": "nsip_project_migration",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "nsip_representation_migration",
+								"type": "NotebookReference"
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
 					}
 				],
 				"policy": {
@@ -38540,7 +38548,9 @@
 				"[concat(variables('workspaceId'), '/notebooks/nsip_project_migration')]",
 				"[concat(variables('workspaceId'), '/notebooks/nsip_s51_advice_migration')]",
 				"[concat(variables('workspaceId'), '/notebooks/nsip_exam_timetable_migration')]",
-				"[concat(variables('workspaceId'), '/notebooks/nsip_document_migration')]"
+				"[concat(variables('workspaceId'), '/notebooks/nsip_document_migration')]",
+				"[concat(variables('workspaceId'), '/notebooks/service_user_migration')]",
+				"[concat(variables('workspaceId'), '/notebooks/nsip_representation_migration')]"
 			]
 		},
 		{
@@ -68221,7 +68231,7 @@
 			"properties": {
 				"activities": [
 					{
-						"name": "rel_2_0_8",
+						"name": "rel_2_0_9",
 						"type": "ExecutePipeline",
 						"dependsOn": [],
 						"policy": {
@@ -68230,7 +68240,7 @@
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
-								"referenceName": "rel_2_0_8",
+								"referenceName": "rel_2_0_9",
 								"type": "PipelineReference"
 							},
 							"waitOnCompletion": true,
@@ -68247,7 +68257,7 @@
 				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('workspaceId'), '/pipelines/rel_2_0_8')]"
+				"[concat(variables('workspaceId'), '/pipelines/rel_2_0_9')]"
 			]
 		},
 		{
@@ -73585,51 +73595,6 @@
 						}
 					},
 					{
-						"name": "NSIP Applicant Service User Curated",
-						"type": "SynapseNotebook",
-						"dependsOn": [
-							{
-								"activity": "Hzn - Rel Reps",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							},
-							{
-								"activity": "SB - Service User",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							},
-							{
-								"activity": "NSIP Project",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"notebook": {
-								"referenceName": "nsip_applicant_service_user",
-								"type": "NotebookReference"
-							},
-							"snapshot": true,
-							"conf": {
-								"spark.dynamicAllocation.enabled": null,
-								"spark.dynamicAllocation.minExecutors": null,
-								"spark.dynamicAllocation.maxExecutors": null
-							},
-							"numExecutors": null
-						}
-					},
-					{
 						"name": "NSIP Project",
 						"type": "ExecutePipeline",
 						"dependsOn": [],
@@ -73651,7 +73616,7 @@
 						"type": "SynapseNotebook",
 						"dependsOn": [
 							{
-								"activity": "NSIP Applicant Service User Curated",
+								"activity": "py_sb_horizon_harmonised_service_user",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -73678,6 +73643,74 @@
 							},
 							"numExecutors": null
 						}
+					},
+					{
+						"name": "pln_horizon_case_involvement",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pln_horizon_case_involvement",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "py_sb_horizon_harmonised_service_user",
+						"type": "SynapseNotebook",
+						"dependsOn": [
+							{
+								"activity": "Hzn - Rel Reps",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "SB - Service User",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "NSIP Project",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "pln_horizon_case_involvement",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "py_sb_horizon_harmonised_service_user",
+								"type": "NotebookReference"
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
 					}
 				],
 				"policy": {
@@ -73691,9 +73724,10 @@
 			"dependsOn": [
 				"[concat(variables('workspaceId'), '/pipelines/pln_horizon_nsip_representation_main')]",
 				"[concat(variables('workspaceId'), '/pipelines/pln_service_bus_service_user')]",
-				"[concat(variables('workspaceId'), '/notebooks/nsip_applicant_service_user')]",
 				"[concat(variables('workspaceId'), '/pipelines/pln_nsip_project_main')]",
-				"[concat(variables('workspaceId'), '/notebooks/nsip_representation')]"
+				"[concat(variables('workspaceId'), '/notebooks/nsip_representation')]",
+				"[concat(variables('workspaceId'), '/pipelines/pln_horizon_case_involvement')]",
+				"[concat(variables('workspaceId'), '/notebooks/py_sb_horizon_harmonised_service_user')]"
 			]
 		},
 		{
@@ -77665,6 +77699,247 @@
 			},
 			"dependsOn": [
 				"[concat(variables('workspaceId'), '/notebooks/py_deployment_manage_main_config')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/rel_2_0_9')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "py_sb_reload_from_raw_storage",
+						"type": "SynapseNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "py_sb_reload_from_raw_storage",
+								"type": "NotebookReference"
+							},
+							"parameters": {
+								"entity_name": {
+									"value": "service-user",
+									"type": "string"
+								},
+								"table_name": {
+									"value": "sb_service_user",
+									"type": "string"
+								}
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "py_sb_horizon_harmonised_service_user",
+						"type": "SynapseNotebook",
+						"dependsOn": [
+							{
+								"activity": "py_sb_reload_from_raw_storage",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "pln_horizon_nsip_project",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "pln_horizon_case_involvement",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "py_sb_horizon_harmonised_service_user",
+								"type": "NotebookReference"
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "service_user_migration",
+						"type": "SynapseNotebook",
+						"dependsOn": [
+							{
+								"activity": "py_sb_horizon_harmonised_service_user",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "service_user_migration",
+								"type": "NotebookReference"
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "nsip_project_migration",
+						"type": "SynapseNotebook",
+						"dependsOn": [
+							{
+								"activity": "service_user_migration",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "nsip_project_migration",
+								"type": "NotebookReference"
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "nsip_representation_migration",
+						"type": "SynapseNotebook",
+						"state": "Inactive",
+						"onInactiveMarkAs": "Succeeded",
+						"dependsOn": [
+							{
+								"activity": "nsip_project_migration",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "nsip_representation_migration",
+								"type": "NotebookReference"
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "pln_horizon_nsip_project",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pln_horizon_nsip_project",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "pln_horizon_case_involvement",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pln_horizon_case_involvement",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"folder": {
+					"name": "Releases/2.0.9"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/notebooks/py_sb_reload_from_raw_storage')]",
+				"[concat(variables('workspaceId'), '/notebooks/py_sb_horizon_harmonised_service_user')]",
+				"[concat(variables('workspaceId'), '/notebooks/service_user_migration')]",
+				"[concat(variables('workspaceId'), '/notebooks/nsip_project_migration')]",
+				"[concat(variables('workspaceId'), '/notebooks/nsip_representation_migration')]",
+				"[concat(variables('workspaceId'), '/pipelines/pln_horizon_nsip_project')]",
+				"[concat(variables('workspaceId'), '/pipelines/pln_horizon_case_involvement')]"
 			]
 		},
 		{
@@ -103130,7 +103405,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "379632e1-b69c-4966-95da-efbd2f6d4414"
+						"spark.autotune.trackingId": "5848a678-df84-44c0-909f-85e5e1edd497"
 					}
 				},
 				"metadata": {
@@ -103161,57 +103436,6 @@
 				},
 				"cells": [
 					{
-						"cell_type": "markdown",
-						"metadata": {
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"## Checking the Environment\n",
-							"#### If dev or test, limiting the number of output rows and anonymisation of the sensitive fields is required."
-						]
-					},
-					{
-						"cell_type": "markdown",
-						"metadata": {
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"## Table odw_curated_db.nsip_service_user is created"
-						]
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							},
-							"microsoft": {
-								"language": "sparksql"
-							},
-							"collapsed": false
-						},
-						"source": [
-							"%%sql\r\n",
-							"REFRESH TABLE odw_curated_db.service_user"
-						],
-						"outputs": [],
-						"execution_count": 1
-					},
-					{
 						"cell_type": "code",
 						"metadata": {
 							"jupyter": {
@@ -103226,42 +103450,41 @@
 							"collapsed": false
 						},
 						"source": [
-							"\r\n",
 							"df = spark.sql(\"\"\"\r\n",
-							"        SELECT \r\n",
-							"            id\r\n",
-							"            ,salutation\r\n",
-							"            ,firstName\r\n",
-							"            ,lastName\r\n",
-							"            ,addressLine1\r\n",
-							"            ,addressLine2\r\n",
-							"            ,addressTown\r\n",
-							"            ,addressCounty\r\n",
-							"            ,postcode\r\n",
-							"            ,addressCountry\r\n",
-							"            ,organisation\r\n",
-							"            ,organisationType\r\n",
-							"            ,role\r\n",
-							"            ,telephoneNumber\r\n",
-							"            ,otherPhoneNumber\r\n",
-							"            ,faxNumber\r\n",
-							"            ,emailAddress\r\n",
-							"            ,webAddress\r\n",
-							"            ,serviceUserType\r\n",
-							"            ,caseReference\r\n",
-							"            ,sourceSuid\r\n",
-							"            ,sourceSystem\r\n",
-							"        FROM \r\n",
-							"            odw_curated_db.service_user\r\n",
-							"        WHERE\r\n",
-							"            sourceSystem = 'back-office-appeals'\r\n",
-							"            OR serviceUserType = 'Appellant'\"\"\"\r\n",
-							"    )\r\n",
+							"    SELECT \r\n",
+							"        id\r\n",
+							"        ,salutation\r\n",
+							"        ,firstName\r\n",
+							"        ,lastName\r\n",
+							"        ,addressLine1\r\n",
+							"        ,addressLine2\r\n",
+							"        ,addressTown\r\n",
+							"        ,addressCounty\r\n",
+							"        ,postcode\r\n",
+							"        ,addressCountry\r\n",
+							"        ,organisation\r\n",
+							"        ,organisationType\r\n",
+							"        ,role\r\n",
+							"        ,telephoneNumber\r\n",
+							"        ,otherPhoneNumber\r\n",
+							"        ,faxNumber\r\n",
+							"        ,emailAddress\r\n",
+							"        ,webAddress\r\n",
+							"        ,serviceUserType\r\n",
+							"        ,caseReference\r\n",
+							"        ,sourceSuid\r\n",
+							"        ,sourceSystem\r\n",
+							"    FROM \r\n",
+							"        odw_harmonised_db.service_user\r\n",
+							"    WHERE\r\n",
+							"        sourceSystem = 'back-office-appeals'\r\n",
+							"        OR serviceUserType = 'Appellant'\r\n",
+							"\"\"\")\r\n",
 							"\r\n",
 							"df.write.mode(\"overwrite\").saveAsTable(\"odw_curated_db.appeal_service_user\")"
 						],
 						"outputs": [],
-						"execution_count": 2
+						"execution_count": 1
 					}
 				]
 			},
@@ -185366,7 +185589,7 @@
 			"properties": {
 				"description": "creating a NSIP applicant view of service user.",
 				"folder": {
-					"name": "odw-curated"
+					"name": "odw-curated/archived"
 				},
 				"nbformat": 4,
 				"nbformat_minor": 2,
@@ -185384,7 +185607,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "fd5fe360-bbc0-4b65-b513-defbf6175226"
+						"spark.autotune.trackingId": "a373759a-1f1a-49ef-a576-06c0c80b48f0"
 					}
 				},
 				"metadata": {
@@ -186461,7 +186684,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "2e8d48e0-df5e-4831-aac7-36d6c0f45f74"
+						"spark.autotune.trackingId": "d1016063-1a91-42d2-b061-11cdc1f1cf1a"
 					}
 				},
 				"metadata": {
@@ -186524,107 +186747,120 @@
 						"source": [
 							"%%sql\n",
 							"CREATE OR REPLACE VIEW odw_curated_migration_db.vw_nsip_project\n",
+							"\n",
 							"AS\n",
+							"\n",
 							"SELECT\n",
-							"\tProject.caseId\n",
-							"\t,Project.caseReference\n",
-							"\t,Project.projectName\n",
-							"\t,Project.projectNameWelsh\n",
-							"\t,Project.projectDescription\n",
-							"\t,Project.projectDescriptionWelsh\n",
-							"\t,Project.decision\n",
-							"\t,LOWER(project.publishStatus) AS publishStatus\n",
-							"\t,Project.sector\n",
+							"\n",
+							"\tNP.caseId\n",
+							"\t,NP.caseReference\n",
+							"\t,NP.projectName\n",
+							"\t,NP.projectNameWelsh\n",
+							"\t,NP.projectDescription\n",
+							"\t,NP.projectDescriptionWelsh\n",
+							"\t,NP.decision\n",
+							"\t,LOWER(NP.publishStatus) AS publishStatus\n",
+							"\t,NP.sector\n",
 							"\t,CASE\n",
-							"\t\tWHEN Project.ProjectType = 'WW01 - Waste Water treatment Plants' THEN\n",
+							"\t\tWHEN NP.ProjectType = 'WW01 - Waste Water treatment Plants' THEN\n",
 							"\t\t\t'WW01 - Waste Water Treatment Plants'\n",
 							"\t\tELSE \n",
-							"\t\t\tProject.ProjectType\n",
+							"\t\t\tNP.ProjectType\n",
 							"\tEND AS projectType\n",
 							"\t,LOWER(\tCASE \n",
-							"\t\t\t\tWHEN Project.ODTSourceSystem = 'ODT' THEN \n",
+							"\t\t\t\tWHEN NP.ODTSourceSystem = 'ODT' THEN \n",
 							"\t\t\t\t\t'back-office-applications' \n",
 							"\t\t\t\tELSE \n",
-							"\t\t\t\t\tProject.ODTSourceSystem \n",
+							"\t\t\t\t\tNP.ODTSourceSystem \n",
 							"\t\t\tEND) AS sourceSystem\n",
-							"\t,LOWER(REPLACE(REPLACE(Project.Stage,'-', '_'),' ', '_')) AS stage\n",
-							"\t,Project.projectLocation\n",
-							"\t,Project.projectLocationWelsh\n",
-							"\t,Project.projectEmailAddress\n",
-							"\t,Project.regions\n",
-							"\t,Project.transboundary\n",
-							"\t,CAST(project.Easting AS INT) AS easting\n",
-							"\t,CAST(project.Northing AS INT) AS northing\n",
-							"\t,Project.WelshLanguage AS welshLanguage\n",
-							"\t,Project.mapZoomLevel\n",
-							"\t,Project.SecretaryOfState AS secretaryOfState\n",
+							"\t,LOWER(REPLACE(REPLACE(NP.Stage,'-', '_'),' ', '_')) AS stage\n",
+							"\t,NP.projectLocation\n",
+							"\t,NP.projectLocationWelsh\n",
+							"\t,NP.projectEmailAddress\n",
+							"\t,NP.regions\n",
+							"\t,NP.transboundary\n",
+							"\t,CAST(NP.Easting AS INT) AS easting\n",
+							"\t,CAST(NP.Northing AS INT) AS northing\n",
+							"\t,NP.WelshLanguage AS welshLanguage\n",
+							"\t,NP.mapZoomLevel\n",
+							"\t,NP.SecretaryOfState AS secretaryOfState\n",
 							"\t-- Pre-application dates\n",
-							"\t,Project.datePINSFirstNotifiedOfProject\n",
-							"\t,Project.dateProjectAppearsOnWebsite\t\n",
-							"\t,Project.anticipatedSubmissionDateNonSpecific\n",
-							"\t,Project.anticipatedDateOfSubmission\n",
-							"\t,Project.screeningOpinionSought\t\n",
-							"\t,Project.screeningOpinionIssued\n",
-							"\t,Project.scopingOpinionSought\n",
-							"\t,Project.scopingOpinionIssued\n",
-							"\t,Project.section46Notification\n",
+							"\t,NP.datePINSFirstNotifiedOfProject\n",
+							"\t,NP.dateProjectAppearsOnWebsite\t\n",
+							"\t,NP.anticipatedSubmissionDateNonSpecific\n",
+							"\t,NP.anticipatedDateOfSubmission\n",
+							"\t,NP.screeningOpinionSought\t\n",
+							"\t,NP.screeningOpinionIssued\n",
+							"\t,NP.scopingOpinionSought\n",
+							"\t,NP.scopingOpinionIssued\n",
+							"\t,NP.section46Notification\n",
 							"\t-- acceptance dates\n",
-							"\t,Project.dateOfDCOSubmission\n",
-							"\t,Project.deadlineForAcceptanceDecision\n",
-							"\t,Project.dateOfDCOAcceptance\n",
-							"\t,Project.dateOfNonAcceptance\n",
+							"\t,NP.dateOfDCOSubmission\n",
+							"\t,NP.deadlineForAcceptanceDecision\n",
+							"\t,NP.dateOfDCOAcceptance\n",
+							"\t,NP.dateOfNonAcceptance\n",
 							"\t--pre examination dates\n",
-							"\t,Project.dateOfRepresentationPeriodOpen\n",
-							"\t,Project.dateOfRelevantRepresentationClose\n",
-							"\t,Project.extensionToDateRelevantRepresentationsClose\n",
-							"\t,Project.dateRRepAppearOnWebsite\n",
-							"\t,Project.dateIAPIDue\n",
-							"\t,Project.rule6LetterPublishDate\n",
-							"\t,Project.preliminaryMeetingStartDate\n",
-							"\t,Project.notificationDateForPMAndEventsDirectlyFollowingPM\n",
-							"\t,Project.notificationDateForEventsDeveloper\n",
+							"\t,NP.dateOfRepresentationPeriodOpen\n",
+							"\t,NP.dateOfRelevantRepresentationClose\n",
+							"\t,NP.extensionToDateRelevantRepresentationsClose\n",
+							"\t,NP.dateRRepAppearOnWebsite\n",
+							"\t,NP.dateIAPIDue\n",
+							"\t,NP.rule6LetterPublishDate\n",
+							"\t,NP.preliminaryMeetingStartDate\n",
+							"\t,NP.notificationDateForPMAndEventsDirectlyFollowingPM\n",
+							"\t,NP.notificationDateForEventsDeveloper\n",
 							"\t-- examination dates\n",
-							"\t,Project.dateSection58NoticeReceived\n",
-							"\t,Project.confirmedStartOfExamination\n",
-							"\t,Project.rule8LetterPublishDate\n",
-							"\t,Project.deadlineForCloseOfExamination\n",
-							"\t,Project.dateTimeExaminationEnds\n",
-							"\t,Project.stage4ExtensionToExamCloseDate\n",
+							"\t,NP.dateSection58NoticeReceived\n",
+							"\t,NP.confirmedStartOfExamination\n",
+							"\t,NP.rule8LetterPublishDate\n",
+							"\t,NP.deadlineForCloseOfExamination\n",
+							"\t,NP.dateTimeExaminationEnds\n",
+							"\t,NP.stage4ExtensionToExamCloseDate\n",
 							"\t--recommendation dates\n",
-							"\t,Project.deadlineForSubmissionOfRecommendation\n",
-							"\t,Project.dateOfRecommendations\n",
-							"\t,Project.stage5ExtensionToRecommendationDeadline\n",
+							"\t,NP.deadlineForSubmissionOfRecommendation\n",
+							"\t,NP.dateOfRecommendations\n",
+							"\t,NP.stage5ExtensionToRecommendationDeadline\n",
 							"\t--decision dates\n",
-							"\t,Project.deadlineForDecision\n",
-							"\t,Project.confirmedDateOfDecision\n",
-							"\t,Project.stage5ExtensionToDecisionDeadline\n",
+							"\t,NP.deadlineForDecision\n",
+							"\t,NP.confirmedDateOfDecision\n",
+							"\t,NP.stage5ExtensionToDecisionDeadline\n",
 							"\t--post decision dates\n",
-							"\t,Project.jRPeriodEndDate\n",
+							"\t,NP.jRPeriodEndDate\n",
 							"\t--withdrawl dates\n",
-							"\t,Project.dateProjectWithdrawn\n",
+							"\t,NP.dateProjectWithdrawn\n",
 							"\t-- Additional fields\n",
-							"\t,Project.operationsLeadId\n",
-							"\t,Project.operationsManagerId\n",
-							"\t,Project.caseManagerId\n",
-							"\t,Project.nsipOfficerIds\n",
-							"\t,Project.nsipAdministrationOfficerIds\n",
-							"\t,Project.leadInspectorId\n",
-							"\t,Project.inspectorIds\n",
-							"\t,Project.environmentalServicesOfficerId\n",
-							"\t,Project.legalOfficerId\n",
-							"\t,Project.applicantId\n",
-							"\t,Project.migrationStatus\n",
-							"\t,Project.dateOfReOpenRelevantRepresentationStart\n",
-							"\t,Project.dateOfReOpenRelevantRepresentationClose\n",
-							"FROM \n",
-							"\todw_harmonised_db.nsip_project AS Project\n",
-							"WHERE \n",
-							"--- get only horizon records, and the latest record per caseid\n",
-							"\tLower(Project.SourceSystem)='horizon'\n",
-							"\tand Project.IngestionDate = (select max(IngestionDate) from odw_harmonised_db.nsip_project tbl_2  WHERE Project.caseid = tbl_2.caseid group by caseid)"
+							"\t,NP.operationsLeadId\n",
+							"\t,NP.operationsManagerId\n",
+							"\t,NP.caseManagerId\n",
+							"\t,NP.nsipOfficerIds\n",
+							"\t,NP.nsipAdministrationOfficerIds\n",
+							"\t,NP.leadInspectorId\n",
+							"\t,NP.inspectorIds\n",
+							"\t,NP.environmentalServicesOfficerId\n",
+							"\t,NP.legalOfficerId\n",
+							"\t,SU.id AS applicantId\n",
+							"\t,NP.migrationStatus\n",
+							"\t,NP.dateOfReOpenRelevantRepresentationStart\n",
+							"\t,NP.dateOfReOpenRelevantRepresentationClose\n",
+							"\n",
+							"FROM odw_harmonised_db.nsip_project AS NP\n",
+							"\t\n",
+							"INNER JOIN (\n",
+							"\n",
+							"    SELECT caseId, MAX(IngestionDate) AS latest_date\n",
+							"    FROM odw_harmonised_db.nsip_project\n",
+							"    WHERE LOWER(ODTSourceSystem) = 'horizon'\n",
+							"    GROUP BY caseId\n",
+							"    \n",
+							") latest ON NP.caseId = latest.caseId AND NP.IngestionDate = latest.latest_date   \n",
+							"\n",
+							"LEFT JOIN odw_curated_migration_db.service_user AS SU ON NP.caseReference = SU.caseReference\n",
+							"\n",
+							"WHERE LOWER(NP.ODTSourceSystem) = 'horizon'\n",
+							"\tAND SU.serviceUserType = 'Applicant'"
 						],
 						"outputs": [],
-						"execution_count": 1
+						"execution_count": 3
 					},
 					{
 						"cell_type": "markdown",
@@ -186659,7 +186895,7 @@
 							"view_df.write.mode(\"overwrite\").option(\"overwriteSchema\", \"true\").saveAsTable('odw_curated_migration_db.nsip_project')"
 						],
 						"outputs": [],
-						"execution_count": 3
+						"execution_count": 4
 					}
 				]
 			},
@@ -187068,6 +187304,194 @@
 						],
 						"outputs": [],
 						"execution_count": null
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/nsip_representation_migration')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"folder": {
+					"name": "odw-curated/migration"
+				},
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "[parameters('nsip_representation_migration_properties_bigDataPool_referenceName')]",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "b387e420-7ed3-4ee3-87c9-44059649bf34"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": false,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+						"name": "pinssynspodw",
+						"type": "Spark",
+						"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "3.3",
+						"nodeCount": 3,
+						"cores": 4,
+						"memory": 28
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "code",
+						"metadata": {
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\n",
+							"\n",
+							"CREATE OR REPLACE VIEW odw_curated_migration_db.vw_nsip_representation\n",
+							"\n",
+							"AS\n",
+							"\n",
+							"SELECT DISTINCT\n",
+							"\n",
+							"    RR.representationId\n",
+							"    ,RR.referenceId\n",
+							"    ,RR.examinationLibraryRef\n",
+							"    ,COALESCE(RR.caseRef, '') AS caseRef\n",
+							"    ,RR.caseId\n",
+							"    ,CASE\n",
+							"        WHEN RR.status = 'New' OR RR.status = 'In Progress' THEN\n",
+							"            'awaiting_review'\n",
+							"        WHEN RR.status = 'Complete' THEN\n",
+							"            'valid'\n",
+							"        WHEN RR.status = 'Do Not Publish' THEN\n",
+							"            'invalid'\n",
+							"        ELSE \n",
+							"            LOWER(RR.status)\n",
+							"    END AS status\n",
+							"    ,COALESCE(RR.originalRepresentation, '') AS originalRepresentation\n",
+							"    ,RR.redacted\n",
+							"    ,RR.redactedRepresentation\n",
+							"    ,RR.redactedBy\n",
+							"    ,RR.redactedNotes\n",
+							"    ,NULL AS representationFrom\n",
+							"    -- ,CASE\n",
+							"    --     -- WHEN su2.serviceUserType = 'Agent' THEN\n",
+							"    --     --     'AGENT'\n",
+							"    --     WHEN RR.representationFrom = 'An Organisation' THEN \n",
+							"    --         'ORGANISATION'\n",
+							"    --     -- WHEN RR.representationFrom = 'Members of the Public/Businesses' and SU2.Organisation IS NOT NULL THEN\n",
+							"    --     --     'ORGANISATION'\n",
+							"    --     -- WHEN RR.representationFrom = 'Members of the Public/Businesses' THEN\n",
+							"    --     --     'PERSON'\n",
+							"    --     -- WHEN RR.representationFrom = 'Another Individual or Organisation' and SU2.Organisation IS NOT NULL THEN\n",
+							"    --         --  'ORGANISATION'\n",
+							"    --     WHEN RR.representationFrom = 'Another Individual or Organisation' THEN\n",
+							"    --         'PERSON'\n",
+							"    --     WHEN RR.representationFrom = 'Myself' THEN\n",
+							"    --         'PERSON'\n",
+							"    --     ELSE\n",
+							"    --         RR.representationFrom\n",
+							"    -- END AS representationFrom\n",
+							"    ,SU1.id AS representedId\n",
+							"    -- ,COALESCE(SU2.id, '') AS representativeId\n",
+							"    ,CASE\n",
+							"        WHEN RR.representationFrom = 'An Organisation' THEN\n",
+							"            'ORGANISATION'\n",
+							"        WHEN RR.representationFrom = 'Members of the Public/Businesses' and SU1.Organisation IS NOT NULL THEN\n",
+							"            'ORGANISATION'\n",
+							"        WHEN RR.representationFrom = 'Members of the Public/Businesses'THEN\n",
+							"            'PERSON'\n",
+							"        WHEN RR.representationFrom = 'Another Individual or Organisation' and SU1.Organisation IS NOT NULL THEN \n",
+							"            'ORGANISATION'\n",
+							"        WHEN RR.representationFrom = 'Another Individual or Organisation' THEN\n",
+							"            'PERSON'\n",
+							"        WHEN RR.representationFrom = 'Myself' THEN\n",
+							"            'PERSON'\n",
+							"        ELSE\n",
+							"            RR.registerFor\n",
+							"    END AS registerFor\n",
+							"    ,CASE\n",
+							"        WHEN RR.representationType = 'Other Statutory Consultees' THEN\n",
+							"            'Statutory Consultees'\n",
+							"        ELSE\n",
+							"            RR.representationType\n",
+							"        END AS representationType\n",
+							"        ,RR.dateReceived\n",
+							"        ,RR.attachmentIds\n",
+							"\n",
+							"\n",
+							"FROM odw_harmonised_db.nsip_representation AS RR\n",
+							"\t\n",
+							"INNER JOIN (\n",
+							"\n",
+							"    SELECT representationId, MAX(IngestionDate) AS latest_date\n",
+							"    FROM odw_harmonised_db.nsip_representation\n",
+							"    WHERE LOWER(ODTSourceSystem) = 'horizon'\n",
+							"    GROUP BY representationId\n",
+							"    \n",
+							") latest ON RR.representationId = latest.representationId AND RR.IngestionDate = latest.latest_date   \n",
+							"\n",
+							"INNER JOIN odw_curated_migration_db.service_user AS SU1 ON RR.caseRef = SU1.caseReference -- represented\n",
+							"        \n",
+							"-- LEFT JOIN odw_curated_migration_db.service_user AS SU2 ON RR.caseRef = SU2.caseReference -- representative\n",
+							"\n",
+							"WHERE LOWER(RR.ODTSourceSystem) = 'horizon'\n",
+							"    AND SU1.serviceUserTypeInternal = 'RepresentationContact_Represented'\n",
+							"    -- AND SU2.serviceUserTypeInternal = 'RepresentationContact_Agent'\n",
+							""
+						],
+						"outputs": [],
+						"execution_count": 28
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"from pyspark.sql import SparkSession\n",
+							"spark = SparkSession.builder.getOrCreate()\n",
+							"view_df = spark.sql('SELECT * FROM odw_curated_migration_db.vw_nsip_representation limit 10')\n",
+							"view_df.write.mode('overwrite').saveAsTable('odw_curated_migration_db.nsip_representation')"
+						],
+						"outputs": [],
+						"execution_count": 29
 					}
 				]
 			},
@@ -210683,6 +211107,913 @@
 			"dependsOn": []
 		},
 		{
+			"name": "[concat(parameters('workspaceName'), '/py_sb_horizon_harmonised_service_user')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"folder": {
+					"name": "odw-harmonised"
+				},
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "[parameters('py_sb_horizon_harmonised_service_user_properties_bigDataPool_referenceName')]",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "ef727e65-2bb7-4a15-9ea6-58d96af9c44c"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": false,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+						"name": "pinssynspodw",
+						"type": "Spark",
+						"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "3.3",
+						"nodeCount": 3,
+						"cores": 4,
+						"memory": 28
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "code",
+						"source": [
+							"from pyspark.sql.types import IntegerType, ArrayType, StructType, StructField\n",
+							"from pyspark.sql import Row\n",
+							"from pyspark.sql.functions import *"
+						],
+						"outputs": [],
+						"execution_count": 180
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"### Define source and target tables"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"# service bus source\n",
+							"service_bus_table = \"odw_harmonised_db.sb_service_user\"\n",
+							"\n",
+							"# horizon sources\n",
+							"hzn_service_user_table = \"odw_standardised_db.horizon_case_involvement\"\n",
+							"hzn_nsip_project_table = \"odw_standardised_db.horizon_nsip_data\"\n",
+							"hzn_nsip_representation_table = \"odw_standardised_db.horizon_nsip_relevant_representation\"\n",
+							"\n",
+							"# target table\n",
+							"spark_table_final = \"odw_harmonised_db.service_user\"\n",
+							"\n",
+							"# define a composite PK to be able to uniquely identify a service user from different source systems\n",
+							"# this can be a combination of id, caseReference, and serviceUserType\n",
+							"primary_key = 'TEMP_PK'"
+						],
+						"outputs": [],
+						"execution_count": 181
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"### Extract Service Bus data"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"service_bus_data = spark.sql(f\"\"\"\n",
+							"    SELECT DISTINCT\n",
+							"        MD5(CONCAT(id, caseReference, serviceUserType)) AS {primary_key}\n",
+							"        ,ServiceUserID\n",
+							"        ,id\n",
+							"        ,salutation\n",
+							"        ,firstname\n",
+							"        ,lastname\n",
+							"        ,addressline1\n",
+							"        ,addressline2\n",
+							"        ,addressTown\n",
+							"        ,addressCounty\n",
+							"        ,postcode\n",
+							"        ,addressCountry\n",
+							"        ,organisation\n",
+							"        ,organisationType\n",
+							"        ,role\n",
+							"        ,telephoneNumber\n",
+							"        ,otherPhoneNumber\n",
+							"        ,faxNumber\n",
+							"        ,emailAddress\n",
+							"        ,webAddress\n",
+							"        ,serviceUserType\n",
+							"        ,serviceUserType AS serviceUserTypeInternal\n",
+							"        ,caseReference\n",
+							"        ,sourceSystem\n",
+							"        ,sourceSuid\n",
+							"        \n",
+							"        ,Migrated\n",
+							"        ,ODTSourceSystem\n",
+							"        ,SourceSystemID\n",
+							"        ,IngestionDate \n",
+							"        ,NULLIF(ValidTo, '') AS ValidTo\n",
+							"        ,'' as RowID\n",
+							"        ,IsActive\n",
+							"    FROM \n",
+							"        {service_bus_table}\n",
+							"    \"\"\")\n",
+							"\n",
+							"print(service_bus_data.count())\n",
+							"display(service_bus_data.head(10))"
+						],
+						"outputs": [],
+						"execution_count": 182
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"### Extract Horizon Data"
+						]
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Appeals Case work (Appellant)"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"serviceUserType = 'Appellant'\n",
+							"\n",
+							"appeal_casework_appellant_data = spark.sql(f\"\"\"\n",
+							"    SELECT DISTINCT \n",
+							"        MD5(\n",
+							"            CONCAT(\n",
+							"                COALESCE(CAST(ContactId AS String), ''), \n",
+							"                COALESCE(CAST(case_number AS String), ''), \n",
+							"                '{serviceUserType}'\n",
+							"            )\n",
+							"        ) AS {primary_key}\n",
+							"        ,CAST(NULL AS Long) as ServiceUserID\n",
+							"        ,CAST(ContactId AS String) as id\n",
+							"        ,Cast(Title AS String) as salutation\n",
+							"        ,Cast(FirstName AS String) as firstName\n",
+							"        ,Cast(LastName AS String) as lastName\n",
+							"        ,Cast(Address1 AS String) as addressLine1\n",
+							"        ,Cast(Address2 AS String) as addressLine2\n",
+							"        ,Cast(City AS String) as addressTown\n",
+							"        ,Cast(County AS String) as addressCounty\n",
+							"        ,Cast(PostCode AS String) as postcode\n",
+							"        ,Cast(Country AS String) as addressCountry\n",
+							"        ,Cast(OrganisationName AS String) as organisation\n",
+							"        ,Cast(OrganisationTypeName AS String) as organisationType\n",
+							"        ,Cast(NULL AS String) as role\n",
+							"        ,Cast(TelephoneOffice AS String) as telephoneNumber\n",
+							"        ,Cast(TelephoneMobile AS String) as otherPhoneNumber\n",
+							"        ,Cast(Fax AS String) as faxNumber\n",
+							"        ,Cast(Email AS String) as emailAddress\n",
+							"        ,Cast(NULL AS String) as webAddress\n",
+							"        ,Cast('{serviceUserType}' AS String) as serviceUserType\n",
+							"        ,Cast('{serviceUserType}' AS String) as serviceUserTypeInternal\n",
+							"        ,Cast(case_number AS String) as caseReference\n",
+							"        ,Cast('Horizon' AS String) as sourceSystem\n",
+							"        ,Cast(ContactID AS String) as sourceSuid\n",
+							"\n",
+							"        ,\"0\" as Migrated\n",
+							"        ,\"Horizon\" as ODTSourceSystem\n",
+							"        ,NULL AS SourceSystemID\n",
+							"        , to_timestamp(expected_from)  AS IngestionDate\n",
+							"        ,CAST(null as string) as ValidTo \n",
+							"        ,'' as RowID\n",
+							"        ,'Y' as IsActive\n",
+							"    FROM\n",
+							"        {hzn_service_user_table}\n",
+							"    WHERE\n",
+							"        expected_from = (SELECT MAX(expected_from) FROM {hzn_service_user_table})\n",
+							"        AND ContactId IS NOT NULL\n",
+							"        AND typeOfInvolvement IN ('Appellant', 'tAppellant', 'Apellant')\n",
+							"\"\"\")\n",
+							"\n",
+							"print(appeal_casework_appellant_data.count())\n",
+							"display(appeal_casework_appellant_data.head(10))"
+						],
+						"outputs": [],
+						"execution_count": 183
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Appeals Case work (Agent)"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"serviceUserType = 'Agent'\n",
+							"\n",
+							"appeal_casework_agent_data = spark.sql(f\"\"\"\n",
+							"    SELECT DISTINCT \n",
+							"        MD5(\n",
+							"            CONCAT(\n",
+							"                COALESCE(CAST(ContactId AS String), ''), \n",
+							"                COALESCE(CAST(case_number AS String), ''), \n",
+							"                '{serviceUserType}'\n",
+							"            )\n",
+							"        ) AS {primary_key}\n",
+							"        ,CAST(NULL AS Long) as ServiceUserID\n",
+							"        ,CAST(ContactId AS String) as id\n",
+							"        ,Cast(Title AS String) as salutation\n",
+							"        ,Cast(FirstName AS String) as firstName\n",
+							"        ,Cast(LastName AS String) as lastName\n",
+							"        ,Cast(Address1 AS String) as addressLine1\n",
+							"        ,Cast(Address2 AS String) as addressLine2\n",
+							"        ,Cast(City AS String) as addressTown\n",
+							"        ,Cast(County AS String) as addressCounty\n",
+							"        ,Cast(PostCode AS String) as postcode\n",
+							"        ,Cast(Country AS String) as addressCountry\n",
+							"        ,Cast(OrganisationName AS String) as organisation\n",
+							"        ,Cast(OrganisationTypeName AS String) as organisationType\n",
+							"        ,Cast(NULL AS String) as role\n",
+							"        ,Cast(TelephoneOffice AS String) as telephoneNumber\n",
+							"        ,Cast(TelephoneMobile AS String) as otherPhoneNumber\n",
+							"        ,Cast(Fax AS String) as faxNumber\n",
+							"        ,Cast(Email AS String) as emailAddress\n",
+							"        ,Cast(NULL AS String) as webAddress\n",
+							"        ,Cast('{serviceUserType}' AS String) as serviceUserType\n",
+							"        ,Cast('{serviceUserType}' AS String) as serviceUserTypeInternal\n",
+							"        ,Cast(case_number AS String) as caseReference\n",
+							"        ,Cast('Horizon' AS String) as sourceSystem\n",
+							"        ,Cast(ContactID AS String) as sourceSuid\n",
+							"\n",
+							"        ,\"0\" as Migrated\n",
+							"        ,\"Horizon\" as ODTSourceSystem\n",
+							"        ,NULL AS SourceSystemID\n",
+							"        , to_timestamp(expected_from)  AS IngestionDate\n",
+							"        ,CAST(null as string) as ValidTo \n",
+							"        ,'' as RowID\n",
+							"        ,'Y' as IsActive\n",
+							"    FROM\n",
+							"        {hzn_service_user_table}\n",
+							"    WHERE\n",
+							"        expected_from = (SELECT MAX(expected_from) FROM {hzn_service_user_table})\n",
+							"        AND ContactId IS NOT NULL\n",
+							"        AND typeOfInvolvement = 'Agent'\n",
+							"\"\"\")\n",
+							"\n",
+							"\n",
+							"print(appeal_casework_agent_data.count())\n",
+							"display(appeal_casework_agent_data.head(10))"
+						],
+						"outputs": [],
+						"execution_count": 184
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### NSIP Project (Applicant)"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"serviceUserType = 'Applicant'\n",
+							"\n",
+							"nsip_project_applicant_data = spark.sql(f\"\"\"\n",
+							"    SELECT DISTINCT \n",
+							"        MD5(\n",
+							"            CONCAT(\n",
+							"                COALESCE(CAST(caseNodeId AS String), ''), \n",
+							"                COALESCE(CAST(CaseReference AS String), ''), \n",
+							"                '{serviceUserType}'\n",
+							"            )\n",
+							"        ) AS {primary_key}\n",
+							"        ,CAST(NULL AS Long) as ServiceUserID\n",
+							"        ,CAST(caseNodeId AS String) as id\n",
+							"        ,Cast(NULL AS String) as salutation\n",
+							"        ,Cast(ApplicantFirstName AS String) as firstName\n",
+							"        ,Cast(ApplicantLastName AS String) as lastName\n",
+							"        ,Cast(AddressLine1 AS String) as addressLine1\n",
+							"        ,Cast(AddressLine2 AS String) as addressLine2\n",
+							"        ,Cast(AddressTown AS String) as addressTown\n",
+							"        ,Cast(AddressCounty AS String) as addressCounty\n",
+							"        ,Cast(PostCode AS String) as postcode\n",
+							"        ,Cast(NULL AS String) as addressCountry\n",
+							"        ,Cast(PromoterName AS String) as organisation\n",
+							"        ,Cast(NULL AS String) as organisationType\n",
+							"        ,Cast(NULL AS String) as role\n",
+							"        ,Cast(ApplicantPhoneNumber AS String) as telephoneNumber\n",
+							"        ,Cast(NULL AS String) as otherPhoneNumber\n",
+							"        ,Cast(NULL AS String) as faxNumber\n",
+							"        ,Cast(ApplicantEmailAddress AS String) as emailAddress\n",
+							"        ,Cast(ApplicantWebAddress AS String) as webAddress\n",
+							"        ,Cast('{serviceUserType}' AS String) as serviceUserType\n",
+							"        ,Cast('{serviceUserType}' AS String) as serviceUserTypeInternal\n",
+							"        ,Cast(CaseReference AS String) as caseReference\n",
+							"        ,Cast('Horizon' AS String) as sourceSystem\n",
+							"        ,Cast(caseNodeId AS String) as sourceSuid\n",
+							"        \n",
+							"        ,\"0\" as Migrated\n",
+							"        ,\"Horizon\" as ODTSourceSystem\n",
+							"        ,NULL AS SourceSystemID\n",
+							"        , to_timestamp(expected_from)  AS IngestionDate\n",
+							"        ,CAST(null as string) as ValidTo \n",
+							"        ,'' as RowID\n",
+							"        ,'Y' as IsActive\n",
+							"    FROM\n",
+							"        {hzn_nsip_project_table}\n",
+							"    WHERE\n",
+							"        expected_from = (SELECT MAX(expected_from) FROM {hzn_nsip_project_table})\n",
+							"        AND caseNodeId IS NOT NULL\n",
+							"\"\"\")\n",
+							"\n",
+							"print(nsip_project_applicant_data.count())\n",
+							"display(nsip_project_applicant_data.head(10))"
+						],
+						"outputs": [],
+						"execution_count": 185
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Relevant reps (Represented)"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"serviceUserType = 'RepresentationContact'\n",
+							"\n",
+							"relevant_reps_represented_data = spark.sql(f\"\"\"\n",
+							"    SELECT DISTINCT \n",
+							"        MD5(\n",
+							"            CONCAT(\n",
+							"                COALESCE(CAST(ContactId AS String), ''), \n",
+							"                COALESCE(CAST(CaseReference AS String), ''), \n",
+							"                '{serviceUserType}'\n",
+							"            )\n",
+							"        ) AS {primary_key}\n",
+							"        ,CAST(NULL AS Long) as ServiceUserID\n",
+							"        ,CAST(ContactId AS String) as id\n",
+							"        ,Cast(NULL AS String) as salutation\n",
+							"        ,Cast(NULL AS String) as firstName\n",
+							"        ,Cast(FullName AS String) as lastName\n",
+							"        ,Cast(CONCAT(BuildingNumber, ' ', Street) AS String) as addressLine1\n",
+							"        ,Cast(NULL AS String) as addressLine2\n",
+							"        ,Cast(Town AS String) as addressTown\n",
+							"        ,Cast(County AS String) as addressCounty\n",
+							"        ,Cast(PostCode AS String) as postcode\n",
+							"        ,Cast(Country AS String) as addressCountry\n",
+							"        ,Cast(OrganisationName AS String) as organisation\n",
+							"        ,Cast(NULL AS String) as organisationType\n",
+							"        ,Cast(JobTitle AS String) as role\n",
+							"        ,Cast(PhoneNumber AS String) as telephoneNumber\n",
+							"        ,Cast(NULL AS String) as otherPhoneNumber\n",
+							"        ,Cast(NULL AS String) as faxNumber\n",
+							"        ,Cast(EmailAddress AS String) as emailAddress\n",
+							"        ,Cast(NULL AS String) as webAddress\n",
+							"        ,Cast('{serviceUserType}' AS String) as serviceUserType\n",
+							"        ,Cast('{serviceUserType}_Represented' AS String) as serviceUserTypeInternal\n",
+							"        ,Cast(CaseReference AS String) as caseReference\n",
+							"        ,Cast('Horizon' AS String) as sourceSystem\n",
+							"        ,Cast(ContactID AS String) as sourceSuid\n",
+							"\n",
+							"        ,\"0\" as Migrated\n",
+							"        ,\"Horizon\" as ODTSourceSystem\n",
+							"        ,NULL AS SourceSystemID\n",
+							"        , to_timestamp(expected_from)  AS IngestionDate\n",
+							"        ,CAST(null as string) as ValidTo \n",
+							"        ,'' as RowID\n",
+							"        ,'Y' as IsActive\n",
+							"    FROM\n",
+							"        {hzn_nsip_representation_table}\n",
+							"    WHERE\n",
+							"        expected_from = (SELECT MAX(expected_from) FROM {hzn_nsip_representation_table})\n",
+							"        AND ContactID IS NOT NULL\n",
+							"\"\"\")\n",
+							"\n",
+							"print(relevant_reps_represented_data.count())\n",
+							"display(relevant_reps_represented_data.head(10))"
+						],
+						"outputs": [],
+						"execution_count": 186
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Relevant reps (Agent)"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"serviceUserType = 'RepresentationContact'\n",
+							"\n",
+							"relevant_reps_agent_data = spark.sql(f\"\"\"\n",
+							"    SELECT DISTINCT \n",
+							"        MD5(\n",
+							"            CONCAT(\n",
+							"                COALESCE(CAST(AgentContactId AS String), ''), \n",
+							"                COALESCE(CAST(CaseReference AS String), ''), \n",
+							"                '{serviceUserType}'\n",
+							"            )\n",
+							"        ) AS {primary_key}\n",
+							"        ,CAST(NULL AS Long) as ServiceUserID\n",
+							"        ,CAST(AgentContactId AS String) as id\n",
+							"        ,Cast(NULL AS String) as salutation\n",
+							"        ,Cast(NULL AS String) as firstName\n",
+							"        ,Cast(Agent_FullName AS String) as lastName\n",
+							"        ,Cast(CONCAT(Agent_BuildingNumber, ' ', Agent_Street) AS String) as addressLine1\n",
+							"        ,Cast(NULL AS String) as addressLine2\n",
+							"        ,Cast(Agent_Town AS String) as addressTown\n",
+							"        ,Cast(Agent_County AS String) as addressCounty\n",
+							"        ,Cast(Agent_Postcode AS String) as postcode\n",
+							"        ,Cast(Agent_Country AS String) as addressCountry\n",
+							"        ,Cast(Agent_OrganisationName AS String) as organisation\n",
+							"        ,Cast(NULL AS String) as organisationType\n",
+							"        ,Cast(Agent_JobTitle AS String) as role\n",
+							"        ,Cast(Agent_PhoneNumber AS String) as telephoneNumber\n",
+							"        ,Cast(NULL AS String) as otherPhoneNumber\n",
+							"        ,Cast(NULL AS String) as faxNumber\n",
+							"        ,Cast(Agent_EmailAddress AS String) as emailAddress\n",
+							"        ,Cast(NULL AS String) as webAddress\n",
+							"        ,Cast('{serviceUserType}' AS String) as serviceUserType\n",
+							"        ,Cast('{serviceUserType}_Agent' AS String) as serviceUserTypeInternal\n",
+							"        ,Cast(CaseReference AS String) as caseReference\n",
+							"        ,Cast('Horizon' AS String) as sourceSystem\n",
+							"        ,Cast(ContactID AS String) as Agent_ContactID\n",
+							"\n",
+							"        ,\"0\" as Migrated\n",
+							"        ,\"Horizon\" as ODTSourceSystem\n",
+							"        ,NULL AS SourceSystemID\n",
+							"        , to_timestamp(expected_from)  AS IngestionDate\n",
+							"        ,CAST(null as string) as ValidTo \n",
+							"        ,'' as RowID\n",
+							"        ,'Y' as IsActive\n",
+							"    FROM\n",
+							"        {hzn_nsip_representation_table}\n",
+							"    WHERE\n",
+							"        expected_from = (SELECT MAX(expected_from) FROM {hzn_nsip_representation_table})\n",
+							"        AND AgentContactId IS NOT NULL\n",
+							"\"\"\")\n",
+							"\n",
+							"print(relevant_reps_agent_data.count())\n",
+							"display(relevant_reps_agent_data.head(10))"
+						],
+						"outputs": [],
+						"execution_count": 187
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"Union all dataframes and write to the table"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"results = (service_bus_data\n",
+							"            .union(appeal_casework_appellant_data)\n",
+							"            .union(appeal_casework_agent_data)\n",
+							"            .union(nsip_project_applicant_data)\n",
+							"            .union(relevant_reps_represented_data)\n",
+							"            .union(relevant_reps_agent_data))\n",
+							"            \n",
+							"print(results.count())"
+						],
+						"outputs": [],
+						"execution_count": 188
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
+						],
+						"outputs": [],
+						"execution_count": 189
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"\n",
+							"Now need to sort internal ids, IsActive flags, and valid_to dates"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"spark.sql(f\"\"\"\n",
+							"    CREATE OR REPLACE TEMPORARY VIEW vw_service_user_calculations_base\n",
+							"        AS\n",
+							"        SELECT  \n",
+							"            row_number() OVER(PARTITION BY {primary_key} ORDER BY IngestionDate DESC) AS ReverseOrderProcessed\n",
+							"            ,row_number() OVER(ORDER BY IngestionDate asc, {primary_key} asc) AS ServiceUserID\n",
+							"            ,{primary_key}\n",
+							"            ,IngestionDate\n",
+							"            ,ValidTo\n",
+							"            ,'0' AS Migrated\n",
+							"            ,CASE row_number() OVER(PARTITION BY {primary_key} ORDER BY IngestionDate DESC)\n",
+							"                WHEN 1 THEN\n",
+							"                    'Y'\n",
+							"                ELSE\n",
+							"                    'N'\n",
+							"            END AS IsActive                \n",
+							"        FROM\n",
+							"            {spark_table_final}\n",
+							"    \"\"\")"
+						],
+						"outputs": [],
+						"execution_count": 190
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"df_calcs = spark.sql(f\"\"\"\n",
+							"    SELECT\n",
+							"        CurrentRow.ServiceUserID\n",
+							"        ,CurrentRow.{primary_key} \n",
+							"        ,CurrentRow.IngestionDate\n",
+							"        ,COALESCE(NULLIF(CurrentRow.ValidTo,''), NextRow.IngestionDate) AS ValidTo\n",
+							"        ,CASE\n",
+							"            WHEN raw.{primary_key} IS NOT NULL THEN \n",
+							"                \"1\"\n",
+							"            ELSE \n",
+							"                \"0\"\n",
+							"        END AS Migrated\n",
+							"        ,CurrentRow.IsActive\n",
+							"    FROM\n",
+							"        vw_service_user_calculations_base AS CurrentRow\n",
+							"        LEFT OUTER JOIN vw_service_user_calculations_base AS NextRow\n",
+							"            ON CurrentRow.{primary_key} = NextRow.{primary_key}\n",
+							"            AND CurrentRow.ReverseOrderProcessed - 1 = NextRow.ReverseOrderProcessed\n",
+							"        LEFT OUTER JOIN (SELECT DISTINCT MD5(CONCAT(id, caseReference, serviceUserType)) AS {primary_key} FROM {service_bus_table}) AS Raw\n",
+							"            ON CurrentRow.{primary_key} = Raw.{primary_key} \n",
+							"        ORDER BY currentRow.ReverseOrderProcessed\n",
+							"\"\"\")"
+						],
+						"outputs": [],
+						"execution_count": 191
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"df_calcs = df_calcs.withColumnRenamed(primary_key, f\"temp_{primary_key}\").withColumnRenamed(\"IngestionDate\", \"temp_IngestionDate\")"
+						],
+						"outputs": [],
+						"execution_count": 192
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"results = spark.sql(f\"\"\"\n",
+							"    SELECT DISTINCT\n",
+							"        {primary_key}\n",
+							"        ,ServiceUserID\n",
+							"        ,id\n",
+							"        ,salutation\n",
+							"        ,firstname\n",
+							"        ,lastname\n",
+							"        ,addressline1\n",
+							"        ,addressline2\n",
+							"        ,addressTown\n",
+							"        ,addressCounty\n",
+							"        ,postcode\n",
+							"        ,addressCountry\n",
+							"        ,organisation\n",
+							"        ,organisationType\n",
+							"        ,role\n",
+							"        ,telephoneNumber\n",
+							"        ,otherPhoneNumber\n",
+							"        ,faxNumber\n",
+							"        ,emailAddress\n",
+							"        ,webAddress\n",
+							"        ,serviceUserType\n",
+							"        ,serviceUserTypeInternal\n",
+							"        ,caseReference\n",
+							"        ,sourceSystem\n",
+							"        ,sourceSuid\n",
+							"        \n",
+							"        ,Migrated\n",
+							"        ,ODTSourceSystem\n",
+							"        ,IngestionDate\n",
+							"        ,ValidTo\n",
+							"        ,RowID\n",
+							"        ,IsActive\n",
+							"    FROM \n",
+							"        {spark_table_final}\"\"\")\n",
+							"    "
+						],
+						"outputs": [],
+						"execution_count": 193
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"columns = results.columns\n",
+							"\n",
+							"results = results.drop(\"ServiceUserID\", \"ValidTo\", \"Migrated\", \"IsActive\")"
+						],
+						"outputs": [],
+						"execution_count": 194
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"final_df = results.join(df_calcs, (df_calcs[f\"temp_{primary_key}\"] == results[primary_key]) & (df_calcs[\"temp_IngestionDate\"] == results[\"IngestionDate\"])).select(columns)\n",
+							"final_df = final_df.drop(primary_key).drop_duplicates()"
+						],
+						"outputs": [],
+						"execution_count": 195
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
+						],
+						"outputs": [],
+						"execution_count": 196
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('workspaceName'), '/py_sb_raw_to_std')]",
 			"type": "Microsoft.Synapse/workspaces/notebooks",
 			"apiVersion": "2019-06-01-preview",
@@ -223999,12 +225330,12 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "83d566fe-6854-4d08-b038-2c0c7d653e37"
+						"spark.autotune.trackingId": "5029e9b1-afa5-4b94-a9bb-7253182660c9"
 					}
 				},
 				"metadata": {
 					"saveOutput": true,
-					"enableDebugMode": false,
+					"enableDebugMode": true,
 					"kernelspec": {
 						"name": "synapse_pyspark",
 						"display_name": "Synapse PySpark"
@@ -224047,7 +225378,29 @@
 							"from pyspark.sql.types import *\n",
 							"from pyspark.sql import DataFrame\n",
 							"import pprint\n",
-							"from pyspark.sql.functions import col"
+							"from pyspark.sql.functions import col\n",
+							"from pyspark.sql import functions as F\n",
+							""
+						],
+						"outputs": [],
+						"execution_count": 1
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"#keep track of the exitCodes, if the exit code is not zero then we've had failures, we flip the boolean\n",
+							"exitCode: int = 0"
 						],
 						"outputs": [],
 						"execution_count": 2
@@ -224067,13 +225420,19 @@
 						},
 						"source": [
 							"entity_name: str = 'service-user'\n",
+							"\n",
 							"std_db_name: str = 'odw_standardised_db'\n",
 							"hrm_db_name: str = 'odw_harmonised_db'\n",
 							"curated_db_name: str = 'odw_curated_db'\n",
-							"std_table_name: str = 'service_user'\n",
-							"hrm_table_name: str = 'service_user'\n",
+							"curated_migration_db_name: str = 'odw_curated_migration_db'\n",
+							"\n",
+							"std_table_name: str = 'sb_service_user'\n",
+							"hrm_table_name: str = 'sb_service_user'\n",
 							"hrm_table_final: str = 'service_user'\n",
-							"curated_table_name: str = 'nsip_service_user'"
+							"\n",
+							"# curated tables\n",
+							"service_user_appeal_table: str = 'appeal_service_user'\n",
+							"service_user_migration_table: str = 'service_user'"
 						],
 						"outputs": [],
 						"execution_count": 3
@@ -224092,8 +225451,7 @@
 							}
 						},
 						"source": [
-							"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
-							"path_to_orchestration_file: str = \"abfss://odw-config@\"+storage_account+\"orchestration/orchestration.json\""
+							"%run /utils/unit-tests/py_unit_tests_functions"
 						],
 						"outputs": [],
 						"execution_count": 4
@@ -224112,23 +225470,19 @@
 							}
 						},
 						"source": [
-							"def get_incremental_key(entity_name: str, storage_account: str, path_to_orchestration_file: str) -> str:\n",
-							"    # getting the incremental key from the odw-config/orchestration\n",
-							"    df: DataFrame = spark.read.option(\"multiline\",\"true\").json(path_to_orchestration_file)\n",
-							"    definitions: list = json.loads(df.toJSON().first())['definitions']\n",
-							"    definition: dict = next((d for d in definitions if entity_name == d['Source_Filename_Start']), None)\n",
-							"    return definition['Harmonised_Incremental_Key'] if definition and 'Harmonised_Incremental_Key' in definition else None"
+							"sb_std_schema = create_spark_schema(std_db_name, entity_name)\n",
+							"sb_std_table_schema = spark.table(f\"{std_db_name}.{std_table_name}\").schema\n",
+							"sb_hrm_schema = create_spark_schema(hrm_db_name, entity_name)\n",
+							"sb_hrm_table_schema = spark.table(f\"{hrm_db_name}.{hrm_table_name}\").schema\n",
+							"curated_schema = create_spark_schema(curated_migration_db_name, entity_name)\n",
+							"curated_table_schema = spark.table(f\"{curated_migration_db_name}.{service_user_migration_table}\").schema"
 						],
 						"outputs": [],
 						"execution_count": 5
 					},
 					{
-						"cell_type": "code",
+						"cell_type": "markdown",
 						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
 							"nteract": {
 								"transient": {
 									"deleting": false
@@ -224136,57 +225490,8 @@
 							}
 						},
 						"source": [
-							"def create_spark_schema(db_name: str, entity_name: str) -> StructType:\n",
-							"    incremental_key: str = get_incremental_key(entity_name, storage_account, path_to_orchestration_file) if db_name == 'odw_harmonised_db' else None\n",
-							"    schema = mssparkutils.notebook.run(\"/py_create_spark_schema\", 30, {\"db_name\": db_name, \"entity_name\": entity_name, \"incremental_key\": incremental_key})\n",
-							"    spark_schema = StructType.fromJson(json.loads(schema))\n",
-							"    return spark_schema"
-						],
-						"outputs": [],
-						"execution_count": 6
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"def create_spark_dataframe() -> DataFrame:\n",
-							"    spark_dataframe: DataFrame = spark.createDataFrame([], schema=create_spark_schema(db_name, entity_name))\n",
-							"    return spark_dataframe"
-						],
-						"outputs": [],
-						"execution_count": 7
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"sb_std_schema = create_spark_schema(std_db_name, entity_name)\n",
-							"sb_std_table_schema = spark.table(f\"{std_db_name}.{std_table_name}\").schema\n",
-							"sb_hrm_schema = create_spark_schema(hrm_db_name, entity_name)\n",
-							"sb_hrm_table_schema = spark.table(f\"{hrm_db_name}.{hrm_table_name}\").schema"
-						],
-						"outputs": [],
-						"execution_count": 8
+							"##### Compare schemas"
+						]
 					},
 					{
 						"cell_type": "code",
@@ -224203,26 +225508,121 @@
 							"collapsed": false
 						},
 						"source": [
-							"def extract_schema_structure(schema: StructType) -> dict:\n",
-							"    def extract_field(field):\n",
-							"        if isinstance(field.dataType, StructType):\n",
-							"            return {field.name: {subfield.name: str(subfield.dataType) for subfield in field.dataType.fields}}\n",
-							"        elif isinstance(field.dataType, ArrayType):\n",
-							"            element_type = field.dataType.elementType\n",
-							"            if isinstance(element_type, StructType):\n",
-							"                return {field.name: {subfield.name: str(subfield.dataType) for subfield in element_type.fields}}\n",
-							"            else:\n",
-							"                return {field.name: f'array<{str(element_type)}>'}\n",
-							"        else:\n",
-							"            return {field.name: str(field.dataType)}\n",
-							"    \n",
-							"    result = {}\n",
-							"    for field in schema.fields:\n",
-							"        result.update(extract_field(field))\n",
-							"    return result"
+							"std_schema_correct: bool = test_compare_schemas(sb_std_schema, sb_std_table_schema)\n",
+							"exitCode += int(not std_schema_correct)\n",
+							"print(f\"Service bus standardised schema correct: {std_schema_correct}\\nTable: {std_db_name}.{std_table_name}\\nDifferences shown above (if any)\")\n",
+							"hrm_schema_correct: bool = test_compare_schemas(sb_hrm_schema, sb_hrm_table_schema)\n",
+							"print(f\"Service bus harmonised schema correct: {hrm_schema_correct}\\nTable: {hrm_db_name}.{hrm_table_name}\\nDifferences shown above (if any)\")\n",
+							"exitCode += int(not hrm_schema_correct)\n",
+							"# cur_schema_correct: bool = test_compare_schemas(curated_schema, curated_table_schema)\n",
+							"# print(f\"Curated schema correct: {cur_schema_correct}\\nTable: {curated_migration_db_name}.{service_user_migration_table}\\nDifferences shown above (if any)\")\n",
+							"# exitCode += int(not cur_schema_correct)"
 						],
 						"outputs": [],
-						"execution_count": 9
+						"execution_count": 12
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Compare service bus standardised with harmonised\n",
+							"Should be the same count"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"standardised_count, harmonised_count, counts_match = test_std_same_rows_hrm(std_table_name, hrm_table_name)\n",
+							"print(f\"Standardised Count: {standardised_count: ,}\\nHarmonised Count: {harmonised_count: ,}\\nCounts match: {counts_match}\")\n",
+							"\n",
+							"if standardised_count > harmonised_count:\n",
+							"    print(f\"{standardised_count - harmonised_count} rows from Standardised are missing in Harmonised.\" )\n",
+							"    differentiate_std_and_hrm(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\", [])\n",
+							"    #this is classed as an error\n",
+							"    exitCode += 1 "
+						],
+						"outputs": [],
+						"execution_count": 7
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"### Unit Tests from Requirements\n",
+							"https://pins-ds.atlassian.net/wiki/spaces/ODW/pages/1797488641/Requirements+-+Service+User+Migration"
+						]
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"#### There should be a single applicant for every project.  "
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"# Check if there are multiple applicants for a single project\n",
+							"def test_single_applicant_per_project():\n",
+							"    df = spark.sql(f\"\"\"\n",
+							"        SELECT caseReference, COUNT(*) AS applicant_count\n",
+							"        FROM odw_curated_migration_db.service_user\n",
+							"        WHERE serviceUserType = 'Applicant'\n",
+							"        GROUP BY caseReference\n",
+							"        HAVING COUNT(*) > 1;\n",
+							"    \"\"\")\n",
+							"\n",
+							"    return df.count() == 0\n",
+							"\n",
+							"if test_single_applicant_per_project():\n",
+							"    print('PASS: There is a single applicant per project')\n",
+							"else:\n",
+							"    exitCode += 1  "
+						],
+						"outputs": [],
+						"execution_count": 8
 					},
 					{
 						"cell_type": "code",
@@ -224238,40 +225638,73 @@
 							}
 						},
 						"source": [
-							"def test_compare_schemas(schema1: StructType, schema2: StructType) -> bool:\n",
-							"    structure1: dict = extract_schema_structure(schema1)\n",
-							"    structure2: dict = extract_schema_structure(schema2)\n",
-							"    \n",
-							"    differences: list[tuple] = []\n",
-							"    \n",
-							"    all_fields: set = set(structure1.keys()).union(set(structure2.keys()))\n",
-							"    \n",
-							"    for field in all_fields:\n",
-							"        if field not in structure1:\n",
-							"            differences.append((field, \"Field not in schema1\", structure2[field]))\n",
-							"        elif field not in structure2:\n",
-							"            differences.append((field, structure1[field], \"Field not in schema2\"))\n",
-							"        else:\n",
-							"            if structure1[field] != structure2[field]:\n",
-							"                if isinstance(structure1[field], dict) and isinstance(structure2[field], dict):\n",
-							"                    subfields: set = set(structure1[field].keys()).union(set(structure2[field].keys()))\n",
-							"                    for subfield in subfields:\n",
-							"                        if subfield not in structure1[field]:\n",
-							"                            differences.append((f\"{field}.{subfield}\", \"Field not in schema1\", structure2[field][subfield]))\n",
-							"                        elif subfield not in structure2[field]:\n",
-							"                            differences.append((f\"{field}.{subfield}\", structure1[field][subfield], \"Field not in schema2\"))\n",
-							"                        elif structure1[field][subfield] != structure2[field][subfield]:\n",
-							"                            differences.append((f\"{field}.{subfield}\", structure1[field][subfield], structure2[field][subfield]))\n",
-							"                else:\n",
-							"                    differences.append((field, structure1[field], structure2[field]))\n",
-							"    \n",
-							"    if differences:\n",
-							"        # Create a Spark DataFrame to display the differences\n",
-							"        differences_df: DataFrame = spark.createDataFrame(differences, [\"Field\", \"Schema 1\", \"Schema 2\"])\n",
-							"        display(differences_df)\n",
-							"        return False\n",
-							"    else:\n",
-							"        return True"
+							"# Verify that every project has an applicant\n",
+							"def test_project_with_no_applicant():\n",
+							"    df = spark.sql(f\"\"\"\n",
+							"        SELECT p.caseReference\n",
+							"        FROM odw_curated_migration_db.nsip_project p\n",
+							"        LEFT JOIN odw_curated_migration_db.service_user u \n",
+							"            ON p.caseReference = u.caseReference\n",
+							"        WHERE u.caseReference IS NULL \n",
+							"            AND p.caseReference IS NOT NULL ;\n",
+							"    \"\"\")\n",
+							"\n",
+							"    return df.count() == 0\n",
+							"\n",
+							"if test_project_with_no_applicant(): \n",
+							"    print('PASS: Each project has an applicant')\n",
+							"else:\n",
+							"    print('FAIL: Each project has an applicant')\n",
+							"    exitCode += 1  "
+						],
+						"outputs": [],
+						"execution_count": 9
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"#### The count of Representations for each case must be the following in dev/test\n",
+							"- EN010004: 6410\n",
+							"- EN010044: 618\n",
+							"- EN010080: 154\n",
+							"- TR040004: 39"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"table= 'odw_harmonised_db.service_user'\n",
+							"\n",
+							"df_service_user_represented = spark.table(table).filter((col('IsActive') == 'Y') & (col(\"serviceUserTypeInternal\") == \"RepresentationContact_Represented\"))\n",
+							"\n",
+							"count_EN010004 = df_service_user_represented.filter(col(\"caseReference\") == \"EN010004\").count()\n",
+							"count_EN010044 = df_service_user_represented.filter(col(\"caseReference\") == \"EN010044\").count()\n",
+							"count_EN010080 = df_service_user_represented.filter(col(\"caseReference\") == \"EN010080\").count()\n",
+							"count_TR040004 = df_service_user_represented.filter(col(\"caseReference\") == \"TR040004\").count()\n",
+							"\n",
+							"if count_EN010004 == 6410 and count_EN010044 == 618 and count_EN010080 == 154 and count_TR040004 == 39:\n",
+							"    print('PASS: Expected count of representations match')\n",
+							"else:\n",
+							"    print('FAIL: Expected count of representations match')\n",
+							"    exitCode += 1"
 						],
 						"outputs": [],
 						"execution_count": 10
@@ -224290,12 +225723,7 @@
 							}
 						},
 						"source": [
-							"def test_std_same_rows_hrm(std_table: str, hrm_table: str) -> tuple[int, int, bool]:\n",
-							"    std_table_full: str = f\"{std_db_name}.{std_table}\"\n",
-							"    hrm_table_full: str = f\"{hrm_db_name}.{hrm_table}\"\n",
-							"    std_count: int = spark.table(std_table_full).count()\n",
-							"    hrm_count: int = spark.table(hrm_table_full).count()\n",
-							"    return (std_count, hrm_count, std_count == hrm_count)"
+							"mssparkutils.notebook.exit(exitCode)"
 						],
 						"outputs": [],
 						"execution_count": 11
@@ -224314,670 +225742,8 @@
 							}
 						},
 						"source": [
-							"def test_std_same_rows_hrm_Horizon(std_table: str, hrm_table: str) -> tuple[int, int, bool]:\n",
-							"    std_table_full: str = f\"{std_db_name}.{std_table}\"\n",
-							"    hrm_table_full: str = f\"{hrm_db_name}.{hrm_table}\"\n",
-							"    std_count: int = spark.table(std_table_full).count()\n",
-							"    hrm_count: int = spark.table(hrm_table_full).filter([sourceSystem] == \"Casework\").count()\n",
-							"    return (std_count, hrm_count, std_count == hrm_count)"
-						],
-						"outputs": [],
-						"execution_count": 12
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"def test_std_same_rows_hrm_Applications(std_table: str, hrm_table: str) -> tuple[int, int, bool]:\n",
-							"    std_table_full: str = f\"{std_db_name}.{std_table}\"\n",
-							"    hrm_table_full: str = f\"{hrm_db_name}.{hrm_table}\"\n",
-							"    std_count: int = spark.table(std_table_full).filter(col(\"sourceSystem\") == \"back-office-applications\").count()\n",
-							"    hrm_count: int = spark.table(hrm_table_full).filter(col(\"sourceSystem\") == \"back-office-applications\").count()\n",
-							"    return (std_count, hrm_count, std_count == hrm_count)"
-						],
-						"outputs": [],
-						"execution_count": 13
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"def test_std_same_rows_hrm_Appeals(std_table: str, hrm_table: str) -> tuple[int, int, bool]:\n",
-							"    std_table_full: str = f\"{std_db_name}.{std_table}\"\n",
-							"    hrm_table_full: str = f\"{hrm_db_name}.{hrm_table}\"\n",
-							"    std_count: int = spark.table(std_table_full).filter(col(\"sourceSystem\") == \"back-office-appeals\").count()\n",
-							"    hrm_count: int = spark.table(hrm_table_full).filter(col(\"sourceSystem\") == \"back-office-appeals\").count()\n",
-							"    return (std_count, hrm_count, std_count == hrm_count)"
-						],
-						"outputs": [],
-						"execution_count": 14
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"def test_curated_row_count(hrm_table_final: str, curated_table: str) -> tuple[int, int, bool]:\n",
-							"    hrm_table_full: str = f\"{hrm_db_name}.{hrm_table_final}\"\n",
-							"    curated_table_full: str = f\"{curated_db_name}.{curated_table_name}\"\n",
-							"    hrm_count: int = spark.sql(f\"select * from {hrm_table_full} where IsActive = 'Y'\").count()\n",
-							"    curated_count: int = spark.table(curated_table_full).count()\n",
-							"    return (hrm_count, curated_count, hrm_count == curated_count)"
-						],
-						"outputs": [],
-						"execution_count": 15
-					},
-					{
-						"cell_type": "markdown",
-						"metadata": {
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"Standard unit tests aren't being used as this entity merges data across the platform and so testing can not be automated easily.\n",
-							"\n",
-							"Test 1: check counts match"
-						]
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							},
-							"microsoft": {
-								"language": "sparksql"
-							},
-							"collapsed": false
-						},
-						"source": [
-							"%%sql\n",
-							"SELECT\n",
-							"    COUNT(*)\n",
-							"FROM\n",
-							"    odw_harmonised_db.curated_service_user"
-						],
-						"outputs": [],
-						"execution_count": 87
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"#Re-run service_user notebook"
-						],
-						"outputs": [],
-						"execution_count": null
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							},
-							"microsoft": {
-								"language": "sparksql"
-							},
-							"collapsed": false
-						},
-						"source": [
-							"%%sql\n",
-							"SELECT\n",
-							"    COUNT(*)\n",
-							"FROM\n",
-							"    odw_harmonised_db.curated_service_user"
-						],
-						"outputs": [],
-						"execution_count": 88
-					},
-					{
-						"cell_type": "markdown",
-						"metadata": {
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"Test 2: Trace random record from service bus and check data integrity"
-						]
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							},
-							"microsoft": {
-								"language": "sparksql"
-							},
-							"collapsed": false
-						},
-						"source": [
-							"%%sql\n",
-							"SELECT\n",
-							"    *\n",
-							"FROM\n",
-							"    odw_standardised_db.sb_service_user"
-						],
-						"outputs": [],
-						"execution_count": 42
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							},
-							"microsoft": {
-								"language": "sparksql"
-							},
-							"collapsed": false
-						},
-						"source": [
-							"%%sql\n",
-							"SELECT\n",
-							"    *\n",
-							"FROM\n",
-							"    odw_standardised_db.sb_service_user\n",
-							"WHERE\n",
-							"    id = 100010068"
-						],
-						"outputs": [],
-						"execution_count": 47
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							},
-							"microsoft": {
-								"language": "sparksql"
-							},
-							"collapsed": false
-						},
-						"source": [
-							"%%sql\n",
-							"SELECT\n",
-							"    *\n",
-							"FROM\n",
-							"    odw_harmonised_db.sb_service_user\n",
-							"WHERE\n",
-							"    id = 100010068\n",
-							""
-						],
-						"outputs": [],
-						"execution_count": 48
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							},
-							"microsoft": {
-								"language": "sparksql"
-							},
-							"collapsed": false
-						},
-						"source": [
-							"%%sql\n",
-							"SELECT\n",
-							"    *\n",
-							"FROM\n",
-							"    odw_harmonised_db.curated_service_user\n",
-							"WHERE\n",
-							"    id = 100010068"
-						],
-						"outputs": [],
-						"execution_count": 50
-					},
-					{
-						"cell_type": "markdown",
-						"metadata": {
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"Test 3: Trace random record from Horizon service_user equivalent\n",
-							"\n",
-							"Note: we start with curated to find the record as the Horizon data has service_user types we're not ready to bring in"
-						]
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							},
-							"microsoft": {
-								"language": "sparksql"
-							},
-							"collapsed": false
-						},
-						"source": [
-							"%%sql\n",
-							"SELECT * FROM odw_harmonised_db.curated_service_user WHERE source_priority = 2"
-						],
-						"outputs": [],
-						"execution_count": 52
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							},
-							"microsoft": {
-								"language": "sparksql"
-							},
-							"collapsed": false
-						},
-						"source": [
-							"%%sql\n",
-							"SELECT * from odw_harmonised_db.casework_case_involvement_dim where ContactID = 'P_2003' and ingestionDate = (SELECT MAX(IngestionDate) FROM odw_harmonised_db.casework_case_involvement_dim)"
-						],
-						"outputs": [],
-						"execution_count": 57
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							},
-							"microsoft": {
-								"language": "sparksql"
-							},
-							"collapsed": false
-						},
-						"source": [
-							"%%sql\n",
-							"SELECT count(*) from odw_harmonised_db.casework_case_involvement_dim where ContactID = 'P_2003' and ingestionDate = (SELECT MAX(IngestionDate) FROM odw_harmonised_db.casework_case_involvement_dim)"
-						],
-						"outputs": [],
-						"execution_count": 58
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							},
-							"microsoft": {
-								"language": "sparksql"
-							},
-							"collapsed": false
-						},
-						"source": [
-							"%%sql\n",
-							"SELECT COUNT(*) from odw_harmonised_db.curated_service_user where sourceSuid = 'P_2003'"
-						],
-						"outputs": [],
-						"execution_count": 62
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							},
-							"microsoft": {
-								"language": "sparksql"
-							},
-							"collapsed": false
-						},
-						"source": [
-							"%%sql\n",
-							"SELECT * from odw_harmonised_db.casework_case_involvement_dim where ContactID = 'P_2003' and ingestionDate = (SELECT MAX(IngestionDate) FROM odw_harmonised_db.casework_case_involvement_dim) and CaseReference = 3004527"
-						],
-						"outputs": [],
-						"execution_count": 63
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							},
-							"microsoft": {
-								"language": "sparksql"
-							},
-							"collapsed": false
-						},
-						"source": [
-							"%%sql\n",
-							"SELECT * from odw_harmonised_db.curated_service_user where sourceSuid = 'P_2003' and CaseReference = 3004527"
-						],
-						"outputs": [],
-						"execution_count": 64
-					},
-					{
-						"cell_type": "markdown",
-						"metadata": {
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"Test 4: S51"
-						]
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							},
-							"microsoft": {
-								"language": "sparksql"
-							},
-							"collapsed": false
-						},
-						"source": [
-							"%%sql\n",
-							"SELECT caseReference, count(*) FROM odw_harmonised_db.nsip_s51_advice where IsActive = 'Y' Group by caseReference"
-						],
-						"outputs": [],
-						"execution_count": 67
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							},
-							"microsoft": {
-								"language": "sparksql"
-							},
-							"collapsed": false
-						},
-						"source": [
-							"%%sql\n",
-							"SELECT * FROM odw_harmonised_db.nsip_s51_advice WHERE isActive = 'Y' and caseReference='EN010067'"
-						],
-						"outputs": [],
-						"execution_count": 69
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							},
-							"microsoft": {
-								"language": "sparksql"
-							},
-							"collapsed": false
-						},
-						"source": [
-							"%%sql\n",
-							"SELECT * FROM odw_harmonised_db.curated_service_user WHERE caseReference = 15357831"
-						],
-						"outputs": [],
-						"execution_count": 86
-					},
-					{
-						"cell_type": "markdown",
-						"metadata": {
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"Test 5: nsip project"
-						]
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							},
-							"microsoft": {
-								"language": "sparksql"
-							},
-							"collapsed": false
-						},
-						"source": [
-							"%%sql\n",
-							"SELECT * FROM odw_harmonised_db.nsip_project where caseid = '3148289'"
-						],
-						"outputs": [],
-						"execution_count": 94
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							},
-							"microsoft": {
-								"language": "sparksql"
-							},
-							"collapsed": false
-						},
-						"source": [
-							"%%sql\n",
-							"SELECT * FROM odw_harmonised_db.curated_service_user where caseReference = '3148289' and ServiceUserType = 'Applicant'"
-						],
-						"outputs": [],
-						"execution_count": 93
-					},
-					{
-						"cell_type": "markdown",
-						"metadata": {
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"Test 6: Relevant reps"
-						]
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							},
-							"microsoft": {
-								"language": "sparksql"
-							},
-							"collapsed": false
-						},
-						"source": [
-							"%%sql\n",
-							"SELECT\n",
-							"    *\n",
-							"FROM\n",
-							"    odw_harmonised_db.nsip_relevant_representation\n",
-							"WHERE\n",
-							"    caseId = '3148289'"
-						],
-						"outputs": [],
-						"execution_count": 1
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							},
-							"microsoft": {
-								"language": "sparksql"
-							}
-						},
-						"source": [
-							"%%sql\n",
-							"SELECT * FROM odw_harmonised_db.curated_service_user where caseReference = '3148289' and ServiceUserType <> 'Applicant'"
+							"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+							"path_to_orchestration_file: str = \"abfss://odw-config@\"+storage_account+\"orchestration/orchestration.json\""
 						],
 						"outputs": [],
 						"execution_count": null
@@ -225146,6 +225912,70 @@
 							"print(f\"Case exists in service user: {test_case_exists_in_service_user(case)}\")\n",
 							"print(f\"Case exists in nsip_representation: {test_case_exists_in_nsip_representation(case)}\")\n",
 							"print(f\"Reps counts match: {test_reps_counts_match(query1, query2)}\")"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							}
+						},
+						"source": [
+							"%%sql\n",
+							"SELECT count (*) FROM\n",
+							"odw_curated_db.nsip_representation AS reps \n",
+							"INNER JOIN odw_curated_db.service_user AS suser\n",
+							"ON reps.representativeId = suser.id \n",
+							"OR reps.representedId = suser.id\n",
+							"WHERE caseRef = 'TR020002' \n",
+							"\n",
+							"-- should be 53\n",
+							"-- https://pins-ds.atlassian.net/browse/THEODW-1319?focusedCommentId=74458"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							}
+						},
+						"source": [
+							"%%sql\n",
+							"SELECT count (*) FROM\n",
+							"odw_curated_db.nsip_representation AS reps \n",
+							"INNER JOIN odw_curated_db.service_user AS suser\n",
+							"ON reps.representativeId = suser.id \n",
+							"OR reps.representedId = suser.id\n",
+							"WHERE caseRef = 'TR020002' \n",
+							"AND sourceSystem IN ('horizon','Horizon')\n",
+							"AND suser.caseReference = '3148447' \n",
+							"\n",
+							"-- should be 53\n",
+							"-- https://pins-ds.atlassian.net/browse/THEODW-1319?focusedCommentId=74458"
 						],
 						"outputs": [],
 						"execution_count": null
@@ -236133,219 +236963,6 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('workspaceName'), '/py_utils_service_user_tests')]",
-			"type": "Microsoft.Synapse/workspaces/notebooks",
-			"apiVersion": "2019-06-01-preview",
-			"properties": {
-				"folder": {
-					"name": "utils"
-				},
-				"nbformat": 4,
-				"nbformat_minor": 2,
-				"bigDataPool": {
-					"referenceName": "[parameters('py_utils_service_user_tests_properties_bigDataPool_referenceName')]",
-					"type": "BigDataPoolReference"
-				},
-				"sessionProperties": {
-					"driverMemory": "28g",
-					"driverCores": 4,
-					"executorMemory": "28g",
-					"executorCores": 4,
-					"numExecutors": 2,
-					"conf": {
-						"spark.dynamicAllocation.enabled": "false",
-						"spark.dynamicAllocation.minExecutors": "2",
-						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "447f89cd-bd55-4465-ac9e-4f14965927ac"
-					}
-				},
-				"metadata": {
-					"saveOutput": true,
-					"enableDebugMode": false,
-					"kernelspec": {
-						"name": "synapse_pyspark",
-						"display_name": "Synapse PySpark"
-					},
-					"language_info": {
-						"name": "python"
-					},
-					"a365ComputeOptions": {
-						"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
-						"name": "pinssynspodw",
-						"type": "Spark",
-						"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
-						"auth": {
-							"type": "AAD",
-							"authResource": "https://dev.azuresynapse.net"
-						},
-						"sparkVersion": "3.3",
-						"nodeCount": 3,
-						"cores": 4,
-						"memory": 28
-					},
-					"sessionKeepAliveTimeout": 30
-				},
-				"cells": [
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"from notebookutils import mssparkutils"
-						],
-						"outputs": [],
-						"execution_count": 2
-					},
-					{
-						"cell_type": "markdown",
-						"metadata": {
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"## First need to test service_user"
-						]
-					},
-					{
-						"cell_type": "markdown",
-						"metadata": {
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"### Test_1: Rerunning the same data does not increase counts"
-						]
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							},
-							"microsoft": {
-								"language": "sparksql"
-							},
-							"collapsed": false
-						},
-						"source": [
-							"%%sql\r\n",
-							"DROP TABLE IF EXISTS odw_curated_db.service_user"
-						],
-						"outputs": [],
-						"execution_count": 3
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"# Run service_user notebook"
-						],
-						"outputs": [],
-						"execution_count": 6
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							},
-							"microsoft": {
-								"language": "sparksql"
-							},
-							"collapsed": false
-						},
-						"source": [
-							"%%sql\r\n",
-							"SELECT COUNT(*) FROM odw_curated_db.service_user"
-						],
-						"outputs": [],
-						"execution_count": 5
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"#Run again"
-						],
-						"outputs": [],
-						"execution_count": null
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							},
-							"microsoft": {
-								"language": "sparksql"
-							},
-							"collapsed": false
-						},
-						"source": [
-							"%%sql\r\n",
-							"SELECT COUNT(*) FROM odw_curated_db.service_user"
-						],
-						"outputs": [],
-						"execution_count": 11
-					}
-				]
-			},
-			"dependsOn": []
-		},
-		{
 			"name": "[concat(parameters('workspaceName'), '/py_versions')]",
 			"type": "Microsoft.Synapse/workspaces/notebooks",
 			"apiVersion": "2019-06-01-preview",
@@ -242589,7 +243206,7 @@
 			"properties": {
 				"description": "creating a view of personnel area for PBI reports",
 				"folder": {
-					"name": "odw-curated"
+					"name": "odw-curated/archived"
 				},
 				"nbformat": 4,
 				"nbformat_minor": 2,
@@ -242607,7 +243224,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "99faa780-deaa-4adf-90b4-dc030935735e"
+						"spark.autotune.trackingId": "1e23abc5-9536-44ca-b45e-117deae6981c"
 					}
 				},
 				"metadata": {
@@ -244825,6 +245442,155 @@
 						],
 						"outputs": [],
 						"execution_count": 36
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/service_user_migration')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"folder": {
+					"name": "odw-curated/migration"
+				},
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "[parameters('service_user_migration_properties_bigDataPool_referenceName')]",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "06c3aefb-9cfc-492f-ac59-e0e2dbc28ed3"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": false,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+						"name": "pinssynspodw",
+						"type": "Spark",
+						"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "3.3",
+						"nodeCount": 3,
+						"cores": 4,
+						"memory": 28
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"\r\n",
+							"CREATE OR REPLACE VIEW odw_curated_migration_db.vw_service_user\r\n",
+							"\r\n",
+							"AS\r\n",
+							"\r\n",
+							"SELECT \r\n",
+							"\r\n",
+							"    SU.id\r\n",
+							"    ,SU.salutation\r\n",
+							"    ,SU.firstName\r\n",
+							"    ,SU.lastName\r\n",
+							"    ,SU.addressLine1\r\n",
+							"    ,SU.addressLine2\r\n",
+							"    ,SU.addressTown\r\n",
+							"    ,SU.addressCounty\r\n",
+							"    ,SU.postcode\r\n",
+							"    ,SU.addressCountry\r\n",
+							"    ,SU.organisation\r\n",
+							"    ,SU.organisationType\r\n",
+							"    ,SU.role\r\n",
+							"    ,SU.telephoneNumber\r\n",
+							"    ,SU.otherPhoneNumber\r\n",
+							"    ,SU.faxNumber\r\n",
+							"    ,SU.emailAddress\r\n",
+							"    ,SU.webAddress\r\n",
+							"    ,SU.serviceUserType\r\n",
+							"    ,SU.serviceUserTypeInternal\r\n",
+							"    ,SU.caseReference\r\n",
+							"    ,SU.sourceSystem\r\n",
+							"    ,SU.sourceSuid\r\n",
+							"\r\n",
+							"FROM odw_harmonised_db.service_user SU\r\n",
+							"\r\n",
+							"INNER JOIN (\r\n",
+							"\r\n",
+							"    SELECT id, MAX(IngestionDate) AS latest_date\r\n",
+							"    FROM odw_harmonised_db.service_user\r\n",
+							"    WHERE LOWER(sourceSystem) = 'horizon'\r\n",
+							"    GROUP BY id\r\n",
+							"    \r\n",
+							") latest ON SU.id = latest.id AND SU.IngestionDate = latest.latest_date   \r\n",
+							"\r\n",
+							"-- INNER JOIN odw_curated_migration_db.nsip_project AS NP ON SU.caseReference = NP.caseReference\r\n",
+							"\r\n",
+							"WHERE LOWER(SU.ODTSourceSystem) = 'horizon'\r\n",
+							"AND SU.serviceUserType IN ('Applicant', 'RepresentationContact');"
+						],
+						"outputs": [],
+						"execution_count": 1
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"from pyspark.sql import SparkSession\n",
+							"spark = SparkSession.builder.getOrCreate()\n",
+							"view_df = spark.sql('SELECT * FROM odw_curated_migration_db.vw_service_user')\n",
+							"view_df.write.mode('overwrite').saveAsTable('odw_curated_migration_db.service_user')"
+						],
+						"outputs": [],
+						"execution_count": null
 					}
 				]
 			},
