@@ -1,0 +1,888 @@
+{
+	"name": "py_sb_horizon_harmonised_service_user",
+	"properties": {
+		"folder": {
+			"name": "odw-harmonised"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "ef727e65-2bb7-4a15-9ea6-58d96af9c44c"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.3",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql.types import IntegerType, ArrayType, StructType, StructField\n",
+					"from pyspark.sql import Row\n",
+					"from pyspark.sql.functions import *"
+				],
+				"execution_count": 180
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Define source and target tables"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# service bus source\n",
+					"service_bus_table = \"odw_harmonised_db.sb_service_user\"\n",
+					"\n",
+					"# horizon sources\n",
+					"hzn_service_user_table = \"odw_standardised_db.horizon_case_involvement\"\n",
+					"hzn_nsip_project_table = \"odw_standardised_db.horizon_nsip_data\"\n",
+					"hzn_nsip_representation_table = \"odw_standardised_db.horizon_nsip_relevant_representation\"\n",
+					"\n",
+					"# target table\n",
+					"spark_table_final = \"odw_harmonised_db.service_user\"\n",
+					"\n",
+					"# define a composite PK to be able to uniquely identify a service user from different source systems\n",
+					"# this can be a combination of id, caseReference, and serviceUserType\n",
+					"primary_key = 'TEMP_PK'"
+				],
+				"execution_count": 181
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Extract Service Bus data"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"service_bus_data = spark.sql(f\"\"\"\n",
+					"    SELECT DISTINCT\n",
+					"        MD5(CONCAT(id, caseReference, serviceUserType)) AS {primary_key}\n",
+					"        ,ServiceUserID\n",
+					"        ,id\n",
+					"        ,salutation\n",
+					"        ,firstname\n",
+					"        ,lastname\n",
+					"        ,addressline1\n",
+					"        ,addressline2\n",
+					"        ,addressTown\n",
+					"        ,addressCounty\n",
+					"        ,postcode\n",
+					"        ,addressCountry\n",
+					"        ,organisation\n",
+					"        ,organisationType\n",
+					"        ,role\n",
+					"        ,telephoneNumber\n",
+					"        ,otherPhoneNumber\n",
+					"        ,faxNumber\n",
+					"        ,emailAddress\n",
+					"        ,webAddress\n",
+					"        ,serviceUserType\n",
+					"        ,serviceUserType AS serviceUserTypeInternal\n",
+					"        ,caseReference\n",
+					"        ,sourceSystem\n",
+					"        ,sourceSuid\n",
+					"        \n",
+					"        ,Migrated\n",
+					"        ,ODTSourceSystem\n",
+					"        ,SourceSystemID\n",
+					"        ,IngestionDate \n",
+					"        ,NULLIF(ValidTo, '') AS ValidTo\n",
+					"        ,'' as RowID\n",
+					"        ,IsActive\n",
+					"    FROM \n",
+					"        {service_bus_table}\n",
+					"    \"\"\")\n",
+					"\n",
+					"print(service_bus_data.count())\n",
+					"display(service_bus_data.head(10))"
+				],
+				"execution_count": 182
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Extract Horizon Data"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Appeals Case work (Appellant)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"serviceUserType = 'Appellant'\n",
+					"\n",
+					"appeal_casework_appellant_data = spark.sql(f\"\"\"\n",
+					"    SELECT DISTINCT \n",
+					"        MD5(\n",
+					"            CONCAT(\n",
+					"                COALESCE(CAST(ContactId AS String), ''), \n",
+					"                COALESCE(CAST(case_number AS String), ''), \n",
+					"                '{serviceUserType}'\n",
+					"            )\n",
+					"        ) AS {primary_key}\n",
+					"        ,CAST(NULL AS Long) as ServiceUserID\n",
+					"        ,CAST(ContactId AS String) as id\n",
+					"        ,Cast(Title AS String) as salutation\n",
+					"        ,Cast(FirstName AS String) as firstName\n",
+					"        ,Cast(LastName AS String) as lastName\n",
+					"        ,Cast(Address1 AS String) as addressLine1\n",
+					"        ,Cast(Address2 AS String) as addressLine2\n",
+					"        ,Cast(City AS String) as addressTown\n",
+					"        ,Cast(County AS String) as addressCounty\n",
+					"        ,Cast(PostCode AS String) as postcode\n",
+					"        ,Cast(Country AS String) as addressCountry\n",
+					"        ,Cast(OrganisationName AS String) as organisation\n",
+					"        ,Cast(OrganisationTypeName AS String) as organisationType\n",
+					"        ,Cast(NULL AS String) as role\n",
+					"        ,Cast(TelephoneOffice AS String) as telephoneNumber\n",
+					"        ,Cast(TelephoneMobile AS String) as otherPhoneNumber\n",
+					"        ,Cast(Fax AS String) as faxNumber\n",
+					"        ,Cast(Email AS String) as emailAddress\n",
+					"        ,Cast(NULL AS String) as webAddress\n",
+					"        ,Cast('{serviceUserType}' AS String) as serviceUserType\n",
+					"        ,Cast('{serviceUserType}' AS String) as serviceUserTypeInternal\n",
+					"        ,Cast(case_number AS String) as caseReference\n",
+					"        ,Cast('Horizon' AS String) as sourceSystem\n",
+					"        ,Cast(ContactID AS String) as sourceSuid\n",
+					"\n",
+					"        ,\"0\" as Migrated\n",
+					"        ,\"Horizon\" as ODTSourceSystem\n",
+					"        ,NULL AS SourceSystemID\n",
+					"        , to_timestamp(expected_from)  AS IngestionDate\n",
+					"        ,CAST(null as string) as ValidTo \n",
+					"        ,'' as RowID\n",
+					"        ,'Y' as IsActive\n",
+					"    FROM\n",
+					"        {hzn_service_user_table}\n",
+					"    WHERE\n",
+					"        expected_from = (SELECT MAX(expected_from) FROM {hzn_service_user_table})\n",
+					"        AND ContactId IS NOT NULL\n",
+					"        AND typeOfInvolvement IN ('Appellant', 'tAppellant', 'Apellant')\n",
+					"\"\"\")\n",
+					"\n",
+					"print(appeal_casework_appellant_data.count())\n",
+					"display(appeal_casework_appellant_data.head(10))"
+				],
+				"execution_count": 183
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Appeals Case work (Agent)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"serviceUserType = 'Agent'\n",
+					"\n",
+					"appeal_casework_agent_data = spark.sql(f\"\"\"\n",
+					"    SELECT DISTINCT \n",
+					"        MD5(\n",
+					"            CONCAT(\n",
+					"                COALESCE(CAST(ContactId AS String), ''), \n",
+					"                COALESCE(CAST(case_number AS String), ''), \n",
+					"                '{serviceUserType}'\n",
+					"            )\n",
+					"        ) AS {primary_key}\n",
+					"        ,CAST(NULL AS Long) as ServiceUserID\n",
+					"        ,CAST(ContactId AS String) as id\n",
+					"        ,Cast(Title AS String) as salutation\n",
+					"        ,Cast(FirstName AS String) as firstName\n",
+					"        ,Cast(LastName AS String) as lastName\n",
+					"        ,Cast(Address1 AS String) as addressLine1\n",
+					"        ,Cast(Address2 AS String) as addressLine2\n",
+					"        ,Cast(City AS String) as addressTown\n",
+					"        ,Cast(County AS String) as addressCounty\n",
+					"        ,Cast(PostCode AS String) as postcode\n",
+					"        ,Cast(Country AS String) as addressCountry\n",
+					"        ,Cast(OrganisationName AS String) as organisation\n",
+					"        ,Cast(OrganisationTypeName AS String) as organisationType\n",
+					"        ,Cast(NULL AS String) as role\n",
+					"        ,Cast(TelephoneOffice AS String) as telephoneNumber\n",
+					"        ,Cast(TelephoneMobile AS String) as otherPhoneNumber\n",
+					"        ,Cast(Fax AS String) as faxNumber\n",
+					"        ,Cast(Email AS String) as emailAddress\n",
+					"        ,Cast(NULL AS String) as webAddress\n",
+					"        ,Cast('{serviceUserType}' AS String) as serviceUserType\n",
+					"        ,Cast('{serviceUserType}' AS String) as serviceUserTypeInternal\n",
+					"        ,Cast(case_number AS String) as caseReference\n",
+					"        ,Cast('Horizon' AS String) as sourceSystem\n",
+					"        ,Cast(ContactID AS String) as sourceSuid\n",
+					"\n",
+					"        ,\"0\" as Migrated\n",
+					"        ,\"Horizon\" as ODTSourceSystem\n",
+					"        ,NULL AS SourceSystemID\n",
+					"        , to_timestamp(expected_from)  AS IngestionDate\n",
+					"        ,CAST(null as string) as ValidTo \n",
+					"        ,'' as RowID\n",
+					"        ,'Y' as IsActive\n",
+					"    FROM\n",
+					"        {hzn_service_user_table}\n",
+					"    WHERE\n",
+					"        expected_from = (SELECT MAX(expected_from) FROM {hzn_service_user_table})\n",
+					"        AND ContactId IS NOT NULL\n",
+					"        AND typeOfInvolvement = 'Agent'\n",
+					"\"\"\")\n",
+					"\n",
+					"\n",
+					"print(appeal_casework_agent_data.count())\n",
+					"display(appeal_casework_agent_data.head(10))"
+				],
+				"execution_count": 184
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### NSIP Project (Applicant)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"serviceUserType = 'Applicant'\n",
+					"\n",
+					"nsip_project_applicant_data = spark.sql(f\"\"\"\n",
+					"    SELECT DISTINCT \n",
+					"        MD5(\n",
+					"            CONCAT(\n",
+					"                COALESCE(CAST(caseNodeId AS String), ''), \n",
+					"                COALESCE(CAST(CaseReference AS String), ''), \n",
+					"                '{serviceUserType}'\n",
+					"            )\n",
+					"        ) AS {primary_key}\n",
+					"        ,CAST(NULL AS Long) as ServiceUserID\n",
+					"        ,CAST(caseNodeId AS String) as id\n",
+					"        ,Cast(NULL AS String) as salutation\n",
+					"        ,Cast(ApplicantFirstName AS String) as firstName\n",
+					"        ,Cast(ApplicantLastName AS String) as lastName\n",
+					"        ,Cast(AddressLine1 AS String) as addressLine1\n",
+					"        ,Cast(AddressLine2 AS String) as addressLine2\n",
+					"        ,Cast(AddressTown AS String) as addressTown\n",
+					"        ,Cast(AddressCounty AS String) as addressCounty\n",
+					"        ,Cast(PostCode AS String) as postcode\n",
+					"        ,Cast(NULL AS String) as addressCountry\n",
+					"        ,Cast(PromoterName AS String) as organisation\n",
+					"        ,Cast(NULL AS String) as organisationType\n",
+					"        ,Cast(NULL AS String) as role\n",
+					"        ,Cast(ApplicantPhoneNumber AS String) as telephoneNumber\n",
+					"        ,Cast(NULL AS String) as otherPhoneNumber\n",
+					"        ,Cast(NULL AS String) as faxNumber\n",
+					"        ,Cast(ApplicantEmailAddress AS String) as emailAddress\n",
+					"        ,Cast(ApplicantWebAddress AS String) as webAddress\n",
+					"        ,Cast('{serviceUserType}' AS String) as serviceUserType\n",
+					"        ,Cast('{serviceUserType}' AS String) as serviceUserTypeInternal\n",
+					"        ,Cast(CaseReference AS String) as caseReference\n",
+					"        ,Cast('Horizon' AS String) as sourceSystem\n",
+					"        ,Cast(caseNodeId AS String) as sourceSuid\n",
+					"        \n",
+					"        ,\"0\" as Migrated\n",
+					"        ,\"Horizon\" as ODTSourceSystem\n",
+					"        ,NULL AS SourceSystemID\n",
+					"        , to_timestamp(expected_from)  AS IngestionDate\n",
+					"        ,CAST(null as string) as ValidTo \n",
+					"        ,'' as RowID\n",
+					"        ,'Y' as IsActive\n",
+					"    FROM\n",
+					"        {hzn_nsip_project_table}\n",
+					"    WHERE\n",
+					"        expected_from = (SELECT MAX(expected_from) FROM {hzn_nsip_project_table})\n",
+					"        AND caseNodeId IS NOT NULL\n",
+					"\"\"\")\n",
+					"\n",
+					"print(nsip_project_applicant_data.count())\n",
+					"display(nsip_project_applicant_data.head(10))"
+				],
+				"execution_count": 185
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Relevant reps (Represented)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"serviceUserType = 'RepresentationContact'\n",
+					"\n",
+					"relevant_reps_represented_data = spark.sql(f\"\"\"\n",
+					"    SELECT DISTINCT \n",
+					"        MD5(\n",
+					"            CONCAT(\n",
+					"                COALESCE(CAST(ContactId AS String), ''), \n",
+					"                COALESCE(CAST(CaseReference AS String), ''), \n",
+					"                '{serviceUserType}'\n",
+					"            )\n",
+					"        ) AS {primary_key}\n",
+					"        ,CAST(NULL AS Long) as ServiceUserID\n",
+					"        ,CAST(ContactId AS String) as id\n",
+					"        ,Cast(NULL AS String) as salutation\n",
+					"        ,Cast(NULL AS String) as firstName\n",
+					"        ,Cast(FullName AS String) as lastName\n",
+					"        ,Cast(CONCAT(BuildingNumber, ' ', Street) AS String) as addressLine1\n",
+					"        ,Cast(NULL AS String) as addressLine2\n",
+					"        ,Cast(Town AS String) as addressTown\n",
+					"        ,Cast(County AS String) as addressCounty\n",
+					"        ,Cast(PostCode AS String) as postcode\n",
+					"        ,Cast(Country AS String) as addressCountry\n",
+					"        ,Cast(OrganisationName AS String) as organisation\n",
+					"        ,Cast(NULL AS String) as organisationType\n",
+					"        ,Cast(JobTitle AS String) as role\n",
+					"        ,Cast(PhoneNumber AS String) as telephoneNumber\n",
+					"        ,Cast(NULL AS String) as otherPhoneNumber\n",
+					"        ,Cast(NULL AS String) as faxNumber\n",
+					"        ,Cast(EmailAddress AS String) as emailAddress\n",
+					"        ,Cast(NULL AS String) as webAddress\n",
+					"        ,Cast('{serviceUserType}' AS String) as serviceUserType\n",
+					"        ,Cast('{serviceUserType}_Represented' AS String) as serviceUserTypeInternal\n",
+					"        ,Cast(CaseReference AS String) as caseReference\n",
+					"        ,Cast('Horizon' AS String) as sourceSystem\n",
+					"        ,Cast(ContactID AS String) as sourceSuid\n",
+					"\n",
+					"        ,\"0\" as Migrated\n",
+					"        ,\"Horizon\" as ODTSourceSystem\n",
+					"        ,NULL AS SourceSystemID\n",
+					"        , to_timestamp(expected_from)  AS IngestionDate\n",
+					"        ,CAST(null as string) as ValidTo \n",
+					"        ,'' as RowID\n",
+					"        ,'Y' as IsActive\n",
+					"    FROM\n",
+					"        {hzn_nsip_representation_table}\n",
+					"    WHERE\n",
+					"        expected_from = (SELECT MAX(expected_from) FROM {hzn_nsip_representation_table})\n",
+					"        AND ContactID IS NOT NULL\n",
+					"\"\"\")\n",
+					"\n",
+					"print(relevant_reps_represented_data.count())\n",
+					"display(relevant_reps_represented_data.head(10))"
+				],
+				"execution_count": 186
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Relevant reps (Agent)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"serviceUserType = 'RepresentationContact'\n",
+					"\n",
+					"relevant_reps_agent_data = spark.sql(f\"\"\"\n",
+					"    SELECT DISTINCT \n",
+					"        MD5(\n",
+					"            CONCAT(\n",
+					"                COALESCE(CAST(AgentContactId AS String), ''), \n",
+					"                COALESCE(CAST(CaseReference AS String), ''), \n",
+					"                '{serviceUserType}'\n",
+					"            )\n",
+					"        ) AS {primary_key}\n",
+					"        ,CAST(NULL AS Long) as ServiceUserID\n",
+					"        ,CAST(AgentContactId AS String) as id\n",
+					"        ,Cast(NULL AS String) as salutation\n",
+					"        ,Cast(NULL AS String) as firstName\n",
+					"        ,Cast(Agent_FullName AS String) as lastName\n",
+					"        ,Cast(CONCAT(Agent_BuildingNumber, ' ', Agent_Street) AS String) as addressLine1\n",
+					"        ,Cast(NULL AS String) as addressLine2\n",
+					"        ,Cast(Agent_Town AS String) as addressTown\n",
+					"        ,Cast(Agent_County AS String) as addressCounty\n",
+					"        ,Cast(Agent_Postcode AS String) as postcode\n",
+					"        ,Cast(Agent_Country AS String) as addressCountry\n",
+					"        ,Cast(Agent_OrganisationName AS String) as organisation\n",
+					"        ,Cast(NULL AS String) as organisationType\n",
+					"        ,Cast(Agent_JobTitle AS String) as role\n",
+					"        ,Cast(Agent_PhoneNumber AS String) as telephoneNumber\n",
+					"        ,Cast(NULL AS String) as otherPhoneNumber\n",
+					"        ,Cast(NULL AS String) as faxNumber\n",
+					"        ,Cast(Agent_EmailAddress AS String) as emailAddress\n",
+					"        ,Cast(NULL AS String) as webAddress\n",
+					"        ,Cast('{serviceUserType}' AS String) as serviceUserType\n",
+					"        ,Cast('{serviceUserType}_Agent' AS String) as serviceUserTypeInternal\n",
+					"        ,Cast(CaseReference AS String) as caseReference\n",
+					"        ,Cast('Horizon' AS String) as sourceSystem\n",
+					"        ,Cast(ContactID AS String) as Agent_ContactID\n",
+					"\n",
+					"        ,\"0\" as Migrated\n",
+					"        ,\"Horizon\" as ODTSourceSystem\n",
+					"        ,NULL AS SourceSystemID\n",
+					"        , to_timestamp(expected_from)  AS IngestionDate\n",
+					"        ,CAST(null as string) as ValidTo \n",
+					"        ,'' as RowID\n",
+					"        ,'Y' as IsActive\n",
+					"    FROM\n",
+					"        {hzn_nsip_representation_table}\n",
+					"    WHERE\n",
+					"        expected_from = (SELECT MAX(expected_from) FROM {hzn_nsip_representation_table})\n",
+					"        AND AgentContactId IS NOT NULL\n",
+					"\"\"\")\n",
+					"\n",
+					"print(relevant_reps_agent_data.count())\n",
+					"display(relevant_reps_agent_data.head(10))"
+				],
+				"execution_count": 187
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Union all dataframes and write to the table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"results = (service_bus_data\n",
+					"            .union(appeal_casework_appellant_data)\n",
+					"            .union(appeal_casework_agent_data)\n",
+					"            .union(nsip_project_applicant_data)\n",
+					"            .union(relevant_reps_represented_data)\n",
+					"            .union(relevant_reps_agent_data))\n",
+					"            \n",
+					"print(results.count())"
+				],
+				"execution_count": 188
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
+				],
+				"execution_count": 189
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"\n",
+					"Now need to sort internal ids, IsActive flags, and valid_to dates"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"spark.sql(f\"\"\"\n",
+					"    CREATE OR REPLACE TEMPORARY VIEW vw_service_user_calculations_base\n",
+					"        AS\n",
+					"        SELECT  \n",
+					"            row_number() OVER(PARTITION BY {primary_key} ORDER BY IngestionDate DESC) AS ReverseOrderProcessed\n",
+					"            ,row_number() OVER(ORDER BY IngestionDate asc, {primary_key} asc) AS ServiceUserID\n",
+					"            ,{primary_key}\n",
+					"            ,IngestionDate\n",
+					"            ,ValidTo\n",
+					"            ,'0' AS Migrated\n",
+					"            ,CASE row_number() OVER(PARTITION BY {primary_key} ORDER BY IngestionDate DESC)\n",
+					"                WHEN 1 THEN\n",
+					"                    'Y'\n",
+					"                ELSE\n",
+					"                    'N'\n",
+					"            END AS IsActive                \n",
+					"        FROM\n",
+					"            {spark_table_final}\n",
+					"    \"\"\")"
+				],
+				"execution_count": 190
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"df_calcs = spark.sql(f\"\"\"\n",
+					"    SELECT\n",
+					"        CurrentRow.ServiceUserID\n",
+					"        ,CurrentRow.{primary_key} \n",
+					"        ,CurrentRow.IngestionDate\n",
+					"        ,COALESCE(NULLIF(CurrentRow.ValidTo,''), NextRow.IngestionDate) AS ValidTo\n",
+					"        ,CASE\n",
+					"            WHEN raw.{primary_key} IS NOT NULL THEN \n",
+					"                \"1\"\n",
+					"            ELSE \n",
+					"                \"0\"\n",
+					"        END AS Migrated\n",
+					"        ,CurrentRow.IsActive\n",
+					"    FROM\n",
+					"        vw_service_user_calculations_base AS CurrentRow\n",
+					"        LEFT OUTER JOIN vw_service_user_calculations_base AS NextRow\n",
+					"            ON CurrentRow.{primary_key} = NextRow.{primary_key}\n",
+					"            AND CurrentRow.ReverseOrderProcessed - 1 = NextRow.ReverseOrderProcessed\n",
+					"        LEFT OUTER JOIN (SELECT DISTINCT MD5(CONCAT(id, caseReference, serviceUserType)) AS {primary_key} FROM {service_bus_table}) AS Raw\n",
+					"            ON CurrentRow.{primary_key} = Raw.{primary_key} \n",
+					"        ORDER BY currentRow.ReverseOrderProcessed\n",
+					"\"\"\")"
+				],
+				"execution_count": 191
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"df_calcs = df_calcs.withColumnRenamed(primary_key, f\"temp_{primary_key}\").withColumnRenamed(\"IngestionDate\", \"temp_IngestionDate\")"
+				],
+				"execution_count": 192
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"results = spark.sql(f\"\"\"\n",
+					"    SELECT DISTINCT\n",
+					"        {primary_key}\n",
+					"        ,ServiceUserID\n",
+					"        ,id\n",
+					"        ,salutation\n",
+					"        ,firstname\n",
+					"        ,lastname\n",
+					"        ,addressline1\n",
+					"        ,addressline2\n",
+					"        ,addressTown\n",
+					"        ,addressCounty\n",
+					"        ,postcode\n",
+					"        ,addressCountry\n",
+					"        ,organisation\n",
+					"        ,organisationType\n",
+					"        ,role\n",
+					"        ,telephoneNumber\n",
+					"        ,otherPhoneNumber\n",
+					"        ,faxNumber\n",
+					"        ,emailAddress\n",
+					"        ,webAddress\n",
+					"        ,serviceUserType\n",
+					"        ,serviceUserTypeInternal\n",
+					"        ,caseReference\n",
+					"        ,sourceSystem\n",
+					"        ,sourceSuid\n",
+					"        \n",
+					"        ,Migrated\n",
+					"        ,ODTSourceSystem\n",
+					"        ,IngestionDate\n",
+					"        ,ValidTo\n",
+					"        ,RowID\n",
+					"        ,IsActive\n",
+					"    FROM \n",
+					"        {spark_table_final}\"\"\")\n",
+					"    "
+				],
+				"execution_count": 193
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"columns = results.columns\n",
+					"\n",
+					"results = results.drop(\"ServiceUserID\", \"ValidTo\", \"Migrated\", \"IsActive\")"
+				],
+				"execution_count": 194
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"final_df = results.join(df_calcs, (df_calcs[f\"temp_{primary_key}\"] == results[primary_key]) & (df_calcs[\"temp_IngestionDate\"] == results[\"IngestionDate\"])).select(columns)\n",
+					"final_df = final_df.drop(primary_key).drop_duplicates()"
+				],
+				"execution_count": 195
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
+				],
+				"execution_count": 196
+			}
+		]
+	}
+}

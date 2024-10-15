@@ -1,0 +1,184 @@
+{
+	"name": "nsip_representation_migration",
+	"properties": {
+		"folder": {
+			"name": "odw-curated/migration"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "b387e420-7ed3-4ee3-87c9-44059649bf34"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.3",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"CREATE OR REPLACE VIEW odw_curated_migration_db.vw_nsip_representation\n",
+					"\n",
+					"AS\n",
+					"\n",
+					"SELECT DISTINCT\n",
+					"\n",
+					"    RR.representationId\n",
+					"    ,RR.referenceId\n",
+					"    ,RR.examinationLibraryRef\n",
+					"    ,COALESCE(RR.caseRef, '') AS caseRef\n",
+					"    ,RR.caseId\n",
+					"    ,CASE\n",
+					"        WHEN RR.status = 'New' OR RR.status = 'In Progress' THEN\n",
+					"            'awaiting_review'\n",
+					"        WHEN RR.status = 'Complete' THEN\n",
+					"            'valid'\n",
+					"        WHEN RR.status = 'Do Not Publish' THEN\n",
+					"            'invalid'\n",
+					"        ELSE \n",
+					"            LOWER(RR.status)\n",
+					"    END AS status\n",
+					"    ,COALESCE(RR.originalRepresentation, '') AS originalRepresentation\n",
+					"    ,RR.redacted\n",
+					"    ,RR.redactedRepresentation\n",
+					"    ,RR.redactedBy\n",
+					"    ,RR.redactedNotes\n",
+					"    ,NULL AS representationFrom\n",
+					"    -- ,CASE\n",
+					"    --     -- WHEN su2.serviceUserType = 'Agent' THEN\n",
+					"    --     --     'AGENT'\n",
+					"    --     WHEN RR.representationFrom = 'An Organisation' THEN \n",
+					"    --         'ORGANISATION'\n",
+					"    --     -- WHEN RR.representationFrom = 'Members of the Public/Businesses' and SU2.Organisation IS NOT NULL THEN\n",
+					"    --     --     'ORGANISATION'\n",
+					"    --     -- WHEN RR.representationFrom = 'Members of the Public/Businesses' THEN\n",
+					"    --     --     'PERSON'\n",
+					"    --     -- WHEN RR.representationFrom = 'Another Individual or Organisation' and SU2.Organisation IS NOT NULL THEN\n",
+					"    --         --  'ORGANISATION'\n",
+					"    --     WHEN RR.representationFrom = 'Another Individual or Organisation' THEN\n",
+					"    --         'PERSON'\n",
+					"    --     WHEN RR.representationFrom = 'Myself' THEN\n",
+					"    --         'PERSON'\n",
+					"    --     ELSE\n",
+					"    --         RR.representationFrom\n",
+					"    -- END AS representationFrom\n",
+					"    ,SU1.id AS representedId\n",
+					"    -- ,COALESCE(SU2.id, '') AS representativeId\n",
+					"    ,CASE\n",
+					"        WHEN RR.representationFrom = 'An Organisation' THEN\n",
+					"            'ORGANISATION'\n",
+					"        WHEN RR.representationFrom = 'Members of the Public/Businesses' and SU1.Organisation IS NOT NULL THEN\n",
+					"            'ORGANISATION'\n",
+					"        WHEN RR.representationFrom = 'Members of the Public/Businesses'THEN\n",
+					"            'PERSON'\n",
+					"        WHEN RR.representationFrom = 'Another Individual or Organisation' and SU1.Organisation IS NOT NULL THEN \n",
+					"            'ORGANISATION'\n",
+					"        WHEN RR.representationFrom = 'Another Individual or Organisation' THEN\n",
+					"            'PERSON'\n",
+					"        WHEN RR.representationFrom = 'Myself' THEN\n",
+					"            'PERSON'\n",
+					"        ELSE\n",
+					"            RR.registerFor\n",
+					"    END AS registerFor\n",
+					"    ,CASE\n",
+					"        WHEN RR.representationType = 'Other Statutory Consultees' THEN\n",
+					"            'Statutory Consultees'\n",
+					"        ELSE\n",
+					"            RR.representationType\n",
+					"        END AS representationType\n",
+					"        ,RR.dateReceived\n",
+					"        ,RR.attachmentIds\n",
+					"\n",
+					"\n",
+					"FROM odw_harmonised_db.nsip_representation AS RR\n",
+					"\t\n",
+					"INNER JOIN (\n",
+					"\n",
+					"    SELECT representationId, MAX(IngestionDate) AS latest_date\n",
+					"    FROM odw_harmonised_db.nsip_representation\n",
+					"    WHERE LOWER(ODTSourceSystem) = 'horizon'\n",
+					"    GROUP BY representationId\n",
+					"    \n",
+					") latest ON RR.representationId = latest.representationId AND RR.IngestionDate = latest.latest_date   \n",
+					"\n",
+					"INNER JOIN odw_curated_migration_db.service_user AS SU1 ON RR.caseRef = SU1.caseReference -- represented\n",
+					"        \n",
+					"-- LEFT JOIN odw_curated_migration_db.service_user AS SU2 ON RR.caseRef = SU2.caseReference -- representative\n",
+					"\n",
+					"WHERE LOWER(RR.ODTSourceSystem) = 'horizon'\n",
+					"    AND SU1.serviceUserTypeInternal = 'RepresentationContact_Represented'\n",
+					"    -- AND SU2.serviceUserTypeInternal = 'RepresentationContact_Agent'\n",
+					""
+				],
+				"execution_count": 28
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"from pyspark.sql import SparkSession\n",
+					"spark = SparkSession.builder.getOrCreate()\n",
+					"view_df = spark.sql('SELECT * FROM odw_curated_migration_db.vw_nsip_representation limit 10')\n",
+					"view_df.write.mode('overwrite').saveAsTable('odw_curated_migration_db.nsip_representation')"
+				],
+				"execution_count": 29
+			}
+		]
+	}
+}
