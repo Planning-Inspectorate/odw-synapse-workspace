@@ -1,16 +1,23 @@
 # Azure DevOps Agent Pool
+
 This module provisions an Azure DevOps agent pool into the specified a specified subnet.
 
-### Table of Contents
-1. [Usage](#usage)
-2. [Requirements](#requirements)
-3. [Providers](#Providers)
-4. [Inputs](#inputs)
-5. [Outputs](#outputs)
+## Table of Contents
+
+- [Azure DevOps Agent Pool](#azure-devops-agent-pool)
+  - [Table of Contents](#table-of-contents)
+  - [Usage](#usage)
+  - [Requirements](#requirements)
+  - [Providers](#providers)
+  - [Modules](#modules)
+  - [Resources](#resources)
+  - [Inputs](#inputs)
+  - [Outputs](#outputs)
 
 ## Usage
 
 <!-- BEGINNING OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
+
 ## Requirements
 
 No requirements.
