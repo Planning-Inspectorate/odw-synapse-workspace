@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "c32132c7-dd38-459c-aa14-abd503617915"
+				"spark.autotune.trackingId": "f9ff97b9-8cfc-44e8-aaae-0137fae8bdb4"
 			}
 		},
 		"metadata": {
@@ -89,6 +89,24 @@
 					"%run  /0-odw-source-to-raw/Fileshare/SAP_HR/py_0_source_to_raw_hr_functions"
 				],
 				"execution_count": 1
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%run /utils/py_mount_storage"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -233,14 +251,10 @@
 					"    import pandas as pd\n",
 					"    from notebookutils import mssparkutils\n",
 					"    jobId = mssparkutils.env.getJobId()\n",
-					"    mssparkutils.fs.unmount(\"/temp_raw\") \n",
-					"    mssparkutils.fs.mount( \n",
-					"    raw_container + raw_source_folder, \n",
-					"    \"/temp_raw\", \n",
-					"    {\"linkedService\":\"ls_storage\"} \n",
-					"    )   \n",
+					"\n",
+					"    mount_storage(path=raw_container + raw_source_folder)\n",
 					"    df = pd.read_excel(f\"/synfs/{jobId}/temp_raw/{raw_name}\", sheet_name=sheet_name, header=header, dtype='object')\n",
-					"    mssparkutils.fs.unmount(\"/temp_raw\") \n",
+					"    unmount_storage()\n",
 					"    ### cleanse headers \n",
 					"    df = _cleanse_headers(df)\n",
 					"    \n",
@@ -400,13 +414,9 @@
 					"    rows = standardised_table_df.filter((standardised_table_df.expected_from == expected_from) &  (standardised_table_df.expected_to == expected_to)).count()\n",
 					"\n",
 					"    jobId = mssparkutils.env.getJobId()\n",
-					"    ### mount the data lake storage in Synapse to the Synapse File Mount API\n",
-					"    mssparkutils.fs.unmount(\"/temp_raw\") \n",
-					"    mssparkutils.fs.mount( \n",
-					"    folder_path, \n",
-					"    \"/temp_raw\", \n",
-					"    {\"linkedService\":\"ls_storage\"} \n",
-					"    )   \n",
+					"    ### mount the data lake storage in Synapse to the Synapse File Mount API \n",
+					"    mount_storage(path=folder_path)\n",
+					"\n",
 					"    ### open .csv and .xlsx files using pandas                                 \n",
 					"    if \".xlsx\" in filename.lower():\n",
 					"        sheet_name = definition['Source_Sheet_Name'] if 'Source_Sheet_Name' in definition else 0\n",
@@ -438,7 +448,7 @@
 					"    sparkDF = df.select([col for col in df.columns if not col.startswith('Unnamed')])\n",
 					"    # rows_raw = len(df.index)\n",
 					"    rows_raw = sparkDF.count()\n",
-					"    mssparkutils.fs.unmount(\"/temp_raw\") \n",
+					"    unmount_storage()\n",
 					"    ### convert to pandas dataframe\n",
 					"    # sparkDF=spark.createDataFrame(df) already a spark dataframe\n",
 					"    ### add date columns included with every standardised table\n",
