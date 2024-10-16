@@ -1630,6 +1630,10 @@
 			"type": "string",
 			"defaultValue": "pinssynspodw"
 		},
+		"py_mount_storage_properties_bigDataPool_referenceName": {
+			"type": "string",
+			"defaultValue": "pinssynspodw"
+		},
 		"py_odw_curated_table_creation_properties_bigDataPool_referenceName": {
 			"type": "string",
 			"defaultValue": "pinssynspodw"
@@ -1675,6 +1679,10 @@
 			"defaultValue": "pinssynspodw"
 		},
 		"py_reload_hr_record_fact_properties_bigDataPool_referenceName": {
+			"type": "string",
+			"defaultValue": "pinssynspodw"
+		},
+		"py_retry_logic_properties_bigDataPool_referenceName": {
 			"type": "string",
 			"defaultValue": "pinssynspodw"
 		},
@@ -95809,7 +95817,7 @@
 			"properties": {
 				"description": "Trigger to run the master pipeline 7 days a week at 21:00. Only valid for Prod.",
 				"annotations": [],
-				"runtimeState": "Started",
+				"runtimeState": "Stopped",
 				"pipelines": [
 					{
 						"pipelineReference": {
@@ -105805,7 +105813,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "c7452358-ce4f-46ec-8956-c472d347ee27"
+						"spark.autotune.trackingId": "c091de0d-5fb3-4fa9-b611-2fc7a84b1168"
 					}
 				},
 				"metadata": {
@@ -105853,6 +105861,7 @@
 							"SELECT DISTINCT \n",
 							"CAST(AH.caseId AS INT)                      AS caseId,\n",
 							"AH.caseReference                            AS caseReference,\n",
+							"AH.submissionId                             AS submissionId,\n",
 							"AH.caseStatus                               AS caseStatus,\n",
 							"AH.caseType                                 AS caseType,\n",
 							"AH.caseProcedure                            AS caseProcedure,\n",
@@ -105885,7 +105894,7 @@
 							"AH.lpaStatement                             AS lpaStatement,\n",
 							"AH.caseWithdrawnDate                        AS caseWithdrawnDate,\n",
 							"AH.caseTransferredDate                      AS caseTransferredDate,\n",
-							"AH.transferredCaseClosedDate                AS caseClosedDate,\n",
+							"AH.transferredCaseClosedDate                AS transferredCaseClosedDate,\n",
 							"AH.caseDecisionOutcomeDate                  AS caseDecisionOutcomeDate,\n",
 							"AH.caseDecisionPublishedDate                AS caseDecisionPublishedDate,\n",
 							"AH.caseDecisionOutcome                      AS caseDecisionOutcome,\n",
@@ -105929,7 +105938,7 @@
 							"FROM odw_harmonised_db.sb_appeal_has AS AH"
 						],
 						"outputs": [],
-						"execution_count": 42
+						"execution_count": 10
 					},
 					{
 						"cell_type": "code",
@@ -105948,7 +105957,7 @@
 							"spark.sql(f\"drop table if exists odw_curated_db.appeals_has_curated_mipins;\")"
 						],
 						"outputs": [],
-						"execution_count": 43
+						"execution_count": 11
 					},
 					{
 						"cell_type": "code",
@@ -105970,7 +105979,7 @@
 							"view_df.write.mode(\"overwrite\").saveAsTable(\"odw_curated_db.appeals_has_curated_mipins\")"
 						],
 						"outputs": [],
-						"execution_count": 44
+						"execution_count": 12
 					},
 					{
 						"cell_type": "code",
@@ -105991,7 +106000,7 @@
 							"#select * from odw_curated_db.appeals_has_curated_mipins"
 						],
 						"outputs": [],
-						"execution_count": 45
+						"execution_count": 13
 					}
 				]
 			},
@@ -185391,7 +185400,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "8a4ecd11-9df6-400b-949b-25a8f7e7c100"
+						"spark.autotune.trackingId": "8fb683e8-acac-4f53-a1fd-90ca669c0291"
 					}
 				},
 				"metadata": {
@@ -185548,6 +185557,25 @@
 								"transient": {
 									"deleting": false
 								}
+							}
+						},
+						"source": [
+							"%run /utils/py_mount_storage"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
 							},
 							"collapsed": false
 						},
@@ -185572,8 +185600,7 @@
 							"        logger.info(\"Connecting to Service Bus\")\n",
 							"        servicebus_client = ServiceBusClient.from_connection_string(conn_str=conn_str, logging_enable=True)\n",
 							"        logger.info(\"Mounting \" +raw_storage_folder_path)\n",
-							"        mssparkutils.fs.unmount(\"/temp_raw\")\n",
-							"        mssparkutils.fs.mount(raw_storage_folder_path, \"/temp_raw\", {\"linkedService\":\"ls_storage\"}) \n",
+							"        mount_storage(path=raw_storage_folder_path)\n",
 							"    except Exception as e:\n",
 							"        logger.exception(e)\n",
 							"        return False\n",
@@ -185614,7 +185641,7 @@
 							"    finally:\n",
 							"        #cleanup\n",
 							"        logger.info(\"Unmounting \" +raw_storage_folder_path)\n",
-							"        mssparkutils.fs.unmount(\"/temp_raw\")\n",
+							"        unmount_storage()\n",
 							"        logger.info(\"Finished\")"
 						],
 						"outputs": [],
@@ -189613,7 +189640,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "806d1dda-0e36-4144-8be2-d30fa802033d"
+						"spark.autotune.trackingId": "1bc22a48-6369-4ef9-8cbd-8338efdb98c6"
 					}
 				},
 				"metadata": {
@@ -189661,6 +189688,25 @@
 						],
 						"outputs": [],
 						"execution_count": 225
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"%run /utils/py_mount_storage"
+						],
+						"outputs": [],
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -189783,12 +189829,8 @@
 							"                                        if defs['Source_Filename_Start'] in filename:\r\n",
 							"                                            jobId = mssparkutils.env.getJobId()\r\n",
 							"                                            ### mount the data lake storage in Synapse to the Synapse File Mount API\r\n",
-							"                                            mssparkutils.fs.unmount(\"/temp_raw\") \r\n",
-							"                                            mssparkutils.fs.mount( \r\n",
-							"                                            source_container_path+source_folder+date_string, \r\n",
-							"                                            \"/temp_raw\", \r\n",
-							"                                            {\"linkedService\":\"ls_storage\"} \r\n",
-							"                                            )   \r\n",
+							"                                            mount_storage(path=source_container_path+source_folder+date_string)\r\n",
+							"                                            \r\n",
 							"                                            ### open .csv and .xlsx files using pandas\r\n",
 							"                                            if \".xlsx\" in filename.lower():\r\n",
 							"                                                sheet_name = defs['Source_Sheet_Name'] if 'Source_Sheet_Name' in defs else 0\r\n",
@@ -189802,7 +189844,7 @@
 							"                                            ### drop headerless columns\r\n",
 							"                                            df = df.loc[:, ~df.columns.str.contains('^Unnamed')]\r\n",
 							"                                            rows_raw = len(df.index)\r\n",
-							"                                            mssparkutils.fs.unmount(\"/temp_raw\") \r\n",
+							"                                            unmount_storage()\r\n",
 							"                                            ### convert to pandas dataframe\r\n",
 							"                                            sparkDF=spark.createDataFrame(df)\r\n",
 							"                                            ### add date columns included with every standardised table\r\n",
@@ -189934,7 +189976,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "c32132c7-dd38-459c-aa14-abd503617915"
+						"spark.autotune.trackingId": "f9ff97b9-8cfc-44e8-aaae-0137fae8bdb4"
 					}
 				},
 				"metadata": {
@@ -190003,6 +190045,25 @@
 						],
 						"outputs": [],
 						"execution_count": 1
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"%run /utils/py_mount_storage"
+						],
+						"outputs": [],
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -190148,14 +190209,10 @@
 							"    import pandas as pd\n",
 							"    from notebookutils import mssparkutils\n",
 							"    jobId = mssparkutils.env.getJobId()\n",
-							"    mssparkutils.fs.unmount(\"/temp_raw\") \n",
-							"    mssparkutils.fs.mount( \n",
-							"    raw_container + raw_source_folder, \n",
-							"    \"/temp_raw\", \n",
-							"    {\"linkedService\":\"ls_storage\"} \n",
-							"    )   \n",
+							"\n",
+							"    mount_storage(path=raw_container + raw_source_folder)\n",
 							"    df = pd.read_excel(f\"/synfs/{jobId}/temp_raw/{raw_name}\", sheet_name=sheet_name, header=header, dtype='object')\n",
-							"    mssparkutils.fs.unmount(\"/temp_raw\") \n",
+							"    unmount_storage()\n",
 							"    ### cleanse headers \n",
 							"    df = _cleanse_headers(df)\n",
 							"    \n",
@@ -190318,13 +190375,9 @@
 							"    rows = standardised_table_df.filter((standardised_table_df.expected_from == expected_from) &  (standardised_table_df.expected_to == expected_to)).count()\n",
 							"\n",
 							"    jobId = mssparkutils.env.getJobId()\n",
-							"    ### mount the data lake storage in Synapse to the Synapse File Mount API\n",
-							"    mssparkutils.fs.unmount(\"/temp_raw\") \n",
-							"    mssparkutils.fs.mount( \n",
-							"    folder_path, \n",
-							"    \"/temp_raw\", \n",
-							"    {\"linkedService\":\"ls_storage\"} \n",
-							"    )   \n",
+							"    ### mount the data lake storage in Synapse to the Synapse File Mount API \n",
+							"    mount_storage(path=folder_path)\n",
+							"\n",
 							"    ### open .csv and .xlsx files using pandas                                 \n",
 							"    if \".xlsx\" in filename.lower():\n",
 							"        sheet_name = definition['Source_Sheet_Name'] if 'Source_Sheet_Name' in definition else 0\n",
@@ -190356,7 +190409,7 @@
 							"    sparkDF = df.select([col for col in df.columns if not col.startswith('Unnamed')])\n",
 							"    # rows_raw = len(df.index)\n",
 							"    rows_raw = sparkDF.count()\n",
-							"    mssparkutils.fs.unmount(\"/temp_raw\") \n",
+							"    unmount_storage()\n",
 							"    ### convert to pandas dataframe\n",
 							"    # sparkDF=spark.createDataFrame(df) already a spark dataframe\n",
 							"    ### add date columns included with every standardised table\n",
@@ -190780,7 +190833,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "e54aa070-08c9-4a64-9e54-45d9f99aee9e"
+						"spark.autotune.trackingId": "135cabee-3d69-42ae-8bb5-b5548fe2ea87"
 					}
 				},
 				"metadata": {
@@ -190828,6 +190881,25 @@
 						],
 						"outputs": [],
 						"execution_count": 25
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"%run /utils/py_mount_storage"
+						],
+						"outputs": [],
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -190971,12 +191043,8 @@
 							"                                        if defs['Source_Filename_Start'] in filename:\r\n",
 							"                                            jobId = mssparkutils.env.getJobId()\r\n",
 							"                                            ### mount the data lake storage in Synapse to the Synapse File Mount API\r\n",
-							"                                            mssparkutils.fs.unmount(\"/temp_raw\") \r\n",
-							"                                            mssparkutils.fs.mount( \r\n",
-							"                                            source_container_path+source_folder+date_string, \r\n",
-							"                                            \"/temp_raw\", \r\n",
-							"                                            {\"linkedService\":\"ls_storage\"} \r\n",
-							"                                            )   \r\n",
+							"                                            mount_storage(path=source_container_path+source_folder+date_string)\r\n",
+							"                                            \r\n",
 							"                                            ### open .csv and .xlsx files using pandas\r\n",
 							"                                            if \".xlsx\" in filename.lower():\r\n",
 							"                                                sheet_name = defs['Source_Sheet_Name'] if 'Source_Sheet_Name' in defs else 0\r\n",
@@ -190990,7 +191058,7 @@
 							"                                            ### drop headerless columns\r\n",
 							"                                            df = df.loc[:, ~df.columns.str.contains('^Unnamed')]\r\n",
 							"                                            rows_raw = len(df.index)\r\n",
-							"                                            mssparkutils.fs.unmount(\"/temp_raw\") \r\n",
+							"                                            unmount_storage()\r\n",
 							"                                            ### convert to pandas dataframe\r\n",
 							"                                            sparkDF=spark.createDataFrame(df)\r\n",
 							"                                            ### add date columns included with every standardised table\r\n",
@@ -191121,12 +191189,7 @@
 							"                                \r\n",
 							"                                ### mount the data lake storage in Synapse to the Synapse File Mount API\r\n",
 							"                                jobId = mssparkutils.env.getJobId()\r\n",
-							"                                mssparkutils.fs.unmount(\"/temp_raw\") \r\n",
-							"                                mssparkutils.fs.mount( \r\n",
-							"                                source_container_path+source_folder+date_string, \r\n",
-							"                                \"/temp_raw\", \r\n",
-							"                                {\"linkedService\":\"ls_storage\"} \r\n",
-							"                                )   \r\n",
+							"                                mount_storage(path=source_container_path+source_folder+date_string)\r\n",
 							"                                ### open .csv and .xlsx files using pandas\r\n",
 							"                                if \".xlsx\" in filename.lower():\r\n",
 							"                                    sheet_name = defs['Source_Sheet_Name'] if 'Source_Sheet_Name' in defs else 0\r\n",
@@ -191140,7 +191203,7 @@
 							"                                ### drop headerless columns\r\n",
 							"                                df = df.loc[:, ~df.columns.str.contains('^Unnamed')]\r\n",
 							"                                rows_raw = len(df.index)\r\n",
-							"                                mssparkutils.fs.unmount(\"/temp_raw\") \r\n",
+							"                                unmount_storage()\r\n",
 							"                                ### convert to pandas dataframe\r\n",
 							"                                sparkDF=spark.createDataFrame(df)\r\n",
 							"                                ### add date columns included with every standardised table\r\n",
@@ -192379,12 +192442,12 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "a36d7e41-ac2a-4023-b732-b013adc0e48f"
+						"spark.autotune.trackingId": "799cfd97-8846-45e7-ba98-84c21d8a3551"
 					}
 				},
 				"metadata": {
 					"saveOutput": true,
-					"enableDebugMode": false,
+					"enableDebugMode": true,
 					"kernelspec": {
 						"name": "synapse_pyspark",
 						"display_name": "Synapse PySpark"
@@ -192423,6 +192486,25 @@
 							}
 						},
 						"source": [
+							"%run /utils/py_mount_storage"
+						],
+						"outputs": [],
+						"execution_count": 10
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
 							"from pyspark.sql import SparkSession\r\n",
 							"spark = SparkSession.builder.getOrCreate()\r\n",
 							"from notebookutils import mssparkutils\r\n",
@@ -192434,18 +192516,13 @@
 							"### mount the data lake storage in Synapse to the Synapse File Mount API\r\n",
 							"jobId = mssparkutils.env.getJobId()\r\n",
 							"storage_acc_name = spark.sparkContext.environment.get('dataLakeAccountName', 'get')\r\n",
-							"mssparkutils.fs.unmount(\"/ims_items\") \r\n",
-							"mssparkutils.fs.mount( \r\n",
-							"    \"abfss://odw-raw@\"+storage_acc_name+\".dfs.core.windows.net/IMS/API-Data/\",\r\n",
-							"    \"/ims_items\", \r\n",
-							"    {\"linkedService\":\"ls_storage\"} \r\n",
-							")   \r\n",
+							"mount_storage(path=\"abfss://odw-raw@\"+storage_acc_name+\".dfs.core.windows.net/IMS/API-Data/\", mount_point='/ims_items')\r\n",
 							"\r\n",
 							"today = date.today()\r\n",
 							"todaysdate = today.strftime(\"%Y-%m-%d\")"
 						],
 						"outputs": [],
-						"execution_count": 47
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -192540,7 +192617,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "808662a5-e1c1-475d-a0da-feb4d3066b6b"
+						"spark.autotune.trackingId": "090b2ff3-96d6-4131-9c4f-93369467ba39"
 					}
 				},
 				"metadata": {
@@ -192590,7 +192667,26 @@
 							"date_folder=''"
 						],
 						"outputs": [],
-						"execution_count": 1
+						"execution_count": 3
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"%run /utils/py_mount_storage"
+						],
+						"outputs": [],
+						"execution_count": 4
 					},
 					{
 						"cell_type": "code",
@@ -192617,15 +192713,10 @@
 							"### mount the data lake storage in Synapse to the Synapse File Mount API\r\n",
 							"jobId = mssparkutils.env.getJobId()\r\n",
 							"storage_acc_name = spark.sparkContext.environment.get('dataLakeAccountName', 'get')\r\n",
-							"mssparkutils.fs.unmount(\"/listed_buildings_items\") \r\n",
-							"mssparkutils.fs.mount( \r\n",
-							"    f\"abfss://odw-raw@{storage_acc_name}.dfs.core.windows.net/ListedBuildings/{date_folder}/\",\r\n",
-							"    \"/listed_buildings_items\", \r\n",
-							"    {\"linkedService\":\"ls_storage\"} \r\n",
-							")   "
+							"mount_storage(path=f\"abfss://odw-raw@{storage_acc_name}.dfs.core.windows.net/ListedBuildings/{date_folder}/\", mount_point=\"/listed_buildings_items\")"
 						],
 						"outputs": [],
-						"execution_count": 2
+						"execution_count": 5
 					},
 					{
 						"cell_type": "code",
@@ -192659,7 +192750,7 @@
 							"        mssparkutils.fs.rm(output_folder_path, True)"
 						],
 						"outputs": [],
-						"execution_count": 12
+						"execution_count": 6
 					},
 					{
 						"cell_type": "code",
@@ -192680,7 +192771,7 @@
 							""
 						],
 						"outputs": [],
-						"execution_count": 13
+						"execution_count": 7
 					}
 				]
 			},
@@ -193102,7 +193193,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "9be4a3d4-ae2c-4cdb-a56c-fe2555dd755e"
+						"spark.autotune.trackingId": "16540674-5f34-4906-85d3-da43ec617b56"
 					}
 				},
 				"metadata": {
@@ -193178,6 +193269,25 @@
 						],
 						"outputs": [],
 						"execution_count": 127
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"%run /utils/py_mount_storage"
+						],
+						"outputs": [],
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -193273,12 +193383,7 @@
 							"\n",
 							"    elif '.xlsx' in file.name.lower():\n",
 							"        jobId = mssparkutils.env.getJobId()\n",
-							"        mssparkutils.fs.unmount(\"/temp_raw\") \n",
-							"        mssparkutils.fs.mount( \n",
-							"        file.path.replace(file.name,''), \n",
-							"        \"/temp_raw\", \n",
-							"        {\"linkedService\":\"ls_storage\"} \n",
-							"        )   \n",
+							"        mount_storage(path=file.path.replace(file.name,''))\n",
 							"\n",
 							"        ext = '.xlsx'\n",
 							"        sheet_name = definition['Source_Sheet_Name'] if 'Source_Sheet_Name' in definition else 0\n",
@@ -196793,7 +196898,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "bf9be226-efd9-47d5-9071-7ceb20970938"
+						"spark.autotune.trackingId": "c5ebf609-2188-4b8d-bd45-521c659ff4a0"
 					}
 				},
 				"metadata": {
@@ -196846,7 +196951,7 @@
 							"files_with_specific_sheets = [{\"filename\": \"Specialist_TPO.xlsx\", \"sheet\": \"MiPINS-SQL\"},{\"filename\": \"Specialist_Hedgerow\", \"sheet\": \"MiPINS-SQL\"},{\"filename\": \"Specialist_HH\", \"sheet\": \"MiPINS-SQL\"}]"
 						],
 						"outputs": [],
-						"execution_count": 25
+						"execution_count": 9
 					},
 					{
 						"cell_type": "code",
@@ -196869,7 +196974,26 @@
 							"path_to_source = \"abfss://odw-config@\"+storage_account+\"schema_creation/\""
 						],
 						"outputs": [],
-						"execution_count": 26
+						"execution_count": 10
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"%run /utils/py_mount_storage"
+						],
+						"outputs": [],
+						"execution_count": 11
 					},
 					{
 						"cell_type": "code",
@@ -196890,17 +197014,9 @@
 							"import re\r\n",
 							"\r\n",
 							"jobId = mssparkutils.env.getJobId()\r\n",
-							"mssparkutils.fs.unmount(\"/schema\") \r\n",
-							"mssparkutils.fs.unmount(\"/source\") \r\n",
-							"mssparkutils.fs.unmount(\"/target\") \r\n",
-							"mssparkutils.fs.mount(path_to_source, \r\n",
-							"\"/source\", \r\n",
-							"{\"linkedService\":\"ls_storage\"} \r\n",
-							")   \r\n",
-							"mssparkutils.fs.mount(path_to_target, \r\n",
-							"\"/target\", \r\n",
-							"{\"linkedService\":\"ls_storage\"} \r\n",
-							")   \r\n",
+							"\r\n",
+							"mount_storage(path=path_to_source)\r\n",
+							"mount_storage(path=path_to_target)\r\n",
 							"\r\n",
 							"file = mssparkutils.fs.ls(path_to_source)\r\n",
 							"\r\n",
@@ -196975,7 +197091,7 @@
 							""
 						],
 						"outputs": [],
-						"execution_count": 27
+						"execution_count": 12
 					}
 				]
 			},
@@ -199428,6 +199544,164 @@
 						],
 						"outputs": [],
 						"execution_count": null
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/py_mount_storage')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"folder": {
+					"name": "utils"
+				},
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "[parameters('py_mount_storage_properties_bigDataPool_referenceName')]",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "d44885d0-f89c-49f3-98f0-3f039493a64a"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": true,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+						"name": "pinssynspodw",
+						"type": "Spark",
+						"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "3.3",
+						"nodeCount": 3,
+						"cores": 4,
+						"memory": 28
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"import subprocess\n",
+							"subprocess.run([\"pip\", \"install\", \"--quiet\", \"tenacity\"])\n",
+							"from tenacity import retry, wait_fixed, RetryCallState, wait_exponential, stop_after_delay, stop_after_attempt"
+						],
+						"outputs": [],
+						"execution_count": 1
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"def before_sleep(retry_state: RetryCallState):\n",
+							"    print(f\"Retrying after {retry_state.next_action.sleep} seconds...\")"
+						],
+						"outputs": [],
+						"execution_count": 2
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"@retry(\n",
+							"    wait=wait_fixed(3),\n",
+							"    stop=stop_after_attempt(5),\n",
+							"    reraise=True\n",
+							")\n",
+							"def unmount_storage(mount_point: str = '/temp_raw'):\n",
+							"    mssparkutils.fs.unmount(mount_point) "
+						],
+						"outputs": [],
+						"execution_count": 3
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"@retry(\n",
+							"    wait=wait_exponential(multiplier=2, min=5, max=20),\n",
+							"    stop=stop_after_delay(60) | stop_after_attempt(5),\n",
+							"    before_sleep=before_sleep,\n",
+							"    # retry=retry_if_exception(lambda e: \"MountOperationFailedException\" not in str(e)),  # Don't retry on Path not found exception\n",
+							"    reraise=True\n",
+							")\n",
+							"def mount_storage(path: str, mount_point: str = '/temp_raw'):\n",
+							"    print(f\"Attempting to mount storage at path: {path}\")\n",
+							"    unmount_storage(mount_point) \n",
+							"\n",
+							"    mssparkutils.fs.mount( \n",
+							"        path, \n",
+							"        mount_point, \n",
+							"        {\"linkedService\":\"ls_storage\"} \n",
+							"    )   "
+						],
+						"outputs": [],
+						"execution_count": 4
 					}
 				]
 			},
@@ -204934,7 +205208,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "a82236b7-88c0-4fec-bf7f-69504ca0ce27"
+						"spark.autotune.trackingId": "9211eb21-fe22-4996-a842-8f6062412f26"
 					}
 				},
 				"metadata": {
@@ -205004,7 +205278,7 @@
 							"}"
 						],
 						"outputs": [],
-						"execution_count": 43
+						"execution_count": 12
 					},
 					{
 						"cell_type": "markdown",
@@ -205036,7 +205310,7 @@
 							"raw_container = \"abfss://odw-raw@\" + storage_account"
 						],
 						"outputs": [],
-						"execution_count": 44
+						"execution_count": 13
 					},
 					{
 						"cell_type": "code",
@@ -205055,7 +205329,7 @@
 							"%run \"1-odw-raw-to-standardised/Fileshare/SAP_HR/py_1_raw_to_standardised_hr_functions\""
 						],
 						"outputs": [],
-						"execution_count": 45
+						"execution_count": 14
 					},
 					{
 						"cell_type": "markdown",
@@ -205096,53 +205370,7 @@
 							"dataAttribute = \"\""
 						],
 						"outputs": [],
-						"execution_count": 46
-					},
-					{
-						"cell_type": "markdown",
-						"metadata": {
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"### Utility functions"
-						]
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"def get_creation_date(file_path):\n",
-							"    statinfo = os.stat(file_path)\n",
-							"    modified_date = datetime.fromtimestamp(statinfo.st_mtime)\n",
-							"    return datetime.fromtimestamp(statinfo.st_ctime)\n",
-							"\n",
-							"\n",
-							"def get_latest_file(source_path):\n",
-							"    jobId = mssparkutils.env.getJobId()\n",
-							"    mssparkutils.fs.unmount(\"/temp_raw\") \n",
-							"    mssparkutils.fs.mount(source_path, \"/temp_raw\", {\"linkedService\":\"ls_storage\"})   \n",
-							"\n",
-							"    path = f\"/synfs/{jobId}/temp_raw/\"\n",
-							"    fpaths = [path + fd for fd in os.listdir(path)]\n",
-							"    \n",
-							"    return max(fpaths, key=get_creation_date).replace(path, '')"
-						],
-						"outputs": [],
-						"execution_count": 47
+						"execution_count": 15
 					},
 					{
 						"cell_type": "markdown",
@@ -205228,7 +205456,7 @@
 							""
 						],
 						"outputs": [],
-						"execution_count": 49
+						"execution_count": 17
 					}
 				]
 			},
@@ -207334,6 +207562,201 @@
 						],
 						"outputs": [],
 						"execution_count": 1
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/py_retry_logic')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "[parameters('py_retry_logic_properties_bigDataPool_referenceName')]",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "354d1fac-551d-4fd1-8575-f0819fe97a48"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": false,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+						"name": "pinssynspodw",
+						"type": "Spark",
+						"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "3.3",
+						"nodeCount": 3,
+						"cores": 4,
+						"memory": 28
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Example of using the tenacity library for retry logic\r\n",
+							"url: https://tenacity.readthedocs.io/en/latest/"
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"import subprocess\r\n",
+							"subprocess.run([\"pip\", \"install\", \"--quiet\", \"tenacity\"])\r\n",
+							"from tenacity import retry, wait_random_exponential, wait_exponential_jitter, RetryCallState, wait_exponential, stop_after_delay, stop_after_attempt"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Example with a randomly generated number and exponential backoff\r\n",
+							"\r\n",
+							"Wait time is random between 0 and 2^x where x = retry attempt"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"def before_sleep(retry_state: RetryCallState):\r\n",
+							"    print(f\"Retrying after {retry_state.next_action.sleep} seconds...\")\r\n",
+							"\r\n",
+							"# Retry with exponential backoff and jitter, and a custom wait time print\r\n",
+							"@retry(wait=wait_random_exponential(multiplier=1, max=60), before_sleep=before_sleep)\r\n",
+							"def wait_exponential_jitter():\r\n",
+							"    # Simulate a 50% chance of failure\r\n",
+							"    if random.random() < 0.5:\r\n",
+							"        print(\"Random failure, raising exception.\")\r\n",
+							"        raise Exception(\"Simulated random failure\")\r\n",
+							"    else:\r\n",
+							"        print(\"Operation succeeded!\")\r\n",
+							"        return \"Success\"\r\n",
+							"\r\n",
+							"# Test the retry logic\r\n",
+							"try:\r\n",
+							"    wait_exponential_jitter()\r\n",
+							"except Exception as e:\r\n",
+							"    print(f\"Operation failed after retries: {e}\")\r\n",
+							""
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Example of mounting a storage path with the following configuration\r\n",
+							"\r\n",
+							"Exponential backoff (increasing wait time, not random)   \r\n",
+							"Min wait time: 5 secs  \r\n",
+							"Max wait time: 20 secs  \r\n",
+							"Stop retrying after: 30 secs OR 5 attempts   \r\n",
+							"Reraise the original error (storage mount error) rather than raising a retry error  \r\n",
+							"Call the before_sleep function to print the number of secs before the next retry  \r\n",
+							"\r\n",
+							"Lots of options to configure this in the documentation"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"# test with invalid folder path\r\n",
+							"folder_path = \"Horizon/2099-09-24\"\r\n",
+							"path = f\"abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/{folder_path}\"\r\n",
+							"print(f\"Attempting to mount storage at path: {path}\")\r\n",
+							"mssparkutils.fs.unmount(\"/temp_raw\") \r\n",
+							"\r\n",
+							"def before_sleep(retry_state: RetryCallState):\r\n",
+							"    print(f\"Retrying after {retry_state.next_action.sleep} seconds...\")\r\n",
+							"\r\n",
+							"@retry(wait=wait_exponential(multiplier=1, min=5, max=20), stop=stop_after_delay(30) | stop_after_attempt(5), reraise=True, before_sleep=before_sleep)\r\n",
+							"def mount_storage():\r\n",
+							"    mssparkutils.fs.mount( \r\n",
+							"    path, \r\n",
+							"    \"/temp_raw\", \r\n",
+							"    {\"linkedService\":\"ls_storage\"} \r\n",
+							"    )   \r\n",
+							"\r\n",
+							"try:\r\n",
+							"    mount_storage()\r\n",
+							"    print(\"Mounting storage succeeded\")\r\n",
+							"except Exception as e:\r\n",
+							"    print(\"Mounting storage failed\")\r\n",
+							"    print(e)"
+						],
+						"outputs": [],
+						"execution_count": null
 					}
 				]
 			},
@@ -227848,7 +228271,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "5b312444-39dd-42c4-acea-69323806c7ba"
+						"spark.autotune.trackingId": "70ccd68d-bfa3-4f87-b19f-d1e85f3f7991"
 					}
 				},
 				"metadata": {
@@ -228282,16 +228705,7 @@
 							"    Function to mount the storage path\r\n",
 							"    '''\r\n",
 							"    path = create_adls_path(account_name, container_name, relative_path)\r\n",
-							"\r\n",
-							"    # unmount path first\r\n",
-							"    mssparkutils.fs.unmount(f\"/{relative_path}\")\r\n",
-							"\r\n",
-							"    # mount file path\r\n",
-							"    mssparkutils.fs.mount( \r\n",
-							"        f\"abfss://{container_name}@{account_name}.dfs.core.windows.net/{relative_path}\",\r\n",
-							"        f\"/{relative_path}\", \r\n",
-							"        {\"linkedService\":\"ls_storage\"} \r\n",
-							"    )\r\n",
+							"    mount_storage(path=path, mount_point=relative_path)\r\n",
 							"\r\n",
 							"    spark_fs_path = f\"synfs:/{jobId}/{relative_path}\"\r\n",
 							"    local_fs_path = f\"/synfs/{jobId}/{relative_path}\"\r\n",
@@ -233974,7 +234388,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "5febe63c-9e2b-4e47-8ca8-06f4c9ebe54b"
+						"spark.autotune.trackingId": "31deb021-4192-41c8-a5f0-3befe055e956"
 					}
 				},
 				"metadata": {
@@ -234124,21 +234538,31 @@
 							}
 						},
 						"source": [
+							"%run /utils/py_mount_storage"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
 							"def mount_storage(relative_path: str, jobId):\r\n",
 							"    '''\r\n",
 							"    Function to mount the storage path\r\n",
 							"    '''\r\n",
-							"    path = create_adls_path(account_name, container_name, data_validation_relative_path)\r\n",
-							"\r\n",
-							"    # unmount path first\r\n",
-							"    mssparkutils.fs.unmount(f\"/{relative_path}\")\r\n",
-							"\r\n",
-							"    # mount file path\r\n",
-							"    mssparkutils.fs.mount( \r\n",
-							"        f\"abfss://{container_name}@{account_name}.dfs.core.windows.net/{relative_path}\",\r\n",
-							"        f\"/{relative_path}\", \r\n",
-							"        {\"linkedService\":\"ls_storage\"} \r\n",
-							"    )\r\n",
+							"    path = create_adls_path(account_name, container_name, relative_path)\r\n",
+							"    mount_storage(path=path, mount_point=relative_path)\r\n",
 							"\r\n",
 							"    spark_fs_path = f\"synfs:/{jobId}/{relative_path}\"\r\n",
 							"    local_fs_path = f\"/synfs/{jobId}/{relative_path}\""
@@ -249086,7 +249510,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "ae04d774-4a67-449b-8d56-d147aa345f26"
+						"spark.autotune.trackingId": "10ae5e96-ed54-4175-bff1-8b8b8488ad3d"
 					}
 				},
 				"metadata": {
@@ -249146,6 +249570,25 @@
 						"source": [
 							"## Sets the notebook variables"
 						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"%run /utils/py_mount_storage"
+						],
+						"outputs": [],
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -249268,8 +249711,7 @@
 							"        logger.info(\"Connecting to Service Bus\")\n",
 							"        servicebus_client = ServiceBusClient.from_connection_string(conn_str=conn_str, logging_enable=True)\n",
 							"        logger.info(\"Mounting \" +raw_storage_folder_path)\n",
-							"        mssparkutils.fs.unmount(\"/temp_raw\")\n",
-							"        mssparkutils.fs.mount(raw_storage_folder_path, \"/temp_raw\", {\"linkedService\":\"ls_storage\"}) \n",
+							"        mount_storage(path=raw_storage_folder_path)\n",
 							"    except Exception as e:\n",
 							"        logger.exception(e)\n",
 							"        return False\n",
@@ -249309,7 +249751,7 @@
 							"    finally:\n",
 							"        #cleanup\n",
 							"        logger.info(\"Unmounting \" +raw_storage_folder_path)\n",
-							"        mssparkutils.fs.unmount(\"/temp_raw\")\n",
+							"        unmount_storage()\n",
 							"        logger.info(\"Finished\")"
 						],
 						"outputs": [],
@@ -249770,7 +250212,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "b1595b08-d769-464f-8b77-b2aab85ea8bb"
+						"spark.autotune.trackingId": "bd779a6c-e993-421f-8225-b089b2aad264"
 					}
 				},
 				"metadata": {
@@ -249834,6 +250276,25 @@
 								"transient": {
 									"deleting": false
 								}
+							}
+						},
+						"source": [
+							"%run /utils/py_mount_storage"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
 							},
 							"ms_comments": [
 								{
@@ -249848,32 +250309,14 @@
 									"modifiedDateUTC": 1685544441197,
 									"replies": []
 								}
-							],
-							"ms_comment_ranges": {
-								"85770421-1f75-4461-b831-0cc4944d7cc9": {
-									"text": "abfss://odw-raw@\"+storage_acc_name+\".dfs.core.windows.net/ZenDesk/Export/\",\n",
-									"start": {
-										"line": 7,
-										"column": 2
-									},
-									"end": {
-										"line": 8,
-										"column": 1
-									}
-								}
-							}
+							]
 						},
 						"source": [
 							"from notebookutils import mssparkutils\r\n",
 							"### mount the data lake storage in Synapse to the Synapse File Mount API\r\n",
 							"jobId = mssparkutils.env.getJobId()\r\n",
 							"storage_acc_name = spark.sparkContext.environment.get('dataLakeAccountName', 'get')\r\n",
-							"mssparkutils.fs.unmount(\"/zendesk_items\") \r\n",
-							"mssparkutils.fs.mount( \r\n",
-							"\"abfss://odw-raw@\"+storage_acc_name+\".dfs.core.windows.net/ZenDesk/Export/\",\r\n",
-							"\"/zendesk_items\", \r\n",
-							"{\"linkedService\":\"ls_storage\"} \r\n",
-							")   "
+							"mount_storage(path=\"abfss://odw-raw@\"+storage_acc_name+\".dfs.core.windows.net/ZenDesk/Export/\", mount_point=\"/zendesk_items\")"
 						],
 						"outputs": [],
 						"execution_count": 57
@@ -250389,7 +250832,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "e8498a67-26af-44d4-869d-fa505040eb68"
+						"spark.autotune.trackingId": "e1926cc6-075e-448f-9e6b-ee12659ebadc"
 					}
 				},
 				"metadata": {
@@ -250470,16 +250913,30 @@
 							}
 						},
 						"source": [
+							"%run /utils/py_mount_storage"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
 							"from notebookutils import mssparkutils\r\n",
 							"### mount the data lake storage in Synapse to the Synapse File Mount API\r\n",
 							"jobId = mssparkutils.env.getJobId()\r\n",
 							"storage_acc_name = spark.sparkContext.environment.get('dataLakeAccountName', 'get')\r\n",
-							"mssparkutils.fs.unmount(\"/zendesk_items\") \r\n",
-							"mssparkutils.fs.mount( \r\n",
-							"\"abfss://odw-raw@\"+storage_acc_name+\".dfs.core.windows.net/ZenDesk/historical/\",\r\n",
-							"\"/zendesk_items\", \r\n",
-							"{\"linkedService\":\"ls_storage\"} \r\n",
-							")   "
+							"mount_storage(path=\"abfss://odw-raw@\"+storage_acc_name+\".dfs.core.windows.net/ZenDesk/historical/\", mount_point=\"/zendesk_items\")"
 						],
 						"outputs": [],
 						"execution_count": 11
@@ -250729,7 +251186,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "bdaa61d6-4c72-43ab-9b0d-4674809caae7"
+						"spark.autotune.trackingId": "464b5578-c679-4e25-a536-4f5268819cb9"
 					}
 				},
 				"metadata": {
@@ -250849,14 +251306,26 @@
 							}
 						},
 						"source": [
-							"%%time\r\n",
-							"\r\n",
-							"def mountstorage(source, mountPoint, linkedService):\r\n",
-							"    mssparkutils.fs.unmount(mountPoint)\r\n",
-							"    mssparkutils.fs.mount(source, mountPoint, linkedService)  \r\n",
-							"\r\n",
-							"mountstorage(source, mountPoint, linkedService)\r\n",
-							"\r\n",
+							"%run /utils/py_mount_storage"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"mount_storage(path=source, mount_point=mountPoint)\r\n",
 							"print(\"Storage mounted\")"
 						],
 						"outputs": [],
@@ -251050,7 +251519,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "4df112f1-963a-49ab-9b16-056fb18027d7"
+						"spark.autotune.trackingId": "880d6bb4-84f8-4699-9de3-2342893aaf59"
 					}
 				},
 				"metadata": {
@@ -251141,16 +251610,30 @@
 							}
 						},
 						"source": [
+							"%run /utils/py_mount_storage"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
 							"from notebookutils import mssparkutils\r\n",
 							"### mount the data lake storage in Synapse to the Synapse File Mount API\r\n",
 							"jobId = mssparkutils.env.getJobId()\r\n",
 							"storage_acc_name = spark.sparkContext.environment.get('dataLakeAccountName', 'get')\r\n",
-							"mssparkutils.fs.unmount(\"/zendesk_items\") \r\n",
-							"mssparkutils.fs.mount( \r\n",
-							"\"abfss://odw-raw@\"+storage_acc_name+\".dfs.core.windows.net/ZenDesk/Export/\",\r\n",
-							"\"/zendesk_items\", \r\n",
-							"{\"linkedService\":\"ls_storage\"} \r\n",
-							")   "
+							"mount_storage(path=\"abfss://odw-raw@\"+storage_acc_name+\".dfs.core.windows.net/ZenDesk/Export/\", mount_point=\"/zendesk_items\")"
 						],
 						"outputs": [],
 						"execution_count": 2
@@ -251441,7 +251924,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "0e515ced-1e9a-40df-9b47-7afae42a5f56"
+						"spark.autotune.trackingId": "d1bf8cac-eacf-4b7f-a7be-f8b43189df28"
 					}
 				},
 				"metadata": {
@@ -251504,16 +251987,7 @@
 							}
 						},
 						"source": [
-							"from notebookutils import mssparkutils\r\n",
-							"### mount the data lake storage in Synapse to the Synapse File Mount API\r\n",
-							"jobId = mssparkutils.env.getJobId()\r\n",
-							"storage_acc_name = spark.sparkContext.environment.get('dataLakeAccountName', 'get')\r\n",
-							"mssparkutils.fs.unmount(\"/zendesk_items\") \r\n",
-							"mssparkutils.fs.mount( \r\n",
-							"\"abfss://odw-raw@\"+storage_acc_name+\".dfs.core.windows.net/ZenDesk/Export/\",\r\n",
-							"\"/zendesk_items\", \r\n",
-							"{\"linkedService\":\"ls_storage\"} \r\n",
-							")"
+							"%run /utils/py_mount_storage"
 						],
 						"outputs": [],
 						"execution_count": null
@@ -251536,12 +252010,30 @@
 							"### mount the data lake storage in Synapse to the Synapse File Mount API\r\n",
 							"jobId = mssparkutils.env.getJobId()\r\n",
 							"storage_acc_name = spark.sparkContext.environment.get('dataLakeAccountName', 'get')\r\n",
-							"mssparkutils.fs.unmount(\"/zendesk_schema\") \r\n",
-							"mssparkutils.fs.mount( \r\n",
-							"'abfss://odw-raw@'+storage_acc_name+'.dfs.core.windows.net/ZenDesk/Schema_Validation/',\r\n",
-							"\"/zendesk_schema\", \r\n",
-							"{\"linkedService\":\"ls_storage\"} \r\n",
-							")   "
+							"mount_storage(path=\"abfss://odw-raw@\"+storage_acc_name+\".dfs.core.windows.net/ZenDesk/Export/\", mount_point=\"/zendesk_items\")"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"from notebookutils import mssparkutils\r\n",
+							"### mount the data lake storage in Synapse to the Synapse File Mount API\r\n",
+							"jobId = mssparkutils.env.getJobId()\r\n",
+							"storage_acc_name = spark.sparkContext.environment.get('dataLakeAccountName', 'get')\r\n",
+							"mount_storage(path=\"abfss://odw-raw@\"+storage_acc_name+\".dfs.core.windows.net/ZenDesk/Schema_Validation/\", mount_point=\"/zendesk_schema\")"
 						],
 						"outputs": [],
 						"execution_count": null
@@ -251637,7 +252129,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "6ea62415-c07e-4540-a8c7-bdc2c371722d"
+						"spark.autotune.trackingId": "77c5b33a-6e37-4962-b140-cb4ad8e4ad58"
 					}
 				},
 				"metadata": {
@@ -251742,49 +252234,13 @@
 								"transient": {
 									"deleting": false
 								}
-							},
-							"ms_comments": [
-								{
-									"threadId": "85770421-1f75-4461-b831-0cc4944d7cc9",
-									"text": "parameterise for environment",
-									"status": "resolved",
-									"user": {
-										"name": "Pakwashee, Abdullah",
-										"idType": "aad"
-									},
-									"createdDateUTC": 1685110159242,
-									"modifiedDateUTC": 1685544441197,
-									"replies": []
-								}
-							],
-							"ms_comment_ranges": {
-								"85770421-1f75-4461-b831-0cc4944d7cc9": {
-									"text": "abfss://odw-raw@\"+storage_acc_name+\".dfs.core.windows.net/ZenDesk/Export/\",\n",
-									"start": {
-										"line": 7,
-										"column": 2
-									},
-									"end": {
-										"line": 8,
-										"column": 1
-									}
-								}
 							}
 						},
 						"source": [
-							"from notebookutils import mssparkutils\r\n",
-							"### mount the data lake storage in Synapse to the Synapse File Mount API\r\n",
-							"jobId = mssparkutils.env.getJobId()\r\n",
-							"storage_acc_name = spark.sparkContext.environment.get('dataLakeAccountName', 'get')\r\n",
-							"mssparkutils.fs.unmount(\"/zendesk_items\") \r\n",
-							"mssparkutils.fs.mount( \r\n",
-							"\"abfss://odw-raw@\"+storage_acc_name+\".dfs.core.windows.net/ZenDesk/Export/\",\r\n",
-							"\"/zendesk_items\", \r\n",
-							"{\"linkedService\":\"ls_storage\"} \r\n",
-							")   "
+							"%run /utils/py_mount_storage"
 						],
 						"outputs": [],
-						"execution_count": 11
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -251800,46 +252256,28 @@
 							},
 							"ms_comments": [
 								{
-									"threadId": "233c6a18-8924-4b20-8bb9-b9c03be7c2cf",
+									"threadId": "85770421-1f75-4461-b831-0cc4944d7cc9",
 									"text": "parameterise for environment",
 									"status": "resolved",
 									"user": {
 										"name": "Pakwashee, Abdullah",
 										"idType": "aad"
 									},
-									"createdDateUTC": 1685110170116,
-									"modifiedDateUTC": 1685544443948,
+									"createdDateUTC": 1685110159242,
+									"modifiedDateUTC": 1685544441197,
 									"replies": []
 								}
-							],
-							"ms_comment_ranges": {
-								"233c6a18-8924-4b20-8bb9-b9c03be7c2cf": {
-									"text": "'abfss://odw-raw@'+storage_acc_name+'.dfs.core.windows.net/ZenDesk/Schema_Validation/',",
-									"start": {
-										"line": 7,
-										"column": 3
-									},
-									"end": {
-										"line": 7,
-										"column": 90
-									}
-								}
-							}
+							]
 						},
 						"source": [
-							"# from notebookutils import mssparkutils\r\n",
-							"# ### mount the data lake storage in Synapse to the Synapse File Mount API\r\n",
-							"# jobId = mssparkutils.env.getJobId()\r\n",
-							"# storage_acc_name = spark.sparkContext.environment.get('dataLakeAccountName', 'get')\r\n",
-							"# mssparkutils.fs.unmount(\"/zendesk_schema\") \r\n",
-							"# mssparkutils.fs.mount( \r\n",
-							"# 'abfss://odw-raw@'+storage_acc_name+'.dfs.core.windows.net/ZenDesk/Schema_Validation/',\r\n",
-							"# \"/zendesk_schema\", \r\n",
-							"# {\"linkedService\":\"ls_storage\"} \r\n",
-							"# )   "
+							"from notebookutils import mssparkutils\r\n",
+							"### mount the data lake storage in Synapse to the Synapse File Mount API\r\n",
+							"jobId = mssparkutils.env.getJobId()\r\n",
+							"storage_acc_name = spark.sparkContext.environment.get('dataLakeAccountName', 'get')\r\n",
+							"mount_storage(path=\"abfss://odw-raw@\"+storage_acc_name+\".dfs.core.windows.net/ZenDesk/Export/\", mount_point=\"/zendesk_items\")"
 						],
 						"outputs": [],
-						"execution_count": 12
+						"execution_count": 11
 					},
 					{
 						"cell_type": "code",
