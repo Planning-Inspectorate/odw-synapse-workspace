@@ -1,5 +1,6 @@
 export DEBIAN_FRONTEND=noninteractive
 
+
 sudo echo 'APT::Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries
 sudo echo "APT::Get::Assume-Yes \"true\";" > /etc/apt/apt.conf.d/90assumeyes
 
@@ -56,7 +57,8 @@ sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(l
 sudo apt-get install -y terraform=1.9.6-1
 
 # Checkov
-python3.7 -m pip install -U checkov
+python3.7 -m pip install --force-reinstall packaging==21
+python3.7 -m pip install -U checkov==2.2.94
 
 # TFLint
 curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
