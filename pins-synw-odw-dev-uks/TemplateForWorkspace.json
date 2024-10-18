@@ -115,9 +115,6 @@
 			"type": "object",
 			"defaultValue": {}
 		},
-		"pln_post_deployment_properties_0_typeProperties": {
-			"type": "int"
-		},
 		"pln_temp_employee_syn_raw_to_curated_webUrl": {
 			"type": "string"
 		},
@@ -38550,8 +38547,6 @@
 					{
 						"name": "nsip_representation_migration",
 						"type": "SynapseNotebook",
-						"state": "Inactive",
-						"onInactiveMarkAs": "Succeeded",
 						"dependsOn": [
 							{
 								"activity": "nsip_project_migration",
@@ -68278,12 +68273,20 @@
 			"properties": {
 				"activities": [
 					{
-						"name": "Wait1",
-						"type": "Wait",
+						"name": "rel_2_0_11_nsip_reps_migrated",
+						"type": "ExecutePipeline",
 						"dependsOn": [],
+						"policy": {
+							"secureInput": false
+						},
 						"userProperties": [],
 						"typeProperties": {
-							"waitTimeInSeconds": "[parameters('pln_post_deployment_properties_0_typeProperties')]"
+							"pipeline": {
+								"referenceName": "rel_2_0_11_nsip_reps_migrated",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
 						}
 					}
 				],
@@ -68295,7 +68298,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/pipelines/rel_2_0_11_nsip_reps_migrated')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('workspaceName'), '/pln_raw_to_standardised_e2e')]",
@@ -77423,6 +77428,137 @@
 				"[concat(variables('workspaceId'), '/pipelines/delete_selected_tables')]",
 				"[concat(variables('workspaceId'), '/pipelines/create_selected_tables')]",
 				"[concat(variables('workspaceId'), '/pipelines/pln_master')]",
+				"[concat(variables('workspaceId'), '/notebooks/py_deployment_manage_main_config')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/rel_2_0_11_nsip_reps_migrated')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "nsip_representation_migration",
+						"type": "SynapseNotebook",
+						"dependsOn": [
+							{
+								"activity": "py_sb_horizon_harmonised_nsip_representation",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "nsip_representation_migration",
+								"type": "NotebookReference"
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "pln_horizon_case_involvement",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pln_horizon_nsip_representation_main",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "py_sb_horizon_harmonised_nsip_representation",
+						"type": "SynapseNotebook",
+						"dependsOn": [
+							{
+								"activity": "pln_horizon_case_involvement",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "py_sb_horizon_harmonised_nsip_representation",
+								"type": "NotebookReference"
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "py_deployment_manage_main_config",
+						"type": "SynapseNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "py_deployment_manage_main_config",
+								"type": "NotebookReference"
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"folder": {
+					"name": "Releases/2.0.11"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/notebooks/nsip_representation_migration')]",
+				"[concat(variables('workspaceId'), '/pipelines/pln_horizon_nsip_representation_main')]",
+				"[concat(variables('workspaceId'), '/notebooks/py_sb_horizon_harmonised_nsip_representation')]",
 				"[concat(variables('workspaceId'), '/notebooks/py_deployment_manage_main_config')]"
 			]
 		},
@@ -187163,7 +187299,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "e3700b52-3a13-4584-b64c-01eeaa46da11"
+						"spark.autotune.trackingId": "cadb3868-646b-46f8-9721-9f02576939f8"
 					}
 				},
 				"metadata": {
@@ -187216,34 +187352,8 @@
 							}
 						},
 						"source": [
-							"##### **NOTE**: The curated layer needs to be joined with Service User but since that's not available right now, we're ignoring the two columns. This NEEDS to be fixed once the Service User curated layer is available\n",
-							"\n",
 							"Columns from Service User are representedId, and representativeId"
 						]
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							},
-							"microsoft": {
-								"language": "sparksql"
-							},
-							"collapsed": false
-						},
-						"source": [
-							"%%sql\r\n",
-							"REFRESH TABLE odw_harmonised_db.curated_service_user"
-						],
-						"outputs": [],
-						"execution_count": 1
 					},
 					{
 						"cell_type": "code",
@@ -187260,12 +187370,15 @@
 							"%%sql\r\n",
 							"\r\n",
 							"CREATE OR REPLACE VIEW odw_curated_db.vw_nsip_representation\r\n",
+							"\r\n",
 							"AS\r\n",
+							"\r\n",
 							"SELECT DISTINCT\r\n",
+							"\r\n",
 							"    RR.representationId\r\n",
 							"    ,RR.referenceId\r\n",
 							"    ,RR.examinationLibraryRef\r\n",
-							"    ,COALESCE(RR.caseRef, '') AS caseRef\r\n",
+							"    ,RR.caseRef\r\n",
 							"    ,RR.caseId\r\n",
 							"    ,CASE\r\n",
 							"        WHEN RR.status = 'New' OR RR.status = 'In Progress' THEN\r\n",
@@ -187283,16 +187396,14 @@
 							"    ,RR.redactedBy\r\n",
 							"    ,RR.redactedNotes\r\n",
 							"    ,CASE\r\n",
-							"        WHEN su2.serviceUserType = 'Agent' THEN\r\n",
-							"            'AGENT'\r\n",
 							"        WHEN RR.representationFrom = 'An Organisation' THEN \r\n",
 							"            'ORGANISATION'\r\n",
-							"        WHEN RR.representationFrom = 'Members of the Public/Businesses' and SU2.Organisation IS NOT NULL THEN\r\n",
-							"            'ORGANISATION'\r\n",
+							"        -- WHEN RR.representationFrom = 'Members of the Public/Businesses' and SU2.Organisation IS NOT NULL THEN\r\n",
+							"        --     'ORGANISATION'\r\n",
 							"        WHEN RR.representationFrom = 'Members of the Public/Businesses' THEN\r\n",
 							"            'PERSON'\r\n",
-							"        WHEN RR.representationFrom = 'Another Individual or Organisation' and SU2.Organisation IS NOT NULL THEN\r\n",
-							"             'ORGANISATION'\r\n",
+							"        -- WHEN RR.representationFrom = 'Another Individual or Organisation' and SU2.Organisation IS NOT NULL THEN\r\n",
+							"        --      'ORGANISATION'\r\n",
 							"        WHEN RR.representationFrom = 'Another Individual or Organisation' THEN\r\n",
 							"            'PERSON'\r\n",
 							"        WHEN RR.representationFrom = 'Myself' THEN\r\n",
@@ -187300,17 +187411,17 @@
 							"        ELSE\r\n",
 							"            RR.representationFrom\r\n",
 							"    END AS representationFrom\r\n",
-							"    ,COALESCE(SU.Id, '')AS representedId\r\n",
-							"    ,COALESCE(SU2.Id, '') AS representativeId\r\n",
+							"    ,RR.representedId\r\n",
+							"    ,RR.representativeId\r\n",
 							"    ,CASE\r\n",
 							"        WHEN RR.representationFrom = 'An Organisation' THEN\r\n",
 							"            'ORGANISATION'\r\n",
-							"        WHEN RR.representationFrom = 'Members of the Public/Businesses' and SU.Organisation IS NOT NULL THEN\r\n",
-							"            'ORGANISATION'\r\n",
-							"        WHEN RR.representationFrom = 'Members of the Public/Businesses'THEN\r\n",
+							"        -- WHEN RR.representationFrom = 'Members of the Public/Businesses' AND SU1.Organisation IS NOT NULL THEN\r\n",
+							"        --     'ORGANISATION'\r\n",
+							"        WHEN RR.representationFrom = 'Members of the Public/Businesses' THEN\r\n",
 							"            'PERSON'\r\n",
-							"        WHEN RR.representationFrom = 'Another Individual or Organisation' and SU.Organisation IS NOT NULL THEN \r\n",
-							"            'ORGANISATION'\r\n",
+							"        -- WHEN RR.representationFrom = 'Another Individual or Organisation' AND SU1.Organisation IS NOT NULL THEN \r\n",
+							"        --     'ORGANISATION'\r\n",
 							"        WHEN RR.representationFrom = 'Another Individual or Organisation' THEN\r\n",
 							"            'PERSON'\r\n",
 							"        WHEN RR.representationFrom = 'Myself' THEN\r\n",
@@ -187326,18 +187437,19 @@
 							"        END AS representationType\r\n",
 							"        ,RR.dateReceived\r\n",
 							"        ,RR.attachmentIds\r\n",
-							"FROM \r\n",
-							"        odw_harmonised_db.curated_service_user AS SU2\r\n",
-							"        INNER JOIN odw_harmonised_db.nsip_representation AS RR\r\n",
-							"            ON (SU2.sourceSUID = RR.agentcontactid OR SU2.sourceSUID = RR.representativeId)\r\n",
-							"            AND SU2.serviceUserType IN ('RepresentationContact', 'Agent')\r\n",
-							"            AND RR.ISActive = 'Y'\r\n",
-							"        LEFT OUTER JOIN odw_harmonised_db.curated_service_user AS SU\r\n",
-							"            ON SU.sourceSUID = RR.representedId\r\n",
-							"            AND SU.serviceUserType IN ('Applicant')"
+							"\r\n",
+							"\r\n",
+							"FROM odw_harmonised_db.nsip_representation AS RR\r\n",
+							"\r\n",
+							"-- INNER JOIN odw_curated_db.nsip_project AS NP -- project\r\n",
+							"--     ON RR.caseRef = NP.caseReference\r\n",
+							"\r\n",
+							"WHERE RR.IsActive = 'Y'\r\n",
+							"    AND RR.caseRef IS NOT NULL\r\n",
+							""
 						],
 						"outputs": [],
-						"execution_count": 3
+						"execution_count": 32
 					},
 					{
 						"cell_type": "markdown",
@@ -187349,7 +187461,7 @@
 							}
 						},
 						"source": [
-							"## Table odw_curated_db.nsip_service_user is created"
+							"## Table odw_curated_db.nsip_representation is created"
 						]
 					},
 					{
@@ -187372,26 +187484,7 @@
 							"view_df.write.mode('overwrite').saveAsTable('odw_curated_db.nsip_representation')"
 						],
 						"outputs": [],
-						"execution_count": 5
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							""
-						],
-						"outputs": [],
-						"execution_count": null
+						"execution_count": 33
 					}
 				]
 			},
@@ -187421,7 +187514,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "b387e420-7ed3-4ee3-87c9-44059649bf34"
+						"spark.autotune.trackingId": "fd290110-76d6-4738-a243-7bd733dc0462"
 					}
 				},
 				"metadata": {
@@ -187462,7 +187555,7 @@
 						"source": [
 							"%%sql\n",
 							"\n",
-							"CREATE OR REPLACE VIEW odw_curated_migration_db.vw_nsip_representation\n",
+							"CREATE OR REPLACE TEMPORARY VIEW vw_nsip_representation\n",
 							"\n",
 							"AS\n",
 							"\n",
@@ -187471,7 +187564,7 @@
 							"    RR.representationId\n",
 							"    ,RR.referenceId\n",
 							"    ,RR.examinationLibraryRef\n",
-							"    ,COALESCE(RR.caseRef, '') AS caseRef\n",
+							"    ,RR.caseRef\n",
 							"    ,RR.caseId\n",
 							"    ,CASE\n",
 							"        WHEN RR.status = 'New' OR RR.status = 'In Progress' THEN\n",
@@ -187488,35 +187581,32 @@
 							"    ,RR.redactedRepresentation\n",
 							"    ,RR.redactedBy\n",
 							"    ,RR.redactedNotes\n",
-							"    ,NULL AS representationFrom\n",
-							"    -- ,CASE\n",
-							"    --     -- WHEN su2.serviceUserType = 'Agent' THEN\n",
-							"    --     --     'AGENT'\n",
-							"    --     WHEN RR.representationFrom = 'An Organisation' THEN \n",
-							"    --         'ORGANISATION'\n",
-							"    --     -- WHEN RR.representationFrom = 'Members of the Public/Businesses' and SU2.Organisation IS NOT NULL THEN\n",
-							"    --     --     'ORGANISATION'\n",
-							"    --     -- WHEN RR.representationFrom = 'Members of the Public/Businesses' THEN\n",
-							"    --     --     'PERSON'\n",
-							"    --     -- WHEN RR.representationFrom = 'Another Individual or Organisation' and SU2.Organisation IS NOT NULL THEN\n",
-							"    --         --  'ORGANISATION'\n",
-							"    --     WHEN RR.representationFrom = 'Another Individual or Organisation' THEN\n",
-							"    --         'PERSON'\n",
-							"    --     WHEN RR.representationFrom = 'Myself' THEN\n",
-							"    --         'PERSON'\n",
-							"    --     ELSE\n",
-							"    --         RR.representationFrom\n",
-							"    -- END AS representationFrom\n",
+							"    ,CASE\n",
+							"        WHEN RR.representationFrom = 'An Organisation' THEN \n",
+							"            'ORGANISATION'\n",
+							"        WHEN RR.representationFrom = 'Members of the Public/Businesses' and SU2.Organisation IS NOT NULL THEN\n",
+							"            'ORGANISATION'\n",
+							"        WHEN RR.representationFrom = 'Members of the Public/Businesses' THEN\n",
+							"            'PERSON'\n",
+							"        WHEN RR.representationFrom = 'Another Individual or Organisation' and SU2.Organisation IS NOT NULL THEN\n",
+							"             'ORGANISATION'\n",
+							"        WHEN RR.representationFrom = 'Another Individual or Organisation' THEN\n",
+							"            'PERSON'\n",
+							"        WHEN RR.representationFrom = 'Myself' THEN\n",
+							"            'PERSON'\n",
+							"        ELSE\n",
+							"            RR.representationFrom\n",
+							"    END AS representationFrom\n",
 							"    ,SU1.id AS representedId\n",
-							"    -- ,COALESCE(SU2.id, '') AS representativeId\n",
+							"    ,SU2.id AS representativeId\n",
 							"    ,CASE\n",
 							"        WHEN RR.representationFrom = 'An Organisation' THEN\n",
 							"            'ORGANISATION'\n",
-							"        WHEN RR.representationFrom = 'Members of the Public/Businesses' and SU1.Organisation IS NOT NULL THEN\n",
+							"        WHEN RR.representationFrom = 'Members of the Public/Businesses' AND SU1.Organisation IS NOT NULL THEN\n",
 							"            'ORGANISATION'\n",
-							"        WHEN RR.representationFrom = 'Members of the Public/Businesses'THEN\n",
+							"        WHEN RR.representationFrom = 'Members of the Public/Businesses' THEN\n",
 							"            'PERSON'\n",
-							"        WHEN RR.representationFrom = 'Another Individual or Organisation' and SU1.Organisation IS NOT NULL THEN \n",
+							"        WHEN RR.representationFrom = 'Another Individual or Organisation' AND SU1.Organisation IS NOT NULL THEN \n",
 							"            'ORGANISATION'\n",
 							"        WHEN RR.representationFrom = 'Another Individual or Organisation' THEN\n",
 							"            'PERSON'\n",
@@ -187546,17 +187636,38 @@
 							"    \n",
 							") latest ON RR.representationId = latest.representationId AND RR.IngestionDate = latest.latest_date   \n",
 							"\n",
-							"INNER JOIN odw_curated_migration_db.service_user AS SU1 ON RR.caseRef = SU1.caseReference -- represented\n",
+							"INNER JOIN odw_curated_migration_db.nsip_project AS NP -- project\n",
+							"    ON RR.caseRef = NP.caseReference\n",
+							"\n",
+							"INNER JOIN odw_curated_migration_db.service_user AS SU1 -- represented\n",
+							"    ON RR.caseRef = SU1.caseReference\n",
+							"    AND RR.representedId = SU1.id\n",
+							"    AND SU1.serviceUserType = 'RepresentationContact'\n",
 							"        \n",
-							"-- LEFT JOIN odw_curated_migration_db.service_user AS SU2 ON RR.caseRef = SU2.caseReference -- representative\n",
+							"LEFT JOIN odw_curated_migration_db.service_user AS SU2 -- representative (optional)\n",
+							"    ON RR.caseRef = SU2.caseReference \n",
+							"    AND RR.representativeId = SU2.id\n",
+							"    AND SU2.serviceUserType = 'RepresentationContact'\n",
 							"\n",
 							"WHERE LOWER(RR.ODTSourceSystem) = 'horizon'\n",
-							"    AND SU1.serviceUserTypeInternal = 'RepresentationContact_Represented'\n",
-							"    -- AND SU2.serviceUserTypeInternal = 'RepresentationContact_Agent'\n",
+							"    AND NP.caseReference IS NOT NULL\n",
 							""
 						],
 						"outputs": [],
-						"execution_count": 28
+						"execution_count": 1
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Create a DataFrame of the data from the view"
+						]
 					},
 					{
 						"cell_type": "code",
@@ -187569,17 +187680,14 @@
 								"transient": {
 									"deleting": false
 								}
-							},
-							"collapsed": false
+							}
 						},
 						"source": [
-							"from pyspark.sql import SparkSession\n",
-							"spark = SparkSession.builder.getOrCreate()\n",
-							"view_df = spark.sql('SELECT * FROM odw_curated_migration_db.vw_nsip_representation limit 10')\n",
-							"view_df.write.mode('overwrite').saveAsTable('odw_curated_migration_db.nsip_representation')"
+							"data = spark.sql(\"SELECT * FROM vw_nsip_representation\")\n",
+							"data.write.mode(\"overwrite\").saveAsTable(\"odw_curated_migration_db.nsip_representation\")"
 						],
 						"outputs": [],
-						"execution_count": 29
+						"execution_count": 3
 					}
 				]
 			},
@@ -196206,7 +196314,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "5190b70a-6c08-4c41-ae72-afd2f2ac0bed"
+						"spark.autotune.trackingId": "7bb6ad30-feb2-4573-b2c0-b753eb4520f3"
 					}
 				},
 				"metadata": {
@@ -196355,7 +196463,7 @@
 							"    ,'Service bus' AS System_name\n",
 							"    ,'Folder' AS Object\n",
 							"    ,'folder' AS entity_name\n",
-							"    ,TRUE AS is_enabled\n",
+							"    ,FALSE AS is_enabled\n",
 							"UNION ALL\n",
 							"SELECT\n",
 							"    13 AS System_key\n",
@@ -210308,7 +210416,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "1eb601d2-580d-4d31-b128-7efaacad629f"
+						"spark.autotune.trackingId": "5fe14c77-be3f-47fa-9d13-bed5ef55ee4b"
 					}
 				},
 				"metadata": {
@@ -210346,7 +210454,7 @@
 							"from pyspark.sql.functions import *"
 						],
 						"outputs": [],
-						"execution_count": 16
+						"execution_count": 43
 					},
 					{
 						"cell_type": "code",
@@ -210367,7 +210475,7 @@
 							"spark_table_final = \"odw_harmonised_db.nsip_representation\""
 						],
 						"outputs": [],
-						"execution_count": 17
+						"execution_count": 44
 					},
 					{
 						"cell_type": "markdown",
@@ -210421,7 +210529,6 @@
 							"                        ,attachmentIds\r\n",
 							"\r\n",
 							"                        --Start Horizon only fields\r\n",
-							"                        ,CAST(NULL AS String) AS contactId\r\n",
 							"                        ,CAST(NULL AS String) AS caseuniqueid\r\n",
 							"                        ,CAST(NULL AS String) AS organisationname\r\n",
 							"                        ,CAST(NULL AS String) AS jobtitle\r\n",
@@ -210435,7 +210542,6 @@
 							"                        ,CAST(NULL AS String) AS country\r\n",
 							"                        ,CAST(NULL AS String) AS postcode\r\n",
 							"                        ,CAST(NULL AS String) AS attendprelimmeeting\r\n",
-							"                        ,CAST(NULL AS String) AS agentcontactid\r\n",
 							"                        ,CAST(NULL AS String) AS AgentFullName\r\n",
 							"                        ,CAST(NULL AS String) AS AgentOrganisationName\r\n",
 							"                        ,CAST(NULL AS String) AS agent_phonenumber\r\n",
@@ -210473,7 +210579,7 @@
 							""
 						],
 						"outputs": [],
-						"execution_count": 33
+						"execution_count": 45
 					},
 					{
 						"cell_type": "code",
@@ -210492,7 +210598,7 @@
 						"source": [
 							"# Get data out of Horizon and matching the SB schema (with additional fields and ensure data types match)\r\n",
 							"horizon_data = spark.sql(f\"\"\"\r\n",
-							"                SELECT DISTINCT\r\n",
+							"                    SELECT DISTINCT\r\n",
 							"                        CAST(NULL AS Long) AS NSIPRepresentaionID\r\n",
 							"                        ,CAST(relevantrepid AS integer) AS representationId\r\n",
 							"                        ,CONCAT(COALESCE(casereference, ''), \"-\", COALESCE(relevantrepid, '')) AS referenceId\r\n",
@@ -210506,15 +210612,14 @@
 							"                        ,redactedBy\r\n",
 							"                        ,notes AS redactedNotes\r\n",
 							"                        ,RelRepOnBehalfOf AS representationFrom\r\n",
-							"                        ,CAST(NULL AS String) AS representedId\r\n",
-							"                        ,CAST(NULL AS String) AS representativeId\r\n",
+							"                        ,CAST(contactId AS String) AS representedId\r\n",
+							"                        ,CAST(agentcontactid AS String) AS representativeId\r\n",
 							"                        ,RelRepOnBehalfOf AS registerFor\r\n",
 							"                        ,RelRepOrganisation AS representationType\r\n",
 							"                        ,dateReceived\r\n",
 							"                        ,attachmentId AS attachmentIds\r\n",
 							"\r\n",
 							"                        --Start Horizon only fields\r\n",
-							"                        ,contactId\r\n",
 							"                        ,caseuniqueid\r\n",
 							"                        ,organisationname\r\n",
 							"                        ,jobtitle\r\n",
@@ -210528,7 +210633,6 @@
 							"                        ,country\r\n",
 							"                        ,postcode\r\n",
 							"                        ,attendprelimmeeting\r\n",
-							"                        ,agentcontactid\r\n",
 							"                        ,agent_fullname AS AgentFullName\r\n",
 							"                        ,agent_organisationname AS AgentOrganisationName\r\n",
 							"                        ,agent_phonenumber\r\n",
@@ -210559,19 +210663,22 @@
 							"                        ,ValidTo\r\n",
 							"                        ,'' AS RowID\r\n",
 							"                        ,IsActive\r\n",
-							"FROM\r\n",
-							"    {horizon_table} AS Horizon\r\n",
-							"    INNER JOIN odw_harmonised_db.main_sourcesystem_fact AS source \r\n",
-							"        ON source.Description = \"Casework\"\r\n",
-							"        AND source.IsActive = 'Y'\r\n",
-							"WHERE\r\n",
-							"    ingested_datetime = (SELECT MAX(ingested_datetime) FROM {horizon_table})\r\n",
+							"                        \r\n",
+							"                    FROM\r\n",
+							"                        {horizon_table} AS Horizon\r\n",
+							"                        INNER JOIN odw_harmonised_db.main_sourcesystem_fact AS source \r\n",
+							"                            ON source.Description = \"Casework\"\r\n",
+							"                            AND source.IsActive = 'Y'\r\n",
+							"                    WHERE\r\n",
+							"                        ingested_datetime = (SELECT MAX(ingested_datetime) FROM {horizon_table})\r\n",
+							"                        AND caseReference IS NOT NULL\r\n",
+							"                        AND casenodeid != 0 -- https://pins-ds.atlassian.net/browse/APPLICS-1075\r\n",
 							"\r\n",
 							"                \"\"\")\r\n",
 							""
 						],
 						"outputs": [],
-						"execution_count": 19
+						"execution_count": 46
 					},
 					{
 						"cell_type": "code",
@@ -210597,7 +210704,7 @@
 							"horizon_data = horizon_data.select(service_bus_data.columns)"
 						],
 						"outputs": [],
-						"execution_count": 20
+						"execution_count": 47
 					},
 					{
 						"cell_type": "code",
@@ -210616,7 +210723,7 @@
 							"results = service_bus_data.union(horizon_data)"
 						],
 						"outputs": [],
-						"execution_count": 21
+						"execution_count": 48
 					},
 					{
 						"cell_type": "code",
@@ -210636,7 +210743,7 @@
 							"results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
 						],
 						"outputs": [],
-						"execution_count": 22
+						"execution_count": 49
 					},
 					{
 						"cell_type": "markdown",
@@ -210689,7 +210796,7 @@
 							"    odw_harmonised_db.nsip_representation"
 						],
 						"outputs": [],
-						"execution_count": 31
+						"execution_count": 50
 					},
 					{
 						"cell_type": "code",
@@ -210712,7 +210819,7 @@
 							"#  where representationid = 100006295"
 						],
 						"outputs": [],
-						"execution_count": 36
+						"execution_count": 51
 					},
 					{
 						"cell_type": "code",
@@ -210751,7 +210858,7 @@
 							"                                ORDER BY currentRow.ReverseOrderProcessed\"\"\")"
 						],
 						"outputs": [],
-						"execution_count": 44
+						"execution_count": 52
 					},
 					{
 						"cell_type": "code",
@@ -210773,7 +210880,7 @@
 							"# display(df_df)"
 						],
 						"outputs": [],
-						"execution_count": 45
+						"execution_count": 53
 					},
 					{
 						"cell_type": "code",
@@ -210817,7 +210924,6 @@
 							"                        ,attachmentIds\r\n",
 							"\r\n",
 							"                        --Start Horizon only fields\r\n",
-							"                        ,contactId\r\n",
 							"                        ,caseuniqueid\r\n",
 							"                        ,organisationname\r\n",
 							"                        ,jobtitle\r\n",
@@ -210831,7 +210937,6 @@
 							"                        ,country\r\n",
 							"                        ,postcode\r\n",
 							"                        ,attendprelimmeeting\r\n",
-							"                        ,agentcontactid\r\n",
 							"                        ,AgentFullName\r\n",
 							"                        ,AgentOrganisationName\r\n",
 							"                        ,agent_phonenumber\r\n",
@@ -210883,7 +210988,6 @@
 							"                                    ,IFNULL(CAST(attachmentIds AS String), '.')\r\n",
 							"                                    \r\n",
 							"                                    --Start Horizon only fields\r\n",
-							"                                    ,IFNULL(CAST(contactId AS String), '.')\r\n",
 							"                                    ,IFNULL(CAST(caseuniqueid AS String), '.')\r\n",
 							"                                    ,IFNULL(CAST(organisationname AS String), '.')\r\n",
 							"                                    ,IFNULL(CAST(jobtitle AS String), '.')\r\n",
@@ -210897,7 +211001,6 @@
 							"                                    ,IFNULL(CAST(country AS String), '.')\r\n",
 							"                                    ,IFNULL(CAST(postcode AS String), '.')\r\n",
 							"                                    ,IFNULL(CAST(attendprelimmeeting AS String), '.')\r\n",
-							"                                    ,IFNULL(CAST(agentcontactid AS String), '.')\r\n",
 							"                                    ,IFNULL(CAST(AgentFullName AS String), '.')\r\n",
 							"                                    ,IFNULL(CAST(AgentOrganisationName AS String), '.')\r\n",
 							"                                    ,IFNULL(CAST(agent_phonenumber AS String), '.')\r\n",
@@ -210928,7 +211031,7 @@
 							""
 						],
 						"outputs": [],
-						"execution_count": null
+						"execution_count": 54
 					},
 					{
 						"cell_type": "code",
@@ -210948,7 +211051,7 @@
 							"results = results.drop(\"NSIPRepresentaionID\", \"ValidTo\", \"Migrated\", \"IsActive\")"
 						],
 						"outputs": [],
-						"execution_count": null
+						"execution_count": 55
 					},
 					{
 						"cell_type": "code",
@@ -210970,26 +211073,7 @@
 							"final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
 						],
 						"outputs": [],
-						"execution_count": null
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							""
-						],
-						"outputs": [],
-						"execution_count": null
+						"execution_count": 56
 					}
 				]
 			},
@@ -211614,7 +211698,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "ef727e65-2bb7-4a15-9ea6-58d96af9c44c"
+						"spark.autotune.trackingId": "14662416-419b-4750-a2e1-a8833e05984c"
 					}
 				},
 				"metadata": {
@@ -212116,6 +212200,7 @@
 							"    WHERE\n",
 							"        expected_from = (SELECT MAX(expected_from) FROM {hzn_nsip_representation_table})\n",
 							"        AND ContactID IS NOT NULL\n",
+							"        AND CaseReference IS NOT NULL\n",
 							"\"\"\")\n",
 							"\n",
 							"print(relevant_reps_represented_data.count())\n",
@@ -212200,6 +212285,7 @@
 							"    WHERE\n",
 							"        expected_from = (SELECT MAX(expected_from) FROM {hzn_nsip_representation_table})\n",
 							"        AND AgentContactId IS NOT NULL\n",
+							"        AND CaseReference IS NOT NULL\n",
 							"\"\"\")\n",
 							"\n",
 							"print(relevant_reps_agent_data.count())\n",
@@ -219616,7 +219702,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "5c6edc08-e188-4286-91ed-acfcf402811d"
+						"spark.autotune.trackingId": "b793e559-ad86-44c4-980f-cce5b9c8efa7"
 					}
 				},
 				"metadata": {
@@ -220323,9 +220409,13 @@
 							}
 						},
 						"source": [
-							"def test_hzn_and_curated_count_matched(hzn_table: str, curated_table: str, primary_key: str) -> bool: \n",
+							"def test_hzn_and_curated_count_matched(hzn_table: str, curated_table: str, hzn_primary_key: str, cur_primary_key: str = '') -> bool: \n",
+							"\n",
+							"    if cur_primary_key == '':\n",
+							"        cur_primary_key = hzn_primary_key\n",
+							"\n",
 							"    df_hzn: Dataframe = spark.sql(f\"\"\"\n",
-							"                                SELECT DISTINCT {primary_key}\n",
+							"                                SELECT DISTINCT {hzn_primary_key}\n",
 							"                                FROM odw_standardised_db.{hzn_table}\n",
 							"                                WHERE expected_from = (\n",
 							"                                        SELECT MAX(expected_from)\n",
@@ -220334,7 +220424,7 @@
 							"                            \"\"\")\n",
 							"\n",
 							"    df_cur: Dataframe = spark.sql(f\"\"\"\n",
-							"                                SELECT DISTINCT {primary_key}\n",
+							"                                SELECT DISTINCT {cur_primary_key}\n",
 							"                                FROM odw_curated_migration_db.{curated_table}\n",
 							"                            \"\"\")\n",
 							"\n",
@@ -220357,16 +220447,20 @@
 							}
 						},
 						"source": [
-							"def test_hzn_to_curated_no_record_dropped(hzn_table: str, curated_table: str, primary_key: str) -> bool:\n",
+							"def test_hzn_to_curated_no_record_dropped(hzn_table: str, curated_table: str, hzn_primary_key: str, cur_primary_key: str = '') -> bool:\n",
+							"    \n",
+							"    if cur_primary_key == '':\n",
+							"        cur_primary_key = hzn_primary_key\n",
+							"    \n",
 							"    df: DataFrame = spark.sql(f\"\"\"\n",
-							"                                SELECT DISTINCT {primary_key}\n",
+							"                                SELECT DISTINCT {hzn_primary_key}\n",
 							"                                FROM odw_standardised_db.{hzn_table}\n",
 							"                                WHERE expected_from = (\n",
 							"                                        SELECT MAX(expected_from)\n",
 							"                                        FROM odw_standardised_db.{hzn_table}\n",
 							"                                    )\n",
-							"                                AND {primary_key} NOT IN (\n",
-							"                                        SELECT DISTINCT {primary_key}\n",
+							"                                AND {hzn_primary_key} NOT IN (\n",
+							"                                        SELECT DISTINCT {cur_primary_key}\n",
 							"                                        FROM odw_curated_migration_db.{curated_table}\n",
 							"                                    )\n",
 							"                            \"\"\")\n",
@@ -220390,7 +220484,7 @@
 							}
 						},
 						"source": [
-							"def test_curated_unique_hzn_only(curated_db: str, curated_table: str, primary_key:str) -> tuple[bool,int,int,bool]: \n",
+							"def test_curated_unique_hzn_only(curated_db: str, curated_table: str, primary_key: str) -> tuple[bool,int,int,bool]: \n",
 							"\n",
 							"    df_curated: DataFrame = spark.sql(f\"SELECT * FROM {curated_db}.{curated_table}\")\n",
 							"\n",
@@ -224699,12 +224793,12 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "2e8bccbb-0f87-41e8-80e2-0b10cfc7b30e"
+						"spark.autotune.trackingId": "7e2b5fcc-aafe-4a64-aa54-db6fa26078d0"
 					}
 				},
 				"metadata": {
 					"saveOutput": true,
-					"enableDebugMode": false,
+					"enableDebugMode": true,
 					"kernelspec": {
 						"name": "synapse_pyspark",
 						"display_name": "Synapse PySpark"
@@ -224738,7 +224832,7 @@
 							"import pprint"
 						],
 						"outputs": [],
-						"execution_count": 73
+						"execution_count": 42
 					},
 					{
 						"cell_type": "code",
@@ -224761,10 +224855,36 @@
 							"std_table_name: str = 'sb_nsip_representation'\n",
 							"hrm_table_name: str = 'sb_nsip_representation'\n",
 							"hrm_table_final: str = 'nsip_representation'\n",
-							"curated_table_name: str = 'nsip_representation'"
+							"curated_table_name: str = 'nsip_representation'\n",
+							"\n",
+							"hzn_primary_key: str = 'relevantrepid'\n",
+							"cur_primary_key: str = 'representationId'\n",
+							"std_hzn_table_name: str = 'horizon_nsip_relevant_representation'\n",
+							"curated_migration_db_name: str = 'odw_curated_migration_db'\n",
+							"curated_migration_table_name: str = 'nsip_representation'"
 						],
 						"outputs": [],
-						"execution_count": 74
+						"execution_count": 41
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"#keep track of the exitCodes, if the exit code is not zero then we've had failures, we flip the boolean\n",
+							"exitCode: int = 0"
+						],
+						"outputs": [],
+						"execution_count": 3
 					},
 					{
 						"cell_type": "code",
@@ -224802,7 +224922,7 @@
 							"\t]"
 						],
 						"outputs": [],
-						"execution_count": 75
+						"execution_count": 46
 					},
 					{
 						"cell_type": "code",
@@ -224821,7 +224941,7 @@
 							"%run /utils/unit-tests/py_unit_tests_functions"
 						],
 						"outputs": [],
-						"execution_count": null
+						"execution_count": 44
 					},
 					{
 						"cell_type": "code",
@@ -224843,7 +224963,7 @@
 							"sb_hrm_table_schema = spark.table(f\"{hrm_db_name}.{hrm_table_name}\").schema"
 						],
 						"outputs": [],
-						"execution_count": 80
+						"execution_count": 6
 					},
 					{
 						"cell_type": "markdown",
@@ -224878,7 +224998,7 @@
 							"print(f\"Service bus harmonised schema correct: {hrm_schema_correct}\\nTable: {hrm_db_name}.{hrm_table_name}\\nDifferences shown above (if any)\")"
 						],
 						"outputs": [],
-						"execution_count": 85
+						"execution_count": 7
 					},
 					{
 						"cell_type": "markdown",
@@ -224916,7 +225036,7 @@
 							"    differentiate_std_and_hrm(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\")"
 						],
 						"outputs": [],
-						"execution_count": 87
+						"execution_count": 8
 					},
 					{
 						"cell_type": "markdown",
@@ -224950,7 +225070,314 @@
 							"print(f\"Harmonised Final Count: {harmonised_final_count: ,}\\nCurated Count: {curated_count: ,}\\nCounts match: {counts_match}\")"
 						],
 						"outputs": [],
-						"execution_count": 88
+						"execution_count": 50
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"### The below tests are for the curated_migration_db table\n",
+							"##### Test 1:  Schema match the data model\n",
+							""
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"cur_migrated_schema = create_spark_schema(curated_migration_db_name, entity_name)\n",
+							"cur_migrated_df = spark.table(f\"{curated_migration_db_name}.{curated_migration_table_name}\")\n",
+							"\n",
+							"cur_migrated_schema_correct: bool = test_compare_schemas(cur_migrated_schema, cur_migrated_df.schema)\n",
+							"exitCode += int(not cur_migrated_schema_correct)\n",
+							"print(f\"Curated Migration schema correct: {cur_migrated_schema_correct}\\nTable: {curated_migration_db_name}.{curated_migration_table_name}\\nDifferences shown above (if any)\")"
+						],
+						"outputs": [],
+						"execution_count": 10
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Test 2:  Counts match in horizon standardised and curated\n",
+							""
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"counts_match = test_hzn_and_curated_count_matched(std_hzn_table_name, curated_migration_table_name, hzn_primary_key, cur_primary_key)\n",
+							"print(f\"Horizon to Curared - Counts match: {counts_match}\")\n",
+							"exitCode += int(not counts_match)"
+						],
+						"outputs": [],
+						"execution_count": 11
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Test 3:  Checks if any Primary Key record is dropped from Horizon to Curated\n",
+							""
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"rows_dropped = test_hzn_to_curated_no_record_dropped(std_hzn_table_name, curated_migration_table_name, hzn_primary_key, cur_primary_key)\n",
+							"print(f\"Horizon to Curared - No rows dropped: {rows_dropped}\")\n",
+							"exitCode += int(not rows_dropped)"
+						],
+						"outputs": [],
+						"execution_count": 18
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Test 4: Check curated layer only has horizon data and unique records (distinct primary ids)"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"no_horizon_records, total_curated_count, distinct_curated_count, counts_match = test_curated_unique_hzn_only(curated_migration_db_name, curated_migration_table_name, cur_primary_key)\n",
+							"print(f\"There is no other records than Horizon: {no_horizon_records:}\\nCurated Count: {total_curated_count: ,}\\nDistinct Curated Count: {distinct_curated_count:,}\\nCounts match: {counts_match}\")\n",
+							"exitCode += int(not no_horizon_records)\n",
+							"exitCode += int(not counts_match)"
+						],
+						"outputs": [],
+						"execution_count": 19
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Test 5:  There should be no caseReference in Reps that's not in Project"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"df = spark.sql(f\"\"\"\n",
+							"    SELECT DISTINCT caseRef \n",
+							"    FROM {curated_migration_db_name}.{curated_migration_table_name}\n",
+							"    WHERE caseRef NOT IN (\n",
+							"        SELECT DISTINCT caseReference \n",
+							"        FROM {curated_migration_db_name}.nsip_project\n",
+							"    )\n",
+							"\"\"\")\n",
+							"\n",
+							"\n",
+							"if df.count() == 0:\n",
+							"    print('PASS: No dangling caseReference found')\n",
+							"else:\n",
+							"    print('FAIL: dangling caseReference found')"
+						],
+						"outputs": [],
+						"execution_count": 20
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Test 6: No representation with NULL representedId"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"df = spark.sql(f\"\"\"\n",
+							"    SELECT * \n",
+							"    FROM {curated_migration_db_name}.{curated_migration_table_name}\n",
+							"    WHERE representedId IS NULL OR representedId = ''\n",
+							"\"\"\")\n",
+							"\n",
+							"\n",
+							"if df.count() == 0:\n",
+							"    print('PASS: No NULL representedId found')\n",
+							"else:\n",
+							"    print('FAIL: NULL representedId found')"
+						],
+						"outputs": [],
+						"execution_count": 21
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"#### Test 7: The count of Representations for each case must be the following in dev/test\n",
+							"- EN010004: 6410\n",
+							"- EN010044: 618\n",
+							"- EN010080: 154\n",
+							"- TR040004: 39"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"from pyspark.sql.functions import col\n",
+							"table= 'odw_curated_migration_db.nsip_representation'\n",
+							"\n",
+							"df = spark.sql(\"\"\"\n",
+							"    SELECT * \n",
+							"    FROM odw_curated_migration_db.nsip_representation AS reps \n",
+							"    --INNER JOIN odw_curated_migration_db.service_user AS suser ON reps.representedId = suser.id\n",
+							"    --INNER JOIN odw_curated_migration_db.nsip_project AS proj ON reps.caseRef = proj.caseReference\n",
+							"\"\"\")\n",
+							"\n",
+							"count_EN010004 = df.filter(col(\"caseRef\") == \"EN010004\").count()\n",
+							"count_EN010044 = df.filter(col(\"caseRef\") == \"EN010044\").count()\n",
+							"count_EN010080 = df.filter(col(\"caseRef\") == \"EN010080\").count()\n",
+							"count_TR040004 = df.filter(col(\"caseRef\") == \"TR040004\").count()\n",
+							"\n",
+							"if count_EN010004 == 6410 and count_EN010044 == 618 and count_EN010080 == 154 and count_TR040004 == 39:\n",
+							"    print('PASS: Expected count of representations match')\n",
+							"else:\n",
+							"    print('FAIL: Expected count of representations match')\n",
+							"    exitCode += 1"
+						],
+						"outputs": [],
+						"execution_count": 22
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"mssparkutils.notebook.exit(exitCode)"
+						],
+						"outputs": [],
+						"execution_count": 23
 					},
 					{
 						"cell_type": "markdown",
@@ -224999,7 +225426,7 @@
 							"    2 DESC"
 						],
 						"outputs": [],
-						"execution_count": 89
+						"execution_count": 176
 					},
 					{
 						"cell_type": "code",
@@ -225023,7 +225450,7 @@
 							"select attachmentids FROM odw_curated_db.nsip_representation where representationid = 33574"
 						],
 						"outputs": [],
-						"execution_count": 90
+						"execution_count": 17
 					},
 					{
 						"cell_type": "markdown",
@@ -225074,7 +225501,7 @@
 							"SELECT * FROM odw_harmonised_db.sb_nsip_representation WHERE representationId = 100006245 ORDER BY IngestionDate;"
 						],
 						"outputs": [],
-						"execution_count": 91
+						"execution_count": 18
 					},
 					{
 						"cell_type": "markdown",
@@ -225117,7 +225544,7 @@
 							"     ingested_datetime = (select max(ingested_datetime) from odw_standardised_db.horizon_nsip_relevant_representation) limit 10;"
 						],
 						"outputs": [],
-						"execution_count": 92
+						"execution_count": 19
 					},
 					{
 						"cell_type": "code",
@@ -225148,7 +225575,7 @@
 							"    ingestiondate DESC"
 						],
 						"outputs": [],
-						"execution_count": 94
+						"execution_count": 20
 					},
 					{
 						"cell_type": "markdown",
@@ -225191,7 +225618,7 @@
 							"    contactid= 37039 and ingested_datetime =(select max(ingested_datetime) from odw_standardised_db.horizon_nsip_relevant_representation)"
 						],
 						"outputs": [],
-						"execution_count": 95
+						"execution_count": 21
 					},
 					{
 						"cell_type": "code",
@@ -225222,7 +225649,7 @@
 							""
 						],
 						"outputs": [],
-						"execution_count": 96
+						"execution_count": 22
 					},
 					{
 						"cell_type": "code",
@@ -225256,7 +225683,7 @@
 							"    2 desc"
 						],
 						"outputs": [],
-						"execution_count": 97
+						"execution_count": 23
 					},
 					{
 						"cell_type": "markdown",
@@ -225301,7 +225728,7 @@
 							"    order by ingestiondate"
 						],
 						"outputs": [],
-						"execution_count": 98
+						"execution_count": 24
 					},
 					{
 						"cell_type": "code",
@@ -225335,7 +225762,7 @@
 							"    2 desc"
 						],
 						"outputs": [],
-						"execution_count": 99
+						"execution_count": 25
 					},
 					{
 						"cell_type": "markdown",
@@ -225379,7 +225806,7 @@
 							"    ingestiondate DESC"
 						],
 						"outputs": [],
-						"execution_count": 34
+						"execution_count": 26
 					},
 					{
 						"cell_type": "code",
@@ -225408,7 +225835,7 @@
 							"    representationid = '100006295'"
 						],
 						"outputs": [],
-						"execution_count": 35
+						"execution_count": 27
 					},
 					{
 						"cell_type": "markdown",
@@ -225463,7 +225890,7 @@
 							""
 						],
 						"outputs": [],
-						"execution_count": 37
+						"execution_count": 28
 					}
 				]
 			},
