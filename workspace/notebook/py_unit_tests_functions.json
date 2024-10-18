@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5c6edc08-e188-4286-91ed-acfcf402811d"
+				"spark.autotune.trackingId": "b793e559-ad86-44c4-980f-cce5b9c8efa7"
 			}
 		},
 		"metadata": {
@@ -706,9 +706,13 @@
 					}
 				},
 				"source": [
-					"def test_hzn_and_curated_count_matched(hzn_table: str, curated_table: str, primary_key: str) -> bool: \n",
+					"def test_hzn_and_curated_count_matched(hzn_table: str, curated_table: str, hzn_primary_key: str, cur_primary_key: str = '') -> bool: \n",
+					"\n",
+					"    if cur_primary_key == '':\n",
+					"        cur_primary_key = hzn_primary_key\n",
+					"\n",
 					"    df_hzn: Dataframe = spark.sql(f\"\"\"\n",
-					"                                SELECT DISTINCT {primary_key}\n",
+					"                                SELECT DISTINCT {hzn_primary_key}\n",
 					"                                FROM odw_standardised_db.{hzn_table}\n",
 					"                                WHERE expected_from = (\n",
 					"                                        SELECT MAX(expected_from)\n",
@@ -717,7 +721,7 @@
 					"                            \"\"\")\n",
 					"\n",
 					"    df_cur: Dataframe = spark.sql(f\"\"\"\n",
-					"                                SELECT DISTINCT {primary_key}\n",
+					"                                SELECT DISTINCT {cur_primary_key}\n",
 					"                                FROM odw_curated_migration_db.{curated_table}\n",
 					"                            \"\"\")\n",
 					"\n",
@@ -739,16 +743,20 @@
 					}
 				},
 				"source": [
-					"def test_hzn_to_curated_no_record_dropped(hzn_table: str, curated_table: str, primary_key: str) -> bool:\n",
+					"def test_hzn_to_curated_no_record_dropped(hzn_table: str, curated_table: str, hzn_primary_key: str, cur_primary_key: str = '') -> bool:\n",
+					"    \n",
+					"    if cur_primary_key == '':\n",
+					"        cur_primary_key = hzn_primary_key\n",
+					"    \n",
 					"    df: DataFrame = spark.sql(f\"\"\"\n",
-					"                                SELECT DISTINCT {primary_key}\n",
+					"                                SELECT DISTINCT {hzn_primary_key}\n",
 					"                                FROM odw_standardised_db.{hzn_table}\n",
 					"                                WHERE expected_from = (\n",
 					"                                        SELECT MAX(expected_from)\n",
 					"                                        FROM odw_standardised_db.{hzn_table}\n",
 					"                                    )\n",
-					"                                AND {primary_key} NOT IN (\n",
-					"                                        SELECT DISTINCT {primary_key}\n",
+					"                                AND {hzn_primary_key} NOT IN (\n",
+					"                                        SELECT DISTINCT {cur_primary_key}\n",
 					"                                        FROM odw_curated_migration_db.{curated_table}\n",
 					"                                    )\n",
 					"                            \"\"\")\n",
@@ -771,7 +779,7 @@
 					}
 				},
 				"source": [
-					"def test_curated_unique_hzn_only(curated_db: str, curated_table: str, primary_key:str) -> tuple[bool,int,int,bool]: \n",
+					"def test_curated_unique_hzn_only(curated_db: str, curated_table: str, primary_key: str) -> tuple[bool,int,int,bool]: \n",
 					"\n",
 					"    df_curated: DataFrame = spark.sql(f\"SELECT * FROM {curated_db}.{curated_table}\")\n",
 					"\n",

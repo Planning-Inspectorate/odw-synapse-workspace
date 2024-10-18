@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "e3700b52-3a13-4584-b64c-01eeaa46da11"
+				"spark.autotune.trackingId": "cadb3868-646b-46f8-9721-9f02576939f8"
 			}
 		},
 		"metadata": {
@@ -75,33 +75,8 @@
 					}
 				},
 				"source": [
-					"##### **NOTE**: The curated layer needs to be joined with Service User but since that's not available right now, we're ignoring the two columns. This NEEDS to be fixed once the Service User curated layer is available\n",
-					"\n",
 					"Columns from Service User are representedId, and representativeId"
 				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
-				},
-				"source": [
-					"%%sql\r\n",
-					"REFRESH TABLE odw_harmonised_db.curated_service_user"
-				],
-				"execution_count": 1
 			},
 			{
 				"cell_type": "code",
@@ -118,12 +93,15 @@
 					"%%sql\r\n",
 					"\r\n",
 					"CREATE OR REPLACE VIEW odw_curated_db.vw_nsip_representation\r\n",
+					"\r\n",
 					"AS\r\n",
+					"\r\n",
 					"SELECT DISTINCT\r\n",
+					"\r\n",
 					"    RR.representationId\r\n",
 					"    ,RR.referenceId\r\n",
 					"    ,RR.examinationLibraryRef\r\n",
-					"    ,COALESCE(RR.caseRef, '') AS caseRef\r\n",
+					"    ,RR.caseRef\r\n",
 					"    ,RR.caseId\r\n",
 					"    ,CASE\r\n",
 					"        WHEN RR.status = 'New' OR RR.status = 'In Progress' THEN\r\n",
@@ -141,16 +119,14 @@
 					"    ,RR.redactedBy\r\n",
 					"    ,RR.redactedNotes\r\n",
 					"    ,CASE\r\n",
-					"        WHEN su2.serviceUserType = 'Agent' THEN\r\n",
-					"            'AGENT'\r\n",
 					"        WHEN RR.representationFrom = 'An Organisation' THEN \r\n",
 					"            'ORGANISATION'\r\n",
-					"        WHEN RR.representationFrom = 'Members of the Public/Businesses' and SU2.Organisation IS NOT NULL THEN\r\n",
-					"            'ORGANISATION'\r\n",
+					"        -- WHEN RR.representationFrom = 'Members of the Public/Businesses' and SU2.Organisation IS NOT NULL THEN\r\n",
+					"        --     'ORGANISATION'\r\n",
 					"        WHEN RR.representationFrom = 'Members of the Public/Businesses' THEN\r\n",
 					"            'PERSON'\r\n",
-					"        WHEN RR.representationFrom = 'Another Individual or Organisation' and SU2.Organisation IS NOT NULL THEN\r\n",
-					"             'ORGANISATION'\r\n",
+					"        -- WHEN RR.representationFrom = 'Another Individual or Organisation' and SU2.Organisation IS NOT NULL THEN\r\n",
+					"        --      'ORGANISATION'\r\n",
 					"        WHEN RR.representationFrom = 'Another Individual or Organisation' THEN\r\n",
 					"            'PERSON'\r\n",
 					"        WHEN RR.representationFrom = 'Myself' THEN\r\n",
@@ -158,17 +134,17 @@
 					"        ELSE\r\n",
 					"            RR.representationFrom\r\n",
 					"    END AS representationFrom\r\n",
-					"    ,COALESCE(SU.Id, '')AS representedId\r\n",
-					"    ,COALESCE(SU2.Id, '') AS representativeId\r\n",
+					"    ,RR.representedId\r\n",
+					"    ,RR.representativeId\r\n",
 					"    ,CASE\r\n",
 					"        WHEN RR.representationFrom = 'An Organisation' THEN\r\n",
 					"            'ORGANISATION'\r\n",
-					"        WHEN RR.representationFrom = 'Members of the Public/Businesses' and SU.Organisation IS NOT NULL THEN\r\n",
-					"            'ORGANISATION'\r\n",
-					"        WHEN RR.representationFrom = 'Members of the Public/Businesses'THEN\r\n",
+					"        -- WHEN RR.representationFrom = 'Members of the Public/Businesses' AND SU1.Organisation IS NOT NULL THEN\r\n",
+					"        --     'ORGANISATION'\r\n",
+					"        WHEN RR.representationFrom = 'Members of the Public/Businesses' THEN\r\n",
 					"            'PERSON'\r\n",
-					"        WHEN RR.representationFrom = 'Another Individual or Organisation' and SU.Organisation IS NOT NULL THEN \r\n",
-					"            'ORGANISATION'\r\n",
+					"        -- WHEN RR.representationFrom = 'Another Individual or Organisation' AND SU1.Organisation IS NOT NULL THEN \r\n",
+					"        --     'ORGANISATION'\r\n",
 					"        WHEN RR.representationFrom = 'Another Individual or Organisation' THEN\r\n",
 					"            'PERSON'\r\n",
 					"        WHEN RR.representationFrom = 'Myself' THEN\r\n",
@@ -184,17 +160,18 @@
 					"        END AS representationType\r\n",
 					"        ,RR.dateReceived\r\n",
 					"        ,RR.attachmentIds\r\n",
-					"FROM \r\n",
-					"        odw_harmonised_db.curated_service_user AS SU2\r\n",
-					"        INNER JOIN odw_harmonised_db.nsip_representation AS RR\r\n",
-					"            ON (SU2.sourceSUID = RR.agentcontactid OR SU2.sourceSUID = RR.representativeId)\r\n",
-					"            AND SU2.serviceUserType IN ('RepresentationContact', 'Agent')\r\n",
-					"            AND RR.ISActive = 'Y'\r\n",
-					"        LEFT OUTER JOIN odw_harmonised_db.curated_service_user AS SU\r\n",
-					"            ON SU.sourceSUID = RR.representedId\r\n",
-					"            AND SU.serviceUserType IN ('Applicant')"
+					"\r\n",
+					"\r\n",
+					"FROM odw_harmonised_db.nsip_representation AS RR\r\n",
+					"\r\n",
+					"-- INNER JOIN odw_curated_db.nsip_project AS NP -- project\r\n",
+					"--     ON RR.caseRef = NP.caseReference\r\n",
+					"\r\n",
+					"WHERE RR.IsActive = 'Y'\r\n",
+					"    AND RR.caseRef IS NOT NULL\r\n",
+					""
 				],
-				"execution_count": 3
+				"execution_count": 32
 			},
 			{
 				"cell_type": "markdown",
@@ -206,7 +183,7 @@
 					}
 				},
 				"source": [
-					"## Table odw_curated_db.nsip_service_user is created"
+					"## Table odw_curated_db.nsip_representation is created"
 				]
 			},
 			{
@@ -228,25 +205,7 @@
 					"view_df = spark.sql('SELECT * FROM odw_curated_db.vw_nsip_representation')\r\n",
 					"view_df.write.mode('overwrite').saveAsTable('odw_curated_db.nsip_representation')"
 				],
-				"execution_count": 5
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					""
-				],
-				"execution_count": null
+				"execution_count": 33
 			}
 		]
 	}

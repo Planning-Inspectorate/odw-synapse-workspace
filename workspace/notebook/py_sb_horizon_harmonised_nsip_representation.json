@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "1eb601d2-580d-4d31-b128-7efaacad629f"
+				"spark.autotune.trackingId": "5fe14c77-be3f-47fa-9d13-bed5ef55ee4b"
 			}
 		},
 		"metadata": {
@@ -46,7 +46,8 @@
 				"sparkVersion": "3.3",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 28
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -58,7 +59,7 @@
 					"from pyspark.sql import Row\r\n",
 					"from pyspark.sql.functions import *"
 				],
-				"execution_count": 16
+				"execution_count": 43
 			},
 			{
 				"cell_type": "code",
@@ -78,7 +79,7 @@
 					"horizon_table = \"odw_standardised_db.horizon_nsip_relevant_representation\"\r\n",
 					"spark_table_final = \"odw_harmonised_db.nsip_representation\""
 				],
-				"execution_count": 17
+				"execution_count": 44
 			},
 			{
 				"cell_type": "markdown",
@@ -132,7 +133,6 @@
 					"                        ,attachmentIds\r\n",
 					"\r\n",
 					"                        --Start Horizon only fields\r\n",
-					"                        ,CAST(NULL AS String) AS contactId\r\n",
 					"                        ,CAST(NULL AS String) AS caseuniqueid\r\n",
 					"                        ,CAST(NULL AS String) AS organisationname\r\n",
 					"                        ,CAST(NULL AS String) AS jobtitle\r\n",
@@ -146,7 +146,6 @@
 					"                        ,CAST(NULL AS String) AS country\r\n",
 					"                        ,CAST(NULL AS String) AS postcode\r\n",
 					"                        ,CAST(NULL AS String) AS attendprelimmeeting\r\n",
-					"                        ,CAST(NULL AS String) AS agentcontactid\r\n",
 					"                        ,CAST(NULL AS String) AS AgentFullName\r\n",
 					"                        ,CAST(NULL AS String) AS AgentOrganisationName\r\n",
 					"                        ,CAST(NULL AS String) AS agent_phonenumber\r\n",
@@ -183,7 +182,7 @@
 					"\r\n",
 					""
 				],
-				"execution_count": 33
+				"execution_count": 45
 			},
 			{
 				"cell_type": "code",
@@ -202,7 +201,7 @@
 				"source": [
 					"# Get data out of Horizon and matching the SB schema (with additional fields and ensure data types match)\r\n",
 					"horizon_data = spark.sql(f\"\"\"\r\n",
-					"                SELECT DISTINCT\r\n",
+					"                    SELECT DISTINCT\r\n",
 					"                        CAST(NULL AS Long) AS NSIPRepresentaionID\r\n",
 					"                        ,CAST(relevantrepid AS integer) AS representationId\r\n",
 					"                        ,CONCAT(COALESCE(casereference, ''), \"-\", COALESCE(relevantrepid, '')) AS referenceId\r\n",
@@ -216,15 +215,14 @@
 					"                        ,redactedBy\r\n",
 					"                        ,notes AS redactedNotes\r\n",
 					"                        ,RelRepOnBehalfOf AS representationFrom\r\n",
-					"                        ,CAST(NULL AS String) AS representedId\r\n",
-					"                        ,CAST(NULL AS String) AS representativeId\r\n",
+					"                        ,CAST(contactId AS String) AS representedId\r\n",
+					"                        ,CAST(agentcontactid AS String) AS representativeId\r\n",
 					"                        ,RelRepOnBehalfOf AS registerFor\r\n",
 					"                        ,RelRepOrganisation AS representationType\r\n",
 					"                        ,dateReceived\r\n",
 					"                        ,attachmentId AS attachmentIds\r\n",
 					"\r\n",
 					"                        --Start Horizon only fields\r\n",
-					"                        ,contactId\r\n",
 					"                        ,caseuniqueid\r\n",
 					"                        ,organisationname\r\n",
 					"                        ,jobtitle\r\n",
@@ -238,7 +236,6 @@
 					"                        ,country\r\n",
 					"                        ,postcode\r\n",
 					"                        ,attendprelimmeeting\r\n",
-					"                        ,agentcontactid\r\n",
 					"                        ,agent_fullname AS AgentFullName\r\n",
 					"                        ,agent_organisationname AS AgentOrganisationName\r\n",
 					"                        ,agent_phonenumber\r\n",
@@ -269,18 +266,21 @@
 					"                        ,ValidTo\r\n",
 					"                        ,'' AS RowID\r\n",
 					"                        ,IsActive\r\n",
-					"FROM\r\n",
-					"    {horizon_table} AS Horizon\r\n",
-					"    INNER JOIN odw_harmonised_db.main_sourcesystem_fact AS source \r\n",
-					"        ON source.Description = \"Casework\"\r\n",
-					"        AND source.IsActive = 'Y'\r\n",
-					"WHERE\r\n",
-					"    ingested_datetime = (SELECT MAX(ingested_datetime) FROM {horizon_table})\r\n",
+					"                        \r\n",
+					"                    FROM\r\n",
+					"                        {horizon_table} AS Horizon\r\n",
+					"                        INNER JOIN odw_harmonised_db.main_sourcesystem_fact AS source \r\n",
+					"                            ON source.Description = \"Casework\"\r\n",
+					"                            AND source.IsActive = 'Y'\r\n",
+					"                    WHERE\r\n",
+					"                        ingested_datetime = (SELECT MAX(ingested_datetime) FROM {horizon_table})\r\n",
+					"                        AND caseReference IS NOT NULL\r\n",
+					"                        AND casenodeid != 0 -- https://pins-ds.atlassian.net/browse/APPLICS-1075\r\n",
 					"\r\n",
 					"                \"\"\")\r\n",
 					""
 				],
-				"execution_count": 19
+				"execution_count": 46
 			},
 			{
 				"cell_type": "code",
@@ -305,7 +305,7 @@
 					"#sort columns into same order as service bus\r\n",
 					"horizon_data = horizon_data.select(service_bus_data.columns)"
 				],
-				"execution_count": 20
+				"execution_count": 47
 			},
 			{
 				"cell_type": "code",
@@ -323,7 +323,7 @@
 				"source": [
 					"results = service_bus_data.union(horizon_data)"
 				],
-				"execution_count": 21
+				"execution_count": 48
 			},
 			{
 				"cell_type": "code",
@@ -342,7 +342,7 @@
 				"source": [
 					"results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
 				],
-				"execution_count": 22
+				"execution_count": 49
 			},
 			{
 				"cell_type": "markdown",
@@ -394,7 +394,7 @@
 					"FROM\r\n",
 					"    odw_harmonised_db.nsip_representation"
 				],
-				"execution_count": 31
+				"execution_count": 50
 			},
 			{
 				"cell_type": "code",
@@ -416,7 +416,7 @@
 					"#  select * from vw_nsip_relevant_representation_calculations_base\r\n",
 					"#  where representationid = 100006295"
 				],
-				"execution_count": 36
+				"execution_count": 51
 			},
 			{
 				"cell_type": "code",
@@ -454,7 +454,7 @@
 					"                                ON CurrentRow.representationId = Raw.representationId \r\n",
 					"                                ORDER BY currentRow.ReverseOrderProcessed\"\"\")"
 				],
-				"execution_count": 44
+				"execution_count": 52
 			},
 			{
 				"cell_type": "code",
@@ -475,7 +475,7 @@
 					"# df_df = df_calcs.filter(col(\"representationId\")==100006295)\r\n",
 					"# display(df_df)"
 				],
-				"execution_count": 45
+				"execution_count": 53
 			},
 			{
 				"cell_type": "code",
@@ -519,7 +519,6 @@
 					"                        ,attachmentIds\r\n",
 					"\r\n",
 					"                        --Start Horizon only fields\r\n",
-					"                        ,contactId\r\n",
 					"                        ,caseuniqueid\r\n",
 					"                        ,organisationname\r\n",
 					"                        ,jobtitle\r\n",
@@ -533,7 +532,6 @@
 					"                        ,country\r\n",
 					"                        ,postcode\r\n",
 					"                        ,attendprelimmeeting\r\n",
-					"                        ,agentcontactid\r\n",
 					"                        ,AgentFullName\r\n",
 					"                        ,AgentOrganisationName\r\n",
 					"                        ,agent_phonenumber\r\n",
@@ -585,7 +583,6 @@
 					"                                    ,IFNULL(CAST(attachmentIds AS String), '.')\r\n",
 					"                                    \r\n",
 					"                                    --Start Horizon only fields\r\n",
-					"                                    ,IFNULL(CAST(contactId AS String), '.')\r\n",
 					"                                    ,IFNULL(CAST(caseuniqueid AS String), '.')\r\n",
 					"                                    ,IFNULL(CAST(organisationname AS String), '.')\r\n",
 					"                                    ,IFNULL(CAST(jobtitle AS String), '.')\r\n",
@@ -599,7 +596,6 @@
 					"                                    ,IFNULL(CAST(country AS String), '.')\r\n",
 					"                                    ,IFNULL(CAST(postcode AS String), '.')\r\n",
 					"                                    ,IFNULL(CAST(attendprelimmeeting AS String), '.')\r\n",
-					"                                    ,IFNULL(CAST(agentcontactid AS String), '.')\r\n",
 					"                                    ,IFNULL(CAST(AgentFullName AS String), '.')\r\n",
 					"                                    ,IFNULL(CAST(AgentOrganisationName AS String), '.')\r\n",
 					"                                    ,IFNULL(CAST(agent_phonenumber AS String), '.')\r\n",
@@ -629,7 +625,7 @@
 					"                        {spark_table_final} AS Target\"\"\")\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 54
 			},
 			{
 				"cell_type": "code",
@@ -648,7 +644,7 @@
 					"columns = results.columns\n",
 					"results = results.drop(\"NSIPRepresentaionID\", \"ValidTo\", \"Migrated\", \"IsActive\")"
 				],
-				"execution_count": null
+				"execution_count": 55
 			},
 			{
 				"cell_type": "code",
@@ -669,25 +665,7 @@
 					"\r\n",
 					"final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
 				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					""
-				],
-				"execution_count": null
+				"execution_count": 56
 			}
 		]
 	}

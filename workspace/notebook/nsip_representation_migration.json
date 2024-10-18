@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "b387e420-7ed3-4ee3-87c9-44059649bf34"
+				"spark.autotune.trackingId": "fd290110-76d6-4738-a243-7bd733dc0462"
 			}
 		},
 		"metadata": {
@@ -62,7 +62,7 @@
 				"source": [
 					"%%sql\n",
 					"\n",
-					"CREATE OR REPLACE VIEW odw_curated_migration_db.vw_nsip_representation\n",
+					"CREATE OR REPLACE TEMPORARY VIEW vw_nsip_representation\n",
 					"\n",
 					"AS\n",
 					"\n",
@@ -71,7 +71,7 @@
 					"    RR.representationId\n",
 					"    ,RR.referenceId\n",
 					"    ,RR.examinationLibraryRef\n",
-					"    ,COALESCE(RR.caseRef, '') AS caseRef\n",
+					"    ,RR.caseRef\n",
 					"    ,RR.caseId\n",
 					"    ,CASE\n",
 					"        WHEN RR.status = 'New' OR RR.status = 'In Progress' THEN\n",
@@ -88,35 +88,32 @@
 					"    ,RR.redactedRepresentation\n",
 					"    ,RR.redactedBy\n",
 					"    ,RR.redactedNotes\n",
-					"    ,NULL AS representationFrom\n",
-					"    -- ,CASE\n",
-					"    --     -- WHEN su2.serviceUserType = 'Agent' THEN\n",
-					"    --     --     'AGENT'\n",
-					"    --     WHEN RR.representationFrom = 'An Organisation' THEN \n",
-					"    --         'ORGANISATION'\n",
-					"    --     -- WHEN RR.representationFrom = 'Members of the Public/Businesses' and SU2.Organisation IS NOT NULL THEN\n",
-					"    --     --     'ORGANISATION'\n",
-					"    --     -- WHEN RR.representationFrom = 'Members of the Public/Businesses' THEN\n",
-					"    --     --     'PERSON'\n",
-					"    --     -- WHEN RR.representationFrom = 'Another Individual or Organisation' and SU2.Organisation IS NOT NULL THEN\n",
-					"    --         --  'ORGANISATION'\n",
-					"    --     WHEN RR.representationFrom = 'Another Individual or Organisation' THEN\n",
-					"    --         'PERSON'\n",
-					"    --     WHEN RR.representationFrom = 'Myself' THEN\n",
-					"    --         'PERSON'\n",
-					"    --     ELSE\n",
-					"    --         RR.representationFrom\n",
-					"    -- END AS representationFrom\n",
+					"    ,CASE\n",
+					"        WHEN RR.representationFrom = 'An Organisation' THEN \n",
+					"            'ORGANISATION'\n",
+					"        WHEN RR.representationFrom = 'Members of the Public/Businesses' and SU2.Organisation IS NOT NULL THEN\n",
+					"            'ORGANISATION'\n",
+					"        WHEN RR.representationFrom = 'Members of the Public/Businesses' THEN\n",
+					"            'PERSON'\n",
+					"        WHEN RR.representationFrom = 'Another Individual or Organisation' and SU2.Organisation IS NOT NULL THEN\n",
+					"             'ORGANISATION'\n",
+					"        WHEN RR.representationFrom = 'Another Individual or Organisation' THEN\n",
+					"            'PERSON'\n",
+					"        WHEN RR.representationFrom = 'Myself' THEN\n",
+					"            'PERSON'\n",
+					"        ELSE\n",
+					"            RR.representationFrom\n",
+					"    END AS representationFrom\n",
 					"    ,SU1.id AS representedId\n",
-					"    -- ,COALESCE(SU2.id, '') AS representativeId\n",
+					"    ,SU2.id AS representativeId\n",
 					"    ,CASE\n",
 					"        WHEN RR.representationFrom = 'An Organisation' THEN\n",
 					"            'ORGANISATION'\n",
-					"        WHEN RR.representationFrom = 'Members of the Public/Businesses' and SU1.Organisation IS NOT NULL THEN\n",
+					"        WHEN RR.representationFrom = 'Members of the Public/Businesses' AND SU1.Organisation IS NOT NULL THEN\n",
 					"            'ORGANISATION'\n",
-					"        WHEN RR.representationFrom = 'Members of the Public/Businesses'THEN\n",
+					"        WHEN RR.representationFrom = 'Members of the Public/Businesses' THEN\n",
 					"            'PERSON'\n",
-					"        WHEN RR.representationFrom = 'Another Individual or Organisation' and SU1.Organisation IS NOT NULL THEN \n",
+					"        WHEN RR.representationFrom = 'Another Individual or Organisation' AND SU1.Organisation IS NOT NULL THEN \n",
 					"            'ORGANISATION'\n",
 					"        WHEN RR.representationFrom = 'Another Individual or Organisation' THEN\n",
 					"            'PERSON'\n",
@@ -146,16 +143,37 @@
 					"    \n",
 					") latest ON RR.representationId = latest.representationId AND RR.IngestionDate = latest.latest_date   \n",
 					"\n",
-					"INNER JOIN odw_curated_migration_db.service_user AS SU1 ON RR.caseRef = SU1.caseReference -- represented\n",
+					"INNER JOIN odw_curated_migration_db.nsip_project AS NP -- project\n",
+					"    ON RR.caseRef = NP.caseReference\n",
+					"\n",
+					"INNER JOIN odw_curated_migration_db.service_user AS SU1 -- represented\n",
+					"    ON RR.caseRef = SU1.caseReference\n",
+					"    AND RR.representedId = SU1.id\n",
+					"    AND SU1.serviceUserType = 'RepresentationContact'\n",
 					"        \n",
-					"-- LEFT JOIN odw_curated_migration_db.service_user AS SU2 ON RR.caseRef = SU2.caseReference -- representative\n",
+					"LEFT JOIN odw_curated_migration_db.service_user AS SU2 -- representative (optional)\n",
+					"    ON RR.caseRef = SU2.caseReference \n",
+					"    AND RR.representativeId = SU2.id\n",
+					"    AND SU2.serviceUserType = 'RepresentationContact'\n",
 					"\n",
 					"WHERE LOWER(RR.ODTSourceSystem) = 'horizon'\n",
-					"    AND SU1.serviceUserTypeInternal = 'RepresentationContact_Represented'\n",
-					"    -- AND SU2.serviceUserTypeInternal = 'RepresentationContact_Agent'\n",
+					"    AND NP.caseReference IS NOT NULL\n",
 					""
 				],
-				"execution_count": 28
+				"execution_count": 1
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Create a DataFrame of the data from the view"
+				]
 			},
 			{
 				"cell_type": "code",
@@ -168,16 +186,13 @@
 						"transient": {
 							"deleting": false
 						}
-					},
-					"collapsed": false
+					}
 				},
 				"source": [
-					"from pyspark.sql import SparkSession\n",
-					"spark = SparkSession.builder.getOrCreate()\n",
-					"view_df = spark.sql('SELECT * FROM odw_curated_migration_db.vw_nsip_representation limit 10')\n",
-					"view_df.write.mode('overwrite').saveAsTable('odw_curated_migration_db.nsip_representation')"
+					"data = spark.sql(\"SELECT * FROM vw_nsip_representation\")\n",
+					"data.write.mode(\"overwrite\").saveAsTable(\"odw_curated_migration_db.nsip_representation\")"
 				],
-				"execution_count": 29
+				"execution_count": 3
 			}
 		]
 	}
