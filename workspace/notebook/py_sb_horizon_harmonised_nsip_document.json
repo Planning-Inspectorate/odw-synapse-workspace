@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "548e11f1-5740-493a-919e-02954cbdd8ec"
+				"spark.autotune.trackingId": "e789f6b1-8955-4546-a4f9-af8c206b5fbc"
 			}
 		},
 		"metadata": {
@@ -58,7 +58,7 @@
 					"from pyspark.sql import Row\n",
 					"from pyspark.sql.functions import *"
 				],
-				"execution_count": 18
+				"execution_count": 37
 			},
 			{
 				"cell_type": "code",
@@ -81,7 +81,25 @@
 					"\n",
 					"primary_key = 'TEMP_PK'"
 				],
-				"execution_count": 19
+				"execution_count": 39
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"spark.catalog.refreshTable(horizon_table)"
+				],
+				"execution_count": 38
 			},
 			{
 				"cell_type": "code",
@@ -153,7 +171,7 @@
 					"\r\n",
 					"                    \"\"\")"
 				],
-				"execution_count": 20
+				"execution_count": 40
 			},
 			{
 				"cell_type": "code",
@@ -207,13 +225,13 @@
 					"                    ,Aie.origin AS origin\n",
 					"                    ,Aie.owner\n",
 					"                    ,Doc.author\n",
-					"                    ,NULL as authorWelsh\n",
+					"                    ,Doc.authorWelsh\n",
 					"                    ,Doc.representative\n",
 					"                    ,Doc.documentDescription AS description\n",
-					"                    ,NULL as descriptionWelsh\n",
+					"                    ,Doc.documentDescriptionWelsh AS descriptionWelsh\n",
 					"                    ,Doc.documentCaseStage\n",
 					"                    ,Doc.filter1\n",
-					"                    ,NULL AS filter1Welsh\n",
+					"                    ,Doc.filter1Welsh\n",
 					"                    ,Doc.filter2\n",
 					"                    ,Doc.parentid AS horizonFolderId\n",
 					"                    ,Null as transcriptId\n",
@@ -235,7 +253,7 @@
 					"                    Doc.expected_from = (SELECT MAX(expected_from) FROM {horizon_table})\n",
 					"            \"\"\")"
 				],
-				"execution_count": 21
+				"execution_count": 42
 			},
 			{
 				"cell_type": "code",
@@ -254,7 +272,7 @@
 					"horizon_data = horizon_data.select(service_bus_data.columns)\n",
 					"results = service_bus_data.union(horizon_data)"
 				],
-				"execution_count": 22
+				"execution_count": 43
 			},
 			{
 				"cell_type": "code",
@@ -272,7 +290,7 @@
 				"source": [
 					"results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
 				],
-				"execution_count": 23
+				"execution_count": 44
 			},
 			{
 				"cell_type": "markdown",
@@ -323,7 +341,7 @@
 					"            {spark_table_final}\n",
 					"    \"\"\")"
 				],
-				"execution_count": 24
+				"execution_count": 45
 			},
 			{
 				"cell_type": "code",
@@ -363,7 +381,7 @@
 					"                    \"\"\")\n",
 					"                    "
 				],
-				"execution_count": 25
+				"execution_count": 46
 			},
 			{
 				"cell_type": "code",
@@ -381,7 +399,7 @@
 				"source": [
 					"df_calcs =df_calcs.withColumnRenamed(primary_key, f\"temp_{primary_key}\").withColumnRenamed(\"IngestionDate\", \"temp_IngestionDate\")"
 				],
-				"execution_count": 26
+				"execution_count": 47
 			},
 			{
 				"cell_type": "code",
@@ -493,7 +511,7 @@
 					"                \"\"\")\n",
 					"    "
 				],
-				"execution_count": 27
+				"execution_count": 48
 			},
 			{
 				"cell_type": "code",
@@ -513,7 +531,7 @@
 					"\n",
 					"results = results.drop(\"NSIPDocumentID\", \"ValidTo\", \"Migrated\", \"IsActive\")"
 				],
-				"execution_count": 28
+				"execution_count": 49
 			},
 			{
 				"cell_type": "code",
@@ -532,7 +550,7 @@
 					"final_df = results.join(df_calcs, (df_calcs[f\"temp_{primary_key}\"] == results[primary_key]) & (df_calcs[\"temp_IngestionDate\"] == results[\"IngestionDate\"])).select(columns)\n",
 					"final_df = final_df.drop(primary_key).drop_duplicates()"
 				],
-				"execution_count": 29
+				"execution_count": 50
 			},
 			{
 				"cell_type": "code",
@@ -552,7 +570,7 @@
 					"columns_to_consider = ['documentId', 'filename', 'version', 'Migrated', 'ODTSourceSystem', 'IngestionDate', 'ValidTo', 'IsActive']\n",
 					"final_df = final_df.drop_duplicates(subset=columns_to_consider)"
 				],
-				"execution_count": 56
+				"execution_count": 51
 			},
 			{
 				"cell_type": "code",
@@ -570,7 +588,7 @@
 				"source": [
 					"final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
 				],
-				"execution_count": 58
+				"execution_count": 52
 			}
 		]
 	}
