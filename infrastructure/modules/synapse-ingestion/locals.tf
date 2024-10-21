@@ -88,7 +88,7 @@ locals {
   service_principal_names = distinct(flatten([for v in concat(local.service_bus_topic_subscriptions_roles, local.service_bus_role_assignments) : v.service_principal_names]))
 
   user_object_ids              = { for u in data.azuread_user.users : lower(u.user_principal_name) => u.id }
-  group_object_ids             = { for g in data.azuread_group.groups : lower(g.display_name) => g.id }
+  group_object_ids             = { for g in data.azuread_group.groups : lower(g.display_name) => g.object_id }
   service_principal_object_ids = { for s in data.azuread_service_principal.service_principals : lower(s.display_name) => s.id }
 
   service_bus_subscription_role_assignments = distinct(concat(
