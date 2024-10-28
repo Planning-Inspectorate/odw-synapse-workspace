@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "bedbb9c7-095f-4849-a477-827fc2a14f38"
+				"spark.autotune.trackingId": "9d396379-ab16-4128-8918-23d8047acfa2"
 			}
 		},
 		"metadata": {
@@ -58,7 +58,7 @@
 					"from pyspark.sql import Row\n",
 					"from pyspark.sql.functions import *"
 				],
-				"execution_count": 16
+				"execution_count": 52
 			},
 			{
 				"cell_type": "code",
@@ -79,7 +79,7 @@
 					"spark_table_final = \"odw_harmonised_db.appeal_event\"\n",
 					"primary_key = \"eventId\""
 				],
-				"execution_count": 15
+				"execution_count": 53
 			},
 			{
 				"cell_type": "code",
@@ -125,7 +125,7 @@
 					"\n",
 					"                    \"\"\")"
 				],
-				"execution_count": 17
+				"execution_count": 54
 			},
 			{
 				"cell_type": "code",
@@ -143,7 +143,7 @@
 				"source": [
 					"service_bus_data.printSchema()"
 				],
-				"execution_count": 13
+				"execution_count": 55
 			},
 			{
 				"cell_type": "code",
@@ -188,7 +188,7 @@
 					"                FROM {horizon_table} AS Horizon\n",
 					"     WHERE ingested_datetime = (SELECT MAX(ingested_datetime) FROM {horizon_table}) \"\"\")"
 				],
-				"execution_count": 22
+				"execution_count": 56
 			},
 			{
 				"cell_type": "code",
@@ -206,7 +206,7 @@
 				"source": [
 					"horizon_data.printSchema()"
 				],
-				"execution_count": 23
+				"execution_count": 57
 			},
 			{
 				"cell_type": "code",
@@ -225,7 +225,7 @@
 					"#sort columns into same order as service bus\n",
 					"horizon_data = horizon_data.select(service_bus_data.columns)"
 				],
-				"execution_count": null
+				"execution_count": 58
 			},
 			{
 				"cell_type": "code",
@@ -243,7 +243,7 @@
 				"source": [
 					"results = service_bus_data.union(horizon_data)"
 				],
-				"execution_count": null
+				"execution_count": 59
 			},
 			{
 				"cell_type": "code",
@@ -261,7 +261,7 @@
 				"source": [
 					"results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
 				],
-				"execution_count": null
+				"execution_count": 60
 			},
 			{
 				"cell_type": "markdown",
@@ -311,7 +311,7 @@
 					"    {spark_table_final}\n",
 					"        \"\"\")"
 				],
-				"execution_count": null
+				"execution_count": 61
 			},
 			{
 				"cell_type": "code",
@@ -350,7 +350,7 @@
 					"                            ORDER BY currentRow.ReverseOrderProcessed\n",
 					"                    \"\"\")"
 				],
-				"execution_count": null
+				"execution_count": 62
 			},
 			{
 				"cell_type": "code",
@@ -368,7 +368,7 @@
 				"source": [
 					"df_calcs = df_calcs.withColumnRenamed(primary_key, f\"temp_{primary_key}\").withColumnRenamed(\"IngestionDate\", \"temp_IngestionDate\")"
 				],
-				"execution_count": null
+				"execution_count": 63
 			},
 			{
 				"cell_type": "code",
@@ -387,7 +387,7 @@
 				"source": [
 					"display(df_calcs)"
 				],
-				"execution_count": null
+				"execution_count": 64
 			},
 			{
 				"cell_type": "code",
@@ -434,8 +434,8 @@
 					"                                    ,IFNULL(CAST(eventType AS String), '.')\n",
 					"                                    ,IFNULL(CAST(eventName AS String), '.')\n",
 					"                                    ,IFNULL(CAST(eventStatus AS String), '.')\n",
-					"                                    ,IFNULL(CAST(isUrgent AS BOOLEAN), '.')\n",
-					"                                    ,IFNULL(CAST(eventPublished AS BOOLEAN), '.')\n",
+					"                                    ,IFNULL(CAST(isUrgent AS STRING), '.')\n",
+					"                                    ,IFNULL(CAST(eventPublished AS STRING), '.')\n",
 					"                                    ,IFNULL(CAST(eventStartDatetime AS String), '.')\n",
 					"                                    ,IFNULL(CAST(eventEndDatetime AS String), '.')\n",
 					"                                    ,IFNULL(CAST(notificationOfSitevisit AS String), '.')\n",
@@ -456,7 +456,7 @@
 					"        {spark_table_final}\"\"\")\n",
 					"    "
 				],
-				"execution_count": null
+				"execution_count": 65
 			},
 			{
 				"cell_type": "code",
@@ -475,7 +475,7 @@
 				"source": [
 					"display(results)"
 				],
-				"execution_count": null
+				"execution_count": 66
 			},
 			{
 				"cell_type": "code",
@@ -495,7 +495,7 @@
 					"\n",
 					"results = results.drop(\"AppealsEventId\", \"ValidTo\",\"Migrated\", \"IsActive\")"
 				],
-				"execution_count": null
+				"execution_count": 67
 			},
 			{
 				"cell_type": "code",
@@ -514,7 +514,7 @@
 					"final_df = results.join(df_calcs, (df_calcs[f\"temp_{primary_key}\"] == results[primary_key]) & (df_calcs[\"temp_IngestionDate\"] == results[\"IngestionDate\"])).select(columns).distinct()\n",
 					"final_df = final_df.drop_duplicates()"
 				],
-				"execution_count": null
+				"execution_count": 68
 			},
 			{
 				"cell_type": "code",
@@ -533,7 +533,7 @@
 				"source": [
 					"display(final_df)"
 				],
-				"execution_count": null
+				"execution_count": 69
 			},
 			{
 				"cell_type": "code",
@@ -552,7 +552,7 @@
 					"\n",
 					"final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
 				],
-				"execution_count": null
+				"execution_count": 70
 			},
 			{
 				"cell_type": "code",
@@ -575,7 +575,7 @@
 					"%%sql\n",
 					"select * from odw_harmonised_db.appeal_event where isactive='Y'"
 				],
-				"execution_count": null
+				"execution_count": 71
 			},
 			{
 				"cell_type": "code",
