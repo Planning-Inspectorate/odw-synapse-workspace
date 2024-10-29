@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "e789f6b1-8955-4546-a4f9-af8c206b5fbc"
+				"spark.autotune.trackingId": "bf372012-fa73-483d-8023-fcf910558f32"
 			}
 		},
 		"metadata": {
@@ -58,7 +58,7 @@
 					"from pyspark.sql import Row\n",
 					"from pyspark.sql.functions import *"
 				],
-				"execution_count": 37
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
@@ -81,7 +81,7 @@
 					"\n",
 					"primary_key = 'TEMP_PK'"
 				],
-				"execution_count": 39
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
@@ -99,7 +99,7 @@
 				"source": [
 					"spark.catalog.refreshTable(horizon_table)"
 				],
-				"execution_count": 38
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
@@ -171,7 +171,7 @@
 					"\r\n",
 					"                    \"\"\")"
 				],
-				"execution_count": 40
+				"execution_count": 8
 			},
 			{
 				"cell_type": "code",
@@ -248,12 +248,12 @@
 					"                LEFT JOIN {aie_extracts_table} AS Aie\n",
 					"                ON Doc.dataid = Aie.DocumentId \n",
 					"                AND Doc.version = Aie.version\n",
-					"                AND Doc.name = Aie.filename\n",
+					"                AND Doc.dataSize = Aie.size\n",
 					"                WHERE\n",
 					"                    Doc.expected_from = (SELECT MAX(expected_from) FROM {horizon_table})\n",
 					"            \"\"\")"
 				],
-				"execution_count": 42
+				"execution_count": 9
 			},
 			{
 				"cell_type": "code",
@@ -272,7 +272,7 @@
 					"horizon_data = horizon_data.select(service_bus_data.columns)\n",
 					"results = service_bus_data.union(horizon_data)"
 				],
-				"execution_count": 43
+				"execution_count": 10
 			},
 			{
 				"cell_type": "code",
@@ -290,7 +290,7 @@
 				"source": [
 					"results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
 				],
-				"execution_count": 44
+				"execution_count": 11
 			},
 			{
 				"cell_type": "markdown",
@@ -341,7 +341,7 @@
 					"            {spark_table_final}\n",
 					"    \"\"\")"
 				],
-				"execution_count": 45
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
@@ -381,7 +381,7 @@
 					"                    \"\"\")\n",
 					"                    "
 				],
-				"execution_count": 46
+				"execution_count": 13
 			},
 			{
 				"cell_type": "code",
@@ -399,7 +399,7 @@
 				"source": [
 					"df_calcs =df_calcs.withColumnRenamed(primary_key, f\"temp_{primary_key}\").withColumnRenamed(\"IngestionDate\", \"temp_IngestionDate\")"
 				],
-				"execution_count": 47
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
@@ -511,7 +511,7 @@
 					"                \"\"\")\n",
 					"    "
 				],
-				"execution_count": 48
+				"execution_count": 15
 			},
 			{
 				"cell_type": "code",
@@ -531,7 +531,7 @@
 					"\n",
 					"results = results.drop(\"NSIPDocumentID\", \"ValidTo\", \"Migrated\", \"IsActive\")"
 				],
-				"execution_count": 49
+				"execution_count": 16
 			},
 			{
 				"cell_type": "code",
@@ -550,7 +550,7 @@
 					"final_df = results.join(df_calcs, (df_calcs[f\"temp_{primary_key}\"] == results[primary_key]) & (df_calcs[\"temp_IngestionDate\"] == results[\"IngestionDate\"])).select(columns)\n",
 					"final_df = final_df.drop(primary_key).drop_duplicates()"
 				],
-				"execution_count": 50
+				"execution_count": 17
 			},
 			{
 				"cell_type": "code",
@@ -570,7 +570,7 @@
 					"columns_to_consider = ['documentId', 'filename', 'version', 'Migrated', 'ODTSourceSystem', 'IngestionDate', 'ValidTo', 'IsActive']\n",
 					"final_df = final_df.drop_duplicates(subset=columns_to_consider)"
 				],
-				"execution_count": 51
+				"execution_count": 18
 			},
 			{
 				"cell_type": "code",
@@ -588,7 +588,7 @@
 				"source": [
 					"final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
 				],
-				"execution_count": 52
+				"execution_count": 19
 			}
 		]
 	}
