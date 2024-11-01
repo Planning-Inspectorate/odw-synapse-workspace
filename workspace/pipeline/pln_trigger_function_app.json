@@ -7,7 +7,7 @@
 				"type": "WebActivity",
 				"dependsOn": [
 					{
-						"activity": "Get Function URL Secret",
+						"activity": "Get Function Secret",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -15,31 +15,35 @@
 				],
 				"policy": {
 					"timeout": "0.12:00:00",
-					"retry": 0,
+					"retry": 2,
 					"retryIntervalInSeconds": 30,
 					"secureOutput": false,
-					"secureInput": false
+					"secureInput": true
 				},
 				"userProperties": [],
 				"typeProperties": {
 					"method": "GET",
 					"url": {
-						"value": "@replace(activity('Get Function URL Secret').output.status.Output.result.exitValue, ' ', '')",
+						"value": "@activity('Get Function Secret').output.value",
 						"type": "Expression"
 					},
 					"connectVia": {
-						"referenceName": "AutoResolveIntegrationRuntime",
+						"referenceName": "PinsIntegrationRuntime",
 						"type": "IntegrationRuntimeReference"
+					},
+					"authentication": {
+						"type": "MSI",
+						"resource": "https://vault.azure.net"
 					}
 				}
 			},
 			{
-				"name": "Get Function URL Secret",
+				"name": "Get Function Secret URL",
 				"type": "SynapseNotebook",
 				"dependsOn": [],
 				"policy": {
 					"timeout": "0.12:00:00",
-					"retry": 0,
+					"retry": 2,
 					"retryIntervalInSeconds": 30,
 					"secureOutput": false,
 					"secureInput": false
@@ -47,7 +51,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"notebook": {
-						"referenceName": "py_utils_get_key_vault_secret",
+						"referenceName": "py_utils_get_keyvault",
 						"type": "NotebookReference"
 					},
 					"parameters": {
@@ -126,6 +130,41 @@
 						}
 					],
 					"setSystemVariable": true
+				}
+			},
+			{
+				"name": "Get Function Secret",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "Get Function Secret URL",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 2,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": true,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "GET",
+					"url": {
+						"value": "@activity('Get Function Secret URL').output.status.Output.result.exitValue",
+						"type": "Expression"
+					},
+					"connectVia": {
+						"referenceName": "PinsIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"authentication": {
+						"type": "MSI",
+						"resource": "https://vault.azure.net"
+					}
 				}
 			}
 		],

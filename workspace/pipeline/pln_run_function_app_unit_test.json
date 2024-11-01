@@ -3,46 +3,11 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "Get Function URL Secret",
-				"type": "SynapseNotebook",
-				"dependsOn": [],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "py_utils_get_key_vault_secret",
-						"type": "NotebookReference"
-					},
-					"parameters": {
-						"secret_name": {
-							"value": {
-								"value": "@concat('function-url-', replace(pipeline().parameters.function_name, '-', ''))",
-								"type": "Expression"
-							},
-							"type": "string"
-						}
-					},
-					"snapshot": true,
-					"conf": {
-						"spark.dynamicAllocation.enabled": null,
-						"spark.dynamicAllocation.minExecutors": null,
-						"spark.dynamicAllocation.maxExecutors": null
-					},
-					"numExecutors": null
-				}
-			},
-			{
 				"name": "Run Function Unit Test",
 				"type": "SynapseNotebook",
 				"dependsOn": [
 					{
-						"activity": "Get Function URL Secret",
+						"activity": "Get Function Secret",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -53,7 +18,7 @@
 					"retry": 0,
 					"retryIntervalInSeconds": 30,
 					"secureOutput": false,
-					"secureInput": false
+					"secureInput": true
 				},
 				"userProperties": [],
 				"typeProperties": {
@@ -67,7 +32,7 @@
 					"parameters": {
 						"url": {
 							"value": {
-								"value": "@replace(activity('Get Function URL Secret').output.status.Output.result.exitValue, ' ', '')",
+								"value": "@activity('Get Function Secret').output.value",
 								"type": "Expression"
 							},
 							"type": "string"
@@ -140,6 +105,76 @@
 						}
 					],
 					"setSystemVariable": true
+				}
+			},
+			{
+				"name": "Get Function Secret URL",
+				"type": "SynapseNotebook",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 2,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_utils_get_keyvault",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"secret_name": {
+							"value": {
+								"value": "@concat('function-url-', replace(pipeline().parameters.function_name, '-', ''))",
+								"type": "Expression"
+							},
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Get Function Secret",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "Get Function Secret URL",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 2,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": true,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "GET",
+					"url": {
+						"value": "@activity('Get Function Secret URL').output.status.Output.result.exitValue",
+						"type": "Expression"
+					},
+					"connectVia": {
+						"referenceName": "PinsIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"authentication": {
+						"type": "MSI",
+						"resource": "https://vault.azure.net"
+					}
 				}
 			}
 		],
