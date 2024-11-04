@@ -115,6 +115,10 @@
 			"type": "object",
 			"defaultValue": {}
 		},
+		"pln_run_function_app_unit_test_properties_4_typeProperties": {
+			"type": "object",
+			"defaultValue": {}
+		},
 		"pln_temp_employee_syn_raw_to_curated_webUrl": {
 			"type": "string"
 		},
@@ -122,6 +126,10 @@
 			"type": "string"
 		},
 		"pln_trigger_function_app_properties_0_typeProperties": {
+			"type": "object",
+			"defaultValue": {}
+		},
+		"pln_trigger_function_app_properties_4_typeProperties": {
 			"type": "object",
 			"defaultValue": {}
 		},
@@ -632,10 +640,6 @@
 			"defaultValue": "pinssynspodw"
 		},
 		"MiPINS_query_properties_bigDataPool_referenceName": {
-			"type": "string",
-			"defaultValue": "pinssynspodw"
-		},
-		"Notebook 1_properties_bigDataPool_referenceName": {
 			"type": "string",
 			"defaultValue": "pinssynspodw"
 		},
@@ -1765,7 +1769,7 @@
 		},
 		"py_unit_tests_ gettimesheetsfunction_properties_bigDataPool_referenceName": {
 			"type": "string",
-			"defaultValue": "pinssynspodwpr"
+			"defaultValue": "pinssynspodw"
 		},
 		"py_unit_tests_appeal_document_properties_bigDataPool_referenceName": {
 			"type": "string",
@@ -1889,7 +1893,11 @@
 		},
 		"py_utils_get_key_vault_secret_properties_bigDataPool_referenceName": {
 			"type": "string",
-			"defaultValue": "pinssynspodwpr"
+			"defaultValue": "pinssynspodw"
+		},
+		"py_utils_get_keyvault_properties_bigDataPool_referenceName": {
+			"type": "string",
+			"defaultValue": "pinssynspodw"
 		},
 		"py_utils_get_pipeline_config_properties_bigDataPool_referenceName": {
 			"type": "string",
@@ -32254,7 +32262,7 @@
 							},
 							"snapshot": true,
 							"sparkPool": {
-								"referenceName": "pinssynspodwpr",
+								"referenceName": "pinssynspodw",
 								"type": "BigDataPoolReference"
 							},
 							"executorSize": "Small",
@@ -32359,7 +32367,7 @@
 			},
 			"dependsOn": [
 				"[concat(variables('workspaceId'), '/notebooks/data_validation_wip')]",
-				"[concat(variables('workspaceId'), '/bigDataPools/pinssynspodwpr')]",
+				"[concat(variables('workspaceId'), '/bigDataPools/pinssynspodw')]",
 				"[concat(variables('workspaceId'), '/linkedServices/ls_storage')]",
 				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
 			]
@@ -68092,46 +68100,11 @@
 			"properties": {
 				"activities": [
 					{
-						"name": "Get Function URL Secret",
-						"type": "SynapseNotebook",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"notebook": {
-								"referenceName": "py_utils_get_key_vault_secret",
-								"type": "NotebookReference"
-							},
-							"parameters": {
-								"secret_name": {
-									"value": {
-										"value": "@concat('function-url-', replace(pipeline().parameters.function_name, '-', ''))",
-										"type": "Expression"
-									},
-									"type": "string"
-								}
-							},
-							"snapshot": true,
-							"conf": {
-								"spark.dynamicAllocation.enabled": null,
-								"spark.dynamicAllocation.minExecutors": null,
-								"spark.dynamicAllocation.maxExecutors": null
-							},
-							"numExecutors": null
-						}
-					},
-					{
 						"name": "Run Function Unit Test",
 						"type": "SynapseNotebook",
 						"dependsOn": [
 							{
-								"activity": "Get Function URL Secret",
+								"activity": "Get Function Secret",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -68142,7 +68115,7 @@
 							"retry": 0,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
-							"secureInput": false
+							"secureInput": true
 						},
 						"userProperties": [],
 						"typeProperties": {
@@ -68156,7 +68129,7 @@
 							"parameters": {
 								"url": {
 									"value": {
-										"value": "@replace(activity('Get Function URL Secret').output.status.Output.result.exitValue, ' ', '')",
+										"value": "@activity('Get Function Secret').output.value",
 										"type": "Expression"
 									},
 									"type": "string"
@@ -68230,6 +68203,77 @@
 							],
 							"setSystemVariable": true
 						}
+					},
+					{
+						"name": "Get Function Secret URL",
+						"type": "SynapseNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 2,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "py_utils_get_keyvault",
+								"type": "NotebookReference"
+							},
+							"parameters": {
+								"secret_name": {
+									"value": {
+										"value": "@concat('function-url-', replace(pipeline().parameters.function_name, '-', ''))",
+										"type": "Expression"
+									},
+									"type": "string"
+								}
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "Get Function Secret",
+						"type": "WebActivity",
+						"dependsOn": [
+							{
+								"activity": "Get Function Secret URL",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 2,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": true,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"method": "GET",
+							"headers": "[parameters('pln_run_function_app_unit_test_properties_4_typeProperties')]",
+							"url": {
+								"value": "@activity('Get Function Secret URL').output.status.Output.result.exitValue",
+								"type": "Expression"
+							},
+							"connectVia": {
+								"referenceName": "PinsIntegrationRuntime",
+								"type": "IntegrationRuntimeReference"
+							},
+							"authentication": {
+								"type": "MSI",
+								"resource": "https://vault.azure.net"
+							}
+						}
 					}
 				],
 				"policy": {
@@ -68246,7 +68290,8 @@
 				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('workspaceId'), '/notebooks/py_utils_get_key_vault_secret')]"
+				"[concat(variables('workspaceId'), '/notebooks/py_utils_get_keyvault')]",
+				"[concat(variables('workspaceId'), '/integrationRuntimes/PinsIntegrationRuntime')]"
 			]
 		},
 		{
@@ -73606,7 +73651,7 @@
 						"type": "WebActivity",
 						"dependsOn": [
 							{
-								"activity": "Get Function URL Secret",
+								"activity": "Get Function Secret",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -73614,32 +73659,36 @@
 						],
 						"policy": {
 							"timeout": "0.12:00:00",
-							"retry": 0,
+							"retry": 2,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
-							"secureInput": false
+							"secureInput": true
 						},
 						"userProperties": [],
 						"typeProperties": {
 							"method": "GET",
 							"headers": "[parameters('pln_trigger_function_app_properties_0_typeProperties')]",
 							"url": {
-								"value": "@replace(activity('Get Function URL Secret').output.status.Output.result.exitValue, ' ', '')",
+								"value": "@activity('Get Function Secret').output.value",
 								"type": "Expression"
 							},
 							"connectVia": {
-								"referenceName": "AutoResolveIntegrationRuntime",
+								"referenceName": "PinsIntegrationRuntime",
 								"type": "IntegrationRuntimeReference"
+							},
+							"authentication": {
+								"type": "MSI",
+								"resource": "https://vault.azure.net"
 							}
 						}
 					},
 					{
-						"name": "Get Function URL Secret",
+						"name": "Get Function Secret URL",
 						"type": "SynapseNotebook",
 						"dependsOn": [],
 						"policy": {
 							"timeout": "0.12:00:00",
-							"retry": 0,
+							"retry": 2,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -73647,7 +73696,7 @@
 						"userProperties": [],
 						"typeProperties": {
 							"notebook": {
-								"referenceName": "py_utils_get_key_vault_secret",
+								"referenceName": "py_utils_get_keyvault",
 								"type": "NotebookReference"
 							},
 							"parameters": {
@@ -73727,6 +73776,42 @@
 							],
 							"setSystemVariable": true
 						}
+					},
+					{
+						"name": "Get Function Secret",
+						"type": "WebActivity",
+						"dependsOn": [
+							{
+								"activity": "Get Function Secret URL",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 2,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": true,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"method": "GET",
+							"headers": "[parameters('pln_trigger_function_app_properties_4_typeProperties')]",
+							"url": {
+								"value": "@activity('Get Function Secret URL').output.status.Output.result.exitValue",
+								"type": "Expression"
+							},
+							"connectVia": {
+								"referenceName": "PinsIntegrationRuntime",
+								"type": "IntegrationRuntimeReference"
+							},
+							"authentication": {
+								"type": "MSI",
+								"resource": "https://vault.azure.net"
+							}
+						}
 					}
 				],
 				"policy": {
@@ -73743,8 +73828,8 @@
 				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]",
-				"[concat(variables('workspaceId'), '/notebooks/py_utils_get_key_vault_secret')]"
+				"[concat(variables('workspaceId'), '/integrationRuntimes/PinsIntegrationRuntime')]",
+				"[concat(variables('workspaceId'), '/notebooks/py_utils_get_keyvault')]"
 			]
 		},
 		{
@@ -100792,77 +100877,6 @@
 						],
 						"outputs": [],
 						"execution_count": null
-					}
-				]
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('workspaceName'), '/Notebook 1')]",
-			"type": "Microsoft.Synapse/workspaces/notebooks",
-			"apiVersion": "2019-06-01-preview",
-			"properties": {
-				"folder": {
-					"name": "MiPINS-data-copy"
-				},
-				"nbformat": 4,
-				"nbformat_minor": 2,
-				"bigDataPool": {
-					"referenceName": "[parameters('Notebook 1_properties_bigDataPool_referenceName')]",
-					"type": "BigDataPoolReference"
-				},
-				"sessionProperties": {
-					"driverMemory": "28g",
-					"driverCores": 4,
-					"executorMemory": "28g",
-					"executorCores": 4,
-					"numExecutors": 2,
-					"runAsWorkspaceSystemIdentity": false,
-					"conf": {
-						"spark.dynamicAllocation.enabled": "false",
-						"spark.dynamicAllocation.minExecutors": "2",
-						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "13024f03-08d6-4146-9e12-7245bb2cef9e"
-					}
-				},
-				"metadata": {
-					"saveOutput": true,
-					"enableDebugMode": false,
-					"kernelspec": {
-						"name": "synapse_pyspark",
-						"display_name": "Synapse PySpark"
-					},
-					"language_info": {
-						"name": "python"
-					},
-					"a365ComputeOptions": {
-						"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
-						"name": "pinssynspodw",
-						"type": "Spark",
-						"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
-						"auth": {
-							"type": "AAD",
-							"authResource": "https://dev.azuresynapse.net",
-							"authHeader": null
-						},
-						"sparkVersion": "3.2",
-						"nodeCount": 3,
-						"cores": 4,
-						"memory": 28,
-						"extraHeader": null
-					},
-					"sessionKeepAliveTimeout": 30
-				},
-				"cells": [
-					{
-						"cell_type": "code",
-						"source": [
-							"from pyspark.sql.types import *\r\n",
-							"\r\n",
-							"spark.sql(\"DROP TABLE odw_curated_db.dim_appeal_combined\")"
-						],
-						"outputs": [],
-						"execution_count": 1
 					}
 				]
 			},
@@ -147643,7 +147657,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "4d7bb2cd-fee5-44b7-a811-0dcd96d3ab6c"
+						"spark.autotune.trackingId": "621001ed-6712-4a1f-97d5-0b113f4b590d"
 					}
 				},
 				"metadata": {
@@ -147651,7 +147665,7 @@
 					"enableDebugMode": false,
 					"kernelspec": {
 						"name": "synapse_pyspark",
-						"display_name": "python"
+						"display_name": "Synapse PySpark"
 					},
 					"language_info": {
 						"name": "python"
@@ -147663,14 +147677,12 @@
 						"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
 						"auth": {
 							"type": "AAD",
-							"authResource": "https://dev.azuresynapse.net",
-							"authHeader": null
+							"authResource": "https://dev.azuresynapse.net"
 						},
-						"sparkVersion": "3.2",
+						"sparkVersion": "3.3",
 						"nodeCount": 3,
 						"cores": 4,
-						"memory": 28,
-						"extraHeader": null
+						"memory": 28
 					},
 					"sessionKeepAliveTimeout": 30
 				},
@@ -147693,7 +147705,8 @@
 							"--select * from odw_standardised_db.vw_sap_hr_email --yes\r\n",
 							"select * from odw_standardised_db.vw_sap_hr_email_weekly --yes"
 						],
-						"outputs": []
+						"outputs": [],
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -147720,7 +147733,8 @@
 							"--select * from odw_workspace_db.vw_sap_hr_email_layer1_harmonised --no\r\n",
 							"--select * from odw_workspace_db.vw_sap_hr_email_weekly_layer1_harmonised --no"
 						],
-						"outputs": []
+						"outputs": [],
+						"execution_count": null
 					}
 				]
 			},
@@ -147803,7 +147817,7 @@
 							}
 						},
 						"source": [
-							"NB: Attach this notebook to the Spark Pool \"pinssynspodwpr\" as this is on version 3.2 and works with the spark sql connector. The other Spark Pool \"pinssynspodw\" is version 3.3 (higher) but does not work with the spark sql connector.\r\n",
+							"NB: Attach this notebook to the Spark Pool \"pinssynspodw\" as this is on version 3.3 and works with the spark sql connector. The other Spark Pool \"pinssynspodw\" is version 3.3 (higher) but does not work with the spark sql connector.\r\n",
 							"\r\n",
 							"Also, the pandas version in the Spark Pool is old and therefore needs updating. Until this is done via Terraform you can update it within this notebook for things to run smoothly."
 						]
@@ -149806,7 +149820,7 @@
 							"authResource": "https://dev.azuresynapse.net",
 							"authHeader": null
 						},
-						"sparkVersion": "3.2",
+						"sparkVersion": "3.3",
 						"nodeCount": 3,
 						"cores": 4,
 						"memory": 28,
@@ -152900,10 +152914,10 @@
 						"name": "python"
 					},
 					"a365ComputeOptions": {
-						"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodwpr",
-						"name": "pinssynspodwpr",
+						"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+						"name": "pinssynspodw",
 						"type": "Spark",
-						"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodwpr",
+						"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
 						"auth": {
 							"type": "AAD",
 							"authResource": "https://dev.azuresynapse.net"
@@ -154202,7 +154216,7 @@
 							"authResource": "https://dev.azuresynapse.net",
 							"authHeader": null
 						},
-						"sparkVersion": "3.2",
+						"sparkVersion": "3.3",
 						"nodeCount": 3,
 						"cores": 4,
 						"memory": 28,
@@ -178294,7 +178308,7 @@
 							"authResource": "https://dev.azuresynapse.net",
 							"authHeader": null
 						},
-						"sparkVersion": "3.2",
+						"sparkVersion": "3.3",
 						"nodeCount": 3,
 						"cores": 4,
 						"memory": 28,
@@ -178782,7 +178796,7 @@
 							"type": "AAD",
 							"authResource": "https://dev.azuresynapse.net"
 						},
-						"sparkVersion": "3.2",
+						"sparkVersion": "3.3",
 						"nodeCount": 3,
 						"cores": 4,
 						"memory": 28
@@ -188988,7 +189002,7 @@
 							"authResource": "https://dev.azuresynapse.net",
 							"authHeader": null
 						},
-						"sparkVersion": "3.2",
+						"sparkVersion": "3.3",
 						"nodeCount": 3,
 						"cores": 4,
 						"memory": 28,
@@ -189752,7 +189766,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "f9ff97b9-8cfc-44e8-aaae-0137fae8bdb4"
+						"spark.autotune.trackingId": "47630a34-72e6-4def-87a3-a131daae442d"
 					}
 				},
 				"metadata": {
@@ -189801,7 +189815,7 @@
 							"warnings.filterwarnings(\"ignore\", message=\"iteritems is deprecated\")"
 						],
 						"outputs": [],
-						"execution_count": 1
+						"execution_count": 84
 					},
 					{
 						"cell_type": "code",
@@ -189820,7 +189834,7 @@
 							"%run  /0-odw-source-to-raw/Fileshare/SAP_HR/py_0_source_to_raw_hr_functions"
 						],
 						"outputs": [],
-						"execution_count": 1
+						"execution_count": 85
 					},
 					{
 						"cell_type": "code",
@@ -189839,7 +189853,7 @@
 							"%run /utils/py_mount_storage"
 						],
 						"outputs": [],
-						"execution_count": null
+						"execution_count": 86
 					},
 					{
 						"cell_type": "code",
@@ -189909,7 +189923,7 @@
 							""
 						],
 						"outputs": [],
-						"execution_count": 2
+						"execution_count": 87
 					},
 					{
 						"cell_type": "code",
@@ -190000,7 +190014,7 @@
 							""
 						],
 						"outputs": [],
-						"execution_count": 3
+						"execution_count": 88
 					},
 					{
 						"cell_type": "code",
@@ -190038,7 +190052,7 @@
 							"        deltaTable = DeltaTable.convertToDelta(spark, f\"parquet.`{target_delta_folder}`\") "
 						],
 						"outputs": [],
-						"execution_count": 4
+						"execution_count": 89
 					},
 					{
 						"cell_type": "code",
@@ -190075,7 +190089,7 @@
 							"    spark.sql(f\"CREATE TABLE {db_name}.{delta_lake_table_name} USING DELTA LOCATION '{target_delta_folder}'\")"
 						],
 						"outputs": [],
-						"execution_count": 5
+						"execution_count": 90
 					},
 					{
 						"cell_type": "code",
@@ -190108,6 +190122,9 @@
 							"    from pyspark.sql.types import StringType,DateType,TimestampType,IntegerType, FloatType, StructType\n",
 							"    import re\n",
 							"    from pyspark.sql.functions import col, lit\n",
+							"    import pyspark.sql.types as types\n",
+							"\n",
+							"    ingestion_failure: bool = False\n",
 							"\n",
 							"    spark = SparkSession.builder.getOrCreate()\n",
 							"    spark.conf.set(\"spark.databricks.delta.schema.autoMerge.enabled\", \"true\")\n",
@@ -190159,9 +190176,13 @@
 							"        sheet_name = definition['Source_Sheet_Name'] if 'Source_Sheet_Name' in definition else 0\n",
 							"        df = pd.read_excel(f\"/synfs/{jobId}/temp_raw/{filename}\", dtype=str, sheet_name=sheet_name, na_filter=False)\n",
 							"    elif '.csv' in filename.lower():\n",
-							"        # df = pd.read_csv(f\"/synfs/{jobId}/temp_raw/{filename}\", quotechar='\"', escapechar='\\\\', encoding=\"utf8\", dtype=str, na_filter=False)\n",
-							"        df = spark.read.options(quote='\"', escape='\\\\', encoding='utf8', header=True, multiLine=True).csv(f\"{folder_path}/{filename}\")\n",
-							"        # df = df.toPandas()\n",
+							"        df = spark.read.options(quote='\"', escape='\\\\', encoding='utf8', header=True, multiLine=True, columnNameOfCorruptRecord='corrupted_records', mode=\"PERMISSIVE\").csv(f\"{folder_path}/{filename}\")\n",
+							"\n",
+							"        if \"corrupted_records\" in df.columns:\n",
+							"            print(f\"Corrupted Records detected from CSV ingestion in {filename}\")\n",
+							"            ingestion_failure = True\n",
+							"            \n",
+							"\n",
 							"    elif '.json' in filename.lower():\n",
 							"        if isMultilineJSON == False:\n",
 							"            df = spark.read.json(f\"{folder_path}/{filename}\")\n",
@@ -190176,18 +190197,14 @@
 							"                    for data in row[dataAttribute]:\n",
 							"                        dfs.append(data)\n",
 							"                df = spark.createDataFrame(dfs)\n",
-							"        # df = df.toPandas()\n",
 							"    else:\n",
 							"        raise RuntimeError(f\"This file type for {filename} is unsupported\")\n",
-							"        \n",
+							"\n",
 							"    ### drop headerless columns\n",
-							"    # df = df.loc[:, ~df.columns.str.contains('^Unnamed')]\n",
 							"    sparkDF = df.select([col for col in df.columns if not col.startswith('Unnamed')])\n",
 							"    # rows_raw = len(df.index)\n",
 							"    rows_raw = sparkDF.count()\n",
 							"    unmount_storage()\n",
-							"    ### convert to pandas dataframe\n",
-							"    # sparkDF=spark.createDataFrame(df) already a spark dataframe\n",
 							"    ### add date columns included with every standardised table\n",
 							"    sparkDF = sparkDF.withColumn(\"ingested_datetime\",lit(datetime.now()))\n",
 							"    sparkDF = sparkDF.withColumn(\"expected_from\",lit(expected_from))\n",
@@ -190225,13 +190242,17 @@
 							"    rows_new = standardised_table_df.filter((standardised_table_df.expected_from == expected_from) &  (standardised_table_df.expected_to == expected_to)).count()\n",
 							"\n",
 							"    ### test correct number of rows have written\n",
-							"    if rows_raw == rows_new:\n",
+							"    if rows_raw <= rows_new:\n",
+							"        #count up the rows which match the dates, we should at LEAST have those, multiple runs on the same day will lead to the counts not matching however\n",
 							"        print('All rows have successfully been written')\n",
-							"    return rows_raw\n",
+							"    else:\n",
+							"        print(f\"All rows have NOT been successfully written. Expected {rows_raw} but {rows_new} written\")\n",
+							"        ingestion_failure = True\n",
+							"    return (ingestion_failure, rows_raw)\n",
 							""
 						],
 						"outputs": [],
-						"execution_count": 6
+						"execution_count": 91
 					}
 				]
 			},
@@ -190285,7 +190306,7 @@
 							"authResource": "https://dev.azuresynapse.net",
 							"authHeader": null
 						},
-						"sparkVersion": "3.2",
+						"sparkVersion": "3.3",
 						"nodeCount": 3,
 						"cores": 4,
 						"memory": 28,
@@ -190411,7 +190432,7 @@
 							"authResource": "https://dev.azuresynapse.net",
 							"authHeader": null
 						},
-						"sparkVersion": "3.2",
+						"sparkVersion": "3.3",
 						"nodeCount": 3,
 						"cores": 4,
 						"memory": 28,
@@ -191574,7 +191595,7 @@
 							"authResource": "https://dev.azuresynapse.net",
 							"authHeader": null
 						},
-						"sparkVersion": "3.2",
+						"sparkVersion": "3.3",
 						"nodeCount": 3,
 						"cores": 4,
 						"memory": 28,
@@ -194047,7 +194068,7 @@
 							"authResource": "https://dev.azuresynapse.net",
 							"authHeader": null
 						},
-						"sparkVersion": "3.2",
+						"sparkVersion": "3.3",
 						"nodeCount": 3,
 						"cores": 4,
 						"memory": 28,
@@ -195365,7 +195386,7 @@
 							"authResource": "https://dev.azuresynapse.net",
 							"authHeader": null
 						},
-						"sparkVersion": "3.2",
+						"sparkVersion": "3.3",
 						"nodeCount": 3,
 						"cores": 4,
 						"memory": 28,
@@ -196302,7 +196323,7 @@
 							"authResource": "https://dev.azuresynapse.net",
 							"authHeader": null
 						},
-						"sparkVersion": "3.2",
+						"sparkVersion": "3.3",
 						"nodeCount": 3,
 						"cores": 4,
 						"memory": 28,
@@ -198317,7 +198338,7 @@
 							"authResource": "https://dev.azuresynapse.net",
 							"authHeader": null
 						},
-						"sparkVersion": "3.2",
+						"sparkVersion": "3.3",
 						"nodeCount": 3,
 						"cores": 4,
 						"memory": 28,
@@ -198415,7 +198436,7 @@
 							"authResource": "https://dev.azuresynapse.net",
 							"authHeader": null
 						},
-						"sparkVersion": "3.2",
+						"sparkVersion": "3.3",
 						"nodeCount": 3,
 						"cores": 4,
 						"memory": 28,
@@ -198624,7 +198645,7 @@
 							"authResource": "https://dev.azuresynapse.net",
 							"authHeader": null
 						},
-						"sparkVersion": "3.2",
+						"sparkVersion": "3.3",
 						"nodeCount": 3,
 						"cores": 4,
 						"memory": 28,
@@ -198939,7 +198960,7 @@
 						"source": [
 							"import pprint\n",
 							"\n",
-							"SPARK_POOL_WITH_SPARK_3_2 = 'pinssynspodwpr'\n",
+							"SPARK_POOL_WITH_SPARK_3_2 = 'pinssynspodw'\n",
 							"\n",
 							"all_notebooks = fetch_all_notebooks()\n",
 							"notebooks_with_no_spark_pool = []\n",
@@ -199009,7 +199030,7 @@
 							"authResource": "https://dev.azuresynapse.net",
 							"authHeader": null
 						},
-						"sparkVersion": "3.2",
+						"sparkVersion": "3.3",
 						"nodeCount": 3,
 						"cores": 4,
 						"memory": 28,
@@ -199884,7 +199905,7 @@
 							"authResource": "https://dev.azuresynapse.net",
 							"authHeader": null
 						},
-						"sparkVersion": "3.2",
+						"sparkVersion": "3.3",
 						"nodeCount": 3,
 						"cores": 4,
 						"memory": 28,
@@ -202099,7 +202120,7 @@
 							"authResource": "https://dev.azuresynapse.net",
 							"authHeader": null
 						},
-						"sparkVersion": "3.2",
+						"sparkVersion": "3.3",
 						"nodeCount": 3,
 						"cores": 4,
 						"memory": 28,
@@ -204507,7 +204528,7 @@
 							"authResource": "https://dev.azuresynapse.net",
 							"authHeader": null
 						},
-						"sparkVersion": "3.2",
+						"sparkVersion": "3.3",
 						"nodeCount": 3,
 						"cores": 4,
 						"memory": 28,
@@ -204984,7 +205005,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "9211eb21-fe22-4996-a842-8f6062412f26"
+						"spark.autotune.trackingId": "42e1fe7c-4dae-488f-aad5-db929fbd1f11"
 					}
 				},
 				"metadata": {
@@ -205222,8 +205243,15 @@
 							"            mssparkutils.notebook.run('/utils/py_delete_table', 300, arguments={'db_name': 'odw_standardised_db', 'table_name': definition['Standardised_Table_Name']})\n",
 							"\n",
 							"        print(f\"Ingesting {file.name}\")\n",
-							"        row_count = ingest_adhoc(storage_account, definition, source_path, file.name, expected_from, expected_to, isMultiLine, dataAttribute)\n",
+							"        (ingestion_failure, row_count) = ingest_adhoc(storage_account, definition, source_path, file.name, expected_from, expected_to, isMultiLine, dataAttribute)\n",
 							"        print(f\"Ingested {row_count} rows\")\n",
+							"\n",
+							"        if ingestion_failure:\n",
+							"            print(f\"Errors reported during Ingestion!!\")\n",
+							"            raise RuntimeError(\"Ingestion Failure\")\n",
+							"        else:\n",
+							"            print(f\"No Errors reported during Ingestion\")\n",
+							"\n",
 							"    else:\n",
 							"        if specific_file != '':\n",
 							"            raise ValueError(f\"No definition found for {specific_file}\")\n",
@@ -207586,7 +207614,7 @@
 							"authResource": "https://dev.azuresynapse.net",
 							"authHeader": null
 						},
-						"sparkVersion": "3.2",
+						"sparkVersion": "3.3",
 						"nodeCount": 3,
 						"cores": 4,
 						"memory": 28,
@@ -215952,7 +215980,7 @@
 							"authResource": "https://dev.azuresynapse.net",
 							"authHeader": null
 						},
-						"sparkVersion": "3.2",
+						"sparkVersion": "3.3",
 						"nodeCount": 3,
 						"cores": 4,
 						"memory": 28,
@@ -217079,7 +217107,7 @@
 							"authResource": "https://dev.azuresynapse.net",
 							"authHeader": null
 						},
-						"sparkVersion": "3.2",
+						"sparkVersion": "3.3",
 						"nodeCount": 3,
 						"cores": 4,
 						"memory": 28,
@@ -218288,15 +218316,15 @@
 						"name": "python"
 					},
 					"a365ComputeOptions": {
-						"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodwpr",
-						"name": "pinssynspodwpr",
+						"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+						"name": "pinssynspodw",
 						"type": "Spark",
-						"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodwpr",
+						"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
 						"auth": {
 							"type": "AAD",
 							"authResource": "https://dev.azuresynapse.net"
 						},
-						"sparkVersion": "3.2",
+						"sparkVersion": "3.3",
 						"nodeCount": 3,
 						"cores": 4,
 						"memory": 28
@@ -237267,7 +237295,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "513b13cf-4f49-4602-8825-f5429fa8daae"
+						"spark.autotune.trackingId": "6b084fe0-0f56-4db9-8184-0170c785b658"
 					}
 				},
 				"metadata": {
@@ -237281,15 +237309,15 @@
 						"name": "python"
 					},
 					"a365ComputeOptions": {
-						"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodwpr",
-						"name": "pinssynspodwpr",
+						"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+						"name": "pinssynspodw",
 						"type": "Spark",
-						"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodwpr",
+						"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
 						"auth": {
 							"type": "AAD",
 							"authResource": "https://dev.azuresynapse.net"
 						},
-						"sparkVersion": "3.2",
+						"sparkVersion": "3.3",
 						"nodeCount": 3,
 						"cores": 4,
 						"memory": 28
@@ -237297,6 +237325,19 @@
 					"sessionKeepAliveTimeout": 30
 				},
 				"cells": [
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"# ARCHIVE - WITH SPARK 3.3, THE SECRET IS REDACTED AND IS NOT USED IN MASTER PIPELINE NOW ANYWAY. ANOTHER METHOD IS NEEDED USING A PIPELINE, E.G. PLN_TRIGGER_FUNCTION_APP"
+						]
+					},
 					{
 						"cell_type": "code",
 						"metadata": {
@@ -237332,6 +237373,200 @@
 						],
 						"outputs": [],
 						"execution_count": 2
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/py_utils_get_keyvault')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"description": "Gets the keyvault base url from the linked service and constructs the full url for an API call.",
+				"folder": {
+					"name": "utils"
+				},
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "[parameters('py_utils_get_keyvault_properties_bigDataPool_referenceName')]",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "94f26c2e-9103-4e3a-909d-9ff9699292d5"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": true,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+						"name": "pinssynspodw",
+						"type": "Spark",
+						"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "3.3",
+						"nodeCount": 3,
+						"cores": 4,
+						"memory": 28
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Contructs the keyvault url from the secret name and api version to get a keyvault secret"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"tags": [
+								"parameters"
+							]
+						},
+						"source": [
+							"secret_name = ''"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"Documentation here. Use the api version in the documentation.  \r\n",
+							"https://learn.microsoft.com/en-us/rest/api/keyvault/secrets/get-secret/get-secret?view=rest-keyvault-secrets-7.4&tabs=HTTP"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"api_version = '7.4'"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"from notebookutils import mssparkutils"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"keyvault_connection_string = mssparkutils.credentials.getFullConnectionString('ls_kv')"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"base_url = keyvault_connection_string.split(\"=\")[1].split(\";\")[0]\r\n",
+							"base_url"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"url = f\"{base_url}secrets/{secret_name}?api-version={api_version}\"\r\n",
+							"mssparkutils.notebook.exit(url)"
+						],
+						"outputs": [],
+						"execution_count": null
 					}
 				]
 			},
@@ -237881,7 +238116,7 @@
 							"authResource": "https://dev.azuresynapse.net",
 							"authHeader": null
 						},
-						"sparkVersion": "3.2",
+						"sparkVersion": "3.3",
 						"nodeCount": 3,
 						"cores": 4,
 						"memory": 28,
@@ -237955,7 +238190,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "1a29d15b-7388-4948-9319-f38f7cf9ae96"
+						"spark.autotune.trackingId": "351d75aa-c544-471a-bfd7-582fa79fd231"
 					}
 				},
 				"metadata": {
@@ -237975,14 +238210,12 @@
 						"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
 						"auth": {
 							"type": "AAD",
-							"authResource": "https://dev.azuresynapse.net",
-							"authHeader": null
+							"authResource": "https://dev.azuresynapse.net"
 						},
-						"sparkVersion": "3.2",
+						"sparkVersion": "3.3",
 						"nodeCount": 3,
 						"cores": 4,
-						"memory": 28,
-						"extraHeader": null
+						"memory": 28
 					},
 					"sessionKeepAliveTimeout": 30
 				},
@@ -237996,7 +238229,7 @@
 							"mssparkutils.notebook.exit(storage_account)"
 						],
 						"outputs": [],
-						"execution_count": 1
+						"execution_count": null
 					}
 				]
 			},
@@ -238671,7 +238904,7 @@
 							"type": "AAD",
 							"authResource": "https://dev.azuresynapse.net"
 						},
-						"sparkVersion": "3.2",
+						"sparkVersion": "3.3",
 						"nodeCount": 3,
 						"cores": 4,
 						"memory": 28
@@ -238684,7 +238917,7 @@
 						"source": [
 							"import delta # 1.2.1.7\r\n",
 							"print(delta.__file__)\r\n",
-							"import pyspark # 3.2.1\r\n",
+							"import pyspark # 3.3.1\r\n",
 							"print(pyspark.__file__, pyspark.__version__)\r\n",
 							"import bokeh\r\n",
 							"print(bokeh.__file__)\r\n",
@@ -238785,7 +239018,7 @@
 							"authResource": "https://dev.azuresynapse.net",
 							"authHeader": null
 						},
-						"sparkVersion": "3.2",
+						"sparkVersion": "3.3",
 						"nodeCount": 3,
 						"cores": 4,
 						"memory": 28,
@@ -238905,7 +239138,7 @@
 							"authResource": "https://dev.azuresynapse.net",
 							"authHeader": null
 						},
-						"sparkVersion": "3.2",
+						"sparkVersion": "3.3",
 						"nodeCount": 3,
 						"cores": 4,
 						"memory": 28,
@@ -239025,7 +239258,7 @@
 							"authResource": "https://dev.azuresynapse.net",
 							"authHeader": null
 						},
-						"sparkVersion": "3.2",
+						"sparkVersion": "3.3",
 						"nodeCount": 3,
 						"cores": 4,
 						"memory": 28,
@@ -247133,7 +247366,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "06c3aefb-9cfc-492f-ac59-e0e2dbc28ed3"
+						"spark.autotune.trackingId": "68e53b51-4874-4712-8f99-7e3781df561b"
 					}
 				},
 				"metadata": {
@@ -247208,7 +247441,6 @@
 							"    ,SU.emailAddress\r\n",
 							"    ,SU.webAddress\r\n",
 							"    ,SU.serviceUserType\r\n",
-							"    ,SU.serviceUserTypeInternal\r\n",
 							"    ,SU.caseReference\r\n",
 							"    ,SU.sourceSystem\r\n",
 							"    ,SU.sourceSuid\r\n",
@@ -248102,7 +248334,7 @@
 							"authResource": "https://dev.azuresynapse.net",
 							"authHeader": null
 						},
-						"sparkVersion": "3.2",
+						"sparkVersion": "3.3",
 						"nodeCount": 3,
 						"cores": 4,
 						"memory": 28,
