@@ -70741,6 +70741,53 @@
 								}
 							]
 						}
+					},
+					{
+						"name": "service user - custom harmonised",
+						"type": "IfCondition",
+						"dependsOn": [
+							{
+								"activity": "If New Messages",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@equals(variables('entity_name'), 'service-user')",
+								"type": "Expression"
+							},
+							"ifTrueActivities": [
+								{
+									"name": "Harmonised step for service user",
+									"type": "SynapseNotebook",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"notebook": {
+											"referenceName": "py_sb_horizon_harmonised_service_user",
+											"type": "NotebookReference"
+										},
+										"snapshot": true,
+										"conf": {
+											"spark.dynamicAllocation.enabled": null,
+											"spark.dynamicAllocation.minExecutors": null,
+											"spark.dynamicAllocation.maxExecutors": null
+										},
+										"numExecutors": null
+									}
+								}
+							]
+						}
 					}
 				],
 				"policy": {
@@ -70784,7 +70831,8 @@
 				"[concat(variables('workspaceId'), '/notebooks/py_sb_horizon_harmonised_nsip_s51_advice')]",
 				"[concat(variables('workspaceId'), '/notebooks/py_sb_horizon_harmonised_nsip_document')]",
 				"[concat(variables('workspaceId'), '/pipelines/pln_trigger_function_app')]",
-				"[concat(variables('workspaceId'), '/notebooks/py_sb_horizon_harmonised_appeal_event')]"
+				"[concat(variables('workspaceId'), '/notebooks/py_sb_horizon_harmonised_appeal_event')]",
+				"[concat(variables('workspaceId'), '/notebooks/py_sb_horizon_harmonised_service_user')]"
 			]
 		},
 		{
@@ -154054,7 +154102,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "bea148dc-02b6-4c7b-9190-aaebf30eb21b"
+						"spark.autotune.trackingId": "c47aa82e-e421-4dec-9bcf-81956a008f37"
 					}
 				},
 				"metadata": {
@@ -154120,8 +154168,8 @@
 							"\n",
 							"FROM odw_harmonised_db.nsip_exam_timetable exam_tbl\n",
 							"--- inner joining with nsiproject as we need to make sure the casereference exists in the project too\n",
-							"-- INNER JOIN odw_curated_db.nsip_project proj_tbl -- nsip_project or nsip_data?\n",
-							"-- on exam_tbl.caseReference = proj_tbl.caseReference\n",
+							"INNER JOIN odw_curated_db.nsip_project proj_tbl\n",
+							"on exam_tbl.caseReference = proj_tbl.caseReference\n",
 							"\n",
 							"WHERE exam_tbl.IsActive = 'Y'\n",
 							"\n",
@@ -154129,7 +154177,7 @@
 							"ORDER BY caseReference"
 						],
 						"outputs": [],
-						"execution_count": 1
+						"execution_count": 11
 					},
 					{
 						"cell_type": "markdown",
@@ -154165,7 +154213,7 @@
 							"view_df.write.mode(\"overwrite\").saveAsTable('odw_curated_db.nsip_exam_timetable')"
 						],
 						"outputs": [],
-						"execution_count": 2
+						"execution_count": 12
 					}
 				]
 			},
@@ -186437,7 +186485,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "2a085cd6-bb3e-4847-ae7a-37ba982a679c"
+						"spark.autotune.trackingId": "51c4567d-3f5f-4596-8216-c87b24238b72"
 					}
 				},
 				"metadata": {
@@ -186520,11 +186568,14 @@
 							"    GROUP BY caseReference\n",
 							"\n",
 							") latest ON tbl.caseReference = latest.caseReference AND tbl.IngestionDate = latest.latest_date   \n",
+							"\n",
+							"INNER JOIN odw_curated_migration_db.nsip_project AS NP -- project\n",
+							"    ON tbl.caseReference = NP.caseReference\n",
 							" \n",
 							"WHERE LOWER(tbl.ODTSourceSystem) = 'horizon';"
 						],
 						"outputs": [],
-						"execution_count": 12
+						"execution_count": 9
 					},
 					{
 						"cell_type": "markdown",
@@ -186559,7 +186610,7 @@
 							"view_df.write.mode(\"overwrite\").option(\"overwriteSchema\", \"true\").saveAsTable('odw_curated_migration_db.nsip_exam_timetable')"
 						],
 						"outputs": [],
-						"execution_count": 13
+						"execution_count": 10
 					}
 				]
 			},
@@ -209532,7 +209583,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "172bacbf-91bb-417a-913c-1442da541a81"
+						"spark.autotune.trackingId": "7d0c5e5b-5fe3-4082-bdb0-d25f05c14c17"
 					}
 				},
 				"metadata": {
@@ -209570,7 +209621,7 @@
 							"from pyspark.sql.functions import *"
 						],
 						"outputs": [],
-						"execution_count": 1
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -209586,12 +209637,13 @@
 							}
 						},
 						"source": [
-							"service_bus_table = \"odw_harmonised_db.sb_nsip_exam_timetable\" \n",
-							"horizon_table = \"odw_standardised_db.horizon_examination_timetable\" \n",
-							"spark_table_final = \"odw_harmonised_db.nsip_exam_timetable\""
+							"service_bus_table: str = \"odw_harmonised_db.sb_nsip_exam_timetable\" \n",
+							"horizon_table: str = \"odw_standardised_db.horizon_examination_timetable\"\n",
+							"nsip_project_harmonised_table: str = \"odw_harmonised_db.nsip_project\" \n",
+							"spark_table_final: str = \"odw_harmonised_db.nsip_exam_timetable\""
 						],
 						"outputs": [],
-						"execution_count": 2
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -209622,11 +209674,11 @@
 							"                            ,'' as RowID\n",
 							"                            ,IsActive\n",
 							"                        FROM \n",
-							"                            {service_bus_table}\n",
+							"                            {service_bus_table} AS SBT\n",
 							"                    \"\"\")"
 						],
 						"outputs": [],
-						"execution_count": 3
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -209642,34 +209694,44 @@
 							}
 						},
 						"source": [
-							"# Get data out of Horizon and matching the SB schema (with additional fields and ensure data types match)\n",
-							"horizon_data = spark.sql(f\"\"\"\n",
-							"                    SELECT DISTINCT\n",
-							"                        CAST(NULL AS Long) as NSIPExaminationTimetableID\n",
-							"                        ,Horizon.CaseReference\n",
-							"                        ,NULL as published\n",
-							"                        ,CAST(Horizon.ID AS Integer) As eventId\n",
-							"                        ,Horizon.typeofexamination As type\n",
-							"                        ,Horizon.Name As eventTitle\n",
-							"                        ,Horizon.NameWelsh As eventTitleWelsh\n",
-							"                        ,Horizon.Description As description\n",
-							"                        ,Horizon.DescriptionWelsh As descriptionWelsh\n",
-							"                        ,Horizon.DeadlineStartDateTime As eventDeadlineStartDate\n",
-							"                        ,Horizon.Date As date\n",
-							"                        ,\"0\" as Migrated\n",
-							"                        ,\"Horizon\" as ODTSourceSystem\n",
-							"                        ,NULL AS SourceSystemID\n",
-							"                        ,to_timestamp(Horizon.expected_from)  AS IngestionDate\n",
-							"                        ,CAST(NULL AS String) as ValidTo -- to avoid any null descrepancies\n",
-							"                        ,'' as RowID\n",
-							"                        ,'Y' as IsActive\n",
-							"                    FROM\n",
-							"                        {horizon_table} AS Horizon\n",
-							"                    WHERE ingested_datetime = (SELECT MAX(ingested_datetime) FROM {horizon_table})\n",
+							"# Get data out of Horizon and matching the SB schema (with additional fields and ensure data types match)\r\n",
+							"horizon_data = spark.sql(f\"\"\"\r\n",
+							"                    SELECT DISTINCT\r\n",
+							"                        CAST(NULL AS Long) as NSIPExaminationTimetableID\r\n",
+							"                        ,Horizon.CaseReference\r\n",
+							"                        ,CASE\r\n",
+							"                            WHEN hnd.ExamTimetablePublishStatus = 'Published' THEN true\r\n",
+							"                            WHEN hnd.ExamTimetablePublishStatus = 'Not Published' THEN false\r\n",
+							"                            WHEN hnd.ExamTimetablePublishStatus = 'Ready to Publish' THEN false\r\n",
+							"                            ELSE null\r\n",
+							"                        END as published\r\n",
+							"                        ,CAST(Horizon.ID AS Integer) As eventId\r\n",
+							"                        ,Horizon.typeofexamination As type\r\n",
+							"                        ,Horizon.Name As eventTitle\r\n",
+							"                        ,Horizon.NameWelsh As eventTitleWelsh\r\n",
+							"                        ,Horizon.Description As description\r\n",
+							"                        ,Horizon.DescriptionWelsh As descriptionWelsh\r\n",
+							"                        ,Horizon.DeadlineStartDateTime As eventDeadlineStartDate\r\n",
+							"                        ,Horizon.Date As date\r\n",
+							"                        ,\"0\" as Migrated\r\n",
+							"                        ,\"Horizon\" as ODTSourceSystem\r\n",
+							"                        ,NULL AS SourceSystemID\r\n",
+							"                        ,to_timestamp(Horizon.expected_from)  AS IngestionDate\r\n",
+							"                        ,CAST(NULL AS String) as ValidTo -- to avoid any null descrepancies\r\n",
+							"                        ,'' as RowID\r\n",
+							"                        ,'Y' as IsActive\r\n",
+							"                    FROM\r\n",
+							"                        {horizon_table} AS Horizon\r\n",
+							"                    LEFT JOIN\r\n",
+							"                        odw_standardised_db.horizon_nsip_data as hnd\r\n",
+							"                    ON\r\n",
+							"                        Horizon.CaseReference = hnd.CaseReference\r\n",
+							"                    WHERE Horizon.ingested_datetime = (SELECT MAX(Horizon.ingested_datetime) FROM {horizon_table} as Horizon)\r\n",
+							"                    AND hnd.ingested_datetime = (SELECT MAX(hnd.ingested_datetime) FROM odw_standardised_db.horizon_nsip_data as hnd)\r\n",
 							"                \"\"\")"
 						],
 						"outputs": [],
-						"execution_count": 4
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -209703,7 +209765,7 @@
 							"horizon_data = horizon_data.select(service_bus_data.columns).drop_duplicates()"
 						],
 						"outputs": [],
-						"execution_count": 5
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -209723,7 +209785,7 @@
 							"results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
 						],
 						"outputs": [],
-						"execution_count": 6
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -209763,7 +209825,7 @@
 							"    odw_harmonised_db.nsip_exam_timetable"
 						],
 						"outputs": [],
-						"execution_count": 7
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -209805,7 +209867,7 @@
 							"df_calcs = df_calcs.withColumnRenamed(\"caseReference\", \"temp_caseReference\").withColumnRenamed(\"IngestionDate\", \"temp_IngestionDate\")"
 						],
 						"outputs": [],
-						"execution_count": 8
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -209848,7 +209910,7 @@
 							"    "
 						],
 						"outputs": [],
-						"execution_count": 9
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -209870,7 +209932,7 @@
 							"final_df = final_df.drop_duplicates()"
 						],
 						"outputs": [],
-						"execution_count": 10
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -209889,7 +209951,7 @@
 							"final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
 						],
 						"outputs": [],
-						"execution_count": 11
+						"execution_count": null
 					}
 				]
 			},
@@ -220315,7 +220377,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "a6a1fa2f-a01e-4517-bcd0-30e02925cd10"
+						"spark.autotune.trackingId": "93e456e0-b0ae-4f07-a052-9613febaa2ae"
 					}
 				},
 				"metadata": {
@@ -220368,7 +220430,7 @@
 							"path_to_orchestration_file: str = \"abfss://odw-config@\"+storage_account+\"orchestration/orchestration.json\""
 						],
 						"outputs": [],
-						"execution_count": 1
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -220381,7 +220443,7 @@
 							"    return definition['Harmonised_Incremental_Key'] if definition and 'Harmonised_Incremental_Key' in definition else None"
 						],
 						"outputs": [],
-						"execution_count": 2
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -220404,7 +220466,7 @@
 							"    return spark_schema"
 						],
 						"outputs": [],
-						"execution_count": 3
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -220425,7 +220487,7 @@
 							"    return spark_dataframe"
 						],
 						"outputs": [],
-						"execution_count": 4
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -220445,7 +220507,7 @@
 							"    return spark.sql(query)"
 						],
 						"outputs": [],
-						"execution_count": 5
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -220475,7 +220537,7 @@
 							"        return False"
 						],
 						"outputs": [],
-						"execution_count": 6
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -220517,7 +220579,7 @@
 							"    return result"
 						],
 						"outputs": [],
-						"execution_count": 7
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -220569,7 +220631,7 @@
 							"        return True"
 						],
 						"outputs": [],
-						"execution_count": 8
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -220601,7 +220663,7 @@
 							"    return (std_count, hrm_count, std_count == hrm_count)"
 						],
 						"outputs": [],
-						"execution_count": 9
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -220633,7 +220695,7 @@
 							"    return (hrm_count, curated_count, hrm_count == curated_count)"
 						],
 						"outputs": [],
-						"execution_count": 10
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -220669,7 +220731,7 @@
 							"        display(missing_rows_in_hrm)"
 						],
 						"outputs": [],
-						"execution_count": 11
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -220699,7 +220761,7 @@
 							"    return df_harmonise_only_hzn"
 						],
 						"outputs": [],
-						"execution_count": 12
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -220730,7 +220792,7 @@
 							"    return (hrm_count, cur_count, hrm_count == cur_count)"
 						],
 						"outputs": [],
-						"execution_count": 13
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -220761,7 +220823,7 @@
 							""
 						],
 						"outputs": [],
-						"execution_count": 14
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -220792,7 +220854,7 @@
 							"    return df.count() == 0"
 						],
 						"outputs": [],
-						"execution_count": 15
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -220823,7 +220885,7 @@
 							""
 						],
 						"outputs": [],
-						"execution_count": 16
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -220853,7 +220915,7 @@
 							"    return df.count() == 0"
 						],
 						"outputs": [],
-						"execution_count": 17
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -220884,7 +220946,7 @@
 							"    return df.count() == 0"
 						],
 						"outputs": [],
-						"execution_count": 18
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -220915,7 +220977,7 @@
 							"    return df.count() == 0"
 						],
 						"outputs": [],
-						"execution_count": 19
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -220936,7 +220998,7 @@
 							"    return df.count() == 0"
 						],
 						"outputs": [],
-						"execution_count": 20
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -220960,7 +221022,7 @@
 							"        return True"
 						],
 						"outputs": [],
-						"execution_count": 21
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -221027,16 +221089,22 @@
 							"    if cur_primary_key == '':\n",
 							"        cur_primary_key = hzn_primary_key\n",
 							"\n",
-							"    df_hzn: Dataframe = spark.sql(f\"\"\"\n",
-							"                                SELECT DISTINCT {hzn_primary_key}\n",
-							"                                FROM odw_standardised_db.{hzn_table}\n",
-							"                                WHERE expected_from = (\n",
+							"    df_hzn: DataFrame = spark.sql(f\"\"\"\n",
+							"                                SELECT DISTINCT t1.{hzn_primary_key}\n",
+							"                                FROM odw_standardised_db.{hzn_table} t1\n",
+							"                                INNER JOIN odw_standardised_db.horizon_nsip_data t2\n",
+							"                                ON t1.caseReference = t2.caseReference\n",
+							"                                WHERE t1.expected_from = (\n",
 							"                                        SELECT MAX(expected_from)\n",
 							"                                        FROM odw_standardised_db.{hzn_table}\n",
 							"                                    )\n",
+							"                                AND t2.expected_from = (\n",
+							"                                        SELECT MAX(expected_from)\n",
+							"                                        FROM odw_standardised_db.horizon_nsip_data\n",
+							"                                    )\n",
 							"                            \"\"\")\n",
 							"\n",
-							"    df_cur: Dataframe = spark.sql(f\"\"\"\n",
+							"    df_cur: DataFrame = spark.sql(f\"\"\"\n",
 							"                                SELECT DISTINCT {cur_primary_key}\n",
 							"                                FROM odw_curated_migration_db.{curated_table}\n",
 							"                            \"\"\")\n",
@@ -221066,13 +221134,19 @@
 							"        cur_primary_key = hzn_primary_key\n",
 							"    \n",
 							"    df: DataFrame = spark.sql(f\"\"\"\n",
-							"                                SELECT DISTINCT {hzn_primary_key}\n",
-							"                                FROM odw_standardised_db.{hzn_table}\n",
-							"                                WHERE expected_from = (\n",
+							"                                SELECT DISTINCT t1.{hzn_primary_key}\n",
+							"                                FROM odw_standardised_db.{hzn_table} t1\n",
+							"                                INNER JOIN odw_standardised_db.horizon_nsip_data t2\n",
+							"                                ON t1.caseReference = t2.caseReference\n",
+							"                                WHERE t1.expected_from = (\n",
 							"                                        SELECT MAX(expected_from)\n",
 							"                                        FROM odw_standardised_db.{hzn_table}\n",
 							"                                    )\n",
-							"                                AND {hzn_primary_key} NOT IN (\n",
+							"                                AND t2.expected_from = (\n",
+							"                                        SELECT MAX(expected_from)\n",
+							"                                        FROM odw_standardised_db.horizon_nsip_data\n",
+							"                                    )\n",
+							"                                AND t1.{hzn_primary_key} NOT IN (\n",
 							"                                        SELECT DISTINCT {cur_primary_key}\n",
 							"                                        FROM odw_curated_migration_db.{curated_table}\n",
 							"                                    )\n",
@@ -222807,7 +222881,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "55a636c7-bdd1-440d-bfc8-e2d7aef6a72a"
+						"spark.autotune.trackingId": "6b8d6518-31c4-42ac-acb8-a1dedfb43e26"
 					}
 				},
 				"metadata": {
@@ -222857,7 +222931,7 @@
 							"import pprint"
 						],
 						"outputs": [],
-						"execution_count": 1
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -222889,7 +222963,7 @@
 							"curated_migration_table_name: str = 'nsip_exam_timetable'"
 						],
 						"outputs": [],
-						"execution_count": 20
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -222909,7 +222983,7 @@
 							"exitCode: int = 0"
 						],
 						"outputs": [],
-						"execution_count": 3
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -222930,7 +223004,7 @@
 							"            \"events\"]"
 						],
 						"outputs": [],
-						"execution_count": 4
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -222949,7 +223023,7 @@
 							"%run /utils/unit-tests/py_unit_tests_functions"
 						],
 						"outputs": [],
-						"execution_count": 5
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -222971,7 +223045,7 @@
 							"sb_hrm_table_schema = spark.table(f\"{hrm_db_name}.{hrm_table_name}\").schema"
 						],
 						"outputs": [],
-						"execution_count": 6
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -223009,7 +223083,7 @@
 							"exitCode += int(not hrm_schema_correct)"
 						],
 						"outputs": [],
-						"execution_count": 7
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -223049,7 +223123,7 @@
 							"    exitCode += 1 "
 						],
 						"outputs": [],
-						"execution_count": 8
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -223075,7 +223149,9 @@
 							}
 						},
 						"source": [
-							"**<u>NOTE:</u> We might have some discrepancies between harmonised and curated as when we created the curated layer for the exam timetable we have to make sure the case reference that existsin nsip prject, exists in exam timetable.**"
+							"**<u>NOTE:</u> We might have some discrepancies between harmonised and curated as when we created the curated layer for the exam timetable we have to make sure the case reference that exists in nsip project, exists in exam timetable.**  \r\n",
+							"\r\n",
+							"Removing this test for now as it's not comparing like for like"
 						]
 					},
 					{
@@ -223092,12 +223168,12 @@
 							}
 						},
 						"source": [
-							"harmonised_final_count, curated_count, counts_match = test_curated_row_count(hrm_table_final, curated_table_name, data_model_columns)\n",
-							"print(f\"Harmonised Final Count: {harmonised_final_count: ,}\\nCurated Count: {curated_count: ,}\\nCounts match: {counts_match}\")\n",
-							"exitCode += int(not counts_match)"
+							"# harmonised_final_count, curated_count, counts_match = test_curated_row_count(hrm_table_final, curated_table_name, data_model_columns)\n",
+							"# print(f\"Harmonised Final Count: {harmonised_final_count: ,}\\nCurated Count: {curated_count: ,}\\nCounts match: {counts_match}\")\n",
+							"# exitCode += int(not counts_match)"
 						],
 						"outputs": [],
-						"execution_count": 12
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -223135,7 +223211,7 @@
 							"display(df_hrm)"
 						],
 						"outputs": [],
-						"execution_count": 13
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -223185,7 +223261,7 @@
 							"    2 DESC"
 						],
 						"outputs": [],
-						"execution_count": 14
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -223206,7 +223282,7 @@
 							"display(df)"
 						],
 						"outputs": [],
-						"execution_count": 15
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -223250,7 +223326,7 @@
 							"display(df)"
 						],
 						"outputs": [],
-						"execution_count": 16
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -223281,7 +223357,7 @@
 							"display(df)"
 						],
 						"outputs": [],
-						"execution_count": 17
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -223323,7 +223399,7 @@
 							"display(df_cur)"
 						],
 						"outputs": [],
-						"execution_count": 18
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -223362,7 +223438,7 @@
 							"print(f\"Curated Migration schema correct: {cur_migrated_schema_correct}\\nTable: {curated_migration_db_name}.{curated_migration_table_name}\\nDifferences shown above (if any)\")"
 						],
 						"outputs": [],
-						"execution_count": 21
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -223393,11 +223469,66 @@
 						},
 						"source": [
 							"counts_match = test_hzn_and_curated_count_matched(std_hzn_table_name, curated_migration_table_name, primary_key)\n",
-							"print(f\"Horizon to Curared - Counts match: {counts_match}\")\n",
+							"print(f\"Horizon to Curated - Counts match: {counts_match}\")\n",
 							"exitCode += int(not counts_match)"
 						],
 						"outputs": [],
-						"execution_count": 22
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Show missing records"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"df_hzn: DataFrame = spark.sql(f\"\"\"\r\n",
+							"                            SELECT DISTINCT t1.{primary_key}\r\n",
+							"                            FROM odw_standardised_db.{std_hzn_table_name} t1\r\n",
+							"                            INNER JOIN odw_standardised_db.horizon_nsip_data t2\r\n",
+							"                            ON t1.caseReference = t2.caseReference\r\n",
+							"                            WHERE t1.expected_from = (\r\n",
+							"                                    SELECT MAX(expected_from)\r\n",
+							"                                    FROM odw_standardised_db.{std_hzn_table_name}\r\n",
+							"                                )\r\n",
+							"                            AND t2.expected_from = (\r\n",
+							"                                    SELECT MAX(expected_from)\r\n",
+							"                                    FROM odw_standardised_db.horizon_nsip_data\r\n",
+							"                                )\r\n",
+							"                        \"\"\")\r\n",
+							"\r\n",
+							"df_cur: DataFrame = spark.sql(f\"\"\"\r\n",
+							"                            SELECT DISTINCT {primary_key}\r\n",
+							"                            FROM odw_curated_migration_db.{curated_migration_table_name}\r\n",
+							"                        \"\"\")\r\n",
+							"\r\n",
+							"\r\n",
+							"missing = df_hzn.subtract(df_cur)\r\n",
+							"display(missing)"
+						],
+						"outputs": [],
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -223428,11 +223559,11 @@
 						},
 						"source": [
 							"rows_dropped = test_hzn_to_curated_no_record_dropped(std_hzn_table_name, curated_migration_table_name, primary_key)\n",
-							"print(f\"Horizon to Curared - No rows dropped: {rows_dropped}\")\n",
+							"print(f\"Horizon to Curated - No rows dropped: {rows_dropped}\")\n",
 							"exitCode += int(not rows_dropped)"
 						],
 						"outputs": [],
-						"execution_count": 23
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -223467,7 +223598,7 @@
 							"exitCode += int(not counts_match)"
 						],
 						"outputs": [],
-						"execution_count": 24
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -223486,7 +223617,7 @@
 							"mssparkutils.notebook.exit(exitCode)"
 						],
 						"outputs": [],
-						"execution_count": 25
+						"execution_count": null
 					}
 				]
 			},
@@ -254656,18 +254787,18 @@
 				"nodeCount": 0,
 				"nodeSize": "Small",
 				"nodeSizeFamily": "MemoryOptimized",
-				"sparkVersion": "3.2",
+				"sparkVersion": "3.3",
 				"libraryRequirements": {
-					"content": "# Azure Application Insights\r\nopencensus.ext.azure\r\n\r\n\r\n# Azure Storage\r\nazure-storage-file-datalake\r\nazure-storage-file-share\r\n\r\n\r\n# Linting\r\nmypy\r\n\r\n# Machine Learning\r\ntensorflow==2.11.1\r\n\r\n# Time\r\ncroniter\r\ntzlocal\r\n",
+					"content": "# Spark 3.4 library list can be found here\r\n# https://github.com/microsoft/synapse-spark-runtime/blob/main/Synapse/spark3.4/Official-Spark3.4-Rel-2024-10-18.0-rc.1.md\r\n\r\n# Azure Servicebus\r\nazure-servicebus\r\n\r\n# Time\r\ncroniter\r\niso8601\r\n\r\n# Creating fake data\r\nFaker",
 					"filename": "requirements-preview.txt",
-					"time": "2024-07-31T10:42:45.9108451Z"
+					"time": "2024-11-04T13:43:34.8611165Z"
 				},
 				"isComputeIsolationEnabled": false,
 				"sparkConfigProperties": {
 					"configurationType": "File",
 					"filename": "configuration.txt",
 					"content": "spark.executorEnv.dataLakeAccountName pinsstodwdevuks9h80mb\r\nspark.executorEnv.keyVaultName pinskvsynwodwdevuks\r\n",
-					"time": "2024-07-31T10:42:45.9108451Z"
+					"time": "2024-11-04T13:43:34.8611165Z"
 				},
 				"sessionLevelPackagesEnabled": true,
 				"annotations": []
@@ -254694,16 +254825,16 @@
 				"nodeSizeFamily": "MemoryOptimized",
 				"sparkVersion": "3.3",
 				"libraryRequirements": {
-					"content": "# Azure Application Insights\r\nopencensus.ext.azure\r\n\r\n# Azure Storage\r\nazure-storage-file-datalake\r\nazure-storage-file-share\r\n\r\n# Azure Servicebus\r\nazure-servicebus\r\n\r\n# Linting\r\nmypy\r\n\r\n# Machine Learning\r\nprotobuf==3.19.6\r\n\r\n# Time\r\ncroniter\r\ntzlocal\r\n\r\n",
+					"content": "# Spark 3.3 library list can be found here\r\n# https://github.com/microsoft/synapse-spark-runtime/blob/main/Synapse/spark3.3/Official-Spark3.3-Rel-2024-07-11.0-rc.1.md\r\n\r\n# Azure Servicebus\r\nazure-servicebus\r\n\r\n# Time\r\ncroniter\r\niso8601\r\n\r\n# Creating fake data\r\nFaker",
 					"filename": "requirements.txt",
-					"time": "2024-08-07T12:52:09.1406993Z"
+					"time": "2024-11-04T13:43:34.9809723Z"
 				},
 				"isComputeIsolationEnabled": false,
 				"sparkConfigProperties": {
 					"configurationType": "File",
 					"filename": "configuration.txt",
 					"content": "spark.executorEnv.dataLakeAccountName pinsstodwdevuks9h80mb\r\nspark.executorEnv.keyVaultName pinskvsynwodwdevuks\r\nspark.sql.parquet.int96RebaseModeInWrite CORRECTED\r\nspark.sql.constraintPropagation.enabled false\r\n",
-					"time": "2024-08-07T12:52:09.1406993Z"
+					"time": "2024-11-04T13:43:34.9809723Z"
 				},
 				"sessionLevelPackagesEnabled": true,
 				"annotations": []
