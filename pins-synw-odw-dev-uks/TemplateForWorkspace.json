@@ -185711,7 +185711,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "128be699-e39f-4a33-9c2d-5ea50151bf7f"
+						"spark.autotune.trackingId": "716b8cb7-e814-407a-8637-b94d33577b6c"
 					}
 				},
 				"metadata": {
@@ -185866,13 +185866,14 @@
 							"\t,Project.migrationStatus\n",
 							"\t,Project.dateOfReOpenRelevantRepresentationStart\n",
 							"\t,Project.dateOfReOpenRelevantRepresentationClose\n",
+							"\t,Project.isMaterialChange\n",
 							"FROM \n",
 							"\todw_harmonised_db.nsip_project AS Project\n",
 							"WHERE \n",
 							"\tProject.IsActive='Y'"
 						],
 						"outputs": [],
-						"execution_count": 1
+						"execution_count": 25
 					},
 					{
 						"cell_type": "markdown",
@@ -185907,7 +185908,7 @@
 							"view_df.write.mode(\"overwrite\").option(\"overwriteSchema\", \"true\").saveAsTable('odw_curated_db.nsip_project')"
 						],
 						"outputs": [],
-						"execution_count": 2
+						"execution_count": null
 					}
 				]
 			},
@@ -209982,7 +209983,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "2112fecb-1ed8-43a8-a90f-498eda3f1cae"
+						"spark.autotune.trackingId": "4fbefe48-f4a7-4c2b-a6d3-f92af39ba1a9"
 					}
 				},
 				"metadata": {
@@ -210020,7 +210021,7 @@
 							"from pyspark.sql.functions import *"
 						],
 						"outputs": [],
-						"execution_count": 14
+						"execution_count": 25
 					},
 					{
 						"cell_type": "code",
@@ -210041,7 +210042,7 @@
 							"spark_table_final = \"odw_harmonised_db.nsip_project\""
 						],
 						"outputs": [],
-						"execution_count": 15
+						"execution_count": 26
 					},
 					{
 						"cell_type": "code",
@@ -210160,12 +210161,13 @@
 							"                        ,IngestionDate\n",
 							"                        ,ValidTo\n",
 							"                        ,'' AS RowID\n",
+							"                        ,isMaterialChange\n",
 							"                    FROM \n",
 							"                        {service_bus_table}\n",
 							"                    \"\"\")"
 						],
 						"outputs": [],
-						"execution_count": 16
+						"execution_count": 27
 					},
 					{
 						"cell_type": "code",
@@ -210283,6 +210285,7 @@
 							"                        ,MIN(ingested_datetime) AS IngestionDate\n",
 							"                        ,NULL AS ValidTo\n",
 							"                        ,'' AS RowID\n",
+							"                        ,CAST(NULL AS BOOLEAN) As isMaterialChange\n",
 							"                        ,'Y' AS IsActive\n",
 							"FROM\n",
 							"    {horizon_table} AS Horizon\n",
@@ -210352,6 +210355,7 @@
 							"    ,stage5ExtensionToDecisionDeadline\n",
 							"    ,jRPeriodEndDate\n",
 							"    ,dateProjectWithdrawn\n",
+							"    ,cast(isMaterialChange AS BOOLEAN)\n",
 							"    --Start Horizon only fields\n",
 							"    ,examTimetablePublishStatus\n",
 							"    ,twitteraccountname\n",
@@ -210375,7 +210379,7 @@
 							"                \"\"\")"
 						],
 						"outputs": [],
-						"execution_count": 17
+						"execution_count": 28
 					},
 					{
 						"cell_type": "code",
@@ -210418,7 +210422,7 @@
 							"horizon_data = horizon_data.select(service_bus_data.columns)"
 						],
 						"outputs": [],
-						"execution_count": 18
+						"execution_count": 29
 					},
 					{
 						"cell_type": "code",
@@ -210437,7 +210441,7 @@
 							"results = service_bus_data.union(horizon_data)"
 						],
 						"outputs": [],
-						"execution_count": 19
+						"execution_count": 30
 					},
 					{
 						"cell_type": "code",
@@ -210457,7 +210461,7 @@
 							"results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
 						],
 						"outputs": [],
-						"execution_count": 20
+						"execution_count": 31
 					},
 					{
 						"cell_type": "markdown",
@@ -210510,7 +210514,7 @@
 							"    odw_harmonised_db.nsip_project"
 						],
 						"outputs": [],
-						"execution_count": 21
+						"execution_count": 32
 					},
 					{
 						"cell_type": "code",
@@ -210751,8 +210755,10 @@
 							"                    ,IFNULL(CAST(applicantphonenumber AS String), '.')\n",
 							"                    ,IFNULL(CAST(applicantdescriptionofproject AS String), '.')\n",
 							"                    ,IFNULL(CAST(HorizonCaseNumber AS int), '.')\n",
+							"                    ,IFNULL(CAST(isMaterialChange AS String), '.')\n",
 							"            )\n",
 							"        ) AS RowID\n",
+							"        ,isMaterialChange\n",
 							"        ,IsActive\n",
 							"    FROM \n",
 							"        {spark_table_final}\"\"\")\n",
@@ -210766,7 +210772,7 @@
 							"final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
 						],
 						"outputs": [],
-						"execution_count": 22
+						"execution_count": 33
 					},
 					{
 						"cell_type": "code",
@@ -223661,7 +223667,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "13538af2-b784-4d06-96e4-bd756b4f7644"
+						"spark.autotune.trackingId": "baee188a-5c53-4dca-a4c9-e8983ef27e52"
 					}
 				},
 				"metadata": {
@@ -223712,7 +223718,7 @@
 							"import pprint"
 						],
 						"outputs": [],
-						"execution_count": 1
+						"execution_count": 150
 					},
 					{
 						"cell_type": "code",
@@ -223743,7 +223749,7 @@
 							"primary_key: str = 'caseId'"
 						],
 						"outputs": [],
-						"execution_count": 2
+						"execution_count": 151
 					},
 					{
 						"cell_type": "code",
@@ -223763,7 +223769,7 @@
 							"path_to_orchestration_file: str = \"abfss://odw-config@\"+storage_account+\"orchestration/orchestration.json\""
 						],
 						"outputs": [],
-						"execution_count": 3
+						"execution_count": 152
 					},
 					{
 						"cell_type": "code",
@@ -223847,11 +223853,12 @@
 							"\t\t\"secretaryOfState\",\r\n",
 							"\t\t\"migrationStatus\",\r\n",
 							"\t\t\"dateOfReOpenRelevantRepresentationStart\",\r\n",
-							"\t\t\"dateOfReOpenRelevantRepresentationClose\"\r\n",
+							"\t\t\"dateOfReOpenRelevantRepresentationClose\",\r\n",
+							"\t\t\"isMaterialChange\"\r\n",
 							"\t]"
 						],
 						"outputs": [],
-						"execution_count": 4
+						"execution_count": 153
 					},
 					{
 						"cell_type": "code",
@@ -223870,7 +223877,7 @@
 							"%run /utils/unit-tests/py_unit_tests_functions"
 						],
 						"outputs": [],
-						"execution_count": 17
+						"execution_count": 154
 					},
 					{
 						"cell_type": "code",
@@ -223892,7 +223899,7 @@
 							"sb_hrm_table_schema = spark.table(f\"{hrm_db_name}.{hrm_table_name}\").schema"
 						],
 						"outputs": [],
-						"execution_count": 6
+						"execution_count": 155
 					},
 					{
 						"cell_type": "markdown",
@@ -223928,7 +223935,7 @@
 							"print(f\"Service bus harmonised schema correct: {hrm_schema_correct}\\nTable: {hrm_db_name}.{hrm_table_name}\\nDifferences shown above (if any)\")"
 						],
 						"outputs": [],
-						"execution_count": 7
+						"execution_count": 156
 					},
 					{
 						"cell_type": "markdown",
@@ -223962,7 +223969,7 @@
 							"print(f\"Standardised Count: {standardised_count: ,}\\nHarmonised Count: {harmonised_count: ,}\\nCounts match: {counts_match}\")"
 						],
 						"outputs": [],
-						"execution_count": 8
+						"execution_count": 157
 					},
 					{
 						"cell_type": "code",
@@ -223995,7 +224002,27 @@
 							"LIMIT 1"
 						],
 						"outputs": [],
-						"execution_count": 9
+						"execution_count": 158
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							""
+						],
+						"outputs": [],
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -224029,7 +224056,7 @@
 							"print(f\"Harmonised Final Count: {harmonised_final_count: ,}\\nCurated Count: {curated_count: ,}\\nCounts match: {counts_match}\")"
 						],
 						"outputs": [],
-						"execution_count": 10
+						"execution_count": 159
 					},
 					{
 						"cell_type": "markdown",
@@ -224064,7 +224091,7 @@
 							"print(f\"Harmonised Count: {harmonised_count: ,}\\nCurated Count: {curated_count: ,}\\nCounts match: {counts_match}\")"
 						],
 						"outputs": [],
-						"execution_count": 20
+						"execution_count": 160
 					},
 					{
 						"cell_type": "markdown",
@@ -224097,7 +224124,7 @@
 							"print(f\"There is no other records than Horizon: {no_horizon_records:}\\nCurated Count: {total_curated_count: ,}\\n Distinct Curated Count: {distinct_curated_count:,}\\nCounts match: {counts_match}\")"
 						],
 						"outputs": [],
-						"execution_count": 21
+						"execution_count": 161
 					},
 					{
 						"cell_type": "markdown",
@@ -224130,7 +224157,7 @@
 							"print(f\"Horizon to curated no caseids are dropped: {result}\")"
 						],
 						"outputs": [],
-						"execution_count": 24
+						"execution_count": 162
 					},
 					{
 						"cell_type": "markdown",
@@ -224168,7 +224195,7 @@
 							"SELECT * FROM odw_standardised_db.sb_nsip_project"
 						],
 						"outputs": [],
-						"execution_count": null
+						"execution_count": 163
 					},
 					{
 						"cell_type": "code",
@@ -224193,7 +224220,7 @@
 							"WHERE caseid = 100000504 order by ingested_datetime desc"
 						],
 						"outputs": [],
-						"execution_count": null
+						"execution_count": 164
 					},
 					{
 						"cell_type": "code",
@@ -224216,6 +224243,31 @@
 							"%%sql\r\n",
 							"SELECT * FROM odw_harmonised_db.sb_nsip_project WHERE caseid = 100000504 \r\n",
 							"Order by IngestionDate desc"
+						],
+						"outputs": [],
+						"execution_count": 165
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							}
+						},
+						"source": [
+							"%%sql\r\n",
+							"SELECT * FROM odw_curated_db.nsip_project\r\n",
+							"WHERE caseid = 100000504 \r\n",
+							"--order by ingested_datetime desc"
 						],
 						"outputs": [],
 						"execution_count": null
@@ -224268,32 +224320,7 @@
 							"    2 DESC"
 						],
 						"outputs": [],
-						"execution_count": null
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							},
-							"microsoft": {
-								"language": "sparksql"
-							},
-							"collapsed": false
-						},
-						"source": [
-							"%%sql\r\n",
-							"SELECT * FROM \r\n",
-							"    odw_standardised_db.horizon_nsip_data"
-						],
-						"outputs": [],
-						"execution_count": null
+						"execution_count": 166
 					},
 					{
 						"cell_type": "markdown",
@@ -224400,7 +224427,7 @@
 							"     horizoncasenumber = '3222228'"
 						],
 						"outputs": [],
-						"execution_count": null
+						"execution_count": 168
 					},
 					{
 						"cell_type": "code",
@@ -224487,7 +224514,7 @@
 							"    ,applicantwebaddress\r\n",
 							"    ,applicantphonenumber\r\n",
 							"    ,applicantdescriptionofproject\r\n",
-							"    ,casenodeid\r\n",
+							"    --,casenodeid\r\n",
 							"FROM\r\n",
 							"    odw_harmonised_db.nsip_project\r\n",
 							"WHERE\r\n",
@@ -224496,7 +224523,55 @@
 							"    ingestiondate DESC"
 						],
 						"outputs": [],
-						"execution_count": null
+						"execution_count": 169
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"select * from odw_standardised_db.horizon_nsip_data"
+						],
+						"outputs": [],
+						"execution_count": 170
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"select * from odw_harmonised_db.nsip_project"
+						],
+						"outputs": [],
+						"execution_count": 171
 					},
 					{
 						"cell_type": "markdown",
@@ -224543,7 +224618,7 @@
 							"    2 desc"
 						],
 						"outputs": [],
-						"execution_count": null
+						"execution_count": 172
 					},
 					{
 						"cell_type": "code",
@@ -224577,7 +224652,7 @@
 							"    2 desc"
 						],
 						"outputs": [],
-						"execution_count": null
+						"execution_count": 173
 					},
 					{
 						"cell_type": "code",
@@ -224608,7 +224683,7 @@
 							"    ingestiondate DESC"
 						],
 						"outputs": [],
-						"execution_count": null
+						"execution_count": 174
 					},
 					{
 						"cell_type": "markdown",
@@ -224650,7 +224725,7 @@
 							"     caseid = '100000913'"
 						],
 						"outputs": [],
-						"execution_count": null
+						"execution_count": 175
 					},
 					{
 						"cell_type": "markdown",
@@ -224702,7 +224777,7 @@
 							"order by caseid"
 						],
 						"outputs": [],
-						"execution_count": 29
+						"execution_count": 176
 					},
 					{
 						"cell_type": "markdown",
@@ -224740,7 +224815,7 @@
 							"where LOWER(SourceSystem)='horizon'  and IngestionDate = (select max(IngestionDate) from odw_harmonised_db.nsip_project tbl_2  WHERE tbl_1.caseid = tbl_2.caseid group by caseid) and caseid in (3148455,3217867)"
 						],
 						"outputs": [],
-						"execution_count": 28
+						"execution_count": 177
 					},
 					{
 						"cell_type": "markdown",
@@ -224780,7 +224855,7 @@
 							"HAVING COUNT(*) > 1;"
 						],
 						"outputs": [],
-						"execution_count": 25
+						"execution_count": 178
 					}
 				]
 			},
