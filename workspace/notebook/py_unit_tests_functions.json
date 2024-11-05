@@ -469,7 +469,7 @@
 					}
 				},
 				"source": [
-					"def test_hrm_to_curated_no_dropping_primary_ids_only_records(hrm_db: str, hrm_table: str, curated_db: str, curated_table: str, primary_key: str, sourceColumn: str = \"sourceSystem\") -> bool:\r\n",
+					"def test_hrm_to_curated_no_dropping_primary_ids_only_records(hrm_db: str, hrm_table: str, curated_db: str, curated_table: str, primary_key: str, sourceColumn: str = \"sourceSystem\" ) -> bool:\r\n",
 					"    df: DataFrame = spark.sql(f\"\"\"\r\n",
 					"                                SELECT {primary_key}\r\n",
 					"                                FROM {hrm_db}.{hrm_table}\r\n",
@@ -893,6 +893,44 @@
 					"    return df.count() == 0"
 				],
 				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from collections import Counter\r\n",
+					"\r\n",
+					"def test_no_duplicates_in_array_column(curated_db: str, curated_table: str, sourceColumn: str):\r\n",
+					"    \r\n",
+					"    column_list = spark.sql(f\"SELECT {sourceColumn} AS ids FROM {curated_db}.{curated_table}\").collect()  \r\n",
+					"    \r\n",
+					"    # Assuming there's only one Row object in the list\r\n",
+					"    row = column_list[0]    \r\n",
+					"\r\n",
+					"    # Get the attachmentIds\r\n",
+					"    attachment_ids = row.ids    \r\n",
+					"\r\n",
+					"    # Count occurrences of each attachmentId\r\n",
+					"    id_counts = Counter(attachment_ids)\r\n",
+					"\r\n",
+					"    for id, count in id_counts.items():\r\n",
+					"        if count > 1:\r\n",
+					"            return False\r\n",
+					"\r\n",
+					"    return True  \r\n",
+					"        "
+				],
+				"execution_count": 10
 			}
 		]
 	}
