@@ -211503,7 +211503,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "0d50bb81-8f20-48b9-89ce-f5aec8a133b1"
+						"spark.autotune.trackingId": "e330c36e-249e-47e1-b0d9-12dc6cc9f56b"
 					}
 				},
 				"metadata": {
@@ -211541,7 +211541,7 @@
 							"from pyspark.sql.functions import *"
 						],
 						"outputs": [],
-						"execution_count": 1
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -211562,7 +211562,7 @@
 							"spark_table_final = \"odw_harmonised_db.nsip_s51_advice\""
 						],
 						"outputs": [],
-						"execution_count": 2
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -211628,7 +211628,7 @@
 							"                    \"\"\")"
 						],
 						"outputs": [],
-						"execution_count": 3
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -211707,7 +211707,7 @@
 							"                \"\"\")"
 						],
 						"outputs": [],
-						"execution_count": 4
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -211724,15 +211724,14 @@
 						},
 						"source": [
 							"#Establish aggregated view of attachmentIds\n",
-							"horizon_attachement= horizon_data.groupBy(\"adviceid\").agg(collect_list(\"attachmentIds\").alias(\"attachmentIds\"))\n",
+							"horizon_attachement=horizon_data.groupBy('adviceid').agg(array_sort(array_distinct(collect_list(col('attachmentIds')))).alias(\"attachmentIds\")).orderBy(\"adviceid\")\n",
 							"horizon_data = horizon_data.drop(\"attachmentIds\")\n",
 							"horizon_data = horizon_data.join(horizon_attachement, on=\"adviceid\", how=\"inner\")\n",
-							"\n",
-							"#sort columns into same order as service bus\n",
+							"# sort columns into same order as service bus\n",
 							"horizon_data = horizon_data.select(service_bus_data.columns)"
 						],
 						"outputs": [],
-						"execution_count": 5
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -211751,7 +211750,7 @@
 							"results = service_bus_data.union(horizon_data)"
 						],
 						"outputs": [],
-						"execution_count": 6
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -211770,7 +211769,7 @@
 							"results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
 						],
 						"outputs": [],
-						"execution_count": 7
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -211824,7 +211823,7 @@
 							"    odw_harmonised_db.nsip_s51_advice"
 						],
 						"outputs": [],
-						"execution_count": 8
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -211864,7 +211863,7 @@
 							"                    \"\"\")"
 						],
 						"outputs": [],
-						"execution_count": 9
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -211884,7 +211883,7 @@
 							""
 						],
 						"outputs": [],
-						"execution_count": 10
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -211983,7 +211982,7 @@
 							"    "
 						],
 						"outputs": [],
-						"execution_count": 11
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -212004,7 +212003,7 @@
 							"results = results.drop(\"NSIPAdviceID\", \"ValidTo\", \"Migrated\", \"IsActive\")"
 						],
 						"outputs": [],
-						"execution_count": 12
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -212024,7 +212023,7 @@
 							"final_df = final_df.drop_duplicates()"
 						],
 						"outputs": [],
-						"execution_count": 13
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -212044,31 +212043,7 @@
 							"final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
 						],
 						"outputs": [],
-						"execution_count": 14
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							},
-							"microsoft": {
-								"language": "sparksql"
-							},
-							"collapsed": false
-						},
-						"source": [
-							"%%sql\n",
-							"select count(*) from odw_harmonised_db.nsip_s51_advice where isactive='Y'"
-						],
-						"outputs": [],
-						"execution_count": 15
+						"execution_count": null
 					}
 				]
 			},
@@ -220839,7 +220814,7 @@
 							}
 						},
 						"source": [
-							"def test_hrm_to_curated_no_dropping_primary_ids_only_records(hrm_db: str, hrm_table: str, curated_db: str, curated_table: str, primary_key: str, sourceColumn: str = \"sourceSystem\") -> bool:\r\n",
+							"def test_hrm_to_curated_no_dropping_primary_ids_only_records(hrm_db: str, hrm_table: str, curated_db: str, curated_table: str, primary_key: str, sourceColumn: str = \"sourceSystem\" ) -> bool:\r\n",
 							"    df: DataFrame = spark.sql(f\"\"\"\r\n",
 							"                                SELECT {primary_key}\r\n",
 							"                                FROM {hrm_db}.{hrm_table}\r\n",
@@ -221276,6 +221251,45 @@
 						],
 						"outputs": [],
 						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"from collections import Counter\r\n",
+							"\r\n",
+							"def test_no_duplicates_in_array_column(curated_db: str, curated_table: str, sourceColumn: str):\r\n",
+							"    \r\n",
+							"    column_list = spark.sql(f\"SELECT {sourceColumn} AS ids FROM {curated_db}.{curated_table}\").collect()  \r\n",
+							"    \r\n",
+							"    # Assuming there's only one Row object in the list\r\n",
+							"    row = column_list[0]    \r\n",
+							"\r\n",
+							"    # Get the attachmentIds\r\n",
+							"    attachment_ids = row.ids    \r\n",
+							"\r\n",
+							"    # Count occurrences of each attachmentId\r\n",
+							"    id_counts = Counter(attachment_ids)\r\n",
+							"\r\n",
+							"    for id, count in id_counts.items():\r\n",
+							"        if count > 1:\r\n",
+							"            return False\r\n",
+							"\r\n",
+							"    return True  \r\n",
+							"        "
+						],
+						"outputs": [],
+						"execution_count": 10
 					}
 				]
 			},
@@ -224796,7 +224810,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "87dbc746-802f-4477-9f20-7a6c30561c04"
+						"spark.autotune.trackingId": "c1feb22c-7ee6-4f93-acaa-d95353fd7a11"
 					}
 				},
 				"metadata": {
@@ -224846,7 +224860,7 @@
 							"import pprint"
 						],
 						"outputs": [],
-						"execution_count": 28
+						"execution_count": 33
 					},
 					{
 						"cell_type": "code",
@@ -224865,7 +224879,26 @@
 							"spark.catalog.refreshTable('odw_curated_migration_db.s51_advice')"
 						],
 						"outputs": [],
-						"execution_count": 29
+						"execution_count": 64
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"spark.catalog.refreshTable('odw_curated_db.s51_advice')"
+						],
+						"outputs": [],
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -224897,7 +224930,7 @@
 							"primary_key: str = 'adviceId'"
 						],
 						"outputs": [],
-						"execution_count": 30
+						"execution_count": 35
 					},
 					{
 						"cell_type": "code",
@@ -224917,7 +224950,7 @@
 							"exitCode: int = 0"
 						],
 						"outputs": [],
-						"execution_count": 31
+						"execution_count": 36
 					},
 					{
 						"cell_type": "code",
@@ -224954,7 +224987,7 @@
 							"            \"attachmentIds\"]"
 						],
 						"outputs": [],
-						"execution_count": 32
+						"execution_count": 37
 					},
 					{
 						"cell_type": "code",
@@ -224973,7 +225006,7 @@
 							"%run /utils/unit-tests/py_unit_tests_functions"
 						],
 						"outputs": [],
-						"execution_count": 33
+						"execution_count": 38
 					},
 					{
 						"cell_type": "code",
@@ -224995,7 +225028,7 @@
 							"sb_hrm_table_schema = spark.table(f\"{hrm_db_name}.{hrm_table_name}\").schema"
 						],
 						"outputs": [],
-						"execution_count": 34
+						"execution_count": 39
 					},
 					{
 						"cell_type": "markdown",
@@ -225033,7 +225066,7 @@
 							"exitCode += int(not hrm_schema_correct)"
 						],
 						"outputs": [],
-						"execution_count": 35
+						"execution_count": 40
 					},
 					{
 						"cell_type": "markdown",
@@ -225074,7 +225107,7 @@
 							"    exitCode += 1 "
 						],
 						"outputs": [],
-						"execution_count": 36
+						"execution_count": 41
 					},
 					{
 						"cell_type": "markdown",
@@ -225109,7 +225142,7 @@
 							"exitCode += int(not counts_match)"
 						],
 						"outputs": [],
-						"execution_count": 37
+						"execution_count": 42
 					},
 					{
 						"cell_type": "markdown",
@@ -225194,7 +225227,7 @@
 							"    return df_harmonise_only_hzn"
 						],
 						"outputs": [],
-						"execution_count": 38
+						"execution_count": 43
 					},
 					{
 						"cell_type": "code",
@@ -225216,7 +225249,7 @@
 							"exitCode += int(not counts_match)"
 						],
 						"outputs": [],
-						"execution_count": 39
+						"execution_count": 44
 					},
 					{
 						"cell_type": "markdown",
@@ -225250,7 +225283,7 @@
 							"exitCode += int(not counts_match)"
 						],
 						"outputs": [],
-						"execution_count": 40
+						"execution_count": 45
 					},
 					{
 						"cell_type": "markdown",
@@ -225284,7 +225317,7 @@
 							"exitCode += int(not result)"
 						],
 						"outputs": [],
-						"execution_count": 41
+						"execution_count": 46
 					},
 					{
 						"cell_type": "markdown",
@@ -225348,7 +225381,7 @@
 							"    2 DESC"
 						],
 						"outputs": [],
-						"execution_count": 42
+						"execution_count": 47
 					},
 					{
 						"cell_type": "code",
@@ -225372,7 +225405,7 @@
 							"select attachmentIds FROM odw_curated_db.s51_advice where adviceId = 16347955"
 						],
 						"outputs": [],
-						"execution_count": 43
+						"execution_count": 48
 					},
 					{
 						"cell_type": "markdown",
@@ -225415,7 +225448,7 @@
 							"     ingested_datetime = (select max(ingested_datetime) from odw_standardised_db.horizon_nsip_advice);"
 						],
 						"outputs": [],
-						"execution_count": 44
+						"execution_count": 49
 					},
 					{
 						"cell_type": "code",
@@ -225446,7 +225479,7 @@
 							"    ingestiondate DESC"
 						],
 						"outputs": [],
-						"execution_count": 45
+						"execution_count": 50
 					},
 					{
 						"cell_type": "markdown",
@@ -225493,7 +225526,7 @@
 							"    2 desc"
 						],
 						"outputs": [],
-						"execution_count": 46
+						"execution_count": 51
 					},
 					{
 						"cell_type": "code",
@@ -225527,7 +225560,7 @@
 							"    2 desc"
 						],
 						"outputs": [],
-						"execution_count": 47
+						"execution_count": 52
 					},
 					{
 						"cell_type": "markdown",
@@ -225571,7 +225604,7 @@
 							"    ingestiondate DESC"
 						],
 						"outputs": [],
-						"execution_count": 48
+						"execution_count": 53
 					},
 					{
 						"cell_type": "markdown",
@@ -225613,7 +225646,7 @@
 							"     adviceid = '15179883'"
 						],
 						"outputs": [],
-						"execution_count": 49
+						"execution_count": 54
 					},
 					{
 						"cell_type": "markdown",
@@ -225653,7 +225686,76 @@
 							"select * from odw_curated_db.s51_advice where adviceId = 25680508;"
 						],
 						"outputs": [],
-						"execution_count": 50
+						"execution_count": 55
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"#### Check array fields have duplicates in curated\r\n",
+							"Go and find examples"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"result = test_no_duplicates_in_array_column(curated_db_name, curated_table_name, \"attachmentIds\")\r\n",
+							"print(f\"No duplicates found in the attachmentIds: {result}\")\r\n",
+							"exitCode += int(not result)"
+						],
+						"outputs": [],
+						"execution_count": 62
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"#### Check array fields have duplicates in curated_migration"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"result = test_no_duplicates_in_array_column(curated_db_migration_name, curated_table_migration_name, \"attachmentIds\")\r\n",
+							"print(f\"No duplicates found in the attachmentIds: {result}\")\r\n",
+							"exitCode += int(not result)"
+						],
+						"outputs": [],
+						"execution_count": 65
 					},
 					{
 						"cell_type": "code",
@@ -225672,7 +225774,7 @@
 							"mssparkutils.notebook.exit(exitCode)"
 						],
 						"outputs": [],
-						"execution_count": 51
+						"execution_count": 58
 					}
 				]
 			},
