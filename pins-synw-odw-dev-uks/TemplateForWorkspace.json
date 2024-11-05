@@ -67800,7 +67800,7 @@
 			"properties": {
 				"activities": [
 					{
-						"name": "rel_2_0_11_nsip_reps_migrated",
+						"name": "rel_3_0_0",
 						"type": "ExecutePipeline",
 						"dependsOn": [],
 						"policy": {
@@ -67809,24 +67809,7 @@
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
-								"referenceName": "rel_2_0_11_nsip_reps_migrated",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "rel_THEODW-992-WelshFields",
-						"type": "ExecutePipeline",
-						"dependsOn": [],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "rel_THEODW-992-WelshFields",
+								"referenceName": "rel_3_0_0",
 								"type": "PipelineReference"
 							},
 							"waitOnCompletion": true,
@@ -67843,8 +67826,7 @@
 				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('workspaceId'), '/pipelines/rel_2_0_11_nsip_reps_migrated')]",
-				"[concat(variables('workspaceId'), '/pipelines/rel_THEODW-992-WelshFields')]"
+				"[concat(variables('workspaceId'), '/pipelines/rel_3_0_0')]"
 			]
 		},
 		{
@@ -77803,6 +77785,136 @@
 				"[concat(variables('workspaceId'), '/notebooks/nsip_representation_migration')]",
 				"[concat(variables('workspaceId'), '/pipelines/pln_horizon_nsip_project')]",
 				"[concat(variables('workspaceId'), '/pipelines/pln_horizon_case_involvement')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/rel_3_0_0')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"description": "Release pipeline for release 3.0.0 to Production.",
+				"activities": [
+					{
+						"name": "Create nsip representation migration table",
+						"type": "SynapseNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "create_table_from_schema",
+								"type": "NotebookReference"
+							},
+							"parameters": {
+								"db_name": {
+									"value": "odw_curated_migration_db",
+									"type": "string"
+								},
+								"entity_name": {
+									"value": "nsip-representation",
+									"type": "string"
+								}
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "Create service user migration table",
+						"type": "SynapseNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "create_table_from_schema",
+								"type": "NotebookReference"
+							},
+							"parameters": {
+								"db_name": {
+									"value": "odw_curated_migration_db",
+									"type": "string"
+								},
+								"entity_name": {
+									"value": "service-user",
+									"type": "string"
+								}
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "Drop nsip service user curated table",
+						"description": "This table isn't needed.",
+						"type": "SynapseNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "py_delete_table",
+								"type": "NotebookReference"
+							},
+							"parameters": {
+								"db_name": {
+									"value": "odw_curated_db",
+									"type": "string"
+								},
+								"table_name": {
+									"value": "nsip_service_user",
+									"type": "string"
+								}
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"folder": {
+					"name": "Releases/3.0.0"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/notebooks/create_table_from_schema')]",
+				"[concat(variables('workspaceId'), '/notebooks/py_delete_table')]"
 			]
 		},
 		{
