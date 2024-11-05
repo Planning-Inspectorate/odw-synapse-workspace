@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "172bacbf-91bb-417a-913c-1442da541a81"
+				"spark.autotune.trackingId": "7d0c5e5b-5fe3-4082-bdb0-d25f05c14c17"
 			}
 		},
 		"metadata": {
@@ -58,7 +58,7 @@
 					"from pyspark.sql import Row\n",
 					"from pyspark.sql.functions import *"
 				],
-				"execution_count": 1
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -74,11 +74,12 @@
 					}
 				},
 				"source": [
-					"service_bus_table = \"odw_harmonised_db.sb_nsip_exam_timetable\" \n",
-					"horizon_table = \"odw_standardised_db.horizon_examination_timetable\" \n",
-					"spark_table_final = \"odw_harmonised_db.nsip_exam_timetable\""
+					"service_bus_table: str = \"odw_harmonised_db.sb_nsip_exam_timetable\" \n",
+					"horizon_table: str = \"odw_standardised_db.horizon_examination_timetable\"\n",
+					"nsip_project_harmonised_table: str = \"odw_harmonised_db.nsip_project\" \n",
+					"spark_table_final: str = \"odw_harmonised_db.nsip_exam_timetable\""
 				],
-				"execution_count": 2
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -109,10 +110,10 @@
 					"                            ,'' as RowID\n",
 					"                            ,IsActive\n",
 					"                        FROM \n",
-					"                            {service_bus_table}\n",
+					"                            {service_bus_table} AS SBT\n",
 					"                    \"\"\")"
 				],
-				"execution_count": 3
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -128,33 +129,43 @@
 					}
 				},
 				"source": [
-					"# Get data out of Horizon and matching the SB schema (with additional fields and ensure data types match)\n",
-					"horizon_data = spark.sql(f\"\"\"\n",
-					"                    SELECT DISTINCT\n",
-					"                        CAST(NULL AS Long) as NSIPExaminationTimetableID\n",
-					"                        ,Horizon.CaseReference\n",
-					"                        ,NULL as published\n",
-					"                        ,CAST(Horizon.ID AS Integer) As eventId\n",
-					"                        ,Horizon.typeofexamination As type\n",
-					"                        ,Horizon.Name As eventTitle\n",
-					"                        ,Horizon.NameWelsh As eventTitleWelsh\n",
-					"                        ,Horizon.Description As description\n",
-					"                        ,Horizon.DescriptionWelsh As descriptionWelsh\n",
-					"                        ,Horizon.DeadlineStartDateTime As eventDeadlineStartDate\n",
-					"                        ,Horizon.Date As date\n",
-					"                        ,\"0\" as Migrated\n",
-					"                        ,\"Horizon\" as ODTSourceSystem\n",
-					"                        ,NULL AS SourceSystemID\n",
-					"                        ,to_timestamp(Horizon.expected_from)  AS IngestionDate\n",
-					"                        ,CAST(NULL AS String) as ValidTo -- to avoid any null descrepancies\n",
-					"                        ,'' as RowID\n",
-					"                        ,'Y' as IsActive\n",
-					"                    FROM\n",
-					"                        {horizon_table} AS Horizon\n",
-					"                    WHERE ingested_datetime = (SELECT MAX(ingested_datetime) FROM {horizon_table})\n",
+					"# Get data out of Horizon and matching the SB schema (with additional fields and ensure data types match)\r\n",
+					"horizon_data = spark.sql(f\"\"\"\r\n",
+					"                    SELECT DISTINCT\r\n",
+					"                        CAST(NULL AS Long) as NSIPExaminationTimetableID\r\n",
+					"                        ,Horizon.CaseReference\r\n",
+					"                        ,CASE\r\n",
+					"                            WHEN hnd.ExamTimetablePublishStatus = 'Published' THEN true\r\n",
+					"                            WHEN hnd.ExamTimetablePublishStatus = 'Not Published' THEN false\r\n",
+					"                            WHEN hnd.ExamTimetablePublishStatus = 'Ready to Publish' THEN false\r\n",
+					"                            ELSE null\r\n",
+					"                        END as published\r\n",
+					"                        ,CAST(Horizon.ID AS Integer) As eventId\r\n",
+					"                        ,Horizon.typeofexamination As type\r\n",
+					"                        ,Horizon.Name As eventTitle\r\n",
+					"                        ,Horizon.NameWelsh As eventTitleWelsh\r\n",
+					"                        ,Horizon.Description As description\r\n",
+					"                        ,Horizon.DescriptionWelsh As descriptionWelsh\r\n",
+					"                        ,Horizon.DeadlineStartDateTime As eventDeadlineStartDate\r\n",
+					"                        ,Horizon.Date As date\r\n",
+					"                        ,\"0\" as Migrated\r\n",
+					"                        ,\"Horizon\" as ODTSourceSystem\r\n",
+					"                        ,NULL AS SourceSystemID\r\n",
+					"                        ,to_timestamp(Horizon.expected_from)  AS IngestionDate\r\n",
+					"                        ,CAST(NULL AS String) as ValidTo -- to avoid any null descrepancies\r\n",
+					"                        ,'' as RowID\r\n",
+					"                        ,'Y' as IsActive\r\n",
+					"                    FROM\r\n",
+					"                        {horizon_table} AS Horizon\r\n",
+					"                    LEFT JOIN\r\n",
+					"                        odw_standardised_db.horizon_nsip_data as hnd\r\n",
+					"                    ON\r\n",
+					"                        Horizon.CaseReference = hnd.CaseReference\r\n",
+					"                    WHERE Horizon.ingested_datetime = (SELECT MAX(Horizon.ingested_datetime) FROM {horizon_table} as Horizon)\r\n",
+					"                    AND hnd.ingested_datetime = (SELECT MAX(hnd.ingested_datetime) FROM odw_standardised_db.horizon_nsip_data as hnd)\r\n",
 					"                \"\"\")"
 				],
-				"execution_count": 4
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -187,7 +198,7 @@
 					"#sort columns into same order as service bus\n",
 					"horizon_data = horizon_data.select(service_bus_data.columns).drop_duplicates()"
 				],
-				"execution_count": 5
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -206,7 +217,7 @@
 					"results = service_bus_data.unionByName(horizon_data,allowMissingColumns=True)\n",
 					"results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
 				],
-				"execution_count": 6
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -245,7 +256,7 @@
 					"FROM\n",
 					"    odw_harmonised_db.nsip_exam_timetable"
 				],
-				"execution_count": 7
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -286,7 +297,7 @@
 					"\n",
 					"df_calcs = df_calcs.withColumnRenamed(\"caseReference\", \"temp_caseReference\").withColumnRenamed(\"IngestionDate\", \"temp_IngestionDate\")"
 				],
-				"execution_count": 8
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -328,7 +339,7 @@
 					"        {spark_table_final}\"\"\")\n",
 					"    "
 				],
-				"execution_count": 9
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -349,7 +360,7 @@
 					"final_df = results.join(df_calcs, (df_calcs[\"temp_caseReference\"] == results[\"caseReference\"]) & (df_calcs[\"temp_IngestionDate\"] == results[\"IngestionDate\"])).select(columns)\n",
 					"final_df = final_df.drop_duplicates()"
 				],
-				"execution_count": 10
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -367,7 +378,7 @@
 				"source": [
 					"final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
 				],
-				"execution_count": 11
+				"execution_count": null
 			}
 		]
 	}
