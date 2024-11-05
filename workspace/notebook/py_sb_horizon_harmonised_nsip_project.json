@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "2112fecb-1ed8-43a8-a90f-498eda3f1cae"
+				"spark.autotune.trackingId": "4fbefe48-f4a7-4c2b-a6d3-f92af39ba1a9"
 			}
 		},
 		"metadata": {
@@ -59,7 +59,7 @@
 					"from pyspark.sql import Row\n",
 					"from pyspark.sql.functions import *"
 				],
-				"execution_count": 14
+				"execution_count": 25
 			},
 			{
 				"cell_type": "code",
@@ -79,7 +79,7 @@
 					"horizon_table = \"odw_standardised_db.horizon_nsip_data\"\n",
 					"spark_table_final = \"odw_harmonised_db.nsip_project\""
 				],
-				"execution_count": 15
+				"execution_count": 26
 			},
 			{
 				"cell_type": "code",
@@ -198,11 +198,12 @@
 					"                        ,IngestionDate\n",
 					"                        ,ValidTo\n",
 					"                        ,'' AS RowID\n",
+					"                        ,isMaterialChange\n",
 					"                    FROM \n",
 					"                        {service_bus_table}\n",
 					"                    \"\"\")"
 				],
-				"execution_count": 16
+				"execution_count": 27
 			},
 			{
 				"cell_type": "code",
@@ -320,6 +321,7 @@
 					"                        ,MIN(ingested_datetime) AS IngestionDate\n",
 					"                        ,NULL AS ValidTo\n",
 					"                        ,'' AS RowID\n",
+					"                        ,CAST(NULL AS BOOLEAN) As isMaterialChange\n",
 					"                        ,'Y' AS IsActive\n",
 					"FROM\n",
 					"    {horizon_table} AS Horizon\n",
@@ -389,6 +391,7 @@
 					"    ,stage5ExtensionToDecisionDeadline\n",
 					"    ,jRPeriodEndDate\n",
 					"    ,dateProjectWithdrawn\n",
+					"    ,cast(isMaterialChange AS BOOLEAN)\n",
 					"    --Start Horizon only fields\n",
 					"    ,examTimetablePublishStatus\n",
 					"    ,twitteraccountname\n",
@@ -411,7 +414,7 @@
 					"\n",
 					"                \"\"\")"
 				],
-				"execution_count": 17
+				"execution_count": 28
 			},
 			{
 				"cell_type": "code",
@@ -453,7 +456,7 @@
 					"#sort columns into same order as service bus\n",
 					"horizon_data = horizon_data.select(service_bus_data.columns)"
 				],
-				"execution_count": 18
+				"execution_count": 29
 			},
 			{
 				"cell_type": "code",
@@ -471,7 +474,7 @@
 				"source": [
 					"results = service_bus_data.union(horizon_data)"
 				],
-				"execution_count": 19
+				"execution_count": 30
 			},
 			{
 				"cell_type": "code",
@@ -490,7 +493,7 @@
 				"source": [
 					"results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
 				],
-				"execution_count": 20
+				"execution_count": 31
 			},
 			{
 				"cell_type": "markdown",
@@ -542,7 +545,7 @@
 					"FROM\n",
 					"    odw_harmonised_db.nsip_project"
 				],
-				"execution_count": 21
+				"execution_count": 32
 			},
 			{
 				"cell_type": "code",
@@ -783,8 +786,10 @@
 					"                    ,IFNULL(CAST(applicantphonenumber AS String), '.')\n",
 					"                    ,IFNULL(CAST(applicantdescriptionofproject AS String), '.')\n",
 					"                    ,IFNULL(CAST(HorizonCaseNumber AS int), '.')\n",
+					"                    ,IFNULL(CAST(isMaterialChange AS String), '.')\n",
 					"            )\n",
 					"        ) AS RowID\n",
+					"        ,isMaterialChange\n",
 					"        ,IsActive\n",
 					"    FROM \n",
 					"        {spark_table_final}\"\"\")\n",
@@ -797,7 +802,7 @@
 					"\n",
 					"final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
 				],
-				"execution_count": 22
+				"execution_count": 33
 			},
 			{
 				"cell_type": "code",
