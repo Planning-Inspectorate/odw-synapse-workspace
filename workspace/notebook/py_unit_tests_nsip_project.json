@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "097db326-d16b-43ce-9d94-5664b89e909d"
+				"spark.autotune.trackingId": "66b06011-3d47-4f7d-87c9-d6e3e6167c51"
 			}
 		},
 		"metadata": {
@@ -136,7 +136,7 @@
 					}
 				},
 				"source": [
-					"data_model = [\r\n",
+					"data_model_columns = [\r\n",
 					"    \"caseId\",\r\n",
 					"\t\t\"caseReference\",\r\n",
 					"\t\t\"projectName\",\r\n",
@@ -313,7 +313,13 @@
 				},
 				"source": [
 					"standardised_count, harmonised_count, counts_match = test_std_same_rows_hrm(std_table_name, hrm_table_name)\r\n",
-					"print(f\"Standardised Count: {standardised_count: ,}\\nHarmonised Count: {harmonised_count: ,}\\nCounts match: {counts_match}\")"
+					"print(f\"Standardised Count: {standardised_count: ,}\\nHarmonised Count: {harmonised_count: ,}\\nCounts match: {counts_match}\")\r\n",
+					"\r\n",
+					"if standardised_count > harmonised_count:\r\n",
+					"    # uncomment next line when tackling all the unit tests on this notebook\r\n",
+					"    # exitCode += 1\r\n",
+					"    print(f\"{standardised_count - harmonised_count} rows from Standardised are missing in Harmonised.\" )\r\n",
+					"    differentiate_std_and_hrm(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\", data_model_columns)"
 				],
 				"execution_count": 218
 			},
@@ -414,7 +420,7 @@
 					"harmonised_count, curated_count, counts_match = test_counts_hrm_cur(hrm_db_name, hrm_table_final, curated_db_migration_name, curated_table_migration_name, primary_key)\r\n",
 					"print(f\"Harmonised Count: {harmonised_count: ,}\\nCurated Count: {curated_count: ,}\\nCounts match: {counts_match}\")"
 				],
-				"execution_count": 221
+				"execution_count": 11
 			},
 			{
 				"cell_type": "markdown",
@@ -446,7 +452,7 @@
 					"no_horizon_records, total_curated_count, distinct_curated_count, counts_match = test_curated_unique_hzn_only(curated_db_migration_name, curated_table_migration_name, primary_key)\r\n",
 					"print(f\"There is no other records than Horizon: {no_horizon_records:}\\nCurated Count: {total_curated_count: ,}\\n Distinct Curated Count: {distinct_curated_count:,}\\nCounts match: {counts_match}\")"
 				],
-				"execution_count": 222
+				"execution_count": 12
 			},
 			{
 				"cell_type": "markdown",
@@ -478,7 +484,7 @@
 					"result = test_hrm_to_curated_no_dropping_primary_ids_only_records(hrm_db_name, hrm_table_final, curated_db_migration_name, curated_table_migration_name, primary_key)\n",
 					"print(f\"Horizon to curated no caseids are dropped: {result}\")"
 				],
-				"execution_count": 223
+				"execution_count": 13
 			},
 			{
 				"cell_type": "markdown",
@@ -493,6 +499,29 @@
 					"##### Trace service bus data from standardised to curated\r\n",
 					"We need to make sure the data has loaded through correctly. To do this efficiently, we will select a sample record and check that the data is maintained as it moves through the medallian architecture."
 				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"SELECT * FROM odw_standardised_db.sb_nsip_project"
+				],
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
@@ -540,7 +569,7 @@
 					"SELECT * FROM odw_harmonised_db.sb_nsip_project WHERE caseid = 100000913 \r\n",
 					"Order by IngestionDate desc"
 				],
-				"execution_count": 225
+				"execution_count": 16
 			},
 			{
 				"cell_type": "markdown",
@@ -589,7 +618,31 @@
 					"ORDER BY\r\n",
 					"    2 DESC"
 				],
-				"execution_count": 226
+				"execution_count": 17
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"SELECT * FROM \r\n",
+					"    odw_standardised_db.horizon_nsip_data"
+				],
+				"execution_count": 18
 			},
 			{
 				"cell_type": "markdown",
@@ -695,7 +748,7 @@
 					"WHERE\r\n",
 					"     horizoncasenumber = '3222228'"
 				],
-				"execution_count": 227
+				"execution_count": 19
 			},
 			{
 				"cell_type": "code",
@@ -793,7 +846,7 @@
 					"order BY\r\n",
 					"    ingestiondate DESC"
 				],
-				"execution_count": 228
+				"execution_count": 20
 			},
 			{
 				"cell_type": "markdown",
@@ -994,7 +1047,7 @@
 					"where caseid in (3148455,3217867) and LOWER(SourceSystem) ='horizon'\r\n",
 					"order by caseid"
 				],
-				"execution_count": 235
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -1031,7 +1084,7 @@
 					"select * from odw_harmonised_db.nsip_project tbl_1\r\n",
 					"where LOWER(SourceSystem)='horizon'  and IngestionDate = (select max(IngestionDate) from odw_harmonised_db.nsip_project tbl_2  WHERE tbl_1.caseid = tbl_2.caseid group by caseid) and caseid in (3148455,3217867)"
 				],
-				"execution_count": 236
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -1070,7 +1123,7 @@
 					"GROUP BY caseid\r\n",
 					"HAVING COUNT(*) > 1;"
 				],
-				"execution_count": 237
+				"execution_count": null
 			}
 		]
 	}
