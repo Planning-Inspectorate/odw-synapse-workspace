@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "1783a819-b847-46ac-b1f4-add50d0642f6"
+				"spark.autotune.trackingId": "e34e17d4-4f70-4793-93c3-31ed55c17ff7"
 			}
 		},
 		"metadata": {
@@ -73,7 +73,7 @@
 					"from pyspark.sql import functions as F\n",
 					""
 				],
-				"execution_count": 1
+				"execution_count": 57
 			},
 			{
 				"cell_type": "code",
@@ -92,7 +92,7 @@
 					"#keep track of the exitCodes, if the exit code is not zero then we've had failures, we flip the boolean\n",
 					"exitCode: int = 0"
 				],
-				"execution_count": 2
+				"execution_count": 58
 			},
 			{
 				"cell_type": "code",
@@ -123,7 +123,7 @@
 					"service_user_appeal_table: str = 'appeal_service_user'\n",
 					"service_user_migration_table: str = 'service_user'"
 				],
-				"execution_count": 3
+				"execution_count": 59
 			},
 			{
 				"cell_type": "code",
@@ -163,7 +163,7 @@
 					"\t\"sourceSystem\",\n",
 					"\t\"sourceSuid\"]"
 				],
-				"execution_count": 4
+				"execution_count": 60
 			},
 			{
 				"cell_type": "code",
@@ -199,12 +199,17 @@
 				"source": [
 					"sb_std_schema = create_spark_schema(std_db_name, entity_name)\n",
 					"sb_std_table_schema = spark.table(f\"{std_db_name}.{std_table_name}\").schema\n",
+					"\n",
 					"sb_hrm_schema = create_spark_schema(hrm_db_name, entity_name)\n",
 					"sb_hrm_table_schema = spark.table(f\"{hrm_db_name}.{hrm_table_name}\").schema\n",
-					"curated_schema = create_spark_schema(curated_migration_db_name, entity_name)\n",
-					"curated_table_schema = spark.table(f\"{curated_migration_db_name}.{service_user_migration_table}\").schema"
+					"\n",
+					"curated_schema = create_spark_schema(curated_db_name, entity_name)\n",
+					"curated_table_schema = spark.table(f\"{curated_db_name}.{service_user_appeal_table}\").schema\n",
+					"\n",
+					"curated_migration_schema = create_spark_schema(curated_migration_db_name, entity_name)\n",
+					"curated_migration_table_schema = spark.table(f\"{curated_migration_db_name}.{service_user_migration_table}\").schema"
 				],
-				"execution_count": 6
+				"execution_count": 61
 			},
 			{
 				"cell_type": "markdown",
@@ -237,14 +242,21 @@
 					"std_schema_correct: bool = test_compare_schemas(sb_std_schema, sb_std_table_schema)\n",
 					"exitCode += int(not std_schema_correct)\n",
 					"print(f\"Service bus standardised schema correct: {std_schema_correct}\\nTable: {std_db_name}.{std_table_name}\\nDifferences shown above (if any)\")\n",
+					"\n",
 					"hrm_schema_correct: bool = test_compare_schemas(sb_hrm_schema, sb_hrm_table_schema)\n",
 					"print(f\"Service bus harmonised schema correct: {hrm_schema_correct}\\nTable: {hrm_db_name}.{hrm_table_name}\\nDifferences shown above (if any)\")\n",
 					"exitCode += int(not hrm_schema_correct)\n",
-					"# cur_schema_correct: bool = test_compare_schemas(curated_schema, curated_table_schema)\n",
-					"# print(f\"Curated schema correct: {cur_schema_correct}\\nTable: {curated_migration_db_name}.{service_user_migration_table}\\nDifferences shown above (if any)\")\n",
-					"# exitCode += int(not cur_schema_correct)"
+					"\n",
+					"cur_schema_correct: bool = test_compare_schemas(curated_schema, curated_table_schema)\n",
+					"exitCode += int(not cur_schema_correct)\n",
+					"print(f\"Curated schema correct: {cur_schema_correct}\\nTable: {curated_db_name}.{service_user_appeal_table}\\nDifferences shown above (if any)\")\n",
+					"\n",
+					"#test currently fails; ticket created THEODW-1459\n",
+					"cur_migration_schema_correct: bool = test_compare_schemas(curated_migration_schema, curated_migration_table_schema)\n",
+					"print(f\"Curated migration schema correct: {cur_migration_schema_correct}\\nTable: {curated_migration_db_name}.{service_user_migration_table}\\nDifferences shown above (if any)\")\n",
+					"exitCode += int(not cur_migration_schema_correct)"
 				],
-				"execution_count": 7
+				"execution_count": 72
 			},
 			{
 				"cell_type": "markdown",
@@ -282,9 +294,93 @@
 					"    print(f\"{standardised_count - harmonised_count} rows from Standardised are missing in Harmonised.\" )\n",
 					"    differentiate_std_and_hrm(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\", [])\n",
 					"    #this is classed as an error\n",
-					"    exitCode += 1 "
+					"    exitCode += 1"
 				],
-				"execution_count": 8
+				"execution_count": 63
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"if test_sb_std_to_sb_hrm_no_dropping_records(std_table_name, hrm_table_name, 'id'):\n",
+					"   pass\n",
+					"else:\n",
+					"    exitCode += 1"
+				],
+				"execution_count": 64
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"if test_sb_hrm_to_hrm_final_no_dropping_records(hrm_table_name, hrm_table_final, 'id'):\n",
+					"    pass\n",
+					"else:\n",
+					"    exitCode += 1"
+				],
+				"execution_count": 65
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"if test_hrm_to_curated_no_dropping_records(hrm_table_final, service_user_appeal_table, 'id'):\n",
+					"    pass\n",
+					"else:\n",
+					"    exitCode += 1"
+				],
+				"execution_count": 66
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"if test_curated_unique_hzn_only(curated_db_name, service_user_appeal_table, 'id'):\n",
+					"    pass\n",
+					"else:\n",
+					"    exitCode += 1"
+				],
+				"execution_count": 67
 			},
 			{
 				"cell_type": "markdown",
@@ -343,9 +439,9 @@
 					"if test_single_applicant_per_project():\n",
 					"    print('PASS: There is a single applicant per project')\n",
 					"else:\n",
-					"    exitCode += 1  "
+					"    exitCode += 1"
 				],
-				"execution_count": 9
+				"execution_count": 68
 			},
 			{
 				"cell_type": "code",
@@ -378,9 +474,9 @@
 					"    print('PASS: Each project has an applicant')\n",
 					"else:\n",
 					"    print('FAIL: Each project has an applicant')\n",
-					"    exitCode += 1  "
+					"    exitCode += 1"
 				],
-				"execution_count": 10
+				"execution_count": 69
 			},
 			{
 				"cell_type": "markdown",
@@ -428,7 +524,7 @@
 					"    print('FAIL: Expected count of representations match')\n",
 					"    exitCode += 1"
 				],
-				"execution_count": 11
+				"execution_count": 70
 			},
 			{
 				"cell_type": "code",
@@ -446,7 +542,7 @@
 				"source": [
 					"mssparkutils.notebook.exit(exitCode)"
 				],
-				"execution_count": 12
+				"execution_count": 71
 			},
 			{
 				"cell_type": "code",
@@ -587,7 +683,7 @@
 					"query1 = f\"\"\"SELECT *\n",
 					"FROM\n",
 					"odw_curated_db.nsip_representation AS reps \n",
-					"INNER JOIN odw_curated_db.service_user AS suser\n",
+					"INNER JOIN odw_curated_db.appeal_service_user AS suser\n",
 					"ON reps.representativeId = suser.id \n",
 					"OR reps.representedId = suser.id\n",
 					"WHERE reps.caseRef = '{case}' \n",
@@ -598,7 +694,7 @@
 					"SELECT * \n",
 					"FROM\n",
 					"odw_curated_db.nsip_representation AS reps \n",
-					"INNER JOIN odw_curated_db.service_user AS suser\n",
+					"INNER JOIN odw_curated_db.appeal_service_user AS suser\n",
 					"ON reps.representativeId = suser.id \n",
 					"OR reps.representedId = suser.id\n",
 					"AND suser.caseReference = reps.caseId\n",
@@ -643,7 +739,8 @@
 					},
 					"microsoft": {
 						"language": "sparksql"
-					}
+					},
+					"collapsed": false
 				},
 				"source": [
 					"%%sql\n",
@@ -673,7 +770,8 @@
 					},
 					"microsoft": {
 						"language": "sparksql"
-					}
+					},
+					"collapsed": false
 				},
 				"source": [
 					"%%sql\n",
