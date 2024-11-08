@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "15a3785f-3459-4105-96b0-6082343933d0"
+				"spark.autotune.trackingId": "02430750-5b41-4952-b26a-d54ffa6d05ee"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,7 @@
 				"sparkVersion": "3.3",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 28,
-				"automaticScaleJobs": false
+				"memory": 28
 			},
 			"sessionKeepAliveTimeout": 1200
 		},
@@ -85,7 +84,7 @@
 				"source": [
 					"entity_name = ''"
 				],
-				"execution_count": 2
+				"execution_count": 300
 			},
 			{
 				"cell_type": "code",
@@ -112,7 +111,7 @@
 					"from pyspark.sql.window import Window\r\n",
 					"from pyspark.sql.types import LongType"
 				],
-				"execution_count": 3
+				"execution_count": 301
 			},
 			{
 				"cell_type": "code",
@@ -130,7 +129,7 @@
 				"source": [
 					"%run service-bus/py_spark_df_ingestion_functions"
 				],
-				"execution_count": 4
+				"execution_count": 302
 			},
 			{
 				"cell_type": "markdown",
@@ -169,7 +168,7 @@
 					"if not definition:\n",
 					"    mssparkutils.notebook.exit(f\"Definition not found for {entity_name}\")"
 				],
-				"execution_count": 5
+				"execution_count": 303
 			},
 			{
 				"cell_type": "markdown",
@@ -210,7 +209,7 @@
 					"hrm_incremental_key: str = definition[\"Harmonised_Incremental_Key\"]\n",
 					"entity_primary_key: str = definition[\"Entity_Primary_Key\"]"
 				],
-				"execution_count": 6
+				"execution_count": 304
 			},
 			{
 				"cell_type": "markdown",
@@ -245,8 +244,10 @@
 				"source": [
 					"def set_harmonised_master_columns(df: DataFrame) -> DataFrame:\n",
 					"    source_system_df: DataFrame = spark.sql(f\"SELECT * FROM {hrm_db}.main_sourcesystem_fact WHERE Description = 'Casework' AND IsActive = 'Y'\")\n",
+					"    \n",
 					"    # Set source system ID\n",
 					"    df: DataFrame = df.withColumn(\"SourceSystemID\", lit(source_system_df.select('SourceSystemID').collect()[0][0]))\n",
+					"    \n",
 					"    # Set master column values\n",
 					"    df: DataFrame = df.withColumn(\"RowID\", lit('').cast(\"string\"))\n",
 					"    df: DataFrame = df.withColumn(\"migrated\", lit('1').cast(\"string\"))\n",
@@ -255,15 +256,15 @@
 					"    df: DataFrame = df.withColumn(\"IsActive\", lit('Y').cast(\"string\"))\n",
 					"    df: DataFrame = df.withColumn(hrm_incremental_key, lit(None).cast(LongType()))\n",
 					"    df: DataFrame = df.withColumn(\"IngestionDate\", col(\"message_enqueued_time_utc\").cast(\"string\"))\n",
+					"    \n",
 					"    # drop standardised columns from DataFrame\n",
 					"    df: DataFrame = df.drop(\"message_enqueued_time_utc\")\n",
-					"    df: DataFrame = df.drop(\"message_id\")\n",
 					"    df: DataFrame = df.drop(\"expected_from\")\n",
 					"    df: DataFrame = df.drop(\"expected_to\")\n",
 					"    \n",
 					"    return df"
 				],
-				"execution_count": 7
+				"execution_count": 305
 			},
 			{
 				"cell_type": "code",
@@ -288,7 +289,7 @@
 					"\r\n",
 					"    return target_df.union(source_df)"
 				],
-				"execution_count": 8
+				"execution_count": 306
 			},
 			{
 				"cell_type": "markdown",
@@ -338,7 +339,8 @@
 				},
 				"source": [
 					"def get_latest_ingested_data() -> tuple:\n",
-					"    latest_ingestion = spark.sql(f\"SELECT * FROM {std_db}.{std_table} WHERE CAST(ingested_datetime AS Date) = (SELECT MAX(CAST(ingested_datetime AS Date)) FROM {std_db}.{std_table}) ORDER BY message_enqueued_time_utc\")\n",
+					"    latest_ingestion = spark.sql(f\"SELECT * FROM {std_db}.{std_table} WHERE message_id not in (SELECT DISTINCT message_id FROM {hrm_db}.{hrm_table} where message_id IS NOT NULL) ORDER BY message_enqueued_time_utc\")\n",
+					"\n",
 					"    if latest_ingestion.count() == 0:\n",
 					"        mssparkutils.notebook.exit(f\"Standardised data not available for {entity_name}\")\n",
 					"\n",
@@ -347,7 +349,7 @@
 					"    latest_ingestion = set_harmonised_master_columns(latest_ingestion)\n",
 					"    # create dataframes for each message type and the target dataframe (the harmonised target table)\n",
 					"    create_df: DataFrame = latest_ingestion[latest_ingestion[\"message_type\"] == \"Create\"]\n",
-					"    update_df: DataFrame = latest_ingestion[latest_ingestion[\"message_type\"].isin([\"Update\", \"Publish\", \"Unpublish\"])]\n",
+					"    update_df: DataFrame = latest_ingestion[latest_ingestion[\"message_type\"].isin([\"update\", \"Update\", \"Publish\", \"Unpublish\"])]\n",
 					"    delete_df: DataFrame = latest_ingestion[latest_ingestion[\"message_type\"] == \"Delete\"]\n",
 					"    target_df: DataFrame = spark.table(f\"{hrm_db}.{hrm_table}\")\n",
 					"\n",
@@ -358,7 +360,7 @@
 					"            delete_df,\n",
 					"            target_df)"
 				],
-				"execution_count": 9
+				"execution_count": 307
 			},
 			{
 				"cell_type": "code",
@@ -376,26 +378,7 @@
 				"source": [
 					"latest_ingestion, create_df, update_df, delete_df, target_df = get_latest_ingested_data()"
 				],
-				"execution_count": 10
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"collapsed": false
-				},
-				"source": [
-					"display(delete_df)"
-				],
-				"execution_count": 15
+				"execution_count": 308
 			},
 			{
 				"cell_type": "markdown",
@@ -429,7 +412,7 @@
 					"update_df: DataFrame = update_df.drop(\"message_type\").select(target_df.columns)\n",
 					"delete_df: DataFrame = delete_df.drop(\"message_type\").select(target_df.columns)"
 				],
-				"execution_count": 16
+				"execution_count": 309
 			},
 			{
 				"cell_type": "code",
@@ -447,7 +430,7 @@
 				"source": [
 					"compare_and_merge_schema(latest_ingestion, f\"{hrm_db}.{hrm_table}\")"
 				],
-				"execution_count": 17
+				"execution_count": 310
 			},
 			{
 				"cell_type": "markdown",
@@ -476,24 +459,6 @@
 					}
 				},
 				"source": [
-					"spark.sql(f\"REFRESH TABLE {hrm_db}.{hrm_table}\")"
-				],
-				"execution_count": 18
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
 					"#Get the data we need again incase the schema has changed due to a merge\r\n",
 					"latest_ingestion, create_df, update_df, delete_df, target_df = get_latest_ingested_data()\r\n",
 					"latest_ingestion: DataFrame = latest_ingestion.drop(\"message_type\")\r\n",
@@ -501,7 +466,7 @@
 					"update_df: DataFrame = update_df.drop(\"message_type\").select(target_df.columns)\r\n",
 					"delete_df: DataFrame = delete_df.drop(\"message_type\").select(target_df.columns)"
 				],
-				"execution_count": 19
+				"execution_count": 311
 			},
 			{
 				"cell_type": "code",
@@ -523,7 +488,7 @@
 					"print(f\"Delete: {delete_df.count()}\")\r\n",
 					"print(f\"Target: {target_df.count()}\")"
 				],
-				"execution_count": 20
+				"execution_count": 312
 			},
 			{
 				"cell_type": "markdown",
@@ -564,7 +529,7 @@
 					"if target_df.count() > 0:\r\n",
 					"    target_df = target_df.dropDuplicates().orderBy(\"IngestionDate\")"
 				],
-				"execution_count": 21
+				"execution_count": 313
 			},
 			{
 				"cell_type": "code",
@@ -586,7 +551,7 @@
 					"print(f\"Delete: {delete_df.count()}\")\r\n",
 					"print(f\"Target: {target_df.count()}\")"
 				],
-				"execution_count": 22
+				"execution_count": 314
 			},
 			{
 				"cell_type": "markdown",
@@ -620,7 +585,7 @@
 					"\n",
 					"print(f\"New rows: {create_df.count()}\\nTarget dataframe: {target_df.count()}\")"
 				],
-				"execution_count": 23
+				"execution_count": 315
 			},
 			{
 				"cell_type": "markdown",
@@ -701,7 +666,7 @@
 					"\n",
 					"print(f\"Updated rows: {update_df.count()}\\nTarget dataframe: {target_df.count()}\")"
 				],
-				"execution_count": 54
+				"execution_count": 316
 			},
 			{
 				"cell_type": "markdown",
@@ -737,9 +702,15 @@
 					"        target_df = target_df.withColumn('ValidTo', when(mask, row['IngestionDate']).otherwise(target_df['ValidTo']))\n",
 					"        target_df = target_df.withColumn('IsActive', when(mask, 'N').otherwise(target_df['IsActive']))\n",
 					"\n",
+					"    # insert all deleted messages as inactive rows to keep track of message ids\n",
+					"    delete_df_clone = delete_df.select(\"*\")\n",
+					"    delete_df_clone = delete_df_clone.withColumn('ValidTo', delete_df['IngestionDate'])\n",
+					"    delete_df_clone = delete_df_clone.withColumn('IsActive', lit('N'))\n",
+					"    target_df = insert_rows_in_df(delete_df_clone, target_df, hrm_incremental_key)\n",
+					"\n",
 					"print(f\"Deleted rows: {delete_df.count()}\\nTarget dataframe: {target_df.count()}\")"
 				],
-				"execution_count": 55
+				"execution_count": 317
 			},
 			{
 				"cell_type": "markdown",
@@ -772,7 +743,7 @@
 					"columns_to_consider = [c for c in target_df.columns if c not in [hrm_incremental_key, \"ValidTo\"]]\n",
 					"target_df = target_df.orderBy(hrm_incremental_key).dropDuplicates(subset=columns_to_consider).orderBy(\"IngestionDate\")"
 				],
-				"execution_count": 56
+				"execution_count": 318
 			},
 			{
 				"cell_type": "markdown",
@@ -804,7 +775,7 @@
 				"source": [
 					"apply_df_to_table(target_df, hrm_db, hrm_table)"
 				],
-				"execution_count": 57
+				"execution_count": 319
 			}
 		]
 	}

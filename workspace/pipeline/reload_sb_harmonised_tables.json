@@ -1,0 +1,162 @@
+{
+	"name": "reload_sb_harmonised_tables",
+	"properties": {
+		"description": "Pipeline to reload service bus harmonised tables ",
+		"activities": [
+			{
+				"name": "load sb harmonised tables",
+				"description": "",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "clear sb harmonised tables",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@variables('entity_names')",
+						"type": "Expression"
+					},
+					"isSequential": false,
+					"activities": [
+						{
+							"name": "py_sb_std_to_hrm",
+							"type": "SynapseNotebook",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "py_sb_std_to_hrm",
+									"type": "NotebookReference"
+								},
+								"parameters": {
+									"entity_name": {
+										"value": {
+											"value": "@item()",
+											"type": "Expression"
+										},
+										"type": "string"
+									}
+								},
+								"snapshot": true
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "clear sb harmonised tables",
+				"description": "Clearing contents of service bus harmonised tables",
+				"type": "ForEach",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@variables('sb_hrm_tables')",
+						"type": "Expression"
+					},
+					"isSequential": false,
+					"activities": [
+						{
+							"name": "delete table contents",
+							"type": "SynapseNotebook",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "py_delete_table_contents",
+									"type": "NotebookReference"
+								},
+								"parameters": {
+									"db_name": {
+										"value": {
+											"value": "@variables('hrm_db')",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"table_name": {
+										"value": {
+											"value": "@item()",
+											"type": "Expression"
+										},
+										"type": "string"
+									}
+								},
+								"snapshot": true,
+								"conf": {
+									"spark.dynamicAllocation.enabled": null,
+									"spark.dynamicAllocation.minExecutors": null,
+									"spark.dynamicAllocation.maxExecutors": null
+								},
+								"numExecutors": null
+							}
+						}
+					]
+				}
+			}
+		],
+		"variables": {
+			"sb_hrm_tables": {
+				"type": "Array",
+				"defaultValue": [
+					"sb_appeal_document",
+					"sb_appeal_event",
+					"sb_appeal_has",
+					"sb_folder",
+					"sb_nsip_document",
+					"sb_nsip_exam_timetable",
+					"sb_nsip_project",
+					"sb_nsip_project_update",
+					"sb_nsip_representation",
+					"sb_nsip_subscription",
+					"sb_s51_advice",
+					"sb_service_user"
+				]
+			},
+			"hrm_db": {
+				"type": "String",
+				"defaultValue": "odw_harmonised_db"
+			},
+			"entity_names": {
+				"type": "Array",
+				"defaultValue": [
+					"appeal-document",
+					"appeal-event",
+					"appeal-has",
+					"folder",
+					"nsip-document",
+					"nsip-exam-timetable",
+					"nsip-project",
+					"nsip-project-update",
+					"nsip-representation",
+					"nsip-subscription",
+					"s51-advice",
+					"service-user"
+				]
+			}
+		},
+		"folder": {
+			"name": "Releases/3.0.3"
+		},
+		"annotations": []
+	}
+}

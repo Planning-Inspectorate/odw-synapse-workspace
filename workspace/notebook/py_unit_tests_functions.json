@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "93e456e0-b0ae-4f07-a052-9613febaa2ae"
+				"spark.autotune.trackingId": "f738f063-3c3b-4ae9-b426-24091aafb13e"
 			}
 		},
 		"metadata": {
@@ -287,11 +287,11 @@
 					"    std_table_full: str = f\"{std_db_name}.{std_table}\"\n",
 					"    hrm_table_full: str = f\"{hrm_db_name}.{hrm_table}\"\n",
 					"\n",
-					"    # filter standardised df with non-null message_type and exclude 'Delete' message_type since it doesn't add a new row in hrm\n",
+					"    # filter standardised df with non-null message_type\n",
 					"    std_df: DataFrame = spark.table(std_table_full)\n",
 					"\n",
 					"    if \"message_type\" in std_df.columns:\n",
-					"        std_df = std_df.filter((std_df.message_type != 'Delete') & std_df.message_type.isNotNull() & std_df.message_id.isNotNull())\n",
+					"        std_df = std_df.filter(std_df.message_type.isNotNull() & std_df.message_id.isNotNull())\n",
 					"    \n",
 					"    std_count: int = std_df.count()\n",
 					"    hrm_count: int = spark.table(hrm_table_full).count()\n",
@@ -895,6 +895,80 @@
 				"execution_count": null
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Below are the unit tests for recent changes to the py_sb_std_to_hrm regarding message_ids"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def test_sb_std_to_hrm_no_message_id_dropped(std_table: str, hrm_table: str) -> bool:\r\n",
+					"    df: DataFrame = spark.sql(f\"\"\"\r\n",
+					"                        SELECT *\r\n",
+					"                        FROM {std_table}\r\n",
+					"                        WHERE message_id NOT IN (\r\n",
+					"                            SELECT message_id\r\n",
+					"                            FROM {hrm_table}\r\n",
+					"                        )\r\n",
+					"                    \"\"\")\r\n",
+					"\r\n",
+					"    return df.count() == 0\r\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def test_sb_std_to_hrm_no_active_deleted_record(std_table: str, hrm_table: str) -> bool:\n",
+					"    df: DataFrame = spark.sql(f\"\"\"\n",
+					"                        SELECT *\n",
+					"                        FROM {hrm_table}\n",
+					"                        WHERE message_id IN (\n",
+					"                            SELECT message_id\n",
+					"                            FROM {std_table}\n",
+					"                            WHERE message_type = 'Delete'\n",
+					"                        )\n",
+					"                        AND IsActive != 'N'\n",
+					"                        AND IngestionDate != ValidTo\n",
+					"                    \"\"\")\n",
+					"\n",
+					"    return df.count() == 0\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
 				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
@@ -930,7 +1004,7 @@
 					"    return True  \r\n",
 					"        "
 				],
-				"execution_count": 10
+				"execution_count": null
 			}
 		]
 	}
