@@ -651,6 +651,10 @@
 			"type": "string",
 			"defaultValue": "pinssynspodw"
 		},
+		"THEODW-1461-message_id_properties_bigDataPool_referenceName": {
+			"type": "string",
+			"defaultValue": "pinssynspodw"
+		},
 		"THEODW-992-WelshFields-alter-table_properties_bigDataPool_referenceName": {
 			"type": "string",
 			"defaultValue": "pinssynspodw"
@@ -36510,7 +36514,14 @@
 					{
 						"name": "copy_appeal_event_curated_mipins",
 						"type": "Copy",
-						"dependsOn": [],
+						"dependsOn": [
+							{
+								"activity": "Lookup-LogStart",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
 						"policy": {
 							"timeout": "0.12:00:00",
 							"retry": 0,
@@ -36557,10 +36568,261 @@
 								"parameters": {}
 							}
 						]
+					},
+					{
+						"name": "Lookup-LogStart",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderStoredProcedureName": "[Audit].[usp_addETLLog]",
+								"storedProcedureParameters": {
+									"Description": {
+										"type": "String",
+										"value": "appeal_event_curated_mipins_pipeline_started"
+									},
+									"ErrorMessage": {
+										"type": "String",
+										"value": null
+									},
+									"LogType": {
+										"type": "String",
+										"value": "1"
+									},
+									"Param1Value": {
+										"type": "String",
+										"value": null
+									},
+									"RowCount": {
+										"type": "Int32",
+										"value": null
+									},
+									"RunId": {
+										"type": "Int32",
+										"value": null
+									},
+									"Source": {
+										"type": "String",
+										"value": "appeal_event"
+									}
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "Lookup_LogStart",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "Record_Count",
+						"type": "SetVariable",
+						"dependsOn": [
+							{
+								"activity": "copy_appeal_event_curated_mipins",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "RowCount_event",
+							"value": {
+								"value": "@activity('copy_appeal_event_curated_mipins').output.rowscopied",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "Error",
+						"type": "SetVariable",
+						"dependsOn": [
+							{
+								"activity": "Record_Count",
+								"dependencyConditions": [
+									"Failed",
+									"Skipped"
+								]
+							}
+						],
+						"policy": {
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "Error_event",
+							"value": {
+								"value": "@replace(concat(activity('Lookup-LogStart').Error?.message,'|',\nactivity('copy_appeal_event_curated_mipins')?.Error?.message),'|','')",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "Sp_log_failed",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "Error",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[Audit].[usp_addETLLog]",
+							"storedProcedureParameters": {
+								"Description": {
+									"value": "appeal_event_curated_mipins_pipeline_failed",
+									"type": "String"
+								},
+								"ErrorMessage": {
+									"value": {
+										"value": "@variables('Error_event')",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"LogType": {
+									"value": "2",
+									"type": "String"
+								},
+								"Param1Value": {
+									"value": null,
+									"type": "String"
+								},
+								"RowCount": {
+									"value": null,
+									"type": "Int32"
+								},
+								"RunId": {
+									"value": {
+										"value": "@activity('Lookup-LogStart').output.firstRow.RunId",
+										"type": "Expression"
+									},
+									"type": "Int32"
+								},
+								"Source": {
+									"value": "appeal_event",
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_sql_mipins",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "Sp_log_success",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "Record_Count",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[Audit].[usp_addETLLog]",
+							"storedProcedureParameters": {
+								"Description": {
+									"value": "appeal_event_curated_mipins_pipeline_completed",
+									"type": "String"
+								},
+								"ErrorMessage": {
+									"value": null,
+									"type": "String"
+								},
+								"LogType": {
+									"value": "2",
+									"type": "String"
+								},
+								"Param1Value": {
+									"value": null,
+									"type": "String"
+								},
+								"RowCount": {
+									"value": {
+										"value": "@variables('RowCount_event')",
+										"type": "Expression"
+									},
+									"type": "Int32"
+								},
+								"RunId": {
+									"value": {
+										"value": "@activity('Lookup-LogStart').output.firstRow.RunId",
+										"type": "Expression"
+									},
+									"type": "Int32"
+								},
+								"Source": {
+									"value": "appeal_event",
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_sql_mipins",
+							"type": "LinkedServiceReference"
+						}
 					}
 				],
 				"policy": {
 					"elapsedTimeMetric": {}
+				},
+				"variables": {
+					"RowCount_event": {
+						"type": "Integer"
+					},
+					"Error_event": {
+						"type": "String"
+					},
+					"RowCount_Serviceuser": {
+						"type": "Integer"
+					},
+					"Error_Serviceuser": {
+						"type": "String"
+					},
+					"Record_Count_EntraID": {
+						"type": "Integer"
+					},
+					"Error_EntraID": {
+						"type": "String"
+					}
 				},
 				"folder": {
 					"name": "mipins"
@@ -36569,7 +36831,9 @@
 			},
 			"dependsOn": [
 				"[concat(variables('workspaceId'), '/datasets/appeal_event_curated_mipins_sourceconn')]",
-				"[concat(variables('workspaceId'), '/datasets/AzureSqlTableMiPinsDev')]"
+				"[concat(variables('workspaceId'), '/datasets/AzureSqlTableMiPinsDev')]",
+				"[concat(variables('workspaceId'), '/datasets/Lookup_LogStart')]",
+				"[concat(variables('workspaceId'), '/linkedServices/ls_sql_mipins')]"
 			]
 		},
 		{
@@ -36581,7 +36845,14 @@
 					{
 						"name": "Copy_appeals_has_curated_mipins",
 						"type": "Copy",
-						"dependsOn": [],
+						"dependsOn": [
+							{
+								"activity": "Lookup-LogStart",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
 						"policy": {
 							"timeout": "0.12:00:00",
 							"retry": 0,
@@ -36639,11 +36910,91 @@
 						]
 					},
 					{
-						"name": "RefreshDateUpdate-Mipins",
+						"name": "Lookup-LogStart",
 						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderStoredProcedureName": "[Audit].[usp_addETLLog]",
+								"storedProcedureParameters": {
+									"Description": {
+										"type": "String",
+										"value": "appeal_has_curated_mipins_pipeline_started"
+									},
+									"ErrorMessage": {
+										"type": "String",
+										"value": null
+									},
+									"LogType": {
+										"type": "String",
+										"value": "1"
+									},
+									"Param1Value": {
+										"type": "String",
+										"value": null
+									},
+									"RowCount": {
+										"type": "Int32",
+										"value": null
+									},
+									"RunId": {
+										"type": "Int32",
+										"value": null
+									},
+									"Source": {
+										"type": "String",
+										"value": "appeal_has"
+									}
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "Lookup_LogStart",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "Record_Count",
+						"type": "SetVariable",
 						"dependsOn": [
 							{
 								"activity": "Copy_appeals_has_curated_mipins",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "RowCount_Has",
+							"value": {
+								"value": "@activity('Copy_appeals_has_curated_mipins').output.rowscopied",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "SP_update dim_source_system",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "Record_Count",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -36658,22 +37009,200 @@
 						},
 						"userProperties": [],
 						"typeProperties": {
-							"source": {
-								"type": "AzureSqlSource",
-								"sqlReaderQuery": "insert into [Audit].[ODWLog] values(getdate(),'Back Office')\nselect 1 as one",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "AzureMiPINS_audit",
-								"type": "DatasetReference",
-								"parameters": {}
+							"storedProcedureName": "[Live].[upd_dim_source_system]",
+							"storedProcedureParameters": {
+								"refresh_date": {
+									"value": {
+										"value": "@utcNow('yyyy-MM-ddTHH:mm:ss.fff')",
+										"type": "Expression"
+									},
+									"type": "DateTime"
+								},
+								"source_system": {
+									"value": "BackOffice",
+									"type": "String"
+								}
 							}
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_sql_mipins",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "Error",
+						"type": "SetVariable",
+						"dependsOn": [
+							{
+								"activity": "SP_update dim_source_system",
+								"dependencyConditions": [
+									"Failed",
+									"Skipped"
+								]
+							}
+						],
+						"policy": {
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "Error_Has",
+							"value": {
+								"value": "@replace(concat(activity('Lookup-LogStart').Error?.message,'|',\nactivity('Copy_appeals_has_curated_mipins')?.Error?.message,'|',\nactivity('SP_update dim_source_system')?.Error?.message),'|','')",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "Sp_log_failed",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "Error",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[Audit].[usp_addETLLog]",
+							"storedProcedureParameters": {
+								"Description": {
+									"value": "appeal_has_curated_mipins_pipeline_failed",
+									"type": "String"
+								},
+								"ErrorMessage": {
+									"value": {
+										"value": "@variables('Error_Has')",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"LogType": {
+									"value": "2",
+									"type": "String"
+								},
+								"Param1Value": {
+									"value": null,
+									"type": "String"
+								},
+								"RowCount": {
+									"value": null,
+									"type": "Int32"
+								},
+								"RunId": {
+									"value": {
+										"value": "@activity('Lookup-LogStart').output.firstRow.RunId",
+										"type": "Expression"
+									},
+									"type": "Int32"
+								},
+								"Source": {
+									"value": "appeal_has",
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_sql_mipins",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "Sp_log_success",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "SP_update dim_source_system",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[Audit].[usp_addETLLog]",
+							"storedProcedureParameters": {
+								"Description": {
+									"value": "appeal_has_curated_mipins_pipeline_completed",
+									"type": "String"
+								},
+								"ErrorMessage": {
+									"value": null,
+									"type": "String"
+								},
+								"LogType": {
+									"value": "2",
+									"type": "String"
+								},
+								"Param1Value": {
+									"value": null,
+									"type": "String"
+								},
+								"RowCount": {
+									"value": {
+										"value": "@variables('RowCount_Has')",
+										"type": "Expression"
+									},
+									"type": "Int32"
+								},
+								"RunId": {
+									"value": {
+										"value": "@activity('Lookup-LogStart').output.firstRow.RunId",
+										"type": "Expression"
+									},
+									"type": "Int32"
+								},
+								"Source": {
+									"value": "appeal_has",
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_sql_mipins",
+							"type": "LinkedServiceReference"
 						}
 					}
 				],
 				"policy": {
 					"elapsedTimeMetric": {}
+				},
+				"variables": {
+					"RowCount_Has": {
+						"type": "Integer"
+					},
+					"Error_Has": {
+						"type": "String"
+					},
+					"RowCount_Serviceuser": {
+						"type": "Integer"
+					},
+					"Error_Serviceuser": {
+						"type": "String"
+					},
+					"Record_Count_EntraID": {
+						"type": "Integer"
+					},
+					"Error_EntraID": {
+						"type": "String"
+					}
 				},
 				"folder": {
 					"name": "mipins"
@@ -36683,7 +37212,8 @@
 			"dependsOn": [
 				"[concat(variables('workspaceId'), '/datasets/AzureSqlTable_appeals_has_curated_mipins')]",
 				"[concat(variables('workspaceId'), '/datasets/Appeal_has_sink_con')]",
-				"[concat(variables('workspaceId'), '/datasets/AzureMiPINS_audit')]"
+				"[concat(variables('workspaceId'), '/datasets/Lookup_LogStart')]",
+				"[concat(variables('workspaceId'), '/linkedServices/ls_sql_mipins')]"
 			]
 		},
 		{
@@ -36695,7 +37225,14 @@
 					{
 						"name": "copy_service_user_curated_mipins",
 						"type": "Copy",
-						"dependsOn": [],
+						"dependsOn": [
+							{
+								"activity": "Lookup-LogStart",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
 						"policy": {
 							"timeout": "0.12:00:00",
 							"retry": 0,
@@ -36742,10 +37279,255 @@
 								"parameters": {}
 							}
 						]
+					},
+					{
+						"name": "Lookup-LogStart",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderStoredProcedureName": "[Audit].[usp_addETLLog]",
+								"storedProcedureParameters": {
+									"Description": {
+										"type": "String",
+										"value": "service_user_curated_mipins_pipeline_started"
+									},
+									"ErrorMessage": {
+										"type": "String",
+										"value": null
+									},
+									"LogType": {
+										"type": "String",
+										"value": "1"
+									},
+									"Param1Value": {
+										"type": "String",
+										"value": null
+									},
+									"RowCount": {
+										"type": "Int32",
+										"value": null
+									},
+									"RunId": {
+										"type": "Int32",
+										"value": null
+									},
+									"Source": {
+										"type": "String",
+										"value": "service_user"
+									}
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "Lookup_LogStart",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "Record_Count",
+						"type": "SetVariable",
+						"dependsOn": [
+							{
+								"activity": "copy_service_user_curated_mipins",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "RowCount_Serviceuser",
+							"value": {
+								"value": "@activity('copy_service_user_curated_mipins').output.rowscopied",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "Error",
+						"type": "SetVariable",
+						"dependsOn": [
+							{
+								"activity": "Record_Count",
+								"dependencyConditions": [
+									"Failed",
+									"Skipped"
+								]
+							}
+						],
+						"policy": {
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "Error_Serviceuser",
+							"value": {
+								"value": "@replace(concat(activity('Lookup-LogStart').Error?.message,'|',\nactivity('copy_service_user_curated_mipins')?.Error?.message),'|','')",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "Sp_log_success",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "Record_Count",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[Audit].[usp_addETLLog]",
+							"storedProcedureParameters": {
+								"Description": {
+									"value": "service_user_curated_mipins_pipeline_completed",
+									"type": "String"
+								},
+								"ErrorMessage": {
+									"value": null,
+									"type": "String"
+								},
+								"LogType": {
+									"value": "2",
+									"type": "String"
+								},
+								"Param1Value": {
+									"value": null,
+									"type": "String"
+								},
+								"RowCount": {
+									"value": {
+										"value": "@variables('RowCount_Serviceuser')",
+										"type": "Expression"
+									},
+									"type": "Int32"
+								},
+								"RunId": {
+									"value": {
+										"value": "@activity('Lookup-LogStart').output.firstRow.RunId",
+										"type": "Expression"
+									},
+									"type": "Int32"
+								},
+								"Source": {
+									"value": "service_user",
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_sql_mipins",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "Sp_log_failed",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "Error",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[Audit].[usp_addETLLog]",
+							"storedProcedureParameters": {
+								"Description": {
+									"value": "service_user_curated_mipins_pipeline_failed",
+									"type": "String"
+								},
+								"ErrorMessage": {
+									"value": {
+										"value": "@variables('Error_Serviceuser')",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"LogType": {
+									"value": "2",
+									"type": "String"
+								},
+								"Param1Value": {
+									"value": null,
+									"type": "String"
+								},
+								"RowCount": {
+									"value": null,
+									"type": "Int32"
+								},
+								"RunId": {
+									"value": {
+										"value": "@activity('Lookup-LogStart').output.firstRow.RunId",
+										"type": "Expression"
+									},
+									"type": "Int32"
+								},
+								"Source": {
+									"value": "service_user",
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_sql_mipins",
+							"type": "LinkedServiceReference"
+						}
 					}
 				],
 				"policy": {
 					"elapsedTimeMetric": {}
+				},
+				"variables": {
+					"RowCount_Serviceuser": {
+						"type": "Integer"
+					},
+					"Error_Serviceuser": {
+						"type": "String"
+					},
+					"Record_Count_EntraID": {
+						"type": "Integer"
+					},
+					"Error_EntraID": {
+						"type": "String"
+					}
 				},
 				"folder": {
 					"name": "mipins"
@@ -36754,7 +37536,9 @@
 			},
 			"dependsOn": [
 				"[concat(variables('workspaceId'), '/datasets/appeal_service_user_conn')]",
-				"[concat(variables('workspaceId'), '/datasets/appeal_service_user_mipinsdevconn')]"
+				"[concat(variables('workspaceId'), '/datasets/appeal_service_user_mipinsdevconn')]",
+				"[concat(variables('workspaceId'), '/datasets/Lookup_LogStart')]",
+				"[concat(variables('workspaceId'), '/linkedServices/ls_sql_mipins')]"
 			]
 		},
 		{
@@ -36766,7 +37550,14 @@
 					{
 						"name": "Copy-Entraid-curated-mipins",
 						"type": "Copy",
-						"dependsOn": [],
+						"dependsOn": [
+							{
+								"activity": "Lookup-LogStart",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
 						"policy": {
 							"timeout": "0.12:00:00",
 							"retry": 0,
@@ -36813,10 +37604,249 @@
 								"parameters": {}
 							}
 						]
+					},
+					{
+						"name": "Lookup-LogStart",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderStoredProcedureName": "[Audit].[usp_addETLLog]",
+								"storedProcedureParameters": {
+									"Description": {
+										"type": "String",
+										"value": "EntraID_curated_mipins_pipeline_started"
+									},
+									"ErrorMessage": {
+										"type": "String",
+										"value": null
+									},
+									"LogType": {
+										"type": "String",
+										"value": "1"
+									},
+									"Param1Value": {
+										"type": "String",
+										"value": null
+									},
+									"RowCount": {
+										"type": "Int32",
+										"value": null
+									},
+									"RunId": {
+										"type": "Int32",
+										"value": null
+									},
+									"Source": {
+										"type": "String",
+										"value": "EntraID"
+									}
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "Lookup_LogStart",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "Record_Count",
+						"type": "SetVariable",
+						"dependsOn": [
+							{
+								"activity": "Copy-Entraid-curated-mipins",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "Record_Count_EntraID",
+							"value": {
+								"value": "@activity('Copy-Entraid-curated-mipins').output.rowscopied",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "Error",
+						"type": "SetVariable",
+						"dependsOn": [
+							{
+								"activity": "Record_Count",
+								"dependencyConditions": [
+									"Failed",
+									"Skipped"
+								]
+							}
+						],
+						"policy": {
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "Error_EntraID",
+							"value": {
+								"value": "@replace(concat(activity('Lookup-LogStart').Error?.message,'|',\nactivity('Copy-Entraid-curated-mipins')?.Error?.message),'|','')\n",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "Sp_log_success",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "Record_Count",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[Audit].[usp_addETLLog]",
+							"storedProcedureParameters": {
+								"Description": {
+									"value": "EntraID_curated_mipins_pipeline_completed",
+									"type": "String"
+								},
+								"ErrorMessage": {
+									"value": null,
+									"type": "String"
+								},
+								"LogType": {
+									"value": "2",
+									"type": "String"
+								},
+								"Param1Value": {
+									"value": null,
+									"type": "String"
+								},
+								"RowCount": {
+									"value": {
+										"value": "@variables('Record_Count_EntraID')",
+										"type": "Expression"
+									},
+									"type": "Int32"
+								},
+								"RunId": {
+									"value": {
+										"value": "@activity('Lookup-LogStart').output.firstRow.RunId",
+										"type": "Expression"
+									},
+									"type": "Int32"
+								},
+								"Source": {
+									"value": "EntraID",
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_sql_mipins",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "Sp_log_failed",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "Error",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[Audit].[usp_addETLLog]",
+							"storedProcedureParameters": {
+								"Description": {
+									"value": "EntraID_curated_mipins_pipeline_failed",
+									"type": "String"
+								},
+								"ErrorMessage": {
+									"value": {
+										"value": "@variables('Error_EntraID')",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"LogType": {
+									"value": "2",
+									"type": "String"
+								},
+								"Param1Value": {
+									"value": null,
+									"type": "String"
+								},
+								"RowCount": {
+									"value": null,
+									"type": "Int32"
+								},
+								"RunId": {
+									"value": {
+										"value": "@activity('Lookup-LogStart').output.firstRow.RunId",
+										"type": "Expression"
+									},
+									"type": "Int32"
+								},
+								"Source": {
+									"value": "EntraID",
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_sql_mipins",
+							"type": "LinkedServiceReference"
+						}
 					}
 				],
 				"policy": {
 					"elapsedTimeMetric": {}
+				},
+				"variables": {
+					"Record_Count_EntraID": {
+						"type": "Integer"
+					},
+					"Error_EntraID": {
+						"type": "String"
+					}
 				},
 				"folder": {
 					"name": "mipins"
@@ -36825,7 +37855,9 @@
 			},
 			"dependsOn": [
 				"[concat(variables('workspaceId'), '/datasets/AzureSqlTable_EntraID')]",
-				"[concat(variables('workspaceId'), '/datasets/Entraid_sink')]"
+				"[concat(variables('workspaceId'), '/datasets/Entraid_sink')]",
+				"[concat(variables('workspaceId'), '/datasets/Lookup_LogStart')]",
+				"[concat(variables('workspaceId'), '/linkedServices/ls_sql_mipins')]"
 			]
 		},
 		{
@@ -77918,6 +78950,76 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('workspaceName'), '/rel_3_0_3')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "THEODW-1461-message_id",
+						"type": "SynapseNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "THEODW-1461-message_id",
+								"type": "NotebookReference"
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "reload_sb_harmonised_tables",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "THEODW-1461-message_id",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "reload_sb_harmonised_tables",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"folder": {
+					"name": "Releases/3.0.3"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/notebooks/THEODW-1461-message_id')]",
+				"[concat(variables('workspaceId'), '/pipelines/reload_sb_harmonised_tables')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('workspaceName'), '/rel_971_logging_monitoring')]",
 			"type": "Microsoft.Synapse/workspaces/pipelines",
 			"apiVersion": "2019-06-01-preview",
@@ -78078,6 +79180,183 @@
 			},
 			"dependsOn": [
 				"[concat(variables('workspaceId'), '/notebooks/appeals_has')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/reload_sb_harmonised_tables')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"description": "Pipeline to reload service bus harmonised tables ",
+				"activities": [
+					{
+						"name": "load sb harmonised tables",
+						"description": "",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "clear sb harmonised tables",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@variables('entity_names')",
+								"type": "Expression"
+							},
+							"isSequential": false,
+							"activities": [
+								{
+									"name": "py_sb_std_to_hrm",
+									"type": "SynapseNotebook",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"notebook": {
+											"referenceName": "py_sb_std_to_hrm",
+											"type": "NotebookReference"
+										},
+										"parameters": {
+											"entity_name": {
+												"value": {
+													"value": "@item()",
+													"type": "Expression"
+												},
+												"type": "string"
+											}
+										},
+										"snapshot": true,
+										"conf": {
+											"spark.dynamicAllocation.enabled": null,
+											"spark.dynamicAllocation.minExecutors": null,
+											"spark.dynamicAllocation.maxExecutors": null
+										},
+										"numExecutors": null
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "clear sb harmonised tables",
+						"description": "Clearing contents of service bus harmonised tables",
+						"type": "ForEach",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@variables('sb_hrm_tables')",
+								"type": "Expression"
+							},
+							"isSequential": false,
+							"activities": [
+								{
+									"name": "delete table contents",
+									"type": "SynapseNotebook",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"notebook": {
+											"referenceName": "py_delete_table_contents",
+											"type": "NotebookReference"
+										},
+										"parameters": {
+											"db_name": {
+												"value": {
+													"value": "@variables('hrm_db')",
+													"type": "Expression"
+												},
+												"type": "string"
+											},
+											"table_name": {
+												"value": {
+													"value": "@item()",
+													"type": "Expression"
+												},
+												"type": "string"
+											}
+										},
+										"snapshot": true,
+										"conf": {
+											"spark.dynamicAllocation.enabled": null,
+											"spark.dynamicAllocation.minExecutors": null,
+											"spark.dynamicAllocation.maxExecutors": null
+										},
+										"numExecutors": null
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"variables": {
+					"sb_hrm_tables": {
+						"type": "Array",
+						"defaultValue": [
+							"sb_appeal_document",
+							"sb_appeal_event",
+							"sb_appeal_has",
+							"sb_folder",
+							"sb_nsip_document",
+							"sb_nsip_exam_timetable",
+							"sb_nsip_project",
+							"sb_nsip_project_update",
+							"sb_nsip_representation",
+							"sb_nsip_subscription",
+							"sb_s51_advice",
+							"sb_service_user"
+						]
+					},
+					"hrm_db": {
+						"type": "String",
+						"defaultValue": "odw_harmonised_db"
+					},
+					"entity_names": {
+						"type": "Array",
+						"defaultValue": [
+							"appeal-document",
+							"appeal-event",
+							"appeal-has",
+							"folder",
+							"nsip-document",
+							"nsip-exam-timetable",
+							"nsip-project",
+							"nsip-project-update",
+							"nsip-representation",
+							"nsip-subscription",
+							"s51-advice",
+							"service-user"
+						]
+					}
+				},
+				"folder": {
+					"name": "Releases/3.0.3"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/notebooks/py_sb_std_to_hrm')]",
+				"[concat(variables('workspaceId'), '/notebooks/py_delete_table_contents')]"
 			]
 		},
 		{
@@ -88233,6 +89512,24 @@
 			},
 			"dependsOn": [
 				"[concat(variables('workspaceId'), '/linkedServices/ls_storage')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/Lookup_LogStart')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_sql_mipins",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [],
+				"typeProperties": {}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/ls_sql_mipins')]"
 			]
 		},
 		{
@@ -101348,6 +102645,355 @@
 						],
 						"outputs": [],
 						"execution_count": 1
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/THEODW-1461-message_id')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"folder": {
+					"name": "Releases/3.0.3"
+				},
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "[parameters('THEODW-1461-message_id_properties_bigDataPool_referenceName')]",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "afc57fbf-14fe-432f-94bb-977724361bf7"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": false,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+						"name": "pinssynspodw",
+						"type": "Spark",
+						"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "3.3",
+						"nodeCount": 3,
+						"cores": 4,
+						"memory": 28
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "code",
+						"metadata": {
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\n",
+							"ALTER TABLE odw_harmonised_db.sb_appeal_document\n",
+							"ADD COLUMN message_id STRING"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\n",
+							"ALTER TABLE odw_harmonised_db.sb_appeal_event\n",
+							"ADD COLUMN message_id STRING"
+						],
+						"outputs": [],
+						"execution_count": 28
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\n",
+							"ALTER TABLE odw_harmonised_db.sb_appeal_has\n",
+							"ADD COLUMN message_id STRING"
+						],
+						"outputs": [],
+						"execution_count": 29
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\n",
+							"ALTER TABLE odw_harmonised_db.sb_folder\n",
+							"ADD COLUMN message_id STRING"
+						],
+						"outputs": [],
+						"execution_count": 30
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\n",
+							"ALTER TABLE odw_harmonised_db.sb_nsip_document\n",
+							"ADD COLUMN message_id STRING"
+						],
+						"outputs": [],
+						"execution_count": 31
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\n",
+							"ALTER TABLE odw_harmonised_db.sb_nsip_exam_timetable\n",
+							"ADD COLUMN message_id STRING"
+						],
+						"outputs": [],
+						"execution_count": 32
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\n",
+							"ALTER TABLE odw_harmonised_db.sb_nsip_project\n",
+							"ADD COLUMN message_id STRING"
+						],
+						"outputs": [],
+						"execution_count": 33
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\n",
+							"ALTER TABLE odw_harmonised_db.sb_nsip_project_update\n",
+							"ADD COLUMN message_id STRING"
+						],
+						"outputs": [],
+						"execution_count": 34
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\n",
+							"ALTER TABLE odw_harmonised_db.sb_nsip_representation\n",
+							"ADD COLUMN message_id STRING"
+						],
+						"outputs": [],
+						"execution_count": 35
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\n",
+							"ALTER TABLE odw_harmonised_db.sb_nsip_subscription\n",
+							"ADD COLUMN message_id STRING"
+						],
+						"outputs": [],
+						"execution_count": 36
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\n",
+							"ALTER TABLE odw_harmonised_db.sb_s51_advice\n",
+							"ADD COLUMN message_id STRING"
+						],
+						"outputs": [],
+						"execution_count": 37
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\n",
+							"ALTER TABLE odw_harmonised_db.sb_service_user\n",
+							"ADD COLUMN message_id STRING"
+						],
+						"outputs": [],
+						"execution_count": 38
 					}
 				]
 			},
@@ -193464,7 +195110,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "801d7ab8-d471-4058-ae3e-10de13688892"
+						"spark.autotune.trackingId": "07d8edbd-f590-44c0-a46f-f9350a1bca21"
 					}
 				},
 				"metadata": {
@@ -193517,7 +195163,7 @@
 							"is_servicebus_schema: bool = True"
 						],
 						"outputs": [],
-						"execution_count": 6
+						"execution_count": 21
 					},
 					{
 						"cell_type": "code",
@@ -193529,7 +195175,7 @@
 							"import requests"
 						],
 						"outputs": [],
-						"execution_count": 7
+						"execution_count": 22
 					},
 					{
 						"cell_type": "code",
@@ -193548,7 +195194,7 @@
 							"%run service-bus/py_spark_df_ingestion_functions"
 						],
 						"outputs": [],
-						"execution_count": 8
+						"execution_count": 23
 					},
 					{
 						"cell_type": "code",
@@ -193574,7 +195220,7 @@
 							"    }"
 						],
 						"outputs": [],
-						"execution_count": 9
+						"execution_count": 24
 					},
 					{
 						"cell_type": "code",
@@ -193619,13 +195265,14 @@
 							"    StructField(\"ODTSourceSystem\", StringType(), True),\r\n",
 							"    StructField(\"SourceSystemID\", StringType(), True),\r\n",
 							"    StructField(\"IngestionDate\", StringType(), True),\r\n",
+							"    StructField(\"message_id\", StringType(), True),\r\n",
 							"    StructField(\"ValidTo\", StringType(), True),\r\n",
 							"    StructField(\"RowID\", StringType(), True),\r\n",
 							"    StructField(\"IsActive\", StringType(), True)\r\n",
 							"])"
 						],
 						"outputs": [],
-						"execution_count": 10
+						"execution_count": 25
 					},
 					{
 						"cell_type": "code",
@@ -193653,7 +195300,7 @@
 							"        print(\"Error fetching data:\", e)"
 						],
 						"outputs": [],
-						"execution_count": 11
+						"execution_count": 26
 					},
 					{
 						"cell_type": "code",
@@ -193687,7 +195334,7 @@
 							"        raise ValueError(f\"Unsupported type: {json_type}\")"
 						],
 						"outputs": [],
-						"execution_count": 12
+						"execution_count": 27
 					},
 					{
 						"cell_type": "code",
@@ -193713,7 +195360,7 @@
 							"    return StructType(fields)"
 						],
 						"outputs": [],
-						"execution_count": 13
+						"execution_count": 28
 					},
 					{
 						"cell_type": "code",
@@ -193743,7 +195390,7 @@
 							"        return schema"
 						],
 						"outputs": [],
-						"execution_count": 14
+						"execution_count": 29
 					},
 					{
 						"cell_type": "code",
@@ -193778,7 +195425,7 @@
 							"    return final_schema"
 						],
 						"outputs": [],
-						"execution_count": 15
+						"execution_count": 30
 					},
 					{
 						"cell_type": "code",
@@ -193800,7 +195447,7 @@
 							"    mssparkutils.notebook.exit('')"
 						],
 						"outputs": [],
-						"execution_count": 16
+						"execution_count": 31
 					},
 					{
 						"cell_type": "code",
@@ -193821,7 +195468,7 @@
 							"final_schema: StructType = add_master_columns_to_schema(db_name)"
 						],
 						"outputs": [],
-						"execution_count": 17
+						"execution_count": 32
 					},
 					{
 						"cell_type": "code",
@@ -193840,7 +195487,7 @@
 							"mssparkutils.notebook.exit(final_schema.json())"
 						],
 						"outputs": [],
-						"execution_count": 18
+						"execution_count": 33
 					}
 				]
 			},
@@ -214263,7 +215910,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "15a3785f-3459-4105-96b0-6082343933d0"
+						"spark.autotune.trackingId": "02430750-5b41-4952-b26a-d54ffa6d05ee"
 					}
 				},
 				"metadata": {
@@ -214328,7 +215975,7 @@
 							"entity_name = ''"
 						],
 						"outputs": [],
-						"execution_count": 2
+						"execution_count": 300
 					},
 					{
 						"cell_type": "code",
@@ -214356,7 +216003,7 @@
 							"from pyspark.sql.types import LongType"
 						],
 						"outputs": [],
-						"execution_count": 3
+						"execution_count": 301
 					},
 					{
 						"cell_type": "code",
@@ -214375,7 +216022,7 @@
 							"%run service-bus/py_spark_df_ingestion_functions"
 						],
 						"outputs": [],
-						"execution_count": 4
+						"execution_count": 302
 					},
 					{
 						"cell_type": "markdown",
@@ -214415,7 +216062,7 @@
 							"    mssparkutils.notebook.exit(f\"Definition not found for {entity_name}\")"
 						],
 						"outputs": [],
-						"execution_count": 5
+						"execution_count": 303
 					},
 					{
 						"cell_type": "markdown",
@@ -214457,7 +216104,7 @@
 							"entity_primary_key: str = definition[\"Entity_Primary_Key\"]"
 						],
 						"outputs": [],
-						"execution_count": 6
+						"execution_count": 304
 					},
 					{
 						"cell_type": "markdown",
@@ -214492,8 +216139,10 @@
 						"source": [
 							"def set_harmonised_master_columns(df: DataFrame) -> DataFrame:\n",
 							"    source_system_df: DataFrame = spark.sql(f\"SELECT * FROM {hrm_db}.main_sourcesystem_fact WHERE Description = 'Casework' AND IsActive = 'Y'\")\n",
+							"    \n",
 							"    # Set source system ID\n",
 							"    df: DataFrame = df.withColumn(\"SourceSystemID\", lit(source_system_df.select('SourceSystemID').collect()[0][0]))\n",
+							"    \n",
 							"    # Set master column values\n",
 							"    df: DataFrame = df.withColumn(\"RowID\", lit('').cast(\"string\"))\n",
 							"    df: DataFrame = df.withColumn(\"migrated\", lit('1').cast(\"string\"))\n",
@@ -214502,16 +216151,16 @@
 							"    df: DataFrame = df.withColumn(\"IsActive\", lit('Y').cast(\"string\"))\n",
 							"    df: DataFrame = df.withColumn(hrm_incremental_key, lit(None).cast(LongType()))\n",
 							"    df: DataFrame = df.withColumn(\"IngestionDate\", col(\"message_enqueued_time_utc\").cast(\"string\"))\n",
+							"    \n",
 							"    # drop standardised columns from DataFrame\n",
 							"    df: DataFrame = df.drop(\"message_enqueued_time_utc\")\n",
-							"    df: DataFrame = df.drop(\"message_id\")\n",
 							"    df: DataFrame = df.drop(\"expected_from\")\n",
 							"    df: DataFrame = df.drop(\"expected_to\")\n",
 							"    \n",
 							"    return df"
 						],
 						"outputs": [],
-						"execution_count": 7
+						"execution_count": 305
 					},
 					{
 						"cell_type": "code",
@@ -214537,7 +216186,7 @@
 							"    return target_df.union(source_df)"
 						],
 						"outputs": [],
-						"execution_count": 8
+						"execution_count": 306
 					},
 					{
 						"cell_type": "markdown",
@@ -214587,7 +216236,8 @@
 						},
 						"source": [
 							"def get_latest_ingested_data() -> tuple:\n",
-							"    latest_ingestion = spark.sql(f\"SELECT * FROM {std_db}.{std_table} WHERE CAST(ingested_datetime AS Date) = (SELECT MAX(CAST(ingested_datetime AS Date)) FROM {std_db}.{std_table}) ORDER BY message_enqueued_time_utc\")\n",
+							"    latest_ingestion = spark.sql(f\"SELECT * FROM {std_db}.{std_table} WHERE message_id not in (SELECT DISTINCT message_id FROM {hrm_db}.{hrm_table} where message_id IS NOT NULL) ORDER BY message_enqueued_time_utc\")\n",
+							"\n",
 							"    if latest_ingestion.count() == 0:\n",
 							"        mssparkutils.notebook.exit(f\"Standardised data not available for {entity_name}\")\n",
 							"\n",
@@ -214596,7 +216246,7 @@
 							"    latest_ingestion = set_harmonised_master_columns(latest_ingestion)\n",
 							"    # create dataframes for each message type and the target dataframe (the harmonised target table)\n",
 							"    create_df: DataFrame = latest_ingestion[latest_ingestion[\"message_type\"] == \"Create\"]\n",
-							"    update_df: DataFrame = latest_ingestion[latest_ingestion[\"message_type\"].isin([\"Update\", \"Publish\", \"Unpublish\"])]\n",
+							"    update_df: DataFrame = latest_ingestion[latest_ingestion[\"message_type\"].isin([\"update\", \"Update\", \"Publish\", \"Unpublish\"])]\n",
 							"    delete_df: DataFrame = latest_ingestion[latest_ingestion[\"message_type\"] == \"Delete\"]\n",
 							"    target_df: DataFrame = spark.table(f\"{hrm_db}.{hrm_table}\")\n",
 							"\n",
@@ -214608,7 +216258,7 @@
 							"            target_df)"
 						],
 						"outputs": [],
-						"execution_count": 9
+						"execution_count": 307
 					},
 					{
 						"cell_type": "code",
@@ -214627,27 +216277,7 @@
 							"latest_ingestion, create_df, update_df, delete_df, target_df = get_latest_ingested_data()"
 						],
 						"outputs": [],
-						"execution_count": 10
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							},
-							"collapsed": false
-						},
-						"source": [
-							"display(delete_df)"
-						],
-						"outputs": [],
-						"execution_count": 15
+						"execution_count": 308
 					},
 					{
 						"cell_type": "markdown",
@@ -214682,7 +216312,7 @@
 							"delete_df: DataFrame = delete_df.drop(\"message_type\").select(target_df.columns)"
 						],
 						"outputs": [],
-						"execution_count": 16
+						"execution_count": 309
 					},
 					{
 						"cell_type": "code",
@@ -214701,7 +216331,7 @@
 							"compare_and_merge_schema(latest_ingestion, f\"{hrm_db}.{hrm_table}\")"
 						],
 						"outputs": [],
-						"execution_count": 17
+						"execution_count": 310
 					},
 					{
 						"cell_type": "markdown",
@@ -214730,25 +216360,6 @@
 							}
 						},
 						"source": [
-							"spark.sql(f\"REFRESH TABLE {hrm_db}.{hrm_table}\")"
-						],
-						"outputs": [],
-						"execution_count": 18
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
 							"#Get the data we need again incase the schema has changed due to a merge\r\n",
 							"latest_ingestion, create_df, update_df, delete_df, target_df = get_latest_ingested_data()\r\n",
 							"latest_ingestion: DataFrame = latest_ingestion.drop(\"message_type\")\r\n",
@@ -214757,7 +216368,7 @@
 							"delete_df: DataFrame = delete_df.drop(\"message_type\").select(target_df.columns)"
 						],
 						"outputs": [],
-						"execution_count": 19
+						"execution_count": 311
 					},
 					{
 						"cell_type": "code",
@@ -214780,7 +216391,7 @@
 							"print(f\"Target: {target_df.count()}\")"
 						],
 						"outputs": [],
-						"execution_count": 20
+						"execution_count": 312
 					},
 					{
 						"cell_type": "markdown",
@@ -214822,7 +216433,7 @@
 							"    target_df = target_df.dropDuplicates().orderBy(\"IngestionDate\")"
 						],
 						"outputs": [],
-						"execution_count": 21
+						"execution_count": 313
 					},
 					{
 						"cell_type": "code",
@@ -214845,7 +216456,7 @@
 							"print(f\"Target: {target_df.count()}\")"
 						],
 						"outputs": [],
-						"execution_count": 22
+						"execution_count": 314
 					},
 					{
 						"cell_type": "markdown",
@@ -214880,7 +216491,7 @@
 							"print(f\"New rows: {create_df.count()}\\nTarget dataframe: {target_df.count()}\")"
 						],
 						"outputs": [],
-						"execution_count": 23
+						"execution_count": 315
 					},
 					{
 						"cell_type": "markdown",
@@ -214962,7 +216573,7 @@
 							"print(f\"Updated rows: {update_df.count()}\\nTarget dataframe: {target_df.count()}\")"
 						],
 						"outputs": [],
-						"execution_count": 54
+						"execution_count": 316
 					},
 					{
 						"cell_type": "markdown",
@@ -214998,10 +216609,16 @@
 							"        target_df = target_df.withColumn('ValidTo', when(mask, row['IngestionDate']).otherwise(target_df['ValidTo']))\n",
 							"        target_df = target_df.withColumn('IsActive', when(mask, 'N').otherwise(target_df['IsActive']))\n",
 							"\n",
+							"    # insert all deleted messages as inactive rows to keep track of message ids\n",
+							"    delete_df_clone = delete_df.select(\"*\")\n",
+							"    delete_df_clone = delete_df_clone.withColumn('ValidTo', delete_df['IngestionDate'])\n",
+							"    delete_df_clone = delete_df_clone.withColumn('IsActive', lit('N'))\n",
+							"    target_df = insert_rows_in_df(delete_df_clone, target_df, hrm_incremental_key)\n",
+							"\n",
 							"print(f\"Deleted rows: {delete_df.count()}\\nTarget dataframe: {target_df.count()}\")"
 						],
 						"outputs": [],
-						"execution_count": 55
+						"execution_count": 317
 					},
 					{
 						"cell_type": "markdown",
@@ -215035,7 +216652,7 @@
 							"target_df = target_df.orderBy(hrm_incremental_key).dropDuplicates(subset=columns_to_consider).orderBy(\"IngestionDate\")"
 						],
 						"outputs": [],
-						"execution_count": 56
+						"execution_count": 318
 					},
 					{
 						"cell_type": "markdown",
@@ -215068,7 +216685,7 @@
 							"apply_df_to_table(target_df, hrm_db, hrm_table)"
 						],
 						"outputs": [],
-						"execution_count": 57
+						"execution_count": 319
 					}
 				]
 			},
@@ -218593,7 +220210,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "551ee94b-f46b-412e-a7e5-37c73bb4bc2e"
+						"spark.autotune.trackingId": "b6715909-f629-4c1a-9a0a-c58bfc1835b2"
 					}
 				},
 				"metadata": {
@@ -218644,7 +220261,7 @@
 							"import pprint"
 						],
 						"outputs": [],
-						"execution_count": 46
+						"execution_count": 24
 					},
 					{
 						"cell_type": "code",
@@ -218674,7 +220291,7 @@
 							"curated_table_name: str = 'appeal_document'"
 						],
 						"outputs": [],
-						"execution_count": 47
+						"execution_count": 25
 					},
 					{
 						"cell_type": "code",
@@ -218709,7 +220326,7 @@
 							"aie_appeals_documents_count = aie_appeals_documentIds.count()"
 						],
 						"outputs": [],
-						"execution_count": 48
+						"execution_count": 26
 					},
 					{
 						"cell_type": "code",
@@ -218729,7 +220346,7 @@
 							"exitCode: int = 0"
 						],
 						"outputs": [],
-						"execution_count": 49
+						"execution_count": 27
 					},
 					{
 						"cell_type": "code",
@@ -218775,7 +220392,7 @@
 							"]"
 						],
 						"outputs": [],
-						"execution_count": 50
+						"execution_count": 28
 					},
 					{
 						"cell_type": "code",
@@ -218794,7 +220411,7 @@
 							"%run /utils/unit-tests/py_unit_tests_functions"
 						],
 						"outputs": [],
-						"execution_count": 51
+						"execution_count": 29
 					},
 					{
 						"cell_type": "code",
@@ -218818,7 +220435,7 @@
 							"curated_table_schema = spark.table(f\"{curated_db_name}.{curated_table_name}\").schema"
 						],
 						"outputs": [],
-						"execution_count": 52
+						"execution_count": 30
 					},
 					{
 						"cell_type": "markdown",
@@ -218859,7 +220476,7 @@
 							"exitCode += int(not cur_schema_correct)"
 						],
 						"outputs": [],
-						"execution_count": 53
+						"execution_count": 31
 					},
 					{
 						"cell_type": "markdown",
@@ -218894,13 +220511,12 @@
 							"print(f\"Standardised Count: {standardised_count: ,}\\nHarmonised Count: {harmonised_count: ,}\\nCounts match: {counts_match}\")\n",
 							"\n",
 							"if standardised_count > harmonised_count:\n",
+							"    exitCode += 1\n",
 							"    print(f\"{standardised_count - harmonised_count} rows from Standardised are missing in Harmonised.\" )\n",
-							"    differentiate_std_and_hrm(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\")\n",
-							"    #this is classed as an error\n",
-							"    exitCode += 1 "
+							"    differentiate_std_and_hrm(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\", data_model_columns)"
 						],
 						"outputs": [],
-						"execution_count": 54
+						"execution_count": 32
 					},
 					{
 						"cell_type": "markdown",
@@ -218935,7 +220551,7 @@
 							"exitCode += int(not counts_match)"
 						],
 						"outputs": [],
-						"execution_count": 55
+						"execution_count": 33
 					},
 					{
 						"cell_type": "code",
@@ -218976,11 +220592,12 @@
 							"if compare_dataframes(SB_standardised_dataframe, SB_harmonised_dataframe, sb_columns_to_compare):\n",
 							"    pass\n",
 							"else:\n",
+							"    print(\"Failed: Trace service bus data from standardised to harmonised\")\n",
 							"    exitCode += 1\n",
 							""
 						],
 						"outputs": [],
-						"execution_count": 56
+						"execution_count": 34
 					},
 					{
 						"cell_type": "code",
@@ -219022,10 +220639,11 @@
 							"if compare_dataframes(horizon_standardised_dataframe, horizon_harmonised_dataframe, horizon_columns_to_compare):\n",
 							"    pass\n",
 							"else:\n",
+							"    print(\"Failed: Trace Horizon data to Harmonised\")\n",
 							"    exitCode += 1"
 						],
 						"outputs": [],
-						"execution_count": 57
+						"execution_count": 35
 					},
 					{
 						"cell_type": "code",
@@ -219055,10 +220673,11 @@
 							"ODT_and_horizon_dataframe = get_dataframe(check_ODT_and_horizon_data_query)\n",
 							"\n",
 							"if ODT_and_horizon_dataframe.isEmpty():\n",
+							"    print(\"Failed: data coming from ODT (back-office-appeals) and Horizon\")\n",
 							"    exitCode += 1"
 						],
 						"outputs": [],
-						"execution_count": 58
+						"execution_count": 36
 					},
 					{
 						"cell_type": "code",
@@ -219077,10 +220696,11 @@
 							"if test_sb_std_to_sb_hrm_no_dropping_records(std_table_name, hrm_table_name, 'documentId'):\n",
 							"    pass  \n",
 							"else:\n",
+							"    print(\"Failed: test_sb_std_to_sb_hrm_no_dropping_records\")\n",
 							"    exitCode += 1"
 						],
 						"outputs": [],
-						"execution_count": 59
+						"execution_count": 37
 					},
 					{
 						"cell_type": "code",
@@ -219096,13 +220716,14 @@
 							}
 						},
 						"source": [
-							"if test_sb_hrm_to_hrm_final_no_dropping_records(hrm_table_name, hrm_table_final):\n",
+							"if test_sb_hrm_to_hrm_final_no_dropping_records(hrm_table_name, hrm_table_final, 'documentId'):\n",
 							"    pass\n",
 							"else:\n",
+							"    print(\"Failed: test_sb_hrm_to_hrm_final_no_dropping_records\")\n",
 							"    exitCode += 1"
 						],
 						"outputs": [],
-						"execution_count": 60
+						"execution_count": 38
 					},
 					{
 						"cell_type": "code",
@@ -219121,10 +220742,11 @@
 							"if test_hrm_to_curated_no_dropping_records(hrm_table_final, curated_table_name, 'documentId'):\n",
 							"    pass\n",
 							"else:\n",
+							"    print(\"Failed: test_hrm_to_curated_no_dropping_records\")\n",
 							"    exitCode += 1"
 						],
 						"outputs": [],
-						"execution_count": 61
+						"execution_count": 39
 					},
 					{
 						"cell_type": "code",
@@ -219143,10 +220765,11 @@
 							"if test_horizon_to_hrm_final_no_dropping_records(horizon_std_table_name, hrm_table_final, 'documentId'):\n",
 							"    pass\n",
 							"else:\n",
+							"    print(\"Failed: test_horizon_to_hrm_final_no_dropping_records\")\n",
 							"    exitCode += 1"
 						],
 						"outputs": [],
-						"execution_count": 62
+						"execution_count": 40
 					},
 					{
 						"cell_type": "code",
@@ -219165,11 +220788,12 @@
 							"if test_aie_std_to_hrm_no_dropping_records(aie_std_table_name, aie_hrm_table_name):\n",
 							"    pass\n",
 							"else:\n",
+							"    print(\"Failed: test_aie_std_to_hrm_no_dropping_records\")\n",
 							"    exitCode += 1\n",
 							""
 						],
 						"outputs": [],
-						"execution_count": 63
+						"execution_count": 41
 					},
 					{
 						"cell_type": "code",
@@ -219188,10 +220812,11 @@
 							"if test_aie_hrm_to_hrm_final_no_dropping_records(aie_hrm_table_name, hrm_table_final):\n",
 							"    pass\n",
 							"else:\n",
+							"    print(\"Failed: test_aie_hrm_to_hrm_final_no_dropping_records\")\n",
 							"    exitCode += 1"
 						],
 						"outputs": [],
-						"execution_count": 64
+						"execution_count": 42
 					},
 					{
 						"cell_type": "code",
@@ -219210,10 +220835,57 @@
 							"if test_document_row_counts_match(hrm_table_final, curated_table_name):\n",
 							"    pass\n",
 							"else:\n",
+							"    print(\"Failed: test_document_row_counts_match\")\n",
 							"    exitCode += 1"
 						],
 						"outputs": [],
-						"execution_count": 65
+						"execution_count": 43
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"if test_sb_std_to_hrm_no_message_id_dropped(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\"):\n",
+							"    pass\n",
+							"else:\n",
+							"    print(\"Failed: test_sb_std_to_hrm_no_message_id_dropped\")\n",
+							"    exitCode += 1"
+						],
+						"outputs": [],
+						"execution_count": 44
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"if test_sb_std_to_hrm_no_active_deleted_record(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\"):\n",
+							"    pass\n",
+							"else:\n",
+							"    print(\"Failed: test_sb_std_to_hrm_no_active_deleted_record\")\n",
+							"    exitCode += 1"
+						],
+						"outputs": [],
+						"execution_count": 45
 					},
 					{
 						"cell_type": "code",
@@ -219232,7 +220904,7 @@
 							"mssparkutils.notebook.exit(exitCode)"
 						],
 						"outputs": [],
-						"execution_count": 66
+						"execution_count": 46
 					},
 					{
 						"cell_type": "markdown",
@@ -219582,7 +221254,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "75a10492-ea08-4cf5-b505-10481ac39b26"
+						"spark.autotune.trackingId": "e411e11e-d206-4f36-8f25-954c29becccf"
 					}
 				},
 				"metadata": {
@@ -219632,7 +221304,7 @@
 							"import pprint"
 						],
 						"outputs": [],
-						"execution_count": 20
+						"execution_count": 34
 					},
 					{
 						"cell_type": "code",
@@ -219659,7 +221331,7 @@
 							"curated_table_name: str = 'appeal_event'"
 						],
 						"outputs": [],
-						"execution_count": 21
+						"execution_count": 15
 					},
 					{
 						"cell_type": "code",
@@ -219679,7 +221351,7 @@
 							"path_to_orchestration_file: str = \"abfss://odw-config@\"+storage_account+\"orchestration/orchestration.json\""
 						],
 						"outputs": [],
-						"execution_count": 22
+						"execution_count": 16
 					},
 					{
 						"cell_type": "code",
@@ -219713,7 +221385,7 @@
 							"    \"addressPostcode\"]"
 						],
 						"outputs": [],
-						"execution_count": 23
+						"execution_count": 17
 					},
 					{
 						"cell_type": "code",
@@ -219732,7 +221404,7 @@
 							"%run /utils/unit-tests/py_unit_tests_functions"
 						],
 						"outputs": [],
-						"execution_count": 24
+						"execution_count": 18
 					},
 					{
 						"cell_type": "code",
@@ -219756,7 +221428,7 @@
 							"curated_table_schema = spark.table(f\"{curated_db_name}.{curated_table_name}\").schema"
 						],
 						"outputs": [],
-						"execution_count": 25
+						"execution_count": 19
 					},
 					{
 						"cell_type": "code",
@@ -219776,7 +221448,7 @@
 							"exitCode: int = 0"
 						],
 						"outputs": [],
-						"execution_count": 26
+						"execution_count": 20
 					},
 					{
 						"cell_type": "markdown",
@@ -219817,7 +221489,7 @@
 							"exitCode += int(not cur_schema_correct)"
 						],
 						"outputs": [],
-						"execution_count": 27
+						"execution_count": 21
 					},
 					{
 						"cell_type": "markdown",
@@ -219852,13 +221524,12 @@
 							"exitCode += int(not counts_match)\r\n",
 							"\r\n",
 							"if standardised_count > harmonised_count:\r\n",
+							"    exitCode += 1\r\n",
 							"    print(f\"{standardised_count - harmonised_count} rows from Standardised are missing in Harmonised.\" )\r\n",
-							"    differentiate_std_and_hrm(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\")\r\n",
-							"    #this is classed as an error\r\n",
-							"    exitCode += 1 "
+							"    differentiate_std_and_hrm(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\", data_model_columns)    "
 						],
 						"outputs": [],
-						"execution_count": 28
+						"execution_count": 22
 					},
 					{
 						"cell_type": "markdown",
@@ -219905,7 +221576,7 @@
 							"exitCode += int(not counts_match)"
 						],
 						"outputs": [],
-						"execution_count": 29
+						"execution_count": 23
 					},
 					{
 						"cell_type": "code",
@@ -219935,7 +221606,7 @@
 							"    return df.count() == 0"
 						],
 						"outputs": [],
-						"execution_count": 30
+						"execution_count": 24
 					},
 					{
 						"cell_type": "code",
@@ -219965,7 +221636,7 @@
 							"    return df.count() == 0"
 						],
 						"outputs": [],
-						"execution_count": 31
+						"execution_count": 25
 					},
 					{
 						"cell_type": "code",
@@ -219996,7 +221667,7 @@
 							"    return df.count() == 0"
 						],
 						"outputs": [],
-						"execution_count": 32
+						"execution_count": 26
 					},
 					{
 						"cell_type": "code",
@@ -220027,7 +221698,7 @@
 							"    return df.count() == 0"
 						],
 						"outputs": [],
-						"execution_count": 33
+						"execution_count": 27
 					},
 					{
 						"cell_type": "code",
@@ -220043,13 +221714,34 @@
 							}
 						},
 						"source": [
+							"result_sb_std_hrm_tes = test_sb_std_to_sb_hrm_no_dropping_records(std_table_name,hrm_table_name)\r\n",
 							"result_sb_hrm_f = test_sb_hrm_to_hrm_final_no_dropping_records(hrm_table_name, hrm_table_final)\r\n",
 							"result_hrm_cur = test_hrm_to_curated_no_dropping_records(hrm_table_final, curated_table_name)\r\n",
 							"result_hzn_hrm_f = test_horizon_to_hrm_final_no_dropping_records(horizon_std_table_name, hrm_table_final)\r\n",
 							""
 						],
 						"outputs": [],
-						"execution_count": 34
+						"execution_count": 28
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"print(f\"Service bus sb_std to sb_hrm table no eventId dropped: {result_sb_std_hrm_tes}\")\r\n",
+							"exitCode += int(not result_sb_std_hrm_tes)"
+						],
+						"outputs": [],
+						"execution_count": 32
 					},
 					{
 						"cell_type": "code",
@@ -220069,7 +221761,7 @@
 							"exitCode += int(not result_sb_hrm_f)"
 						],
 						"outputs": [],
-						"execution_count": 35
+						"execution_count": 29
 					},
 					{
 						"cell_type": "code",
@@ -220141,7 +221833,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "b15cfaa8-3ff3-47a5-9d97-2d38b69bc73c"
+						"spark.autotune.trackingId": "c77222e6-9f4a-491b-b836-127552c645c2"
 					}
 				},
 				"metadata": {
@@ -220191,7 +221883,7 @@
 							"import pprint"
 						],
 						"outputs": [],
-						"execution_count": 8
+						"execution_count": 1
 					},
 					{
 						"cell_type": "code",
@@ -220217,7 +221909,7 @@
 							"curated_table_name: str = 'entraid'"
 						],
 						"outputs": [],
-						"execution_count": 9
+						"execution_count": 2
 					},
 					{
 						"cell_type": "code",
@@ -220237,7 +221929,7 @@
 							"exitCode: int = 0"
 						],
 						"outputs": [],
-						"execution_count": 10
+						"execution_count": 3
 					},
 					{
 						"cell_type": "code",
@@ -220256,7 +221948,7 @@
 							"%run /utils/unit-tests/py_unit_tests_functions"
 						],
 						"outputs": [],
-						"execution_count": 11
+						"execution_count": 4
 					},
 					{
 						"cell_type": "code",
@@ -220278,7 +221970,7 @@
 							"sb_hrm_table_schema = spark.table(f\"{hrm_db_name}.{hrm_table_name}\").schema"
 						],
 						"outputs": [],
-						"execution_count": 12
+						"execution_count": 5
 					},
 					{
 						"cell_type": "markdown",
@@ -220316,7 +222008,7 @@
 							"exitCode += int(not hrm_schema_correct)"
 						],
 						"outputs": [],
-						"execution_count": 13
+						"execution_count": 6
 					},
 					{
 						"cell_type": "markdown",
@@ -220346,12 +222038,13 @@
 							}
 						},
 						"source": [
-							"standardised_count, harmonised_count, counts_match = test_std_same_rows_hrm(std_table_name, hrm_table_name)\n",
-							"print(f\"Standardised Count: {standardised_count: ,}\\nHarmonised Count: {harmonised_count: ,}\\nCounts match: {counts_match}\")\n",
-							"exitCode += int(not counts_match)"
+							"if test_sb_std_to_sb_hrm_no_dropping_records(std_table_name, hrm_table_name, 'Id'):\r\n",
+							"   print(\"Test passed: No records were dropped.\")\r\n",
+							"else:\r\n",
+							"    exitCode += 1"
 						],
 						"outputs": [],
-						"execution_count": 14
+						"execution_count": 16
 					},
 					{
 						"cell_type": "markdown",
@@ -220386,7 +222079,7 @@
 							"exitCode += int(not counts_match)"
 						],
 						"outputs": [],
-						"execution_count": 15
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -220416,12 +222109,12 @@
 							}
 						},
 						"source": [
-							"is_valid_data = mssparkutils.notebook.run(\"/utils/data-validation/py_utils_curated_validate_table\", 30, {\"entity_name\": entity_name, \"table_name\": curated_table_name, \"primary_key\": \"Id\"})\n",
+							"is_valid_data = mssparkutils.notebook.run(\"/utils/data-validation/py_utils_curated_validate_table\", 300, {\"entity_name\": entity_name, \"table_name\": curated_table_name, \"primary_key\": \"Id\"})\n",
 							"print(f\"Is Curated Data Valid: {is_valid_data}\")\n",
 							"exitCode += int(not is_valid_data)"
 						],
 						"outputs": [],
-						"execution_count": 16
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -220440,7 +222133,7 @@
 							"mssparkutils.notebook.exit(exitCode)"
 						],
 						"outputs": [],
-						"execution_count": 17
+						"execution_count": null
 					}
 				]
 			},
@@ -220470,7 +222163,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "93e456e0-b0ae-4f07-a052-9613febaa2ae"
+						"spark.autotune.trackingId": "f738f063-3c3b-4ae9-b426-24091aafb13e"
 					}
 				},
 				"metadata": {
@@ -220744,11 +222437,11 @@
 							"    std_table_full: str = f\"{std_db_name}.{std_table}\"\n",
 							"    hrm_table_full: str = f\"{hrm_db_name}.{hrm_table}\"\n",
 							"\n",
-							"    # filter standardised df with non-null message_type and exclude 'Delete' message_type since it doesn't add a new row in hrm\n",
+							"    # filter standardised df with non-null message_type\n",
 							"    std_df: DataFrame = spark.table(std_table_full)\n",
 							"\n",
 							"    if \"message_type\" in std_df.columns:\n",
-							"        std_df = std_df.filter((std_df.message_type != 'Delete') & std_df.message_type.isNotNull() & std_df.message_id.isNotNull())\n",
+							"        std_df = std_df.filter(std_df.message_type.isNotNull() & std_df.message_id.isNotNull())\n",
 							"    \n",
 							"    std_count: int = std_df.count()\n",
 							"    hrm_count: int = spark.table(hrm_table_full).count()\n",
@@ -220973,9 +222666,7 @@
 							"        from {hrm_db_name}.{sb_hrm_table}\n",
 							"    )\n",
 							"    \"\"\")\n",
-							"\n",
-							"    return df.count() == 0\n",
-							""
+							"    return df.count() == 0"
 						],
 						"outputs": [],
 						"execution_count": null
@@ -220994,13 +222685,13 @@
 							}
 						},
 						"source": [
-							"def test_sb_hrm_to_hrm_final_no_dropping_records(sb_hrm_table: str, hrm_table_final: str) -> bool:\n",
+							"def test_sb_hrm_to_hrm_final_no_dropping_records(sb_hrm_table: str, hrm_table_final: str, primary_key: str) -> bool:\n",
 							"    df: DataFrame = spark.sql(f\"\"\"\n",
-							"    select documentId\n",
+							"    select {primary_key}\n",
 							"    from {hrm_db_name}.{sb_hrm_table}\n",
-							"    where documentId not in\n",
+							"    where {primary_key} not in\n",
 							"    (\n",
-							"        select documentId\n",
+							"        select {primary_key}\n",
 							"        from {hrm_db_name}.{hrm_table_final}\n",
 							"    )\n",
 							"    \"\"\")\n",
@@ -221371,6 +223062,82 @@
 						"execution_count": null
 					},
 					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Below are the unit tests for recent changes to the py_sb_std_to_hrm regarding message_ids"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"def test_sb_std_to_hrm_no_message_id_dropped(std_table: str, hrm_table: str) -> bool:\r\n",
+							"    df: DataFrame = spark.sql(f\"\"\"\r\n",
+							"                        SELECT *\r\n",
+							"                        FROM {std_table}\r\n",
+							"                        WHERE message_id NOT IN (\r\n",
+							"                            SELECT message_id\r\n",
+							"                            FROM {hrm_table}\r\n",
+							"                        )\r\n",
+							"                    \"\"\")\r\n",
+							"\r\n",
+							"    return df.count() == 0\r\n",
+							""
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"def test_sb_std_to_hrm_no_active_deleted_record(std_table: str, hrm_table: str) -> bool:\n",
+							"    df: DataFrame = spark.sql(f\"\"\"\n",
+							"                        SELECT *\n",
+							"                        FROM {hrm_table}\n",
+							"                        WHERE message_id IN (\n",
+							"                            SELECT message_id\n",
+							"                            FROM {std_table}\n",
+							"                            WHERE message_type = 'Delete'\n",
+							"                        )\n",
+							"                        AND IsActive != 'N'\n",
+							"                        AND IngestionDate != ValidTo\n",
+							"                    \"\"\")\n",
+							"\n",
+							"    return df.count() == 0\n",
+							""
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
 						"cell_type": "code",
 						"metadata": {
 							"jupyter": {
@@ -221407,7 +223174,7 @@
 							"        "
 						],
 						"outputs": [],
-						"execution_count": 10
+						"execution_count": null
 					}
 				]
 			},
@@ -221437,7 +223204,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "be676521-164e-4df8-9531-5331ebfc9145"
+						"spark.autotune.trackingId": "f4fa001c-4818-420c-ae84-839640418c45"
 					}
 				},
 				"metadata": {
@@ -221856,7 +223623,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "0b66e9fb-de45-4abf-97be-0bbf733a360e"
+						"spark.autotune.trackingId": "d88842da-9e42-4401-b479-8015240e2b28"
 					}
 				},
 				"metadata": {
@@ -222169,10 +223936,9 @@
 							"print(f\"Standardised Count: {standardised_count: ,}\\nHarmonised Count: {harmonised_count: ,}\\nCounts match: {counts_match}\")\n",
 							"\n",
 							"if standardised_count > harmonised_count:\n",
+							"    exitCode += 1\n",
 							"    print(f\"{standardised_count - harmonised_count} rows from Standardised are missing in Harmonised.\" )\n",
-							"    differentiate_std_and_hrm(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\", data_model_columns)\n",
-							"    #this is classed as an error\n",
-							"    exitCode += 1 "
+							"    differentiate_std_and_hrm(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\", data_model_columns)"
 						],
 						"outputs": [],
 						"execution_count": 10
@@ -223250,9 +225016,9 @@
 							"print(f\"Standardised Count: {standardised_count: ,}\\nHarmonised Count: {harmonised_count: ,}\\nCounts match: {counts_match}\")\n",
 							"\n",
 							"if standardised_count > harmonised_count:\n",
-							"    differentiate_std_and_hrm(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\", data_model_columns)\n",
-							"    #this is classed as an error\n",
-							"    exitCode += 1 "
+							"    exitCode += 1\n",
+							"    print(f\"{standardised_count - harmonised_count} rows from Standardised are missing in Harmonised.\" )\n",
+							"    differentiate_std_and_hrm(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\", data_model_columns)"
 						],
 						"outputs": [],
 						"execution_count": null
@@ -223779,7 +225545,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "097db326-d16b-43ce-9d94-5664b89e909d"
+						"spark.autotune.trackingId": "66b06011-3d47-4f7d-87c9-d6e3e6167c51"
 					}
 				},
 				"metadata": {
@@ -223897,7 +225663,7 @@
 							}
 						},
 						"source": [
-							"data_model = [\r\n",
+							"data_model_columns = [\r\n",
 							"    \"caseId\",\r\n",
 							"\t\t\"caseReference\",\r\n",
 							"\t\t\"projectName\",\r\n",
@@ -224078,7 +225844,13 @@
 						},
 						"source": [
 							"standardised_count, harmonised_count, counts_match = test_std_same_rows_hrm(std_table_name, hrm_table_name)\r\n",
-							"print(f\"Standardised Count: {standardised_count: ,}\\nHarmonised Count: {harmonised_count: ,}\\nCounts match: {counts_match}\")"
+							"print(f\"Standardised Count: {standardised_count: ,}\\nHarmonised Count: {harmonised_count: ,}\\nCounts match: {counts_match}\")\r\n",
+							"\r\n",
+							"if standardised_count > harmonised_count:\r\n",
+							"    # uncomment next line when tackling all the unit tests on this notebook\r\n",
+							"    # exitCode += 1\r\n",
+							"    print(f\"{standardised_count - harmonised_count} rows from Standardised are missing in Harmonised.\" )\r\n",
+							"    differentiate_std_and_hrm(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\", data_model_columns)"
 						],
 						"outputs": [],
 						"execution_count": 218
@@ -224183,7 +225955,7 @@
 							"print(f\"Harmonised Count: {harmonised_count: ,}\\nCurated Count: {curated_count: ,}\\nCounts match: {counts_match}\")"
 						],
 						"outputs": [],
-						"execution_count": 221
+						"execution_count": 11
 					},
 					{
 						"cell_type": "markdown",
@@ -224216,7 +225988,7 @@
 							"print(f\"There is no other records than Horizon: {no_horizon_records:}\\nCurated Count: {total_curated_count: ,}\\n Distinct Curated Count: {distinct_curated_count:,}\\nCounts match: {counts_match}\")"
 						],
 						"outputs": [],
-						"execution_count": 222
+						"execution_count": 12
 					},
 					{
 						"cell_type": "markdown",
@@ -224249,7 +226021,7 @@
 							"print(f\"Horizon to curated no caseids are dropped: {result}\")"
 						],
 						"outputs": [],
-						"execution_count": 223
+						"execution_count": 13
 					},
 					{
 						"cell_type": "markdown",
@@ -224264,6 +226036,30 @@
 							"##### Trace service bus data from standardised to curated\r\n",
 							"We need to make sure the data has loaded through correctly. To do this efficiently, we will select a sample record and check that the data is maintained as it moves through the medallian architecture."
 						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"SELECT * FROM odw_standardised_db.sb_nsip_project"
+						],
+						"outputs": [],
+						"execution_count": 14
 					},
 					{
 						"cell_type": "code",
@@ -224313,7 +226109,7 @@
 							"Order by IngestionDate desc"
 						],
 						"outputs": [],
-						"execution_count": 225
+						"execution_count": 16
 					},
 					{
 						"cell_type": "markdown",
@@ -224363,7 +226159,32 @@
 							"    2 DESC"
 						],
 						"outputs": [],
-						"execution_count": 226
+						"execution_count": 17
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"SELECT * FROM \r\n",
+							"    odw_standardised_db.horizon_nsip_data"
+						],
+						"outputs": [],
+						"execution_count": 18
 					},
 					{
 						"cell_type": "markdown",
@@ -224470,7 +226291,7 @@
 							"     horizoncasenumber = '3222228'"
 						],
 						"outputs": [],
-						"execution_count": 227
+						"execution_count": 19
 					},
 					{
 						"cell_type": "code",
@@ -224569,7 +226390,7 @@
 							"    ingestiondate DESC"
 						],
 						"outputs": [],
-						"execution_count": 228
+						"execution_count": 20
 					},
 					{
 						"cell_type": "markdown",
@@ -224775,7 +226596,7 @@
 							"order by caseid"
 						],
 						"outputs": [],
-						"execution_count": 235
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -224813,7 +226634,7 @@
 							"where LOWER(SourceSystem)='horizon'  and IngestionDate = (select max(IngestionDate) from odw_harmonised_db.nsip_project tbl_2  WHERE tbl_1.caseid = tbl_2.caseid group by caseid) and caseid in (3148455,3217867)"
 						],
 						"outputs": [],
-						"execution_count": 236
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -224853,7 +226674,7 @@
 							"HAVING COUNT(*) > 1;"
 						],
 						"outputs": [],
-						"execution_count": 237
+						"execution_count": null
 					}
 				]
 			},
@@ -224883,7 +226704,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "c1feb22c-7ee6-4f93-acaa-d95353fd7a11"
+						"spark.autotune.trackingId": "81fcd2f5-d1cf-4ae4-a6b3-a509027db472"
 					}
 				},
 				"metadata": {
@@ -225174,10 +226995,9 @@
 							"print(f\"Standardised Count: {standardised_count: ,}\\nHarmonised Count: {harmonised_count: ,}\\nCounts match: {counts_match}\")\n",
 							"\n",
 							"if standardised_count > harmonised_count:\n",
+							"    exitCode += 1\n",
 							"    print(f\"{standardised_count - harmonised_count} rows from Standardised are missing in Harmonised.\" )\n",
-							"    differentiate_std_and_hrm(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\")\n",
-							"    #this is classed as an error\n",
-							"    exitCode += 1 "
+							"    differentiate_std_and_hrm(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\", data_model_columns)"
 						],
 						"outputs": [],
 						"execution_count": 41
@@ -225877,7 +227697,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "7e2b5fcc-aafe-4a64-aa54-db6fa26078d0"
+						"spark.autotune.trackingId": "6b560a5a-f8c0-4cc4-85d1-4a4a6053a16f"
 					}
 				},
 				"metadata": {
@@ -225916,7 +227736,7 @@
 							"import pprint"
 						],
 						"outputs": [],
-						"execution_count": 42
+						"execution_count": 19
 					},
 					{
 						"cell_type": "code",
@@ -225948,7 +227768,7 @@
 							"curated_migration_table_name: str = 'nsip_representation'"
 						],
 						"outputs": [],
-						"execution_count": 41
+						"execution_count": 20
 					},
 					{
 						"cell_type": "code",
@@ -225968,7 +227788,7 @@
 							"exitCode: int = 0"
 						],
 						"outputs": [],
-						"execution_count": 3
+						"execution_count": 21
 					},
 					{
 						"cell_type": "code",
@@ -226006,7 +227826,7 @@
 							"\t]"
 						],
 						"outputs": [],
-						"execution_count": 46
+						"execution_count": 22
 					},
 					{
 						"cell_type": "code",
@@ -226025,7 +227845,7 @@
 							"%run /utils/unit-tests/py_unit_tests_functions"
 						],
 						"outputs": [],
-						"execution_count": 44
+						"execution_count": 23
 					},
 					{
 						"cell_type": "code",
@@ -226047,7 +227867,7 @@
 							"sb_hrm_table_schema = spark.table(f\"{hrm_db_name}.{hrm_table_name}\").schema"
 						],
 						"outputs": [],
-						"execution_count": 6
+						"execution_count": 24
 					},
 					{
 						"cell_type": "markdown",
@@ -226082,7 +227902,7 @@
 							"print(f\"Service bus harmonised schema correct: {hrm_schema_correct}\\nTable: {hrm_db_name}.{hrm_table_name}\\nDifferences shown above (if any)\")"
 						],
 						"outputs": [],
-						"execution_count": 7
+						"execution_count": 25
 					},
 					{
 						"cell_type": "markdown",
@@ -226109,18 +227929,20 @@
 								"transient": {
 									"deleting": false
 								}
-							}
+							},
+							"collapsed": false
 						},
 						"source": [
 							"standardised_count, harmonised_count, counts_match = test_std_same_rows_hrm(std_table_name, hrm_table_name)\n",
 							"print(f\"Standardised Count: {standardised_count: ,}\\nHarmonised Count: {harmonised_count: ,}\\nCounts match: {counts_match}\")\n",
 							"\n",
 							"if standardised_count > harmonised_count:\n",
+							"    exitCode += 1\n",
 							"    print(f\"{standardised_count - harmonised_count} rows from Standardised are missing in Harmonised.\" )\n",
-							"    differentiate_std_and_hrm(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\")"
+							"    differentiate_std_and_hrm(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\", data_model_columns)"
 						],
 						"outputs": [],
-						"execution_count": 8
+						"execution_count": 26
 					},
 					{
 						"cell_type": "markdown",
@@ -226154,7 +227976,7 @@
 							"print(f\"Harmonised Final Count: {harmonised_final_count: ,}\\nCurated Count: {curated_count: ,}\\nCounts match: {counts_match}\")"
 						],
 						"outputs": [],
-						"execution_count": 50
+						"execution_count": 27
 					},
 					{
 						"cell_type": "markdown",
@@ -226194,7 +228016,7 @@
 							"print(f\"Curated Migration schema correct: {cur_migrated_schema_correct}\\nTable: {curated_migration_db_name}.{curated_migration_table_name}\\nDifferences shown above (if any)\")"
 						],
 						"outputs": [],
-						"execution_count": 10
+						"execution_count": 28
 					},
 					{
 						"cell_type": "markdown",
@@ -226229,7 +228051,7 @@
 							"exitCode += int(not counts_match)"
 						],
 						"outputs": [],
-						"execution_count": 11
+						"execution_count": 29
 					},
 					{
 						"cell_type": "markdown",
@@ -226264,7 +228086,7 @@
 							"exitCode += int(not rows_dropped)"
 						],
 						"outputs": [],
-						"execution_count": 18
+						"execution_count": 30
 					},
 					{
 						"cell_type": "markdown",
@@ -226299,7 +228121,7 @@
 							"exitCode += int(not counts_match)"
 						],
 						"outputs": [],
-						"execution_count": 19
+						"execution_count": 31
 					},
 					{
 						"cell_type": "markdown",
@@ -226344,7 +228166,7 @@
 							"    print('FAIL: dangling caseReference found')"
 						],
 						"outputs": [],
-						"execution_count": 20
+						"execution_count": 32
 					},
 					{
 						"cell_type": "markdown",
@@ -226386,7 +228208,7 @@
 							"    print('FAIL: NULL representedId found')"
 						],
 						"outputs": [],
-						"execution_count": 21
+						"execution_count": 33
 					},
 					{
 						"cell_type": "markdown",
@@ -226442,7 +228264,7 @@
 							"    exitCode += 1"
 						],
 						"outputs": [],
-						"execution_count": 22
+						"execution_count": 34
 					},
 					{
 						"cell_type": "code",
@@ -226461,7 +228283,7 @@
 							"mssparkutils.notebook.exit(exitCode)"
 						],
 						"outputs": [],
-						"execution_count": 23
+						"execution_count": 35
 					},
 					{
 						"cell_type": "markdown",
@@ -226510,7 +228332,7 @@
 							"    2 DESC"
 						],
 						"outputs": [],
-						"execution_count": 176
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -226534,7 +228356,7 @@
 							"select attachmentids FROM odw_curated_db.nsip_representation where representationid = 33574"
 						],
 						"outputs": [],
-						"execution_count": 17
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -226585,7 +228407,7 @@
 							"SELECT * FROM odw_harmonised_db.sb_nsip_representation WHERE representationId = 100006245 ORDER BY IngestionDate;"
 						],
 						"outputs": [],
-						"execution_count": 18
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -226628,7 +228450,7 @@
 							"     ingested_datetime = (select max(ingested_datetime) from odw_standardised_db.horizon_nsip_relevant_representation) limit 10;"
 						],
 						"outputs": [],
-						"execution_count": 19
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -226659,7 +228481,7 @@
 							"    ingestiondate DESC"
 						],
 						"outputs": [],
-						"execution_count": 20
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -226702,7 +228524,7 @@
 							"    contactid= 37039 and ingested_datetime =(select max(ingested_datetime) from odw_standardised_db.horizon_nsip_relevant_representation)"
 						],
 						"outputs": [],
-						"execution_count": 21
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -226733,7 +228555,7 @@
 							""
 						],
 						"outputs": [],
-						"execution_count": 22
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -226767,7 +228589,7 @@
 							"    2 desc"
 						],
 						"outputs": [],
-						"execution_count": 23
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -226812,7 +228634,7 @@
 							"    order by ingestiondate"
 						],
 						"outputs": [],
-						"execution_count": 24
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -226846,7 +228668,7 @@
 							"    2 desc"
 						],
 						"outputs": [],
-						"execution_count": 25
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -226890,7 +228712,7 @@
 							"    ingestiondate DESC"
 						],
 						"outputs": [],
-						"execution_count": 26
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -226919,7 +228741,7 @@
 							"    representationid = '100006295'"
 						],
 						"outputs": [],
-						"execution_count": 27
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -226974,7 +228796,7 @@
 							""
 						],
 						"outputs": [],
-						"execution_count": 28
+						"execution_count": null
 					}
 				]
 			},
@@ -227325,7 +229147,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "5029e9b1-afa5-4b94-a9bb-7253182660c9"
+						"spark.autotune.trackingId": "e34e17d4-4f70-4793-93c3-31ed55c17ff7"
 					}
 				},
 				"metadata": {
@@ -227378,7 +229200,7 @@
 							""
 						],
 						"outputs": [],
-						"execution_count": 1
+						"execution_count": 57
 					},
 					{
 						"cell_type": "code",
@@ -227398,7 +229220,7 @@
 							"exitCode: int = 0"
 						],
 						"outputs": [],
-						"execution_count": 2
+						"execution_count": 58
 					},
 					{
 						"cell_type": "code",
@@ -227430,7 +229252,48 @@
 							"service_user_migration_table: str = 'service_user'"
 						],
 						"outputs": [],
-						"execution_count": 3
+						"execution_count": 59
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"data_model_columns = [\n",
+							"    \"id\",\n",
+							"\t\"salutation\",\n",
+							"\t\"firstName\",\n",
+							"\t\"lastName\",\n",
+							"\t\"addressLine1\",\n",
+							"\t\"addressLine2\",\n",
+							"\t\"addressTown\",\n",
+							"\t\"addressCounty\",\n",
+							"\t\"postcode\",\n",
+							"\t\"addressCountry\",\n",
+							"\t\"organisation\",\n",
+							"\t\"organisationType\",\n",
+							"\t\"role\",\n",
+							"\t\"telephoneNumber\",\n",
+							"\t\"otherPhoneNumber\",\n",
+							"\t\"faxNumber\",\n",
+							"\t\"emailAddress\",\n",
+							"\t\"webAddress\",\n",
+							"\t\"serviceUserType\",\n",
+							"\t\"caseReference\",\n",
+							"\t\"sourceSystem\",\n",
+							"\t\"sourceSuid\"]"
+						],
+						"outputs": [],
+						"execution_count": 60
 					},
 					{
 						"cell_type": "code",
@@ -227449,7 +229312,7 @@
 							"%run /utils/unit-tests/py_unit_tests_functions"
 						],
 						"outputs": [],
-						"execution_count": 4
+						"execution_count": 5
 					},
 					{
 						"cell_type": "code",
@@ -227467,13 +229330,18 @@
 						"source": [
 							"sb_std_schema = create_spark_schema(std_db_name, entity_name)\n",
 							"sb_std_table_schema = spark.table(f\"{std_db_name}.{std_table_name}\").schema\n",
+							"\n",
 							"sb_hrm_schema = create_spark_schema(hrm_db_name, entity_name)\n",
 							"sb_hrm_table_schema = spark.table(f\"{hrm_db_name}.{hrm_table_name}\").schema\n",
-							"curated_schema = create_spark_schema(curated_migration_db_name, entity_name)\n",
-							"curated_table_schema = spark.table(f\"{curated_migration_db_name}.{service_user_migration_table}\").schema"
+							"\n",
+							"curated_schema = create_spark_schema(curated_db_name, entity_name)\n",
+							"curated_table_schema = spark.table(f\"{curated_db_name}.{service_user_appeal_table}\").schema\n",
+							"\n",
+							"curated_migration_schema = create_spark_schema(curated_migration_db_name, entity_name)\n",
+							"curated_migration_table_schema = spark.table(f\"{curated_migration_db_name}.{service_user_migration_table}\").schema"
 						],
 						"outputs": [],
-						"execution_count": 5
+						"execution_count": 61
 					},
 					{
 						"cell_type": "markdown",
@@ -227506,15 +229374,22 @@
 							"std_schema_correct: bool = test_compare_schemas(sb_std_schema, sb_std_table_schema)\n",
 							"exitCode += int(not std_schema_correct)\n",
 							"print(f\"Service bus standardised schema correct: {std_schema_correct}\\nTable: {std_db_name}.{std_table_name}\\nDifferences shown above (if any)\")\n",
+							"\n",
 							"hrm_schema_correct: bool = test_compare_schemas(sb_hrm_schema, sb_hrm_table_schema)\n",
 							"print(f\"Service bus harmonised schema correct: {hrm_schema_correct}\\nTable: {hrm_db_name}.{hrm_table_name}\\nDifferences shown above (if any)\")\n",
 							"exitCode += int(not hrm_schema_correct)\n",
-							"# cur_schema_correct: bool = test_compare_schemas(curated_schema, curated_table_schema)\n",
-							"# print(f\"Curated schema correct: {cur_schema_correct}\\nTable: {curated_migration_db_name}.{service_user_migration_table}\\nDifferences shown above (if any)\")\n",
-							"# exitCode += int(not cur_schema_correct)"
+							"\n",
+							"cur_schema_correct: bool = test_compare_schemas(curated_schema, curated_table_schema)\n",
+							"exitCode += int(not cur_schema_correct)\n",
+							"print(f\"Curated schema correct: {cur_schema_correct}\\nTable: {curated_db_name}.{service_user_appeal_table}\\nDifferences shown above (if any)\")\n",
+							"\n",
+							"#test currently fails; ticket created THEODW-1459\n",
+							"cur_migration_schema_correct: bool = test_compare_schemas(curated_migration_schema, curated_migration_table_schema)\n",
+							"print(f\"Curated migration schema correct: {cur_migration_schema_correct}\\nTable: {curated_migration_db_name}.{service_user_migration_table}\\nDifferences shown above (if any)\")\n",
+							"exitCode += int(not cur_migration_schema_correct)"
 						],
 						"outputs": [],
-						"execution_count": 12
+						"execution_count": 72
 					},
 					{
 						"cell_type": "markdown",
@@ -227552,10 +229427,98 @@
 							"    print(f\"{standardised_count - harmonised_count} rows from Standardised are missing in Harmonised.\" )\n",
 							"    differentiate_std_and_hrm(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\", [])\n",
 							"    #this is classed as an error\n",
-							"    exitCode += 1 "
+							"    exitCode += 1"
 						],
 						"outputs": [],
-						"execution_count": 7
+						"execution_count": 63
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"if test_sb_std_to_sb_hrm_no_dropping_records(std_table_name, hrm_table_name, 'id'):\n",
+							"   pass\n",
+							"else:\n",
+							"    exitCode += 1"
+						],
+						"outputs": [],
+						"execution_count": 64
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"if test_sb_hrm_to_hrm_final_no_dropping_records(hrm_table_name, hrm_table_final, 'id'):\n",
+							"    pass\n",
+							"else:\n",
+							"    exitCode += 1"
+						],
+						"outputs": [],
+						"execution_count": 65
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"if test_hrm_to_curated_no_dropping_records(hrm_table_final, service_user_appeal_table, 'id'):\n",
+							"    pass\n",
+							"else:\n",
+							"    exitCode += 1"
+						],
+						"outputs": [],
+						"execution_count": 66
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"if test_curated_unique_hzn_only(curated_db_name, service_user_appeal_table, 'id'):\n",
+							"    pass\n",
+							"else:\n",
+							"    exitCode += 1"
+						],
+						"outputs": [],
+						"execution_count": 67
 					},
 					{
 						"cell_type": "markdown",
@@ -227614,10 +229577,10 @@
 							"if test_single_applicant_per_project():\n",
 							"    print('PASS: There is a single applicant per project')\n",
 							"else:\n",
-							"    exitCode += 1  "
+							"    exitCode += 1"
 						],
 						"outputs": [],
-						"execution_count": 8
+						"execution_count": 68
 					},
 					{
 						"cell_type": "code",
@@ -227650,10 +229613,10 @@
 							"    print('PASS: Each project has an applicant')\n",
 							"else:\n",
 							"    print('FAIL: Each project has an applicant')\n",
-							"    exitCode += 1  "
+							"    exitCode += 1"
 						],
 						"outputs": [],
-						"execution_count": 9
+						"execution_count": 69
 					},
 					{
 						"cell_type": "markdown",
@@ -227702,7 +229665,7 @@
 							"    exitCode += 1"
 						],
 						"outputs": [],
-						"execution_count": 10
+						"execution_count": 70
 					},
 					{
 						"cell_type": "code",
@@ -227721,7 +229684,7 @@
 							"mssparkutils.notebook.exit(exitCode)"
 						],
 						"outputs": [],
-						"execution_count": 11
+						"execution_count": 71
 					},
 					{
 						"cell_type": "code",
@@ -227867,7 +229830,7 @@
 							"query1 = f\"\"\"SELECT *\n",
 							"FROM\n",
 							"odw_curated_db.nsip_representation AS reps \n",
-							"INNER JOIN odw_curated_db.service_user AS suser\n",
+							"INNER JOIN odw_curated_db.appeal_service_user AS suser\n",
 							"ON reps.representativeId = suser.id \n",
 							"OR reps.representedId = suser.id\n",
 							"WHERE reps.caseRef = '{case}' \n",
@@ -227878,7 +229841,7 @@
 							"SELECT * \n",
 							"FROM\n",
 							"odw_curated_db.nsip_representation AS reps \n",
-							"INNER JOIN odw_curated_db.service_user AS suser\n",
+							"INNER JOIN odw_curated_db.appeal_service_user AS suser\n",
 							"ON reps.representativeId = suser.id \n",
 							"OR reps.representedId = suser.id\n",
 							"AND suser.caseReference = reps.caseId\n",
@@ -227925,7 +229888,8 @@
 							},
 							"microsoft": {
 								"language": "sparksql"
-							}
+							},
+							"collapsed": false
 						},
 						"source": [
 							"%%sql\n",
@@ -227956,7 +229920,8 @@
 							},
 							"microsoft": {
 								"language": "sparksql"
-							}
+							},
+							"collapsed": false
 						},
 						"source": [
 							"%%sql\n",
