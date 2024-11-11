@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "66b06011-3d47-4f7d-87c9-d6e3e6167c51"
+				"spark.autotune.trackingId": "078bd093-5892-42c7-ba96-bbc20139f1a8"
 			}
 		},
 		"metadata": {
@@ -71,7 +71,7 @@
 					"from pyspark.sql import functions as F\r\n",
 					"import pprint"
 				],
-				"execution_count": 211
+				"execution_count": 59
 			},
 			{
 				"cell_type": "code",
@@ -99,9 +99,9 @@
 					"## new curated database\r\n",
 					"curated_db_migration_name: str = 'odw_curated_migration_db'\r\n",
 					"curated_table_migration_name: str = 'nsip_project'\r\n",
-					"primary_key: str = 'caseId'"
+					"primary_key: str = 'caseId' # or caseReference?"
 				],
-				"execution_count": 212
+				"execution_count": 60
 			},
 			{
 				"cell_type": "code",
@@ -120,7 +120,7 @@
 					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\r\n",
 					"path_to_orchestration_file: str = \"abfss://odw-config@\"+storage_account+\"orchestration/orchestration.json\""
 				],
-				"execution_count": 213
+				"execution_count": 61
 			},
 			{
 				"cell_type": "code",
@@ -208,7 +208,7 @@
 					"\t\t\"isMaterialChange\"\r\n",
 					"\t]"
 				],
-				"execution_count": 214
+				"execution_count": 62
 			},
 			{
 				"cell_type": "code",
@@ -226,7 +226,7 @@
 				"source": [
 					"%run /utils/unit-tests/py_unit_tests_functions"
 				],
-				"execution_count": 215
+				"execution_count": 63
 			},
 			{
 				"cell_type": "code",
@@ -247,7 +247,7 @@
 					"sb_hrm_schema = create_spark_schema(hrm_db_name, entity_name)\r\n",
 					"sb_hrm_table_schema = spark.table(f\"{hrm_db_name}.{hrm_table_name}\").schema"
 				],
-				"execution_count": 216
+				"execution_count": 64
 			},
 			{
 				"cell_type": "markdown",
@@ -282,7 +282,7 @@
 					"hrm_schema_correct: bool = test_compare_schemas(sb_hrm_schema, sb_hrm_table_schema)\r\n",
 					"print(f\"Service bus harmonised schema correct: {hrm_schema_correct}\\nTable: {hrm_db_name}.{hrm_table_name}\\nDifferences shown above (if any)\")"
 				],
-				"execution_count": 217
+				"execution_count": 65
 			},
 			{
 				"cell_type": "markdown",
@@ -321,7 +321,7 @@
 					"    print(f\"{standardised_count - harmonised_count} rows from Standardised are missing in Harmonised.\" )\r\n",
 					"    differentiate_std_and_hrm(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\", data_model_columns)"
 				],
-				"execution_count": 218
+				"execution_count": 66
 			},
 			{
 				"cell_type": "code",
@@ -353,7 +353,7 @@
 					"    hrm.caseId Is null\r\n",
 					"LIMIT 1"
 				],
-				"execution_count": 219
+				"execution_count": 67
 			},
 			{
 				"cell_type": "markdown",
@@ -386,7 +386,7 @@
 					"harmonised_final_count, curated_count, counts_match = test_curated_row_count(hrm_table_final, curated_table_name)\r\n",
 					"print(f\"Harmonised Final Count: {harmonised_final_count: ,}\\nCurated Count: {curated_count: ,}\\nCounts match: {counts_match}\")"
 				],
-				"execution_count": 220
+				"execution_count": 68
 			},
 			{
 				"cell_type": "markdown",
@@ -420,7 +420,7 @@
 					"harmonised_count, curated_count, counts_match = test_counts_hrm_cur(hrm_db_name, hrm_table_final, curated_db_migration_name, curated_table_migration_name, primary_key)\r\n",
 					"print(f\"Harmonised Count: {harmonised_count: ,}\\nCurated Count: {curated_count: ,}\\nCounts match: {counts_match}\")"
 				],
-				"execution_count": 11
+				"execution_count": 69
 			},
 			{
 				"cell_type": "markdown",
@@ -452,7 +452,7 @@
 					"no_horizon_records, total_curated_count, distinct_curated_count, counts_match = test_curated_unique_hzn_only(curated_db_migration_name, curated_table_migration_name, primary_key)\r\n",
 					"print(f\"There is no other records than Horizon: {no_horizon_records:}\\nCurated Count: {total_curated_count: ,}\\n Distinct Curated Count: {distinct_curated_count:,}\\nCounts match: {counts_match}\")"
 				],
-				"execution_count": 12
+				"execution_count": 70
 			},
 			{
 				"cell_type": "markdown",
@@ -484,7 +484,57 @@
 					"result = test_hrm_to_curated_no_dropping_primary_ids_only_records(hrm_db_name, hrm_table_final, curated_db_migration_name, curated_table_migration_name, primary_key)\n",
 					"print(f\"Horizon to curated no caseids are dropped: {result}\")"
 				],
-				"execution_count": 13
+				"execution_count": 71
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Test 4: Test No CaseReference is dropped from horizon"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Verify that every project has an applicant\n",
+					"def test_no_project_from_horizon_dropped():\n",
+					"    df = spark.sql(f\"\"\"\n",
+					"        SELECT *\n",
+					"        FROM odw_standardised_db.horizon_nsip_data\n",
+					"        WHERE caseReference NOT IN (\n",
+					"            SELECT caseReference FROM odw_curated_migration_db.nsip_project\n",
+					"        )\n",
+					"        AND expected_from = (\n",
+					"            SELECT MAX(expected_from) FROM odw_standardised_db.horizon_nsip_data\n",
+					"        )\n",
+					"    \"\"\")\n",
+					"\n",
+					"    return df.count() == 0\n",
+					"\n",
+					"if test_no_project_from_horizon_dropped(): \n",
+					"    pass\n",
+					"else:\n",
+					"    print('FAIL: test_no_project_from_horizon_dropped')\n",
+					"    # exitCode += 1"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -521,7 +571,7 @@
 					"%%sql\r\n",
 					"SELECT * FROM odw_standardised_db.sb_nsip_project"
 				],
-				"execution_count": 14
+				"execution_count": 72
 			},
 			{
 				"cell_type": "code",
@@ -545,7 +595,7 @@
 					"SELECT * FROM odw_standardised_db.sb_nsip_project \r\n",
 					"WHERE caseid = 100000913 order by ingested_datetime desc"
 				],
-				"execution_count": 224
+				"execution_count": 73
 			},
 			{
 				"cell_type": "code",
@@ -569,7 +619,7 @@
 					"SELECT * FROM odw_harmonised_db.sb_nsip_project WHERE caseid = 100000913 \r\n",
 					"Order by IngestionDate desc"
 				],
-				"execution_count": 16
+				"execution_count": 74
 			},
 			{
 				"cell_type": "markdown",
@@ -618,7 +668,7 @@
 					"ORDER BY\r\n",
 					"    2 DESC"
 				],
-				"execution_count": 17
+				"execution_count": 75
 			},
 			{
 				"cell_type": "code",
@@ -642,7 +692,7 @@
 					"SELECT * FROM \r\n",
 					"    odw_standardised_db.horizon_nsip_data"
 				],
-				"execution_count": 18
+				"execution_count": 76
 			},
 			{
 				"cell_type": "markdown",
@@ -748,7 +798,7 @@
 					"WHERE\r\n",
 					"     horizoncasenumber = '3222228'"
 				],
-				"execution_count": 19
+				"execution_count": 77
 			},
 			{
 				"cell_type": "code",
@@ -846,7 +896,7 @@
 					"order BY\r\n",
 					"    ingestiondate DESC"
 				],
-				"execution_count": 20
+				"execution_count": 78
 			},
 			{
 				"cell_type": "markdown",
@@ -892,7 +942,7 @@
 					"ORDER BY\r\n",
 					"    2 desc"
 				],
-				"execution_count": 231
+				"execution_count": 79
 			},
 			{
 				"cell_type": "code",
@@ -925,7 +975,7 @@
 					"ORDER BY\r\n",
 					"    2 desc"
 				],
-				"execution_count": 232
+				"execution_count": 80
 			},
 			{
 				"cell_type": "code",
@@ -955,7 +1005,7 @@
 					"order BY\r\n",
 					"    ingestiondate DESC"
 				],
-				"execution_count": 233
+				"execution_count": 81
 			},
 			{
 				"cell_type": "markdown",
@@ -996,7 +1046,7 @@
 					"WHERE\r\n",
 					"    caseid = '100000913'"
 				],
-				"execution_count": 238
+				"execution_count": 82
 			},
 			{
 				"cell_type": "markdown",
@@ -1047,7 +1097,7 @@
 					"where caseid in (3148455,3217867) and LOWER(SourceSystem) ='horizon'\r\n",
 					"order by caseid"
 				],
-				"execution_count": null
+				"execution_count": 83
 			},
 			{
 				"cell_type": "markdown",
@@ -1084,7 +1134,7 @@
 					"select * from odw_harmonised_db.nsip_project tbl_1\r\n",
 					"where LOWER(SourceSystem)='horizon'  and IngestionDate = (select max(IngestionDate) from odw_harmonised_db.nsip_project tbl_2  WHERE tbl_1.caseid = tbl_2.caseid group by caseid) and caseid in (3148455,3217867)"
 				],
-				"execution_count": null
+				"execution_count": 84
 			},
 			{
 				"cell_type": "markdown",
@@ -1123,7 +1173,7 @@
 					"GROUP BY caseid\r\n",
 					"HAVING COUNT(*) > 1;"
 				],
-				"execution_count": null
+				"execution_count": 85
 			}
 		]
 	}
