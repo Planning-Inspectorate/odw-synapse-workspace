@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ce0084ae-1651-4bd8-8252-9059064ece67"
+				"spark.autotune.trackingId": "358b96ae-fc14-4d44-9cfc-5846b9625047"
 			}
 		},
 		"metadata": {
@@ -68,11 +68,23 @@
 				"source": [
 					"%pip install opencensus-ext-azure"
 				],
-				"execution_count": null
+				"execution_count": 46
 			},
 			{
 				"cell_type": "code",
 				"source": [
+					"import logging\r\n",
+					"from opencensus.ext.azure.log_exporter import AzureLogHandler\r\n",
+					"\r\n",
+					"logger = logging.getLogger()\r\n",
+					"logger.setLevel(logging.INFO)\r\n",
+					"if True in [type(handle) == AzureLogHandler for handle in logger.handlers]:\r\n",
+					"    pass\r\n",
+					"else:\r\n",
+					"    key = mssparkutils.credentials.getSecretWithLS(\"ls_kv\", \"application-insights-connection-string\")\r\n",
+					"    logger.addHandler(AzureLogHandler(connection_string=key.split(\";\")[0]))\r\n",
+					"  \r\n",
+					"\r\n",
 					"def logging_to_appins(func):\r\n",
 					"    import functools\r\n",
 					"    from notebookutils import mssparkutils\r\n",
@@ -82,21 +94,7 @@
 					"    @functools.wraps(func)\r\n",
 					"    def wrapper(*args, **kwargs):\r\n",
 					"        from notebookutils import mssparkutils\r\n",
-					"        \r\n",
-					"\r\n",
-					"        import logging\r\n",
-					"        from opencensus.ext.azure.log_exporter import AzureLogHandler\r\n",
-					"        \r\n",
-					"        logger = logging.getLogger(__name__)\r\n",
-					"        logger.setLevel(logging.INFO)\r\n",
-					"        if True in [type(handle) == AzureLogHandler for handle in logger.handlers]:\r\n",
-					"            pass\r\n",
-					"        else:\r\n",
-					"            kvname = \"example\"\r\n",
-					"            key = mssparkutils.credentials.getSecretWithLS(\"ls_kv\", \"application-insights-connection-string\")\r\n",
-					"            logger.addHandler(AzureLogHandler(\r\n",
-					"            connection_string=key.split(\";\")[0])\r\n",
-					"            )\r\n",
+					"            \r\n",
 					"        args_repr = [repr(a) for a in args]\r\n",
 					"        kwargs_repr = [f\"{k}={v!r}\" for k, v in kwargs.items()]\r\n",
 					"        signature = \", \".join(args_repr + kwargs_repr)\r\n",
@@ -108,11 +106,12 @@
 					"            logger.info(f\"Notebook exited with value {e}\")\r\n",
 					"            mssparkutils.notebook.exit(e)\r\n",
 					"        except Exception as e:\r\n",
+					"            print(\"Logging Exception\")\r\n",
 					"            logger.exception(e)\r\n",
 					"            raise e\r\n",
 					"    return wrapper"
 				],
-				"execution_count": 1
+				"execution_count": 47
 			},
 			{
 				"cell_type": "code",
@@ -128,13 +127,19 @@
 					}
 				},
 				"source": [
-					"# from pyspark.sql import SparkSession\r\n",
-					"# spark = SparkSession.builder.getOrCreate()\r\n",
-					"# spark.sparkContext.environment.get('dataLakeAccountName', 'get')\r\n",
-					"# spark.sparkContext.environment.get('keyVaultName', 'get')\r\n",
+					"@logging_to_appins\n",
+					"def test():\n",
+					"    raise ValueError('BANANA')\n",
+					"\n",
+					"try:\n",
+					"    #this should appear in the logs because it's got a decorator on it\n",
+					"    logger.info(\"Running test\")\n",
+					"    test()\n",
+					"except:\n",
+					"    logger.error(\"Caught error\")\n",
 					""
 				],
-				"execution_count": 7
+				"execution_count": 48
 			},
 			{
 				"cell_type": "code",
@@ -150,9 +155,45 @@
 					}
 				},
 				"source": [
+					"def test2():\n",
+					"    raise ValueError('CARROT')\n",
+					"\n",
+					"try:\n",
+					"    #this shouldn't appear in the logs because it's not got a decorator on it\n",
+					"    logger.info(\"Running test2\")\n",
+					"    test2()\n",
+					"except:\n",
+					"    logger.error(\"Caught error\")\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 49
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"@logging_to_appins\n",
+					"def test3():\n",
+					"    raise ValueError('CAULIFLOWER')\n",
+					"\n",
+					"try:\n",
+					"    #this should appear in the logs because it's got a decorator on it\n",
+					"    logger.info(\"Running test3\")\n",
+					"    test3()\n",
+					"except:\n",
+					"    logger.error(\"Caught error\")"
+				],
+				"execution_count": 50
 			}
 		]
 	}
