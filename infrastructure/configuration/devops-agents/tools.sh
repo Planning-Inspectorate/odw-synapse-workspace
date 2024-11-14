@@ -1,6 +1,5 @@
 export DEBIAN_FRONTEND=noninteractive
 
-
 sudo echo 'APT::Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries
 sudo echo "APT::Get::Assume-Yes \"true\";" > /etc/apt/apt.conf.d/90assumeyes
 
@@ -62,6 +61,11 @@ python3.7 -m pip install -U checkov==2.2.94
 
 # TFLint
 curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
+
+# Set up Node.js 22.x
+curl -sL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+
+sudo apt-get install nodejs
 
 # Azure CLI
 curl -sL https://aka.ms/InstallAzureCLIDeb | bash
