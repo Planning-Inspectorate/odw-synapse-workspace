@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "14662416-419b-4750-a2e1-a8833e05984c"
+				"spark.autotune.trackingId": "cc7607a0-9913-427c-aa69-5db331da6e25"
 			}
 		},
 		"metadata": {
@@ -45,7 +45,8 @@
 				"sparkVersion": "3.3",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 28
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -57,7 +58,7 @@
 					"from pyspark.sql import Row\n",
 					"from pyspark.sql.functions import *"
 				],
-				"execution_count": 180
+				"execution_count": 52
 			},
 			{
 				"cell_type": "markdown",
@@ -101,7 +102,7 @@
 					"# this can be a combination of id, caseReference, and serviceUserType\n",
 					"primary_key = 'TEMP_PK'"
 				],
-				"execution_count": 181
+				"execution_count": 53
 			},
 			{
 				"cell_type": "markdown",
@@ -158,6 +159,7 @@
 					"        ,caseReference\n",
 					"        ,sourceSystem\n",
 					"        ,sourceSuid\n",
+					"        ,Cast(NULL AS String) as contactMethod\n",
 					"        \n",
 					"        ,Migrated\n",
 					"        ,ODTSourceSystem\n",
@@ -170,10 +172,10 @@
 					"        {service_bus_table}\n",
 					"    \"\"\")\n",
 					"\n",
-					"print(service_bus_data.count())\n",
-					"display(service_bus_data.head(10))"
+					"# print(service_bus_data.count())\n",
+					"# display(service_bus_data.head(10))"
 				],
-				"execution_count": 182
+				"execution_count": 54
 			},
 			{
 				"cell_type": "markdown",
@@ -251,6 +253,7 @@
 					"        ,Cast(case_number AS String) as caseReference\n",
 					"        ,Cast('Horizon' AS String) as sourceSystem\n",
 					"        ,Cast(ContactID AS String) as sourceSuid\n",
+					"        ,Cast(NULL AS String) as contactMethod\n",
 					"\n",
 					"        ,\"0\" as Migrated\n",
 					"        ,\"Horizon\" as ODTSourceSystem\n",
@@ -267,10 +270,10 @@
 					"        AND typeOfInvolvement IN ('Appellant', 'tAppellant', 'Apellant')\n",
 					"\"\"\")\n",
 					"\n",
-					"print(appeal_casework_appellant_data.count())\n",
-					"display(appeal_casework_appellant_data.head(10))"
+					"# print(appeal_casework_appellant_data.count())\n",
+					"# display(appeal_casework_appellant_data.head(10))"
 				],
-				"execution_count": 183
+				"execution_count": 55
 			},
 			{
 				"cell_type": "markdown",
@@ -335,6 +338,7 @@
 					"        ,Cast(case_number AS String) as caseReference\n",
 					"        ,Cast('Horizon' AS String) as sourceSystem\n",
 					"        ,Cast(ContactID AS String) as sourceSuid\n",
+					"        ,Cast(NULL AS String) as contactMethod\n",
 					"\n",
 					"        ,\"0\" as Migrated\n",
 					"        ,\"Horizon\" as ODTSourceSystem\n",
@@ -352,10 +356,10 @@
 					"\"\"\")\n",
 					"\n",
 					"\n",
-					"print(appeal_casework_agent_data.count())\n",
-					"display(appeal_casework_agent_data.head(10))"
+					"# print(appeal_casework_agent_data.count())\n",
+					"# display(appeal_casework_agent_data.head(10))"
 				],
-				"execution_count": 184
+				"execution_count": 56
 			},
 			{
 				"cell_type": "markdown",
@@ -420,6 +424,7 @@
 					"        ,Cast(CaseReference AS String) as caseReference\n",
 					"        ,Cast('Horizon' AS String) as sourceSystem\n",
 					"        ,Cast(caseNodeId AS String) as sourceSuid\n",
+					"        ,Cast(NULL AS String) as contactMethod\n",
 					"        \n",
 					"        ,\"0\" as Migrated\n",
 					"        ,\"Horizon\" as ODTSourceSystem\n",
@@ -435,10 +440,10 @@
 					"        AND caseNodeId IS NOT NULL\n",
 					"\"\"\")\n",
 					"\n",
-					"print(nsip_project_applicant_data.count())\n",
-					"display(nsip_project_applicant_data.head(10))"
+					"# print(nsip_project_applicant_data.count())\n",
+					"# display(nsip_project_applicant_data.head(10))"
 				],
-				"execution_count": 185
+				"execution_count": 57
 			},
 			{
 				"cell_type": "markdown",
@@ -503,6 +508,18 @@
 					"        ,Cast(CaseReference AS String) as caseReference\n",
 					"        ,Cast('Horizon' AS String) as sourceSystem\n",
 					"        ,Cast(ContactID AS String) as sourceSuid\n",
+					"        ,Cast(\n",
+					"            CASE\n",
+					"                WHEN AgentContactId IS NULL \n",
+					"                THEN \n",
+					"                    CASE\n",
+					"                        WHEN LOWER(preferredContactMethod) = 'letter' THEN 'post'\n",
+					"                        WHEN LOWER(preferredContactMethod) = 'e-mail' THEN 'email'\n",
+					"                        ELSE LOWER(preferredContactMethod)\n",
+					"                    END\n",
+					"                ELSE NULL\n",
+					"            END AS String\n",
+					"        ) as contactMethod\n",
 					"\n",
 					"        ,\"0\" as Migrated\n",
 					"        ,\"Horizon\" as ODTSourceSystem\n",
@@ -519,10 +536,10 @@
 					"        AND CaseReference IS NOT NULL\n",
 					"\"\"\")\n",
 					"\n",
-					"print(relevant_reps_represented_data.count())\n",
-					"display(relevant_reps_represented_data.head(10))"
+					"# print(relevant_reps_represented_data.count())\n",
+					"# display(relevant_reps_represented_data.head(10))"
 				],
-				"execution_count": 186
+				"execution_count": 58
 			},
 			{
 				"cell_type": "markdown",
@@ -534,7 +551,7 @@
 					}
 				},
 				"source": [
-					"##### Relevant reps (Agent)"
+					"##### Relevant reps (Agent/Representative)"
 				]
 			},
 			{
@@ -587,6 +604,13 @@
 					"        ,Cast(CaseReference AS String) as caseReference\n",
 					"        ,Cast('Horizon' AS String) as sourceSystem\n",
 					"        ,Cast(ContactID AS String) as Agent_ContactID\n",
+					"        ,Cast(\n",
+					"            CASE\n",
+					"                WHEN LOWER(preferredContactMethod) = 'letter' THEN 'post'\n",
+					"                WHEN LOWER(preferredContactMethod) = 'e-mail' THEN 'email'\n",
+					"                ELSE LOWER(preferredContactMethod)\n",
+					"            END AS String\n",
+					"        ) as contactMethod\n",
 					"\n",
 					"        ,\"0\" as Migrated\n",
 					"        ,\"Horizon\" as ODTSourceSystem\n",
@@ -603,10 +627,10 @@
 					"        AND CaseReference IS NOT NULL\n",
 					"\"\"\")\n",
 					"\n",
-					"print(relevant_reps_agent_data.count())\n",
-					"display(relevant_reps_agent_data.head(10))"
+					"# print(relevant_reps_agent_data.count())\n",
+					"# display(relevant_reps_agent_data.head(10))"
 				],
-				"execution_count": 187
+				"execution_count": 59
 			},
 			{
 				"cell_type": "markdown",
@@ -644,7 +668,7 @@
 					"            \n",
 					"print(results.count())"
 				],
-				"execution_count": 188
+				"execution_count": 60
 			},
 			{
 				"cell_type": "code",
@@ -662,7 +686,7 @@
 				"source": [
 					"results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
 				],
-				"execution_count": 189
+				"execution_count": 61
 			},
 			{
 				"cell_type": "markdown",
@@ -713,7 +737,7 @@
 					"            {spark_table_final}\n",
 					"    \"\"\")"
 				],
-				"execution_count": 190
+				"execution_count": 62
 			},
 			{
 				"cell_type": "code",
@@ -752,7 +776,7 @@
 					"        ORDER BY currentRow.ReverseOrderProcessed\n",
 					"\"\"\")"
 				],
-				"execution_count": 191
+				"execution_count": 63
 			},
 			{
 				"cell_type": "code",
@@ -770,7 +794,7 @@
 				"source": [
 					"df_calcs = df_calcs.withColumnRenamed(primary_key, f\"temp_{primary_key}\").withColumnRenamed(\"IngestionDate\", \"temp_IngestionDate\")"
 				],
-				"execution_count": 192
+				"execution_count": 64
 			},
 			{
 				"cell_type": "code",
@@ -814,6 +838,7 @@
 					"        ,caseReference\n",
 					"        ,sourceSystem\n",
 					"        ,sourceSuid\n",
+					"        ,contactMethod\n",
 					"        \n",
 					"        ,Migrated\n",
 					"        ,ODTSourceSystem\n",
@@ -825,7 +850,7 @@
 					"        {spark_table_final}\"\"\")\n",
 					"    "
 				],
-				"execution_count": 193
+				"execution_count": 65
 			},
 			{
 				"cell_type": "code",
@@ -845,7 +870,7 @@
 					"\n",
 					"results = results.drop(\"ServiceUserID\", \"ValidTo\", \"Migrated\", \"IsActive\")"
 				],
-				"execution_count": 194
+				"execution_count": 66
 			},
 			{
 				"cell_type": "code",
@@ -864,7 +889,7 @@
 					"final_df = results.join(df_calcs, (df_calcs[f\"temp_{primary_key}\"] == results[primary_key]) & (df_calcs[\"temp_IngestionDate\"] == results[\"IngestionDate\"])).select(columns)\n",
 					"final_df = final_df.drop(primary_key).drop_duplicates()"
 				],
-				"execution_count": 195
+				"execution_count": 67
 			},
 			{
 				"cell_type": "code",
@@ -882,7 +907,7 @@
 				"source": [
 					"final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
 				],
-				"execution_count": 196
+				"execution_count": 68
 			}
 		]
 	}
