@@ -68832,7 +68832,7 @@
 			"properties": {
 				"activities": [
 					{
-						"name": "rel_3_0_3",
+						"name": "rel_3_0_4",
 						"type": "ExecutePipeline",
 						"dependsOn": [],
 						"policy": {
@@ -68841,7 +68841,7 @@
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
-								"referenceName": "rel_3_0_3",
+								"referenceName": "rel_3_0_4",
 								"type": "PipelineReference"
 							},
 							"waitOnCompletion": true,
@@ -68858,7 +68858,7 @@
 				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('workspaceId'), '/pipelines/rel_3_0_3')]"
+				"[concat(variables('workspaceId'), '/pipelines/rel_3_0_4')]"
 			]
 		},
 		{
@@ -79078,6 +79078,112 @@
 				"[concat(variables('workspaceId'), '/pipelines/reload_sb_harmonised_tables')]",
 				"[concat(variables('workspaceId'), '/notebooks/service_user_migration')]",
 				"[concat(variables('workspaceId'), '/notebooks/nsip_project_migration')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/rel_3_0_4')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "service_user_migration",
+						"type": "SynapseNotebook",
+						"dependsOn": [
+							{
+								"activity": "py_sb_horizon_harmonised_service_user",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "service_user_migration",
+								"type": "NotebookReference"
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "nsip_s51_advice_migration",
+						"type": "SynapseNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "nsip_s51_advice_migration",
+								"type": "NotebookReference"
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "py_sb_horizon_harmonised_service_user",
+						"type": "SynapseNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "py_sb_horizon_harmonised_service_user",
+								"type": "NotebookReference"
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"folder": {
+					"name": "Releases/3.0.4"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/notebooks/service_user_migration')]",
+				"[concat(variables('workspaceId'), '/notebooks/nsip_s51_advice_migration')]",
+				"[concat(variables('workspaceId'), '/notebooks/py_sb_horizon_harmonised_service_user')]"
 			]
 		},
 		{
@@ -189449,7 +189555,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "5bbc8355-dc47-44a9-a5d6-5b27f7a3c111"
+						"spark.autotune.trackingId": "a7b2fda1-4563-4bbc-841c-6396e56e7044"
 					}
 				},
 				"metadata": {
@@ -189553,6 +189659,7 @@
 							"    END                                                     AS status,\n",
 							"    AD.redactionStatus,\n",
 							"    AD.attachmentIds,\n",
+							"    AD.LastPublishedDate                                    AS datepublished,\n",
 							"    AD.ODTSourceSystem                                      AS SourceSystem\n",
 							"\n",
 							"FROM odw_harmonised_db.nsip_s51_advice AS AD\n",
@@ -189567,7 +189674,7 @@
 							"    "
 						],
 						"outputs": [],
-						"execution_count": 1
+						"execution_count": 2
 					},
 					{
 						"cell_type": "markdown",
@@ -189600,13 +189707,10 @@
 							"from pyspark.sql import SparkSession\n",
 							"spark = SparkSession.builder.getOrCreate()\n",
 							"view_df = spark.sql('SELECT * FROM odw_curated_migration_db.vw_s51_advice')\n",
-							"display(view_df)\n",
-							"print(view_df.count())\n",
-							"print(\"done\")\n",
 							"view_df.write.mode(\"overwrite\").saveAsTable('odw_curated_migration_db.s51_advice')"
 						],
 						"outputs": [],
-						"execution_count": 4
+						"execution_count": 3
 					}
 				]
 			},
@@ -201078,7 +201182,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "ce0084ae-1651-4bd8-8252-9059064ece67"
+						"spark.autotune.trackingId": "358b96ae-fc14-4d44-9cfc-5846b9625047"
 					}
 				},
 				"metadata": {
@@ -201125,11 +201229,23 @@
 							"%pip install opencensus-ext-azure"
 						],
 						"outputs": [],
-						"execution_count": null
+						"execution_count": 46
 					},
 					{
 						"cell_type": "code",
 						"source": [
+							"import logging\r\n",
+							"from opencensus.ext.azure.log_exporter import AzureLogHandler\r\n",
+							"\r\n",
+							"logger = logging.getLogger()\r\n",
+							"logger.setLevel(logging.INFO)\r\n",
+							"if True in [type(handle) == AzureLogHandler for handle in logger.handlers]:\r\n",
+							"    pass\r\n",
+							"else:\r\n",
+							"    key = mssparkutils.credentials.getSecretWithLS(\"ls_kv\", \"application-insights-connection-string\")\r\n",
+							"    logger.addHandler(AzureLogHandler(connection_string=key.split(\";\")[0]))\r\n",
+							"  \r\n",
+							"\r\n",
 							"def logging_to_appins(func):\r\n",
 							"    import functools\r\n",
 							"    from notebookutils import mssparkutils\r\n",
@@ -201139,21 +201255,7 @@
 							"    @functools.wraps(func)\r\n",
 							"    def wrapper(*args, **kwargs):\r\n",
 							"        from notebookutils import mssparkutils\r\n",
-							"        \r\n",
-							"\r\n",
-							"        import logging\r\n",
-							"        from opencensus.ext.azure.log_exporter import AzureLogHandler\r\n",
-							"        \r\n",
-							"        logger = logging.getLogger(__name__)\r\n",
-							"        logger.setLevel(logging.INFO)\r\n",
-							"        if True in [type(handle) == AzureLogHandler for handle in logger.handlers]:\r\n",
-							"            pass\r\n",
-							"        else:\r\n",
-							"            kvname = \"example\"\r\n",
-							"            key = mssparkutils.credentials.getSecretWithLS(\"ls_kv\", \"application-insights-connection-string\")\r\n",
-							"            logger.addHandler(AzureLogHandler(\r\n",
-							"            connection_string=key.split(\";\")[0])\r\n",
-							"            )\r\n",
+							"            \r\n",
 							"        args_repr = [repr(a) for a in args]\r\n",
 							"        kwargs_repr = [f\"{k}={v!r}\" for k, v in kwargs.items()]\r\n",
 							"        signature = \", \".join(args_repr + kwargs_repr)\r\n",
@@ -201165,12 +201267,13 @@
 							"            logger.info(f\"Notebook exited with value {e}\")\r\n",
 							"            mssparkutils.notebook.exit(e)\r\n",
 							"        except Exception as e:\r\n",
+							"            print(\"Logging Exception\")\r\n",
 							"            logger.exception(e)\r\n",
 							"            raise e\r\n",
 							"    return wrapper"
 						],
 						"outputs": [],
-						"execution_count": 1
+						"execution_count": 47
 					},
 					{
 						"cell_type": "code",
@@ -201186,14 +201289,20 @@
 							}
 						},
 						"source": [
-							"# from pyspark.sql import SparkSession\r\n",
-							"# spark = SparkSession.builder.getOrCreate()\r\n",
-							"# spark.sparkContext.environment.get('dataLakeAccountName', 'get')\r\n",
-							"# spark.sparkContext.environment.get('keyVaultName', 'get')\r\n",
+							"@logging_to_appins\n",
+							"def test():\n",
+							"    raise ValueError('BANANA')\n",
+							"\n",
+							"try:\n",
+							"    #this should appear in the logs because it's got a decorator on it\n",
+							"    logger.info(\"Running test\")\n",
+							"    test()\n",
+							"except:\n",
+							"    logger.error(\"Caught error\")\n",
 							""
 						],
 						"outputs": [],
-						"execution_count": 7
+						"execution_count": 48
 					},
 					{
 						"cell_type": "code",
@@ -201209,10 +201318,47 @@
 							}
 						},
 						"source": [
+							"def test2():\n",
+							"    raise ValueError('CARROT')\n",
+							"\n",
+							"try:\n",
+							"    #this shouldn't appear in the logs because it's not got a decorator on it\n",
+							"    logger.info(\"Running test2\")\n",
+							"    test2()\n",
+							"except:\n",
+							"    logger.error(\"Caught error\")\n",
 							""
 						],
 						"outputs": [],
-						"execution_count": null
+						"execution_count": 49
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"@logging_to_appins\n",
+							"def test3():\n",
+							"    raise ValueError('CAULIFLOWER')\n",
+							"\n",
+							"try:\n",
+							"    #this should appear in the logs because it's got a decorator on it\n",
+							"    logger.info(\"Running test3\")\n",
+							"    test3()\n",
+							"except:\n",
+							"    logger.error(\"Caught error\")"
+						],
+						"outputs": [],
+						"execution_count": 50
 					}
 				]
 			},
@@ -213899,7 +214045,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "14662416-419b-4750-a2e1-a8833e05984c"
+						"spark.autotune.trackingId": "cc7607a0-9913-427c-aa69-5db331da6e25"
 					}
 				},
 				"metadata": {
@@ -213937,7 +214083,7 @@
 							"from pyspark.sql.functions import *"
 						],
 						"outputs": [],
-						"execution_count": 180
+						"execution_count": 52
 					},
 					{
 						"cell_type": "markdown",
@@ -213982,7 +214128,7 @@
 							"primary_key = 'TEMP_PK'"
 						],
 						"outputs": [],
-						"execution_count": 181
+						"execution_count": 53
 					},
 					{
 						"cell_type": "markdown",
@@ -214039,6 +214185,7 @@
 							"        ,caseReference\n",
 							"        ,sourceSystem\n",
 							"        ,sourceSuid\n",
+							"        ,Cast(NULL AS String) as contactMethod\n",
 							"        \n",
 							"        ,Migrated\n",
 							"        ,ODTSourceSystem\n",
@@ -214051,11 +214198,11 @@
 							"        {service_bus_table}\n",
 							"    \"\"\")\n",
 							"\n",
-							"print(service_bus_data.count())\n",
-							"display(service_bus_data.head(10))"
+							"# print(service_bus_data.count())\n",
+							"# display(service_bus_data.head(10))"
 						],
 						"outputs": [],
-						"execution_count": 182
+						"execution_count": 54
 					},
 					{
 						"cell_type": "markdown",
@@ -214133,6 +214280,7 @@
 							"        ,Cast(case_number AS String) as caseReference\n",
 							"        ,Cast('Horizon' AS String) as sourceSystem\n",
 							"        ,Cast(ContactID AS String) as sourceSuid\n",
+							"        ,Cast(NULL AS String) as contactMethod\n",
 							"\n",
 							"        ,\"0\" as Migrated\n",
 							"        ,\"Horizon\" as ODTSourceSystem\n",
@@ -214149,11 +214297,11 @@
 							"        AND typeOfInvolvement IN ('Appellant', 'tAppellant', 'Apellant')\n",
 							"\"\"\")\n",
 							"\n",
-							"print(appeal_casework_appellant_data.count())\n",
-							"display(appeal_casework_appellant_data.head(10))"
+							"# print(appeal_casework_appellant_data.count())\n",
+							"# display(appeal_casework_appellant_data.head(10))"
 						],
 						"outputs": [],
-						"execution_count": 183
+						"execution_count": 55
 					},
 					{
 						"cell_type": "markdown",
@@ -214218,6 +214366,7 @@
 							"        ,Cast(case_number AS String) as caseReference\n",
 							"        ,Cast('Horizon' AS String) as sourceSystem\n",
 							"        ,Cast(ContactID AS String) as sourceSuid\n",
+							"        ,Cast(NULL AS String) as contactMethod\n",
 							"\n",
 							"        ,\"0\" as Migrated\n",
 							"        ,\"Horizon\" as ODTSourceSystem\n",
@@ -214235,11 +214384,11 @@
 							"\"\"\")\n",
 							"\n",
 							"\n",
-							"print(appeal_casework_agent_data.count())\n",
-							"display(appeal_casework_agent_data.head(10))"
+							"# print(appeal_casework_agent_data.count())\n",
+							"# display(appeal_casework_agent_data.head(10))"
 						],
 						"outputs": [],
-						"execution_count": 184
+						"execution_count": 56
 					},
 					{
 						"cell_type": "markdown",
@@ -214304,6 +214453,7 @@
 							"        ,Cast(CaseReference AS String) as caseReference\n",
 							"        ,Cast('Horizon' AS String) as sourceSystem\n",
 							"        ,Cast(caseNodeId AS String) as sourceSuid\n",
+							"        ,Cast(NULL AS String) as contactMethod\n",
 							"        \n",
 							"        ,\"0\" as Migrated\n",
 							"        ,\"Horizon\" as ODTSourceSystem\n",
@@ -214319,11 +214469,11 @@
 							"        AND caseNodeId IS NOT NULL\n",
 							"\"\"\")\n",
 							"\n",
-							"print(nsip_project_applicant_data.count())\n",
-							"display(nsip_project_applicant_data.head(10))"
+							"# print(nsip_project_applicant_data.count())\n",
+							"# display(nsip_project_applicant_data.head(10))"
 						],
 						"outputs": [],
-						"execution_count": 185
+						"execution_count": 57
 					},
 					{
 						"cell_type": "markdown",
@@ -214388,6 +214538,18 @@
 							"        ,Cast(CaseReference AS String) as caseReference\n",
 							"        ,Cast('Horizon' AS String) as sourceSystem\n",
 							"        ,Cast(ContactID AS String) as sourceSuid\n",
+							"        ,Cast(\n",
+							"            CASE\n",
+							"                WHEN AgentContactId IS NULL \n",
+							"                THEN \n",
+							"                    CASE\n",
+							"                        WHEN LOWER(preferredContactMethod) = 'letter' THEN 'post'\n",
+							"                        WHEN LOWER(preferredContactMethod) = 'e-mail' THEN 'email'\n",
+							"                        ELSE LOWER(preferredContactMethod)\n",
+							"                    END\n",
+							"                ELSE NULL\n",
+							"            END AS String\n",
+							"        ) as contactMethod\n",
 							"\n",
 							"        ,\"0\" as Migrated\n",
 							"        ,\"Horizon\" as ODTSourceSystem\n",
@@ -214404,11 +214566,11 @@
 							"        AND CaseReference IS NOT NULL\n",
 							"\"\"\")\n",
 							"\n",
-							"print(relevant_reps_represented_data.count())\n",
-							"display(relevant_reps_represented_data.head(10))"
+							"# print(relevant_reps_represented_data.count())\n",
+							"# display(relevant_reps_represented_data.head(10))"
 						],
 						"outputs": [],
-						"execution_count": 186
+						"execution_count": 58
 					},
 					{
 						"cell_type": "markdown",
@@ -214420,7 +214582,7 @@
 							}
 						},
 						"source": [
-							"##### Relevant reps (Agent)"
+							"##### Relevant reps (Agent/Representative)"
 						]
 					},
 					{
@@ -214473,6 +214635,13 @@
 							"        ,Cast(CaseReference AS String) as caseReference\n",
 							"        ,Cast('Horizon' AS String) as sourceSystem\n",
 							"        ,Cast(ContactID AS String) as Agent_ContactID\n",
+							"        ,Cast(\n",
+							"            CASE\n",
+							"                WHEN LOWER(preferredContactMethod) = 'letter' THEN 'post'\n",
+							"                WHEN LOWER(preferredContactMethod) = 'e-mail' THEN 'email'\n",
+							"                ELSE LOWER(preferredContactMethod)\n",
+							"            END AS String\n",
+							"        ) as contactMethod\n",
 							"\n",
 							"        ,\"0\" as Migrated\n",
 							"        ,\"Horizon\" as ODTSourceSystem\n",
@@ -214489,11 +214658,11 @@
 							"        AND CaseReference IS NOT NULL\n",
 							"\"\"\")\n",
 							"\n",
-							"print(relevant_reps_agent_data.count())\n",
-							"display(relevant_reps_agent_data.head(10))"
+							"# print(relevant_reps_agent_data.count())\n",
+							"# display(relevant_reps_agent_data.head(10))"
 						],
 						"outputs": [],
-						"execution_count": 187
+						"execution_count": 59
 					},
 					{
 						"cell_type": "markdown",
@@ -214532,7 +214701,7 @@
 							"print(results.count())"
 						],
 						"outputs": [],
-						"execution_count": 188
+						"execution_count": 60
 					},
 					{
 						"cell_type": "code",
@@ -214551,7 +214720,7 @@
 							"results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
 						],
 						"outputs": [],
-						"execution_count": 189
+						"execution_count": 61
 					},
 					{
 						"cell_type": "markdown",
@@ -214603,7 +214772,7 @@
 							"    \"\"\")"
 						],
 						"outputs": [],
-						"execution_count": 190
+						"execution_count": 62
 					},
 					{
 						"cell_type": "code",
@@ -214643,7 +214812,7 @@
 							"\"\"\")"
 						],
 						"outputs": [],
-						"execution_count": 191
+						"execution_count": 63
 					},
 					{
 						"cell_type": "code",
@@ -214662,7 +214831,7 @@
 							"df_calcs = df_calcs.withColumnRenamed(primary_key, f\"temp_{primary_key}\").withColumnRenamed(\"IngestionDate\", \"temp_IngestionDate\")"
 						],
 						"outputs": [],
-						"execution_count": 192
+						"execution_count": 64
 					},
 					{
 						"cell_type": "code",
@@ -214706,6 +214875,7 @@
 							"        ,caseReference\n",
 							"        ,sourceSystem\n",
 							"        ,sourceSuid\n",
+							"        ,contactMethod\n",
 							"        \n",
 							"        ,Migrated\n",
 							"        ,ODTSourceSystem\n",
@@ -214718,7 +214888,7 @@
 							"    "
 						],
 						"outputs": [],
-						"execution_count": 193
+						"execution_count": 65
 					},
 					{
 						"cell_type": "code",
@@ -214739,7 +214909,7 @@
 							"results = results.drop(\"ServiceUserID\", \"ValidTo\", \"Migrated\", \"IsActive\")"
 						],
 						"outputs": [],
-						"execution_count": 194
+						"execution_count": 66
 					},
 					{
 						"cell_type": "code",
@@ -214759,7 +214929,7 @@
 							"final_df = final_df.drop(primary_key).drop_duplicates()"
 						],
 						"outputs": [],
-						"execution_count": 195
+						"execution_count": 67
 					},
 					{
 						"cell_type": "code",
@@ -214778,7 +214948,7 @@
 							"final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
 						],
 						"outputs": [],
-						"execution_count": 196
+						"execution_count": 68
 					}
 				]
 			},
@@ -222224,7 +222394,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "9bc4faf2-450c-4c81-a822-9da887727d6b"
+						"spark.autotune.trackingId": "aafb3b63-10ef-435a-b981-874b3998767f"
 					}
 				},
 				"metadata": {
@@ -222999,41 +223169,6 @@
 							"                            \"\"\")\n",
 							"\n",
 							"    return df.count() == 0"
-						],
-						"outputs": [],
-						"execution_count": null
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"def test_curated_unique_hzn_only(curated_db: str, curated_table: str, primary_key: str) -> tuple[bool,int,int,bool]: \n",
-							"\n",
-							"    df_curated: DataFrame = spark.sql(f\"SELECT * FROM {curated_db}.{curated_table}\")\n",
-							"\n",
-							"    if 'sourceSystem' in df_curated.columns:\n",
-							"        count_not_hzn_records: int = df_curated.filter(\"sourceSystem != 'horizon' AND sourceSystem != 'Horizon'\").count()\n",
-							"    else:\n",
-							"        count_not_hzn_records = 0\n",
-							"        \n",
-							"    total_count = df_curated.count()\n",
-							"\n",
-							"    #Count of distinct caseid (primary id)\n",
-							"    distinct_count = df_curated.select(primary_key).distinct().count()\n",
-							"\n",
-							"\n",
-							"    return (count_not_hzn_records == 0, total_count, distinct_count, total_count == distinct_count)\n",
-							""
 						],
 						"outputs": [],
 						"execution_count": null
@@ -229260,7 +229395,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "be1f498a-a9e5-4628-8432-8f2536de2de7"
+						"spark.autotune.trackingId": "19cb282c-a1b9-4bea-9ca7-924713b06f6c"
 					}
 				},
 				"metadata": {
@@ -229450,8 +229585,9 @@
 							"curated_schema = create_spark_schema(curated_db_name, entity_name)\n",
 							"curated_table_schema = spark.table(f\"{curated_db_name}.{service_user_appeal_table}\").schema\n",
 							"\n",
-							"curated_migration_schema = create_spark_schema(curated_migration_db_name, entity_name)\n",
-							"curated_migration_table_schema = spark.table(f\"{curated_migration_db_name}.{service_user_migration_table}\").schema"
+							"# this will fail because of an extra column (contactMethod) required by ODT https://pins-ds.atlassian.net/browse/THEODW-1494\n",
+							"# curated_migration_schema = create_spark_schema(curated_migration_db_name, entity_name)\n",
+							"# curated_migration_table_schema = spark.table(f\"{curated_migration_db_name}.{service_user_migration_table}\").schema"
 						],
 						"outputs": [],
 						"execution_count": 54
@@ -249766,7 +249902,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "ccdde5c3-1913-4484-af9d-c50cadb60869"
+						"spark.autotune.trackingId": "5bcbf6df-5fe3-4d61-a76e-ec0d904e7eea"
 					}
 				},
 				"metadata": {
@@ -249844,6 +249980,7 @@
 							"    ,SU.caseReference\r\n",
 							"    ,SU.sourceSystem\r\n",
 							"    ,SU.sourceSuid\r\n",
+							"    ,SU.contactMethod\r\n",
 							"\r\n",
 							"FROM odw_harmonised_db.service_user SU\r\n",
 							"\r\n",
