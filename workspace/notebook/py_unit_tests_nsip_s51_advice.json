@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "81fcd2f5-d1cf-4ae4-a6b3-a509027db472"
+				"spark.autotune.trackingId": "26e58c72-d922-4664-abe7-52b0ff18ae55"
 			}
 		},
 		"metadata": {
@@ -70,7 +70,7 @@
 					"from pyspark.sql import DataFrame\n",
 					"import pprint"
 				],
-				"execution_count": 33
+				"execution_count": 40
 			},
 			{
 				"cell_type": "code",
@@ -88,7 +88,7 @@
 				"source": [
 					"spark.catalog.refreshTable('odw_curated_migration_db.s51_advice')"
 				],
-				"execution_count": 64
+				"execution_count": 41
 			},
 			{
 				"cell_type": "code",
@@ -106,7 +106,7 @@
 				"source": [
 					"spark.catalog.refreshTable('odw_curated_db.s51_advice')"
 				],
-				"execution_count": null
+				"execution_count": 42
 			},
 			{
 				"cell_type": "code",
@@ -128,6 +128,7 @@
 					"hrm_db_name: str = 'odw_harmonised_db'\n",
 					"curated_db_name: str = 'odw_curated_db'\n",
 					"std_table_name: str = 'sb_s51_advice'\n",
+					"horizon_std_table_name: str = 'horizon_nsip_advice'\n",
 					"hrm_table_name: str = 'sb_s51_advice'\n",
 					"hrm_table_final: str = 'nsip_s51_advice'\n",
 					"curated_table_name: str = 's51_advice'\n",
@@ -135,9 +136,10 @@
 					"## new curated database\n",
 					"curated_db_migration_name: str = 'odw_curated_migration_db'\n",
 					"curated_table_migration_name: str = 's51_advice'\n",
-					"primary_key: str = 'adviceId'"
+					"primary_key: str = 'adviceId'\n",
+					"horizon_pk: str = 'advicenodeid'"
 				],
-				"execution_count": 35
+				"execution_count": 43
 			},
 			{
 				"cell_type": "code",
@@ -156,7 +158,7 @@
 					"#keep track of the exitCodes, if the exit code is not zero then we've had failures, we flip the boolean\n",
 					"exitCode: int = 0"
 				],
-				"execution_count": 36
+				"execution_count": 44
 			},
 			{
 				"cell_type": "code",
@@ -192,7 +194,7 @@
 					"            \"redactionStatus\",\n",
 					"            \"attachmentIds\"]"
 				],
-				"execution_count": 37
+				"execution_count": 45
 			},
 			{
 				"cell_type": "code",
@@ -210,7 +212,7 @@
 				"source": [
 					"%run /utils/unit-tests/py_unit_tests_functions"
 				],
-				"execution_count": 38
+				"execution_count": 46
 			},
 			{
 				"cell_type": "code",
@@ -231,7 +233,7 @@
 					"sb_hrm_schema = create_spark_schema(hrm_db_name, entity_name, folder_name)\n",
 					"sb_hrm_table_schema = spark.table(f\"{hrm_db_name}.{hrm_table_name}\").schema"
 				],
-				"execution_count": 39
+				"execution_count": 47
 			},
 			{
 				"cell_type": "markdown",
@@ -268,7 +270,7 @@
 					"print(f\"Service bus harmonised schema correct: {hrm_schema_correct}\\nTable: {hrm_db_name}.{hrm_table_name}\\nDifferences shown above (if any)\")\n",
 					"exitCode += int(not hrm_schema_correct)"
 				],
-				"execution_count": 40
+				"execution_count": 48
 			},
 			{
 				"cell_type": "markdown",
@@ -307,7 +309,7 @@
 					"    print(f\"{standardised_count - harmonised_count} rows from Standardised are missing in Harmonised.\" )\n",
 					"    differentiate_std_and_hrm(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\", data_model_columns)"
 				],
-				"execution_count": 41
+				"execution_count": 49
 			},
 			{
 				"cell_type": "markdown",
@@ -341,7 +343,7 @@
 					"print(f\"Harmonised Final Row Count (Where Active = Y): {harmonised_final_count: ,}\\nCurated Count: {curated_count: ,}\\nCounts match: {counts_match}\")\n",
 					"exitCode += int(not counts_match)"
 				],
-				"execution_count": 42
+				"execution_count": 50
 			},
 			{
 				"cell_type": "markdown",
@@ -354,78 +356,8 @@
 				},
 				"source": [
 					"### The below tests are for the curated_migration_db table\n",
-					"##### Test 1:  Counts match in harmonised and curated\n",
-					""
+					"##### Test 1:  Check no case is dropped from Horizon"
 				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"## Define the harmonise table that only includes horizon data, and the latest record per primary id.\r\n",
-					"##SourceColumns are not named consistently across different data types\r\n",
-					"def harmonise_df_hzn(hrm_db: str, hrm_table: str, primary_key: str, sourceColumn:str ) -> DataFrame:\r\n",
-					"    df_harmonise_only_hzn: DataFrame = spark.sql(f\"\"\"\r\n",
-					"    Select Distinct   \r\n",
-					"    AD.adviceId,\r\n",
-					"    AD.adviceReference ,\r\n",
-					"    CASE\r\n",
-					"        WHEN AD.caseId = 'None'\r\n",
-					"        THEN CAST(\"-1\" as INT)\r\n",
-					"        ELSE AD.caseId\r\n",
-					"    END                                                     AS caseId,\r\n",
-					"    AD.caseReference,\r\n",
-					"    AD.title,\r\n",
-					"    AD.titleWelsh,\r\n",
-					"    AD.from,\r\n",
-					"    CASE\r\n",
-					"        WHEN LOWER(AD.agent) = 'none'\r\n",
-					"        THEN NULL\r\n",
-					"        ELSE AD.agent\r\n",
-					"    END                                                     AS agent,\r\n",
-					"    CASE \r\n",
-					"        WHEN LOWER(AD.method) = 'none'\r\n",
-					"        THEN NULL\r\n",
-					"        ELSE LOWER(AD.method)\r\n",
-					"        END                                                 AS method,\r\n",
-					"    AD.enquiryDate,\r\n",
-					"    AD.enquiryDetails,\r\n",
-					"    AD.enquiryDetailsWelsh,\r\n",
-					"    AD.adviceGivenBy,\r\n",
-					"    AD.adviceDate,\r\n",
-					"    AD.adviceDetails,\r\n",
-					"    AD.adviceDetailsWelsh,\r\n",
-					"    CASE\r\n",
-					"        WHEN AD.status IN ('Not Checked','unchecked','Depublished')\r\n",
-					"        THEN 'unchecked'\r\n",
-					"        WHEN AD.status = 'Do Not Publish'\r\n",
-					"        THEN 'donotpublish'\r\n",
-					"        ELSE LOWER(AD.status)\r\n",
-					"    END                                                     AS status,\r\n",
-					"    AD.redactionStatus,\r\n",
-					"    AD.attachmentIds\r\n",
-					"\r\n",
-					"    from {hrm_db}.{hrm_table} AD\r\n",
-					"    INNER JOIN (\r\n",
-					"            SELECT {primary_key}, MAX(IngestionDate) AS latest_date\r\n",
-					"            FROM {hrm_db}.{hrm_table} AD\r\n",
-					"            WHERE LOWER({sourceColumn}) ='horizon'\r\n",
-					"            GROUP BY {primary_key}) latest \r\n",
-					"            ON AD.{primary_key} = latest.{primary_key} AND AD.IngestionDate = latest.latest_date \"\"\").drop_duplicates()\r\n",
-					"\r\n",
-					"    return df_harmonise_only_hzn"
-				],
-				"execution_count": 43
 			},
 			{
 				"cell_type": "code",
@@ -442,11 +374,13 @@
 					"collapsed": false
 				},
 				"source": [
-					"harmonised_count, curated_count, counts_match = test_counts_hrm_cur(hrm_db_name, hrm_table_final, curated_db_migration_name, curated_table_migration_name, primary_key, \"ODTSourceSystem\")\n",
-					"print(f\"Harmonised Count horizon records: {harmonised_count: ,}\\nMigrated Curated Count: {curated_count: ,}\\nCounts match: {counts_match}\")\n",
-					"exitCode += int(not counts_match)"
+					"if test_no_project_from_horizon_dropped(std_db_name, curated_db_migration_name, horizon_std_table_name, curated_table_migration_name, horizon_pk, primary_key):\n",
+					"    pass\n",
+					"else:\n",
+					"    print('FAIL: test_no_project_from_horizon_dropped')\n",
+					"    exitCode += 1"
 				],
-				"execution_count": 44
+				"execution_count": 51
 			},
 			{
 				"cell_type": "markdown",
@@ -475,11 +409,11 @@
 					}
 				},
 				"source": [
-					"no_horizon_records, total_curated_count, distinct_curated_count, counts_match = test_curated_unique_hzn_only(curated_db_migration_name, curated_table_migration_name, primary_key, \"SourceSystem\")\n",
+					"no_horizon_records, total_curated_count, distinct_curated_count, counts_match = test_curated_unique_hzn_only(curated_db_migration_name, curated_table_migration_name, primary_key)\n",
 					"print(f\"There is no other records than Horizon: {no_horizon_records:}\\nCurated Count: {total_curated_count: ,}\\n Distinct Curated Count: {distinct_curated_count:,}\\nCounts match: {counts_match}\")\n",
 					"exitCode += int(not counts_match)"
 				],
-				"execution_count": 45
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -512,7 +446,92 @@
 					"print(f\"Horizon to curated no caseids are dropped: {result}\")\n",
 					"exitCode += int(not result)"
 				],
-				"execution_count": 46
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Check array fields have duplicates in curated\r\n",
+					"Go and find examples"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"result = test_no_duplicates_in_array_column(curated_db_name, curated_table_name, \"attachmentIds\")\r\n",
+					"print(f\"No duplicates found in the attachmentIds: {result}\")\r\n",
+					"exitCode += int(not result)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Check array fields have duplicates in curated_migration"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"result = test_no_duplicates_in_array_column(curated_db_migration_name, curated_table_migration_name, \"attachmentIds\")\r\n",
+					"print(f\"No duplicates found in the attachmentIds: {result}\")\r\n",
+					"exitCode += int(not result)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"mssparkutils.notebook.exit(exitCode)"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -527,6 +546,75 @@
 					"### Trace service bus data from standardised to curated\n",
 					"We need to make sure the data has loaded through correctly. To do this efficiently, we will select a sample record and check that the data is maintained as it moves through the medallian architecture."
 				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Define the harmonise table that only includes horizon data, and the latest record per primary id.\n",
+					"##SourceColumns are not named consistently across different data types\n",
+					"def harmonise_df_hzn(hrm_db: str, hrm_table: str, primary_key: str, sourceColumn:str ) -> DataFrame:\n",
+					"    df_harmonise_only_hzn: DataFrame = spark.sql(f\"\"\"\n",
+					"    Select Distinct   \n",
+					"    AD.adviceId,\n",
+					"    AD.adviceReference ,\n",
+					"    CASE\n",
+					"        WHEN AD.caseId = 'None'\n",
+					"        THEN CAST(\"-1\" as INT)\n",
+					"        ELSE AD.caseId\n",
+					"    END                                                     AS caseId,\n",
+					"    AD.caseReference,\n",
+					"    AD.title,\n",
+					"    AD.titleWelsh,\n",
+					"    AD.from,\n",
+					"    CASE\n",
+					"        WHEN LOWER(AD.agent) = 'none'\n",
+					"        THEN NULL\n",
+					"        ELSE AD.agent\n",
+					"    END                                                     AS agent,\n",
+					"    CASE \n",
+					"        WHEN LOWER(AD.method) = 'none'\n",
+					"        THEN NULL\n",
+					"        ELSE LOWER(AD.method)\n",
+					"        END                                                 AS method,\n",
+					"    AD.enquiryDate,\n",
+					"    AD.enquiryDetails,\n",
+					"    AD.enquiryDetailsWelsh,\n",
+					"    AD.adviceGivenBy,\n",
+					"    AD.adviceDate,\n",
+					"    AD.adviceDetails,\n",
+					"    AD.adviceDetailsWelsh,\n",
+					"    CASE\n",
+					"        WHEN AD.status IN ('Not Checked','unchecked','Depublished')\n",
+					"        THEN 'unchecked'\n",
+					"        WHEN AD.status = 'Do Not Publish'\n",
+					"        THEN 'donotpublish'\n",
+					"        ELSE LOWER(AD.status)\n",
+					"    END                                                     AS status,\n",
+					"    AD.redactionStatus,\n",
+					"    AD.attachmentIds\n",
+					"\n",
+					"    from {hrm_db}.{hrm_table} AD\n",
+					"    INNER JOIN (\n",
+					"            SELECT {primary_key}, MAX(IngestionDate) AS latest_date\n",
+					"            FROM {hrm_db}.{hrm_table} AD\n",
+					"            WHERE LOWER({sourceColumn}) ='horizon'\n",
+					"            GROUP BY {primary_key}) latest \n",
+					"            ON AD.{primary_key} = latest.{primary_key} AND AD.IngestionDate = latest.latest_date \"\"\").drop_duplicates()\n",
+					"\n",
+					"    return df_harmonise_only_hzn"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -556,8 +644,7 @@
 					},
 					"microsoft": {
 						"language": "sparksql"
-					},
-					"collapsed": false
+					}
 				},
 				"source": [
 					"%%sql\n",
@@ -575,7 +662,7 @@
 					"ORDER BY\n",
 					"    2 DESC"
 				],
-				"execution_count": 47
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -591,14 +678,13 @@
 					},
 					"microsoft": {
 						"language": "sparksql"
-					},
-					"collapsed": false
+					}
 				},
 				"source": [
 					"%%sql\n",
 					"select attachmentIds FROM odw_curated_db.s51_advice where adviceId = 16347955"
 				],
-				"execution_count": 48
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -627,8 +713,7 @@
 					},
 					"microsoft": {
 						"language": "sparksql"
-					},
-					"collapsed": false
+					}
 				},
 				"source": [
 					"%%sql\n",
@@ -640,7 +725,7 @@
 					"     advicenodeid = '15179883' AND \n",
 					"     ingested_datetime = (select max(ingested_datetime) from odw_standardised_db.horizon_nsip_advice);"
 				],
-				"execution_count": 49
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -656,8 +741,7 @@
 					},
 					"microsoft": {
 						"language": "sparksql"
-					},
-					"collapsed": false
+					}
 				},
 				"source": [
 					"%%sql\n",
@@ -670,7 +754,7 @@
 					"order BY\n",
 					"    ingestiondate DESC"
 				],
-				"execution_count": 50
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -716,7 +800,7 @@
 					"ORDER BY\n",
 					"    2 desc"
 				],
-				"execution_count": 51
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -749,7 +833,7 @@
 					"ORDER BY\n",
 					"    2 desc"
 				],
-				"execution_count": 52
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -778,8 +862,7 @@
 					},
 					"microsoft": {
 						"language": "sparksql"
-					},
-					"collapsed": false
+					}
 				},
 				"source": [
 					"%%sql\n",
@@ -792,7 +875,7 @@
 					"order BY\n",
 					"    ingestiondate DESC"
 				],
-				"execution_count": 53
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -821,8 +904,7 @@
 					},
 					"microsoft": {
 						"language": "sparksql"
-					},
-					"collapsed": false
+					}
 				},
 				"source": [
 					"%%sql\n",
@@ -833,7 +915,7 @@
 					"WHERE\n",
 					"     adviceid = '15179883'"
 				],
-				"execution_count": 54
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -862,8 +944,7 @@
 					},
 					"microsoft": {
 						"language": "sparksql"
-					},
-					"collapsed": false
+					}
 				},
 				"source": [
 					"%%sql\n",
@@ -872,92 +953,7 @@
 					"select * from odw_harmonised_db.nsip_s51_advice where adviceId = 25680508;\n",
 					"select * from odw_curated_db.s51_advice where adviceId = 25680508;"
 				],
-				"execution_count": 55
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"#### Check array fields have duplicates in curated\r\n",
-					"Go and find examples"
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"result = test_no_duplicates_in_array_column(curated_db_name, curated_table_name, \"attachmentIds\")\r\n",
-					"print(f\"No duplicates found in the attachmentIds: {result}\")\r\n",
-					"exitCode += int(not result)"
-				],
-				"execution_count": 62
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"#### Check array fields have duplicates in curated_migration"
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"result = test_no_duplicates_in_array_column(curated_db_migration_name, curated_table_migration_name, \"attachmentIds\")\r\n",
-					"print(f\"No duplicates found in the attachmentIds: {result}\")\r\n",
-					"exitCode += int(not result)"
-				],
-				"execution_count": 65
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"mssparkutils.notebook.exit(exitCode)"
-				],
-				"execution_count": 58
+				"execution_count": null
 			}
 		]
 	}
