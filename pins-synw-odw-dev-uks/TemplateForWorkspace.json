@@ -201182,7 +201182,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "358b96ae-fc14-4d44-9cfc-5846b9625047"
+						"spark.autotune.trackingId": "20167a33-9caa-4a72-abbf-163f83b39099"
 					}
 				},
 				"metadata": {
@@ -201229,27 +201229,60 @@
 							"%pip install opencensus-ext-azure"
 						],
 						"outputs": [],
-						"execution_count": 46
+						"execution_count": 27
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"%run py_retry_logic"
+						],
+						"outputs": [],
+						"execution_count": 28
 					},
 					{
 						"cell_type": "code",
 						"source": [
+							"import functools\r\n",
+							"from notebookutils import mssparkutils\r\n",
+							"from pyspark.sql import SparkSession\r\n",
 							"import logging\r\n",
 							"from opencensus.ext.azure.log_exporter import AzureLogHandler\r\n",
 							"\r\n",
-							"logger = logging.getLogger()\r\n",
-							"logger.setLevel(logging.INFO)\r\n",
-							"if True in [type(handle) == AzureLogHandler for handle in logger.handlers]:\r\n",
-							"    pass\r\n",
-							"else:\r\n",
-							"    key = mssparkutils.credentials.getSecretWithLS(\"ls_kv\", \"application-insights-connection-string\")\r\n",
-							"    logger.addHandler(AzureLogHandler(connection_string=key.split(\";\")[0]))\r\n",
-							"  \r\n",
+							"#generic logging functions which can be expanded to include extra information in every log message\r\n",
+							"def logInfo(message:str):\r\n",
+							"    logger.info(message)\r\n",
+							"\r\n",
+							"def logError(message:str):\r\n",
+							"    logger.error(message)\r\n",
+							"\r\n",
+							"def logException(exception:Exception):\r\n",
+							"    logger.exception(exception)\r\n",
+							"\r\n",
+							"\r\n",
+							"\r\n",
+							"@retry(wait=wait_exponential(multiplier=1, min=5, max=20), stop=stop_after_delay(30) | stop_after_attempt(5), reraise=True, before_sleep=before_sleep)\r\n",
+							"def setupLogging():\r\n",
+							"    logger = logging.getLogger()\r\n",
+							"    logger.setLevel(logging.INFO)\r\n",
+							"    if True in [type(handle) == AzureLogHandler for handle in logger.handlers]:\r\n",
+							"        pass\r\n",
+							"    else:\r\n",
+							"        key = mssparkutils.credentials.getSecretWithLS(\"ls_kv\", \"application-insights-connection-string\")\r\n",
+							"        logger.addHandler(AzureLogHandler(connection_string=key.split(\";\")[0]))\r\n",
 							"\r\n",
 							"def logging_to_appins(func):\r\n",
-							"    import functools\r\n",
-							"    from notebookutils import mssparkutils\r\n",
-							"    from pyspark.sql import SparkSession\r\n",
+							"\r\n",
 							"    spark = SparkSession.builder.getOrCreate()\r\n",
 							"\r\n",
 							"    @functools.wraps(func)\r\n",
@@ -201259,21 +201292,23 @@
 							"        args_repr = [repr(a) for a in args]\r\n",
 							"        kwargs_repr = [f\"{k}={v!r}\" for k, v in kwargs.items()]\r\n",
 							"        signature = \", \".join(args_repr + kwargs_repr)\r\n",
-							"        logger.info(f\"function {func.__name__} called with args {signature}\")\r\n",
+							"        logInfo(f\"function {func.__name__} called with args {signature}\")\r\n",
 							"        try:\r\n",
 							"            result = func(*args, **kwargs)\r\n",
 							"            return result\r\n",
 							"        except mssparkutils.handlers.notebookHandler.NotebookExit as e:\r\n",
-							"            logger.info(f\"Notebook exited with value {e}\")\r\n",
+							"            logInfo(f\"Notebook exited with value {e}\")\r\n",
 							"            mssparkutils.notebook.exit(e)\r\n",
 							"        except Exception as e:\r\n",
 							"            print(\"Logging Exception\")\r\n",
-							"            logger.exception(e)\r\n",
+							"            logException(e)\r\n",
 							"            raise e\r\n",
-							"    return wrapper"
+							"    return wrapper\r\n",
+							"\r\n",
+							"setupLogging()"
 						],
 						"outputs": [],
-						"execution_count": 47
+						"execution_count": 35
 					},
 					{
 						"cell_type": "code",
@@ -201293,16 +201328,18 @@
 							"def test():\n",
 							"    raise ValueError('BANANA')\n",
 							"\n",
-							"try:\n",
-							"    #this should appear in the logs because it's got a decorator on it\n",
-							"    logger.info(\"Running test\")\n",
-							"    test()\n",
-							"except:\n",
-							"    logger.error(\"Caught error\")\n",
+							"#change to debug\n",
+							"if False:\n",
+							"    try:\n",
+							"        #this should appear in the logs because it's got a decorator on it\n",
+							"        logInfo(\"Running test\")\n",
+							"        test()\n",
+							"    except:\n",
+							"        logError(\"Caught error\")\n",
 							""
 						],
 						"outputs": [],
-						"execution_count": 48
+						"execution_count": 30
 					},
 					{
 						"cell_type": "code",
@@ -201321,16 +201358,18 @@
 							"def test2():\n",
 							"    raise ValueError('CARROT')\n",
 							"\n",
-							"try:\n",
-							"    #this shouldn't appear in the logs because it's not got a decorator on it\n",
-							"    logger.info(\"Running test2\")\n",
-							"    test2()\n",
-							"except:\n",
-							"    logger.error(\"Caught error\")\n",
+							"logger = logging.getLogger()\n",
+							"if False:\n",
+							"    try:\n",
+							"        #this shouldn't appear in the logs because it's not got a decorator on it\n",
+							"        logInfo(\"Running test2\")\n",
+							"        test2()\n",
+							"    except:\n",
+							"        logError(\"Caught error\")\n",
 							""
 						],
 						"outputs": [],
-						"execution_count": 49
+						"execution_count": 31
 					},
 					{
 						"cell_type": "code",
@@ -201350,15 +201389,17 @@
 							"def test3():\n",
 							"    raise ValueError('CAULIFLOWER')\n",
 							"\n",
-							"try:\n",
-							"    #this should appear in the logs because it's got a decorator on it\n",
-							"    logger.info(\"Running test3\")\n",
-							"    test3()\n",
-							"except:\n",
-							"    logger.error(\"Caught error\")"
+							"#change to debug\n",
+							"if False:\n",
+							"    try:\n",
+							"        #this should appear in the logs because it's got a decorator on it\n",
+							"        logInfo(\"Running test3\")\n",
+							"        test3()\n",
+							"    except:\n",
+							"        logError(\"Caught error\")"
 						],
 						"outputs": [],
-						"execution_count": 50
+						"execution_count": 37
 					}
 				]
 			},
@@ -209410,7 +209451,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "354d1fac-551d-4fd1-8575-f0819fe97a48"
+						"spark.autotune.trackingId": "dd5e0837-edf7-4ab6-a8b8-83f956d66e00"
 					}
 				},
 				"metadata": {
@@ -209507,12 +209548,13 @@
 							"        print(\"Operation succeeded!\")\r\n",
 							"        return \"Success\"\r\n",
 							"\r\n",
-							"# Test the retry logic\r\n",
-							"try:\r\n",
-							"    wait_exponential_jitter()\r\n",
-							"except Exception as e:\r\n",
-							"    print(f\"Operation failed after retries: {e}\")\r\n",
-							""
+							"#change to debug\r\n",
+							"if False:\r\n",
+							"    # Test the retry logic\r\n",
+							"    try:\r\n",
+							"        wait_exponential_jitter()\r\n",
+							"    except Exception as e:\r\n",
+							"        print(f\"Operation failed after retries: {e}\")"
 						],
 						"outputs": [],
 						"execution_count": null
@@ -209554,10 +209596,10 @@
 						},
 						"source": [
 							"# test with invalid folder path\r\n",
-							"folder_path = \"Horizon/2099-09-24\"\r\n",
-							"path = f\"abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/{folder_path}\"\r\n",
-							"print(f\"Attempting to mount storage at path: {path}\")\r\n",
-							"mssparkutils.fs.unmount(\"/temp_raw\") \r\n",
+							"#folder_path = \"Horizon/2099-09-24\"\r\n",
+							"#path = f\"abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/{folder_path}\"\r\n",
+							"#print(f\"Attempting to mount storage at path: {path}\")\r\n",
+							"#mssparkutils.fs.unmount(\"/temp_raw\") \r\n",
 							"\r\n",
 							"def before_sleep(retry_state: RetryCallState):\r\n",
 							"    print(f\"Retrying after {retry_state.next_action.sleep} seconds...\")\r\n",
@@ -209570,12 +209612,14 @@
 							"    {\"linkedService\":\"ls_storage\"} \r\n",
 							"    )   \r\n",
 							"\r\n",
-							"try:\r\n",
-							"    mount_storage()\r\n",
-							"    print(\"Mounting storage succeeded\")\r\n",
-							"except Exception as e:\r\n",
-							"    print(\"Mounting storage failed\")\r\n",
-							"    print(e)"
+							"#change to debug\r\n",
+							"if False:\r\n",
+							"    try:\r\n",
+							"        mount_storage()\r\n",
+							"        print(\"Mounting storage succeeded\")\r\n",
+							"    except Exception as e:\r\n",
+							"        print(\"Mounting storage failed\")\r\n",
+							"        print(e)"
 						],
 						"outputs": [],
 						"execution_count": null
@@ -222394,7 +222438,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "aafb3b63-10ef-435a-b981-874b3998767f"
+						"spark.autotune.trackingId": "b8d7932f-ba57-4e84-b989-638537259403"
 					}
 				},
 				"metadata": {
@@ -223172,6 +223216,37 @@
 						],
 						"outputs": [],
 						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"def test_no_project_from_horizon_dropped(std_db: str, curated_db_migration: str, horizon_table:str, curated_table_migration:str, horizon_pk:str, curated_pk:str):\n",
+							"    df = spark.sql(f\"\"\"\n",
+							"        SELECT *\n",
+							"        FROM {std_db}.{horizon_table}\n",
+							"        WHERE {horizon_pk} NOT IN (\n",
+							"            SELECT {curated_pk} FROM {curated_db_migration}.{curated_table_migration}\n",
+							"        )\n",
+							"        AND expected_from = (\n",
+							"            SELECT MAX(expected_from) FROM {std_db}.{horizon_table}\n",
+							"        )\n",
+							"    \"\"\")\n",
+							"\n",
+							"    return df.count() == 0"
+						],
+						"outputs": [],
+						"execution_count": 1
 					},
 					{
 						"cell_type": "markdown",
@@ -226952,7 +227027,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "81fcd2f5-d1cf-4ae4-a6b3-a509027db472"
+						"spark.autotune.trackingId": "26e58c72-d922-4664-abe7-52b0ff18ae55"
 					}
 				},
 				"metadata": {
@@ -227002,7 +227077,7 @@
 							"import pprint"
 						],
 						"outputs": [],
-						"execution_count": 33
+						"execution_count": 40
 					},
 					{
 						"cell_type": "code",
@@ -227021,7 +227096,7 @@
 							"spark.catalog.refreshTable('odw_curated_migration_db.s51_advice')"
 						],
 						"outputs": [],
-						"execution_count": 64
+						"execution_count": 41
 					},
 					{
 						"cell_type": "code",
@@ -227040,7 +227115,7 @@
 							"spark.catalog.refreshTable('odw_curated_db.s51_advice')"
 						],
 						"outputs": [],
-						"execution_count": null
+						"execution_count": 42
 					},
 					{
 						"cell_type": "code",
@@ -227062,6 +227137,7 @@
 							"hrm_db_name: str = 'odw_harmonised_db'\n",
 							"curated_db_name: str = 'odw_curated_db'\n",
 							"std_table_name: str = 'sb_s51_advice'\n",
+							"horizon_std_table_name: str = 'horizon_nsip_advice'\n",
 							"hrm_table_name: str = 'sb_s51_advice'\n",
 							"hrm_table_final: str = 'nsip_s51_advice'\n",
 							"curated_table_name: str = 's51_advice'\n",
@@ -227069,10 +227145,11 @@
 							"## new curated database\n",
 							"curated_db_migration_name: str = 'odw_curated_migration_db'\n",
 							"curated_table_migration_name: str = 's51_advice'\n",
-							"primary_key: str = 'adviceId'"
+							"primary_key: str = 'adviceId'\n",
+							"horizon_pk: str = 'advicenodeid'"
 						],
 						"outputs": [],
-						"execution_count": 35
+						"execution_count": 43
 					},
 					{
 						"cell_type": "code",
@@ -227092,7 +227169,7 @@
 							"exitCode: int = 0"
 						],
 						"outputs": [],
-						"execution_count": 36
+						"execution_count": 44
 					},
 					{
 						"cell_type": "code",
@@ -227129,7 +227206,7 @@
 							"            \"attachmentIds\"]"
 						],
 						"outputs": [],
-						"execution_count": 37
+						"execution_count": 45
 					},
 					{
 						"cell_type": "code",
@@ -227148,7 +227225,7 @@
 							"%run /utils/unit-tests/py_unit_tests_functions"
 						],
 						"outputs": [],
-						"execution_count": 38
+						"execution_count": 46
 					},
 					{
 						"cell_type": "code",
@@ -227170,7 +227247,7 @@
 							"sb_hrm_table_schema = spark.table(f\"{hrm_db_name}.{hrm_table_name}\").schema"
 						],
 						"outputs": [],
-						"execution_count": 39
+						"execution_count": 47
 					},
 					{
 						"cell_type": "markdown",
@@ -227208,7 +227285,7 @@
 							"exitCode += int(not hrm_schema_correct)"
 						],
 						"outputs": [],
-						"execution_count": 40
+						"execution_count": 48
 					},
 					{
 						"cell_type": "markdown",
@@ -227248,7 +227325,7 @@
 							"    differentiate_std_and_hrm(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\", data_model_columns)"
 						],
 						"outputs": [],
-						"execution_count": 41
+						"execution_count": 49
 					},
 					{
 						"cell_type": "markdown",
@@ -227283,7 +227360,7 @@
 							"exitCode += int(not counts_match)"
 						],
 						"outputs": [],
-						"execution_count": 42
+						"execution_count": 50
 					},
 					{
 						"cell_type": "markdown",
@@ -227296,79 +227373,8 @@
 						},
 						"source": [
 							"### The below tests are for the curated_migration_db table\n",
-							"##### Test 1:  Counts match in harmonised and curated\n",
-							""
+							"##### Test 1:  Check no case is dropped from Horizon"
 						]
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"## Define the harmonise table that only includes horizon data, and the latest record per primary id.\r\n",
-							"##SourceColumns are not named consistently across different data types\r\n",
-							"def harmonise_df_hzn(hrm_db: str, hrm_table: str, primary_key: str, sourceColumn:str ) -> DataFrame:\r\n",
-							"    df_harmonise_only_hzn: DataFrame = spark.sql(f\"\"\"\r\n",
-							"    Select Distinct   \r\n",
-							"    AD.adviceId,\r\n",
-							"    AD.adviceReference ,\r\n",
-							"    CASE\r\n",
-							"        WHEN AD.caseId = 'None'\r\n",
-							"        THEN CAST(\"-1\" as INT)\r\n",
-							"        ELSE AD.caseId\r\n",
-							"    END                                                     AS caseId,\r\n",
-							"    AD.caseReference,\r\n",
-							"    AD.title,\r\n",
-							"    AD.titleWelsh,\r\n",
-							"    AD.from,\r\n",
-							"    CASE\r\n",
-							"        WHEN LOWER(AD.agent) = 'none'\r\n",
-							"        THEN NULL\r\n",
-							"        ELSE AD.agent\r\n",
-							"    END                                                     AS agent,\r\n",
-							"    CASE \r\n",
-							"        WHEN LOWER(AD.method) = 'none'\r\n",
-							"        THEN NULL\r\n",
-							"        ELSE LOWER(AD.method)\r\n",
-							"        END                                                 AS method,\r\n",
-							"    AD.enquiryDate,\r\n",
-							"    AD.enquiryDetails,\r\n",
-							"    AD.enquiryDetailsWelsh,\r\n",
-							"    AD.adviceGivenBy,\r\n",
-							"    AD.adviceDate,\r\n",
-							"    AD.adviceDetails,\r\n",
-							"    AD.adviceDetailsWelsh,\r\n",
-							"    CASE\r\n",
-							"        WHEN AD.status IN ('Not Checked','unchecked','Depublished')\r\n",
-							"        THEN 'unchecked'\r\n",
-							"        WHEN AD.status = 'Do Not Publish'\r\n",
-							"        THEN 'donotpublish'\r\n",
-							"        ELSE LOWER(AD.status)\r\n",
-							"    END                                                     AS status,\r\n",
-							"    AD.redactionStatus,\r\n",
-							"    AD.attachmentIds\r\n",
-							"\r\n",
-							"    from {hrm_db}.{hrm_table} AD\r\n",
-							"    INNER JOIN (\r\n",
-							"            SELECT {primary_key}, MAX(IngestionDate) AS latest_date\r\n",
-							"            FROM {hrm_db}.{hrm_table} AD\r\n",
-							"            WHERE LOWER({sourceColumn}) ='horizon'\r\n",
-							"            GROUP BY {primary_key}) latest \r\n",
-							"            ON AD.{primary_key} = latest.{primary_key} AND AD.IngestionDate = latest.latest_date \"\"\").drop_duplicates()\r\n",
-							"\r\n",
-							"    return df_harmonise_only_hzn"
-						],
-						"outputs": [],
-						"execution_count": 43
 					},
 					{
 						"cell_type": "code",
@@ -227385,12 +227391,14 @@
 							"collapsed": false
 						},
 						"source": [
-							"harmonised_count, curated_count, counts_match = test_counts_hrm_cur(hrm_db_name, hrm_table_final, curated_db_migration_name, curated_table_migration_name, primary_key, \"ODTSourceSystem\")\n",
-							"print(f\"Harmonised Count horizon records: {harmonised_count: ,}\\nMigrated Curated Count: {curated_count: ,}\\nCounts match: {counts_match}\")\n",
-							"exitCode += int(not counts_match)"
+							"if test_no_project_from_horizon_dropped(std_db_name, curated_db_migration_name, horizon_std_table_name, curated_table_migration_name, horizon_pk, primary_key):\n",
+							"    pass\n",
+							"else:\n",
+							"    print('FAIL: test_no_project_from_horizon_dropped')\n",
+							"    exitCode += 1"
 						],
 						"outputs": [],
-						"execution_count": 44
+						"execution_count": 51
 					},
 					{
 						"cell_type": "markdown",
@@ -227419,12 +227427,12 @@
 							}
 						},
 						"source": [
-							"no_horizon_records, total_curated_count, distinct_curated_count, counts_match = test_curated_unique_hzn_only(curated_db_migration_name, curated_table_migration_name, primary_key, \"SourceSystem\")\n",
+							"no_horizon_records, total_curated_count, distinct_curated_count, counts_match = test_curated_unique_hzn_only(curated_db_migration_name, curated_table_migration_name, primary_key)\n",
 							"print(f\"There is no other records than Horizon: {no_horizon_records:}\\nCurated Count: {total_curated_count: ,}\\n Distinct Curated Count: {distinct_curated_count:,}\\nCounts match: {counts_match}\")\n",
 							"exitCode += int(not counts_match)"
 						],
 						"outputs": [],
-						"execution_count": 45
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -227458,7 +227466,95 @@
 							"exitCode += int(not result)"
 						],
 						"outputs": [],
-						"execution_count": 46
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"#### Check array fields have duplicates in curated\r\n",
+							"Go and find examples"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"result = test_no_duplicates_in_array_column(curated_db_name, curated_table_name, \"attachmentIds\")\r\n",
+							"print(f\"No duplicates found in the attachmentIds: {result}\")\r\n",
+							"exitCode += int(not result)"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"#### Check array fields have duplicates in curated_migration"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"result = test_no_duplicates_in_array_column(curated_db_migration_name, curated_table_migration_name, \"attachmentIds\")\r\n",
+							"print(f\"No duplicates found in the attachmentIds: {result}\")\r\n",
+							"exitCode += int(not result)"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"mssparkutils.notebook.exit(exitCode)"
+						],
+						"outputs": [],
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -227473,6 +227569,76 @@
 							"### Trace service bus data from standardised to curated\n",
 							"We need to make sure the data has loaded through correctly. To do this efficiently, we will select a sample record and check that the data is maintained as it moves through the medallian architecture."
 						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"## Define the harmonise table that only includes horizon data, and the latest record per primary id.\n",
+							"##SourceColumns are not named consistently across different data types\n",
+							"def harmonise_df_hzn(hrm_db: str, hrm_table: str, primary_key: str, sourceColumn:str ) -> DataFrame:\n",
+							"    df_harmonise_only_hzn: DataFrame = spark.sql(f\"\"\"\n",
+							"    Select Distinct   \n",
+							"    AD.adviceId,\n",
+							"    AD.adviceReference ,\n",
+							"    CASE\n",
+							"        WHEN AD.caseId = 'None'\n",
+							"        THEN CAST(\"-1\" as INT)\n",
+							"        ELSE AD.caseId\n",
+							"    END                                                     AS caseId,\n",
+							"    AD.caseReference,\n",
+							"    AD.title,\n",
+							"    AD.titleWelsh,\n",
+							"    AD.from,\n",
+							"    CASE\n",
+							"        WHEN LOWER(AD.agent) = 'none'\n",
+							"        THEN NULL\n",
+							"        ELSE AD.agent\n",
+							"    END                                                     AS agent,\n",
+							"    CASE \n",
+							"        WHEN LOWER(AD.method) = 'none'\n",
+							"        THEN NULL\n",
+							"        ELSE LOWER(AD.method)\n",
+							"        END                                                 AS method,\n",
+							"    AD.enquiryDate,\n",
+							"    AD.enquiryDetails,\n",
+							"    AD.enquiryDetailsWelsh,\n",
+							"    AD.adviceGivenBy,\n",
+							"    AD.adviceDate,\n",
+							"    AD.adviceDetails,\n",
+							"    AD.adviceDetailsWelsh,\n",
+							"    CASE\n",
+							"        WHEN AD.status IN ('Not Checked','unchecked','Depublished')\n",
+							"        THEN 'unchecked'\n",
+							"        WHEN AD.status = 'Do Not Publish'\n",
+							"        THEN 'donotpublish'\n",
+							"        ELSE LOWER(AD.status)\n",
+							"    END                                                     AS status,\n",
+							"    AD.redactionStatus,\n",
+							"    AD.attachmentIds\n",
+							"\n",
+							"    from {hrm_db}.{hrm_table} AD\n",
+							"    INNER JOIN (\n",
+							"            SELECT {primary_key}, MAX(IngestionDate) AS latest_date\n",
+							"            FROM {hrm_db}.{hrm_table} AD\n",
+							"            WHERE LOWER({sourceColumn}) ='horizon'\n",
+							"            GROUP BY {primary_key}) latest \n",
+							"            ON AD.{primary_key} = latest.{primary_key} AND AD.IngestionDate = latest.latest_date \"\"\").drop_duplicates()\n",
+							"\n",
+							"    return df_harmonise_only_hzn"
+						],
+						"outputs": [],
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -227502,8 +227668,7 @@
 							},
 							"microsoft": {
 								"language": "sparksql"
-							},
-							"collapsed": false
+							}
 						},
 						"source": [
 							"%%sql\n",
@@ -227522,7 +227687,7 @@
 							"    2 DESC"
 						],
 						"outputs": [],
-						"execution_count": 47
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -227538,15 +227703,14 @@
 							},
 							"microsoft": {
 								"language": "sparksql"
-							},
-							"collapsed": false
+							}
 						},
 						"source": [
 							"%%sql\n",
 							"select attachmentIds FROM odw_curated_db.s51_advice where adviceId = 16347955"
 						],
 						"outputs": [],
-						"execution_count": 48
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -227575,8 +227739,7 @@
 							},
 							"microsoft": {
 								"language": "sparksql"
-							},
-							"collapsed": false
+							}
 						},
 						"source": [
 							"%%sql\n",
@@ -227589,7 +227752,7 @@
 							"     ingested_datetime = (select max(ingested_datetime) from odw_standardised_db.horizon_nsip_advice);"
 						],
 						"outputs": [],
-						"execution_count": 49
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -227605,8 +227768,7 @@
 							},
 							"microsoft": {
 								"language": "sparksql"
-							},
-							"collapsed": false
+							}
 						},
 						"source": [
 							"%%sql\n",
@@ -227620,7 +227782,7 @@
 							"    ingestiondate DESC"
 						],
 						"outputs": [],
-						"execution_count": 50
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -227667,7 +227829,7 @@
 							"    2 desc"
 						],
 						"outputs": [],
-						"execution_count": 51
+						"execution_count": null
 					},
 					{
 						"cell_type": "code",
@@ -227701,7 +227863,7 @@
 							"    2 desc"
 						],
 						"outputs": [],
-						"execution_count": 52
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -227730,8 +227892,7 @@
 							},
 							"microsoft": {
 								"language": "sparksql"
-							},
-							"collapsed": false
+							}
 						},
 						"source": [
 							"%%sql\n",
@@ -227745,7 +227906,7 @@
 							"    ingestiondate DESC"
 						],
 						"outputs": [],
-						"execution_count": 53
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -227774,8 +227935,7 @@
 							},
 							"microsoft": {
 								"language": "sparksql"
-							},
-							"collapsed": false
+							}
 						},
 						"source": [
 							"%%sql\n",
@@ -227787,7 +227947,7 @@
 							"     adviceid = '15179883'"
 						],
 						"outputs": [],
-						"execution_count": 54
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -227816,8 +227976,7 @@
 							},
 							"microsoft": {
 								"language": "sparksql"
-							},
-							"collapsed": false
+							}
 						},
 						"source": [
 							"%%sql\n",
@@ -227827,95 +227986,7 @@
 							"select * from odw_curated_db.s51_advice where adviceId = 25680508;"
 						],
 						"outputs": [],
-						"execution_count": 55
-					},
-					{
-						"cell_type": "markdown",
-						"metadata": {
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"#### Check array fields have duplicates in curated\r\n",
-							"Go and find examples"
-						]
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"result = test_no_duplicates_in_array_column(curated_db_name, curated_table_name, \"attachmentIds\")\r\n",
-							"print(f\"No duplicates found in the attachmentIds: {result}\")\r\n",
-							"exitCode += int(not result)"
-						],
-						"outputs": [],
-						"execution_count": 62
-					},
-					{
-						"cell_type": "markdown",
-						"metadata": {
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"#### Check array fields have duplicates in curated_migration"
-						]
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"result = test_no_duplicates_in_array_column(curated_db_migration_name, curated_table_migration_name, \"attachmentIds\")\r\n",
-							"print(f\"No duplicates found in the attachmentIds: {result}\")\r\n",
-							"exitCode += int(not result)"
-						],
-						"outputs": [],
-						"execution_count": 65
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"mssparkutils.notebook.exit(exitCode)"
-						],
-						"outputs": [],
-						"execution_count": 58
+						"execution_count": null
 					}
 				]
 			},
