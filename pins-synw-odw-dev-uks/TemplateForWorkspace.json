@@ -195275,7 +195275,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "07d8edbd-f590-44c0-a46f-f9350a1bca21"
+						"spark.autotune.trackingId": "07ca2dbd-a0b5-4949-856d-b703488fd3ea"
 					}
 				},
 				"metadata": {
@@ -195430,11 +195430,12 @@
 							"    StructField(\"ODTSourceSystem\", StringType(), True),\r\n",
 							"    StructField(\"SourceSystemID\", StringType(), True),\r\n",
 							"    StructField(\"IngestionDate\", StringType(), True),\r\n",
-							"    StructField(\"message_id\", StringType(), True),\r\n",
 							"    StructField(\"ValidTo\", StringType(), True),\r\n",
 							"    StructField(\"RowID\", StringType(), True),\r\n",
 							"    StructField(\"IsActive\", StringType(), True)\r\n",
-							"])"
+							"])\r\n",
+							"if is_servicebus_schema:\r\n",
+							"    harmonised_fields = StructType(harmonised_fields.fields + [StructField(\"message_id\", StringType(), True)])"
 						],
 						"outputs": [],
 						"execution_count": 25
@@ -221972,7 +221973,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "c77222e6-9f4a-491b-b836-127552c645c2"
+						"spark.autotune.trackingId": "2f327661-003f-4f86-a977-b981c7ae51e0"
 					}
 				},
 				"metadata": {
@@ -222045,7 +222046,9 @@
 							"\n",
 							"std_table_name: str = 'entraid'\n",
 							"hrm_table_name: str = 'entraid'\n",
-							"curated_table_name: str = 'entraid'"
+							"curated_table_name: str = 'entraid'\n",
+							"\n",
+							"primary_key: str = 'Id'"
 						],
 						"outputs": [],
 						"execution_count": 2
@@ -222177,13 +222180,42 @@
 							}
 						},
 						"source": [
-							"if test_sb_std_to_sb_hrm_no_dropping_records(std_table_name, hrm_table_name, 'Id'):\r\n",
+							"def entraid_test_std_to_hrm_no_dropping_records() -> bool:\r\n",
+							"    df: DataFrame = spark.sql(f\"\"\"\r\n",
+							"        SELECT {primary_key}\r\n",
+							"        FROM {std_db_name}.{std_table_name}\r\n",
+							"        WHERE {primary_key} NOT IN\r\n",
+							"        (\r\n",
+							"            SELECT {primary_key}\r\n",
+							"            FROM {hrm_db_name}.{hrm_table_name}\r\n",
+							"        )\r\n",
+							"    \"\"\")\r\n",
+							"    return df.count() == 0"
+						],
+						"outputs": [],
+						"execution_count": 7
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"if entraid_test_std_to_hrm_no_dropping_records():\r\n",
 							"   print(\"Test passed: No records were dropped.\")\r\n",
 							"else:\r\n",
 							"    exitCode += 1"
 						],
 						"outputs": [],
-						"execution_count": 16
+						"execution_count": 8
 					},
 					{
 						"cell_type": "markdown",
@@ -222218,7 +222250,7 @@
 							"exitCode += int(not counts_match)"
 						],
 						"outputs": [],
-						"execution_count": null
+						"execution_count": 9
 					},
 					{
 						"cell_type": "markdown",
@@ -222253,7 +222285,7 @@
 							"exitCode += int(not is_valid_data)"
 						],
 						"outputs": [],
-						"execution_count": null
+						"execution_count": 13
 					},
 					{
 						"cell_type": "code",
@@ -222272,7 +222304,7 @@
 							"mssparkutils.notebook.exit(exitCode)"
 						],
 						"outputs": [],
-						"execution_count": null
+						"execution_count": 14
 					}
 				]
 			},
