@@ -6,6 +6,9 @@
 				"name": "Ingest Raw",
 				"type": "ExecutePipeline",
 				"dependsOn": [],
+				"policy": {
+					"secureInput": false
+				},
 				"userProperties": [],
 				"typeProperties": {
 					"pipeline": {
@@ -16,53 +19,7 @@
 				}
 			},
 			{
-				"name": "Ingest Standardised",
-				"type": "SynapseNotebook",
-				"dependsOn": [
-					{
-						"activity": "Convert JSON to CSV",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "py_raw_to_std",
-						"type": "NotebookReference"
-					},
-					"parameters": {
-						"date_folder": {
-							"value": {
-								"value": "@formatDateTime(utcNow(), 'yyyy-MM-dd')",
-								"type": "Expression"
-							},
-							"type": "string"
-						},
-						"source_folder": {
-							"value": "ListedBuildings",
-							"type": "string"
-						}
-					},
-					"snapshot": true,
-					"conf": {
-						"spark.dynamicAllocation.enabled": null,
-						"spark.dynamicAllocation.minExecutors": null,
-						"spark.dynamicAllocation.maxExecutors": null
-					},
-					"numExecutors": null
-				}
-			},
-			{
-				"name": "Convert JSON to CSV",
+				"name": "Listed building - standardised",
 				"type": "SynapseNotebook",
 				"dependsOn": [
 					{
@@ -82,7 +39,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"notebook": {
-						"referenceName": "py_convert_json_to_csv_listed_buildings",
+						"referenceName": "py_load_listed_buildings_to_standardised",
 						"type": "NotebookReference"
 					},
 					"parameters": {
@@ -93,6 +50,72 @@
 							},
 							"type": "string"
 						}
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Listed building - harmonised",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Listed building - standardised",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_load_listed_buildings_to_harmonised",
+						"type": "NotebookReference"
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Listed building - curated",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Listed building - harmonised",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "listed_building",
+						"type": "NotebookReference"
 					},
 					"snapshot": true,
 					"conf": {

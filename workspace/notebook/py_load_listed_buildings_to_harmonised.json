@@ -1,0 +1,197 @@
+{
+	"name": "py_load_listed_buildings_to_harmonised",
+	"properties": {
+		"folder": {
+			"name": "odw-harmonised"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "54a97a3f-fa34-4415-bd29-232ea46c7c24"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.3",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Remove data that's changed in some way. We won't keep an explicit history as we have no requirements, this is master data, and if we need to debug changes we can use the delta timetravel history."
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"if spark._jsparkSession.catalog().tableExists('odw_harmonised_db','listed_building '):\r\n",
+					"    df = spark.sql(\"\"\"\r\n",
+					"    SELECT\r\n",
+					"            Listings.dataset\r\n",
+					"            ,Listings.`end-date` AS endDate\r\n",
+					"            ,Listings.entity AS entity\r\n",
+					"            ,Listings.`entry-date` AS entryDate\r\n",
+					"            ,Listings.geometry\r\n",
+					"            ,Listings.`listed-building-grade` AS listedBuildingGrade\r\n",
+					"            ,Listings.name\r\n",
+					"            ,Listings.`organisation-entity` AS organisationEntity\r\n",
+					"            ,Listings.point\r\n",
+					"            ,Listings.prefix\r\n",
+					"            ,Listings.reference\r\n",
+					"            ,Listings.`start-date` AS startDate\r\n",
+					"            ,Listings.typology\r\n",
+					"            ,listings.`documentation-url` AS documentationUrl\r\n",
+					"            ,NOW() AS dateReceived\r\n",
+					"        FROM\r\n",
+					"            odw_standardised_db.listed_building as Listings\r\n",
+					"            LEFT OUTER JOIN odw_harmonised_db.listedbuilding AS Target\r\n",
+					"                ON Listings.entity = Target.entity\r\n",
+					"                AND Listings.dataset = Target.dataset\r\n",
+					"                AND Listings.`end-date` = Target.endDate\r\n",
+					"                AND Listings.`entry-date` = Target.entryDate\r\n",
+					"                AND Listings.geometry = Target.geometry\r\n",
+					"                AND Listings.`listed-building-grade` = Target.listedBuildingGrade\r\n",
+					"                AND Listings.name = Target.name\r\n",
+					"                AND Listings.`organisation-entity` = Target.organisationEntity\r\n",
+					"                AND Listings.point = Target.point\r\n",
+					"                AND Listings.prefix = Target.prefix\r\n",
+					"                AND Listings.reference = Target.reference\r\n",
+					"                AND Listings.`start-date` = Target.startDate\r\n",
+					"                AND Listings.`documentation-url` = Target.documentationUrl\r\n",
+					"                AND Listings.typology = Target.typology\r\n",
+					"        WHERE\r\n",
+					"            Target.entity IS NULL\r\n",
+					"    UNION\r\n",
+					"    SELECT\r\n",
+					"            Target.dataset\r\n",
+					"            ,Target.endDate\r\n",
+					"            ,Target.entity\r\n",
+					"            ,Target.entryDate\r\n",
+					"            ,Target.geometry\r\n",
+					"            ,Target.listedBuildingGrade\r\n",
+					"            ,Target.name\r\n",
+					"            ,Target.organisationEntity\r\n",
+					"            ,Target.point\r\n",
+					"            ,Target.prefix\r\n",
+					"            ,Target.reference\r\n",
+					"            ,Target.startDate\r\n",
+					"            ,Target.typology\r\n",
+					"            ,Target.documentationUrl\r\n",
+					"            ,Target.dateReceived\r\n",
+					"        FROM\r\n",
+					"            odw_standardised_db.listed_building as Listings\r\n",
+					"            INNER JOIN odw_harmonised_db.listedbuilding AS Target\r\n",
+					"                ON Listings.entity = Target.entity\r\n",
+					"                AND Listings.dataset = Target.dataset\r\n",
+					"                AND Listings.`end-date` = Target.endDate\r\n",
+					"                AND Listings.`entry-date` = Target.entryDate\r\n",
+					"                AND Listings.geometry = Target.geometry\r\n",
+					"                AND Listings.`listed-building-grade` = Target.listedBuildingGrade\r\n",
+					"                AND Listings.name = Target.name\r\n",
+					"                AND Listings.`organisation-entity` = Target.organisationEntity\r\n",
+					"                AND Listings.point = Target.point\r\n",
+					"                AND Listings.prefix = Target.prefix\r\n",
+					"                AND Listings.reference = Target.reference\r\n",
+					"                AND Listings.`start-date` = Target.startDate\r\n",
+					"                AND Listings.`documentation-url` = Target.documentationUrl\r\n",
+					"                AND Listings.typology = Target.typology\r\n",
+					"    \"\"\")\r\n",
+					"else:\r\n",
+					"    df = spark.sql(\"\"\"\r\n",
+					"    SELECT\r\n",
+					"            Listings.dataset\r\n",
+					"            ,Listings.`end-date` AS endDate\r\n",
+					"            ,Listings.entity AS entity\r\n",
+					"            ,Listings.`entry-date` AS entryDate\r\n",
+					"            ,Listings.geometry\r\n",
+					"            ,Listings.`listed-building-grade` AS listedBuildingGrade\r\n",
+					"            ,Listings.name\r\n",
+					"            ,Listings.`organisation-entity` AS organisationEntity\r\n",
+					"            ,Listings.point\r\n",
+					"            ,Listings.prefix\r\n",
+					"            ,Listings.reference\r\n",
+					"            ,Listings.`start-date` AS startDate\r\n",
+					"            ,Listings.typology\r\n",
+					"            ,listings.`documentation-url` AS documentationUrl\r\n",
+					"            ,NOW() AS dateReceived\r\n",
+					"        FROM\r\n",
+					"            odw_standardised_db.listed_building as Listings\"\"\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"df.write.format(\"delta\").mode(\"overwrite\").saveAsTable(\"odw_harmonised_db.listed_building\")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
