@@ -68843,7 +68843,7 @@
 			"properties": {
 				"activities": [
 					{
-						"name": "rel_3_0_4",
+						"name": "rel_4_0_0",
 						"type": "ExecutePipeline",
 						"dependsOn": [],
 						"policy": {
@@ -68852,7 +68852,7 @@
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
-								"referenceName": "rel_3_0_4",
+								"referenceName": "rel_4_0_0",
 								"type": "PipelineReference"
 							},
 							"waitOnCompletion": true,
@@ -68869,7 +68869,7 @@
 				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('workspaceId'), '/pipelines/rel_3_0_4')]"
+				"[concat(variables('workspaceId'), '/pipelines/rel_4_0_0')]"
 			]
 		},
 		{
@@ -79195,6 +79195,166 @@
 				"[concat(variables('workspaceId'), '/notebooks/service_user_migration')]",
 				"[concat(variables('workspaceId'), '/notebooks/nsip_s51_advice_migration')]",
 				"[concat(variables('workspaceId'), '/notebooks/py_sb_horizon_harmonised_service_user')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/rel_4_0_0')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"description": "Release pipeline for Prod release 4_0_0",
+				"activities": [
+					{
+						"name": "rel_3_0_3",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "rel_3_0_3",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "rel_3_0_4",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "rel_3_0_3",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "rel_3_0_4",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "pln_listed_buildings_main",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "rel_3_0_4",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pln_listed_buildings_main",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "Delete migration db sb representation table",
+						"type": "SynapseNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "py_delete_table",
+								"type": "NotebookReference"
+							},
+							"parameters": {
+								"db_name": {
+									"value": "odw_curated_migration_db",
+									"type": "string"
+								},
+								"table_name": {
+									"value": "sb_nsip_representation",
+									"type": "string"
+								}
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "Delete migration db sb service user table_copy1",
+						"type": "SynapseNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "py_delete_table",
+								"type": "NotebookReference"
+							},
+							"parameters": {
+								"db_name": {
+									"value": "odw_curated_migration_db",
+									"type": "string"
+								},
+								"table_name": {
+									"value": "sb_service_user",
+									"type": "string"
+								}
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"folder": {
+					"name": "Releases/4.0.0"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/pipelines/rel_3_0_3')]",
+				"[concat(variables('workspaceId'), '/pipelines/rel_3_0_4')]",
+				"[concat(variables('workspaceId'), '/pipelines/pln_listed_buildings_main')]",
+				"[concat(variables('workspaceId'), '/notebooks/py_delete_table')]"
 			]
 		},
 		{
