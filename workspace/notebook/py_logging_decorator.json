@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "2e9fb76d-e441-45c2-8104-fe0a26886ac6"
+				"spark.autotune.trackingId": "5c26e5bf-999e-4503-b10d-a2ff6549e143"
 			}
 		},
 		"metadata": {
@@ -67,9 +67,9 @@
 				},
 				"source": [
 					"import subprocess\n",
-					"subprocess.run([\"pip\", \"install\", \"--quiet\", \"opencensus-ext-azure\"])"
+					"subprocess.run([\"pip\", \"install\", \"--quiet\", \"azure-monitor-opentelemetry\"])"
 				],
-				"execution_count": 1
+				"execution_count": 25
 			},
 			{
 				"cell_type": "code",
@@ -87,27 +87,61 @@
 				"source": [
 					"%run py_retry_logic"
 				],
-				"execution_count": 2
+				"execution_count": 26
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"import logging\n",
+					"logger = logging.getLogger()\n",
+					"display(logger.handlers)"
+				],
+				"execution_count": 27
 			},
 			{
 				"cell_type": "code",
 				"source": [
+					"#https://github.com/Azure/azure-sdk-for-python/blob/main/sdk/monitor/azure-monitor-opentelemetry-exporter/samples/logs/sample_log.py\r\n",
 					"import functools\r\n",
 					"from notebookutils import mssparkutils\r\n",
 					"from pyspark.sql import SparkSession\r\n",
 					"import logging\r\n",
-					"from opencensus.ext.azure.log_exporter import AzureLogHandler\r\n",
+					"\r\n",
+					"from opentelemetry._logs import (\r\n",
+					"    get_logger_provider,\r\n",
+					"    set_logger_provider,\r\n",
+					")\r\n",
+					"from opentelemetry.sdk._logs import (\r\n",
+					"    LoggerProvider,\r\n",
+					"    LoggingHandler,\r\n",
+					")\r\n",
+					"from opentelemetry.sdk._logs.export import BatchLogRecordProcessor\r\n",
+					"from azure.monitor.opentelemetry.exporter import AzureMonitorLogExporter\r\n",
+					"from opentelemetry import trace\r\n",
+					"\r\n",
 					"import uuid\r\n",
 					"\r\n",
 					"logger = logging.getLogger()\r\n",
+					"logger_provider = LoggerProvider()\r\n",
 					"\r\n",
 					"if mssparkutils.runtime.context['isForPipeline'] == True:\r\n",
 					"    pipelinejobid = mssparkutils.runtime.context['pipelinejobid']\r\n",
-					"    logInfo(f\"Log ID is {pipelinejobid}\")\r\n",
+					"    logger.info(f\"Log ID is {pipelinejobid}\")\r\n",
 					"else:\r\n",
 					"    #just so we can track calls between one run\r\n",
 					"    pipelinejobid = uuid.uuid4()\r\n",
-					"    logInfo(f\"Log ID is randomly generated {pipelinejobid}\")\r\n",
+					"    logger.info(f\"Log ID is randomly generated {pipelinejobid}\")\r\n",
 					"\r\n",
 					"\r\n",
 					"#generic logging functions which can be expanded to include extra information in every log message\r\n",
@@ -123,13 +157,23 @@
 					"\r\n",
 					"@retry(wait=wait_exponential(multiplier=1, min=5, max=20), stop=stop_after_delay(30) | stop_after_attempt(5), reraise=True, before_sleep=before_sleep)\r\n",
 					"def setupLogging():\r\n",
-					"    logger = logging.getLogger()\r\n",
-					"    logger.setLevel(logging.INFO)\r\n",
-					"    if True in [type(handle) == AzureLogHandler for handle in logger.handlers]:\r\n",
+					"    \r\n",
+					"    if True in [type(handle) == LoggingHandler for handle in logger.handlers]:\r\n",
+					"        logInfo(\"Logging is already setup\")\r\n",
 					"        pass\r\n",
 					"    else:\r\n",
 					"        key = mssparkutils.credentials.getSecretWithLS(\"ls_kv\", \"application-insights-connection-string\")\r\n",
-					"        logger.addHandler(AzureLogHandler(connection_string=key.split(\";\")[0]))\r\n",
+					"        \r\n",
+					"        set_logger_provider(logger_provider)\r\n",
+					"        exporter = AzureMonitorLogExporter.from_connection_string(key.split(\";\")[0])\r\n",
+					"        get_logger_provider().add_log_record_processor(BatchLogRecordProcessor(exporter, schedule_delay_millis=60000))\r\n",
+					"        handler = LoggingHandler()\r\n",
+					"        logger.addHandler(handler)\r\n",
+					"        \r\n",
+					"    logger.setLevel(logging.INFO)\r\n",
+					"\r\n",
+					"def flushLogging():\r\n",
+					"    logger_provider.force_flush()\r\n",
 					"\r\n",
 					"def logging_to_appins(func):\r\n",
 					"\r\n",
@@ -155,9 +199,11 @@
 					"            raise e\r\n",
 					"    return wrapper\r\n",
 					"\r\n",
-					"setupLogging()"
+					"setupLogging()\r\n",
+					"logInfo(\"Logging ready\")\r\n",
+					"flushLogging()"
 				],
-				"execution_count": 15
+				"execution_count": 28
 			},
 			{
 				"cell_type": "code",
@@ -185,7 +231,7 @@
 					"if False:\n",
 					"    testException()"
 				],
-				"execution_count": 4
+				"execution_count": 29
 			},
 			{
 				"cell_type": "code",
@@ -215,7 +261,7 @@
 					"        logError(\"Caught error\")\n",
 					""
 				],
-				"execution_count": 5
+				"execution_count": 30
 			},
 			{
 				"cell_type": "code",
@@ -244,7 +290,7 @@
 					"        logError(\"Caught error\")\n",
 					""
 				],
-				"execution_count": 6
+				"execution_count": 31
 			},
 			{
 				"cell_type": "code",
@@ -273,7 +319,7 @@
 					"    except:\n",
 					"        logError(\"Caught error\")"
 				],
-				"execution_count": 7
+				"execution_count": 32
 			}
 		]
 	}
