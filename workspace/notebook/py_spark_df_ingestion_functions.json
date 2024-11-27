@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "78e43bc6-677f-49b1-8510-0007c37a495a"
+				"spark.autotune.trackingId": "6162d187-64f8-4e70-93f6-1ffda5e78775"
 			}
 		},
 		"metadata": {
@@ -52,6 +52,24 @@
 		},
 		"cells": [
 			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": 22
+			},
+			{
 				"cell_type": "markdown",
 				"metadata": {
 					"nteract": {
@@ -82,11 +100,12 @@
 					"from pyspark.sql.types import StructType, StructField, ArrayType, StringType, IntegerType\n",
 					"from pyspark.sql.functions import *"
 				],
-				"execution_count": 2
+				"execution_count": 23
 			},
 			{
 				"cell_type": "code",
 				"source": [
+					"@logging_to_appins\n",
 					"def apply_df_to_table(df: DataFrame, db_name: str, table_name: str) -> None:\n",
 					"\n",
 					"    from notebookutils import mssparkutils\n",
@@ -101,7 +120,7 @@
 					"    # Rename the temporary table to replace the original table\n",
 					"    spark.sql(f\"ALTER TABLE {db_name}.{temp_table_name} RENAME TO {db_name}.{table_name}\")"
 				],
-				"execution_count": null
+				"execution_count": 24
 			},
 			{
 				"cell_type": "code",
@@ -117,6 +136,7 @@
 					}
 				},
 				"source": [
+					"@logging_to_appins\n",
 					"def normalize_field(field):\n",
 					"    \"\"\" Normalize field for comparison by ignoring nullable differences and sorting fields. \"\"\"\n",
 					"    if isinstance(field.dataType, StructType):\n",
@@ -128,6 +148,7 @@
 					"    else:\n",
 					"        return (field.name, field.dataType.simpleString().replace(\"NullableType\", \"\"))\n",
 					"\n",
+					"@logging_to_appins\n",
 					"def compare_schemas(schema1: StructType, schema2: StructType) -> tuple:\n",
 					"    def get_field_set(schema):\n",
 					"        \"\"\" Convert schema fields to a set ignoring nullable differences and order of fields. \"\"\"\n",
@@ -146,7 +167,7 @@
 					"    return in_schema1_not_in_schema2_sorted, in_schema2_not_in_schema1_sorted\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 25
 			},
 			{
 				"cell_type": "code",
@@ -162,22 +183,23 @@
 					}
 				},
 				"source": [
+					"@logging_to_appins\n",
 					"def merge_schema(table_name: str, table_df: DataFrame, in_current_not_in_existing: tuple, in_existing_not_in_current: tuple) -> None:\n",
 					"\n",
 					"    # removing columns from the existing table that are not in the new df\n",
 					"    for item in in_existing_not_in_current:\n",
-					"        print(f\"Removing column '{item[0]}' from {table_name} since it's not in the new data's schema\")\n",
+					"        logInfo(f\"Removing column '{item[0]}' from {table_name} since it's not in the new data's schema\")\n",
 					"        table_df = table_df.drop(item[0])\n",
 					"\n",
 					"    # adding new columns in the existing table\n",
 					"    for item in in_current_not_in_existing:\n",
-					"        print(f\"Adding new column '{item[0]}' of type '{item[1]}' in {table_name} since it's not in the table's schema\")\n",
+					"        logInfo(f\"Adding new column '{item[0]}' of type '{item[1]}' in {table_name} since it's not in the table's schema\")\n",
 					"        table_df = table_df.withColumn(item[0], lit(None).cast(item[1]))\n",
 					"    \n",
 					"    apply_df_to_table(table_df, table_name.split('.')[0], table_name.split('.')[1])\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 26
 			},
 			{
 				"cell_type": "code",
@@ -193,6 +215,7 @@
 					}
 				},
 				"source": [
+					"@logging_to_appins\n",
 					"def compare_and_merge_schema(df: DataFrame, table_name: str):\n",
 					"    # get the existing table's df\n",
 					"    table_df: DataFrame = spark.table(table_name)\n",
@@ -201,7 +224,7 @@
 					"    in_current_not_in_existing, in_existing_not_in_current = compare_schemas(df.schema, table_df.schema)\n",
 					"\n",
 					"    if in_current_not_in_existing or in_existing_not_in_current:\n",
-					"        print('Schemas do not match')\n",
+					"        logInfo('Schemas do not match')\n",
 					"        print(\"#\" * 100)\n",
 					"        print('Columns in new data not in existing table: \\n', in_current_not_in_existing)\n",
 					"        print(\"#\" * 100)\n",
@@ -214,7 +237,7 @@
 					"    else:\n",
 					"        print('Schemas match.')"
 				],
-				"execution_count": null
+				"execution_count": 27
 			},
 			{
 				"cell_type": "code",
@@ -230,6 +253,7 @@
 					}
 				},
 				"source": [
+					"@logging_to_appins\n",
 					"def collect_all_raw_sb_data(folder_name: str, schema: StructType) -> DataFrame:\n",
 					"\n",
 					"    \"\"\"\n",
@@ -260,7 +284,7 @@
 					"\n",
 					"    return df_with_filename"
 				],
-				"execution_count": 5
+				"execution_count": 28
 			},
 			{
 				"cell_type": "code",
@@ -276,6 +300,7 @@
 					}
 				},
 				"source": [
+					"@logging_to_appins\n",
 					"def collect_all_raw_sb_data_historic(folder_name: str) -> DataFrame:\n",
 					"\n",
 					"    \"\"\"\n",
@@ -304,7 +329,7 @@
 					"\n",
 					"    return df_with_filename"
 				],
-				"execution_count": null
+				"execution_count": 29
 			},
 			{
 				"cell_type": "code",
@@ -320,16 +345,17 @@
 					}
 				},
 				"source": [
-					"\n",
+					"@logging_to_appins\n",
 					"def is_array_of_struct(field):\n",
 					"    field_type = field.dataType\n",
 					"    return isinstance(field_type, ArrayType) and isinstance(field_type.elementType, StructType)\n",
 					"\n",
-					"\n",
+					"@logging_to_appins\n",
 					"def get_empty_array_of_structs(schema):\n",
 					"    empty_struct = F.struct([F.lit(\"\").cast(field.dataType).alias(field.name) for field in schema.fields])\n",
 					"    return F.array(empty_struct)\n",
 					"\n",
+					"@logging_to_appins\n",
 					"def cast_null_columns(df: DataFrame, schema: StructType) -> DataFrame:\n",
 					"\n",
 					"    \"\"\"\n",
@@ -386,7 +412,7 @@
 					"    return df\n",
 					"    "
 				],
-				"execution_count": null
+				"execution_count": 30
 			}
 		]
 	}

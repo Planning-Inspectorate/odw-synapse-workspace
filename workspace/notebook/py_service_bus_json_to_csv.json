@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "a1f55569-1c89-4eae-94c5-f9fc9ab77eea"
+				"spark.autotune.trackingId": "73847c7a-f732-4f59-b72b-770322d79e0f"
 			}
 		},
 		"metadata": {
@@ -51,6 +51,24 @@
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": 4
+			},
 			{
 				"cell_type": "markdown",
 				"metadata": {
@@ -98,7 +116,7 @@
 					"source_folder=''\n",
 					"source_frequency_folder=''"
 				],
-				"execution_count": 6
+				"execution_count": 5
 			},
 			{
 				"cell_type": "markdown",
@@ -129,7 +147,7 @@
 					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
 					"raw_container = \"abfss://odw-raw@\" + storage_account"
 				],
-				"execution_count": 7
+				"execution_count": 6
 			},
 			{
 				"cell_type": "markdown",
@@ -158,6 +176,7 @@
 					}
 				},
 				"source": [
+					"@logging_to_appins\n",
 					"def convert_json_array_to_csv(json_obj):\n",
 					"    def process_json(obj):\n",
 					"        if isinstance(obj, dict):\n",
@@ -171,7 +190,7 @@
 					"\n",
 					"    return process_json(json_obj)"
 				],
-				"execution_count": 8
+				"execution_count": 7
 			},
 			{
 				"cell_type": "markdown",
@@ -208,7 +227,7 @@
 					"try:\n",
 					"    files = mssparkutils.fs.ls(source_path)\n",
 					"except Exception as e:\n",
-					"    print(f\"No new data\")\n",
+					"    logInfo(f\"No new data\")\n",
 					"    mssparkutils.notebook.exit(False)\n",
 					"\n",
 					"files = [f for f in files if f.name.endswith('.json')]\n",
@@ -216,7 +235,7 @@
 					"data = []\n",
 					"\n",
 					"for file in files:\n",
-					"    print(f\"Processing: {file.name}\")\n",
+					"    logInfo(f\"Processing: {file.name}\")\n",
 					"    df = spark.read.json(file.path)\n",
 					"    try:\n",
 					"        json_data = [json.loads(d) for d in df.toJSON().collect()]\n",
@@ -249,13 +268,13 @@
 					"        json_data_parsed = [convert_json_array_to_csv(d) for d in json_data]\n",
 					"        data.extend(json_data_parsed)\n",
 					"    except Exception as e:\n",
-					"        print(f\"Unable to process {file.name}: {str(e)}\")\n",
+					"        logError(f\"Unable to process {file.name}: {str(e)}\")\n",
 					"\n",
 					"if len(data) == 0:\n",
-					"    print('No new data')\n",
+					"    logInfo('No new data')\n",
 					"    mssparkutils.notebook.exit(False)"
 				],
-				"execution_count": 9
+				"execution_count": 8
 			},
 			{
 				"cell_type": "markdown",
@@ -301,17 +320,17 @@
 					"    try:\n",
 					"        mssparkutils.fs.rm(final_output_file_path, True)\n",
 					"    except Exception as e:\n",
-					"        print(f\"File does not exist already. Continuing conversion.\")\n",
+					"        logInfo(f\"File does not exist already. Continuing conversion.\")\n",
 					"    mssparkutils.fs.mv(output_file.path, final_output_file_path, True)\n",
 					"    mssparkutils.fs.rm(output_folder_path, True)\n",
 					"    \n",
 					"except Exception as e:\n",
-					"    print(f\"An error occurred while writing to CSV: {str(e)}\")\n",
+					"    logError(f\"An error occurred while writing to CSV: {str(e)}\")\n",
 					"    mssparkutils.notebook.exit(False)\n",
 					"\n",
 					"mssparkutils.notebook.exit(True)"
 				],
-				"execution_count": 10
+				"execution_count": null
 			}
 		]
 	}

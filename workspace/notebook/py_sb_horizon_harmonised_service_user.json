@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "cc7607a0-9913-427c-aa69-5db331da6e25"
+				"spark.autotune.trackingId": "99d0cedb-b4b1-4dfe-bc3c-79f358776073"
 			}
 		},
 		"metadata": {
@@ -53,12 +53,30 @@
 		"cells": [
 			{
 				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": 1
+			},
+			{
+				"cell_type": "code",
 				"source": [
 					"from pyspark.sql.types import IntegerType, ArrayType, StructType, StructField\n",
 					"from pyspark.sql import Row\n",
 					"from pyspark.sql.functions import *"
 				],
-				"execution_count": 52
+				"execution_count": 2
 			},
 			{
 				"cell_type": "markdown",
@@ -102,7 +120,7 @@
 					"# this can be a combination of id, caseReference, and serviceUserType\n",
 					"primary_key = 'TEMP_PK'"
 				],
-				"execution_count": 53
+				"execution_count": 3
 			},
 			{
 				"cell_type": "markdown",
@@ -172,10 +190,10 @@
 					"        {service_bus_table}\n",
 					"    \"\"\")\n",
 					"\n",
-					"# print(service_bus_data.count())\n",
+					"logInfo(f\"service_bus_data count {service_bus_data.count()}\")\n",
 					"# display(service_bus_data.head(10))"
 				],
-				"execution_count": 54
+				"execution_count": 4
 			},
 			{
 				"cell_type": "markdown",
@@ -270,10 +288,10 @@
 					"        AND typeOfInvolvement IN ('Appellant', 'tAppellant', 'Apellant')\n",
 					"\"\"\")\n",
 					"\n",
-					"# print(appeal_casework_appellant_data.count())\n",
+					"logInfo(f\"appeal_casework_appellant_data count {appeal_casework_appellant_data.count()}\")\n",
 					"# display(appeal_casework_appellant_data.head(10))"
 				],
-				"execution_count": 55
+				"execution_count": 5
 			},
 			{
 				"cell_type": "markdown",
@@ -355,11 +373,10 @@
 					"        AND typeOfInvolvement = 'Agent'\n",
 					"\"\"\")\n",
 					"\n",
-					"\n",
-					"# print(appeal_casework_agent_data.count())\n",
+					"logInfo(f\"appeal_casework_agent_data count {appeal_casework_agent_data.count()}\")\n",
 					"# display(appeal_casework_agent_data.head(10))"
 				],
-				"execution_count": 56
+				"execution_count": 6
 			},
 			{
 				"cell_type": "markdown",
@@ -440,10 +457,10 @@
 					"        AND caseNodeId IS NOT NULL\n",
 					"\"\"\")\n",
 					"\n",
-					"# print(nsip_project_applicant_data.count())\n",
+					"logInfo(f\"nsip_project_applicant_data count {nsip_project_applicant_data.count()}\")\n",
 					"# display(nsip_project_applicant_data.head(10))"
 				],
-				"execution_count": 57
+				"execution_count": 7
 			},
 			{
 				"cell_type": "markdown",
@@ -536,10 +553,10 @@
 					"        AND CaseReference IS NOT NULL\n",
 					"\"\"\")\n",
 					"\n",
-					"# print(relevant_reps_represented_data.count())\n",
+					"logInfo(f\"relevant_reps_represented_data count {relevant_reps_represented_data.count()}\")\n",
 					"# display(relevant_reps_represented_data.head(10))"
 				],
-				"execution_count": 58
+				"execution_count": 8
 			},
 			{
 				"cell_type": "markdown",
@@ -627,10 +644,10 @@
 					"        AND CaseReference IS NOT NULL\n",
 					"\"\"\")\n",
 					"\n",
-					"# print(relevant_reps_agent_data.count())\n",
+					"logInfo(f\"relevant_reps_agent_data count {relevant_reps_agent_data.count()}\")\n",
 					"# display(relevant_reps_agent_data.head(10))"
 				],
-				"execution_count": 59
+				"execution_count": 9
 			},
 			{
 				"cell_type": "markdown",
@@ -666,9 +683,9 @@
 					"            .union(relevant_reps_represented_data)\n",
 					"            .union(relevant_reps_agent_data))\n",
 					"            \n",
-					"print(results.count())"
+					"logInfo(f\"Total Results count {results.count()}\")"
 				],
-				"execution_count": 60
+				"execution_count": 10
 			},
 			{
 				"cell_type": "code",
@@ -684,9 +701,11 @@
 					}
 				},
 				"source": [
-					"results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
+					"logInfo(f\"Writing {spark_table_final}\")\n",
+					"results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\n",
+					"logInfo(f\"Written {spark_table_final}\")"
 				],
-				"execution_count": 61
+				"execution_count": 11
 			},
 			{
 				"cell_type": "markdown",
@@ -737,7 +756,7 @@
 					"            {spark_table_final}\n",
 					"    \"\"\")"
 				],
-				"execution_count": 62
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
@@ -776,7 +795,7 @@
 					"        ORDER BY currentRow.ReverseOrderProcessed\n",
 					"\"\"\")"
 				],
-				"execution_count": 63
+				"execution_count": 13
 			},
 			{
 				"cell_type": "code",
@@ -794,7 +813,7 @@
 				"source": [
 					"df_calcs = df_calcs.withColumnRenamed(primary_key, f\"temp_{primary_key}\").withColumnRenamed(\"IngestionDate\", \"temp_IngestionDate\")"
 				],
-				"execution_count": 64
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
@@ -850,7 +869,7 @@
 					"        {spark_table_final}\"\"\")\n",
 					"    "
 				],
-				"execution_count": 65
+				"execution_count": 15
 			},
 			{
 				"cell_type": "code",
@@ -866,11 +885,11 @@
 					}
 				},
 				"source": [
+					"logInfo(f\"Merging and dropping {spark_table_final}\")\n",
 					"columns = results.columns\n",
-					"\n",
 					"results = results.drop(\"ServiceUserID\", \"ValidTo\", \"Migrated\", \"IsActive\")"
 				],
-				"execution_count": 66
+				"execution_count": 16
 			},
 			{
 				"cell_type": "code",
@@ -887,9 +906,10 @@
 				},
 				"source": [
 					"final_df = results.join(df_calcs, (df_calcs[f\"temp_{primary_key}\"] == results[primary_key]) & (df_calcs[\"temp_IngestionDate\"] == results[\"IngestionDate\"])).select(columns)\n",
-					"final_df = final_df.drop(primary_key).drop_duplicates()"
+					"final_df = final_df.drop(primary_key).drop_duplicates()\n",
+					"logInfo(f\"Done merging and dropping {spark_table_final}\")"
 				],
-				"execution_count": 67
+				"execution_count": 17
 			},
 			{
 				"cell_type": "code",
@@ -905,9 +925,11 @@
 					}
 				},
 				"source": [
-					"final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
+					"logInfo(f\"Writing final {spark_table_final}\")\n",
+					"final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\n",
+					"logInfo(f\"Written final {spark_table_final}\")"
 				],
-				"execution_count": 68
+				"execution_count": 18
 			}
 		]
 	}

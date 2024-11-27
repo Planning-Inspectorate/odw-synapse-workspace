@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5fe14c77-be3f-47fa-9d13-bed5ef55ee4b"
+				"spark.autotune.trackingId": "f154ed90-a416-4e64-96f2-b4411a4e52aa"
 			}
 		},
 		"metadata": {
@@ -54,12 +54,30 @@
 		"cells": [
 			{
 				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": 8
+			},
+			{
+				"cell_type": "code",
 				"source": [
 					"from pyspark.sql.types import IntegerType, ArrayType, StructType, StructField\r\n",
 					"from pyspark.sql import Row\r\n",
 					"from pyspark.sql.functions import *"
 				],
-				"execution_count": 43
+				"execution_count": 9
 			},
 			{
 				"cell_type": "code",
@@ -79,7 +97,7 @@
 					"horizon_table = \"odw_standardised_db.horizon_nsip_relevant_representation\"\r\n",
 					"spark_table_final = \"odw_harmonised_db.nsip_representation\""
 				],
-				"execution_count": 44
+				"execution_count": 10
 			},
 			{
 				"cell_type": "markdown",
@@ -182,7 +200,7 @@
 					"\r\n",
 					""
 				],
-				"execution_count": 45
+				"execution_count": 11
 			},
 			{
 				"cell_type": "code",
@@ -280,7 +298,7 @@
 					"                \"\"\")\r\n",
 					""
 				],
-				"execution_count": 46
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
@@ -305,7 +323,7 @@
 					"#sort columns into same order as service bus\r\n",
 					"horizon_data = horizon_data.select(service_bus_data.columns)"
 				],
-				"execution_count": 47
+				"execution_count": 13
 			},
 			{
 				"cell_type": "code",
@@ -323,7 +341,7 @@
 				"source": [
 					"results = service_bus_data.union(horizon_data)"
 				],
-				"execution_count": 48
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
@@ -340,9 +358,11 @@
 					"collapsed": false
 				},
 				"source": [
-					"results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
+					"logInfo(f\"Writing {spark_table_final}\")\n",
+					"results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\n",
+					"logInfo(f\"Written {spark_table_final}\")"
 				],
-				"execution_count": 49
+				"execution_count": 15
 			},
 			{
 				"cell_type": "markdown",
@@ -394,7 +414,7 @@
 					"FROM\r\n",
 					"    odw_harmonised_db.nsip_representation"
 				],
-				"execution_count": 50
+				"execution_count": 16
 			},
 			{
 				"cell_type": "code",
@@ -416,7 +436,7 @@
 					"#  select * from vw_nsip_relevant_representation_calculations_base\r\n",
 					"#  where representationid = 100006295"
 				],
-				"execution_count": 51
+				"execution_count": 17
 			},
 			{
 				"cell_type": "code",
@@ -454,7 +474,7 @@
 					"                                ON CurrentRow.representationId = Raw.representationId \r\n",
 					"                                ORDER BY currentRow.ReverseOrderProcessed\"\"\")"
 				],
-				"execution_count": 52
+				"execution_count": 18
 			},
 			{
 				"cell_type": "code",
@@ -475,7 +495,7 @@
 					"# df_df = df_calcs.filter(col(\"representationId\")==100006295)\r\n",
 					"# display(df_df)"
 				],
-				"execution_count": 53
+				"execution_count": 19
 			},
 			{
 				"cell_type": "code",
@@ -625,7 +645,7 @@
 					"                        {spark_table_final} AS Target\"\"\")\r\n",
 					""
 				],
-				"execution_count": 54
+				"execution_count": 20
 			},
 			{
 				"cell_type": "code",
@@ -644,7 +664,7 @@
 					"columns = results.columns\n",
 					"results = results.drop(\"NSIPRepresentaionID\", \"ValidTo\", \"Migrated\", \"IsActive\")"
 				],
-				"execution_count": 55
+				"execution_count": 21
 			},
 			{
 				"cell_type": "code",
@@ -660,12 +680,17 @@
 					}
 				},
 				"source": [
+					"logInfo(f\"Merging final {spark_table_final}\")\r\n",
 					"final_df = results.join(df_calcs, (df_calcs[\"temp_representationId\"] == results[\"representationId\"]) & (df_calcs[\"temp_IngestionDate\"] == results[\"IngestionDate\"])).select(columns)\r\n",
+					"logInfo(f\"Dropping dupes from {spark_table_final}\")\r\n",
 					"final_df = final_df.drop_duplicates()\r\n",
 					"\r\n",
-					"final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
+					"\r\n",
+					"logInfo(f\"Writing final {spark_table_final}\")\r\n",
+					"final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\r\n",
+					"logInfo(f\"Written final {spark_table_final}\")"
 				],
-				"execution_count": 56
+				"execution_count": 22
 			}
 		]
 	}

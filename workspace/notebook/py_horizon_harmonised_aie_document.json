@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "1656784c-07bf-427e-ba37-af48a106899e"
+				"spark.autotune.trackingId": "5e5da79f-5711-4d9d-bec4-0ba6769a7c30"
 			}
 		},
 		"metadata": {
@@ -53,12 +53,30 @@
 		"cells": [
 			{
 				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": 2
+			},
+			{
+				"cell_type": "code",
 				"source": [
 					"from pyspark.sql.types import IntegerType, ArrayType, StructType, StructField\n",
 					"from pyspark.sql import Row\n",
 					"from pyspark.sql.functions import *"
 				],
-				"execution_count": null
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
@@ -79,7 +97,7 @@
 					"\n",
 					"primary_key = 'TEMP_PK'"
 				],
-				"execution_count": null
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -150,7 +168,7 @@
 					"                    expected_from = (SELECT MAX(expected_from) FROM {horizon_table})\n",
 					"            \"\"\")"
 				],
-				"execution_count": null
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
@@ -166,9 +184,11 @@
 					}
 				},
 				"source": [
-					"results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
+					"logInfo(f\"Writing to {spark_table_final}\")\n",
+					"results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\n",
+					"logInfo(f\"Written to {spark_table_final}\")"
 				],
-				"execution_count": null
+				"execution_count": 6
 			},
 			{
 				"cell_type": "markdown",
@@ -219,7 +239,7 @@
 					"            {spark_table_final}\n",
 					"    \"\"\")"
 				],
-				"execution_count": null
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
@@ -252,7 +272,7 @@
 					"                    \"\"\")\n",
 					"                    "
 				],
-				"execution_count": null
+				"execution_count": 8
 			},
 			{
 				"cell_type": "code",
@@ -270,7 +290,7 @@
 				"source": [
 					"df_calcs =df_calcs.withColumnRenamed(primary_key, f\"temp_{primary_key}\").withColumnRenamed(\"IngestionDate\", \"temp_IngestionDate\")"
 				],
-				"execution_count": null
+				"execution_count": 9
 			},
 			{
 				"cell_type": "code",
@@ -373,7 +393,7 @@
 					"                \"\"\")\n",
 					"    "
 				],
-				"execution_count": null
+				"execution_count": 10
 			},
 			{
 				"cell_type": "code",
@@ -390,10 +410,9 @@
 				},
 				"source": [
 					"columns = results.columns\n",
-					"\n",
 					"results = results.drop(\"AIEDocumentDataID\", \"ValidTo\", \"Migrated\", \"IsActive\")"
 				],
-				"execution_count": null
+				"execution_count": 11
 			},
 			{
 				"cell_type": "code",
@@ -409,10 +428,12 @@
 					}
 				},
 				"source": [
+					"logInfo(f\"Merging and de-duplicating from {spark_table_final}\")\n",
 					"final_df = results.join(df_calcs, (df_calcs[f\"temp_{primary_key}\"] == results[primary_key]) & (df_calcs[\"temp_IngestionDate\"] == results[\"IngestionDate\"])).select(columns)\n",
-					"final_df = final_df.drop(primary_key).drop_duplicates()"
+					"final_df = final_df.drop(primary_key).drop_duplicates()\n",
+					"logInfo(f\"Done merging and de-duplicating from {spark_table_final}\")"
 				],
-				"execution_count": null
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
@@ -428,9 +449,11 @@
 					}
 				},
 				"source": [
-					"final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
+					"logInfo(f\"Writing to {spark_table_final}\")\n",
+					"final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\n",
+					"logInfo(f\"Written to {spark_table_final}\")"
 				],
-				"execution_count": null
+				"execution_count": 13
 			}
 		]
 	}

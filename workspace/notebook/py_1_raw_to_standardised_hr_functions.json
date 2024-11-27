@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "47630a34-72e6-4def-87a3-a131daae442d"
+				"spark.autotune.trackingId": "b5e292e0-2125-42bb-b2c7-8541e107705a"
 			}
 		},
 		"metadata": {
@@ -70,7 +70,25 @@
 					"import warnings\n",
 					"warnings.filterwarnings(\"ignore\", message=\"iteritems is deprecated\")"
 				],
-				"execution_count": 84
+				"execution_count": 1
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
@@ -88,7 +106,7 @@
 				"source": [
 					"%run  /0-odw-source-to-raw/Fileshare/SAP_HR/py_0_source_to_raw_hr_functions"
 				],
-				"execution_count": 85
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
@@ -106,7 +124,7 @@
 				"source": [
 					"%run /utils/py_mount_storage"
 				],
-				"execution_count": 86
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -122,6 +140,7 @@
 					}
 				},
 				"source": [
+					"@logging_to_appins\n",
 					"def validate_parameters(storage_acc, raw_container, raw_source_folder, raw_name, standardised_container, standardised_source_folder, standardised_name, linked_service, sheet_name=0, header_row=0):\n",
 					"    \n",
 					"    ''' \n",
@@ -138,7 +157,6 @@
 					"    \n",
 					"    ### imports\n",
 					"    from notebookutils import mssparkutils\n",
-					"    import logging\n",
 					"    \n",
 					"    ### creating filepath\n",
 					"    filepath = raw_container + raw_source_folder + raw_name\n",
@@ -175,7 +193,7 @@
 					"        raise TypeError(\"Header row should be an integer value\")\n",
 					""
 				],
-				"execution_count": 87
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
@@ -191,6 +209,7 @@
 					}
 				},
 				"source": [
+					"@logging_to_appins\n",
 					"def _cleanse_headers(df):\n",
 					"    '''\n",
 					"    NOT A PURE FUNCTION\n",
@@ -213,6 +232,7 @@
 					"\n",
 					"    return df \n",
 					"\n",
+					"@logging_to_appins\n",
 					"def _change_types(df):\n",
 					"    '''\n",
 					"    NOT A PURE FUNCTION\n",
@@ -228,6 +248,7 @@
 					"        \n",
 					"    return df.astype(str, errors='ignore')\n",
 					"\n",
+					"@logging_to_appins\n",
 					"def ingest_excel_to_parquet(storage_acc, raw_container, raw_source_folder, raw_name, standardised_container, standardised_source_folder, standardised_name, linked_service, sheet_name=0, header=0):\n",
 					"\n",
 					"    '''\n",
@@ -262,10 +283,12 @@
 					"    df = _change_types(df)\n",
 					"\n",
 					"    ### writing output\n",
+					"    logInfo(f\"Writing to {targetpath}\")\n",
 					"    df.to_parquet(targetpath)\n",
+					"    logInfo(f\"Written to {targetpath}\")\n",
 					""
 				],
-				"execution_count": 88
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
@@ -281,6 +304,7 @@
 					}
 				},
 				"source": [
+					"@logging_to_appins\n",
 					"def enable_delta_on_parquet(standardised_container, standardised_source_folder):\n",
 					"    '''\n",
 					"    Take a standard parquet file and enable delta lake capabiltiies on the file\n",
@@ -300,9 +324,11 @@
 					"    ### converting parquet to delta table\n",
 					"    from delta.tables import DeltaTable\n",
 					"    if not DeltaTable.isDeltaTable(spark,target_delta_folder):\n",
-					"        deltaTable = DeltaTable.convertToDelta(spark, f\"parquet.`{target_delta_folder}`\") "
+					"        logInfo(f\"Converting to {target_delta_folder}\")\n",
+					"        deltaTable = DeltaTable.convertToDelta(spark, f\"parquet.`{target_delta_folder}`\") \n",
+					"        logInfo(f\"Converted to {target_delta_folder}\")"
 				],
-				"execution_count": 89
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
@@ -318,6 +344,7 @@
 					}
 				},
 				"source": [
+					"@logging_to_appins\n",
 					"def lakedb_table_sparksql(db_name,delta_lake_table_name,standardised_container, standardised_source_folder):\n",
 					"    '''\n",
 					"    Make delta parquet file available in lake database\n",
@@ -335,10 +362,12 @@
 					"    ### outstanding\n",
 					"\n",
 					"    ### make delta table available to be queried in spark sql\n",
+					"    logInfo(f\"Creating delta table {db_name}.{delta_lake_table_name}\")\n",
 					"    spark.sql(f\"drop table if exists {db_name}.{delta_lake_table_name};\")\n",
-					"    spark.sql(f\"CREATE TABLE {db_name}.{delta_lake_table_name} USING DELTA LOCATION '{target_delta_folder}'\")"
+					"    spark.sql(f\"CREATE TABLE {db_name}.{delta_lake_table_name} USING DELTA LOCATION '{target_delta_folder}'\")\n",
+					"    logInfo(f\"Created delta table {db_name}.{delta_lake_table_name}\")"
 				],
-				"execution_count": 90
+				"execution_count": 8
 			},
 			{
 				"cell_type": "code",
@@ -354,6 +383,7 @@
 					}
 				},
 				"source": [
+					"@logging_to_appins\n",
 					"def ingest_adhoc(storage_account, \n",
 					"                    definition,\n",
 					"                    folder_path, \n",
@@ -420,6 +450,8 @@
 					"    ### mount the data lake storage in Synapse to the Synapse File Mount API \n",
 					"    mount_storage(path=folder_path)\n",
 					"\n",
+					"    logInfo(f\"Reading {filename}\")\n",
+					"\n",
 					"    ### open .csv and .xlsx files using pandas                                 \n",
 					"    if \".xlsx\" in filename.lower():\n",
 					"        sheet_name = definition['Source_Sheet_Name'] if 'Source_Sheet_Name' in definition else 0\n",
@@ -436,7 +468,7 @@
 					"        if isMultilineJSON == False:\n",
 					"            df = spark.read.json(f\"{folder_path}/{filename}\")\n",
 					"        else:\n",
-					"            print(\"Reading multiline JSON\")\n",
+					"            logInfo(\"Reading multiline JSON\")\n",
 					"            df = spark.read.option(\"multiline\", \"true\").json(f\"{folder_path}/{filename}\")\n",
 					"\n",
 					"            #we need to pull the data from a specific data attribute\n",
@@ -485,7 +517,9 @@
 					"            sparkDF = sparkDF.withColumn(field.name, col(field.name).cast(table_field.dataType))\n",
 					"\n",
 					"    ### writing the dataframe to the existing standardised table\n",
+					"    logInfo(f\"Writing data to odw_standardised_db.{standardised_table_name}\")\n",
 					"    sparkDF.write.option(\"mergeSchema\", \"true\").format(\"delta\").mode(\"append\").saveAsTable(f\"odw_standardised_db.{standardised_table_name}\")\n",
+					"    logInfo(f\"Written data to odw_standardised_db.{standardised_table_name}\")\n",
 					"    \n",
 					"    standardised_table_df_new = spark.read.format(\"delta\").load(standardised_table_location)\n",
 					"    rows_new = standardised_table_df.filter((standardised_table_df.expected_from == expected_from) &  (standardised_table_df.expected_to == expected_to)).count()\n",
@@ -493,14 +527,14 @@
 					"    ### test correct number of rows have written\n",
 					"    if rows_raw <= rows_new:\n",
 					"        #count up the rows which match the dates, we should at LEAST have those, multiple runs on the same day will lead to the counts not matching however\n",
-					"        print('All rows have successfully been written')\n",
+					"        logInfo('All rows have successfully been written')\n",
 					"    else:\n",
-					"        print(f\"All rows have NOT been successfully written. Expected {rows_raw} but {rows_new} written\")\n",
+					"        logError(f\"All rows have NOT been successfully written. Expected {rows_raw} but {rows_new} written\")\n",
 					"        ingestion_failure = True\n",
 					"    return (ingestion_failure, rows_raw)\n",
 					""
 				],
-				"execution_count": 91
+				"execution_count": 9
 			}
 		]
 	}

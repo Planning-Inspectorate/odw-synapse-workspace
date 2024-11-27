@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "590a6ca8-c854-4727-847b-1ab3196b47dd"
+				"spark.autotune.trackingId": "6e247d00-3b1c-4168-b4bc-9047d75eee56"
 			}
 		},
 		"metadata": {
@@ -66,6 +66,26 @@
 					}
 				},
 				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": 5
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"@logging_to_appins\r\n",
+					"@retry(wait=wait_random_exponential(multiplier=1, max=60), before_sleep=before_sleep)\r\n",
 					"def azfileshare_new_files(akv_name:str, secret_name:str, kv_linked_service:str, share_name:str, directory_path:str, jsonschema:str, target_container:str, target_folder:str, db_name:str, table_name:str):\r\n",
 					"    '''\r\n",
 					"    Function which determines if any new files are available in the datalabs environment\r\n",
@@ -150,7 +170,7 @@
 					"        all_paths = [paths[\"Filepath\"] for paths in new_paths.collect()]\r\n",
 					"        mssparkutils.notebook.exit(\",,,\".join(all_paths))"
 				],
-				"execution_count": 35
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
@@ -166,6 +186,7 @@
 					}
 				},
 				"source": [
+					"@logging_to_appins\r\n",
 					"def create_table_from_schema(jsonschema:str, db_name:str, table_name:str, target_container:str, target_folder:str, change_data_feed=False):\r\n",
 					"    '''\r\n",
 					"    Function to create a table from a schema definition. Schema merge is disabled.\r\n",
@@ -195,8 +216,6 @@
 					"    from pyspark.sql import SparkSession\r\n",
 					"    import json\r\n",
 					"    from delta import DeltaTable\r\n",
-					"    import logging\r\n",
-					"    logger = logging.getLogger(__name__)\r\n",
 					"    spark = SparkSession.builder.getOrCreate()\r\n",
 					"\r\n",
 					"    ### define target location\r\n",
@@ -220,7 +239,7 @@
 					"                raise ValueError(\"S2R-SAPHR: The table is represented by multiple parquet files- please investigate!\")\r\n",
 					"            else:\r\n",
 					"                if table_details['location'][0].rstrip(\"/\") == target_loc.rstrip(\"/\"):\r\n",
-					"                    logger.info(f\"S2R-SAPHR: Table already exists with correct location\")\r\n",
+					"                    logInfo(f\"S2R-SAPHR: Table already exists with correct location\")\r\n",
 					"                else:\r\n",
 					"                    table_deets = table_details['location'][0]\r\n",
 					"        \r\n",
@@ -233,13 +252,15 @@
 					"                    df.write.option(\"mergeSchema\", \"false\").format('delta').save(target_loc)# no overwrite on table creation\r\n",
 					"                    \r\n",
 					"                if not any([table.name == table_name for table in spark.catalog.listTables(db_name)]):\r\n",
+					"                    logInfo(f\"Creating {db_name}.{table_name}\")\r\n",
 					"                    spark.sql(\"CREATE TABLE {0}.{1} USING DELTA LOCATION '{2}'\".format(db_name,table_name,target_loc))\r\n",
 					"                    if change_data_feed == True:\r\n",
 					"                        spark.sql(\"ALTER TABLE {0}.{1} SET TBLPROPERTIES (delta.enableChangeDataFeed = true)\".format(db_name,table_name))\r\n",
+					"                    logInfo(f\"Created {db_name}.{table_name}\")\r\n",
 					"    else:\r\n",
 					"        raise NameError(f\"{db_name} doesn't exist\")"
 				],
-				"execution_count": 3
+				"execution_count": 7
 			}
 		]
 	}
