@@ -73,7 +73,7 @@ def test_nsip_exam_timetable_notebook(credential_name, azure_credential, synapse
             "curated_migration_table_name": {
                 "type": "String",
                 "value": "nsip_exam_timetable"
-            }
+            },
         }
     }
 

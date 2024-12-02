@@ -62,10 +62,6 @@ def test_nsip_document_notebook(credential_name, azure_credential, synapse_endpo
                 "type": "String",
                 "value": "nsip_document"
             },
-            "primary_key": {
-                "type": "list",
-                "value": ["documentId", "version", "filename"]
-            },
             "std_hzn_table_name": {
                 "type": "String",
                 "value": "document_meta_data"
