@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "6162d187-64f8-4e70-93f6-1ffda5e78775"
+				"spark.autotune.trackingId": "e6051ad1-7ee7-4f59-ad31-d36b0b450d2b"
 			}
 		},
 		"metadata": {
@@ -67,7 +67,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 22
+				"execution_count": 3
 			},
 			{
 				"cell_type": "markdown",
@@ -100,7 +100,7 @@
 					"from pyspark.sql.types import StructType, StructField, ArrayType, StringType, IntegerType\n",
 					"from pyspark.sql.functions import *"
 				],
-				"execution_count": 23
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -413,6 +413,50 @@
 					"    "
 				],
 				"execution_count": 30
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"@logging_to_appins\n",
+					"def read_csvs_recursively(storage_account: str = None, folder: str = None) -> DataFrame:\n",
+					"   \"\"\"\n",
+					"   Example of how to read csv files in a folder recursively.\n",
+					"   Each file is combined into a final DataFrame.\n",
+					"   The input_file column is added to show which file that record came from.\n",
+					"   Amend the folder path accordingly.\n",
+					"   \"\"\"\n",
+					"   storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"\n",
+					"   folder: str = f\"abfss://odw-raw@{storage_account}AIEDocumentData/2024-09-24\"\n",
+					"\n",
+					"   df: DataFrame = (spark.read.format(\"csv\")\n",
+					"       .option(\"recursiveFileLookup\", \"true\")\n",
+					"       .option(\"pathGlobFilter\", \"*.csv\")\n",
+					"       .option(\"header\", \"true\")\n",
+					"       .option(\"quote\", '\"')\n",
+					"       .option(\"escape\", '\"')\n",
+					"       .option(\"encoding\", \"UTF-8\")\n",
+					"       .option(\"multiLine\", \"true\")\n",
+					"       .option(\"ignoreLeadingWhiteSpace\", \"true\")\n",
+					"       .option(\"ignoreTrailingWhiteSpace\", \"true\")\n",
+					"       .load(folder))\n",
+					"\n",
+					"   df_with_path: DataFrame = df.withColumn(\"input_file\", F.input_file_name())\n",
+					"\n",
+					"   return df_with_path"
+				],
+				"execution_count": 5
 			}
 		]
 	}
