@@ -1535,6 +1535,10 @@
 			"type": "string",
 			"defaultValue": "pinssynspodw"
 		},
+		"py_create_random_test_data_properties_bigDataPool_referenceName": {
+			"type": "string",
+			"defaultValue": "pinssynspodw"
+		},
 		"py_create_schema_from_raw_properties_bigDataPool_referenceName": {
 			"type": "string",
 			"defaultValue": "pinssynspodw"
@@ -1784,6 +1788,10 @@
 			"defaultValue": "pinssynspodw"
 		},
 		"py_unit_tests_appeal_document_properties_bigDataPool_referenceName": {
+			"type": "string",
+			"defaultValue": "pinssynspodw"
+		},
+		"py_unit_tests_appeal_s78_properties_bigDataPool_referenceName": {
 			"type": "string",
 			"defaultValue": "pinssynspodw"
 		},
@@ -195778,6 +195786,458 @@
 			"dependsOn": []
 		},
 		{
+			"name": "[concat(parameters('workspaceName'), '/py_create_random_test_data')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"folder": {
+					"name": "utils"
+				},
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "[parameters('py_create_random_test_data_properties_bigDataPool_referenceName')]",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "da64709d-e3ec-411a-9a5d-e81bb028af2b"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": true,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+						"name": "pinssynspodw",
+						"type": "Spark",
+						"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "3.3",
+						"nodeCount": 3,
+						"cores": 4,
+						"memory": 28
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### This can be amended to generate some random test data for a given entity. It currently works with a flat schema so would need expanding to handle nested structs."
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"import pprint\r\n",
+							"import json\r\n",
+							"from pyspark.sql.types import *\r\n",
+							"import random\r\n",
+							"from datetime import datetime, timedelta\r\n",
+							"from faker import Faker\r\n",
+							"from pyspark.sql.functions import lit, monotonically_increasing_id, col, when\r\n",
+							"from pyspark.sql import Row, DataFrame"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"entity_name = \"nsip-subscription\"\r\n",
+							"primary_key = \"subscriptionId\"\r\n",
+							"std_db_name = \"odw_standardised_db\"\r\n",
+							"hrm_db_name = \"odw_harmonised_db\""
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Define schemas for standardised and harmonised"
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"std_schema = StructType.fromJson(json.loads(mssparkutils.notebook.run(path=\"service-bus/py_create_spark_schema\", \r\n",
+							"                            arguments={\"entity_name\": entity_name, \"db_name\": std_db_name})))\r\n",
+							"\r\n",
+							"hrm_schema = StructType.fromJson(json.loads(mssparkutils.notebook.run(path=\"service-bus/py_create_spark_schema\", \r\n",
+							"                            arguments={\"entity_name\": entity_name, \"db_name\": hrm_db_name})))"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Functions to generate a DataFrame with random values"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"faker = Faker()\r\n",
+							"\r\n",
+							"def generate_unique_uuids(existing_ids, count):\r\n",
+							"    new_uuids = []\r\n",
+							"    while len(new_uuids) < count:\r\n",
+							"        new_id = faker.unique.uuid4()\r\n",
+							"        if new_id not in existing_ids:\r\n",
+							"            new_uuids.append(new_id)\r\n",
+							"            existing_ids.add(new_id)\r\n",
+							"    return new_uuids\r\n",
+							"    \r\n",
+							"def generate_random_value(field_name: str, field_type):\r\n",
+							"    \"\"\"Generate a random value based on the field's data type.\"\"\"\r\n",
+							"    if field_name == \"message_type\":\r\n",
+							"        return \"Create\"\r\n",
+							"    if field_name == \"message_id\":\r\n",
+							"        return faker.unique.uuid4()\r\n",
+							"    if field_name == \"IsActive\":\r\n",
+							"        return random.choice([\"Y\"])\r\n",
+							"    if field_name == \"caseReference\":\r\n",
+							"        return f\"TR{random.randint(1, 10**6)}\"\r\n",
+							"    if isinstance(field_type, StringType):\r\n",
+							"        return faker.word()\r\n",
+							"    elif isinstance(field_type, LongType):\r\n",
+							"        return random.randint(1, 10**9)\r\n",
+							"    elif isinstance(field_type, IntegerType):\r\n",
+							"        return random.randint(1, 10**5)\r\n",
+							"    elif isinstance(field_type, DoubleType):\r\n",
+							"        return random.uniform(1.0, 1000.0)\r\n",
+							"    elif isinstance(field_type, FloatType):\r\n",
+							"        return random.uniform(1.0, 100.0)\r\n",
+							"    elif isinstance(field_type, TimestampType):\r\n",
+							"        return datetime.now() - timedelta(seconds=random.randint(0, 86400 * 365))\r\n",
+							"    elif isinstance(field_type, DateType):\r\n",
+							"        return datetime.now().date() - timedelta(days=random.randint(0, 365))\r\n",
+							"    elif isinstance(field_type, BooleanType):\r\n",
+							"        return random.choice([True, False])\r\n",
+							"    else:\r\n",
+							"        return None\r\n",
+							"\r\n",
+							"def generate_random_row(schema):\r\n",
+							"    \"\"\"Generate a random row of data based on the schema.\"\"\"\r\n",
+							"    return {field.name: generate_random_value(field.name, field.dataType) for field in schema.fields}\r\n",
+							"\r\n",
+							"def generate_random_dataframe(schema: StructType, num_records: int):\r\n",
+							"    \"\"\"Generate a PySpark DataFrame with random data based on the schema.\"\"\"\r\n",
+							"    # Generate random data\r\n",
+							"    data = [generate_random_row(schema) for _ in range(num_records)]\r\n",
+							"    \r\n",
+							"    # Create DataFrame\r\n",
+							"    return spark.createDataFrame(data, schema=schema)"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Create standardised DataFrame"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"num_records = 10_000\r\n",
+							"std_df = generate_random_dataframe(std_schema, num_records)"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"display(std_df.head(10))"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Create harmonised DataFrame"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"num_records = 10_000\r\n",
+							"hrm_df = generate_random_dataframe(hrm_schema, num_records)"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"display(hrm_df.head(10))"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"# sample size is how many deletes we want to generate \r\n",
+							"sample_size = 1_000\r\n",
+							"sample_hrm_df = hrm_df.limit(sample_size)\r\n",
+							"sample_std_df = std_df.limit(sample_size)\r\n",
+							"\r\n",
+							"sample_records = (\r\n",
+							"    sample_hrm_df.select(primary_key).distinct()\r\n",
+							"    )\r\n",
+							"\r\n",
+							"sample_records_list = sample_records.select(primary_key).rdd.flatMap(lambda x: x).collect()\r\n",
+							"\r\n",
+							"# print(sample_records_list)"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"updated_rows = spark.createDataFrame(\r\n",
+							"    [\r\n",
+							"        row.asDict() | {primary_key: sample_records_list[i], \"message_type\": \"Delete\"}\r\n",
+							"        for i, row in enumerate(sample_std_df.collect())\r\n",
+							"    ],\r\n",
+							"    schema=std_df.schema,\r\n",
+							")\r\n",
+							"\r\n",
+							"display(updated_rows.head(10))"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"final_std_df = std_df.union(updated_rows)\r\n",
+							"display(final_std_df.head(10))"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Tests"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"def test_deletes(df: DataFrame):\r\n",
+							"    \"\"\"\r\n",
+							"    Assert that all rows where IsActive = N have a ValidTo set\r\n",
+							"    \"\"\"\r\n",
+							"    deleted_rows = df.filter(col(\"IsActive\") == \"N\").collect()\r\n",
+							"    for row in deleted_rows:\r\n",
+							"        assert row[\"ValidTo\"] is not None, f\"Row with subscriptionId={row['subscriptionId']} has IsActive='N' but ValidTo is null\"\r\n",
+							"\r\n",
+							"test_deletes(joined_df)"
+						],
+						"outputs": [],
+						"execution_count": null
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('workspaceName'), '/py_create_schema_from_raw')]",
 			"type": "Microsoft.Synapse/workspaces/notebooks",
 			"apiVersion": "2019-06-01-preview",
@@ -217843,7 +218303,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "7c47b12f-add5-4b66-8654-69b89f51a124"
+						"spark.autotune.trackingId": "6037fb7e-0d96-4cdc-a4e1-320eedcbf375"
 					}
 				},
 				"metadata": {
@@ -218570,22 +219030,171 @@
 							}
 						},
 						"source": [
-							"if delete_df.count() > 0:\n",
-							"    logInfo(\"Handling deleted rows\")\n",
-							"\n",
-							"    for row in delete_df.collect():\n",
-							"        mask = (target_df['IsActive'] == 'Y') & (target_df[entity_primary_key] == row[entity_primary_key])\n",
-							"        target_df = target_df.withColumn('ValidTo', when(mask, row['IngestionDate']).otherwise(target_df['ValidTo']))\n",
-							"        target_df = target_df.withColumn('IsActive', when(mask, 'N').otherwise(target_df['IsActive']))\n",
-							"\n",
-							"    # insert all deleted messages as inactive rows to keep track of message ids\n",
-							"    delete_df_clone = delete_df.select(\"*\")\n",
-							"    delete_df_clone = delete_df_clone.withColumn('ValidTo', delete_df['IngestionDate'])\n",
-							"    delete_df_clone = delete_df_clone.withColumn('IsActive', lit('N'))\n",
-							"    target_df = insert_rows_in_df(delete_df_clone, target_df, hrm_incremental_key)\n",
-							"    logInfo(\"Done handling deleted rows\")\n",
-							"\n",
-							"logInfo(f\"Deleted rows: {delete_df.count()}\\nTarget dataframe: {target_df.count()}\")"
+							"if delete_df.count() > 0:\r\n",
+							"    logInfo(\"Handling deleted rows\")\r\n",
+							"else:\r\n",
+							"    logInfo(\"No deleted messages\")"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"###### Set the ValidTo of the deleted records to the IngestionDate and IsActive to N"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"if delete_df.count() > 0:\r\n",
+							"    delete_df = delete_df \\\r\n",
+							"    .withColumn(\"ValidTo\", col(\"IngestionDate\")) \\\r\n",
+							"    .withColumn(\"IsActive\", lit(\"N\"))\r\n",
+							"    display(delete_df)"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"###### Set the ValidTo date of the target DataFrame records\r\n",
+							"\r\n",
+							"For all deleted primary keys, set the ValidTo date to the IngestionDate from the deleted DataFrame if the record is active (only 1 should be active in the target and we don't want to reset all the other ValidTo dates as these have already been set when they were first inserted).  "
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"if delete_df.count() > 0:\r\n",
+							"    target_df = (\r\n",
+							"        target_df.join(\r\n",
+							"            delete_df.select(\r\n",
+							"                entity_primary_key, \r\n",
+							"                col(\"IngestionDate\").alias(\"delete_IngestionDate\")\r\n",
+							"            ),\r\n",
+							"            on=entity_primary_key,\r\n",
+							"            how=\"left\"\r\n",
+							"        )\r\n",
+							"        .withColumn(\r\n",
+							"            \"ValidTo\",\r\n",
+							"            when(col(\"IsActive\") == \"Y\", col(\"delete_IngestionDate\"))\r\n",
+							"            .otherwise(col(\"ValidTo\"))\r\n",
+							"        )\r\n",
+							"        .drop(\"delete_IngestionDate\")\r\n",
+							"    )"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"###### Update the IsActive flag\r\n",
+							"\r\n",
+							"For all primary keys in the deleted DataFrame, set the IsActive flag to N for those primary keys in the target DataFrame.   "
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"if delete_df.count() > 0:\r\n",
+							"    deleted_primary_keys = delete_df.select(entity_primary_key).distinct()\r\n",
+							"    target_df = target_df.withColumn(\r\n",
+							"        \"IsActive\", \r\n",
+							"        when(col(entity_primary_key).isin([getattr(row, entity_primary_key) for row in deleted_primary_keys.collect()]), lit(\"N\"))\r\n",
+							"        .otherwise(col(\"IsActive\"))\r\n",
+							"    )"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"###### Update the target DataFrame with the deleted records"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"if delete_df.count() > 0:\r\n",
+							"    target_df = insert_rows_in_df(delete_df, target_df, hrm_incremental_key)\r\n",
+							"    logInfo(f\"Deleted rows: {delete_df.count()}\\nTarget dataframe: {target_df.count()}\")\r\n",
+							"    logInfo(\"Done handling deleted rows\")"
 						],
 						"outputs": [],
 						"execution_count": null
@@ -219317,7 +219926,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "6162d187-64f8-4e70-93f6-1ffda5e78775"
+						"spark.autotune.trackingId": "e6051ad1-7ee7-4f59-ad31-d36b0b450d2b"
 					}
 				},
 				"metadata": {
@@ -219364,7 +219973,7 @@
 							"%run utils/py_logging_decorator"
 						],
 						"outputs": [],
-						"execution_count": 22
+						"execution_count": 3
 					},
 					{
 						"cell_type": "markdown",
@@ -219398,7 +220007,7 @@
 							"from pyspark.sql.functions import *"
 						],
 						"outputs": [],
-						"execution_count": 23
+						"execution_count": 4
 					},
 					{
 						"cell_type": "code",
@@ -219718,6 +220327,51 @@
 						],
 						"outputs": [],
 						"execution_count": 30
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"@logging_to_appins\n",
+							"def read_csvs_recursively(storage_account: str = None, folder: str = None) -> DataFrame:\n",
+							"   \"\"\"\n",
+							"   Example of how to read csv files in a folder recursively.\n",
+							"   Each file is combined into a final DataFrame.\n",
+							"   The input_file column is added to show which file that record came from.\n",
+							"   Amend the folder path accordingly.\n",
+							"   \"\"\"\n",
+							"   storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+							"\n",
+							"   folder: str = f\"abfss://odw-raw@{storage_account}AIEDocumentData/2024-09-24\"\n",
+							"\n",
+							"   df: DataFrame = (spark.read.format(\"csv\")\n",
+							"       .option(\"recursiveFileLookup\", \"true\")\n",
+							"       .option(\"pathGlobFilter\", \"*.csv\")\n",
+							"       .option(\"header\", \"true\")\n",
+							"       .option(\"quote\", '\"')\n",
+							"       .option(\"escape\", '\"')\n",
+							"       .option(\"encoding\", \"UTF-8\")\n",
+							"       .option(\"multiLine\", \"true\")\n",
+							"       .option(\"ignoreLeadingWhiteSpace\", \"true\")\n",
+							"       .option(\"ignoreTrailingWhiteSpace\", \"true\")\n",
+							"       .load(folder))\n",
+							"\n",
+							"   df_with_path: DataFrame = df.withColumn(\"input_file\", F.input_file_name())\n",
+							"\n",
+							"   return df_with_path"
+						],
+						"outputs": [],
+						"execution_count": 5
 					}
 				]
 			},
@@ -223145,6 +223799,817 @@
 			"dependsOn": []
 		},
 		{
+			"name": "[concat(parameters('workspaceName'), '/py_unit_tests_appeal_s78')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"folder": {
+					"name": "utils/unit-tests"
+				},
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "[parameters('py_unit_tests_appeal_s78_properties_bigDataPool_referenceName')]",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "02f58790-7cfd-4009-aa43-f6bbe9660532"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": true,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+						"name": "pinssynspodw",
+						"type": "Spark",
+						"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "3.3",
+						"nodeCount": 3,
+						"cores": 4,
+						"memory": 28
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"import json\n",
+							"from pyspark.sql.types import *\n",
+							"from pyspark.sql import DataFrame\n",
+							"from pyspark.sql import functions as F\n",
+							"import pprint"
+						],
+						"outputs": [],
+						"execution_count": 21
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"entity_name: str = 'appeal-s78'\r\n",
+							"folder_name: str = 'appeal-s78'\r\n",
+							"std_db_name: str = 'odw_standardised_db'\r\n",
+							"hrm_db_name: str = 'odw_harmonised_db'\r\n",
+							"curated_db_name: str = 'odw_curated_db'"
+						],
+						"outputs": [],
+						"execution_count": 22
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"std_table_name: str = 'sb_appeal_s78'\r\n",
+							"hrm_table_name: str = 'sb_appeal_s78'\r\n",
+							"curated_table_name: str = 'appeal_s78'"
+						],
+						"outputs": [],
+						"execution_count": 23
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"\r\n",
+							"sb_std_df = spark.table(f\"{std_db_name}.{std_table_name}\")\r\n",
+							"sb_hrm_df = spark.table(f\"{hrm_db_name}.{hrm_table_name}\")\r\n",
+							"curated_df = spark.table(f\"{hrm_db_name}.{hrm_table_name}\")\r\n",
+							""
+						],
+						"outputs": [],
+						"execution_count": 24
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"sb_std_careference = sb_std_df.select(\"caseReference\")\r\n",
+							"sb_hrm_careference = sb_hrm_df.select(\"caseReference\")\r\n",
+							"curated_careference = curated_df.select(\"caseReference\")"
+						],
+						"outputs": [],
+						"execution_count": 25
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"#keep track of the exitCodes, if the exit code is not zero then we've had failures, we flip the boolean\n",
+							"exitCode: int = 0"
+						],
+						"outputs": [],
+						"execution_count": 26
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"%run /utils/unit-tests/py_unit_tests_functions"
+						],
+						"outputs": [],
+						"execution_count": 27
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"sb_std_schema = create_spark_schema(std_db_name, entity_name)\n",
+							"sb_std_table_schema = spark.table(f\"{std_db_name}.{std_table_name}\").schema\n",
+							"sb_hrm_schema = create_spark_schema(hrm_db_name, entity_name)\n",
+							"sb_hrm_table_schema = spark.table(f\"{hrm_db_name}.{hrm_table_name}\").schema\n",
+							"curated_schema = create_spark_schema(curated_db_name, entity_name)\n",
+							"curated_table_schema = spark.table(f\"{curated_db_name}.{curated_table_name}\").schema\n",
+							"\n",
+							""
+						],
+						"outputs": [],
+						"execution_count": 28
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"data_model_columns = [field.name for field in curated_table_schema.fields]"
+						],
+						"outputs": [],
+						"execution_count": 40
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Compare schemas"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"std_schema_correct: bool = test_compare_schemas(sb_std_schema, sb_std_table_schema)\n",
+							"exitCode += int(not std_schema_correct)\n",
+							"print(f\"Service bus standardised schema correct: {std_schema_correct}\\nTable: {std_db_name}.{std_table_name}\\nDifferences shown above (if any)\")\n",
+							"hrm_schema_correct: bool = test_compare_schemas(sb_hrm_schema, sb_hrm_table_schema)\n",
+							"print(f\"Service bus harmonised schema correct: {hrm_schema_correct}\\nTable: {hrm_db_name}.{hrm_table_name}\\nDifferences shown above (if any)\")\n",
+							"exitCode += int(not hrm_schema_correct)\n",
+							"cur_schema_correct: bool = test_compare_schemas(curated_schema, curated_table_schema)\n",
+							"print(f\"Curated schema correct: {cur_schema_correct}\\nTable: {curated_db_name}.{curated_table_name}\\nDifferences shown above (if any)\")\n",
+							"exitCode += int(not cur_schema_correct)"
+						],
+						"outputs": [],
+						"execution_count": 36
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Compare service bus standardised with harmonised\n",
+							"Should be the same count"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"standardised_count, harmonised_count, counts_match = test_std_same_rows_hrm(std_table_name, hrm_table_name)\n",
+							"print(f\"Standardised Count: {standardised_count: ,}\\nHarmonised Count: {harmonised_count: ,}\\nCounts match: {counts_match}\")\n",
+							"\n",
+							"if standardised_count > harmonised_count:\n",
+							"    exitCode += 1\n",
+							"    print(f\"{standardised_count - harmonised_count} rows from Standardised are missing in Harmonised.\" )\n",
+							"    differentiate_std_and_hrm(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\", data_model_columns)"
+						],
+						"outputs": [],
+						"execution_count": 37
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Compare final harmonised table (if combined with Horizon) with curated table\n",
+							"Comparing where IsActive = Y in harmonised = curated row count"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"harmonised_final_count, curated_count, counts_match = test_curated_row_count(hrm_table_name, curated_table_name, data_model_columns)\n",
+							"print(f\"Harmonised Final Count: {harmonised_final_count: ,}\\nCurated Count: {curated_count: ,}\\nCounts match: {counts_match}\")\n",
+							"exitCode += int(not counts_match)"
+						],
+						"outputs": [],
+						"execution_count": 41
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"**TO BE CHANGED: FOR SPECIFCIC PRIMARY ID**"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"# Check if there is data coming from ODT (back-office-appeals) and Horizon\n",
+							"# automated version of previous visual check which is now moved to bottom of notebook\n",
+							"\n",
+							"check_ODT_and_horizon_data_query = \"\"\"\n",
+							"(SELECT DISTINCT\n",
+							"*\n",
+							"FROM odw_harmonised_db.appeal_s78\n",
+							"WHERE horizonfolderid IS NULL AND sourcesystem = 'back-office-appeals'\n",
+							"ORDER BY ingestiondate DESC)\n",
+							"\"\"\"\n",
+							"\n",
+							"ODT_and_horizon_dataframe = get_dataframe(check_ODT_and_horizon_data_query)\n",
+							"\n",
+							"if ODT_and_horizon_dataframe.isEmpty():\n",
+							"    print(\"Failed: data coming from ODT (back-office-appeals) and Horizon\")\n",
+							"    exitCode += 1"
+						],
+						"outputs": [],
+						"execution_count": 36
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"to BE CHANGED WITH PRIMARY KEY."
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"if test_sb_std_to_sb_hrm_no_dropping_records(std_table_name, hrm_table_name, 'caseReference'):\n",
+							"    pass  \n",
+							"else:\n",
+							"    print(\"Failed: test_sb_std_to_sb_hrm_no_dropping_records\")\n",
+							"    exitCode += 1"
+						],
+						"outputs": [],
+						"execution_count": 37
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"if test_sb_hrm_to_hrm_final_no_dropping_records(hrm_table_name, hrm_table_final, 'caseReference'):\n",
+							"    pass\n",
+							"else:\n",
+							"    print(\"Failed: test_sb_hrm_to_hrm_final_no_dropping_records\")\n",
+							"    exitCode += 1"
+						],
+						"outputs": [],
+						"execution_count": 38
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"if test_hrm_to_curated_no_dropping_records(hrm_table_final, curated_table_name, 'caseReference'):\n",
+							"    pass\n",
+							"else:\n",
+							"    print(\"Failed: test_hrm_to_curated_no_dropping_records\")\n",
+							"    exitCode += 1"
+						],
+						"outputs": [],
+						"execution_count": 39
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"if test_caseReference_row_counts_match(hrm_table_final, curated_table_name):\n",
+							"    pass\n",
+							"else:\n",
+							"    print(\"Failed: test_document_row_counts_match\")\n",
+							"    exitCode += 1"
+						],
+						"outputs": [],
+						"execution_count": 43
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"if test_sb_std_to_hrm_no_message_id_dropped(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\"):\n",
+							"    pass\n",
+							"else:\n",
+							"    print(\"Failed: test_sb_std_to_hrm_no_message_id_dropped\")\n",
+							"    exitCode += 1"
+						],
+						"outputs": [],
+						"execution_count": 44
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"if test_sb_std_to_hrm_no_active_deleted_record(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\"):\n",
+							"    pass\n",
+							"else:\n",
+							"    print(\"Failed: test_sb_std_to_hrm_no_active_deleted_record\")\n",
+							"    exitCode += 1"
+						],
+						"outputs": [],
+						"execution_count": 45
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"mssparkutils.notebook.exit(exitCode)"
+						],
+						"outputs": [],
+						"execution_count": 46
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"# Visual checks moved to below notebook exit\n",
+							"This is so they won't run when notebook is called during automation run"
+						]
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"Trace service bus data from standardised to harmonised\n",
+							"\n",
+							"We need to make sure the data has loaded through correctly. To do this efficiently, we will select a sample record and check that the data is maintained as it moves through the medallian architecture"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\n",
+							"SELECT * FROM  odw_standardised_db.sb_appeal_s78\n",
+							"where casereference = ''\n",
+							"order by ingested_datetime"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\n",
+							"SELECT * FROM  odw_harmonised_db.sb_appeal_s78\n",
+							"where caseReference = ''\n",
+							"order by IngestionDate"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"Check if there is data coming from ODT (back-office-appeals) and Horizon"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							}
+						},
+						"source": [
+							"%%sql\n",
+							"SELECT DISTINCT\n",
+							"*\n",
+							"FROM odw_harmonised_db.sb_appeal_s78\n",
+							"\n",
+							"where  horizonfolderid  is null and sourcesystem = 'back-office-appeals'\n",
+							"order BY\n",
+							"    ingestiondate DESC"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"Horizon and Service Bus data successfully combined and flags set appropriately"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"df_sb_hrm = spark.sql(\"select * from odw_harmonised_db.sb_appeal_s78 where caseReference = '' order by IngestionDate\")\n",
+							"\n",
+							"df_cur = spark.sql(\"select * from odw_curated_db.sb_appeal_s78 where caseReference = ''\")\n",
+							"\n",
+							"\n",
+							"\n",
+							"display(df_sb_hrm)\n",
+							"\n",
+							"display(df_cur)"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"Data updated in curated correctly"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\n",
+							"SELECT\n",
+							"    *\n",
+							"FROM\n",
+							"    odw_curated_db.sb_appeal_s78\n",
+							"WHERE\n",
+							"     caseReference = ''"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"data: DataFrame = spark.sql(\"SELECT * FROM odw_curated_db.sb_appeal_s78\")\n",
+							"data.printSchema()"
+						],
+						"outputs": [],
+						"execution_count": null
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('workspaceName'), '/py_unit_tests_appeals_events')]",
 			"type": "Microsoft.Synapse/workspaces/notebooks",
 			"apiVersion": "2019-06-01-preview",
@@ -224108,7 +225573,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "159863cf-1a47-4a00-b6cd-cec887ab8c6d"
+						"spark.autotune.trackingId": "3ec99bb1-b044-493f-a37b-3312f79b5757"
 					}
 				},
 				"metadata": {
@@ -225119,6 +226584,133 @@
 						],
 						"outputs": [],
 						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Unit tests to cover the handling of Delete message_type from standarised to harmonised"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"# For all deletes in standardised, all records in harmonised must be inactive\n",
+							"def test_deleted_std_records_inactive_in_hrm(primary_key, std_table, hrm_table):\n",
+							"    df: DataFrame = spark.sql(f\"\"\"\n",
+							"        SELECT * FROM odw_harmonised_db.{hrm_table}\n",
+							"        WHERE {primary_key} IN (\n",
+							"            SELECT DISTINCT {primary_key} \n",
+							"            FROM odw_standardised_db.{std_table}\n",
+							"            WHERE message_type = 'Delete'\n",
+							"        )\n",
+							"        AND IsActive = 'Y'\n",
+							"    \"\"\")\n",
+							"\n",
+							"    return df.count() == 0"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"# For all deletes in standardised, we should have the same message id in harmonised\n",
+							"def test_no_deleted_std_records_missing_in_hrm(primary_key, std_table, hrm_table):\n",
+							"    df: DataFrame = spark.sql(f\"\"\"\n",
+							"        SELECT * FROM odw_standardised_db.{std_table} std\n",
+							"        LEFT JOIN odw_harmonised_db.{hrm_table} hrm \n",
+							"            ON std.message_id = hrm.message_id \n",
+							"        WHERE hrm.message_id IS NULL\n",
+							"        AND std.message_type = 'Delete'\n",
+							"    \"\"\")\n",
+							"\n",
+							"    return df.count() == 0"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"# All deleted records in standardised, valid to (harmonised) should be equal to the message_enqueued_time_utc from standardised\n",
+							"def test_deleted_std_records_correctly_set_valid_to_in_hrm(primary_key, std_table, hrm_table):\n",
+							"    df: DataFrame = spark.sql(f\"\"\"\n",
+							"        -- get the lastet harmonised records for each primary_key\n",
+							"        WITH LatestHarmonised AS ( \n",
+							"            SELECT \n",
+							"                {primary_key},\n",
+							"                ValidTo,\n",
+							"                ROW_NUMBER() OVER (PARTITION BY {primary_key} ORDER BY IngestionDate DESC) AS rn\n",
+							"            FROM odw_harmonised_db.{hrm_table} hrm\n",
+							"        ),\n",
+							"        -- get the second last row since that's the one we closed based on the deletion. The last row is just a duplicate to store the deleted message_id\n",
+							"        FilteredHarmonised AS (\n",
+							"            SELECT \n",
+							"                {primary_key},\n",
+							"                ValidTo\n",
+							"            FROM LatestHarmonised\n",
+							"            WHERE rn = 2\n",
+							"        ),\n",
+							"        DeleteMessages AS (\n",
+							"            SELECT \n",
+							"                {primary_key},\n",
+							"                message_enqueued_time_utc\n",
+							"            FROM odw_standardised_db.{std_table} std\n",
+							"            WHERE message_type = 'Delete'\n",
+							"        )\n",
+							"        SELECT \n",
+							"            d.{primary_key},\n",
+							"            d.message_enqueued_time_utc,\n",
+							"            f.ValidTo\n",
+							"        FROM DeleteMessages d\n",
+							"        LEFT JOIN FilteredHarmonised f ON d.{primary_key} = f.{primary_key}\n",
+							"        WHERE f.ValidTo IS NULL OR f.ValidTo <> d.message_enqueued_time_utc;\n",
+							"    \"\"\")\n",
+							"\n",
+							"    return df.count() == 0"
+						],
+						"outputs": [],
+						"execution_count": null
 					}
 				]
 			},
@@ -226091,7 +227683,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "d88842da-9e42-4401-b479-8015240e2b28"
+						"spark.autotune.trackingId": "d00d7d93-a725-4972-8c99-fc4309f38596"
 					}
 				},
 				"metadata": {
@@ -226142,7 +227734,7 @@
 							"import pprint"
 						],
 						"outputs": [],
-						"execution_count": 2
+						"execution_count": 1
 					},
 					{
 						"cell_type": "code",
@@ -226178,7 +227770,7 @@
 							"curated_migration_table_name: str = 'nsip_document'"
 						],
 						"outputs": [],
-						"execution_count": 39
+						"execution_count": 2
 					},
 					{
 						"cell_type": "code",
@@ -226194,26 +227786,26 @@
 							}
 						},
 						"source": [
-							"horizon_std_df = spark.table(f\"{std_db_name}.{horizon_std_table_name}\")\r\n",
-							"aie_std_df = spark.table(f\"{std_db_name}.{aie_std_table_name}\")\r\n",
-							"aie_hrm_df = spark.table(f\"{hrm_db_name}.{aie_hrm_table_name}\")\r\n",
-							"hrm_final_df = spark.table(f\"{hrm_db_name}.{hrm_table_final}\")\r\n",
-							"hrm_final_df_active = hrm_final_df.filter(\"IsActive = 'Y'\")\r\n",
-							"curated_df = spark.table(f\"{curated_db_name}.{curated_table_name}\")\r\n",
-							"sb_std_df = spark.table(f\"{std_db_name}.{std_table_name}\")\r\n",
-							"sb_hrm_df = spark.table(f\"{hrm_db_name}.{hrm_table_name}\")\r\n",
-							"horizon_documentIds = horizon_std_df.select(\"dataId\")\r\n",
-							"aie_std_documentIds = aie_std_df.select(\"documentId\")\r\n",
-							"aie_hrm_documentIds = aie_hrm_df.select(\"documentId\")\r\n",
-							"hrm_final_documentIds = hrm_final_df.select(\"documentId\")\r\n",
-							"sb_std_documentIds = sb_std_df.select(\"documentId\")\r\n",
-							"sb_hrm_documentIds = sb_hrm_df.select(\"documentId\")\r\n",
-							"curated_documentIds = curated_df.select(\"documentId\")\r\n",
-							"aie_appeals_documentIds = aie_std_documentIds.intersect(horizon_documentIds)\r\n",
+							"horizon_std_df = spark.table(f\"{std_db_name}.{horizon_std_table_name}\")\n",
+							"aie_std_df = spark.table(f\"{std_db_name}.{aie_std_table_name}\")\n",
+							"aie_hrm_df = spark.table(f\"{hrm_db_name}.{aie_hrm_table_name}\")\n",
+							"hrm_final_df = spark.table(f\"{hrm_db_name}.{hrm_table_final}\")\n",
+							"hrm_final_df_active = hrm_final_df.filter(\"IsActive = 'Y'\")\n",
+							"curated_df = spark.table(f\"{curated_db_name}.{curated_table_name}\")\n",
+							"sb_std_df = spark.table(f\"{std_db_name}.{std_table_name}\")\n",
+							"sb_hrm_df = spark.table(f\"{hrm_db_name}.{hrm_table_name}\")\n",
+							"horizon_documentIds = horizon_std_df.select(\"dataId\")\n",
+							"aie_std_documentIds = aie_std_df.select(\"documentId\")\n",
+							"aie_hrm_documentIds = aie_hrm_df.select(\"documentId\")\n",
+							"hrm_final_documentIds = hrm_final_df.select(\"documentId\")\n",
+							"sb_std_documentIds = sb_std_df.select(\"documentId\")\n",
+							"sb_hrm_documentIds = sb_hrm_df.select(\"documentId\")\n",
+							"curated_documentIds = curated_df.select(\"documentId\")\n",
+							"aie_appeals_documentIds = aie_std_documentIds.intersect(horizon_documentIds)\n",
 							"aie_appeals_documents_count = aie_appeals_documentIds.count()"
 						],
 						"outputs": [],
-						"execution_count": 4
+						"execution_count": 3
 					},
 					{
 						"cell_type": "code",
@@ -226233,7 +227825,7 @@
 							"exitCode: int = 0"
 						],
 						"outputs": [],
-						"execution_count": 5
+						"execution_count": 4
 					},
 					{
 						"cell_type": "code",
@@ -226290,7 +227882,7 @@
 							"]"
 						],
 						"outputs": [],
-						"execution_count": 6
+						"execution_count": 5
 					},
 					{
 						"cell_type": "code",
@@ -226309,7 +227901,7 @@
 							"%run /utils/unit-tests/py_unit_tests_functions"
 						],
 						"outputs": [],
-						"execution_count": 7
+						"execution_count": 6
 					},
 					{
 						"cell_type": "code",
@@ -226328,10 +227920,12 @@
 							"sb_std_schema = create_spark_schema(std_db_name, entity_name)\n",
 							"sb_std_table_schema = spark.table(f\"{std_db_name}.{std_table_name}\").schema\n",
 							"sb_hrm_schema = create_spark_schema(hrm_db_name, entity_name)\n",
-							"sb_hrm_table_schema = spark.table(f\"{hrm_db_name}.{hrm_table_name}\").schema"
+							"sb_hrm_table_schema = spark.table(f\"{hrm_db_name}.{hrm_table_name}\").schema\n",
+							"curated_schema = create_spark_schema(curated_db_name, entity_name)\n",
+							"curated_table_schema = spark.table(f\"{curated_db_name}.{curated_table_name}\").schema"
 						],
 						"outputs": [],
-						"execution_count": 8
+						"execution_count": 7
 					},
 					{
 						"cell_type": "markdown",
@@ -226364,12 +227958,17 @@
 							"std_schema_correct: bool = test_compare_schemas(sb_std_schema, sb_std_table_schema)\n",
 							"exitCode += int(not std_schema_correct)\n",
 							"print(f\"Service bus standardised schema correct: {std_schema_correct}\\nTable: {std_db_name}.{std_table_name}\\nDifferences shown above (if any)\")\n",
+							"\n",
 							"hrm_schema_correct: bool = test_compare_schemas(sb_hrm_schema, sb_hrm_table_schema)\n",
+							"exitCode += int(not hrm_schema_correct)\n",
 							"print(f\"Service bus harmonised schema correct: {hrm_schema_correct}\\nTable: {hrm_db_name}.{hrm_table_name}\\nDifferences shown above (if any)\")\n",
-							"exitCode += int(not hrm_schema_correct)"
+							"\n",
+							"curated_schema_correct: bool = test_compare_schemas(curated_schema, curated_table_schema)\n",
+							"exitCode += int(not curated_schema_correct)\n",
+							"print(f\"Curated schema correct: {curated_schema_correct}\\nTable: {curated_db_name}.{curated_table_name}\\nDifferences shown above (if any)\")"
 						],
 						"outputs": [],
-						"execution_count": 9
+						"execution_count": 8
 					},
 					{
 						"cell_type": "markdown",
@@ -226409,7 +228008,7 @@
 							"    differentiate_std_and_hrm(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\", data_model_columns)"
 						],
 						"outputs": [],
-						"execution_count": 10
+						"execution_count": 9
 					},
 					{
 						"cell_type": "markdown",
@@ -226444,7 +228043,315 @@
 							"exitCode += int(not counts_match)"
 						],
 						"outputs": [],
+						"execution_count": 10
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"def test_horizon_to_hrm_final_no_dropping_records(horizon_std_table_name: str, hrm_table_final: str) -> bool:\n",
+							"    df: DataFrame = spark.sql(f\"\"\"\n",
+							"    select dataId\n",
+							"    from {std_db_name}.{horizon_std_table_name}\n",
+							"    where ingested_datetime = (select max(ingested_datetime) from {std_db_name}.{horizon_std_table_name})\n",
+							"    and dataId not in\n",
+							"    (\n",
+							"        select documentId\n",
+							"        from {hrm_db_name}.{hrm_table_final}\n",
+							"    )\n",
+							"    \"\"\")\n",
+							"\n",
+							"    return df.count() == 0"
+						],
+						"outputs": [],
 						"execution_count": 11
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"print(f\"Service bus std to hrm no documentIds dropped: {test_sb_std_to_sb_hrm_no_dropping_records(std_table_name, hrm_table_name, 'documentId')}\")"
+						],
+						"outputs": [],
+						"execution_count": 12
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"print(f\"Service bus hrm to hrm table final no documentIds dropped: {test_sb_hrm_to_hrm_final_no_dropping_records(hrm_table_name, hrm_table_final, 'documentId')}\")"
+						],
+						"outputs": [],
+						"execution_count": 13
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"print(f\"hrm table final to curated no documentIds dropped: {test_hrm_to_curated_no_dropping_records(hrm_table_final, curated_table_name, 'documentId')}\")"
+						],
+						"outputs": [],
+						"execution_count": 14
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"print(f\"Horizon std table to hrm table final no documentIds dropped: {test_horizon_to_hrm_final_no_dropping_records(horizon_std_table_name, hrm_table_final)}\")"
+						],
+						"outputs": [],
+						"execution_count": 15
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"print(f\"AIE std table to hrm table no documentIds dropped: {test_aie_std_to_hrm_no_dropping_records(aie_std_table_name, aie_hrm_table_name)}\")"
+						],
+						"outputs": [],
+						"execution_count": 16
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"print(f\"Document row counts match for each document in harmonised final to curated: {test_document_row_counts_match(hrm_table_final, curated_table_name)}\")"
+						],
+						"outputs": [],
+						"execution_count": 17
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"### The below tests are for the curated_migration_db table\n",
+							"##### Test 1:  Schema match the data model\n",
+							""
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"cur_migrated_schema = create_spark_schema(curated_migration_db_name, entity_name)\n",
+							"cur_migrated_df = spark.table(f\"{curated_migration_db_name}.{curated_migration_table_name}\")\n",
+							"\n",
+							"cur_migrated_schema_correct: bool = test_compare_schemas(cur_migrated_schema, cur_migrated_df.schema)\n",
+							"exitCode += int(not cur_migrated_schema_correct)\n",
+							"print(f\"Curated Migration schema correct: {cur_migrated_schema_correct}\\nTable: {curated_migration_db_name}.{curated_migration_table_name}\\nDifferences shown above (if any)\")"
+						],
+						"outputs": [],
+						"execution_count": 18
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Test 2:  Counts match in horizon standardised and curated\n",
+							""
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"counts_match = test_documents_hzn_and_curated_count_matched(std_hzn_table_name, curated_migration_table_name)\n",
+							"print(f\"Horizon to Curated - Counts match: {counts_match}\")\n",
+							"exitCode += int(not counts_match)"
+						],
+						"outputs": [],
+						"execution_count": 19
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Test 3:  Checks if any Primary Key record is dropped from Horizon to Curated\n",
+							""
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"rows_dropped = test_documents_hzn_to_curated_no_record_dropped(std_hzn_table_name, curated_migration_table_name)\n",
+							"print(f\"Horizon to Curated - No rows dropped: {rows_dropped}\")\n",
+							"exitCode += int(not rows_dropped)"
+						],
+						"outputs": [],
+						"execution_count": 20
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Test 4: Check curated layer only has horizon data and unique records (distinct primary ids)"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"no_horizon_records, total_curated_count, distinct_curated_count, counts_match = test_curated_unique_hzn_only(curated_migration_db_name, curated_migration_table_name, primary_key)\n",
+							"print(f\"There are no other records than Horizon: {no_horizon_records:}\\nCurated Count: {total_curated_count: ,}\\nDistinct Curated Count: {distinct_curated_count:,}\\nCounts match: {counts_match}\")\n",
+							"exitCode += int(not no_horizon_records)\n",
+							"exitCode += int(not counts_match)"
+						],
+						"outputs": [],
+						"execution_count": 21
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"mssparkutils.notebook.exit(exitCode)"
+						],
+						"outputs": [],
+						"execution_count": 22
 					},
 					{
 						"cell_type": "markdown",
@@ -226481,11 +228388,10 @@
 							"%%sql\n",
 							"SELECT * FROM  odw_standardised_db.sb_nsip_document\n",
 							"where documentid = '1fc876c6-f469-411a-9940-256179560b43'\n",
-							"order by ingested_datetime\n",
-							""
+							"order by ingested_datetime"
 						],
 						"outputs": [],
-						"execution_count": 12
+						"execution_count": 23
 					},
 					{
 						"cell_type": "code",
@@ -226512,7 +228418,7 @@
 							""
 						],
 						"outputs": [],
-						"execution_count": 13
+						"execution_count": 24
 					},
 					{
 						"cell_type": "markdown",
@@ -226556,7 +228462,7 @@
 							"ORDER BY ingested_datetime"
 						],
 						"outputs": [],
-						"execution_count": 14
+						"execution_count": 25
 					},
 					{
 						"cell_type": "code",
@@ -226586,7 +228492,7 @@
 							"ORDER BY ingestiondate DESC"
 						],
 						"outputs": [],
-						"execution_count": 15
+						"execution_count": 26
 					},
 					{
 						"cell_type": "markdown",
@@ -226630,7 +228536,7 @@
 							"ORDER BY ingested_datetime"
 						],
 						"outputs": [],
-						"execution_count": 16
+						"execution_count": 27
 					},
 					{
 						"cell_type": "code",
@@ -226655,7 +228561,7 @@
 							"SELECT DISTINCT * FROM odw_harmonised_db.nsip_document WHERE documentId = '15258121' AND IsActive = 'Y';"
 						],
 						"outputs": [],
-						"execution_count": 17
+						"execution_count": 28
 					},
 					{
 						"cell_type": "markdown",
@@ -226699,7 +228605,7 @@
 							"display(df_cur)"
 						],
 						"outputs": [],
-						"execution_count": 18
+						"execution_count": 29
 					},
 					{
 						"cell_type": "code",
@@ -226715,13 +228621,70 @@
 							}
 						},
 						"source": [
-							"\n",
 							"data: DataFrame = spark.sql(\"SELECT * FROM odw_curated_db.nsip_document\")\n",
 							"data.printSchema()"
 						],
 						"outputs": [],
-						"execution_count": 19
+						"execution_count": 30
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/py_unit_tests_nsip_exam_timetable')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"folder": {
+					"name": "utils/unit-tests"
+				},
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "[parameters('py_unit_tests_nsip_exam_timetable_properties_bigDataPool_referenceName')]",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "2e6130c7-3aa5-45f4-bc15-4c3d0ffd1ad4"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": true,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
 					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+						"name": "pinssynspodw",
+						"type": "Spark",
+						"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "3.3",
+						"nodeCount": 3,
+						"cores": 4,
+						"memory": 28
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
 					{
 						"cell_type": "code",
 						"metadata": {
@@ -226736,175 +228699,10 @@
 							}
 						},
 						"source": [
-							"def read_csvs_recursively(storage_account: str = None, folder: str = None) -> DataFrame:\r\n",
-							"    \"\"\"\r\n",
-							"    Example of how to read csv files in a folder recursively.\r\n",
-							"    Each file is combined into a final DataFrame.\r\n",
-							"    The input_file column is added to show which file that record came from.\r\n",
-							"    Amend the folder path accordingly.\r\n",
-							"    \"\"\"\r\n",
-							"    storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\r\n",
-							"\r\n",
-							"    folder: str = f\"abfss://odw-raw@{storage_account}AIEDocumentData/2024-09-24\"\r\n",
-							"\r\n",
-							"    df: DataFrame = (spark.read.format(\"csv\")\r\n",
-							"        .option(\"recursiveFileLookup\", \"true\")\r\n",
-							"        .option(\"pathGlobFilter\", \"*.csv\")\r\n",
-							"        .option(\"header\", \"true\")\r\n",
-							"        .option(\"quote\", '\"')\r\n",
-							"        .option(\"escape\", '\"')\r\n",
-							"        .option(\"encoding\", \"UTF-8\")\r\n",
-							"        .option(\"multiLine\", \"true\")\r\n",
-							"        .option(\"ignoreLeadingWhiteSpace\", \"true\")\r\n",
-							"        .option(\"ignoreTrailingWhiteSpace\", \"true\")\r\n",
-							"        .load(folder))\r\n",
-							"\r\n",
-							"    df_with_path: DataFrame = df.withColumn(\"input_file\", F.input_file_name())\r\n",
-							"\r\n",
-							"    return df_with_path"
-						],
-						"outputs": [],
-						"execution_count": 20
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"def test_sb_std_to_sb_hrm_no_dropping_records(sb_std_table: str, sb_hrm_table: str) -> bool:\n",
-							"    df: DataFrame = spark.sql(f\"\"\"\n",
-							"    select documentId\n",
-							"    from {std_db_name}.{sb_std_table}\n",
-							"    where documentId not in\n",
-							"    (\n",
-							"        select documentId\n",
-							"        from {hrm_db_name}.{sb_hrm_table}\n",
-							"    )\n",
-							"    \"\"\")\n",
-							"\n",
-							"    return df.count() == 0"
-						],
-						"outputs": [],
-						"execution_count": 21
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"def test_sb_hrm_to_hrm_final_no_dropping_records(sb_hrm_table: str, hrm_table_final: str) -> bool:\n",
-							"    df: DataFrame = spark.sql(f\"\"\"\n",
-							"    select documentId\n",
-							"    from {hrm_db_name}.{sb_hrm_table}\n",
-							"    where documentId not in\n",
-							"    (\n",
-							"        select documentId\n",
-							"        from {hrm_db_name}.{hrm_table_final}\n",
-							"    )\n",
-							"    \"\"\")\n",
-							"\n",
-							"    return df.count() == 0"
-						],
-						"outputs": [],
-						"execution_count": 22
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"def test_hrm_to_curated_no_dropping_records(hrm_table_final: str, curated_table_name: str) -> bool:\n",
-							"    df: DataFrame = spark.sql(f\"\"\"\n",
-							"    select documentId\n",
-							"    from {hrm_db_name}.{hrm_table_final}\n",
-							"    where IsActive = 'Y'\n",
-							"    and documentId not in\n",
-							"    (\n",
-							"        select documentId\n",
-							"        from {curated_db_name}.{curated_table_name}\n",
-							"    )\n",
-							"    \"\"\")\n",
-							"\n",
-							"    return df.count() == 0"
-						],
-						"outputs": [],
-						"execution_count": 23
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"def test_horizon_to_hrm_final_no_dropping_records(horizon_std_table_name: str, hrm_table_final: str) -> bool:\n",
-							"    df: DataFrame = spark.sql(f\"\"\"\n",
-							"    select dataId\n",
-							"    from {std_db_name}.{horizon_std_table_name}\n",
-							"    where ingested_datetime = (select max(ingested_datetime) from {std_db_name}.{horizon_std_table_name})\n",
-							"    and dataId not in\n",
-							"    (\n",
-							"        select documentId\n",
-							"        from {hrm_db_name}.{hrm_table_final}\n",
-							"    )\n",
-							"    \"\"\")\n",
-							"\n",
-							"    return df.count() == 0"
-						],
-						"outputs": [],
-						"execution_count": 24
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"def test_aie_std_to_hrm_no_dropping_records(aie_std_table_name: str, aie_hrm_table_name: str) -> bool:\n",
-							"    df: DataFrame = aie_std_documentIds.subtract(aie_hrm_documentIds)\n",
-							"    return df.count() == 0 "
+							"import json\n",
+							"from pyspark.sql.types import *\n",
+							"from pyspark.sql import DataFrame\n",
+							"import pprint"
 						],
 						"outputs": [],
 						"execution_count": 25
@@ -226923,21 +228721,20 @@
 							}
 						},
 						"source": [
-							"def test_document_row_counts_match(hrm_table_final: str, curated_table_name: str) -> DataFrame:\r\n",
-							"    # Count rows per documentId in harmonised final table\r\n",
-							"    hrm_final_counts = hrm_final_df_active.groupBy(\"documentId\").agg(F.count(\"*\").alias(\"hrm_final_count\"))\r\n",
-							"\r\n",
-							"    # Count rows per documentId in curated table\r\n",
-							"    curated_counts = curated_df.groupBy(\"documentId\").agg(F.count(\"*\").alias(\"curated_count\"))\r\n",
-							"\r\n",
-							"    # Join both tables on documentId to compare the counts\r\n",
-							"    comparison_df = hrm_final_counts.join(curated_counts, \"documentId\", how=\"outer\")\r\n",
-							"\r\n",
-							"    comparison_df = comparison_df.withColumn(\"count_difference\", F.col(\"hrm_final_count\") - F.col(\"curated_count\"))\r\n",
-							"\r\n",
-							"    non_zero_differences = comparison_df.filter(\"count_difference > 0\")\r\n",
-							"\r\n",
-							"    return non_zero_differences.count() == 0"
+							"entity_name: str = 'nsip-exam-timetable'\n",
+							"folder_name: str = 'nsip-exam-timetable'\n",
+							"std_db_name: str = 'odw_standardised_db'\n",
+							"hrm_db_name: str = 'odw_harmonised_db'\n",
+							"curated_db_name: str = 'odw_curated_db'\n",
+							"std_table_name: str = 'sb_nsip_exam_timetable'\n",
+							"hrm_table_name: str = 'sb_nsip_exam_timetable'\n",
+							"hrm_table_final: str = 'nsip_exam_timetable'\n",
+							"curated_table_name: str = 'nsip_exam_timetable'\n",
+							"\n",
+							"primary_key: str = 'caseReference'\n",
+							"std_hzn_table_name: str = 'horizon_examination_timetable'\n",
+							"curated_migration_db_name: str = 'odw_curated_migration_db'\n",
+							"curated_migration_table_name: str = 'nsip_exam_timetable'"
 						],
 						"outputs": [],
 						"execution_count": 26
@@ -226956,7 +228753,8 @@
 							}
 						},
 						"source": [
-							"print(f\"Service bus std to hrm no documentIds dropped: {test_sb_std_to_sb_hrm_no_dropping_records(std_table_name, hrm_table_name)}\")"
+							"#keep track of the exitCodes, if the exit code is not zero then we've had failures, we flip the boolean\n",
+							"exitCode: int = 0"
 						],
 						"outputs": [],
 						"execution_count": 27
@@ -226975,7 +228773,9 @@
 							}
 						},
 						"source": [
-							"print(f\"Service bus hrm to hrm table final no documentIds dropped: {test_sb_hrm_to_hrm_final_no_dropping_records(hrm_table_name, hrm_table_final)}\")"
+							"data_model_columns = [\"caseReference\",\n",
+							"            \"published\",\n",
+							"            \"events\"]"
 						],
 						"outputs": [],
 						"execution_count": 28
@@ -226994,7 +228794,7 @@
 							}
 						},
 						"source": [
-							"print(f\"hrm table final to curated no documentIds dropped: {test_hrm_to_curated_no_dropping_records(hrm_table_final, curated_table_name)}\")"
+							"%run /utils/unit-tests/py_unit_tests_functions"
 						],
 						"outputs": [],
 						"execution_count": 29
@@ -227013,18 +228813,19 @@
 							}
 						},
 						"source": [
-							"print(f\"Horizon std table to hrm table final no documentIds dropped: {test_horizon_to_hrm_final_no_dropping_records(horizon_std_table_name, hrm_table_final)}\")"
+							"sb_std_schema = create_spark_schema(std_db_name, entity_name)\n",
+							"sb_std_table_schema = spark.table(f\"{std_db_name}.{std_table_name}\").schema\n",
+							"sb_hrm_schema = create_spark_schema(hrm_db_name, entity_name)\n",
+							"sb_hrm_table_schema = spark.table(f\"{hrm_db_name}.{hrm_table_name}\").schema\n",
+							"curated_schema = create_spark_schema(curated_db_name, entity_name)\n",
+							"curated_table_schema = spark.table(f\"{curated_db_name}.{curated_table_name}\").schema"
 						],
 						"outputs": [],
 						"execution_count": 30
 					},
 					{
-						"cell_type": "code",
+						"cell_type": "markdown",
 						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
 							"nteract": {
 								"transient": {
 									"deleting": false
@@ -227032,10 +228833,8 @@
 							}
 						},
 						"source": [
-							"print(f\"AIE std table to hrm table no documentIds dropped: {test_aie_std_to_hrm_no_dropping_records(aie_std_table_name, aie_hrm_table_name)}\")"
-						],
-						"outputs": [],
-						"execution_count": 31
+							"##### Compare schemas"
+						]
 					},
 					{
 						"cell_type": "code",
@@ -227048,10 +228847,61 @@
 								"transient": {
 									"deleting": false
 								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"std_schema_correct: bool = test_compare_schemas(sb_std_schema, sb_std_table_schema)\n",
+							"exitCode += int(not std_schema_correct)\n",
+							"print(f\"Service bus standardised schema correct: {std_schema_correct}\\nTable: {std_db_name}.{std_table_name}\\nDifferences shown above (if any)\")\n",
+							"\n",
+							"hrm_schema_correct: bool = test_compare_schemas(sb_hrm_schema, sb_hrm_table_schema)\n",
+							"print(f\"Service bus harmonised schema correct: {hrm_schema_correct}\\nTable: {hrm_db_name}.{hrm_table_name}\\nDifferences shown above (if any)\")\n",
+							"exitCode += int(not hrm_schema_correct)\n",
+							"\n",
+							"cur_schema_correct: bool = test_compare_schemas(curated_schema, curated_table_schema)\n",
+							"exitCode += int(not cur_schema_correct)\n",
+							"print(f\"Curated schema correct: {cur_schema_correct}\\nTable: {curated_db_name}.{curated_table_name}\\nDifferences shown above (if any)\")"
+						],
+						"outputs": [],
+						"execution_count": 31
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
 							}
 						},
 						"source": [
-							"print(f\"Document row counts match for each document in harmonised final to curated: {test_document_row_counts_match(hrm_table_final, curated_table_name)}\")"
+							"##### Compare service bus standardised with harmonised\n",
+							"Should be the same count"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"standardised_count, harmonised_count, counts_match = test_std_same_rows_hrm(std_table_name, hrm_table_name)\n",
+							"print(f\"Standardised Count: {standardised_count: ,}\\nHarmonised Count: {harmonised_count: ,}\\nCounts match: {counts_match}\")\n",
+							"\n",
+							"if standardised_count > harmonised_count:\n",
+							"    exitCode += 1\n",
+							"    print(f\"{standardised_count - harmonised_count} rows from Standardised are missing in Harmonised.\" )\n",
+							"    differentiate_std_and_hrm(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\", data_model_columns)"
 						],
 						"outputs": [],
 						"execution_count": 32
@@ -227123,12 +228973,72 @@
 							}
 						},
 						"source": [
-							"counts_match = test_documents_hzn_and_curated_count_matched(std_hzn_table_name, curated_migration_table_name)\n",
-							"print(f\"Horizon to Curared - Counts match: {counts_match}\")\n",
+							"counts_match = test_hzn_and_curated_count_matched(std_hzn_table_name, curated_migration_table_name, primary_key)\n",
+							"print(f\"Horizon to Curated - Counts match: {counts_match}\")\n",
 							"exitCode += int(not counts_match)"
 						],
 						"outputs": [],
-						"execution_count": 36
+						"execution_count": 34
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Show missing records"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"df_hzn: DataFrame = spark.sql(f\"\"\"\r\n",
+							"                            SELECT DISTINCT t1.{primary_key}\r\n",
+							"                            FROM odw_standardised_db.{std_hzn_table_name} t1\r\n",
+							"                            INNER JOIN odw_standardised_db.horizon_nsip_data t2\r\n",
+							"                            ON t1.caseReference = t2.caseReference\r\n",
+							"                            WHERE t1.expected_from = (\r\n",
+							"                                    SELECT MAX(expected_from)\r\n",
+							"                                    FROM odw_standardised_db.{std_hzn_table_name}\r\n",
+							"                                )\r\n",
+							"                            AND t2.expected_from = (\r\n",
+							"                                    SELECT MAX(expected_from)\r\n",
+							"                                    FROM odw_standardised_db.horizon_nsip_data\r\n",
+							"                                )\r\n",
+							"                        \"\"\")\r\n",
+							"\r\n",
+							"df_cur: DataFrame = spark.sql(f\"\"\"\r\n",
+							"                            SELECT DISTINCT {primary_key}\r\n",
+							"                            FROM odw_curated_migration_db.{curated_migration_table_name}\r\n",
+							"                        \"\"\")\r\n",
+							"\r\n",
+							"\r\n",
+							"missing = df_hzn.subtract(df_cur)\r\n",
+							"display(missing)\r\n",
+							"\r\n",
+							"if missing.rdd.isEmpty():\r\n",
+							"    pass\r\n",
+							"else:\r\n",
+							"    exitCode += 1"
+						],
+						"outputs": [],
+						"execution_count": 41
 					},
 					{
 						"cell_type": "markdown",
@@ -227158,47 +229068,12 @@
 							}
 						},
 						"source": [
-							"rows_dropped = test_documents_hzn_to_curated_no_record_dropped(std_hzn_table_name, curated_migration_table_name)\n",
-							"print(f\"Horizon to Curared - No rows dropped: {rows_dropped}\")\n",
+							"rows_dropped = test_hzn_to_curated_no_record_dropped(std_hzn_table_name, curated_migration_table_name, primary_key)\n",
+							"print(f\"Horizon to Curated - No rows dropped: {rows_dropped}\")\n",
 							"exitCode += int(not rows_dropped)"
 						],
 						"outputs": [],
-						"execution_count": 37
-					},
-					{
-						"cell_type": "markdown",
-						"metadata": {
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"##### Test 4: Check curated layer only has horizon data and unique records (distinct primary ids)"
-						]
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"no_horizon_records, total_curated_count, distinct_curated_count, counts_match = test_curated_unique_hzn_only(curated_migration_db_name, curated_migration_table_name, primary_key)\n",
-							"print(f\"There is no other records than Horizon: {no_horizon_records:}\\nCurated Count: {total_curated_count: ,}\\nDistinct Curated Count: {distinct_curated_count:,}\\nCounts match: {counts_match}\")\n",
-							"exitCode += int(not no_horizon_records)\n",
-							"exitCode += int(not counts_match)"
-						],
-						"outputs": [],
-						"execution_count": 40
+						"execution_count": 36
 					},
 					{
 						"cell_type": "code",
@@ -227217,329 +229092,7 @@
 							"mssparkutils.notebook.exit(exitCode)"
 						],
 						"outputs": [],
-						"execution_count": null
-					}
-				]
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('workspaceName'), '/py_unit_tests_nsip_exam_timetable')]",
-			"type": "Microsoft.Synapse/workspaces/notebooks",
-			"apiVersion": "2019-06-01-preview",
-			"properties": {
-				"folder": {
-					"name": "utils/unit-tests"
-				},
-				"nbformat": 4,
-				"nbformat_minor": 2,
-				"bigDataPool": {
-					"referenceName": "[parameters('py_unit_tests_nsip_exam_timetable_properties_bigDataPool_referenceName')]",
-					"type": "BigDataPoolReference"
-				},
-				"sessionProperties": {
-					"driverMemory": "28g",
-					"driverCores": 4,
-					"executorMemory": "28g",
-					"executorCores": 4,
-					"numExecutors": 2,
-					"conf": {
-						"spark.dynamicAllocation.enabled": "false",
-						"spark.dynamicAllocation.minExecutors": "2",
-						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "6b8d6518-31c4-42ac-acb8-a1dedfb43e26"
-					}
-				},
-				"metadata": {
-					"saveOutput": true,
-					"enableDebugMode": true,
-					"kernelspec": {
-						"name": "synapse_pyspark",
-						"display_name": "Synapse PySpark"
-					},
-					"language_info": {
-						"name": "python"
-					},
-					"a365ComputeOptions": {
-						"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
-						"name": "pinssynspodw",
-						"type": "Spark",
-						"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
-						"auth": {
-							"type": "AAD",
-							"authResource": "https://dev.azuresynapse.net"
-						},
-						"sparkVersion": "3.3",
-						"nodeCount": 3,
-						"cores": 4,
-						"memory": 28
-					},
-					"sessionKeepAliveTimeout": 30
-				},
-				"cells": [
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"import json\n",
-							"from pyspark.sql.types import *\n",
-							"from pyspark.sql import DataFrame\n",
-							"import pprint"
-						],
-						"outputs": [],
-						"execution_count": null
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"entity_name: str = 'nsip-exam-timetable'\n",
-							"folder_name: str = 'nsip-exam-timetable'\n",
-							"std_db_name: str = 'odw_standardised_db'\n",
-							"hrm_db_name: str = 'odw_harmonised_db'\n",
-							"curated_db_name: str = 'odw_curated_db'\n",
-							"std_table_name: str = 'sb_nsip_exam_timetable'\n",
-							"hrm_table_name: str = 'sb_nsip_exam_timetable'\n",
-							"hrm_table_final: str = 'nsip_exam_timetable'\n",
-							"curated_table_name: str = 'nsip_exam_timetable'\n",
-							"\n",
-							"primary_key: str = 'caseReference'\n",
-							"std_hzn_table_name: str = 'horizon_examination_timetable'\n",
-							"curated_migration_db_name: str = 'odw_curated_migration_db'\n",
-							"curated_migration_table_name: str = 'nsip_exam_timetable'"
-						],
-						"outputs": [],
-						"execution_count": null
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"#keep track of the exitCodes, if the exit code is not zero then we've had failures, we flip the boolean\n",
-							"exitCode: int = 0"
-						],
-						"outputs": [],
-						"execution_count": null
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"data_model_columns = [\"caseReference\",\n",
-							"            \"published\",\n",
-							"            \"events\"]"
-						],
-						"outputs": [],
-						"execution_count": null
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"%run /utils/unit-tests/py_unit_tests_functions"
-						],
-						"outputs": [],
-						"execution_count": null
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"sb_std_schema = create_spark_schema(std_db_name, entity_name)\n",
-							"sb_std_table_schema = spark.table(f\"{std_db_name}.{std_table_name}\").schema\n",
-							"sb_hrm_schema = create_spark_schema(hrm_db_name, entity_name)\n",
-							"sb_hrm_table_schema = spark.table(f\"{hrm_db_name}.{hrm_table_name}\").schema"
-						],
-						"outputs": [],
-						"execution_count": null
-					},
-					{
-						"cell_type": "markdown",
-						"metadata": {
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"##### Compare schemas"
-						]
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							},
-							"collapsed": false
-						},
-						"source": [
-							"std_schema_correct: bool = test_compare_schemas(sb_std_schema, sb_std_table_schema)\n",
-							"exitCode += int(not std_schema_correct)\n",
-							"print(f\"Service bus standardised schema correct: {std_schema_correct}\\nTable: {std_db_name}.{std_table_name}\\nDifferences shown above (if any)\")\n",
-							"hrm_schema_correct: bool = test_compare_schemas(sb_hrm_schema, sb_hrm_table_schema)\n",
-							"print(f\"Service bus harmonised schema correct: {hrm_schema_correct}\\nTable: {hrm_db_name}.{hrm_table_name}\\nDifferences shown above (if any)\")\n",
-							"exitCode += int(not hrm_schema_correct)"
-						],
-						"outputs": [],
-						"execution_count": null
-					},
-					{
-						"cell_type": "markdown",
-						"metadata": {
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"##### Compare service bus standardised with harmonised\n",
-							"Should be the same count"
-						]
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							},
-							"collapsed": false
-						},
-						"source": [
-							"standardised_count, harmonised_count, counts_match = test_std_same_rows_hrm(std_table_name, hrm_table_name)\n",
-							"print(f\"Standardised Count: {standardised_count: ,}\\nHarmonised Count: {harmonised_count: ,}\\nCounts match: {counts_match}\")\n",
-							"\n",
-							"if standardised_count > harmonised_count:\n",
-							"    exitCode += 1\n",
-							"    print(f\"{standardised_count - harmonised_count} rows from Standardised are missing in Harmonised.\" )\n",
-							"    differentiate_std_and_hrm(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\", data_model_columns)"
-						],
-						"outputs": [],
-						"execution_count": null
-					},
-					{
-						"cell_type": "markdown",
-						"metadata": {
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"##### Compare final harmonised table (if combined with Horizon) with curated table\n",
-							"Comparing where IsActive = Y in harmonised = curated row count"
-						]
-					},
-					{
-						"cell_type": "markdown",
-						"metadata": {
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"**<u>NOTE:</u> We might have some discrepancies between harmonised and curated as when we created the curated layer for the exam timetable we have to make sure the case reference that exists in nsip project, exists in exam timetable.**  \r\n",
-							"\r\n",
-							"Removing this test for now as it's not comparing like for like"
-						]
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"# harmonised_final_count, curated_count, counts_match = test_curated_row_count(hrm_table_final, curated_table_name, data_model_columns)\n",
-							"# print(f\"Harmonised Final Count: {harmonised_final_count: ,}\\nCurated Count: {curated_count: ,}\\nCounts match: {counts_match}\")\n",
-							"# exitCode += int(not counts_match)"
-						],
-						"outputs": [],
-						"execution_count": null
+						"execution_count": 37
 					},
 					{
 						"cell_type": "markdown",
@@ -227607,8 +229160,7 @@
 							},
 							"microsoft": {
 								"language": "sparksql"
-							},
-							"collapsed": false
+							}
 						},
 						"source": [
 							"%%sql\n",
@@ -227640,8 +229192,7 @@
 								"transient": {
 									"deleting": false
 								}
-							},
-							"collapsed": false
+							}
 						},
 						"source": [
 							"df = spark.sql(\"SELECT * FROM odw_curated_db.nsip_exam_timetable WHERE casereference = 'EN010020'\")\n",
@@ -227749,8 +229300,7 @@
 								"transient": {
 									"deleting": false
 								}
-							},
-							"collapsed": false
+							}
 						},
 						"source": [
 							"df_hzn_std = spark.sql(\"SELECT * from odw_standardised_db.horizon_examination_timetable where casereference = 'BC010006' and ingested_datetime = (select max(ingested_datetime) from odw_standardised_db.horizon_examination_timetable)\")\n",
@@ -227763,224 +229313,6 @@
 							"display(df_sb_hrm)\n",
 							"display(df_hrm_final)\n",
 							"display(df_cur)"
-						],
-						"outputs": [],
-						"execution_count": null
-					},
-					{
-						"cell_type": "markdown",
-						"metadata": {
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"### The below tests are for the curated_migration_db table\n",
-							"##### Test 1:  Schema match the data model\n",
-							""
-						]
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"cur_migrated_schema = create_spark_schema(curated_migration_db_name, entity_name)\n",
-							"cur_migrated_df = spark.table(f\"{curated_migration_db_name}.{curated_migration_table_name}\")\n",
-							"\n",
-							"cur_migrated_schema_correct: bool = test_compare_schemas(cur_migrated_schema, cur_migrated_df.schema)\n",
-							"exitCode += int(not cur_migrated_schema_correct)\n",
-							"print(f\"Curated Migration schema correct: {cur_migrated_schema_correct}\\nTable: {curated_migration_db_name}.{curated_migration_table_name}\\nDifferences shown above (if any)\")"
-						],
-						"outputs": [],
-						"execution_count": null
-					},
-					{
-						"cell_type": "markdown",
-						"metadata": {
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"##### Test 2:  Counts match in horizon standardised and curated\n",
-							""
-						]
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"counts_match = test_hzn_and_curated_count_matched(std_hzn_table_name, curated_migration_table_name, primary_key)\n",
-							"print(f\"Horizon to Curated - Counts match: {counts_match}\")\n",
-							"exitCode += int(not counts_match)"
-						],
-						"outputs": [],
-						"execution_count": null
-					},
-					{
-						"cell_type": "markdown",
-						"metadata": {
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"##### Show missing records"
-						]
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							},
-							"collapsed": false
-						},
-						"source": [
-							"df_hzn: DataFrame = spark.sql(f\"\"\"\r\n",
-							"                            SELECT DISTINCT t1.{primary_key}\r\n",
-							"                            FROM odw_standardised_db.{std_hzn_table_name} t1\r\n",
-							"                            INNER JOIN odw_standardised_db.horizon_nsip_data t2\r\n",
-							"                            ON t1.caseReference = t2.caseReference\r\n",
-							"                            WHERE t1.expected_from = (\r\n",
-							"                                    SELECT MAX(expected_from)\r\n",
-							"                                    FROM odw_standardised_db.{std_hzn_table_name}\r\n",
-							"                                )\r\n",
-							"                            AND t2.expected_from = (\r\n",
-							"                                    SELECT MAX(expected_from)\r\n",
-							"                                    FROM odw_standardised_db.horizon_nsip_data\r\n",
-							"                                )\r\n",
-							"                        \"\"\")\r\n",
-							"\r\n",
-							"df_cur: DataFrame = spark.sql(f\"\"\"\r\n",
-							"                            SELECT DISTINCT {primary_key}\r\n",
-							"                            FROM odw_curated_migration_db.{curated_migration_table_name}\r\n",
-							"                        \"\"\")\r\n",
-							"\r\n",
-							"\r\n",
-							"missing = df_hzn.subtract(df_cur)\r\n",
-							"display(missing)"
-						],
-						"outputs": [],
-						"execution_count": null
-					},
-					{
-						"cell_type": "markdown",
-						"metadata": {
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"##### Test 3:  Checks if any Primary Key record is dropped from Horizon to Curated\n",
-							""
-						]
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"rows_dropped = test_hzn_to_curated_no_record_dropped(std_hzn_table_name, curated_migration_table_name, primary_key)\n",
-							"print(f\"Horizon to Curated - No rows dropped: {rows_dropped}\")\n",
-							"exitCode += int(not rows_dropped)"
-						],
-						"outputs": [],
-						"execution_count": null
-					},
-					{
-						"cell_type": "markdown",
-						"metadata": {
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"##### Test 4: Check curated layer only has horizon data and unique records (distinct primary ids)"
-						]
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"no_horizon_records, total_curated_count, distinct_curated_count, counts_match = test_curated_unique_hzn_only(curated_migration_db_name, curated_migration_table_name, primary_key)\n",
-							"print(f\"There is no other records than Horizon: {no_horizon_records:}\\nCurated Count: {total_curated_count: ,}\\nDistinct Curated Count: {distinct_curated_count:,}\\nCounts match: {counts_match}\")\n",
-							"exitCode += int(not no_horizon_records)\n",
-							"exitCode += int(not counts_match)"
-						],
-						"outputs": [],
-						"execution_count": null
-					},
-					{
-						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"mssparkutils.notebook.exit(exitCode)"
 						],
 						"outputs": [],
 						"execution_count": null
