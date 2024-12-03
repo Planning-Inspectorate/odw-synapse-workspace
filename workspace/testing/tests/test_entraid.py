@@ -75,10 +75,10 @@ def test_entraid_notebook(credential_name, azure_credential, synapse_endpoint: s
                "type": "String",
                "value": "entraid",
             },
-            "isServiceBusSchema": {
-               "type": "Boolean",
-               "value": "False",
-            }
+             "primary_key": {
+                "type": "String",
+                "value": "Id",
+            },
         }
     }
 
