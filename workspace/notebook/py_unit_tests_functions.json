@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "159863cf-1a47-4a00-b6cd-cec887ab8c6d"
+				"spark.autotune.trackingId": "3ec99bb1-b044-493f-a37b-3312f79b5757"
 			}
 		},
 		"metadata": {
@@ -1000,6 +1000,130 @@
 					"\r\n",
 					"    return True  \r\n",
 					"        "
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Unit tests to cover the handling of Delete message_type from standarised to harmonised"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# For all deletes in standardised, all records in harmonised must be inactive\n",
+					"def test_deleted_std_records_inactive_in_hrm(primary_key, std_table, hrm_table):\n",
+					"    df: DataFrame = spark.sql(f\"\"\"\n",
+					"        SELECT * FROM odw_harmonised_db.{hrm_table}\n",
+					"        WHERE {primary_key} IN (\n",
+					"            SELECT DISTINCT {primary_key} \n",
+					"            FROM odw_standardised_db.{std_table}\n",
+					"            WHERE message_type = 'Delete'\n",
+					"        )\n",
+					"        AND IsActive = 'Y'\n",
+					"    \"\"\")\n",
+					"\n",
+					"    return df.count() == 0"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# For all deletes in standardised, we should have the same message id in harmonised\n",
+					"def test_no_deleted_std_records_missing_in_hrm(primary_key, std_table, hrm_table):\n",
+					"    df: DataFrame = spark.sql(f\"\"\"\n",
+					"        SELECT * FROM odw_standardised_db.{std_table} std\n",
+					"        LEFT JOIN odw_harmonised_db.{hrm_table} hrm \n",
+					"            ON std.message_id = hrm.message_id \n",
+					"        WHERE hrm.message_id IS NULL\n",
+					"        AND std.message_type = 'Delete'\n",
+					"    \"\"\")\n",
+					"\n",
+					"    return df.count() == 0"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# All deleted records in standardised, valid to (harmonised) should be equal to the message_enqueued_time_utc from standardised\n",
+					"def test_deleted_std_records_correctly_set_valid_to_in_hrm(primary_key, std_table, hrm_table):\n",
+					"    df: DataFrame = spark.sql(f\"\"\"\n",
+					"        -- get the lastet harmonised records for each primary_key\n",
+					"        WITH LatestHarmonised AS ( \n",
+					"            SELECT \n",
+					"                {primary_key},\n",
+					"                ValidTo,\n",
+					"                ROW_NUMBER() OVER (PARTITION BY {primary_key} ORDER BY IngestionDate DESC) AS rn\n",
+					"            FROM odw_harmonised_db.{hrm_table} hrm\n",
+					"        ),\n",
+					"        -- get the second last row since that's the one we closed based on the deletion. The last row is just a duplicate to store the deleted message_id\n",
+					"        FilteredHarmonised AS (\n",
+					"            SELECT \n",
+					"                {primary_key},\n",
+					"                ValidTo\n",
+					"            FROM LatestHarmonised\n",
+					"            WHERE rn = 2\n",
+					"        ),\n",
+					"        DeleteMessages AS (\n",
+					"            SELECT \n",
+					"                {primary_key},\n",
+					"                message_enqueued_time_utc\n",
+					"            FROM odw_standardised_db.{std_table} std\n",
+					"            WHERE message_type = 'Delete'\n",
+					"        )\n",
+					"        SELECT \n",
+					"            d.{primary_key},\n",
+					"            d.message_enqueued_time_utc,\n",
+					"            f.ValidTo\n",
+					"        FROM DeleteMessages d\n",
+					"        LEFT JOIN FilteredHarmonised f ON d.{primary_key} = f.{primary_key}\n",
+					"        WHERE f.ValidTo IS NULL OR f.ValidTo <> d.message_enqueued_time_utc;\n",
+					"    \"\"\")\n",
+					"\n",
+					"    return df.count() == 0"
 				],
 				"execution_count": null
 			}

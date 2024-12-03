@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "7c47b12f-add5-4b66-8654-69b89f51a124"
+				"spark.autotune.trackingId": "6037fb7e-0d96-4cdc-a4e1-320eedcbf375"
 			}
 		},
 		"metadata": {
@@ -730,22 +730,167 @@
 					}
 				},
 				"source": [
-					"if delete_df.count() > 0:\n",
-					"    logInfo(\"Handling deleted rows\")\n",
-					"\n",
-					"    for row in delete_df.collect():\n",
-					"        mask = (target_df['IsActive'] == 'Y') & (target_df[entity_primary_key] == row[entity_primary_key])\n",
-					"        target_df = target_df.withColumn('ValidTo', when(mask, row['IngestionDate']).otherwise(target_df['ValidTo']))\n",
-					"        target_df = target_df.withColumn('IsActive', when(mask, 'N').otherwise(target_df['IsActive']))\n",
-					"\n",
-					"    # insert all deleted messages as inactive rows to keep track of message ids\n",
-					"    delete_df_clone = delete_df.select(\"*\")\n",
-					"    delete_df_clone = delete_df_clone.withColumn('ValidTo', delete_df['IngestionDate'])\n",
-					"    delete_df_clone = delete_df_clone.withColumn('IsActive', lit('N'))\n",
-					"    target_df = insert_rows_in_df(delete_df_clone, target_df, hrm_incremental_key)\n",
-					"    logInfo(\"Done handling deleted rows\")\n",
-					"\n",
-					"logInfo(f\"Deleted rows: {delete_df.count()}\\nTarget dataframe: {target_df.count()}\")"
+					"if delete_df.count() > 0:\r\n",
+					"    logInfo(\"Handling deleted rows\")\r\n",
+					"else:\r\n",
+					"    logInfo(\"No deleted messages\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"###### Set the ValidTo of the deleted records to the IngestionDate and IsActive to N"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"if delete_df.count() > 0:\r\n",
+					"    delete_df = delete_df \\\r\n",
+					"    .withColumn(\"ValidTo\", col(\"IngestionDate\")) \\\r\n",
+					"    .withColumn(\"IsActive\", lit(\"N\"))\r\n",
+					"    display(delete_df)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"###### Set the ValidTo date of the target DataFrame records\r\n",
+					"\r\n",
+					"For all deleted primary keys, set the ValidTo date to the IngestionDate from the deleted DataFrame if the record is active (only 1 should be active in the target and we don't want to reset all the other ValidTo dates as these have already been set when they were first inserted).  "
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"if delete_df.count() > 0:\r\n",
+					"    target_df = (\r\n",
+					"        target_df.join(\r\n",
+					"            delete_df.select(\r\n",
+					"                entity_primary_key, \r\n",
+					"                col(\"IngestionDate\").alias(\"delete_IngestionDate\")\r\n",
+					"            ),\r\n",
+					"            on=entity_primary_key,\r\n",
+					"            how=\"left\"\r\n",
+					"        )\r\n",
+					"        .withColumn(\r\n",
+					"            \"ValidTo\",\r\n",
+					"            when(col(\"IsActive\") == \"Y\", col(\"delete_IngestionDate\"))\r\n",
+					"            .otherwise(col(\"ValidTo\"))\r\n",
+					"        )\r\n",
+					"        .drop(\"delete_IngestionDate\")\r\n",
+					"    )"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"###### Update the IsActive flag\r\n",
+					"\r\n",
+					"For all primary keys in the deleted DataFrame, set the IsActive flag to N for those primary keys in the target DataFrame.   "
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"if delete_df.count() > 0:\r\n",
+					"    deleted_primary_keys = delete_df.select(entity_primary_key).distinct()\r\n",
+					"    target_df = target_df.withColumn(\r\n",
+					"        \"IsActive\", \r\n",
+					"        when(col(entity_primary_key).isin([getattr(row, entity_primary_key) for row in deleted_primary_keys.collect()]), lit(\"N\"))\r\n",
+					"        .otherwise(col(\"IsActive\"))\r\n",
+					"    )"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"###### Update the target DataFrame with the deleted records"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"if delete_df.count() > 0:\r\n",
+					"    target_df = insert_rows_in_df(delete_df, target_df, hrm_incremental_key)\r\n",
+					"    logInfo(f\"Deleted rows: {delete_df.count()}\\nTarget dataframe: {target_df.count()}\")\r\n",
+					"    logInfo(\"Done handling deleted rows\")"
 				],
 				"execution_count": null
 			},
