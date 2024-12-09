@@ -524,6 +524,589 @@
 					},
 					"waitOnCompletion": true
 				}
+			},
+			{
+				"name": "Listed building",
+				"type": "SynapseNotebook",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "listed_building",
+						"type": "NotebookReference"
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Track Delta Table Changes",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Listed building",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_get_delta_table_changes",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"db_name": {
+							"value": "odw_curated_db",
+							"type": "string"
+						},
+						"table_name": {
+							"value": "listed_building",
+							"type": "string"
+						},
+						"primary_key": {
+							"value": "entity",
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "If Changes found",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Track Delta Table Changes",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@greater(length(json(activity('Track Delta Table Changes').output.status.Output.result.exitValue)), 0)",
+						"type": "Expression"
+					},
+					"ifFalseActivities": [
+						{
+							"name": "Record No changes tracked for listed-building",
+							"type": "SynapseNotebook",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "py_utils_log_stage",
+									"type": "NotebookReference"
+								},
+								"parameters": {
+									"Stage": {
+										"value": "Warning",
+										"type": "string"
+									},
+									"PipelineName": {
+										"value": {
+											"value": "@pipeline().Pipeline",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineRunID": {
+										"value": {
+											"value": "@pipeline().RunId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"Inserts": {
+										"value": "0",
+										"type": "int"
+									},
+									"Updates": {
+										"value": "0",
+										"type": "int"
+									},
+									"Deletes": {
+										"value": "0",
+										"type": "int"
+									},
+									"ErrorMessage": {
+										"value": "",
+										"type": "string"
+									},
+									"StatusMessage": {
+										"value": "No Changes Tracked to publish to service bus for listed-building",
+										"type": "string"
+									},
+									"PipelineTriggerID": {
+										"value": {
+											"value": "@pipeline().TriggerId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggerName": {
+										"value": {
+											"value": "@pipeline().TriggerName",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggerType": {
+										"value": {
+											"value": "@pipeline().TriggerType",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": {
+											"value": "@pipeline()?.TriggeredByPipelineName",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": {
+											"value": "@pipeline()?.TriggeredByPipelineRunId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"ActivityType": {
+										"value": "Pipeline",
+										"type": "string"
+									}
+								},
+								"snapshot": true,
+								"sparkPool": {
+									"referenceName": "pinssynspodw",
+									"type": "BigDataPoolReference"
+								},
+								"conf": {
+									"spark.dynamicAllocation.enabled": true,
+									"spark.dynamicAllocation.minExecutors": null,
+									"spark.dynamicAllocation.maxExecutors": null
+								},
+								"numExecutors": null
+							}
+						}
+					],
+					"ifTrueActivities": [
+						{
+							"name": "Publish to Appeal Service Bus",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Record starting publish to service bus stage",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_publish_to_sb",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"service_bus_name": {
+										"value": "@if(equals(pipeline().DataFactory, 'pins-synw-odw-prod-uks'), 'pins-sb-appeals-bo-prod', if(equals(pipeline().DataFactory, 'pins-synw-odw-test-uks'), 'pins-sb-appeals-bo-test', 'pins-sb-appeals-bo-dev'))",
+										"type": "Expression"
+									},
+									"messages": {
+										"value": "@activity('Track Delta Table Changes').output.status.Output.result.exitValue",
+										"type": "Expression"
+									},
+									"topic_name": "listed-building"
+								}
+							}
+						},
+						{
+							"name": "Record starting publish to service bus stage",
+							"type": "SynapseNotebook",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "py_utils_log_stage",
+									"type": "NotebookReference"
+								},
+								"parameters": {
+									"Stage": {
+										"value": "OnProgress",
+										"type": "string"
+									},
+									"PipelineName": {
+										"value": {
+											"value": "@pipeline().Pipeline",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineRunID": {
+										"value": {
+											"value": "@pipeline().RunId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"Inserts": {
+										"value": "0",
+										"type": "int"
+									},
+									"Updates": {
+										"value": "0",
+										"type": "int"
+									},
+									"Deletes": {
+										"value": "0",
+										"type": "int"
+									},
+									"ErrorMessage": {
+										"value": "",
+										"type": "string"
+									},
+									"StatusMessage": {
+										"value": "Progressing to publish to service bus for listed-building",
+										"type": "string"
+									},
+									"PipelineTriggerID": {
+										"value": {
+											"value": "@pipeline().TriggerId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggerName": {
+										"value": {
+											"value": "@pipeline().TriggerName",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggerType": {
+										"value": {
+											"value": "@pipeline().TriggerType",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": {
+											"value": "@pipeline()?.TriggeredByPipelineName",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": {
+											"value": "@pipeline()?.TriggeredByPipelineRunId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"ActivityType": {
+										"value": "Pipeline",
+										"type": "string"
+									}
+								},
+								"snapshot": true,
+								"sparkPool": {
+									"referenceName": "pinssynspodw",
+									"type": "BigDataPoolReference"
+								},
+								"conf": {
+									"spark.dynamicAllocation.enabled": true,
+									"spark.dynamicAllocation.minExecutors": null,
+									"spark.dynamicAllocation.maxExecutors": null
+								},
+								"numExecutors": null
+							}
+						},
+						{
+							"name": "Record publish to service bus completion",
+							"type": "SynapseNotebook",
+							"dependsOn": [
+								{
+									"activity": "Publish to Appeal Service Bus",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "py_utils_log_stage",
+									"type": "NotebookReference"
+								},
+								"parameters": {
+									"Stage": {
+										"value": "Completion",
+										"type": "string"
+									},
+									"PipelineName": {
+										"value": {
+											"value": "@pipeline().Pipeline",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineRunID": {
+										"value": {
+											"value": "@pipeline().RunId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"Inserts": {
+										"value": "0",
+										"type": "int"
+									},
+									"Updates": {
+										"value": "0",
+										"type": "int"
+									},
+									"Deletes": {
+										"value": "0",
+										"type": "int"
+									},
+									"ErrorMessage": {
+										"value": "",
+										"type": "string"
+									},
+									"StatusMessage": {
+										"value": "Progressing to publish to service bus for listed-building",
+										"type": "string"
+									},
+									"PipelineTriggerID": {
+										"value": {
+											"value": "@pipeline().TriggerId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggerName": {
+										"value": {
+											"value": "@pipeline().TriggerName",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggerType": {
+										"value": {
+											"value": "@pipeline().TriggerType",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": {
+											"value": "@pipeline()?.TriggeredByPipelineName",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": {
+											"value": "@pipeline()?.TriggeredByPipelineRunId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"ActivityType": {
+										"value": "Pipeline",
+										"type": "string"
+									}
+								},
+								"snapshot": true,
+								"sparkPool": {
+									"referenceName": "pinssynspodw",
+									"type": "BigDataPoolReference"
+								},
+								"conf": {
+									"spark.dynamicAllocation.enabled": true,
+									"spark.dynamicAllocation.minExecutors": null,
+									"spark.dynamicAllocation.maxExecutors": null
+								},
+								"numExecutors": null
+							}
+						},
+						{
+							"name": "Record publish to service bus failure",
+							"type": "SynapseNotebook",
+							"dependsOn": [
+								{
+									"activity": "Publish to Appeal Service Bus",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "py_utils_log_stage",
+									"type": "NotebookReference"
+								},
+								"parameters": {
+									"Stage": {
+										"value": "Fail",
+										"type": "string"
+									},
+									"PipelineName": {
+										"value": {
+											"value": "@pipeline().Pipeline",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineRunID": {
+										"value": {
+											"value": "@pipeline().RunId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"Inserts": {
+										"value": "0",
+										"type": "int"
+									},
+									"Updates": {
+										"value": "0",
+										"type": "int"
+									},
+									"Deletes": {
+										"value": "0",
+										"type": "int"
+									},
+									"ErrorMessage": {
+										"value": {
+											"value": "@activity('Publish to Appeal Service Bus').Error.message ",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"StatusMessage": {
+										"value": "Publish to service bus for listed-building failed",
+										"type": "string"
+									},
+									"PipelineTriggerID": {
+										"value": {
+											"value": "@pipeline().TriggerId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggerName": {
+										"value": {
+											"value": "@pipeline().TriggerName",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggerType": {
+										"value": {
+											"value": "@pipeline().TriggerType",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": {
+											"value": "@pipeline()?.TriggeredByPipelineName",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": {
+											"value": "@pipeline()?.TriggeredByPipelineRunId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"ActivityType": {
+										"value": "Pipeline",
+										"type": "string"
+									}
+								},
+								"snapshot": true,
+								"sparkPool": {
+									"referenceName": "pinssynspodw",
+									"type": "BigDataPoolReference"
+								},
+								"conf": {
+									"spark.dynamicAllocation.enabled": true,
+									"spark.dynamicAllocation.minExecutors": null,
+									"spark.dynamicAllocation.maxExecutors": null
+								},
+								"numExecutors": null
+							}
+						}
+					]
+				}
 			}
 		],
 		"folder": {

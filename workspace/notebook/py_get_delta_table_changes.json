@@ -1,0 +1,295 @@
+{
+	"name": "py_get_delta_table_changes",
+	"properties": {
+		"folder": {
+			"name": "utils"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "00774c89-b227-4cc8-accf-7dd63d6f0c59"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.3",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"tags": [
+						"parameters"
+					]
+				},
+				"source": [
+					"db_name=''\n",
+					"table_name=''\n",
+					"primary_key=''"
+				],
+				"execution_count": 8
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": 9
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql import SparkSession\n",
+					"from notebookutils import mssparkutils\n",
+					"from delta.tables import DeltaTable\n",
+					"from pyspark.sql.functions import col, lit, when\n",
+					"import json\n",
+					"\n",
+					"spark: SparkSession = SparkSession.builder.getOrCreate()\n",
+					"table_name_full = f\"{db_name}.{table_name}\""
+				],
+				"execution_count": 10
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Utility functions\n",
+					"\n",
+					"`get_delta_table_path`: Gets the location/path of a delta table\n",
+					"\n",
+					"`get_delta_table_lastest_version`: Gets the int value of the lastes version of a delta table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def get_delta_table_path(table_name):\n",
+					"    table_path = spark.sql(f\"DESCRIBE DETAIL {table_name}\").select(\"location\").first()[\"location\"]\n",
+					"    return table_path\n",
+					"    \n",
+					"def get_delta_table_lastest_version(table_path):\n",
+					"    delta_table = DeltaTable.forPath(spark, table_path)\n",
+					"    history_df = delta_table.history()\n",
+					"    version = history_df.select(\"version\").orderBy(\"version\", ascending=False).first()[\"version\"]\n",
+					"    return version"
+				],
+				"execution_count": 11
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"table_path: str = get_delta_table_path(table_name_full)\n",
+					"latest_version: int = get_delta_table_lastest_version(table_path)\n",
+					"\n",
+					"if latest_version == 0:\n",
+					"    logInfo(f\"Failed to read changes in delta table: {table_name_full}. Exception: No history found\")\n",
+					"    mssparkutils.notebook.exit('[]')"
+				],
+				"execution_count": 13
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"try:\n",
+					"    previous_version = latest_version-1\n",
+					"\n",
+					"    logInfo(f\"Reading changes between version {latest_version} and {previous_version} in delta table: {table_name_full}\")\n",
+					"\n",
+					"    # Load the current and previous versions\n",
+					"    current_version_df = spark.read.format(\"delta\").option(\"versionAsOf\", latest_version).load(table_path)\n",
+					"    previous_version_df = spark.read.format(\"delta\").option(\"versionAsOf\", previous_version).load(table_path)\n",
+					"\n",
+					"    # Find the differences\n",
+					"    create_df = current_version_df.subtract(previous_version_df)\n",
+					"    delete_df = previous_version_df.subtract(current_version_df)\n",
+					"\n",
+					"    # find the updated rows based on the entity_primary_key\n",
+					"    update_df = create_df \\\n",
+					"        .join(delete_df.select(primary_key), on=primary_key, how=\"inner\") \\\n",
+					"        .withColumn(\"EventType\", lit(\"Update\"))\n",
+					"\n",
+					"    # remove updated rows from create and delete df\n",
+					"    create_df = create_df \\\n",
+					"        .join(update_df.select(primary_key), on=primary_key, how=\"left_anti\") \\\n",
+					"        .withColumn(\"EventType\", lit(\"Create\"))\n",
+					"\n",
+					"    delete_df = delete_df \\\n",
+					"        .join(update_df.select(primary_key), on=primary_key, how=\"left_anti\") \\\n",
+					"        .withColumn(\"EventType\", lit(\"Delete\"))\n",
+					"\n",
+					"\n",
+					"    # union create, update and delete df to get all changes in one df\n",
+					"    changes_df = create_df.union(update_df).union(delete_df)\n",
+					"    \n",
+					"    logInfo(f\"Found {changes_df.count()} changes between version {latest_version} and {previous_version} in delta table: {table_name_full}\")\n",
+					"\n",
+					"except Exception as e:\n",
+					"    logError(f\"Failed to read changes in delta table: {table_name_full}. Exception: {e}\")\n",
+					"    mssparkutils.notebook.exit('')\n",
+					""
+				],
+				"execution_count": 14
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"display(changes_df)"
+				],
+				"execution_count": 15
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"formatted_data = [\n",
+					"    {\n",
+					"        'Body': str({k: v for k, v in row.asDict().items() if k != 'EventType'}),\n",
+					"        'UserProperties': {'type': row['EventType']}\n",
+					"    }\n",
+					"    for row in changes_df.collect()\n",
+					"]"
+				],
+				"execution_count": 16
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"mssparkutils.notebook.exit(formatted_data)"
+				],
+				"execution_count": 17
+			}
+		]
+	}
+}

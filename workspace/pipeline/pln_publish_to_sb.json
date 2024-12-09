@@ -1,0 +1,62 @@
+{
+	"name": "pln_publish_to_sb",
+	"properties": {
+		"description": "Pipeline to publish a message to the Service Bus",
+		"activities": [
+			{
+				"name": "Publish messages",
+				"description": "Sends a message to a Service Bus queue or topic via a POST request",
+				"type": "WebActivity",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "POST",
+					"headers": {
+						"Content-Type": "application/vnd.microsoft.servicebus.json"
+					},
+					"url": {
+						"value": "@concat('https://', pipeline().parameters.service_bus_name, '.servicebus.windows.net/', pipeline().parameters.topic_name, '/messages')",
+						"type": "Expression"
+					},
+					"connectVia": {
+						"referenceName": "AutoResolveIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"body": {
+						"value": "@pipeline().parameters.messages",
+						"type": "Expression"
+					},
+					"authentication": {
+						"type": "MSI",
+						"resource": {
+							"value": "@concat('https://', pipeline().parameters.service_bus_name, '.servicebus.windows.net/')",
+							"type": "Expression"
+						}
+					}
+				}
+			}
+		],
+		"parameters": {
+			"service_bus_name": {
+				"type": "string"
+			},
+			"messages": {
+				"type": "string"
+			},
+			"topic_name": {
+				"type": "string"
+			}
+		},
+		"folder": {
+			"name": "utils"
+		},
+		"annotations": []
+	}
+}

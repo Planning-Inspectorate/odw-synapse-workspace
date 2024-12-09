@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "6330ce81-ed12-4a64-a6af-326518b475df"
+				"spark.autotune.trackingId": "3af56b8c-d800-4f3b-854b-3c4704352bfa"
 			}
 		},
 		"metadata": {
@@ -53,12 +53,43 @@
 		"cells": [
 			{
 				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
 				"source": [
-					"df = spark.sql(\"SELECT * FROM odw_harmonised_db.listed_building\")\r\n",
-					"\r\n",
-					"df.write.mode(\"overwrite\").format(\"parquet\").saveAsTable(\"odw_curated_db.listed_building\")"
+					"df = spark.sql(f\"\"\"\n",
+					"    SELECT DISTINCT\n",
+					"    \n",
+					"        CAST(entity AS LONG) AS entity,\n",
+					"        reference,\n",
+					"        name,\n",
+					"        listedBuildingGrade\n",
+					"    \n",
+					"    FROM odw_harmonised_db.listed_building\n",
+					"    \n",
+					"    WHERE dateReceived = (\n",
+					"        SELECT MAX(dateReceived) \n",
+					"        FROM odw_harmonised_db.listed_building\n",
+					"    )\n",
+					"\"\"\")\n",
+					""
 				],
-				"execution_count": null
+				"execution_count": 2
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"df.write.mode(\"overwrite\").format(\"delta\").saveAsTable(\"odw_curated_db.listed_building\")"
+				],
+				"execution_count": 3
 			}
 		]
 	}
