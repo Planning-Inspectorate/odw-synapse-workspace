@@ -1,0 +1,170 @@
+{
+	"name": "pins_inspectors_curated",
+	"properties": {
+		"folder": {
+			"name": "odw-curated"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "8cb0fba6-a886-4127-b0d6-cfe4c7f824a8"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.3",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": 1
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql.functions import *\r\n",
+					"from pyspark.sql.types import *\r\n",
+					"from pyspark.sql import DataFrame\r\n",
+					"from pyspark.sql import SparkSession\r\n",
+					"spark = SparkSession.builder.getOrCreate()"
+				],
+				"execution_count": 2
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"CREATE OR REPLACE VIEW odw_curated_db.vw_pins_inspectors_curated\n",
+					"\n",
+					"AS\n",
+					"\n",
+					"SELECT DISTINCT \n",
+					"inspectorsId\n",
+					",horizonId\n",
+					",firstName\n",
+					",lastName\n",
+					",postName\n",
+					",organisationName\n",
+					",title\n",
+					",salutation\n",
+					",qualifications\n",
+					",email\n",
+					",Migrated\n",
+					",ODTSourceSystem\n",
+					",IngestionDate\n",
+					",ValidTo\n",
+					",IsActive\n",
+					",RowID\n",
+					"FROM odw_harmonised_db.pins_inspectors\n",
+					"WHERE IsActive = 'Y'"
+				],
+				"execution_count": 3
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"spark.sql(f\"drop table if exists odw_curated_db.pins_inspectors;\")"
+				],
+				"execution_count": 4
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"logInfo(f\"Writing to odw_curated_db.pins_inspectors\")\n",
+					"view_df = spark.sql(\"SELECT * FROM odw_curated_db.vw_pins_inspectors_curated\")\n",
+					"view_df.write.mode(\"overwrite\").saveAsTable(\"odw_curated_db.pins_inspectors\")\n",
+					"logInfo(f\"Written {view_df.count()} rows to odw_curated_db.pins_inspectors\")"
+				],
+				"execution_count": 5
+			}
+		]
+	}
+}
