@@ -1,0 +1,423 @@
+{
+	"name": "py_backfill_input_files",
+	"properties": {
+		"description": "Notebook with functions to backfill the input_file field on service bus tables.",
+		"folder": {
+			"name": "utils"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "d6a2b1ce-55c0-4d8d-8a0e-49ee39cdcd51"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.3",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Functions to backfill the input_file field in service bus tables\r\n",
+					"\r\n",
+					"Creates a DataFrame of all historic data from the service bus raw folder for an entity with columns `message_id` and `input_file`.      \r\n",
+					"Joins this to the target standardised table on `message_id`.  \r\n",
+					"Tests if row counts match between the updated DataFrame and the target table.   \r\n",
+					"Saves the updated DataFrame to the target table if tests have passed.  \r\n",
+					"Runs a final test to check again that the table now has `input_file` populated with no null values.   "
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%run service-bus/py_spark_df_ingestion_functions"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql.functions import *\r\n",
+					"from pyspark.sql import DataFrame\r\n",
+					"from pyspark.sql.types import *"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"tags": [
+						"parameters"
+					]
+				},
+				"source": [
+					"table_name: str = \"sb_s51_advice\"\r\n",
+					"folder_name: str = \"s51-advice\"\r\n",
+					"join_key: str = \"message_id\""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"target_df: DataFrame = spark.table(f\"odw_standardised_db.{table_name}\")\r\n",
+					"schema: StructType = target_df.schema\r\n",
+					"source_df: DataFrame = collect_all_raw_sb_data(folder_name=folder_name, schema=schema)\r\n",
+					"# dedupe as there can be the smae message in different files, more than likely during early testing\r\n",
+					"source_df: DataFrame = source_df.dropDuplicates([\"message_id\"])\r\n",
+					"target_df: DataFrame = target_df.dropDuplicates([\"message_id\"])"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"@logging_to_appins\r\n",
+					"def populate_input_file(source_df: DataFrame, target_df: DataFrame) -> DataFrame:\r\n",
+					"    \"\"\"\r\n",
+					"    Populates the input_file column on a target table.\r\n",
+					"    Takes all messages from the raw layer as a source with their input_file.\r\n",
+					"    Joins to target DataFrame on message_id and replaces the input_file values\r\n",
+					"    in the target (mainly null) with values from source.\r\n",
+					"\r\n",
+					"    Args:\r\n",
+					"        source_df: The source DataFrame of all messages from the raw layer\r\n",
+					"        target_df: The target DataFrame of the standardised table\r\n",
+					"\r\n",
+					"    Returns:\r\n",
+					"        updated_df: An updated DataFrame with the input_file correctly populated\r\n",
+					"    \"\"\"\r\n",
+					"\r\n",
+					"    # rename column temporarily to avoid ambiguity\r\n",
+					"    source_df: DataFrame = source_df.withColumnRenamed(\"input_file\", \"source_input_file\")\r\n",
+					"\r\n",
+					"    if \"input_file\" in target_df.columns:\r\n",
+					"        target_df: DataFrame = target_df.withColumnRenamed(\"input_file\", \"target_input_file\")\r\n",
+					"    else:\r\n",
+					"        target_df: DataFrame = target_df.withColumn(\"target_input_file\", lit(None))\r\n",
+					"\r\n",
+					"    joined_df: DataFrame = target_df.alias(\"target\").join(source_df.alias(\"source\"), on=join_key, how=\"left\")\r\n",
+					"\r\n",
+					"    joined_df = joined_df.withColumn(\r\n",
+					"        \"input_file\",\r\n",
+					"        col(\"source.source_input_file\")\r\n",
+					"        )\r\n",
+					"\r\n",
+					"    updated_columns = [\r\n",
+					"        col(f\"target.{column}\").alias(column) if column != \"target_input_file\" else col(\"input_file\").alias(\"input_file\")\r\n",
+					"        for column in target_df.columns\r\n",
+					"    ]\r\n",
+					"\r\n",
+					"    updated_df = joined_df.select(*updated_columns)    \r\n",
+					"\r\n",
+					"    return updated_df"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"@logging_to_appins\r\n",
+					"def test_counts_match(table_df: DataFrame, updated_df: DataFrame) -> bool:\r\n",
+					"    \"\"\"\r\n",
+					"    Test that the target table row count matches the updated DataFrame row count\r\n",
+					"\r\n",
+					"    Args:\r\n",
+					"        table_df: The standardised table as a DataFrame\r\n",
+					"        updated_df: The DataFrame that has been updated with the input_file values\r\n",
+					"\r\n",
+					"    Returns:\r\n",
+					"        True if the DataFrame counts match\r\n",
+					"    \"\"\"\r\n",
+					"    return table_df.count() == updated_df.count()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"@logging_to_appins\r\n",
+					"def test_input_file_populated(updated_df: DataFrame) -> bool:\r\n",
+					"    \"\"\"\r\n",
+					"    Test that the input_file column is fully populated for all rows\r\n",
+					"    \r\n",
+					"    Args:\r\n",
+					"        updated_df: The DataFrame that has been updated with the input_file values\r\n",
+					"\r\n",
+					"    Returns:\r\n",
+					"        True if all rows have an input_file\r\n",
+					"    \"\"\"\r\n",
+					"    invalid_rows = updated_df.filter((col(\"message_id\").isNotNull()) & (col(\"input_file\").isNull()))\r\n",
+					"    \r\n",
+					"    return invalid_rows.count() == 0"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"@logging_to_appins\r\n",
+					"def save_to_table(updated_df: DataFrame) -> None:\r\n",
+					"    \"\"\"\r\n",
+					"    Saves the updated DataFrame to the target table\r\n",
+					"\r\n",
+					"    Args:\r\n",
+					"        updated_df: The updated DataFrame\r\n",
+					"    \"\"\"\r\n",
+					"    updated_df \\\r\n",
+					"    .write \\\r\n",
+					"    .mode(\"overwrite\") \\\r\n",
+					"    .format(\"delta\") \\\r\n",
+					"    .option(\"mergeSchema\", \"true\") \\\r\n",
+					"    .saveAsTable(f\"odw_standardised_db.{table_name}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"@logging_to_appins\r\n",
+					"def main(target_df: DataFrame, updated_df: DataFrame):\r\n",
+					"    \"\"\"\r\n",
+					"    Main function to run the required steps\r\n",
+					"    Populates the updated DataFrame first\r\n",
+					"    Checks if tests have passed\r\n",
+					"    Saves the DataFrame to the target table\r\n",
+					"    \"\"\"\r\n",
+					"\r\n",
+					"    exitCode = 0\r\n",
+					"\r\n",
+					"    try:\r\n",
+					"        logInfo(\"Running tests...\")\r\n",
+					"        if not test_counts_match(target_df, updated_df):\r\n",
+					"            exitCode += 1\r\n",
+					"            logInfo(f\"test_counts_match failed:\\nexitCode={exitCode}\")\r\n",
+					"        if not test_input_file_populated(updated_df):\r\n",
+					"            exitCode +=1\r\n",
+					"            logInfo(f\"test_counts_match failed:\\nexitCode={exitCode}\")\r\n",
+					"        if exitCode == 0:\r\n",
+					"            logInfo(\"All tests have passed...\")\r\n",
+					"            logInfo(\"Saving to table...\")\r\n",
+					"            save_to_table(updated_df)\r\n",
+					"            logInfo(\"Table overwrite completed\")\r\n",
+					"        else:\r\n",
+					"            logInfo(f\"One or more tests have failed\\nexitCode: {exitCode}\")\r\n",
+					"    except Exception as e:\r\n",
+					"        logInfo(f\"Error encountered\\n{e}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"updated_df = populate_input_file(source_df, target_df)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"main(target_df=target_df, updated_df=updated_df)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"exitCode = 0\r\n",
+					"new_df: DataFrame = spark.table(f\"odw_standardised_db.{table_name}\")\r\n",
+					"if not test_input_file_populated(new_df):\r\n",
+					"    exitCode += 1\r\n",
+					"    print(\"input_file field not correctly populated. The table has been written to successfully but there are still null values in that field.\")\r\n",
+					"else:\r\n",
+					"    print(\"Table updated successfully\")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
