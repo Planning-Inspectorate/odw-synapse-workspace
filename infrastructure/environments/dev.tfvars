@@ -51,6 +51,11 @@ function_app = [
         name  = "SqlConnectionString",
         type  = "SQLAzure",
         value = "Server=tcp:pins-synw-odw-dev-uks-ondemand.sql.azuresynapse.net,1433;Persist Security Info=False;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Database=odw_curated_db;Authentication=Active Directory Managed Identity;"
+      },
+      {
+        name  = "SqlConnectionString2",
+        type  = "SQLAzure",
+        value = "Server=tcp:pins-synw-odw-dev-uks-ondemand.sql.azuresynapse.net,1433;Persist Security Info=False;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Database=odw_harmonised_db;Authentication=Active Directory Managed Identity;"
       }
     ]
     site_config = {
