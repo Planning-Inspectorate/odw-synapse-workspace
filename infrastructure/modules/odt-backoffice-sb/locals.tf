@@ -84,4 +84,7 @@ locals {
       ]
     ])
   ))
+
+  topics_to_send_ids          = [for topic in data.azurerm_servicebus_topic.topics_to_send : topic.id]
+  topics_to_send_ids_failover = var.synapse_workspace_failover_principal_id != null ? local.topics_to_send_ids : []
 }

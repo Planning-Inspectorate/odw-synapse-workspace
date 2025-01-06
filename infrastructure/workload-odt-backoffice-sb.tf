@@ -61,6 +61,8 @@ module "odt_backoffice_sb" {
   odt_back_office_private_endpoint_dns_zone_id    = (var.environment != "dev" ? azurerm_private_dns_zone.back_office_private_dns_zone[0].id : null)
   synapse_private_endpoint_subnet_name            = local.synapse_subnet_name
   synapse_private_endpoint_vnet_subnets           = module.synapse_network.vnet_subnets
+  synapse_workspace_failover_principal_id         = try(module.synapse_workspace_private_failover.synapse_workspace_principal_id, null)
+  synapse_workspace_principal_id                  = module.synapse_workspace_private.synapse_workspace_principal_id
 
   tags = local.tags
 
@@ -85,6 +87,8 @@ module "odt_backoffice_sb_failover" {
   odt_back_office_private_endpoint_dns_zone_id    = (var.environment != "dev" ? azurerm_private_dns_zone.back_office_private_dns_zone[0].id : null)
   synapse_private_endpoint_subnet_name            = local.synapse_subnet_name
   synapse_private_endpoint_vnet_subnets           = module.synapse_network_failover.vnet_subnets
+  synapse_workspace_failover_principal_id         = try(module.synapse_workspace_private_failover.synapse_workspace_principal_id, null)
+  synapse_workspace_principal_id                  = module.synapse_workspace_private.synapse_workspace_principal_id
 
   tags = local.tags
 
@@ -111,6 +115,9 @@ module "odt_appeals_back_office_sb" {
   odt_back_office_private_endpoint_dns_zone_id    = (var.environment != "dev" ? azurerm_private_dns_zone.back_office_private_dns_zone[0].id : null)
   synapse_private_endpoint_subnet_name            = local.synapse_subnet_name
   synapse_private_endpoint_vnet_subnets           = module.synapse_network.vnet_subnets
+  synapse_workspace_failover_principal_id         = try(module.synapse_workspace_private_failover.synapse_workspace_principal_id, null)
+  synapse_workspace_principal_id                  = module.synapse_workspace_private.synapse_workspace_principal_id
+  topics_to_send                                  = ["listed-building"]
 
   tags = local.tags
 

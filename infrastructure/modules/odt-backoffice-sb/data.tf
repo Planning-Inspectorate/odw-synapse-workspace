@@ -12,6 +12,14 @@ data "azurerm_servicebus_topic" "topic_id" {
   namespace_id = data.azurerm_resources.odt_pe_backoffice_sb.resources[0].id
 }
 
+data "azurerm_servicebus_topic" "topics_to_send" {
+  for_each = toset(var.topics_to_send)
+
+  provider     = azurerm.odt
+  name         = each.value
+  namespace_id = data.azurerm_resources.odt_pe_backoffice_sb.resources[0].id
+}
+
 data "azuread_group" "groups" {
   count        = length(local.group_names)
   display_name = local.group_names[count.index]
