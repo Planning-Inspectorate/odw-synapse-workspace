@@ -358,12 +358,6 @@
 		"DaRT Query_properties_content_currentConnection_poolName": {
 			"type": "string"
 		},
-		"Dart_API_testing_properties_content_currentConnection_databaseName": {
-			"type": "string"
-		},
-		"Dart_API_testing_properties_content_currentConnection_poolName": {
-			"type": "string"
-		},
 		"Duplicates_in_Employee_Dim_properties_content_currentConnection_databaseName": {
 			"type": "string"
 		},
@@ -434,18 +428,6 @@
 			"type": "string"
 		},
 		"add_user_properties_content_currentConnection_poolName": {
-			"type": "string"
-		},
-		"dart_query_properties_content_currentConnection_databaseName": {
-			"type": "string"
-		},
-		"dart_query_properties_content_currentConnection_poolName": {
-			"type": "string"
-		},
-		"dart_test_properties_content_currentConnection_databaseName": {
-			"type": "string"
-		},
-		"dart_test_properties_content_currentConnection_poolName": {
 			"type": "string"
 		},
 		"document_meta_data_properties_content_currentConnection_databaseName": {
@@ -1062,7 +1044,7 @@
 			"type": "string",
 			"defaultValue": "pinssynspodw"
 		},
-		"dart_cases_api_properties_bigDataPool_referenceName": {
+		"dart_api_properties_bigDataPool_referenceName": {
 			"type": "string",
 			"defaultValue": "pinssynspodw"
 		},
@@ -41027,6 +41009,32 @@
 								}
 							]
 						}
+					},
+					{
+						"name": "dart_api",
+						"type": "SynapseNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "dart_api",
+								"type": "NotebookReference"
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
 					}
 				],
 				"policy": {
@@ -41056,6 +41064,7 @@
 				"[concat(variables('workspaceId'), '/pipelines/pln_curated_migration')]",
 				"[concat(variables('workspaceId'), '/notebooks/listed_building')]",
 				"[concat(variables('workspaceId'), '/notebooks/py_get_delta_table_changes')]",
+				"[concat(variables('workspaceId'), '/notebooks/dart_api')]",
 				"[concat(variables('workspaceId'), '/notebooks/py_utils_log_stage')]",
 				"[concat(variables('workspaceId'), '/pipelines/pln_publish_to_sb')]"
 			]
@@ -101190,26 +101199,6 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('workspaceName'), '/Dart_API_testing')]",
-			"type": "Microsoft.Synapse/workspaces/sqlscripts",
-			"apiVersion": "2019-06-01-preview",
-			"properties": {
-				"content": {
-					"query": "-- Test queries\n\n-- select CaseNumber,\n-- JSON_QUERY('[\"' + STRING_AGG(ContactID, '\",\"') + '\"]') as 'Contacts.ContactID',\n-- JSON_QUERY('[\"' + STRING_AGG(TypeOfInvolvement, '\",\"') + '\"]') as 'Contacts.TypeOfInvolvement'\n-- from odw_harmonised_db.dbo.casework_contact_information_dim\n-- where casenumber = '2002510'\n-- group by CaseNumber, TypeOfInvolvement\n-- for json path\n\n\n-- SELECT\n--     CaseNumber,\n--     '[' + STRING_AGG(\n--         '{ \"ContactID\": ' + CAST(ContactID AS NVARCHAR(MAX)) + ', \"TypeOfInvolvement\": \"' + TypeOfInvolvement + '\" }',\n--         ','\n--     ) + ']' AS Contacts\n-- FROM odw_harmonised_db.dbo.casework_contact_information_dim\n-- where casenumber = '2002510'\n-- GROUP BY CaseNumber\n-- FOR JSON PATH, ROOT('Cases');\n\nSELECT\n    CaseNumber,\n    (\n        SELECT\n            ContactID,\n            TypeOfInvolvement\n            -- Other contact-related columns...\n        FROM odw_harmonised_db.dbo.casework_contact_information_dim AS Contacts\n        WHERE Cases.CaseNumber = Contacts.CaseNumber\n        FOR JSON PATH, WITHOUT_ARRAY_WRAPPER\n    ) AS Contacts\nFROM odw_harmonised_db.dbo.casework_contact_information_dim AS Cases\nGROUP BY CaseNumber\n\n\n\n\n\n",
-					"metadata": {
-						"language": "sql"
-					},
-					"currentConnection": {
-						"databaseName": "[parameters('Dart_API_testing_properties_content_currentConnection_databaseName')]",
-						"poolName": "[parameters('Dart_API_testing_properties_content_currentConnection_poolName')]"
-					},
-					"resultLimit": -1
-				},
-				"type": "SqlQuery"
-			},
-			"dependsOn": []
-		},
-		{
 			"name": "[concat(parameters('workspaceName'), '/Duplicates_in_Employee_Dim')]",
 			"type": "Microsoft.Synapse/workspaces/sqlscripts",
 			"apiVersion": "2019-06-01-preview",
@@ -101464,53 +101453,6 @@
 					"currentConnection": {
 						"databaseName": "[parameters('add_user_properties_content_currentConnection_databaseName')]",
 						"poolName": "[parameters('add_user_properties_content_currentConnection_poolName')]"
-					},
-					"resultLimit": 5000
-				},
-				"type": "SqlQuery"
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('workspaceName'), '/dart_query')]",
-			"type": "Microsoft.Synapse/workspaces/sqlscripts",
-			"apiVersion": "2019-06-01-preview",
-			"properties": {
-				"description": "Query to fetch case data to be used by the DaRT API. The query will be called from a function app on demand.",
-				"folder": {
-					"name": "DaRT"
-				},
-				"content": {
-					"query": "/****************************************************************************\n\nDaRT query to retrieve case data and related information.\n\nThere are 5 columns where multiple rows per case are possible, i.e.\n\nSpecialism\nContactID\nGroundForAppeal\nEvents\nChartStatus\n\nLinked cases will be a 6th field which will cause multiple rows to be returned.\nA seperate pydantic model will need to be created in model_dart.py to handle this.\n\n****************************************************************************/\n\nUSE ODW_HARMONISED_DB;\n\nWITH SAMPLE_CASES AS \n(\nSELECT      \n                    \n                    t1.CaseReference,\n                    t1.AppealRefNumber,\n                    t6.ApplicationType,\n                    t6.AppealTypeReason,\n                    t6.AppealTypeGroup,\n                    t6.AppealType,\n                    t12.ProcedureName,\n                    t1.validity,\n                    t5.ProcessingState,\n                    t6.LinkedAppeal,\n                    t21.LastPublishedDate,\n                    t7.LPACode,\n                    t7.LPAName,\n                    t6.Jurisdiction,\n                    t5.DevelopmentOrAllegation,\n                    t5.CaseProcess,\n                    t6.DevelopmentType,\n                    t22.RelatedReferences,\n                    t5.AppealSourceIndicator,\n                    t5.Level,\n                    t8.Specialism,\n                    t9.SpecialCircumstance,\n                    t5.AppellantStatementSubmitted,\n                    t15.WelshLanguage,\n                    t5.ProcedureAppellant,\n                    t6.AppealRecDate,\n                    t6.AppealStartDate,\n                    t1.ValidTo,\n                    t10.ValidityStatusDate,\n                    t5.CallInDate,\n                    t5.TargetDate,\n                    t5.StatementsDue,\n                    t5.ThirdPartyRepsDue,\n                    t5.FinalCommentsDue,\n                    t5.StatementOfCommonGroundDue,\n                    t5.ProofsDue,\n                    t22.ConsentDate,\n                    t12.OwnershipPermission,\n                    t11.ModifyDate,\n                    t12.LpaDecisionDate,\n                    t13.OutcomePublicSafety,\n                    t13.AdvertDetailsID,\n                    t13.ReasonPublicSafety,\n                    t13.OutcomeAmenity,\n                    t13.ReasonAmenity,\n                    t13.IsActive as AdvertInPosition,\n                    t13.SignDescription as AdvertDescription,\n                    t5.LPAApplicationDate,\n                    t5.LPAApplicationReference,\n                    t23.Section,\n                    JSON_QUERY('[\"' + STRING_AGG(t14.ContactID, '\",\"') + '\"]') as ContactIDs,\n                    -- t14.Title,\n                    -- t14.Salutation,\n                    -- t14.FirstName,\n                    -- t14.LastName,\n                    -- t14.TypeOfInvolvement,\n                    t15.AddressLine1,\n                    t15.AddressLine2,\n                    t15.AddressTown,\n                    t15.PostCode,\n                    t15.Easting,\n                    t15.Northing,\n                    t5.InspectorNeedToEnterSite,\n                    t5.NumberOfResidences,\n                    t5.AreaOfSiteInHectares,\n                    t5.FloorSpaceInSquareMetres,\n                    t5.SiteGreenBelt,\n                    t5.HistoricBuildingGrantMade,\n                    t5.AgriculturalHolding,\n                    JSON_QUERY('[\"' + STRING_AGG(t16.GroundForAppeal, '\",\"') + '\"]') as GroundsForAppeal,\n                    -- t16.GroundLetter,\n                    t16.GroundForAppealStartDate,\n                    JSON_QUERY('[\"' + STRING_AGG(t18.EventType, '\",\"') + '\"]') as EventTypes,\n                    t17.EstPrepTime,\n                    t17.EstSitTime,\n                    t17.EstRepTime,\n                    JSON_QUERY('[\"' + STRING_AGG(t17.ChartStatus, '\",\"') + '\"]') as ChartStatuses,\n                    JSON_QUERY('[\"' + STRING_AGG(t18.StartDateOfEvent, '\",\"') + '\"]') as StartDatesOfEvent,\n                    JSON_QUERY('[\"' + STRING_AGG(t18.StartTimeOfEvent, '\",\"') + '\"]') as StartTimesOfEvent,\n                    t18.EndDateOfEvent,\n                    t19.NotificationOfSV,\n                    t18.DateEventRequested,\n                    t17.ActualDuration\n\nFROM                casework_case_info_dim t1\n\nLEFT OUTER JOIN     casework_all_appeals_additional_data_dim t5\nON                  t1.AppealRefNumber = t5.AppealRefNumber\nAND                 t1.IsActive = 'Y'\nAND                 t5.IsActive = 'Y'\n\nLEFT OUTER JOIN     casework_all_appeals_dim t6\nON                  t1.AppealRefNumber = t6.AppealRefNumber\nAND                 t1.IsActive = 'Y'\nAND                 t6.IsActive = 'Y'\n\nLEFT OUTER JOIN     casework_local_planning_authority_dim t7\nON                  t6.LPAID = t7.LPAID\nAND                 t6.IsActive = 'Y'\nAND                 t7.IsActive = 'Y'\n\nLEFT OUTER JOIN     casework_specialism_dim t8\nON                  t1.AppealRefNumber = t8.AppealRefNumber\nAND                 t1.IsActive = 'Y'\nAND                 t8.IsActive = 'Y'\n\nLEFT OUTER JOIN     casework_special_circumstance_dim t9\nON                  t1.AppealRefNumber = t9.AppealRefNumber\nAND                 t1.IsActive = 'Y'\nAND                 t9.IsActive = 'Y'\n\nLEFT OUTER JOIN     casework_case_dates_dim t10\nON                  t1.AppealRefNumber = t10.AppealRefNumber\nAND                 t1.IsActive = 'Y'\nAND                 t10.IsActive = 'Y'\n\nLEFT OUTER JOIN     casework_specialist_modifications_dim t11\nON                  t1.AppealRefNumber = t11.AppealRefNumber\nAND                 t1.IsActive = 'Y'\nAND                 t11.IsActive = 'Y'\n\nLEFT OUTER JOIN     casework_picaso_dim t12\nON                  t1.AppealRefNumber = t12.AppealRefNumber\nAND                 t1.IsActive = 'Y'\nAND                 t12.IsActive = 'Y'\n\nLEFT OUTER JOIN     casework_advert_details_dim t13\nON                  t1.AppealRefNumber = t13.AppealRefNumber\nAND                 t1.IsActive = 'Y'\nAND                 t13.IsActive = 'Y'\n\nLEFT OUTER JOIN     casework_contact_information_dim t14\nON                  t1.AppealRefNumber = t14.CaseNumber\nAND                 t1.IsActive = 'Y'\nAND                 t14.IsActive = 'Y'\n\nLEFT OUTER JOIN     casework_nsip_project_info_internal_dim t15\nON                  t1.CaseReference = t15.CaseReference\nAND                 t1.IsActive = 'Y'\nAND                 t15.IsActive = 'Y'\n\nLEFT OUTER JOIN     casework_enforcement_grounds_dim t16\nON                  t1.AppealRefNumber = t16.AppealRefNumber\nAND                 t1.IsActive = 'Y'\nAND                 t16.IsActive = 'Y'\n\nLEFT OUTER JOIN     casework_event_dim t17\nON                  t1.AppealRefNumber = t17.AppealRefNumber\nAND                 t1.IsActive = 'Y'\nAND                 t17.IsActive = 'Y'\n\nLEFT OUTER JOIN     casework_event_fact t18\nON                  t17.EventID = t18.EventID\nAND                 t17.IsActive = 'Y'\nAND                 t18.IsActive = 'Y'\n\nLEFT OUTER JOIN     casework_specialist_environment_dim t19\nON                  t1.AppealRefNumber = t19.AppealRefNumber\nAND                 t1.IsActive = 'Y'\nAND                 t19.IsActive = 'Y'\n\nLEFT OUTER JOIN     casework_nsip_advice_dim t21 \nON                  t1.CaseReference = t21.CaseReference\nAND                 t1.IsActive = 'Y'\nAND                 t21.IsActive = 'Y'\n\nLEFT OUTER JOIN     high_court_dim t22\nON                  t1.AppealRefNumber = t22.AppealRefNumber\nAND                 t1.IsActive = 'Y'\nAND                 t22.IsActive = 'Y'\n\nLEFT OUTER JOIN     casework_specialist_case_string_dim t23\nON                  t1.AppealRefNumber = t23.AppealRefNumber\nAND                 t1.IsActive = 'Y'\nAND                 t23.IsActive = 'Y'\n\nGROUP BY\n                    t1.CaseReference,\n                    t1.AppealRefNumber,\n                    t6.ApplicationType,\n                    t6.AppealTypeReason,\n                    t6.AppealTypeGroup,\n                    t6.AppealType,\n                    t12.ProcedureName,\n                    t1.validity,\n                    t5.ProcessingState,\n                    t6.LinkedAppeal,\n                    t21.LastPublishedDate,\n                    t7.LPACode,\n                    t7.LPAName,\n                    t6.Jurisdiction,\n                    t5.DevelopmentOrAllegation,\n                    t5.CaseProcess,\n                    t6.DevelopmentType,\n                    t22.RelatedReferences,\n                    t5.AppealSourceIndicator,\n                    t5.Level,\n                    t8.Specialism,\n                    t9.SpecialCircumstance,\n                    t5.AppellantStatementSubmitted,\n                    t15.WelshLanguage,\n                    t5.ProcedureAppellant,\n                    t6.AppealRecDate,\n                    t6.AppealStartDate,\n                    t1.ValidTo,\n                    t10.ValidityStatusDate,\n                    t5.CallInDate,\n                    t5.TargetDate,\n                    t5.StatementsDue,\n                    t5.ThirdPartyRepsDue,\n                    t5.FinalCommentsDue,\n                    t5.StatementOfCommonGroundDue,\n                    t5.ProofsDue,\n                    t22.ConsentDate,\n                    t12.OwnershipPermission,\n                    t11.ModifyDate,\n                    t12.LpaDecisionDate,\n                    t13.OutcomePublicSafety,\n                    t13.AdvertDetailsID,\n                    t13.ReasonPublicSafety,\n                    t13.OutcomeAmenity,\n                    t13.ReasonAmenity,\n                    t13.IsActive,\n                    t13.SignDescription,\n                    t5.LPAApplicationDate,\n                    t5.LPAApplicationReference,\n                    t23.Section,\n                    -- t14.Title,\n                    -- t14.Salutation,\n                    -- t14.FirstName,\n                    -- t14.LastName,\n                    -- t14.TypeOfInvolvement,\n                    t15.AddressLine1,\n                    t15.AddressLine2,\n                    t15.AddressTown,\n                    t15.PostCode,\n                    t15.Easting,\n                    t15.Northing,\n                    t5.InspectorNeedToEnterSite,\n                    t5.NumberOfResidences,\n                    t5.AreaOfSiteInHectares,\n                    t5.FloorSpaceInSquareMetres,\n                    t5.SiteGreenBelt,\n                    t5.HistoricBuildingGrantMade,\n                    t5.AgriculturalHolding,\n                    -- t16.GroundLetter,\n                    t16.GroundForAppealStartDate,\n                    t17.EstPrepTime,\n                    t17.EstSitTime,\n                    t17.EstRepTime,\n                    t18.EndDateOfEvent,\n                    t19.NotificationOfSV,\n                    t18.DateEventRequested,\n                    t17.ActualDuration\n\n)\n\nSELECT * \nFROM SAMPLE_CASES\nWHERE AppealRefNumber IN ('2207128')\nFOR JSON AUTO",
-					"metadata": {
-						"language": "sql"
-					},
-					"currentConnection": {
-						"databaseName": "[parameters('dart_query_properties_content_currentConnection_databaseName')]",
-						"poolName": "[parameters('dart_query_properties_content_currentConnection_poolName')]"
-					},
-					"resultLimit": 5000
-				},
-				"type": "SqlQuery"
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('workspaceName'), '/dart_test')]",
-			"type": "Microsoft.Synapse/workspaces/sqlscripts",
-			"apiVersion": "2019-06-01-preview",
-			"properties": {
-				"folder": {
-					"name": "DaRT"
-				},
-				"content": {
-					"query": "/*\n\ntest script for the DaRT query.\n\nMost fields are defined but linked cases need to be added.\nThe source of linked cases can be seen below - child_cases and lead_cases\nso the work needed is to get those into the main query.\n\n*/\n\nWITH child_cases AS\n(\nSELECT DISTINCT\nAAD1.AppealRefNumber,\nAAD2.AppealRefNumber        AS LinkedApealRef\nFROM [odw_harmonised_db].[dbo].[casework_all_appeals_dim] AS AAD1\nJOIN [odw_harmonised_db].[dbo].[casework_all_appeals_dim] AS AAD2\nON aad2.LeadCase = aad1.AppealRefNumber\nWHERE AAD1.LinkedAppeal != 'Not Linked'\nAND AAD1.IsActive = 'Y'\nAND AAD2.IsActive = 'Y'\n),\n\nlead_cases AS\n(\nSELECT DISTINCT\nAAD1.AppealRefNumber,\nAAD2.AppealRefNumber        AS LinkedApealRef\nFROM [odw_harmonised_db].[dbo].[casework_all_appeals_dim] AS AAD1\nJOIN [odw_harmonised_db].[dbo].[casework_all_appeals_dim] AS AAD2\nON aad1.LeadCase = aad2.AppealRefNumber\nWHERE AAD1.LinkedAppeal != 'Not Linked'\nAND AAD1.IsActive = 'Y'\nAND AAD2.IsActive = 'Y'\n),\n\nother_fields AS\n(\nSELECT DISTINCT\n                    t1.CaseReference,\n                    t1.AppealRefNumber,\n                    -- t6.ApplicationType,\n                    -- t6.AppealTypeReason,\n                    -- t6.AppealTypeGroup,\n                    -- t6.AppealType,\n                    -- t12.ProcedureName,\n                    -- t1.validity,\n                    -- t5.ProcessingState,\n                    t6.LinkedAppeal,\n                    t6.LeadCase    \n                    -- t21.LastPublishedDate,\n                    -- t7.LPACode,\n                    -- t7.LPAName,\n                    -- t6.Jurisdiction,\n                    -- t5.DevelopmentOrAllegation,\n                    -- t5.CaseProcess,\n                    -- t6.DevelopmentType,\n                    -- t22.RelatedReferences,\n                    -- t5.AppealSourceIndicator,\n                    -- t5.Level,\n                    -- t8.SpecialismID,\n                    -- t8.Specialism,\n                    -- t9.SpecialCircumstance,\n                    -- t5.AppellantStatementSubmitted,\n                    -- -- t15.WelshLanguage,\n                    -- t5.ProcedureAppellant,\n                    -- t6.AppealRecDate,\n                    -- t6.AppealStartDate,\n                    -- t1.ValidTo,\n                    -- t10.ValidityStatusDate,\n                    -- t5.CallInDate,\n                    -- t5.TargetDate,\n                    -- t5.StatementsDue,\n                    -- t5.ThirdPartyRepsDue,\n                    -- t5.FinalCommentsDue,\n                    -- t5.StatementOfCommonGroundDue,\n                    -- t5.ProofsDue,\n                    -- t22.ConsentDate,\n                    -- t12.OwnershipPermission,\n                    -- t11.ModifyDate,\n                    -- t12.LpaDecisionDate,\n                    -- t13.OutcomePublicSafety,\n                    -- t13.AdvertDetailsID,\n                    -- t13.ReasonPublicSafety,\n                    -- t13.OutcomeAmenity,\n                    -- t13.ReasonAmenity,\n                    -- t13.IsActive as AdvertInPosition,\n                    -- t13.SignDescription as AdvertDescription,\n                    -- t5.LPAApplicationDate,\n                    -- t5.LPAApplicationReference,\n                    -- t23.Section,\n                    -- t14.ContactID,\n                    -- t14.Title,\n                    -- t14.Salutation,\n                    -- t14.FirstName,\n                    -- t14.LastName,\n                    -- t14.TypeOfInvolvement,\n                    -- -- t15.AddressLine1,\n                    -- -- t15.AddressLine2,\n                    -- -- t15.AddressTown,\n                    -- -- t15.PostCode,\n                    -- -- t15.Easting,\n                    -- -- t15.Northing,\n                    -- t5.InspectorNeedToEnterSite,\n                    -- t5.NumberOfResidences,\n                    -- t5.AreaOfSiteInHectares,\n                    -- t5.FloorSpaceInSquareMetres,\n                    -- t5.SiteGreenBelt,\n                    -- t5.HistoricBuildingGrantMade,\n                    -- t5.AgriculturalHolding,\n                    -- t16.GroundForAppeal,\n                    -- t16.GroundLetter,\n                    -- t16.GroundForAppealStartDate,\n                    -- t18.EventType,\n                    -- t18.StartDateOfEvent,\n                    -- t18.StartTimeOfEvent,\n                    -- t18.EndDateOfEvent,\n                    -- t18.DateEventRequested,\n                    -- t17.ChartStatus,\n                    -- t17.EstPrepTime,\n                    -- t17.EstSitTime,\n                    -- t17.EstRepTime,\n                    -- t17.ActualDuration,\n                    -- t19.NotificationOfSV\n\nFROM                odw_harmonised_db.dbo.casework_case_info_dim t1\n\nLEFT OUTER JOIN     odw_harmonised_db.dbo.casework_all_appeals_additional_data_dim t5\nON                  t1.AppealRefNumber = t5.AppealRefNumber\nAND                 t1.IsActive = 'Y'\nAND                 t5.IsActive = 'Y'\n\nLEFT OUTER JOIN     odw_harmonised_db.dbo.casework_all_appeals_dim t6\nON                  t1.AppealRefNumber = t6.AppealRefNumber\nAND                 t1.IsActive = 'Y'\nAND                 t6.IsActive = 'Y'\n\nLEFT OUTER JOIN     odw_harmonised_db.dbo.casework_local_planning_authority_dim t7\nON                  t6.LPAID = t7.LPAID\nAND                 t6.IsActive = 'Y'\nAND                 t7.IsActive = 'Y'\n\nLEFT OUTER JOIN     odw_harmonised_db.dbo.casework_specialism_dim t8\nON                  t1.AppealRefNumber = t8.AppealRefNumber\nAND                 t1.IsActive = 'Y'\nAND                 t8.IsActive = 'Y'\n\nLEFT OUTER JOIN     odw_harmonised_db.dbo.casework_special_circumstance_dim t9\nON                  t1.AppealRefNumber = t9.AppealRefNumber\nAND                 t1.IsActive = 'Y'\nAND                 t9.IsActive = 'Y'\n\nLEFT OUTER JOIN     odw_harmonised_db.dbo.casework_case_dates_dim t10\nON                  t1.AppealRefNumber = t10.AppealRefNumber\nAND                 t1.IsActive = 'Y'\nAND                 t10.IsActive = 'Y'\n\nLEFT OUTER JOIN     odw_harmonised_db.dbo.casework_specialist_modifications_dim t11\nON                  t1.AppealRefNumber = t11.AppealRefNumber\nAND                 t1.IsActive = 'Y'\nAND                 t11.IsActive = 'Y'\n\nLEFT OUTER JOIN     odw_harmonised_db.dbo.casework_picaso_dim t12\nON                  t1.AppealRefNumber = t12.AppealRefNumber\nAND                 t1.IsActive = 'Y'\nAND                 t12.IsActive = 'Y'\n\nLEFT OUTER JOIN     odw_harmonised_db.dbo.casework_advert_details_dim t13\nON                  t1.AppealRefNumber = t13.AppealRefNumber\nAND                 t1.IsActive = 'Y'\nAND                 t13.IsActive = 'Y'\n\nLEFT OUTER JOIN     odw_harmonised_db.dbo.casework_contact_information_dim t14\nON                  t1.AppealRefNumber = t14.CaseNumber\nAND                 t1.IsActive = 'Y'\nAND                 t14.IsActive = 'Y'\n\n-- LEFT OUTER JOIN     odw_harmonised_db.dbo.casework_nsip_project_info_internal_dim t15\n-- ON                  t1.CaseReference = t15.CaseReference\n-- AND                 t1.IsActive = 'Y'\n-- AND                 t15.IsActive = 'Y'\n\nLEFT OUTER JOIN     odw_harmonised_db.dbo.casework_enforcement_grounds_dim t16\nON                  t1.AppealRefNumber = t16.AppealRefNumber\nAND                 t1.IsActive = 'Y'\nAND                 t16.IsActive = 'Y'\n\nLEFT OUTER JOIN     odw_harmonised_db.dbo.casework_event_dim t17\nON                  t1.AppealRefNumber = t17.AppealRefNumber\nAND                 t1.IsActive = 'Y'\nAND                 t17.IsActive = 'Y'\n\nLEFT OUTER JOIN     odw_harmonised_db.dbo.casework_event_fact t18\nON                  t17.EventID = t18.EventID\nAND                 t17.IsActive = 'Y'\nAND                 t18.IsActive = 'Y'\n\nLEFT OUTER JOIN     odw_harmonised_db.dbo.casework_specialist_environment_dim t19\nON                  t1.AppealRefNumber = t19.AppealRefNumber\nAND                 t1.IsActive = 'Y'\nAND                 t19.IsActive = 'Y'\n\nLEFT OUTER JOIN     odw_harmonised_db.dbo.casework_nsip_advice_dim t21 \nON                  t1.CaseReference = t21.CaseReference\nAND                 t1.IsActive = 'Y'\nAND                 t21.IsActive = 'Y'\n\nLEFT OUTER JOIN     odw_harmonised_db.dbo.high_court_dim t22\nON                  t1.AppealRefNumber = t22.AppealRefNumber\nAND                 t1.IsActive = 'Y'\nAND                 t22.IsActive = 'Y'\n\nLEFT OUTER JOIN     odw_harmonised_db.dbo.casework_specialist_case_string_dim t23\nON                  t1.AppealRefNumber = t23.AppealRefNumber\nAND                 t1.IsActive = 'Y'\nAND                 t23.IsActive = 'Y'\n)\n\n-- SELECT top 1000 \n--     t1.AppealRefNumber, \n--     t1.LinkedAppeal,\n--     t1.LeadCase,\n--     t2.LinkedApealRef as child_cases\n-- from other_fields t1\n-- INNER JOIN child_cases t2\n-- on t1.AppealRefNumber = t2.AppealRefNumber\n-- order by 1, 2\n-- ;\n\nselect top 10 * from other_fields where LinkedAppeal != 'Lead'\n;\n",
-					"metadata": {
-						"language": "sql"
-					},
-					"currentConnection": {
-						"databaseName": "[parameters('dart_test_properties_content_currentConnection_databaseName')]",
-						"poolName": "[parameters('dart_test_properties_content_currentConnection_poolName')]"
 					},
 					"resultLimit": 5000
 				},
@@ -153824,18 +153766,17 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('workspaceName'), '/dart_cases_api')]",
+			"name": "[concat(parameters('workspaceName'), '/dart_api')]",
 			"type": "Microsoft.Synapse/workspaces/notebooks",
 			"apiVersion": "2019-06-01-preview",
 			"properties": {
-				"description": "Notebook to create a view and table for the DaRT API query",
 				"folder": {
 					"name": "odw-curated"
 				},
 				"nbformat": 4,
 				"nbformat_minor": 2,
 				"bigDataPool": {
-					"referenceName": "[parameters('dart_cases_api_properties_bigDataPool_referenceName')]",
+					"referenceName": "[parameters('dart_api_properties_bigDataPool_referenceName')]",
 					"type": "BigDataPoolReference"
 				},
 				"sessionProperties": {
@@ -153848,12 +153789,12 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "c2891ac5-4d1b-4b42-94cd-aab93f0cfc1b"
+						"spark.autotune.trackingId": "aa90bdee-3e03-44f1-b21a-63fb5947b0ba"
 					}
 				},
 				"metadata": {
 					"saveOutput": true,
-					"enableDebugMode": false,
+					"enableDebugMode": true,
 					"kernelspec": {
 						"name": "synapse_pyspark",
 						"display_name": "Synapse PySpark"
@@ -153879,8 +153820,12 @@
 				},
 				"cells": [
 					{
-						"cell_type": "markdown",
+						"cell_type": "code",
 						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
 							"nteract": {
 								"transient": {
 									"deleting": false
@@ -153888,8 +153833,10 @@
 							}
 						},
 						"source": [
-							"# Notebook to create a view and table for the DaRT API query"
-						]
+							"from delta.tables import DeltaTable"
+						],
+						"outputs": [],
+						"execution_count": null
 					},
 					{
 						"cell_type": "markdown",
@@ -153901,210 +153848,101 @@
 							}
 						},
 						"source": [
-							"A view is created combining case data from multiple tables. This query is not performant enough to be used in an API call, hance the creation of a table in odw_curated_db as well. The table will be populated from the view on a regular basis and the API will query the table, allowing for much faster response times.\r\n",
-							"\r\n",
-							"All columns have been cast to string / varchar(max) due to some errors when creating the table due to datetime columns.\r\n",
-							"\r\n",
-							"The API repsonse will convert the data into json format to be further processed by the DaRT application."
+							"##### Create DataFrame of required data"
 						]
 					},
 					{
 						"cell_type": "code",
-						"metadata": {
-							"microsoft": {
-								"language": "sparksql"
-							},
-							"collapsed": false
-						},
 						"source": [
-							"%%sql\r\n",
-							"\r\n",
-							"CREATE OR REPLACE VIEW odw_curated_db.vw_dart_cases_api\r\n",
-							"\r\n",
-							"AS\r\n",
-							"\r\n",
-							"SELECT DISTINCT\r\n",
-							"                    \r\n",
-							"                    t1.CaseReference,\r\n",
-							"                    t1.AppealRefNumber,\r\n",
-							"                    t6.ApplicationType,\r\n",
-							"                    t6.AppealTypeReason,\r\n",
-							"                    t6.AppealTypeGroup,\r\n",
-							"                    t6.AppealType,\r\n",
-							"                    t12.ProcedureName,\r\n",
-							"                    t1.validity,\r\n",
-							"                    t5.ProcessingState,\r\n",
-							"                    t6.LinkedAppeal,\r\n",
-							"                    t21.LastPublishedDate,\r\n",
-							"                    t7.LPACode,\r\n",
-							"                    t7.LPAName,\r\n",
-							"                    t6.Jurisdiction,\r\n",
-							"                    t5.DevelopmentOrAllegation,\r\n",
-							"                    t5.CaseProcess,\r\n",
-							"                    t6.DevelopmentType,\r\n",
-							"                    t22.RelatedReferences,\r\n",
-							"                    t5.AppealSourceIndicator,\r\n",
-							"                    t5.Level,\r\n",
-							"                    t8.SpecialismID,\r\n",
-							"                    t8.Specialism,\r\n",
-							"                    t9.SpecialCircumstance,\r\n",
-							"                    t5.AppellantStatementSubmitted,\r\n",
-							"                    t15.WelshLanguage,\r\n",
-							"                    t5.ProcedureAppellant,\r\n",
-							"                    t6.AppealRecDate,\r\n",
-							"                    t6.AppealStartDate,\r\n",
-							"                    t1.ValidTo,\r\n",
-							"                    t10.ValidityStatusDate,\r\n",
-							"                    t5.CallInDate,\r\n",
-							"                    t5.TargetDate,\r\n",
-							"                    t5.StatementsDue,\r\n",
-							"                    t5.ThirdPartyRepsDue,\r\n",
-							"                    t5.FinalCommentsDue,\r\n",
-							"                    t5.StatementOfCommonGroundDue,\r\n",
-							"                    t5.ProofsDue,\r\n",
-							"                    t22.ConsentDate,\r\n",
-							"                    t12.OwnershipPermission,\r\n",
-							"                    t11.ModifyDate,\r\n",
-							"                    t12.LpaDecisionDate,\r\n",
-							"                    t13.OutcomePublicSafety,\r\n",
-							"                    t13.AdvertDetailsID,\r\n",
-							"                    t13.ReasonPublicSafety,\r\n",
-							"                    t13.OutcomeAmenity,\r\n",
-							"                    t13.ReasonAmenity,\r\n",
-							"                    t13.IsActive as AdvertInPosition,\r\n",
-							"                    t13.SignDescription as AdvertDescription,\r\n",
-							"                    t5.LPAApplicationDate,\r\n",
-							"                    t5.LPAApplicationReference,\r\n",
-							"                    t23.Section,\r\n",
-							"                    t14.ContactID,\r\n",
-							"                    t14.Title,\r\n",
-							"                    t14.Salutation,\r\n",
-							"                    t14.FirstName,\r\n",
-							"                    t14.LastName,\r\n",
-							"                    t14.TypeOfInvolvement,\r\n",
-							"                    t15.AddressLine1,\r\n",
-							"                    t15.AddressLine2,\r\n",
-							"                    t15.AddressTown,\r\n",
-							"                    t15.PostCode,\r\n",
-							"                    t15.Easting,\r\n",
-							"                    t15.Northing,\r\n",
-							"                    t5.InspectorNeedToEnterSite,\r\n",
-							"                    t5.NumberOfResidences,\r\n",
-							"                    t5.AreaOfSiteInHectares,\r\n",
-							"                    t5.FloorSpaceInSquareMetres,\r\n",
-							"                    t5.SiteGreenBelt,\r\n",
-							"                    t5.HistoricBuildingGrantMade,\r\n",
-							"                    t5.AgriculturalHolding,\r\n",
-							"                    t16.GroundForAppeal,\r\n",
-							"                    t16.GroundLetter,\r\n",
-							"                    t16.GroundForAppealStartDate,\r\n",
-							"                    t18.EventType,\r\n",
-							"                    t18.StartDateOfEvent,\r\n",
-							"                    t18.StartTimeOfEvent,\r\n",
-							"                    t18.EndDateOfEvent,\r\n",
-							"                    t18.DateEventRequested,\r\n",
-							"                    t17.ChartStatus,\r\n",
-							"                    t17.EstPrepTime,\r\n",
-							"                    t17.EstSitTime,\r\n",
-							"                    t17.EstRepTime,\r\n",
-							"                    t17.ActualDuration,\r\n",
-							"                    t19.NotificationOfSV\r\n",
-							"\r\n",
-							"FROM                odw_harmonised_db.casework_case_info_dim t1\r\n",
-							"\r\n",
-							"LEFT OUTER JOIN     odw_harmonised_db.casework_all_appeals_additional_data_dim t5\r\n",
-							"ON                  t1.AppealRefNumber = t5.AppealRefNumber\r\n",
-							"AND                 t1.IsActive = 'Y'\r\n",
-							"AND                 t5.IsActive = 'Y'\r\n",
-							"\r\n",
-							"LEFT OUTER JOIN     odw_harmonised_db.casework_all_appeals_dim t6\r\n",
-							"ON                  t1.AppealRefNumber = t6.AppealRefNumber\r\n",
-							"AND                 t1.IsActive = 'Y'\r\n",
-							"AND                 t6.IsActive = 'Y'\r\n",
-							"\r\n",
-							"LEFT OUTER JOIN     odw_harmonised_db.casework_local_planning_authority_dim t7\r\n",
-							"ON                  t6.LPAID = t7.LPAID\r\n",
-							"AND                 t6.IsActive = 'Y'\r\n",
-							"AND                 t7.IsActive = 'Y'\r\n",
-							"\r\n",
-							"LEFT OUTER JOIN     odw_harmonised_db.casework_specialism_dim t8\r\n",
-							"ON                  t1.AppealRefNumber = t8.AppealRefNumber\r\n",
-							"AND                 t1.IsActive = 'Y'\r\n",
-							"AND                 t8.IsActive = 'Y'\r\n",
-							"\r\n",
-							"LEFT OUTER JOIN     odw_harmonised_db.casework_special_circumstance_dim t9\r\n",
-							"ON                  t1.AppealRefNumber = t9.AppealRefNumber\r\n",
-							"AND                 t1.IsActive = 'Y'\r\n",
-							"AND                 t9.IsActive = 'Y'\r\n",
-							"\r\n",
-							"LEFT OUTER JOIN     odw_harmonised_db.casework_case_dates_dim t10\r\n",
-							"ON                  t1.AppealRefNumber = t10.AppealRefNumber\r\n",
-							"AND                 t1.IsActive = 'Y'\r\n",
-							"AND                 t10.IsActive = 'Y'\r\n",
-							"\r\n",
-							"LEFT OUTER JOIN     odw_harmonised_db.casework_specialist_modifications_dim t11\r\n",
-							"ON                  t1.AppealRefNumber = t11.AppealRefNumber\r\n",
-							"AND                 t1.IsActive = 'Y'\r\n",
-							"AND                 t11.IsActive = 'Y'\r\n",
-							"\r\n",
-							"LEFT OUTER JOIN     odw_harmonised_db.casework_picaso_dim t12\r\n",
-							"ON                  t1.AppealRefNumber = t12.AppealRefNumber\r\n",
-							"AND                 t1.IsActive = 'Y'\r\n",
-							"AND                 t12.IsActive = 'Y'\r\n",
-							"\r\n",
-							"LEFT OUTER JOIN     odw_harmonised_db.casework_advert_details_dim t13\r\n",
-							"ON                  t1.AppealRefNumber = t13.AppealRefNumber\r\n",
-							"AND                 t1.IsActive = 'Y'\r\n",
-							"AND                 t13.IsActive = 'Y'\r\n",
-							"\r\n",
-							"LEFT OUTER JOIN     odw_harmonised_db.casework_contact_information_dim t14\r\n",
-							"ON                  t1.AppealRefNumber = t14.CaseNumber\r\n",
-							"AND                 t1.IsActive = 'Y'\r\n",
-							"AND                 t14.IsActive = 'Y'\r\n",
-							"\r\n",
-							"LEFT OUTER JOIN     odw_harmonised_db.casework_nsip_project_info_internal_dim t15\r\n",
-							"ON                  t1.CaseReference = t15.CaseReference\r\n",
-							"AND                 t1.IsActive = 'Y'\r\n",
-							"AND                 t15.IsActive = 'Y'\r\n",
-							"\r\n",
-							"LEFT OUTER JOIN     odw_harmonised_db.casework_enforcement_grounds_dim t16\r\n",
-							"ON                  t1.AppealRefNumber = t16.AppealRefNumber\r\n",
-							"AND                 t1.IsActive = 'Y'\r\n",
-							"AND                 t16.IsActive = 'Y'\r\n",
-							"\r\n",
-							"LEFT OUTER JOIN     odw_harmonised_db.casework_event_dim t17\r\n",
-							"ON                  t1.AppealRefNumber = t17.AppealRefNumber\r\n",
-							"AND                 t1.IsActive = 'Y'\r\n",
-							"AND                 t17.IsActive = 'Y'\r\n",
-							"\r\n",
-							"LEFT OUTER JOIN     odw_harmonised_db.casework_event_fact t18\r\n",
-							"ON                  t17.EventID = t18.EventID\r\n",
-							"AND                 t17.IsActive = 'Y'\r\n",
-							"AND                 t18.IsActive = 'Y'\r\n",
-							"\r\n",
-							"LEFT OUTER JOIN     odw_harmonised_db.casework_specialist_environment_dim t19\r\n",
-							"ON                  t1.AppealRefNumber = t19.AppealRefNumber\r\n",
-							"AND                 t1.IsActive = 'Y'\r\n",
-							"AND                 t19.IsActive = 'Y'\r\n",
-							"\r\n",
-							"LEFT OUTER JOIN     odw_harmonised_db.casework_nsip_advice_dim t21 \r\n",
-							"ON                  t1.CaseReference = t21.CaseReference\r\n",
-							"AND                 t1.IsActive = 'Y'\r\n",
-							"AND                 t21.IsActive = 'Y'\r\n",
-							"\r\n",
-							"LEFT OUTER JOIN     odw_harmonised_db.high_court_dim t22\r\n",
-							"ON                  t1.AppealRefNumber = t22.AppealRefNumber\r\n",
-							"AND                 t1.IsActive = 'Y'\r\n",
-							"AND                 t22.IsActive = 'Y'\r\n",
-							"\r\n",
-							"LEFT OUTER JOIN     odw_harmonised_db.casework_specialist_case_string_dim t23\r\n",
-							"ON                  t1.AppealRefNumber = t23.AppealRefNumber\r\n",
-							"AND                 t1.IsActive = 'Y'\r\n",
-							"AND                 t23.IsActive = 'Y'\r\n",
-							";"
+							"df = spark.sql(\r\n",
+							"    \"\"\"\r\n",
+							"    SELECT\r\n",
+							"    h.caseId\r\n",
+							"    ,h.caseReference\r\n",
+							"    ,h.caseStatus\r\n",
+							"    ,h.caseType\r\n",
+							"    ,h.caseProcedure\r\n",
+							"    ,h.lpaCode\r\n",
+							"    ,l.lpaName\r\n",
+							"    ,h.allocationLevel\r\n",
+							"    ,h.allocationBand\r\n",
+							"    ,h.caseSpecialisms\r\n",
+							"    ,h.caseSubmittedDate\r\n",
+							"    ,h.caseCreatedDate\r\n",
+							"    ,h.caseUpdatedDate\r\n",
+							"    ,h.caseValidDate\r\n",
+							"    ,h.caseValidationDate\r\n",
+							"    ,h.caseValidationOutcome\r\n",
+							"    ,h.caseValidationInvalidDetails\r\n",
+							"    ,h.caseValidationIncompleteDetails\r\n",
+							"    ,h.caseExtensionDate\r\n",
+							"    ,h.caseStartedDate\r\n",
+							"    ,h.casePublishedDate\r\n",
+							"    ,h.linkedCaseStatus\r\n",
+							"    ,h.leadCaseReference\r\n",
+							"    ,h.caseWithdrawnDate\r\n",
+							"    ,h.caseTransferredDate\r\n",
+							"    ,h.transferredCaseClosedDate\r\n",
+							"    ,h.caseDecisionOutcomeDate\r\n",
+							"    ,h.caseDecisionPublishedDate\r\n",
+							"    ,h.caseDecisionOutcome\r\n",
+							"    ,h.caseCompletedDate\r\n",
+							"    ,h.enforcementNotice\r\n",
+							"    ,h.applicationReference\r\n",
+							"    ,h.applicationDate\r\n",
+							"    ,h.applicationDecision\r\n",
+							"    ,h.applicationDecisionDate as lpaDecisionDate\r\n",
+							"    ,h.caseSubmissionDueDate\r\n",
+							"    ,h.siteAddressLine1\r\n",
+							"    ,h.siteAddressLine2\r\n",
+							"    ,h.siteAddressTown\r\n",
+							"    ,h.siteAddressCounty\r\n",
+							"    ,h.siteAddressPostcode\r\n",
+							"    ,h.isCorrectAppealType\r\n",
+							"    ,h.originalDevelopmentDescription\r\n",
+							"    ,h.changedDevelopmentDescription\r\n",
+							"    ,h.newConditionDetails\r\n",
+							"    ,h.nearbyCaseReferences\r\n",
+							"    ,h.neighbouringSiteAddresses\r\n",
+							"    ,h.affectedListedBuildingNumbers\r\n",
+							"    ,h.appellantCostsAppliedFor\r\n",
+							"    ,h.lpaCostsAppliedFor\r\n",
+							"    ,su.firstName + ' ' + su.LastName as appellantName\r\n",
+							"    ,e.eventType as typeOfEvent\r\n",
+							"    ,e.eventStartDateTime as startDateOfTheEvent\r\n",
+							"    ,ent_ins.givenName + ' ' +  ent_ins.surname as inspectorName\r\n",
+							"    ,ent_co.givenName + ' ' +  ent_co.surname as caseOfficerName\r\n",
+							"    ,i.qualifications as inspectorQualifications\r\n",
+							"FROM \r\n",
+							"    odw_harmonised_db.sb_appeal_has h\r\n",
+							"        left join odw_harmonised_db.pins_lpa l on h.lpaCode = l.pinsLpaCode and l.isActive = 'Y'\r\n",
+							"        left join odw_harmonised_db.sb_service_user su on h.caseReference = su.caseReference and su.serviceUserType = 'Appellant' and su.isActive = 'Y'\r\n",
+							"        left join odw_harmonised_db.sb_appeal_event e on h.caseReference = e.caseReference and e.isActive = 'Y'\r\n",
+							"        left join odw_harmonised_db.entraid ent_ins on h.inspectorId = ent_ins.id and ent_ins.isActive = 'Y'\r\n",
+							"        left join odw_harmonised_db.entraid ent_co on h.caseOfficerId = ent_co.id and ent_co.isActive = 'Y'\r\n",
+							"        left join odw_harmonised_db.pins_inspectors i on ent_ins.userPrincipalName = i.email and i.isActive = 'Y'\r\n",
+							"WHERE\r\n",
+							"    h.IsActive = 'Y'\r\n",
+							"\tand\r\n",
+							"\th.lpaCode <> 'Q9999'\r\n",
+							"    \"\"\"\r\n",
+							"    )"
 						],
 						"outputs": [],
-						"execution_count": 1
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Write DataFrame to delta table"
+						]
 					},
 					{
 						"cell_type": "code",
@@ -154117,19 +153955,26 @@
 								"transient": {
 									"deleting": false
 								}
-							},
-							"microsoft": {
-								"language": "sparksql"
-							},
-							"collapsed": false
+							}
 						},
 						"source": [
-							"%%sql\r\n",
-							"\r\n",
-							"DROP TABLE IF EXISTS odw_curated_db.dart_cases_api;"
+							"table_name = \"odw_curated_db.dart_api\""
 						],
 						"outputs": [],
-						"execution_count": 2
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"Partition by `applicationReference` as this field only contains around 50 unique values and will be included in the search filters by users."
+						]
 					},
 					{
 						"cell_type": "code",
@@ -154142,112 +153987,51 @@
 								"transient": {
 									"deleting": false
 								}
-							},
-							"microsoft": {
-								"language": "sparksql"
-							},
-							"collapsed": false
+							}
 						},
 						"source": [
-							"%%sql\r\n",
-							"\r\n",
-							"CREATE OR REPLACE TABLE odw_curated_db.dart_cases_api\r\n",
-							"USING DELTA\r\n",
-							"\r\n",
-							"AS\r\n",
-							"\r\n",
-							"SELECT\r\n",
-							"\r\n",
-							"    CAST(CaseReference AS STRING) AS CaseReference,\r\n",
-							"    CAST(AppealRefNumber AS STRING) AS AppealRefNumber,\r\n",
-							"    CAST(ApplicationType AS STRING) AS ApplicationType,\r\n",
-							"    CAST(AppealTypeReason AS STRING) AS AppealTypeReason,\r\n",
-							"    CAST(AppealTypeGroup AS STRING) AS AppealTypeGroup,\r\n",
-							"    CAST(AppealType AS STRING) AS AppealType,\r\n",
-							"    CAST(ProcedureName AS STRING) AS ProcedureName,\r\n",
-							"    CAST(validity AS STRING) AS validity,\r\n",
-							"    CAST(ProcessingState AS STRING) AS ProcessingState,\r\n",
-							"    CAST(LinkedAppeal AS STRING) AS LinkedAppeal,\r\n",
-							"    CAST(LastPublishedDate AS STRING) AS LastPublishedDate,\r\n",
-							"    CAST(LPACode AS STRING) AS LPACode,\r\n",
-							"    CAST(LPAName AS STRING) AS LPAName,\r\n",
-							"    CAST(Jurisdiction AS STRING) AS Jurisdiction,\r\n",
-							"    CAST(DevelopmentOrAllegation AS STRING) AS DevelopmentOrAllegation,\r\n",
-							"    CAST(CaseProcess AS STRING) AS CaseProcess,\r\n",
-							"    CAST(DevelopmentType AS STRING) AS DevelopmentType,\r\n",
-							"    CAST(RelatedReferences AS STRING) AS RelatedReferences,\r\n",
-							"    CAST(AppealSourceIndicator AS STRING) AS AppealSourceIndicator,\r\n",
-							"    CAST(Level AS STRING) AS Level,\r\n",
-							"    CAST(SpecialismID AS STRING) AS SpecialismID,\r\n",
-							"    CAST(Specialism AS STRING) AS Specialism,\r\n",
-							"    CAST(SpecialCircumstance AS STRING) AS SpecialCircumstance,\r\n",
-							"    CAST(AppellantStatementSubmitted AS STRING) AS AppellantStatementSubmitted,\r\n",
-							"    CAST(WelshLanguage AS STRING) AS WelshLanguage,\r\n",
-							"    CAST(ProcedureAppellant AS STRING) AS ProcedureAppellant,\r\n",
-							"    CAST(AppealRecDate AS STRING) AS AppealRecDate,\r\n",
-							"    CAST(AppealStartDate AS STRING) AS AppealStartDate,\r\n",
-							"    CAST(ValidTo AS STRING) AS ValidTo,\r\n",
-							"    CAST(ValidityStatusDate AS STRING) AS ValidityStatusDate,\r\n",
-							"    CAST(CallInDate AS STRING) AS CallInDate,\r\n",
-							"    CAST(TargetDate AS STRING) AS TargetDate,\r\n",
-							"    CAST(StatementsDue AS STRING) AS StatementsDue,\r\n",
-							"    CAST(ThirdPartyRepsDue AS STRING) AS ThirdPartyRepsDue,\r\n",
-							"    CAST(FinalCommentsDue AS STRING) AS FinalCommentsDue,\r\n",
-							"    CAST(StatementOfCommonGroundDue AS STRING) AS StatementOfCommonGroundDue,\r\n",
-							"    CAST(ProofsDue AS STRING) AS ProofsDue,\r\n",
-							"    CAST(ConsentDate AS STRING) AS ConsentDate,\r\n",
-							"    CAST(OwnershipPermission AS STRING) AS OwnershipPermission,\r\n",
-							"    CAST(ModifyDate AS STRING) AS ModifyDate,\r\n",
-							"    CAST(LpaDecisionDate AS STRING) AS LpaDecisionDate,\r\n",
-							"    CAST(OutcomePublicSafety AS STRING) AS OutcomePublicSafety,\r\n",
-							"    CAST(AdvertDetailsID AS STRING) AS AdvertDetailsID,\r\n",
-							"    CAST(ReasonPublicSafety AS STRING) AS ReasonPublicSafety,\r\n",
-							"    CAST(OutcomeAmenity AS STRING) AS OutcomeAmenity,\r\n",
-							"    CAST(ReasonAmenity AS STRING) AS ReasonAmenity,\r\n",
-							"    CAST(AdvertInPosition AS STRING) AS AdvertInPosition,\r\n",
-							"    CAST(AdvertDescription AS STRING) AS AdvertDescription,\r\n",
-							"    CAST(LPAApplicationDate AS STRING) AS LPAApplicationDate,\r\n",
-							"    CAST(LPAApplicationReference AS STRING) AS LPAApplicationReference,\r\n",
-							"    CAST(Section AS STRING) AS Section,\r\n",
-							"    CAST(ContactID AS STRING) AS ContactID,\r\n",
-							"    CAST(Title AS STRING) AS Title,\r\n",
-							"    CAST(Salutation AS STRING) AS Salutation,\r\n",
-							"    CAST(FirstName AS STRING) AS FirstName,\r\n",
-							"    CAST(LastName AS STRING) AS LastName,\r\n",
-							"    CAST(TypeOfInvolvement AS STRING) AS TypeOfInvolvement,\r\n",
-							"    CAST(AddressLine1 AS STRING) AS AddressLine1,\r\n",
-							"    CAST(AddressLine2 AS STRING) AS AddressLine2,\r\n",
-							"    CAST(AddressTown AS STRING) AS AddressTown,\r\n",
-							"    CAST(PostCode AS STRING) AS PostCode,\r\n",
-							"    CAST(Easting AS STRING) AS Easting,\r\n",
-							"    CAST(Northing AS STRING) AS Northing,\r\n",
-							"    CAST(InspectorNeedToEnterSite AS STRING) AS InspectorNeedToEnterSite,\r\n",
-							"    CAST(NumberOfResidences AS STRING) AS NumberOfResidences,\r\n",
-							"    CAST(AreaOfSiteInHectares AS STRING) AS AreaOfSiteInHectares,\r\n",
-							"    CAST(FloorSpaceInSquareMetres AS STRING) AS FloorSpaceInSquareMetres,\r\n",
-							"    CAST(SiteGreenBelt AS STRING) AS SiteGreenBelt,\r\n",
-							"    CAST(HistoricBuildingGrantMade AS STRING) AS HistoricBuildingGrantMade,\r\n",
-							"    CAST(AgriculturalHolding AS STRING) AS AgriculturalHolding,\r\n",
-							"    CAST(GroundForAppeal AS STRING) AS GroundForAppeal,\r\n",
-							"    CAST(GroundLetter AS STRING) AS GroundLetter,\r\n",
-							"    CAST(GroundForAppealStartDate AS STRING) AS GroundForAppealStartDate,\r\n",
-							"    CAST(ChartStatus AS STRING) AS ChartStatus,\r\n",
-							"    CAST(EstPrepTime AS STRING) AS EstPrepTime,\r\n",
-							"    CAST(EstSitTime AS STRING) AS EstSitTime,\r\n",
-							"    CAST(EstRepTime AS STRING) AS EstRepTime,\r\n",
-							"    CAST(ActualDuration AS STRING) AS ActualDuration,\r\n",
-							"    CAST(EventType AS STRING) AS EventType,\r\n",
-							"    CAST(StartDateOfEvent AS STRING) AS StartDateOfEvent,\r\n",
-							"    CAST(StartTimeOfEvent AS STRING) AS StartTimeOfEvent,\r\n",
-							"    CAST(EndDateOfEvent AS STRING) AS EndDateOfEvent,\r\n",
-							"    CAST(DateEventRequested AS STRING) AS DateEventRequested,\r\n",
-							"    CAST(NotificationOfSV AS STRING) AS NotificationOfSV\r\n",
-							"\r\n",
-							"FROM odw_curated_db.vw_dart_cases_api\r\n",
-							";"
+							"df.write.mode(\"overwrite\") \\\r\n",
+							"    .partitionBy(\"applicationReference\") \\\r\n",
+							"    .option(\"overwriteSchema\", \"true\") \\\r\n",
+							"    .format(\"delta\") \\\r\n",
+							"    .saveAsTable(table_name)"
 						],
 						"outputs": [],
-						"execution_count": 3
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"Optimise by adding `ZOrderBy` for the column `caseReference`. This column has too many values for partitioning to be useful but is one of the columns used in the query filters by users. This ensures the minimum number of files are read when querying for a `caseReference`."
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"delta_table = DeltaTable.forName(spark, table_name)\r\n",
+							"delta_table.optimize().executeZOrderBy(\"caseReference\")\r\n",
+							"delta_table.optimize()"
+						],
+						"outputs": [],
+						"execution_count": null
 					}
 				]
 			},
@@ -192788,7 +192572,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "ab081344-9095-4a5a-8b94-2476e7a2fbcb"
+						"spark.autotune.trackingId": "390cf2fa-1667-4701-9d4d-5f665603d91a"
 					}
 				},
 				"metadata": {
@@ -192856,7 +192640,7 @@
 							"from pyspark.sql import DataFrame"
 						],
 						"outputs": [],
-						"execution_count": 1
+						"execution_count": 2
 					},
 					{
 						"cell_type": "markdown",
@@ -192907,7 +192691,7 @@
 							"doc.size,\r\n",
 							"doc.mime,\r\n",
 							"COALESCE(doc.documentURI, '') AS documentURI,\r\n",
-							"doc.publisheddocumentURI,\r\n",
+							"doc.publishedDocumentURI,\r\n",
 							"doc.path,\r\n",
 							"doc.virusCheckStatus,\r\n",
 							"doc.fileMD5,\r\n",
@@ -192954,7 +192738,7 @@
 							"WHERE doc.IsActive = 'Y';"
 						],
 						"outputs": [],
-						"execution_count": 2
+						"execution_count": 3
 					},
 					{
 						"cell_type": "markdown",
@@ -193000,7 +192784,7 @@
 							"schema: StructType = spark.table(\"odw_curated_db.nsip_document\").schema"
 						],
 						"outputs": [],
-						"execution_count": 3
+						"execution_count": 4
 					},
 					{
 						"cell_type": "markdown",
@@ -193039,7 +192823,7 @@
 							")"
 						],
 						"outputs": [],
-						"execution_count": 4
+						"execution_count": 5
 					},
 					{
 						"cell_type": "markdown",
@@ -193072,7 +192856,7 @@
 							"df.printSchema()"
 						],
 						"outputs": [],
-						"execution_count": 5
+						"execution_count": 6
 					},
 					{
 						"cell_type": "markdown",
@@ -193106,7 +192890,7 @@
 							"logInfo(\"Written odw_curated_db.nsip_document\")"
 						],
 						"outputs": [],
-						"execution_count": 6
+						"execution_count": 7
 					}
 				]
 			},
@@ -193925,7 +193709,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "94ce30f2-cf2e-4b03-81cd-c05e079b0946"
+						"spark.autotune.trackingId": "324e9e25-996a-4b30-9f1a-050a7a09964d"
 					}
 				},
 				"metadata": {
@@ -193972,7 +193756,7 @@
 							"%run utils/py_logging_decorator"
 						],
 						"outputs": [],
-						"execution_count": 1
+						"execution_count": 6
 					},
 					{
 						"cell_type": "markdown",
@@ -194021,7 +193805,7 @@
 							"SELECT DISTINCT\r\n",
 							"\r\n",
 							"    RR.representationId\r\n",
-							"    ,RR.referenceId\r\n",
+							"    ,RR.webreference As referenceId\r\n",
 							"    ,RR.examinationLibraryRef\r\n",
 							"    ,RR.caseRef\r\n",
 							"    ,RR.caseId\r\n",
@@ -194094,7 +193878,7 @@
 							""
 						],
 						"outputs": [],
-						"execution_count": 32
+						"execution_count": 7
 					},
 					{
 						"cell_type": "markdown",
@@ -194126,7 +193910,7 @@
 							"logInfo(f\"Writing odw_curated_db.nsip_representation\")"
 						],
 						"outputs": [],
-						"execution_count": null
+						"execution_count": 8
 					},
 					{
 						"cell_type": "code",
@@ -194148,7 +193932,7 @@
 							"view_df.write.mode('overwrite').saveAsTable('odw_curated_db.nsip_representation')"
 						],
 						"outputs": [],
-						"execution_count": 33
+						"execution_count": 9
 					},
 					{
 						"cell_type": "code",
@@ -194167,7 +193951,7 @@
 							"logInfo(f\"Written odw_curated_db.nsip_representation\")"
 						],
 						"outputs": [],
-						"execution_count": null
+						"execution_count": 10
 					}
 				]
 			},
@@ -194197,7 +193981,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "fd290110-76d6-4738-a243-7bd733dc0462"
+						"spark.autotune.trackingId": "3d525f7a-457a-4393-993e-62fb4d4d00b7"
 					}
 				},
 				"metadata": {
@@ -194245,7 +194029,7 @@
 							"SELECT DISTINCT\n",
 							"\n",
 							"    RR.representationId\n",
-							"    ,RR.referenceId\n",
+							"    ,,RR.webreference As referenceId\n",
 							"    ,RR.examinationLibraryRef\n",
 							"    ,RR.caseRef\n",
 							"    ,RR.caseId\n",
@@ -194337,7 +194121,7 @@
 							""
 						],
 						"outputs": [],
-						"execution_count": 1
+						"execution_count": 3
 					},
 					{
 						"cell_type": "markdown",
@@ -194370,7 +194154,7 @@
 							"data.write.mode(\"overwrite\").saveAsTable(\"odw_curated_migration_db.nsip_representation\")"
 						],
 						"outputs": [],
-						"execution_count": 3
+						"execution_count": null
 					}
 				]
 			},
