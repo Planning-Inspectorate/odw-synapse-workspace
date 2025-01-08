@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d6b44557-d193-4b70-9d76-4636a63d743e"
+				"spark.autotune.trackingId": "ed73ca9f-8669-4665-bd26-a54832903446"
 			}
 		},
 		"metadata": {
@@ -68,7 +68,48 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 1
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql.functions import *\r\n",
+					"from pyspark.sql.types import *\r\n",
+					"from pyspark.sql import DataFrame\r\n",
+					"import json"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"db_name: str = \"odw_curated_db\"\r\n",
+					"entity_name: str = \"nsip-project\"\r\n",
+					"table_name: str = \"odw_curated_db.nsip_project\""
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -80,7 +121,7 @@
 					}
 				},
 				"source": [
-					"## View odw_curated_db.vw_nsip_project is created"
+					"##### Create DataFrame of required data"
 				]
 			},
 			{
@@ -94,114 +135,111 @@
 						"transient": {
 							"deleting": false
 						}
-					},
-					"microsoft": {
-						"language": "sparksql"
 					},
 					"collapsed": false
 				},
 				"source": [
-					"%%sql\n",
-					"CREATE OR REPLACE VIEW odw_curated_db.vw_nsip_project\n",
-					"AS\n",
-					"SELECT\n",
-					"\tProject.caseId\n",
-					"\t,Project.caseReference\n",
-					"\t,Project.projectName\n",
-					"\t,Project.projectNameWelsh\n",
-					"\t,Project.projectDescription\n",
-					"\t,Project.projectDescriptionWelsh\n",
-					"\t,Project.decision\n",
-					"\t,LOWER(project.publishStatus) AS publishStatus\n",
-					"\t,Project.sector\n",
-					"\t,CASE\n",
-					"\t\tWHEN Project.ProjectType = 'WW01 - Waste Water treatment Plants' THEN\n",
-					"\t\t\t'WW01 - Waste Water Treatment Plants'\n",
-					"\t\tELSE \n",
-					"\t\t\tProject.ProjectType\n",
-					"\tEND AS projectType\n",
-					"\t,LOWER(\tCASE \n",
-					"\t\t\t\tWHEN Project.ODTSourceSystem = 'ODT' THEN \n",
-					"\t\t\t\t\t'back-office-applications' \n",
-					"\t\t\t\tELSE \n",
-					"\t\t\t\t\tProject.ODTSourceSystem \n",
-					"\t\t\tEND) AS sourceSystem\n",
-					"\t,LOWER(REPLACE(REPLACE(Project.Stage,'-', '_'),' ', '_')) AS stage\n",
-					"\t,Project.projectLocation\n",
-					"\t,Project.projectLocationWelsh\n",
-					"\t,Project.projectEmailAddress\n",
-					"\t,Project.regions\n",
-					"\t,Project.transboundary\n",
-					"\t,CAST(project.Easting AS INT) AS easting\n",
-					"\t,CAST(project.Northing AS INT) AS northing\n",
-					"\t,Project.WelshLanguage AS welshLanguage\n",
-					"\t,Project.mapZoomLevel\n",
-					"\t,Project.SecretaryOfState AS secretaryOfState\n",
-					"\t-- Pre-application dates\n",
-					"\t,Project.datePINSFirstNotifiedOfProject\n",
-					"\t,Project.dateProjectAppearsOnWebsite\t\n",
-					"\t,Project.anticipatedSubmissionDateNonSpecific\n",
-					"\t,Project.anticipatedDateOfSubmission\n",
-					"\t,Project.screeningOpinionSought\t\n",
-					"\t,Project.screeningOpinionIssued\n",
-					"\t,Project.scopingOpinionSought\n",
-					"\t,Project.scopingOpinionIssued\n",
-					"\t,Project.section46Notification\n",
-					"\t-- acceptance dates\n",
-					"\t,Project.dateOfDCOSubmission\n",
-					"\t,Project.deadlineForAcceptanceDecision\n",
-					"\t,Project.dateOfDCOAcceptance\n",
-					"\t,Project.dateOfNonAcceptance\n",
-					"\t--pre examination dates\n",
-					"\t,Project.dateOfRepresentationPeriodOpen\n",
-					"\t,Project.dateOfRelevantRepresentationClose\n",
-					"\t,Project.extensionToDateRelevantRepresentationsClose\n",
-					"\t,Project.dateRRepAppearOnWebsite\n",
-					"\t,Project.dateIAPIDue\n",
-					"\t,Project.rule6LetterPublishDate\n",
-					"\t,Project.preliminaryMeetingStartDate\n",
-					"\t,Project.notificationDateForPMAndEventsDirectlyFollowingPM\n",
-					"\t,Project.notificationDateForEventsDeveloper\n",
-					"\t-- examination dates\n",
-					"\t,Project.dateSection58NoticeReceived\n",
-					"\t,Project.confirmedStartOfExamination\n",
-					"\t,Project.rule8LetterPublishDate\n",
-					"\t,Project.deadlineForCloseOfExamination\n",
-					"\t,Project.dateTimeExaminationEnds\n",
-					"\t,Project.stage4ExtensionToExamCloseDate\n",
-					"\t--recommendation dates\n",
-					"\t,Project.deadlineForSubmissionOfRecommendation\n",
-					"\t,Project.dateOfRecommendations\n",
-					"\t,Project.stage5ExtensionToRecommendationDeadline\n",
-					"\t--decision dates\n",
-					"\t,Project.deadlineForDecision\n",
-					"\t,Project.confirmedDateOfDecision\n",
-					"\t,Project.stage5ExtensionToDecisionDeadline\n",
-					"\t--post decision dates\n",
-					"\t,Project.jRPeriodEndDate\n",
-					"\t--withdrawl dates\n",
-					"\t,Project.dateProjectWithdrawn\n",
-					"\t-- Additional fields\n",
-					"\t,Project.operationsLeadId\n",
-					"\t,Project.operationsManagerId\n",
-					"\t,Project.caseManagerId\n",
-					"\t,Project.nsipOfficerIds\n",
-					"\t,Project.nsipAdministrationOfficerIds\n",
-					"\t,Project.leadInspectorId\n",
-					"\t,Project.inspectorIds\n",
-					"\t,Project.environmentalServicesOfficerId\n",
-					"\t,Project.legalOfficerId\n",
-					"\t,Project.applicantId\n",
-					"\t,Project.migrationStatus\n",
-					"\t,Project.dateOfReOpenRelevantRepresentationStart\n",
-					"\t,Project.dateOfReOpenRelevantRepresentationClose\n",
-					"\t,Project.isMaterialChange\n",
-					"FROM \n",
-					"\todw_harmonised_db.nsip_project AS Project\n",
-					"WHERE \n",
-					"\tProject.IsActive='Y'"
+					"df = spark.sql(\"\"\"\n",
+					"\tSELECT\n",
+					"\t\tProject.caseId\n",
+					"\t\t,Project.caseReference\n",
+					"\t\t,Project.projectName\n",
+					"\t\t,Project.projectNameWelsh\n",
+					"\t\t,Project.projectDescription\n",
+					"\t\t,Project.projectDescriptionWelsh\n",
+					"\t\t,Project.decision\n",
+					"\t\t,LOWER(project.publishStatus) AS publishStatus\n",
+					"\t\t,Project.sector\n",
+					"\t\t,CASE\n",
+					"\t\t\tWHEN Project.ProjectType = 'WW01 - Waste Water treatment Plants' THEN\n",
+					"\t\t\t\t'WW01 - Waste Water Treatment Plants'\n",
+					"\t\t\tELSE \n",
+					"\t\t\t\tProject.ProjectType\n",
+					"\t\tEND AS projectType\n",
+					"\t\t,LOWER(\tCASE \n",
+					"\t\t\t\t\tWHEN Project.ODTSourceSystem = 'ODT' THEN \n",
+					"\t\t\t\t\t\t'back-office-applications' \n",
+					"\t\t\t\t\tELSE \n",
+					"\t\t\t\t\t\tProject.ODTSourceSystem \n",
+					"\t\t\t\tEND) AS sourceSystem\n",
+					"\t\t,LOWER(REPLACE(REPLACE(Project.Stage,'-', '_'),' ', '_')) AS stage\n",
+					"\t\t,Project.projectLocation\n",
+					"\t\t,Project.projectLocationWelsh\n",
+					"\t\t,Project.projectEmailAddress\n",
+					"\t\t,Project.regions\n",
+					"\t\t,Project.transboundary\n",
+					"\t\t,CAST(project.Easting AS INT) AS easting\n",
+					"\t\t,CAST(project.Northing AS INT) AS northing\n",
+					"\t\t,Project.WelshLanguage AS welshLanguage\n",
+					"\t\t,Project.mapZoomLevel\n",
+					"\t\t,Project.SecretaryOfState AS secretaryOfState\n",
+					"\t\t-- Pre-application dates\n",
+					"\t\t,Project.datePINSFirstNotifiedOfProject\n",
+					"\t\t,Project.dateProjectAppearsOnWebsite\t\n",
+					"\t\t,Project.anticipatedSubmissionDateNonSpecific\n",
+					"\t\t,Project.anticipatedDateOfSubmission\n",
+					"\t\t,Project.screeningOpinionSought\t\n",
+					"\t\t,Project.screeningOpinionIssued\n",
+					"\t\t,Project.scopingOpinionSought\n",
+					"\t\t,Project.scopingOpinionIssued\n",
+					"\t\t,Project.section46Notification\n",
+					"\t\t-- acceptance dates\n",
+					"\t\t,Project.dateOfDCOSubmission\n",
+					"\t\t,Project.deadlineForAcceptanceDecision\n",
+					"\t\t,Project.dateOfDCOAcceptance\n",
+					"\t\t,Project.dateOfNonAcceptance\n",
+					"\t\t--pre examination dates\n",
+					"\t\t,Project.dateOfRepresentationPeriodOpen\n",
+					"\t\t,Project.dateOfRelevantRepresentationClose\n",
+					"\t\t,Project.extensionToDateRelevantRepresentationsClose\n",
+					"\t\t,Project.dateRRepAppearOnWebsite\n",
+					"\t\t,Project.dateIAPIDue\n",
+					"\t\t,Project.rule6LetterPublishDate\n",
+					"\t\t,Project.preliminaryMeetingStartDate\n",
+					"\t\t,Project.notificationDateForPMAndEventsDirectlyFollowingPM\n",
+					"\t\t,Project.notificationDateForEventsDeveloper\n",
+					"\t\t-- examination dates\n",
+					"\t\t,Project.dateSection58NoticeReceived\n",
+					"\t\t,Project.confirmedStartOfExamination\n",
+					"\t\t,Project.rule8LetterPublishDate\n",
+					"\t\t,Project.deadlineForCloseOfExamination\n",
+					"\t\t,Project.dateTimeExaminationEnds\n",
+					"\t\t,Project.stage4ExtensionToExamCloseDate\n",
+					"\t\t--recommendation dates\n",
+					"\t\t,Project.deadlineForSubmissionOfRecommendation\n",
+					"\t\t,Project.dateOfRecommendations\n",
+					"\t\t,Project.stage5ExtensionToRecommendationDeadline\n",
+					"\t\t--decision dates\n",
+					"\t\t,Project.deadlineForDecision\n",
+					"\t\t,Project.confirmedDateOfDecision\n",
+					"\t\t,Project.stage5ExtensionToDecisionDeadline\n",
+					"\t\t--post decision dates\n",
+					"\t\t,Project.jRPeriodEndDate\n",
+					"\t\t--withdrawl dates\n",
+					"\t\t,Project.dateProjectWithdrawn\n",
+					"\t\t-- Additional fields\n",
+					"\t\t,Project.operationsLeadId\n",
+					"\t\t,Project.operationsManagerId\n",
+					"\t\t,Project.caseManagerId\n",
+					"\t\t,Project.nsipOfficerIds\n",
+					"\t\t,Project.nsipAdministrationOfficerIds\n",
+					"\t\t,Project.leadInspectorId\n",
+					"\t\t,Project.inspectorIds\n",
+					"\t\t,Project.environmentalServicesOfficerId\n",
+					"\t\t,Project.legalOfficerId\n",
+					"\t\t,Project.applicantId\n",
+					"\t\t,Project.migrationStatus\n",
+					"\t\t,Project.dateOfReOpenRelevantRepresentationStart\n",
+					"\t\t,Project.dateOfReOpenRelevantRepresentationClose\n",
+					"\t\t,Project.isMaterialChange\n",
+					"\tFROM \n",
+					"\t\todw_harmonised_db.nsip_project AS Project\n",
+					"\tWHERE \n",
+					"\t\tProject.IsActive='Y'\n",
+					"\t\"\"\"\n",
+					")"
 				],
-				"execution_count": 2
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -213,7 +251,7 @@
 					}
 				},
 				"source": [
-					"## Table odw_curated_db.nsip_project spark table is created"
+					"##### Define schema"
 				]
 			},
 			{
@@ -230,9 +268,23 @@
 					}
 				},
 				"source": [
-					"logInfo(\"Writing odw_curated_db.vw_nsip_project\")"
+					"schema = mssparkutils.notebook.run(\"py_create_spark_schema\", 30, {\"db_name\": db_name, \"entity_name\": entity_name})\r\n",
+					"spark_schema = StructType.fromJson(json.loads(schema))"
 				],
-				"execution_count": 5
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Create DataFrame with correct schema"
+				]
 			},
 			{
 				"cell_type": "code",
@@ -248,12 +300,22 @@
 					}
 				},
 				"source": [
-					"from pyspark.sql import SparkSession\n",
-					"spark = SparkSession.builder.getOrCreate()\n",
-					"view_df = spark.sql('SELECT * FROM odw_curated_db.vw_nsip_project')\n",
-					"view_df.write.mode(\"overwrite\").option(\"overwriteSchema\", \"true\").saveAsTable('odw_curated_db.nsip_project')"
+					"data = spark.createDataFrame(df.rdd, schema=spark_schema)"
 				],
-				"execution_count": 3
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Write DataFrame to table"
+				]
 			},
 			{
 				"cell_type": "code",
@@ -269,9 +331,11 @@
 					}
 				},
 				"source": [
-					"logInfo(\"Written odw_curated_db.vw_nsip_project\")"
+					"logInfo(f\"Writing to {table_name}\")\r\n",
+					"df.write.mode(\"overwrite\").format(\"parquet\").saveAsTable(table_name)\r\n",
+					"logInfo(f\"Written to {table_name}\")"
 				],
-				"execution_count": 6
+				"execution_count": null
 			}
 		]
 	}
