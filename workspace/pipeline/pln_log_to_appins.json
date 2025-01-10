@@ -1,0 +1,144 @@
+{
+	"name": "pln_log_to_appins",
+	"properties": {
+		"activities": [
+			{
+				"name": "Log to App Ins",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "Compile Body",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "POST",
+					"headers": {
+						"Content-Type": "application/json"
+					},
+					"url": "https://uksouth-1.in.applicationinsights.azure.com/v2/track",
+					"connectVia": {
+						"referenceName": "AutoResolveIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"body": {
+						"value": "@concat('{\"name\":\"AppEvents\",\"time\":\"', utcNow(), '\",\"iKey\":\"', pipeline().parameters.AppInsIKey, '\",\"data\":{\"baseType\":\"EventData\",\"baseData\":{\"name\":\"', pipeline().parameters.AppInsCustomEventName, '\",\"properties\":', variables('body'), '}}}'\n)",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Compile Body",
+				"description": "Compiles the body from the params",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "body",
+					"value": {
+						"value": "@concat('{\"Stage\":\"', pipeline().parameters.Stage, '\",',\n        '\"PipelineName\":\"', pipeline().parameters.PipelineName, '\",',\n        '\"PipelineRunID\":\"', pipeline().parameters.PipelineRunID, '\",',\n        '\"StartTime\":\"', pipeline().parameters.StartTime, '\",',\n        '\"EndTime\":\"', pipeline().parameters.EndTime, '\",',\n        '\"Inserts\":\"', string(pipeline().parameters.Inserts), '\",',\n        '\"Updates\":\"', string(pipeline().parameters.Updates), '\",',\n        '\"Deletes\":\"', string(pipeline().parameters.Deletes), '\",',\n        '\"ErrorMessage\":\"', uriComponentToString(replace(uriComponent(coalesce(pipeline().parameters.ErrorMessage, '')), '%0A', '')), '\",',\n        '\"StatusMessage\":\"', pipeline().parameters.StatusMessage, '\",',\n        '\"PipelineTriggerID\":\"', pipeline().parameters.PipelineTriggerID, '\",',\n        '\"PipelineTriggerName\":\"', pipeline().parameters.PipelineTriggerName, '\",',\n        '\"PipelineTriggerType\":\"', pipeline().parameters.PipelineTriggerType, '\",',\n        '\"PipelineTriggeredbyPipelineName\":\"', pipeline().parameters.PipelineTriggeredbyPipelineName, '\",',\n        '\"PipelineTriggeredbyPipelineRunID\":\"', pipeline().parameters.PipelineTriggeredbyPipelineRunID, '\",',\n        '\"PipelineExecutionTimeInSec\":\"', pipeline().parameters.PipelineExecutionTimeInSec, '\",',\n        '\"ActivityType\":\"', pipeline().parameters.ActivityType, '\",',\n        '\"StatusCode\":\"', pipeline().parameters.StatusCode, '\",',\n        '\"DurationSeconds\":\"', pipeline().parameters.DurationSeconds, '\"}')",
+						"type": "Expression"
+					}
+				}
+			}
+		],
+		"parameters": {
+			"Stage": {
+				"type": "string"
+			},
+			"PipelineName": {
+				"type": "string"
+			},
+			"PipelineRunID": {
+				"type": "string"
+			},
+			"StartTime": {
+				"type": "string"
+			},
+			"EndTime": {
+				"type": "string"
+			},
+			"Inserts": {
+				"type": "int",
+				"defaultValue": 0
+			},
+			"Updates": {
+				"type": "int",
+				"defaultValue": 0
+			},
+			"Deletes": {
+				"type": "int",
+				"defaultValue": 0
+			},
+			"ErrorMessage": {
+				"type": "string"
+			},
+			"StatusMessage": {
+				"type": "string"
+			},
+			"PipelineTriggerID": {
+				"type": "string"
+			},
+			"PipelineTriggerName": {
+				"type": "string"
+			},
+			"PipelineTriggerType": {
+				"type": "string"
+			},
+			"PipelineTriggeredbyPipelineName": {
+				"type": "string"
+			},
+			"PipelineTriggeredbyPipelineRunID": {
+				"type": "string"
+			},
+			"PipelineExecutionTimeInSec": {
+				"type": "string"
+			},
+			"ActivityType": {
+				"type": "string"
+			},
+			"DurationSeconds": {
+				"type": "string"
+			},
+			"AppInsCustomEventName": {
+				"type": "string",
+				"defaultValue": "ODW_Master_Pipeline_Logs"
+			},
+			"StatusCode": {
+				"type": "string"
+			},
+			"AppInsIKey": {
+				"type": "string"
+			}
+		},
+		"variables": {
+			"body": {
+				"type": "String"
+			},
+			"notebook_err": {
+				"type": "String"
+			},
+			"apps_insights_ikey": {
+				"type": "String"
+			}
+		},
+		"folder": {
+			"name": "utils"
+		},
+		"annotations": []
+	}
+}

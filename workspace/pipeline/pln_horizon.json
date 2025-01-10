@@ -3,55 +3,11 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "Get Relevant Reps config",
-				"type": "SynapseNotebook",
-				"dependsOn": [
-					{
-						"activity": "Random wait to allow parallelism",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "py_utils_get_pipeline_config",
-						"type": "NotebookReference"
-					},
-					"parameters": {
-						"system_name": {
-							"value": "Horizon",
-							"type": "string"
-						},
-						"Object": {
-							"value": "Relevant Reps",
-							"type": "string"
-						}
-					},
-					"snapshot": true,
-					"sparkPool": {
-						"referenceName": "pinssynspodw",
-						"type": "BigDataPoolReference"
-					},
-					"conf": {
-						"spark.dynamicAllocation.enabled": true
-					}
-				}
-			},
-			{
 				"name": "Relevant Reps",
 				"type": "IfCondition",
 				"dependsOn": [
 					{
-						"activity": "Get Relevant Reps config",
+						"activity": "Random wait to allow parallelism_copy10",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -60,126 +16,10 @@
 				"userProperties": [],
 				"typeProperties": {
 					"expression": {
-						"value": "@equals(activity('Get Relevant Reps config').output.status.Output.result.exitValue, '[True]')",
+						"value": "@contains(pipeline().parameters.horizon_feed, 'Relevant Reps')",
 						"type": "Expression"
 					},
 					"ifFalseActivities": [
-						{
-							"name": "Record relevant reps warning",
-							"type": "SynapseNotebook",
-							"dependsOn": [
-								{
-									"activity": "Send relevant reps disabled warning",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"notebook": {
-									"referenceName": "py_utils_log_stage",
-									"type": "NotebookReference"
-								},
-								"parameters": {
-									"Stage": {
-										"value": "Warning",
-										"type": "string"
-									},
-									"PipelineName": {
-										"value": {
-											"value": "@pipeline().Pipeline",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineRunID": {
-										"value": {
-											"value": "@pipeline().RunId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"Inserts": {
-										"value": "0",
-										"type": "int"
-									},
-									"Updates": {
-										"value": "0",
-										"type": "int"
-									},
-									"Deletes": {
-										"value": "0",
-										"type": "int"
-									},
-									"ErrorMessage": {
-										"value": "Horizon - Relevant Reps disabled",
-										"type": "string"
-									},
-									"StatusMessage": {
-										"value": "Warning",
-										"type": "string"
-									},
-									"PipelineTriggerID": {
-										"value": {
-											"value": "@pipeline().TriggerId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggerName": {
-										"value": {
-											"value": "@pipeline().TriggerName",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggerType": {
-										"value": {
-											"value": "@pipeline().TriggerType",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggeredbyPipelineName": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineName",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggeredbyPipelineRunID": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineRunId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"ActivityType": {
-										"value": "Pipeline",
-										"type": "string"
-									}
-								},
-								"snapshot": true,
-								"sparkPool": {
-									"referenceName": "pinssynspodw",
-									"type": "BigDataPoolReference"
-								},
-								"conf": {
-									"spark.dynamicAllocation.enabled": true,
-									"spark.dynamicAllocation.minExecutors": null,
-									"spark.dynamicAllocation.maxExecutors": null
-								},
-								"numExecutors": null
-							}
-						},
 						{
 							"name": "Send relevant reps disabled warning",
 							"type": "ExecutePipeline",
@@ -233,118 +73,78 @@
 									"Message_subtitle": "Horizon relevant reps data load disabled"
 								}
 							}
-						}
-					],
-					"ifTrueActivities": [
+						},
 						{
-							"name": "Record loading relevant reps data",
-							"type": "SynapseNotebook",
-							"dependsOn": [],
+							"name": "Record relevant reps warning",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Send relevant reps disabled warning",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
 							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
 								"secureInput": false
 							},
 							"userProperties": [],
 							"typeProperties": {
-								"notebook": {
-									"referenceName": "py_utils_log_stage",
-									"type": "NotebookReference"
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
 								},
+								"waitOnCompletion": true,
 								"parameters": {
-									"Stage": {
-										"value": "OnProgress",
-										"type": "string"
-									},
+									"Stage": "Warning",
 									"PipelineName": {
-										"value": {
-											"value": "@pipeline().Pipeline",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
 									},
 									"PipelineRunID": {
-										"value": {
-											"value": "@pipeline().RunId",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().RunId",
+										"type": "Expression"
 									},
-									"Inserts": {
-										"value": "0",
-										"type": "int"
+									"StartTime": {
+										"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
 									},
-									"Updates": {
-										"value": "0",
-										"type": "int"
+									"EndTime": {
+										"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
 									},
-									"Deletes": {
-										"value": "0",
-										"type": "int"
-									},
-									"ErrorMessage": {
-										"value": "",
-										"type": "string"
-									},
-									"StatusMessage": {
-										"value": "Loading relevant reps",
-										"type": "string"
-									},
+									"ErrorMessage": "Horizon - Relevant Reps disabled",
+									"StatusMessage": "Warning",
 									"PipelineTriggerID": {
-										"value": {
-											"value": "@pipeline().TriggerId",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().TriggerId",
+										"type": "Expression"
 									},
 									"PipelineTriggerName": {
-										"value": {
-											"value": "@pipeline().TriggerName",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().TriggerName",
+										"type": "Expression"
 									},
 									"PipelineTriggerType": {
-										"value": {
-											"value": "@pipeline().TriggerType",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().TriggerType",
+										"type": "Expression"
 									},
 									"PipelineTriggeredbyPipelineName": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineName",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline()?.TriggeredByPipelineName",
+										"type": "Expression"
 									},
 									"PipelineTriggeredbyPipelineRunID": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineRunId",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline()?.TriggeredByPipelineRunId",
+										"type": "Expression"
 									},
-									"ActivityType": {
-										"value": "Pipeline",
-										"type": "string"
+									"ActivityType": "Pipeline",
+									"AppInsIKey": {
+										"value": "@pipeline().parameters.apps_insights_ikey",
+										"type": "Expression"
 									}
-								},
-								"snapshot": true,
-								"sparkPool": {
-									"referenceName": "pinssynspodw",
-									"type": "BigDataPoolReference"
-								},
-								"conf": {
-									"spark.dynamicAllocation.enabled": true,
-									"spark.dynamicAllocation.minExecutors": null,
-									"spark.dynamicAllocation.maxExecutors": null
-								},
-								"numExecutors": null
+								}
 							}
-						},
+						}
+					],
+					"ifTrueActivities": [
 						{
 							"name": "Horizon Relevant reps",
 							"type": "ExecutePipeline",
@@ -366,122 +166,6 @@
 									"type": "PipelineReference"
 								},
 								"waitOnCompletion": true
-							}
-						},
-						{
-							"name": "Record completed relevant reps data",
-							"type": "SynapseNotebook",
-							"dependsOn": [
-								{
-									"activity": "Horizon Relevant reps",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"notebook": {
-									"referenceName": "py_utils_log_stage",
-									"type": "NotebookReference"
-								},
-								"parameters": {
-									"Stage": {
-										"value": "Completion",
-										"type": "string"
-									},
-									"PipelineName": {
-										"value": {
-											"value": "@pipeline().Pipeline",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineRunID": {
-										"value": {
-											"value": "@pipeline().RunId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"Inserts": {
-										"value": "0",
-										"type": "int"
-									},
-									"Updates": {
-										"value": "0",
-										"type": "int"
-									},
-									"Deletes": {
-										"value": "0",
-										"type": "int"
-									},
-									"ErrorMessage": {
-										"value": "",
-										"type": "string"
-									},
-									"StatusMessage": {
-										"value": "Loading relevant reps",
-										"type": "string"
-									},
-									"PipelineTriggerID": {
-										"value": {
-											"value": "@pipeline().TriggerId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggerName": {
-										"value": {
-											"value": "@pipeline().TriggerName",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggerType": {
-										"value": {
-											"value": "@pipeline().TriggerType",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggeredbyPipelineName": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineName",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggeredbyPipelineRunID": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineRunId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"ActivityType": {
-										"value": "Pipeline",
-										"type": "string"
-									}
-								},
-								"snapshot": true,
-								"sparkPool": {
-									"referenceName": "pinssynspodw",
-									"type": "BigDataPoolReference"
-								},
-								"conf": {
-									"spark.dynamicAllocation.enabled": true,
-									"spark.dynamicAllocation.minExecutors": null,
-									"spark.dynamicAllocation.maxExecutors": null
-								},
-								"numExecutors": null
 							}
 						},
 						{
@@ -544,52 +228,125 @@
 									"Message_subtitle": "Relevant representation feed failed"
 								}
 							}
+						},
+						{
+							"name": "Record loading relevant reps data",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "OnProgress",
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StartTime": {
+										"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
+									},
+									"StatusMessage": "Loading relevant reps",
+									"PipelineTriggerID": {
+										"value": "@pipeline().TriggerId",
+										"type": "Expression"
+									},
+									"PipelineTriggerName": {
+										"value": "@pipeline().TriggerName",
+										"type": "Expression"
+									},
+									"PipelineTriggerType": {
+										"value": "@pipeline().TriggerType",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": "@pipeline()?.TriggeredByPipelineName",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": "@pipeline()?.TriggeredByPipelineRunId",
+										"type": "Expression"
+									},
+									"ActivityType": "Pipeline",
+									"AppInsIKey": {
+										"value": "@pipeline().parameters.apps_insights_ikey",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Record completed relevant reps data",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Horizon Relevant reps",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "Completion",
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StatusMessage": "Loading relevant reps",
+									"PipelineTriggerID": {
+										"value": "@pipeline().TriggerId",
+										"type": "Expression"
+									},
+									"PipelineTriggerName": {
+										"value": "@pipeline().TriggerName",
+										"type": "Expression"
+									},
+									"PipelineTriggerType": {
+										"value": "@pipeline().TriggerType",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": "@pipeline()?.TriggeredByPipelineName",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": "@pipeline()?.TriggeredByPipelineRunId",
+										"type": "Expression"
+									},
+									"ActivityType": "Pipeline",
+									"AppInsIKey": {
+										"value": "@pipeline().parameters.apps_insights_ikey",
+										"type": "Expression"
+									}
+								}
+							}
 						}
 					]
-				}
-			},
-			{
-				"name": "Get nsip project",
-				"type": "SynapseNotebook",
-				"dependsOn": [
-					{
-						"activity": "Random wait to allow parallelism_copy1",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "py_utils_get_pipeline_config",
-						"type": "NotebookReference"
-					},
-					"parameters": {
-						"system_name": {
-							"value": "Horizon",
-							"type": "string"
-						},
-						"Object": {
-							"value": "nsip project",
-							"type": "string"
-						}
-					},
-					"snapshot": true,
-					"sparkPool": {
-						"referenceName": "pinssynspodw",
-						"type": "BigDataPoolReference"
-					},
-					"conf": {
-						"spark.dynamicAllocation.enabled": true
-					}
 				}
 			},
 			{
@@ -597,7 +354,7 @@
 				"type": "IfCondition",
 				"dependsOn": [
 					{
-						"activity": "Get nsip project",
+						"activity": "Random wait to allow parallelism_copy4",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -606,128 +363,12 @@
 				"userProperties": [],
 				"typeProperties": {
 					"expression": {
-						"value": "@equals(activity('Get nsip project').output.status.Output.result.exitValue, '[True]')",
+						"value": "@contains(pipeline().parameters.horizon_feed, 'nsip project')",
 						"type": "Expression"
 					},
 					"ifFalseActivities": [
 						{
-							"name": "Record nsip project warning",
-							"type": "SynapseNotebook",
-							"dependsOn": [
-								{
-									"activity": "Send relevant reps disabled warning_copy1",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"notebook": {
-									"referenceName": "py_utils_log_stage",
-									"type": "NotebookReference"
-								},
-								"parameters": {
-									"Stage": {
-										"value": "Warning",
-										"type": "string"
-									},
-									"PipelineName": {
-										"value": {
-											"value": "@pipeline().Pipeline",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineRunID": {
-										"value": {
-											"value": "@pipeline().RunId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"Inserts": {
-										"value": "0",
-										"type": "int"
-									},
-									"Updates": {
-										"value": "0",
-										"type": "int"
-									},
-									"Deletes": {
-										"value": "0",
-										"type": "int"
-									},
-									"ErrorMessage": {
-										"value": "Horizon - Nsip project disabled",
-										"type": "string"
-									},
-									"StatusMessage": {
-										"value": "Warning",
-										"type": "string"
-									},
-									"PipelineTriggerID": {
-										"value": {
-											"value": "@pipeline().TriggerId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggerName": {
-										"value": {
-											"value": "@pipeline().TriggerName",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggerType": {
-										"value": {
-											"value": "@pipeline().TriggerType",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggeredbyPipelineName": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineName",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggeredbyPipelineRunID": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineRunId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"ActivityType": {
-										"value": "Pipeline",
-										"type": "string"
-									}
-								},
-								"snapshot": true,
-								"sparkPool": {
-									"referenceName": "pinssynspodw",
-									"type": "BigDataPoolReference"
-								},
-								"conf": {
-									"spark.dynamicAllocation.enabled": true,
-									"spark.dynamicAllocation.minExecutors": null,
-									"spark.dynamicAllocation.maxExecutors": null
-								},
-								"numExecutors": null
-							}
-						},
-						{
-							"name": "Send relevant reps disabled warning_copy1",
+							"name": "Send nsip project disabled warning_copy1",
 							"type": "ExecutePipeline",
 							"dependsOn": [],
 							"policy": {
@@ -779,118 +420,78 @@
 									"Message_subtitle": "Horizon nsip project data load disabled"
 								}
 							}
-						}
-					],
-					"ifTrueActivities": [
+						},
 						{
-							"name": "Record loading nsip project",
-							"type": "SynapseNotebook",
-							"dependsOn": [],
+							"name": "Record nsip project warning",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Send nsip project disabled warning_copy1",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
 							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
 								"secureInput": false
 							},
 							"userProperties": [],
 							"typeProperties": {
-								"notebook": {
-									"referenceName": "py_utils_log_stage",
-									"type": "NotebookReference"
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
 								},
+								"waitOnCompletion": true,
 								"parameters": {
-									"Stage": {
-										"value": "OnProgress",
-										"type": "string"
-									},
+									"Stage": "Warning",
 									"PipelineName": {
-										"value": {
-											"value": "@pipeline().Pipeline",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
 									},
 									"PipelineRunID": {
-										"value": {
-											"value": "@pipeline().RunId",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().RunId",
+										"type": "Expression"
 									},
-									"Inserts": {
-										"value": "0",
-										"type": "int"
+									"StartTime": {
+										"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
 									},
-									"Updates": {
-										"value": "0",
-										"type": "int"
+									"EndTime": {
+										"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
 									},
-									"Deletes": {
-										"value": "0",
-										"type": "int"
-									},
-									"ErrorMessage": {
-										"value": "",
-										"type": "string"
-									},
-									"StatusMessage": {
-										"value": "Loading nsip project",
-										"type": "string"
-									},
+									"ErrorMessage": "Horizon - Nsip project disabled",
+									"StatusMessage": "Warning",
 									"PipelineTriggerID": {
-										"value": {
-											"value": "@pipeline().TriggerId",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().TriggerId",
+										"type": "Expression"
 									},
 									"PipelineTriggerName": {
-										"value": {
-											"value": "@pipeline().TriggerName",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().TriggerName",
+										"type": "Expression"
 									},
 									"PipelineTriggerType": {
-										"value": {
-											"value": "@pipeline().TriggerType",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().TriggerType",
+										"type": "Expression"
 									},
 									"PipelineTriggeredbyPipelineName": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineName",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline()?.TriggeredByPipelineName",
+										"type": "Expression"
 									},
 									"PipelineTriggeredbyPipelineRunID": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineRunId",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline()?.TriggeredByPipelineRunId",
+										"type": "Expression"
 									},
-									"ActivityType": {
-										"value": "Pipeline",
-										"type": "string"
+									"ActivityType": "Pipeline",
+									"AppInsIKey": {
+										"value": "@pipeline().parameters.apps_insights_ikey",
+										"type": "Expression"
 									}
-								},
-								"snapshot": true,
-								"sparkPool": {
-									"referenceName": "pinssynspodw",
-									"type": "BigDataPoolReference"
-								},
-								"conf": {
-									"spark.dynamicAllocation.enabled": true,
-									"spark.dynamicAllocation.minExecutors": null,
-									"spark.dynamicAllocation.maxExecutors": null
-								},
-								"numExecutors": null
+								}
 							}
-						},
+						}
+					],
+					"ifTrueActivities": [
 						{
 							"name": "Horizon nsip project",
 							"type": "ExecutePipeline",
@@ -912,122 +513,6 @@
 									"type": "PipelineReference"
 								},
 								"waitOnCompletion": true
-							}
-						},
-						{
-							"name": "Record completed nsip project",
-							"type": "SynapseNotebook",
-							"dependsOn": [
-								{
-									"activity": "Horizon nsip project",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"notebook": {
-									"referenceName": "py_utils_log_stage",
-									"type": "NotebookReference"
-								},
-								"parameters": {
-									"Stage": {
-										"value": "Completion",
-										"type": "string"
-									},
-									"PipelineName": {
-										"value": {
-											"value": "@pipeline().Pipeline",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineRunID": {
-										"value": {
-											"value": "@pipeline().RunId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"Inserts": {
-										"value": "0",
-										"type": "int"
-									},
-									"Updates": {
-										"value": "0",
-										"type": "int"
-									},
-									"Deletes": {
-										"value": "0",
-										"type": "int"
-									},
-									"ErrorMessage": {
-										"value": "",
-										"type": "string"
-									},
-									"StatusMessage": {
-										"value": "Loading nsip project",
-										"type": "string"
-									},
-									"PipelineTriggerID": {
-										"value": {
-											"value": "@pipeline().TriggerId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggerName": {
-										"value": {
-											"value": "@pipeline().TriggerName",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggerType": {
-										"value": {
-											"value": "@pipeline().TriggerType",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggeredbyPipelineName": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineName",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggeredbyPipelineRunID": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineRunId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"ActivityType": {
-										"value": "Pipeline",
-										"type": "string"
-									}
-								},
-								"snapshot": true,
-								"sparkPool": {
-									"referenceName": "pinssynspodw",
-									"type": "BigDataPoolReference"
-								},
-								"conf": {
-									"spark.dynamicAllocation.enabled": true,
-									"spark.dynamicAllocation.minExecutors": null,
-									"spark.dynamicAllocation.maxExecutors": null
-								},
-								"numExecutors": null
 							}
 						},
 						{
@@ -1090,104 +575,125 @@
 									"Message_subtitle": "NSIP project feed failed"
 								}
 							}
+						},
+						{
+							"name": "Record loading nsip project",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "OnProgress",
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StartTime": {
+										"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
+									},
+									"StatusMessage": "Loading nsip project",
+									"PipelineTriggerID": {
+										"value": "@pipeline().TriggerId",
+										"type": "Expression"
+									},
+									"PipelineTriggerName": {
+										"value": "@pipeline().TriggerName",
+										"type": "Expression"
+									},
+									"PipelineTriggerType": {
+										"value": "@pipeline().TriggerType",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": "@pipeline()?.TriggeredByPipelineName",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": "@pipeline()?.TriggeredByPipelineRunId",
+										"type": "Expression"
+									},
+									"ActivityType": "Pipeline",
+									"AppInsIKey": {
+										"value": "@pipeline().parameters.apps_insights_ikey",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Record completed nsip project",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Horizon nsip project",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "Completion",
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StatusMessage": "Loading nsip project",
+									"PipelineTriggerID": {
+										"value": "@pipeline().TriggerId",
+										"type": "Expression"
+									},
+									"PipelineTriggerName": {
+										"value": "@pipeline().TriggerName",
+										"type": "Expression"
+									},
+									"PipelineTriggerType": {
+										"value": "@pipeline().TriggerType",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": "@pipeline()?.TriggeredByPipelineName",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": "@pipeline()?.TriggeredByPipelineRunId",
+										"type": "Expression"
+									},
+									"ActivityType": "Pipeline",
+									"AppInsIKey": {
+										"value": "@pipeline().parameters.apps_insights_ikey",
+										"type": "Expression"
+									}
+								}
+							}
 						}
 					]
-				}
-			},
-			{
-				"name": "Random wait to allow parallelism",
-				"type": "SynapseNotebook",
-				"dependsOn": [],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "py_utils_random_sleep",
-						"type": "NotebookReference"
-					},
-					"snapshot": true,
-					"conf": {
-						"spark.dynamicAllocation.enabled": null,
-						"spark.dynamicAllocation.minExecutors": null,
-						"spark.dynamicAllocation.maxExecutors": null
-					},
-					"numExecutors": null
-				}
-			},
-			{
-				"name": "Random wait to allow parallelism_copy1",
-				"type": "SynapseNotebook",
-				"dependsOn": [],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "py_utils_random_sleep",
-						"type": "NotebookReference"
-					},
-					"snapshot": true,
-					"conf": {
-						"spark.dynamicAllocation.enabled": null,
-						"spark.dynamicAllocation.minExecutors": null,
-						"spark.dynamicAllocation.maxExecutors": null
-					},
-					"numExecutors": null
-				}
-			},
-			{
-				"name": "Get case involvement",
-				"type": "SynapseNotebook",
-				"dependsOn": [
-					{
-						"activity": "Random wait to allow parallelism_copy2",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "py_utils_get_pipeline_config",
-						"type": "NotebookReference"
-					},
-					"parameters": {
-						"system_name": {
-							"value": "Horizon",
-							"type": "string"
-						},
-						"Object": {
-							"value": "case involvement",
-							"type": "string"
-						}
-					},
-					"snapshot": true,
-					"sparkPool": {
-						"referenceName": "pinssynspodw",
-						"type": "BigDataPoolReference"
-					},
-					"conf": {
-						"spark.dynamicAllocation.enabled": true
-					}
 				}
 			},
 			{
@@ -1195,7 +701,7 @@
 				"type": "IfCondition",
 				"dependsOn": [
 					{
-						"activity": "Get case involvement",
+						"activity": "Random wait to allow parallelism_copy9",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -1204,126 +710,10 @@
 				"userProperties": [],
 				"typeProperties": {
 					"expression": {
-						"value": "@equals(activity('Get case involvement').output.status.Output.result.exitValue, '[True]')",
+						"value": "@contains(pipeline().parameters.horizon_feed, 'case involvement')",
 						"type": "Expression"
 					},
 					"ifFalseActivities": [
-						{
-							"name": "Record case involvement",
-							"type": "SynapseNotebook",
-							"dependsOn": [
-								{
-									"activity": "Send case involvement warning",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"notebook": {
-									"referenceName": "py_utils_log_stage",
-									"type": "NotebookReference"
-								},
-								"parameters": {
-									"Stage": {
-										"value": "Warning",
-										"type": "string"
-									},
-									"PipelineName": {
-										"value": {
-											"value": "@pipeline().Pipeline",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineRunID": {
-										"value": {
-											"value": "@pipeline().RunId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"Inserts": {
-										"value": "0",
-										"type": "int"
-									},
-									"Updates": {
-										"value": "0",
-										"type": "int"
-									},
-									"Deletes": {
-										"value": "0",
-										"type": "int"
-									},
-									"ErrorMessage": {
-										"value": "Horizon - case involvement disabled",
-										"type": "string"
-									},
-									"StatusMessage": {
-										"value": "Warning",
-										"type": "string"
-									},
-									"PipelineTriggerID": {
-										"value": {
-											"value": "@pipeline().TriggerId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggerName": {
-										"value": {
-											"value": "@pipeline().TriggerName",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggerType": {
-										"value": {
-											"value": "@pipeline().TriggerType",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggeredbyPipelineName": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineName",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggeredbyPipelineRunID": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineRunId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"ActivityType": {
-										"value": "Pipeline",
-										"type": "string"
-									}
-								},
-								"snapshot": true,
-								"sparkPool": {
-									"referenceName": "pinssynspodw",
-									"type": "BigDataPoolReference"
-								},
-								"conf": {
-									"spark.dynamicAllocation.enabled": true,
-									"spark.dynamicAllocation.minExecutors": null,
-									"spark.dynamicAllocation.maxExecutors": null
-								},
-								"numExecutors": null
-							}
-						},
 						{
 							"name": "Send case involvement warning",
 							"type": "ExecutePipeline",
@@ -1377,118 +767,78 @@
 									"Message_subtitle": "Horizon case involvement data load disabled"
 								}
 							}
-						}
-					],
-					"ifTrueActivities": [
+						},
 						{
-							"name": "Record loading case involvement",
-							"type": "SynapseNotebook",
-							"dependsOn": [],
+							"name": "Record case involvement disabled",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Send case involvement warning",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
 							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
 								"secureInput": false
 							},
 							"userProperties": [],
 							"typeProperties": {
-								"notebook": {
-									"referenceName": "py_utils_log_stage",
-									"type": "NotebookReference"
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
 								},
+								"waitOnCompletion": true,
 								"parameters": {
-									"Stage": {
-										"value": "OnProgress",
-										"type": "string"
-									},
+									"Stage": "Warning",
 									"PipelineName": {
-										"value": {
-											"value": "@pipeline().Pipeline",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
 									},
 									"PipelineRunID": {
-										"value": {
-											"value": "@pipeline().RunId",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().RunId",
+										"type": "Expression"
 									},
-									"Inserts": {
-										"value": "0",
-										"type": "int"
+									"StartTime": {
+										"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
 									},
-									"Updates": {
-										"value": "0",
-										"type": "int"
+									"EndTime": {
+										"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
 									},
-									"Deletes": {
-										"value": "0",
-										"type": "int"
-									},
-									"ErrorMessage": {
-										"value": "",
-										"type": "string"
-									},
-									"StatusMessage": {
-										"value": "Loading case involvement",
-										"type": "string"
-									},
+									"ErrorMessage": "Horizon - case involvement disabled",
+									"StatusMessage": "Warning",
 									"PipelineTriggerID": {
-										"value": {
-											"value": "@pipeline().TriggerId",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().TriggerId",
+										"type": "Expression"
 									},
 									"PipelineTriggerName": {
-										"value": {
-											"value": "@pipeline().TriggerName",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().TriggerName",
+										"type": "Expression"
 									},
 									"PipelineTriggerType": {
-										"value": {
-											"value": "@pipeline().TriggerType",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().TriggerType",
+										"type": "Expression"
 									},
 									"PipelineTriggeredbyPipelineName": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineName",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline()?.TriggeredByPipelineName",
+										"type": "Expression"
 									},
 									"PipelineTriggeredbyPipelineRunID": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineRunId",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline()?.TriggeredByPipelineRunId",
+										"type": "Expression"
 									},
-									"ActivityType": {
-										"value": "Pipeline",
-										"type": "string"
+									"ActivityType": "Pipeline",
+									"AppInsIKey": {
+										"value": "@pipeline().parameters.apps_insights_ikey",
+										"type": "Expression"
 									}
-								},
-								"snapshot": true,
-								"sparkPool": {
-									"referenceName": "pinssynspodw",
-									"type": "BigDataPoolReference"
-								},
-								"conf": {
-									"spark.dynamicAllocation.enabled": true,
-									"spark.dynamicAllocation.minExecutors": null,
-									"spark.dynamicAllocation.maxExecutors": null
-								},
-								"numExecutors": null
+								}
 							}
-						},
+						}
+					],
+					"ifTrueActivities": [
 						{
 							"name": "Horizon case involvement",
 							"type": "ExecutePipeline",
@@ -1510,122 +860,6 @@
 									"type": "PipelineReference"
 								},
 								"waitOnCompletion": true
-							}
-						},
-						{
-							"name": "Record completed case involvement",
-							"type": "SynapseNotebook",
-							"dependsOn": [
-								{
-									"activity": "Horizon case involvement",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"notebook": {
-									"referenceName": "py_utils_log_stage",
-									"type": "NotebookReference"
-								},
-								"parameters": {
-									"Stage": {
-										"value": "Completion",
-										"type": "string"
-									},
-									"PipelineName": {
-										"value": {
-											"value": "@pipeline().Pipeline",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineRunID": {
-										"value": {
-											"value": "@pipeline().RunId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"Inserts": {
-										"value": "0",
-										"type": "int"
-									},
-									"Updates": {
-										"value": "0",
-										"type": "int"
-									},
-									"Deletes": {
-										"value": "0",
-										"type": "int"
-									},
-									"ErrorMessage": {
-										"value": "",
-										"type": "string"
-									},
-									"StatusMessage": {
-										"value": "Loading case involvement",
-										"type": "string"
-									},
-									"PipelineTriggerID": {
-										"value": {
-											"value": "@pipeline().TriggerId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggerName": {
-										"value": {
-											"value": "@pipeline().TriggerName",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggerType": {
-										"value": {
-											"value": "@pipeline().TriggerType",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggeredbyPipelineName": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineName",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggeredbyPipelineRunID": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineRunId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"ActivityType": {
-										"value": "Pipeline",
-										"type": "string"
-									}
-								},
-								"snapshot": true,
-								"sparkPool": {
-									"referenceName": "pinssynspodw",
-									"type": "BigDataPoolReference"
-								},
-								"conf": {
-									"spark.dynamicAllocation.enabled": true,
-									"spark.dynamicAllocation.minExecutors": null,
-									"spark.dynamicAllocation.maxExecutors": null
-								},
-								"numExecutors": null
 							}
 						},
 						{
@@ -1688,78 +922,125 @@
 									"Message_subtitle": "Case involvement feed failed"
 								}
 							}
+						},
+						{
+							"name": "Record loading case involvement",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "OnProgress",
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StartTime": {
+										"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
+									},
+									"StatusMessage": "Loading case involvement",
+									"PipelineTriggerID": {
+										"value": "@pipeline().TriggerId",
+										"type": "Expression"
+									},
+									"PipelineTriggerName": {
+										"value": "@pipeline().TriggerName",
+										"type": "Expression"
+									},
+									"PipelineTriggerType": {
+										"value": "@pipeline().TriggerType",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": "@pipeline()?.TriggeredByPipelineName",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": "@pipeline()?.TriggeredByPipelineRunId",
+										"type": "Expression"
+									},
+									"ActivityType": "Pipeline",
+									"AppInsIKey": {
+										"value": "@pipeline().parameters.apps_insights_ikey",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Record completed case involvement",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Horizon case involvement",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "Completion",
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StatusMessage": "Loading case involvement",
+									"PipelineTriggerID": {
+										"value": "@pipeline().TriggerId",
+										"type": "Expression"
+									},
+									"PipelineTriggerName": {
+										"value": "@pipeline().TriggerName",
+										"type": "Expression"
+									},
+									"PipelineTriggerType": {
+										"value": "@pipeline().TriggerType",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": "@pipeline()?.TriggeredByPipelineName",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": "@pipeline()?.TriggeredByPipelineRunId",
+										"type": "Expression"
+									},
+									"ActivityType": "Pipeline",
+									"AppInsIKey": {
+										"value": "@pipeline().parameters.apps_insights_ikey",
+										"type": "Expression"
+									}
+								}
+							}
 						}
 					]
-				}
-			},
-			{
-				"name": "Random wait to allow parallelism_copy2",
-				"type": "SynapseNotebook",
-				"dependsOn": [],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "py_utils_random_sleep",
-						"type": "NotebookReference"
-					},
-					"snapshot": true,
-					"conf": {
-						"spark.dynamicAllocation.enabled": null,
-						"spark.dynamicAllocation.minExecutors": null,
-						"spark.dynamicAllocation.maxExecutors": null
-					},
-					"numExecutors": null
-				}
-			},
-			{
-				"name": "Get nsip exam timetable",
-				"type": "SynapseNotebook",
-				"dependsOn": [
-					{
-						"activity": "Random wait to allow parallelism_copy3",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "py_utils_get_pipeline_config",
-						"type": "NotebookReference"
-					},
-					"parameters": {
-						"system_name": {
-							"value": "Horizon",
-							"type": "string"
-						},
-						"Object": {
-							"value": "nsip exam timetable",
-							"type": "string"
-						}
-					},
-					"snapshot": true,
-					"sparkPool": {
-						"referenceName": "pinssynspodw",
-						"type": "BigDataPoolReference"
-					},
-					"conf": {
-						"spark.dynamicAllocation.enabled": true
-					}
 				}
 			},
 			{
@@ -1767,7 +1048,7 @@
 				"type": "IfCondition",
 				"dependsOn": [
 					{
-						"activity": "Get nsip exam timetable",
+						"activity": "Random wait to allow parallelism_copy6",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -1776,126 +1057,10 @@
 				"userProperties": [],
 				"typeProperties": {
 					"expression": {
-						"value": "@equals(activity('Get nsip exam timetable').output.status.Output.result.exitValue, '[True]')",
+						"value": "@contains(pipeline().parameters.horizon_feed, 'nsip exam timetable')",
 						"type": "Expression"
 					},
 					"ifFalseActivities": [
-						{
-							"name": "Record nsip case involvement warning",
-							"type": "SynapseNotebook",
-							"dependsOn": [
-								{
-									"activity": "Send exam timetable disabled warning",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"notebook": {
-									"referenceName": "py_utils_log_stage",
-									"type": "NotebookReference"
-								},
-								"parameters": {
-									"Stage": {
-										"value": "Warning",
-										"type": "string"
-									},
-									"PipelineName": {
-										"value": {
-											"value": "@pipeline().Pipeline",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineRunID": {
-										"value": {
-											"value": "@pipeline().RunId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"Inserts": {
-										"value": "0",
-										"type": "int"
-									},
-									"Updates": {
-										"value": "0",
-										"type": "int"
-									},
-									"Deletes": {
-										"value": "0",
-										"type": "int"
-									},
-									"ErrorMessage": {
-										"value": "Horizon - nsip exam timetable disabled",
-										"type": "string"
-									},
-									"StatusMessage": {
-										"value": "Warning",
-										"type": "string"
-									},
-									"PipelineTriggerID": {
-										"value": {
-											"value": "@pipeline().TriggerId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggerName": {
-										"value": {
-											"value": "@pipeline().TriggerName",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggerType": {
-										"value": {
-											"value": "@pipeline().TriggerType",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggeredbyPipelineName": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineName",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggeredbyPipelineRunID": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineRunId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"ActivityType": {
-										"value": "Pipeline",
-										"type": "string"
-									}
-								},
-								"snapshot": true,
-								"sparkPool": {
-									"referenceName": "pinssynspodw",
-									"type": "BigDataPoolReference"
-								},
-								"conf": {
-									"spark.dynamicAllocation.enabled": true,
-									"spark.dynamicAllocation.minExecutors": null,
-									"spark.dynamicAllocation.maxExecutors": null
-								},
-								"numExecutors": null
-							}
-						},
 						{
 							"name": "Send exam timetable disabled warning",
 							"type": "ExecutePipeline",
@@ -1949,118 +1114,78 @@
 									"Message_subtitle": "Horizon exam timetable data load disabled"
 								}
 							}
-						}
-					],
-					"ifTrueActivities": [
+						},
 						{
-							"name": "Record loading nsip exam timetable",
-							"type": "SynapseNotebook",
-							"dependsOn": [],
+							"name": "Record exam timetable disabled warning",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Send exam timetable disabled warning",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
 							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
 								"secureInput": false
 							},
 							"userProperties": [],
 							"typeProperties": {
-								"notebook": {
-									"referenceName": "py_utils_log_stage",
-									"type": "NotebookReference"
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
 								},
+								"waitOnCompletion": true,
 								"parameters": {
-									"Stage": {
-										"value": "OnProgress",
-										"type": "string"
-									},
+									"Stage": "Warning",
 									"PipelineName": {
-										"value": {
-											"value": "@pipeline().Pipeline",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
 									},
 									"PipelineRunID": {
-										"value": {
-											"value": "@pipeline().RunId",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().RunId",
+										"type": "Expression"
 									},
-									"Inserts": {
-										"value": "0",
-										"type": "int"
+									"StartTime": {
+										"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
 									},
-									"Updates": {
-										"value": "0",
-										"type": "int"
+									"EndTime": {
+										"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
 									},
-									"Deletes": {
-										"value": "0",
-										"type": "int"
-									},
-									"ErrorMessage": {
-										"value": "",
-										"type": "string"
-									},
-									"StatusMessage": {
-										"value": "Loading nsip exam timetable",
-										"type": "string"
-									},
+									"ErrorMessage": "Horizon - nsip exam timetable disabled",
+									"StatusMessage": "Warning",
 									"PipelineTriggerID": {
-										"value": {
-											"value": "@pipeline().TriggerId",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().TriggerId",
+										"type": "Expression"
 									},
 									"PipelineTriggerName": {
-										"value": {
-											"value": "@pipeline().TriggerName",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().TriggerName",
+										"type": "Expression"
 									},
 									"PipelineTriggerType": {
-										"value": {
-											"value": "@pipeline().TriggerType",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().TriggerType",
+										"type": "Expression"
 									},
 									"PipelineTriggeredbyPipelineName": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineName",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline()?.TriggeredByPipelineName",
+										"type": "Expression"
 									},
 									"PipelineTriggeredbyPipelineRunID": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineRunId",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline()?.TriggeredByPipelineRunId",
+										"type": "Expression"
 									},
-									"ActivityType": {
-										"value": "Pipeline",
-										"type": "string"
+									"ActivityType": "Pipeline",
+									"AppInsIKey": {
+										"value": "@pipeline().parameters.apps_insights_ikey",
+										"type": "Expression"
 									}
-								},
-								"snapshot": true,
-								"sparkPool": {
-									"referenceName": "pinssynspodw",
-									"type": "BigDataPoolReference"
-								},
-								"conf": {
-									"spark.dynamicAllocation.enabled": true,
-									"spark.dynamicAllocation.minExecutors": null,
-									"spark.dynamicAllocation.maxExecutors": null
-								},
-								"numExecutors": null
+								}
 							}
-						},
+						}
+					],
+					"ifTrueActivities": [
 						{
 							"name": "Horizon nsip exam timetable",
 							"type": "ExecutePipeline",
@@ -2082,122 +1207,6 @@
 									"type": "PipelineReference"
 								},
 								"waitOnCompletion": true
-							}
-						},
-						{
-							"name": "Record completed case involvement_copy1",
-							"type": "SynapseNotebook",
-							"dependsOn": [
-								{
-									"activity": "Horizon nsip exam timetable",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"notebook": {
-									"referenceName": "py_utils_log_stage",
-									"type": "NotebookReference"
-								},
-								"parameters": {
-									"Stage": {
-										"value": "Completion",
-										"type": "string"
-									},
-									"PipelineName": {
-										"value": {
-											"value": "@pipeline().Pipeline",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineRunID": {
-										"value": {
-											"value": "@pipeline().RunId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"Inserts": {
-										"value": "0",
-										"type": "int"
-									},
-									"Updates": {
-										"value": "0",
-										"type": "int"
-									},
-									"Deletes": {
-										"value": "0",
-										"type": "int"
-									},
-									"ErrorMessage": {
-										"value": "",
-										"type": "string"
-									},
-									"StatusMessage": {
-										"value": "Loading nsip exam timetable",
-										"type": "string"
-									},
-									"PipelineTriggerID": {
-										"value": {
-											"value": "@pipeline().TriggerId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggerName": {
-										"value": {
-											"value": "@pipeline().TriggerName",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggerType": {
-										"value": {
-											"value": "@pipeline().TriggerType",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggeredbyPipelineName": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineName",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggeredbyPipelineRunID": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineRunId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"ActivityType": {
-										"value": "Pipeline",
-										"type": "string"
-									}
-								},
-								"snapshot": true,
-								"sparkPool": {
-									"referenceName": "pinssynspodw",
-									"type": "BigDataPoolReference"
-								},
-								"conf": {
-									"spark.dynamicAllocation.enabled": true,
-									"spark.dynamicAllocation.minExecutors": null,
-									"spark.dynamicAllocation.maxExecutors": null
-								},
-								"numExecutors": null
 							}
 						},
 						{
@@ -2260,52 +1269,125 @@
 									"Message_subtitle": "NSIP exam timetable feed failed"
 								}
 							}
+						},
+						{
+							"name": "Record loading nsip exam timetable",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "OnProgress",
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StartTime": {
+										"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
+									},
+									"StatusMessage": "Loading nsip exam timetable",
+									"PipelineTriggerID": {
+										"value": "@pipeline().TriggerId",
+										"type": "Expression"
+									},
+									"PipelineTriggerName": {
+										"value": "@pipeline().TriggerName",
+										"type": "Expression"
+									},
+									"PipelineTriggerType": {
+										"value": "@pipeline().TriggerType",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": "@pipeline()?.TriggeredByPipelineName",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": "@pipeline()?.TriggeredByPipelineRunId",
+										"type": "Expression"
+									},
+									"ActivityType": "Pipeline",
+									"AppInsIKey": {
+										"value": "@pipeline().parameters.apps_insights_ikey",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Record completed  nsip exam timetable",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Horizon nsip exam timetable",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "Completion",
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StatusMessage": "Loading nsip exam timetable",
+									"PipelineTriggerID": {
+										"value": "@pipeline().TriggerId",
+										"type": "Expression"
+									},
+									"PipelineTriggerName": {
+										"value": "@pipeline().TriggerName",
+										"type": "Expression"
+									},
+									"PipelineTriggerType": {
+										"value": "@pipeline().TriggerType",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": "@pipeline()?.TriggeredByPipelineName",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": "@pipeline()?.TriggeredByPipelineRunId",
+										"type": "Expression"
+									},
+									"ActivityType": "Pipeline",
+									"AppInsIKey": {
+										"value": "@pipeline().parameters.apps_insights_ikey",
+										"type": "Expression"
+									}
+								}
+							}
 						}
 					]
-				}
-			},
-			{
-				"name": "Get nsip s51 advice",
-				"type": "SynapseNotebook",
-				"dependsOn": [
-					{
-						"activity": "Random wait to allow parallelism_copy1_copy1",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "py_utils_get_pipeline_config",
-						"type": "NotebookReference"
-					},
-					"parameters": {
-						"system_name": {
-							"value": "Horizon",
-							"type": "string"
-						},
-						"Object": {
-							"value": "nsip s51 advice",
-							"type": "string"
-						}
-					},
-					"snapshot": true,
-					"sparkPool": {
-						"referenceName": "pinssynspodw",
-						"type": "BigDataPoolReference"
-					},
-					"conf": {
-						"spark.dynamicAllocation.enabled": true
-					}
 				}
 			},
 			{
@@ -2313,7 +1395,7 @@
 				"type": "IfCondition",
 				"dependsOn": [
 					{
-						"activity": "Get nsip s51 advice",
+						"activity": "Random wait to allow parallelism_copy5",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -2322,126 +1404,10 @@
 				"userProperties": [],
 				"typeProperties": {
 					"expression": {
-						"value": "@equals(activity('Get nsip s51 advice').output.status.Output.result.exitValue, '[True]')",
+						"value": "@contains(pipeline().parameters.horizon_feed, 'nsip s51 advice')",
 						"type": "Expression"
 					},
 					"ifFalseActivities": [
-						{
-							"name": "Record nsip s51 advice warning",
-							"type": "SynapseNotebook",
-							"dependsOn": [
-								{
-									"activity": "Send s51 advice disabled warning",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"notebook": {
-									"referenceName": "py_utils_log_stage",
-									"type": "NotebookReference"
-								},
-								"parameters": {
-									"Stage": {
-										"value": "Warning",
-										"type": "string"
-									},
-									"PipelineName": {
-										"value": {
-											"value": "@pipeline().Pipeline",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineRunID": {
-										"value": {
-											"value": "@pipeline().RunId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"Inserts": {
-										"value": "0",
-										"type": "int"
-									},
-									"Updates": {
-										"value": "0",
-										"type": "int"
-									},
-									"Deletes": {
-										"value": "0",
-										"type": "int"
-									},
-									"ErrorMessage": {
-										"value": "Horizon - nsip s51 advice disabled",
-										"type": "string"
-									},
-									"StatusMessage": {
-										"value": "Warning",
-										"type": "string"
-									},
-									"PipelineTriggerID": {
-										"value": {
-											"value": "@pipeline().TriggerId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggerName": {
-										"value": {
-											"value": "@pipeline().TriggerName",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggerType": {
-										"value": {
-											"value": "@pipeline().TriggerType",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggeredbyPipelineName": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineName",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggeredbyPipelineRunID": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineRunId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"ActivityType": {
-										"value": "Pipeline",
-										"type": "string"
-									}
-								},
-								"snapshot": true,
-								"sparkPool": {
-									"referenceName": "pinssynspodw",
-									"type": "BigDataPoolReference"
-								},
-								"conf": {
-									"spark.dynamicAllocation.enabled": true,
-									"spark.dynamicAllocation.minExecutors": null,
-									"spark.dynamicAllocation.maxExecutors": null
-								},
-								"numExecutors": null
-							}
-						},
 						{
 							"name": "Send s51 advice disabled warning",
 							"type": "ExecutePipeline",
@@ -2495,118 +1461,78 @@
 									"Message_subtitle": "Horizon s51 advice data load disabled"
 								}
 							}
-						}
-					],
-					"ifTrueActivities": [
+						},
 						{
-							"name": "Record loading nsip s51 advice",
-							"type": "SynapseNotebook",
-							"dependsOn": [],
+							"name": "Record nsip s51 advice warning",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Send s51 advice disabled warning",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
 							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
 								"secureInput": false
 							},
 							"userProperties": [],
 							"typeProperties": {
-								"notebook": {
-									"referenceName": "py_utils_log_stage",
-									"type": "NotebookReference"
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
 								},
+								"waitOnCompletion": true,
 								"parameters": {
-									"Stage": {
-										"value": "OnProgress",
-										"type": "string"
-									},
+									"Stage": "Warning",
 									"PipelineName": {
-										"value": {
-											"value": "@pipeline().Pipeline",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
 									},
 									"PipelineRunID": {
-										"value": {
-											"value": "@pipeline().RunId",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().RunId",
+										"type": "Expression"
 									},
-									"Inserts": {
-										"value": "0",
-										"type": "int"
+									"StartTime": {
+										"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
 									},
-									"Updates": {
-										"value": "0",
-										"type": "int"
+									"EndTime": {
+										"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
 									},
-									"Deletes": {
-										"value": "0",
-										"type": "int"
-									},
-									"ErrorMessage": {
-										"value": "",
-										"type": "string"
-									},
-									"StatusMessage": {
-										"value": "Loading nsip s51 advice",
-										"type": "string"
-									},
+									"ErrorMessage": "Horizon - nsip s51 advice disabled",
+									"StatusMessage": "Warning",
 									"PipelineTriggerID": {
-										"value": {
-											"value": "@pipeline().TriggerId",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().TriggerId",
+										"type": "Expression"
 									},
 									"PipelineTriggerName": {
-										"value": {
-											"value": "@pipeline().TriggerName",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().TriggerName",
+										"type": "Expression"
 									},
 									"PipelineTriggerType": {
-										"value": {
-											"value": "@pipeline().TriggerType",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().TriggerType",
+										"type": "Expression"
 									},
 									"PipelineTriggeredbyPipelineName": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineName",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline()?.TriggeredByPipelineName",
+										"type": "Expression"
 									},
 									"PipelineTriggeredbyPipelineRunID": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineRunId",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline()?.TriggeredByPipelineRunId",
+										"type": "Expression"
 									},
-									"ActivityType": {
-										"value": "Pipeline",
-										"type": "string"
+									"ActivityType": "Pipeline",
+									"AppInsIKey": {
+										"value": "@pipeline().parameters.apps_insights_ikey",
+										"type": "Expression"
 									}
-								},
-								"snapshot": true,
-								"sparkPool": {
-									"referenceName": "pinssynspodw",
-									"type": "BigDataPoolReference"
-								},
-								"conf": {
-									"spark.dynamicAllocation.enabled": true,
-									"spark.dynamicAllocation.minExecutors": null,
-									"spark.dynamicAllocation.maxExecutors": null
-								},
-								"numExecutors": null
+								}
 							}
-						},
+						}
+					],
+					"ifTrueActivities": [
 						{
 							"name": "Horizon nsip s51 advice",
 							"type": "ExecutePipeline",
@@ -2628,122 +1554,6 @@
 									"type": "PipelineReference"
 								},
 								"waitOnCompletion": true
-							}
-						},
-						{
-							"name": "Record completed nsip s51 advice",
-							"type": "SynapseNotebook",
-							"dependsOn": [
-								{
-									"activity": "Horizon nsip s51 advice",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"notebook": {
-									"referenceName": "py_utils_log_stage",
-									"type": "NotebookReference"
-								},
-								"parameters": {
-									"Stage": {
-										"value": "Completion",
-										"type": "string"
-									},
-									"PipelineName": {
-										"value": {
-											"value": "@pipeline().Pipeline",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineRunID": {
-										"value": {
-											"value": "@pipeline().RunId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"Inserts": {
-										"value": "0",
-										"type": "int"
-									},
-									"Updates": {
-										"value": "0",
-										"type": "int"
-									},
-									"Deletes": {
-										"value": "0",
-										"type": "int"
-									},
-									"ErrorMessage": {
-										"value": "",
-										"type": "string"
-									},
-									"StatusMessage": {
-										"value": "Loading nsip s51 advice",
-										"type": "string"
-									},
-									"PipelineTriggerID": {
-										"value": {
-											"value": "@pipeline().TriggerId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggerName": {
-										"value": {
-											"value": "@pipeline().TriggerName",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggerType": {
-										"value": {
-											"value": "@pipeline().TriggerType",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggeredbyPipelineName": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineName",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggeredbyPipelineRunID": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineRunId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"ActivityType": {
-										"value": "Pipeline",
-										"type": "string"
-									}
-								},
-								"snapshot": true,
-								"sparkPool": {
-									"referenceName": "pinssynspodw",
-									"type": "BigDataPoolReference"
-								},
-								"conf": {
-									"spark.dynamicAllocation.enabled": true,
-									"spark.dynamicAllocation.minExecutors": null,
-									"spark.dynamicAllocation.maxExecutors": null
-								},
-								"numExecutors": null
 							}
 						},
 						{
@@ -2806,52 +1616,125 @@
 									"Message_subtitle": "nsip s51 data feed failed"
 								}
 							}
+						},
+						{
+							"name": "Record loading nsip s51 advice",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "OnProgress",
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StartTime": {
+										"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
+									},
+									"StatusMessage": "Loading nsip s51 advice",
+									"PipelineTriggerID": {
+										"value": "@pipeline().TriggerId",
+										"type": "Expression"
+									},
+									"PipelineTriggerName": {
+										"value": "@pipeline().TriggerName",
+										"type": "Expression"
+									},
+									"PipelineTriggerType": {
+										"value": "@pipeline().TriggerType",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": "@pipeline()?.TriggeredByPipelineName",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": "@pipeline()?.TriggeredByPipelineRunId",
+										"type": "Expression"
+									},
+									"ActivityType": "Pipeline",
+									"AppInsIKey": {
+										"value": "@pipeline().parameters.apps_insights_ikey",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Record completed nsip s51 advice",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Horizon nsip s51 advice",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "Completion",
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StatusMessage": "Loading nsip s51 advice",
+									"PipelineTriggerID": {
+										"value": "@pipeline().TriggerId",
+										"type": "Expression"
+									},
+									"PipelineTriggerName": {
+										"value": "@pipeline().TriggerName",
+										"type": "Expression"
+									},
+									"PipelineTriggerType": {
+										"value": "@pipeline().TriggerType",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": "@pipeline()?.TriggeredByPipelineName",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": "@pipeline()?.TriggeredByPipelineRunId",
+										"type": "Expression"
+									},
+									"ActivityType": "Pipeline",
+									"AppInsIKey": {
+										"value": "@pipeline().parameters.apps_insights_ikey",
+										"type": "Expression"
+									}
+								}
+							}
 						}
 					]
-				}
-			},
-			{
-				"name": "Get Folder",
-				"type": "SynapseNotebook",
-				"dependsOn": [
-					{
-						"activity": "Random wait to allow parallelism_copy2_copy1",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "py_utils_get_pipeline_config",
-						"type": "NotebookReference"
-					},
-					"parameters": {
-						"system_name": {
-							"value": "Horizon",
-							"type": "string"
-						},
-						"Object": {
-							"value": "Folder",
-							"type": "string"
-						}
-					},
-					"snapshot": true,
-					"sparkPool": {
-						"referenceName": "pinssynspodw",
-						"type": "BigDataPoolReference"
-					},
-					"conf": {
-						"spark.dynamicAllocation.enabled": true
-					}
 				}
 			},
 			{
@@ -2859,7 +1742,7 @@
 				"type": "IfCondition",
 				"dependsOn": [
 					{
-						"activity": "Get Folder",
+						"activity": "Random wait to allow parallelism_copy8",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -2868,126 +1751,10 @@
 				"userProperties": [],
 				"typeProperties": {
 					"expression": {
-						"value": "@equals(activity('Get Folder').output.status.Output.result.exitValue, '[True]')",
+						"value": "@contains(pipeline().parameters.horizon_feed, 'Folder')",
 						"type": "Expression"
 					},
 					"ifFalseActivities": [
-						{
-							"name": "Record Folder warning",
-							"type": "SynapseNotebook",
-							"dependsOn": [
-								{
-									"activity": "Send folder disabled warning",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"notebook": {
-									"referenceName": "py_utils_log_stage",
-									"type": "NotebookReference"
-								},
-								"parameters": {
-									"Stage": {
-										"value": "Warning",
-										"type": "string"
-									},
-									"PipelineName": {
-										"value": {
-											"value": "@pipeline().Pipeline",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineRunID": {
-										"value": {
-											"value": "@pipeline().RunId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"Inserts": {
-										"value": "0",
-										"type": "int"
-									},
-									"Updates": {
-										"value": "0",
-										"type": "int"
-									},
-									"Deletes": {
-										"value": "0",
-										"type": "int"
-									},
-									"ErrorMessage": {
-										"value": "Horizon - Folder disabled",
-										"type": "string"
-									},
-									"StatusMessage": {
-										"value": "Warning",
-										"type": "string"
-									},
-									"PipelineTriggerID": {
-										"value": {
-											"value": "@pipeline().TriggerId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggerName": {
-										"value": {
-											"value": "@pipeline().TriggerName",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggerType": {
-										"value": {
-											"value": "@pipeline().TriggerType",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggeredbyPipelineName": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineName",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggeredbyPipelineRunID": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineRunId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"ActivityType": {
-										"value": "Pipeline",
-										"type": "string"
-									}
-								},
-								"snapshot": true,
-								"sparkPool": {
-									"referenceName": "pinssynspodw",
-									"type": "BigDataPoolReference"
-								},
-								"conf": {
-									"spark.dynamicAllocation.enabled": true,
-									"spark.dynamicAllocation.minExecutors": null,
-									"spark.dynamicAllocation.maxExecutors": null
-								},
-								"numExecutors": null
-							}
-						},
 						{
 							"name": "Send folder disabled warning",
 							"type": "ExecutePipeline",
@@ -3041,118 +1808,78 @@
 									"Message_subtitle": "Horizon Folder data load disabled"
 								}
 							}
-						}
-					],
-					"ifTrueActivities": [
+						},
 						{
-							"name": "Record loading Folder",
-							"type": "SynapseNotebook",
-							"dependsOn": [],
+							"name": "Record Folder warning",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Send folder disabled warning",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
 							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
 								"secureInput": false
 							},
 							"userProperties": [],
 							"typeProperties": {
-								"notebook": {
-									"referenceName": "py_utils_log_stage",
-									"type": "NotebookReference"
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
 								},
+								"waitOnCompletion": true,
 								"parameters": {
-									"Stage": {
-										"value": "OnProgress",
-										"type": "string"
-									},
+									"Stage": "Warning",
 									"PipelineName": {
-										"value": {
-											"value": "@pipeline().Pipeline",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
 									},
 									"PipelineRunID": {
-										"value": {
-											"value": "@pipeline().RunId",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().RunId",
+										"type": "Expression"
 									},
-									"Inserts": {
-										"value": "0",
-										"type": "int"
+									"StartTime": {
+										"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
 									},
-									"Updates": {
-										"value": "0",
-										"type": "int"
+									"EndTime": {
+										"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
 									},
-									"Deletes": {
-										"value": "0",
-										"type": "int"
-									},
-									"ErrorMessage": {
-										"value": "",
-										"type": "string"
-									},
-									"StatusMessage": {
-										"value": "Loading Folder",
-										"type": "string"
-									},
+									"ErrorMessage": "Horizon - Folder disabled",
+									"StatusMessage": "Warning",
 									"PipelineTriggerID": {
-										"value": {
-											"value": "@pipeline().TriggerId",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().TriggerId",
+										"type": "Expression"
 									},
 									"PipelineTriggerName": {
-										"value": {
-											"value": "@pipeline().TriggerName",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().TriggerName",
+										"type": "Expression"
 									},
 									"PipelineTriggerType": {
-										"value": {
-											"value": "@pipeline().TriggerType",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().TriggerType",
+										"type": "Expression"
 									},
 									"PipelineTriggeredbyPipelineName": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineName",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline()?.TriggeredByPipelineName",
+										"type": "Expression"
 									},
 									"PipelineTriggeredbyPipelineRunID": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineRunId",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline()?.TriggeredByPipelineRunId",
+										"type": "Expression"
 									},
-									"ActivityType": {
-										"value": "Pipeline",
-										"type": "string"
+									"ActivityType": "Pipeline",
+									"AppInsIKey": {
+										"value": "@pipeline().parameters.apps_insights_ikey",
+										"type": "Expression"
 									}
-								},
-								"snapshot": true,
-								"sparkPool": {
-									"referenceName": "pinssynspodw",
-									"type": "BigDataPoolReference"
-								},
-								"conf": {
-									"spark.dynamicAllocation.enabled": true,
-									"spark.dynamicAllocation.minExecutors": null,
-									"spark.dynamicAllocation.maxExecutors": null
-								},
-								"numExecutors": null
+								}
 							}
-						},
+						}
+					],
+					"ifTrueActivities": [
 						{
 							"name": "Horizon Folder",
 							"type": "ExecutePipeline",
@@ -3174,122 +1901,6 @@
 									"type": "PipelineReference"
 								},
 								"waitOnCompletion": true
-							}
-						},
-						{
-							"name": "Record completed Folder",
-							"type": "SynapseNotebook",
-							"dependsOn": [
-								{
-									"activity": "Horizon Folder",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"notebook": {
-									"referenceName": "py_utils_log_stage",
-									"type": "NotebookReference"
-								},
-								"parameters": {
-									"Stage": {
-										"value": "Completion",
-										"type": "string"
-									},
-									"PipelineName": {
-										"value": {
-											"value": "@pipeline().Pipeline",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineRunID": {
-										"value": {
-											"value": "@pipeline().RunId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"Inserts": {
-										"value": "0",
-										"type": "int"
-									},
-									"Updates": {
-										"value": "0",
-										"type": "int"
-									},
-									"Deletes": {
-										"value": "0",
-										"type": "int"
-									},
-									"ErrorMessage": {
-										"value": "",
-										"type": "string"
-									},
-									"StatusMessage": {
-										"value": "Loading Folder",
-										"type": "string"
-									},
-									"PipelineTriggerID": {
-										"value": {
-											"value": "@pipeline().TriggerId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggerName": {
-										"value": {
-											"value": "@pipeline().TriggerName",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggerType": {
-										"value": {
-											"value": "@pipeline().TriggerType",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggeredbyPipelineName": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineName",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggeredbyPipelineRunID": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineRunId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"ActivityType": {
-										"value": "Pipeline",
-										"type": "string"
-									}
-								},
-								"snapshot": true,
-								"sparkPool": {
-									"referenceName": "pinssynspodw",
-									"type": "BigDataPoolReference"
-								},
-								"conf": {
-									"spark.dynamicAllocation.enabled": true,
-									"spark.dynamicAllocation.minExecutors": null,
-									"spark.dynamicAllocation.maxExecutors": null
-								},
-								"numExecutors": null
 							}
 						},
 						{
@@ -3352,52 +1963,125 @@
 									"Message_subtitle": "Folder feed failed"
 								}
 							}
+						},
+						{
+							"name": "Record loading Folder",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "OnProgress",
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StartTime": {
+										"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
+									},
+									"StatusMessage": "Loading Folder",
+									"PipelineTriggerID": {
+										"value": "@pipeline().TriggerId",
+										"type": "Expression"
+									},
+									"PipelineTriggerName": {
+										"value": "@pipeline().TriggerName",
+										"type": "Expression"
+									},
+									"PipelineTriggerType": {
+										"value": "@pipeline().TriggerType",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": "@pipeline()?.TriggeredByPipelineName",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": "@pipeline()?.TriggeredByPipelineRunId",
+										"type": "Expression"
+									},
+									"ActivityType": "Pipeline",
+									"AppInsIKey": {
+										"value": "@pipeline().parameters.apps_insights_ikey",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Record completed Folder",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Horizon Folder",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "Completion",
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StatusMessage": "Loading Folder",
+									"PipelineTriggerID": {
+										"value": "@pipeline().TriggerId",
+										"type": "Expression"
+									},
+									"PipelineTriggerName": {
+										"value": "@pipeline().TriggerName",
+										"type": "Expression"
+									},
+									"PipelineTriggerType": {
+										"value": "@pipeline().TriggerType",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": "@pipeline()?.TriggeredByPipelineName",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": "@pipeline()?.TriggeredByPipelineRunId",
+										"type": "Expression"
+									},
+									"ActivityType": "Pipeline",
+									"AppInsIKey": {
+										"value": "@pipeline().parameters.apps_insights_ikey",
+										"type": "Expression"
+									}
+								}
+							}
 						}
 					]
-				}
-			},
-			{
-				"name": "Get Document metadata",
-				"type": "SynapseNotebook",
-				"dependsOn": [
-					{
-						"activity": "Random wait to allow parallelism_copy2_copy1_copy1",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "py_utils_get_pipeline_config",
-						"type": "NotebookReference"
-					},
-					"parameters": {
-						"system_name": {
-							"value": "Horizon",
-							"type": "string"
-						},
-						"Object": {
-							"value": "Document metadata",
-							"type": "string"
-						}
-					},
-					"snapshot": true,
-					"sparkPool": {
-						"referenceName": "pinssynspodw",
-						"type": "BigDataPoolReference"
-					},
-					"conf": {
-						"spark.dynamicAllocation.enabled": true
-					}
 				}
 			},
 			{
@@ -3405,7 +2089,7 @@
 				"type": "IfCondition",
 				"dependsOn": [
 					{
-						"activity": "Get Document metadata",
+						"activity": "Random wait to allow parallelism_copy7",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -3414,126 +2098,10 @@
 				"userProperties": [],
 				"typeProperties": {
 					"expression": {
-						"value": "@equals(activity('Get Document metadata').output.status.Output.result.exitValue, '[True]')",
+						"value": "@contains(pipeline().parameters.horizon_feed, 'Document metadata')",
 						"type": "Expression"
 					},
 					"ifFalseActivities": [
-						{
-							"name": "Record Document metadata warning",
-							"type": "SynapseNotebook",
-							"dependsOn": [
-								{
-									"activity": "Send Document metadata disabled warning",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"notebook": {
-									"referenceName": "py_utils_log_stage",
-									"type": "NotebookReference"
-								},
-								"parameters": {
-									"Stage": {
-										"value": "Warning",
-										"type": "string"
-									},
-									"PipelineName": {
-										"value": {
-											"value": "@pipeline().Pipeline",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineRunID": {
-										"value": {
-											"value": "@pipeline().RunId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"Inserts": {
-										"value": "0",
-										"type": "int"
-									},
-									"Updates": {
-										"value": "0",
-										"type": "int"
-									},
-									"Deletes": {
-										"value": "0",
-										"type": "int"
-									},
-									"ErrorMessage": {
-										"value": "Horizon - Document metadata disabled",
-										"type": "string"
-									},
-									"StatusMessage": {
-										"value": "Warning",
-										"type": "string"
-									},
-									"PipelineTriggerID": {
-										"value": {
-											"value": "@pipeline().TriggerId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggerName": {
-										"value": {
-											"value": "@pipeline().TriggerName",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggerType": {
-										"value": {
-											"value": "@pipeline().TriggerType",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggeredbyPipelineName": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineName",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggeredbyPipelineRunID": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineRunId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"ActivityType": {
-										"value": "Pipeline",
-										"type": "string"
-									}
-								},
-								"snapshot": true,
-								"sparkPool": {
-									"referenceName": "pinssynspodw",
-									"type": "BigDataPoolReference"
-								},
-								"conf": {
-									"spark.dynamicAllocation.enabled": true,
-									"spark.dynamicAllocation.minExecutors": null,
-									"spark.dynamicAllocation.maxExecutors": null
-								},
-								"numExecutors": null
-							}
-						},
 						{
 							"name": "Send Document metadata disabled warning",
 							"type": "ExecutePipeline",
@@ -3587,118 +2155,78 @@
 									"Message_subtitle": "Horizon document metadata data load disabled"
 								}
 							}
-						}
-					],
-					"ifTrueActivities": [
+						},
 						{
-							"name": "Record loading Document metadata",
-							"type": "SynapseNotebook",
-							"dependsOn": [],
+							"name": "Record Document metadata warning",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Send Document metadata disabled warning",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
 							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
 								"secureInput": false
 							},
 							"userProperties": [],
 							"typeProperties": {
-								"notebook": {
-									"referenceName": "py_utils_log_stage",
-									"type": "NotebookReference"
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
 								},
+								"waitOnCompletion": true,
 								"parameters": {
-									"Stage": {
-										"value": "OnProgress",
-										"type": "string"
-									},
+									"Stage": "Warning",
 									"PipelineName": {
-										"value": {
-											"value": "@pipeline().Pipeline",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
 									},
 									"PipelineRunID": {
-										"value": {
-											"value": "@pipeline().RunId",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().RunId",
+										"type": "Expression"
 									},
-									"Inserts": {
-										"value": "0",
-										"type": "int"
+									"StartTime": {
+										"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
 									},
-									"Updates": {
-										"value": "0",
-										"type": "int"
+									"EndTime": {
+										"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
 									},
-									"Deletes": {
-										"value": "0",
-										"type": "int"
-									},
-									"ErrorMessage": {
-										"value": "",
-										"type": "string"
-									},
-									"StatusMessage": {
-										"value": "Loading Document metadata",
-										"type": "string"
-									},
+									"ErrorMessage": "Horizon - Document metadata disabled",
+									"StatusMessage": "Warning",
 									"PipelineTriggerID": {
-										"value": {
-											"value": "@pipeline().TriggerId",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().TriggerId",
+										"type": "Expression"
 									},
 									"PipelineTriggerName": {
-										"value": {
-											"value": "@pipeline().TriggerName",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().TriggerName",
+										"type": "Expression"
 									},
 									"PipelineTriggerType": {
-										"value": {
-											"value": "@pipeline().TriggerType",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().TriggerType",
+										"type": "Expression"
 									},
 									"PipelineTriggeredbyPipelineName": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineName",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline()?.TriggeredByPipelineName",
+										"type": "Expression"
 									},
 									"PipelineTriggeredbyPipelineRunID": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineRunId",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline()?.TriggeredByPipelineRunId",
+										"type": "Expression"
 									},
-									"ActivityType": {
-										"value": "Pipeline",
-										"type": "string"
+									"ActivityType": "Pipeline",
+									"AppInsIKey": {
+										"value": "@pipeline().parameters.apps_insights_ikey",
+										"type": "Expression"
 									}
-								},
-								"snapshot": true,
-								"sparkPool": {
-									"referenceName": "pinssynspodw",
-									"type": "BigDataPoolReference"
-								},
-								"conf": {
-									"spark.dynamicAllocation.enabled": true,
-									"spark.dynamicAllocation.minExecutors": null,
-									"spark.dynamicAllocation.maxExecutors": null
-								},
-								"numExecutors": null
+								}
 							}
-						},
+						}
+					],
+					"ifTrueActivities": [
 						{
 							"name": "Horizon Document metadata",
 							"type": "ExecutePipeline",
@@ -3723,127 +2251,13 @@
 							}
 						},
 						{
-							"name": "Record completed Document metadata",
-							"type": "SynapseNotebook",
-							"dependsOn": [
-								{
-									"activity": "AIE document metadata",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"notebook": {
-									"referenceName": "py_utils_log_stage",
-									"type": "NotebookReference"
-								},
-								"parameters": {
-									"Stage": {
-										"value": "Completion",
-										"type": "string"
-									},
-									"PipelineName": {
-										"value": {
-											"value": "@pipeline().Pipeline",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineRunID": {
-										"value": {
-											"value": "@pipeline().RunId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"Inserts": {
-										"value": "0",
-										"type": "int"
-									},
-									"Updates": {
-										"value": "0",
-										"type": "int"
-									},
-									"Deletes": {
-										"value": "0",
-										"type": "int"
-									},
-									"ErrorMessage": {
-										"value": "",
-										"type": "string"
-									},
-									"StatusMessage": {
-										"value": "Loading Document metadata",
-										"type": "string"
-									},
-									"PipelineTriggerID": {
-										"value": {
-											"value": "@pipeline().TriggerId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggerName": {
-										"value": {
-											"value": "@pipeline().TriggerName",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggerType": {
-										"value": {
-											"value": "@pipeline().TriggerType",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggeredbyPipelineName": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineName",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggeredbyPipelineRunID": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineRunId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"ActivityType": {
-										"value": "Pipeline",
-										"type": "string"
-									}
-								},
-								"snapshot": true,
-								"sparkPool": {
-									"referenceName": "pinssynspodw",
-									"type": "BigDataPoolReference"
-								},
-								"conf": {
-									"spark.dynamicAllocation.enabled": true,
-									"spark.dynamicAllocation.minExecutors": null,
-									"spark.dynamicAllocation.maxExecutors": null
-								},
-								"numExecutors": null
-							}
-						},
-						{
 							"name": "AIE document metadata",
 							"type": "ExecutePipeline",
+							"state": "Inactive",
+							"onInactiveMarkAs": "Succeeded",
 							"dependsOn": [
 								{
-									"activity": "Horizon Document metadata",
+									"activity": "Record loading Document metadata",
 									"dependencyConditions": [
 										"Succeeded"
 									]
@@ -3982,156 +2396,131 @@
 									"Message_subtitle": "Document metadata feed failed"
 								}
 							}
+						},
+						{
+							"name": "Record loading Document metadata",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "OnProgress",
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StartTime": {
+										"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
+									},
+									"StatusMessage": "Loading Document metadata",
+									"PipelineTriggerID": {
+										"value": "@pipeline().TriggerId",
+										"type": "Expression"
+									},
+									"PipelineTriggerName": {
+										"value": "@pipeline().TriggerName",
+										"type": "Expression"
+									},
+									"PipelineTriggerType": {
+										"value": "@pipeline().TriggerType",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": "@pipeline()?.TriggeredByPipelineName",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": "@pipeline()?.TriggeredByPipelineRunId",
+										"type": "Expression"
+									},
+									"ActivityType": "Pipeline",
+									"AppInsIKey": {
+										"value": "@pipeline().parameters.apps_insights_ikey",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Record completed Document metadata",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Horizon Document metadata",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								},
+								{
+									"activity": "AIE document metadata",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "Completion",
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StatusMessage": "Loading Document metadata",
+									"PipelineTriggerID": {
+										"value": "@pipeline().TriggerId",
+										"type": "Expression"
+									},
+									"PipelineTriggerName": {
+										"value": "@pipeline().TriggerName",
+										"type": "Expression"
+									},
+									"PipelineTriggerType": {
+										"value": "@pipeline().TriggerType",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": "@pipeline()?.TriggeredByPipelineName",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": "@pipeline()?.TriggeredByPipelineRunId",
+										"type": "Expression"
+									},
+									"ActivityType": "Pipeline",
+									"AppInsIKey": {
+										"value": "@pipeline().parameters.apps_insights_ikey",
+										"type": "Expression"
+									}
+								}
+							}
 						}
 					]
-				}
-			},
-			{
-				"name": "Random wait to allow parallelism_copy2_copy1",
-				"type": "SynapseNotebook",
-				"dependsOn": [],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "py_utils_random_sleep",
-						"type": "NotebookReference"
-					},
-					"snapshot": true,
-					"conf": {
-						"spark.dynamicAllocation.enabled": null,
-						"spark.dynamicAllocation.minExecutors": null,
-						"spark.dynamicAllocation.maxExecutors": null
-					},
-					"numExecutors": null
-				}
-			},
-			{
-				"name": "Random wait to allow parallelism_copy2_copy1_copy1",
-				"type": "SynapseNotebook",
-				"dependsOn": [],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "py_utils_random_sleep",
-						"type": "NotebookReference"
-					},
-					"snapshot": true,
-					"conf": {
-						"spark.dynamicAllocation.enabled": null,
-						"spark.dynamicAllocation.minExecutors": null,
-						"spark.dynamicAllocation.maxExecutors": null
-					},
-					"numExecutors": null
-				}
-			},
-			{
-				"name": "Random wait to allow parallelism_copy3",
-				"type": "SynapseNotebook",
-				"dependsOn": [],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "py_utils_random_sleep",
-						"type": "NotebookReference"
-					},
-					"snapshot": true,
-					"conf": {
-						"spark.dynamicAllocation.enabled": null,
-						"spark.dynamicAllocation.minExecutors": null,
-						"spark.dynamicAllocation.maxExecutors": null
-					},
-					"numExecutors": null
-				}
-			},
-			{
-				"name": "Random wait to allow parallelism_copy1_copy1",
-				"type": "SynapseNotebook",
-				"dependsOn": [],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "py_utils_random_sleep",
-						"type": "NotebookReference"
-					},
-					"snapshot": true,
-					"conf": {
-						"spark.dynamicAllocation.enabled": null,
-						"spark.dynamicAllocation.minExecutors": null,
-						"spark.dynamicAllocation.maxExecutors": null
-					},
-					"numExecutors": null
-				}
-			},
-			{
-				"name": "Get appeals events",
-				"type": "SynapseNotebook",
-				"dependsOn": [
-					{
-						"activity": "Random wait to allow parallelism_copy1_copy1_copy1",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "py_utils_get_pipeline_config",
-						"type": "NotebookReference"
-					},
-					"parameters": {
-						"system_name": {
-							"value": "Horizon",
-							"type": "string"
-						},
-						"Object": {
-							"value": "Appeals Events",
-							"type": "string"
-						}
-					},
-					"snapshot": true,
-					"sparkPool": {
-						"referenceName": "pinssynspodw",
-						"type": "BigDataPoolReference"
-					},
-					"conf": {
-						"spark.dynamicAllocation.enabled": true
-					}
 				}
 			},
 			{
@@ -4139,7 +2528,7 @@
 				"type": "IfCondition",
 				"dependsOn": [
 					{
-						"activity": "Get appeals events",
+						"activity": "Random wait to allow parallelism",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -4148,126 +2537,10 @@
 				"userProperties": [],
 				"typeProperties": {
 					"expression": {
-						"value": "@equals(activity('Get appeals events').output.status.Output.result.exitValue, '[True]')",
+						"value": "@contains(pipeline().parameters.horizon_feed, 'Appeals Events')",
 						"type": "Expression"
 					},
 					"ifFalseActivities": [
-						{
-							"name": "Record appeals event warning",
-							"type": "SynapseNotebook",
-							"dependsOn": [
-								{
-									"activity": "Send appeals advice disabled warning",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"notebook": {
-									"referenceName": "py_utils_log_stage",
-									"type": "NotebookReference"
-								},
-								"parameters": {
-									"Stage": {
-										"value": "Warning",
-										"type": "string"
-									},
-									"PipelineName": {
-										"value": {
-											"value": "@pipeline().Pipeline",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineRunID": {
-										"value": {
-											"value": "@pipeline().RunId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"Inserts": {
-										"value": "0",
-										"type": "int"
-									},
-									"Updates": {
-										"value": "0",
-										"type": "int"
-									},
-									"Deletes": {
-										"value": "0",
-										"type": "int"
-									},
-									"ErrorMessage": {
-										"value": "Horizon -appeals event disabled",
-										"type": "string"
-									},
-									"StatusMessage": {
-										"value": "Warning",
-										"type": "string"
-									},
-									"PipelineTriggerID": {
-										"value": {
-											"value": "@pipeline().TriggerId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggerName": {
-										"value": {
-											"value": "@pipeline().TriggerName",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggerType": {
-										"value": {
-											"value": "@pipeline().TriggerType",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggeredbyPipelineName": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineName",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggeredbyPipelineRunID": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineRunId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"ActivityType": {
-										"value": "Pipeline",
-										"type": "string"
-									}
-								},
-								"snapshot": true,
-								"sparkPool": {
-									"referenceName": "pinssynspodw",
-									"type": "BigDataPoolReference"
-								},
-								"conf": {
-									"spark.dynamicAllocation.enabled": true,
-									"spark.dynamicAllocation.minExecutors": null,
-									"spark.dynamicAllocation.maxExecutors": null
-								},
-								"numExecutors": null
-							}
-						},
 						{
 							"name": "Send appeals advice disabled warning",
 							"type": "ExecutePipeline",
@@ -4321,118 +2594,78 @@
 									"Message_subtitle": "Horizon appeals event data load disabled"
 								}
 							}
-						}
-					],
-					"ifTrueActivities": [
+						},
 						{
-							"name": "Record loading appeals event",
-							"type": "SynapseNotebook",
-							"dependsOn": [],
+							"name": "Record appeals event warning",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Send appeals advice disabled warning",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
 							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
 								"secureInput": false
 							},
 							"userProperties": [],
 							"typeProperties": {
-								"notebook": {
-									"referenceName": "py_utils_log_stage",
-									"type": "NotebookReference"
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
 								},
+								"waitOnCompletion": true,
 								"parameters": {
-									"Stage": {
-										"value": "OnProgress",
-										"type": "string"
-									},
+									"Stage": "Warning",
 									"PipelineName": {
-										"value": {
-											"value": "@pipeline().Pipeline",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
 									},
 									"PipelineRunID": {
-										"value": {
-											"value": "@pipeline().RunId",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().RunId",
+										"type": "Expression"
 									},
-									"Inserts": {
-										"value": "0",
-										"type": "int"
+									"StartTime": {
+										"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
 									},
-									"Updates": {
-										"value": "0",
-										"type": "int"
+									"EndTime": {
+										"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
 									},
-									"Deletes": {
-										"value": "0",
-										"type": "int"
-									},
-									"ErrorMessage": {
-										"value": "",
-										"type": "string"
-									},
-									"StatusMessage": {
-										"value": "Loading appeals event",
-										"type": "string"
-									},
+									"ErrorMessage": "Horizon -appeals event disabled",
+									"StatusMessage": "Warning",
 									"PipelineTriggerID": {
-										"value": {
-											"value": "@pipeline().TriggerId",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().TriggerId",
+										"type": "Expression"
 									},
 									"PipelineTriggerName": {
-										"value": {
-											"value": "@pipeline().TriggerName",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().TriggerName",
+										"type": "Expression"
 									},
 									"PipelineTriggerType": {
-										"value": {
-											"value": "@pipeline().TriggerType",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline().TriggerType",
+										"type": "Expression"
 									},
 									"PipelineTriggeredbyPipelineName": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineName",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline()?.TriggeredByPipelineName",
+										"type": "Expression"
 									},
 									"PipelineTriggeredbyPipelineRunID": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineRunId",
-											"type": "Expression"
-										},
-										"type": "string"
+										"value": "@pipeline()?.TriggeredByPipelineRunId",
+										"type": "Expression"
 									},
-									"ActivityType": {
-										"value": "Pipeline",
-										"type": "string"
+									"ActivityType": "Pipeline",
+									"AppInsIKey": {
+										"value": "@pipeline().parameters.apps_insights_ikey",
+										"type": "Expression"
 									}
-								},
-								"snapshot": true,
-								"sparkPool": {
-									"referenceName": "pinssynspodw",
-									"type": "BigDataPoolReference"
-								},
-								"conf": {
-									"spark.dynamicAllocation.enabled": true,
-									"spark.dynamicAllocation.minExecutors": null,
-									"spark.dynamicAllocation.maxExecutors": null
-								},
-								"numExecutors": null
+								}
 							}
-						},
+						}
+					],
+					"ifTrueActivities": [
 						{
 							"name": "Horizon Appeals event",
 							"type": "ExecutePipeline",
@@ -4454,122 +2687,6 @@
 									"type": "PipelineReference"
 								},
 								"waitOnCompletion": true
-							}
-						},
-						{
-							"name": "Record completed appeals event",
-							"type": "SynapseNotebook",
-							"dependsOn": [
-								{
-									"activity": "Horizon Appeals event",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"notebook": {
-									"referenceName": "py_utils_log_stage",
-									"type": "NotebookReference"
-								},
-								"parameters": {
-									"Stage": {
-										"value": "Completion",
-										"type": "string"
-									},
-									"PipelineName": {
-										"value": {
-											"value": "@pipeline().Pipeline",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineRunID": {
-										"value": {
-											"value": "@pipeline().RunId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"Inserts": {
-										"value": "0",
-										"type": "int"
-									},
-									"Updates": {
-										"value": "0",
-										"type": "int"
-									},
-									"Deletes": {
-										"value": "0",
-										"type": "int"
-									},
-									"ErrorMessage": {
-										"value": "",
-										"type": "string"
-									},
-									"StatusMessage": {
-										"value": "Loading appeals event",
-										"type": "string"
-									},
-									"PipelineTriggerID": {
-										"value": {
-											"value": "@pipeline().TriggerId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggerName": {
-										"value": {
-											"value": "@pipeline().TriggerName",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggerType": {
-										"value": {
-											"value": "@pipeline().TriggerType",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggeredbyPipelineName": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineName",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggeredbyPipelineRunID": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineRunId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"ActivityType": {
-										"value": "Pipeline",
-										"type": "string"
-									}
-								},
-								"snapshot": true,
-								"sparkPool": {
-									"referenceName": "pinssynspodw",
-									"type": "BigDataPoolReference"
-								},
-								"conf": {
-									"spark.dynamicAllocation.enabled": true,
-									"spark.dynamicAllocation.minExecutors": null,
-									"spark.dynamicAllocation.maxExecutors": null
-								},
-								"numExecutors": null
 							}
 						},
 						{
@@ -4632,34 +2749,221 @@
 									"Message_subtitle": "nsip s51 data feed failed"
 								}
 							}
+						},
+						{
+							"name": "Record loading appeals event",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "OnProgress",
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StartTime": {
+										"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
+									},
+									"StatusMessage": "Loading appeals event",
+									"PipelineTriggerID": {
+										"value": "@pipeline().TriggerId",
+										"type": "Expression"
+									},
+									"PipelineTriggerName": {
+										"value": "@pipeline().TriggerName",
+										"type": "Expression"
+									},
+									"PipelineTriggerType": {
+										"value": "@pipeline().TriggerType",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": "@pipeline()?.TriggeredByPipelineName",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": "@pipeline()?.TriggeredByPipelineRunId",
+										"type": "Expression"
+									},
+									"ActivityType": "Pipeline",
+									"AppInsIKey": {
+										"value": "@pipeline().parameters.apps_insights_ikey",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Record completed appeals event",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Horizon Appeals event",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "Completion",
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StatusMessage": "Loading appeals event",
+									"PipelineTriggerID": {
+										"value": "@pipeline().TriggerId",
+										"type": "Expression"
+									},
+									"PipelineTriggerName": {
+										"value": "@pipeline().TriggerName",
+										"type": "Expression"
+									},
+									"PipelineTriggerType": {
+										"value": "@pipeline().TriggerType",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": "@pipeline()?.TriggeredByPipelineName",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": "@pipeline()?.TriggeredByPipelineRunId",
+										"type": "Expression"
+									},
+									"ActivityType": "Pipeline",
+									"AppInsIKey": {
+										"value": "@pipeline().parameters.apps_insights_ikey",
+										"type": "Expression"
+									}
+								}
+							}
 						}
 					]
 				}
 			},
 			{
-				"name": "Random wait to allow parallelism_copy1_copy1_copy1",
-				"type": "SynapseNotebook",
+				"name": "Random wait to allow parallelism_copy4",
+				"type": "Wait",
 				"dependsOn": [],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
 				"userProperties": [],
 				"typeProperties": {
-					"notebook": {
-						"referenceName": "py_utils_random_sleep",
-						"type": "NotebookReference"
-					},
-					"snapshot": true,
-					"conf": {
-						"spark.dynamicAllocation.enabled": null,
-						"spark.dynamicAllocation.minExecutors": null,
-						"spark.dynamicAllocation.maxExecutors": null
-					},
-					"numExecutors": null
+					"waitTimeInSeconds": {
+						"value": "@rand(1, 20)",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Random wait to allow parallelism_copy5",
+				"type": "Wait",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"waitTimeInSeconds": {
+						"value": "@rand(1, 20)",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Random wait to allow parallelism_copy6",
+				"type": "Wait",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"waitTimeInSeconds": {
+						"value": "@rand(1, 20)",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Random wait to allow parallelism_copy7",
+				"type": "Wait",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"waitTimeInSeconds": {
+						"value": "@rand(1, 20)",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Random wait to allow parallelism_copy8",
+				"type": "Wait",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"waitTimeInSeconds": {
+						"value": "@rand(1, 20)",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Random wait to allow parallelism_copy9",
+				"type": "Wait",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"waitTimeInSeconds": {
+						"value": "@rand(1, 20)",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Random wait to allow parallelism",
+				"type": "Wait",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"waitTimeInSeconds": {
+						"value": "@rand(1, 20)",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Random wait to allow parallelism_copy10",
+				"type": "Wait",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"waitTimeInSeconds": {
+						"value": "@rand(1, 20)",
+						"type": "Expression"
+					}
 				}
 			}
 		],
@@ -4699,6 +3003,26 @@
 			},
 			"warning_colour": {
 				"type": "string"
+			},
+			"horizon_feed": {
+				"type": "array"
+			},
+			"apps_insights_ikey": {
+				"type": "string"
+			}
+		},
+		"variables": {
+			"execution_logs": {
+				"type": "String"
+			},
+			"temp_var": {
+				"type": "String"
+			},
+			"w": {
+				"type": "String"
+			},
+			"errorMsg": {
+				"type": "String"
 			}
 		},
 		"folder": {
