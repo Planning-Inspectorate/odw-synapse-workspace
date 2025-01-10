@@ -230,18 +230,25 @@ synapse_aad_administrator = {
 
 synapse_data_exfiltration_enabled  = false
 synapse_sql_administrator_username = "synadmin"
-synapse_role_assignments = {
-  "Synapse Administrator" = [
-    "be52cb0c-858f-4698-8c40-3a5ec793a2e3", # pins-odw-data-preprod-syn-ws-administrators
-    "9d4c68d1-c43d-4502-b35f-74f31c497757"  # Azure DevOps Pipelines - ODW Test - Infrastructure
-  ],
-  "Synapse Contributor" = [
-    "d59a3e85-58db-4b70-8f88-3f4a4a82ee27" # pins-odw-data-preprod-syn-ws-contributors
-  ],
-  "Synapse Compute Operator" = [
-    "f9c580cd-cab0-4c49-9f50-290194ade29e" # pins-odw-data-preprod-syn-ws-computeoperators
-  ]
-}
+
+synapse_role_assignments = [
+  { # pins-odw-data-preprod-syn-ws-administrators
+    role_definition_name = "Synapse Administrator",
+    principal_id         = "be52cb0c-858f-4698-8c40-3a5ec793a2e3"
+  },
+  { # Azure DevOps Pipelines - ODW Test - Infrastructure
+    role_definition_name = "Synapse Administrator",
+    principal_id         = "9d4c68d1-c43d-4502-b35f-74f31c497757"
+  },
+  { # pins-odw-data-preprod-syn-ws-contributors
+    role_definition_name = "Synapse Contributor",
+    principal_id         = "d59a3e85-58db-4b70-8f88-3f4a4a82ee27"
+  },
+  { # pins-odw-data-preprod-syn-ws-computeoperators
+    role_definition_name = "Synapse Compute Operator",
+    principal_id         = "f9c580cd-cab0-4c49-9f50-290194ade29e"
+  }
+]
 
 tags = {}
 

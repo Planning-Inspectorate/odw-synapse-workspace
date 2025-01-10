@@ -188,9 +188,13 @@ variable "synapse_private_endpoint_vnet_subnets" {
 }
 
 variable "synapse_role_assignments" {
-  default     = {}
-  description = "An object mapping RBAC roles to principal IDs for the Synapse Workspace"
-  type        = map(list(string))
+  default     = []
+  description = "A list of RBAC roles assignments for the Synapse Workspace"
+  type = list(object({
+    role_definition_name = string
+    principal_id         = string
+    principal_type       = optional(string)
+  }))
 }
 
 variable "synapse_sql_administrator_username" {

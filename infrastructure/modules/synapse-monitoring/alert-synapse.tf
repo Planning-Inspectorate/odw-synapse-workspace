@@ -4,6 +4,7 @@ resource "azurerm_monitor_activity_log_alert" "synapse_workspace_deleted" {
   scopes              = [var.synapse_workspace_id]
   description         = "Triggers an alert if the Synapse Workspace is deleted"
   enabled             = var.alert_group_platform_enabled
+  location            = "Global"
 
   criteria {
     category       = "Administrative"
@@ -25,6 +26,7 @@ resource "azurerm_monitor_activity_log_alert" "synapse_workspace_resource_health
   scopes              = [var.synapse_workspace_id]
   description         = "Triggers an alert if the Synapse Workspace resource health changes"
   enabled             = var.alert_group_platform_enabled
+  location            = "Global"
 
   criteria {
     category    = "ResourceHealth"

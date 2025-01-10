@@ -9,17 +9,19 @@
 
 ## Usage
 
-<!-- BEGINNING OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
+<!-- BEGIN_TF_DOCS -->
 ## Requirements
 
-No requirements.
+| Name | Version |
+|------|---------|
+| <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) | > 3.74.0, <5.0.0 |
 
 ## Providers
 
 | Name | Version |
 |------|---------|
-| <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) | 3.39.1 |
-| <a name="provider_random"></a> [random](#provider\_random) | 3.4.3 |
+| <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) | 4.14.0 |
+| <a name="provider_random"></a> [random](#provider\_random) | 3.6.3 |
 
 ## Modules
 
@@ -41,21 +43,18 @@ No requirements.
 | [azurerm_role_assignment.terraform](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/role_assignment) | resource |
 | [azurerm_storage_account.synapse](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/storage_account) | resource |
 | [azurerm_storage_account_network_rules.synapse](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/storage_account_network_rules) | resource |
-| [azurerm_storage_blob.config_files](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/storage_blob) | resource |
 | [azurerm_storage_container.synapse](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/storage_container) | resource |
 | [azurerm_storage_data_lake_gen2_filesystem.synapse](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/storage_data_lake_gen2_filesystem) | resource |
 | [azurerm_storage_management_policy.synapse](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/storage_management_policy) | resource |
 | [random_string.unique_id](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/string) | resource |
 | [azurerm_client_config.current](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/data-sources/client_config) | data source |
+| [azurerm_subnet.horizon_database](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/data-sources/subnet) | data source |
 
 ## Inputs
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
 | <a name="input_data_lake_account_tier"></a> [data\_lake\_account\_tier](#input\_data\_lake\_account\_tier) | The tier of the Synapse data lake Storage Account | `string` | `"Standard"` | no |
-| <a name="input_data_lake_config_container_name"></a> [data\_lake\_config\_container\_name](#input\_data\_lake\_config\_container\_name) | The name of the data lake Storage Account container to store configuration files | `string` | `""` | no |
-| <a name="input_data_lake_config_files"></a> [data\_lake\_config\_files](#input\_data\_lake\_config\_files) | The configuration files to copy to the Synapse data lake Storage Account | `list(string)` | `[]` | no |
-| <a name="input_data_lake_config_files_path"></a> [data\_lake\_config\_files\_path](#input\_data\_lake\_config\_files\_path) | The path to the configuration files for the Synapse data lake Storage Account | `string` | `""` | no |
 | <a name="input_data_lake_lifecycle_rules"></a> [data\_lake\_lifecycle\_rules](#input\_data\_lake\_lifecycle\_rules) | A list of objects describing data lifecycle rules for the Synapse data lake Storage Account | `list(any)` | `[]` | no |
 | <a name="input_data_lake_private_endpoint_dns_zone_id"></a> [data\_lake\_private\_endpoint\_dns\_zone\_id](#input\_data\_lake\_private\_endpoint\_dns\_zone\_id) | The ID of the Private DNS Zone hosting privatelink.dfs.core.windows.net | `string` | n/a | yes |
 | <a name="input_data_lake_replication_type"></a> [data\_lake\_replication\_type](#input\_data\_lake\_replication\_type) | The replication type for the Synapse data lake Storage Account | `string` | `"ZRS"` | no |
@@ -67,6 +66,7 @@ No requirements.
 | <a name="input_firewall_allowed_ip_addresses"></a> [firewall\_allowed\_ip\_addresses](#input\_firewall\_allowed\_ip\_addresses) | A list of CIDR ranges to be permitted access to the data lake Storage Account | `list(string)` | `[]` | no |
 | <a name="input_function_app_principal_ids"></a> [function\_app\_principal\_ids](#input\_function\_app\_principal\_ids) | The principal ID's of the function app identity | `any` | n/a | yes |
 | <a name="input_function_app_subnet_name"></a> [function\_app\_subnet\_name](#input\_function\_app\_subnet\_name) | The name of the subnet into which the function apps will be deployed | `string` | `"FunctionAppSubnet"` | no |
+| <a name="input_horizon_integration_config"></a> [horizon\_integration\_config](#input\_horizon\_integration\_config) | The configuration for integration with Horizon and associated systems | <pre>object({<br>    networking = object({<br>      resource_group_name  = string<br>      vnet_name            = string<br>      database_subnet_name = string<br>    })<br>  })</pre> | n/a | yes |
 | <a name="input_key_vault_role_assignments"></a> [key\_vault\_role\_assignments](#input\_key\_vault\_role\_assignments) | An object mapping RBAC roles to principal IDs for Key Vault | `map(list(string))` | `{}` | no |
 | <a name="input_location"></a> [location](#input\_location) | The short-format Azure region into which resources will be deployed | `string` | n/a | yes |
 | <a name="input_network_resource_group_name"></a> [network\_resource\_group\_name](#input\_network\_resource\_group\_name) | The name of the resource group into which private endpoints will be deployed | `string` | n/a | yes |
@@ -89,4 +89,4 @@ No requirements.
 | <a name="output_key_vault_id"></a> [key\_vault\_id](#output\_key\_vault\_id) | The ID of the Key Vault |
 | <a name="output_key_vault_name"></a> [key\_vault\_name](#output\_key\_vault\_name) | The name of the Key Vault |
 | <a name="output_key_vault_uri"></a> [key\_vault\_uri](#output\_key\_vault\_uri) | The URI of the Key Vault |
-<!-- END OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
+<!-- END_TF_DOCS -->

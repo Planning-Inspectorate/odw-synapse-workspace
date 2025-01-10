@@ -4,6 +4,7 @@ resource "azurerm_monitor_activity_log_alert" "service_health" {
   scopes              = [var.alert_scope_service_health]
   description         = "Triggers an alert if the Azure Service Health changes"
   enabled             = var.alert_group_platform_enabled
+  location            = "Global"
 
   criteria {
     category = "ServiceHealth"

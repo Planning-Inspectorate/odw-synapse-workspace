@@ -60,6 +60,11 @@ resource "azurerm_linux_virtual_machine_scale_set" "devops_agent_pool" {
     }
   }
 
+  scale_in {
+    force_deletion_enabled = false
+    rule                   = "Default"
+  }
+
   lifecycle {
     ignore_changes = [
       automatic_instance_repair,

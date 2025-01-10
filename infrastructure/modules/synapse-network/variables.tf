@@ -63,8 +63,9 @@ variable "vnet_subnets" {
     {
       "name" : "SynapseEndpointSubnet",
       "new_bits" : 2 # /26
-      service_endpoints  = []
-      service_delegation = []
+      service_endpoints                 = []
+      service_delegation                = []
+      private_endpoint_network_policies = "Disabled"
     },
     {
       "name" : "ComputeSubnet"
@@ -88,6 +89,7 @@ variable "vnet_subnets" {
       delegation_name = string
       actions         = list(string)
     }))
+    private_endpoint_network_policies = optional(string, "Enabled")
   }))
 }
 

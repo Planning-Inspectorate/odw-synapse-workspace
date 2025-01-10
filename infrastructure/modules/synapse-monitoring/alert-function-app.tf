@@ -62,6 +62,7 @@ resource "azurerm_monitor_activity_log_alert" "function_app_stop" {
   enabled             = var.alert_group_platform_enabled
   scopes              = [each.value]
   description         = "Sends an alert when the Function App is stopped"
+  location            = "Global"
 
   criteria {
     resource_id    = each.value
@@ -85,6 +86,7 @@ resource "azurerm_monitor_activity_log_alert" "function_app_delete" {
   enabled             = var.alert_group_platform_enabled
   scopes              = [each.value]
   description         = "Sends an alert when the Function App is deleted"
+  location            = "Global"
 
   criteria {
     resource_id    = each.value

@@ -474,9 +474,13 @@ variable "synapse_data_exfiltration_enabled" {
 }
 
 variable "synapse_role_assignments" {
-  default     = {}
-  description = "An object mapping RBAC roles to principal IDs for the Synapse Workspace"
-  type        = map(list(string))
+  default     = []
+  description = "A list of RBAC roles assignments for the Synapse Workspace"
+  type = list(object({
+    role_definition_name = string
+    principal_id         = string
+    principal_type       = optional(string)
+  }))
 }
 
 variable "synapse_sql_administrator_username" {
@@ -518,5 +522,6 @@ variable "vnet_subnets" {
       delegation_name = string
       actions         = list(string)
     }))
+    private_endpoint_network_policies = optional(string)
   }))
 }

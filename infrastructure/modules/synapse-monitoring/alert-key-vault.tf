@@ -4,6 +4,7 @@ resource "azurerm_monitor_activity_log_alert" "key_vault_deleted" {
   scopes              = [var.key_vault_id]
   description         = "Triggers an alert if the Key Vault is deleted"
   enabled             = var.alert_group_platform_enabled
+  location            = "Global"
 
   criteria {
     category       = "Administrative"
@@ -25,6 +26,7 @@ resource "azurerm_monitor_activity_log_alert" "key_vault_resource_health" {
   scopes              = [var.key_vault_id]
   description         = "Triggers an alert if the Key Vault resource health changes"
   enabled             = var.alert_group_platform_enabled
+  location            = "Global"
 
   criteria {
     category    = "ResourceHealth"

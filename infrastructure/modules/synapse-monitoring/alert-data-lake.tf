@@ -4,6 +4,7 @@ resource "azurerm_monitor_activity_log_alert" "data_lake_deleted" {
   scopes              = [var.data_lake_account_id]
   description         = "Triggers an alert if the Data Lake Gen2 Storage Account is deleted"
   enabled             = var.alert_group_platform_enabled
+  location            = "Global"
 
   criteria {
     category       = "Administrative"
@@ -25,6 +26,7 @@ resource "azurerm_monitor_activity_log_alert" "data_lake_resource_health" {
   scopes              = [var.data_lake_account_id]
   description         = "Triggers an alert if the Data Lake Gen2 Storage Account resource health changes"
   enabled             = var.alert_group_platform_enabled
+  location            = "Global"
 
   criteria {
     category    = "ResourceHealth"

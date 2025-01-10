@@ -12,7 +12,7 @@ resource "azurerm_servicebus_subscription" "topic_subscriptions" {
   lock_duration                             = each.value.lock_duration
   dead_lettering_on_message_expiration      = each.value.dead_lettering_on_message_expiration
   dead_lettering_on_filter_evaluation_error = each.value.dead_lettering_on_filter_evaluation_error
-  enable_batched_operations                 = each.value.enable_batched_operations
+  batched_operations_enabled                = each.value.enable_batched_operations
   requires_session                          = each.value.requires_session
   forward_to                                = each.value.forward_to
 }

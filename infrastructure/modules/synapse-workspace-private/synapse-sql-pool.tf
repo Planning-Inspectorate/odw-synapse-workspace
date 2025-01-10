@@ -6,6 +6,7 @@ resource "azurerm_synapse_sql_pool" "synapse" {
   sku_name             = var.sql_pool_sku_name
   collation            = var.sql_pool_collation
   create_mode          = "Default"
+  storage_account_type = "GRS"
 
   tags = local.tags
 }

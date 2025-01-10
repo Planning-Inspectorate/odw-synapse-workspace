@@ -49,7 +49,7 @@ module "synapse_network" {
 |----------|
 | This module uses the HashiCorp `subnets` module to determine the subnet size CIDR ranges. |
 
-<!-- BEGINNING OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
+<!-- BEGIN_TF_DOCS -->
 ## Requirements
 
 No requirements.
@@ -58,7 +58,7 @@ No requirements.
 
 | Name | Version |
 |------|---------|
-| <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) | 3.39.1 |
+| <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) | 4.14.0 |
 
 ## Modules
 
@@ -105,4 +105,4 @@ No requirements.
 | <a name="output_vnet_subnet_ids"></a> [vnet\_subnet\_ids](#output\_vnet\_subnet\_ids) | A list of subnet IDs deployed in this module |
 | <a name="output_vnet_subnet_prefixes"></a> [vnet\_subnet\_prefixes](#output\_vnet\_subnet\_prefixes) | A map of subnet names to CIDR ranges deployed in this module |
 | <a name="output_vnet_subnets"></a> [vnet\_subnets](#output\_vnet\_subnets) | A map of subnet names to IDs deployed in this module |
-<!-- END OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
+<!-- END_TF_DOCS -->

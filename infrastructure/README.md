@@ -160,19 +160,19 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 | Azure Login | Authenticates to Azure to verify credentials and access |
 | Terraform Apply | Initialises and runs `terraform apply` using the downloaded Terraform plan file |
 
-<!-- BEGINNING OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
+<!-- BEGIN_TF_DOCS -->
 ## Requirements
 
 | Name | Version |
 |------|---------|
-| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.1.6, < 3.74.0 |
-| <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) | ~> 3.74.0 |
+| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.1.6, < 1.10.0 |
+| <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) | = 4.13.0 |
 
 ## Providers
 
 | Name | Version |
 |------|---------|
-| <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) | 3.74.0 |
+| <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) | 4.13.0 |
 
 ## Modules
 
@@ -189,6 +189,7 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 | <a name="module_function_app_failover"></a> [function\_app\_failover](#module\_function\_app\_failover) | ./modules/function-app | n/a |
 | <a name="module_logic_app"></a> [logic\_app](#module\_logic\_app) | ./modules/logic-app | n/a |
 | <a name="module_logic_app_failover"></a> [logic\_app\_failover](#module\_logic\_app\_failover) | ./modules/logic-app | n/a |
+| <a name="module_odt_appeals_back_office_sb"></a> [odt\_appeals\_back\_office\_sb](#module\_odt\_appeals\_back\_office\_sb) | ./modules/odt-backoffice-sb | n/a |
 | <a name="module_odt_backoffice_sb"></a> [odt\_backoffice\_sb](#module\_odt\_backoffice\_sb) | ./modules/odt-backoffice-sb | n/a |
 | <a name="module_odt_backoffice_sb_failover"></a> [odt\_backoffice\_sb\_failover](#module\_odt\_backoffice\_sb\_failover) | ./modules/odt-backoffice-sb | n/a |
 | <a name="module_service_plan"></a> [service\_plan](#module\_service\_plan) | ./modules/service-plan | n/a |
@@ -216,45 +217,46 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 
 | Name | Type |
 |------|------|
-| [azurerm_application_insights.function_app_insights](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/application_insights) | resource |
-| [azurerm_private_dns_zone.back_office_private_dns_zone](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/private_dns_zone) | resource |
-| [azurerm_private_dns_zone.data_lake](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/private_dns_zone) | resource |
-| [azurerm_private_dns_zone.key_vault](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/private_dns_zone) | resource |
-| [azurerm_private_dns_zone.synapse](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/private_dns_zone) | resource |
-| [azurerm_private_dns_zone_virtual_network_link.back_office_private_dns_zone_vnet_link](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/private_dns_zone_virtual_network_link) | resource |
-| [azurerm_private_dns_zone_virtual_network_link.data_lake](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/private_dns_zone_virtual_network_link) | resource |
-| [azurerm_private_dns_zone_virtual_network_link.data_lake_failover](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/private_dns_zone_virtual_network_link) | resource |
-| [azurerm_private_dns_zone_virtual_network_link.key_vault](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/private_dns_zone_virtual_network_link) | resource |
-| [azurerm_private_dns_zone_virtual_network_link.key_vault_failover](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/private_dns_zone_virtual_network_link) | resource |
-| [azurerm_private_dns_zone_virtual_network_link.synapse](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/private_dns_zone_virtual_network_link) | resource |
-| [azurerm_private_dns_zone_virtual_network_link.synapse_failover](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/private_dns_zone_virtual_network_link) | resource |
-| [azurerm_resource_group.api_management](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
-| [azurerm_resource_group.api_management_failover](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
-| [azurerm_resource_group.data](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
-| [azurerm_resource_group.data_failover](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
-| [azurerm_resource_group.data_management](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
-| [azurerm_resource_group.data_management_failover](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
-| [azurerm_resource_group.function_app](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
-| [azurerm_resource_group.function_app_failover](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
-| [azurerm_resource_group.ingestion](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
-| [azurerm_resource_group.ingestion_failover](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
-| [azurerm_resource_group.logic_app](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
-| [azurerm_resource_group.logic_app_failover](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
-| [azurerm_resource_group.monitoring](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
-| [azurerm_resource_group.monitoring_failover](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
-| [azurerm_resource_group.network](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
-| [azurerm_resource_group.network_failover](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
-| [azurerm_resource_group.network_global](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
-| [azurerm_resource_group.odt_backoffice_sb](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
-| [azurerm_resource_group.odt_backoffice_sb_failover](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
-| [azurerm_resource_group.odt_backoffice_sb_global](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
-| [azurerm_resource_group.shir](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
-| [azurerm_resource_group.shir_failover](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
-| [azurerm_resource_group.sql_server](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
-| [azurerm_resource_group.sql_server_failover](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
-| [azurerm_role_assignment.odt_servicebus_namespace](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/role_assignment) | resource |
-| [azurerm_virtual_network_peering.pri_sec](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/virtual_network_peering) | resource |
-| [azurerm_virtual_network_peering.sec_pri](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/virtual_network_peering) | resource |
+| [azurerm_application_insights.function_app_insights](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/application_insights) | resource |
+| [azurerm_private_dns_zone.back_office_private_dns_zone](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/private_dns_zone) | resource |
+| [azurerm_private_dns_zone.data_lake](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/private_dns_zone) | resource |
+| [azurerm_private_dns_zone.key_vault](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/private_dns_zone) | resource |
+| [azurerm_private_dns_zone.synapse](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/private_dns_zone) | resource |
+| [azurerm_private_dns_zone_virtual_network_link.back_office_private_dns_zone_vnet_link](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/private_dns_zone_virtual_network_link) | resource |
+| [azurerm_private_dns_zone_virtual_network_link.data_lake](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/private_dns_zone_virtual_network_link) | resource |
+| [azurerm_private_dns_zone_virtual_network_link.data_lake_failover](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/private_dns_zone_virtual_network_link) | resource |
+| [azurerm_private_dns_zone_virtual_network_link.key_vault](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/private_dns_zone_virtual_network_link) | resource |
+| [azurerm_private_dns_zone_virtual_network_link.key_vault_failover](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/private_dns_zone_virtual_network_link) | resource |
+| [azurerm_private_dns_zone_virtual_network_link.synapse](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/private_dns_zone_virtual_network_link) | resource |
+| [azurerm_private_dns_zone_virtual_network_link.synapse_failover](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/private_dns_zone_virtual_network_link) | resource |
+| [azurerm_resource_group.api_management](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/resource_group) | resource |
+| [azurerm_resource_group.api_management_failover](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/resource_group) | resource |
+| [azurerm_resource_group.data](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/resource_group) | resource |
+| [azurerm_resource_group.data_failover](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/resource_group) | resource |
+| [azurerm_resource_group.data_management](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/resource_group) | resource |
+| [azurerm_resource_group.data_management_failover](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/resource_group) | resource |
+| [azurerm_resource_group.function_app](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/resource_group) | resource |
+| [azurerm_resource_group.function_app_failover](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/resource_group) | resource |
+| [azurerm_resource_group.ingestion](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/resource_group) | resource |
+| [azurerm_resource_group.ingestion_failover](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/resource_group) | resource |
+| [azurerm_resource_group.logic_app](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/resource_group) | resource |
+| [azurerm_resource_group.logic_app_failover](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/resource_group) | resource |
+| [azurerm_resource_group.monitoring](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/resource_group) | resource |
+| [azurerm_resource_group.monitoring_failover](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/resource_group) | resource |
+| [azurerm_resource_group.network](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/resource_group) | resource |
+| [azurerm_resource_group.network_failover](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/resource_group) | resource |
+| [azurerm_resource_group.network_global](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/resource_group) | resource |
+| [azurerm_resource_group.odt_backoffice_sb](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/resource_group) | resource |
+| [azurerm_resource_group.odt_backoffice_sb_failover](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/resource_group) | resource |
+| [azurerm_resource_group.odt_backoffice_sb_global](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/resource_group) | resource |
+| [azurerm_resource_group.shir](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/resource_group) | resource |
+| [azurerm_resource_group.shir_failover](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/resource_group) | resource |
+| [azurerm_resource_group.sql_server](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/resource_group) | resource |
+| [azurerm_resource_group.sql_server_failover](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/resource_group) | resource |
+| [azurerm_role_assignment.odt_appeals_servicebus_namespace](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/role_assignment) | resource |
+| [azurerm_role_assignment.odt_servicebus_namespace](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/role_assignment) | resource |
+| [azurerm_virtual_network_peering.pri_sec](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/virtual_network_peering) | resource |
+| [azurerm_virtual_network_peering.sec_pri](https://registry.terraform.io/providers/hashicorp/azurerm/4.13.0/docs/resources/virtual_network_peering) | resource |
 
 ## Inputs
 
@@ -288,10 +290,16 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 | <a name="input_failover_deployment"></a> [failover\_deployment](#input\_failover\_deployment) | Determines if this is a failover deployment such that resources will deployed to the failover region | `bool` | `false` | no |
 | <a name="input_function_app"></a> [function\_app](#input\_function\_app) | A map containing the configuration for the Function App to be created | `any` | n/a | yes |
 | <a name="input_function_app_enabled"></a> [function\_app\_enabled](#input\_function\_app\_enabled) | Determines whether the resources for the Function App should be deployed | `bool` | `false` | no |
+| <a name="input_horizon_integration_config"></a> [horizon\_integration\_config](#input\_horizon\_integration\_config) | The configuration for integration with Horizon and associated systems | <pre>object({<br>    networking = object({<br>      resource_group_name  = string<br>      vnet_name            = string<br>      database_subnet_name = string<br>    })<br>  })</pre> | n/a | yes |
+| <a name="input_horizon_subscription_id"></a> [horizon\_subscription\_id](#input\_horizon\_subscription\_id) | The subscription ID of the Horizon subscription | `string` | n/a | yes |
 | <a name="input_key_vault_role_assignments"></a> [key\_vault\_role\_assignments](#input\_key\_vault\_role\_assignments) | An object mapping RBAC roles to principal IDs for Key Vault | `map(list(string))` | `{}` | no |
 | <a name="input_location"></a> [location](#input\_location) | The short-format Azure region into which resources will be deployed | `string` | n/a | yes |
 | <a name="input_logic_app_enabled"></a> [logic\_app\_enabled](#input\_logic\_app\_enabled) | Determines whether the resources for the App Service Plan, Storage Account and Logic App Standard should be deployed | `bool` | `false` | no |
+| <a name="input_message_storage_account"></a> [message\_storage\_account](#input\_message\_storage\_account) | Name of the storage account for service bus messages | `string` | `null` | no |
+| <a name="input_message_storage_container"></a> [message\_storage\_container](#input\_message\_storage\_container) | Name of the storage account container for service bus messages | `string` | `null` | no |
 | <a name="input_network_watcher_enabled"></a> [network\_watcher\_enabled](#input\_network\_watcher\_enabled) | Determines whether a Network Watcher resource will be deployed | `bool` | `false` | no |
+| <a name="input_odt_appeals_back_office"></a> [odt\_appeals\_back\_office](#input\_odt\_appeals\_back\_office) | Appeals Back Office configuration | <pre>object({<br>    resource_group_name = string<br>    service_bus_enabled = bool<br>    service_bus_name    = string<br>  })</pre> | n/a | yes |
+| <a name="input_odt_appeals_back_office_sb_topic_subscriptions"></a> [odt\_appeals\_back\_office\_sb\_topic\_subscriptions](#input\_odt\_appeals\_back\_office\_sb\_topic\_subscriptions) | "A map containing the configuration for Service Bus Subscriptions to be created in the Appeals Back Office Service Bus Namespace.<br>{<br>subscription\_name                         = "subscription\_name"<br>topic\_name                                = "topic\_name"<br>status                                    = "Active"<br>max\_delivery\_count                        = 1<br>auto\_delete\_on\_idle                       = "PT5M"<br>default\_message\_ttl                       = "P14D"<br>lock\_duration                             = "P0DT0H1M0S"<br>dead\_lettering\_on\_message\_expiration      = false<br>dead\_lettering\_on\_filter\_evaluation\_error = true<br>enable\_batched\_operations                 = false<br>requires\_session                          = false<br>forward\_to                                = ""<br>role\_assignments                          = {<br>  "role\_name" = {<br>    users = []<br>    groups = []<br>    service\_principals = []<br>  }<br>}" | `any` | `{}` | no |
 | <a name="input_odt_back_office_service_bus_enabled"></a> [odt\_back\_office\_service\_bus\_enabled](#input\_odt\_back\_office\_service\_bus\_enabled) | Determines whether the ODT Service Bus Namespace will be deployed | `bool` | `false` | no |
 | <a name="input_odt_back_office_service_bus_failover_enabled"></a> [odt\_back\_office\_service\_bus\_failover\_enabled](#input\_odt\_back\_office\_service\_bus\_failover\_enabled) | Whether or not to enable failover for the Service Bus namespace | `bool` | `false` | no |
 | <a name="input_odt_back_office_service_bus_name"></a> [odt\_back\_office\_service\_bus\_name](#input\_odt\_back\_office\_service\_bus\_name) | The name of the Service Bus namespace into which resources will be deployed | `string` | n/a | yes |
@@ -345,4 +353,4 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 | <a name="output_synapse_ssql_endpoint"></a> [synapse\_ssql\_endpoint](#output\_synapse\_ssql\_endpoint) | The serverless SQL pool connectivity endpoint for the Synapse Workspace |
 | <a name="output_synapse_workspace_id"></a> [synapse\_workspace\_id](#output\_synapse\_workspace\_id) | The ARM ID of the Synapse Workspace |
 | <a name="output_synapse_workspace_name"></a> [synapse\_workspace\_name](#output\_synapse\_workspace\_name) | The name of the Synapse Workspace |
-<!-- END OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
+<!-- END_TF_DOCS -->
