@@ -251,6 +251,8 @@ def validate_data(data: list, schema: dict) -> list:
 
 **deploy.sh**
 
+LEGACY - pipeline is now available `function-app-deploy`  
+
 This is a simple, temporary, shell script to deploy the function app code to the existing function app in Azure. This is to be replaced by an Azure DevOps pipeline in the near future.  
 
 ```bash
@@ -316,7 +318,7 @@ The data-model repo contains the json schemas which are managed here centrally a
 
 Pydantic models were initially being used to validate the Servicebus messages against the model and offered a few advantages to those familiar with python and use of type hints. However, because the json schemas are the ones being the single source of truth and having to generate pydantic models every time the schema changed it was deemed easier to remove the dependency on pydantic for this purpose and validate messages just using the json schemas, as shown above in validate_messages.py.  
 
-For reference, one issue we found when using datamodel-codegen to generate the pydantic models from the json schemas was the conversion of "date-time" formatted fields in json to "AwareDateTime" in pydantic. AwareDateTime requires timezone info to always be present in the date format but we wanted the flexibility to allow a date eith with or without a timezone offset. The current method allows that.  
+For reference, one issue we found when using datamodel-codegen to generate the pydantic models from the json schemas was the conversion of "date-time" formatted fields in json to "AwareDateTime" in pydantic. AwareDateTime requires timezone info to always be present in the date format but we wanted the flexibility to allow a date with or without a timezone offset. The current method allows that.  
 
 ## Change process
 
