@@ -39640,6 +39640,32 @@
 							},
 							"numExecutors": null
 						}
+					},
+					{
+						"name": "appeal_s78",
+						"type": "SynapseNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "appeal_s78",
+								"type": "NotebookReference"
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
 					}
 				],
 				"policy": {
@@ -39670,6 +39696,7 @@
 				"[concat(variables('workspaceId'), '/notebooks/listed_building')]",
 				"[concat(variables('workspaceId'), '/notebooks/py_get_delta_table_changes')]",
 				"[concat(variables('workspaceId'), '/notebooks/dart_api')]",
+				"[concat(variables('workspaceId'), '/notebooks/appeal_s78')]",
 				"[concat(variables('workspaceId'), '/pipelines/pln_publish_to_sb')]"
 			]
 		},
@@ -67101,7 +67128,7 @@
 			"properties": {
 				"activities": [
 					{
-						"name": "rel_6_0_2",
+						"name": "rel_6_0_3_s78",
 						"type": "ExecutePipeline",
 						"dependsOn": [],
 						"policy": {
@@ -67110,7 +67137,7 @@
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
-								"referenceName": "rel_6_0_2",
+								"referenceName": "rel_6_0_3_s78",
 								"type": "PipelineReference"
 							},
 							"waitOnCompletion": true,
@@ -67127,7 +67154,7 @@
 				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('workspaceId'), '/pipelines/rel_6_0_2')]"
+				"[concat(variables('workspaceId'), '/pipelines/rel_6_0_3_s78')]"
 			]
 		},
 		{
@@ -69636,6 +69663,12 @@
 								"dependencyConditions": [
 									"Succeeded"
 								]
+							},
+							{
+								"activity": "appeal-s78 - custom harmonised",
+								"dependencyConditions": [
+									"Succeeded"
+								]
 							}
 						],
 						"policy": {
@@ -69689,6 +69722,53 @@
 								}
 							}
 						}
+					},
+					{
+						"name": "appeal-s78 - custom harmonised",
+						"type": "IfCondition",
+						"dependsOn": [
+							{
+								"activity": "If New Messages",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@equals(variables('entity_name'), 'appeal-s78')",
+								"type": "Expression"
+							},
+							"ifTrueActivities": [
+								{
+									"name": "Harmonised step for appeal_s78",
+									"type": "SynapseNotebook",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"notebook": {
+											"referenceName": "py_sb_horizon_harmonised_appeal_s78",
+											"type": "NotebookReference"
+										},
+										"snapshot": true,
+										"conf": {
+											"spark.dynamicAllocation.enabled": null,
+											"spark.dynamicAllocation.minExecutors": null,
+											"spark.dynamicAllocation.maxExecutors": null
+										},
+										"numExecutors": null
+									}
+								}
+							]
+						}
 					}
 				],
 				"policy": {
@@ -69735,7 +69815,8 @@
 				"[concat(variables('workspaceId'), '/notebooks/py_sb_horizon_harmonised_nsip_document')]",
 				"[concat(variables('workspaceId'), '/pipelines/pln_trigger_function_app')]",
 				"[concat(variables('workspaceId'), '/notebooks/py_sb_horizon_harmonised_appeal_event')]",
-				"[concat(variables('workspaceId'), '/notebooks/py_sb_horizon_harmonised_service_user')]"
+				"[concat(variables('workspaceId'), '/notebooks/py_sb_horizon_harmonised_service_user')]",
+				"[concat(variables('workspaceId'), '/notebooks/py_sb_horizon_harmonised_appeal_s78')]"
 			]
 		},
 		{
@@ -77697,6 +77778,42 @@
 			},
 			"dependsOn": [
 				"[concat(variables('workspaceId'), '/notebooks/py_deployment_manage_main_config')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/rel_6_0_3_s78')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "rel_4_0_1",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "rel_4_0_1",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"folder": {
+					"name": "Releases/6.0.3"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/pipelines/rel_4_0_1')]"
 			]
 		},
 		{
@@ -265460,18 +265577,18 @@
 				"nodeCount": 0,
 				"nodeSize": "Small",
 				"nodeSizeFamily": "MemoryOptimized",
-				"sparkVersion": "3.4",
+				"sparkVersion": "3.3",
 				"libraryRequirements": {
 					"content": "# Spark 3.3 library list can be found here\r\n# https://github.com/microsoft/synapse-spark-runtime/blob/main/Synapse/spark3.3/Official-Spark3.3-Rel-2024-07-11.0-rc.1.md\r\n\r\n# Azure Servicebus\r\nazure-servicebus==7.13.0\r\n\r\n# Logging\r\nazure-monitor-opentelemetry==1.6.4\r\n\r\n# Retry\r\ntenacity==9.0.0\r\n\r\n# Time\r\niso8601==2.1.0\r\n\r\n# Creating fake data\r\nFaker==33.1.0",
 					"filename": "requirements.txt",
-					"time": "2025-01-13T10:27:20.4676134Z"
+					"time": "2025-01-13T11:56:22.384426Z"
 				},
 				"isComputeIsolationEnabled": false,
 				"sparkConfigProperties": {
 					"configurationType": "File",
 					"filename": "configuration.txt",
 					"content": "spark.executorEnv.dataLakeAccountName pinsstodwdevuks9h80mb\r\nspark.executorEnv.keyVaultName pinskvsynwodwdevuks\r\nspark.sql.parquet.int96RebaseModeInWrite CORRECTED\r\nspark.sql.constraintPropagation.enabled false\r\n",
-					"time": "2025-01-13T10:27:20.4676134Z"
+					"time": "2025-01-13T11:56:22.384426Z"
 				},
 				"sessionLevelPackagesEnabled": true,
 				"annotations": []
@@ -265500,15 +265617,40 @@
 				"libraryRequirements": {
 					"content": "# Spark 3.4 library list can be found here\r\n# https://github.com/microsoft/synapse-spark-runtime/blob/main/Synapse/spark3.4/Official-Spark3.4-Rel-2024-10-18.0-rc.1.md\r\n\r\n# Azure Servicebus\r\nazure-servicebus==7.13.0\r\n\r\n# Logging\r\nazure-monitor-opentelemetry==1.6.4\r\n\r\n# Retry\r\ntenacity==9.0.0\r\n\r\n# Time\r\niso8601==2.1.0\r\n\r\n# Creating fake data\r\nFaker==33.1.0",
 					"filename": "requirements-preview.txt",
-					"time": "2025-01-13T10:27:20.4717839Z"
+					"time": "2025-01-13T15:22:36.3320556Z"
 				},
 				"isComputeIsolationEnabled": false,
 				"sparkConfigProperties": {
 					"configurationType": "File",
 					"filename": "configuration.txt",
 					"content": "spark.executorEnv.dataLakeAccountName pinsstodwdevuks9h80mb\r\nspark.executorEnv.keyVaultName pinskvsynwodwdevuks\r\n",
-					"time": "2025-01-13T10:27:20.4717839Z"
+					"time": "2025-01-13T15:22:36.3320556Z"
 				},
+				"sessionLevelPackagesEnabled": true,
+				"annotations": []
+			},
+			"dependsOn": [],
+			"location": "uksouth"
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/spark34')]",
+			"type": "Microsoft.Synapse/workspaces/bigDataPools",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"autoPause": {
+					"enabled": true,
+					"delayInMinutes": 15
+				},
+				"autoScale": {
+					"enabled": true,
+					"maxNodeCount": 10,
+					"minNodeCount": 3
+				},
+				"nodeCount": 10,
+				"nodeSize": "Medium",
+				"nodeSizeFamily": "MemoryOptimized",
+				"sparkVersion": "3.4",
+				"isComputeIsolationEnabled": false,
 				"sessionLevelPackagesEnabled": true,
 				"annotations": []
 			},
