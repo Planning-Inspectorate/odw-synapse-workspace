@@ -30870,7 +30870,14 @@
 						"name": "Get Metadata Of CSVs",
 						"description": "Getting the Metadata of the csv files in the AIE data labs folder",
 						"type": "GetMetadata",
-						"dependsOn": [],
+						"dependsOn": [
+							{
+								"activity": "Set Environment",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
 						"policy": {
 							"timeout": "0.12:00:00",
 							"retry": 0,
@@ -30883,7 +30890,12 @@
 							"dataset": {
 								"referenceName": "AIEFileDataLabs",
 								"type": "DatasetReference",
-								"parameters": {}
+								"parameters": {
+									"env": {
+										"value": "@variables('env')",
+										"type": "Expression"
+									}
+								}
 							},
 							"fieldList": [
 								"childItems"
@@ -30929,7 +30941,7 @@
 										}
 									],
 									"policy": {
-										"timeout": "0.12:00:00",
+										"timeout": "0.00:10:00",
 										"retry": 0,
 										"retryIntervalInSeconds": 30,
 										"secureOutput": false,
@@ -30977,6 +30989,10 @@
 												"FileName": {
 													"value": "@item().name",
 													"type": "Expression"
+												},
+												"env": {
+													"value": "@variables('env')",
+													"type": "Expression"
 												}
 											}
 										}
@@ -31005,13 +31021,234 @@
 											"type": "Expression"
 										}
 									}
+								},
+								{
+									"name": "Log Failure",
+									"type": "ExecutePipeline",
+									"dependsOn": [
+										{
+											"activity": "Copy File",
+											"dependencyConditions": [
+												"Failed"
+											]
+										}
+									],
+									"policy": {
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "pln_log_to_appins",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"Stage": "Fail",
+											"StartTime": {
+												"value": "@activity('Copy File').ExecutionStartTime",
+												"type": "Expression"
+											},
+											"EndTime": {
+												"value": "@activity('Copy File').ExecutionEndTime",
+												"type": "Expression"
+											},
+											"ErrorMessage": {
+												"value": "@activity('Copy File').Error.message",
+												"type": "Expression"
+											},
+											"StatusMessage": {
+												"value": "@concat('Failed to copy AIE extract: ', item().name)",
+												"type": "Expression"
+											},
+											"PipelineTriggeredbyPipelineName": {
+												"value": "@activity('Copy File').PipelineName",
+												"type": "Expression"
+											},
+											"PipelineTriggeredbyPipelineRunID": {
+												"value": "@activity('Copy File').PipelineRunId",
+												"type": "Expression"
+											},
+											"PipelineExecutionTimeInSec": {
+												"value": "@activity('Copy File').Duration",
+												"type": "Expression"
+											},
+											"ActivityType": {
+												"value": "@activity('Copy File').ActivityType",
+												"type": "Expression"
+											},
+											"DurationSeconds": {
+												"value": "@activity('Copy File').Duration",
+												"type": "Expression"
+											},
+											"AppInsCustomEventName": "ODW_Master_Pipeline_Logs",
+											"StatusCode": {
+												"value": "@activity('Copy File').StatusCode",
+												"type": "Expression"
+											}
+										}
+									}
+								},
+								{
+									"name": "Log Success",
+									"type": "ExecutePipeline",
+									"dependsOn": [
+										{
+											"activity": "Copy File",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "pln_log_to_appins",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"Stage": "Completion",
+											"StartTime": {
+												"value": "@activity('Copy File').ExecutionStartTime",
+												"type": "Expression"
+											},
+											"EndTime": {
+												"value": "@activity('Copy File').ExecutionEndTime",
+												"type": "Expression"
+											},
+											"StatusMessage": {
+												"value": "@concat('Copied AIE extract succesfully: ', item().name)",
+												"type": "Expression"
+											},
+											"PipelineTriggeredbyPipelineName": {
+												"value": "@activity('Copy File').PipelineName",
+												"type": "Expression"
+											},
+											"PipelineTriggeredbyPipelineRunID": {
+												"value": "@activity('Copy File').PipelineRunId",
+												"type": "Expression"
+											},
+											"PipelineExecutionTimeInSec": {
+												"value": "@activity('Copy File').Duration",
+												"type": "Expression"
+											},
+											"ActivityType": {
+												"value": "@activity('Copy File').ActivityType",
+												"type": "Expression"
+											},
+											"DurationSeconds": {
+												"value": "@activity('Copy File').Duration",
+												"type": "Expression"
+											},
+											"AppInsCustomEventName": "ODW_Master_Pipeline_Logs",
+											"StatusCode": {
+												"value": "@activity('Copy File').StatusCode",
+												"type": "Expression"
+											}
+										}
+									}
 								}
 							]
+						}
+					},
+					{
+						"name": "Set Environment",
+						"type": "SetVariable",
+						"dependsOn": [],
+						"policy": {
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "env",
+							"value": {
+								"value": "@if(equals(pipeline().DataFactory, 'pins-synw-odw-prod-uks'), 'PROD', if(equals(pipeline().DataFactory, 'pins-synw-odw-test-uks'), 'TEST', 'DEV'))",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "Log AIE Extracts Failure",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "For Each AIE Document",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pln_log_to_appins",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"Stage": "Fail",
+								"PipelineName": {
+									"value": "@pipeline().Pipeline",
+									"type": "Expression"
+								},
+								"PipelineRunID": {
+									"value": "@pipeline().RunId",
+									"type": "Expression"
+								},
+								"StartTime": {
+									"value": "@activity('Get Metadata Of CSVs').ExecutionEndTime",
+									"type": "Expression"
+								},
+								"EndTime": {
+									"value": "@utcNow()",
+									"type": "Expression"
+								},
+								"ErrorMessage": "Failed to copy one or more AIE extracts. See logs for individual files to see error details.",
+								"StatusMessage": "Failed",
+								"PipelineTriggerID": {
+									"value": "@pipeline().TriggerId",
+									"type": "Expression"
+								},
+								"PipelineTriggerName": {
+									"value": "@pipeline().TriggerName",
+									"type": "Expression"
+								},
+								"PipelineTriggerType": {
+									"value": "@pipeline().TriggerType",
+									"type": "Expression"
+								},
+								"PipelineTriggeredbyPipelineName": {
+									"value": "@pipeline()?.TriggeredByPipelineName",
+									"type": "Expression"
+								},
+								"PipelineTriggeredbyPipelineRunID": {
+									"value": "@pipeline()?.TriggeredByPipelineRunId",
+									"type": "Expression"
+								},
+								"ActivityType": "Pipeline",
+								"AppInsCustomEventName": "ODW_Master_Pipeline_Logs"
+							}
 						}
 					}
 				],
 				"policy": {
 					"elapsedTimeMetric": {}
+				},
+				"variables": {
+					"env": {
+						"type": "String"
+					},
+					"app_ins_ikey": {
+						"type": "String"
+					}
 				},
 				"folder": {
 					"name": "aie-extracts/layers/0-raw"
@@ -31020,6 +31257,7 @@
 			},
 			"dependsOn": [
 				"[concat(variables('workspaceId'), '/datasets/AIEFileDataLabs')]",
+				"[concat(variables('workspaceId'), '/pipelines/pln_log_to_appins')]",
 				"[concat(variables('workspaceId'), '/datasets/AIEFileDataLabsCopier')]",
 				"[concat(variables('workspaceId'), '/datasets/AIEFile1Raw')]"
 			]
@@ -43168,8 +43406,6 @@
 								{
 									"name": "AIE document metadata",
 									"type": "ExecutePipeline",
-									"state": "Inactive",
-									"onInactiveMarkAs": "Succeeded",
 									"dependsOn": [
 										{
 											"activity": "Record loading Document metadata",
@@ -50302,7 +50538,7 @@
 								"type": "IntegrationRuntimeReference"
 							},
 							"body": {
-								"value": "@concat('{\"name\":\"AppEvents\",\"time\":\"', utcNow(), '\",\"iKey\":\"', pipeline().parameters.AppInsIKey, '\",\"data\":{\"baseType\":\"EventData\",\"baseData\":{\"name\":\"', pipeline().parameters.AppInsCustomEventName, '\",\"properties\":', variables('body'), '}}}'\n)",
+								"value": "@concat('{\"name\":\"AppEvents\",\"time\":\"', utcNow(), '\",\"iKey\":\"', variables('app_ins_ikey'), '\",\"data\":{\"baseType\":\"EventData\",\"baseData\":{\"name\":\"', pipeline().parameters.AppInsCustomEventName, '\",\"properties\":', variables('body'), '}}}'\n)",
 								"type": "Expression"
 							}
 						}
@@ -50311,7 +50547,14 @@
 						"name": "Compile Body",
 						"description": "Compiles the body from the params",
 						"type": "SetVariable",
-						"dependsOn": [],
+						"dependsOn": [
+							{
+								"activity": "If No iKey param",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
 						"policy": {
 							"secureOutput": false,
 							"secureInput": false
@@ -50323,6 +50566,94 @@
 								"value": "@concat('{\"Stage\":\"', pipeline().parameters.Stage, '\",',\n        '\"PipelineName\":\"', pipeline().parameters.PipelineName, '\",',\n        '\"PipelineRunID\":\"', pipeline().parameters.PipelineRunID, '\",',\n        '\"StartTime\":\"', pipeline().parameters.StartTime, '\",',\n        '\"EndTime\":\"', pipeline().parameters.EndTime, '\",',\n        '\"Inserts\":\"', string(pipeline().parameters.Inserts), '\",',\n        '\"Updates\":\"', string(pipeline().parameters.Updates), '\",',\n        '\"Deletes\":\"', string(pipeline().parameters.Deletes), '\",',\n        '\"ErrorMessage\":\"', uriComponentToString(replace(uriComponent(coalesce(pipeline().parameters.ErrorMessage, '')), '%0A', '')), '\",',\n        '\"StatusMessage\":\"', pipeline().parameters.StatusMessage, '\",',\n        '\"PipelineTriggerID\":\"', pipeline().parameters.PipelineTriggerID, '\",',\n        '\"PipelineTriggerName\":\"', pipeline().parameters.PipelineTriggerName, '\",',\n        '\"PipelineTriggerType\":\"', pipeline().parameters.PipelineTriggerType, '\",',\n        '\"PipelineTriggeredbyPipelineName\":\"', pipeline().parameters.PipelineTriggeredbyPipelineName, '\",',\n        '\"PipelineTriggeredbyPipelineRunID\":\"', pipeline().parameters.PipelineTriggeredbyPipelineRunID, '\",',\n        '\"PipelineExecutionTimeInSec\":\"', pipeline().parameters.PipelineExecutionTimeInSec, '\",',\n        '\"ActivityType\":\"', pipeline().parameters.ActivityType, '\",',\n        '\"StatusCode\":\"', pipeline().parameters.StatusCode, '\",',\n        '\"DurationSeconds\":\"', pipeline().parameters.DurationSeconds, '\"}')",
 								"type": "Expression"
 							}
+						}
+					},
+					{
+						"name": "If No iKey param",
+						"description": "Retrieving iKey for app ins if not provided in params",
+						"type": "IfCondition",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@empty(pipeline().parameters.AppInsIKey)",
+								"type": "Expression"
+							},
+							"ifFalseActivities": [
+								{
+									"name": "Set AppIns iKey2",
+									"type": "SetVariable",
+									"dependsOn": [],
+									"policy": {
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"variableName": "app_ins_ikey",
+										"value": {
+											"value": "@pipeline().parameters.AppInsIKey",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"ifTrueActivities": [
+								{
+									"name": "Get AppIns iKey",
+									"description": "Get the application insights ikey for logging",
+									"type": "WebActivity",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": true,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"method": "GET",
+										"headers": {},
+										"url": {
+											"value": "@concat('https://', if(equals(pipeline().DataFactory, 'pins-synw-odw-dev-uks'), 'pinskvsynwodwdevuks', if(equals(pipeline().DataFactory, 'pins-synw-odw-test-uks'), 'pinskvsynwodwtestuks', 'pinskvsynwodwproduks')), '.vault.azure.net/secrets/application-insights-connection-string?api-version=7.0')",
+											"type": "Expression"
+										},
+										"connectVia": {
+											"referenceName": "AutoResolveIntegrationRuntime",
+											"type": "IntegrationRuntimeReference"
+										},
+										"authentication": {
+											"type": "MSI",
+											"resource": "https://vault.azure.net"
+										}
+									}
+								},
+								{
+									"name": "Set AppIns iKey",
+									"type": "SetVariable",
+									"dependsOn": [
+										{
+											"activity": "Get AppIns iKey",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"secureOutput": true,
+										"secureInput": true
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"variableName": "app_ins_ikey",
+										"value": {
+											"value": "@split(split(activity('Get AppIns iKey').output.value, ';')[0], '=')[1]",
+											"type": "Expression"
+										}
+									}
+								}
+							]
 						}
 					}
 				],
@@ -50402,10 +50733,7 @@
 					"body": {
 						"type": "String"
 					},
-					"notebook_err": {
-						"type": "String"
-					},
-					"apps_insights_ikey": {
+					"app_ins_ikey": {
 						"type": "String"
 					}
 				},
@@ -78280,12 +78608,20 @@
 					"referenceName": "ls_datalab",
 					"type": "LinkedServiceReference"
 				},
+				"parameters": {
+					"env": {
+						"type": "string"
+					}
+				},
 				"annotations": [],
 				"type": "DelimitedText",
 				"typeProperties": {
 					"location": {
 						"type": "AzureFileStorageLocation",
-						"folderPath": "ODW/AIE"
+						"folderPath": {
+							"value": "@concat('ODW/AIE_1550/', dataset().env)",
+							"type": "Expression"
+						}
 					},
 					"columnDelimiter": ",",
 					"rowDelimiter": "\n",
@@ -78436,6 +78772,9 @@
 				"parameters": {
 					"FileName": {
 						"type": "string"
+					},
+					"env": {
+						"type": "string"
 					}
 				},
 				"annotations": [],
@@ -78447,7 +78786,10 @@
 							"value": "@dataset().FileName",
 							"type": "Expression"
 						},
-						"folderPath": "ODW/AIE"
+						"folderPath": {
+							"value": "@concat('ODW/AIE_1550/', dataset().env)",
+							"type": "Expression"
+						}
 					},
 					"columnDelimiter": ",",
 					"rowDelimiter": "\n",
