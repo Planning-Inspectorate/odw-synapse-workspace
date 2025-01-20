@@ -7,7 +7,14 @@
 				"name": "Get Metadata Of CSVs",
 				"description": "Getting the Metadata of the csv files in the AIE data labs folder",
 				"type": "GetMetadata",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "Set Environment",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"timeout": "0.12:00:00",
 					"retry": 0,
@@ -19,7 +26,13 @@
 				"typeProperties": {
 					"dataset": {
 						"referenceName": "AIEFileDataLabs",
-						"type": "DatasetReference"
+						"type": "DatasetReference",
+						"parameters": {
+							"env": {
+								"value": "@variables('env')",
+								"type": "Expression"
+							}
+						}
 					},
 					"fieldList": [
 						"childItems"
@@ -65,7 +78,7 @@
 								}
 							],
 							"policy": {
-								"timeout": "0.12:00:00",
+								"timeout": "0.00:10:00",
 								"retry": 0,
 								"retryIntervalInSeconds": 30,
 								"secureOutput": false,
@@ -113,6 +126,10 @@
 										"FileName": {
 											"value": "@item().name",
 											"type": "Expression"
+										},
+										"env": {
+											"value": "@variables('env')",
+											"type": "Expression"
 										}
 									}
 								}
@@ -141,11 +158,232 @@
 									"type": "Expression"
 								}
 							}
+						},
+						{
+							"name": "Log Failure",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Copy File",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "Fail",
+									"StartTime": {
+										"value": "@activity('Copy File').ExecutionStartTime",
+										"type": "Expression"
+									},
+									"EndTime": {
+										"value": "@activity('Copy File').ExecutionEndTime",
+										"type": "Expression"
+									},
+									"ErrorMessage": {
+										"value": "@activity('Copy File').Error.message",
+										"type": "Expression"
+									},
+									"StatusMessage": {
+										"value": "@concat('Failed to copy AIE extract: ', item().name)",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": "@activity('Copy File').PipelineName",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": "@activity('Copy File').PipelineRunId",
+										"type": "Expression"
+									},
+									"PipelineExecutionTimeInSec": {
+										"value": "@activity('Copy File').Duration",
+										"type": "Expression"
+									},
+									"ActivityType": {
+										"value": "@activity('Copy File').ActivityType",
+										"type": "Expression"
+									},
+									"DurationSeconds": {
+										"value": "@activity('Copy File').Duration",
+										"type": "Expression"
+									},
+									"AppInsCustomEventName": "ODW_Master_Pipeline_Logs",
+									"StatusCode": {
+										"value": "@activity('Copy File').StatusCode",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Log Success",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Copy File",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "Completion",
+									"StartTime": {
+										"value": "@activity('Copy File').ExecutionStartTime",
+										"type": "Expression"
+									},
+									"EndTime": {
+										"value": "@activity('Copy File').ExecutionEndTime",
+										"type": "Expression"
+									},
+									"StatusMessage": {
+										"value": "@concat('Copied AIE extract succesfully: ', item().name)",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": "@activity('Copy File').PipelineName",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": "@activity('Copy File').PipelineRunId",
+										"type": "Expression"
+									},
+									"PipelineExecutionTimeInSec": {
+										"value": "@activity('Copy File').Duration",
+										"type": "Expression"
+									},
+									"ActivityType": {
+										"value": "@activity('Copy File').ActivityType",
+										"type": "Expression"
+									},
+									"DurationSeconds": {
+										"value": "@activity('Copy File').Duration",
+										"type": "Expression"
+									},
+									"AppInsCustomEventName": "ODW_Master_Pipeline_Logs",
+									"StatusCode": {
+										"value": "@activity('Copy File').StatusCode",
+										"type": "Expression"
+									}
+								}
+							}
 						}
 					]
 				}
+			},
+			{
+				"name": "Set Environment",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "env",
+					"value": {
+						"value": "@if(equals(pipeline().DataFactory, 'pins-synw-odw-prod-uks'), 'PROD', if(equals(pipeline().DataFactory, 'pins-synw-odw-test-uks'), 'TEST', 'DEV'))",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Log AIE Extracts Failure",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "For Each AIE Document",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Fail",
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@activity('Get Metadata Of CSVs').ExecutionEndTime",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@utcNow()",
+							"type": "Expression"
+						},
+						"ErrorMessage": "Failed to copy one or more AIE extracts. See logs for individual files to see error details.",
+						"StatusMessage": "Failed",
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"ActivityType": "Pipeline",
+						"AppInsCustomEventName": "ODW_Master_Pipeline_Logs"
+					}
+				}
 			}
 		],
+		"variables": {
+			"env": {
+				"type": "String"
+			},
+			"app_ins_ikey": {
+				"type": "String"
+			}
+		},
 		"folder": {
 			"name": "aie-extracts/layers/0-raw"
 		},
