@@ -11,39 +11,32 @@ classDiagram
     direction LR
 
     namespace Sources {
-
         class appeal-representation {
             representationId: string
         }
-
     }
     
     namespace Standardised {
-
-        class sb_appeals_representation_std {
+        class Standardised.sb_appeals_representation {
             representationId: string
         }
     }
 
     namespace Harmonised {
-
-        class sb_appeals_representation_hrm {
+        class Harmonised.sb_appeals_representation {
             representationId: string
         }
-
     }
 
     namespace Curated {
-
-        class sb_appeals_representation_cr {
+        class Curated.sb_appeals_representation {
             representationId: string
         }
-
     }
 
-`appeal-representation` --> `sb_appeals_representation_std`
-`sb_appeals_representation_std` --> `sb_appeals_representation_hrm`
-`sb_appeals_representation_hrm` --> `sb_appeals_representation_cr`
+`appeal-representation` --> `Standardised.sb_appeals_representation`
+`Standardised.sb_appeals_representation` --> `Harmonised.sb_appeals_representation`
+`Harmonised.sb_appeals_representation` --> `Curated.sb_appeals_representation`
 
 
 ```
