@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "fe922cac-249b-4335-a21f-644c6f907520"
+				"spark.autotune.trackingId": "77729141-e1de-4014-a454-b481a3016253"
 			}
 		},
 		"metadata": {
@@ -53,6 +53,40 @@
 		},
 		"cells": [
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Import Packages"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql.functions import *\n",
+					"from pyspark.sql.types import *\n",
+					"from pyspark.sql import DataFrame\n",
+					"import json"
+				],
+				"execution_count": null
+			},
+			{
 				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
@@ -68,7 +102,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 2
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -84,10 +118,11 @@
 					}
 				},
 				"source": [
-					"from pyspark.sql.functions import *\r\n",
-					"from pyspark.sql.types import *"
+					"db_name: str = \"odw_curated_db\"\n",
+					"entity_name: str = \"nsip-subscription\"\n",
+					"table_name: str = \"odw_curated_db.nsip_subscription\""
 				],
-				"execution_count": 3
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -99,7 +134,7 @@
 					}
 				},
 				"source": [
-					"##### View odw_curated_db.vw_nsip_subscription is created"
+					"##### Create a view for the data, joining harmonised tables where necessary"
 				]
 			},
 			{
@@ -114,17 +149,10 @@
 							"deleting": false
 						}
 					},
-					"microsoft": {
-						"language": "sparksql"
-					},
 					"collapsed": false
 				},
 				"source": [
-					"%%sql\n",
-					"\n",
-					"CREATE OR REPLACE VIEW odw_curated_db.vw_nsip_subscription\n",
-					"\n",
-					"AS\n",
+					"df = spark.sql(\"\"\"\n",
 					"\n",
 					"SELECT DISTINCT\n",
 					"\n",
@@ -138,109 +166,11 @@
 					"\n",
 					"FROM odw_harmonised_db.sb_nsip_subscription\n",
 					"\n",
-					"WHERE IsActive = 'Y'"
-				],
-				"execution_count": 4
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"##### Create a DataFrame of the data from the view"
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"data = spark.sql(\"SELECT * FROM odw_curated_db.vw_nsip_subscription\")"
-				],
-				"execution_count": 5
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"##### Specify the schema for the data, taken from the curated table which has already been created in advance from the data model"
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"schema = spark.table(\"odw_curated_db.nsip_subscription\").schema"
-				],
-				"execution_count": 6
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"##### Cast all field data types in the data to the data types from the curated table schema\r\n",
-					"\r\n",
-					"Not a huge issue here as it's only service bus data but if Horizon data were to be joined withi this then this ensures accuracy."
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"df = data.select(\r\n",
-					"    *[\r\n",
-					"        col(field.name).cast(field.dataType).alias(field.name)\r\n",
-					"        for field in schema.fields\r\n",
-					"    ]\r\n",
+					"WHERE IsActive = 'Y'\n",
+					"\"\"\"\n",
 					")"
 				],
-				"execution_count": 7
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -252,7 +182,7 @@
 					}
 				},
 				"source": [
-					"##### Print the schema as a visual check"
+					"##### Define schema"
 				]
 			},
 			{
@@ -269,9 +199,10 @@
 					}
 				},
 				"source": [
-					"df.printSchema()"
+					"schema = mssparkutils.notebook.run(\"py_create_spark_schema\", 30, {\"db_name\": db_name, \"entity_name\": entity_name})\n",
+					"spark_schema = StructType.fromJson(json.loads(schema))"
 				],
-				"execution_count": 8
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -283,7 +214,7 @@
 					}
 				},
 				"source": [
-					"## Table odw_curated_db.nsip_subscription is created"
+					"##### Create DataFrame with the correct schema"
 				]
 			},
 			{
@@ -300,11 +231,42 @@
 					}
 				},
 				"source": [
-					"logInfo(f\"Writing to odw_curated_db.nsip_subscription\")\n",
-					"df.write.mode(\"overwrite\").format(\"delta\").saveAsTable(\"odw_curated_db.nsip_subscription\")\n",
-					"logInfo(f\"Written to odw_curated_db.nsip_subscription\")"
+					"data = spark.createDataFrame(df.rdd, schema=spark_schema)"
 				],
-				"execution_count": 9
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Write the data to the curated table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"logInfo(f\"Writing to {table_name}\")\n",
+					"df.write.mode(\"overwrite\").format(\"delta\").saveAsTable(table_name)\n",
+					"logInfo(f\"Written to {table_name}\")"
+				],
+				"execution_count": null
 			}
 		]
 	}

@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "81b4b0a5-3638-4936-8906-f724f7269448"
+				"spark.autotune.trackingId": "ec0c3091-dee3-4c5a-ada6-4c57ce641bb8"
 			}
 		},
 		"metadata": {
@@ -52,6 +52,19 @@
 		},
 		"cells": [
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Import Packages"
+				]
+			},
+			{
 				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
@@ -66,9 +79,49 @@
 				},
 				"source": [
 					"from pyspark.sql.functions import *\r\n",
-					"from pyspark.sql.types import *"
+					"from pyspark.sql.types import *\r\n",
+					"from pyspark.sql import DataFrame\r\n",
+					"import json"
 				],
-				"execution_count": 2
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"db_name: str = \"odw_curated_db\"\n",
+					"entity_name: str = \"appeal-s78\"\n",
+					"table_name: str = \"odw_curated_db.appeal_s78\""
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -95,7 +148,20 @@
 					}
 				},
 				"source": [
-					"**Make sure these are the correct columns that need to be in curated layer. This notebook was run before the schema was fully finalised ( some changes from the client were needed to be merged)**"
+					"**Make sure these are the correct columns that need to be in curated layer. This notebook was run before the schema was fully finalised (some changes from the client were needed to be merged)**"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Create a view for the data, joining harmonised tables where necessary"
 				]
 			},
 			{
@@ -110,15 +176,10 @@
 							"deleting": false
 						}
 					},
-					"microsoft": {
-						"language": "sparksql"
-					},
 					"collapsed": false
 				},
 				"source": [
-					"%%sql\r\n",
-					"CREATE OR REPLACE TEMPORARY VIEW vw_appeal_s78\r\n",
-					"AS\r\n",
+					"df = spark.sql(\"\"\"\r\n",
 					"SELECT\r\n",
 					"    caseId,\r\n",
 					"    caseReference,\r\n",
@@ -255,109 +316,11 @@
 					"FROM\r\n",
 					"    odw_harmonised_db.sb_appeal_s78\r\n",
 					"WHERE\r\n",
-					"    IsActive = 'Y'"
-				],
-				"execution_count": 15
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"##### Create a DataFrame of the data from the view"
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"data: DataFrame = spark.sql(\"SELECT * FROM vw_appeal_s78\")"
-				],
-				"execution_count": 17
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"##### Specify the schema for the data, taken from the curated table which has already been created in advance from the data model"
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"schema: StructType = spark.table(\"odw_curated_db.appeal_s78\").schema"
-				],
-				"execution_count": 18
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"##### Cast all field data types in the data to the data types from the curated table schema\r\n",
-					"\r\n",
-					"This is necessary because the view generated above is joining harmonised tables, many of which are sourced from Horizon and will have a different schema to the final table and fields will have different data types. Therefore, taking the curated schema as defined in thr data model and casting all fields correctly, ensures accuracy."
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"df: DataFrame = data.select(\r\n",
-					"    *[\r\n",
-					"        col(field.name).cast(field.dataType).alias(field.name)\r\n",
-					"        for field in schema.fields\r\n",
-					"    ]\r\n",
+					"    IsActive = 'Y'\r\n",
+					"\"\"\"\r\n",
 					")"
 				],
-				"execution_count": 19
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -369,7 +332,7 @@
 					}
 				},
 				"source": [
-					"##### Print the schema as a visual check"
+					"##### Define schema"
 				]
 			},
 			{
@@ -386,9 +349,41 @@
 					}
 				},
 				"source": [
-					"df.printSchema()"
+					"schema = mssparkutils.notebook.run(\"py_create_spark_schema\", 30, {\"db_name\": db_name, \"entity_name\": entity_name})\n",
+					"spark_schema = StructType.fromJson(json.loads(schema))"
 				],
-				"execution_count": 20
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Create DataFrame with the correct schema"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"data = spark.createDataFrame(df.rdd, schema=spark_schema)"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -418,9 +413,11 @@
 					"collapsed": false
 				},
 				"source": [
-					"df.write.mode(\"overwrite\").saveAsTable(\"odw_curated_db.appeal_s78\")"
+					"logInfo(f\"Writing to {table_name}\")\n",
+					"df.write.mode(\"overwrite\").format(\"parquet\").saveAsTable(table_name)\n",
+					"logInfo(f\"Written to {table_name}\")"
 				],
-				"execution_count": 21
+				"execution_count": null
 			}
 		]
 	}

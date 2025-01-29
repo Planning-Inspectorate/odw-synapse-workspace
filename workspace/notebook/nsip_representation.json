@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "324e9e25-996a-4b30-9f1a-050a7a09964d"
+				"spark.autotune.trackingId": "c5fcaeef-6025-4a1d-8463-5601becff425"
 			}
 		},
 		"metadata": {
@@ -53,6 +53,40 @@
 		},
 		"cells": [
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Import Packages"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql.functions import *\n",
+					"from pyspark.sql.types import *\n",
+					"from pyspark.sql import DataFrame\n",
+					"import json"
+				],
+				"execution_count": null
+			},
+			{
 				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
@@ -68,7 +102,27 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 6
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"db_name: str = \"odw_curated_db\"\n",
+					"entity_name: str = \"nsip-representation\"\n",
+					"table_name: str = \"odw_curated_db.nsip_representation\""
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -80,39 +134,19 @@
 					}
 				},
 				"source": [
-					"## View odw_curated_db.vw_relevant_representation is created"
-				]
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"Columns from Service User are representedId, and representativeId"
+					"##### Create a view for the data, joining harmonised tables where necessary"
 				]
 			},
 			{
 				"cell_type": "code",
 				"metadata": {
-					"microsoft": {
-						"language": "sparksql"
-					},
 					"jupyter": {
 						"outputs_hidden": false
 					},
 					"collapsed": false
 				},
 				"source": [
-					"%%sql\r\n",
-					"\r\n",
-					"CREATE OR REPLACE VIEW odw_curated_db.vw_nsip_representation\r\n",
-					"\r\n",
-					"AS\r\n",
+					"df = spark.sql(\"\"\"\r\n",
 					"\r\n",
 					"SELECT DISTINCT\r\n",
 					"\r\n",
@@ -187,9 +221,11 @@
 					"\r\n",
 					"WHERE RR.IsActive = 'Y'\r\n",
 					"    AND RR.caseRef IS NOT NULL\r\n",
+					"\"\"\"\r\n",
+					")\r\n",
 					""
 				],
-				"execution_count": 7
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -201,7 +237,7 @@
 					}
 				},
 				"source": [
-					"## Table odw_curated_db.nsip_representation is created"
+					"##### Define schema"
 				]
 			},
 			{
@@ -218,9 +254,10 @@
 					}
 				},
 				"source": [
-					"logInfo(f\"Writing odw_curated_db.nsip_representation\")"
+					"schema = mssparkutils.notebook.run(\"py_create_spark_schema\", 30, {\"db_name\": db_name, \"entity_name\": entity_name})\n",
+					"spark_schema = StructType.fromJson(json.loads(schema))"
 				],
-				"execution_count": 8
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -236,12 +273,22 @@
 					}
 				},
 				"source": [
-					"from pyspark.sql import SparkSession\r\n",
-					"spark = SparkSession.builder.getOrCreate()\r\n",
-					"view_df = spark.sql('SELECT * FROM odw_curated_db.vw_nsip_representation')\r\n",
-					"view_df.write.mode('overwrite').saveAsTable('odw_curated_db.nsip_representation')"
+					"data = spark.createDataFrame(df.rdd, schema=spark_schema)"
 				],
-				"execution_count": 9
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Write the data to the curated table"
+				]
 			},
 			{
 				"cell_type": "code",
@@ -257,9 +304,11 @@
 					}
 				},
 				"source": [
-					"logInfo(f\"Written odw_curated_db.nsip_representation\")"
+					"logInfo(f\"Writing to {table_name}\")\n",
+					"df.write.mode(\"overwrite\").format(\"parquet\").saveAsTable(table_name)\n",
+					"logInfo(f\"Written to {table_name}\")"
 				],
-				"execution_count": 10
+				"execution_count": null
 			}
 		]
 	}
