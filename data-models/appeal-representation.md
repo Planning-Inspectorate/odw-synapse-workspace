@@ -17,26 +17,26 @@ classDiagram
     }
     
     namespace Standardised {
-        class Standardised.sb_appeals_representation {
+        class Standardised.sb_appeal_representation {
             representationId: string
         }
     }
 
     namespace Harmonised {
-        class Harmonised.sb_appeals_representation {
+        class Harmonised.sb_appeal_representation {
             representationId: string
         }
     }
 
     namespace Curated {
-        class Curated.sb_appeals_representation {
+        class Curated.appeal_representation {
             representationId: string
         }
     }
 
-`appeal-representation` --> `Standardised.sb_appeals_representation`
-`Standardised.sb_appeals_representation` --> `Harmonised.sb_appeals_representation`
-`Harmonised.sb_appeals_representation` --> `Curated.sb_appeals_representation`
+`appeal-representation` --> `Standardised.sb_appeal_representation`
+`Standardised.sb_appeal_representation` --> `Harmonised.sb_appeal_representation`
+`Harmonised.sb_appeal_representation` --> `Curated.appeal_representation`
 
 
 ```
