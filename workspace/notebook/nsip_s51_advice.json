@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "b2a86646-248e-48a8-a361-d007362788c2"
+				"spark.autotune.trackingId": "ffda11e3-ff2d-4a47-a2ff-1c3ffe1eeead"
 			}
 		},
 		"metadata": {
@@ -53,6 +53,40 @@
 		},
 		"cells": [
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Import Packages"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql.functions import *\n",
+					"from pyspark.sql.types import *\n",
+					"from pyspark.sql import DataFrame\n",
+					"import json"
+				],
+				"execution_count": null
+			},
+			{
 				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
@@ -68,7 +102,27 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 1
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"db_name: str = \"odw_curated_db\"\n",
+					"entity_name: str = \"s51-advice\"\n",
+					"table_name: str = \"odw_curated_db.s51_advice\""
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -80,7 +134,7 @@
 					}
 				},
 				"source": [
-					"## View odw_curated_db.vw_s51_advice is created"
+					"##### Create a view for the data, joining harmonised tables where necessary"
 				]
 			},
 			{
@@ -95,20 +149,12 @@
 							"deleting": false
 						}
 					},
-					"microsoft": {
-						"language": "sparksql"
-					},
 					"collapsed": false
 				},
 				"source": [
+					"df = spark.sql(\"\"\"\n",
 					"\n",
-					"%%sql\n",
-					"\n",
-					"CREATE OR REPLACE VIEW odw_curated_db.vw_s51_advice\n",
-					"\n",
-					"    AS\n",
-					"\n",
-					"SELECT DISTINCT\n",
+					"    SELECT DISTINCT\n",
 					"\n",
 					"    AD.adviceId,\n",
 					"    AD.adviceReference ,\n",
@@ -149,9 +195,11 @@
 					"    AD.attachmentIds\n",
 					"\n",
 					"FROM odw_harmonised_db.nsip_s51_advice \t        AS AD\n",
-					"WHERE AD.IsActive = 'Y'"
+					"WHERE AD.IsActive = 'Y'\n",
+					"    \"\"\"\n",
+					")"
 				],
-				"execution_count": 2
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -163,7 +211,7 @@
 					}
 				},
 				"source": [
-					"## Table odw_curated_db.s51_advice is created"
+					"##### Define schema"
 				]
 			},
 			{
@@ -180,14 +228,74 @@
 					}
 				},
 				"source": [
-					"logInfo(f\"Writing odw_curated_db.vw_s51_advice\")\n",
-					"from pyspark.sql import SparkSession\n",
-					"spark = SparkSession.builder.getOrCreate()\n",
-					"view_df = spark.sql('SELECT * FROM odw_curated_db.vw_s51_advice')\n",
-					"view_df.write.mode(\"overwrite\").saveAsTable('odw_curated_db.s51_advice')\n",
-					"logInfo(f\"Written odw_curated_db.vw_s51_advice\")"
+					"schema = mssparkutils.notebook.run(\"py_create_spark_schema\", 30, {\"db_name\": db_name, \"entity_name\": entity_name})\n",
+					"spark_schema = StructType.fromJson(json.loads(schema))"
 				],
-				"execution_count": 3
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Create DataFrame with the correct schema"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"data = spark.createDataFrame(df.rdd, schema=spark_schema)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Write the data to the curated table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"logInfo(f\"Writing to {table_name}\")\n",
+					"df.write.mode(\"overwrite\").format(\"parquet\").saveAsTable(table_name)\n",
+					"logInfo(f\"Written to {table_name}\")"
+				],
+				"execution_count": null
 			}
 		]
 	}

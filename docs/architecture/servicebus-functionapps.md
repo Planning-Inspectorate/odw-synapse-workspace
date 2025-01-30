@@ -97,7 +97,7 @@ The Azure Functions python developer guide can be found here so this document wi
 
 [Azure Functions python developer guide](https://learn.microsoft.com/en-us/azure/azure-functions/functions-reference-python?tabs=asgi%2Capplication-level&pivots=python-mode-decorators)  
 
-The architecture initially uses 1 function app with 1 app service plan containing multiple functions. Each function performs the same task but each one reads messages from a different Servicebus topic in the ODT Servicebus namespace. The code looks as follows:  
+The architecture initially uses 1 function app with 1 app service plan containing multiple functions. Each function performs the same task but each one reads messages from a different Servicebus topic in the back-office Servicebus namespaces. The code looks as follows:  
 
 **function_app.py**
 
@@ -183,9 +183,22 @@ The majority of the code is generic however and where possible is held elsewhere
 
 1. Receive messages from the Servicebus topic via a subscription when triggered by an http GET request.
 2. Validate those messages agsinst a json schema held in the date-model repo.
-3. If validation succeeds, send the messages as a json file to ODW RAW layer in Azure storage and "complete" the message (deletes it from the subscription).
+3. If validation succeeds, send the messages as a json file to ODW RAW layer in Azure storage and "complete" the message (deletes it from the subscription).  
+
+```python
+if is_message_valid:
+    valid_messages.append(message_body)
+    subscription_receiver.complete_message(message)
+```
 4. If validation fails the messages get "abandoned" and moved to the dead letter queue to await further processing if need be.  
 
+```python
+else:
+    invalid_messages.append(message_body)
+    subscription_receiver.dead_letter_message(
+        message, reason="Failed validation against schema"
+    )
+```
 **servicebus_funcs.py**
 
 This file contains the functions that perform the tasks of receiving Servicebus messages, validating them and sendiing them to ODW RAW layer in storage.  
@@ -348,18 +361,10 @@ For reference, one issue we found when using datamodel-codegen to generate the p
 
 When developing locally, use Azure Functions Core Tools to check if the functions still work. Documentation on the use of Azure Functions Core Tools is out of scope of this guide.  
 
-To deploy manually (before DevOps pipeline is ready) do the following:  
+Run the pipeline in Azure DevOps from your development branch to test. Run it from the main branch to revert back.  
 
-1. Set the environment in the set_environment.py file on line 19 to either "dev", "preprod" or "prod". Deploy to dev first obviously. Save the file.
+https://dev.azure.com/planninginspectorate/operational-data-warehouse/_build?definitionId=170  
 
-```python
-CURRENT_ENVIRONMENT = "dev"
-```
-2. In deploy.sh, make sure the dev deployment line is uncommented and the preprod and prod lines are commented out, e.g. line 12 below will deploy to dev. To deploy to preprod uncomment out line 13 and for prod line 14, each time makign sure only one of them is uncommented.  
-
-```bash
-func azure functionapp publish $function_app_dev --subscription $subscription_dev
-```
 ## Unit tests
 
 A test file can be found here:  
@@ -443,15 +448,17 @@ The pipeline essentially performs a few simple steps outlined below. The full co
         az functionapp deployment source config-zip --resource-group $(resourceGroup) --name $(functionApp) --src $(zipFile)
 ```
 
-This pipeline is triggered by any change to the function app code in the **functions** top level folder that gets merged with the main branch. The pipeline currently deploys to Dev only but will be changed soon to sequentially deploy to Test and Prod as well.  
+This pipeline is triggered by any change to the function app code in the **functions** top level folder that gets merged with the main branch. The pipeline deploys the function app to Dv, Test and Prod automatically when triggered by a merge to the main branch. Manually you can select the environment.   
 
-To run the pipeline manually just go to Azure DevOps here [function-app-deploy](https://dev.azure.com/planninginspectorate/operational-data-warehouse/_build?definitionId=170&_a=summary) and click **Run pipeline**.  
+To run the pipeline manually just go to Azure DevOps here [function-app-deploy](https://dev.azure.com/planninginspectorate/operational-data-warehouse/_build?definitionId=170&_a=summary) and click **Run pipeline**.  This will deploy to Dev, Test and Prod. Therefore if you want to only deploy to a specific environment you can select stages to run.  
 
-![](../../images/function-app-deploy-run-manually.png)  
+![](../../images/function-app-deploy-all-envs.png)  
 
-Select the branch you want to run from and the environment. When testing this would be your feature branch but otherwise the main branch. This may change once it's amended to deploy to 3 environments sequentially.  
+Select stages...  
 
-![](../../images/function-app-deploy-run-parameters.png)
+![](../../images/function-app-deploy-stages-to-run.png)
+
+Select the branch you want to run from and the environment. 
 
 ## Local setup
 
@@ -482,6 +489,10 @@ Which will then show the functions once it's debugged
 7. You can then call these urls however you wish to test, e.g. using tests/test_http_calls as documented above in the Unit test section.  
 
 **NB: remember that the function app is running locally but any code that exists inside the functions will be run as normal, i.e. you make a GET request to the localhost url but the function code is still receiving Servicebus messages from a namespace in Azure. This is fine but bear in mind any permissions needed for your personal account to test what the function does.**  
+
+You can also use a terminal for this as well, as shown below. 
+
+![](../../images/function-terminal.png)
 
 ## Terraform
 
@@ -681,4 +692,4 @@ This function simply  makes a query to the curated table [odw_curated_db].[dbo].
 
 ```SqlConnectionString: Server=tcp:<SQL INSTANCE>,1433;Persist Security Info=False;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Database=odw_curated_db;Authentication=Active Directory Managed Identity;",```
 
-The SQL permissions are created in a similar way to [DaRT process](#dart-process)
+The SQL permissions are granted as per this documentation [Add user to ODW](https://github.com/Planning-Inspectorate/ODW-Service/blob/main/docs/add_user.md)

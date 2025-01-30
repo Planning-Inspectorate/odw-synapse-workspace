@@ -32,7 +32,7 @@
 						"type": "IntegrationRuntimeReference"
 					},
 					"body": {
-						"value": "@concat('{\"name\":\"AppEvents\",\"time\":\"', utcNow(), '\",\"iKey\":\"', pipeline().parameters.AppInsIKey, '\",\"data\":{\"baseType\":\"EventData\",\"baseData\":{\"name\":\"', pipeline().parameters.AppInsCustomEventName, '\",\"properties\":', variables('body'), '}}}'\n)",
+						"value": "@concat('{\"name\":\"AppEvents\",\"time\":\"', utcNow(), '\",\"iKey\":\"', variables('app_ins_ikey'), '\",\"data\":{\"baseType\":\"EventData\",\"baseData\":{\"name\":\"', pipeline().parameters.AppInsCustomEventName, '\",\"properties\":', variables('body'), '}}}'\n)",
 						"type": "Expression"
 					}
 				}
@@ -41,7 +41,14 @@
 				"name": "Compile Body",
 				"description": "Compiles the body from the params",
 				"type": "SetVariable",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "If No iKey param",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"secureOutput": false,
 					"secureInput": false
@@ -53,6 +60,93 @@
 						"value": "@concat('{\"Stage\":\"', pipeline().parameters.Stage, '\",',\n        '\"PipelineName\":\"', pipeline().parameters.PipelineName, '\",',\n        '\"PipelineRunID\":\"', pipeline().parameters.PipelineRunID, '\",',\n        '\"StartTime\":\"', pipeline().parameters.StartTime, '\",',\n        '\"EndTime\":\"', pipeline().parameters.EndTime, '\",',\n        '\"Inserts\":\"', string(pipeline().parameters.Inserts), '\",',\n        '\"Updates\":\"', string(pipeline().parameters.Updates), '\",',\n        '\"Deletes\":\"', string(pipeline().parameters.Deletes), '\",',\n        '\"ErrorMessage\":\"', uriComponentToString(replace(uriComponent(coalesce(pipeline().parameters.ErrorMessage, '')), '%0A', '')), '\",',\n        '\"StatusMessage\":\"', pipeline().parameters.StatusMessage, '\",',\n        '\"PipelineTriggerID\":\"', pipeline().parameters.PipelineTriggerID, '\",',\n        '\"PipelineTriggerName\":\"', pipeline().parameters.PipelineTriggerName, '\",',\n        '\"PipelineTriggerType\":\"', pipeline().parameters.PipelineTriggerType, '\",',\n        '\"PipelineTriggeredbyPipelineName\":\"', pipeline().parameters.PipelineTriggeredbyPipelineName, '\",',\n        '\"PipelineTriggeredbyPipelineRunID\":\"', pipeline().parameters.PipelineTriggeredbyPipelineRunID, '\",',\n        '\"PipelineExecutionTimeInSec\":\"', pipeline().parameters.PipelineExecutionTimeInSec, '\",',\n        '\"ActivityType\":\"', pipeline().parameters.ActivityType, '\",',\n        '\"StatusCode\":\"', pipeline().parameters.StatusCode, '\",',\n        '\"DurationSeconds\":\"', pipeline().parameters.DurationSeconds, '\"}')",
 						"type": "Expression"
 					}
+				}
+			},
+			{
+				"name": "If No iKey param",
+				"description": "Retrieving iKey for app ins if not provided in params",
+				"type": "IfCondition",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@empty(pipeline().parameters.AppInsIKey)",
+						"type": "Expression"
+					},
+					"ifFalseActivities": [
+						{
+							"name": "Set AppIns iKey2",
+							"type": "SetVariable",
+							"dependsOn": [],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "app_ins_ikey",
+								"value": {
+									"value": "@pipeline().parameters.AppInsIKey",
+									"type": "Expression"
+								}
+							}
+						}
+					],
+					"ifTrueActivities": [
+						{
+							"name": "Get AppIns iKey",
+							"description": "Get the application insights ikey for logging",
+							"type": "WebActivity",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": true,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"method": "GET",
+								"url": {
+									"value": "@concat('https://', if(equals(pipeline().DataFactory, 'pins-synw-odw-dev-uks'), 'pinskvsynwodwdevuks', if(equals(pipeline().DataFactory, 'pins-synw-odw-test-uks'), 'pinskvsynwodwtestuks', 'pinskvsynwodwproduks')), '.vault.azure.net/secrets/application-insights-connection-string?api-version=7.0')",
+									"type": "Expression"
+								},
+								"connectVia": {
+									"referenceName": "AutoResolveIntegrationRuntime",
+									"type": "IntegrationRuntimeReference"
+								},
+								"authentication": {
+									"type": "MSI",
+									"resource": "https://vault.azure.net"
+								}
+							}
+						},
+						{
+							"name": "Set AppIns iKey",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Get AppIns iKey",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": true,
+								"secureInput": true
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "app_ins_ikey",
+								"value": {
+									"value": "@split(split(activity('Get AppIns iKey').output.value, ';')[0], '=')[1]",
+									"type": "Expression"
+								}
+							}
+						}
+					]
 				}
 			}
 		],
@@ -129,10 +223,7 @@
 			"body": {
 				"type": "String"
 			},
-			"notebook_err": {
-				"type": "String"
-			},
-			"apps_insights_ikey": {
+			"app_ins_ikey": {
 				"type": "String"
 			}
 		},

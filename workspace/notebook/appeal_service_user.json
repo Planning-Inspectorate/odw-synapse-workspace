@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5848a678-df84-44c0-909f-85e5e1edd497"
+				"spark.autotune.trackingId": "45aed9c3-9a23-4f35-a34b-e7cfe73d5272"
 			}
 		},
 		"metadata": {
@@ -53,6 +53,214 @@
 		},
 		"cells": [
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Import Packages"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql.functions import *\n",
+					"from pyspark.sql.types import *\n",
+					"from pyspark.sql import DataFrame\n",
+					"import json"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"db_name: str = \"odw_curated_db\"\n",
+					"entity_name: str = \"service-user\"\n",
+					"table_name: str = \"odw_curated_db.appeal_service_user\""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Create a view for the data, joining harmonised tables where necessary"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"df = spark.sql(\"\"\"\n",
+					"    SELECT \n",
+					"        id\n",
+					"        ,salutation\n",
+					"        ,firstName\n",
+					"        ,lastName\n",
+					"        ,addressLine1\n",
+					"        ,addressLine2\n",
+					"        ,addressTown\n",
+					"        ,addressCounty\n",
+					"        ,postcode\n",
+					"        ,addressCountry\n",
+					"        ,organisation\n",
+					"        ,organisationType\n",
+					"        ,role\n",
+					"        ,telephoneNumber\n",
+					"        ,otherPhoneNumber\n",
+					"        ,faxNumber\n",
+					"        ,emailAddress\n",
+					"        ,webAddress\n",
+					"        ,serviceUserType\n",
+					"        ,caseReference\n",
+					"        ,sourceSuid\n",
+					"        ,sourceSystem\n",
+					"    FROM \n",
+					"        odw_harmonised_db.service_user\n",
+					"    WHERE\n",
+					"        sourceSystem = 'back-office-appeals'\n",
+					"        OR serviceUserType = 'Appellant'\n",
+					"\"\"\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Define schema"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"schema = mssparkutils.notebook.run(\"py_create_spark_schema\", 30, {\"db_name\": db_name, \"entity_name\": entity_name})\n",
+					"spark_schema = StructType.fromJson(json.loads(schema))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Create DataFrame with the correct schema"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"data = spark.createDataFrame(df.rdd, schema=spark_schema)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Write DataFrame to table"
+				]
+			},
+			{
 				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
@@ -67,40 +275,11 @@
 					"collapsed": false
 				},
 				"source": [
-					"df = spark.sql(\"\"\"\r\n",
-					"    SELECT \r\n",
-					"        id\r\n",
-					"        ,salutation\r\n",
-					"        ,firstName\r\n",
-					"        ,lastName\r\n",
-					"        ,addressLine1\r\n",
-					"        ,addressLine2\r\n",
-					"        ,addressTown\r\n",
-					"        ,addressCounty\r\n",
-					"        ,postcode\r\n",
-					"        ,addressCountry\r\n",
-					"        ,organisation\r\n",
-					"        ,organisationType\r\n",
-					"        ,role\r\n",
-					"        ,telephoneNumber\r\n",
-					"        ,otherPhoneNumber\r\n",
-					"        ,faxNumber\r\n",
-					"        ,emailAddress\r\n",
-					"        ,webAddress\r\n",
-					"        ,serviceUserType\r\n",
-					"        ,caseReference\r\n",
-					"        ,sourceSuid\r\n",
-					"        ,sourceSystem\r\n",
-					"    FROM \r\n",
-					"        odw_harmonised_db.service_user\r\n",
-					"    WHERE\r\n",
-					"        sourceSystem = 'back-office-appeals'\r\n",
-					"        OR serviceUserType = 'Appellant'\r\n",
-					"\"\"\")\r\n",
-					"\r\n",
-					"df.write.mode(\"overwrite\").saveAsTable(\"odw_curated_db.appeal_service_user\")"
+					"logInfo(f\"Writing to {table_name}\")\r\n",
+					"df.write.mode(\"overwrite\").format(\"parquet\").saveAsTable(table_name)\r\n",
+					"logInfo(f\"Written to {table_name}\")"
 				],
-				"execution_count": 1
+				"execution_count": null
 			}
 		]
 	}
