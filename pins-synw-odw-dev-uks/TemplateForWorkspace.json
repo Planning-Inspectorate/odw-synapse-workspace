@@ -705,6 +705,10 @@
 			"type": "string",
 			"defaultValue": "pinssynspodw"
 		},
+		"appeal_representation_properties_bigDataPool_referenceName": {
+			"type": "string",
+			"defaultValue": "pinssynspodw"
+		},
 		"appeal_s78_properties_bigDataPool_referenceName": {
 			"type": "string",
 			"defaultValue": "pinssynspodw"
@@ -39907,6 +39911,12 @@
 								"dependencyConditions": [
 									"Succeeded"
 								]
+							},
+							{
+								"activity": "appeal_representation",
+								"dependencyConditions": [
+									"Succeeded"
+								]
 							}
 						],
 						"policy": {
@@ -40170,6 +40180,39 @@
 							},
 							"numExecutors": null
 						}
+					},
+					{
+						"name": "appeal_representation",
+						"type": "SynapseNotebook",
+						"dependsOn": [
+							{
+								"activity": "nsip-project",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "appeal_representation",
+								"type": "NotebookReference"
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
 					}
 				],
 				"policy": {
@@ -40201,6 +40244,7 @@
 				"[concat(variables('workspaceId'), '/notebooks/py_get_delta_table_changes')]",
 				"[concat(variables('workspaceId'), '/notebooks/dart_api')]",
 				"[concat(variables('workspaceId'), '/notebooks/appeal_s78')]",
+				"[concat(variables('workspaceId'), '/notebooks/appeal_representation')]",
 				"[concat(variables('workspaceId'), '/pipelines/pln_publish_to_sb')]"
 			]
 		},
@@ -105272,6 +105316,284 @@
 						],
 						"outputs": [],
 						"execution_count": 12
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/appeal_representation')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"folder": {
+					"name": "odw-curated"
+				},
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "[parameters('appeal_representation_properties_bigDataPool_referenceName')]",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "58c39a86-a4a1-4609-8ac1-3575a16a01da"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": false,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+						"name": "pinssynspodw",
+						"type": "Spark",
+						"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "3.3",
+						"nodeCount": 3,
+						"cores": 4,
+						"memory": 28
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Import Packages"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"from pyspark.sql.functions import *\n",
+							"from pyspark.sql.types import *\n",
+							"from pyspark.sql import DataFrame\n",
+							"import json"
+						],
+						"outputs": [],
+						"execution_count": 1
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"%run utils/py_logging_decorator"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"db_name: str = \"odw_curated_db\"\r\n",
+							"entity_name: str = \"appeal-representation\"\r\n",
+							"table_name: str = \"odw_curated_db.appeal_representation\""
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Create a view for the data, joining harmonised tables where necessary"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"collapsed": false
+						},
+						"source": [
+							"df = spark.sql(\"\"\"\n",
+							"SELECT\n",
+							"representationId,\n",
+							"caseId,\n",
+							"caseReference,\n",
+							"representationStatus,\n",
+							"originalRepresentation,\n",
+							"redacted,\n",
+							"redactedRepresentation,\n",
+							"redactedBy,\n",
+							"invalidOrIncompleteDetails,\n",
+							"otherInvalidOrIncompleteDetails,\n",
+							"source,\n",
+							"serviceUserId,\n",
+							"representationType,\n",
+							"dateReceived,\n",
+							"documentIds\n",
+							"FROM\n",
+							"  odw_harmonised_db.sb_appeal_representation\n",
+							"WHERE\n",
+							"    IsActive = 'Y'\n",
+							"\"\"\"\n",
+							")"
+						],
+						"outputs": [],
+						"execution_count": 4
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Define schema"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"schema = mssparkutils.notebook.run(\"py_create_spark_schema\", 30, {\"db_name\": db_name, \"entity_name\": entity_name})\r\n",
+							"spark_schema = StructType.fromJson(json.loads(schema))"
+						],
+						"outputs": [],
+						"execution_count": 5
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Create DataFrame with the correct schema"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"data = spark.createDataFrame(df.rdd, schema=spark_schema)"
+						],
+						"outputs": [],
+						"execution_count": 6
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Write DataFrame to table"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"logInfo(f\"Writing to {table_name}\")\r\n",
+							"df.write.mode(\"overwrite\").format(\"parquet\").saveAsTable(table_name)\r\n",
+							"logInfo(f\"Written to {table_name}\")"
+						],
+						"outputs": [],
+						"execution_count": 7
 					}
 				]
 			},
@@ -268405,18 +268727,18 @@
 				"nodeCount": 0,
 				"nodeSize": "Small",
 				"nodeSizeFamily": "MemoryOptimized",
-				"sparkVersion": "3.4",
+				"sparkVersion": "3.3",
 				"libraryRequirements": {
 					"content": "# Spark 3.4 library list can be found here\r\n# https://github.com/microsoft/synapse-spark-runtime/blob/main/Synapse/spark3.4/Official-Spark3.4-Rel-2024-10-18.0-rc.1.md\r\n\r\n# Azure Servicebus\r\nazure-servicebus==7.13.0\r\n\r\n# Logging\r\nazure-monitor-opentelemetry==1.6.4\r\n\r\n# Retry\r\ntenacity==9.0.0\r\n\r\n# Time\r\niso8601==2.1.0\r\n\r\n# Creating fake data\r\nFaker==33.1.0",
 					"filename": "requirements-preview.txt",
-					"time": "2025-02-05T15:13:10.8994344Z"
+					"time": "2025-02-05T16:42:50.8214461Z"
 				},
 				"isComputeIsolationEnabled": false,
 				"sparkConfigProperties": {
 					"configurationType": "File",
 					"filename": "configuration.txt",
 					"content": "spark.executorEnv.dataLakeAccountName pinsstodwdevuks9h80mb\r\nspark.executorEnv.keyVaultName pinskvsynwodwdevuks\r\n",
-					"time": "2025-02-05T15:13:10.8994344Z"
+					"time": "2025-02-05T16:42:50.8214461Z"
 				},
 				"sessionLevelPackagesEnabled": true,
 				"annotations": []
