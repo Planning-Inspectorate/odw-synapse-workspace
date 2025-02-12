@@ -1,0 +1,129 @@
+{
+	"name": "0_Raw_Horizon_vw_AdditionalFields",
+	"properties": {
+		"activities": [
+			{
+				"name": "Horizon_vw_AdditionalFields",
+				"description": "Getting the data from the horizon table Horizon_vw_AdditionalFields to bring into ODW",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 3,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [
+					{
+						"name": "Source",
+						"value": "dbo.@{'Horizon_ODW_vw_DocumentMetadataAppeals'}"
+					},
+					{
+						"name": "Destination",
+						"value": "odw-raw/@{concat('Horizon', '/', formatDateTime(utcnow(), 'yyyy-MM-dd'))}/@{'HorizonAppealsDocumentMetadata.csv'}"
+					}
+				],
+				"typeProperties": {
+					"source": {
+						"type": "SqlServerSource",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"sink": {
+						"type": "DelimitedTextSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "DelimitedTextWriteSettings",
+							"quoteAllText": true,
+							"fileExtension": ".txt"
+						}
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"name": "AppealRefNumber",
+									"type": "String",
+									"physicalType": "varchar"
+								},
+								"sink": {
+									"name": "AppealRefNumber",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "CaseReference",
+									"type": "String",
+									"physicalType": "varchar"
+								},
+								"sink": {
+									"name": "CaseReference",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "StandardPriority",
+									"type": "String",
+									"physicalType": "nvarchar"
+								},
+								"sink": {
+									"name": "StandardPriority",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "ImportantInformation",
+									"type": "String",
+									"physicalType": "ntext"
+								},
+								"sink": {
+									"name": "ImportantInformation",
+									"type": "String",
+									"physicalType": "String"
+								}
+							}
+						],
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "HZN_NSIP_Query",
+						"type": "DatasetReference",
+						"parameters": {
+							"table_name": "Horizon_vw_BIS_AdditionalFields"
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "Dataset_Horizon",
+						"type": "DatasetReference",
+						"parameters": {
+							"FileName": "vw_AdditionalFields.csv"
+						}
+					}
+				]
+			}
+		],
+		"folder": {
+			"name": "Appeal_s78/0-raw"
+		},
+		"annotations": []
+	}
+}

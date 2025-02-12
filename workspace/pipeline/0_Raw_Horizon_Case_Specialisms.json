@@ -1,0 +1,117 @@
+{
+	"name": "0_Raw_Horizon_Case_Specialisms",
+	"properties": {
+		"activities": [
+			{
+				"name": "Horizon_Case_Specialisms",
+				"description": "Getting the data from the horizon table Horizon_Case_Specialisms  to bring into ODW",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 3,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [
+					{
+						"name": "Source",
+						"value": "dbo.@{'Horizon_ODW_vw_CaseSpecialisms'}"
+					},
+					{
+						"name": "Destination",
+						"value": "odw-raw/@{concat('Horizon', '/', formatDateTime(utcnow(), 'yyyy-MM-dd'))}/@{'cases_specialisms.csv'}"
+					}
+				],
+				"typeProperties": {
+					"source": {
+						"type": "SqlServerSource",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"sink": {
+						"type": "DelimitedTextSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "DelimitedTextWriteSettings",
+							"quoteAllText": true,
+							"fileExtension": ".txt"
+						}
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"name": "caseReference",
+									"type": "String",
+									"physicalType": "varchar"
+								},
+								"sink": {
+									"name": "caseReference",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "lastModified",
+									"type": "DateTime",
+									"physicalType": "datetime"
+								},
+								"sink": {
+									"name": "lastModified",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "caseSpecialism",
+									"type": "String",
+									"physicalType": "nvarchar"
+								},
+								"sink": {
+									"name": "caseSpecialism",
+									"type": "String",
+									"physicalType": "String"
+								}
+							}
+						],
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "HZN_NSIP_Query",
+						"type": "DatasetReference",
+						"parameters": {
+							"table_name": "Horizon_ODW_vw_CaseSpecialisms"
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "Dataset_Horizon",
+						"type": "DatasetReference",
+						"parameters": {
+							"FileName": "cases_specialisms.csv"
+						}
+					}
+				]
+			}
+		],
+		"folder": {
+			"name": "Appeal_s78/0-raw"
+		},
+		"annotations": []
+	}
+}
