@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "b8257430-64d4-4624-ae05-66736dad34e7"
+				"spark.autotune.trackingId": "157fde1a-4154-43b4-8d6d-eca9c4644221"
 			}
 		},
 		"metadata": {
@@ -241,6 +241,8 @@
 					"df = spark.read.option(\"multiline\",\"true\").json(path_to_orchestration_file)\n",
 					"definitions = json.loads(df.toJSON().first())['definitions']\n",
 					"\n",
+					"process_name = \"py_raw_to_std\"\n",
+					"\n",
 					"source_path = f\"{raw_container}{source_folder_path}/{date_folder_str}\"\n",
 					"\n",
 					"try:\n",
@@ -276,7 +278,7 @@
 					"            mssparkutils.notebook.run('/utils/py_delete_table', 300, arguments={'db_name': 'odw_standardised_db', 'table_name': definition['Standardised_Table_Name']})\n",
 					"\n",
 					"        logInfo(f\"Ingesting {file.name}\")\n",
-					"        (ingestion_failure, row_count) = ingest_adhoc(storage_account, definition, source_path, file.name, expected_from, expected_to, isMultiLine, dataAttribute)\n",
+					"        (ingestion_failure, row_count) = ingest_adhoc(storage_account, definition, source_path, file.name, expected_from, expected_to, process_name, isMultiLine, dataAttribute)\n",
 					"        logInfo(f\"Ingested {row_count} rows\")\n",
 					"\n",
 					"        if ingestion_failure:\n",
@@ -284,6 +286,10 @@
 					"            raise RuntimeError(\"Ingestion Failure\")\n",
 					"        else:\n",
 					"            print(f\"No Errors reported during Ingestion\")\n",
+					"\n",
+					"            # Log ingestion metrics after successful ingestion\n",
+					"            logInfo(\"Updating ingestion metrics\")\n",
+					"            log_ingestion_metrics(storage_account, process_name)\n",
 					"\n",
 					"    else:\n",
 					"        if specific_file != '':\n",
