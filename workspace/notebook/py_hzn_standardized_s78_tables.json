@@ -1,0 +1,218 @@
+{
+	"name": "py_hzn_standardized_s78_tables",
+	"properties": {
+		"folder": {
+			"name": "odw-standardised"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "4ca0dcbe-df2c-4cf1-ad8d-74daeb2cf658"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql.types import IntegerType, ArrayType, StructType, StructField\r\n",
+					"from pyspark.sql import Row\r\n",
+					"from pyspark.sql.functions import *"
+				],
+				"execution_count": 1
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"horizon_cases_s78 = \"odw_standardised_db.horizoncases_s78\"\r\n",
+					"primary_key = 'caseReference'\r\n",
+					"incremental_key = 'AppealS78ID'"
+				],
+				"execution_count": 2
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def get_spark_df(table_name: str) -> DataFrame:\r\n",
+					"    df = spark.table(table_name)\r\n",
+					"    return df\r\n",
+					""
+				],
+				"execution_count": 3
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Define all tables as Dataframes\r\n",
+					"hzn_cases_s78_df = get_spark_df(\"odw_standardised_db.horizoncases_s78\")\r\n",
+					"cases_specialism_df = get_spark_df(\"odw_standardised_db.cases_specialisms\")\r\n",
+					"vw_case_dates_df = get_spark_df(\"odw_standardised_db.vw_case_dates\")\r\n",
+					"CaseDocumentDatesDates_df = get_spark_df(\"odw_standardised_db.casedocumentdatesdates\")\r\n",
+					"CaseSiteStrings_df = get_spark_df(\"odw_standardised_db.casesitestrings\")\r\n",
+					"TypeOfProcedure_df = get_spark_df(\"odw_standardised_db.typeofprocedure\")\r\n",
+					"Horizon_TypeOfReasonForCase_df = get_spark_df(\"odw_standardised_db.horizon_typeofreasonforcase\")\r\n",
+					"vw_AddAdditionalData_df = get_spark_df(\"odw_standardised_db.vw_addadditionaldata\")\r\n",
+					"vw_AdditionalFields_df = get_spark_df(\"odw_standardised_db.vw_additionalfields\")"
+				],
+				"execution_count": 4
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# CaseDocumentDatesDates_df.printSchema()\r\n",
+					"\r\n",
+					"# missing columns : lpaQuestionnaireDueDate, lpaQuestionnaireSubmittedDate, proofsOfEvidenceDueDate\r\n",
+					"\r\n",
+					"CaseDocumentDatesDates_df.printSchema()\r\n",
+					""
+				],
+				"execution_count": 5
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Join all tables accordingly from the Sql QUERY PINS HAVE PROVIDED US.\r\n",
+					"final_df = hzn_cases_s78_df\r\n",
+					"final_df = final_df.join(cases_specialism_df, hzn_cases_s78_df.caseuniqueid == cases_specialism_df.casereference, 'left').select( final_df[\"*\"], cases_specialism_df.casespecialism)\r\n",
+					"final_df = final_df.join(vw_case_dates_df, hzn_cases_s78_df.casenodeid == vw_case_dates_df.casenodeid, 'left').select( final_df[\"*\"], vw_case_dates_df.receiptdate, \r\n",
+					"vw_case_dates_df.appealdocscomplete, vw_case_dates_df.startdate, vw_case_dates_df.appealwithdrawndate, vw_case_dates_df.casedecisiondate, vw_case_dates_df.datenotrecoveredorderecovered, vw_case_dates_df.daterecovered, vw_case_dates_df.originalcasedecisiondate )\r\n",
+					"final_df = final_df.join(CaseDocumentDatesDates_df, hzn_cases_s78_df.casenodeid == CaseDocumentDatesDates_df.casenodeid, 'left').select( final_df[\"*\"], CaseDocumentDatesDates_df.questionnairedue, CaseDocumentDatesDates_df.questionnairereceived, CaseDocumentDatesDates_df.interestedpartyrepsduedate, CaseDocumentDatesDates_df.proofsdue )\r\n",
+					"final_df =  final_df.join(CaseSiteStrings_df, hzn_cases_s78_df.casenodeid == CaseSiteStrings_df.casenodeid, 'left').select( final_df[\"*\"], CaseSiteStrings_df.siteviewablefromroad)\r\n",
+					"final_df = final_df.join(vw_AddAdditionalData_df, hzn_cases_s78_df.caseuniqueid == vw_AddAdditionalData_df.appealrefnumber, 'left').select( final_df[\"*\"], vw_AddAdditionalData_df.floorspaceinsquaremetres, vw_AddAdditionalData_df.costsappliedforindicator, vw_AddAdditionalData_df.procedureappellant, vw_AddAdditionalData_df.isthesitewithinanaonb, vw_AddAdditionalData_df.procedurelpa, vw_AddAdditionalData_df.inspectorneedtoentersite, vw_AddAdditionalData_df.sitegridreferenceeasting, vw_AddAdditionalData_df.sitegridreferencenorthing , vw_AddAdditionalData_df.sitewithinsssi)\r\n",
+					"final_df = final_df.join(vw_AdditionalFields_df, hzn_cases_s78_df.caseuniqueid == vw_AdditionalFields_df.appealrefnumber, 'left').select( final_df[\"*\"], vw_AdditionalFields_df.importantinformation)"
+				],
+				"execution_count": 7
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# create a unified table for horizon_appeal_s78\r\n",
+					"final_df.write.mode(\"overwrite\").saveAsTable(\"odw_standardised_db.horizon_appeal_s78_final\")"
+				],
+				"execution_count": 9
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# For this horizon phase (17/02/2025) the below tables cannot ber merged with cases_s78 - master table as based on the data model diagram \r\n",
+					"# that is in confluence Appeal S78, these entities are merged further on the stage of the data model.\r\n",
+					"\r\n",
+					"## TypeOfProcedure_df, Horizon_TypeOfReasonForCase_df"
+				],
+				"execution_count": 18
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					""
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
