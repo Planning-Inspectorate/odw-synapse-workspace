@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d075e001-ad97-4cd0-a4ae-88d83e6eb498"
+				"spark.autotune.trackingId": "1ba001a3-f770-42cd-8c3b-89b5e66d04e4"
 			}
 		},
 		"metadata": {
@@ -94,14 +94,14 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"from pyspark.sql import SparkSession\n",
-					"from notebookutils import mssparkutils\n",
-					"import json\n",
-					"from datetime import datetime, date\n",
-					"from pyspark.sql.functions import current_timestamp, expr, to_timestamp, lit, input_file_name\n",
-					"from pyspark.sql import DataFrame\n",
-					"from pyspark.sql.types import StructType,TimestampType\n",
-					"from pyspark.sql.functions import *\n",
+					"from pyspark.sql import SparkSession\r\n",
+					"from notebookutils import mssparkutils\r\n",
+					"import json\r\n",
+					"from datetime import datetime, date\r\n",
+					"from pyspark.sql.functions import current_timestamp, expr, to_timestamp, lit, input_file_name\r\n",
+					"from pyspark.sql import DataFrame\r\n",
+					"from pyspark.sql.types import StructType,TimestampType\r\n",
+					"from pyspark.sql.functions import *\r\n",
 					"import re"
 				],
 				"execution_count": null
@@ -120,12 +120,12 @@
 					}
 				},
 				"source": [
-					"spark: SparkSession = SparkSession.builder.getOrCreate()\n",
-					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
-					"table_name: str = f\"odw_standardised_db.sb_{entity_name.replace('-', '_')}\"\n",
-					"date_folder = datetime.now().date().strftime('%Y-%m-%d') if date_folder == '' else date_folder\n",
-					"source_path: str = f\"abfss://odw-raw@{storage_account}ServiceBus/{entity_name}/\"\n",
-					"schema = mssparkutils.notebook.run(\"/py_create_spark_schema\", 30, {\"db_name\": 'odw_standardised_db', \"entity_name\": entity_name})\n",
+					"spark: SparkSession = SparkSession.builder.getOrCreate()\r\n",
+					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\r\n",
+					"table_name: str = f\"odw_standardised_db.sb_{entity_name.replace('-', '_')}\"\r\n",
+					"date_folder = datetime.now().date().strftime('%Y-%m-%d') if date_folder == '' else date_folder\r\n",
+					"source_path: str = f\"abfss://odw-raw@{storage_account}ServiceBus/{entity_name}/\"\r\n",
+					"schema = mssparkutils.notebook.run(\"/py_create_spark_schema\", 30, {\"db_name\": 'odw_standardised_db', \"entity_name\": entity_name})\r\n",
 					"spark_schema = StructType.fromJson(json.loads(schema)) if schema != '' else ''"
 				],
 				"execution_count": null
@@ -358,31 +358,31 @@
 					}
 				},
 				"source": [
-					"@logging_to_appins\n",
-					"def read_raw_messages(filtered_paths: list[str]) -> DataFrame:\n",
-					"    \"\"\"\n",
-					"    Ingests data from service bus messages stored as json files in the raw layer\n",
-					"\n",
-					"    Args:\n",
-					"        filtered_paths: a list of file paths to ingest\n",
-					"\n",
-					"    Returns:\n",
-					"        A DataFrame of service bus messages with additional columns needed for the standardised table\n",
-					"    \"\"\"\n",
-					"    try:\n",
-					"        # Read JSON files from filtered paths\n",
-					"        df = spark.read.json(filtered_paths, schema=spark_schema)\n",
-					"        logInfo(f\"Found {df.count()} new rows.\")\n",
-					"        # Adding the standardised columns\n",
-					"        df = df.withColumn(\"expected_from\", current_timestamp())\n",
-					"        df = df.withColumn(\"expected_to\", expr(\"current_timestamp() + INTERVAL 1 DAY\"))\n",
-					"        df = df.withColumn(\"ingested_datetime\", to_timestamp(df.message_enqueued_time_utc))\n",
-					"        df = df.withColumn(\"input_file\", input_file_name())\n",
-					"\n",
-					"    except Exception as e:\n",
-					"        logError(f'Raw data not found at {source_path}, Exception is {e}')\n",
-					"        mssparkutils.notebook.exit('')\n",
-					"\n",
+					"@logging_to_appins\r\n",
+					"def read_raw_messages(filtered_paths: list[str]) -> DataFrame:\r\n",
+					"    \"\"\"\r\n",
+					"    Ingests data from service bus messages stored as json files in the raw layer\r\n",
+					"\r\n",
+					"    Args:\r\n",
+					"        filtered_paths: a list of file paths to ingest\r\n",
+					"\r\n",
+					"    Returns:\r\n",
+					"        A DataFrame of service bus messages with additional columns needed for the standardised table\r\n",
+					"    \"\"\"\r\n",
+					"    try:\r\n",
+					"        # Read JSON files from filtered paths\r\n",
+					"        df = spark.read.json(filtered_paths, schema=spark_schema)\r\n",
+					"        logInfo(f\"Found {df.count()} new rows.\")\r\n",
+					"        # Adding the standardised columns\r\n",
+					"        df = df.withColumn(\"expected_from\", current_timestamp())\r\n",
+					"        df = df.withColumn(\"expected_to\", expr(\"current_timestamp() + INTERVAL 1 DAY\"))\r\n",
+					"        df = df.withColumn(\"ingested_datetime\", to_timestamp(df.message_enqueued_time_utc))\r\n",
+					"        df = df.withColumn(\"input_file\", input_file_name())\r\n",
+					"\r\n",
+					"    except Exception as e:\r\n",
+					"        logError(f'Raw data not found at {source_path}, Exception is {e}')\r\n",
+					"        mssparkutils.notebook.exit('')\r\n",
+					"\r\n",
 					"    return df"
 				],
 				"execution_count": null
@@ -616,12 +616,14 @@
 					"collapsed": false
 				},
 				"source": [
-					"try:\n",
-					"    logInfo(f\"Appending new rows to table {table_name}\")\n",
-					"    append_df_to_table(df=df, table_name=table_name)\n",
-					"    logInfo(\"Done appending rows to table\")\n",
-					"    new_table_row_count = spark.table(table_name).count()\n",
-					"except Exception as e:\n",
+					"new_table_row_count = 0\r\n",
+					"\r\n",
+					"try:\r\n",
+					"    logInfo(f\"Appending new rows to table {table_name}\")\r\n",
+					"    append_df_to_table(df=df, table_name=table_name)\r\n",
+					"    logInfo(\"Done appending rows to table\")\r\n",
+					"    new_table_row_count = spark.table(table_name).count()\r\n",
+					"except Exception as e:\r\n",
 					"    logError(f\"Error appending rows:\\n{e}\")"
 				],
 				"execution_count": null
