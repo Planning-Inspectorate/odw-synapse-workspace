@@ -7317,6 +7317,26 @@
 			"type": "string",
 			"defaultValue": "3.4"
 		},
+		"py_unit_tests_nsip_subscription_properties_bigDataPool_referenceName": {
+			"type": "string",
+			"defaultValue": "pinssynspodw"
+		},
+		"py_unit_tests_nsip_subscription_properties_metadata_a365ComputeOptions_id": {
+			"type": "string",
+			"defaultValue": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw"
+		},
+		"py_unit_tests_nsip_subscription_properties_metadata_a365ComputeOptions_name": {
+			"type": "string",
+			"defaultValue": "pinssynspodw"
+		},
+		"py_unit_tests_nsip_subscription_properties_metadata_a365ComputeOptions_endpoint": {
+			"type": "string",
+			"defaultValue": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw"
+		},
+		"py_unit_tests_nsip_subscription_properties_metadata_a365ComputeOptions_sparkVersion": {
+			"type": "string",
+			"defaultValue": "3.4"
+		},
 		"py_unit_tests_relevant_representation_properties_bigDataPool_referenceName": {
 			"type": "string",
 			"defaultValue": "pinssynspodw"
@@ -54981,6 +55001,347 @@
 								}
 							]
 						}
+					},
+					{
+						"name": "Appeal_s78",
+						"type": "IfCondition",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@contains(pipeline().parameters.horizon_feed, 'Appeal S78')",
+								"type": "Expression"
+							},
+							"ifFalseActivities": [
+								{
+									"name": "Send Appeal_s78 disabled warning",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"policy": {
+										"secureInput": true
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "pln_utl_Send_Teams_Message",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"dataFactorySubscription": {
+												"value": "@pipeline().parameters.subscription_id",
+												"type": "Expression"
+											},
+											"dataFactoryResourceGroup": {
+												"value": "@pipeline().parameters.resource_group",
+												"type": "Expression"
+											},
+											"pipelineRunId": {
+												"value": "@pipeline().RunId",
+												"type": "Expression"
+											},
+											"teamsWebhookUrl": {
+												"value": "@pipeline().parameters.webhook_url",
+												"type": "Expression"
+											},
+											"activityName": {
+												"value": "@pipeline().Pipeline",
+												"type": "Expression"
+											},
+											"activityMessage": "Loading Horizon data",
+											"activityDuration": {
+												"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
+												"type": "Expression"
+											},
+											"activityStatus": "On Progress",
+											"Colour": {
+												"value": "@pipeline().parameters.warning_colour",
+												"type": "Expression"
+											},
+											"Image": {
+												"value": "@pipeline().parameters.warning_image",
+												"type": "Expression"
+											},
+											"Message_title": "ODW - Master pipeline warning",
+											"Message_subtitle": "Horizon Appeal S78 data load disabled"
+										}
+									}
+								},
+								{
+									"name": "Record Appeal_s78 a warning",
+									"type": "ExecutePipeline",
+									"dependsOn": [
+										{
+											"activity": "Send Appeal_s78 disabled warning",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "pln_log_to_appins",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"Stage": "Warning",
+											"PipelineName": {
+												"value": "@pipeline().Pipeline",
+												"type": "Expression"
+											},
+											"PipelineRunID": {
+												"value": "@pipeline().RunId",
+												"type": "Expression"
+											},
+											"StartTime": {
+												"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+												"type": "Expression"
+											},
+											"EndTime": {
+												"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+												"type": "Expression"
+											},
+											"ErrorMessage": "Horizon - Appeal S78 disabled",
+											"StatusMessage": "Warning",
+											"PipelineTriggerID": {
+												"value": "@pipeline().TriggerId",
+												"type": "Expression"
+											},
+											"PipelineTriggerName": {
+												"value": "@pipeline().TriggerName",
+												"type": "Expression"
+											},
+											"PipelineTriggerType": {
+												"value": "@pipeline().TriggerType",
+												"type": "Expression"
+											},
+											"PipelineTriggeredbyPipelineName": {
+												"value": "@pipeline()?.TriggeredByPipelineName",
+												"type": "Expression"
+											},
+											"PipelineTriggeredbyPipelineRunID": {
+												"value": "@pipeline()?.TriggeredByPipelineRunId",
+												"type": "Expression"
+											},
+											"ActivityType": "Pipeline",
+											"AppInsIKey": {
+												"value": "@pipeline().parameters.apps_insights_ikey",
+												"type": "Expression"
+											}
+										}
+									}
+								}
+							],
+							"ifTrueActivities": [
+								{
+									"name": "Horizon Appeal S78",
+									"type": "ExecutePipeline",
+									"dependsOn": [
+										{
+											"activity": "Record loading Appeal_s78",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "pln_main_appeal_s78",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {}
+									}
+								},
+								{
+									"name": "Send Horizon failed_copy1",
+									"type": "ExecutePipeline",
+									"dependsOn": [
+										{
+											"activity": "Horizon Appeal S78",
+											"dependencyConditions": [
+												"Failed"
+											]
+										}
+									],
+									"policy": {
+										"secureInput": true
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "pln_utl_Send_Teams_Message",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"dataFactorySubscription": {
+												"value": "@pipeline().parameters.subscription_id",
+												"type": "Expression"
+											},
+											"dataFactoryResourceGroup": {
+												"value": "@pipeline().parameters.resource_group",
+												"type": "Expression"
+											},
+											"pipelineRunId": {
+												"value": "@pipeline().RunId",
+												"type": "Expression"
+											},
+											"teamsWebhookUrl": {
+												"value": "@pipeline().parameters.webhook_url",
+												"type": "Expression"
+											},
+											"activityName": {
+												"value": "@pipeline().Pipeline",
+												"type": "Expression"
+											},
+											"activityMessage": "Horizon data failed",
+											"activityDuration": {
+												"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
+												"type": "Expression"
+											},
+											"activityStatus": "Failed",
+											"Colour": {
+												"value": "@pipeline().parameters.failed_colour",
+												"type": "Expression"
+											},
+											"Image": {
+												"value": "@pipeline().parameters.failed_image",
+												"type": "Expression"
+											},
+											"Message_title": "ODW - Horizon data failed",
+											"Message_subtitle": "Appeal S78 feed failed"
+										}
+									}
+								},
+								{
+									"name": "Record loading Appeal_s78",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"policy": {
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "pln_log_to_appins",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"Stage": "OnProgress",
+											"PipelineName": {
+												"value": "@pipeline().Pipeline",
+												"type": "Expression"
+											},
+											"PipelineRunID": {
+												"value": "@pipeline().RunId",
+												"type": "Expression"
+											},
+											"StartTime": {
+												"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+												"type": "Expression"
+											},
+											"StatusMessage": "Loading Appeal S78",
+											"PipelineTriggerID": {
+												"value": "@pipeline().TriggerId",
+												"type": "Expression"
+											},
+											"PipelineTriggerName": {
+												"value": "@pipeline().TriggerName",
+												"type": "Expression"
+											},
+											"PipelineTriggerType": {
+												"value": "@pipeline().TriggerType",
+												"type": "Expression"
+											},
+											"PipelineTriggeredbyPipelineName": {
+												"value": "@pipeline()?.TriggeredByPipelineName",
+												"type": "Expression"
+											},
+											"PipelineTriggeredbyPipelineRunID": {
+												"value": "@pipeline()?.TriggeredByPipelineRunId",
+												"type": "Expression"
+											},
+											"ActivityType": "Pipeline",
+											"AppInsIKey": {
+												"value": "@pipeline().parameters.apps_insights_ikey",
+												"type": "Expression"
+											}
+										}
+									}
+								},
+								{
+									"name": "Record completed Appeal S78",
+									"type": "ExecutePipeline",
+									"dependsOn": [
+										{
+											"activity": "Horizon Appeal S78",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "pln_log_to_appins",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"Stage": "Completion",
+											"PipelineName": {
+												"value": "@pipeline().Pipeline",
+												"type": "Expression"
+											},
+											"PipelineRunID": {
+												"value": "@pipeline().RunId",
+												"type": "Expression"
+											},
+											"StatusMessage": "Loading Appeal S78",
+											"PipelineTriggerID": {
+												"value": "@pipeline().TriggerId",
+												"type": "Expression"
+											},
+											"PipelineTriggerName": {
+												"value": "@pipeline().TriggerName",
+												"type": "Expression"
+											},
+											"PipelineTriggerType": {
+												"value": "@pipeline().TriggerType",
+												"type": "Expression"
+											},
+											"PipelineTriggeredbyPipelineName": {
+												"value": "@pipeline()?.TriggeredByPipelineName",
+												"type": "Expression"
+											},
+											"PipelineTriggeredbyPipelineRunID": {
+												"value": "@pipeline()?.TriggeredByPipelineRunId",
+												"type": "Expression"
+											},
+											"ActivityType": "Pipeline",
+											"AppInsIKey": {
+												"value": "@pipeline().parameters.apps_insights_ikey",
+												"type": "Expression"
+											}
+										}
+									}
+								}
+							]
+						}
 					}
 				],
 				"policy": {
@@ -55067,7 +55428,8 @@
 				"[concat(variables('workspaceId'), '/pipelines/pln_horizon_appeals_document_metadata')]",
 				"[concat(variables('workspaceId'), '/pipelines/pln_horizon_s62a_view_cases')]",
 				"[concat(variables('workspaceId'), '/pipelines/pln_horizon_appeals_folder')]",
-				"[concat(variables('workspaceId'), '/pipelines/pln_listed_buildings_main')]"
+				"[concat(variables('workspaceId'), '/pipelines/pln_listed_buildings_main')]",
+				"[concat(variables('workspaceId'), '/pipelines/pln_main_appeal_s78')]"
 			]
 		},
 		{
@@ -60614,6 +60976,232 @@
 			},
 			"dependsOn": [
 				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/pln_main_appeal_s78')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "Horizon_cases_s78",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pln_horizon_cases_s78",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "case_specialisms",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pln_horizon_case_specialisms",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "CaseDocumentDatesDates",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pln_horizon_CaseDocumentDatesDates",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "CaseSitestrings",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pln_horizon_CaseSiteStrings",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "BIS_AddAdditionalData",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pln_horizon_vw_BIS_AddAdditionalData",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "BIS_AdditionalFields",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pln_horizon_vw_BIS_AdditionalFields",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "Horizon_TypeOfProcedure",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pln_horizon_TypeOfProcedure",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "Horizon_TypeOfProcedure_copy1",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pln_horizon_TypeOfReasonForCase",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "py_hzn_std_final",
+						"type": "SynapseNotebook",
+						"dependsOn": [
+							{
+								"activity": "Horizon_cases_s78",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "case_specialisms",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "CaseDocumentDatesDates",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "CaseSitestrings",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "BIS_AddAdditionalData",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "BIS_AdditionalFields",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "py_hzn_standardized_s78_tables",
+								"type": "NotebookReference"
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"folder": {
+					"name": "Appeal_s78"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/pipelines/pln_horizon_cases_s78')]",
+				"[concat(variables('workspaceId'), '/pipelines/pln_horizon_case_specialisms')]",
+				"[concat(variables('workspaceId'), '/pipelines/pln_horizon_CaseDocumentDatesDates')]",
+				"[concat(variables('workspaceId'), '/pipelines/pln_horizon_CaseSiteStrings')]",
+				"[concat(variables('workspaceId'), '/pipelines/pln_horizon_vw_BIS_AddAdditionalData')]",
+				"[concat(variables('workspaceId'), '/pipelines/pln_horizon_vw_BIS_AdditionalFields')]",
+				"[concat(variables('workspaceId'), '/pipelines/pln_horizon_TypeOfProcedure')]",
+				"[concat(variables('workspaceId'), '/pipelines/pln_horizon_TypeOfReasonForCase')]",
+				"[concat(variables('workspaceId'), '/notebooks/py_hzn_standardized_s78_tables')]"
 			]
 		},
 		{
@@ -206047,7 +206635,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "aa645aea-8bf1-4543-a894-763348c8d71a"
+						"spark.autotune.trackingId": "c81bfc91-029a-4475-a5dd-c42edc04a447"
 					}
 				},
 				"metadata": {
@@ -206457,7 +207045,7 @@
 							"    else:\n",
 							"        standardised_table_def_json = mssparkutils.notebook.run('/py_get_schema_from_url', 30, {'db_name': 'odw_standardised_db', 'entity_name': definition['Source_Frequency_Folder']})\n",
 							" \n",
-							"    if not any([table.name == standardised_table_name for table in spark.catalog.listTables('odw_standardised_db')]):\n",
+							"    if not any([table.name.lower() == standardised_table_name.lower() for table in spark.catalog.listTables('odw_standardised_db')]):\n",
 							"        create_table_from_schema(standardised_table_def_json, \"odw_standardised_db\", standardised_table_name,standardised_container , standardised_path+standardised_table_name)   \n",
 							"\n",
 							"    #Check that we're dealing with delta already. If not we will convert the table first\n",
@@ -206656,7 +207244,8 @@
 							"    metrics_schema = StructType([\n",
 							"        StructField(\"file_ID\", StringType(), True),\n",
 							"        StructField(\"metric_name\", StringType(), True),\n",
-							"        StructField(\"value\", IntegerType(), True)\n",
+							"        StructField(\"value\", IntegerType(), True),\n",
+							"        StructField(\"process_name\", StringType(), True)\n",
 							"    ])\n",
 							"\n",
 							"    # Try loading the ingestion log table\n",
@@ -206691,7 +207280,7 @@
 							"    metrics_df = metrics_df.withColumn(\"process_name\", lit(process_name))\n",
 							"\n",
 							"    # Write metrics to the metrics table\n",
-							"    metrics_df.write.format(\"delta\").mode(\"overwrite\").saveAsTable(f\"logging.{metrics_table_name}\")\n",
+							"    metrics_df.write.format(\"delta\").mode(\"append\").saveAsTable(f\"logging.{metrics_table_name}\")\n",
 							"    logInfo(f\"Metrics table {metrics_table_name} updated successfully.\")\n",
 							""
 						],
@@ -213395,7 +213984,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "23dd9a98-b7ee-4a28-a904-15eef2cb1b39"
+						"spark.autotune.trackingId": "c6656943-e383-48af-afe8-c2fd5128a2b8"
 					}
 				},
 				"metadata": {
@@ -213649,6 +214238,13 @@
 							"    ,'Service bus' AS System_name\n",
 							"    ,'Appeal Representation' AS Object\n",
 							"    ,'appeal-representation' AS entity_name\n",
+							"    ,TRUE AS is_enabled\n",
+							"UNION ALL\n",
+							"SELECT\n",
+							"    28 AS System_key\n",
+							"    ,'Horizon' AS System_name\n",
+							"    ,'Appeal S78' AS Object\n",
+							"    ,CAST(NULL AS VARCHAR(500)) AS entity_name\n",
 							"    ,TRUE AS is_enabled"
 						],
 						"outputs": [],
@@ -216083,7 +216679,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "4ca0dcbe-df2c-4cf1-ad8d-74daeb2cf658"
+						"spark.autotune.trackingId": "a6f69b8b-3740-4891-a5e8-18aa6235fc0a"
 					}
 				},
 				"metadata": {
@@ -216118,10 +216714,11 @@
 						"source": [
 							"from pyspark.sql.types import IntegerType, ArrayType, StructType, StructField\r\n",
 							"from pyspark.sql import Row\r\n",
-							"from pyspark.sql.functions import *"
+							"from pyspark.sql.functions import *\r\n",
+							"from pyspark.sql import functions as F"
 						],
 						"outputs": [],
-						"execution_count": 1
+						"execution_count": 24
 					},
 					{
 						"cell_type": "code",
@@ -216142,7 +216739,7 @@
 							"incremental_key = 'AppealS78ID'"
 						],
 						"outputs": [],
-						"execution_count": 2
+						"execution_count": 25
 					},
 					{
 						"cell_type": "code",
@@ -216160,11 +216757,14 @@
 						"source": [
 							"def get_spark_df(table_name: str) -> DataFrame:\r\n",
 							"    df = spark.table(table_name)\r\n",
-							"    return df\r\n",
+							"    ## To get the most updated record for expected from\r\n",
+							"    max_date = df.agg(F.max(\"expected_from\")).collect()[0][0]\r\n",
+							"    df_filtered = df.filter(F.col(\"expected_from\") == max_date)\r\n",
+							"    return df_filtered\r\n",
 							""
 						],
 						"outputs": [],
-						"execution_count": 3
+						"execution_count": 26
 					},
 					{
 						"cell_type": "code",
@@ -216196,30 +216796,6 @@
 					},
 					{
 						"cell_type": "code",
-						"metadata": {
-							"jupyter": {
-								"source_hidden": false,
-								"outputs_hidden": false
-							},
-							"nteract": {
-								"transient": {
-									"deleting": false
-								}
-							}
-						},
-						"source": [
-							"# CaseDocumentDatesDates_df.printSchema()\r\n",
-							"\r\n",
-							"# missing columns : lpaQuestionnaireDueDate, lpaQuestionnaireSubmittedDate, proofsOfEvidenceDueDate\r\n",
-							"\r\n",
-							"CaseDocumentDatesDates_df.printSchema()\r\n",
-							""
-						],
-						"outputs": [],
-						"execution_count": 5
-					},
-					{
-						"cell_type": "code",
 						"source": [
 							"# Join all tables accordingly from the Sql QUERY PINS HAVE PROVIDED US.\r\n",
 							"final_df = hzn_cases_s78_df\r\n",
@@ -216232,7 +216808,7 @@
 							"final_df = final_df.join(vw_AdditionalFields_df, hzn_cases_s78_df.caseuniqueid == vw_AdditionalFields_df.appealrefnumber, 'left').select( final_df[\"*\"], vw_AdditionalFields_df.importantinformation)"
 						],
 						"outputs": [],
-						"execution_count": 7
+						"execution_count": 16
 					},
 					{
 						"cell_type": "code",
@@ -216241,7 +216817,7 @@
 							"final_df.write.mode(\"overwrite\").saveAsTable(\"odw_standardised_db.horizon_appeal_s78_final\")"
 						],
 						"outputs": [],
-						"execution_count": 9
+						"execution_count": 17
 					},
 					{
 						"cell_type": "code",
@@ -247972,6 +248548,395 @@
 							"select * from odw_harmonised_db.sb_s51_advice where adviceId = 25680508;\n",
 							"select * from odw_harmonised_db.nsip_s51_advice where adviceId = 25680508;\n",
 							"select * from odw_curated_db.s51_advice where adviceId = 25680508;"
+						],
+						"outputs": [],
+						"execution_count": null
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/py_unit_tests_nsip_subscription')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"folder": {
+					"name": "utils/unit-tests"
+				},
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "[parameters('py_unit_tests_nsip_subscription_properties_bigDataPool_referenceName')]",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "c9efae0d-a3a7-4ca7-8f43-a8d70772e9e9"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": true,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "[parameters('py_unit_tests_nsip_subscription_properties_metadata_a365ComputeOptions_id')]",
+						"name": "[parameters('py_unit_tests_nsip_subscription_properties_metadata_a365ComputeOptions_name')]",
+						"type": "Spark",
+						"endpoint": "[parameters('py_unit_tests_nsip_subscription_properties_metadata_a365ComputeOptions_endpoint')]",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "[parameters('py_unit_tests_nsip_subscription_properties_metadata_a365ComputeOptions_sparkVersion')]",
+						"nodeCount": 3,
+						"cores": 4,
+						"memory": 28
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"from pyspark.sql.types import *\r\n",
+							"from pyspark.sql import DataFrame\r\n",
+							"from pyspark.sql import functions as F"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"entity_name: str = 'nsip-subscription'\r\n",
+							"std_db_name: str = 'odw_standardised_db'\r\n",
+							"hrm_db_name: str = 'odw_harmonised_db'\r\n",
+							"curated_db_name: str = 'odw_curated_db'\r\n",
+							"\r\n",
+							"std_table_name: str = 'sb_nsip_subscription'\r\n",
+							"hrm_table_name: str = 'sb_nsip_subscription'\r\n",
+							"curated_table_name: str = 'nsip_subscription'"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"# import the create_spark_schema function\r\n",
+							"%run /utils/unit-tests/py_unit_tests_functions"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"#keep track of the exitCodes, if the exit code is not zero then we've had failures, we flip the boolean\r\n",
+							"exitCode: int = 0"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"data_model_columns = [\r\n",
+							"\t\"subscriptionId\",\r\n",
+							"\t\"caseReference\",\r\n",
+							"\t\"emailAddress\",\r\n",
+							"\t\"subscriptionType\",\r\n",
+							"\t\"startDate\",\r\n",
+							"\t\"endDate\",\r\n",
+							"\t\"language\",\r\n",
+							"\t\"ingest_datetime\",\r\n",
+							"\t\"expected_from\",\r\n",
+							"\t\"expected_to\",\r\n",
+							"\t\"message_id\",\r\n",
+							"\t\"message_type\",\r\n",
+							"\t\"message_enqueued_time_utc\",\r\n",
+							"\t\"input_file\"\r\n",
+							"]"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"sb_std_schema = create_spark_schema(std_db_name, entity_name)\r\n",
+							"sb_std_table_schema = spark.table(f\"{std_db_name}.{std_table_name}\").schema\r\n",
+							"\r\n",
+							"sb_hrm_schema = create_spark_schema(hrm_db_name, entity_name)\r\n",
+							"sb_hrm_table_schema = spark.table(f\"{hrm_db_name}.{hrm_table_name}\").schema\r\n",
+							"\r\n",
+							"curated_schema = create_spark_schema(curated_db_name, entity_name)\r\n",
+							"curated_table_schema = spark.table(f\"{curated_db_name}.{curated_table_name}\").schema"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"std_schema_correct: bool = test_compare_schemas(sb_std_schema, sb_std_table_schema)\r\n",
+							"exitCode += int(not std_schema_correct)\r\n",
+							"print(f\"Service bus standardised schema correct: {std_schema_correct}\\nTable: {std_db_name}.{std_table_name}\\nDifferences shown above (if any)\")\r\n",
+							"\r\n",
+							"hrm_schema_correct: bool = test_compare_schemas(sb_hrm_schema, sb_hrm_table_schema)\r\n",
+							"exitCode += int(not hrm_schema_correct)\r\n",
+							"print(f\"Service bus harmonised schema correct: {hrm_schema_correct}\\nTable: {hrm_db_name}.{hrm_table_name}\\nDifferences shown above (if any)\")\r\n",
+							"\r\n",
+							"cur_schema_correct: bool = test_compare_schemas(curated_schema, curated_table_schema)\r\n",
+							"print(f\"Curated schema correct: {cur_schema_correct}\\nTable: {curated_db_name}.{curated_table_name}\\nDifferences shown above (if any)\")\r\n",
+							"exitCode += int(not cur_schema_correct)"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"standardised_count, harmonised_count, counts_match = test_std_same_rows_hrm(std_table_name, hrm_table_name)\r\n",
+							"print(f\"Standardised Count: {standardised_count: ,}\\nHarmonised Count: {harmonised_count: ,}\\nCounts match: {counts_match}\")\r\n",
+							"\r\n",
+							"if standardised_count > harmonised_count:\r\n",
+							"    exitCode += 1\r\n",
+							"    print(f\"{standardised_count - harmonised_count} rows from Standardised are missing in Harmonised.\" )\r\n",
+							"    differentiate_std_and_hrm(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\", data_model_columns)"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"harmonised_final_count, curated_count, counts_match = test_curated_row_count(hrm_table_name, curated_table_name)\r\n",
+							"print(f\"Harmonised Final Count: {harmonised_final_count: ,}\\nCurated Count: {curated_count: ,}\\nCounts match: {counts_match}\")\r\n",
+							"exitCode += int(not counts_match)"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"  SELECT *\r\n",
+							"    FROM odw_curated_db.nsip_subscription\r\n",
+							"ORDER BY subscriptionId DESC"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### **Dive into data: Example queries** "
+						]
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"Get the latest ingestionDate per subscriptionId. Expected result: 1 row per primary id."
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"  SELECT subscriptionId, \r\n",
+							"         MAX(IngestionDate) AS latest_ingestion, \r\n",
+							"         COUNT(*) AS entries\r\n",
+							"    FROM odw_harmonised_db.sb_nsip_subscription\r\n",
+							"GROUP BY subscriptionId"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"Make sure there is not duplicate primary ids. Expected result: No result"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"  SELECT subscriptionId, COUNT(*)\r\n",
+							"    FROM odw_curated_db.nsip_subscription\r\n",
+							"GROUP BY subscriptionId\r\n",
+							"  HAVING COUNT(*) > 1;"
 						],
 						"outputs": [],
 						"execution_count": null
