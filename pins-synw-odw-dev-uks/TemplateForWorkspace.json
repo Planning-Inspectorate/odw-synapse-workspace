@@ -8377,6 +8377,26 @@
 			"type": "string",
 			"defaultValue": "3.4"
 		},
+		"schema_change_process_properties_bigDataPool_referenceName": {
+			"type": "string",
+			"defaultValue": "pinssynspodw"
+		},
+		"schema_change_process_properties_metadata_a365ComputeOptions_id": {
+			"type": "string",
+			"defaultValue": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw"
+		},
+		"schema_change_process_properties_metadata_a365ComputeOptions_name": {
+			"type": "string",
+			"defaultValue": "pinssynspodw"
+		},
+		"schema_change_process_properties_metadata_a365ComputeOptions_endpoint": {
+			"type": "string",
+			"defaultValue": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw"
+		},
+		"schema_change_process_properties_metadata_a365ComputeOptions_sparkVersion": {
+			"type": "string",
+			"defaultValue": "3.4"
+		},
 		"service-user-publish-legacy-code_properties_bigDataPool_referenceName": {
 			"type": "string",
 			"defaultValue": "pinssynspodw"
@@ -77687,7 +77707,7 @@
 			"properties": {
 				"activities": [
 					{
-						"name": "rel_7_0_1",
+						"name": "rel_8_0_1",
 						"type": "ExecutePipeline",
 						"dependsOn": [],
 						"policy": {
@@ -77696,41 +77716,7 @@
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
-								"referenceName": "rel_7_0_1",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "Rel_7_0_2",
-						"type": "ExecutePipeline",
-						"dependsOn": [],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "Rel_7_0_2",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "rel_7_0_3",
-						"type": "ExecutePipeline",
-						"dependsOn": [],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "rel_7_0_3",
+								"referenceName": "rel_8_0_1",
 								"type": "PipelineReference"
 							},
 							"waitOnCompletion": true,
@@ -77747,9 +77733,7 @@
 				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('workspaceId'), '/pipelines/rel_7_0_1')]",
-				"[concat(variables('workspaceId'), '/pipelines/Rel_7_0_2')]",
-				"[concat(variables('workspaceId'), '/pipelines/rel_7_0_3')]"
+				"[concat(variables('workspaceId'), '/pipelines/rel_8_0_1')]"
 			]
 		},
 		{
@@ -88579,6 +88563,51 @@
 			"dependsOn": [
 				"[concat(variables('workspaceId'), '/notebooks/py_delete_table')]",
 				"[concat(variables('workspaceId'), '/notebooks/nsip_subscription')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/rel_8_0_1')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "schema_change_process",
+						"type": "SynapseNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "schema_change_process",
+								"type": "NotebookReference"
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"folder": {
+					"name": "Releases/8.0.1"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/notebooks/schema_change_process')]"
 			]
 		},
 		{
@@ -115839,7 +115868,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "ec0c3091-dee3-4c5a-ada6-4c57ce641bb8"
+						"spark.autotune.trackingId": "6e96e949-74f6-4197-92dc-47b5da73b3bb"
 					}
 				},
 				"metadata": {
@@ -115937,8 +115966,8 @@
 							}
 						},
 						"source": [
-							"db_name: str = \"odw_curated_db\"\n",
-							"entity_name: str = \"appeal-s78\"\n",
+							"db_name: str = \"odw_curated_db\"\r\n",
+							"entity_name: str = \"appeal-s78\"\r\n",
 							"table_name: str = \"odw_curated_db.appeal_s78\""
 						],
 						"outputs": [],
@@ -116002,138 +116031,140 @@
 						"source": [
 							"df = spark.sql(\"\"\"\r\n",
 							"SELECT\r\n",
-							"    caseId,\r\n",
-							"    caseReference,\r\n",
-							"    submissionId,\r\n",
-							"    caseStatus,\r\n",
-							"    caseType,\r\n",
-							"    caseProcedure,\r\n",
-							"    lpaCode,\r\n",
-							"    caseOfficerId,\r\n",
-							"    inspectorId,\r\n",
-							"    allocationLevel,\r\n",
-							"    allocationBand,\r\n",
-							"    caseSpecialisms,\r\n",
-							"    caseSubmittedDate,\r\n",
-							"    caseCreatedDate,\r\n",
-							"    caseUpdatedDate,\r\n",
-							"    caseValidDate,\r\n",
-							"    caseValidationDate,\r\n",
-							"    caseValidationOutcome,\r\n",
-							"    caseValidationInvalidDetails,\r\n",
-							"    caseValidationIncompleteDetails,\r\n",
-							"    caseExtensionDate,\r\n",
-							"    caseStartedDate,\r\n",
-							"    casePublishedDate,\r\n",
-							"    linkedCaseStatus,\r\n",
-							"    leadCaseReference,\r\n",
-							"    lpaQuestionnaireDueDate,\r\n",
-							"    lpaQuestionnaireSubmittedDate,\r\n",
-							"    lpaQuestionnaireCreatedDate,\r\n",
-							"    lpaQuestionnairePublishedDate,\r\n",
-							"    lpaQuestionnaireValidationOutcome,\r\n",
-							"    lpaQuestionnaireValidationOutcomeDate,\r\n",
-							"    lpaQuestionnaireValidationDetails,\r\n",
-							"    lpaStatement,\r\n",
-							"    caseWithdrawnDate,\r\n",
-							"    caseTransferredDate,\r\n",
-							"    transferredCaseClosedDate,\r\n",
-							"    caseDecisionOutcomeDate,\r\n",
-							"    caseDecisionPublishedDate,\r\n",
-							"    caseDecisionOutcome,\r\n",
-							"    caseCompletedDate,\r\n",
-							"    enforcementNotice,\r\n",
-							"    applicationReference,\r\n",
-							"    applicationDate,\r\n",
-							"    applicationDecision,\r\n",
-							"    applicationDecisionDate,\r\n",
-							"    caseSubmissionDueDate,\r\n",
-							"    siteAddressLine1,\r\n",
-							"    siteAddressLine2,\r\n",
-							"    siteAddressTown,\r\n",
-							"    siteAddressCounty,\r\n",
-							"    siteAddressPostcode,\r\n",
-							"    siteAccessDetails,\r\n",
-							"    siteSafetyDetails,\r\n",
-							"    siteAreaSquareMetres,\r\n",
-							"    floorSpaceSquareMetres,\r\n",
-							"    isCorrectAppealType,\r\n",
-							"    isGreenBelt,\r\n",
-							"    inConservationArea,\r\n",
-							"    ownsAllLand,\r\n",
-							"    ownsSomeLand,\r\n",
-							"    knowsOtherOwners,\r\n",
-							"    knowsAllOwners,\r\n",
-							"    advertisedAppeal,\r\n",
-							"    notificationMethod,\r\n",
-							"    ownersInformed,\r\n",
-							"    originalDevelopmentDescription,\r\n",
-							"    changedDevelopmentDescription,\r\n",
-							"    newConditionDetails,\r\n",
-							"    nearbyCaseReferences,\r\n",
-							"    neighbouringSiteAddresses,\r\n",
-							"    affectedListedBuildingNumbers,\r\n",
-							"    changedListedBuildingNumbers,\r\n",
-							"    appellantCostsAppliedFor,\r\n",
-							"    lpaCostsAppliedFor,\r\n",
-							"    agriculturalHolding,\r\n",
-							"    tenantAgriculturalHolding,\r\n",
-							"    otherTenantsAgriculturalHolding,\r\n",
-							"    informedTenantsAgriculturalHolding,\r\n",
-							"    appellantProcedurePreference,\r\n",
-							"    appellantProcedurePreferenceDetails,\r\n",
-							"    appellantProcedurePreferenceDuration,\r\n",
-							"    appellantProcedurePreferenceWitnessCount,\r\n",
-							"    statusPlanningObligation,\r\n",
-							"    affectsScheduledMonument,\r\n",
-							"    hasProtectedSpecies,\r\n",
-							"    isAonbNationalLandscape,\r\n",
-							"    designatedSitesNames,\r\n",
-							"    isGypsyOrTravellerSite,\r\n",
-							"    isPublicRightOfWay,\r\n",
-							"    eiaEnvironmentalImpactSchedule,\r\n",
-							"    eiaDevelopmentDescription,\r\n",
-							"    eiaSensitiveAreaDetails,\r\n",
-							"    eiaColumnTwoThreshold,\r\n",
-							"    eiaScreeningOpinion,\r\n",
-							"    eiaRequiresEnvironmentalStatement,\r\n",
-							"    eiaCompletedEnvironmentalStatement,\r\n",
-							"    eiaConsultedBodiesDetails,\r\n",
-							"    hasStatutoryConsultees,\r\n",
-							"    hasInfrastructureLevy,\r\n",
-							"    isInfrastructureLevyFormallyAdopted,\r\n",
-							"    infrastructureLevyAdoptedDate,\r\n",
-							"    infrastructureLevyExpectedDate,\r\n",
-							"    lpaProcedurePreference,\r\n",
-							"    lpaProcedurePreferenceDetails,\r\n",
-							"    lpaProcedurePreferenceDuration,\r\n",
-							"    caseworkReason,\r\n",
-							"    developmentType,\r\n",
-							"    importantInformation,\r\n",
-							"    jurisdiction,\r\n",
-							"    redeterminedIndicator,\r\n",
-							"    dateCostsReportDespatched,\r\n",
-							"    dateNotRecoveredOrDerecovered,\r\n",
-							"    dateRecovered,\r\n",
-							"    originalCaseDecisionDate,\r\n",
-							"    targetDate,\r\n",
-							"    appellantCommentsSubmittedDate,\r\n",
-							"    appellantStatementSubmittedDate,\r\n",
-							"    finalCommentsDueDate,\r\n",
-							"    interestedPartyRepsDueDate,\r\n",
-							"    lpaCommentsSubmittedDate,\r\n",
-							"    lpaProofsSubmittedDate,\r\n",
-							"    lpaStatementSubmittedDate,\r\n",
-							"    proofsOfEvidenceDueDate,\r\n",
-							"    siteNoticesSentDate,\r\n",
-							"    statementDueDate,\r\n",
-							"    reasonForNeighbourVisits,\r\n",
-							"    numberOfResidencesNetChange,\r\n",
-							"    siteGridReferenceEasting,\r\n",
-							"    siteGridReferenceNorthing,\r\n",
-							"    siteViewableFromRoad,\r\n",
-							"    siteWithinSSSI,\r\n",
-							"    typeOfPlanningApplication\r\n",
+							"    ,caseReference\r\n",
+							"    ,caseId\r\n",
+							"    ,submissionId\r\n",
+							"    ,caseStatus\r\n",
+							"    ,caseType\r\n",
+							"    ,caseProcedure\r\n",
+							"    ,lpaCode\r\n",
+							"    ,caseOfficerId\r\n",
+							"    ,inspectorId\r\n",
+							"    ,allocationLevel\r\n",
+							"    ,allocationBand\r\n",
+							"    ,caseSpecialisms\r\n",
+							"    ,caseSubmittedDate\r\n",
+							"    ,caseCreatedDate\r\n",
+							"    ,caseUpdatedDate\r\n",
+							"    ,caseValidDate\r\n",
+							"    ,caseValidationDate\r\n",
+							"    ,caseValidationOutcome\r\n",
+							"    ,caseValidationInvalidDetails\r\n",
+							"    ,caseValidationIncompleteDetails\r\n",
+							"    ,caseExtensionDate\r\n",
+							"    ,caseStartedDate\r\n",
+							"    ,casePublishedDate\r\n",
+							"    ,linkedCaseStatus\r\n",
+							"    ,leadCaseReference\r\n",
+							"    ,lpaQuestionnaireDueDate\r\n",
+							"    ,lpaQuestionnaireSubmittedDate\r\n",
+							"    ,lpaQuestionnaireCreatedDate\r\n",
+							"    ,lpaQuestionnairePublishedDate\r\n",
+							"    ,lpaQuestionnaireValidationOutcome\r\n",
+							"    ,lpaQuestionnaireValidationOutcomeDate\r\n",
+							"    ,lpaQuestionnaireValidationDetails\r\n",
+							"    ,lpaStatement\r\n",
+							"    ,caseWithdrawnDate\r\n",
+							"    ,caseTransferredDate\r\n",
+							"    ,transferredCaseClosedDate\r\n",
+							"    ,caseDecisionOutcomeDate\r\n",
+							"    ,caseDecisionPublishedDate\r\n",
+							"    ,caseDecisionOutcome\r\n",
+							"    ,caseCompletedDate\r\n",
+							"    ,enforcementNotice\r\n",
+							"    ,applicationReference\r\n",
+							"    ,applicationDate\r\n",
+							"    ,applicationDecision\r\n",
+							"    ,applicationDecisionDate\r\n",
+							"    ,caseSubmissionDueDate\r\n",
+							"    ,siteAddressLine1\r\n",
+							"    ,siteAddressLine2\r\n",
+							"    ,siteAddressTown\r\n",
+							"    ,siteAddressCounty\r\n",
+							"    ,siteAddressPostcode\r\n",
+							"    ,siteAccessDetails\r\n",
+							"    ,siteSafetyDetails\r\n",
+							"    ,siteAreaSquareMetres\r\n",
+							"    ,floorSpaceSquareMetres\r\n",
+							"    ,isCorrectAppealType\r\n",
+							"    ,isGreenBelt\r\n",
+							"    ,inConservationArea\r\n",
+							"    ,ownsAllLand\r\n",
+							"    ,ownsSomeLand\r\n",
+							"    ,knowsOtherOwners\r\n",
+							"    ,knowsAllOwners\r\n",
+							"    ,advertisedAppeal\r\n",
+							"    ,notificationMethod\r\n",
+							"    ,ownersInformed\r\n",
+							"    ,originalDevelopmentDescription\r\n",
+							"    ,changedDevelopmentDescription\r\n",
+							"    ,newConditionDetails\r\n",
+							"    ,nearbyCaseReferences\r\n",
+							"    ,neighbouringSiteAddresses\r\n",
+							"    ,affectedListedBuildingNumbers\r\n",
+							"    ,changedListedBuildingNumbers\r\n",
+							"    ,appellantCostsAppliedFor\r\n",
+							"    ,lpaCostsAppliedFor\r\n",
+							"    ,agriculturalHolding\r\n",
+							"    ,tenantAgriculturalHolding\r\n",
+							"    ,otherTenantsAgriculturalHolding\r\n",
+							"    ,informedTenantsAgriculturalHolding\r\n",
+							"    ,appellantProcedurePreference\r\n",
+							"    ,appellantProcedurePreferenceDetails\r\n",
+							"    ,appellantProcedurePreferenceDuration\r\n",
+							"    ,appellantProcedurePreferenceWitnessCount\r\n",
+							"    ,statusPlanningObligation\r\n",
+							"    ,affectsScheduledMonument\r\n",
+							"    ,hasProtectedSpecies\r\n",
+							"    ,isAonbNationalLandscape\r\n",
+							"    ,designatedSitesNames\r\n",
+							"    ,isGypsyOrTravellerSite\r\n",
+							"    ,isPublicRightOfWay\r\n",
+							"    ,eiaEnvironmentalImpactSchedule\r\n",
+							"    ,eiaDevelopmentDescription\r\n",
+							"    ,eiaSensitiveAreaDetails\r\n",
+							"    ,eiaColumnTwoThreshold\r\n",
+							"    ,eiaScreeningOpinion\r\n",
+							"    ,eiaRequiresEnvironmentalStatement\r\n",
+							"    ,eiaCompletedEnvironmentalStatement\r\n",
+							"    ,consultedBodiesDetails\r\n",
+							"    ,hasStatutoryConsultees\r\n",
+							"    ,hasInfrastructureLevy\r\n",
+							"    ,isInfrastructureLevyFormallyAdopted\r\n",
+							"    ,infrastructureLevyAdoptedDate\r\n",
+							"    ,infrastructureLevyExpectedDate\r\n",
+							"    ,lpaProcedurePreference\r\n",
+							"    ,lpaProcedurePreferenceDetails\r\n",
+							"    ,lpaProcedurePreferenceDuration\r\n",
+							"    ,caseworkReason\r\n",
+							"    ,developmentType\r\n",
+							"    ,importantInformation\r\n",
+							"    ,jurisdiction\r\n",
+							"    ,redeterminedIndicator\r\n",
+							"    ,dateCostsReportDespatched\r\n",
+							"    ,dateNotRecoveredOrDerecovered\r\n",
+							"    ,dateRecovered\r\n",
+							"    ,originalCaseDecisionDate\r\n",
+							"    ,targetDate\r\n",
+							"    ,appellantCommentsSubmittedDate\r\n",
+							"    ,appellantStatementSubmittedDate\r\n",
+							"    ,appellantProofsSubmittedDate\r\n",
+							"    ,finalCommentsDueDate\r\n",
+							"    ,interestedPartyRepsDueDate\r\n",
+							"    ,lpaCommentsSubmittedDate\r\n",
+							"    ,lpaProofsSubmittedDate\r\n",
+							"    ,lpaStatementSubmittedDate\r\n",
+							"    ,proofsOfEvidenceDueDate\r\n",
+							"    ,siteNoticesSentDate\r\n",
+							"    ,statementDueDate\r\n",
+							"    ,reasonForNeighbourVisits\r\n",
+							"    ,numberOfResidencesNetChange\r\n",
+							"    ,siteGridReferenceEasting\r\n",
+							"    ,siteGridReferenceNorthing\r\n",
+							"    ,siteViewableFromRoad\r\n",
+							"    ,siteWithinSSSI\r\n",
+							"    ,typeOfPlanningApplication\r\n",
+							"    ,developmentType\r\n",
 							"FROM\r\n",
 							"    odw_harmonised_db.sb_appeal_s78\r\n",
 							"WHERE\r\n",
@@ -116171,7 +116202,7 @@
 							}
 						},
 						"source": [
-							"schema = mssparkutils.notebook.run(\"py_create_spark_schema\", 30, {\"db_name\": db_name, \"entity_name\": entity_name})\n",
+							"schema = mssparkutils.notebook.run(\"py_create_spark_schema\", 30, {\"db_name\": db_name, \"entity_name\": entity_name})\r\n",
 							"spark_schema = StructType.fromJson(json.loads(schema))"
 						],
 						"outputs": [],
@@ -116237,8 +116268,8 @@
 							"collapsed": false
 						},
 						"source": [
-							"logInfo(f\"Writing to {table_name}\")\n",
-							"df.write.mode(\"overwrite\").format(\"parquet\").saveAsTable(table_name)\n",
+							"logInfo(f\"Writing to {table_name}\")\r\n",
+							"df.write.mode(\"overwrite\").format(\"parquet\").saveAsTable(table_name)\r\n",
 							"logInfo(f\"Written to {table_name}\")"
 						],
 						"outputs": [],
@@ -118701,7 +118732,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "364380c6-efc2-4500-b558-90ffd5407101"
+						"spark.autotune.trackingId": "ff3cb35f-752c-4f7f-be39-242de02124b9"
 					}
 				},
 				"metadata": {
@@ -118899,9 +118930,11 @@
 							"AH.newConditionDetails                      AS newConditionDetails,\n",
 							"AH.nearbyCaseReferences                     AS nearbyCaseReferences,\n",
 							"AH.neighbouringSiteAddresses                AS neighbouringSiteAddresses,\n",
+							"AH.reasonForNeighbourVisits                 AS reasonForNeighbourVisits, \n",
 							"AH.affectedListedBuildingNumbers            AS affectedListedBuildingNumbers,\n",
 							"AH.appellantCostsAppliedFor                 AS appellantCostsAppliedFor,\n",
-							"AH.lpaCostsAppliedFor                       AS lpaCostsAppliedFor\n",
+							"AH.lpaCostsAppliedFor                       AS lpaCostsAppliedFor,\n",
+							"AH.typeOfPlanningApplication                AS typeOfPlanningApplication\n",
 							"\n",
 							"FROM odw_harmonised_db.sb_appeal_has AS AH\n",
 							"WHERE AH.IsActive = 'Y'\n",
@@ -228174,7 +228207,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "fc06d0d3-2e99-4cb6-ac06-2a321e94bdac"
+						"spark.autotune.trackingId": "478aeb20-f786-4b2c-9ff0-0567d03a33eb"
 					}
 				},
 				"metadata": {
@@ -228221,8 +228254,8 @@
 					{
 						"cell_type": "code",
 						"source": [
-							"from pyspark.sql.types import IntegerType, ArrayType, StructType, StructField\n",
-							"from pyspark.sql import Row\n",
+							"from pyspark.sql.types import IntegerType, ArrayType, StructType, StructField\r\n",
+							"from pyspark.sql import Row\r\n",
 							"from pyspark.sql.functions import *"
 						],
 						"outputs": [],
@@ -228242,13 +228275,13 @@
 							}
 						},
 						"source": [
-							"### will include horizon data in here \n",
-							"\n",
-							"service_bus_table = \"odw_harmonised_db.sb_appeal_s78\"\n",
-							"\n",
-							"spark_table_final = \"odw_harmonised_db.appeal_s78\"\n",
-							"\n",
-							"primary_key = 'caseReference'\n",
+							"### will include horizon data in here \r\n",
+							"\r\n",
+							"service_bus_table = \"odw_harmonised_db.sb_appeal_s78\"\r\n",
+							"\r\n",
+							"spark_table_final = \"odw_harmonised_db.appeal_s78\"\r\n",
+							"\r\n",
+							"primary_key = 'caseReference'\r\n",
 							"incremental_key = 'AppealS78ID'"
 						],
 						"outputs": [],
@@ -228368,7 +228401,7 @@
 							"                        ,eiaScreeningOpinion\r\n",
 							"                        ,eiaRequiresEnvironmentalStatement\r\n",
 							"                        ,eiaCompletedEnvironmentalStatement\r\n",
-							"                        ,eiaConsultedBodiesDetails\r\n",
+							"                        ,consultedBodiesDetails\r\n",
 							"                        ,hasStatutoryConsultees\r\n",
 							"                        ,hasInfrastructureLevy\r\n",
 							"                        ,isInfrastructureLevyFormallyAdopted\r\n",
@@ -228389,6 +228422,7 @@
 							"                        ,targetDate\r\n",
 							"                        ,appellantCommentsSubmittedDate\r\n",
 							"                        ,appellantStatementSubmittedDate\r\n",
+							"                        ,appellantProofsSubmittedDate\r\n",
 							"                        ,finalCommentsDueDate\r\n",
 							"                        ,interestedPartyRepsDueDate\r\n",
 							"                        ,lpaCommentsSubmittedDate\r\n",
@@ -228404,6 +228438,7 @@
 							"                        ,siteViewableFromRoad\r\n",
 							"                        ,siteWithinSSSI\r\n",
 							"                        ,typeOfPlanningApplication\r\n",
+							"                        ,developmentType\r\n",
 							"\r\n",
 							"               \r\n",
 							"                        ,Migrated\r\n",
@@ -228528,7 +228563,7 @@
 							}
 						},
 						"source": [
-							"\n",
+							"\r\n",
 							"Now need to sort internal ids, IsActive flags, and valid_to dates"
 						]
 					},
@@ -228547,25 +228582,25 @@
 							"collapsed": false
 						},
 						"source": [
-							"spark.sql(f\"\"\"\n",
-							"    CREATE OR REPLACE TEMPORARY VIEW vw_appeal_s78_calculations_base\n",
-							"        AS\n",
-							"        SELECT  \n",
-							"            row_number() OVER(PARTITION BY {primary_key} ORDER BY IngestionDate DESC) AS ReverseOrderProcessed\n",
-							"            ,row_number() OVER(ORDER BY IngestionDate asc, {primary_key} asc) AS {incremental_key}\n",
-							"            ,{primary_key}\n",
-							"            ,IngestionDate\n",
-							"            ,ValidTo\n",
-							"            ,'0' AS Migrated\n",
-							"            ,CASE row_number() OVER(PARTITION BY {primary_key} ORDER BY IngestionDate DESC)\n",
-							"                WHEN 1 THEN\n",
-							"                    'Y'\n",
-							"                ELSE\n",
-							"                    'N'\n",
-							"            END AS IsActive                \n",
-							"        FROM\n",
-							"            {spark_table_final}\n",
-							"    \"\"\")\n",
+							"spark.sql(f\"\"\"\r\n",
+							"    CREATE OR REPLACE TEMPORARY VIEW vw_appeal_s78_calculations_base\r\n",
+							"        AS\r\n",
+							"        SELECT  \r\n",
+							"            row_number() OVER(PARTITION BY {primary_key} ORDER BY IngestionDate DESC) AS ReverseOrderProcessed\r\n",
+							"            ,row_number() OVER(ORDER BY IngestionDate asc, {primary_key} asc) AS {incremental_key}\r\n",
+							"            ,{primary_key}\r\n",
+							"            ,IngestionDate\r\n",
+							"            ,ValidTo\r\n",
+							"            ,'0' AS Migrated\r\n",
+							"            ,CASE row_number() OVER(PARTITION BY {primary_key} ORDER BY IngestionDate DESC)\r\n",
+							"                WHEN 1 THEN\r\n",
+							"                    'Y'\r\n",
+							"                ELSE\r\n",
+							"                    'N'\r\n",
+							"            END AS IsActive                \r\n",
+							"        FROM\r\n",
+							"            {spark_table_final}\r\n",
+							"    \"\"\")\r\n",
 							""
 						],
 						"outputs": [],
@@ -228585,27 +228620,27 @@
 							}
 						},
 						"source": [
-							"df_calcs = spark.sql(f\"\"\"\n",
-							"                        SELECT\n",
-							"                            CurrentRow.{incremental_key}\n",
-							"                            ,CurrentRow.{primary_key} \n",
-							"                            ,CurrentRow.IngestionDate\n",
-							"                            ,COALESCE(NULLIF(CurrentRow.ValidTo,''), NextRow.IngestionDate) AS ValidTo\n",
-							"                            ,CASE\n",
-							"                                WHEN raw.{primary_key} IS NOT NULL THEN \n",
-							"                                    \"1\"\n",
-							"                                ELSE \n",
-							"                                    \"0\"\n",
-							"                            END AS Migrated\n",
-							"                            ,CurrentRow.IsActive\n",
-							"                        FROM\n",
-							"                            vw_appeal_s78_calculations_base AS CurrentRow\n",
-							"                            LEFT OUTER JOIN vw_appeal_s78_calculations_base AS NextRow\n",
-							"                                ON CurrentRow.{primary_key} = NextRow.{primary_key}\n",
-							"                                AND CurrentRow.ReverseOrderProcessed - 1 = NextRow.ReverseOrderProcessed\n",
-							"                            LEFT OUTER JOIN (SELECT DISTINCT {primary_key} FROM  odw_harmonised_db.sb_appeal_s78) AS Raw\n",
-							"                                ON CurrentRow.{primary_key} = Raw.{primary_key} \n",
-							"                            ORDER BY currentRow.ReverseOrderProcessed\n",
+							"df_calcs = spark.sql(f\"\"\"\r\n",
+							"                        SELECT\r\n",
+							"                            CurrentRow.{incremental_key}\r\n",
+							"                            ,CurrentRow.{primary_key} \r\n",
+							"                            ,CurrentRow.IngestionDate\r\n",
+							"                            ,COALESCE(NULLIF(CurrentRow.ValidTo,''), NextRow.IngestionDate) AS ValidTo\r\n",
+							"                            ,CASE\r\n",
+							"                                WHEN raw.{primary_key} IS NOT NULL THEN \r\n",
+							"                                    \"1\"\r\n",
+							"                                ELSE \r\n",
+							"                                    \"0\"\r\n",
+							"                            END AS Migrated\r\n",
+							"                            ,CurrentRow.IsActive\r\n",
+							"                        FROM\r\n",
+							"                            vw_appeal_s78_calculations_base AS CurrentRow\r\n",
+							"                            LEFT OUTER JOIN vw_appeal_s78_calculations_base AS NextRow\r\n",
+							"                                ON CurrentRow.{primary_key} = NextRow.{primary_key}\r\n",
+							"                                AND CurrentRow.ReverseOrderProcessed - 1 = NextRow.ReverseOrderProcessed\r\n",
+							"                            LEFT OUTER JOIN (SELECT DISTINCT {primary_key} FROM  odw_harmonised_db.sb_appeal_s78) AS Raw\r\n",
+							"                                ON CurrentRow.{primary_key} = Raw.{primary_key} \r\n",
+							"                            ORDER BY currentRow.ReverseOrderProcessed\r\n",
 							"                    \"\"\")"
 						],
 						"outputs": [],
@@ -228645,288 +228680,292 @@
 							"collapsed": false
 						},
 						"source": [
-							"results = spark.sql(f\"\"\"\n",
-							"                    SELECT DISTINCT \n",
-							"                        AppealS78ID\n",
-							"                        ,{primary_key}\n",
-							"                        ,caseId\n",
-							"                        ,submissionId\n",
-							"                        ,caseStatus\n",
-							"                        ,caseType\n",
-							"                        ,caseProcedure\n",
-							"                        ,lpaCode\n",
-							"                        ,caseOfficerId\n",
-							"                        ,inspectorId\n",
-							"                        ,allocationLevel\n",
-							"                        ,allocationBand\n",
-							"                        ,caseSpecialisms\n",
-							"                        ,caseSubmittedDate\n",
-							"                        ,caseCreatedDate\n",
-							"                        ,caseUpdatedDate\n",
-							"                        ,caseValidDate\n",
-							"                        ,caseValidationDate\n",
-							"                        ,caseValidationOutcome\n",
-							"                        ,caseValidationInvalidDetails\n",
-							"                        ,caseValidationIncompleteDetails\n",
-							"                        ,caseExtensionDate\n",
-							"                        ,caseStartedDate\n",
-							"                        ,casePublishedDate\n",
-							"                        ,linkedCaseStatus\n",
-							"                        ,leadCaseReference\n",
-							"                        ,lpaQuestionnaireDueDate\n",
-							"                        ,lpaQuestionnaireSubmittedDate\n",
-							"                        ,lpaQuestionnaireCreatedDate\n",
-							"                        ,lpaQuestionnairePublishedDate\n",
-							"                        ,lpaQuestionnaireValidationOutcome\n",
-							"                        ,lpaQuestionnaireValidationOutcomeDate\n",
-							"                        ,lpaQuestionnaireValidationDetails\n",
-							"                        ,lpaStatement\n",
-							"                        ,caseWithdrawnDate\n",
-							"                        ,caseTransferredDate\n",
-							"                        ,transferredCaseClosedDate\n",
-							"                        ,caseDecisionOutcomeDate\n",
-							"                        ,caseDecisionPublishedDate\n",
-							"                        ,caseDecisionOutcome\n",
-							"                        ,caseCompletedDate\n",
-							"                        ,enforcementNotice\n",
-							"                        ,applicationReference\n",
-							"                        ,applicationDate\n",
-							"                        ,applicationDecision\n",
-							"                        ,applicationDecisionDate\n",
-							"                        ,caseSubmissionDueDate\n",
-							"                        ,siteAddressLine1\n",
-							"                        ,siteAddressLine2\n",
-							"                        ,siteAddressTown\n",
-							"                        ,siteAddressCounty\n",
-							"                        ,siteAddressPostcode\n",
-							"                        ,siteAccessDetails\n",
-							"                        ,siteSafetyDetails\n",
-							"                        ,siteAreaSquareMetres\n",
-							"                        ,floorSpaceSquareMetres\n",
-							"                        ,isCorrectAppealType\n",
-							"                        ,isGreenBelt\n",
-							"                        ,inConservationArea\n",
-							"                        ,ownsAllLand\n",
-							"                        ,ownsSomeLand\n",
-							"                        ,knowsOtherOwners\n",
-							"                        ,knowsAllOwners\n",
-							"                        ,advertisedAppeal\n",
-							"                        ,notificationMethod\n",
-							"                        ,ownersInformed\n",
-							"                        ,originalDevelopmentDescription\n",
-							"                        ,changedDevelopmentDescription\n",
-							"                        ,newConditionDetails\n",
-							"                        ,nearbyCaseReferences\n",
-							"                        ,neighbouringSiteAddresses\n",
-							"                        ,affectedListedBuildingNumbers\n",
-							"                        ,changedListedBuildingNumbers\n",
-							"                        ,appellantCostsAppliedFor\n",
-							"                        ,lpaCostsAppliedFor\n",
-							"                        ,agriculturalHolding\n",
-							"                        ,tenantAgriculturalHolding\n",
-							"                        ,otherTenantsAgriculturalHolding\n",
-							"                        ,informedTenantsAgriculturalHolding\n",
-							"                        ,appellantProcedurePreference\n",
-							"                        ,appellantProcedurePreferenceDetails\n",
-							"                        ,appellantProcedurePreferenceDuration\n",
-							"                        ,appellantProcedurePreferenceWitnessCount\n",
-							"                        ,statusPlanningObligation\n",
-							"                        ,affectsScheduledMonument\n",
-							"                        ,hasProtectedSpecies\n",
-							"                        ,isAonbNationalLandscape\n",
-							"                        ,designatedSitesNames\n",
-							"                        ,isGypsyOrTravellerSite\n",
-							"                        ,isPublicRightOfWay\n",
-							"                        ,eiaEnvironmentalImpactSchedule\n",
-							"                        ,eiaDevelopmentDescription\n",
-							"                        ,eiaSensitiveAreaDetails\n",
-							"                        ,eiaColumnTwoThreshold\n",
-							"                        ,eiaScreeningOpinion\n",
-							"                        ,eiaRequiresEnvironmentalStatement\n",
-							"                        ,eiaCompletedEnvironmentalStatement\n",
-							"                        ,eiaConsultedBodiesDetails\n",
-							"                        ,hasStatutoryConsultees\n",
-							"                        ,hasInfrastructureLevy\n",
-							"                        ,isInfrastructureLevyFormallyAdopted\n",
-							"                        ,infrastructureLevyAdoptedDate\n",
-							"                        ,infrastructureLevyExpectedDate\n",
-							"                        ,lpaProcedurePreference\n",
-							"                        ,lpaProcedurePreferenceDetails\n",
-							"                        ,lpaProcedurePreferenceDuration\n",
-							"                        ,caseworkReason\n",
-							"                        ,developmentType\n",
-							"                        ,importantInformation\n",
-							"                        ,jurisdiction\n",
-							"                        ,redeterminedIndicator\n",
-							"                        ,dateCostsReportDespatched\n",
-							"                        ,dateNotRecoveredOrDerecovered\n",
-							"                        ,dateRecovered\n",
-							"                        ,originalCaseDecisionDate\n",
-							"                        ,targetDate\n",
-							"                        ,appellantCommentsSubmittedDate\n",
-							"                        ,appellantStatementSubmittedDate\n",
-							"                        ,finalCommentsDueDate\n",
-							"                        ,interestedPartyRepsDueDate\n",
-							"                        ,lpaCommentsSubmittedDate\n",
-							"                        ,lpaProofsSubmittedDate\n",
-							"                        ,lpaStatementSubmittedDate\n",
-							"                        ,proofsOfEvidenceDueDate\n",
-							"                        ,siteNoticesSentDate\n",
-							"                        ,statementDueDate\n",
-							"                        ,reasonForNeighbourVisits\n",
-							"                        ,numberOfResidencesNetChange\n",
-							"                        ,siteGridReferenceEasting\n",
-							"                        ,siteGridReferenceNorthing\n",
-							"                        ,siteViewableFromRoad\n",
-							"                        ,siteWithinSSSI\n",
-							"                        ,typeOfPlanningApplication\n",
-							"                        ,Migrated\n",
-							"                        ,ODTSourceSystem\n",
-							"                        ,IngestionDate\n",
-							"                        ,ValidTo\n",
-							"                        ,MD5(CONCAT(\n",
-							"                            IFNULL(CAST(AppealS78ID as String), '.')\n",
-							"                            ,IFNULL(CAST(caseReference as String), '.')\n",
-							"                            ,IFNULL(CAST(submissionId as String), '.')\n",
-							"                            ,IFNULL(CAST(caseStatus as String), '.')\n",
-							"                            ,IFNULL(CAST(caseType as String), '.')\n",
-							"                            ,IFNULL(CAST(caseProcedure as String), '.')\n",
-							"                            ,IFNULL(CAST(lpaCode as String), '.')\n",
-							"                            ,IFNULL(CAST(caseOfficerId as String), '.')\n",
-							"                            ,IFNULL(CAST(inspectorId as String), '.')\n",
-							"                            ,IFNULL(CAST(allocationLevel as String), '.')\n",
-							"                            ,IFNULL(CAST(allocationBand as String), '.')\n",
-							"                            ,IFNULL(CAST(caseSpecialisms as String), '.')\n",
-							"                            ,IFNULL(CAST(caseSubmittedDate as String), '.')\n",
-							"                            ,IFNULL(CAST(caseCreatedDate as String), '.')\n",
-							"                            ,IFNULL(CAST(caseUpdatedDate as String), '.')\n",
-							"                            ,IFNULL(CAST(caseValidDate as String), '.')\n",
-							"                            ,IFNULL(CAST(caseValidationDate as String), '.')\n",
-							"                            ,IFNULL(CAST(caseValidationOutcome as String), '.')\n",
-							"                            ,IFNULL(CAST(caseValidationInvalidDetails as String), '.')\n",
-							"                            ,IFNULL(CAST(caseValidationIncompleteDetails as String), '.')\n",
-							"                            ,IFNULL(CAST(caseExtensionDate as String), '.')\n",
-							"                            ,IFNULL(CAST(caseStartedDate as String), '.')\n",
-							"                            ,IFNULL(CAST(casePublishedDate as String), '.')\n",
-							"                            ,IFNULL(CAST(linkedCaseStatus as String), '.')\n",
-							"                            ,IFNULL(CAST(leadCaseReference as String), '.')\n",
-							"                            ,IFNULL(CAST(lpaQuestionnaireDueDate as String), '.')\n",
-							"                            ,IFNULL(CAST(lpaQuestionnaireSubmittedDate as String), '.')\n",
-							"                            ,IFNULL(CAST(lpaQuestionnaireCreatedDate as String), '.')\n",
-							"                            ,IFNULL(CAST(lpaQuestionnairePublishedDate as String), '.')\n",
-							"                            ,IFNULL(CAST(lpaQuestionnaireValidationOutcome as String), '.')\n",
-							"                            ,IFNULL(CAST(lpaQuestionnaireValidationOutcomeDate as String), '.')\n",
-							"                            ,IFNULL(CAST(lpaQuestionnaireValidationDetails as String), '.')\n",
-							"                            ,IFNULL(CAST(lpaStatement as String), '.')\n",
-							"                            ,IFNULL(CAST(caseWithdrawnDate as String), '.')\n",
-							"                            ,IFNULL(CAST(caseTransferredDate as String), '.')\n",
-							"                            ,IFNULL(CAST(transferredCaseClosedDate as String), '.')\n",
-							"                            ,IFNULL(CAST(caseDecisionOutcomeDate as String), '.')\n",
-							"                            ,IFNULL(CAST(caseDecisionPublishedDate as String), '.')\n",
-							"                            ,IFNULL(CAST(caseDecisionOutcome as String), '.')\n",
-							"                            ,IFNULL(CAST(caseCompletedDate as String), '.')\n",
-							"                            ,IFNULL(CAST(enforcementNotice as String), '.')\n",
-							"                            ,IFNULL(CAST(applicationReference as String), '.')\n",
-							"                            ,IFNULL(CAST(applicationDate as String), '.')\n",
-							"                            ,IFNULL(CAST(applicationDecision as String), '.')\n",
-							"                            ,IFNULL(CAST(applicationDecisionDate as String), '.')\n",
-							"                            ,IFNULL(CAST(caseSubmissionDueDate as String), '.')\n",
-							"                            ,IFNULL(CAST(siteAddressLine1 as String), '.')\n",
-							"                            ,IFNULL(CAST(siteAddressLine2 as String), '.')\n",
-							"                            ,IFNULL(CAST(siteAddressTown as String), '.')\n",
-							"                            ,IFNULL(CAST(siteAddressCounty as String), '.')\n",
-							"                            ,IFNULL(CAST(siteAddressPostcode as String), '.')\n",
-							"                            ,IFNULL(CAST(siteAccessDetails as String), '.')\n",
-							"                            ,IFNULL(CAST(siteSafetyDetails as String), '.')\n",
-							"                            ,IFNULL(CAST(siteAreaSquareMetres as String), '.')\n",
-							"                            ,IFNULL(CAST(floorSpaceSquareMetres as String), '.')\n",
-							"                            ,IFNULL(CAST(isCorrectAppealType as String), '.')\n",
-							"                            ,IFNULL(CAST(isGreenBelt as String), '.')\n",
-							"                            ,IFNULL(CAST(inConservationArea as String), '.')\n",
-							"                            ,IFNULL(CAST(ownsAllLand as String), '.')\n",
-							"                            ,IFNULL(CAST(ownsSomeLand as String), '.')\n",
-							"                            ,IFNULL(CAST(knowsOtherOwners as String), '.')\n",
-							"                            ,IFNULL(CAST(knowsAllOwners as String), '.')\n",
-							"                            ,IFNULL(CAST(advertisedAppeal as String), '.')\n",
-							"                            ,IFNULL(CAST(notificationMethod as String), '.')\n",
-							"                            ,IFNULL(CAST(ownersInformed as String), '.')\n",
-							"                            ,IFNULL(CAST(originalDevelopmentDescription as String), '.')\n",
-							"                            ,IFNULL(CAST(changedDevelopmentDescription as String), '.')\n",
-							"                            ,IFNULL(CAST(newConditionDetails as String), '.')\n",
-							"                            ,IFNULL(CAST(nearbyCaseReferences as String), '.')\n",
-							"                            ,IFNULL(CAST(neighbouringSiteAddresses as String), '.')\n",
-							"                            ,IFNULL(CAST(affectedListedBuildingNumbers as String), '.')\n",
-							"                            ,IFNULL(CAST(changedListedBuildingNumbers as String), '.')\n",
-							"                            ,IFNULL(CAST(appellantCostsAppliedFor as String), '.')\n",
-							"                            ,IFNULL(CAST(lpaCostsAppliedFor as String), '.')\n",
-							"                            ,IFNULL(CAST(agriculturalHolding as String), '.')\n",
-							"                            ,IFNULL(CAST(tenantAgriculturalHolding as String), '.')\n",
-							"                            ,IFNULL(CAST(otherTenantsAgriculturalHolding as String), '.')\n",
-							"                            ,IFNULL(CAST(informedTenantsAgriculturalHolding as String), '.')\n",
-							"                            ,IFNULL(CAST(appellantProcedurePreference as String), '.')\n",
-							"                            ,IFNULL(CAST(appellantProcedurePreferenceDetails as String), '.')\n",
-							"                            ,IFNULL(CAST(appellantProcedurePreferenceDuration as String),'.')\n",
-							"                            ,IFNULL(CAST(appellantProcedurePreferenceWitnessCount as String),'.')\n",
-							"                            ,IFNULL(CAST(statusPlanningObligation as String), '.')\n",
-							"                            ,IFNULL(CAST(affectsScheduledMonument as String), '.')\n",
-							"                            ,IFNULL(CAST(hasProtectedSpecies as String), '.')\n",
-							"                            ,IFNULL(CAST(isAonbNationalLandscape as String), '.')\n",
-							"                            ,IFNULL(CAST(designatedSitesNames as String), '.')\n",
-							"                            ,IFNULL(CAST(isGypsyOrTravellerSite as String), '.')\n",
-							"                            ,IFNULL(CAST(isPublicRightOfWay as String), '.')\n",
-							"                            ,IFNULL(CAST(eiaEnvironmentalImpactSchedule as String), '.')\n",
-							"                            ,IFNULL(CAST(eiaDevelopmentDescription as String), '.')\n",
-							"                            ,IFNULL(CAST(eiaSensitiveAreaDetails as String), '.')\n",
-							"                            ,IFNULL(CAST(eiaColumnTwoThreshold as String), '.')\n",
-							"                            ,IFNULL(CAST(eiaScreeningOpinion as String), '.')\n",
-							"                            ,IFNULL(CAST(eiaRequiresEnvironmentalStatement as String), '.')\n",
-							"                            ,IFNULL(CAST(eiaCompletedEnvironmentalStatement as String), '.')\n",
-							"                            ,IFNULL(CAST(eiaConsultedBodiesDetails as String), '.')\n",
-							"                            ,IFNULL(CAST(hasStatutoryConsultees as String), '.')\n",
-							"                            ,IFNULL(CAST(hasInfrastructureLevy as String), '.')\n",
-							"                            ,IFNULL(CAST(isInfrastructureLevyFormallyAdopted as String), '.')\n",
-							"                            ,IFNULL(CAST(infrastructureLevyAdoptedDate as String), '.')\n",
-							"                            ,IFNULL(CAST(infrastructureLevyExpectedDate as String), '.')\n",
-							"                            ,IFNULL(CAST(lpaProcedurePreference as String), '.')\n",
-							"                            ,IFNULL(CAST(lpaProcedurePreferenceDetails as String), '.')\n",
-							"                            ,IFNULL(CAST(lpaProcedurePreferenceDuration as String), '.')\n",
-							"                            ,IFNULL(CAST(caseworkReason as String), '.')\n",
-							"                            ,IFNULL(CAST(developmentType as String), '.')\n",
-							"                            ,IFNULL(CAST(importantInformation as String), '.')\n",
-							"                            ,IFNULL(CAST(jurisdiction as String), '.')\n",
-							"                            ,IFNULL(CAST(redeterminedIndicator as String), '.')\n",
-							"                            ,IFNULL(CAST(dateCostsReportDespatched as String), '.')\n",
-							"                            ,IFNULL(CAST(dateNotRecoveredOrDerecovered as String), '.')\n",
-							"                            ,IFNULL(CAST(dateRecovered as String), '.')\n",
-							"                            ,IFNULL(CAST(originalCaseDecisionDate as String), '.')\n",
-							"                            ,IFNULL(CAST(targetDate as String), '.')\n",
-							"                            ,IFNULL(CAST(appellantCommentsSubmittedDate as String), '.')\n",
-							"                            ,IFNULL(CAST(appellantStatementSubmittedDate as String), '.')\n",
-							"                            ,IFNULL(CAST(finalCommentsDueDate as String), '.')\n",
-							"                            ,IFNULL(CAST(interestedPartyRepsDueDate as String), '.')\n",
-							"                            ,IFNULL(CAST(lpaCommentsSubmittedDate as String), '.')\n",
-							"                            ,IFNULL(CAST(lpaProofsSubmittedDate as String), '.')\n",
-							"                            ,IFNULL(CAST(lpaStatementSubmittedDate as String), '.')\n",
-							"                            ,IFNULL(CAST(proofsOfEvidenceDueDate as String), '.')\n",
-							"                            ,IFNULL(CAST(siteNoticesSentDate as String), '.')\n",
-							"                            ,IFNULL(CAST(statementDueDate as String), '.')\n",
-							"                            ,IFNULL(CAST(reasonForNeighbourVisits as String), '.')\n",
-							"                            ,IFNULL(CAST(numberOfResidencesNetChange as String), '.')\n",
-							"                            ,IFNULL(CAST(siteGridReferenceEasting as String), '.')\n",
-							"                            ,IFNULL(CAST(siteGridReferenceNorthing as String), '.')\n",
-							"                            ,IFNULL(CAST(siteViewableFromRoad as String), '.')\n",
-							"                            ,IFNULL(CAST(siteWithinSSSI as String), '.')\n",
-							"                            ,IFNULL(CAST(typeOfPlanningApplication as String), '.')\n",
-							"                            ,IFNULL(CAST(Migrated as String), '.')\n",
-							"                            ,IFNULL(CAST(ODTSourceSystem as String), '.')\n",
-							"                            ,IFNULL(CAST(IngestionDate as String), '.')\n",
-							"                            ,IFNULL(CAST(ValidTo as String), '.')\n",
-							"                            )\n",
-							"                        ) AS RowID\n",
-							"                        ,IsActive\n",
-							"                    FROM \n",
-							"                        {spark_table_final}\n",
-							"                \"\"\")\n",
+							"results = spark.sql(f\"\"\"\r\n",
+							"                    SELECT DISTINCT \r\n",
+							"                        AppealS78ID\r\n",
+							"                        ,{primary_key}\r\n",
+							"                        ,caseId\r\n",
+							"                        ,submissionId\r\n",
+							"                        ,caseStatus\r\n",
+							"                        ,caseType\r\n",
+							"                        ,caseProcedure\r\n",
+							"                        ,lpaCode\r\n",
+							"                        ,caseOfficerId\r\n",
+							"                        ,inspectorId\r\n",
+							"                        ,allocationLevel\r\n",
+							"                        ,allocationBand\r\n",
+							"                        ,caseSpecialisms\r\n",
+							"                        ,caseSubmittedDate\r\n",
+							"                        ,caseCreatedDate\r\n",
+							"                        ,caseUpdatedDate\r\n",
+							"                        ,caseValidDate\r\n",
+							"                        ,caseValidationDate\r\n",
+							"                        ,caseValidationOutcome\r\n",
+							"                        ,caseValidationInvalidDetails\r\n",
+							"                        ,caseValidationIncompleteDetails\r\n",
+							"                        ,caseExtensionDate\r\n",
+							"                        ,caseStartedDate\r\n",
+							"                        ,casePublishedDate\r\n",
+							"                        ,linkedCaseStatus\r\n",
+							"                        ,leadCaseReference\r\n",
+							"                        ,lpaQuestionnaireDueDate\r\n",
+							"                        ,lpaQuestionnaireSubmittedDate\r\n",
+							"                        ,lpaQuestionnaireCreatedDate\r\n",
+							"                        ,lpaQuestionnairePublishedDate\r\n",
+							"                        ,lpaQuestionnaireValidationOutcome\r\n",
+							"                        ,lpaQuestionnaireValidationOutcomeDate\r\n",
+							"                        ,lpaQuestionnaireValidationDetails\r\n",
+							"                        ,lpaStatement\r\n",
+							"                        ,caseWithdrawnDate\r\n",
+							"                        ,caseTransferredDate\r\n",
+							"                        ,transferredCaseClosedDate\r\n",
+							"                        ,caseDecisionOutcomeDate\r\n",
+							"                        ,caseDecisionPublishedDate\r\n",
+							"                        ,caseDecisionOutcome\r\n",
+							"                        ,caseCompletedDate\r\n",
+							"                        ,enforcementNotice\r\n",
+							"                        ,applicationReference\r\n",
+							"                        ,applicationDate\r\n",
+							"                        ,applicationDecision\r\n",
+							"                        ,applicationDecisionDate\r\n",
+							"                        ,caseSubmissionDueDate\r\n",
+							"                        ,siteAddressLine1\r\n",
+							"                        ,siteAddressLine2\r\n",
+							"                        ,siteAddressTown\r\n",
+							"                        ,siteAddressCounty\r\n",
+							"                        ,siteAddressPostcode\r\n",
+							"                        ,siteAccessDetails\r\n",
+							"                        ,siteSafetyDetails\r\n",
+							"                        ,siteAreaSquareMetres\r\n",
+							"                        ,floorSpaceSquareMetres\r\n",
+							"                        ,isCorrectAppealType\r\n",
+							"                        ,isGreenBelt\r\n",
+							"                        ,inConservationArea\r\n",
+							"                        ,ownsAllLand\r\n",
+							"                        ,ownsSomeLand\r\n",
+							"                        ,knowsOtherOwners\r\n",
+							"                        ,knowsAllOwners\r\n",
+							"                        ,advertisedAppeal\r\n",
+							"                        ,notificationMethod\r\n",
+							"                        ,ownersInformed\r\n",
+							"                        ,originalDevelopmentDescription\r\n",
+							"                        ,changedDevelopmentDescription\r\n",
+							"                        ,newConditionDetails\r\n",
+							"                        ,nearbyCaseReferences\r\n",
+							"                        ,neighbouringSiteAddresses\r\n",
+							"                        ,affectedListedBuildingNumbers\r\n",
+							"                        ,changedListedBuildingNumbers\r\n",
+							"                        ,appellantCostsAppliedFor\r\n",
+							"                        ,lpaCostsAppliedFor\r\n",
+							"                        ,agriculturalHolding\r\n",
+							"                        ,tenantAgriculturalHolding\r\n",
+							"                        ,otherTenantsAgriculturalHolding\r\n",
+							"                        ,informedTenantsAgriculturalHolding\r\n",
+							"                        ,appellantProcedurePreference\r\n",
+							"                        ,appellantProcedurePreferenceDetails\r\n",
+							"                        ,appellantProcedurePreferenceDuration\r\n",
+							"                        ,appellantProcedurePreferenceWitnessCount\r\n",
+							"                        ,statusPlanningObligation\r\n",
+							"                        ,affectsScheduledMonument\r\n",
+							"                        ,hasProtectedSpecies\r\n",
+							"                        ,isAonbNationalLandscape\r\n",
+							"                        ,designatedSitesNames\r\n",
+							"                        ,isGypsyOrTravellerSite\r\n",
+							"                        ,isPublicRightOfWay\r\n",
+							"                        ,eiaEnvironmentalImpactSchedule\r\n",
+							"                        ,eiaDevelopmentDescription\r\n",
+							"                        ,eiaSensitiveAreaDetails\r\n",
+							"                        ,eiaColumnTwoThreshold\r\n",
+							"                        ,eiaScreeningOpinion\r\n",
+							"                        ,eiaRequiresEnvironmentalStatement\r\n",
+							"                        ,eiaCompletedEnvironmentalStatement\r\n",
+							"                        ,consultedBodiesDetails\r\n",
+							"                        ,hasStatutoryConsultees\r\n",
+							"                        ,hasInfrastructureLevy\r\n",
+							"                        ,isInfrastructureLevyFormallyAdopted\r\n",
+							"                        ,infrastructureLevyAdoptedDate\r\n",
+							"                        ,infrastructureLevyExpectedDate\r\n",
+							"                        ,lpaProcedurePreference\r\n",
+							"                        ,lpaProcedurePreferenceDetails\r\n",
+							"                        ,lpaProcedurePreferenceDuration\r\n",
+							"                        ,caseworkReason\r\n",
+							"                        ,developmentType\r\n",
+							"                        ,importantInformation\r\n",
+							"                        ,jurisdiction\r\n",
+							"                        ,redeterminedIndicator\r\n",
+							"                        ,dateCostsReportDespatched\r\n",
+							"                        ,dateNotRecoveredOrDerecovered\r\n",
+							"                        ,dateRecovered\r\n",
+							"                        ,originalCaseDecisionDate\r\n",
+							"                        ,targetDate\r\n",
+							"                        ,appellantCommentsSubmittedDate\r\n",
+							"                        ,appellantStatementSubmittedDate\r\n",
+							"                        ,appellantProofsSubmittedDate\r\n",
+							"                        ,finalCommentsDueDate\r\n",
+							"                        ,interestedPartyRepsDueDate\r\n",
+							"                        ,lpaCommentsSubmittedDate\r\n",
+							"                        ,lpaProofsSubmittedDate\r\n",
+							"                        ,lpaStatementSubmittedDate\r\n",
+							"                        ,proofsOfEvidenceDueDate\r\n",
+							"                        ,siteNoticesSentDate\r\n",
+							"                        ,statementDueDate\r\n",
+							"                        ,reasonForNeighbourVisits\r\n",
+							"                        ,numberOfResidencesNetChange\r\n",
+							"                        ,siteGridReferenceEasting\r\n",
+							"                        ,siteGridReferenceNorthing\r\n",
+							"                        ,siteViewableFromRoad\r\n",
+							"                        ,siteWithinSSSI\r\n",
+							"                        ,typeOfPlanningApplication\r\n",
+							"                        ,developmentType\r\n",
+							"                        ,Migrated\r\n",
+							"                        ,ODTSourceSystem\r\n",
+							"                        ,IngestionDate\r\n",
+							"                        ,ValidTo\r\n",
+							"                        ,MD5(CONCAT(\r\n",
+							"                            IFNULL(CAST(AppealS78ID as String), '.')\r\n",
+							"                            ,IFNULL(CAST(caseReference as String), '.')\r\n",
+							"                            ,IFNULL(CAST(submissionId as String), '.')\r\n",
+							"                            ,IFNULL(CAST(caseStatus as String), '.')\r\n",
+							"                            ,IFNULL(CAST(caseType as String), '.')\r\n",
+							"                            ,IFNULL(CAST(caseProcedure as String), '.')\r\n",
+							"                            ,IFNULL(CAST(lpaCode as String), '.')\r\n",
+							"                            ,IFNULL(CAST(caseOfficerId as String), '.')\r\n",
+							"                            ,IFNULL(CAST(inspectorId as String), '.')\r\n",
+							"                            ,IFNULL(CAST(allocationLevel as String), '.')\r\n",
+							"                            ,IFNULL(CAST(allocationBand as String), '.')\r\n",
+							"                            ,IFNULL(CAST(caseSpecialisms as String), '.')\r\n",
+							"                            ,IFNULL(CAST(caseSubmittedDate as String), '.')\r\n",
+							"                            ,IFNULL(CAST(caseCreatedDate as String), '.')\r\n",
+							"                            ,IFNULL(CAST(caseUpdatedDate as String), '.')\r\n",
+							"                            ,IFNULL(CAST(caseValidDate as String), '.')\r\n",
+							"                            ,IFNULL(CAST(caseValidationDate as String), '.')\r\n",
+							"                            ,IFNULL(CAST(caseValidationOutcome as String), '.')\r\n",
+							"                            ,IFNULL(CAST(caseValidationInvalidDetails as String), '.')\r\n",
+							"                            ,IFNULL(CAST(caseValidationIncompleteDetails as String), '.')\r\n",
+							"                            ,IFNULL(CAST(caseExtensionDate as String), '.')\r\n",
+							"                            ,IFNULL(CAST(caseStartedDate as String), '.')\r\n",
+							"                            ,IFNULL(CAST(casePublishedDate as String), '.')\r\n",
+							"                            ,IFNULL(CAST(linkedCaseStatus as String), '.')\r\n",
+							"                            ,IFNULL(CAST(leadCaseReference as String), '.')\r\n",
+							"                            ,IFNULL(CAST(lpaQuestionnaireDueDate as String), '.')\r\n",
+							"                            ,IFNULL(CAST(lpaQuestionnaireSubmittedDate as String), '.')\r\n",
+							"                            ,IFNULL(CAST(lpaQuestionnaireCreatedDate as String), '.')\r\n",
+							"                            ,IFNULL(CAST(lpaQuestionnairePublishedDate as String), '.')\r\n",
+							"                            ,IFNULL(CAST(lpaQuestionnaireValidationOutcome as String), '.')\r\n",
+							"                            ,IFNULL(CAST(lpaQuestionnaireValidationOutcomeDate as String), '.')\r\n",
+							"                            ,IFNULL(CAST(lpaQuestionnaireValidationDetails as String), '.')\r\n",
+							"                            ,IFNULL(CAST(lpaStatement as String), '.')\r\n",
+							"                            ,IFNULL(CAST(caseWithdrawnDate as String), '.')\r\n",
+							"                            ,IFNULL(CAST(caseTransferredDate as String), '.')\r\n",
+							"                            ,IFNULL(CAST(transferredCaseClosedDate as String), '.')\r\n",
+							"                            ,IFNULL(CAST(caseDecisionOutcomeDate as String), '.')\r\n",
+							"                            ,IFNULL(CAST(caseDecisionPublishedDate as String), '.')\r\n",
+							"                            ,IFNULL(CAST(caseDecisionOutcome as String), '.')\r\n",
+							"                            ,IFNULL(CAST(caseCompletedDate as String), '.')\r\n",
+							"                            ,IFNULL(CAST(enforcementNotice as String), '.')\r\n",
+							"                            ,IFNULL(CAST(applicationReference as String), '.')\r\n",
+							"                            ,IFNULL(CAST(applicationDate as String), '.')\r\n",
+							"                            ,IFNULL(CAST(applicationDecision as String), '.')\r\n",
+							"                            ,IFNULL(CAST(applicationDecisionDate as String), '.')\r\n",
+							"                            ,IFNULL(CAST(caseSubmissionDueDate as String), '.')\r\n",
+							"                            ,IFNULL(CAST(siteAddressLine1 as String), '.')\r\n",
+							"                            ,IFNULL(CAST(siteAddressLine2 as String), '.')\r\n",
+							"                            ,IFNULL(CAST(siteAddressTown as String), '.')\r\n",
+							"                            ,IFNULL(CAST(siteAddressCounty as String), '.')\r\n",
+							"                            ,IFNULL(CAST(siteAddressPostcode as String), '.')\r\n",
+							"                            ,IFNULL(CAST(siteAccessDetails as String), '.')\r\n",
+							"                            ,IFNULL(CAST(siteSafetyDetails as String), '.')\r\n",
+							"                            ,IFNULL(CAST(siteAreaSquareMetres as String), '.')\r\n",
+							"                            ,IFNULL(CAST(floorSpaceSquareMetres as String), '.')\r\n",
+							"                            ,IFNULL(CAST(isCorrectAppealType as String), '.')\r\n",
+							"                            ,IFNULL(CAST(isGreenBelt as String), '.')\r\n",
+							"                            ,IFNULL(CAST(inConservationArea as String), '.')\r\n",
+							"                            ,IFNULL(CAST(ownsAllLand as String), '.')\r\n",
+							"                            ,IFNULL(CAST(ownsSomeLand as String), '.')\r\n",
+							"                            ,IFNULL(CAST(knowsOtherOwners as String), '.')\r\n",
+							"                            ,IFNULL(CAST(knowsAllOwners as String), '.')\r\n",
+							"                            ,IFNULL(CAST(advertisedAppeal as String), '.')\r\n",
+							"                            ,IFNULL(CAST(notificationMethod as String), '.')\r\n",
+							"                            ,IFNULL(CAST(ownersInformed as String), '.')\r\n",
+							"                            ,IFNULL(CAST(originalDevelopmentDescription as String), '.')\r\n",
+							"                            ,IFNULL(CAST(changedDevelopmentDescription as String), '.')\r\n",
+							"                            ,IFNULL(CAST(newConditionDetails as String), '.')\r\n",
+							"                            ,IFNULL(CAST(nearbyCaseReferences as String), '.')\r\n",
+							"                            ,IFNULL(CAST(neighbouringSiteAddresses as String), '.')\r\n",
+							"                            ,IFNULL(CAST(affectedListedBuildingNumbers as String), '.')\r\n",
+							"                            ,IFNULL(CAST(changedListedBuildingNumbers as String), '.')\r\n",
+							"                            ,IFNULL(CAST(appellantCostsAppliedFor as String), '.')\r\n",
+							"                            ,IFNULL(CAST(lpaCostsAppliedFor as String), '.')\r\n",
+							"                            ,IFNULL(CAST(agriculturalHolding as String), '.')\r\n",
+							"                            ,IFNULL(CAST(tenantAgriculturalHolding as String), '.')\r\n",
+							"                            ,IFNULL(CAST(otherTenantsAgriculturalHolding as String), '.')\r\n",
+							"                            ,IFNULL(CAST(informedTenantsAgriculturalHolding as String), '.')\r\n",
+							"                            ,IFNULL(CAST(appellantProcedurePreference as String), '.')\r\n",
+							"                            ,IFNULL(CAST(appellantProcedurePreferenceDetails as String), '.')\r\n",
+							"                            ,IFNULL(CAST(appellantProcedurePreferenceDuration as String),'.')\r\n",
+							"                            ,IFNULL(CAST(appellantProcedurePreferenceWitnessCount as String),'.')\r\n",
+							"                            ,IFNULL(CAST(statusPlanningObligation as String), '.')\r\n",
+							"                            ,IFNULL(CAST(affectsScheduledMonument as String), '.')\r\n",
+							"                            ,IFNULL(CAST(hasProtectedSpecies as String), '.')\r\n",
+							"                            ,IFNULL(CAST(isAonbNationalLandscape as String), '.')\r\n",
+							"                            ,IFNULL(CAST(designatedSitesNames as String), '.')\r\n",
+							"                            ,IFNULL(CAST(isGypsyOrTravellerSite as String), '.')\r\n",
+							"                            ,IFNULL(CAST(isPublicRightOfWay as String), '.')\r\n",
+							"                            ,IFNULL(CAST(eiaEnvironmentalImpactSchedule as String), '.')\r\n",
+							"                            ,IFNULL(CAST(eiaDevelopmentDescription as String), '.')\r\n",
+							"                            ,IFNULL(CAST(eiaSensitiveAreaDetails as String), '.')\r\n",
+							"                            ,IFNULL(CAST(eiaColumnTwoThreshold as String), '.')\r\n",
+							"                            ,IFNULL(CAST(eiaScreeningOpinion as String), '.')\r\n",
+							"                            ,IFNULL(CAST(eiaRequiresEnvironmentalStatement as String), '.')\r\n",
+							"                            ,IFNULL(CAST(eiaCompletedEnvironmentalStatement as String), '.')\r\n",
+							"                            ,IFNULL(CAST(consultedBodiesDetails as String), '.')\r\n",
+							"                            ,IFNULL(CAST(hasStatutoryConsultees as String), '.')\r\n",
+							"                            ,IFNULL(CAST(hasInfrastructureLevy as String), '.')\r\n",
+							"                            ,IFNULL(CAST(isInfrastructureLevyFormallyAdopted as String), '.')\r\n",
+							"                            ,IFNULL(CAST(infrastructureLevyAdoptedDate as String), '.')\r\n",
+							"                            ,IFNULL(CAST(infrastructureLevyExpectedDate as String), '.')\r\n",
+							"                            ,IFNULL(CAST(lpaProcedurePreference as String), '.')\r\n",
+							"                            ,IFNULL(CAST(lpaProcedurePreferenceDetails as String), '.')\r\n",
+							"                            ,IFNULL(CAST(lpaProcedurePreferenceDuration as String), '.')\r\n",
+							"                            ,IFNULL(CAST(caseworkReason as String), '.')\r\n",
+							"                            ,IFNULL(CAST(developmentType as String), '.')\r\n",
+							"                            ,IFNULL(CAST(importantInformation as String), '.')\r\n",
+							"                            ,IFNULL(CAST(jurisdiction as String), '.')\r\n",
+							"                            ,IFNULL(CAST(redeterminedIndicator as String), '.')\r\n",
+							"                            ,IFNULL(CAST(dateCostsReportDespatched as String), '.')\r\n",
+							"                            ,IFNULL(CAST(dateNotRecoveredOrDerecovered as String), '.')\r\n",
+							"                            ,IFNULL(CAST(dateRecovered as String), '.')\r\n",
+							"                            ,IFNULL(CAST(originalCaseDecisionDate as String), '.')\r\n",
+							"                            ,IFNULL(CAST(targetDate as String), '.')\r\n",
+							"                            ,IFNULL(CAST(appellantCommentsSubmittedDate as String), '.')\r\n",
+							"                            ,IFNULL(CAST(appellantStatementSubmittedDate as String), '.')\r\n",
+							"                            ,IFNULL(CAST(appellantProofsSubmittedDate as String), '.')\r\n",
+							"                            ,IFNULL(CAST(finalCommentsDueDate as String), '.')\r\n",
+							"                            ,IFNULL(CAST(interestedPartyRepsDueDate as String), '.')\r\n",
+							"                            ,IFNULL(CAST(lpaCommentsSubmittedDate as String), '.')\r\n",
+							"                            ,IFNULL(CAST(lpaProofsSubmittedDate as String), '.')\r\n",
+							"                            ,IFNULL(CAST(lpaStatementSubmittedDate as String), '.')\r\n",
+							"                            ,IFNULL(CAST(proofsOfEvidenceDueDate as String), '.')\r\n",
+							"                            ,IFNULL(CAST(siteNoticesSentDate as String), '.')\r\n",
+							"                            ,IFNULL(CAST(statementDueDate as String), '.')\r\n",
+							"                            ,IFNULL(CAST(reasonForNeighbourVisits as String), '.')\r\n",
+							"                            ,IFNULL(CAST(numberOfResidencesNetChange as String), '.')\r\n",
+							"                            ,IFNULL(CAST(siteGridReferenceEasting as String), '.')\r\n",
+							"                            ,IFNULL(CAST(siteGridReferenceNorthing as String), '.')\r\n",
+							"                            ,IFNULL(CAST(siteViewableFromRoad as String), '.')\r\n",
+							"                            ,IFNULL(CAST(siteWithinSSSI as String), '.')\r\n",
+							"                            ,IFNULL(CAST(typeOfPlanningApplication as String), '.')\r\n",
+							"                            ,IFNULL(CAST(developmentType as String), '.')\r\n",
+							"                            ,IFNULL(CAST(Migrated as String), '.')\r\n",
+							"                            ,IFNULL(CAST(ODTSourceSystem as String), '.')\r\n",
+							"                            ,IFNULL(CAST(IngestionDate as String), '.')\r\n",
+							"                            ,IFNULL(CAST(ValidTo as String), '.')\r\n",
+							"                            )\r\n",
+							"                        ) AS RowID\r\n",
+							"                        ,IsActive\r\n",
+							"                    FROM \r\n",
+							"                        {spark_table_final}\r\n",
+							"                \"\"\")\r\n",
 							"    "
 						],
 						"outputs": [],
@@ -228946,8 +228985,8 @@
 							}
 						},
 						"source": [
-							"columns = results.columns\n",
-							"\n",
+							"columns = results.columns\r\n",
+							"\r\n",
 							"results = results.drop(\"AppealS78ID\", \"ValidTo\", \"Migrated\", \"IsActive\")"
 						],
 						"outputs": [],
@@ -228967,7 +229006,7 @@
 							}
 						},
 						"source": [
-							"final_df = results.join(df_calcs, (df_calcs[f\"temp_{primary_key}\"] == results[primary_key]) & (df_calcs[\"temp_IngestionDate\"] == results[\"IngestionDate\"])).select(columns).distinct()\n",
+							"final_df = results.join(df_calcs, (df_calcs[f\"temp_{primary_key}\"] == results[primary_key]) & (df_calcs[\"temp_IngestionDate\"] == results[\"IngestionDate\"])).select(columns).distinct()\r\n",
 							"final_df = final_df.drop(primary_key).drop_duplicates()"
 						],
 						"outputs": [],
@@ -270138,6 +270177,738 @@
 							"\r\n",
 							"FROM odw_standardised_db.hr_specialisms\r\n",
 							"WHERE expected_from = ${DATE_VAR}"
+						],
+						"outputs": [],
+						"execution_count": null
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/schema_change_process')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"description": "Notebook to be used to make schema changes to tables.",
+				"folder": {
+					"name": "utils"
+				},
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "[parameters('schema_change_process_properties_bigDataPool_referenceName')]",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "2c7fbc28-35a1-4a72-9194-1f06e49b473e"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": true,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "[parameters('schema_change_process_properties_metadata_a365ComputeOptions_id')]",
+						"name": "[parameters('schema_change_process_properties_metadata_a365ComputeOptions_name')]",
+						"type": "Spark",
+						"endpoint": "[parameters('schema_change_process_properties_metadata_a365ComputeOptions_endpoint')]",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "[parameters('schema_change_process_properties_metadata_a365ComputeOptions_sparkVersion')]",
+						"nodeCount": 3,
+						"cores": 4,
+						"memory": 28
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"#### Notebook to be used to make schema changes to tables\n",
+							"\n",
+							"In order to keep it simple and to run easily in test and prod environment, please hardcode the changes you need to make into this notebook and add it to a release pipeline and then post deployment."
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"from pyspark.sql.types import *"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+							"path_to_orchestration_file: str = \"abfss://odw-config@\"+storage_account+\"orchestration/orchestration.json\""
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Define functions to be used to validate schemas\n",
+							"These are copies of functions defined elsewhere but I've added them here to avoid having to run the other notebook"
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"def get_incremental_key(entity_name: str, storage_account: str, path_to_orchestration_file: str) -> str:\n",
+							"    # getting the incremental key from the odw-config/orchestration\n",
+							"    df: DataFrame = spark.read.option(\"multiline\",\"true\").json(path_to_orchestration_file)\n",
+							"    definitions: list = json.loads(df.toJSON().first())['definitions']\n",
+							"    definition: dict = next((d for d in definitions if entity_name == d['Source_Filename_Start']), None)\n",
+							"    return definition['Harmonised_Incremental_Key'] if definition and 'Harmonised_Incremental_Key' in definition else None"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"def create_spark_schema(db_name: str, entity_name: str) -> StructType:\n",
+							"    incremental_key: str = get_incremental_key(entity_name, storage_account, path_to_orchestration_file) if db_name == 'odw_harmonised_db' else None\n",
+							"    schema = mssparkutils.notebook.run(\"/py_create_spark_schema\", 30, {\"db_name\": db_name, \"entity_name\": entity_name, \"incremental_key\": incremental_key, \"is_servicebus_schema\": is_servicebus_schema})\n",
+							"    spark_schema = StructType.fromJson(json.loads(schema))\n",
+							"    return spark_schema"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Import unit test functions"
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"%run utils/unit-tests/py_unit_tests_functions"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"#### Amend appeal_has tables"
+						]
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Define table details"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"tags": []
+						},
+						"source": [
+							"std_db = \"odw_standardised_db\"\n",
+							"hrm_db = \"odw_harmonised_db\"\n",
+							"entity_name = \"appeal-has\"\n",
+							"std_table_name = \"sb_appeal_has\"\n",
+							"hrm_table_name = \"sb_appeal_has\"\n",
+							"std_full_table_name = f\"{std_db}.{std_table_name}\"\n",
+							"hrm_full_table_name = f\"{hrm_db}.{hrm_table_name}\""
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Enable column mapping on the table you want to change\n",
+							"\n",
+							"NB: only needs running the very first time on a table"
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"# standardised\n",
+							"\n",
+							"spark.sql(f\"\"\" \n",
+							"ALTER TABLE {std_full_table_name} SET TBLPROPERTIES (\n",
+							"'delta.minReaderVersion' = '2',\n",
+							"'delta.minWriterVersion' = '5',\n",
+							"'delta.columnMapping.mode' = 'name'\n",
+							")\n",
+							"\"\"\"\n",
+							")\n",
+							"\n",
+							"# harmonised\n",
+							"\n",
+							"spark.sql(f\"\"\" \n",
+							"ALTER TABLE {hrm_full_table_name} SET TBLPROPERTIES (\n",
+							"'delta.minReaderVersion' = '2',\n",
+							"'delta.minWriterVersion' = '5',\n",
+							"'delta.columnMapping.mode' = 'name'\n",
+							")\n",
+							"\"\"\"\n",
+							")"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Define the two schemas to compare"
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"# standardised\n",
+							"std_data_model_schema = create_spark_schema(std_db, entity_name)\n",
+							"std_table_schema = spark.table(std_full_table_name).schema\n",
+							"\n",
+							"# harmonised\n",
+							"hrm_data_model_schema = create_spark_schema(hrm_db, entity_name)\n",
+							"hrm_table_schema = spark.table(hrm_full_table_name).schema"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Test schemas match"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"collapsed": false
+						},
+						"source": [
+							"results = [((test_compare_schemas(std_data_model_schema, std_table_schema), test_compare_schemas(hrm_data_model_schema, hrm_table_schema)))]\n",
+							"result = spark.createDataFrame(results, schema=[\"std\", \"hrm\"])\n",
+							"result.show()"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Add a new column\n",
+							"\n",
+							"https://docs.delta.io/latest/delta-batch.html#explicitly-update-schema  \n",
+							"\n",
+							"If the column exists it will error."
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"# standardised\n",
+							"spark.sql(f\"\"\"\n",
+							"    ALTER TABLE {std_full_table_name} ADD COLUMNS (reasonForNeighbourVisits string AFTER neighbouringSiteAddresses, typeOfPlanningApplication string AFTER lpaCostsAppliedFor) \n",
+							"\"\"\")\n",
+							"\n",
+							"# harmonised\n",
+							"spark.sql(f\"\"\"\n",
+							"    ALTER TABLE {hrm_full_table_name} ADD COLUMNS (reasonForNeighbourVisits string AFTER neighbouringSiteAddresses, typeOfPlanningApplication string AFTER lpaCostsAppliedFor) \n",
+							"\"\"\")"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Re-run tests"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"collapsed": false
+						},
+						"source": [
+							"# standardised\n",
+							"std_data_model_schema = create_spark_schema(std_db, entity_name)\n",
+							"std_table_schema = spark.table(std_full_table_name).schema\n",
+							"\n",
+							"# harmonised\n",
+							"hrm_data_model_schema = create_spark_schema(hrm_db, entity_name)\n",
+							"hrm_table_schema = spark.table(hrm_full_table_name).schema\n",
+							"\n",
+							"# test again to see if schemas now match\n",
+							"results = [((test_compare_schemas(std_data_model_schema, std_table_schema), test_compare_schemas(hrm_data_model_schema, hrm_table_schema)))]\n",
+							"result = spark.createDataFrame(results, schema=[\"std\", \"hrm\"])\n",
+							"result.show()"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Set user-defined metadata"
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"# standardised\n",
+							"df = spark.table(std_full_table_name)\n",
+							"\n",
+							"df.write.format(\"delta\") \\\n",
+							"  .mode(\"overwrite\") \\\n",
+							"  .option(\"userMetadata\", \"THEODW-1648 schema changes for appeal-has\") \\\n",
+							"  .saveAsTable(std_full_table_name)\n",
+							"\n",
+							"# harmonised\n",
+							"df = spark.table(hrm_full_table_name)\n",
+							"\n",
+							"df.write.format(\"delta\") \\\n",
+							"  .mode(\"overwrite\") \\\n",
+							"  .option(\"userMetadata\", \"THEODW-1648 schema changes for appeal-has\") \\\n",
+							"  .saveAsTable(hrm_full_table_name)"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"#### Amend appeal_s78 tables"
+						]
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Define table details"
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"std_db = \"odw_standardised_db\"\n",
+							"hrm_db = \"odw_harmonised_db\"\n",
+							"entity_name = \"appeal-s78\"\n",
+							"std_table_name = \"sb_appeal_s78\"\n",
+							"hrm_table_name = \"sb_appeal_s78\"\n",
+							"std_full_table_name = f\"{std_db}.{std_table_name}\"\n",
+							"hrm_full_table_name = f\"{hrm_db}.{hrm_table_name}\""
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Enable column mapping\n",
+							"\n",
+							"NB: only needs running the very first time on a table"
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"# standardised\n",
+							"\n",
+							"spark.sql(f\"\"\" \n",
+							"ALTER TABLE {std_full_table_name} SET TBLPROPERTIES (\n",
+							"'delta.minReaderVersion' = '2',\n",
+							"'delta.minWriterVersion' = '5',\n",
+							"'delta.columnMapping.mode' = 'name'\n",
+							")\n",
+							"\"\"\"\n",
+							")\n",
+							"\n",
+							"# harmonised\n",
+							"\n",
+							"spark.sql(f\"\"\" \n",
+							"ALTER TABLE {hrm_full_table_name} SET TBLPROPERTIES (\n",
+							"'delta.minReaderVersion' = '2',\n",
+							"'delta.minWriterVersion' = '5',\n",
+							"'delta.columnMapping.mode' = 'name'\n",
+							")\n",
+							"\"\"\"\n",
+							")"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Define the two schemas to compare"
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"# standardised\n",
+							"std_data_model_schema = create_spark_schema(std_db, entity_name)\n",
+							"std_table_schema = spark.table(std_full_table_name).schema\n",
+							"\n",
+							"# harmonised\n",
+							"hrm_data_model_schema = create_spark_schema(hrm_db, entity_name)\n",
+							"hrm_table_schema = spark.table(hrm_full_table_name).schema"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Test schemas match"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"collapsed": false
+						},
+						"source": [
+							"results = [((test_compare_schemas(std_data_model_schema, std_table_schema), test_compare_schemas(hrm_data_model_schema, hrm_table_schema)))]\n",
+							"result = spark.createDataFrame(results, schema=[\"std\", \"hrm\"])\n",
+							"result.show()"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Drop a column\n",
+							"https://docs.delta.io/latest/delta-batch.html#drop-columns  "
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"# standardised\n",
+							"spark.sql(f\"\"\"\n",
+							"    ALTER TABLE {std_full_table_name} DROP COLUMN (consultedBodiesDetails) \n",
+							"\"\"\")\n",
+							"\n",
+							"# harmonised\n",
+							"spark.sql(f\"\"\"\n",
+							"    ALTER TABLE {hrm_full_table_name} DROP COLUMN (consultedBodiesDetails) \n",
+							"\"\"\")\n",
+							""
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Rename a column\n",
+							"https://docs.delta.io/latest/delta-batch.html#change-a-column-name  "
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"# standardised\n",
+							"spark.read.table(std_full_table_name) \\\n",
+							"  .withColumnRenamed(\"eiaConsultedBodiesDetails\", \"consultedBodiesDetails\") \\\n",
+							"  .write \\\n",
+							"  .format(\"delta\") \\\n",
+							"  .mode(\"overwrite\") \\\n",
+							"  .option(\"overwriteSchema\", \"true\") \\\n",
+							"  .option(\"userMetadata\", \"THEODW-1647 schema changes\") \\\n",
+							"  .saveAsTable(std_full_table_name)\n",
+							"\n",
+							"# harmonised\n",
+							"spark.read.table(hrm_full_table_name) \\\n",
+							"  .withColumnRenamed(\"eiaConsultedBodiesDetails\", \"consultedBodiesDetails\") \\\n",
+							"  .write \\\n",
+							"  .format(\"delta\") \\\n",
+							"  .mode(\"overwrite\") \\\n",
+							"  .option(\"overwriteSchema\", \"true\") \\\n",
+							"  .option(\"userMetadata\", \"THEODW-1647 schema changes\") \\\n",
+							"  .saveAsTable(hrm_full_table_name)"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Re-order a column\n",
+							"https://docs.delta.io/latest/delta-batch.html#change-column-comment-or-ordering  "
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"# standardised\n",
+							"spark.sql(f\"\"\"\n",
+							"    ALTER TABLE {std_full_table_name} ALTER COLUMN appellantProofsSubmittedDate AFTER appellantStatementSubmittedDate\n",
+							"\"\"\")\n",
+							"\n",
+							"# harmonised\n",
+							"spark.sql(f\"\"\"\n",
+							"    ALTER TABLE {hrm_full_table_name} ALTER COLUMN appellantProofsSubmittedDate AFTER appellantStatementSubmittedDate\n",
+							"\"\"\")"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Add columns"
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"# standardised\n",
+							"spark.sql(f\"\"\"\n",
+							"    ALTER TABLE {std_full_table_name} ADD COLUMNS (reasonForNeighbourVisits string AFTER neighbouringSiteAddresses, developmentType string AFTER typeOfPlanningApplication, appellantProofsSubmittedDate string AFTER appellantStatementSubmittedDate) \n",
+							"\"\"\")\n",
+							"\n",
+							"# harmonised\n",
+							"spark.sql(f\"\"\"\n",
+							"    ALTER TABLE {hrm_full_table_name} ADD COLUMNS (reasonForNeighbourVisits string AFTER neighbouringSiteAddresses, developmentType string AFTER typeOfPlanningApplication, appellantProofsSubmittedDate string AFTER appellantStatementSubmittedDate) \n",
+							"\"\"\")\n",
+							""
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Set user-defined commit metadata\n",
+							"This is useful for perhaps adding the Jira ticket reference as a reason why the changes were made.  \n",
+							"This can be run on its own, creating a new version of the table jsut with this new metadata, or it can be run as part of a rename or other pyspark command, liek above, specifying an extra option.  "
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"# standardised\n",
+							"df = spark.table(std_full_table_name)\n",
+							"\n",
+							"df.write.format(\"delta\") \\\n",
+							"  .mode(\"overwrite\") \\\n",
+							"  .option(\"userMetadata\", \"THEODW-1647 schema changes for appeal-s78\") \\\n",
+							"  .saveAsTable(std_full_table_name)\n",
+							"\n",
+							"# harmonised\n",
+							"df = spark.table(hrm_full_table_name)\n",
+							"\n",
+							"df.write.format(\"delta\") \\\n",
+							"  .mode(\"overwrite\") \\\n",
+							"  .option(\"userMetadata\", \"THEODW-1647 schema changes for appeal-s78\") \\\n",
+							"  .saveAsTable(hrm_full_table_name)"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Test schemas match after making the changes"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"collapsed": false
+						},
+						"source": [
+							"# standardised\n",
+							"std_data_model_schema = create_spark_schema(std_db, entity_name)\n",
+							"std_table_schema = spark.table(std_full_table_name).schema\n",
+							"\n",
+							"# harmonised\n",
+							"hrm_data_model_schema = create_spark_schema(hrm_db, entity_name)\n",
+							"hrm_table_schema = spark.table(hrm_full_table_name).schema\n",
+							"\n",
+							"# test again to see if schemas now match\n",
+							"results = [((test_compare_schemas(std_data_model_schema, std_table_schema), test_compare_schemas(hrm_data_model_schema, hrm_table_schema)))]\n",
+							"result = spark.createDataFrame(results, schema=[\"std\", \"hrm\"])\n",
+							"result.show()"
 						],
 						"outputs": [],
 						"execution_count": null
