@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "12a46b0e-13ad-4e11-90e2-890e51236f32"
+				"spark.autotune.trackingId": "7f17fadb-eb93-4018-a553-ffc18957a2d4"
 			}
 		},
 		"metadata": {
@@ -67,7 +67,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 2
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -76,7 +76,7 @@
 					"from pyspark.sql import Row\n",
 					"from pyspark.sql.functions import *"
 				],
-				"execution_count": 3
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -94,9 +94,22 @@
 				"source": [
 					"service_bus_table = \"odw_harmonised_db.sb_s51_advice\"\n",
 					"horizon_table = \"odw_standardised_db.horizon_nsip_advice\"\n",
-					"spark_table_final = \"odw_harmonised_db.nsip_s51_advice\""
+					"spark_table_final = \"odw_harmonised_db.nsip_s51_advice\"\n",
+					"horizon_primary_key = \"advicenodeid\"\n",
+					"servicebus_primary_key = \"adviceId\""
 				],
-				"execution_count": 4
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"servicebus_df = spark.table(service_bus_table)\n",
+					"horizon_df = spark.table(horizon_table)\n",
+					"horizon_latest_df = spark.sql(f\"select * from {horizon_table} where ingested_datetime = (select max(ingested_datetime) from {horizon_table})\")\n",
+					"horizon_deleted = horizon_df.join(horizon_latest_df, on=horizon_primary_key, how=\"left_anti\").select(horizon_primary_key).distinct()\n",
+					"harmonised_df = spark.table(spark_table_final)"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -161,7 +174,7 @@
 					"\n",
 					"                    \"\"\")"
 				],
-				"execution_count": 5
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -239,7 +252,7 @@
 					"\n",
 					"                \"\"\")"
 				],
-				"execution_count": 6
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -262,7 +275,7 @@
 					"# sort columns into same order as service bus\n",
 					"horizon_data = horizon_data.select(service_bus_data.columns)"
 				],
-				"execution_count": 7
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -280,7 +293,7 @@
 				"source": [
 					"results = service_bus_data.union(horizon_data)"
 				],
-				"execution_count": 8
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -300,7 +313,7 @@
 					"results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\n",
 					"logInfo(f\"Written {spark_table_final}\")"
 				],
-				"execution_count": 9
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -328,9 +341,6 @@
 							"deleting": false
 						}
 					},
-					"microsoft": {
-						"language": "sparksql"
-					},
 					"collapsed": false
 				},
 				"source": [
@@ -353,7 +363,67 @@
 					"FROM\n",
 					"    odw_harmonised_db.nsip_s51_advice"
 				],
-				"execution_count": 10
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"# %%sql\n",
+					"# CREATE OR REPLACE TEMPORARY VIEW vw_nsip_s51_advice_calculations_base\n",
+					"# AS\n",
+					"#     with servicebus as \n",
+					"#     (\n",
+					"#         SELECT \n",
+					"#             adviceId,\n",
+					"#             adviceReference,\n",
+					"#             CASE \n",
+					"#                 WHEN COUNT(CASE WHEN IsActive = 'Y' THEN 1 END) = 0 THEN 'N' \n",
+					"#                 ELSE 'Y' \n",
+					"#             END AS IsActive\n",
+					"#         FROM odw_harmonised_db.sb_s51_advice\n",
+					"#         GROUP BY adviceId, adviceReference\n",
+					"#     ),\n",
+					"\n",
+					"#     base AS (\n",
+					"#         SELECT  \n",
+					"#             row_number() OVER (PARTITION BY adviceid ORDER BY IngestionDate DESC) AS ReverseOrderProcessed,\n",
+					"#             row_number() OVER (ORDER BY IngestionDate ASC, adviceid ASC) AS NSIPAdviceID,\n",
+					"#             adviceid,\n",
+					"#             IngestionDate,\n",
+					"#             ValidTo,\n",
+					"#             '0' AS Migrated,\n",
+					"#             CASE \n",
+					"#                 WHEN row_number() OVER (PARTITION BY adviceid ORDER BY IngestionDate DESC) = 1 \n",
+					"#                 THEN 'Y' \n",
+					"#                 ELSE 'N' \n",
+					"#             END AS IsActive                \n",
+					"#         FROM odw_harmonised_db.nsip_s51_advice\n",
+					"#         )\n",
+					"\n",
+					"#         SELECT base.ReverseOrderProcessed,\n",
+					"#         base.NSIPAdviceID,\n",
+					"#         base.adviceId,\n",
+					"#         base.IngestionDate,\n",
+					"#         base.ValidTo,\n",
+					"#         base.Migrated,\n",
+					"#         servicebus.IsActive as IsActive\n",
+					"#         FROM base\n",
+					"#         LEFT JOIN servicebus\n",
+					"#         ON base.adviceId = servicebus.adviceId"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -392,7 +462,7 @@
 					"                            ORDER BY currentRow.ReverseOrderProcessed\n",
 					"                    \"\"\")"
 				],
-				"execution_count": 11
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -411,7 +481,7 @@
 					"df_calcs =df_calcs.withColumnRenamed(\"adviceid\", \"temp_adviceid\").withColumnRenamed(\"IngestionDate\", \"temp_IngestionDate\")\n",
 					""
 				],
-				"execution_count": 12
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -509,7 +579,7 @@
 					"        {spark_table_final}\"\"\")\n",
 					"    "
 				],
-				"execution_count": 13
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -528,7 +598,7 @@
 					"columns = results.columns\n",
 					"results = results.drop(\"NSIPAdviceID\", \"ValidTo\", \"Migrated\", \"IsActive\")"
 				],
-				"execution_count": 14
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -549,7 +619,43 @@
 					"logInfo(f\"Dropping duplicates from {spark_table_final}\")\n",
 					"final_df = final_df.drop_duplicates()"
 				],
-				"execution_count": 15
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Remove deleted Horizon data and clean up flags"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Get deleted primary keys into a list\n",
+					"deleted_ids = [row[0] for row in horizon_deleted.collect()]\n",
+					"\n",
+					"# Set IsActive to N if the primary key has been deleted from Horizon\n",
+					"hrm_updated = final_df.withColumn(\n",
+					"    \"IsActive\", when(col(\"adviceId\").isin(deleted_ids), \"N\").otherwise(col(\"IsActive\"))\n",
+					")\n",
+					"\n",
+					"# Set ValidTo to null if IsActive = Y\n",
+					"hrm_updated = hrm_updated.withColumn(\n",
+					"    \"ValidTo\", when(col(\"IsActive\") == \"Y\", None).otherwise(col(\"ValidTo\"))\n",
+					")\n",
+					"\n",
+					"# Set ValidTo if IsActive = N to the IngestionDate + 1 day\n",
+					"hrm_final = hrm_updated.withColumn(\n",
+					"    \"ValidTo\", when((col(\"ValidTo\").isNull()) & (col(\"IsActive\") == \"N\"), date_add(col(\"IngestionDate\"), 1).cast(\"timestamp\")).otherwise(col(\"ValidTo\"))\n",
+					")"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -566,10 +672,10 @@
 				},
 				"source": [
 					"logInfo(f\"Writing to final {spark_table_final}\")\n",
-					"final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\n",
+					"hrm_final.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\n",
 					"logInfo(f\"Written to final {spark_table_final}\")"
 				],
-				"execution_count": 16
+				"execution_count": null
 			}
 		]
 	}
