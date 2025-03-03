@@ -7957,6 +7957,26 @@
 			"type": "string",
 			"defaultValue": "3.4"
 		},
+		"py_utils_get_tables_metadata_properties_bigDataPool_referenceName": {
+			"type": "string",
+			"defaultValue": "pinssynspodw"
+		},
+		"py_utils_get_tables_metadata_properties_metadata_a365ComputeOptions_id": {
+			"type": "string",
+			"defaultValue": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw"
+		},
+		"py_utils_get_tables_metadata_properties_metadata_a365ComputeOptions_name": {
+			"type": "string",
+			"defaultValue": "pinssynspodw"
+		},
+		"py_utils_get_tables_metadata_properties_metadata_a365ComputeOptions_endpoint": {
+			"type": "string",
+			"defaultValue": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw"
+		},
+		"py_utils_get_tables_metadata_properties_metadata_a365ComputeOptions_sparkVersion": {
+			"type": "string",
+			"defaultValue": "3.4"
+		},
 		"py_utils_log_stage_properties_bigDataPool_referenceName": {
 			"type": "string",
 			"defaultValue": "pinssynspodw"
@@ -206893,7 +206913,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "c81bfc91-029a-4475-a5dd-c42edc04a447"
+						"spark.autotune.trackingId": "5b3a3cc1-5eda-4fe0-8ad3-b9cf34d3a933"
 					}
 				},
 				"metadata": {
@@ -207418,41 +207438,45 @@
 							"    rows_new = standardised_table_df.filter((standardised_table_df.expected_from == expected_from) &  (standardised_table_df.expected_to == expected_to)).count()\n",
 							"\n",
 							"\n",
-							"    ### Define schema for the ingestion log table with all required columns\n",
-							"    ingestion_log_schema_loc = \"abfss://odw-config@\" + storage_account + \"tables_logs.json\"\n",
-							"    ingestion_log_schema = spark.read.text(ingestion_log_schema_loc, wholetext=True).first().value\n",
-							"\n",
-							"    ### Try loading the ingestion log table, if it exists\n",
 							"    try:\n",
-							"        ingestion_log_df = spark.read.format(\"delta\").load(ingestion_log_table_location)\n",
-							"        table_exists = True\n",
+							"        ### Define schema for the ingestion log table with all required columns\n",
+							"        ingestion_log_schema_loc = \"abfss://odw-config@\" + storage_account + \"tables_logs.json\"\n",
+							"        ingestion_log_schema = spark.read.text(ingestion_log_schema_loc, wholetext=True).first().value\n",
+							"\n",
+							"        ### Try loading the ingestion log table, if it exists\n",
+							"        try:\n",
+							"            ingestion_log_df = spark.read.format(\"delta\").load(ingestion_log_table_location)\n",
+							"            table_exists = True\n",
+							"        except Exception as e:\n",
+							"            logInfo(f\"Ingestion log table not found at {ingestion_log_table_location}. Creating a new one.\")\n",
+							"            table_exists = False\n",
+							"\n",
+							"        ### Extract a single row with the logging columns\n",
+							"        new_log_entry = sparkDF.select(\n",
+							"            \"file_ID\",\n",
+							"            \"ingested_datetime\",\n",
+							"            \"ingested_by_process_name\",\n",
+							"            \"input_file\",\n",
+							"            \"modified_datetime\",\n",
+							"            \"modified_by_process_name\",\n",
+							"            \"entity_name\"\n",
+							"        ).limit(1)\n",
+							"\n",
+							"        new_log_entry = new_log_entry.withColumn(\"rows_raw\", lit(sparkDF.count()))\n",
+							"        new_log_entry = new_log_entry.withColumn(\"rows_new\", lit(standardised_table_df.filter((standardised_table_df.expected_from == expected_from) &  (standardised_table_df.expected_to == expected_to)).count()))\n",
+							"\n",
+							"\n",
+							"        if not table_exists:\n",
+							"            # Create the table\n",
+							"            new_log_entry.write.format(\"delta\").option(\"path\", ingestion_log_table_location).saveAsTable(f\"logging.{logging_table_name}\")\n",
+							"            logInfo(f\"Updating ingestion logging table {logging_table_name} with first entry.\")\n",
+							"        else:\n",
+							"            # Appending log entry to existing table - using the catalog directly\n",
+							"            new_log_entry.write.format(\"delta\").mode(\"append\").saveAsTable(f\"logging.{logging_table_name}\")\n",
+							"            logInfo(\"Appended to existing ingestion logging table with new entry\")\n",
+							"    \n",
 							"    except Exception as e:\n",
-							"        logInfo(f\"Ingestion log table not found at {ingestion_log_table_location}. Creating a new one.\")\n",
-							"        table_exists = False\n",
-							"\n",
-							"    ### Extract a single row with the logging columns\n",
-							"    new_log_entry = sparkDF.select(\n",
-							"        \"file_ID\",\n",
-							"        \"ingested_datetime\",\n",
-							"        \"ingested_by_process_name\",\n",
-							"        \"input_file\",\n",
-							"        \"modified_datetime\",\n",
-							"        \"modified_by_process_name\",\n",
-							"        \"entity_name\"\n",
-							"    ).limit(1)\n",
-							"\n",
-							"    new_log_entry = new_log_entry.withColumn(\"rows_raw\", lit(sparkDF.count()))\n",
-							"    new_log_entry = new_log_entry.withColumn(\"rows_new\", lit(standardised_table_df.filter((standardised_table_df.expected_from == expected_from) &  (standardised_table_df.expected_to == expected_to)).count()))\n",
-							"\n",
-							"\n",
-							"    if not table_exists:\n",
-							"        # Create the table\n",
-							"        new_log_entry.write.format(\"delta\").option(\"path\", ingestion_log_table_location).saveAsTable(f\"logging.{logging_table_name}\")\n",
-							"        logInfo(f\"Updating ingestion logging table {logging_table_name} with first entry.\")\n",
-							"    else:\n",
-							"        # Appending log entry to existing table - using the catalog directly\n",
-							"        new_log_entry.write.format(\"delta\").mode(\"append\").saveAsTable(f\"logging.{logging_table_name}\")\n",
-							"        logInfo(\"Appended to existing ingestion logging table with new entry\")\n",
+							"        logInfo('Logging to tables_logs failed')\n",
 							"\n",
 							"    ### Test correct number of rows have written\n",
 							"    if rows_raw <= rows_new:\n",
@@ -263384,6 +263408,126 @@
 						],
 						"outputs": [],
 						"execution_count": null
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/py_utils_get_tables_metadata')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"folder": {
+					"name": "utils"
+				},
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "[parameters('py_utils_get_tables_metadata_properties_bigDataPool_referenceName')]",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "63696c3d-0c82-45ed-b4ed-e2c40fcf2601"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": false,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "[parameters('py_utils_get_tables_metadata_properties_metadata_a365ComputeOptions_id')]",
+						"name": "[parameters('py_utils_get_tables_metadata_properties_metadata_a365ComputeOptions_name')]",
+						"type": "Spark",
+						"endpoint": "[parameters('py_utils_get_tables_metadata_properties_metadata_a365ComputeOptions_endpoint')]",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "[parameters('py_utils_get_tables_metadata_properties_metadata_a365ComputeOptions_sparkVersion')]",
+						"nodeCount": 3,
+						"cores": 4,
+						"memory": 28
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "code",
+						"metadata": {
+							"collapsed": false
+						},
+						"source": [
+							"def get_metadata(db_name, table_name):\n",
+							"    df = spark.sql(f\"DESCRIBE FORMATTED {db_name}.{table_name}\")\n",
+							"\n",
+							"    # Convert to dictionary\n",
+							"    metadata = (\n",
+							"        df.filter(df.col_name.isin(\"Type\", \"Provider\", \"Location\"))\n",
+							"        .rdd.map(lambda row: (row[\"col_name\"], row[\"data_type\"]))\n",
+							"        .collectAsMap()\n",
+							"    )\n",
+							"\n",
+							"    return {\n",
+							"        \"type\": metadata.get(\"Type\"),\n",
+							"        \"format\": metadata.get(\"Provider\"),\n",
+							"        \"location\": metadata.get(\"Location\"),\n",
+							"        \"db_name\": db_name,\n",
+							"        \"table_name\": table_name\n",
+							"    }"
+						],
+						"outputs": [],
+						"execution_count": 1
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"databases: list = spark.catalog.listDatabases()\n",
+							"\n",
+							"metadata_list: list = []\n",
+							"\n",
+							"for db in databases:\n",
+							"    tables: list = spark.catalog.listTables(db.name)\n",
+							"    for table in tables:\n",
+							"        metadata_list.append(get_metadata(db.name, table.name))"
+						],
+						"outputs": [],
+						"execution_count": 8
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"final_df = spark.createDataFrame(metadata_list)\n",
+							"final_df = final_df.filter(\"type != 'VIEW'\")"
+						],
+						"outputs": [],
+						"execution_count": 9
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"collapsed": false
+						},
+						"source": [
+							"display(final_df.orderBy('db_name', 'table_name'))"
+						],
+						"outputs": [],
+						"execution_count": 10
 					}
 				]
 			},
