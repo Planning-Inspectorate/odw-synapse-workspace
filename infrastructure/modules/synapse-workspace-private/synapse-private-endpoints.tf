@@ -156,7 +156,7 @@ resource "azurerm_synapse_managed_private_endpoint" "synapse_mpe_appeals_bo_sb" 
 # private endpoints in tooling
 
 resource "azurerm_private_endpoint" "synapse_development_tooling" {
-  name                = "pins-pe-syn-devops-${local.resource_suffix}"
+  name                = "pins-pe-syn-devops-tooling-${local.resource_suffix}"
   resource_group_name = var.network_resource_group_name
   location            = var.location
   subnet_id           = var.synapse_private_endpoint_vnet_subnets[var.synapse_private_endpoint_subnet_name]
@@ -177,7 +177,7 @@ resource "azurerm_private_endpoint" "synapse_development_tooling" {
 }
 
 resource "azurerm_private_endpoint" "synapse_workspace_tooling" {
-  name                = "pins-pe-syn-ws-${local.resource_suffix}"
+  name                = "pins-pe-syn-ws-tooling-${local.resource_suffix}"
   resource_group_name = var.network_resource_group_name
   location            = var.location
   subnet_id           = var.synapse_private_endpoint_vnet_subnets[var.synapse_private_endpoint_subnet_name]
