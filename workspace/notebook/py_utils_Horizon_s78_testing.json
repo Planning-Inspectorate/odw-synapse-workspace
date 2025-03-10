@@ -7,7 +7,7 @@
 		"nbformat": 4,
 		"nbformat_minor": 2,
 		"bigDataPool": {
-			"referenceName": "pinssynspodwpr",
+			"referenceName": "pinssynspodw",
 			"type": "BigDataPoolReference"
 		},
 		"sessionProperties": {
@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "a22a87f3-f8d1-47b5-8156-37aac0bf27a9"
+				"spark.autotune.trackingId": "a935c62f-1bd8-4841-ab48-9fb5cff1f315"
 			}
 		},
 		"metadata": {
@@ -34,15 +34,15 @@
 				"name": "python"
 			},
 			"a365ComputeOptions": {
-				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodwpr",
-				"name": "pinssynspodwpr",
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
 				"type": "Spark",
-				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodwpr",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
 				"auth": {
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.3",
+				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 28,
@@ -60,7 +60,7 @@
 					"from pyspark.sql import functions as F\r\n",
 					"import pprint"
 				],
-				"execution_count": 37
+				"execution_count": 63
 			},
 			{
 				"cell_type": "markdown",
@@ -104,7 +104,7 @@
 					"    return df_hzn_1.count(), df_hzn_2.count(), df_hzn_1.count() == df_hzn_2.count()\r\n",
 					""
 				],
-				"execution_count": 38
+				"execution_count": 16
 			},
 			{
 				"cell_type": "code",
@@ -146,7 +146,7 @@
 					"\r\n",
 					""
 				],
-				"execution_count": 39
+				"execution_count": 17
 			},
 			{
 				"cell_type": "code",
@@ -164,16 +164,16 @@
 				"source": [
 					"def check_dupl_records(hzn_table:str, primary_k:str)->True:\r\n",
 					"        df: Dataframe = spark.sql(f\"\"\"\r\n",
-					"                                SELECT 1\r\n",
+					"                                SELECT distinct 1\r\n",
 					"                                FROM odw_standardised_db.{hzn_table}\r\n",
 					"                                GROUP BY {primary_k}\r\n",
-					"                                HAVING COUNT(*) > 1\r\n",
+					"                                HAVING COUNT(*) > 1 \r\n",
 					"                                Limit 1\r\n",
 					"                            \"\"\")\r\n",
 					"        # If df is empty, no duplicates; otherwise, duplicates exist\r\n",
 					"        return  df.count() != 0"
 				],
-				"execution_count": 40
+				"execution_count": 18
 			},
 			{
 				"cell_type": "code",
@@ -199,7 +199,7 @@
 					"print('Does typeofprocedure have duplicates?:',check_dupl_records('typeofprocedure','Name'))\r\n",
 					"print('Does horizon_typeofreasonforcase have duplicates?:',check_dupl_records('horizon_typeofreasonforcase','Id'))"
 				],
-				"execution_count": 41
+				"execution_count": 19
 			},
 			{
 				"cell_type": "markdown",
@@ -224,7 +224,7 @@
 					}
 				},
 				"source": [
-					"We are going to take casereference = 'APP/B3030/W/17/3184391'  from horizon_cases_s78 and check if records exists in the following tables. Each table I am checking I am using their primary key to check accordingly."
+					"We are going to take casereference = 'APP/B3030/W/17/3184391' or  'APP/L2630/W/16/3155500'from horizon_cases_s78 and check if records exists in the following tables. Each table I am checking I am using their primary key to check accordingly."
 				]
 			},
 			{
@@ -248,11 +248,52 @@
 					"%%sql\r\n",
 					"SELECT *\r\n",
 					"FROM odw_standardised_db.horizoncases_s78\r\n",
-					"where casereference = 'APP/B3030/W/17/3184391'\r\n",
+					"-- where casereference = 'APP/B3030/W/17/3184391'\r\n",
+					"where casereference = 'APP/L2630/W/16/3155500'\r\n",
+					"\r\n",
 					"\r\n",
 					""
 				],
-				"execution_count": 42
+				"execution_count": 67
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"case specialism can have more records by casereference."
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"create a vie csl"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"select  distinct * from odw_standardised_db.cases_specialisms\r\n",
+					"where casereference = '3155500'\r\n",
+					"--where casereference = '3184391'"
+				],
+				"execution_count": 66
 			},
 			{
 				"cell_type": "code",
@@ -273,12 +314,16 @@
 				},
 				"source": [
 					"%%sql\r\n",
-					"SELECT *\r\n",
+					"SELECT distinct *\r\n",
 					"FROM odw_standardised_db.cases_specialisms\r\n",
-					"where casereference = '3184391'\r\n",
+					"-- where  casereference = '3184391'\r\n",
+					"where  casereference =  '3155500'\r\n",
+					"\r\n",
+					"\r\n",
+					"\r\n",
 					""
 				],
-				"execution_count": 43
+				"execution_count": 68
 			},
 			{
 				"cell_type": "code",
@@ -301,9 +346,11 @@
 					"%%sql\r\n",
 					"SELECT *\r\n",
 					"FROM odw_standardised_db.casesitestrings\r\n",
-					"where casenodeid = '23849934'"
+					"--where casenodeid = '23849934'\r\n",
+					"where casenodeid = '17248610'\r\n",
+					"    "
 				],
-				"execution_count": 49
+				"execution_count": 69
 			},
 			{
 				"cell_type": "code",
@@ -326,9 +373,10 @@
 					"%%sql\r\n",
 					"SELECT *\r\n",
 					"FROM odw_standardised_db.casedocumentdatesdates\r\n",
-					"where casenodeid = '23849934'"
+					"--where casenodeid = '23849934'\r\n",
+					"where casenodeid = '17248610'"
 				],
-				"execution_count": 50
+				"execution_count": 70
 			},
 			{
 				"cell_type": "code",
@@ -351,9 +399,10 @@
 					"%%sql\r\n",
 					"SELECT *\r\n",
 					"FROM odw_standardised_db.vw_case_dates\r\n",
-					"where casenodeid = '23849934'"
+					"-- where casenodeid = '23849934'\r\n",
+					"where casenodeid = '17248610'"
 				],
-				"execution_count": 51
+				"execution_count": 71
 			},
 			{
 				"cell_type": "code",
@@ -376,9 +425,10 @@
 					"%%sql\r\n",
 					"SELECT *\r\n",
 					"FROM odw_standardised_db.vw_addadditionaldata\r\n",
-					"where appealrefnumber = '3184391'"
+					"-- where appealrefnumber = '3184391'\r\n",
+					"where appealrefnumber = '3155500'"
 				],
-				"execution_count": 52
+				"execution_count": 73
 			},
 			{
 				"cell_type": "code",
@@ -401,9 +451,38 @@
 					"%%sql\r\n",
 					"SELECT *\r\n",
 					"FROM odw_standardised_db.vw_additionalfields\r\n",
-					"where appealrefnumber = '3184391'"
+					"-- where appealrefnumber = '3184391'\r\n",
+					" where appealrefnumber = '3155500'"
 				],
-				"execution_count": 53
+				"execution_count": 72
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"This table `horizon_appeal_s78_final` is the merged table that includes all horizon data tables. \r\n",
+					"For this `casereference = 'APP/L2630/W/16/3155500'` we are expected to see 2 records per casereference as in `casespecialism` table there are 2 different info for casespecialism ( 1 to many relationship)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"SELECT *\r\n",
+					"FROM odw_standardised_db.horizon_appeal_s78_final\r\n",
+					"-- where casereference = 'APP/B3030/W/17/3184391'\r\n",
+					"where casereference = 'APP/L2630/W/16/3155500'"
+				],
+				"execution_count": 75
 			},
 			{
 				"cell_type": "markdown",
@@ -442,7 +521,7 @@
 					"FROM odw_standardised_db.typeofprocedure\r\n",
 					""
 				],
-				"execution_count": 57
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -467,7 +546,7 @@
 					"FROM odw_standardised_db.horizon_typeofreasonforcase\r\n",
 					""
 				],
-				"execution_count": 58
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
