@@ -55,8 +55,12 @@ python3.7 -m pip install -U checkov==2.2.94
 # Python 3.13 Installation
 sudo apt install -y --no-install-recommends \
   python3.13 \
-  python3-setuptools \
-  python3-apt
+  python3-setuptools
+# set 3.13 as the default and echo the restul
+sudo ln -sf /usr/bin/python3.13 /usr/bin/python3
+echo "==================== PYTHON DEFAULT VERSION ===================="
+python3 --version
+echo "================================================================"
 
 # Terraform 1.9.6
 curl -fsSL https://apt.releases.hashicorp.com/gpg | apt-key add -
@@ -89,12 +93,6 @@ sudo apt-get update; \
 # PowerShell Modules
 pwsh -c "& {Install-Module -Name Az -Scope AllUsers -Repository PSGallery -Force -Verbose}"
 pwsh -c "& {Get-Module -ListAvailable}"
-
-# python 3.13 as default and echo the result
-sudo ln -sf /usr/bin/python3.13 /usr/bin/python3
-echo "==================== PYTHON DEFAULT VERSION ===================="
-python3 --version
-echo "================================================================"
 
 # Sysprep
 /usr/sbin/waagent -force -deprovision+user && export HISTSIZE=0 && sync
