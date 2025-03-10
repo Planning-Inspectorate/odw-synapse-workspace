@@ -56,6 +56,9 @@ python3.7 -m pip install -U checkov==2.2.94
 sudo apt install -y --no-install-recommends \
   python3.13 \
   python3-setuptools
+
+sudo apt-get install python3-apt
+
 # set 3.13 as the default and echo the restul
 sudo ln -sf /usr/bin/python3.13 /usr/bin/python3
 echo "==================== PYTHON DEFAULT VERSION ===================="
