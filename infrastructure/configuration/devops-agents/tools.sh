@@ -1,4 +1,5 @@
 export DEBIAN_FRONTEND=noninteractive
+export DEBIAN_PRIORITY=critical
 
 sudo echo 'APT::Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries
 sudo echo "APT::Get::Assume-Yes \"true\";" > /etc/apt/apt.conf.d/90assumeyes
@@ -7,9 +8,9 @@ sudo add-apt-repository main
 sudo add-apt-repository restricted
 sudo add-apt-repository universe
 sudo add-apt-repository multiverse
-sudo apt update
+sudo apt-get update
 
-sudo apt-get clean && apt-get update && apt-get upgrade
+sudo apt-get clean && sudo apt-get update && sudo apt-get upgrade
 sudo apt-get install -y --no-install-recommends \
   apt-transport-https \
   build-essential \
@@ -39,22 +40,19 @@ sudo add-apt-repository ppa:git-core/ppa
 sudo add-apt-repository ppa:deadsnakes/ppa
 
 # Git Installation
-sudo apt install -y --no-install-recommends \
+sudo apt-get install -y --no-install-recommends \
   git \
   git-lfs \
   git-ftp
 
 # Install Python 3.12 and python3-apt
-sudo apt install -y --no-install-recommends \
+sudo apt-get install -y --no-install-recommends \
   python3.12 \
   python3.12-dev \
   python3-setuptools \
   python3-apt
 
-# Set Python 3.12 as the default
-sudo ln -sf /usr/bin/python3.12 /usr/bin/python3
-
-# Rebuild python3-apt for Python 3.12
+# Rebuild python3-apt to link with Python 3.12
 sudo apt-get source python3-apt
 cd python-apt-*
 python3.12 setup.py build
