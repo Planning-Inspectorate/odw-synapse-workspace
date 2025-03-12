@@ -38,44 +38,51 @@ sudo apt-get install -y --no-install-recommends \
 sudo add-apt-repository ppa:git-core/ppa
 sudo add-apt-repository ppa:deadsnakes/ppa
 
-# Git
+# Git Installation
 sudo apt install -y --no-install-recommends \
   git \
   git-lfs \
   git-ftp
 
+# Install Python 3.12 and python3-apt
 sudo apt install -y --no-install-recommends \
   python3.12 \
   python3.12-dev \
   python3-setuptools \
   python3-apt
+
+# Set Python 3.12 as the default
 sudo ln -sf /usr/bin/python3.12 /usr/bin/python3
 
-python3 --version
-python3 -c "import apt_pkg"
+# Rebuild python3-apt for Python 3.12
+sudo apt-get source python3-apt
+cd python-apt-*
+python3.12 setup.py build
+sudo python3.12 setup.py install
+cd ..
 
-echo "==================== PYTHON DEFAULT VERSION ===================="
+# Verify apt_pkg
 python3 --version
-echo "================================================================"
+python3 -c "import apt_pkg" || echo "Error: apt_pkg not found"
 
-# Azure CLI
+# Azure CLI Installation
 curl -sL https://aka.ms/InstallAzureCLIDeb | bash
 
-# Azure Tools
+# Azure Tools Installation
 sudo curl -fsSL https://aka.ms/install-azd.sh | bash
 
-# .NET Core and PowerShell
-wget https://packages.microsoft.com/config/ubuntu/20.04/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
+# Install .NET Core and PowerShell
+wget https://packages.microsoft.com/config/ubuntu/22.04/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
 sudo dpkg -i packages-microsoft-prod.deb
 rm packages-microsoft-prod.deb
 
-sudo apt-get update; \
-  sudo apt-get install -y aspnetcore-runtime-6.0 && \
-  sudo apt-get install -y powershell
+sudo apt-get update
+sudo apt-get install -y aspnetcore-runtime-6.0
+sudo apt-get install -y powershell
 
-# PowerShell Modules
+# Install PowerShell Modules
 pwsh -c "& {Install-Module -Name Az -Scope AllUsers -Repository PSGallery -Force -Verbose}"
 pwsh -c "& {Get-Module -ListAvailable}"
 
-# Sysprep
+# Sysprep to Prepare the VM
 /usr/sbin/waagent -force -deprovision+user && export HISTSIZE=0 && sync
