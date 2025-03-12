@@ -43,13 +43,13 @@ sudo apt-get install -y --no-install-recommends \
   git \
   git-lfs \
   git-ftp \
-  python3.13 \
-  python3.13-dev \
+  python3.12 \
+  python3.12-dev \
   python3-apt \
   python3-distutils \
   python3-setuptools
 
-sudo ln -sf /usr/bin/python3.13 /usr/bin/python3
+sudo ln -sf /usr/bin/python3.12 /usr/bin/python3
 echo "==================== PYTHON DEFAULT VERSION ===================="
 python3 --version
 echo "================================================================"
@@ -60,8 +60,8 @@ python3 -c "import apt_pkg" || {
   echo "apt_pkg not found, rebuilding python3-apt..."
   sudo apt-get source python3-apt
   cd python-apt-*
-  python3.13 setup.py build
-  sudo python3.13 setup.py install
+  python3.12 setup.py build
+  sudo python3.12 setup.py install
   cd ..
 }
 
