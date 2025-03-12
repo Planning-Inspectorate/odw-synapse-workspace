@@ -19,6 +19,8 @@ sudo apt-get clean && sudo apt-get upgrade -y
 sudo apt-get install -y --no-install-recommends \
   apt-transport-https \
   build-essential \
+  dpkg-dev \
+  libapt-pkg-dev \
   ca-certificates \
   unixodbc-dev \
   curl \
@@ -53,8 +55,6 @@ sudo ln -sf /usr/bin/python3.12 /usr/bin/python3
 echo "==================== PYTHON DEFAULT VERSION ===================="
 python3 --version
 echo "================================================================"
-python3 -c "import apt_pkg" || echo "Error: apt_pkg not found or rebuild failed"
-
 
 sudo chown -R _apt /home/packer
 
