@@ -26,7 +26,7 @@ sudo apt-get install -y --no-install-recommends \
   ca-certificates \
   software-properties-common \
   git git-lfs git-ftp \
-  python3.12 python3.12-dev python3-apt
+  python3.12 python3.12-dev python3-apt python3-distutils
 
 # Set Python 3.12 as default
 sudo ln -sf /usr/bin/python3.12 /usr/bin/python3
