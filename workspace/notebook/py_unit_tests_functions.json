@@ -314,6 +314,27 @@
 			},
 			{
 				"cell_type": "code",
+				"source": [
+					"def test_deduped_std_same_rows_hrm(std_table: str, hrm_table: str) -> tuple[int, int, bool]:\n",
+					"    std_table_full: str = f\"{std_db_name}.{std_table}\"\n",
+					"    hrm_table_full: str = f\"{hrm_db_name}.{hrm_table}\"\n",
+					"\n",
+					"    # filter standardised df with non-null message_type\n",
+					"    std_df: DataFrame = spark.table(std_table_full)\n",
+					"\n",
+					"    if \"message_type\" in std_df.columns:\n",
+					"        std_df = std_df.filter(std_df.message_type.isNotNull() & std_df.message_id.isNotNull())\n",
+					"        std_df = std_df.dropDuplicates([\"message_id\", \"message_type\"])\n",
+					"    \n",
+					"    std_count: int = std_df.count()\n",
+					"    hrm_count: int = spark.table(hrm_table_full).count()\n",
+					"\n",
+					"    return (std_count, hrm_count, std_count == hrm_count)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
 						"source_hidden": false,
