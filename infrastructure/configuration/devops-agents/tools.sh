@@ -51,6 +51,9 @@ sudo apt-get install -y --no-install-recommends \
   python3-distutils \
   python3-setuptools
 
+# Install `distutils` explicitly to avoid issues while rebuilding
+sudo apt-get install -y python3.12-distutils
+
 sudo ln -sf /usr/bin/python3.12 /usr/bin/python3
 echo "==================== PYTHON DEFAULT VERSION ===================="
 python3 --version
@@ -58,7 +61,6 @@ echo "================================================================"
 
 sudo chown -R _apt /home/packer
 
-# Automated Validation for apt_pkg
 python3 -c "import apt_pkg" || {
   echo "apt_pkg not found. Attempting to rebuild python3-apt..." | tee -a apt_pkg_error.log
   sudo apt-get source python3-apt || echo "Failed to fetch source for python3-apt" | tee -a apt_pkg_error.log
