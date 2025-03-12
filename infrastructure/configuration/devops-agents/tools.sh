@@ -45,8 +45,8 @@ sudo apt install -y --no-install-recommends \
   git-ftp
 
 sudo apt install -y --no-install-recommends \
-  python3.13 \
-  python3-setuptools
+  python3.13 
+  # python3-setuptools
 
 sudo ln -sf /usr/bin/python3.13 /usr/bin/python3
 
