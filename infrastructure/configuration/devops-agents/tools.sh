@@ -59,8 +59,6 @@ echo "==================== PYTHON DEFAULT VERSION ===================="
 python3 --version
 echo "================================================================"
 
-sudo apt-get install --reinstall python3-apt
-
 # Azure CLI
 curl -sL https://aka.ms/InstallAzureCLIDeb | bash
 
