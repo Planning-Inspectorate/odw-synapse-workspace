@@ -54,7 +54,7 @@ variable "client_secret" {
 }
 
 variable "image_prefix" {
-  default     = "pytest-"
+  default     = "pytest"
   description = "The name for the image which will be created"
   type        = string
 }
