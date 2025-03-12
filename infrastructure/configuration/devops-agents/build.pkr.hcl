@@ -9,7 +9,7 @@ packer {
 
 source "azure-arm" "azure-agents" {
   azure_tags = {
-    Project          = "Pytest"
+    Project          = "odw"
     CreatedBy        = "packer"
     pythonVersion    = "3.12"
   }
@@ -21,7 +21,7 @@ source "azure-arm" "azure-agents" {
 }
 
 build {
-  name = "image_prefix"
+  name = "azure-devops-agents-pytest"
 
   source "source.azure-arm.azure-agents" {
     managed_image_resource_group_name = var.resource_group_name
