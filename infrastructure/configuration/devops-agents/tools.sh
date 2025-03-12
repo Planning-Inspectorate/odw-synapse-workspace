@@ -16,6 +16,7 @@ sudo sed -i -e 's/^# deb-src/deb-src/' /etc/apt/sources.list
 sudo apt-get update
 sudo apt-get clean && sudo apt-get upgrade -y
 
+# Install required dependencies
 sudo apt-get install -y --no-install-recommends \
   apt-transport-https \
   build-essential \
@@ -58,16 +59,17 @@ echo "================================================================"
 
 sudo chown -R _apt /home/packer
 
+# Check and rebuild python3-apt if apt_pkg is missing
 python3 -c "import apt_pkg" || {
-  echo "apt_pkg not found, rebuilding python3-apt..."
-  sudo apt-get source python3-apt
-  cd python-apt-*
-  python3.12 setup.py build
-  sudo python3.12 setup.py install
+  echo "apt_pkg not found. Attempting to rebuild python3-apt..." | tee apt_pkg_error.log
+  sudo apt-get source python3-apt || echo "Failed to fetch source for python3-apt" | tee -a apt_pkg_error.log
+  cd python-apt-* || echo "Failed to navigate to python3-apt source directory" | tee -a apt_pkg_error.log
+  python3.12 setup.py build || echo "Failed to build python3-apt" | tee -a apt_pkg_error.log
+  sudo python3.12 setup.py install || echo "Failed to install python3-apt" | tee -a apt_pkg_error.log
   cd ..
 }
 
-python3 -c "import apt_pkg" || echo "Error: apt_pkg still not found"
+python3 -c "import apt_pkg" || echo "Error: apt_pkg still not found after rebuild" | tee -a apt_pkg_error.log
 
 curl -sL https://aka.ms/InstallAzureCLIDeb | bash
 
