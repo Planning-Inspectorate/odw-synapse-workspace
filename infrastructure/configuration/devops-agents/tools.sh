@@ -44,6 +44,9 @@ python3 -c "import apt_pkg" || {
   cd ..
 }
 
+# Verify apt_pkg after rebuilding
+python3 -c "import apt_pkg" || echo "Error: apt_pkg still not found"
+
 # Disable cnf-update-db temporarily to avoid errors
 sudo chmod -x /usr/lib/cnf-update-db
 
