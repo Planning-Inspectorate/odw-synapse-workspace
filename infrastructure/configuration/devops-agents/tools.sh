@@ -16,7 +16,6 @@ sudo sed -i -e 's/^# deb-src/deb-src/' /etc/apt/sources.list
 sudo apt-get update
 sudo apt-get clean && sudo apt-get upgrade -y
 
-# Install required dependencies
 sudo apt-get install -y --no-install-recommends \
   apt-transport-https \
   build-essential \
@@ -59,9 +58,9 @@ echo "================================================================"
 
 sudo chown -R _apt /home/packer
 
-# Check and rebuild python3-apt if apt_pkg is missing
+# Automated Validation for apt_pkg
 python3 -c "import apt_pkg" || {
-  echo "apt_pkg not found. Attempting to rebuild python3-apt..." | tee apt_pkg_error.log
+  echo "apt_pkg not found. Attempting to rebuild python3-apt..." | tee -a apt_pkg_error.log
   sudo apt-get source python3-apt || echo "Failed to fetch source for python3-apt" | tee -a apt_pkg_error.log
   cd python-apt-* || echo "Failed to navigate to python3-apt source directory" | tee -a apt_pkg_error.log
   python3.12 setup.py build || echo "Failed to build python3-apt" | tee -a apt_pkg_error.log
@@ -75,7 +74,7 @@ curl -sL https://aka.ms/InstallAzureCLIDeb | bash
 
 sudo curl -fsSL https://aka.ms/install-azd.sh | bash
 
-wget https://packages.microsoft.com/config/ubuntu/22.04/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
+wget https://packages.microsoft.com/config/ubuntu/20.04/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
 sudo dpkg -i packages-microsoft-prod.deb
 rm packages-microsoft-prod.deb
 
