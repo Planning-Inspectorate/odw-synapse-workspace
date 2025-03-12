@@ -9,9 +9,10 @@ packer {
 
 source "azure-arm" "azure-agents" {
   azure_tags = {
-    Project          = "odw"
-    CreatedBy        = "packer"
-    pythonVersion    = "3.12"
+    ubuntuVersion = "Ubuntu22"
+    Project       = "odw"
+    CreatedBy     = "packer"
+    pythonVersion = "3.12"
   }
 
   client_id       = var.client_id
@@ -29,8 +30,8 @@ build {
 
     os_type         = "Linux"
     image_publisher = "canonical"
-    image_offer     = "0001-com-ubuntu-server-focal"
-    image_sku       = "20_04-lts"
+    image_offer     = "0001-com-ubuntu-server-jammy"
+    image_sku       = "22_04-lts"
 
     location        = "UK South"
     vm_size         = "Standard_DS2_v2"
