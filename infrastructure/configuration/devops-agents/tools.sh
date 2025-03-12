@@ -44,17 +44,13 @@ sudo apt install -y --no-install-recommends \
   git-lfs \
   git-ftp
 
-# Python 3.12 Installation
 sudo apt install -y --no-install-recommends \
-  python3-pip \
   python3.12 \
   python3-setuptools \
   python3-apt
 
-# python 3.12 as default
 sudo ln -sf /usr/bin/python3.12 /usr/bin/python3
 
-# python version
 echo "==================== PYTHON DEFAULT VERSION ===================="
 python3 --version
 echo "================================================================"
