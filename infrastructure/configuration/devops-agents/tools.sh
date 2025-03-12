@@ -1,5 +1,4 @@
 export DEBIAN_FRONTEND=noninteractive
-export DEBIAN_PRIORITY=critical
 
 sudo echo 'APT::Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries
 sudo echo "APT::Get::Assume-Yes \"true\";" > /etc/apt/apt.conf.d/90assumeyes
@@ -10,17 +9,12 @@ sudo add-apt-repository universe
 sudo add-apt-repository multiverse
 sudo add-apt-repository ppa:git-core/ppa
 sudo add-apt-repository ppa:deadsnakes/ppa
+sudo apt update
 
-sudo sed -i -e 's/^# deb-src/deb-src/' /etc/apt/sources.list
-
-sudo apt-get update
-sudo apt-get clean && sudo apt-get upgrade -y
-
+sudo apt-get clean && apt-get update && apt-get upgrade
 sudo apt-get install -y --no-install-recommends \
   apt-transport-https \
   build-essential \
-  dpkg-dev \
-  libapt-pkg-dev \
   ca-certificates \
   unixodbc-dev \
   curl \
@@ -41,46 +35,43 @@ sudo apt-get install -y --no-install-recommends \
   wget \
   xauth \
   xvfb \
-  zip \
+  zip
+
+# Git
+sudo apt install -y --no-install-recommends \
   git \
   git-lfs \
-  git-ftp \
-  python3.10 \
-  python3.10-dev \
-  python3-apt \
-  python3-distutils \
-  python3-setuptools
+  git-ftp
 
-sudo ln -sf /usr/bin/python3.10 /usr/bin/python3
+sudo apt install -y --no-install-recommends \
+  python3.13 \
+  python3-setuptools \
+  python3-apt
+
+sudo ln -sf /usr/bin/python3.13 /usr/bin/python3
+
 echo "==================== PYTHON DEFAULT VERSION ===================="
 python3 --version
 echo "================================================================"
 
-sudo chown -R _apt /home/packer
+# Azure CLI
+curl -sL https://aka.ms/InstallAzureCLIDeb | bash
 
-python3 -c "import apt_pkg" || {
-  echo "apt_pkg not found. Attempting to rebuild python3-apt..." | tee -a apt_pkg_error.log
-  sudo apt-get source python3-apt || echo "Failed to fetch source for python3-apt" | tee -a apt_pkg_error.log
-  cd python-apt-* || echo "Failed to navigate to python3-apt source directory" | tee -a apt_pkg_error.log
-  python3.10 setup.py build || echo "Failed to build python3-apt" | tee -a apt_pkg_error.log
-  sudo python3.10 setup.py install || echo "Failed to install python3-apt" | tee -a apt_pkg_error.log
-  cd ..
-}
+# Azure Tools
+sudo curl -fsSL https://aka.ms/install-azd.sh | bash
 
-python3 -c "import apt_pkg" || echo "Error: apt_pkg still not found after rebuild" | tee -a apt_pkg_error.log
-
-curl -sL https://aka.ms/InstallAzureCLIDeb | bash || echo "Azure CLI installation failed" | tee -a cli_install_error.log
-
-sudo curl -fsSL https://aka.ms/install-azd.sh | bash || echo "Azure Developer Tools installation failed" | tee -a azd_install_error.log
-
-wget https://packages.microsoft.com/config/ubuntu/20.04/packages-microsoft-prod.deb -O packages-microsoft-prod.deb || echo "Failed to fetch .NET Core package" | tee -a dotnet_install_error.log
-sudo dpkg -i packages-microsoft-prod.deb || echo "Failed to install .NET Core package" | tee -a dotnet_install_error.log
+# .NET Core and PowerShell
+wget https://packages.microsoft.com/config/ubuntu/20.04/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
+sudo dpkg -i packages-microsoft-prod.deb
 rm packages-microsoft-prod.deb
 
-sudo apt-get update
-sudo apt-get install -y aspnetcore-runtime-6.0 powershell || echo "PowerShell installation failed" | tee -a powershell_install_error.log
+sudo apt-get update; \
+  sudo apt-get install -y aspnetcore-runtime-6.0 && \
+  sudo apt-get install -y powershell
 
-pwsh -c "& {Install-Module -Name Az -Scope AllUsers -Repository PSGallery -Force -Verbose}" || echo "Failed to install Az PowerShell module" | tee -a az_module_error.log
-pwsh -c "& {Get-Module -ListAvailable}" || echo "Failed to validate PowerShell modules" | tee -a pwsh_validation_error.log
+# PowerShell Modules
+pwsh -c "& {Install-Module -Name Az -Scope AllUsers -Repository PSGallery -Force -Verbose}"
+pwsh -c "& {Get-Module -ListAvailable}"
 
+# Sysprep
 /usr/sbin/waagent -force -deprovision+user && export HISTSIZE=0 && sync
