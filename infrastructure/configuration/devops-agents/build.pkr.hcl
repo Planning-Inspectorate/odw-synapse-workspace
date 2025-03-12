@@ -9,10 +9,10 @@ packer {
 
 source "azure-arm" "azure-agents" {
   azure_tags = {
-    ubuntuVersion = "Ubuntu22"
-    Project       = "odw"
-    CreatedBy     = "packer"
-    pythonVersion = "3.12"
+    Project          = "tooling"
+    CreatedBy        = "packer"
+    TerraformVersion = "1.9.6"
+    pythonVersion    = "3.12"
   }
 
   client_id       = var.client_id
@@ -22,16 +22,16 @@ source "azure-arm" "azure-agents" {
 }
 
 build {
-  name = "azure-devops-agents-pytest"
+  name = "azure-devops-agents"
 
   source "source.azure-arm.azure-agents" {
     managed_image_resource_group_name = var.resource_group_name
-    managed_image_name                = "${var.image_prefix}"
+    managed_image_name                = "${var.image_prefix}-${formatdate("YYYYMMDDhhmmss",timestamp())}"
 
     os_type         = "Linux"
     image_publisher = "canonical"
-    image_offer     = "0001-com-ubuntu-server-jammy"
-    image_sku       = "22_04-lts"
+    image_offer     = "0001-com-ubuntu-server-focal"
+    image_sku       = "20_04-lts"
 
     location        = "UK South"
     vm_size         = "Standard_DS2_v2"
@@ -54,7 +54,7 @@ variable "client_secret" {
 }
 
 variable "image_prefix" {
-  default     = "pytest-image"
+  default     = "pytest-"
   description = "The name for the image which will be created"
   type        = string
 }
