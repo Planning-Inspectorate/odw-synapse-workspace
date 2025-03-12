@@ -9,10 +9,9 @@ packer {
 
 source "azure-arm" "azure-agents" {
   azure_tags = {
-    Project          = "tooling"
+    Project          = "Pytest"
     CreatedBy        = "packer"
-    TerraformVersion = "1.9.6"
-    pythonVersion    = "3.13"
+    pythonVersion    = "3.12"
   }
 
   client_id       = var.client_id
@@ -22,11 +21,11 @@ source "azure-arm" "azure-agents" {
 }
 
 build {
-  name = "azure-devops-agents"
+  name = "image_prefix"
 
   source "source.azure-arm.azure-agents" {
     managed_image_resource_group_name = var.resource_group_name
-    managed_image_name                = "${var.image_prefix}-${formatdate("YYYYMMDDhhmmss",timestamp())}"
+    managed_image_name                = "${var.image_prefix}"
 
     os_type         = "Linux"
     image_publisher = "canonical"
@@ -54,7 +53,7 @@ variable "client_secret" {
 }
 
 variable "image_prefix" {
-  default     = "devops-agents"
+  default     = "pytest-image"
   description = "The name for the image which will be created"
   type        = string
 }
