@@ -46,6 +46,7 @@ sudo apt install -y --no-install-recommends \
 
 # Python 3.12 Installation
 sudo apt install -y --no-install-recommends \
+  python3-pip \
   python3.12 \
   python3-setuptools \
   python3-apt
