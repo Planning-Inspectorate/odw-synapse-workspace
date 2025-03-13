@@ -61279,6 +61279,12 @@
 								"dependencyConditions": [
 									"Succeeded"
 								]
+							},
+							{
+								"activity": "pln_horizon_vw_CaseDates",
+								"dependencyConditions": [
+									"Succeeded"
+								]
 							}
 						],
 						"policy": {
@@ -61302,6 +61308,23 @@
 							},
 							"numExecutors": null
 						}
+					},
+					{
+						"name": "pln_horizon_vw_CaseDates",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pln_horizon_vw_CaseDates",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
 					}
 				],
 				"policy": {
@@ -61321,7 +61344,8 @@
 				"[concat(variables('workspaceId'), '/pipelines/pln_horizon_vw_BIS_AdditionalFields')]",
 				"[concat(variables('workspaceId'), '/pipelines/pln_horizon_TypeOfProcedure')]",
 				"[concat(variables('workspaceId'), '/pipelines/pln_horizon_TypeOfReasonForCase')]",
-				"[concat(variables('workspaceId'), '/notebooks/py_hzn_standardized_s78_tables')]"
+				"[concat(variables('workspaceId'), '/notebooks/py_hzn_standardized_s78_tables')]",
+				"[concat(variables('workspaceId'), '/pipelines/pln_horizon_vw_CaseDates')]"
 			]
 		},
 		{
@@ -77822,6 +77846,23 @@
 							"waitOnCompletion": true,
 							"parameters": {}
 						}
+					},
+					{
+						"name": "rel_8_0_4_hotfix",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "rel_8_0_4_hotfix",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
 					}
 				],
 				"policy": {
@@ -77833,7 +77874,8 @@
 				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('workspaceId'), '/pipelines/rel_8_0_3_hotfix')]"
+				"[concat(variables('workspaceId'), '/pipelines/rel_8_0_3_hotfix')]",
+				"[concat(variables('workspaceId'), '/pipelines/rel_8_0_4_hotfix')]"
 			]
 		},
 		{
@@ -88825,6 +88867,42 @@
 				"[concat(variables('workspaceId'), '/pipelines/Rel_7_0_2')]",
 				"[concat(variables('workspaceId'), '/pipelines/rel_7_0_3')]",
 				"[concat(variables('workspaceId'), '/notebooks/py_deployment_manage_main_config')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/rel_8_0_4_hotfix')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "appeal_s78",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pln_main_appeal_s78",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"folder": {
+					"name": "Releases/8.0.4"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/pipelines/pln_main_appeal_s78')]"
 			]
 		},
 		{
@@ -207701,7 +207779,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "5b3a3cc1-5eda-4fe0-8ad3-b9cf34d3a933"
+						"spark.autotune.trackingId": "581f5806-3c1c-4894-a580-d458a4251af5"
 					}
 				},
 				"metadata": {
@@ -208179,7 +208257,11 @@
 							"    sparkDF = df.select([col for col in df.columns if not col.startswith('Unnamed')])\n",
 							"    # rows_raw = len(df.index)\n",
 							"    rows_raw = sparkDF.count()\n",
-							"    unmount_storage()\n",
+							"\n",
+							"    try:\n",
+							"        unmount_storage()\n",
+							"    except Exception as e:\n",
+							"        logInfo('Unable to unmount storage')\n",
 							"\n",
 							"    ### add date columns included with every standardised table\n",
 							"    sparkDF = sparkDF.withColumn(\"ingested_datetime\",current_timestamp())\n",
