@@ -1305,6 +1305,26 @@
 			"type": "string",
 			"defaultValue": "3.4"
 		},
+		"appeal_s78_curated_mipins_properties_bigDataPool_referenceName": {
+			"type": "string",
+			"defaultValue": "pinssynspodw"
+		},
+		"appeal_s78_curated_mipins_properties_metadata_a365ComputeOptions_id": {
+			"type": "string",
+			"defaultValue": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw"
+		},
+		"appeal_s78_curated_mipins_properties_metadata_a365ComputeOptions_name": {
+			"type": "string",
+			"defaultValue": "pinssynspodw"
+		},
+		"appeal_s78_curated_mipins_properties_metadata_a365ComputeOptions_endpoint": {
+			"type": "string",
+			"defaultValue": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw"
+		},
+		"appeal_s78_curated_mipins_properties_metadata_a365ComputeOptions_sparkVersion": {
+			"type": "string",
+			"defaultValue": "3.4"
+		},
 		"appeal_service_user_properties_bigDataPool_referenceName": {
 			"type": "string",
 			"defaultValue": "pinssynspodw"
@@ -40603,8 +40623,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -40659,8 +40679,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -47114,6 +47134,365 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('workspaceName'), '/pln_copy_appeal_s78_curated_mipins')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "copy_appeals_s78_cuarted_mipins",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "Lookup-LogStart",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "AzureSqlSink",
+								"preCopyScript": "drop table if exists odw.appeals_s78_curated_mipins",
+								"writeBehavior": "insert",
+								"sqlWriterUseTableLock": false,
+								"tableOption": "autoCreate",
+								"disableMetricsCollection": false
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "appeals_s78_curated_mipins",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "appeals_s78_mipins",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
+					},
+					{
+						"name": "Lookup-LogStart",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderStoredProcedureName": "[Audit].[usp_addETLLog]",
+								"storedProcedureParameters": {
+									"Description": {
+										"type": "String",
+										"value": "appeal_s78_curated_mipins_pipeline_started"
+									},
+									"ErrorMessage": {
+										"type": "String",
+										"value": null
+									},
+									"LogType": {
+										"type": "String",
+										"value": "1"
+									},
+									"Param1Value": {
+										"type": "String",
+										"value": null
+									},
+									"RowCount": {
+										"type": "Int32",
+										"value": null
+									},
+									"RunId": {
+										"type": "Int32",
+										"value": null
+									},
+									"Source": {
+										"type": "String",
+										"value": "appeal_s78"
+									}
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "Lookup_LogStart",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "Record_Count",
+						"type": "SetVariable",
+						"dependsOn": [
+							{
+								"activity": "copy_appeals_s78_cuarted_mipins",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "RowCount_s78",
+							"value": {
+								"value": "@activity('copy_appeals_s78_cuarted_mipins').output.rowscopied",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "SP_update dim_source_system",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "Record_Count",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[Live].[upd_dim_source_system]",
+							"storedProcedureParameters": {
+								"refresh_date": {
+									"value": {
+										"value": "@utcNow('yyyy-MM-ddTHH:mm:ss.fff')",
+										"type": "Expression"
+									},
+									"type": "DateTime"
+								},
+								"source_system": {
+									"value": "Back Office-s78",
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_sql_mipins",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "Sp_log_success",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "SP_update dim_source_system",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[Audit].[usp_addETLLog]",
+							"storedProcedureParameters": {
+								"Description": {
+									"value": "appeal_s78_curated_mipins_pipeline_completed",
+									"type": "String"
+								},
+								"ErrorMessage": {
+									"value": null,
+									"type": "String"
+								},
+								"LogType": {
+									"value": "2",
+									"type": "String"
+								},
+								"Param1Value": {
+									"value": null,
+									"type": "String"
+								},
+								"RowCount": {
+									"value": {
+										"value": "@variables('RowCount_s78')",
+										"type": "Expression"
+									},
+									"type": "Int32"
+								},
+								"RunId": {
+									"value": {
+										"value": "@activity('Lookup-LogStart').output.firstRow.Runid",
+										"type": "Expression"
+									},
+									"type": "Int32"
+								},
+								"Source": {
+									"value": "appeal_s78",
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_sql_mipins",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "Error",
+						"type": "SetVariable",
+						"dependsOn": [
+							{
+								"activity": "SP_update dim_source_system",
+								"dependencyConditions": [
+									"Failed",
+									"Skipped"
+								]
+							}
+						],
+						"policy": {
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "Error_s78",
+							"value": {
+								"value": "@replace(concat(activity('Lookup-LogStart').Error?.message,'|',activity('copy_appeals_s78_cuarted_mipins').Error?.message,'|',activity('SP_update dim_source_system').Error?.message),'|','')",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "Sp_log_failed",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "Error",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[Audit].[usp_addETLLog]",
+							"storedProcedureParameters": {
+								"Description": {
+									"value": "appeal_s78_curated_mipins_pipeline_failed",
+									"type": "String"
+								},
+								"ErrorMessage": {
+									"value": {
+										"value": "@variables('Error_s78')",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"LogType": {
+									"value": "2",
+									"type": "String"
+								},
+								"Param1Value": {
+									"value": null,
+									"type": "String"
+								},
+								"RowCount": {
+									"value": null,
+									"type": "Int32"
+								},
+								"RunId": {
+									"value": {
+										"value": "@activity('Lookup-LogStart').output.firstRow.Runid",
+										"type": "Expression"
+									},
+									"type": "Int32"
+								},
+								"Source": {
+									"value": "appeal_s78",
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_sql_mipins",
+							"type": "LinkedServiceReference"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"variables": {
+					"RowCount_s78": {
+						"type": "Integer"
+					},
+					"Error_s78": {
+						"type": "String"
+					}
+				},
+				"folder": {
+					"name": "mipins"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/datasets/appeals_s78_curated_mipins')]",
+				"[concat(variables('workspaceId'), '/datasets/appeals_s78_mipins')]",
+				"[concat(variables('workspaceId'), '/datasets/Lookup_LogStart')]",
+				"[concat(variables('workspaceId'), '/linkedServices/ls_sql_mipins')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('workspaceName'), '/pln_copy_appeal_service_user_curated_mipins')]",
 			"type": "Microsoft.Synapse/workspaces/pipelines",
 			"apiVersion": "2019-06-01-preview",
@@ -48416,8 +48795,8 @@
 						"type": "SynapseNotebook",
 						"dependsOn": [],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -48450,8 +48829,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -48483,8 +48862,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -48516,8 +48895,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -48549,8 +48928,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -48583,8 +48962,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -48617,8 +48996,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -48650,8 +49029,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -48683,8 +49062,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -48716,8 +49095,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -48749,8 +49128,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -48871,8 +49250,8 @@
 						"type": "SynapseNotebook",
 						"dependsOn": [],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -48904,8 +49283,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -48947,8 +49326,8 @@
 						"type": "SynapseNotebook",
 						"dependsOn": [],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -48980,8 +49359,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -49068,8 +49447,8 @@
 						"type": "SynapseNotebook",
 						"dependsOn": [],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -49094,8 +49473,8 @@
 						"type": "SynapseNotebook",
 						"dependsOn": [],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -49127,8 +49506,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -49274,8 +49653,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -49307,8 +49686,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -49333,8 +49712,8 @@
 						"type": "SynapseNotebook",
 						"dependsOn": [],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -49359,8 +49738,8 @@
 						"type": "SynapseNotebook",
 						"dependsOn": [],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -49385,8 +49764,8 @@
 						"type": "SynapseNotebook",
 						"dependsOn": [],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -49418,8 +49797,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -49468,8 +49847,8 @@
 						"type": "SynapseNotebook",
 						"dependsOn": [],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -49501,8 +49880,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -49534,8 +49913,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -49567,8 +49946,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -49707,6 +50086,63 @@
 							"waitOnCompletion": true,
 							"parameters": {}
 						}
+					},
+					{
+						"name": "appeal_s78_curated_mipins",
+						"type": "SynapseNotebook",
+						"dependsOn": [
+							{
+								"activity": "pln_copy_nsip_project_to_mipins",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "appeal_s78_curated_mipins",
+								"type": "NotebookReference"
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "pln_copy_appeal_s78_curated_mipins",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "appeal_s78_curated_mipins",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pln_copy_appeal_s78_curated_mipins",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
 					}
 				],
 				"policy": {
@@ -49726,7 +50162,9 @@
 				"[concat(variables('workspaceId'), '/pipelines/pln_copy_appeal_event_curated_mipins')]",
 				"[concat(variables('workspaceId'), '/pipelines/pln_copy_appeal_has_curated_mipins')]",
 				"[concat(variables('workspaceId'), '/pipelines/pln_copy_entraid_curated_mipins')]",
-				"[concat(variables('workspaceId'), '/pipelines/pln_copy_nsip_project_to_mipins')]"
+				"[concat(variables('workspaceId'), '/pipelines/pln_copy_nsip_project_to_mipins')]",
+				"[concat(variables('workspaceId'), '/notebooks/appeal_s78_curated_mipins')]",
+				"[concat(variables('workspaceId'), '/pipelines/pln_copy_appeal_s78_curated_mipins')]"
 			]
 		},
 		{
@@ -55590,8 +56028,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -55688,8 +56126,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -55769,8 +56207,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -55850,8 +56288,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -55931,8 +56369,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -56012,8 +56450,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -56093,8 +56531,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -56136,8 +56574,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -56209,8 +56647,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -56290,8 +56728,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -56371,8 +56809,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -56435,8 +56873,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -56762,8 +57200,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -56796,8 +57234,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -56878,8 +57316,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -56959,8 +57397,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.01:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -57041,8 +57479,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.01:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -57123,8 +57561,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -57205,8 +57643,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -57335,8 +57773,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -57379,8 +57817,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -57423,8 +57861,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -57467,8 +57905,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -57510,8 +57948,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -57543,8 +57981,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -57576,8 +58014,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -57609,8 +58047,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -57642,8 +58080,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -57722,8 +58160,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -57803,8 +58241,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -57884,8 +58322,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -60263,8 +60701,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -60305,8 +60743,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -61308,8 +61746,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -77851,7 +78289,7 @@
 			"properties": {
 				"activities": [
 					{
-						"name": "rel_8_0_3_hotfix",
+						"name": "rel_8_0_5_pins_inspector",
 						"type": "ExecutePipeline",
 						"dependsOn": [],
 						"policy": {
@@ -77860,24 +78298,7 @@
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
-								"referenceName": "rel_8_0_3_hotfix",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "rel_8_0_4_hotfix",
-						"type": "ExecutePipeline",
-						"dependsOn": [],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "rel_8_0_4_hotfix",
+								"referenceName": "rel_8_0_5_pins_inspector",
 								"type": "PipelineReference"
 							},
 							"waitOnCompletion": true,
@@ -77894,8 +78315,7 @@
 				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('workspaceId'), '/pipelines/rel_8_0_3_hotfix')]",
-				"[concat(variables('workspaceId'), '/pipelines/rel_8_0_4_hotfix')]"
+				"[concat(variables('workspaceId'), '/pipelines/rel_8_0_5_pins_inspector')]"
 			]
 		},
 		{
@@ -79082,8 +79502,8 @@
 										}
 									],
 									"policy": {
-										"timeout": "0.12:00:00",
-										"retry": 0,
+										"timeout": "0.1:00:00",
+										"retry": 3,
 										"retryIntervalInSeconds": 30,
 										"secureOutput": false,
 										"secureInput": false
@@ -79570,8 +79990,8 @@
 									"type": "SynapseNotebook",
 									"dependsOn": [],
 									"policy": {
-										"timeout": "0.12:00:00",
-										"retry": 0,
+										"timeout": "0.1:00:00",
+										"retry": 3,
 										"retryIntervalInSeconds": 30,
 										"secureOutput": false,
 										"secureInput": false
@@ -79617,8 +80037,8 @@
 									"type": "SynapseNotebook",
 									"dependsOn": [],
 									"policy": {
-										"timeout": "0.12:00:00",
-										"retry": 0,
+										"timeout": "0.1:00:00",
+										"retry": 3,
 										"retryIntervalInSeconds": 30,
 										"secureOutput": false,
 										"secureInput": false
@@ -79664,8 +80084,8 @@
 									"type": "SynapseNotebook",
 									"dependsOn": [],
 									"policy": {
-										"timeout": "0.12:00:00",
-										"retry": 0,
+										"timeout": "0.1:00:00",
+										"retry": 3,
 										"retryIntervalInSeconds": 30,
 										"secureOutput": false,
 										"secureInput": false
@@ -79711,8 +80131,8 @@
 									"type": "SynapseNotebook",
 									"dependsOn": [],
 									"policy": {
-										"timeout": "0.12:00:00",
-										"retry": 0,
+										"timeout": "0.1:00:00",
+										"retry": 3,
 										"retryIntervalInSeconds": 30,
 										"secureOutput": false,
 										"secureInput": false
@@ -79758,8 +80178,8 @@
 									"type": "SynapseNotebook",
 									"dependsOn": [],
 									"policy": {
-										"timeout": "0.12:00:00",
-										"retry": 0,
+										"timeout": "0.1:00:00",
+										"retry": 3,
 										"retryIntervalInSeconds": 30,
 										"secureOutput": false,
 										"secureInput": false
@@ -79794,8 +80214,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -79840,8 +80260,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -79886,8 +80306,8 @@
 							}
 						],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -79943,8 +80363,8 @@
 									"type": "SynapseNotebook",
 									"dependsOn": [],
 									"policy": {
-										"timeout": "0.12:00:00",
-										"retry": 0,
+										"timeout": "0.1:00:00",
+										"retry": 3,
 										"retryIntervalInSeconds": 30,
 										"secureOutput": false,
 										"secureInput": false
@@ -80148,8 +80568,8 @@
 									"type": "SynapseNotebook",
 									"dependsOn": [],
 									"policy": {
-										"timeout": "0.12:00:00",
-										"retry": 0,
+										"timeout": "0.1:00:00",
+										"retry": 3,
 										"retryIntervalInSeconds": 30,
 										"secureOutput": false,
 										"secureInput": false
@@ -80195,8 +80615,8 @@
 									"type": "SynapseNotebook",
 									"dependsOn": [],
 									"policy": {
-										"timeout": "0.12:00:00",
-										"retry": 0,
+										"timeout": "0.1:00:00",
+										"retry": 3,
 										"retryIntervalInSeconds": 30,
 										"secureOutput": false,
 										"secureInput": false
@@ -80487,8 +80907,8 @@
 									"type": "SynapseNotebook",
 									"dependsOn": [],
 									"policy": {
-										"timeout": "0.12:00:00",
-										"retry": 0,
+										"timeout": "0.1:00:00",
+										"retry": 3,
 										"retryIntervalInSeconds": 30,
 										"secureOutput": false,
 										"secureInput": false
@@ -83426,8 +83846,8 @@
 						"type": "SynapseNotebook",
 						"dependsOn": [],
 						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 2,
+							"timeout": "0.1:00:00",
+							"retry": 3,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -88923,6 +89343,220 @@
 			},
 			"dependsOn": [
 				"[concat(variables('workspaceId'), '/pipelines/pln_main_appeal_s78')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/rel_8_0_5_pins_inspector')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "Create PINS Inspector Hrm",
+						"description": "Create PINS Inspector Hrm",
+						"type": "SynapseNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "create_table_from_schema",
+								"type": "NotebookReference"
+							},
+							"parameters": {
+								"db_name": {
+									"value": "odw_harmonised_db",
+									"type": "string"
+								},
+								"entity_name": {
+									"value": "pins-inspector",
+									"type": "string"
+								},
+								"is_servicebus_schema": {
+									"value": "False",
+									"type": "string"
+								}
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "Ingest PINS Inspector harmonised",
+						"type": "SynapseNotebook",
+						"dependsOn": [
+							{
+								"activity": "Create PINS Inspector Hrm",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "Create PINS Inspector Std",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "pins_inspectors",
+								"type": "NotebookReference"
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "py_delete_table",
+						"type": "SynapseNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "py_delete_table",
+								"type": "NotebookReference"
+							},
+							"parameters": {
+								"db_name": {
+									"value": "odw_harmonised_db",
+									"type": "string"
+								},
+								"table_name": {
+									"value": "pins_inspectors",
+									"type": "string"
+								}
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "Create PINS Inspector Std",
+						"description": "Create PINS Inspector Std",
+						"type": "SynapseNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "create_table_from_schema",
+								"type": "NotebookReference"
+							},
+							"parameters": {
+								"db_name": {
+									"value": "odw_standardised_db",
+									"type": "string"
+								},
+								"entity_name": {
+									"value": "pins-inspector",
+									"type": "string"
+								},
+								"is_servicebus_schema": {
+									"value": "False",
+									"type": "string"
+								}
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					},
+					{
+						"name": "py_delete_table_copy1",
+						"type": "SynapseNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "py_delete_table",
+								"type": "NotebookReference"
+							},
+							"parameters": {
+								"db_name": {
+									"value": "odw_standardised_db",
+									"type": "string"
+								},
+								"table_name": {
+									"value": "pins_inspectors",
+									"type": "string"
+								}
+							},
+							"snapshot": true,
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"folder": {
+					"name": "Releases/8.0.5"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/notebooks/create_table_from_schema')]",
+				"[concat(variables('workspaceId'), '/notebooks/pins_inspectors')]",
+				"[concat(variables('workspaceId'), '/notebooks/py_delete_table')]"
 			]
 		},
 		{
@@ -102871,6 +103505,51 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('workspaceName'), '/appeals_s78_curated_mipins')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_ssql_builtin",
+					"type": "LinkedServiceReference",
+					"parameters": {
+						"db_name": "odw_curated_db"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "appeals_s78_curated_mipins"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/ls_ssql_builtin')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/appeals_s78_mipins')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_sql_mipins",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [],
+				"typeProperties": {
+					"schema": "odw",
+					"table": "appeals_s78_curated_mipins"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/ls_sql_mipins')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('workspaceName'), '/bkp_dst_odw_config')]",
 			"type": "Microsoft.Synapse/workspaces/datasets",
 			"apiVersion": "2019-06-01-preview",
@@ -116597,6 +117276,253 @@
 						],
 						"outputs": [],
 						"execution_count": null
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/appeal_s78_curated_mipins')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"folder": {
+					"name": "odw-curated"
+				},
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "[parameters('appeal_s78_curated_mipins_properties_bigDataPool_referenceName')]",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "6ad8415f-f1ab-4fec-b176-0f54d93d1d75"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": false,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "[parameters('appeal_s78_curated_mipins_properties_metadata_a365ComputeOptions_id')]",
+						"name": "[parameters('appeal_s78_curated_mipins_properties_metadata_a365ComputeOptions_name')]",
+						"type": "Spark",
+						"endpoint": "[parameters('appeal_s78_curated_mipins_properties_metadata_a365ComputeOptions_endpoint')]",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "[parameters('appeal_s78_curated_mipins_properties_metadata_a365ComputeOptions_sparkVersion')]",
+						"nodeCount": 3,
+						"cores": 4,
+						"memory": 28
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "code",
+						"metadata": {
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\n",
+							"\n",
+							"CREATE OR REPLACE VIEW odw_curated_db.vw_appeals_s78_curated_mipins\n",
+							"\n",
+							"AS\n",
+							"\n",
+							"SELECT DISTINCT \n",
+							"CAST(AH.caseId AS INT)                      AS caseId,\n",
+							"AH.caseReference                            AS caseReference,\n",
+							"AH.submissionId                             AS submissionId,\n",
+							"AH.caseStatus                               AS caseStatus,\n",
+							"AH.caseType                                 AS caseType,\n",
+							"AH.caseProcedure                            AS caseProcedure,\n",
+							"AH.lpaCode                                  AS lpaCode,\n",
+							"AH.caseOfficerId                            AS caseOfficerId,\n",
+							"AH.inspectorId                              AS inspectorId,\n",
+							"AH.allocationLevel                          AS allocationLevel,\n",
+							"CAST(AH.allocationBand AS NUMERIC)          AS allocationBand,\n",
+							"AH.caseSpecialisms                          AS caseSpecialisms,\n",
+							"AH.caseSubmittedDate                        AS caseSubmittedDate,\n",
+							"AH.caseCreatedDate                          AS caseCreatedDate,\n",
+							"AH.caseUpdatedDate                          AS caseUpdatedDate,\n",
+							"AH.caseValidDate                            AS caseValidDate,\n",
+							"AH.caseValidationDate                       AS caseValidationDate,\n",
+							"AH.caseValidationOutcome                    AS caseValidationOutcome,\n",
+							"AH.caseValidationInvalidDetails             AS caseValidationInvalidDetails,\n",
+							"cast(AH.caseValidationIncompleteDetails as string)          AS caseValidationIncompleteDetails,\n",
+							"AH.caseExtensionDate                        AS caseExtensionDate,\n",
+							"AH.caseStartedDate                          AS caseStartedDate,\n",
+							"AH.casePublishedDate                        AS casePublishedDate,\n",
+							"AH.linkedCaseStatus                         AS linkedCaseStatus,\n",
+							"AH.leadCaseReference                        AS leadCaseReference,\n",
+							"AH.lpaQuestionnaireDueDate                  AS lpaQuestionnaireDueDate,\n",
+							"AH.lpaQuestionnaireSubmittedDate            AS lpaQuestionnaireSubmittedDate,\n",
+							"AH.lpaQuestionnaireCreatedDate              AS lpaQuestionnaireCreatedDate,\n",
+							"AH.lpaQuestionnairePublishedDate            AS lpaQuestionnairePublishedDate,\n",
+							"AH.lpaQuestionnaireValidationOutcome        AS lpaQuestionnaireValidationOutcome,\n",
+							"AH.lpaQuestionnaireValidationOutcomeDate    AS lpaQuestionnaireValidationOutcomeDate,\n",
+							"cast(AH.lpaQuestionnaireValidationDetails as string)        AS lpaQuestionnaireValidationDetails,\n",
+							"AH.lpaStatement                             AS lpaStatement,\n",
+							"AH.caseWithdrawnDate                        AS caseWithdrawnDate,\n",
+							"AH.caseTransferredDate                      AS caseTransferredDate,\n",
+							"AH.transferredCaseClosedDate                AS transferredCaseClosedDate,\n",
+							"AH.caseDecisionOutcomeDate                  AS caseDecisionOutcomeDate,\n",
+							"AH.caseDecisionPublishedDate                AS caseDecisionPublishedDate,\n",
+							"AH.caseDecisionOutcome                      AS caseDecisionOutcome,\n",
+							"AH.caseCompletedDate                        AS caseCompletedDate,\n",
+							"CAST(AH.enforcementNotice AS BOOLEAN)       AS enforcementNotice,\n",
+							"AH.applicationReference                     AS applicationReference,\n",
+							"AH.applicationDate                          AS applicationDate,\n",
+							"AH.applicationDecision                      AS applicationDecision,\n",
+							"AH.applicationDecisionDate                  AS applicationDecisionDate,\n",
+							"AH.caseSubmissionDueDate                    AS caseSubmissionDueDate,\n",
+							"AH.siteAddressLine1                         AS siteAddressLine1,\n",
+							"AH.siteAddressLine2                         AS siteAddressLine2,\n",
+							"AH.siteAddressTown                          AS siteAddressTown,\n",
+							"AH.siteAddressCounty                        AS siteAddressCounty,\n",
+							"AH.siteAddressPostcode                      AS siteAddressPostcode,\n",
+							"cast(AH.siteAccessDetails as string)        AS siteAccessDetails,\n",
+							"cast(AH.siteSafetyDetails as string)        AS siteSafetyDetails,\n",
+							"CAST(AH.siteAreaSquareMetres AS BOOLEAN)    AS siteAreaSquareMetres,\n",
+							"CAST(AH.floorSpaceSquareMetres AS NUMERIC)  AS floorSpaceSquareMetres,\n",
+							"CAST(AH.isCorrectAppealType AS BOOLEAN)     AS isCorrectAppealType,\n",
+							"CAST(AH.isGreenBelt AS BOOLEAN)             AS isGreenBelt,\n",
+							"CAST(AH.inConservationArea AS BOOLEAN)      AS inConservationArea,\n",
+							"CAST(AH.ownsAllLand AS BOOLEAN)             AS ownsAllLand,\n",
+							"CAST(AH.ownsSomeLand AS BOOLEAN)            AS ownsSomeLand,\n",
+							"AH.knowsOtherOwners                         AS knowsOtherOwners,\n",
+							"AH.knowsAllOwners                           AS knowsAllOwners,\n",
+							"CAST(AH.advertisedAppeal AS BOOLEAN)        AS advertisedAppeal,\n",
+							"cast(AH.notificationMethod as string)       AS notificationMethod,\n",
+							"CAST(AH.ownersInformed AS BOOLEAN)          AS ownersInformed,\n",
+							"AH.originalDevelopmentDescription           AS originalDevelopmentDescription,\n",
+							"CAST(AH.changedDevelopmentDescription       AS BOOLEAN) AS changedDevelopmentDescription,\n",
+							"AH.newConditionDetails                      AS newConditionDetails,\n",
+							"CAST(AH.nearbyCaseReferences AS STRING)     AS nearbyCaseReferences,\n",
+							"CAST(AH.neighbouringSiteAddresses AS STRING) AS neighbouringSiteAddresses,\n",
+							"CAST(AH.affectedListedBuildingNumbers AS STRING)   AS affectedListedBuildingNumbers,\n",
+							"CAST(AH.changedListedBuildingNumbers AS STRING)             AS changedListedBuildingNumbers,\n",
+							"CAST(AH.appellantCostsAppliedFor AS BOOLEAN) AS appellantCostsAppliedFor,\n",
+							"CAST(AH.lpaCostsAppliedFor AS BOOLEAN)       AS lpaCostsAppliedFor,\n",
+							"AH.agriculturalHolding                       AS agriculturalHolding,\n",
+							"AH.tenantAgriculturalHolding                 AS tenantAgriculturalHolding,\n",
+							"AH.otherTenantsAgriculturalHolding           AS otherTenantsAgriculturalHolding,\n",
+							"AH.informedTenantsAgriculturalHolding        AS informedTenantsAgriculturalHolding,\n",
+							"AH.appellantProcedurePreference              AS appellantProcedurePreference,\n",
+							"AH.appellantProcedurePreferenceDetails       AS appellantProcedurePreferenceDetails,\n",
+							"AH.appellantProcedurePreferenceDuration      AS appellantProcedurePreferenceDuration,\n",
+							"AH.appellantProcedurePreferenceWitnessCount  AS appellantProcedurePreferenceWitnessCount,\n",
+							"AH.statusPlanningObligation                  AS statusPlanningObligation,\n",
+							"AH.affectsScheduledMonument                  AS affectsScheduledMonument,\n",
+							"AH.hasProtectedSpecies                       AS hasProtectedSpecies,\n",
+							"AH.isAonbNationalLandscape                   AS isAonbNationalLandscape,\n",
+							"CAST(AH.designatedSitesNames AS STRING)       AS designatedSitesNames,\n",
+							"AH.isGypsyOrTravellerSite                    AS isGypsyOrTravellerSite,\n",
+							"AH.isPublicRightOfWay                        AS isPublicRightOfWay,\n",
+							"AH.eiaEnvironmentalImpactSchedule            AS eiaEnvironmentalImpactSchedule,\n",
+							"AH.eiaDevelopmentDescription                 AS eiaDevelopmentDescription,\n",
+							"AH.eiaSensitiveAreaDetails                   AS eiaSensitiveAreaDetails,\n",
+							"AH.eiaColumnTwoThreshold                     AS eiaColumnTwoThreshold,\n",
+							"AH.eiaScreeningOpinion                       AS eiaScreeningOpinion,\n",
+							"AH.eiaRequiresEnvironmentalStatement         AS eiaRequiresEnvironmentalStatement,\n",
+							"AH.eiaCompletedEnvironmentalStatement        AS eiaCompletedEnvironmentalStatement,\n",
+							"AH.hasStatutoryConsultees                    AS hasStatutoryConsultees,\n",
+							"AH.consultedBodiesDetails                    AS consultedBodiesDetails,\n",
+							"AH.hasInfrastructureLevy                     AS hasInfrastructureLevy,\n",
+							"AH.isInfrastructureLevyFormallyAdopted       AS isInfrastructureLevyFormallyAdopted,\n",
+							"AH.infrastructureLevyAdoptedDate             AS infrastructureLevyAdoptedDate,\n",
+							"AH.infrastructureLevyExpectedDate            AS infrastructureLevyExpectedDate,\n",
+							"AH.lpaProcedurePreference                    AS lpaProcedurePreference,\n",
+							"AH.lpaProcedurePreferenceDetails             AS lpaProcedurePreferenceDetails,\n",
+							"AH.lpaProcedurePreferenceDuration            AS lpaProcedurePreferenceDuration,\n",
+							"AH.caseworkReason                            AS caseworkReason,\n",
+							"AH.developmentType                           AS developmentType,\n",
+							"AH.importantInformation                      AS importantInformation, \n",
+							"AH.jurisdiction                              AS jurisdiction,\n",
+							"AH.redeterminedIndicator                     AS redeterminedIndicator,\n",
+							"AH.dateCostsReportDespatched                 AS dateCostsReportDespatched, \n",
+							"AH.dateNotRecoveredOrDerecovered             AS dateNotRecoveredOrDerecovered,\n",
+							"AH.dateRecovered                             AS dateRecovered,\n",
+							"AH.originalCaseDecisionDate                  AS originalCaseDecisionDate,\n",
+							"AH.targetDate                                AS targetDate,\n",
+							"AH.appellantCommentsSubmittedDate            AS appellantCommentsSubmittedDate,\n",
+							"AH.appellantStatementSubmittedDate           AS appellantStatementSubmittedDate,\n",
+							"AH.appellantProofsSubmittedDate              AS appellantProofsSubmittedDate,\n",
+							"AH.finalCommentsDueDate                      AS finalCommentsDueDate,\n",
+							"AH.interestedPartyRepsDueDate                AS interestedPartyRepsDueDate,\n",
+							"AH.lpaCommentsSubmittedDate                  AS lpaCommentsSubmittedDate,\n",
+							"AH.lpaProofsSubmittedDate                    AS lpaProofsSubmittedDate,\n",
+							"AH.lpaStatementSubmittedDate                 AS lpaStatementSubmittedDate,\n",
+							"AH.proofsOfEvidenceDueDate                   AS proofsOfEvidenceDueDate,\n",
+							"AH.siteNoticesSentDate                       AS siteNoticesSentDate,\n",
+							"AH.statementDueDate                          AS statementDueDate,\n",
+							"AH.reasonForNeighbourVisits                  AS reasonForNeighbourVisits, \n",
+							"AH.numberOfResidencesNetChange               AS numberOfResidencesNetChange,\n",
+							"AH.siteGridReferenceEasting                  AS siteGridReferenceEasting,\n",
+							"AH.siteGridReferenceNorthing                 AS siteGridReferenceNorthing,\n",
+							"AH.siteViewableFromRoad                      AS siteViewableFromRoad,\n",
+							"AH.siteWithinSSSI                            AS siteWithinSSSI,\n",
+							"AH.typeOfPlanningApplication                 AS typeOfPlanningApplication,\n",
+							"AH.IngestionDate                             AS IngestionDate,\n",
+							"AH.ValidTo                                   AS ValidTo,\n",
+							"AH.IsActive                                  AS IsActive\n",
+							"FROM odw_harmonised_db.sb_appeal_s78 AS AH\n",
+							"where AH.lpaCode NOT in ('Q9999', 'Q1111')"
+						],
+						"outputs": [],
+						"execution_count": 28
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"spark.sql(f\"drop table if exists odw_curated_db.appeals_s78_curated_mipins;\")"
+						],
+						"outputs": [],
+						"execution_count": 29
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"from pyspark.sql import SparkSession\n",
+							"spark = SparkSession.builder.getOrCreate()\n",
+							"view_df = spark.sql(\"SELECT * FROM odw_curated_db.vw_appeals_s78_curated_mipins\")\n",
+							"view_df.write.mode(\"overwrite\").saveAsTable(\"odw_curated_db.appeals_s78_curated_mipins\")"
+						],
+						"outputs": [],
+						"execution_count": 30
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"collapsed": false
+						},
+						"source": [
+							"#%%sql\n",
+							"#select * from odw_curated_db.appeals_s78_curated_mipins"
+						],
+						"outputs": [],
+						"execution_count": 31
 					}
 				]
 			},
@@ -243956,7 +244882,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "59f57a75-9c2e-45e9-8697-0f5408fa63d4"
+						"spark.autotune.trackingId": "cce00ca0-b3f8-4658-a1be-feebfa70f92f"
 					}
 				},
 				"metadata": {
@@ -244010,7 +244936,7 @@
 							"path_to_orchestration_file: str = \"abfss://odw-config@\"+storage_account+\"orchestration/orchestration.json\""
 						],
 						"outputs": [],
-						"execution_count": null
+						"execution_count": 1
 					},
 					{
 						"cell_type": "code",
@@ -244857,17 +245783,17 @@
 							}
 						},
 						"source": [
-							"def test_no_project_from_horizon_dropped(std_db: str, curated_db_migration: str, horizon_table:str, curated_table_migration:str, horizon_pk:str, curated_pk:str):\n",
+							"def test_no_project_from_horizon_dropped(std_db: str, curated_db_migration: str, horizon_table:str, curated_table_migration:str, horizon_pk:str, curated_pk:str, sourceColumn: str = \"sourceSystem\"):\n",
 							"    df = spark.sql(f\"\"\"\n",
-							"        SELECT *\n",
-							"        FROM {std_db}.{horizon_table}\n",
-							"        WHERE {horizon_pk} NOT IN (\n",
-							"            SELECT {curated_pk} FROM {curated_db_migration}.{curated_table_migration}\n",
-							"        )\n",
-							"        AND expected_from = (\n",
-							"            SELECT MAX(expected_from) FROM {std_db}.{horizon_table}\n",
-							"        )\n",
+							"        SELECT DISTINCT h.{horizon_pk}\n",
+							"        FROM {std_db}.{horizon_table} h\n",
+							"        LEFT JOIN {curated_db_migration}.{curated_table_migration} c\n",
+							"        ON h.{horizon_pk} = c.{curated_pk}\n",
+							"        WHERE c.{curated_pk} IS NULL\n",
+							"        AND h.expected_from = (SELECT MAX(expected_from) FROM {std_db}.{horizon_table})\n",
+							"        AND LOWER(c.{sourceColumn}) = 'horizon'\n",
 							"    \"\"\")\n",
+							"\n",
 							"\n",
 							"    return df.count() == 0"
 						],
