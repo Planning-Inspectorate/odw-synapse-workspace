@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "59f57a75-9c2e-45e9-8697-0f5408fa63d4"
+				"spark.autotune.trackingId": "cce00ca0-b3f8-4658-a1be-feebfa70f92f"
 			}
 		},
 		"metadata": {
@@ -74,7 +74,7 @@
 					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
 					"path_to_orchestration_file: str = \"abfss://odw-config@\"+storage_account+\"orchestration/orchestration.json\""
 				],
-				"execution_count": null
+				"execution_count": 1
 			},
 			{
 				"cell_type": "code",
@@ -893,17 +893,17 @@
 					}
 				},
 				"source": [
-					"def test_no_project_from_horizon_dropped(std_db: str, curated_db_migration: str, horizon_table:str, curated_table_migration:str, horizon_pk:str, curated_pk:str):\n",
+					"def test_no_project_from_horizon_dropped(std_db: str, curated_db_migration: str, horizon_table:str, curated_table_migration:str, horizon_pk:str, curated_pk:str, sourceColumn: str = \"sourceSystem\"):\n",
 					"    df = spark.sql(f\"\"\"\n",
-					"        SELECT *\n",
-					"        FROM {std_db}.{horizon_table}\n",
-					"        WHERE {horizon_pk} NOT IN (\n",
-					"            SELECT {curated_pk} FROM {curated_db_migration}.{curated_table_migration}\n",
-					"        )\n",
-					"        AND expected_from = (\n",
-					"            SELECT MAX(expected_from) FROM {std_db}.{horizon_table}\n",
-					"        )\n",
+					"        SELECT DISTINCT h.{horizon_pk}\n",
+					"        FROM {std_db}.{horizon_table} h\n",
+					"        LEFT JOIN {curated_db_migration}.{curated_table_migration} c\n",
+					"        ON h.{horizon_pk} = c.{curated_pk}\n",
+					"        WHERE c.{curated_pk} IS NULL\n",
+					"        AND h.expected_from = (SELECT MAX(expected_from) FROM {std_db}.{horizon_table})\n",
+					"        AND LOWER(c.{sourceColumn}) = 'horizon'\n",
 					"    \"\"\")\n",
+					"\n",
 					"\n",
 					"    return df.count() == 0"
 				],
