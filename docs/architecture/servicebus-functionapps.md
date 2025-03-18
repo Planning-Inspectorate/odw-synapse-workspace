@@ -262,16 +262,6 @@ def validate_data(data: list, schema: dict) -> list:
     return data if success else []
 ```
 
-**deploy.sh**
-
-LEGACY - pipeline is now available `function-app-deploy`  
-
-This is a simple, temporary, shell script to deploy the function app code to the existing function app in Azure. This is to be replaced by an Azure DevOps pipeline in the near future.  
-
-```bash
-func azure functionapp publish $function_app_dev --subscription $subscription_dev
-```
-
 ## Dependencies
 
 The requirements.txt file contains various python packages that the function app needs. In addition there is a dependency on the central repo that contains the json schemas that Servicebus messages should adhere to and which are used for validation. These schemas can be imported as a dependency as follows:  
@@ -386,67 +376,7 @@ An Azure DevOps pipeline has been created to deploy function app code to the exi
 
 Pipeline: [function-app-deploy Azure DevOps](https://dev.azure.com/planninginspectorate/operational-data-warehouse/_build?definitionId=170)  
 
-The pipeline essentially performs a few simple steps outlined below. The full code can be found at the link above in Azure DevOps or in Github here - [function-app-deploy Github](https://github.com/Planning-Inspectorate/ODW-Service/blob/main/pipelines/function_app_deploy.yaml)
-
-1. Create an archive zip file of the code to deploy to the function app  
-
-```yaml
-# Switch to functions directory and create a file containing a list of all files in the top level folder.
-  - script: |
-
-      cd $(Build.SourcesDirectory)/functions
-      find . -maxdepth 1 -type f | sed 's|^\./||' > $(Build.SourcesDirectory)/functions/filelist.txt
-
-    displayName: 'Creating top level files list'
-
-# Create a zip file of all the files in the filelist.
-  - script: |
-
-        cd $(Build.SourcesDirectory)/functions
-        cat $(Build.SourcesDirectory)/functions/filelist.txt | xargs zip -r $(Build.ArtifactStagingDirectory)/functions.zip
-
-    displayName: 'Archive top level files'
-```
-
-2. Publish the zip file as an artifact to be used further in the pipeline  
-
-```yaml
-# Publish the zip file as an artifact to be used further in the pipeline.
-  - task: PublishBuildArtifacts@1
-    displayName: 'Publish build artifact'
-    inputs:
-      PathtoPublish: '$(Build.ArtifactStagingDirectory)'
-      ArtifactName: 'FunctionCode'
-```
-
-3. Download the zip file artifact and deploy it to the function app  
-
-```yaml
-# Job to deploy the zip file to an existing Azure Function App.
-- job: DeployToAzureFunctions
-  displayName: 'Deploy to Azure Functions'
-  dependsOn: BuildAndPackage
-  
-  steps:
-
-# Download the artifact first - the zip file.
-  - task: DownloadBuildArtifacts@1
-    displayName: 'Download build artifact'
-    inputs:
-      buildType: 'current'
-      artifactName: 'FunctionCode'
-      downloadPath: '$(System.ArtifactsDirectory)'
-
-# Use the Azure CLI to deploy the zip file to the Function App in Azure.
-  - task: AzureCLI@2
-    displayName: 'Deploy to function app'
-    inputs:
-      azureSubscription: '$(armServiceConnectionName)'
-      scriptType: 'bash'
-      scriptLocation: 'inlineScript'
-      inlineScript: |
-        az functionapp deployment source config-zip --resource-group $(resourceGroup) --name $(functionApp) --src $(zipFile)
-```
+The full code can be found at the link above in Azure DevOps or in Github here - [function-app-deploy Github](https://github.com/Planning-Inspectorate/ODW-Service/blob/main/pipelines/function_app_deploy.yaml)
 
 This pipeline is triggered by any change to the function app code in the **functions** top level folder that gets merged with the main branch. The pipeline deploys the function app to Dv, Test and Prod automatically when triggered by a merge to the main branch. Manually you can select the environment.   
 
