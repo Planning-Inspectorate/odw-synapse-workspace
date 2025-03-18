@@ -108,7 +108,7 @@ resource "azurerm_synapse_managed_private_endpoint" "synapse_mpe_appeals_bo_sb" 
 
   name                 = "synapse-mpe-appeals-bo--${local.resource_suffix}"
   synapse_workspace_id = azurerm_synapse_workspace.synapse.id
-  target_resource_id   = daßta.azurerm_servicebus_namespace.appeals_back_office[0].id
+  target_resource_id   = data.azurerm_servicebus_namespace.appeals_back_office[0].id
   subresource_name     = "namespace"
 
   depends_on = [
