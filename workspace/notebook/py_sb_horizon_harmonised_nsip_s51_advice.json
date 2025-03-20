@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "7f17fadb-eb93-4018-a553-ffc18957a2d4"
+				"spark.autotune.trackingId": "7e1badc2-4e3e-4eea-994c-4efe74c462d3"
 			}
 		},
 		"metadata": {
@@ -34,15 +34,15 @@
 				"name": "python"
 			},
 			"a365ComputeOptions": {
-				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"id": "/subscriptions/6b18ba9d-2399-48b5-a834-e0f267be122d/resourceGroups/pins-rg-data-odw-test-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-test-uks/bigDataPools/pinssynspodw",
 				"name": "pinssynspodw",
 				"type": "Spark",
-				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"endpoint": "https://pins-synw-odw-test-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
 				"auth": {
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.4",
+				"sparkVersion": "3.3",
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 28,
@@ -236,21 +236,9 @@
 					"                        ,'Y' as IsActive\n",
 					"FROM\n",
 					"    {horizon_table} AS Horizon\n",
-					"    LEFT OUTER JOIN \n",
-					"        (   SELECT\n",
-					"                adviceId\n",
-					"                ,MIN(IngestionDate) AS ingested\n",
-					"            FROM\n",
-					"                {service_bus_table} AS Service_Bus\n",
-					"            GROUP BY\n",
-					"                adviceId\n",
-					"        ) AS First_seen\n",
-					"        ON Horizon.advicenodeid = First_seen.adviceId\n",
-					"        AND Horizon.ingested_datetime >= First_seen.ingested\n",
 					"WHERE\n",
-					"    First_seen.adviceId IS NULL -- Need to drop cases that have been migrated, but keep the history from Horizon\n",
-					"\n",
-					"                \"\"\")"
+					"    ingested_datetime = ( SELECT MAX(ingested_datetime) FROM {horizon_table} )\n",
+					"\"\"\")"
 				],
 				"execution_count": null
 			},
@@ -340,6 +328,9 @@
 						"transient": {
 							"deleting": false
 						}
+					},
+					"microsoft": {
+						"language": "sparksql"
 					},
 					"collapsed": false
 				},
