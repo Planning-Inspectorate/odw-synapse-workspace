@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "7f17fadb-eb93-4018-a553-ffc18957a2d4"
+				"spark.autotune.trackingId": "209984c1-f829-4f96-a7cb-61b2b0124d5d"
 			}
 		},
 		"metadata": {
@@ -34,15 +34,15 @@
 				"name": "python"
 			},
 			"a365ComputeOptions": {
-				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"id": "/subscriptions/6b18ba9d-2399-48b5-a834-e0f267be122d/resourceGroups/pins-rg-data-odw-test-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-test-uks/bigDataPools/pinssynspodw",
 				"name": "pinssynspodw",
 				"type": "Spark",
-				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"endpoint": "https://pins-synw-odw-test-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
 				"auth": {
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.4",
+				"sparkVersion": "3.3",
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 28,
@@ -236,21 +236,9 @@
 					"                        ,'Y' as IsActive\n",
 					"FROM\n",
 					"    {horizon_table} AS Horizon\n",
-					"    LEFT OUTER JOIN \n",
-					"        (   SELECT\n",
-					"                adviceId\n",
-					"                ,MIN(IngestionDate) AS ingested\n",
-					"            FROM\n",
-					"                {service_bus_table} AS Service_Bus\n",
-					"            GROUP BY\n",
-					"                adviceId\n",
-					"        ) AS First_seen\n",
-					"        ON Horizon.advicenodeid = First_seen.adviceId\n",
-					"        AND Horizon.ingested_datetime >= First_seen.ingested\n",
 					"WHERE\n",
-					"    First_seen.adviceId IS NULL -- Need to drop cases that have been migrated, but keep the history from Horizon\n",
-					"\n",
-					"                \"\"\")"
+					"    ingested_datetime = ( SELECT MAX(ingested_datetime) FROM {horizon_table} )\n",
+					"\"\"\")"
 				],
 				"execution_count": null
 			},
@@ -341,6 +329,9 @@
 							"deleting": false
 						}
 					},
+					"microsoft": {
+						"language": "sparksql"
+					},
 					"collapsed": false
 				},
 				"source": [
@@ -362,66 +353,6 @@
 					"    END AS IsActive                \n",
 					"FROM\n",
 					"    odw_harmonised_db.nsip_s51_advice"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"collapsed": false
-				},
-				"source": [
-					"# %%sql\n",
-					"# CREATE OR REPLACE TEMPORARY VIEW vw_nsip_s51_advice_calculations_base\n",
-					"# AS\n",
-					"#     with servicebus as \n",
-					"#     (\n",
-					"#         SELECT \n",
-					"#             adviceId,\n",
-					"#             adviceReference,\n",
-					"#             CASE \n",
-					"#                 WHEN COUNT(CASE WHEN IsActive = 'Y' THEN 1 END) = 0 THEN 'N' \n",
-					"#                 ELSE 'Y' \n",
-					"#             END AS IsActive\n",
-					"#         FROM odw_harmonised_db.sb_s51_advice\n",
-					"#         GROUP BY adviceId, adviceReference\n",
-					"#     ),\n",
-					"\n",
-					"#     base AS (\n",
-					"#         SELECT  \n",
-					"#             row_number() OVER (PARTITION BY adviceid ORDER BY IngestionDate DESC) AS ReverseOrderProcessed,\n",
-					"#             row_number() OVER (ORDER BY IngestionDate ASC, adviceid ASC) AS NSIPAdviceID,\n",
-					"#             adviceid,\n",
-					"#             IngestionDate,\n",
-					"#             ValidTo,\n",
-					"#             '0' AS Migrated,\n",
-					"#             CASE \n",
-					"#                 WHEN row_number() OVER (PARTITION BY adviceid ORDER BY IngestionDate DESC) = 1 \n",
-					"#                 THEN 'Y' \n",
-					"#                 ELSE 'N' \n",
-					"#             END AS IsActive                \n",
-					"#         FROM odw_harmonised_db.nsip_s51_advice\n",
-					"#         )\n",
-					"\n",
-					"#         SELECT base.ReverseOrderProcessed,\n",
-					"#         base.NSIPAdviceID,\n",
-					"#         base.adviceId,\n",
-					"#         base.IngestionDate,\n",
-					"#         base.ValidTo,\n",
-					"#         base.Migrated,\n",
-					"#         servicebus.IsActive as IsActive\n",
-					"#         FROM base\n",
-					"#         LEFT JOIN servicebus\n",
-					"#         ON base.adviceId = servicebus.adviceId"
 				],
 				"execution_count": null
 			},
