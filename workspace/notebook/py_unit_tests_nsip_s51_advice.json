@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d3e118c4-ced2-4f67-b403-9dc99824eade"
+				"spark.autotune.trackingId": "7e9038bf-fccc-4e4c-b137-2e7e0eaf26e1"
 			}
 		},
 		"metadata": {
@@ -34,15 +34,15 @@
 				"name": "python"
 			},
 			"a365ComputeOptions": {
-				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"id": "/subscriptions/6b18ba9d-2399-48b5-a834-e0f267be122d/resourceGroups/pins-rg-data-odw-test-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-test-uks/bigDataPools/pinssynspodw",
 				"name": "pinssynspodw",
 				"type": "Spark",
-				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"endpoint": "https://pins-synw-odw-test-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
 				"auth": {
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.4",
+				"sparkVersion": "3.3",
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 28,
@@ -68,9 +68,10 @@
 					"import json\n",
 					"from pyspark.sql.types import *\n",
 					"from pyspark.sql import DataFrame\n",
+					"import pyspark.sql.functions as f\n",
 					"import pprint"
 				],
-				"execution_count": null
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
@@ -139,7 +140,7 @@
 					"primary_key: str = 'adviceId'\n",
 					"horizon_pk: str = 'advicenodeid'"
 				],
-				"execution_count": null
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
@@ -158,7 +159,7 @@
 					"#keep track of the exitCodes, if the exit code is not zero then we've had failures, we flip the boolean\n",
 					"exitCode: int = 0"
 				],
-				"execution_count": null
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -194,7 +195,7 @@
 					"            \"redactionStatus\",\n",
 					"            \"attachmentIds\"]"
 				],
-				"execution_count": null
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
@@ -212,7 +213,7 @@
 				"source": [
 					"%run /utils/unit-tests/py_unit_tests_functions"
 				],
-				"execution_count": null
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
@@ -237,7 +238,7 @@
 					"horizon_latest_df = spark.sql(f\"select * from {std_db_name}.{horizon_std_table_name} where ingested_datetime = (select max(ingested_datetime) from {std_db_name}.{horizon_std_table_name})\")\n",
 					"harmonised_df = spark.table(f\"{hrm_db_name}.{hrm_table_final}\")"
 				],
-				"execution_count": null
+				"execution_count": 8
 			},
 			{
 				"cell_type": "markdown",
@@ -454,6 +455,33 @@
 					"exitCode += int(not result)"
 				],
 				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Check if there is a mismatch for between any attachmentCount and the number of attachmentIDs"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"result = harmonised_df.filter(f.size(harmonised_df.attachmentIds) != col('attachmentCount')).count()\n",
+					"print(f\"The number of records where the attachment count does not match the number of attachmentIDs: {result}\")\n",
+					"exitCode += int(not result)"
+				],
+				"execution_count": 23
 			},
 			{
 				"cell_type": "markdown",
