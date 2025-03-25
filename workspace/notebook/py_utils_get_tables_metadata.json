@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "63696c3d-0c82-45ed-b4ed-e2c40fcf2601"
+				"spark.autotune.trackingId": "57e9f1f5-2051-4df5-b746-e98efc8597a3"
 			}
 		},
 		"metadata": {
@@ -75,7 +75,7 @@
 					"        \"table_name\": table_name\n",
 					"    }"
 				],
-				"execution_count": 1
+				"execution_count": 8
 			},
 			{
 				"cell_type": "code",
@@ -89,7 +89,7 @@
 					"    for table in tables:\n",
 					"        metadata_list.append(get_metadata(db.name, table.name))"
 				],
-				"execution_count": 8
+				"execution_count": 9
 			},
 			{
 				"cell_type": "code",
@@ -97,7 +97,7 @@
 					"final_df = spark.createDataFrame(metadata_list)\n",
 					"final_df = final_df.filter(\"type != 'VIEW'\")"
 				],
-				"execution_count": 9
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -108,6 +108,105 @@
 					"display(final_df.orderBy('db_name', 'table_name'))"
 				],
 				"execution_count": 10
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Stef TEst"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"import requests\n",
+					"import json"
+				],
+				"execution_count": 4
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"existing_tables = \"https://raw.githubusercontent.com/Planning-Inspectorate/odw-config/refs/heads/main/data-lake/existing-tables-metadata.json\""
+				],
+				"execution_count": 5
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# List of metadata\n",
+					"metadata_list = [\n",
+					"    'standardised_metadata',\n",
+					"    'harmonised_metadata',\n",
+					"    'curated_metadata',\n",
+					"    'curated_migration_metadata',\n",
+					"    'config_metadata',\n",
+					"    'logging_metadata'\n",
+					"]"
+				],
+				"execution_count": 6
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"response = requests.get(existing_tables)\n",
+					"exisitng_tables_metadata = response.json()"
+				],
+				"execution_count": 7
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"expected_tables = set()\n",
+					"tables_list = set()  # Initialize outside the loop\n",
+					"\n",
+					"for metadata_name in metadata_list:\n",
+					"    print(f\"Reading {metadata_name.rsplit('_', 1)[0]} tables\")\n",
+					"    \n",
+					"    # Fix typo: 'exisitng_tables_metadata' -> 'existing_tables_metadata'\n",
+					"    metadata = next((item[metadata_name] for item in exisitng_tables_metadata if metadata_name in item), [])\n",
+					"\n",
+					"    # Ensure metadata is a list\n",
+					"    if not isinstance(metadata, list):\n",
+					"        metadata = []\n",
+					"\n",
+					"    # Extract external tables from the JSON and append to expected_tables\n",
+					"    expected_tables.update(\n",
+					"        (table.get('database_name'), table.get('table_name')) \n",
+					"        for table in metadata \n",
+					"        if table.get(\"table_type\", \"\").upper() == \"MANAGED\"\n",
+					"    )\n",
+					"\n",
+					"# Get list of managed tables from Databases\n",
+					"existing_tables = set()\n",
+					"\n",
+					"\n",
+					"# Find missing tables\n",
+					"missing_tables = expected_tables - tables_list\n",
+					"\n",
+					"# Print results\n",
+					"if missing_tables:\n",
+					"    print(\"\\nMissing Tables:\")\n",
+					"    for db, table in missing_tables:\n",
+					"        print(f\"- {db}.{table}\")\n",
+					"else:\n",
+					"    print(\"\\nNo missing tables. All expected tables are present.\")\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"final_df"
+				],
+				"execution_count": null
 			}
 		]
 	}
