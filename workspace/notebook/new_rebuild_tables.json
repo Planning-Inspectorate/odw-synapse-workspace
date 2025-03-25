@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "064beb1f-c08f-4da4-b8de-9bdf4b530e9f"
+				"spark.autotune.trackingId": "9ba7ba23-7509-42d7-9724-7634091d5a8e"
 			}
 		},
 		"metadata": {
@@ -105,11 +105,15 @@
 					"        if not table_type or table_type == \"Unknown\":\r\n",
 					"            raise ValueError(\"Table type not provided or is of value 'Unknown'.\")\r\n",
 					"\r\n",
+					"        if table_format == 'hive':\r\n",
+					"            table_format = 'delta'\r\n",
+					"            \r\n",
 					"        # Create or rebuild the table\r\n",
 					"        spark.sql(f\"\"\"CREATE TABLE IF NOT EXISTS {db_name}.{table_name}\r\n",
 					"        USING {table_format}\r\n",
 					"        LOCATION '{table_location}'\r\n",
 					"        \"\"\")\r\n",
+					"\r\n",
 					"        print(f\"Table {db_name}.{table_name} rebuilt at location\\n{table_location}\")\r\n",
 					"    except ValueError as ve:\r\n",
 					"        print(f\"Validation error: {ve}\")\r\n",
@@ -187,6 +191,45 @@
 					"        table_format = table.get('table_format')\r\n",
 					"        table_type = table.get('table_type')\r\n",
 					"        rebuild_table(db_name=db_name, table_name=table_name, table_location=table_location, table_format=table_format, table_type=table_type)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"metadata = exisitng_tables_metadata\r\n",
+					"\r\n",
+					"# Extract external tables from the JSON\r\n",
+					"expected_tables = {\r\n",
+					"    (entry[\"database_name\"], entry[\"table_name\"]) \r\n",
+					"    for entry in metadata \r\n",
+					"    if entry.get(\"table_type\", \"\").upper() == \"EXTERNAL\"\r\n",
+					"}\r\n",
+					"\r\n",
+					"# Get list of external tables from Databases\r\n",
+					"existing_tables = set()\r\n",
+					"databases = [db[0] for db in spark.sql(\"SHOW DATABASES\").collect()]\r\n",
+					"\r\n",
+					"for db in databases:\r\n",
+					"    tables = spark.sql(f\"SHOW TABLES IN {db}\").collect()\r\n",
+					"    for table in tables:\r\n",
+					"        if table[\"isTemporary\"] is False:  # Ensure it's not a temp table\r\n",
+					"            table_name = table[\"tableName\"]\r\n",
+					"            table_type = spark.sql(f\"DESCRIBE FORMATTED {db}.{table_name}\").collect()\r\n",
+					"            for row in table_type:\r\n",
+					"                if \"Type\" in row.asDict().get(\"col_name\", \"\") and \"EXTERNAL\" in row.asDict().get(\"data_type\", \"\").upper():\r\n",
+					"                    existing_tables.add((db, table_name))\r\n",
+					"\r\n",
+					"# Find missing tables\r\n",
+					"missing_tables = expected_tables - existing_tables\r\n",
+					"\r\n",
+					"# Print results\r\n",
+					"if missing_tables:\r\n",
+					"    print(\"\\nMissing External Tables:\")\r\n",
+					"    for db, table in missing_tables:\r\n",
+					"        print(f\"- {db}.{table}\")\r\n",
+					"else:\r\n",
+					"    print(\"\\nNo missing external tables. All expected tables are present.\")"
 				],
 				"execution_count": null
 			}
