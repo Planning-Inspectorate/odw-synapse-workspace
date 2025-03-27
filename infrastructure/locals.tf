@@ -30,4 +30,8 @@ locals {
       ServiceName = local.service_name
     }
   )
+
+  tooling_storage_dns_zone_ids = {
+    for zone in toset(local.storage_zones) : zone => data.azurerm_private_dns_zone.tooling_storage[zone].id
+  }
 }

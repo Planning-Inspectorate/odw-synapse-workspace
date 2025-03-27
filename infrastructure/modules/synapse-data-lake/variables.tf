@@ -121,6 +121,14 @@ variable "tenant_id" {
   type        = string
 }
 
+variable "tooling_config" {
+  description = "Config for the tooling subscription dns zones"
+  type = object({
+    storage_private_dns_zone_id = map(string)
+  })
+}
+
+
 variable "vnet_subnet_ids" {
   description = "A map of subnet names and IDs comprising the linked Virtual Network"
   type        = map(string)
