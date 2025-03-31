@@ -500,6 +500,15 @@ variable "tenant_id" {
   type        = string
 }
 
+variable "tooling_config" {
+  description = "The configuration for the Tooling subscription, for VNET links"
+  type = object({
+    network_rg      = string
+    network_name    = string
+    subscription_id = string
+  })
+}
+
 variable "vnet_base_cidr_block" {
   default     = "10.90.0.0/24"
   description = "The base IPv4 range for the Virtual Network in CIDR notation"

@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "c2320c63-cec4-4a25-b3ab-8a3b0df79a17"
+				"spark.autotune.trackingId": "cce00ca0-b3f8-4658-a1be-feebfa70f92f"
 			}
 		},
 		"metadata": {
@@ -69,11 +69,12 @@
 					"from pyspark.sql.types import *\n",
 					"from pyspark.sql import DataFrame\n",
 					"import pprint\n",
+					"from pyspark.sql.functions import *\n",
 					"\n",
 					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
 					"path_to_orchestration_file: str = \"abfss://odw-config@\"+storage_account+\"orchestration/orchestration.json\""
 				],
-				"execution_count": null
+				"execution_count": 1
 			},
 			{
 				"cell_type": "code",
@@ -102,6 +103,17 @@
 				},
 				"source": [
 					"def create_spark_schema(db_name: str, entity_name: str, folder_name: str = None, is_servicebus_schema: str = True) -> StructType:\n",
+					"    incremental_key: str = get_incremental_key(folder_name if folder_name else entity_name, storage_account, path_to_orchestration_file) if db_name == 'odw_harmonised_db' else None\n",
+					"    schema = mssparkutils.notebook.run(\"/py_create_spark_schema\", 30, {\"db_name\": db_name, \"entity_name\": entity_name, \"incremental_key\": incremental_key, \"is_servicebus_schema\": is_servicebus_schema})\n",
+					"    spark_schema = StructType.fromJson(json.loads(schema))\n",
+					"    return spark_schema"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def create_spark_not_sb_schema(db_name: str, entity_name: str, folder_name: str = None, is_servicebus_schema: str = False) -> StructType:\n",
 					"    incremental_key: str = get_incremental_key(folder_name if folder_name else entity_name, storage_account, path_to_orchestration_file) if db_name == 'odw_harmonised_db' else None\n",
 					"    schema = mssparkutils.notebook.run(\"/py_create_spark_schema\", 30, {\"db_name\": db_name, \"entity_name\": entity_name, \"incremental_key\": incremental_key, \"is_servicebus_schema\": is_servicebus_schema})\n",
 					"    spark_schema = StructType.fromJson(json.loads(schema))\n",
@@ -302,6 +314,27 @@
 			},
 			{
 				"cell_type": "code",
+				"source": [
+					"def test_deduped_std_same_rows_hrm(std_table: str, hrm_table: str) -> tuple[int, int, bool]:\n",
+					"    std_table_full: str = f\"{std_db_name}.{std_table}\"\n",
+					"    hrm_table_full: str = f\"{hrm_db_name}.{hrm_table}\"\n",
+					"\n",
+					"    # filter standardised df with non-null message_type\n",
+					"    std_df: DataFrame = spark.table(std_table_full)\n",
+					"\n",
+					"    if \"message_type\" in std_df.columns:\n",
+					"        std_df = std_df.filter(std_df.message_type.isNotNull() & std_df.message_id.isNotNull())\n",
+					"        std_df = std_df.dropDuplicates([\"message_id\", \"message_type\"])\n",
+					"    \n",
+					"    std_count: int = std_df.count()\n",
+					"    hrm_count: int = spark.table(hrm_table_full).count()\n",
+					"\n",
+					"    return (std_count, hrm_count, std_count == hrm_count)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
 						"source_hidden": false,
@@ -380,17 +413,17 @@
 					}
 				},
 				"source": [
-					"## Define the harmonise table that only includes horizon data, and the latest record per primary id.\r\n",
-					"##SourceColumns are not named consistently across different data types\r\n",
-					"\r\n",
-					"def harmonise_df_hzn(hrm_db: str, hrm_table: str, primary_key: str, sourceColumn: str = \"sourceSystem\") -> DataFrame:\r\n",
-					"    df_harmonise_only_hzn: DataFrame = spark.sql(f\"\"\"\r\n",
-					"    select *\r\n",
-					"    from {hrm_db}.{hrm_table} tbl_1\r\n",
-					"    where LOWER({sourceColumn})='horizon'\r\n",
-					"    and tbl_1.IngestionDate = (select max(IngestionDate) from {hrm_db}.{hrm_table} tbl_2  WHERE tbl_1.{primary_key} = tbl_2.{primary_key} group by {primary_key})\r\n",
-					"    \"\"\")\r\n",
-					"\r\n",
+					"## Define the harmonise table that only includes horizon data, and the latest record per primary id.\n",
+					"##SourceColumns are not named consistently across different data types\n",
+					"\n",
+					"def harmonise_df_hzn(hrm_db: str, hrm_table: str, primary_key: str, sourceColumn: str = \"sourceSystem\") -> DataFrame:\n",
+					"    df_harmonise_only_hzn: DataFrame = spark.sql(f\"\"\"\n",
+					"    select *\n",
+					"    from {hrm_db}.{hrm_table} tbl_1\n",
+					"    where LOWER({sourceColumn})='horizon'\n",
+					"    and tbl_1.IngestionDate = (select max(IngestionDate) from {hrm_db}.{hrm_table} tbl_2  WHERE tbl_1.{primary_key} = tbl_2.{primary_key} group by {primary_key})\n",
+					"    \"\"\")\n",
+					"\n",
 					"    return df_harmonise_only_hzn"
 				],
 				"execution_count": null
@@ -409,18 +442,18 @@
 					}
 				},
 				"source": [
-					"def test_counts_hrm_cur(hrm_db: str, hrm_table: str, curated_db: str, curated_table: str, primary_key: str, sourceColumn: str = \"sourceSystem\") -> tuple[int, int, bool]:   \r\n",
-					"\r\n",
-					"    ## Define harmonise and curated dataframes\r\n",
-					"\r\n",
-					"    df_harmonise_hzn = harmonise_df_hzn(hrm_db, hrm_table, primary_key, sourceColumn)\r\n",
-					"\r\n",
-					"    df_curated: DataFrame =  spark.sql(f\"SELECT * FROM {curated_db}.{curated_table}\")\r\n",
-					"    \r\n",
-					"    ## calculate counts\r\n",
-					"\r\n",
-					"    hrm_count = df_harmonise_hzn.count()\r\n",
-					"    cur_count = df_curated.count()\r\n",
+					"def test_counts_hrm_cur(hrm_db: str, hrm_table: str, curated_db: str, curated_table: str, primary_key: str, sourceColumn: str = \"sourceSystem\") -> tuple[int, int, bool]:   \n",
+					"\n",
+					"    ## Define harmonise and curated dataframes\n",
+					"\n",
+					"    df_harmonise_hzn = harmonise_df_hzn(hrm_db, hrm_table, primary_key, sourceColumn)\n",
+					"\n",
+					"    df_curated: DataFrame =  spark.sql(f\"SELECT * FROM {curated_db}.{curated_table}\")\n",
+					"    \n",
+					"    ## calculate counts\n",
+					"\n",
+					"    hrm_count = df_harmonise_hzn.count()\n",
+					"    cur_count = df_curated.count()\n",
 					"    return (hrm_count, cur_count, hrm_count == cur_count)"
 				],
 				"execution_count": null
@@ -439,18 +472,21 @@
 					}
 				},
 				"source": [
-					"def test_curated_unique_hzn_only(curated_db: str, curated_table: str, primary_key: str, sourceColumn: str = \"sourceSystem\") -> tuple[bool,int,int,bool]: \r\n",
-					"\r\n",
-					"    df_curated: DataFrame = spark.sql(f\"SELECT * FROM {curated_db}.{curated_table}\")\r\n",
-					"    count_not_hzn_records: int = df_curated.filter(f\"{sourceColumn} != 'horizon' AND {sourceColumn} != 'Horizon'\").count()\r\n",
-					"\r\n",
-					"    total_count = df_curated.count()\r\n",
-					"\r\n",
-					"    #Count of distinct caseid (primary id)\r\n",
-					"    distinct_count = df_curated.select(primary_key).distinct().count()\r\n",
-					"\r\n",
-					"\r\n",
-					"    return (count_not_hzn_records == 0, total_count, distinct_count, total_count == distinct_count)\r\n",
+					"def test_curated_unique_hzn_only(curated_db: str, curated_table: str, primary_key: str, sourceColumn: str = \"sourceSystem\") -> tuple[bool,int,int,bool]: \n",
+					"\n",
+					"    df_curated: DataFrame = spark.sql(f\"SELECT * FROM {curated_db}.{curated_table}\")\n",
+					"    if sourceColumn in df_curated.columns:\n",
+					"        count_not_hzn_records: int = df_curated.filter(f\"{sourceColumn} != 'horizon' AND {sourceColumn} != 'Horizon'\").count()\n",
+					"    else:\n",
+					"        count_not_hzn_records = 0\n",
+					"\n",
+					"    total_count = df_curated.count()\n",
+					"\n",
+					"    #Count of distinct caseid (primary id)\n",
+					"    distinct_count = df_curated.select(primary_key).distinct().count()\n",
+					"\n",
+					"\n",
+					"    return (count_not_hzn_records == 0, total_count, distinct_count, total_count == distinct_count)\n",
 					""
 				],
 				"execution_count": null
@@ -469,20 +505,20 @@
 					}
 				},
 				"source": [
-					"def test_hrm_to_curated_no_dropping_primary_ids_only_records(hrm_db: str, hrm_table: str, curated_db: str, curated_table: str, primary_key: str, sourceColumn: str = \"sourceSystem\" ) -> bool:\r\n",
-					"    df: DataFrame = spark.sql(f\"\"\"\r\n",
-					"                                SELECT {primary_key}\r\n",
-					"                                FROM {hrm_db}.{hrm_table}\r\n",
-					"                                WHERE LOWER({sourceColumn}) = 'horizon'\r\n",
-					"                                AND {primary_key} NOT IN\r\n",
-					"                                (\r\n",
-					"                                    SELECT {primary_key}\r\n",
-					"                                    FROM {curated_db}.{curated_table}\r\n",
-					"                                )\r\n",
-					"                            \"\"\")\r\n",
-					"    if df.count() > 0:\r\n",
-					"        df.show()\r\n",
-					"\r\n",
+					"def test_hrm_to_curated_no_dropping_primary_ids_only_records(hrm_db: str, hrm_table: str, curated_db: str, curated_table: str, primary_key: str, sourceColumn: str = \"sourceSystem\" ) -> bool:\n",
+					"    df: DataFrame = spark.sql(f\"\"\"\n",
+					"                                SELECT {primary_key}\n",
+					"                                FROM {hrm_db}.{hrm_table}\n",
+					"                                WHERE LOWER({sourceColumn}) = 'horizon'\n",
+					"                                AND {primary_key} NOT IN\n",
+					"                                (\n",
+					"                                    SELECT {primary_key}\n",
+					"                                    FROM {curated_db}.{curated_table}\n",
+					"                                )\n",
+					"                            \"\"\")\n",
+					"    if df.count() > 0:\n",
+					"        df.show()\n",
+					"\n",
 					"    return df.count() == 0"
 				],
 				"execution_count": null
@@ -690,6 +726,71 @@
 					}
 				},
 				"source": [
+					"#### Test for custom / combined harmonised tables"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def test_no_deleted_horizon_records_in_harmonised(\n",
+					"    horizon_latest_df: DataFrame, \n",
+					"    harmonised_df: DataFrame, \n",
+					"    horizon_primary_key: str, \n",
+					"    servicebus_primary_key: str\n",
+					") -> bool:\n",
+					"    \"\"\"\n",
+					"    Tests if there are any records in harmonised that have been deleted from Horizon.\n",
+					"    Returns True if no deleted records exist, otherwise False.\n",
+					"    \"\"\"\n",
+					"    harmonised_alias = harmonised_df.alias(\"hrm\")\n",
+					"    horizon_alias = horizon_latest_df.alias(\"hzn\")\n",
+					"\n",
+					"    harmonised_filtered = harmonised_alias.filter(\"ODTSourceSystem = 'Horizon' and IsActive = 'Y'\")\n",
+					"\n",
+					"    result_df = harmonised_filtered.join(\n",
+					"        horizon_alias, \n",
+					"        on=col(f\"hrm.{servicebus_primary_key}\") == col(f\"hzn.{horizon_primary_key}\"),\n",
+					"        how=\"left_anti\"\n",
+					"    )\n",
+					"\n",
+					"    return result_df.count() == 0"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def test_valid_to_set_for_inactive_records(df: DataFrame) -> bool:\n",
+					"    \"\"\"\n",
+					"    Tests if the ValidTo date is populated for all inactive records\n",
+					"    \"\"\"\n",
+					"    results = df.filter(\"IsActive = 'N' and ValidTo is null\")\n",
+					"    return results.count() == 0"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def test_valid_to_not_set_for_active_records(df: DataFrame) -> bool:\n",
+					"    \"\"\"\n",
+					"    Tests if the ValidTo date is not populated for active records\n",
+					"    \"\"\"\n",
+					"    results = df.filter(\"IsActive = 'Y' and ValidTo is not null\")\n",
+					"    return results.count() == 0"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
 					"## Unit tests for Migration Tables"
 				]
 			},
@@ -792,21 +893,21 @@
 					}
 				},
 				"source": [
-					"def test_no_project_from_horizon_dropped(std_db: str, curated_db_migration: str, horizon_table:str, curated_table_migration:str, horizon_pk:str, curated_pk:str):\n",
+					"def test_no_project_from_horizon_dropped(std_db: str, curated_db_migration: str, horizon_table:str, curated_table_migration:str, horizon_pk:str, curated_pk:str, sourceColumn: str = \"sourceSystem\"):\n",
 					"    df = spark.sql(f\"\"\"\n",
-					"        SELECT *\n",
-					"        FROM {std_db}.{horizon_table}\n",
-					"        WHERE {horizon_pk} NOT IN (\n",
-					"            SELECT {curated_pk} FROM {curated_db_migration}.{curated_table_migration}\n",
-					"        )\n",
-					"        AND expected_from = (\n",
-					"            SELECT MAX(expected_from) FROM {std_db}.{horizon_table}\n",
-					"        )\n",
+					"        SELECT DISTINCT h.{horizon_pk}\n",
+					"        FROM {std_db}.{horizon_table} h\n",
+					"        LEFT JOIN {curated_db_migration}.{curated_table_migration} c\n",
+					"        ON h.{horizon_pk} = c.{curated_pk}\n",
+					"        WHERE c.{curated_pk} IS NULL\n",
+					"        AND h.expected_from = (SELECT MAX(expected_from) FROM {std_db}.{horizon_table})\n",
+					"        AND LOWER(c.{sourceColumn}) = 'horizon'\n",
 					"    \"\"\")\n",
+					"\n",
 					"\n",
 					"    return df.count() == 0"
 				],
-				"execution_count": 1
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -918,17 +1019,17 @@
 					}
 				},
 				"source": [
-					"def test_sb_std_to_hrm_no_message_id_dropped(std_table: str, hrm_table: str) -> bool:\r\n",
-					"    df: DataFrame = spark.sql(f\"\"\"\r\n",
-					"                        SELECT *\r\n",
-					"                        FROM {std_table}\r\n",
-					"                        WHERE message_id NOT IN (\r\n",
-					"                            SELECT message_id\r\n",
-					"                            FROM {hrm_table}\r\n",
-					"                        )\r\n",
-					"                    \"\"\")\r\n",
-					"\r\n",
-					"    return df.count() == 0\r\n",
+					"def test_sb_std_to_hrm_no_message_id_dropped(std_table: str, hrm_table: str) -> bool:\n",
+					"    df: DataFrame = spark.sql(f\"\"\"\n",
+					"                        SELECT *\n",
+					"                        FROM {std_table}\n",
+					"                        WHERE message_id NOT IN (\n",
+					"                            SELECT message_id\n",
+					"                            FROM {hrm_table}\n",
+					"                        )\n",
+					"                    \"\"\")\n",
+					"\n",
+					"    return df.count() == 0\n",
 					""
 				],
 				"execution_count": null
@@ -979,26 +1080,26 @@
 					}
 				},
 				"source": [
-					"from collections import Counter\r\n",
-					"\r\n",
-					"def test_no_duplicates_in_array_column(curated_db: str, curated_table: str, sourceColumn: str):\r\n",
-					"    \r\n",
-					"    column_list = spark.sql(f\"SELECT {sourceColumn} AS ids FROM {curated_db}.{curated_table}\").collect()  \r\n",
-					"    \r\n",
-					"    # Assuming there's only one Row object in the list\r\n",
-					"    row = column_list[0]    \r\n",
-					"\r\n",
-					"    # Get the attachmentIds\r\n",
-					"    attachment_ids = row.ids    \r\n",
-					"\r\n",
-					"    # Count occurrences of each attachmentId\r\n",
-					"    id_counts = Counter(attachment_ids)\r\n",
-					"\r\n",
-					"    for id, count in id_counts.items():\r\n",
-					"        if count > 1:\r\n",
-					"            return False\r\n",
-					"\r\n",
-					"    return True  \r\n",
+					"from collections import Counter\n",
+					"\n",
+					"def test_no_duplicates_in_array_column(curated_db: str, curated_table: str, sourceColumn: str):\n",
+					"    \n",
+					"    column_list = spark.sql(f\"SELECT {sourceColumn} AS ids FROM {curated_db}.{curated_table}\").collect()  \n",
+					"    \n",
+					"    # Assuming there's only one Row object in the list\n",
+					"    row = column_list[0]    \n",
+					"\n",
+					"    # Get the attachmentIds\n",
+					"    attachment_ids = row.ids    \n",
+					"\n",
+					"    # Count occurrences of each attachmentId\n",
+					"    id_counts = Counter(attachment_ids)\n",
+					"\n",
+					"    for id, count in id_counts.items():\n",
+					"        if count > 1:\n",
+					"            return False\n",
+					"\n",
+					"    return True  \n",
 					"        "
 				],
 				"execution_count": null
@@ -1139,32 +1240,32 @@
 					}
 				},
 				"source": [
-					"def test_deleted_records_valid_to_equals_message_enqueued_time(std_table: str, hrm_table: str) -> bool:\r\n",
-					"    \"\"\"\r\n",
-					"    For all deleted records, the ValidTo date in harmonised must equal \r\n",
-					"    the message_enqueued_time_utc in standardised for the same message_id\r\n",
-					"\r\n",
-					"    Args:\r\n",
-					"        std_table: The standardised table name, e.g. sb_nsip_subscription\r\n",
-					"        hrm_table: The harmonised table name, e.g. sb_nsip_subscription\r\n",
-					"    \"\"\"\r\n",
-					"    delete_df = (\r\n",
-					"        spark.table(f\"odw_standardised_db.{std_table}\")\r\n",
-					"        .filter(\"message_type = 'Delete'\")\r\n",
-					"        .select(\"message_id\", \"message_enqueued_time_utc\")\r\n",
-					"        .distinct()\r\n",
-					"    )\r\n",
-					"\r\n",
-					"    target_df = spark.table(f\"odw_harmonised_db.{hrm_table}\")\r\n",
-					"\r\n",
-					"    mismatched_records_df = (\r\n",
-					"        delete_df.alias(\"d\")\r\n",
-					"        .join(target_df.alias(\"t\"), delete_df[\"message_id\"] == target_df[\"message_id\"], \"left\")\r\n",
-					"        .filter(target_df[\"ValidTo\"] != delete_df[\"message_enqueued_time_utc\"])\r\n",
-					"    )\r\n",
-					"    \r\n",
-					"    mismatched_message_ids = mismatched_records_df.select(\"d.message_id\").distinct().rdd.flatMap(lambda x: x).collect()\r\n",
-					"\r\n",
+					"def test_deleted_records_valid_to_equals_message_enqueued_time(std_table: str, hrm_table: str) -> bool:\n",
+					"    \"\"\"\n",
+					"    For all deleted records, the ValidTo date in harmonised must equal \n",
+					"    the message_enqueued_time_utc in standardised for the same message_id\n",
+					"\n",
+					"    Args:\n",
+					"        std_table: The standardised table name, e.g. sb_nsip_subscription\n",
+					"        hrm_table: The harmonised table name, e.g. sb_nsip_subscription\n",
+					"    \"\"\"\n",
+					"    delete_df = (\n",
+					"        spark.table(f\"odw_standardised_db.{std_table}\")\n",
+					"        .filter(\"message_type = 'Delete'\")\n",
+					"        .select(\"message_id\", \"message_enqueued_time_utc\")\n",
+					"        .distinct()\n",
+					"    )\n",
+					"\n",
+					"    target_df = spark.table(f\"odw_harmonised_db.{hrm_table}\")\n",
+					"\n",
+					"    mismatched_records_df = (\n",
+					"        delete_df.alias(\"d\")\n",
+					"        .join(target_df.alias(\"t\"), delete_df[\"message_id\"] == target_df[\"message_id\"], \"left\")\n",
+					"        .filter(target_df[\"ValidTo\"] != delete_df[\"message_enqueued_time_utc\"])\n",
+					"    )\n",
+					"    \n",
+					"    mismatched_message_ids = mismatched_records_df.select(\"d.message_id\").distinct().rdd.flatMap(lambda x: x).collect()\n",
+					"\n",
 					"    return len(mismatched_message_ids) == 0"
 				],
 				"execution_count": null

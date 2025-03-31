@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "12a46b0e-13ad-4e11-90e2-890e51236f32"
+				"spark.autotune.trackingId": "209984c1-f829-4f96-a7cb-61b2b0124d5d"
 			}
 		},
 		"metadata": {
@@ -34,15 +34,15 @@
 				"name": "python"
 			},
 			"a365ComputeOptions": {
-				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"id": "/subscriptions/6b18ba9d-2399-48b5-a834-e0f267be122d/resourceGroups/pins-rg-data-odw-test-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-test-uks/bigDataPools/pinssynspodw",
 				"name": "pinssynspodw",
 				"type": "Spark",
-				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"endpoint": "https://pins-synw-odw-test-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
 				"auth": {
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.4",
+				"sparkVersion": "3.3",
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 28,
@@ -67,7 +67,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 2
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -76,7 +76,7 @@
 					"from pyspark.sql import Row\n",
 					"from pyspark.sql.functions import *"
 				],
-				"execution_count": 3
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -94,9 +94,22 @@
 				"source": [
 					"service_bus_table = \"odw_harmonised_db.sb_s51_advice\"\n",
 					"horizon_table = \"odw_standardised_db.horizon_nsip_advice\"\n",
-					"spark_table_final = \"odw_harmonised_db.nsip_s51_advice\""
+					"spark_table_final = \"odw_harmonised_db.nsip_s51_advice\"\n",
+					"horizon_primary_key = \"advicenodeid\"\n",
+					"servicebus_primary_key = \"adviceId\""
 				],
-				"execution_count": 4
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"servicebus_df = spark.table(service_bus_table)\n",
+					"horizon_df = spark.table(horizon_table)\n",
+					"horizon_latest_df = spark.sql(f\"select * from {horizon_table} where ingested_datetime = (select max(ingested_datetime) from {horizon_table})\")\n",
+					"horizon_deleted = horizon_df.join(horizon_latest_df, on=horizon_primary_key, how=\"left_anti\").select(horizon_primary_key).distinct()\n",
+					"harmonised_df = spark.table(spark_table_final)"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -161,7 +174,7 @@
 					"\n",
 					"                    \"\"\")"
 				],
-				"execution_count": 5
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -223,23 +236,11 @@
 					"                        ,'Y' as IsActive\n",
 					"FROM\n",
 					"    {horizon_table} AS Horizon\n",
-					"    LEFT OUTER JOIN \n",
-					"        (   SELECT\n",
-					"                adviceId\n",
-					"                ,MIN(IngestionDate) AS ingested\n",
-					"            FROM\n",
-					"                {service_bus_table} AS Service_Bus\n",
-					"            GROUP BY\n",
-					"                adviceId\n",
-					"        ) AS First_seen\n",
-					"        ON Horizon.advicenodeid = First_seen.adviceId\n",
-					"        AND Horizon.ingested_datetime >= First_seen.ingested\n",
 					"WHERE\n",
-					"    First_seen.adviceId IS NULL -- Need to drop cases that have been migrated, but keep the history from Horizon\n",
-					"\n",
-					"                \"\"\")"
+					"    ingested_datetime = ( SELECT MAX(ingested_datetime) FROM {horizon_table} )\n",
+					"\"\"\")"
 				],
-				"execution_count": 6
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -262,7 +263,7 @@
 					"# sort columns into same order as service bus\n",
 					"horizon_data = horizon_data.select(service_bus_data.columns)"
 				],
-				"execution_count": 7
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -280,7 +281,7 @@
 				"source": [
 					"results = service_bus_data.union(horizon_data)"
 				],
-				"execution_count": 8
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -300,7 +301,7 @@
 					"results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\n",
 					"logInfo(f\"Written {spark_table_final}\")"
 				],
-				"execution_count": 9
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -353,7 +354,7 @@
 					"FROM\n",
 					"    odw_harmonised_db.nsip_s51_advice"
 				],
-				"execution_count": 10
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -392,7 +393,7 @@
 					"                            ORDER BY currentRow.ReverseOrderProcessed\n",
 					"                    \"\"\")"
 				],
-				"execution_count": 11
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -411,7 +412,7 @@
 					"df_calcs =df_calcs.withColumnRenamed(\"adviceid\", \"temp_adviceid\").withColumnRenamed(\"IngestionDate\", \"temp_IngestionDate\")\n",
 					""
 				],
-				"execution_count": 12
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -509,7 +510,7 @@
 					"        {spark_table_final}\"\"\")\n",
 					"    "
 				],
-				"execution_count": 13
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -528,7 +529,7 @@
 					"columns = results.columns\n",
 					"results = results.drop(\"NSIPAdviceID\", \"ValidTo\", \"Migrated\", \"IsActive\")"
 				],
-				"execution_count": 14
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -549,7 +550,43 @@
 					"logInfo(f\"Dropping duplicates from {spark_table_final}\")\n",
 					"final_df = final_df.drop_duplicates()"
 				],
-				"execution_count": 15
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Remove deleted Horizon data and clean up flags"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Get deleted primary keys into a list\n",
+					"deleted_ids = [row[0] for row in horizon_deleted.collect()]\n",
+					"\n",
+					"# Set IsActive to N if the primary key has been deleted from Horizon\n",
+					"hrm_updated = final_df.withColumn(\n",
+					"    \"IsActive\", when(col(\"adviceId\").isin(deleted_ids), \"N\").otherwise(col(\"IsActive\"))\n",
+					")\n",
+					"\n",
+					"# Set ValidTo to null if IsActive = Y\n",
+					"hrm_updated = hrm_updated.withColumn(\n",
+					"    \"ValidTo\", when(col(\"IsActive\") == \"Y\", None).otherwise(col(\"ValidTo\"))\n",
+					")\n",
+					"\n",
+					"# Set ValidTo if IsActive = N to the IngestionDate + 1 day\n",
+					"hrm_final = hrm_updated.withColumn(\n",
+					"    \"ValidTo\", when((col(\"ValidTo\").isNull()) & (col(\"IsActive\") == \"N\"), date_add(col(\"IngestionDate\"), 1).cast(\"timestamp\")).otherwise(col(\"ValidTo\"))\n",
+					")"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -566,10 +603,10 @@
 				},
 				"source": [
 					"logInfo(f\"Writing to final {spark_table_final}\")\n",
-					"final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\n",
+					"hrm_final.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\n",
 					"logInfo(f\"Written to final {spark_table_final}\")"
 				],
-				"execution_count": 16
+				"execution_count": null
 			}
 		]
 	}

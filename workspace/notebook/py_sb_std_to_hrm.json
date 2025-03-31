@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "1f32fb40-9f1b-4dc0-9573-926d173ecdb6"
+				"spark.autotune.trackingId": "ccae219f-a48a-434b-b456-07c392922f4f"
 			}
 		},
 		"metadata": {
@@ -48,7 +48,7 @@
 				"memory": 28,
 				"automaticScaleJobs": false
 			},
-			"sessionKeepAliveTimeout": 1200
+			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
 			{
@@ -67,7 +67,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 17
+				"execution_count": 186
 			},
 			{
 				"cell_type": "markdown",
@@ -103,7 +103,7 @@
 				"source": [
 					"entity_name = ''"
 				],
-				"execution_count": 18
+				"execution_count": 188
 			},
 			{
 				"cell_type": "code",
@@ -130,7 +130,7 @@
 					"from pyspark.sql.window import Window\r\n",
 					"from pyspark.sql.types import LongType"
 				],
-				"execution_count": 19
+				"execution_count": 189
 			},
 			{
 				"cell_type": "code",
@@ -148,7 +148,7 @@
 				"source": [
 					"%run service-bus/py_spark_df_ingestion_functions"
 				],
-				"execution_count": 20
+				"execution_count": 190
 			},
 			{
 				"cell_type": "markdown",
@@ -177,20 +177,20 @@
 					}
 				},
 				"source": [
-					"logInfo(\"Reading orchestration config\")\n",
-					"spark: SparkSession = SparkSession.builder.getOrCreate()\n",
-					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
-					"harmonised_container: str = f\"abfss://odw-harmonised@{storage_account}lib/\"\n",
-					"path_to_orchestration_file: str = \"abfss://odw-config@\"+storage_account+\"orchestration/orchestration.json\"\n",
-					"df: DataFrame = spark.read.option(\"multiline\",\"true\").json(path_to_orchestration_file)\n",
-					"definitions: list = json.loads(df.toJSON().first())['definitions']\n",
-					"definition: dict = next((d for d in definitions if entity_name == d['Source_Filename_Start']), None)\n",
-					"if not definition:\n",
-					"    logError(f\"Failed to read definition for {entity_name}\")\n",
-					"    mssparkutils.notebook.exit(f\"Definition not found for {entity_name}\")\n",
+					"logInfo(\"Reading orchestration config\")\r\n",
+					"spark: SparkSession = SparkSession.builder.getOrCreate()\r\n",
+					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\r\n",
+					"harmonised_container: str = f\"abfss://odw-harmonised@{storage_account}lib/\"\r\n",
+					"path_to_orchestration_file: str = \"abfss://odw-config@\"+storage_account+\"orchestration/orchestration.json\"\r\n",
+					"df: DataFrame = spark.read.option(\"multiline\",\"true\").json(path_to_orchestration_file)\r\n",
+					"definitions: list = json.loads(df.toJSON().first())['definitions']\r\n",
+					"definition: dict = next((d for d in definitions if entity_name == d['Source_Filename_Start']), None)\r\n",
+					"if not definition:\r\n",
+					"    logError(f\"Failed to read definition for {entity_name}\")\r\n",
+					"    mssparkutils.notebook.exit(f\"Definition not found for {entity_name}\")\r\n",
 					"logInfo(\"Done reading orchestration config\")"
 				],
-				"execution_count": 21
+				"execution_count": 191
 			},
 			{
 				"cell_type": "markdown",
@@ -219,19 +219,19 @@
 					}
 				},
 				"source": [
-					"std_db: str = \"odw_standardised_db\"\n",
-					"hrm_db: str = \"odw_harmonised_db\"\n",
-					"\n",
-					"std_table: str = definition[\"Standardised_Table_Name\"]\n",
-					"hrm_table: str = definition[\"Harmonised_Table_Name\"]\n",
-					"\n",
-					"print(std_table)\n",
-					"print(hrm_table)\n",
-					"\n",
-					"hrm_incremental_key: str = definition[\"Harmonised_Incremental_Key\"]\n",
+					"std_db: str = \"odw_standardised_db\"\r\n",
+					"hrm_db: str = \"odw_harmonised_db\"\r\n",
+					"\r\n",
+					"std_table: str = definition[\"Standardised_Table_Name\"]\r\n",
+					"hrm_table: str = definition[\"Harmonised_Table_Name\"]\r\n",
+					"\r\n",
+					"print(std_table)\r\n",
+					"print(hrm_table)\r\n",
+					"\r\n",
+					"hrm_incremental_key: str = definition[\"Harmonised_Incremental_Key\"]\r\n",
 					"entity_primary_key: str = definition[\"Entity_Primary_Key\"]"
 				],
-				"execution_count": 22
+				"execution_count": 192
 			},
 			{
 				"cell_type": "markdown",
@@ -243,10 +243,10 @@
 					}
 				},
 				"source": [
-					"#### Utility functions\n",
-					"\n",
-					"`set_harmonised_master_columns`: Adds the master columns for the harmonised schema and drops the master columns of the standardised schema\n",
-					"\n",
+					"#### Utility functions\r\n",
+					"\r\n",
+					"`set_harmonised_master_columns`: Adds the master columns for the harmonised schema and drops the master columns of the standardised schema\r\n",
+					"\r\n",
 					"`insert_rows_in_df`: Insert new rows in an existing df while incrementing the incremental_key"
 				]
 			},
@@ -264,31 +264,31 @@
 					}
 				},
 				"source": [
-					"@logging_to_appins\n",
-					"def set_harmonised_master_columns(df: DataFrame) -> DataFrame:\n",
-					"    source_system_df: DataFrame = spark.sql(f\"SELECT * FROM {hrm_db}.main_sourcesystem_fact WHERE Description = 'Casework' AND IsActive = 'Y'\")\n",
-					"    \n",
-					"    # Set source system ID\n",
-					"    df: DataFrame = df.withColumn(\"SourceSystemID\", lit(source_system_df.select('SourceSystemID').collect()[0][0]))\n",
-					"    \n",
-					"    # Set master column values\n",
-					"    df: DataFrame = df.withColumn(\"RowID\", lit('').cast(\"string\"))\n",
-					"    df: DataFrame = df.withColumn(\"migrated\", lit('1').cast(\"string\"))\n",
-					"    df: DataFrame = df.withColumn(\"ODTSourceSystem\", lit('ODT').cast(\"string\"))\n",
-					"    df: DataFrame = df.withColumn(\"ValidTo\", lit('').cast(\"string\"))\n",
-					"    df: DataFrame = df.withColumn(\"IsActive\", lit('Y').cast(\"string\"))\n",
-					"    df: DataFrame = df.withColumn(hrm_incremental_key, lit(None).cast(LongType()))\n",
-					"    df: DataFrame = df.withColumn(\"IngestionDate\", col(\"message_enqueued_time_utc\").cast(\"string\"))\n",
-					"    \n",
-					"    # drop standardised columns from DataFrame\n",
-					"    df: DataFrame = df.drop(\"message_enqueued_time_utc\")\n",
-					"    df: DataFrame = df.drop(\"expected_from\")\n",
-					"    df: DataFrame = df.drop(\"expected_to\")\n",
-					"    df: DataFrame = df.drop(\"input_file\")\n",
-					"    \n",
+					"@logging_to_appins\r\n",
+					"def set_harmonised_master_columns(df: DataFrame) -> DataFrame:\r\n",
+					"    source_system_df: DataFrame = spark.sql(f\"SELECT * FROM {hrm_db}.main_sourcesystem_fact WHERE Description = 'Casework' AND IsActive = 'Y'\")\r\n",
+					"    \r\n",
+					"    # Set source system ID\r\n",
+					"    df: DataFrame = df.withColumn(\"SourceSystemID\", lit(source_system_df.select('SourceSystemID').collect()[0][0]))\r\n",
+					"    \r\n",
+					"    # Set master column values\r\n",
+					"    df: DataFrame = df.withColumn(\"RowID\", lit('').cast(\"string\"))\r\n",
+					"    df: DataFrame = df.withColumn(\"migrated\", lit('1').cast(\"string\"))\r\n",
+					"    df: DataFrame = df.withColumn(\"ODTSourceSystem\", lit('ODT').cast(\"string\"))\r\n",
+					"    df: DataFrame = df.withColumn(\"ValidTo\", lit('').cast(\"string\"))\r\n",
+					"    df: DataFrame = df.withColumn(\"IsActive\", lit('Y').cast(\"string\"))\r\n",
+					"    df: DataFrame = df.withColumn(hrm_incremental_key, lit(None).cast(LongType()))\r\n",
+					"    df: DataFrame = df.withColumn(\"IngestionDate\", col(\"message_enqueued_time_utc\").cast(\"string\"))\r\n",
+					"    \r\n",
+					"    # drop standardised columns from DataFrame\r\n",
+					"    df: DataFrame = df.drop(\"message_enqueued_time_utc\")\r\n",
+					"    df: DataFrame = df.drop(\"expected_from\")\r\n",
+					"    df: DataFrame = df.drop(\"expected_to\")\r\n",
+					"    df: DataFrame = df.drop(\"input_file\")\r\n",
+					"    \r\n",
 					"    return df"
 				],
-				"execution_count": 23
+				"execution_count": 193
 			},
 			{
 				"cell_type": "code",
@@ -314,7 +314,7 @@
 					"\r\n",
 					"    return target_df.union(source_df)"
 				],
-				"execution_count": 24
+				"execution_count": 194
 			},
 			{
 				"cell_type": "markdown",
@@ -363,31 +363,30 @@
 					}
 				},
 				"source": [
-					"@logging_to_appins\n",
-					"def get_latest_ingested_data() -> tuple:\n",
-					"    latest_ingestion = spark.sql(f\"SELECT * FROM {std_db}.{std_table} WHERE message_id not in (SELECT DISTINCT message_id FROM {hrm_db}.{hrm_table} where message_id IS NOT NULL) ORDER BY message_enqueued_time_utc\")\n",
-					"\n",
-					"    if latest_ingestion.count() == 0:\n",
-					"        logError(f\"Standardised data not available for {entity_name}\")\n",
-					"        mssparkutils.notebook.exit(f\"Standardised data not available for {entity_name}\")\n",
-					"\n",
-					"    # remove the column ingested_datetime and then remove duplicates\n",
-					"    latest_ingestion = latest_ingestion.drop(\"ingested_datetime\").dropDuplicates()\n",
-					"    latest_ingestion = set_harmonised_master_columns(latest_ingestion)\n",
-					"    # create dataframes for each message type and the target dataframe (the harmonised target table)\n",
-					"    create_df: DataFrame = latest_ingestion[latest_ingestion[\"message_type\"] == \"Create\"]\n",
-					"    update_df: DataFrame = latest_ingestion[latest_ingestion[\"message_type\"].isin([\"update\", \"Update\", \"Publish\", \"Unpublish\"])]\n",
-					"    delete_df: DataFrame = latest_ingestion[latest_ingestion[\"message_type\"] == \"Delete\"]\n",
-					"    target_df: DataFrame = spark.table(f\"{hrm_db}.{hrm_table}\").drop(\"input_file\")\n",
-					"\n",
-					"\n",
-					"    return (latest_ingestion,\n",
-					"            create_df, \n",
-					"            update_df,\n",
-					"            delete_df,\n",
+					"@logging_to_appins\r\n",
+					"def get_latest_ingested_data() -> tuple:\r\n",
+					"    latest_ingestion = spark.sql(f\"SELECT * FROM {std_db}.{std_table} WHERE message_id not in (SELECT DISTINCT message_id FROM {hrm_db}.{hrm_table} where message_id IS NOT NULL) ORDER BY message_enqueued_time_utc\")\r\n",
+					"\r\n",
+					"    if latest_ingestion.count() == 0:\r\n",
+					"        logError(f\"Standardised data not available for {entity_name}\")\r\n",
+					"        mssparkutils.notebook.exit(f\"Standardised data not available for {entity_name}\")\r\n",
+					"\r\n",
+					"    # remove the column ingested_datetime and then remove duplicates\r\n",
+					"    latest_ingestion = latest_ingestion.drop(\"ingested_datetime\").dropDuplicates()\r\n",
+					"    latest_ingestion = set_harmonised_master_columns(latest_ingestion)\r\n",
+					"    # create dataframes for each message type and the target dataframe (the harmonised target table)\r\n",
+					"    create_df: DataFrame = latest_ingestion[latest_ingestion[\"message_type\"] == \"Create\"]\r\n",
+					"    update_df: DataFrame = latest_ingestion[latest_ingestion[\"message_type\"].isin([\"update\", \"Update\", \"Publish\", \"Unpublish\"])]\r\n",
+					"    delete_df: DataFrame = latest_ingestion[latest_ingestion[\"message_type\"] == \"Delete\"]\r\n",
+					"    target_df: DataFrame = spark.table(f\"{hrm_db}.{hrm_table}\").drop(\"input_file\")\r\n",
+					"\r\n",
+					"    return (latest_ingestion,\r\n",
+					"            create_df, \r\n",
+					"            update_df,\r\n",
+					"            delete_df,\r\n",
 					"            target_df)"
 				],
-				"execution_count": 25
+				"execution_count": 195
 			},
 			{
 				"cell_type": "code",
@@ -403,11 +402,11 @@
 					}
 				},
 				"source": [
-					"logInfo(\"Reading ingested data\")\n",
-					"latest_ingestion, create_df, update_df, delete_df, target_df = get_latest_ingested_data()\n",
+					"logInfo(\"Reading ingested data\")\r\n",
+					"latest_ingestion, create_df, update_df, delete_df, target_df = get_latest_ingested_data()\r\n",
 					"logInfo(\"Read ingested data\")"
 				],
-				"execution_count": 26
+				"execution_count": 196
 			},
 			{
 				"cell_type": "markdown",
@@ -436,12 +435,12 @@
 					}
 				},
 				"source": [
-					"latest_ingestion: DataFrame = latest_ingestion.drop(\"message_type\")\n",
-					"create_df: DataFrame = create_df.drop(\"message_type\").select(target_df.columns)\n",
-					"update_df: DataFrame = update_df.drop(\"message_type\").select(target_df.columns)\n",
+					"latest_ingestion: DataFrame = latest_ingestion.drop(\"message_type\")\r\n",
+					"create_df: DataFrame = create_df.drop(\"message_type\").select(target_df.columns)\r\n",
+					"update_df: DataFrame = update_df.drop(\"message_type\").select(target_df.columns)\r\n",
 					"delete_df: DataFrame = delete_df.drop(\"message_type\").select(target_df.columns)"
 				],
-				"execution_count": null
+				"execution_count": 197
 			},
 			{
 				"cell_type": "code",
@@ -457,11 +456,11 @@
 					}
 				},
 				"source": [
-					"logInfo(\"Comparing and merging schemas\")\n",
-					"compare_and_merge_schema(latest_ingestion, f\"{hrm_db}.{hrm_table}\")\n",
+					"logInfo(\"Comparing and merging schemas\")\r\n",
+					"compare_and_merge_schema(latest_ingestion, f\"{hrm_db}.{hrm_table}\")\r\n",
 					"logInfo(\"Compared and merged schemas\")"
 				],
-				"execution_count": null
+				"execution_count": 198
 			},
 			{
 				"cell_type": "markdown",
@@ -497,7 +496,7 @@
 					"update_df: DataFrame = update_df.drop(\"message_type\").select(target_df.columns)\r\n",
 					"delete_df: DataFrame = delete_df.drop(\"message_type\").select(target_df.columns)"
 				],
-				"execution_count": null
+				"execution_count": 199
 			},
 			{
 				"cell_type": "code",
@@ -519,7 +518,7 @@
 					"print(f\"Delete: {delete_df.count()}\")\r\n",
 					"print(f\"Target: {target_df.count()}\")"
 				],
-				"execution_count": null
+				"execution_count": 200
 			},
 			{
 				"cell_type": "markdown",
@@ -563,7 +562,7 @@
 					"    \r\n",
 					"logInfo(\"Finished dropping dupes\")"
 				],
-				"execution_count": null
+				"execution_count": 201
 			},
 			{
 				"cell_type": "code",
@@ -585,7 +584,7 @@
 					"print(f\"Delete: {delete_df.count()}\")\r\n",
 					"print(f\"Target: {target_df.count()}\")"
 				],
-				"execution_count": null
+				"execution_count": 202
 			},
 			{
 				"cell_type": "markdown",
@@ -614,12 +613,12 @@
 					}
 				},
 				"source": [
-					"if create_df.count() > 0:\n",
-					"    target_df = insert_rows_in_df(create_df, target_df, hrm_incremental_key)\n",
-					"\n",
+					"if create_df.count() > 0:\r\n",
+					"    target_df = insert_rows_in_df(create_df, target_df, hrm_incremental_key)\r\n",
+					"\r\n",
 					"logInfo(f\"New rows: {create_df.count()}\\nTarget dataframe: {target_df.count()}\")"
 				],
-				"execution_count": null
+				"execution_count": 203
 			},
 			{
 				"cell_type": "markdown",
@@ -649,60 +648,48 @@
 					"collapsed": false
 				},
 				"source": [
-					"if update_df.count() > 0:\n",
-					"    logInfo(\"Handling updated rows\")\n",
-					"    update_df = update_df.dropDuplicates().orderBy(\"IngestionDate\")\n",
-					"   \n",
-					"    #Assume we have multiple updates for the same record to be applied in a single load. We need to deal with that to make sure we're handling it correctly\n",
-					"    window_spec = Window.partitionBy(f\"{entity_primary_key}\").orderBy(update_df[\"IngestionDate\"].desc())\n",
-					"    update_df = update_df.withColumn('Submitted', row_number().over(window_spec))\n",
-					"\n",
-					"    #The first pot of data we need are the straight inserts of the most recent data\n",
-					"    latest_updates = update_df.filter(update_df.Submitted == 1)\n",
-					"    latest_updates = latest_updates.select(target_df.columns)\n",
-					"\n",
-					"    target_df = insert_rows_in_df(latest_updates, target_df, hrm_incremental_key)\n",
-					"\n",
-					"    #Now we are likely to have multiple records in target_df that have IsActive = 'Y' we need to deal with\n",
-					"    #First split the target into active and inactive\n",
-					"    inactive = target_df.filter(target_df.IsActive == 'N')\n",
-					"    active = target_df.filter(target_df.IsActive == 'Y')\n",
-					"\n",
-					"    #We will need to assume that we have more than 1 active record for each primary key, we need to deal with this and rebuild the target dataframe\n",
-					"    window_spec = Window.partitionBy(f\"{entity_primary_key}\").orderBy(active[\"IngestionDate\"].desc())\n",
-					"    active = active.withColumn('Reverse_order_submitted', row_number().over(window_spec))\n",
-					"\n",
-					"    #We know that we don't need to touch the inactive pot and the pot that are the truely latest records. We'll start by combining these into the new dataframe\n",
-					"    latest = active.filter(active.Reverse_order_submitted == 1).select(inactive.columns)\n",
-					"    target_df_new = latest.union(inactive)\n",
-					"\n",
-					"    #Next we need to deal with the records that aren't active to set the ValidTo correctly\n",
-					"    reasign = active.filter(active.Reverse_order_submitted > 1).drop(\"IsActive\", \"ValidTo\")\n",
-					"    valid_to = active.selectExpr(f\"{entity_primary_key} AS Pk\", \"IngestionDate AS ValidTo\", \"Reverse_order_submitted + 1 AS Next_record\")\n",
-					"    reasign = reasign.join(valid_to, (reasign[f\"{entity_primary_key}\"] == valid_to[f\"Pk\"]) &  (reasign[\"Reverse_order_submitted\"] == valid_to[\"Next_record\"]))\n",
-					"\n",
-					"    #Add the IsActive flag back in, set it correctly, and select the columns we're interested in\n",
-					"    reasign = reasign.withColumn(\"IsActive\", lit('N').cast(\"string\")).select(target_df_new.columns)\n",
-					"    target_df_new = target_df_new.union(reasign)\n",
-					"    target_df = target_df_new\n",
-					"\n",
-					"    #Next, we have the group of data that is inbound but we have had a subsequent update in the same day\n",
-					"    raw = update_df.filter(update_df.Submitted > 1)\n",
-					"    raw = raw.withColumn(\"next_submitted\", raw['Submitted']-1)\n",
-					"    raw = raw.drop(\"IsActive\").drop(\"ValidTo\").drop(\"Submitted\")\n",
-					"\n",
-					"    next_received = update_df.select(f\"{entity_primary_key}\",\"IngestionDate\", \"Submitted\")\n",
-					"    next_received = next_received.withColumn(\"IsActive\", lit('N')).withColumnRenamed(\"IngestionDate\", \"ValidTo\").withColumnRenamed(f\"{entity_primary_key}\", \"Key\")\n",
-					"    \n",
-					"    raw = raw.join(next_received, (raw[f\"{entity_primary_key}\"] == next_received[\"Key\"]) & (raw[\"next_submitted\"] == next_received[\"Submitted\"]))\n",
-					"\n",
-					"    previous_updates = raw.select(target_df.columns)   \n",
-					"    target_df = insert_rows_in_df(previous_updates, target_df, hrm_incremental_key)\n",
-					"    logInfo(\"Done handling updated rows\")\n",
-					"\n",
+					"if update_df.count() > 0:\r\n",
+					"    logInfo(\"Handling updated rows\")\r\n",
+					"    update_df = update_df.dropDuplicates().orderBy(\"IngestionDate\")\r\n",
+					"\r\n",
+					"    #Assume we have multiple updates for the same record to be applied in a single load. We need to deal with that to make sure we're handling it correctly\r\n",
+					"    window_spec = Window.partitionBy(f\"{entity_primary_key}\").orderBy(update_df[\"IngestionDate\"].desc())\r\n",
+					"    update_df = update_df.withColumn('Submitted', row_number().over(window_spec))\r\n",
+					"\r\n",
+					"    #The first pot of data we need are the straight inserts of the most recent data\r\n",
+					"    # latest_updates = update_df.filter(update_df.Submitted == 1)\r\n",
+					"    latest_updates = update_df\r\n",
+					"    latest_updates = latest_updates.select(target_df.columns)\r\n",
+					"\r\n",
+					"    target_df = insert_rows_in_df(latest_updates, target_df, hrm_incremental_key)\r\n",
+					"\r\n",
+					"    #Now we are likely to have multiple records in target_df that have IsActive = 'Y' we need to deal with\r\n",
+					"    #First split the target into active and inactive\r\n",
+					"    inactive = target_df.filter(target_df.IsActive == 'N')\r\n",
+					"    active = target_df.filter(target_df.IsActive == 'Y')\r\n",
+					"\r\n",
+					"    #We will need to assume that we have more than 1 active record for each primary key, we need to deal with this and rebuild the target dataframe\r\n",
+					"    window_spec = Window.partitionBy(f\"{entity_primary_key}\").orderBy(active[\"IngestionDate\"].desc())\r\n",
+					"    active = active.withColumn('Reverse_order_submitted', row_number().over(window_spec))\r\n",
+					"\r\n",
+					"    #We know that we don't need to touch the inactive pot and the pot that are the truely latest records. We'll start by combining these into the new dataframe\r\n",
+					"    latest = active.filter(active.Reverse_order_submitted == 1).select(inactive.columns)\r\n",
+					"    target_df_new = latest.union(inactive)\r\n",
+					"\r\n",
+					"    #Next we need to deal with the records that aren't active to set the ValidTo correctly\r\n",
+					"    reasign = active.filter(active.Reverse_order_submitted > 1).drop(\"IsActive\", \"ValidTo\")\r\n",
+					"    valid_to = active.selectExpr(f\"{entity_primary_key} AS Pk\", \"IngestionDate AS ValidTo\", \"Reverse_order_submitted + 1 AS Next_record\")\r\n",
+					"    reasign = reasign.join(valid_to, (reasign[f\"{entity_primary_key}\"] == valid_to[f\"Pk\"]) &  (reasign[\"Reverse_order_submitted\"] == valid_to[\"Next_record\"]))\r\n",
+					"\r\n",
+					"    #Add the IsActive flag back in, set it correctly, and select the columns we're interested in\r\n",
+					"    reasign = reasign.withColumn(\"IsActive\", lit('N').cast(\"string\")).select(target_df_new.columns)\r\n",
+					"    target_df = target_df_new.union(reasign)\r\n",
+					"\r\n",
+					"    logInfo(\"Done handling updated rows\")\r\n",
+					"\r\n",
 					"logInfo(f\"Updated rows: {update_df.count()}\\nTarget dataframe: {target_df.count()}\")"
 				],
-				"execution_count": null
+				"execution_count": 204
 			},
 			{
 				"cell_type": "markdown",
@@ -736,7 +723,7 @@
 					"else:\r\n",
 					"    logInfo(\"No deleted messages\")"
 				],
-				"execution_count": null
+				"execution_count": 205
 			},
 			{
 				"cell_type": "markdown",
@@ -762,7 +749,8 @@
 						"transient": {
 							"deleting": false
 						}
-					}
+					},
+					"collapsed": false
 				},
 				"source": [
 					"if delete_df.count() > 0:\r\n",
@@ -771,7 +759,7 @@
 					"    .withColumn(\"IsActive\", lit(\"N\"))\r\n",
 					"    display(delete_df)"
 				],
-				"execution_count": null
+				"execution_count": 206
 			},
 			{
 				"cell_type": "markdown",
@@ -820,7 +808,7 @@
 					"        .drop(\"delete_IngestionDate\")\r\n",
 					"    )"
 				],
-				"execution_count": null
+				"execution_count": 207
 			},
 			{
 				"cell_type": "markdown",
@@ -859,7 +847,7 @@
 					"        .otherwise(col(\"IsActive\"))\r\n",
 					"    )"
 				],
-				"execution_count": null
+				"execution_count": 208
 			},
 			{
 				"cell_type": "markdown",
@@ -893,7 +881,7 @@
 					"    logInfo(f\"Deleted rows: {delete_df.count()}\\nTarget dataframe: {target_df.count()}\")\r\n",
 					"    logInfo(\"Done handling deleted rows\")"
 				],
-				"execution_count": null
+				"execution_count": 209
 			},
 			{
 				"cell_type": "markdown",
@@ -923,10 +911,10 @@
 					"collapsed": false
 				},
 				"source": [
-					"columns_to_consider = [c for c in target_df.columns if c not in [hrm_incremental_key, \"ValidTo\"]]\n",
+					"columns_to_consider = [c for c in target_df.columns if c not in [hrm_incremental_key, \"ValidTo\"]]\r\n",
 					"target_df = target_df.orderBy(hrm_incremental_key).dropDuplicates(subset=columns_to_consider).orderBy(\"IngestionDate\")"
 				],
-				"execution_count": null
+				"execution_count": 210
 			},
 			{
 				"cell_type": "markdown",
@@ -956,11 +944,11 @@
 					"collapsed": false
 				},
 				"source": [
-					"logInfo(\"Applying new dataframe to table\")\n",
-					"apply_df_to_table(target_df, hrm_db, hrm_table)\n",
+					"logInfo(\"Applying new dataframe to table\")\r\n",
+					"apply_df_to_table(target_df, hrm_db, hrm_table)\r\n",
 					"logInfo(\"Done applying new dataframe to table\")"
 				],
-				"execution_count": null
+				"execution_count": 211
 			}
 		]
 	}

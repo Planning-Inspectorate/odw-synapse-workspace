@@ -213,3 +213,11 @@ variable "tenant_id" {
   description = "The ID of the Azure AD tenant containing the identities used for RBAC assignments"
   type        = string
 }
+
+variable "tooling_config" {
+  description = "Config for the tooling subscription dns zones"
+  type = object({
+    synapse_private_dns_zone_id     = string
+    synapse_dev_private_dns_zone_id = string
+  })
+}
