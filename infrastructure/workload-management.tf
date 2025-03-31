@@ -37,6 +37,13 @@ module "synapse_management" {
 
 
 # grant access to the data
+resource "azurerm_synapse_role_assignment" "purview_synapse" {
+  synapse_workspace_id = module.synapse_workspace_private.synapse_workspace_id
+  role_name            = "Synapse Contributor"
+  principal_id         = module.synapse_management.purview_identity_principal_id
+  principal_type       = "ServicePrincipal"
+}
+
 resource "azurerm_role_assignment" "purview_data" {
   scope                = module.synapse_data_lake.data_lake_account_id
   role_definition_name = "Storage Blob Data Contributor"
