@@ -39,11 +39,17 @@ classDiagram
         class sb_appeals_event  {
             eventId: string
         }
+        
+        class appeal_event_final  {
+            sb_appeals_event,
+            Horizon_appeals_event
+
+        }
     }
 
     namespace Curated {
 
-        class appeal_event {
+        class appeal_event{
             eventId: string
         }
     }
@@ -51,11 +57,11 @@ classDiagram
 `Horizon_vw_Event` --> `Horizon_appeals_event`
 `Service_bus_appeal_event` --> `sb_appeal_event`
 
-`Horizon_appeals_event` --> `sb_appeals_event` 
 `sb_appeal_event` --> `sb_appeals_event`
+`Horizon_appeals_event` --> `appeal_event_final` 
 
+`sb_appeals_event` --> `appeal_event_final`
 
-
-`sb_appeals_event` --> `appeal_event`
+`appeal_event_final` --> `appeal_event`
 
 ```
