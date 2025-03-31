@@ -35,6 +35,14 @@ module "synapse_management" {
   tags = local.tags
 }
 
+
+# grant access to the data
+resource "azurerm_role_assignment" "purview_data" {
+  scope                = module.synapse_data_lake.data_lake_account_id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = module.synapse_management.purview_identity_principal_id
+}
+
 module "synapse_management_failover" {
   count = var.failover_deployment ? 1 : 0
 
