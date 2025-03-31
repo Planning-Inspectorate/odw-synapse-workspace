@@ -180,3 +180,17 @@ data "azurerm_private_dns_zone" "tooling_synapse_dev" {
 
   provider = azurerm.tooling
 }
+
+locals {
+  storage_zones = ["blob", "dfs", "file", "queue", "table", "web"]
+}
+
+data "azurerm_private_dns_zone" "tooling_storage" {
+  for_each = toset(local.storage_zones)
+
+  name                = "privatelink.${each.key}.core.windows.net"
+  resource_group_name = var.tooling_config.network_rg
+
+  provider = azurerm.tooling
+}
+
