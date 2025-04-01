@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "b6715909-f629-4c1a-9a0a-c58bfc1835b2"
+				"spark.autotune.trackingId": "d2c32fe2-8e2f-40ad-92ed-2805d63a8cf7"
 			}
 		},
 		"metadata": {
@@ -71,7 +71,7 @@
 					"from pyspark.sql import functions as F\n",
 					"import pprint"
 				],
-				"execution_count": 24
+				"execution_count": 74
 			},
 			{
 				"cell_type": "code",
@@ -100,7 +100,7 @@
 					"hrm_table_final: str = 'appeal_document'\n",
 					"curated_table_name: str = 'appeal_document'"
 				],
-				"execution_count": 25
+				"execution_count": 75
 			},
 			{
 				"cell_type": "code",
@@ -116,25 +116,25 @@
 					}
 				},
 				"source": [
-					"horizon_std_df = spark.table(f\"{std_db_name}.{horizon_std_table_name}\")\r\n",
-					"aie_std_df = spark.table(f\"{std_db_name}.{aie_std_table_name}\")\r\n",
-					"aie_hrm_df = spark.table(f\"{hrm_db_name}.{aie_hrm_table_name}\")\r\n",
-					"hrm_final_df = spark.table(f\"{hrm_db_name}.{hrm_table_final}\")\r\n",
-					"hrm_final_df_active = hrm_final_df.filter(\"IsActive = 'Y'\")\r\n",
-					"curated_df = spark.table(f\"{curated_db_name}.{curated_table_name}\")\r\n",
-					"sb_std_df = spark.table(f\"{std_db_name}.{std_table_name}\")\r\n",
-					"sb_hrm_df = spark.table(f\"{hrm_db_name}.{hrm_table_name}\")\r\n",
-					"horizon_documentIds = horizon_std_df.select(\"documentId\")\r\n",
-					"aie_std_documentIds = aie_std_df.select(\"documentId\")\r\n",
-					"aie_hrm_documentIds = aie_hrm_df.select(\"documentId\")\r\n",
-					"hrm_final_documentIds = hrm_final_df.select(\"documentId\")\r\n",
-					"sb_std_documentIds = sb_std_df.select(\"documentId\")\r\n",
-					"sb_hrm_documentIds = sb_hrm_df.select(\"documentId\")\r\n",
-					"curated_documentIds = curated_df.select(\"documentId\")\r\n",
-					"aie_appeals_documentIds = aie_std_documentIds.intersect(horizon_documentIds)\r\n",
+					"horizon_std_df = spark.table(f\"{std_db_name}.{horizon_std_table_name}\")\n",
+					"aie_std_df = spark.table(f\"{std_db_name}.{aie_std_table_name}\")\n",
+					"aie_hrm_df = spark.table(f\"{hrm_db_name}.{aie_hrm_table_name}\")\n",
+					"hrm_final_df = spark.table(f\"{hrm_db_name}.{hrm_table_final}\")\n",
+					"hrm_final_df_active = hrm_final_df.filter(\"IsActive = 'Y'\")\n",
+					"curated_df = spark.table(f\"{curated_db_name}.{curated_table_name}\")\n",
+					"sb_std_df = spark.table(f\"{std_db_name}.{std_table_name}\")\n",
+					"sb_hrm_df = spark.table(f\"{hrm_db_name}.{hrm_table_name}\")\n",
+					"horizon_documentIds = horizon_std_df.select(\"documentId\")\n",
+					"aie_std_documentIds = aie_std_df.select(\"documentId\")\n",
+					"aie_hrm_documentIds = aie_hrm_df.select(\"documentId\")\n",
+					"hrm_final_documentIds = hrm_final_df.select(\"documentId\")\n",
+					"sb_std_documentIds = sb_std_df.select(\"documentId\")\n",
+					"sb_hrm_documentIds = sb_hrm_df.select(\"documentId\")\n",
+					"curated_documentIds = curated_df.select(\"documentId\")\n",
+					"aie_appeals_documentIds = aie_std_documentIds.intersect(horizon_documentIds)\n",
 					"aie_appeals_documents_count = aie_appeals_documentIds.count()"
 				],
-				"execution_count": 26
+				"execution_count": 76
 			},
 			{
 				"cell_type": "code",
@@ -153,7 +153,7 @@
 					"#keep track of the exitCodes, if the exit code is not zero then we've had failures, we flip the boolean\n",
 					"exitCode: int = 0"
 				],
-				"execution_count": 27
+				"execution_count": 77
 			},
 			{
 				"cell_type": "code",
@@ -198,7 +198,7 @@
 					"  \"horizonFolderId\"\n",
 					"]"
 				],
-				"execution_count": 28
+				"execution_count": 78
 			},
 			{
 				"cell_type": "code",
@@ -216,7 +216,27 @@
 				"source": [
 					"%run /utils/unit-tests/py_unit_tests_functions"
 				],
-				"execution_count": 29
+				"execution_count": 79
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def test_std_same_rows_hrm(std_table: str, hrm_table: str) -> tuple[int, int, bool]:\n",
+					"    std_table_full: str = f\"{std_db_name}.{std_table}\"\n",
+					"    hrm_table_full: str = f\"{hrm_db_name}.{hrm_table}\"\n",
+					"\n",
+					"    # filter standardised df with non-null message_type\n",
+					"    std_df: DataFrame = spark.table(std_table_full)\n",
+					"\n",
+					"    if \"message_type\" in std_df.columns:\n",
+					"        std_df = std_df.filter(std_df.message_type.isNotNull() & std_df.message_id.isNotNull())\n",
+					"    \n",
+					"    std_count: int = std_df.count()\n",
+					"    hrm_count: int = spark.table(hrm_table_full).dropDuplicates([\"documentId\", \"message_id\"]).count()\n",
+					"\n",
+					"    return (std_count, hrm_count, std_count == hrm_count)"
+				],
+				"execution_count": 80
 			},
 			{
 				"cell_type": "code",
@@ -239,7 +259,7 @@
 					"curated_schema = create_spark_schema(curated_db_name, entity_name)\n",
 					"curated_table_schema = spark.table(f\"{curated_db_name}.{curated_table_name}\").schema"
 				],
-				"execution_count": 30
+				"execution_count": 81
 			},
 			{
 				"cell_type": "markdown",
@@ -279,7 +299,7 @@
 					"print(f\"Curated schema correct: {cur_schema_correct}\\nTable: {curated_db_name}.{curated_table_name}\\nDifferences shown above (if any)\")\n",
 					"exitCode += int(not cur_schema_correct)"
 				],
-				"execution_count": 31
+				"execution_count": 82
 			},
 			{
 				"cell_type": "markdown",
@@ -318,7 +338,7 @@
 					"    print(f\"{standardised_count - harmonised_count} rows from Standardised are missing in Harmonised.\" )\n",
 					"    differentiate_std_and_hrm(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\", data_model_columns)"
 				],
-				"execution_count": 32
+				"execution_count": 83
 			},
 			{
 				"cell_type": "markdown",
@@ -352,7 +372,7 @@
 					"print(f\"Harmonised Final Count: {harmonised_final_count: ,}\\nCurated Count: {curated_count: ,}\\nCounts match: {counts_match}\")\n",
 					"exitCode += int(not counts_match)"
 				],
-				"execution_count": 33
+				"execution_count": 84
 			},
 			{
 				"cell_type": "code",
@@ -397,7 +417,7 @@
 					"    exitCode += 1\n",
 					""
 				],
-				"execution_count": 34
+				"execution_count": 85
 			},
 			{
 				"cell_type": "code",
@@ -442,7 +462,7 @@
 					"    print(\"Failed: Trace Horizon data to Harmonised\")\n",
 					"    exitCode += 1"
 				],
-				"execution_count": 35
+				"execution_count": 86
 			},
 			{
 				"cell_type": "code",
@@ -475,7 +495,7 @@
 					"    print(\"Failed: data coming from ODT (back-office-appeals) and Horizon\")\n",
 					"    exitCode += 1"
 				],
-				"execution_count": 36
+				"execution_count": 87
 			},
 			{
 				"cell_type": "code",
@@ -497,7 +517,7 @@
 					"    print(\"Failed: test_sb_std_to_sb_hrm_no_dropping_records\")\n",
 					"    exitCode += 1"
 				],
-				"execution_count": 37
+				"execution_count": 88
 			},
 			{
 				"cell_type": "code",
@@ -519,7 +539,7 @@
 					"    print(\"Failed: test_sb_hrm_to_hrm_final_no_dropping_records\")\n",
 					"    exitCode += 1"
 				],
-				"execution_count": 38
+				"execution_count": 89
 			},
 			{
 				"cell_type": "code",
@@ -541,7 +561,7 @@
 					"    print(\"Failed: test_hrm_to_curated_no_dropping_records\")\n",
 					"    exitCode += 1"
 				],
-				"execution_count": 39
+				"execution_count": 90
 			},
 			{
 				"cell_type": "code",
@@ -563,7 +583,7 @@
 					"    print(\"Failed: test_horizon_to_hrm_final_no_dropping_records\")\n",
 					"    exitCode += 1"
 				],
-				"execution_count": 40
+				"execution_count": 91
 			},
 			{
 				"cell_type": "code",
@@ -579,14 +599,14 @@
 					}
 				},
 				"source": [
-					"if test_aie_std_to_hrm_no_dropping_records(aie_std_table_name, aie_hrm_table_name):\n",
+					"if test_aie_std_to_hrm_latest_records(std_db_name,aie_std_table_name,hrm_db_name,aie_hrm_table_name):\n",
 					"    pass\n",
 					"else:\n",
 					"    print(\"Failed: test_aie_std_to_hrm_no_dropping_records\")\n",
 					"    exitCode += 1\n",
 					""
 				],
-				"execution_count": 41
+				"execution_count": 92
 			},
 			{
 				"cell_type": "code",
@@ -608,7 +628,7 @@
 					"    print(\"Failed: test_aie_hrm_to_hrm_final_no_dropping_records\")\n",
 					"    exitCode += 1"
 				],
-				"execution_count": 42
+				"execution_count": 93
 			},
 			{
 				"cell_type": "code",
@@ -630,7 +650,7 @@
 					"    print(\"Failed: test_document_row_counts_match\")\n",
 					"    exitCode += 1"
 				],
-				"execution_count": 43
+				"execution_count": 94
 			},
 			{
 				"cell_type": "code",
@@ -652,7 +672,7 @@
 					"    print(\"Failed: test_sb_std_to_hrm_no_message_id_dropped\")\n",
 					"    exitCode += 1"
 				],
-				"execution_count": 44
+				"execution_count": 95
 			},
 			{
 				"cell_type": "code",
@@ -674,7 +694,7 @@
 					"    print(\"Failed: test_sb_std_to_hrm_no_active_deleted_record\")\n",
 					"    exitCode += 1"
 				],
-				"execution_count": 45
+				"execution_count": 96
 			},
 			{
 				"cell_type": "code",
@@ -692,7 +712,7 @@
 				"source": [
 					"mssparkutils.notebook.exit(exitCode)"
 				],
-				"execution_count": 46
+				"execution_count": 97
 			},
 			{
 				"cell_type": "markdown",
