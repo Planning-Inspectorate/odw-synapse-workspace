@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "fa7e7e3a-20f5-4bcf-8948-8fe921261768"
+				"spark.autotune.trackingId": "fab39cbe-11d7-4429-a985-8611ecc49070"
 			}
 		},
 		"metadata": {
@@ -72,7 +72,7 @@
 					"table_name='listed_building'\n",
 					"primary_key='entity'"
 				],
-				"execution_count": 12
+				"execution_count": 104
 			},
 			{
 				"cell_type": "code",
@@ -90,7 +90,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 13
+				"execution_count": 89
 			},
 			{
 				"cell_type": "code",
@@ -115,7 +115,7 @@
 					"spark: SparkSession = SparkSession.builder.getOrCreate()\n",
 					"table_name_full = f\"{db_name}.{table_name}\""
 				],
-				"execution_count": 14
+				"execution_count": 90
 			},
 			{
 				"cell_type": "markdown",
@@ -158,7 +158,7 @@
 					"    version = history_df.select(\"version\").orderBy(\"version\", ascending=False).first()[\"version\"]\n",
 					"    return version"
 				],
-				"execution_count": 15
+				"execution_count": 91
 			},
 			{
 				"cell_type": "code",
@@ -181,7 +181,7 @@
 					"    logInfo(f\"Failed to read changes in delta table: {table_name_full}. Exception: No history found\")\n",
 					"    mssparkutils.notebook.exit('[]')"
 				],
-				"execution_count": 16
+				"execution_count": 92
 			},
 			{
 				"cell_type": "code",
@@ -208,17 +208,17 @@
 					"        .withColumn(\"EventType\", lit(\"Update\"))\n",
 					"\n",
 					"    # remove updated rows from create and delete df\n",
-					"    create_df = create_df \\\n",
-					"        .join(update_df.select(primary_key), on=primary_key, how=\"left_anti\") \\\n",
-					"        .withColumn(\"EventType\", lit(\"Create\"))\n",
+					"    # create_df = create_df \\\n",
+					"    #     .join(update_df.select(primary_key), on=primary_key, how=\"left_anti\") \\\n",
+					"    #     .withColumn(\"EventType\", lit(\"Create\"))\n",
 					"\n",
-					"    delete_df = delete_df \\\n",
-					"        .join(update_df.select(primary_key), on=primary_key, how=\"left_anti\") \\\n",
-					"        .withColumn(\"EventType\", lit(\"Delete\"))\n",
+					"    # delete_df = delete_df \\\n",
+					"    #     .join(update_df.select(primary_key), on=primary_key, how=\"left_anti\") \\\n",
+					"    #     .withColumn(\"EventType\", lit(\"Delete\"))\n",
 					"\n",
 					"\n",
 					"    # union create, update and delete df to get all changes in one df\n",
-					"    changes_df = create_df.union(update_df).union(delete_df)\n",
+					"    # changes_df = create_df.union(update_df).union(delete_df)\n",
 					"    \n",
 					"    logInfo(f\"Found {changes_df.count()} changes between version {latest_version} and {previous_version} in delta table: {table_name_full}\")\n",
 					"\n",
@@ -227,7 +227,71 @@
 					"    mssparkutils.notebook.exit('')\n",
 					""
 				],
-				"execution_count": 17
+				"execution_count": 99
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"previous_version_df.count()"
+				],
+				"execution_count": 94
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"current_version_df.count()"
+				],
+				"execution_count": 95
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"update_df.count()"
+				],
+				"execution_count": 96
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"create_df.count()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"delete_df.count()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"display(create_df)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"display(delete_df)"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -246,7 +310,7 @@
 				"source": [
 					"display(changes_df)"
 				],
-				"execution_count": 18
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -270,7 +334,7 @@
 					"    for row in changes_df.collect()\n",
 					"]"
 				],
-				"execution_count": 19
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -288,7 +352,7 @@
 				"source": [
 					"# mssparkutils.notebook.exit(formatted_data)"
 				],
-				"execution_count": 20
+				"execution_count": null
 			}
 		]
 	}
