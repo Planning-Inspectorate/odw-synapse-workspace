@@ -11,7 +11,7 @@ def test_appeal_event_notebook(credential_name, azure_credential, synapse_endpoi
     notebookname: str = "py_unit_tests_appeals_events"
     
     notebook_raw_params = {
-        "sparkPool": "pinssynspodw",
+        "sparkPool": "tempsparkpool",
         "notebook": notebookname,
         "sessionOptions": {
             "driverMemory": "28g",

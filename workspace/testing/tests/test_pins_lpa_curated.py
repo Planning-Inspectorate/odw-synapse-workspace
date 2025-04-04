@@ -11,7 +11,7 @@ def test_pins_lpa_curated(credential_name, azure_credential, synapse_endpoint: s
     notebookname: str = "py_unit_tests_pins_lpa_curated"
     
     notebook_raw_params = {
-        "sparkPool": "pinssynspodw",
+        "sparkPool": "tempsparkpool",
         "notebook": notebookname,
         "sessionOptions": {
             "driverMemory": "28g",
