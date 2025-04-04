@@ -3,11 +3,6 @@ output "synapse_endpoints" {
   value       = azurerm_synapse_workspace.synapse.connectivity_endpoints
 }
 
-output "synapse_spark_pool_id" {
-  description = "The ID of the Synapse Spark Pool"
-  value       = var.spark_pool_enabled ? one(azurerm_synapse_spark_pool.synapse).id : null
-}
-
 output "synapse_sql_pool_id" {
   description = "The ID of the Synapse SQL Pool"
   value       = var.sql_pool_enabled ? one(azurerm_synapse_sql_pool.synapse).id : null
