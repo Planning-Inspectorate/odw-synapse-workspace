@@ -11,7 +11,7 @@ source "azure-arm" "azure-agents" {
   azure_tags = {
     Project          = "tooling"
     CreatedBy        = "packer"
-    TerraformVersion = "1.9.6"
+    TerraformVersion = "1.11.3"
     pythonVersion    = "3.13"
   }
 
