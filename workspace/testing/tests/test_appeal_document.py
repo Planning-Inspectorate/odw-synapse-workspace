@@ -11,7 +11,7 @@ def test_appeal_document_notebook(credential_name, azure_credential, synapse_end
     notebookname: str = "py_unit_tests_appeal_document"
     
     notebook_raw_params = {
-        "sparkPool": "pinssynspodw",
+        "sparkPool": "harrisonPool",
         "notebook": notebookname,
         "sessionOptions": {
             "driverMemory": "28g",

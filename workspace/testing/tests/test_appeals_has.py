@@ -11,7 +11,7 @@ def test_appeal_appeals_has(credential_name, azure_credential, synapse_endpoint:
     notebookname: str = "py_unit_tests_has_appeals"
     
     notebook_raw_params = {
-        "sparkPool": "pinssynspodw",
+        "sparkPool": "harrisonPool",
         "notebook": notebookname,
         "sessionOptions": {
             "driverMemory": "28g",

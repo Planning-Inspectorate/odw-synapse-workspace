@@ -11,7 +11,7 @@ def test_relevant_representation_notebook(credential_name, azure_credential, syn
     notebookname: str = "py_unit_tests_relevant_representation"
     
     notebook_raw_params = {
-        "sparkPool": "pinssynspodw",
+        "sparkPool": "harrisonPool",
         "notebook": notebookname,
         "sessionOptions": {
             "driverMemory": "28g",

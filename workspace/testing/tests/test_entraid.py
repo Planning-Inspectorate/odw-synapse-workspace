@@ -13,7 +13,7 @@ def test_entraid_pipeline(credential_name, azure_credential, synapse_endpoint: s
     pipelinename: str = "rel_1262_entra_id"
     
     pipeline_raw_params = {
-        "sparkPool": "pinssynspodw",
+        "sparkPool": "harrisonPool",
         "pipeline": pipelinename,
         "sessionOptions": {
             "driverMemory": "28g",
@@ -40,7 +40,7 @@ def test_entraid_notebook(credential_name, azure_credential, synapse_endpoint: s
     
     # Trigger the Master Pipeline for Landing to Raw Zone
     notebook_raw_params = {
-        "sparkPool": "pinssynspodw",
+        "sparkPool": "harrisonPool",
         "notebook": notebookname,
         "sessionOptions": {
             "driverMemory": "28g",
