@@ -11,7 +11,7 @@ def test_nsip_exam_timetable_notebook(credential_name, azure_credential, synapse
     notebookname: str = "py_unit_tests_nsip_exam_timetable"
     
     notebook_raw_params = {
-        "sparkPool": "pinssynspodw",
+        "sparkPool": "pinssynspodwpr",
         "notebook": notebookname,
         "sessionOptions": {
             "driverMemory": "28g",

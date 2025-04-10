@@ -11,7 +11,7 @@ def test_nsip_project_notebook(credential_name, azure_credential, synapse_endpoi
     notebookname: str = "py_unit_tests_nsip_project"
     
     notebook_raw_params = {
-        "sparkPool": "pinssynspodw",
+        "sparkPool": "pinssynspodwpr",
         "notebook": notebookname,
         "sessionOptions": {
             "driverMemory": "28g",
