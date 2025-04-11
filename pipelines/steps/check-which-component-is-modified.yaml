@@ -1,0 +1,43 @@
+##
+# Check which services have been modified and need to be redeployed
+##
+steps:
+- bash: |
+    modifiedFiles="$(git diff --name-status origin/dev)"
+    echo "The following files have been modified"
+    echo "${modifiedFiles}"
+
+    # The below variables represent services that need to be deployed
+    infrastructureModified=false
+    functionsModified=false
+    synapseModified=false
+
+    if [[ $modifiedFiles == *"infrastructure/"* || $modifiedFiles == *"servicebus/"* ]]; then
+        infrastructureModified=true
+        echo "Detected an Infrastructure change under 'infrastructure/' or 'servicebus/'"
+    fi
+    if [[ $modifiedFiles == *"functionapp/"* || $modifiedFiles == *"functions/"* ]]; then
+        functionsModified=true
+        echo "Detected a Function App change under 'functionapp/' or 'functions'"
+    fi
+    if [[ $modifiedFiles == *"workspace/"* ]]; then
+        synapseModified=true
+        echo "Detected a Synapse change under 'workspace/'"
+    fi
+    if [[ $modifiedFiles == *"pipelines/"* ]]; then
+        # If CI/CD pipelines are modified, then redeploy everything to make sure the pipelines work
+        infrastructureModified=true
+        functionsModified=true
+        synapseModified=true
+        echo "Detected a change for the CI/CD process under 'pipelines/'"
+    fi
+
+    echo "infrastructureModified = ${infrastructureModified}"
+    echo "functionsModified = ${functionsModified}"
+    echo "synapseModified = ${synapseModified}"
+
+    echo "##vso[task.setvariable variable=infrastructureModified;isOutput=true]$infrastructureModified"
+    echo "##vso[task.setvariable variable=functionsModified;isOutput=true]$functionsModified"
+    echo "##vso[task.setvariable variable=synapseModified;isOutput=true]$synapseModified"
+  displayName: 'Check which components have been modified'
+  name: checkModifiedComponents
