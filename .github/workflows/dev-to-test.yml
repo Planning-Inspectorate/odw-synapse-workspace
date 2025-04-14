@@ -21,10 +21,14 @@ jobs:
     - name: Check the ${{ env.TEST_BRANCH_NAME }} branch exists
       shell: bash
       run: |
-        if [ -n $(git ls-remote --heads origin ${{ env.TEST_BRANCH_NAME }}) ]; then
-            echo "createTestBranch=false" >> $GITHUB_OUTPUT
+        testingBranches=$(git ls-remote --heads origin ${{ env.TEST_BRANCH_NAME }})
+        echo $testingBranches
+        if [[ -z "$testingBranches" ]]; then
+            echo "A test branch should be created"
+            echo "createTestBranch=true" >> $GITHUB_OUTPUT
         else
-            echo "createTestBranch=true" >> $GITHUB_OUTPUT          
+            echo "The test branch already exists"
+            echo "createTestBranch=false" >> $GITHUB_OUTPUT      
         fi
       id: check_test_branch_exists
     - name: Extract most recent commit message
@@ -44,7 +48,7 @@ jobs:
       run: |
         git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
         git config user.name "${GITHUB_ACTOR}"
-        if [[ ${{ steps.check_test_branch_exists.outputs.createTestBranch }} ]]; then
+        if [[ "${{ steps.check_test_branch_exists.outputs.createTestBranch }}" = true ]]; then
             echo "The $TEST_BRANCH_NAME branch does not exist, creating the branch and raising a pull request"
             git fetch
             git checkout main
