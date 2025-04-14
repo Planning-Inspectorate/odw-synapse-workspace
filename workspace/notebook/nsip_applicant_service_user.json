@@ -1,0 +1,145 @@
+{
+	"name": "nsip_applicant_service_user",
+	"properties": {
+		"description": "creating a NSIP applicant view of service user.",
+		"folder": {
+			"name": "archive/archived"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "a373759a-1f1a-49ef-a576-06c0c80b48f0"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Table odw_curated_db.nsip_service_user is created"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"REFRESH TABLE odw_curated_db.service_user"
+				],
+				"execution_count": 1
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"df = spark.sql(\"\"\"\n",
+					"    SELECT \n",
+					"        SU.id\n",
+					"        ,SU.salutation\n",
+					"        ,SU.firstName\n",
+					"        ,SU.lastName\n",
+					"        ,SU.addressLine1\n",
+					"        ,SU.addressTown\n",
+					"        ,SU.addressCounty\n",
+					"        ,SU.postcode\n",
+					"        ,SU.addressCountry\n",
+					"        ,SU.organisation\n",
+					"        ,SU.organisationType\n",
+					"        ,SU.role\n",
+					"        ,SU.telephoneNumber\n",
+					"        ,SU.otherPhoneNumber\n",
+					"        ,SU.faxNumber\n",
+					"        ,SU.emailAddress\n",
+					"        ,SU.webAddress\n",
+					"        ,SU.serviceUserType\n",
+					"        ,ND.caseReference\n",
+					"        ,SU.sourceSuid\n",
+					"        ,ND.sourceSystem\n",
+					"    FROM odw_curated_db.service_user SU\n",
+					"    Inner JOIN odw_curated_db.nsip_project ND ON SU.caseReference=ND.casereference\n",
+					"    WHERE\n",
+					"        SU.sourceSystem = 'back-office-applications'\n",
+					"        OR\n",
+					"            (\n",
+					"                SU.sourceSystem IN ( 'Horizon', 'Casework', 'ODT')\n",
+					"                AND SU.serviceUserType IN ('Applicant', 'RepresentationContact', 'Agent')\n",
+					"            )\"\"\"\n",
+					"    )\n",
+					"\n",
+					"df.write.mode(\"overwrite\").saveAsTable(\"odw_curated_db.nsip_service_user\")"
+				],
+				"execution_count": 2
+			}
+		]
+	}
+}
