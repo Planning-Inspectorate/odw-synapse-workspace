@@ -55,7 +55,13 @@ jobs:
             git pull
             git checkout -b $TEST_BRANCH_NAME
             git push --set-upstream origin $TEST_BRANCH_NAME
+        else
+            echo "The $TEST_BRANCH_NAME branch already exists, not creating the branch"
+        fi
+        pullRequests=$(gh pr list -B $TEST_BRANCH_NAME -H dev)
+        if [[ -z "$pullRequests" ]]; then
+            echo "No pull requests found from dev->$TEST_BRANCH_NAME , raising a pull request"
             gh pr create -B $TEST_BRANCH_NAME -H dev --title "Automated Pull Request from dev branch to ${{ env.TEST_BRANCH_NAME }} branch" --body "$COMMIT_MESSAGE"
         else
-            echo "The $TEST_BRANCH_NAME branch already exists, not raising a Pull Request"
+            echo "A pull request from the dev branch to the $TEST_BRANCH_NAME branch already exists" 
         fi
