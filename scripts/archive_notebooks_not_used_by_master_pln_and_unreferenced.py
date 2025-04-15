@@ -49,7 +49,7 @@ def get_notebooks_from_pipelines(pipelines_to_archive, pipeline_dir):
 
 def extract_referenced_notebooks(notebook_path, notebook_dir, processed_files=None):
     """
-    Extracts all notebooks referenced in a given notebook by looking for '%run' strings.
+    Extracts all notebooks referenced in a given notebook by looking for '%run' and 'mssparkutils.notebook.run' strings.
     Recursively processes referenced notebooks to extract further references.
     """
     if processed_files is None:
@@ -67,17 +67,24 @@ def extract_referenced_notebooks(notebook_path, notebook_dir, processed_files=No
             content = f.read()
 
         # Find all occurrences of "%run" and extract the paths
-        matches = re.findall(r'%run\s+([^\s]+)', content)
-        for match in matches:
-            normalized_path = os.path.normpath(os.path.join(notebook_dir, match))
-            
-            if not normalized_path.endswith('.json'):
-                normalized_path += '.json'
+        match_run = re.findall(r'%run\s+([^\s]+)', content)
+        match_func = re.findall(r"mssparkutils\.notebook\.run\(['\"]([^'\"]+)['\"]", content)
+        all_matches = match_run + match_func
+        if all_matches:
+            for match in all_matches:
+                # Extract the string from the end until the first "/"
+                notebook_name = match.rsplit('/', 1)[-1]
+                # Clean up the notebook name (remove unwanted characters like quotes)
+                cleaned_name = notebook_name.replace('\\', '').replace('"', '').replace("'", '')
+                normalized_path = os.path.normpath(os.path.join(notebook_dir, cleaned_name))
+                
+                if not normalized_path.endswith('.json'):
+                    normalized_path += '.json'
 
-            if os.path.exists(normalized_path):
-                referenced_notebooks.append(normalized_path)
-            else:
-                print(f"Warning: Referenced notebook not found: {normalized_path}")
+                if os.path.exists(normalized_path):
+                    referenced_notebooks.append(normalized_path)
+                else:
+                    print(f"Warning: Referenced notebook not found: {normalized_path}")
 
         # Recursively loop through each referenced notebook
         for notebook in referenced_notebooks:
@@ -278,7 +285,7 @@ def main():
     with open(dependencies_file, 'r') as f:
         used_pipelines = set(line.strip() for line in f if line.strip())
     
-    print(f"Pipelines that are used: {used_pipelines}")
+    # print(f"Pipelines that are used: {used_pipelines}")
 
     all_pipelines = set(
         # Remove the .json extension
@@ -288,12 +295,12 @@ def main():
     )
 
     pipelines_that_are_run = all_pipelines - not_run_pipelines
-    print(f"Pipelines that run: {pipelines_that_are_run}")
+    # print(f"Pipelines that run: {pipelines_that_are_run}")
 
     # Get pipelines that are both used and have ran in other pipelines, ensuring no duplicates
     pipelines_needed = (used_pipelines).union(pipelines_that_are_run)
 
-    print(f"Pipelines we need: {pipelines_needed}")
+    # print(f"Pipelines we need: {pipelines_needed}")
 
     # Get all notebooks referenced in the pipelines
     notebooks = get_notebooks_from_pipelines(pipelines_needed, pipeline_dir)
