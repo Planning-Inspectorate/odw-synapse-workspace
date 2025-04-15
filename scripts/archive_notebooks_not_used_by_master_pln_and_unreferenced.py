@@ -133,6 +133,19 @@ def recursively_extract_all_referenced_notebooks(notebooks, notebook_dir):
         all_referenced_notebooks.update(referenced_notebooks)
     return all_referenced_notebooks
 
+def extract_notebook_names_from_directory(notebook_dir):
+    """
+    Extracts all notebook names from the specified directory.
+    """
+    notebook_names = []
+    for root, _, files in os.walk(notebook_dir):
+        for file in files:
+            if file.endswith('.json'):  # Only include JSON files
+                # Remove the "workspace/notebook/" prefix and add the notebook name
+                relative_path = os.path.relpath(os.path.join(root, file), notebook_dir)
+                notebook_names.append(relative_path)
+    return notebook_names
+
 def main():
     pipeline_dir = "workspace/pipeline"
     #List of pipelines that are linked to pln_master (note: if doesn't exist, run archive_pipelines_not_used_by_master_pln_and_not_run.py script)
@@ -321,6 +334,7 @@ def main():
 
     # Get all notebooks referenced in the pipelines
     notebooks = get_notebooks_from_pipelines(pipelines_needed, pipeline_dir)
+    notebooks = [notebook if notebook.endswith('.json') else f"{notebook}.json" for notebook in notebooks]
 
     if notebooks:
         print("Notebooks referenced in the pipelines:")
@@ -329,13 +343,50 @@ def main():
     else:
         print("No notebooks found in the specified pipelines.")
     
-    # Recursively extract all referenced notebooks in these notebooks (i.e. the notebooks needed)
-    all_referenced_notebooks = recursively_extract_all_referenced_notebooks(notebooks, notebook_dir) 
+    # Recursively extract referenced notebooks in these notebooks (i.e. the notebooks needed)
+    referenced_notebooks = recursively_extract_all_referenced_notebooks(notebooks, notebook_dir)
+    referenced_notebooks = [notebook.replace("workspace/notebook/", "") for notebook in referenced_notebooks]
 
-    print("Referenced notebooks in notebooks:")
-    for notebook in sorted(all_referenced_notebooks):
+    final_list_of_needed_notebooks = list(dict.fromkeys(notebooks + list(referenced_notebooks)))
+    print("All referenced notebooks:")
+    for notebook in sorted(final_list_of_needed_notebooks):
         print(f"- {notebook}")
     
+    # Extracts all notebook names from the directory.
+    total_notebooks = extract_notebook_names_from_directory(notebook_dir)
+    print("All notebooks in the workspace/notebook directory:")
+    for notebook in sorted(total_notebooks):
+        print(f"- {notebook}")
+    
+    not_needed_notebooks = list(set(total_notebooks) - set(final_list_of_needed_notebooks))
+
+    print("Notebooks that are not needed:")
+    for notebook in sorted(not_needed_notebooks):
+        print(f"- {notebook}")
+    
+    # Remove any notebooks that are in the utils folder from the not_needed_notebooks, 
+    # as there were notebooks (from final_list_of_needed_notebooks) that used the entire folder
+    filtered_not_needed_notebooks = []
+
+    for notebook in not_needed_notebooks:
+        notebook_path = os.path.join(notebook_dir, notebook)
+        try:
+            # Open and parse the notebook JSON file
+            with open(notebook_path, 'r', encoding='utf-8') as f:
+                notebook_data = json.load(f)
+        
+            # Check if the folder name starts with 'utils'
+            folder_name = notebook_data.get("properties", {}).get("folder", {}).get("name", "")
+            if not folder_name.startswith("utils"):
+                filtered_not_needed_notebooks.append(notebook)
+        except Exception as e:
+            print(f"Error processing notebook {notebook}: {e}")
+
+    not_needed_notebooks = filtered_not_needed_notebooks
+
+    print("Filtered list of notebooks that are not needed:")
+    for notebook in sorted(not_needed_notebooks):
+        print(f"- {notebook}")
 
 if __name__ == "__main__":
     main()
