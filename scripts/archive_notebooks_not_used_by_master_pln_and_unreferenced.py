@@ -315,7 +315,7 @@ def main():
     # Recursively extract all referenced notebooks in these notebooks (i.e. the notebooks needed)
     all_referenced_notebooks = recursively_extract_all_referenced_notebooks(notebooks, notebook_dir) 
 
-    print("All referenced notebooks:")
+    print("Referenced notebooks in notebooks:")
     for notebook in sorted(all_referenced_notebooks):
         print(f"- {notebook}")
     
