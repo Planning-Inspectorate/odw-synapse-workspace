@@ -76,7 +76,7 @@ def archive_pipeline(pipeline_name, pipeline_dir):
 
     data = json.loads(file_content)
     folder = data.get("properties", {}).get("folder", {})
-    if "name" in folder and not folder["name"].startswith("archive/"):
+    if "name" in folder and not folder["name"].startswith("archive"):
         old_folder_name = folder["name"]
         new_folder_name = f"archive/{old_folder_name}"
 
@@ -91,7 +91,7 @@ def archive_pipeline(pipeline_name, pipeline_dir):
             f.write(updated_content)
 
         return True
-    elif "name" in folder and folder["name"].startswith("archive/"):
+    elif "name" in folder and folder["name"].startswith("archive"):
         print(f"Pipeline '{pipeline_name}' is already archived.")
     else:
         print(f"Pipeline '{pipeline_name}' does not have a valid folder field.")

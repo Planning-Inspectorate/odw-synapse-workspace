@@ -146,6 +146,43 @@ def extract_notebook_names_from_directory(notebook_dir):
                 notebook_names.append(relative_path)
     return notebook_names
 
+def archive_notebook(notebook_name, notebook_dir):
+    """
+    Archives a notebook by prepending "archive/" to its folder field in the JSON file.
+    """
+    notebook_file = os.path.join(notebook_dir, notebook_name)
+    if not os.path.exists(notebook_file):
+        print(f"Error: Notebook file '{notebook_file}' does not exist.")
+        return False
+
+    with open(notebook_file, 'r', encoding='utf-8') as f:
+        file_content = f.read()
+
+    data = json.loads(file_content)
+    folder = data.get("properties", {}).get("folder", {})
+    if "name" in folder and not folder["name"].startswith("archive"):
+        old_folder_name = folder["name"]
+        new_folder_name = f"archive/{old_folder_name}"
+
+        # Replace only the folder name in the original file content
+        updated_content = file_content.replace(
+            f'"name": "{old_folder_name}"',
+            f'"name": "{new_folder_name}"'
+        )
+
+        # Write the updated content back to the file
+        with open(notebook_file, 'w', encoding='utf-8') as f:
+            f.write(updated_content)
+
+        return True
+    elif "name" in folder and folder["name"].startswith("archive"):
+        print(f"Notebook '{notebook_name}' is already archived.")
+    else:
+        print(f"Notebook '{notebook_name}' does not have a valid folder field.")
+    
+    return False
+
+
 def main():
     pipeline_dir = "workspace/pipeline"
     #List of pipelines that are linked to pln_master (note: if doesn't exist, run archive_pipelines_not_used_by_master_pln_and_not_run.py script)
@@ -314,11 +351,8 @@ def main():
     # Get the list of used pipelines by master pipeline
     with open(dependencies_file, 'r') as f:
         used_pipelines = set(line.strip() for line in f if line.strip())
-    
-    # print(f"Pipelines that are used: {used_pipelines}")
 
     all_pipelines = set(
-        # Remove the .json extension
         os.path.splitext(file)[0]
         for file in os.listdir(pipeline_dir)
         if file.endswith('.json')
@@ -329,40 +363,36 @@ def main():
 
     # Get pipelines that are both used and have ran in other pipelines, ensuring no duplicates
     pipelines_needed = (used_pipelines).union(pipelines_that_are_run)
-
     # print(f"Pipelines we need: {pipelines_needed}")
 
     # Get all notebooks referenced in the pipelines
     notebooks = get_notebooks_from_pipelines(pipelines_needed, pipeline_dir)
     notebooks = [notebook if notebook.endswith('.json') else f"{notebook}.json" for notebook in notebooks]
-
-    if notebooks:
-        print("Notebooks referenced in the pipelines:")
-        for notebook in notebooks:
-            print(f"- {notebook}")
-    else:
-        print("No notebooks found in the specified pipelines.")
+    # if notebooks:
+    #     print("Notebooks referenced in the pipelines:")
+    #     for notebook in notebooks:
+    #         print(f"- {notebook}")
+    # else:
+    #     print("No notebooks found in the specified pipelines.")
     
-    # Recursively extract referenced notebooks in these notebooks (i.e. the notebooks needed)
     referenced_notebooks = recursively_extract_all_referenced_notebooks(notebooks, notebook_dir)
     referenced_notebooks = [notebook.replace("workspace/notebook/", "") for notebook in referenced_notebooks]
 
     final_list_of_needed_notebooks = list(dict.fromkeys(notebooks + list(referenced_notebooks)))
-    print("All referenced notebooks:")
-    for notebook in sorted(final_list_of_needed_notebooks):
-        print(f"- {notebook}")
+    # print("All referenced notebooks:")
+    # for notebook in sorted(final_list_of_needed_notebooks):
+    #     print(f"- {notebook}")
     
     # Extracts all notebook names from the directory.
     total_notebooks = extract_notebook_names_from_directory(notebook_dir)
-    print("All notebooks in the workspace/notebook directory:")
-    for notebook in sorted(total_notebooks):
-        print(f"- {notebook}")
+    # print("All notebooks in the workspace/notebook directory:")
+    # for notebook in sorted(total_notebooks):
+    #     print(f"- {notebook}")
     
     not_needed_notebooks = list(set(total_notebooks) - set(final_list_of_needed_notebooks))
-
-    print("Notebooks that are not needed:")
-    for notebook in sorted(not_needed_notebooks):
-        print(f"- {notebook}")
+    # print("Notebooks that are not needed:")
+    # for notebook in sorted(not_needed_notebooks):
+    #     print(f"- {notebook}")
     
     # Remove any notebooks that are in the utils folder from the not_needed_notebooks, 
     # as there were notebooks (from final_list_of_needed_notebooks) that used the entire folder
@@ -387,6 +417,18 @@ def main():
     print("Filtered list of notebooks that are not needed:")
     for notebook in sorted(not_needed_notebooks):
         print(f"- {notebook}")
+    
+    # Archive not needed notebooks
+    if not_needed_notebooks:
+        print("\nArchiving notebooks...")
+        for notebook in sorted(not_needed_notebooks):
+            archived = archive_notebook(notebook, notebook_dir)
+            if archived:
+                print(f"- Archived: {notebook}")
+            else:
+                print(f"- Failed to archive: {notebook}")
+    else:
+        print("No notebooks to archive.")
 
 if __name__ == "__main__":
     main()
