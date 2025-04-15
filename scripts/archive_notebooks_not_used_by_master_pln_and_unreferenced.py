@@ -47,6 +47,18 @@ def get_notebooks_from_pipelines(pipelines_to_archive, pipeline_dir):
 
     return all_notebooks
 
+def extract_all_strings_from_json(data):
+    strings = []
+    if isinstance(data, dict):
+        for value in data.values():
+            strings.extend(extract_all_strings_from_json(value))
+    elif isinstance(data, list):
+        for item in data:
+            strings.extend(extract_all_strings_from_json(item))
+    elif isinstance(data, str):
+        strings.append(data)
+    return strings
+
 def extract_referenced_notebooks(notebook_path, notebook_dir, processed_files=None):
     """
     Extracts all notebooks referenced in a given notebook by looking for '%run' and 'mssparkutils.notebook.run' strings.
@@ -63,13 +75,18 @@ def extract_referenced_notebooks(notebook_path, notebook_dir, processed_files=No
     referenced_notebooks = []
 
     try:
-        with open(notebook_path, 'r') as f:
-            content = f.read()
+        with open(notebook_path, 'r', encoding='utf-8') as f:
+            try:
+                content = json.load(f)
+            except json.JSONDecodeError:
+                print(f"Could not parse JSON from: {notebook_path}")
+                return []
 
-        # Find all occurrences of "%run" and extract the paths
-        match_run = re.findall(r'%run\s+([^\s]+)', content)
-        match_func = re.findall(r"mssparkutils\.notebook\.run\(['\"]([^'\"]+)['\"]", content)
-        all_matches = match_run + match_func
+        # Find all occurrences of "%run" and "mssparkutils.notebook.run(" & extract the paths
+        all_strings = extract_all_strings_from_json(content)
+        match_run = [re.findall(r'%run\s+([^\s]+)', s) for s in all_strings]
+        match_func = [re.findall(r"mssparkutils\.notebook\.run\(['\"]([^'\"]+)['\"]", s) for s in all_strings]
+        all_matches = sum(match_run, []) + sum(match_func, [])
         if all_matches:
             for match in all_matches:
                 # Extract the string from the end until the first "/"
