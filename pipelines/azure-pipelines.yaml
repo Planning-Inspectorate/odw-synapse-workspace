@@ -31,21 +31,20 @@ parameters:
   - 'test'
   - 'prod'
 
-# Run when Pull Request raised to the dev or testing branch
+# Run when Pull Request raised to the dev branch
 pr:
 - dev
 
-# Run when merged into main or testing
+# Run when merged into main
 trigger:
  branches:
   include:
   - main
-  - testing
 
 # Automatically run against the dev branch at a set time every day
 schedules:
-- cron: '30 13 * * 1-5' # cron syntax defining a schedule. At 1:30pm every week day
-  displayName: Daily testing branch run
+- cron: '0 9 * * 1-5' # cron syntax defining a schedule. At 9am every week day
+  displayName: Daily dev branch run against the test env
   branches:
     include:
     - dev
@@ -53,17 +52,13 @@ schedules:
   batch: false
 
 variables:
-- name: branchName
-  value: $[replace(variables['Build.SourceBranch'], 'refs/heads/', '')]
 - name: env
   ${{ if ne(parameters.env, 'auto') }}:
     value: ${{ parameters.env }}
   ${{ else }}:
-    ${{ if eq(variables.branchName, 'dev') }}:
-      value: dev
-    ${{ elseif eq(variables.branchName, 'testing') }}:
+    ${{ if eq(replace(variables['Build.SourceBranch'], 'refs/heads/', ''), 'dev') }}:
       value: test
-    ${{ elseif eq(variables.branchName, 'main') }}:
+    ${{ elseif eq(replace(variables['Build.SourceBranch'], 'refs/heads/', ''), 'main') }}:
       value: prod
     ${{ else }}:
       # Update to be the build env once ready

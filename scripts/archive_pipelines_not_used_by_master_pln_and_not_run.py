@@ -76,7 +76,7 @@ def archive_pipeline(pipeline_name, pipeline_dir):
 
     data = json.loads(file_content)
     folder = data.get("properties", {}).get("folder", {})
-    if "name" in folder and not folder["name"].startswith("archive/"):
+    if "name" in folder and not folder["name"].startswith("archive"):
         old_folder_name = folder["name"]
         new_folder_name = f"archive/{old_folder_name}"
 
@@ -91,33 +91,44 @@ def archive_pipeline(pipeline_name, pipeline_dir):
             f.write(updated_content)
 
         return True
-    elif "name" in folder and folder["name"].startswith("archive/"):
+    elif "name" in folder and folder["name"].startswith("archive"):
         print(f"Pipeline '{pipeline_name}' is already archived.")
     else:
         print(f"Pipeline '{pipeline_name}' does not have a valid folder field.")
     return False
 
 def main():
-    pipeline_dir = "workspace/pipeline"
-    dependencies_file = "scripts/pipeline_dependencies.txt" 
+    # Extract pipeline dependencies from the master pipeline & write to file
+    pipeline_dir = "workspace/pipeline" 
+    master_pipeline_file = os.path.join(pipeline_dir, "pln_master.json")
+    all_pipelines = extract_pipelines(master_pipeline_file, pipeline_dir)
 
-    # List of pipelines that are not run, which is retrieved from hierarchy.txt file/output of buildHierarchyOfPipelines.py script
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    output_file = os.path.join(script_dir, "pipeline_dependencies.txt")
+
+    with open(output_file, 'w') as f:
+        for pipeline in sorted(set(all_pipelines)):
+            f.write(f"{pipeline}\n")
+    
+    print(f"Pipeline dependencies written to {output_file}")
+   
+    # Put list of pipelines that are not run, which is retrieved from hierarchy.txt file/output of buildHierarchyOfPipelines.py script
     not_run_pipelines = {
         "pln_1",
         "pln_2",
-}
-
+    }
+    
     # Ensure the pipeline directory and dependencies file exist
     if not os.path.exists(pipeline_dir):
         print(f"Error: Pipeline directory '{pipeline_dir}' does not exist.")
         return
 
-    if not os.path.exists(dependencies_file):
-        print(f"Error: Dependencies file '{dependencies_file}' does not exist.")
+    if not os.path.exists(output_file):
+        print(f"Error: Dependencies file '{output_file}' does not exist.")
         return
 
     # Get the list of unused pipelines by master pipeline
-    unused_pipelines = list_unused_pipelines(pipeline_dir, dependencies_file)
+    unused_pipelines = list_unused_pipelines(pipeline_dir, output_file)
 
     # Filter pipelines that are both unused and in the not_run_pipelines list
     pipelines_to_archive = [
