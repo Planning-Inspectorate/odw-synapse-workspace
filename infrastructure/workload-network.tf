@@ -165,6 +165,22 @@ resource "azurerm_virtual_network_peering" "tooling_to_odw" {
   provider = azurerm.tooling
 }
 
+resource "azurerm_virtual_network_peering" "odw_to_tooling_failover" {
+  name                      = "pins-peer-${local.service_name}-${module.azure_region.paired_location.location_short}-to-tooling-${var.environment}"
+  resource_group_name       = azurerm_resource_group.network_failover.name
+  virtual_network_name      = module.synapse_network_failover.vnet_name
+  remote_virtual_network_id = data.azurerm_virtual_network.tooling.id
+}
+
+resource "azurerm_virtual_network_peering" "tooling_to_odw_failover" {
+  name                      = "pins-peer-tooling-to-${local.service_name}-${module.azure_region.paired_location.location_short}-${var.environment}"
+  resource_group_name       = var.tooling_config.network_rg
+  virtual_network_name      = var.tooling_config.network_name
+  remote_virtual_network_id = module.synapse_network_failover.vnet_id
+
+  provider = azurerm.tooling
+}
+
 # network links to tooling
 
 data "azurerm_private_dns_zone" "tooling_synapse" {
