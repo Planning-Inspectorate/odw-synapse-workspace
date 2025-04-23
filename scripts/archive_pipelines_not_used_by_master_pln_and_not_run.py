@@ -62,20 +62,6 @@ def list_unused_pipelines(pipeline_dir, dependencies_file):
 
     return unused_pipelines
 
-def check_if_in_archive(pipeline_name, pipeline_dir):
-    """
-    Checks if a pipeline JSON file has "archive" in its folder field.
-    """
-    pipeline_file = os.path.join(pipeline_dir, f"{pipeline_name}.json")
-    if not os.path.exists(pipeline_file):
-        return False
-
-    # Read the JSON file and check the folder field
-    with open(pipeline_file, 'r') as f:
-        data = json.load(f)
-        folder = data.get("properties", {}).get("folder", {}).get("name", "")
-        return "archive" in folder
-
 def archive_pipeline(pipeline_name, pipeline_dir):
     """
     Archives a pipeline by prepending "archive/" to its folder field in the JSON file.
@@ -85,31 +71,33 @@ def archive_pipeline(pipeline_name, pipeline_dir):
         print(f"Error: Pipeline file '{pipeline_file}' does not exist.")
         return False
 
-    # Read the JSON file
     with open(pipeline_file, 'r') as f:
         file_content = f.read()
-    
+
     data = json.loads(file_content)
-
-    # Update the folder field to include "archive/"
     folder = data.get("properties", {}).get("folder", {})
-    if "name" in folder and not folder["name"].startswith("archive/"):
-        folder["name"] = f"archive/{folder['name']}"
-        print(f"Archiving pipeline: {pipeline_name}")
+    if "name" in folder and not folder["name"].startswith("archive"):
+        old_folder_name = folder["name"]
+        new_folder_name = f"archive/{old_folder_name}"
 
+        # Replace only the folder name in the original file content
         updated_content = file_content.replace(
-            f'"name": "{folder["name"].replace("archive/", "")}"',
-            f'"name": "{folder["name"]}"'
+            f'"name": "{old_folder_name}"',
+            f'"name": "{new_folder_name}"'
         )
-        
+
         # Write the updated content back to the file
         with open(pipeline_file, 'w') as f:
             f.write(updated_content)
-        return True
 
+        return True
+    elif "name" in folder and folder["name"].startswith("archive"):
+        print(f"Pipeline '{pipeline_name}' is already archived.")
+    else:
+        print(f"Pipeline '{pipeline_name}' does not have a valid folder field.")
     return False
 
-def main(): 
+def main():
     # Extract pipeline dependencies from the master pipeline & write to file
     pipeline_dir = "workspace/pipeline" 
     master_pipeline_file = os.path.join(pipeline_dir, "pln_master.json")
@@ -121,10 +109,16 @@ def main():
     with open(output_file, 'w') as f:
         for pipeline in sorted(set(all_pipelines)):
             f.write(f"{pipeline}\n")
-
+    
     print(f"Pipeline dependencies written to {output_file}")
-
-    # Check if pipeline directory and dependencies file exist
+   
+    # Put list of pipelines that are not run, which is retrieved from hierarchy.txt file/output of buildHierarchyOfPipelines.py script
+    not_run_pipelines = {
+        "pln_1",
+        "pln_2",
+    }
+    
+    # Ensure the pipeline directory and dependencies file exist
     if not os.path.exists(pipeline_dir):
         print(f"Error: Pipeline directory '{pipeline_dir}' does not exist.")
         return
@@ -136,26 +130,26 @@ def main():
     # Get the list of unused pipelines by master pipeline
     unused_pipelines = list_unused_pipelines(pipeline_dir, output_file)
 
-    # Check which unused pipelines are in the archive folder
-    archived_unused_pipelines = [
+    # Filter pipelines that are both unused and in the not_run_pipelines list
+    pipelines_to_archive = [
         pipeline for pipeline in unused_pipelines
-        if check_if_in_archive(pipeline, pipeline_dir)
+        if pipeline in not_run_pipelines
     ]
 
-    pipelines_left_to_archive = unused_pipelines - set(archived_unused_pipelines)
-
     print(f"Total unused pipelines: {len(unused_pipelines)}")
-    print(f"Archived unused pipelines: {len(archived_unused_pipelines)}")
-    print(f"Pipelines left to be archived: {len(pipelines_left_to_archive)}")
+    print(f"Pipelines to archive: {len(pipelines_to_archive)}")
 
-    if pipelines_left_to_archive:
-        print("\nArchiving pipelines left to be archived...")
-        for pipeline in sorted(pipelines_left_to_archive):
+    # Archive the pipelines
+    if pipelines_to_archive:
+        print("\nArchiving pipelines...")
+        for pipeline in sorted(pipelines_to_archive):
             archived = archive_pipeline(pipeline, pipeline_dir)
             if archived:
                 print(f"- Archived: {pipeline}")
             else:
                 print(f"- Failed to archive: {pipeline}")
+    else:
+        print("No pipelines to archive.")
 
 
 if __name__ == "__main__":
