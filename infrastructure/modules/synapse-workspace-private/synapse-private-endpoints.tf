@@ -196,3 +196,61 @@ resource "azurerm_private_endpoint" "synapse_workspace_tooling" {
 
   tags = local.tags
 }
+
+# private endpoints for Purview
+
+resource "azurerm_synapse_managed_private_endpoint" "synapse_mpe_purview_account" {
+  count = var.odt_appeals_back_office_service_bus_name == null ? 0 : 1
+
+  name                 = "synapse-mpe-purview-account--${local.resource_suffix}"
+  synapse_workspace_id = azurerm_synapse_workspace.synapse.id
+  target_resource_id   = var.purview_ids.id
+  subresource_name     = "account"
+
+  depends_on = [
+    azurerm_synapse_workspace.synapse,
+    time_sleep.firewall_delay
+  ]
+}
+
+resource "azurerm_synapse_managed_private_endpoint" "synapse_mpe_purview_storage_blob" {
+  count = var.odt_appeals_back_office_service_bus_name == null ? 0 : 1
+
+  name                 = "synapse-mpe-purview-storage-blob--${local.resource_suffix}"
+  synapse_workspace_id = azurerm_synapse_workspace.synapse.id
+  target_resource_id   = var.purview_ids.storage_id
+  subresource_name     = "blob"
+
+  depends_on = [
+    azurerm_synapse_workspace.synapse,
+    time_sleep.firewall_delay
+  ]
+}
+
+resource "azurerm_synapse_managed_private_endpoint" "synapse_mpe_purview_storage_queue" {
+  count = var.odt_appeals_back_office_service_bus_name == null ? 0 : 1
+
+  name                 = "synapse-mpe-purview-storage-queue--${local.resource_suffix}"
+  synapse_workspace_id = azurerm_synapse_workspace.synapse.id
+  target_resource_id   = var.purview_ids.storage_id
+  subresource_name     = "queue"
+
+  depends_on = [
+    azurerm_synapse_workspace.synapse,
+    time_sleep.firewall_delay
+  ]
+}
+
+resource "azurerm_synapse_managed_private_endpoint" "synapse_mpe_purview_event_hubs" {
+  count = var.odt_appeals_back_office_service_bus_name == null ? 0 : 1
+
+  name                 = "synapse-mpe-purview-event-hubs--${local.resource_suffix}"
+  synapse_workspace_id = azurerm_synapse_workspace.synapse.id
+  target_resource_id   = var.purview_ids.event_hub_id
+  subresource_name     = "namespace"
+
+  depends_on = [
+    azurerm_synapse_workspace.synapse,
+    time_sleep.firewall_delay
+  ]
+}
