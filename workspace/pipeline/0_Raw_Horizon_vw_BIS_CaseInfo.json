@@ -1,0 +1,118 @@
+{
+	"name": "0_Raw_Horizon_vw_BIS_CaseInfo",
+	"properties": {
+		"activities": [
+			{
+				"name": "Horizon_vw_BIS_CaseInfo",
+				"description": "Load the Horizon view Horizon_vw_BIS_CaseInfo into the ODW",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.02:00:00",
+					"retry": 3,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [
+					{
+						"name": "Source",
+						"value": "dbo.@{'Horizon_vw_BIS_CaseInfo'}"
+					},
+					{
+						"name": "Destination",
+						"value": "odw-raw/@{concat('Horizon', '/', formatDateTime(utcnow(), 'yyyy-MM-dd'))}/@{'vw_BIS_CaseInfo.csv'}"
+					}
+				],
+				"typeProperties": {
+					"source": {
+						"type": "SqlServerSource",
+						"queryTimeout": "02:00:00",
+						"isolationLevel": "Snapshot",
+						"partitionOption": "None"
+					},
+					"sink": {
+						"type": "DelimitedTextSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "DelimitedTextWriteSettings",
+							"quoteAllText": true,
+							"fileExtension": ".txt"
+						}
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"name": "AppealRefNumber",
+									"type": "String",
+									"physicalType": "varchar"
+								},
+								"sink": {
+									"name": "AppealRefNumber",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "CaseReference",
+									"type": "String",
+									"physicalType": "varchar"
+								},
+								"sink": {
+									"name": "CaseReference",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "Validity",
+									"type": "String",
+									"physicalType": "nvarchar"
+								},
+								"sink": {
+									"name": "Validity",
+									"type": "String",
+									"physicalType": "String"
+								}
+							}
+						],
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "HZN_NSIP_Query",
+						"type": "DatasetReference",
+						"parameters": {
+							"table_name": "Horizon_vw_BIS_CaseInfo"
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "Dataset_Horizon",
+						"type": "DatasetReference",
+						"parameters": {
+							"FileName": "vw_BIS_CaseInfo.csv"
+						}
+					}
+				]
+			}
+		],
+		"folder": {
+			"name": "Appeal_s78/0-raw"
+		},
+		"annotations": []
+	}
+}
