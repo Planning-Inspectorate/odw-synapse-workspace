@@ -11,7 +11,7 @@ def test_appeal_service_user(credential_name, azure_credential, synapse_endpoint
     notebookname: str = "py_unit_tests_service_user"
     
     notebook_raw_params = {
-        "sparkPool": "pinssynspodw",
+        "sparkPool": "pinssynspodw34",
         "notebook": notebookname,
         "sessionOptions": {
             "driverMemory": "28g",
