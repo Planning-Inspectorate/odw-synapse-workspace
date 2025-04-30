@@ -1,3 +1,8 @@
+variable "data_lake_account_id" {
+  description = "The ID of the Data Lake Storage Account"
+  type        = string
+}
+
 variable "deploy_purview" {
   default     = true
   description = "Determines whether Purview will be deployed"

@@ -1,0 +1,133 @@
+{
+	"name": "py_delta_backup_table",
+	"properties": {
+		"description": "This script is to backup a table from a container in UKS to UKW storage account incrementally",
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "be7f3680-6493-4e44-9346-e868dd391939"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 32,
+				"automaticScaleJobs": true
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"from notebookutils import mssparkutils\n",
+					"import re\n",
+					"\n",
+					"storage_account_path=re.search('url=https://(.+?);', mssparkutils.credentials.getFullConnectionString('ls_backup_source')).group(1)"
+				],
+				"execution_count": 1
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"storage_account_backup_path=re.search('url=https://(.+?);', mssparkutils.credentials.getFullConnectionString('ls_backup_destination')).group(1)"
+				],
+				"execution_count": 2
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"container_name = 'odw-harmonised'\n",
+					"table_name= 'listed_building' "
+				],
+				"execution_count": 3
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"storage_account_name = storage_account_path.split(\".\")[0]"
+				],
+				"execution_count": 4
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"storage_account_backup_name= storage_account_backup_path.split(\".\")[0]"
+				],
+				"execution_count": 5
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def list_all_files(base_path, relative_path=\"\"):\n",
+					"    files = []\n",
+					"    full_path = base_path + \"/\" + relative_path if relative_path else base_path\n",
+					"    items = mssparkutils.fs.ls(full_path)\n",
+					"    \n",
+					"    for item in items:\n",
+					"        item_path = f\"{relative_path}/{item.name}\".rstrip(\"/\")\n",
+					"        if item.isDir:\n",
+					"            files.extend(list_all_files(base_path, item_path))\n",
+					"        else:\n",
+					"            files.append(item_path)\n",
+					"    return set(files)\n",
+					"\n",
+					"# Set base path\n",
+					"base_path = f\"abfss://{container_name}@{storage_account_name}.dfs.core.windows.net/{table_name}\"\n",
+					"backup_path = f\"abfss://{container_name}@{storage_account_backup_name}.dfs.core.windows.net/{table_name}_delta_backup\"\n",
+					"\n",
+					"# mssparkutils.fs.mkdirs(backup_path) # first time\n",
+					"\n",
+					"# Get list of all files relative to table1\n",
+					"base_path_list = list_all_files(base_path)\n",
+					"backup_path_list = list_all_files(backup_path)\n",
+					"\n",
+					"# Print the result\n",
+					"delta_files = base_path_list-backup_path_list\n",
+					"print(len(delta_files))"
+				],
+				"execution_count": 6
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"for file in delta_files:\n",
+					"    mssparkutils.fs.cp(base_path+file,backup_path+file)"
+				],
+				"execution_count": 7
+			}
+		]
+	}
+}

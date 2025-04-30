@@ -36,7 +36,7 @@ variable "runtime_vm_username" {
 }
 
 variable "runtime_vm_size" {
-  default     = "Standard_F2s_v2"
+  default     = "Standard_F8s_v2"
   description = "The size of the self-hosted integration runtime VM to be deployed"
   type        = string
 }
