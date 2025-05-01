@@ -2,8 +2,8 @@ locals {
   location     = var.location
   service_name = "odw"
 
-  firewall_config_file_path     = "${path.module}/configuration/firewall-rules/allowed_ip_addresses.yaml"
-  firewall_allowed_ip_addresses = yamldecode(file(local.firewall_config_file_path))
+  # no IP exceptions
+  firewall_allowed_ip_addresses = []
   lifecycle_policy_file_path    = "${path.module}/configuration/data-lifecycle/policies.json"
 
   resource_suffix          = "${local.service_name}-${var.environment}-${module.azure_region.location_short}"
