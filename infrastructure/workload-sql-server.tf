@@ -27,7 +27,7 @@ module "synapse_sql_server" {
   service_name        = local.service_name
 
   devops_agent_subnet_name          = module.synapse_network.devops_agent_subnet_name
-  firewall_allowed_ip_addresses     = yamldecode(file(local.firewall_config_file_path))
+  firewall_allowed_ip_addresses     = local.firewall_allowed_ip_addresses
   key_vault_id                      = module.synapse_data_lake.key_vault_id
   sql_server_aad_administrator      = var.synapse_aad_administrator
   sql_server_administrator_username = var.sql_server_administrator_username
@@ -49,7 +49,7 @@ module "synapse_sql_server_failover" {
   service_name        = local.service_name
 
   devops_agent_subnet_name          = module.synapse_network_failover.devops_agent_subnet_name
-  firewall_allowed_ip_addresses     = yamldecode(file(local.firewall_config_file_path))
+  firewall_allowed_ip_addresses     = local.firewall_allowed_ip_addresses
   key_vault_id                      = module.synapse_data_lake_failover.key_vault_id
   sql_server_aad_administrator      = var.synapse_aad_administrator
   sql_server_administrator_username = var.sql_server_administrator_username
