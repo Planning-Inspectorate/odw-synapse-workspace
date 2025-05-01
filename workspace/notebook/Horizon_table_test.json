@@ -1,0 +1,109 @@
+{
+	"name": "Horizon_table_test",
+	"properties": {
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "52d84f30-4fed-4cb9-8aab-b2a3f04f169e"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
+				"name": "pinssynspodw",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import SparkSession\n",
+					"\n",
+					"def drop_loop_test_tables(database_name):\n",
+					"    spark = SparkSession.builder.getOrCreate()\n",
+					"    \n",
+					"    # Get list of tables in the database\n",
+					"    tables = spark.catalog.listTables(database_name)\n",
+					"    \n",
+					"    # Filter tables that start with 'loop_test_'\n",
+					"    loop_test_tables = [table.name for table in tables if table.name.startswith('loop_test_')]\n",
+					"    \n",
+					"    # Drop each table\n",
+					"    for table_name in loop_test_tables:\n",
+					"        spark.sql(f\"DROP TABLE {database_name}.{table_name}\")\n",
+					"        print(f\"Dropped table: {database_name}.{table_name}\")\n",
+					"\n",
+					"# Example usage\n",
+					"drop_loop_test_tables('odw_standardised_db')\n",
+					""
+				],
+				"execution_count": 3
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import SparkSession\n",
+					"\n",
+					"def get_loop_test_table_counts(database_name):\n",
+					"    spark = SparkSession.builder.getOrCreate()\n",
+					"    \n",
+					"    # Get list of tables in the database\n",
+					"    tables = spark.catalog.listTables(database_name)\n",
+					"    \n",
+					"    # Filter tables that start with 'loop_test_'\n",
+					"    loop_test_tables = [table.name for table in tables if table.name.startswith('loop_test_')]\n",
+					"    \n",
+					"    # Get count of records for each table\n",
+					"    table_counts = {}\n",
+					"    for table_name in loop_test_tables:\n",
+					"        count = spark.sql(f\"SELECT COUNT(*) FROM {database_name}.{table_name}\").collect()[0][0]\n",
+					"        table_counts[table_name] = count\n",
+					"        print(f\"Table: {database_name}.{table_name}, Count: {count}\")\n",
+					"    \n",
+					"    return table_counts\n",
+					"\n",
+					"# Example usage\n",
+					"database_name = 'odw_standardised_db'\n",
+					"table_counts = get_loop_test_table_counts(database_name)\n",
+					"print(table_counts)\n",
+					""
+				],
+				"execution_count": 4
+			}
+		]
+	}
+}
