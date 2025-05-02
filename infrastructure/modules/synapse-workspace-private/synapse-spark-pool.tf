@@ -102,8 +102,8 @@ resource "azurerm_synapse_spark_pool" "synapse34" {
     for_each = var.spark_pool_requirements != null ? [1] : []
 
     content {
-      content  = var.spark_pool_preview_requirements
-      filename = "requirements-preview.txt"
+      content  = var.spark_pool_requirements
+      filename = "requirements.txt"
     }
   }
 
