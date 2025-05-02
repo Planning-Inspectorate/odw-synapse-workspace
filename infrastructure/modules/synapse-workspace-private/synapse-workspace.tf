@@ -7,7 +7,7 @@ resource "azurerm_synapse_workspace" "synapse" {
   data_exfiltration_protection_enabled = var.synapse_data_exfiltration_enabled
   managed_resource_group_name          = "${var.resource_group_name}-synapse-managed"
   managed_virtual_network_enabled      = true
-  purview_id                           = var.purview_id
+  purview_id                           = var.purview_ids.id
   sql_administrator_login              = var.synapse_sql_administrator_username
   sql_administrator_login_password     = random_password.synapse_sql_administrator_password.result
   storage_data_lake_gen2_filesystem_id = var.data_lake_filesystem_id
