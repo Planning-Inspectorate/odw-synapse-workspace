@@ -12,3 +12,11 @@ resource "azurerm_purview_account" "management" {
 
   tags = local.tags
 }
+
+resource "azurerm_role_assignment" "purview_storage" {
+  count = var.deploy_purview ? 1 : 0
+
+  scope                = var.data_lake_account_id
+  role_definition_name = "Storage Blob Data Owner"
+  principal_id         = azurerm_purview_account.management[0].identity[0].principal_id
+}

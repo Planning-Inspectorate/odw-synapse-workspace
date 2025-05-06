@@ -13,17 +13,9 @@ def test_entraid_pipeline(credential_name, azure_credential, synapse_endpoint: s
     pipelinename: str = "rel_1262_entra_id"
     
     pipeline_raw_params = {
-        "sparkPool": "pinssynspodw",
         "pipeline": pipelinename,
-        "sessionOptions": {
-            "driverMemory": "28g",
-            "driverCores": 4,
-            "executorMemory": "28g",
-            "executorCores": 4,
-            "numExecutors": 2,
-            "runAsWorkspaceSystemIdentity": False
-        }
     }
+    pipeline_raw_params.update(constants.SPARK_POOL_CONFIG)
 
     #run the pipeline
     pipeline_run_result = pipelineutils.run_and_observe_pipeline(credential_name, azure_credential, synapse_endpoint, pipelinename, pipeline_raw_params)
@@ -40,16 +32,7 @@ def test_entraid_notebook(credential_name, azure_credential, synapse_endpoint: s
     
     # Trigger the Master Pipeline for Landing to Raw Zone
     notebook_raw_params = {
-        "sparkPool": "pinssynspodw",
         "notebook": notebookname,
-        "sessionOptions": {
-            "driverMemory": "28g",
-            "driverCores": 4,
-            "executorMemory": "28g",
-            "executorCores": 4,
-            "numExecutors": 2,
-            "runAsWorkspaceSystemIdentity": False
-        },
         "parameters": {
             "entity_name": {
                "type": "String",
@@ -81,6 +64,7 @@ def test_entraid_notebook(credential_name, azure_credential, synapse_endpoint: s
             },
         }
     }
+    notebook_raw_params.update(constants.SPARK_POOL_CONFIG)
 
     #run the notebook
     (notebook_run_result, exitMessage) = pipelineutils.run_and_observe_notebook(credential_name, azure_credential, synapse_endpoint, notebookname, notebook_raw_params)
