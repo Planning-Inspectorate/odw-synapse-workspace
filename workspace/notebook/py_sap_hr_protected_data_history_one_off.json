@@ -1,0 +1,161 @@
+{
+	"name": "py_sap_hr_protected_data_history_one_off",
+	"properties": {
+		"folder": {
+			"name": "odw-harmonised/saphr"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "797739b0-a875-4dbb-9ffa-f6098dcdeeb8"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### The purpose of this notebook is to read data from Harmoised layer and build a table for Curated Layer.\n",
+					"\n",
+					"**Author** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   **Created Date** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Description**  \n",
+					"Prathap Adicherla &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;25-02-2025 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; This Notebook is designed to facilitate Enriches data with HR attributes.handling of sensitive information (such as ethnic origin and disability status) is crucial for compliance with regulations like GDPR or equal employment laws. Ensuring that this data is accurately recorded and updated helps mitigate legal risks"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"\n",
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": 2
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"try:\n",
+					"    logInfo(\"Starting SAP HR protected data load\")\n",
+					"    \n",
+					"    # First get count of records to be loaded\n",
+					"    source_count = spark.sql(\"\"\"\n",
+					"    SELECT COUNT(*) as count \n",
+					"    FROM odw_standardised_db.sap_hr_protected_data_hist\n",
+					"    \"\"\").collect()[0]['count']\n",
+					"    \n",
+					"    logInfo(f\"Found {source_count} records in source table\")\n",
+					"    \n",
+					"    # Clear existing data\n",
+					"    logInfo(\"Clearing existing data from sap_hr_protected_data\")\n",
+					"    spark.sql(\"DELETE FROM odw_harmonised_db.sap_hr_protected_data\")\n",
+					"    \n",
+					"    # Insert transformed data\n",
+					"    logInfo(\"Loading transformed protected data\")\n",
+					"    spark.sql(\"\"\"\n",
+					"    INSERT INTO odw_harmonised_db.sap_hr_protected_data\n",
+					"    SELECT\n",
+					"        RefNumber as RefNo,\n",
+					"        Ethnicorigin as EthnicOrigin,\n",
+					"        ReligiousDenominationKey,\n",
+					"        SxO,\n",
+					"        Grade,\n",
+					"        DisabilityText,\n",
+					"        CASE \n",
+					"            WHEN regexp_extract(file_name, '(20[0-9]{2})[-_]([0-9]{2})', 1) != '' THEN\n",
+					"                TO_DATE(\n",
+					"                    CONCAT(\n",
+					"                        regexp_extract(file_name, '(20[0-9]{2})[-_]([0-9]{2})', 1),  -- Extract year\n",
+					"                        '-',\n",
+					"                        regexp_extract(file_name, '(20[0-9]{2})[-_]([0-9]{2})', 2),  -- Extract month\n",
+					"                        '-01'\n",
+					"                    ),\n",
+					"                    'yyyy-MM-dd'\n",
+					"                )\n",
+					"            ELSE NULL\n",
+					"        END as Report_MonthEnd_Date,\n",
+					"        'saphr' as SourceSystemID,\n",
+					"        current_date() as IngestionDate,\n",
+					"        current_timestamp() as ValidTo,\n",
+					"        null as RowID,\n",
+					"        'Y' as IsActive\n",
+					"    FROM \n",
+					"        odw_standardised_db.sap_hr_protected_data_hist\n",
+					"    \"\"\")\n",
+					"    \n",
+					"    # Verify the load was successful\n",
+					"    loaded_count = spark.sql(\"\"\"\n",
+					"    SELECT COUNT(*) as count \n",
+					"    FROM odw_harmonised_db.sap_hr_protected_data\n",
+					"    WHERE IngestionDate = current_date()\n",
+					"    \"\"\").collect()[0]['count']\n",
+					"    \n",
+					"    logInfo(f\"Successfully loaded {loaded_count} protected data records\")\n",
+					"    \n",
+					"    if loaded_count != source_count:\n",
+					"        logWarning(f\"Count mismatch: Source had {source_count} records, loaded {loaded_count} records\")\n",
+					"    else:\n",
+					"        logInfo(\"Record counts match between source and target\")\n",
+					"    \n",
+					"    logInfo(\"SAP HR protected data load completed successfully\")\n",
+					"\n",
+					"except Exception as e:\n",
+					"    # Log the exception in detail\n",
+					"    logError(f\"Error during SAP HR protected data load: {str(e)}\")\n",
+					"    logException(e)\n",
+					"    \n",
+					"    # Re-raise the exception to ensure the notebook fails properly\n",
+					"    raise e\n",
+					"finally:\n",
+					"    # Always flush logs regardless of success or failure\n",
+					"    logInfo(\"Flushing logs\")\n",
+					"    flushLogging()"
+				],
+				"execution_count": 3
+			}
+		]
+	}
+}

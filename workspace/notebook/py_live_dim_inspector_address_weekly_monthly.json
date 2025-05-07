@@ -1,0 +1,777 @@
+{
+	"name": "py_live_dim_inspector_address_weekly_monthly",
+	"properties": {
+		"folder": {
+			"name": "odw-harmonised/saphr"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "f8b00049-5255-4720-904d-4331073f1a1c"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### The purpose of this pyspark notebook is to read Delta tables from owb_standarsied_db to owb_harmonisied_db and load all records as Delta tables along with metadata columns.\n",
+					"\n",
+					"**Author** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Created Date** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Description**  \n",
+					"Rohit Shukla &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;04-Mar-2025 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The functionality of this notebook is to create delta Table dim_inspector_address into owb-harmonisied_db &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;layer from MiPiNS using this strored procedure [Build].[dim_inspector]\n",
+					"\n",
+					"**Spark Cluster Configuration** -> Apache Spark Version- 3.4, Python Version \t\t- 3.10, Delta Lake Version \t- 2.4\n",
+					"\n",
+					"\n",
+					""
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Import all required Python Libraries"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"#import all libraries and initialise Spark Session\n",
+					"import calendar\n",
+					"from datetime import datetime, timedelta, date\n",
+					"import requests\n",
+					"import pyspark.sql.functions as F \n",
+					"import re\n",
+					"from notebookutils import mssparkutils\n",
+					"from pyspark.sql.functions import lit, current_timestamp, to_date ,expr, md5, col, date_format,when, to_date,current_date,concat,cast,regexp_replace,coalesce,concat_ws,row_number, to_timestamp\n",
+					"from pprint import pprint as pp\n",
+					"from pyspark.sql.types import *\n",
+					"from pyspark.sql.window import Window\n",
+					"from pyspark.sql import SparkSession\n",
+					"spark = SparkSession.builder.getOrCreate()\n",
+					"from delta.tables import DeltaTable\n",
+					"#ignore FutureWarning messages \n",
+					"import warnings\n",
+					"warnings.filterwarnings(\"ignore\", message=\"iteritems is deprecated\")\n",
+					""
+				],
+				"execution_count": 1
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Get storage account"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"#Get Storage account name\n",
+					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"print(storage_account)"
+				],
+				"execution_count": 2
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Define all storage paths"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Define delta table names, database name and table paths\n",
+					"source_database_name = \"odw_standardised_db\"\n",
+					"target_database_name = \"odw_harmonised_db\"\n",
+					"source_delta_table = f\"{source_database_name}.inspector_addresses\"\n",
+					"target_delta_table = f\"{target_database_name}.live_dim_inspector\"\n",
+					"target_horizon_delta_table = f\"{target_database_name}.load_horizon_appeals_inspectors_kludge\"\n",
+					"delta_table_path = f\"abfss://odw-harmonised@{storage_account}saphr/live_dim_inspector\"\n",
+					"\n",
+					"delta_horizon_table_path = f\"abfss://odw-harmonised@{storage_account}saphr/load_horizon_appeals_inspectors_kludge\"\n",
+					"\n",
+					"print(source_delta_table)\n",
+					"print(target_delta_table)\n",
+					"print(delta_table_path)"
+				],
+				"execution_count": 3
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Enable message logging"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": 4
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Process Dim Inspector transformation for the active status"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"\n",
+					"# Read source data from Delta Tables\n",
+					"\n",
+					"src_spark_inspector_active_sql = f\"\"\"\n",
+					"                SELECT DISTINCT\n",
+					"                    COALESCE(inspector_raw.id, r2.id, inspector_raw.PINSStaffNumber, -1) AS source_id,\n",
+					"                    sap_hr.PersNo AS pins_staff_number,\n",
+					"                    COALESCE(SAPPreferredName.PreferredFirstName, sap_hr.FirstName) AS given_names,\n",
+					"                    COALESCE(SAPPreferredName.PreferredFamilyName, sap_hr.Lastname) AS family_name,\n",
+					"                    COALESCE(\n",
+					"                        CONCAT(SAPPreferredName.PreferredFirstName, ' ', SAPPreferredName.PreferredFamilyName),\n",
+					"                        CONCAT(sap_hr.FirstName, ' ', sap_hr.LastName)\n",
+					"                    ) AS inspector_name,\n",
+					"                    inspector_address.PostalCode AS inspector_postcode,\n",
+					"                    UPPER(sap_hr.EmploymentStatus) AS active_status,\n",
+					"                    NULL AS branch,\n",
+					"                    sap_hr.OrgStartDate AS date_in,\n",
+					"                    NULL AS date_out,\n",
+					"                    inspector_address.ChartingOfficerforInspector AS eo_responsible,\n",
+					"                    CASE \n",
+					"                        WHEN sap_hr.WorkContract = 'Non-Salaried Inspector' THEN 'NSI'\n",
+					"                        WHEN sap_hr.PSgroup = 'BAND 1' AND sap_hr.WorkC = 'FT' THEN 'FTC-B1'\n",
+					"                        WHEN sap_hr.PSgroup = 'BAND 2' AND sap_hr.WorkC = 'FT' THEN 'FTC-B2'\n",
+					"                        WHEN sap_hr.PSgroup = 'BAND 3' AND sap_hr.WorkC = 'FT' THEN 'FTC-B3'\n",
+					"                        WHEN sap_hr.PSgroup = 'BAND 1' AND sap_hr.WorkC <> 'FT' THEN 'B1'\n",
+					"                        WHEN sap_hr.PSgroup = 'BAND 2' AND sap_hr.WorkC <> 'FT' THEN 'B2'\n",
+					"                        WHEN sap_hr.PSgroup = 'BAND 3' AND sap_hr.WorkC <> 'FT' THEN 'B3'\n",
+					"                        ELSE sap_hr.PSgroup\n",
+					"                    END AS grade,\n",
+					"                    CASE\n",
+					"                        WHEN sap_hr.WorkContract = 'Non-Salaried Inspector' THEN 'NSI'\n",
+					"                        ELSE inspector_group.resource_group\n",
+					"                    END AS resource_group,\n",
+					"                    NULL AS staff,\n",
+					"                    NULL AS trainee_level,\n",
+					"                    inspector_group.inspector_group,\n",
+					"                    ROUND(sap_hr.FTE, 2) AS FTE,\n",
+					"                    sap_hr.Location AS primary_location,\n",
+					"                    NULL AS primary_FTE,\n",
+					"                    NULL AS secondary_location,\n",
+					"                    NULL AS secondary_FTE,\n",
+					"                    CONCAT_WS(' ',\n",
+					"                        inspector_address.StreetandHouseNumber,\n",
+					"                        inspector_address.2ndAddressLine,\n",
+					"                        inspector_address.City,\n",
+					"                        inspector_address.District,\n",
+					"                        inspector_address.PostalCode,\n",
+					"                        inspector_address.Region\n",
+					"                    ) AS InspectorAddress,\n",
+					"                    inspector_address.Telephoneno,\n",
+					"                    inspector_address.WorkMobile,\n",
+					"                    CASE WHEN sap_hr.Position1 = 'Inspector Manager' THEN 1 ELSE 0 END AS is_sgl,\n",
+					"                    CASE \n",
+					"                        WHEN sap_hr.WorkContract = 'Non-Salaried Inspector' AND sap_hr.EmploymentStatus = 'ACTIVE'\n",
+					"                            THEN 'nsi.planning@planninginspectorate.gov.uk'\n",
+					"                        ELSE vw_SAP_HR_email.email_address\n",
+					"                    END AS pins_email_address,\n",
+					"                    CASE \n",
+					"                        WHEN sap_hr.WorkContract = 'Non-Salaried Inspector' THEN 'Non-Salaried Inspector'\n",
+					"                        ELSE sap_hr.OrganizationalUnit\n",
+					"                    END AS resource_code,\n",
+					"                    CASE \n",
+					"                        WHEN sap_hr.WorkC = 'FT' THEN 'FTC'\n",
+					"                        WHEN sap_hr.WorkContract = 'Non-Salaried Inspector' THEN 'NSI'\n",
+					"                        ELSE 'Salaried'\n",
+					"                    END AS emp_type,\n",
+					"                    sp_list_inspector_map.HorizonID,\n",
+					"                    'SAP' AS inspectorSource\n",
+					"                FROM odw_harmonised_db.load_sap_hr_monthly sap_hr\n",
+					"                LEFT JOIN odw_standardised_db.load_sp_list_inspector_map sp_list_inspector_map\n",
+					"                    ON sap_hr.PersNo = sp_list_inspector_map.StaffNumber\n",
+					"                LEFT JOIN odw_standardised_db.load_inspector_raw inspector_raw\n",
+					"                    ON CAST(sap_hr.EmployeeNo AS INT) = inspector_raw.PINSStaffNumber AND inspector_raw.ActiveStatus = 'ACTIVE'\n",
+					"                LEFT JOIN odw_standardised_db.load_inspector_raw r2\n",
+					"                    ON CAST(sap_hr.PersNo AS INT) = r2.PINSStaffNumber AND r2.ActiveStatus = 'ACTIVE'\n",
+					"                LEFT JOIN odw_harmonised_db.sap_hr_inspector_address inspector_address\n",
+					"                    ON sap_hr.PersNo = inspector_address.StaffNumber\n",
+					"                    AND inspector_address.IsActive = 'Y'\n",
+					"                LEFT JOIN (\n",
+					"                    SELECT PersNo, MAX(Leaving) AS Leaving\n",
+					"                    FROM odw_harmonised_db.load_sap_hr_leavers\n",
+					"                    GROUP BY PersNo\n",
+					"                ) leavers\n",
+					"                    ON sap_hr.PersNo = leavers.PersNo\n",
+					"                LEFT JOIN odw_standardised_db.bis_inspector_group inspector_group\n",
+					"                    ON sap_hr.OrganizationalUnit = inspector_group.sap_ou\n",
+					"                LEFT JOIN odw_harmonised_db.load_vw_sap_hr_email vw_SAP_HR_email\n",
+					"                    ON sap_hr.PersNo = vw_SAP_HR_email.PersNo\n",
+					"                LEFT JOIN odw_standardised_db.load_sappreferredname SAPPreferredName\n",
+					"                    ON sap_hr.PersNo = SAPPreferredName.PERSNO\n",
+					"                WHERE\n",
+					"                    sap_hr.PSgroup IN ('APO', 'APP HEO', 'BAND 1','BAND 2','BAND 3', 'PL')\n",
+					"                    OR sap_hr.WorkContract = 'Non-Salaried Inspector'\n",
+					"                    OR sap_hr.Position1 IN ('Cost Decision Officer', 'Chief Operating Officer', 'Chief Planning Inspector')\"\"\"\n",
+					"\n",
+					"\n",
+					"df_active_inspector_address = spark.sql(src_spark_inspector_active_sql)\n",
+					""
+				],
+				"execution_count": 5
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Process Dim Inspector transformation for the inactive status"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"src_spark_inspector_inactive_sql = \"\"\"WITH sp_list_inspector AS (\n",
+					"                        SELECT \n",
+					"                            a.StaffNumber,\n",
+					"                            a.Modified,\n",
+					"                            a.HorizonID\n",
+					"                        FROM odw_standardised_db.load_sp_list_inspector_map a\n",
+					"                        INNER JOIN (\n",
+					"                            SELECT StaffNumber, MAX(Modified) AS AsModified\n",
+					"                            FROM odw_standardised_db.load_sp_list_inspector_map\n",
+					"                            GROUP BY StaffNumber\n",
+					"                        ) b\n",
+					"                        ON a.StaffNumber = b.StaffNumber\n",
+					"                        AND a.Modified = b.AsModified\n",
+					"                    ),\n",
+					"                    inspector_raw AS (\n",
+					"                        SELECT *\n",
+					"                        FROM odw_standardised_db.load_inspector_raw\n",
+					"                        WHERE ActiveStatus = 'NON-ACTIVE'\n",
+					"                        AND GivenNames IS NOT NULL\n",
+					"                        AND FamilyName IS NOT NULL\n",
+					"                        AND NAME IS NOT NULL\n",
+					"                    ),\n",
+					"                    r2 AS (\n",
+					"                        SELECT *\n",
+					"                        FROM odw_standardised_db.load_inspector_raw\n",
+					"                        WHERE ActiveStatus = 'NON-ACTIVE'\n",
+					"                        AND GivenNames IS NOT NULL\n",
+					"                        AND FamilyName IS NOT NULL\n",
+					"                        AND NAME IS NOT NULL\n",
+					"                    ),\n",
+					"                    leavers AS (\n",
+					"                        SELECT PersNo, MAX(Leaving) AS Leaving\n",
+					"                        FROM odw_harmonised_db.load_sap_hr_leavers SAP_HR_Leavers\n",
+					"                        GROUP BY PersNo\n",
+					"                    )\n",
+					"                    SELECT  DISTINCT\n",
+					"                            COALESCE(inspector_raw.id, r2.id, CAST(inspector_raw.PINSStaffNumber AS INT), -1) AS source_id,\n",
+					"                            SAP_HR_Leavers.PersNo AS pins_staff_number,\n",
+					"                            SAP_HR_Leavers.FirstName AS given_names,\n",
+					"                            SAP_HR_Leavers.LastName AS family_name,\n",
+					"                            CONCAT(SAP_HR_Leavers.FirstName, ' ', SAP_HR_Leavers.LastName) AS inspector_name,\n",
+					"                            inspector_address.PostalCode AS inspector_postcode,\n",
+					"                            'NON-ACTIVE' AS active_status,\n",
+					"                            NULL AS branch,\n",
+					"                            SAP_HR_Leavers.OrgStartDate AS date_in,\n",
+					"                            SAP_HR_Leavers.Leaving AS date_out,\n",
+					"                            inspector_address.ChartingOfficerforInspector AS eo_responsible,\n",
+					"                            CASE \n",
+					"                            WHEN SAP_HR_Leavers.WorkC = 'NS' THEN 'NSI'\n",
+					"                            WHEN SAP_HR_Leavers.PSgroup = 'BAND 1' AND SAP_HR_Leavers.WorkC = 'FT' THEN 'FTC-B1'\n",
+					"                            WHEN SAP_HR_Leavers.PSgroup = 'BAND 2' AND SAP_HR_Leavers.WorkC = 'FT' THEN 'FTC-B2'\n",
+					"                            WHEN SAP_HR_Leavers.PSgroup = 'BAND 3' AND SAP_HR_Leavers.WorkC = 'FT' THEN 'FTC-B3'\n",
+					"                            WHEN SAP_HR_Leavers.PSgroup = 'BAND 1' AND SAP_HR_Leavers.WorkC <> 'FT' THEN 'B1'\n",
+					"                            WHEN SAP_HR_Leavers.PSgroup = 'BAND 2' AND SAP_HR_Leavers.WorkC <> 'FT' THEN 'B2'\n",
+					"                            WHEN SAP_HR_Leavers.PSgroup = 'BAND 3' AND SAP_HR_Leavers.WorkC <> 'FT' THEN 'B3'\n",
+					"                            ELSE SAP_HR_Leavers.PSgroup\n",
+					"                            END AS grade,\n",
+					"                            CASE\n",
+					"                            WHEN SAP_HR_Leavers.WorkContract = 'Non-Salaried Inspector' THEN 'NSI'\n",
+					"                            ELSE inspector_group.resource_group\n",
+					"                            END AS resource_group,\n",
+					"                            NULL AS staff,\n",
+					"                            NULL AS trainee_level,\n",
+					"                            inspector_group.inspector_group AS inspector_group,\n",
+					"                            NULL AS FTE,\n",
+					"                            SAP_HR_Leavers.Location AS primary_location,\n",
+					"                            NULL AS primary_FTE,\n",
+					"                            NULL AS secondary_location,\n",
+					"                            NULL AS secondary_FTE,\n",
+					"                            NULL AS InspectorAddress,\n",
+					"                            NULL AS Telephoneno,\n",
+					"                            NULL AS WorkMobile,\n",
+					"                            CASE WHEN SAP_HR_Leavers.Position1 = 'Inspector Manager' THEN 1 ELSE 0 END AS is_sgl,\n",
+					"                            CASE \n",
+					"                            WHEN SAP_HR_Leavers.WorkContract = 'Non-Salaried Inspector'\n",
+					"                                AND SAP_HR_Leavers.EmploymentStatus = 'ACTIVE' \n",
+					"                            THEN 'nsi.planning@planninginspectorate.gov.uk' \n",
+					"                            ELSE vw_SAP_HR_email.email_address \n",
+					"                            END AS pins_email_address,\n",
+					"                            CASE \n",
+					"                            WHEN SAP_HR_Leavers.WorkContract = 'Non-Salaried Inspector' \n",
+					"                            THEN 'Non-Salaried Inspector' \n",
+					"                            ELSE SAP_HR_Leavers.OrganizationalUnit\n",
+					"                            END AS resource_code,\n",
+					"                            CASE \n",
+					"                            WHEN SAP_HR_Leavers.WorkC = 'FT' THEN 'FTC'\n",
+					"                            WHEN SAP_HR_Leavers.WorkContract = 'Non-Salaried Inspector' THEN 'NSI'\n",
+					"                            ELSE 'Salaried'\n",
+					"                            END AS emp_type,\n",
+					"                            sp_list_inspector.HorizonID AS HorizonID,\n",
+					"                            'SAP Leaver' AS inspectorSource\n",
+					"                    FROM odw_harmonised_db.load_sap_hr_leavers SAP_HR_Leavers\n",
+					"                    INNER JOIN leavers\n",
+					"                        ON SAP_HR_Leavers.PersNo = leavers.PersNo\n",
+					"                        AND SAP_HR_Leavers.Leaving = leavers.Leaving\n",
+					"                    LEFT OUTER JOIN sp_list_inspector\n",
+					"                        ON SAP_HR_Leavers.PersNo = sp_list_inspector.StaffNumber\n",
+					"                    LEFT OUTER JOIN inspector_raw\n",
+					"                        ON CAST(SAP_HR_Leavers.EmployeeNo AS INT) = inspector_raw.PINSStaffNumber\n",
+					"                    LEFT OUTER JOIN r2\n",
+					"                        ON CAST(SAP_HR_Leavers.PersNo AS INT) = r2.PINSStaffNumber\n",
+					"                    LEFT OUTER JOIN odw_harmonised_db.sap_hr_inspector_address inspector_address\n",
+					"                        ON SAP_HR_Leavers.PersNo = inspector_address.StaffNumber\n",
+					"                        AND inspector_address.IsActive = 'Y'\n",
+					"                    LEFT OUTER JOIN odw_standardised_db.bis_inspector_group inspector_group\n",
+					"                        ON SAP_HR_Leavers.OrganizationalUnit = inspector_group.sap_ou\n",
+					"                    LEFT OUTER JOIN odw_harmonised_db.load_vw_sap_hr_email vw_SAP_HR_email\n",
+					"                        ON SAP_HR_Leavers.PersNo = vw_SAP_HR_email.PersNo\n",
+					"                    WHERE\n",
+					"                        SAP_HR_Leavers.PSgroup IN ('APO', 'APP HEO', 'BAND 1', 'BAND 2', 'BAND 3', 'PL')\n",
+					"                        OR SAP_HR_Leavers.WorkContract = 'Non-Salaried Inspector'\"\"\"\n",
+					"\n",
+					"\n",
+					"\n",
+					"\n",
+					"df_inactive_inspector_address = spark.sql(src_spark_inspector_inactive_sql)\n",
+					""
+				],
+				"execution_count": 6
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Process Dim Inspector transformation for the inactive Raw status"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"df_combined_inspector_address = df_active_inspector_address.unionByName(df_inactive_inspector_address)\n",
+					"\n",
+					"df_combined_inspector_address.createOrReplaceTempView(\"temp_inspector\")\n",
+					"\n",
+					"src_spark_inspector_unassociated_sql = \"\"\"SELECT \n",
+					"                            DISTINCT\n",
+					"                            COALESCE(inspector_raw.id, -1) AS source_id,\n",
+					"                            CASE \n",
+					"                                WHEN LENGTH(CAST(inspector_raw.PINSStaffNumber AS STRING)) = 6 THEN \n",
+					"                                CASE SUBSTRING(CAST(inspector_raw.PINSStaffNumber AS STRING), 1, 1)\n",
+					"                                    WHEN '5' THEN CONCAT('00', CAST(inspector_raw.PINSStaffNumber AS STRING))\n",
+					"                                    ELSE CAST(inspector_raw.PINSStaffNumber AS STRING)\n",
+					"                                END\n",
+					"                            ELSE CAST(inspector_raw.PINSStaffNumber AS STRING)\n",
+					"                            END AS pins_staff_number,\n",
+					"                            inspector_raw.GivenNames given_names,\n",
+					"                            inspector_raw.FamilyName family_name,\n",
+					"                            CONCAT(inspector_raw.GivenNames, ' ', inspector_raw.FamilyName) AS inspector_name,\n",
+					"                            inspector_raw.Postcode inspector_postcode,\n",
+					"                            inspector_raw.ActiveStatus active_status,\n",
+					"                            inspector_raw.Branch,\n",
+					"                            inspector_raw.DateIn Date_In,\n",
+					"                            inspector_raw.DateOut Date_Out,\n",
+					"                            inspector_raw.EOResponsible eo_responsible,\n",
+					"                            inspector_raw.Grade,\n",
+					"                            inspector_raw.ResourceGroup Resource_Group,\n",
+					"                            inspector_raw.Staff,\n",
+					"                            inspector_raw.TraineeLevel trainee_level,\n",
+					"                            'No Group Associated' AS inspector_group,\n",
+					"                            NULL AS FTE,\n",
+					"                            NULL AS primary_location,\n",
+					"                            NULL AS primary_FTE,\n",
+					"                            NULL AS secondary_location,\n",
+					"                            NULL AS secondary_FTE,\n",
+					"                            NULL AS InspectorAddress,\n",
+					"                            NULL AS TelephoneNo,\n",
+					"                            NULL AS WorkMobile,\n",
+					"                            NULL AS is_sgl,\n",
+					"                            NULL AS pins_email_address,\n",
+					"                            inspector_raw.ResourceGroup AS resource_code,\n",
+					"                            CASE LEFT(inspector_raw.Grade, 3)\n",
+					"                                WHEN 'FTC' THEN 'FTC'\n",
+					"                                WHEN 'NSI' THEN 'NSI'\n",
+					"                                ELSE 'Salaried'\n",
+					"                            END AS emp_type,\n",
+					"                            NULL AS HorizonID,\n",
+					"                            'RAW' AS inspectorSource\n",
+					"                        FROM odw_standardised_db.load_inspector_raw inspector_raw\n",
+					"                        LEFT JOIN odw_harmonised_db.load_sap_hr_monthly sap_hr\n",
+					"                        ON inspector_raw.PINSStaffNumber = CAST(sap_hr.EmployeeNo AS INT)\n",
+					"                        LEFT JOIN odw_harmonised_db.sap_hr_inspector_address inspector_address\n",
+					"                        ON sap_hr.PersNo = inspector_address.StaffNumber AND inspector_address.IsActive = 'Y'\n",
+					"                        LEFT JOIN odw_harmonised_db.load_vw_sap_hr_email S\n",
+					"                        ON inspector_raw.PINSStaffNumber = CAST(REPLACE(LTRIM(REPLACE(S.EmployeeNo, '0', ' ')), ' ', '0') AS INT)\n",
+					"                        LEFT JOIN odw_harmonised_db.load_sap_pins_email e2\n",
+					"                        ON CASE LEFT(inspector_raw.PINSStaffNumber, 2)\n",
+					"                            WHEN '50' THEN CASE LENGTH(inspector_raw.PINSStaffNumber)\n",
+					"                            WHEN 6 THEN inspector_raw.PINSStaffNumber\n",
+					"                            ELSE SUBSTRING(CAST(inspector_raw.PINSStaffNumber AS STRING), 3, LENGTH(CAST(inspector_raw.PINSStaffNumber AS STRING)))\n",
+					"                            END\n",
+					"                            ELSE inspector_raw.PINSStaffNumber\n",
+					"                        END = e2.StaffNumber\n",
+					"                        LEFT JOIN (\n",
+					"                        SELECT DISTINCT a.SubGroup, b.name, b.StaffNumber, b.IsSGL, a.most_recent_entry_in_deployment\n",
+					"                        FROM (\n",
+					"                            SELECT SubGroup, MAX(Date) AS most_recent_entry_in_deployment\n",
+					"                            FROM odw_standardised_db.load_iss_deployment\n",
+					"                            WHERE StaffNumber IS NOT NULL AND IsSGL = 1 AND Date <= CURRENT_DATE()\n",
+					"                            GROUP BY SubGroup\n",
+					"                        ) a\n",
+					"                        INNER JOIN odw_standardised_db.load_iss_deployment b\n",
+					"                            ON a.SubGroup = b.SubGroup AND a.most_recent_entry_in_deployment = b.Date\n",
+					"                        WHERE b.IsSGL = 1 AND b.SubGroup NOT IN ('PO1', 'PO2') AND a.most_recent_entry_in_deployment > '2020-06-30'\n",
+					"                        ) ids\n",
+					"                        ON inspector_raw.PINSStaffNumber = ids.StaffNumber\n",
+					"                        LEFT JOIN temp_inspector\n",
+					"                        ON inspector_raw.FamilyName = temp_inspector.family_name\n",
+					"                        AND inspector_raw.GivenNames = temp_inspector.given_names\n",
+					"                        AND inspector_raw.Postcode = temp_inspector.inspector_postcode\n",
+					"                        WHERE sap_hr.PersNo IS NULL\n",
+					"                        AND temp_inspector.source_id IS NULL\n",
+					"                        AND inspector_raw.PINSStaffNumber IS NOT NULL\n",
+					"                        AND inspector_raw.ActiveStatus <> 'ACTIVE'\n",
+					"                        AND inspector_raw.id NOT IN (6,20,27,29,39,87,136,149,205,251,268,348,349,485,552,578,579,655,726,\n",
+					"                            156642,161028,354954,356300,357364,354712,508228,511402,535963,538712,539959\n",
+					"                        )\"\"\"\n",
+					""
+				],
+				"execution_count": 7
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Process Dim Inspector transformation for the final step"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"\n",
+					"df_inspector_unassociated_group = spark.sql(src_spark_inspector_unassociated_sql)\n",
+					"\n",
+					"df_all_inspector_address = df_combined_inspector_address.unionByName(df_inspector_unassociated_group)\n",
+					"\n",
+					"df_all_inspector_address.createOrReplaceTempView(\"all_inspector_address\")\n",
+					"\n",
+					"src_dedup_all_inspector_address_sql = \"\"\"with ddd as\n",
+					"                                    (\n",
+					"                                    select family_name, given_names from all_inspector_address\n",
+					"                                    group by  family_name, given_names \n",
+					"                                    having COUNT(*) > 1\n",
+					"                                    )\n",
+					"                                    SELECT i.* from all_inspector_address i inner join ddd d on i.family_name = d.family_name and i.given_names = d.given_names \n",
+					"                                    and i.inspectorSource = 'RAW' \"\"\"\n",
+					"\n",
+					"df_dup_all_inspector_address = spark.sql(src_dedup_all_inspector_address_sql)\n",
+					"\n",
+					"\n",
+					"# Subtract duplicates from the full set\n",
+					"df_dedup_all_inspector_address = df_all_inspector_address.subtract(df_dup_all_inspector_address)\n",
+					"\n",
+					"# Add the RowID column to the DataFrame\n",
+					"rowid_columns = [c for c in df_dedup_all_inspector_address.columns]\n",
+					"\n",
+					"# Convert RowID columns to hash values\n",
+					"rowid_expr = md5(concat_ws(\"|\", *[coalesce(col(c).cast(\"string\"), lit(\"\")) for c in rowid_columns]))\n",
+					"\n",
+					"# Add the RowID column to the DataFrame\n",
+					"#df_transform_inspector_address = df_transform_inspector_address.withColumn(\"RowID\", rowid_expr)\n",
+					"\n",
+					"#Add Audit columns records including ROWID\n",
+					"df_dedup_all_inspector_address = df_dedup_all_inspector_address.select(\n",
+					"    *[col(c) for c in df_dedup_all_inspector_address.columns if c not in [\"is_sgl\"]],\n",
+					"    col(\"is_sgl\").cast(\"string\").alias(\"is_sgl\"),\n",
+					"    lit(\"SapHr\").alias(\"SourceSystemID\"),\n",
+					"    current_timestamp().alias(\"IngestionDate\"),\n",
+					"    expr(\"current_timestamp() - INTERVAL 1 DAY\").alias(\"ValidFrom\"),\n",
+					"    current_timestamp().alias(\"ValidTo\"),\n",
+					"    rowid_expr.alias(\"RowID\"),\n",
+					"    lit(\"Y\").alias(\"IsActive\")\n",
+					")\n",
+					"\n",
+					""
+				],
+				"execution_count": 8
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Overwrite Dim Inspector delta table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Write new records to target Delta Table\n",
+					"try:\n",
+					"    # Overwrite the entire delta table with transfored dataframe\n",
+					"    df_dedup_all_inspector_address.write.format(\"delta\").mode(\"overwrite\").save(delta_table_path)\n",
+					"\n",
+					"\n",
+					"    logInfo(f\" Records overwritten successfully to {target_delta_table}\")\n",
+					"\n",
+					"except Exception as e:\n",
+					"    logError(f\" Error writing to {target_delta_table}: {str(e)}\")\n",
+					"    raise"
+				],
+				"execution_count": 9
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Process horizon_appeals_inspectors_kludge transformation"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"editable": false,
+					"run_control": {
+						"frozen": true
+					},
+					"collapsed": false
+				},
+				"source": [
+					"#Code commented to not to load horizon_appeals_inspectors_kludge confirmed by Paul Griffin\n",
+					"src_horizon_appeals_inspectors_kludge_sql = \"\"\"\n",
+					"                with cte_missing_insp as\n",
+					"                (\n",
+					"                select\n",
+					"                    RANK() OVER  (PARTITION BY H.ID ORDER BY record_start_date DESC) AS Ranker,  \n",
+					"                    H.ID, H.LeadInspector, \n",
+					"                    H.record_start_date, \n",
+					"                    H.record_end_date \n",
+					"                from \n",
+					"                    odw_standardised_db.hist_iss_job H left join odw_standardised_db.load_iss_job j on H.ID = J.ID\n",
+					"                where \n",
+					"                    j.LeadInspector IS NULL\n",
+					"                    and j.ID like '3%'\n",
+					"                    and LENGTH(j.ID) = 7\n",
+					"                    and j.Status not in ('W', 'E')\n",
+					"                    and H.LeadInspector is not null\n",
+					"                )\n",
+					"                select \n",
+					"                    ID, \n",
+					"                    LeadInspector as lead_inspector, \n",
+					"                    i.inspector_name,\n",
+					"                    record_start_date, \n",
+					"                    record_end_date\n",
+					"                from cte_missing_insp left outer join odw_harmonised_db.live_dim_inspector i on cte_missing_insp.LeadInspector = i.source_id\n",
+					"                where Ranker = 1\n",
+					"                order by ID, record_start_date desc\"\"\"\n",
+					"\n",
+					"df_horizon_appeals_inspectors_kludge = spark.sql(src_horizon_appeals_inspectors_kludge_sql)\n",
+					"\n",
+					"# Add the RowID column to the DataFrame\n",
+					"rowid_columns = [c for c in df_horizon_appeals_inspectors_kludge.columns]\n",
+					"\n",
+					"# Convert RowID columns to hash values\n",
+					"rowid_expr = md5(concat_ws(\"|\", *[coalesce(col(c).cast(\"string\"), lit(\"\")) for c in rowid_columns]))\n",
+					"\n",
+					"#Add Audit columns records including ROWID\n",
+					"df_horizon_appeals_inspectors_kludge = df_horizon_appeals_inspectors_kludge.select(\n",
+					"    *[col(c) for c in df_horizon_appeals_inspectors_kludge.columns],\n",
+					"    lit(\"SapHr\").alias(\"SourceSystemID\"),\n",
+					"    current_timestamp().alias(\"IngestionDate\"),\n",
+					"    expr(\"current_timestamp() - INTERVAL 1 DAY\").alias(\"ValidFrom\"),\n",
+					"    current_timestamp().alias(\"ValidTo\"),\n",
+					"    rowid_expr.alias(\"RowID\"),\n",
+					"    lit(\"Y\").alias(\"IsActive\")\n",
+					")\n",
+					"\n",
+					"\n",
+					""
+				],
+				"execution_count": 10
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Overwrite horizon_appeals_inspectors_kludge delta table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"editable": false,
+					"run_control": {
+						"frozen": true
+					}
+				},
+				"source": [
+					"#Code commented to not to load horizon_appeals_inspectors_kludge confirmed by Paul Griffin\n",
+					"\n",
+					"try:\n",
+					"    # Overwrite the entire delta table with transfored dataframe\n",
+					"    df_horizon_appeals_inspectors_kludge.write.format(\"delta\").mode(\"overwrite\").save(delta_horizon_table_path)\n",
+					"\n",
+					"\n",
+					"    logInfo(f\" Records overwritten successfully to {target_horizon_delta_table}\")\n",
+					"\n",
+					"except Exception as e:\n",
+					"    logError(f\" Error writing to {target_horizon_delta_table}: {str(e)}\")\n",
+					"    raise"
+				],
+				"execution_count": 11
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"editable": false,
+					"run_control": {
+						"frozen": true
+					}
+				},
+				"source": [
+					"\n",
+					"#spark.sql(f\"DROP TABLE IF EXISTS odw_harmonised_db.live_dim_inspector\")\n",
+					"\n",
+					"#spark.sql(f\"delete from odw_harmonised_db.sap_hr_inspector_address\")\n",
+					"\n",
+					"\n",
+					""
+				],
+				"execution_count": 10
+			}
+		]
+	}
+}

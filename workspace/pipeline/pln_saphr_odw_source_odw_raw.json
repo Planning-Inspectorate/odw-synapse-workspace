@@ -1,0 +1,133 @@
+{
+	"name": "pln_saphr_odw_source_odw_raw",
+	"properties": {
+		"activities": [
+			{
+				"name": "Copyfiles_odw_source_odw_raw",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "BinarySource",
+						"storeSettings": {
+							"type": "AzureFileStorageReadSettings",
+							"recursive": true,
+							"wildcardFolderPath": {
+								"value": "@concat(pipeline().parameters.Folder_Path,'/',pipeline().parameters.FileLoad_Type)",
+								"type": "Expression"
+							},
+							"wildcardFileName": "*.csv",
+							"deleteFilesAfterCompletion": false
+						},
+						"formatSettings": {
+							"type": "BinaryReadSettings"
+						}
+					},
+					"sink": {
+						"type": "BinarySink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings",
+							"copyBehavior": "PreserveHierarchy"
+						}
+					},
+					"enableStaging": false
+				},
+				"inputs": [
+					{
+						"referenceName": "ds_odwdatalab_source",
+						"type": "DatasetReference",
+						"parameters": {
+							"ds_FileLoad_Type": {
+								"value": "@pipeline().parameters.FileLoad_Type",
+								"type": "Expression"
+							},
+							"ds_Folder_Path": {
+								"value": "@pipeline().parameters.Folder_Path",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "Ds_odwraw_saphr_dest",
+						"type": "DatasetReference",
+						"parameters": {
+							"ds_FileLoad_Type_Dest": {
+								"value": "@pipeline().parameters.FileLoad_Type",
+								"type": "Expression"
+							}
+						}
+					}
+				]
+			},
+			{
+				"name": "Delete_Copied_csv_files",
+				"type": "Delete",
+				"dependsOn": [
+					{
+						"activity": "Copyfiles_odw_source_odw_raw",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataset": {
+						"referenceName": "ds_odwdatalab_source",
+						"type": "DatasetReference",
+						"parameters": {
+							"ds_FileLoad_Type": {
+								"value": "@pipeline().parameters.FileLoad_Type",
+								"type": "Expression"
+							},
+							"ds_Folder_Path": {
+								"value": "@pipeline().parameters.Folder_Path",
+								"type": "Expression"
+							}
+						}
+					},
+					"enableLogging": false,
+					"storeSettings": {
+						"type": "AzureFileStorageReadSettings",
+						"recursive": true,
+						"wildcardFileName": {
+							"value": "*.csv",
+							"type": "Expression"
+						},
+						"enablePartitionDiscovery": false
+					}
+				}
+			}
+		],
+		"parameters": {
+			"FileLoad_Type": {
+				"type": "string"
+			},
+			"Folder_Path": {
+				"type": "string",
+				"defaultValue": "ODW/HR/SAPHR_SharepointData"
+			}
+		},
+		"folder": {
+			"name": "saphr/layers/0-raw"
+		},
+		"annotations": []
+	}
+}
