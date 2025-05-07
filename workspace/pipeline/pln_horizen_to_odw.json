@@ -208,6 +208,83 @@
 					},
 					"waitOnCompletion": true
 				}
+			},
+			{
+				"name": "ForEach_Harmonised_NoteBook",
+				"type": "ForEach",
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
+				"dependsOn": [
+					{
+						"activity": "Filter_Harmonised_NoteBook",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Filter_Horizon_Table').output.value",
+						"type": "Expression"
+					},
+					"batchCount": 3,
+					"activities": [
+						{
+							"name": "Harmonised_NoteBook",
+							"description": "Ingests the raw data into the standardised table",
+							"type": "SynapseNotebook",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 3,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": {
+										"value": "@item().Harmonised_NoteBook",
+										"type": "Expression"
+									},
+									"type": "NotebookReference"
+								},
+								"snapshot": true,
+								"conf": {
+									"spark.dynamicAllocation.enabled": null,
+									"spark.dynamicAllocation.minExecutors": null,
+									"spark.dynamicAllocation.maxExecutors": null
+								},
+								"numExecutors": null
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Filter_Harmonised_NoteBook",
+				"type": "Filter",
+				"dependsOn": [
+					{
+						"activity": "rest API Data",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Lookup_orchestration_file').output.value[0].definitions ",
+						"type": "Expression"
+					},
+					"condition": {
+						"value": "@and(contains(item(), 'Harmonised_NoteBook'), and(not(empty(item().Harmonised_NoteBook)), equals(item().Source_Folder, 'Horizon')))",
+						"type": "Expression"
+					}
+				}
 			}
 		],
 		"variables": {
