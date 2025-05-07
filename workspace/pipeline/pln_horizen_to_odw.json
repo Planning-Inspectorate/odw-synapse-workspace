@@ -1,5 +1,5 @@
 {
-	"name": "pln_horizen_to_odw_raw",
+	"name": "pln_horizen_to_odw",
 	"properties": {
 		"activities": [
 			{
@@ -40,6 +40,8 @@
 			{
 				"name": "ForEach_horizen_files",
 				"type": "ForEach",
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "Filter_Horizon_Table",
@@ -152,6 +154,8 @@
 				"name": "Horizon Raw to Std",
 				"description": "Ingests the raw data into the standardised table",
 				"type": "SynapseNotebook",
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "ForEach_horizen_files",
@@ -173,7 +177,36 @@
 						"referenceName": "py_horizon_raw_to_std",
 						"type": "NotebookReference"
 					},
-					"snapshot": true
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "rest API Data",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Horizon Raw to Std",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_rest_api",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
 				}
 			}
 		],
