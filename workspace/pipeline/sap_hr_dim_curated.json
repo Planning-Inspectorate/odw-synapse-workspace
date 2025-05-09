@@ -1,31 +1,39 @@
 {
-	"name": "pln_hr_main",
+	"name": "sap_hr_dim_curated",
 	"properties": {
 		"activities": [
 			{
-				"name": "Ingest Raw",
-				"description": "Copies HR data from SAP into ODW's raw layer.",
-				"type": "ExecutePipeline",
+				"name": "PBI_Personnel_Area",
+				"type": "SynapseNotebook",
 				"dependsOn": [],
 				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
 					"secureInput": false
 				},
 				"userProperties": [],
 				"typeProperties": {
-					"pipeline": {
-						"referenceName": "0_pln_source_to_raw_fileshare",
-						"type": "PipelineReference"
+					"notebook": {
+						"referenceName": "vw_dim_HR_Personnel_Area",
+						"type": "NotebookReference"
 					},
-					"waitOnCompletion": true
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
 				}
 			},
 			{
-				"name": "Ingest Standardised",
-				"description": "Ingests raw data into standardised. Can create tables if they don't already exist.",
+				"name": "PBI_HR_Work_Contract",
 				"type": "SynapseNotebook",
 				"dependsOn": [
 					{
-						"activity": "Ingest Raw",
+						"activity": "PBI_hr_cost_centre",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -41,17 +49,8 @@
 				"userProperties": [],
 				"typeProperties": {
 					"notebook": {
-						"referenceName": "py_hr_monthly_raw_to_std",
+						"referenceName": "vw_dim_HR_Work_Contract",
 						"type": "NotebookReference"
-					},
-					"parameters": {
-						"specific_folder": {
-							"value": {
-								"value": "@concat(formatDateTime(utcNow(), 'yyyy'), '-', formatDateTime(addDays(startOfMonth(utcNow()), -1), 'MM'))\n",
-								"type": "Expression"
-							},
-							"type": "string"
-						}
 					},
 					"snapshot": true,
 					"conf": {
@@ -63,12 +62,11 @@
 				}
 			},
 			{
-				"name": "Prepare Views",
-				"description": "Creates views from each standardised table with the data from the latest ingestion.",
+				"name": "PBI_Organisation_unit",
 				"type": "SynapseNotebook",
 				"dependsOn": [
 					{
-						"activity": "Ingest Standardised",
+						"activity": "PBI_HR_Work_Contract",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -84,17 +82,8 @@
 				"userProperties": [],
 				"typeProperties": {
 					"notebook": {
-						"referenceName": "sap-hr-views",
+						"referenceName": "vw_dim_HR_Organisation_Unit",
 						"type": "NotebookReference"
-					},
-					"parameters": {
-						"expected_from": {
-							"value": {
-								"value": "@concat(formatDateTime(utcNow(), 'yyyy'), '-', formatDateTime(utcNow(), 'MM'), '-01')",
-								"type": "Expression"
-							},
-							"type": "string"
-						}
 					},
 					"snapshot": true,
 					"conf": {
@@ -106,12 +95,11 @@
 				}
 			},
 			{
-				"name": "Ingest Harmonised",
-				"description": "Sequentially runs the notebooks that are responsible for ingesting data in each of the tables in the harmonised layer. Each notebook may utilise the views created in the previous step.",
+				"name": "PBI_hr_grade",
 				"type": "SynapseNotebook",
 				"dependsOn": [
 					{
-						"activity": "Prepare Views",
+						"activity": "PBI_hr_gender",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -127,7 +115,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"notebook": {
-						"referenceName": "sap-hr-master",
+						"referenceName": "vw_dim_HR_Grade",
 						"type": "NotebookReference"
 					},
 					"snapshot": true,
@@ -140,12 +128,11 @@
 				}
 			},
 			{
-				"name": "Employee Curated",
-				"description": "Joins the employee data from the harmonised layer and ingests it in the curated layer. i.e odw_curated_db.employee",
+				"name": "PBI_hr_gender",
 				"type": "SynapseNotebook",
 				"dependsOn": [
 					{
-						"activity": "Ingest Harmonised",
+						"activity": "PBI_Personal_SubArea",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -161,7 +148,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"notebook": {
-						"referenceName": "employee",
+						"referenceName": "vw_dim_HR_gender",
 						"type": "NotebookReference"
 					},
 					"snapshot": true,
@@ -174,12 +161,11 @@
 				}
 			},
 			{
-				"name": "Employee Publish",
-				"description": "Publishes the data from curated layer to the Service Bus",
+				"name": "PBI_hr_cost_centre",
 				"type": "SynapseNotebook",
 				"dependsOn": [
 					{
-						"activity": "Employee Curated",
+						"activity": "PBI_hr_grade",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -195,7 +181,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"notebook": {
-						"referenceName": "employee-publish",
+						"referenceName": "vw_dim_HR_cost_centre",
 						"type": "NotebookReference"
 					},
 					"snapshot": true,
@@ -208,12 +194,11 @@
 				}
 			},
 			{
-				"name": "HR Measures Curated",
-				"description": "Creates a monthly report of HR measures utilising the data from the absences, leaves, and sap-hr. ",
+				"name": "PBI_payroll_area",
 				"type": "SynapseNotebook",
 				"dependsOn": [
 					{
-						"activity": "Ingest Harmonised",
+						"activity": "PBI_Organisation_unit",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -229,17 +214,8 @@
 				"userProperties": [],
 				"typeProperties": {
 					"notebook": {
-						"referenceName": "mipins_hr_measures",
+						"referenceName": "vw_hr_PayrollArea",
 						"type": "NotebookReference"
-					},
-					"parameters": {
-						"expected_from": {
-							"value": {
-								"value": "@formatDateTime(addDays(startOfMonth(utcNow()), -1), 'yyyy-MM-dd')\n",
-								"type": "Expression"
-							},
-							"type": "string"
-						}
 					},
 					"snapshot": true,
 					"conf": {
@@ -251,24 +227,107 @@
 				}
 			},
 			{
-				"name": "Ingest EntraID data",
-				"type": "ExecutePipeline",
-				"dependsOn": [],
+				"name": "PBI_fact_absence_all",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "PBI_payroll_area",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
 					"secureInput": false
 				},
 				"userProperties": [],
 				"typeProperties": {
-					"pipeline": {
-						"referenceName": "EntraID",
-						"type": "PipelineReference"
+					"notebook": {
+						"referenceName": "vw_fact_absence_all",
+						"type": "NotebookReference"
 					},
-					"waitOnCompletion": true
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "PBI_hr_protected_data",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "PBI_fact_absence_all",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "vw_HR_ProtectedData",
+						"type": "NotebookReference"
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "PBI_Personal_SubArea",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "PBI_Personnel_Area",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "vw_dim_HR_Personnel_SubArea",
+						"type": "NotebookReference"
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
 				}
 			}
 		],
 		"folder": {
-			"name": "hr"
+			"name": "saphr/layers/3-curated"
 		},
 		"annotations": []
 	}

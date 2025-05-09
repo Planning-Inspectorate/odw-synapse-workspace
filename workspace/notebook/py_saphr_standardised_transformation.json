@@ -1,0 +1,312 @@
+{
+	"name": "py_saphr_standardised_transformation",
+	"properties": {
+		"folder": {
+			"name": "odw-standardised/saphr"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "fb3ad773-20fa-4ddf-918f-67e4dcbd4c15"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### The purpose of this pyspark notebook is to read Delta tables from owb_standarsied_db Delta table path and load all transformed records to Delta.\n",
+					"\n",
+					"**Author** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Created Date** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Description**  \n",
+					"Rohit Shukla &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;04-Mar-2025 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The functionality of this notebook is to transform odw-standardised/saphr Delta Tables after successful ingestion of all Delta tables.\n",
+					"\n",
+					"**Spark Cluster Configuration** -> Apache Spark Version- 3.4, Python Version \t\t- 3.10, Delta Lake Version \t- 2.4\n",
+					"\n",
+					""
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"#import all libraries and initialise Spark Session\n",
+					"import json\n",
+					"from datetime import datetime, timedelta, date\n",
+					"import pyspark.sql.functions as F \n",
+					"import os\n",
+					"import re\n",
+					"from notebookutils import mssparkutils\n",
+					"from pyspark.sql.functions import col, expr, when, lit, lpad\n",
+					"from pyspark.sql.types import *\n",
+					"from pyspark.sql import SparkSession\n",
+					"spark = SparkSession.builder.getOrCreate()\n",
+					"from delta.tables import DeltaTable\n",
+					"#ignore FutureWarning messages \n",
+					"import warnings\n",
+					"warnings.filterwarnings(\"ignore\", message=\"iteritems is deprecated\")\n",
+					""
+				],
+				"execution_count": 1
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Get Storage account"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"#Get Storage account name\n",
+					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"print(storage_account)"
+				],
+				"execution_count": 2
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Enable message logging"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": 3
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Define all storage paths"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Define delta table names, database name and table paths\n",
+					"source_database_name = \"odw_standardised_db\"\n",
+					"target_database_name = \"odw_harmonised_db\"\n",
+					"#source_delta_table = f\"{source_database_name}.sap_email_weekly\"\n",
+					"#target_delta_table = f\"{target_database_name}.load_sap_pins_email_weekly\"\n",
+					"delta_table_base_path = f\"abfss://odw-standardised@{storage_account}saphr/\"\n",
+					""
+				],
+				"execution_count": 4
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Define Process Delta table update function"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def get_delta_tables(base_path):\n",
+					"    \n",
+					"    #Retrieve the list of Delta tables from the ADLS2 path\n",
+					"    try:\n",
+					"        table_list = []\n",
+					"        for item in mssparkutils.fs.ls(base_path):\n",
+					"            table_path = item.path.rstrip(\"/\") # Remove trailing slash if any\n",
+					"            if mssparkutils.fs.ls(table_path + \"/_delta_log\"): # Check if it's a Delta table\n",
+					"                table_list.append(item.name)\n",
+					"        return table_list\n",
+					"    except Exception as e:\n",
+					"        logInfo(f\"Error retrieving Delta tables: {e}\")\n",
+					"        return []\n",
+					"\n",
+					"def process_delta_table(table_name):\n",
+					"    #Process the Delta table to find and modify the specified columns\n",
+					"    delta_table_path = f\"{delta_table_base_path}{table_name}\"\n",
+					"\n",
+					"    if DeltaTable.isDeltaTable(spark, delta_table_path):\n",
+					"        logInfo(f\"Processing Delta Table: {table_name}\")\n",
+					"        df = spark.read.format(\"delta\").load(delta_table_path)\n",
+					"\n",
+					"        # Identify columns that need modification\n",
+					"        target_columns = [col_name for col_name in [\"PersNo\",\"PersNo1\", \"StaffNumber\"] if col_name in df.columns]\n",
+					"\n",
+					"        if target_columns:\n",
+					"            logInfo(f\"Modifying columns: {target_columns}\")\n",
+					"\n",
+					"            for col_name in target_columns:\n",
+					"                df = df.withColumn(col_name, when(col(col_name).isNotNull() & (col(col_name).cast(\"string\").rlike(\"^\\\\d{1,7}$\")), lpad(col(col_name).cast(\"string\"), 8, '0'))\n",
+					"                                    .otherwise(col(col_name)))\n",
+					"\n",
+					"            # Write back to Delta Table\n",
+					"            df.write.format(\"delta\").mode(\"overwrite\").save(delta_table_path)\n",
+					"            logInfo(f\"Updated Delta Table: {table_name}\")\n",
+					"        else:\n",
+					"            logInfo(f\"No matching columns found in {table_name}\")\n",
+					"    else:\n",
+					"        logInfo(f\"Not a Delta Table: {table_name}\")\n",
+					""
+				],
+				"execution_count": 5
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Main Execution for delta table updates"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Main Execution for processing\n",
+					"logInfo(\"Retrieving Delta tables...\")\n",
+					"delta_tables = get_delta_tables(delta_table_base_path)\n",
+					"logInfo(get_delta_tables(delta_table_base_path))\n",
+					"for table in delta_tables:\n",
+					"    process_delta_table(table)\n",
+					"\n",
+					"logInfo(\"Delta table updates completed successfully.\")\n",
+					""
+				],
+				"execution_count": 6
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Update Old employees numbers with new employee numbers"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"#Define source and target Delta tables\n",
+					"\n",
+					"try:\n",
+					"    source_table = \"odw_standardised_db.sap_hr_previous_employee_numbers\"\n",
+					"    target_tables = [\n",
+					"        \"odw_standardised_db.sap_hr_weekly\",\n",
+					"        \"odw_standardised_db.sap_hr_history_monthly\",\n",
+					"        \"odw_standardised_db.sap_hr_leavers_monthly\"\n",
+					"    ]\n",
+					"\n",
+					"    # Load source data\n",
+					"    df_source = spark.read.format(\"delta\").table(source_table)\n",
+					"\n",
+					"    # Loop through target tables and update EmployeeNo where PersNo matches\n",
+					"    for target_table in target_tables:\n",
+					"        print(f\"Updating {target_table}\")\n",
+					"\n",
+					"        spark.sql(f\"\"\"\n",
+					"            MERGE INTO {target_table} AS target\n",
+					"            USING {source_table} AS source\n",
+					"            ON target.PersNo = source.PersNo\n",
+					"            WHEN MATCHED THEN\n",
+					"            UPDATE SET target.EmployeeNo = source.EmployeeNo\n",
+					"        \"\"\")\n",
+					"\n",
+					"        logInfo(f\"Updated {target_table}\")\n",
+					"\n",
+					"    logInfo(\"Delta table updates completed.\")\n",
+					"\n",
+					"except Exception as e:\n",
+					"            logError(f\"Failed processing for {target_table} - {e}\")\n",
+					"            logError(\"Delta table updates failed\")\n",
+					""
+				],
+				"execution_count": 7
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"#spark.sql(f\"DROP TABLE IF EXISTS odw_harmonised_db.load_sap_hr_weekly\")"
+				],
+				"execution_count": 8
+			}
+		]
+	}
+}
