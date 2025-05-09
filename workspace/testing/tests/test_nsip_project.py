@@ -11,16 +11,7 @@ def test_nsip_project_notebook(credential_name, azure_credential, synapse_endpoi
     notebookname: str = "py_unit_tests_nsip_project"
     
     notebook_raw_params = {
-        "sparkPool": "pinssynspodw34",
         "notebook": notebookname,
-        "sessionOptions": {
-            "driverMemory": "28g",
-            "driverCores": 4,
-            "executorMemory": "28g",
-            "executorCores": 4,
-            "numExecutors": 2,
-            "runAsWorkspaceSystemIdentity": False
-        },
         "parameters": {
             "entity_name": {
                "type": "String",
@@ -72,6 +63,7 @@ def test_nsip_project_notebook(credential_name, azure_credential, synapse_endpoi
             }
         }
     }
+    notebook_raw_params.update(constants.SPARK_POOL_CONFIG)
 
     #run the notebook
     (notebook_run_result, exitMessage) = pipelineutils.run_and_observe_notebook(credential_name, azure_credential, synapse_endpoint, notebookname, notebook_raw_params)

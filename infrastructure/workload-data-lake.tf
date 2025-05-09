@@ -28,7 +28,7 @@ module "synapse_data_lake" {
   data_lake_role_assignments             = var.data_lake_role_assignments
   data_lake_storage_containers           = var.data_lake_storage_containers
   devops_agent_subnet_name               = module.synapse_network.devops_agent_subnet_name
-  firewall_allowed_ip_addresses          = yamldecode(file(local.firewall_config_file_path))
+  firewall_allowed_ip_addresses          = local.firewall_allowed_ip_addresses
   function_app_principal_ids             = local.function_app_identity
   horizon_integration_config             = var.horizon_integration_config
   key_vault_role_assignments             = var.key_vault_role_assignments
@@ -65,7 +65,7 @@ module "synapse_data_lake_failover" {
   data_lake_role_assignments             = var.data_lake_role_assignments
   data_lake_storage_containers           = var.data_lake_storage_containers
   devops_agent_subnet_name               = module.synapse_network_failover.devops_agent_subnet_name
-  firewall_allowed_ip_addresses          = yamldecode(file(local.firewall_config_file_path))
+  firewall_allowed_ip_addresses          = local.firewall_allowed_ip_addresses
   function_app_principal_ids             = local.function_app_identity
   horizon_integration_config             = var.horizon_integration_config
   key_vault_role_assignments             = var.key_vault_role_assignments
