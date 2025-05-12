@@ -183,6 +183,13 @@ resource "azurerm_virtual_network_peering" "tooling_to_odw_failover" {
 
 # network links to tooling
 
+data "azurerm_private_dns_zone" "tooling_key_vault" {
+  name                = "privatelink.vaultcore.azure.net"
+  resource_group_name = var.tooling_config.network_rg
+
+  provider = azurerm.tooling
+}
+
 data "azurerm_private_dns_zone" "tooling_synapse" {
   name                = "privatelink.azuresynapse.net"
   resource_group_name = var.tooling_config.network_rg

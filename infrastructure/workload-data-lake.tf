@@ -36,7 +36,8 @@ module "synapse_data_lake" {
   synapse_private_endpoint_subnet_name   = module.synapse_network.synapse_private_endpoint_subnet_name
   tenant_id                              = var.tenant_id
   tooling_config = {
-    storage_private_dns_zone_id = local.tooling_storage_dns_zone_ids
+    key_vault_private_dns_zone_id = data.azurerm_private_dns_zone.tooling_key_vault.id
+    storage_private_dns_zone_id   = local.tooling_storage_dns_zone_ids
   }
   vnet_subnet_ids          = module.synapse_network.vnet_subnets
   vnet_subnet_ids_failover = module.synapse_network_failover.vnet_subnets
@@ -73,7 +74,8 @@ module "synapse_data_lake_failover" {
   synapse_private_endpoint_subnet_name   = module.synapse_network_failover.synapse_private_endpoint_subnet_name
   tenant_id                              = var.tenant_id
   tooling_config = {
-    storage_private_dns_zone_id = local.tooling_storage_dns_zone_ids
+    key_vault_private_dns_zone_id = data.azurerm_private_dns_zone.tooling_key_vault.id
+    storage_private_dns_zone_id   = local.tooling_storage_dns_zone_ids
   }
   vnet_subnet_ids          = module.synapse_network_failover.vnet_subnets
   vnet_subnet_ids_failover = module.synapse_network.vnet_subnets

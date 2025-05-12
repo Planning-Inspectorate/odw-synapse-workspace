@@ -124,7 +124,8 @@ variable "tenant_id" {
 variable "tooling_config" {
   description = "Config for the tooling subscription dns zones"
   type = object({
-    storage_private_dns_zone_id = map(string)
+    key_vault_private_dns_zone_id = string
+    storage_private_dns_zone_id   = map(string)
   })
 }
 
