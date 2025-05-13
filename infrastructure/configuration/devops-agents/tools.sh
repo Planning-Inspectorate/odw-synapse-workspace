@@ -44,24 +44,20 @@ sudo apt install -y --no-install-recommends \
   git-lfs \
   git-ftp
 
-# Checkov
+# Python
 sudo apt install -y --no-install-recommends \
-  python3-pip \
   python3.7 \
-  python3.7-distutils
-python3.7 -m pip install --force-reinstall packaging==21
-python3.7 -m pip install -U checkov==2.2.94
+  python3.7-distutils \
+  python3-pip
 
-# Python 3.13 Installation
-sudo apt install -y --no-install-recommends \
-  python3.13 \
-  python3-setuptools \
-  python3-apt
-
-# Terraform 1.9.6
+# Terraform 1.11.4
 curl -fsSL https://apt.releases.hashicorp.com/gpg | apt-key add -
 sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
-sudo apt-get install -y terraform=1.11.3-1
+sudo apt-get install -y terraform=1.11.4-1
+
+# Checkov
+python3.7 -m pip install --force-reinstall packaging==21
+python3.7 -m pip install -U checkov==2.2.94
 
 # TFLint
 curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
@@ -92,11 +88,3 @@ pwsh -c "& {Get-Module -ListAvailable}"
 
 # Sysprep
 /usr/sbin/waagent -force -deprovision+user && export HISTSIZE=0 && sync
-
-# python 3.13 as default
-sudo ln -sf /usr/bin/python3.13 /usr/bin/python3
-
-# python version
-echo "==================== PYTHON DEFAULT VERSION ===================="
-python3 --version
-echo "================================================================"
