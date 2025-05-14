@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "04f2d740-b7e1-4a02-87f5-0d47d35be455"
+				"spark.autotune.trackingId": "6eb0b4b1-46b7-437d-a938-3d6124458c8f"
 			}
 		},
 		"metadata": {
@@ -506,12 +506,6 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"import asyncio\n",
-					"import nest_asyncio\n",
-					"from datetime import datetime, timedelta\n",
-					"import json\n",
-					"from pyspark.sql import SparkSession\n",
-					"\n",
 					"async def ingest_horizon(date_folder: str, file: str):\n",
 					"    try:\n",
 					"        spark = SparkSession.builder.getOrCreate()\n",
@@ -528,8 +522,10 @@
 					"        df = spark.read.option(\"multiline\", \"true\").json(path_to_orchestration_file)\n",
 					"        definitions = json.loads(df.toJSON().first())['definitions']\n",
 					"        \n",
-					"        definition = next((d for d in definitions if (specific_file == '' or d['Source_Filename_Start'] == specific_file) \n",
-					"                           and file.startswith(d['Source_Filename_Start'])), None)\n",
+					"      definition = next((d for d in definitions \n",
+					"                  if (specific_file == '' or d['Source_Filename_Start'] == specific_file) \n",
+					"                  and file.startswith(d['Source_Filename_Start']) \n",
+					"                  and d.get('Load_Enable_status') == 'True'), None)\n",
 					"        \n",
 					"        if definition:\n",
 					"            expected_from = date_folder - timedelta(days=1)\n",
