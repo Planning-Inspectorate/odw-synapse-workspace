@@ -319,6 +319,8 @@
 						{
 							"name": "Send horizen to odw copy  data failed",
 							"type": "ExecutePipeline",
+							"state": "Inactive",
+							"onInactiveMarkAs": "Succeeded",
 							"dependsOn": [
 								{
 									"activity": "Copy horizen Files",
@@ -451,6 +453,55 @@
 										"value": "@pipeline().parameters.apps_insights_ikey",
 										"type": "Expression"
 									}
+								}
+							}
+						},
+						{
+							"name": "errorMessage",
+							"description": "",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Copy horizen Files",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "errorMessage",
+								"value": {
+									"value": "@activity('Copy horizen Files')?.Error?.Message",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "errorMessageText",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "errorMessage",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "errorMessageText",
+								"value": {
+									"value": "@split(variables('errorMessage'), ',')[2]",
+									"type": "Expression"
 								}
 							}
 						}
@@ -639,6 +690,12 @@
 		},
 		"variables": {
 			"start_time": {
+				"type": "String"
+			},
+			"errorMessage": {
+				"type": "String"
+			},
+			"errorMessageText": {
 				"type": "String"
 			}
 		},
