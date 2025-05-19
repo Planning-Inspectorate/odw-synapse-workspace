@@ -233,6 +233,8 @@
 			{
 				"name": "ForEach_horizen_files",
 				"type": "ForEach",
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "Filter_Horizon_Table",
@@ -478,6 +480,84 @@
 									"type": "Expression"
 								}
 							}
+						},
+						{
+							"name": "Record horizon copy failure",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Copy horizen Files",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "Copy Data from Horizon to ODW_Raw Failed",
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"Inserts": {
+										"value": "@activity('Copy horizen Files').output.rowsCopied",
+										"type": "Expression"
+									},
+									"ErrorMessage": {
+										"value": "@activity('Copy horizen Files')?.Error?.Message",
+										"type": "Expression"
+									},
+									"StatusMessage": {
+										"value": "@concat('Data Copied From ', item().Horizon_Table_Name, ' To ', item().Source_Filename_Format,'Failed')",
+										"type": "Expression"
+									},
+									"PipelineTriggerID": {
+										"value": "@pipeline().TriggerId",
+										"type": "Expression"
+									},
+									"PipelineTriggerName": {
+										"value": "@pipeline().TriggerName",
+										"type": "Expression"
+									},
+									"PipelineTriggerType": {
+										"value": "@pipeline().TriggerType",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": "@pipeline()?.TriggeredByPipelineName",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": "@pipeline()?.TriggeredByPipelineRunId",
+										"type": "Expression"
+									},
+									"ActivityType": {
+										"value": "Copy Activity",
+										"type": "Expression"
+									},
+									"DurationSeconds": {
+										"value": "@activity('Copy horizen Files').output.copyDuration\n",
+										"type": "Expression"
+									},
+									"AppInsIKey": {
+										"value": "@pipeline().parameters.apps_insights_ikey",
+										"type": "Expression"
+									}
+								}
+							}
 						}
 					]
 				}
@@ -509,8 +589,6 @@
 				"name": "Horizon Raw to Std",
 				"description": "Ingests the raw data into the standardised table",
 				"type": "SynapseNotebook",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "ForEach_horizen_files",
