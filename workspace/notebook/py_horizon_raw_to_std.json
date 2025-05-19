@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "7cc1a95e-b54e-4f7b-981e-1812c60b0d69"
+				"spark.autotune.trackingId": "66debdf7-246f-4eb3-9ed1-cc77d6493ce9"
 			}
 		},
 		"metadata": {
@@ -45,7 +45,8 @@
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 28
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -89,14 +90,14 @@
 					"    }\n",
 					"}"
 				],
-				"execution_count": 19
+				"execution_count": 15
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run /utils/py_mount_storage"
 				],
-				"execution_count": 20
+				"execution_count": 16
 			},
 			{
 				"cell_type": "code",
@@ -114,7 +115,7 @@
 				"source": [
 					" %run utils/py_logging_decorator"
 				],
-				"execution_count": 21
+				"execution_count": 17
 			},
 			{
 				"cell_type": "markdown",
@@ -148,7 +149,7 @@
 					"from pyspark.sql.types import StringType, DateType, TimestampType, IntegerType, FloatType, StructType, StructField\n",
 					"from delta import DeltaTable"
 				],
-				"execution_count": 22
+				"execution_count": 18
 			},
 			{
 				"cell_type": "markdown",
@@ -186,7 +187,7 @@
 					"delete_existing_table=False\n",
 					"dataAttribute = \"\""
 				],
-				"execution_count": 23
+				"execution_count": 19
 			},
 			{
 				"cell_type": "code",
@@ -197,7 +198,7 @@
 					"standardised_container = f\"abfss://odw-standardised@{storage_account}\"\n",
 					"print(standardised_container)"
 				],
-				"execution_count": 24
+				"execution_count": 20
 			},
 			{
 				"cell_type": "markdown",
@@ -230,7 +231,7 @@
 					"else:\n",
 					"    print(\"No folders found in the specified directory.\")"
 				],
-				"execution_count": 25
+				"execution_count": 21
 			},
 			{
 				"cell_type": "markdown",
@@ -254,7 +255,7 @@
 					"horizon_files\n",
 					" # comment this during the full execution"
 				],
-				"execution_count": 26
+				"execution_count": 22
 			},
 			{
 				"cell_type": "markdown",
@@ -318,7 +319,7 @@
 					"    \n",
 					"    logInfo(f\"Table '{db_name}.{table_name}' created successfully!\")"
 				],
-				"execution_count": 27
+				"execution_count": 23
 			},
 			{
 				"cell_type": "code",
@@ -343,7 +344,7 @@
 					"    except Exception as e:\n",
 					"        print(f\"Failed to unmount storage: {e}\")"
 				],
-				"execution_count": 28
+				"execution_count": 24
 			},
 			{
 				"cell_type": "markdown",
@@ -500,7 +501,7 @@
 					"    return ingestion_failure, rows_raw\n",
 					""
 				],
-				"execution_count": 29
+				"execution_count": 25
 			},
 			{
 				"cell_type": "code",
@@ -535,25 +536,25 @@
 					"                print(f\"Deleting existing table if exists odw_standardised_db.{definition['Standardised_Table_Name']}\")\n",
 					"                mssparkutils.notebook.run('/utils/py_delete_table', 300, arguments={'db_name': 'odw_standardised_db', 'table_name': definition['Standardised_Table_Name']})\n",
 					"\n",
-					"            print(f\"Ingesting {file}\")\n",
+					"            # print(f\"Ingesting {file}\")\n",
 					"            ingestion_failure, row_count = ingest_adhoc(storage_account, definition, source_path, file, expected_from, expected_to)\n",
 					"\n",
-					"            print(f\"Ingested {row_count} rows\")\n",
+					"            # print(f\"Ingested {row_count} rows\")\n",
 					"\n",
 					"            if ingestion_failure:\n",
-					"                print(\"Errors reported during Ingestion!!\")\n",
+					"                 print(\"Errors reported during Ingestion!!\")\n",
 					"                raise RuntimeError(\"Ingestion Failure\")\n",
 					"            else:\n",
 					"                print(\"No Errors reported during Ingestion\")\n",
 					"        else:\n",
 					"            if specific_file != '':\n",
-					"                raise ValueError(f\"No definition found for {specific_file}\")\n",
+					"                raise ValueError(f\"No definition found for {file}\")\n",
 					"            else:\n",
-					"                print(\"No definition found\")\n",
+					"                print(f\"Condition Not Satisfied for Load {file} File\")\n",
 					"    except Exception as e:\n",
 					"        print(f\"Failed to process {file}: {e}\")"
 				],
-				"execution_count": 35
+				"execution_count": 30
 			},
 			{
 				"cell_type": "code",
@@ -568,7 +569,7 @@
 					"loop = asyncio.get_event_loop()\n",
 					"loop.run_until_complete(load_horizon_async())"
 				],
-				"execution_count": 36
+				"execution_count": 32
 			}
 		]
 	}
