@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "66debdf7-246f-4eb3-9ed1-cc77d6493ce9"
+				"spark.autotune.trackingId": "4dda6a98-c341-4b73-9be3-9d151c4bb744"
 			}
 		},
 		"metadata": {
@@ -90,14 +90,14 @@
 					"    }\n",
 					"}"
 				],
-				"execution_count": 15
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run /utils/py_mount_storage"
 				],
-				"execution_count": 16
+				"execution_count": 15
 			},
 			{
 				"cell_type": "code",
@@ -115,7 +115,7 @@
 				"source": [
 					" %run utils/py_logging_decorator"
 				],
-				"execution_count": 17
+				"execution_count": 16
 			},
 			{
 				"cell_type": "markdown",
@@ -149,7 +149,7 @@
 					"from pyspark.sql.types import StringType, DateType, TimestampType, IntegerType, FloatType, StructType, StructField\n",
 					"from delta import DeltaTable"
 				],
-				"execution_count": 18
+				"execution_count": 17
 			},
 			{
 				"cell_type": "markdown",
@@ -187,7 +187,7 @@
 					"delete_existing_table=False\n",
 					"dataAttribute = \"\""
 				],
-				"execution_count": 19
+				"execution_count": 18
 			},
 			{
 				"cell_type": "code",
@@ -198,7 +198,7 @@
 					"standardised_container = f\"abfss://odw-standardised@{storage_account}\"\n",
 					"print(standardised_container)"
 				],
-				"execution_count": 20
+				"execution_count": 19
 			},
 			{
 				"cell_type": "markdown",
@@ -231,7 +231,7 @@
 					"else:\n",
 					"    print(\"No folders found in the specified directory.\")"
 				],
-				"execution_count": 21
+				"execution_count": 20
 			},
 			{
 				"cell_type": "markdown",
@@ -255,7 +255,7 @@
 					"horizon_files\n",
 					" # comment this during the full execution"
 				],
-				"execution_count": 22
+				"execution_count": 21
 			},
 			{
 				"cell_type": "markdown",
@@ -319,32 +319,32 @@
 					"    \n",
 					"    logInfo(f\"Table '{db_name}.{table_name}' created successfully!\")"
 				],
-				"execution_count": 23
+				"execution_count": 22
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"# from notebookutils import mssparkutils\n",
 					"\n",
-					"def mount_storage(path):\n",
-					"    try:\n",
-					"        mssparkutils.fs.mount(\n",
-					"            source=path,\n",
-					"            mount_point=\"/mnt/temp_mount\",\n",
-					"            extra_configs={\"fs.azure.account.key.<storage_account>.blob.core.windows.net\": \"<access_key>\"}\n",
-					"        )\n",
-					"        print(f\"Mounted {path} successfully.\")\n",
-					"    except Exception as e:\n",
-					"        print(f\"Failed to mount {path}: {e}\")\n",
+					"# def mount_storage(path):\n",
+					"#     try:\n",
+					"#         mssparkutils.fs.mount(\n",
+					"#             source=path,\n",
+					"#             mount_point=\"/mnt/temp_mount\",\n",
+					"#             extra_configs={\"fs.azure.account.key.<storage_account>.blob.core.windows.net\": \"<access_key>\"}\n",
+					"#         )\n",
+					"#         print(f\"Mounted {path} successfully.\")\n",
+					"#     except Exception as e:\n",
+					"#         print(f\"Failed to mount {path}: {e}\")\n",
 					"\n",
-					"def unmount_storage():\n",
-					"    try:\n",
-					"        mssparkutils.fs.unmount(\"/mnt/temp_mount\")\n",
-					"        print(\"Unmounted storage successfully.\")\n",
-					"    except Exception as e:\n",
-					"        print(f\"Failed to unmount storage: {e}\")"
+					"# def unmount_storage():\n",
+					"#     try:\n",
+					"#         mssparkutils.fs.unmount(\"/mnt/temp_mount\")\n",
+					"#         print(\"Unmounted storage successfully.\")\n",
+					"#     except Exception as e:\n",
+					"#         print(f\"Failed to unmount storage: {e}\")"
 				],
-				"execution_count": 24
+				"execution_count": 23
 			},
 			{
 				"cell_type": "markdown",
@@ -501,48 +501,46 @@
 					"    return ingestion_failure, rows_raw\n",
 					""
 				],
-				"execution_count": 25
+				"execution_count": 24
 			},
 			{
 				"cell_type": "code",
 				"source": [
+					"@logging_to_appins\n",
 					"async def ingest_horizon(date_folder: str, file: str):\n",
 					"    try:\n",
 					"        spark = SparkSession.builder.getOrCreate()\n",
-					"        \n",
+					"\n",
 					"        if date_folder == '':\n",
 					"            date_folder = datetime.now().date()\n",
 					"        else:\n",
 					"            date_folder = datetime.strptime(date_folder, \"%Y-%m-%d\")\n",
 					"\n",
 					"        date_folder_str = date_folder.strftime('%Y-%m-%d')\n",
-					"        \n",
+					"\n",
 					"        # READ ORCHESTRATION DATA\n",
 					"        path_to_orchestration_file = f\"abfss://odw-config@{storage_account}/orchestration_horizon/orchestration.json\"\n",
 					"        df = spark.read.option(\"multiline\", \"true\").json(path_to_orchestration_file)\n",
 					"        definitions = json.loads(df.toJSON().first())['definitions']\n",
-					"        \n",
+					"\n",
 					"        definition = next((d for d in definitions \n",
 					"                          if (specific_file == '' or d['Source_Filename_Start'] == specific_file) \n",
 					"                          and file.startswith(d['Source_Filename_Start']) \n",
 					"                          and d['Load_Enable_status'] == 'True'), None)\n",
-					"        \n",
+					"\n",
 					"        if definition:\n",
 					"            expected_from = date_folder - timedelta(days=1)\n",
 					"            expected_from = datetime.combine(expected_from, datetime.min.time())\n",
-					"            expected_to = expected_from + timedelta(days=definition['Expected_Within_Weekdays']) \n",
+					"            expected_to = expected_from + timedelta(days=definition['Expected_Within_Weekdays'])\n",
 					"\n",
 					"            if delete_existing_table:\n",
 					"                print(f\"Deleting existing table if exists odw_standardised_db.{definition['Standardised_Table_Name']}\")\n",
 					"                mssparkutils.notebook.run('/utils/py_delete_table', 300, arguments={'db_name': 'odw_standardised_db', 'table_name': definition['Standardised_Table_Name']})\n",
 					"\n",
-					"            # print(f\"Ingesting {file}\")\n",
 					"            ingestion_failure, row_count = ingest_adhoc(storage_account, definition, source_path, file, expected_from, expected_to)\n",
 					"\n",
-					"            # print(f\"Ingested {row_count} rows\")\n",
-					"\n",
 					"            if ingestion_failure:\n",
-					"                 print(\"Errors reported during Ingestion!!\")\n",
+					"                print(\"Errors reported during Ingestion!!\")\n",
 					"                raise RuntimeError(\"Ingestion Failure\")\n",
 					"            else:\n",
 					"                print(\"No Errors reported during Ingestion\")\n",
@@ -554,7 +552,7 @@
 					"    except Exception as e:\n",
 					"        print(f\"Failed to process {file}: {e}\")"
 				],
-				"execution_count": 30
+				"execution_count": 25
 			},
 			{
 				"cell_type": "code",
@@ -569,7 +567,7 @@
 					"loop = asyncio.get_event_loop()\n",
 					"loop.run_until_complete(load_horizon_async())"
 				],
-				"execution_count": 32
+				"execution_count": 26
 			}
 		]
 	}
