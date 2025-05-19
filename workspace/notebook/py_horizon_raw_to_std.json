@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "9527d4d6-844c-48ae-ad9a-ea9b4ac41635"
+				"spark.autotune.trackingId": "2a12071d-b3f1-4530-b4e2-cb8501c305c6"
 			}
 		},
 		"metadata": {
@@ -90,14 +90,14 @@
 					"    }\n",
 					"}"
 				],
-				"execution_count": 40
+				"execution_count": 66
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run /utils/py_mount_storage"
 				],
-				"execution_count": 41
+				"execution_count": 67
 			},
 			{
 				"cell_type": "code",
@@ -115,7 +115,7 @@
 				"source": [
 					" %run utils/py_logging_decorator"
 				],
-				"execution_count": 42
+				"execution_count": 68
 			},
 			{
 				"cell_type": "markdown",
@@ -149,7 +149,7 @@
 					"from pyspark.sql.types import StringType, DateType, TimestampType, IntegerType, FloatType, StructType, StructField\n",
 					"from delta import DeltaTable"
 				],
-				"execution_count": 43
+				"execution_count": 69
 			},
 			{
 				"cell_type": "markdown",
@@ -187,7 +187,7 @@
 					"delete_existing_table=False\n",
 					"dataAttribute = \"\""
 				],
-				"execution_count": 44
+				"execution_count": 70
 			},
 			{
 				"cell_type": "code",
@@ -198,7 +198,7 @@
 					"standardised_container = f\"abfss://odw-standardised@{storage_account}\"\n",
 					"print(standardised_container)"
 				],
-				"execution_count": 45
+				"execution_count": 71
 			},
 			{
 				"cell_type": "markdown",
@@ -231,7 +231,7 @@
 					"else:\n",
 					"    print(\"No folders found in the specified directory.\")"
 				],
-				"execution_count": 46
+				"execution_count": 72
 			},
 			{
 				"cell_type": "markdown",
@@ -255,7 +255,7 @@
 					"horizon_files\n",
 					" # comment this during the full execution"
 				],
-				"execution_count": 47
+				"execution_count": 73
 			},
 			{
 				"cell_type": "markdown",
@@ -319,7 +319,7 @@
 					"    \n",
 					"    logInfo(f\"Table '{db_name}.{table_name}' created successfully!\")"
 				],
-				"execution_count": 48
+				"execution_count": 74
 			},
 			{
 				"cell_type": "code",
@@ -344,7 +344,7 @@
 					"#     except Exception as e:\n",
 					"#         print(f\"Failed to unmount storage: {e}\")"
 				],
-				"execution_count": 49
+				"execution_count": 75
 			},
 			{
 				"cell_type": "markdown",
@@ -479,9 +479,14 @@
 					"            \"modified_by_process_name\",\n",
 					"            \"entity_name\"\n",
 					"        ).limit(1)\n",
-					"        new_log_entry = new_log_entry.withColumn(\"rows_raw\", lit(sparkDF.count()))\n",
-					"        new_log_entry = new_log_entry.withColumn(\"rows_new\", lit(standardised_table_df.filter((standardised_table_df.expected_from == expected_from) & (standardised_table_df.expected_to == expected_to)).count()))\n",
+					"        # new_log_entry = new_log_entry.withColumn(\"rows_raw\", lit(sparkDF.count()))\n",
+					"        # new_log_entry = new_log_entry.withColumn(\"rows_new\", lit(standardised_table_df.filter((standardised_table_df.expected_from == expected_from) & (standardised_table_df.expected_to == expected_to)).count()))\n",
 					"        \n",
+					"         rows_raw_count = sparkDF.count()\n",
+					"         rows_new_count = standardised_table_df.filter((col(\"expected_from\") == expected_from) & (col(\"expected_to\") == expected_to)).count()\n",
+					"         new_log_entry = new_log_entry.withColumn(\"rows_raw\", lit(rows_raw_count))\n",
+					"         new_log_entry = new_log_entry.withColumn(\"rows_new\", lit(rows_new_count))\n",
+					"\n",
 					"        if not table_exists:\n",
 					"            new_log_entry.write.format(\"delta\").option(\"path\", ingestion_log_table_location).saveAsTable(f\"logging.{logging_table_name}\")\n",
 					"            logInfo(f\"Updating ingestion logging table {logging_table_name} with first entry.\")\n",
@@ -498,10 +503,9 @@
 					"        logError(f\"All rows have NOT been successfully written. Expected {rows_raw} but {rows_new} written\")\n",
 					"        ingestion_failure = True\n",
 					"    \n",
-					"    return ingestion_failure, rows_raw\n",
-					""
+					"    return ingestion_failure, rows_raw"
 				],
-				"execution_count": 50
+				"execution_count": 89
 			},
 			{
 				"cell_type": "code",
@@ -552,7 +556,7 @@
 					"    except Exception as e:\n",
 					"        print(f\"Failed to process {file}: {e}\")"
 				],
-				"execution_count": 51
+				"execution_count": 81
 			},
 			{
 				"cell_type": "code",
@@ -567,7 +571,7 @@
 					"loop = asyncio.get_event_loop()\n",
 					"loop.run_until_complete(load_horizon_async())"
 				],
-				"execution_count": 52
+				"execution_count": 82
 			}
 		]
 	}
