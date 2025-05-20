@@ -478,6 +478,84 @@
 									"type": "Expression"
 								}
 							}
+						},
+						{
+							"name": "Record horizon copy failure",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Copy horizen Files",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "Copy Data from Horizon to ODW_Raw Failed",
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"Inserts": {
+										"value": "@activity('Copy horizen Files').output.rowsCopied",
+										"type": "Expression"
+									},
+									"ErrorMessage": {
+										"value": "@activity('Copy horizen Files')?.Error?.Message",
+										"type": "Expression"
+									},
+									"StatusMessage": {
+										"value": "@concat('Data Copied From ', item().Horizon_Table_Name, ' To ', item().Source_Filename_Format,'Failed')",
+										"type": "Expression"
+									},
+									"PipelineTriggerID": {
+										"value": "@pipeline().TriggerId",
+										"type": "Expression"
+									},
+									"PipelineTriggerName": {
+										"value": "@pipeline().TriggerName",
+										"type": "Expression"
+									},
+									"PipelineTriggerType": {
+										"value": "@pipeline().TriggerType",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": "@pipeline()?.TriggeredByPipelineName",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": "@pipeline()?.TriggeredByPipelineRunId",
+										"type": "Expression"
+									},
+									"ActivityType": {
+										"value": "Copy Activity",
+										"type": "Expression"
+									},
+									"DurationSeconds": {
+										"value": "@activity('Copy horizen Files').output.copyDuration\n",
+										"type": "Expression"
+									},
+									"AppInsIKey": {
+										"value": "@pipeline().parameters.apps_insights_ikey",
+										"type": "Expression"
+									}
+								}
+							}
 						}
 					]
 				}
@@ -611,6 +689,84 @@
 					"condition": {
 						"value": "@and(\n    contains(item(), 'Harmonised_NoteBook'),\n    and(\n        not(empty(item().Harmonised_NoteBook)),\n        and(\n            equals(item().Source_Folder, 'Horizon'),\n            or(\n                not(contains(item(), 'Load_Enable_status')),\n                equals(item().Load_Enable_status, 'True')\n            )\n        )\n    )\n)",
 						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Record horizon failure",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "ForEach_Harmonised_NoteBook",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Load the data from Horizon to ODW Failed",
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@utcNow()",
+							"type": "Expression"
+						},
+						"ErrorMessage": {
+							"value": "@activity('Copy horizen Files')?.Error?.Message",
+							"type": "Expression"
+						},
+						"StatusMessage": {
+							"value": "@replace(\n    concat(\n        activity('Record horizen to odw data loading')?.Error?.message, '|',\n        activity('Lookup_orchestration_file')?.Error?.message, '|',\n        activity('Filter_Horizon_Table')?.Error?.message, '|',\n        activity('Horizon Raw to Std')?.Error?.message, '|',\n        activity('Filter_Harmonised_NoteBook')?.Error?.message, '|'), '|', '')",
+							"type": "Expression"
+						},
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"ActivityType": {
+							"value": "Copy Activity",
+							"type": "Expression"
+						},
+						"DurationSeconds": {
+							"value": "\n",
+							"type": "Expression"
+						},
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
 					}
 				}
 			}
