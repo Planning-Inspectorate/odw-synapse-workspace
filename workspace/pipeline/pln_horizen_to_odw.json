@@ -81,7 +81,10 @@
 					},
 					"waitOnCompletion": true,
 					"parameters": {
-						"Stage": "Completed",
+						"Stage": {
+							"value": "@if(\n    equals(\n        replace(\n            concat(\n                activity('Record horizen to odw data loading')?.Error?.message, '|',\n                activity('Lookup_orchestration_file')?.Error?.message, '|',\n                activity('Filter_Horizon_Table')?.Error?.message, '|',\n                activity('Horizon Raw to Std')?.Error?.message, '|',\n                activity('Filter_Harmonised_NoteBook')?.Error?.message, '|'\n            ),\n            '|',\n            ''\n        ),\n        ''\n    ),\n    'Successfully',\n    'Failed'\n)",
+							"type": "Expression"
+						},
 						"PipelineName": {
 							"value": "@pipeline().Pipeline",
 							"type": "Expression"
@@ -187,7 +190,7 @@
 						"type": "Expression"
 					},
 					"isSequential": false,
-					"batchCount": 5,
+					"batchCount": 10,
 					"activities": [
 						{
 							"name": "Copy horizen Files",
@@ -277,7 +280,10 @@
 								},
 								"waitOnCompletion": true,
 								"parameters": {
-									"Stage": "Completion",
+									"Stage": {
+										"value": "@if(equals(activity('Copy horizen Files')?.Error?.Message, ''), 'Successfully', 'Failed')",
+										"type": "Expression"
+									},
 									"PipelineName": {
 										"value": "@pipeline().Pipeline",
 										"type": "Expression"
@@ -288,6 +294,10 @@
 									},
 									"Inserts": {
 										"value": "@activity('Copy horizen Files').output.rowsCopied",
+										"type": "Expression"
+									},
+									"ErrorMessage": {
+										"value": "@activity('Copy horizen Files')?.Error?.Message",
 										"type": "Expression"
 									},
 									"StatusMessage": {
