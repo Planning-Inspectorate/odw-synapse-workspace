@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "44354c5d-3c21-4e24-828f-09aa36238c7d"
+				"spark.autotune.trackingId": "e5d152ab-30a2-4231-b027-6f3e88d7a38a"
 			}
 		},
 		"metadata": {
@@ -45,7 +45,8 @@
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 28
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -89,14 +90,14 @@
 					"    }\n",
 					"}"
 				],
-				"execution_count": 1
+				"execution_count": 13
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run /utils/py_mount_storage"
 				],
-				"execution_count": 2
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
@@ -112,9 +113,9 @@
 					}
 				},
 				"source": [
-					" %run utils/py_logging_decorator"
+					" %run utils/py_logging_decorators"
 				],
-				"execution_count": 3
+				"execution_count": 15
 			},
 			{
 				"cell_type": "markdown",
@@ -144,11 +145,11 @@
 					"import pandas as pd\n",
 					"import os\n",
 					"import re\n",
-					"from pyspark.sql.functions import col, lit, input_file_name, current_timestamp, sha2, concat, count\n",
+					"from pyspark.sql.functions import col, lit, input_file_name, current_timestamp, sha2, concat,max as spark_max\n",
 					"from pyspark.sql.types import StringType, DateType, TimestampType, IntegerType, FloatType, StructType, StructField\n",
 					"from delta import DeltaTable"
 				],
-				"execution_count": 4
+				"execution_count": 16
 			},
 			{
 				"cell_type": "markdown",
@@ -186,7 +187,7 @@
 					"delete_existing_table=False\n",
 					"dataAttribute = \"\""
 				],
-				"execution_count": 5
+				"execution_count": 17
 			},
 			{
 				"cell_type": "code",
@@ -197,7 +198,7 @@
 					"standardised_container = f\"abfss://odw-standardised@{storage_account}\"\n",
 					"print(standardised_container)"
 				],
-				"execution_count": 6
+				"execution_count": 18
 			},
 			{
 				"cell_type": "markdown",
@@ -230,7 +231,7 @@
 					"else:\n",
 					"    print(\"No folders found in the specified directory.\")"
 				],
-				"execution_count": 7
+				"execution_count": 19
 			},
 			{
 				"cell_type": "markdown",
@@ -254,7 +255,7 @@
 					"horizon_files\n",
 					" # comment this during the full execution"
 				],
-				"execution_count": 8
+				"execution_count": 20
 			},
 			{
 				"cell_type": "markdown",
@@ -318,7 +319,7 @@
 					"    \n",
 					"    logInfo(f\"Table '{db_name}.{table_name}' created successfully!\")"
 				],
-				"execution_count": 9
+				"execution_count": 21
 			},
 			{
 				"cell_type": "markdown",
@@ -381,6 +382,8 @@
 					"    standardised_table_df = spark.read.format(\"delta\").load(standardised_table_location)\n",
 					"    rows = standardised_table_df.filter((standardised_table_df.expected_from == expected_from) & (standardised_table_df.expected_to == expected_to)).count()\n",
 					"    \n",
+					"    last_load_date = standardised_table_df.agg(spark_max(\"ingested_datetime\")).collect()[0][0]\n",
+					"\n",
 					"    jobId = mssparkutils.env.getJobId()\n",
 					"    \n",
 					"    if '.csv' in filename.lower():\n",
@@ -456,7 +459,7 @@
 					"        # new_log_entry = new_log_entry.withColumn(\"rows_raw\", lit(sparkDF.count()))\n",
 					"        # new_log_entry = new_log_entry.withColumn(\"rows_new\", lit(standardised_table_df.filter((standardised_table_df.expected_from == expected_from) & (standardised_table_df.expected_to == expected_to)).count()))\n",
 					"        rows_raw_count = sparkDF.count()\n",
-					"        rows_new_count = standardised_table_df.filter((col(\"expected_from\") == expected_from) & (col(\"expected_to\") == expected_to)).count()\n",
+					"        rows_new_count = standardised_table_df.filter((col(\"expected_from\") == expected_from) &(col(\"expected_to\") == expected_to) & (col(\"ingested_datetime\") > last_load_date)).count()\n",
 					"        new_log_entry = new_log_entry.withColumn(\"rows_raw\", lit(rows_raw_count))\n",
 					"        new_log_entry = new_log_entry.withColumn(\"rows_new\", lit(rows_new_count))\n",
 					"\n",
@@ -478,7 +481,7 @@
 					"    \n",
 					"    return ingestion_failure, rows_raw"
 				],
-				"execution_count": 10
+				"execution_count": 22
 			},
 			{
 				"cell_type": "code",
@@ -529,7 +532,7 @@
 					"    except Exception as e:\n",
 					"        print(f\"Failed to process {file}: {e}\")"
 				],
-				"execution_count": 11
+				"execution_count": 23
 			},
 			{
 				"cell_type": "code",
@@ -544,7 +547,7 @@
 					"loop = asyncio.get_event_loop()\n",
 					"loop.run_until_complete(load_horizon_async())"
 				],
-				"execution_count": 12
+				"execution_count": 24
 			}
 		]
 	}
