@@ -258,7 +258,7 @@
 								{
 									"activity": "Copy horizen Files",
 									"dependencyConditions": [
-										"Succeeded"
+										"Completed"
 									]
 								}
 							],
@@ -326,8 +326,73 @@
 							}
 						},
 						{
-							"name": "Record horizon copy failure",
+							"name": "Send horizen to odw copy  data failed",
 							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "errorMessage",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": true
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_utl_Send_Teams_Message",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"dataFactorySubscription": {
+										"value": "@pipeline().parameters.subscription_id",
+										"type": "Expression"
+									},
+									"dataFactoryResourceGroup": {
+										"value": "@pipeline().parameters.resource_group",
+										"type": "Expression"
+									},
+									"pipelineRunId": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"teamsWebhookUrl": {
+										"value": "@pipeline().parameters.webhook_url",
+										"type": "Expression"
+									},
+									"activityName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"activityMessage": "Horizon load data failed",
+									"activityDuration": {
+										"value": "@concat(\n    string(div(div(sub(\n        ticks(formatDateTime(utcNow(), 'yyyy-MM-dd HH:mm:sss')),\n        ticks(formatDateTime(if(equals(pipeline().parameters.start_time, null), utcNow(), pipeline().parameters.start_time), 'yyyy-MM-dd HH:mm:sss'))\n    ), 600000000), 60)), 'H:', \n    string(mod(div(sub(\n        ticks(formatDateTime(utcNow(), 'yyyy-MM-dd HH:mm:sss')),\n        ticks(formatDateTime(if(equals(pipeline().parameters.start_time, null), utcNow(), pipeline().parameters.start_time), 'yyyy-MM-dd HH:mm:sss'))\n    ), 600000000), 60)), 'M:00s'\n)",
+										"type": "Expression"
+									},
+									"activityStatus": "Failed",
+									"Colour": {
+										"value": "@pipeline().parameters.failed_colour",
+										"type": "Expression"
+									},
+									"Image": {
+										"value": "@pipeline().parameters.failed_image",
+										"type": "Expression"
+									},
+									"Message_title": "Copy Data from Horizon to ODW_Raw Failed",
+									"Message_subtitle": {
+										"value": "@concat('Data Copied From ', item().Horizon_Table_Name, ' To ', item().Source_Filename_Format, ' Failed with the following error:    ',variables('errorMessage'))",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "errorMessage",
+							"description": "",
+							"type": "SetVariable",
 							"dependsOn": [
 								{
 									"activity": "Copy horizen Files",
@@ -337,69 +402,15 @@
 								}
 							],
 							"policy": {
+								"secureOutput": false,
 								"secureInput": false
 							},
 							"userProperties": [],
 							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_log_to_appins",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true,
-								"parameters": {
-									"Stage": "Copy Data from Horizon to ODW_Raw Failed",
-									"PipelineName": {
-										"value": "@pipeline().Pipeline",
-										"type": "Expression"
-									},
-									"PipelineRunID": {
-										"value": "@pipeline().RunId",
-										"type": "Expression"
-									},
-									"Inserts": {
-										"value": "@activity('Copy horizen Files').output.rowsCopied",
-										"type": "Expression"
-									},
-									"ErrorMessage": {
-										"value": "@activity('Copy horizen Files')?.Error?.Message",
-										"type": "Expression"
-									},
-									"StatusMessage": {
-										"value": "@concat('Data Copied From ', item().Horizon_Table_Name, ' To ', item().Source_Filename_Format,'Failed')",
-										"type": "Expression"
-									},
-									"PipelineTriggerID": {
-										"value": "@pipeline().TriggerId",
-										"type": "Expression"
-									},
-									"PipelineTriggerName": {
-										"value": "@pipeline().TriggerName",
-										"type": "Expression"
-									},
-									"PipelineTriggerType": {
-										"value": "@pipeline().TriggerType",
-										"type": "Expression"
-									},
-									"PipelineTriggeredbyPipelineName": {
-										"value": "@pipeline()?.TriggeredByPipelineName",
-										"type": "Expression"
-									},
-									"PipelineTriggeredbyPipelineRunID": {
-										"value": "@pipeline()?.TriggeredByPipelineRunId",
-										"type": "Expression"
-									},
-									"ActivityType": {
-										"value": "Copy Activity",
-										"type": "Expression"
-									},
-									"DurationSeconds": {
-										"value": "@activity('Copy horizen Files').output.copyDuration\n",
-										"type": "Expression"
-									},
-									"AppInsIKey": {
-										"value": "@pipeline().parameters.apps_insights_ikey",
-										"type": "Expression"
-									}
+								"variableName": "errorMessage",
+								"value": {
+									"value": "@split(activity('Copy horizen Files')?.Error?.Message, ',')[2]",
+									"type": "Expression"
 								}
 							}
 						}
