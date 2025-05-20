@@ -628,6 +628,37 @@
 						}
 					}
 				}
+			},
+			{
+				"name": "If No Errors",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Record completed horizen to odw data lode",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(\n        replace(\n            concat(\n                activity('Record horizen to odw data loading')?.Error?.message, '|',\n                activity('Lookup_orchestration_file')?.Error?.message, '|',\n                activity('Filter_Horizon_Table')?.Error?.message, '|',\n                activity('Horizon Raw to Std')?.Error?.message, '|',\n                activity('Filter_Harmonised_NoteBook')?.Error?.message, '|'\n            ),\n            '|',\n            ''\n        ),\n        ''\n    )",
+						"type": "Expression"
+					},
+					"ifFalseActivities": [
+						{
+							"name": "Fail1",
+							"type": "Fail",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"message": "failing the pipeline as previous activities are failed.",
+								"errorCode": "400"
+							}
+						}
+					]
+				}
 			}
 		],
 		"parameters": {
