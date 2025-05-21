@@ -25,6 +25,10 @@ odt_appeals_back_office_sb_topic_subscriptions = [
   {
     subscription_name = "appeal-representation-odw-sub"
     topic_name        = "appeal-representation"
+  },
+  {
+    subscription_name = "appeal-event-estimate-odw-sub"
+    topic_name        = "appeal-event-estimate"
   }
 ]
 
