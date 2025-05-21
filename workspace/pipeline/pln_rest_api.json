@@ -87,21 +87,9 @@
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
-						"activity": "AIE document metadata",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					},
-					{
-						"activity": "Horizon EntraID",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					},
-					{
 						"activity": "Listed Building Main",
 						"dependencyConditions": [
-							"Succeeded"
+							"Completed"
 						]
 					}
 				],
@@ -116,13 +104,24 @@
 					},
 					"waitOnCompletion": true,
 					"parameters": {
-						"Stage": "Completion",
+						"Stage": {
+							"value": "@if(or(equals(activity('Listed Building Main')?.Error?.Message, ''),equals(activity('Listed Building Main')?.Error?.Message, null)),'Successfully','Failed')",
+							"type": "Expression"
+						},
 						"PipelineName": {
 							"value": "@pipeline().Pipeline",
 							"type": "Expression"
 						},
 						"PipelineRunID": {
 							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@utcNow()",
+							"type": "Expression"
+						},
+						"ErrorMessage": {
+							"value": "@{if(or(equals(activity('Listed Building Main')?.Error?.Message, ''), equals(activity('Listed Building Main')?.Error?.Message, null)), ' ', activity('Listed Building Main')?.Error?.Message)}\n",
 							"type": "Expression"
 						},
 						"StatusMessage": "EntraID Failed",
@@ -257,7 +256,10 @@
 							"type": "Expression"
 						},
 						"Message_title": "ODW - Listed Building Main data failed",
-						"Message_subtitle": "Listed Building Main feed failed"
+						"Message_subtitle": {
+							"value": "@split(activity('Listed Building Main')?.Error?.Message, ',')[2]",
+							"type": "Expression"
+						}
 					}
 				}
 			},
@@ -318,7 +320,10 @@
 							"type": "Expression"
 						},
 						"Message_title": "ODW - EntraID data failed",
-						"Message_subtitle": "EntraID  feed failed"
+						"Message_subtitle": {
+							"value": "@split(activity('Horizon EntraID')?.Error?.Message, ',')[2]\n",
+							"type": "Expression"
+						}
 					}
 				}
 			},
@@ -379,83 +384,8 @@
 							"type": "Expression"
 						},
 						"Message_title": "ODW - AIE data failed",
-						"Message_subtitle": "AIE document metadata failed"
-					}
-				}
-			},
-			{
-				"name": "Record Listed Building Main  failure",
-				"type": "ExecutePipeline",
-				"dependsOn": [
-					{
-						"activity": "Listed Building Main",
-						"dependencyConditions": [
-							"Failed"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_log_to_appins",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"Stage": "Load the data from Horizon to ODW Failed",
-						"PipelineName": {
-							"value": "@pipeline().Pipeline",
-							"type": "Expression"
-						},
-						"PipelineRunID": {
-							"value": "@pipeline().RunId",
-							"type": "Expression"
-						},
-						"EndTime": {
-							"value": "@utcNow()",
-							"type": "Expression"
-						},
-						"ErrorMessage": {
-							"value": "@activity('Listed Building Main')?.Error?.Message\n",
-							"type": "Expression"
-						},
-						"StatusMessage": {
-							"value": "Listed Building Main Failed",
-							"type": "Expression"
-						},
-						"PipelineTriggerID": {
-							"value": "@pipeline().TriggerId",
-							"type": "Expression"
-						},
-						"PipelineTriggerName": {
-							"value": "@pipeline().TriggerName",
-							"type": "Expression"
-						},
-						"PipelineTriggerType": {
-							"value": "@pipeline().TriggerType",
-							"type": "Expression"
-						},
-						"PipelineTriggeredbyPipelineName": {
-							"value": "@pipeline()?.TriggeredByPipelineName",
-							"type": "Expression"
-						},
-						"PipelineTriggeredbyPipelineRunID": {
-							"value": "@pipeline()?.TriggeredByPipelineRunId",
-							"type": "Expression"
-						},
-						"ActivityType": {
-							"value": "Copy Activity",
-							"type": "Expression"
-						},
-						"DurationSeconds": {
-							"value": "\n",
-							"type": "Expression"
-						},
-						"AppInsIKey": {
-							"value": "@pipeline().parameters.apps_insights_ikey",
+						"Message_subtitle": {
+							"value": "@split(activity('AIE document metadata')?.Error?.Message, ',')[2]",
 							"type": "Expression"
 						}
 					}
@@ -468,7 +398,7 @@
 					{
 						"activity": "Horizon EntraID",
 						"dependencyConditions": [
-							"Failed"
+							"Completed"
 						]
 					}
 				],
@@ -483,7 +413,10 @@
 					},
 					"waitOnCompletion": true,
 					"parameters": {
-						"Stage": "Load the data from Horizon to ODW Failed",
+						"Stage": {
+							"value": "@if(or(equals(activity('Horizon EntraID')?.Error?.Message, ''),equals(activity('Horizon EntraID')?.Error?.Message, null)),'Successfully','Failed')",
+							"type": "Expression"
+						},
 						"PipelineName": {
 							"value": "@pipeline().Pipeline",
 							"type": "Expression"
@@ -497,7 +430,7 @@
 							"type": "Expression"
 						},
 						"ErrorMessage": {
-							"value": "@activity('Horizon EntraID')?.Error?.Message",
+							"value": "@{if(or(equals(activity('Horizon EntraID')?.Error?.Message, ''), equals(activity('Horizon EntraID')?.Error?.Message, null)), ' ', activity('Horizon EntraID')?.Error?.Message)}\n",
 							"type": "Expression"
 						},
 						"StatusMessage": {
@@ -546,7 +479,7 @@
 					{
 						"activity": "AIE document metadata",
 						"dependencyConditions": [
-							"Failed"
+							"Completed"
 						]
 					}
 				],
@@ -561,7 +494,10 @@
 					},
 					"waitOnCompletion": true,
 					"parameters": {
-						"Stage": "Load the data from Horizon to ODW Failed",
+						"Stage": {
+							"value": "@if(or(equals(activity('AIE document metadata')?.Error?.Message, ''),equals(activity('AIE document metadata')?.Error?.Message, null)),'Successfully','Failed')\n",
+							"type": "Expression"
+						},
 						"PipelineName": {
 							"value": "@pipeline().Pipeline",
 							"type": "Expression"
@@ -575,7 +511,7 @@
 							"type": "Expression"
 						},
 						"ErrorMessage": {
-							"value": "@activity('AIE document metadata')?.Error?.Message\n",
+							"value": "@{if(or(equals(activity('AIE document metadata')?.Error?.Message, ''), equals(activity('AIE document metadata')?.Error?.Message, null)), ' ', activity('AIE document metadata')?.Error?.Message)}\n\n",
 							"type": "Expression"
 						},
 						"StatusMessage": {
