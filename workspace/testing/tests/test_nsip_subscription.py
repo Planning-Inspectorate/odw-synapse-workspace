@@ -1,6 +1,6 @@
 import pytest
 import pipelineutils
-from constants import NOTEBOOK_EXIT_CODE_SUCCESS, NOTEBOOK_SUCCESS_STATUS
+from constants import NOTEBOOK_EXIT_CODE_SUCCESS, NOTEBOOK_SUCCESS_STATUS, SPARK_POOL_CONFIG
 from warnings import filterwarnings
 
 def test_nsip_project_notebook(credential_name, azure_credential, synapse_endpoint: str):
@@ -11,16 +11,7 @@ def test_nsip_project_notebook(credential_name, azure_credential, synapse_endpoi
     notebookname: str = "py_unit_tests_nsip_subscription"
     
     notebook_raw_params = {
-        "sparkPool": "pinssynspodw",
         "notebook": notebookname,
-        "sessionOptions": {
-            "driverMemory": "28g",
-            "driverCores": 4,
-            "executorMemory": "28g",
-            "executorCores": 4,
-            "numExecutors": 2,
-            "runAsWorkspaceSystemIdentity": False
-        },
         "parameters": {
             "entity_name": { "type": "String", "value": "nsip-subscription" },
             "std_db_name": { "type": "String", "value": "odw_standardised_db" },
@@ -31,6 +22,7 @@ def test_nsip_project_notebook(credential_name, azure_credential, synapse_endpoi
             "curated_table_name": { "type": "String", "value": "nsip_subscription" },
         }
     }
+    notebook_raw_params.update(SPARK_POOL_CONFIG)
 
     #run the notebook
     (notebook_run_result, exitMessage) = pipelineutils.run_and_observe_notebook(credential_name, azure_credential, synapse_endpoint, notebookname, notebook_raw_params)

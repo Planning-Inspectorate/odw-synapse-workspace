@@ -61,10 +61,14 @@ variable "network_resource_group_name" {
   type        = string
 }
 
-variable "purview_id" {
+variable "purview_ids" {
   default     = null
-  description = "The ID of the Purview account to link with the Synapse Workspace"
-  type        = string
+  description = "The config of the Purview account to link with the Synapse Workspace"
+  type = object({
+    id           = string
+    storage_id   = string
+    event_hub_id = string
+  })
 }
 
 variable "resource_group_name" {
@@ -139,6 +143,12 @@ variable "spark_pool_timeout_minutes" {
 variable "spark_pool_version" {
   default     = "3.2"
   description = "The version of Spark running on the Synapse-linked Spark pool"
+  type        = string
+}
+
+variable "new_spark_pool_version" {
+  default     = "3.2"
+  description = "The version of Spark running on the new Synapse-linked Spark pool"
   type        = string
 }
 

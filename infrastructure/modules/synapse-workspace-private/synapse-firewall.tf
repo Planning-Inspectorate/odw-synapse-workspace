@@ -5,15 +5,6 @@ resource "azurerm_synapse_firewall_rule" "allow_all_azure" {
   end_ip_address       = "0.0.0.0"
 }
 
-resource "azurerm_synapse_firewall_rule" "allow_all" {
-  count = length(local.firewall_allowed_ip_addresses) == 0 ? 1 : 0
-
-  name                 = "AllowAll"
-  synapse_workspace_id = azurerm_synapse_workspace.synapse.id
-  start_ip_address     = "0.0.0.0"
-  end_ip_address       = "255.255.255.255"
-}
-
 resource "azurerm_synapse_firewall_rule" "allowed_ips" {
   for_each = toset(local.firewall_allowed_ip_addresses)
 

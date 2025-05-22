@@ -7,7 +7,7 @@
 		"nbformat": 4,
 		"nbformat_minor": 2,
 		"bigDataPool": {
-			"referenceName": "pinssynspodw",
+			"referenceName": "pinssynspodw34",
 			"type": "BigDataPoolReference"
 		},
 		"sessionProperties": {
@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "6ad8415f-f1ab-4fec-b176-0f54d93d1d75"
+				"spark.autotune.trackingId": "fcb84d98-e9b8-4aac-91a2-bed126ea27f7"
 			}
 		},
 		"metadata": {
@@ -34,10 +34,10 @@
 				"name": "python"
 			},
 			"a365ComputeOptions": {
-				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw",
-				"name": "pinssynspodw",
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
 				"type": "Spark",
-				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
 				"auth": {
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
@@ -51,6 +51,15 @@
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"from notebookutils import mssparkutils\n",
+					"from datetime import datetime, date\n",
+					"import pyspark.sql.functions as F "
+				],
+				"execution_count": null
+			},
 			{
 				"cell_type": "code",
 				"metadata": {
@@ -206,24 +215,77 @@
 					"FROM odw_harmonised_db.sb_appeal_s78 AS AH\n",
 					"where AH.lpaCode NOT in ('Q9999', 'Q1111')"
 				],
-				"execution_count": 28
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"\n",
+					"view_df = spark.sql(\"SELECT * FROM odw_curated_db.vw_appeals_s78_curated_mipins\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"# prepare dataframe convert UTC to Day light savings for all timestamp fields\n",
+					"\n",
+					"# List of all UTC timestamp columns to convert\n",
+					"timestamp_columns = [\n",
+					"    'caseSubmittedDate',\n",
+					"    'caseCreatedDate',\n",
+					"    'caseUpdatedDate',\n",
+					"    'caseValidDate',\n",
+					"    'caseValidationDate',\n",
+					"    'caseExtensionDate',\n",
+					"    'caseStartedDate',\n",
+					"    'casePublishedDate',\n",
+					"    'lpaQuestionnaireDueDate',\n",
+					"    'lpaQuestionnaireSubmittedDate',\n",
+					"    'lpaQuestionnaireCreatedDate',\n",
+					"    'lpaQuestionnairePublishedDate',\n",
+					"    'lpaQuestionnaireValidationOutcomeDate',\n",
+					"    'caseWithdrawnDate',\n",
+					"    'caseTransferredDate',\n",
+					"    'transferredCaseClosedDate',\n",
+					"    'caseDecisionOutcomeDate',\n",
+					"    'caseDecisionPublishedDate',\n",
+					"    'caseCompletedDate',\n",
+					"    'applicationDate',\n",
+					"    'applicationDecisionDate',\n",
+					"    'caseSubmissionDueDate',\n",
+					"    'infrastructureLevyAdoptedDate',\n",
+					"    'infrastructureLevyExpectedDate',\n",
+					"    'finalCommentsDueDate',\n",
+					"    'interestedPartyRepsDueDate',\n",
+					"    'statementDueDate',\n",
+					"    'ValidTo'\n",
+					"]\n",
+					"\n",
+					"# Apply the conversion in a loop\n",
+					"final_view_df = view_df\n",
+					"for column_name in timestamp_columns:\n",
+					"    final_view_df = final_view_df.withColumn(column_name, F.from_utc_timestamp(F.col(column_name), 'Europe/London'))\n",
+					""
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"spark.sql(f\"drop table if exists odw_curated_db.appeals_s78_curated_mipins;\")"
 				],
-				"execution_count": 29
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"from pyspark.sql import SparkSession\n",
-					"spark = SparkSession.builder.getOrCreate()\n",
-					"view_df = spark.sql(\"SELECT * FROM odw_curated_db.vw_appeals_s78_curated_mipins\")\n",
-					"view_df.write.mode(\"overwrite\").saveAsTable(\"odw_curated_db.appeals_s78_curated_mipins\")"
+					"final_view_df.write.mode(\"overwrite\").saveAsTable(\"odw_curated_db.appeals_s78_curated_mipins\")"
 				],
-				"execution_count": 30
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -234,7 +296,7 @@
 					"#%%sql\n",
 					"#select * from odw_curated_db.appeals_s78_curated_mipins"
 				],
-				"execution_count": 31
+				"execution_count": null
 			}
 		]
 	}
