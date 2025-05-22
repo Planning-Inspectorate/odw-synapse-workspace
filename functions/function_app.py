@@ -892,7 +892,7 @@ def appealeventestimate(req: func.HttpRequest) -> func.HttpResponse:
 
     try:
         _data = get_messages_and_validate(
-            namespace=_NAMESPACE,
+            namespace=_NAMESPACE_APPEALS,
             credential=_CREDENTIAL,
             topic=_TOPIC,
             subscription=_SUBSCRIPTION,
