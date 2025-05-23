@@ -1,0 +1,208 @@
+{
+	"name": "vw_Employee_Details",
+	"properties": {
+		"folder": {
+			"name": "odw-curated/saphr"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "321320e3-98d0-4704-8c94-af901e76fb35"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### The purpose of this notebook is to read data from Harmoised layer and build a view & table for Power BI use.\n",
+					"\n",
+					"**Author** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   **Created Date** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Description**  \n",
+					"Prathap Adicherla &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;01-April-2025 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Employee Details View\n",
+					"\n",
+					"Combining current/historical SAP HR data with leavers' information\n",
+					"\n",
+					"Enriching the data with inspector postcodes from active inspectors\n",
+					"\n",
+					"Creating a unified employee dataset with keys, names, managers, and location information for reporting and analysis;"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql.functions import udf, col, lit, when, coalesce, concat, sum, avg, max, min, count, countDistinct, date_format, to_date, datediff, months_between, year, month,  hour, minute, second, expr, asc, desc\n",
+					"from pyspark.sql.types import DateType, TimestampType, StringType, IntegerType, FloatType, DoubleType, BooleanType, StructType, StructField, ArrayType, MapType\n",
+					"from pyspark.sql.window import Window\n",
+					"from pyspark.sql.functions import row_number, rank, dense_rank, lag, lead, ntile\n",
+					"from pyspark.sql import SQLContext\n",
+					"from pyspark.sql import DataFrame\n",
+					"from pyspark.sql import functions as F\n",
+					"from pyspark.sql.avro.functions import from_avro, to_avro\n",
+					"from pyspark.sql.streaming import DataStreamReader, DataStreamWriter\n",
+					"from pyspark.sql.utils import AnalysisException\n",
+					"from pyspark.sql.catalog import Catalog\n",
+					"from pyspark.sql.column import Column\n",
+					"from pyspark.sql.group import GroupedData\n",
+					"from pyspark.sql.pandas.functions import pandas_udf\n",
+					"\n",
+					"from datetime import datetime, timedelta\n",
+					"import pandas as pd\n",
+					"import numpy as np"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"try:\n",
+					"    logInfo(\"Starting Employee Details setup\")\n",
+					"    \n",
+					"    # Get storage account \n",
+					"    storage_account = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"    logInfo(f\"Using storage account: {storage_account}\")\n",
+					"    \n",
+					"    # Fix the path\n",
+					"    storage_account = storage_account.rstrip('/')\n",
+					"    delta_table_path = f\"abfss://odw-curated@{storage_account}/saphr/pbi_Employee_Details\"\n",
+					"    logInfo(f\"Delta table will be created at: {delta_table_path}\")\n",
+					"    \n",
+					"    # Create/refresh view\n",
+					"    logInfo(\"Creating view odw_curated_db.vw_Employee_Details\")\n",
+					"    spark.sql(\"\"\"\n",
+					"    CREATE OR REPLACE VIEW odw_curated_db.vw_Employee_Details AS\n",
+					"    \n",
+					"    WITH Employee_Data AS (\n",
+					"        -- First part of the UNION from historical SAP data\n",
+					"        SELECT DISTINCT\n",
+					"            CONCAT(RIGHT(hist_sap.PersNo, 6), '-', REPLACE(hist_sap.Report_MonthEnd_Date, '-', '')) AS PersonReportMonthEndKey,\n",
+					"            hist_sap.Lastname,\n",
+					"            hist_sap.Firstname,\n",
+					"            CONCAT(hist_sap.Firstname, ' ', hist_sap.Lastname) AS EmpFullName,\n",
+					"            hist_sap.NameofManagerOM AS Manager,\n",
+					"            hist_sap.CounterSignManager AS Manager_L2,\n",
+					"            hist_sap.EmployeeNo as EmployeeNo,\n",
+					"            hist_sap.PersNo as PersonNo,\n",
+					"            hist_Sap.location as Location\n",
+					"        FROM odw_harmonised_db.hist_sap_hr hist_sap\n",
+					"        WHERE hist_sap.Firstname is not null\n",
+					"    \n",
+					"        UNION ALL\n",
+					"    \n",
+					"        -- Second part of the UNION from leavers data\n",
+					"        SELECT DISTINCT\n",
+					"            CONCAT(RIGHT(a.PersNo, 6), '-', '00000000') AS PersonReportMonthEndKey,\n",
+					"            a.Lastname,\n",
+					"            a.Firstname,\n",
+					"            CONCAT(a.Firstname, ' ', a.Lastname) AS EmpFullName,\n",
+					"            a.NameofManagerOM AS Manager,\n",
+					"            NULL AS Manager_L2,\n",
+					"            a.EmployeeNo as EmployeeNo,\n",
+					"            a.PersNo as PersonNo,\n",
+					"            a.location as Location\n",
+					"        FROM odw_harmonised_db.load_SAP_HR_Leavers a\n",
+					"        WHERE a.Firstname is not null\n",
+					"        AND NOT EXISTS (\n",
+					"            SELECT 1 \n",
+					"            FROM odw_harmonised_db.Hist_SAP_HR b \n",
+					"            WHERE a.PersNo = b.PersNo\n",
+					"        )\n",
+					"    )\n",
+					"    \n",
+					"    -- Final select with join to inspector data\n",
+					"    SELECT DISTINCT \n",
+					"        e.*,\n",
+					"        insp.inspector_postcode\n",
+					"    FROM Employee_Data e\n",
+					"    LEFT OUTER JOIN (\n",
+					"        SELECT * \n",
+					"        FROM odw_harmonised_db.Live_dim_inspector \n",
+					"        WHERE active_status = 'ACTIVE' \n",
+					"        AND (resource_group IS NULL OR resource_group <> 'NSI')\n",
+					"    ) insp ON (e.PersonNo = insp.pins_staff_number OR e.EmployeeNo = insp.pins_staff_number)\n",
+					"    \"\"\")\n",
+					"    logInfo(\"Successfully created view odw_curated_db.vw_Employee_Details\")\n",
+					"    \n",
+					"    # Drop the table if it exists\n",
+					"    logInfo(\"Dropping table odw_curated_db.pbi_Employee_Details if it exists\")\n",
+					"    spark.sql(\"\"\"\n",
+					"    DROP TABLE IF EXISTS odw_curated_db.pbi_Employee_Details\n",
+					"    \"\"\")\n",
+					"    logInfo(\"Table dropped or did not exist\")\n",
+					"    \n",
+					"    # Create table from view with specified location\n",
+					"    logInfo(\"Creating table odw_curated_db.pbi_Employee_Details from view with specified location\")\n",
+					"    spark.sql(f\"\"\"\n",
+					"    CREATE OR REPLACE TABLE odw_curated_db.pbi_Employee_Details\n",
+					"    USING delta\n",
+					"    LOCATION '{delta_table_path}'\n",
+					"    AS SELECT * FROM odw_curated_db.vw_Employee_Details\n",
+					"    \"\"\")\n",
+					"    \n",
+					"    logInfo(\"Employee Details setup completed successfully\")\n",
+					"\n",
+					"except Exception as e:\n",
+					"    logError(f\"Error in Employee Details setup: {str(e)}\")\n",
+					"    logException(e)\n",
+					"    raise e\n",
+					"finally:\n",
+					"    logInfo(\"Flushing logs\")\n",
+					"    flushLogging()"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}

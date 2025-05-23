@@ -1,0 +1,603 @@
+{
+	"name": "py_utils_common_raw_standardised",
+	"properties": {
+		"folder": {
+			"name": "utils/main"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "43f1fc87-3700-4f89-a543-4c26543fbd2c"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### The purpose of this pyspark notebook is to reads all recent files from the given odw-raw folder path and load the data into standardised_db lakehouse database's Delta tables\r\n",
+					"\r\n",
+					"**Author** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Created Date** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Description**  \r\n",
+					"Rohit Shukla &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;19-Jan-2025 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The functionality of this notebook is generic to cater to `.xlsx` and `.csv` files for creating Delta Tables.\r\n",
+					"\r\n",
+					"**Spark Cluster Configuration** -> Apache Spark Version- 3.4, Python Version \t\t- 3.10, Delta Lake Version \t- 2.4\r\n",
+					"\r\n",
+					"\r\n",
+					"##### The input parameters are:\r\n",
+					"###### Param_FileFolder_Path => This is a mandatory parameter which refers to a folder path of the entities like 'Timesheets', 'SapHrData'\r\n",
+					"###### Param_File_Load_Type  => This is an optional parameter refers to a subfolders if there is any like Monthly,Daily, Quarterly etc.\r\n",
+					"###### Param_Json_SchemaFolder_Name => This is a mandatory parameter which refers to a schema file in json format required to create delta tables.\r\n",
+					""
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"tags": [
+						"parameters"
+					]
+				},
+				"source": [
+					"#Define Input Parameters to get values from the pipleline\r\n",
+					"Param_File_Load_Type = ''\r\n",
+					"Param_FileFolder_Path = ''\r\n",
+					"Param_Json_SchemaFolder_Name = ''"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Import all required Python Libraries"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"tags": []
+				},
+				"source": [
+					"#import all libraries and initialise Spark Session\r\n",
+					"import json\r\n",
+					"import calendar\r\n",
+					"from datetime import datetime, timedelta, date\r\n",
+					"import requests\r\n",
+					"import pyspark.sql.functions as F \r\n",
+					"import os\r\n",
+					"import re\r\n",
+					"from itertools import chain\r\n",
+					"from collections.abc import Mapping\r\n",
+					"from operator import add\r\n",
+					"from notebookutils import mssparkutils\r\n",
+					"from pyspark.sql.functions import regexp_replace,lit, current_timestamp, to_date ,expr, md5, col, date_format, when, length, lpad,input_file_name,sha2,concat\r\n",
+					"from pyspark.sql.types import *\r\n",
+					"from pyspark.sql import SparkSession\r\n",
+					"spark = SparkSession.builder.getOrCreate()\r\n",
+					"from delta.tables import DeltaTable\r\n",
+					"#ignore FutureWarning messages \r\n",
+					"import warnings\r\n",
+					"warnings.filterwarnings(\"ignore\", message=\"iteritems is deprecated\")\r\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Get Storage account"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#Get Storage account name\r\n",
+					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\r\n",
+					"#print(storage_account)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Enable message logging"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Define all required folder paths"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Define all Folder paths used in the notebook\r\n",
+					"\r\n",
+					"Param_Json_SchemaFolder_Name = Param_FileFolder_Path.lower()\r\n",
+					"\r\n",
+					"odw_raw_base_folder_path = f\"abfss://odw-raw@{storage_account}{Param_FileFolder_Path}/\"\r\n",
+					"delta_table_base_path = f\"abfss://odw-standardised@{storage_account}{Param_Json_SchemaFolder_Name}\"\r\n",
+					"#schema_file_path = f\"abfss://odw-config@{storage_account}/schema_creation/{Param_Json_SchemaFolder_Name}/create_schema.json\"\r\n",
+					"json_schema_file_path = f\"abfss://odw-config@{storage_account}/orchestration/orchestration_saphr.json\"\r\n",
+					"\r\n",
+					"database_name = \"odw_standardised_db\"\r\n",
+					"process_name = 'py_raw_to_std'\r\n",
+					"\r\n",
+					"logging_container = f\"abfss://logging@{storage_account}\"\r\n",
+					"logging_table_name = 'tables_logs'\r\n",
+					"ingestion_log_table_location = logging_container + logging_table_name\r\n",
+					"\r\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# --- Load Orchestration Config ---\r\n",
+					"#json_schema_file_path = f\"abfss://odw-config@{storage_account}/orchestration/{Param_Json_SchemaFolder_Name}/orchestration.json\"\r\n",
+					"df_orch = spark.read.option(\"multiline\", \"true\").json(json_schema_file_path)\r\n",
+					"definitions = json.loads(df_orch.toJSON().first())[\"definitions\"]"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Find the recent Date subfolder path and construct the odw-raw path dynamically"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Get latest folder\r\n",
+					"def get_latest_folder(path):\r\n",
+					"    folders = [f.name for f in mssparkutils.fs.ls(path) if f.isDir]\r\n",
+					"    folders = sorted([f for f in folders if re.match(r\"\\d{4}-\\d{2}-\\d{2}\", f)], reverse=True)\r\n",
+					"    return folders[0] if folders else None"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Define function for creating Logging table entries"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Ingest logging details to logging table\r\n",
+					"\r\n",
+					"def write_ingestion_log(sparkDF, rows_raw, rows_new, definition):\r\n",
+					"\r\n",
+					"    sparkLogDF = sparkDF.withColumn(\"file_ID\", sha2(concat(lit(definition['matched_file']), current_timestamp().cast(\"string\")), 256)) \\\r\n",
+					"        .withColumn(\"ingested_datetime\", current_timestamp()) \\\r\n",
+					"        .withColumn(\"ingested_by_process_name\", lit(process_name)) \\\r\n",
+					"        .withColumn(\"input_file\", lit(definition['matched_file'])) \\\r\n",
+					"        .withColumn(\"modified_datetime\", current_timestamp()) \\\r\n",
+					"        .withColumn(\"modified_by_process_name\", lit(process_name)) \\\r\n",
+					"        .withColumn(\"entity_name\", lit(definition['Standardised_Table_Name']))\r\n",
+					"\r\n",
+					"    log_entry = sparkLogDF.select(\r\n",
+					"        \"file_ID\", \"ingested_datetime\", \"ingested_by_process_name\", \"input_file\",\r\n",
+					"        \"modified_datetime\", \"modified_by_process_name\", \"entity_name\"\r\n",
+					"    ).limit(1)\r\n",
+					"\r\n",
+					"    log_entry = log_entry.withColumn(\"rows_raw\", lit(rows_raw)) \\\r\n",
+					"                            .withColumn(\"rows_new\", lit(rows_new))\r\n",
+					"\r\n",
+					"    if not DeltaTable.isDeltaTable(spark, ingestion_log_table_location):\r\n",
+					"        log_entry.write.format(\"delta\").option(\"path\", ingestion_log_table_location).saveAsTable(f\"logging.{logging_table_name}\")\r\n",
+					"        logInfo(f\" Created new logging table: logging.{logging_table_name}\")\r\n",
+					"    else:\r\n",
+					"        log_entry.write.format(\"delta\").mode(\"append\").saveAsTable(f\"logging.{logging_table_name}\")\r\n",
+					"        logInfo(\" Appended new entry to logging table.\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Define all files and dataframe processing related functions"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"#Defining all functions\r\n",
+					"\r\n",
+					"@logging_to_appins\r\n",
+					"def read_file(file_path):\r\n",
+					"    try:\r\n",
+					"        if file_path.endswith(\".csv\"):\r\n",
+					"            return spark.read.option(\"header\", True).csv(file_path)\r\n",
+					"\t\t\t\r\n",
+					"        elif file_path.endswith(\".xlsx\"):\r\n",
+					"            return spark.read.format(\"com.crealytics.spark.excel\") \\\r\n",
+					"                             .option(\"header\", \"true\") \\\r\n",
+					"                             .option(\"inferSchema\", \"true\") \\\r\n",
+					"                             .load(file_path)        \r\n",
+					"        else:\r\n",
+					"            raise Exception(\"Unsupported file format\")\r\n",
+					"    except Exception as e:\r\n",
+					"        logError(f\"Failed to load file {file_path}: {e}\")\r\n",
+					"        return None\r\n",
+					"\r\n",
+					"def clean_column_names(df):\r\n",
+					"    cols = [re.sub(r\"[^a-zA-Z0-9_]+\", \"\", c).strip('_') for c in df.columns]\r\n",
+					"    deduped = []\r\n",
+					"    for i, c in enumerate(cols):\r\n",
+					"        count = cols[:i].count(c)\r\n",
+					"        deduped.append(f\"{c}{count + 1}\" if count else c)\r\n",
+					"    return df.toDF(*deduped)\r\n",
+					"\r\n",
+					"# Reorder dataframe columns to bring additional metadata columns to the front\r\n",
+					"def reorder_columns(df):\r\n",
+					"    \"\"\"Reorders the columns so that metadata columns come first.\"\"\"\r\n",
+					"    try:\r\n",
+					"        metadata_cols = [\"ingested_datetime\", \"expected_from\", \"expected_to\"]\r\n",
+					"        remaining_cols = [col for col in df.columns if col not in metadata_cols]\r\n",
+					"        return df.select(metadata_cols + remaining_cols)\r\n",
+					"    except Exception as e:\r\n",
+					"        logError(f\"Error reordering columns: {e}\")\r\n",
+					"        return df\r\n",
+					"\r\n",
+					"@logging_to_appins\r\n",
+					"def create_table_if_not_exists(path, table_name, schema_path):\r\n",
+					"    try:\r\n",
+					"        if not DeltaTable.isDeltaTable(spark, path):\r\n",
+					"            schema_json = json.loads(\"\".join([r.value for r in spark.read.text(schema_path).collect()]))\r\n",
+					"            schema_str = \", \".join([f\"{f['name']} {f['type']}\" for f in schema_json[\"fields\"]])\r\n",
+					"            spark.sql(f\"CREATE TABLE IF NOT EXISTS {table_name} ({schema_str}) USING DELTA LOCATION '{path}'\")\r\n",
+					"    except Exception as e:\r\n",
+					"        logError(f\"Error creating table {table_name}: {e}\")\r\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Define Main Delta Table Ingestion Logic"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"#-- Main Delta Table Ingestion Logic---\r\n",
+					"\r\n",
+					"@logging_to_appins\r\n",
+					"def process_definitions(Param_File_Load_Type):\r\n",
+					"    matched_definitions = []\r\n",
+					"    unmatched_definitions = []\r\n",
+					"    all_latest_files = []\r\n",
+					"\r\n",
+					"    # Filter only matched definitions\r\n",
+					"    for definition in definitions:\r\n",
+					"    \r\n",
+					"        freq_folder = definition.get('Source_Frequency_Folder', '').lower()\r\n",
+					"        source_folder = definition.get('Source_Folder', '').lower()\r\n",
+					"        param_freq = (Param_File_Load_Type or '').lower()\r\n",
+					"        param_path = (Param_FileFolder_Path or '').lower()\r\n",
+					"\r\n",
+					"        if Param_File_Load_Type and not (\r\n",
+					"            freq_folder == param_freq and source_folder == param_path\r\n",
+					"        ):\r\n",
+					"            continue\r\n",
+					"\r\n",
+					"        source_path = f\"abfss://odw-raw@{storage_account}{Param_FileFolder_Path}/\"\r\n",
+					"        \r\n",
+					"        if Param_File_Load_Type:            \r\n",
+					"            source_path += f\"{Param_File_Load_Type}/\"\r\n",
+					"\r\n",
+					"        try:\r\n",
+					"            latest_folder = get_latest_folder(source_path)\r\n",
+					"            if not latest_folder:\r\n",
+					"                logInfo(f\"No folders in path {source_path}\")\r\n",
+					"                continue\r\n",
+					"\r\n",
+					"            latest_path = f\"{source_path}{latest_folder}/\"\r\n",
+					"            files = [f.name for f in mssparkutils.fs.ls(latest_path) if not f.isDir]\r\n",
+					"            all_latest_files.extend(files)\r\n",
+					"\r\n",
+					"            matching_file = next((f for f in files if f.startswith(definition['Source_Filename_Start'])), None)\r\n",
+					"            if matching_file:\r\n",
+					"                definition['matched_file'] = matching_file\r\n",
+					"                definition['latest_path'] = latest_path\r\n",
+					"                matched_definitions.append(definition)\r\n",
+					"            else:\r\n",
+					"                unmatched_definitions.append(definition['Standardised_Table_Name'])\r\n",
+					"\r\n",
+					"        except Exception as e:\r\n",
+					"            logError(f\"Could not read from {source_path}: {e}\")\r\n",
+					"\r\n",
+					"    #List filenames if nothing matched in Orchestration.json\r\n",
+					"    unmatched_files = set(all_latest_files) - set([d['matched_file'] for d in matched_definitions])\r\n",
+					"    if unmatched_files:\r\n",
+					"        logError(f\"Files found in source but not defined in orchestration.json: {', '.join(unmatched_files)}\")\r\n",
+					"\r\n",
+					"    #if not matched_definitions:\r\n",
+					"    #    #raise Exception(\"No files in the latest folder matched any definitions from orchestration.json\")\r\n",
+					"    #    missing_files = set(all_latest_files) - set([d['matched_file'] for d in matched_definitions])\r\n",
+					"    #    logError(f\"No matching definitions found for files: {', '.join(missing_files)}\")\r\n",
+					"    #    raise Exception(\"No files in the latest folder matched any definitions from orchestration.json\")\r\n",
+					"\r\n",
+					"    # Step 3: Process each matched file\r\n",
+					"    for definition in matched_definitions:\r\n",
+					"        try:\r\n",
+					"            sparkDF = read_file(f\"{definition['latest_path']}{definition['matched_file']}\")\r\n",
+					"            if sparkDF is None:\r\n",
+					"                logError(f\"No data loaded for file: {definition['matched_file']}\")\r\n",
+					"                continue\r\n",
+					"\r\n",
+					"            expected_from = datetime.now() - timedelta(days=definition['Expected_Within_Weekdays'])\r\n",
+					"            expected_to = datetime.now()\r\n",
+					"\r\n",
+					"            sparkDF = clean_column_names(sparkDF)\r\n",
+					"            \r\n",
+					"            # Add metadata columns to standardised table\r\n",
+					"            sparkTableDF = sparkDF.withColumn(\"ingested_datetime\", current_timestamp()) \\\r\n",
+					"                                  .withColumn(\"expected_from\", lit(expected_from)) \\\r\n",
+					"                                  .withColumn(\"expected_to\", lit(expected_to))\r\n",
+					"            \r\n",
+					"            # Reorder metadata columns for the standardised delta table\r\n",
+					"            sparkTableDF = reorder_columns(sparkTableDF)\r\n",
+					"\r\n",
+					"            delta_table_path = f\"abfss://odw-standardised@{storage_account}{Param_Json_SchemaFolder_Name}/{definition['Standardised_Table_Name']}\"\r\n",
+					"            full_table_name = f\"{database_name}.{definition['Standardised_Table_Name']}\"\r\n",
+					"            schema_path = f\"abfss://odw-config@{storage_account}{definition['Standardised_Table_Definition']}\"\r\n",
+					"\r\n",
+					"            # Schema validation to catch missing columns\r\n",
+					"            expected_schema_fields = [f['name'] for f in json.loads(\"\".join([r.value for r in spark.read.text(schema_path).collect()]))['fields']]\r\n",
+					"            actual_fields = sparkTableDF.columns\r\n",
+					"            missing_columns = set(expected_schema_fields) - set(actual_fields)\r\n",
+					"            extra_columns = set(actual_fields) - set(expected_schema_fields)\r\n",
+					"            if missing_columns:\r\n",
+					"                logError(f\"Missing expected columns for table {definition['Standardised_Table_Name']}: {', '.join(missing_columns)}\")\r\n",
+					"                if extra_columns:\r\n",
+					"                    logInfo(f\"Extra columns in data for table {definition['Standardised_Table_Name']}: {', '.join(extra_columns)}\")\r\n",
+					"                logInfo(f\"Skipping ingestion for {definition['Standardised_Table_Name']} due to schema mismatch.\")\r\n",
+					"                continue\r\n",
+					"            \r\n",
+					"            create_table_if_not_exists(delta_table_path, full_table_name, schema_path)\r\n",
+					"            sparkTableDF.write.format(\"delta\").mode(\"overwrite\").save(delta_table_path)\r\n",
+					"\r\n",
+					"            # Count rows for validation\r\n",
+					"            rows_raw = sparkDF.count()\r\n",
+					"            standardised_table_df = spark.read.format(\"delta\").load(delta_table_path)\r\n",
+					"            rows_new = standardised_table_df.filter(\r\n",
+					"                (col(\"expected_from\") == expected_from) & \r\n",
+					"                (col(\"expected_to\") == expected_to)\r\n",
+					"            ).count()\r\n",
+					"\r\n",
+					"            if rows_raw <= rows_new:\r\n",
+					"                logInfo(f\"All rows successfully written to {definition['Standardised_Table_Name']} — Raw: {rows_raw}, Written: {rows_new}\")\r\n",
+					"                #logInfo(f\"All rows successfully written to {definition['Standardised_Table_Name']}\")\r\n",
+					"            else:\r\n",
+					"                logError(f\"Mismatch in row count for {definition['Standardised_Table_Name']}: expected {rows_raw}, got {rows_new}\")\r\n",
+					"        \r\n",
+					"            write_ingestion_log(sparkDF, rows_raw, rows_new, definition)\r\n",
+					"        \r\n",
+					"        except Exception as e:\r\n",
+					"            logError(f\"Failed processing for {definition['Standardised_Table_Name']} - {e}\")\r\n",
+					"            logError(\"Logging to tables_logs failed\")\r\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Execute main process"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# --- Run the main process ---\r\n",
+					"process_definitions(Param_File_Load_Type)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Dropping Delta tables if needed, Code commented"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"editable": false,
+					"run_control": {
+						"frozen": true
+					},
+					"collapsed": false
+				},
+				"source": [
+					"#spark.sql(f\"DROP TABLE IF EXISTS odw_standardised_db.hr_absence_monthly\")\r\n",
+					"#spark.sql(f\"DROP TABLE IF EXISTS odw_standardised_db.inspector_addresses_monthly\")\r\n",
+					"#spark.sql(f\"DROP TABLE IF EXISTS odw_standardised_db.inspector_specialisms_monthly\")\r\n",
+					"#spark.sql(f\"DROP TABLE IF EXISTS odw_standardised_db.sap_email_monthly\")\r\n",
+					"#spark.sql(f\"DROP TABLE IF EXISTS odw_standardised_db.sap_hr_history_monthly\")\r\n",
+					"#spark.sql(f\"DROP TABLE IF EXISTS odw_standardised_db.sap_hr_leavers_monthly\")\r\n",
+					"#spark.sql(f\"DROP TABLE IF EXISTS odw_standardised_db.sap_protected_monthly\")\r\n",
+					"#spark.sql(f\"DROP TABLE IF EXISTS odw_standardised_db.inspector_addresses_weekly\")\r\n",
+					"#spark.sql(f\"DROP TABLE IF EXISTS odw_standardised_db.inspector_specialisms_weekly\")\r\n",
+					"#spark.sql(f\"DROP TABLE IF EXISTS odw_standardised_db.sap_hr_weekly\")\r\n",
+					"#spark.sql(f\"DROP TABLE IF EXISTS odw_standardised_db.work_schedules\")\r\n",
+					"#spark.sql(f\"DROP TABLE IF EXISTS odw_standardised_db.inspector_addresses_monthly\")\r\n",
+					"\r\n",
+					"\r\n",
+					"\r\n",
+					""
+				],
+				"execution_count": null
+			}
+		]
+	}
+}

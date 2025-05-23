@@ -1,10 +1,200 @@
 {
-	"name": "pln_hr_main",
+	"name": "rel_11_0_0_saphr_setup",
 	"properties": {
 		"activities": [
 			{
-				"name": "Ingest Raw",
-				"description": "Copies HR data from SAP into ODW's raw layer.",
+				"name": "py_utils_raw_standardised_static_tables",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "pln_statictables_odw_source_odw_raw",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_utils_common_raw_standardised",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"Param_FileFolder_Path": {
+							"value": "StaticTables",
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "py_harmonised_schema_creation",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "py_utils_raw_standardised_static_tables",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_utils_common_schema_creation",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"param_json_folder_name": {
+							"value": "harmonised_table_definitions/saphr",
+							"type": "string"
+						},
+						"param_database_name": {
+							"value": "odw_harmonised_db",
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "py_logging_schema_creation",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "py_harmonised_schema_creation",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_utils_common_schema_creation",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"param_json_folder_name": {
+							"value": "logging_table_definitions",
+							"type": "string"
+						},
+						"param_database_name": {
+							"value": "logging",
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "py_sap_hr_history_one_off",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "py_logging_schema_creation",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_sap_hr_history_one_off",
+						"type": "NotebookReference"
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "py_sap_hr_protected_data_history_one_off",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "py_sap_hr_history_one_off",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_sap_hr_protected_data_history_one_off",
+						"type": "NotebookReference"
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "pln_statictables_odw_source_odw_raw",
 				"type": "ExecutePipeline",
 				"dependsOn": [],
 				"policy": {
@@ -13,254 +203,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"pipeline": {
-						"referenceName": "0_pln_source_to_raw_fileshare",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true
-				}
-			},
-			{
-				"name": "Ingest Standardised",
-				"description": "Ingests raw data into standardised. Can create tables if they don't already exist.",
-				"type": "SynapseNotebook",
-				"dependsOn": [
-					{
-						"activity": "Ingest Raw",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "py_hr_monthly_raw_to_std",
-						"type": "NotebookReference"
-					},
-					"parameters": {
-						"specific_folder": {
-							"value": {
-								"value": "@concat(formatDateTime(utcNow(), 'yyyy'), '-', formatDateTime(addDays(startOfMonth(utcNow()), -1), 'MM'))\n",
-								"type": "Expression"
-							},
-							"type": "string"
-						}
-					},
-					"snapshot": true,
-					"conf": {
-						"spark.dynamicAllocation.enabled": null,
-						"spark.dynamicAllocation.minExecutors": null,
-						"spark.dynamicAllocation.maxExecutors": null
-					},
-					"numExecutors": null
-				}
-			},
-			{
-				"name": "Prepare Views",
-				"description": "Creates views from each standardised table with the data from the latest ingestion.",
-				"type": "SynapseNotebook",
-				"dependsOn": [
-					{
-						"activity": "Ingest Standardised",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "sap-hr-views",
-						"type": "NotebookReference"
-					},
-					"parameters": {
-						"expected_from": {
-							"value": {
-								"value": "@concat(formatDateTime(utcNow(), 'yyyy'), '-', formatDateTime(utcNow(), 'MM'), '-01')",
-								"type": "Expression"
-							},
-							"type": "string"
-						}
-					},
-					"snapshot": true,
-					"conf": {
-						"spark.dynamicAllocation.enabled": null,
-						"spark.dynamicAllocation.minExecutors": null,
-						"spark.dynamicAllocation.maxExecutors": null
-					},
-					"numExecutors": null
-				}
-			},
-			{
-				"name": "Ingest Harmonised",
-				"description": "Sequentially runs the notebooks that are responsible for ingesting data in each of the tables in the harmonised layer. Each notebook may utilise the views created in the previous step.",
-				"type": "SynapseNotebook",
-				"dependsOn": [
-					{
-						"activity": "Prepare Views",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "sap-hr-master",
-						"type": "NotebookReference"
-					},
-					"snapshot": true,
-					"conf": {
-						"spark.dynamicAllocation.enabled": null,
-						"spark.dynamicAllocation.minExecutors": null,
-						"spark.dynamicAllocation.maxExecutors": null
-					},
-					"numExecutors": null
-				}
-			},
-			{
-				"name": "Employee Curated",
-				"description": "Joins the employee data from the harmonised layer and ingests it in the curated layer. i.e odw_curated_db.employee",
-				"type": "SynapseNotebook",
-				"dependsOn": [
-					{
-						"activity": "Ingest Harmonised",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "employee",
-						"type": "NotebookReference"
-					},
-					"snapshot": true,
-					"conf": {
-						"spark.dynamicAllocation.enabled": null,
-						"spark.dynamicAllocation.minExecutors": null,
-						"spark.dynamicAllocation.maxExecutors": null
-					},
-					"numExecutors": null
-				}
-			},
-			{
-				"name": "Employee Publish",
-				"description": "Publishes the data from curated layer to the Service Bus",
-				"type": "SynapseNotebook",
-				"dependsOn": [
-					{
-						"activity": "Employee Curated",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "employee-publish",
-						"type": "NotebookReference"
-					},
-					"snapshot": true,
-					"conf": {
-						"spark.dynamicAllocation.enabled": null,
-						"spark.dynamicAllocation.minExecutors": null,
-						"spark.dynamicAllocation.maxExecutors": null
-					},
-					"numExecutors": null
-				}
-			},
-			{
-				"name": "HR Measures Curated",
-				"description": "Creates a monthly report of HR measures utilising the data from the absences, leaves, and sap-hr. ",
-				"type": "SynapseNotebook",
-				"dependsOn": [
-					{
-						"activity": "Ingest Harmonised",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "mipins_hr_measures",
-						"type": "NotebookReference"
-					},
-					"parameters": {
-						"expected_from": {
-							"value": {
-								"value": "@formatDateTime(addDays(startOfMonth(utcNow()), -1), 'yyyy-MM-dd')\n",
-								"type": "Expression"
-							},
-							"type": "string"
-						}
-					},
-					"snapshot": true,
-					"conf": {
-						"spark.dynamicAllocation.enabled": null,
-						"spark.dynamicAllocation.minExecutors": null,
-						"spark.dynamicAllocation.maxExecutors": null
-					},
-					"numExecutors": null
-				}
-			},
-			{
-				"name": "Ingest EntraID data",
-				"type": "ExecutePipeline",
-				"dependsOn": [],
-				"policy": {
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "EntraID",
+						"referenceName": "pln_statictables_odw_source_odw_raw",
 						"type": "PipelineReference"
 					},
 					"waitOnCompletion": true
@@ -268,7 +211,7 @@
 			}
 		],
 		"folder": {
-			"name": "hr"
+			"name": "Releases/11.0.0"
 		},
 		"annotations": []
 	}

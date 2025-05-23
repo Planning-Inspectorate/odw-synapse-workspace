@@ -84,6 +84,11 @@ variable "key_vault_role_assignments" {
   type        = map(list(string))
 }
 
+variable "key_vault_private_endpoint_dns_zone_id" {
+  description = "The ID of the Private DNS Zone hosting privatelink.vaultcore.azure.net"
+  type        = string
+}
+
 variable "network_resource_group_name" {
   description = "The name of the resource group into which private endpoints will be deployed"
   type        = string
@@ -124,7 +129,8 @@ variable "tenant_id" {
 variable "tooling_config" {
   description = "Config for the tooling subscription dns zones"
   type = object({
-    storage_private_dns_zone_id = map(string)
+    key_vault_private_dns_zone_id = string
+    storage_private_dns_zone_id   = map(string)
   })
 }
 
