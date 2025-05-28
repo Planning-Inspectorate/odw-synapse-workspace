@@ -1,0 +1,282 @@
+{
+	"name": "py_saphr_weekly",
+	"properties": {
+		"folder": {
+			"name": "odw-harmonised/saphr"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "749344f4-3077-44ea-9e38-040ae74d5dc0"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### The purpose of this pyspark notebook is to read Delta tables from owb_standarsied_db to owb_harmonisied_db and load all records as Delta tables along with metadata columns.\n",
+					"\n",
+					"**Author** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Created Date** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Description**  \n",
+					"Rohit Shukla &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;04-Mar-2025 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The functionality of this notebook is to Delta Table SAP_HR_Weekly into owb-harmonisied_db layer from MiPiNS using this stored procedure :\n",
+					"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Build.sap_employee_hierarchy_weekly_adf\n",
+					"\n",
+					"**Spark Cluster Configuration** -> Apache Spark Version- 3.4, Python Version \t\t- 3.10, Delta Lake Version \t- 2.4\n",
+					"\n",
+					"\n",
+					""
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Import all python libraries"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"#import all libraries and initialise Spark Session\n",
+					"import json\n",
+					"import calendar\n",
+					"from datetime import datetime, timedelta, date\n",
+					"import requests\n",
+					"#import pandas as pd\n",
+					"import pyspark.sql.functions as F \n",
+					"import os\n",
+					"import re\n",
+					"from itertools import chain\n",
+					"from collections.abc import Mapping\n",
+					"from operator import add\n",
+					"from notebookutils import mssparkutils\n",
+					"from pyspark.sql.functions import lit, current_timestamp, to_date ,expr, md5, col, date_format,when, to_date,current_date,concat,cast,regexp_replace,coalesce\n",
+					"from pprint import pprint as pp\n",
+					"from pyspark.sql.types import *\n",
+					"from pyspark.sql import SparkSession\n",
+					"spark = SparkSession.builder.getOrCreate()\n",
+					"from delta.tables import DeltaTable\n",
+					"#ignore FutureWarning messages \n",
+					"import warnings\n",
+					"warnings.filterwarnings(\"ignore\", message=\"iteritems is deprecated\")\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Get storage account"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"#Get Storage account name\n",
+					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"print(storage_account)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Enable message logging"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Define all storage path"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Define delta table names, database name and table paths\n",
+					"source_database_name = \"odw_standardised_db\"\n",
+					"target_database_name = \"odw_harmonised_db\"\n",
+					"source_delta_table = f\"{source_database_name}.sap_hr_weekly\"\n",
+					"target_delta_table = f\"{target_database_name}.load_sap_hr_weekly\"\n",
+					"delta_table_path = f\"abfss://odw-harmonised@{storage_account}saphr/load_sap_hr_weekly\"\n",
+					"\n",
+					"print(target_delta_table)\n",
+					"print(delta_table_path)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Process all steps to transform into load_sap_hr_weekly"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"\n",
+					"# Step 1: Read source Delta Table\n",
+					"df_source_sap_weekly = spark.read.format(\"delta\").option(\"inferSchema\", \"false\").table(source_delta_table)\n",
+					"\n",
+					"# Remove records where 'PersNo' is NULL\n",
+					"df_source_sap_weekly = df_source_sap_weekly.filter(col(\"PersNo\").isNotNull())\n",
+					"\n",
+					"# Exclude \"ingested_datetime\", \"expected_from\", \"expected_to\" from rowid_columns\n",
+					"excluded_columns = {\"ingested_datetime\", \"expected_from\", \"expected_to\"} \n",
+					"\n",
+					"rowid_columns = [c for c in df_source_sap_weekly.columns if c not in excluded_columns]\n",
+					"\n",
+					"# Select required columns and ensure correct data types present in the target dataframe\n",
+					"target_sap_hr_weekly_df = df_source_sap_weekly.select(\n",
+					"    *[col(c).cast(\"string\") for c in df_source_sap_weekly.columns if c not in [\"FTE2\", \"FTE\", \"Wkhrs\", \"CivilServiceStart\",\"DatetoCurrentJob\",\"SeniorityDate\", \"DatetoSubstGrade\", \"OrgStartDate\",\"Birthdate\",\"ingested_datetime\", \"expected_from\", \"expected_to\"]], # Convert other columns to STRING\n",
+					"    col(\"FTE2\").cast(\"double\").alias(\"FTE2\"),\n",
+					"    col(\"FTE\").cast(\"double\").alias(\"FTE\"),\n",
+					"    col(\"Wkhrs\").cast(\"double\").alias(\"Wkhrs\"),\n",
+					"    to_date(col(\"CivilServiceStart\"), \"d/M/yyyy\").alias(\"CivilServiceStart\"),\n",
+					"    to_date(col(\"DatetoCurrentJob\"), \"d/M/yyyy\").cast(\"string\").alias(\"DatetoCurrentJob\"),\n",
+					"    to_date(col(\"SeniorityDate\"), \"d/M/yyyy\").cast(\"string\").alias(\"SeniorityDate\"),    \n",
+					"    to_date(col(\"DatetoSubstGrade\"), \"d/M/yyyy\").alias(\"DatetoSubstGrade\"),\n",
+					"    to_date(col(\"OrgStartDate\"), \"d/M/yyyy\").alias(\"OrgStartDate\"),\n",
+					"    to_date(col(\"Birthdate\"), \"d/M/yyyy\").cast(\"string\").alias(\"Birthdate\"),\n",
+					"    # Add additional metadata fields\n",
+					"    current_date().cast(\"date\").alias(\"Report_MonthEnd_Date\"),\n",
+					"    current_date().alias(\"PDAC_ETL_Date\"),\n",
+					"    lit(\"SapHr\").alias(\"SourceSystemID\"),\n",
+					"    current_timestamp().alias(\"IngestionDate\"),\n",
+					"    current_date().cast(\"timestamp\").alias(\"ValidTo\"),\n",
+					"    md5(concat(*[coalesce(col(c).cast(\"string\"), lit(\"\")) for c in rowid_columns])).alias(\"RowID\"),\n",
+					"    lit(\"Y\").alias(\"IsActive\")\n",
+					")\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Overwrite delta table load_sap_hr_weekly"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Write data to target Delta Table\n",
+					"try:\n",
+					"    target_sap_hr_weekly_df.write.format(\"delta\").mode(\"overwrite\").save(delta_table_path)\n",
+					"\n",
+					"    # Ensure the table exists\n",
+					"    spark.sql(f\"CREATE TABLE IF NOT EXISTS {target_delta_table} USING DELTA LOCATION '{delta_table_path}'\")\n",
+					"\n",
+					"    logInfo(f\" Data successfully written to {target_delta_table}\")\n",
+					"\n",
+					"except Exception as e:\n",
+					"    logError(f\" Error writing to {target_delta_table}: {str(e)}\")\n",
+					"    raise\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"#spark.sql(f\"DROP TABLE IF EXISTS odw_harmonised_db.load_sap_hr_weekly\")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}

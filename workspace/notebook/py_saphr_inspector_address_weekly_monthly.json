@@ -1,0 +1,330 @@
+{
+	"name": "py_saphr_inspector_address_weekly_monthly",
+	"properties": {
+		"folder": {
+			"name": "odw-harmonised/saphr"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "dc6b51b0-5db4-49c5-8cf3-a2628ffe1030"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### The purpose of this pyspark notebook is to read Delta tables from owb_standarsied_db to owb_harmonisied_db and load all records as Delta tables along with metadata columns.\n",
+					"\n",
+					"**Author** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Created Date** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Description**  \n",
+					"Rohit Shukla &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;04-Mar-2025 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The functionality of this notebook is to Delta Table transform_inspector_address into owb-harmonisied_db layer. Following stored procedures have been reverse engineered &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;from MiPiNS using this notebook :\n",
+					"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 1. [sap_hr].[transform_inspector_addresses]\n",
+					"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 2. [sap_hr].[inspector_addresses]\n",
+					"\n",
+					"**Spark Cluster Configuration** -> Apache Spark Version- 3.4, Python Version \t\t- 3.10, Delta Lake Version \t- 2.4\n",
+					""
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Import all required Python Libraries"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"#import all libraries and initialise Spark Session\n",
+					"import calendar\n",
+					"from datetime import datetime, timedelta, date\n",
+					"import requests\n",
+					"import pyspark.sql.functions as F \n",
+					"import re\n",
+					"from notebookutils import mssparkutils\n",
+					"from pyspark.sql.functions import lit, current_timestamp, to_date ,expr, md5, col, date_format,when, to_date,current_date,concat,cast,regexp_replace,coalesce,concat_ws,row_number, to_timestamp\n",
+					"from pprint import pprint as pp\n",
+					"from pyspark.sql.types import *\n",
+					"from pyspark.sql.window import Window\n",
+					"from pyspark.sql import SparkSession\n",
+					"spark = SparkSession.builder.getOrCreate()\n",
+					"from delta.tables import DeltaTable\n",
+					"#ignore FutureWarning messages \n",
+					"import warnings\n",
+					"warnings.filterwarnings(\"ignore\", message=\"iteritems is deprecated\")\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Get storage account"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"#Get Storage account name\n",
+					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"print(storage_account)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Enable message logging"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Define all storage path"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Define delta table names, database name and table paths\n",
+					"source_database_name = \"odw_standardised_db\"\n",
+					"target_database_name = \"odw_harmonised_db\"\n",
+					"source_delta_table = f\"{source_database_name}.inspector_addresses\"\n",
+					"target_delta_table = f\"{target_database_name}.sap_hr_inspector_address\"\n",
+					"delta_table_path = f\"abfss://odw-harmonised@{storage_account}saphr/sap_hr_inspector_address\"\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### process all transformation"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"\n",
+					"# Step 1: Read source Delta Table\n",
+					"\n",
+					"src_spark_sql = f\"\"\"SELECT  StaffNumber,\n",
+					"                            StreetandHouseNumber,\n",
+					"                            2ndAddressLine,\n",
+					"                            City,\n",
+					"                            District,\n",
+					"                            PostalCode,\n",
+					"                            RegionStateProvinceCount AS Region,\n",
+					"                            TO_DATE(StartDate,'dd/MM/yyyy') AS StartDate,\n",
+					"                            TO_DATE('31/12/9999','dd/MM/yyyy') AS EndDate,\n",
+					"                            CASE \n",
+					"                            WHEN LENGTH(ChartingOfficer) = 6 THEN \n",
+					"                            CASE \n",
+					"                            WHEN ChartingOfficer LIKE '50%' THEN CONCAT('00', ChartingOfficer)\n",
+					"                            WHEN ChartingOfficer LIKE '42%' THEN CONCAT('50', ChartingOfficer)\n",
+					"                            ELSE ChartingOfficer\n",
+					"                            END\n",
+					"                            WHEN LENGTH(ChartingOfficer) = 8 THEN ChartingOfficer\n",
+					"                            ELSE ChartingOfficer\n",
+					"                            END AS ChartingOfficer,\n",
+					"                            CASE \n",
+					"                            WHEN ChartingOfficerforInspector ='' THEN NULL\n",
+					"                            ELSE ChartingOfficerforInspector\n",
+					"                            END AS ChartingOfficerforInspector,\n",
+					"                            SubsPSgroup,\n",
+					"                            TelNo AS Telephoneno,\n",
+					"                            NULL AS PersonalMobile,\n",
+					"                            WorkMobile,\n",
+					"                            MAX(TO_DATE(Chngdon,'dd/MM/yyyy')) AS Chngdon\n",
+					"                            FROM {source_delta_table} t1\n",
+					"                            WHERE TO_DATE(StartDate,'dd/MM/yyyy') = (SELECT MAX(TO_DATE(t2.StartDate,'dd/MM/yyyy'))\n",
+					"                                                FROM {source_delta_table} t2\n",
+					"                                                WHERE t2.StaffNumber = t1.StaffNumber\n",
+					"                                            )\n",
+					"                    GROUP BY\t    StaffNumber,\n",
+					"                                    StreetandHouseNumber,\n",
+					"                                    2ndAddressLine,\n",
+					"                                    City,\n",
+					"                                    District,\n",
+					"                                    PostalCode,\n",
+					"                                    RegionStateProvinceCount,\n",
+					"                                    TO_DATE(StartDate,'dd/MM/yyyy'),\n",
+					"                                    TO_DATE('31/12/9999','dd/MM/yyyy'),\n",
+					"                                    ChartingOfficer,\n",
+					"                                    ChartingOfficerforInspector,\n",
+					"                                    SubsPSgroup,\n",
+					"                                    TelNo,\n",
+					"                                    WorkMobile\"\"\"\n",
+					"\n",
+					"df_transform_inspector_address = spark.sql(src_spark_sql)\n",
+					"\n",
+					"# Add the RowID column to the DataFrame\n",
+					"rowid_columns = [c for c in df_transform_inspector_address.columns]\n",
+					"\n",
+					"# Convert RowID columns to hash values\n",
+					"rowid_expr = md5(concat_ws(\"|\", *[coalesce(col(c).cast(\"string\"), lit(\"\")) for c in rowid_columns]))\n",
+					"\n",
+					"# Add the RowID column to the DataFrame\n",
+					"df_transform_inspector_address = df_transform_inspector_address.withColumn(\"RowID\", rowid_expr)\n",
+					"\n",
+					"# Removing duplicate records using row_number\n",
+					"dedup_spec = Window.partitionBy(\"StaffNumber\").orderBy(to_date(col(\"Chngdon\"),'dd/MM/yyyy').desc())\n",
+					"df_transform_inspector_address = df_transform_inspector_address.withColumn(\"rn\", row_number().over(dedup_spec)).filter(\"rn == 1\").drop(\"rn\")\n",
+					"\n",
+					"df_tgt_inspector_address = spark.table(f\"{target_delta_table}\")\n",
+					"\n",
+					"# Update the existing records\n",
+					"df_update_records_inspector_address = df_transform_inspector_address.alias(\"src\").join(df_tgt_inspector_address.alias(\"tgt\"), on=\"StaffNumber\", how=\"inner\").select(\"src.*\").withColumn(\"SourceSystemID\", lit(\"SapHr\")).withColumn(\"IngestionDate\", current_timestamp()).withColumn(\"ValidFrom\", col(\"StartDate\")).withColumn(\"ValidTo\", to_timestamp(col(\"EndDate\"),\"yyyy-MM-dd HH:mm:ss.SSS\")).withColumn(\"IsActive\", lit('Y'))\n",
+					"\n",
+					"#Add new records\n",
+					"df_new_records_inspector_address = df_transform_inspector_address.join(\n",
+					"    df_tgt_inspector_address.select(\"StaffNumber\").withColumnRenamed(\"StaffNumber\", \"existing_StaffNumber\"),\n",
+					"    df_transform_inspector_address[\"StaffNumber\"] == col(\"existing_StaffNumber\"),\n",
+					"    how=\"left_anti\"\n",
+					").withColumn(\"SourceSystemID\", lit(\"SapHr\")).withColumn(\"IngestionDate\", current_timestamp()).withColumn(\"ValidFrom\", col(\"StartDate\")).withColumn(\"ValidTo\", to_timestamp(col(\"EndDate\"),\"yyyy-MM-dd HH:mm:ss.SSS\")).withColumn(\"IsActive\", lit('Y'))\n",
+					"\n",
+					"\n",
+					"df_merged_records_inspector_address = df_new_records_inspector_address.union(df_new_records_inspector_address).dropDuplicates()\n",
+					"\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Overwrite new records to target Delta Table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Write new records to target Delta Table\n",
+					"try:\n",
+					"    # Overwrite the entire delta table with transfored dataframe\n",
+					"    df_merged_records_inspector_address.write.format(\"delta\").mode(\"overwrite\").save(delta_table_path)\n",
+					"\n",
+					"\n",
+					"    logInfo(f\" Records overwritten successfully to {target_delta_table}\")\n",
+					"\n",
+					"except Exception as e:\n",
+					"    logError(f\" Error writing to {target_delta_table}: {str(e)}\")\n",
+					"    raise\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"\n",
+					"#spark.sql(f\"DROP TABLE IF EXISTS odw_harmonised_db.sap_hr_inspector_address\")\n",
+					"\n",
+					"#spark.sql(f\"delete from odw_harmonised_db.sap_hr_inspector_address\")\n",
+					"\n",
+					"\n",
+					""
+				],
+				"execution_count": null
+			}
+		]
+	}
+}

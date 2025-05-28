@@ -1,0 +1,247 @@
+{
+	"name": "py_live_dim_date",
+	"properties": {
+		"folder": {
+			"name": "odw-harmonised/saphr"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "6e2801a3-a4be-4bd2-96b3-d8a038655f9a"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### The purpose of this notebook is to read data from Standardised layer and build a table for Curated Layer.\n",
+					"\n",
+					"**Author** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   **Created Date** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Description**  \n",
+					"Prathap Adicherla &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;25-Feb-2025 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;This Notebook is designed to facilitate the dimension table. It includes steps for initializing the environment, creating and managing Delta tables, and inserting data into harmonized tables. The template ensures that dimension table is accurately transformed, stored, and made available for reporting and analysis."
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Entity Name : live_dim_date"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"try:\n",
+					"    spark.sql(\"\"\"SET spark.sql.legacy.timeParserPolicy = LEGACY;\"\"\")\n",
+					"    \n",
+					"    # Calculate expected date range\n",
+					"    logInfo(\"Calculating date range for dimension table\")\n",
+					"    date_range = spark.sql(\"\"\"\n",
+					"    SELECT \n",
+					"        to_date('2000-01-01') as start_date,\n",
+					"        date_add(\n",
+					"            last_day(\n",
+					"                add_months(\n",
+					"                    current_date(),\n",
+					"                    (YEAR(current_date()) + 4 - YEAR(current_date())) * 12 + 12 - MONTH(current_date())\n",
+					"                )\n",
+					"            ),\n",
+					"            1\n",
+					"        ) as end_date\n",
+					"    \"\"\").collect()[0]\n",
+					"    \n",
+					"    logInfo(f\"Date range will be from {date_range['start_date']} to {date_range['end_date']}\")\n",
+					"    \n",
+					"    # Truncate target table\n",
+					"    logInfo(\"Truncating existing data from live_dim_date\")\n",
+					"    spark.sql(\"DELETE FROM odw_harmonised_db.live_dim_date\")\n",
+					"    \n",
+					"    # Create temporary view with all dates\n",
+					"    logInfo(\"Creating temporary date sequence\")\n",
+					"    spark.sql(\"\"\"\n",
+					"    CREATE OR REPLACE TEMPORARY VIEW cte_Dates AS\n",
+					"    SELECT\n",
+					"        explode(\n",
+					"            sequence(\n",
+					"                to_date('2000-01-01'),\n",
+					"                date_add(\n",
+					"                    last_day(\n",
+					"                        add_months(\n",
+					"                            current_date(),\n",
+					"                            (YEAR(current_date()) + 4 - YEAR(current_date())) * 12 + 12 - MONTH(current_date())\n",
+					"                        )\n",
+					"                    ),\n",
+					"                    1\n",
+					"                )\n",
+					"            )\n",
+					"        ) AS calendar_date\n",
+					"    \"\"\")\n",
+					"    \n",
+					"    # Insert transformed dates into dimension table\n",
+					"    logInfo(\"Loading date dimension data\")\n",
+					"    spark.sql(\"\"\"\n",
+					"    INSERT INTO odw_harmonised_db.live_dim_date\n",
+					"    SELECT\n",
+					"        date_format(calendar_date, 'yyyyMMdd') AS dim_date_key,\n",
+					"        CAST(calendar_date AS DATE) AS date,\n",
+					"        day(calendar_date) AS day_int,\n",
+					"        date_format(calendar_date, 'E') AS day_name,\n",
+					"        month(calendar_date) AS month_int,\n",
+					"        trunc(calendar_date, 'MM') AS first_of_month,\n",
+					"        date_format(calendar_date, 'MMM') AS month_name,\n",
+					"        weekofyear(calendar_date) AS week_int,\n",
+					"        weekofyear(calendar_date) AS iso_week_int,\n",
+					"        date_format(calendar_date, 'u') AS day_of_week_int,\n",
+					"        quarter(calendar_date) AS quarter_int,\n",
+					"        concat('Q', quarter(calendar_date)) AS quarter_name,\n",
+					"        year(calendar_date) AS year_int,\n",
+					"        trunc(calendar_date, 'YEAR') AS first_of_year,\n",
+					"        date_add(next_day(calendar_date, 'Sun'), -1) AS week_ending_date,\n",
+					"        CASE\n",
+					"            WHEN month(calendar_date) > 3 AND year(calendar_date) = year(current_date()) THEN 'Current'\n",
+					"            WHEN month(calendar_date) <= 3 AND year(calendar_date) = year(current_date()) + 1 THEN 'Current'\n",
+					"            WHEN month(calendar_date) > 3 AND year(calendar_date) = year(current_date()) - 1 THEN 'Previous'\n",
+					"            WHEN month(calendar_date) <= 3 AND year(calendar_date) = year(current_date()) THEN 'Previous'\n",
+					"            ELSE NULL\n",
+					"        END AS financial_year,\n",
+					"        CASE\n",
+					"            WHEN month(calendar_date) > 3 THEN year(calendar_date)\n",
+					"            WHEN month(calendar_date) <= 3 THEN year(calendar_date) - 1\n",
+					"        END AS FY_yyyy,\n",
+					"        year(calendar_date) AS week_ending_year,\n",
+					"        quarter(week_ending_date) AS week_ending_quarter_int,\n",
+					"        concat('Q', quarter(week_ending_date)) AS week_ending_quarter_name,\n",
+					"        month(week_ending_date) AS week_ending_month_int,\n",
+					"        date_format(week_ending_date, 'MMM') AS week_ending_month_name,\n",
+					"        day(week_ending_date) AS week_ending_day,\n",
+					"        date_format(calendar_date, 'yyyyMM') AS MonthYearSortKey,\n",
+					"        concat(date_format(calendar_date, 'MMM'), ' - ', right(date_format(calendar_date, 'yyyy'), 2)) AS MonthYear,\n",
+					"        concat(\n",
+					"            CAST(CASE WHEN month(calendar_date) > 3 THEN year(calendar_date) ELSE year(calendar_date) - 1 END AS STRING),\n",
+					"            '-',\n",
+					"            right(CAST(CASE WHEN month(calendar_date) > 3 THEN year(calendar_date) + 1 ELSE year(calendar_date) END AS STRING), 2)\n",
+					"        ) AS FY,\n",
+					"        coalesce(\n",
+					"            CASE\n",
+					"                WHEN month(calendar_date) > 3 AND year(calendar_date) = year(current_date()) THEN 'Current'\n",
+					"                WHEN month(calendar_date) <= 3 AND year(calendar_date) = year(current_date()) + 1 THEN 'Current'\n",
+					"                WHEN month(calendar_date) > 3 AND year(calendar_date) = year(current_date()) - 1 THEN 'Previous'\n",
+					"                WHEN month(calendar_date) <= 3 AND year(calendar_date) = year(current_date()) THEN 'Previous'\n",
+					"                ELSE NULL\n",
+					"            END,\n",
+					"            concat(\n",
+					"                CAST(CASE WHEN month(calendar_date) > 3 THEN year(calendar_date) ELSE year(calendar_date) - 1 END AS STRING),\n",
+					"                '-',\n",
+					"                right(CAST(CASE WHEN month(calendar_date) > 3 THEN year(calendar_date) + 1 ELSE year(calendar_date) END AS STRING), 2)\n",
+					"            )\n",
+					"        ) AS FY_Latest,\n",
+					"        CASE\n",
+					"            WHEN month(calendar_date) = month(current_date()) AND year(calendar_date) = year(current_date()) THEN 'Current'\n",
+					"            WHEN month(calendar_date) = 12 AND month(current_date()) = 1 AND year(calendar_date) = year(current_date()) - 1 THEN 'Previous'\n",
+					"            WHEN month(calendar_date) = month(current_date()) - 1 AND year(calendar_date) = year(current_date()) THEN 'Previous'\n",
+					"            ELSE concat(date_format(calendar_date, 'MMM'), ' - ', right(date_format(calendar_date, 'yyyy'), 2))\n",
+					"        END AS FY_MonthYearLatest,\n",
+					"        CASE\n",
+					"            WHEN month(calendar_date) IN (4, 5, 6) THEN 'Q1'\n",
+					"            WHEN month(calendar_date) IN (7, 8, 9) THEN 'Q2'\n",
+					"            WHEN month(calendar_date) IN (10, 11, 12) THEN 'Q3'\n",
+					"            WHEN month(calendar_date) IN (1, 2, 3) THEN 'Q4'\n",
+					"        END AS FY_Quarter,\n",
+					"        -1 * CASE\n",
+					"            WHEN month(calendar_date) > 3 THEN year(calendar_date)\n",
+					"            WHEN month(calendar_date) <= 3 THEN year(calendar_date) - 1\n",
+					"        END AS FY_Latest_SortKey,\n",
+					"        date_add(date_add(next_day(calendar_date, 'Sun'), -1), -6) AS week_starting_date\n",
+					"    FROM cte_Dates\n",
+					"    \"\"\")\n",
+					"    \n",
+					"    # Verify the load was successful\n",
+					"    loaded_count = spark.sql(\"SELECT COUNT(*) as count FROM odw_harmonised_db.live_dim_date\").collect()[0]['count']\n",
+					"    expected_days = (date_range['end_date'] - date_range['start_date']).days\n",
+					"    \n",
+					"    logInfo(f\"Successfully loaded {loaded_count} date records\")\n",
+					"    logInfo(f\"Expected approximately {expected_days} days in date range\")\n",
+					"    \n",
+					"    if loaded_count < expected_days * 0.9 or loaded_count > expected_days * 1.1:\n",
+					"        logWarning(f\"Potential data issue: Loaded {loaded_count} records when expecting ~{expected_days}\")\n",
+					"    else:\n",
+					"        logInfo(\"Record count within expected range\")\n",
+					"    \n",
+					"    logInfo(\"Date dimension refresh completed successfully\")\n",
+					"\n",
+					"except Exception as e:\n",
+					"    # Log the exception in detail\n",
+					"    logError(f\"Error during date dimension refresh: {str(e)}\")\n",
+					"    logException(e)\n",
+					"    \n",
+					"    # Re-raise the exception to ensure the notebook fails properly\n",
+					"    raise e\n",
+					"finally:\n",
+					"    # Always flush logs regardless of success or failure\n",
+					"    logInfo(\"Flushing logs\")\n",
+					"    flushLogging()"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
