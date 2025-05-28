@@ -1,0 +1,170 @@
+{
+	"name": "rel_12_0_0_appeal_event_estimate",
+	"properties": {
+		"activities": [
+			{
+				"name": "add_appeal_event_estimate_entry",
+				"type": "SynapseNotebook",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "manage_main_pipeline_config_entry",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"new_entity_key": {
+							"value": "29",
+							"type": "int"
+						},
+						"system_name": {
+							"value": "Service bus",
+							"type": "string"
+						},
+						"object_name": {
+							"value": "Appeal Event Estimate",
+							"type": "string"
+						},
+						"entity_name": {
+							"value": "appeal-event-estimate",
+							"type": "string"
+						},
+						"is_enabled": {
+							"value": false,
+							"type": "bool"
+						}
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "create_standardised_table",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "add_appeal_event_estimate_entry",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "create_table_from_schema",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"db_name": {
+							"value": "odw_standardised_db",
+							"type": "string"
+						},
+						"entity_name": {
+							"value": "sb_appeal_event_estimate",
+							"type": "string"
+						}
+					},
+					"snapshot": true
+				}
+			},
+			{
+				"name": "create_harmonised_table",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "create_standardised_table",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "create_table_from_schema",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"db_name": {
+							"value": "odw_harmonised_db",
+							"type": "string"
+						},
+						"entity_name": {
+							"value": "sb_appeal_event_estimate",
+							"type": "string"
+						}
+					},
+					"snapshot": true
+				}
+			},
+			{
+				"name": "create_curated_table",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "create_harmonised_table",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "create_table_from_schema",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"db_name": {
+							"value": "odw_curated_db",
+							"type": "string"
+						},
+						"entity_name": {
+							"value": "appeal_event_estimate",
+							"type": "string"
+						}
+					},
+					"snapshot": true
+				}
+			}
+		],
+		"folder": {
+			"name": "Releases/12.0.0"
+		},
+		"annotations": []
+	}
+}
