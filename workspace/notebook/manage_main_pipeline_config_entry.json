@@ -377,3 +377,382 @@
 		]
 	}
 }
+{
+	"name": "manage_main_pipeline_config_entry",
+	"properties": {
+		"folder": {
+			"name": "utils"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "e6a6d32a-fa26-482f-9ab7-65645f56fdb1"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Notebook: manage_main_pipeline_config_entry\n",
+					"\n",
+					"# manage_main_pipeline_config\n",
+					"\n",
+					"This notebook allows controlled insertion of new entities into `main_pipeline_config` used by the ODW ingestion pipeline.\n",
+					"\n",
+					"⚠️ Do not run the notebook end to end ⚠️ Only run the cells that are needed to be run \n",
+					"\n",
+					"It provides a parameter-driven approach to:\n",
+					"- View current max `System_key` & next available key\n",
+					"- Insert new rows safely\n",
+					"- Confirm the row was added\n",
+					"- Enable/Disable the entity\n",
+					"- List all the entities\n",
+					"- Delete an entity\n",
+					"\n",
+					"⚠️ Set `is_enabled = False` ⚠️ during first insert if the corresponding Function App endpoint does not exist yet.\n",
+					"\n",
+					"\n",
+					"## Purpose\n",
+					"- Add a **new Service Bus entity** with a unique `System_key`\n",
+					"- Avoid overwriting existing entries (unlike the legacy `CREATE OR REPLACE` approach)\n",
+					"- Toggle `is_enabled` for specific entities (once their Function Apps are deployed)\n",
+					"- Validate inserts with clean, parameter-driven logic\n",
+					"\n",
+					"## How to Use\n",
+					"1. Set the parameters in the cell below.\n",
+					"2. Run the cells to insert and verify the entry.\n",
+					"3. After Function App deployment, return to update `is_enabled = true` if needed.\n",
+					""
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Set Parameters"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"tags": [
+						"parameters"
+					]
+				},
+				"source": [
+					"# Set the details of the new entity below\n",
+					"\n",
+					"# Example:\n",
+					"# new_entity_key = 28\n",
+					"# system_name = \"Service bus\"\n",
+					"# object_name = \"Appeal Event Estimate\"\n",
+					"# entity_name = \"appeal-event-estimate\"\n",
+					"# is_enabled = False  # Set to True only after Function App is deployed\n",
+					"\n",
+					"\n",
+					"new_entity_key =  0 # Run next cell to get the next available key\n",
+					"system_name = \"\"\n",
+					"object_name = \"\"\n",
+					"entity_name = \"\"\n",
+					"is_enabled = False  # Use the update cell at the bottom to enable it once function app is deployed using true"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Get Current Max Key"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"# Get current max key from main_pipeline_config\n",
+					"max_key_df = spark.sql(\"\"\"\n",
+					"    SELECT MAX(System_key) AS max_key\n",
+					"    FROM odw_config_db.main_pipeline_config\n",
+					"\"\"\")\n",
+					"\n",
+					"max_key = max_key_df.collect()[0][\"max_key\"] or 0\n",
+					"next_key = max_key + 1\n",
+					"\n",
+					"print(f\"Current max key: {max_key}\")\n",
+					"print(f\"Next available key: {next_key}\")\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Insert New Entry"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"# Safety check\n",
+					"assert all([new_entity_key, system_name, object_name, entity_name]), \"Please fill in all parameters before inserting.\"\n",
+					"\n",
+					"# Check existence before attempting insert\n",
+					"existing_entry = spark.sql(f\"\"\"\n",
+					"    SELECT * FROM odw_config_db.main_pipeline_config\n",
+					"    WHERE entity_name = '{entity_name}' OR System_key = {new_entity_key}\n",
+					"\"\"\")\n",
+					"\n",
+					"if existing_entry.count() > 0:\n",
+					"    print(f\"Skipped insert either entity '{entity_name}' or System_key '{new_entity_key}' already exists\")\n",
+					"    display(existing_entry)\n",
+					"else:\n",
+					"    # Only merge if it's safe to insert\n",
+					"    merge_sql = f\"\"\"\n",
+					"    MERGE INTO odw_config_db.main_pipeline_config AS target\n",
+					"    USING (\n",
+					"        SELECT {new_entity_key} AS System_key,\n",
+					"               '{system_name}' AS System_name,\n",
+					"               '{object_name}' AS Object,\n",
+					"               '{entity_name}' AS entity_name,\n",
+					"               {str(is_enabled).lower()} AS is_enabled\n",
+					"    ) AS source\n",
+					"    ON target.System_key = source.System_key OR target.entity_name = source.entity_name\n",
+					"    WHEN NOT MATCHED THEN\n",
+					"      INSERT (System_key, System_name, Object, entity_name, is_enabled)\n",
+					"      VALUES (source.System_key, source.System_name, source.Object, source.entity_name, source.is_enabled)\n",
+					"    \"\"\"\n",
+					"    spark.sql(merge_sql)\n",
+					"    print(f\"Entity '{entity_name}' successfully inserted with System_key = {new_entity_key}\")\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Validate Insert"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"# Confirm the new entity exists\n",
+					"spark.sql(f\"\"\"\n",
+					"SELECT *\n",
+					"FROM odw_config_db.main_pipeline_config\n",
+					"WHERE entity_name = '{entity_name}'\n",
+					"\"\"\").show()\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### ⚠️Toggle Enablement (Once Function App is deployed)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Set is_enable = true so the pipeline can pick it up\n",
+					"spark.sql(f\"\"\"\n",
+					"UPDATE odw_config_db.main_pipeline_config\n",
+					"SET is_enabled = true\n",
+					"WHERE entity_name = '{entity_name}'\n",
+					"\"\"\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Confirm the update"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"spark.sql(f\"\"\"\n",
+					"SELECT System_key, System_name, Object, entity_name, is_enabled\n",
+					"FROM odw_config_db.main_pipeline_config\n",
+					"WHERE entity_name = '{entity_name}'\n",
+					"\"\"\").show()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### List all entities in main_pipeline_config"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"spark.sql(\"\"\"\n",
+					"SELECT \n",
+					"    System_key, \n",
+					"    System_name, \n",
+					"    Object, \n",
+					"    entity_name, \n",
+					"    is_enabled\n",
+					"FROM odw_config_db.main_pipeline_config\n",
+					"ORDER BY System_key\n",
+					"\"\"\").show(n=100, truncate=False)\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### ⚠️Delete an Entity from main_pipeline_config"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"entity_to_delete = \"<your-entity-name-here>\"\n",
+					"\n",
+					"assert entity_to_delete, \"You must specify an entity name\"\n",
+					"\n",
+					"\n",
+					"exists_check = spark.sql(f\"\"\"\n",
+					"    SELECT *\n",
+					"    FROM odw_config_db.main_pipeline_config\n",
+					"    WHERE entity_name = '{entity_to_delete}'\n",
+					"\"\"\")\n",
+					"\n",
+					"if exists_check.count() == 0:\n",
+					"    print(f\"No entry found for entity '{entity_to_delete}'\")\n",
+					"else:\n",
+					"    print(\"Entity found\")\n",
+					"    exists_check.show()\n",
+					"\n",
+					"    # Confirm deletion before proceeding\n",
+					"    confirm_delete = False  # CHANGE TO True if you're absolutely sure\n",
+					"\n",
+					"    if confirm_delete:\n",
+					"        spark.sql(f\"\"\"\n",
+					"            DELETE FROM odw_config_db.main_pipeline_config\n",
+					"            WHERE entity_name = '{entity_to_delete}'\n",
+					"        \"\"\")\n",
+					"        print(f\"Entity '{entity_to_delete}' has been deleted.\")\n",
+					"    else:\n",
+					"        print(\"Delete cancelled. Set confirm_delete = True to proceed.\")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
