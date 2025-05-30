@@ -1,0 +1,170 @@
+{
+	"name": "pln_delta_backup_odw",
+	"properties": {
+		"activities": [
+			{
+				"name": "delta_directories",
+				"description": "Backup delta directories ",
+				"type": "SynapseNotebook",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "delta_back_odw_validate",
+						"type": "NotebookReference"
+					},
+					"snapshot": true,
+					"sparkPool": {
+						"referenceName": "pinssynspodw34",
+						"type": "BigDataPoolReference"
+					},
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "ForEach_NondeltaFiles",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "delta_directories",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@json(activity('delta_directories').output.status.Output.result.exitValue).non_delta_file_list\n",
+						"type": "Expression"
+					},
+					"isSequential": false,
+					"batchCount": 10,
+					"activities": [
+						{
+							"name": "dynamic_copy_data",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.00:30:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "BinarySource",
+									"storeSettings": {
+										"type": "AzureBlobFSReadSettings",
+										"recursive": true,
+										"deleteFilesAfterCompletion": false
+									},
+									"formatSettings": {
+										"type": "BinaryReadSettings"
+									}
+								},
+								"sink": {
+									"type": "BinarySink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings",
+										"copyBehavior": "PreserveHierarchy"
+									}
+								},
+								"enableStaging": false
+							},
+							"inputs": [
+								{
+									"referenceName": "ds_delta_backup_source",
+									"type": "DatasetReference",
+									"parameters": {
+										"source_container_name": {
+											"value": "@split(split(item(), '://')[1], '@')[0]",
+											"type": "Expression"
+										},
+										"source_table_name": {
+											"value": "@last(split(item(), '.net/'))\n\n",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "ds_delta_backup",
+									"type": "DatasetReference",
+									"parameters": {
+										"container_name": {
+											"value": "@pipeline().parameters.target_container",
+											"type": "Expression"
+										},
+										"table_name": {
+											"value": "@last(split(item(), '.net/'))",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"target_container": {
+				"type": "string",
+				"defaultValue": "delta-backup-container"
+			}
+		},
+		"variables": {
+			"file_path_array": {
+				"type": "Array"
+			},
+			"file_name": {
+				"type": "String"
+			},
+			"container_name": {
+				"type": "String"
+			},
+			"storage_account_name": {
+				"type": "String"
+			},
+			"table_name": {
+				"type": "String"
+			},
+			"Key_Vault_Url": {
+				"type": "String"
+			},
+			"Key_Vault_API": {
+				"type": "String",
+				"defaultValue": "?api-version=7.0"
+			},
+			"resource_group": {
+				"type": "String"
+			},
+			"subscription_id": {
+				"type": "String"
+			},
+			"path_list": {
+				"type": "String"
+			}
+		},
+		"folder": {
+			"name": "distaster recovery"
+		},
+		"annotations": []
+	}
+}
