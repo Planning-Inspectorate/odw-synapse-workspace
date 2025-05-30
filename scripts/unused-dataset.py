@@ -28,7 +28,7 @@ def extract_datasets_from_pipeline_file(pipeline_file):
         try:
             data = json.load(f)
         except json.JSONDecodeError:
-            print(f"⚠️ Skipping invalid JSON: {pipeline_file}")
+            print(f" Skipping invalid JSON: {pipeline_file}")
             return datasets
 
     activities = data.get("properties", {}).get("activities", [])
@@ -59,14 +59,14 @@ def archive_unused_datasets(unused_datasets, dataset_dir):
     for ds in sorted(unused_datasets):
         file_path = os.path.join(dataset_dir, f"{ds}.json")
         if not os.path.exists(file_path):
-            print(f"❌ Not found: {ds}.json")
+            print(f" Not found: {ds}.json")
             continue
 
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 content = json.load(f)
         except json.JSONDecodeError:
-            print(f"⚠️ Invalid JSON: {ds}.json")
+            print(f" Invalid JSON: {ds}.json")
             continue
 
         changed = False
@@ -91,7 +91,7 @@ def archive_unused_datasets(unused_datasets, dataset_dir):
         if changed:
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(content, f, indent=4)
-            print(f"✅ Archived: {ds}.json")
+            print(f" Archived: {ds}.json")
         else:
             print(f"⏭️ Already archived: {ds}.json")
 
@@ -100,7 +100,7 @@ def main():
     dataset_dir = "workspace/dataset"
 
     if not os.path.exists(pipeline_dir) or not os.path.exists(dataset_dir):
-        print("❌ One or more required folders not found.")
+        print(" One or more required folders not found.")
         return
 
     print("🔍 Collecting datasets used in pipelines...")
@@ -112,7 +112,7 @@ def main():
     used = all_datasets & pipeline_datasets
     unused = all_datasets - pipeline_datasets
 
-    print("\n✅ USED DATASETS:")
+    print("\n USED DATASETS:")
     for ds in sorted(used):
         print(f"   {ds}")
 
