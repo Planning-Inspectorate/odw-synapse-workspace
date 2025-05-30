@@ -1,9 +1,9 @@
 import pytest
-import pipelineutils
-import constants
+import workspace.testing.util.pipelineutils as pipelineutils
+import workspace.testing.util.constants as constants
 import warnings
 
-def test_function_gettimesheets(credential_name, azure_credential, synapse_endpoint: str):
+def test_function_getdart_pipeline(credential_name, azure_credential, synapse_endpoint: str):
     warnings.filterwarnings("ignore", category=DeprecationWarning) 
 
     # run the pipeline
@@ -11,14 +11,14 @@ def test_function_gettimesheets(credential_name, azure_credential, synapse_endpo
     
     pipeline_raw_params = {
             "function_name": 
-                 "gettimesheets"
+                 "getDaRT"
     }       
     
 
     #run the pipeline
     pipeline_run_result = pipelineutils.run_and_observe_pipeline(credential_name, azure_credential, synapse_endpoint, pipelinename, pipeline_raw_params)
     assert pipeline_run_result == constants.PIPELINE_SUCCESS_STATUS
-    print("test_function_gettimesheets_pipeline Completed")
+    print("test_function_getdart_pipeline Completed")
 
 
 @pytest.fixture(autouse=True)

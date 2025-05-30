@@ -1,21 +1,21 @@
 import pytest
-import pipelineutils
-import constants
+import workspace.testing.util.pipelineutils as pipelineutils
+import testing.util.constants as constants
 import warnings
 
-def test_pins_lpa_curated(credential_name, azure_credential, synapse_endpoint: str):
+def test_nsip_project_notebook(credential_name, azure_credential, synapse_endpoint: str):
 
     warnings.filterwarnings("ignore", category=DeprecationWarning) 
 
     # run the testing notebook
-    notebookname: str = "py_unit_tests_pins_lpa_curated"
+    notebookname: str = "py_unit_tests_nsip_project"
     
     notebook_raw_params = {
         "notebook": notebookname,
         "parameters": {
             "entity_name": {
                "type": "String",
-               "value": "pins-lpa",
+               "value": "nsip-project",
             },
             "std_db_name": {
                "type": "String",
@@ -31,16 +31,36 @@ def test_pins_lpa_curated(credential_name, azure_credential, synapse_endpoint: s
             },
             "std_table_name": {
                "type": "String",
-               "value": "pins_lpa",
+               "value": "sb_nsip_project",
             },
             "hrm_table_name": {
                "type": "String",
-               "value": "pins_lpa",
+               "value": "sb_nsip_project",
+            },
+            "hrm_table_final": {
+               "type": "String",
+               "value": "nsip_project",
             },
             "curated_table_name": {
                "type": "String",
-               "value": "pins_lpa",
+               "value": "nsip_project",
             },
+            "curated_db_migration_name": {
+               "type": "String",
+               "value": "odw_curated_migration_db",
+            },
+            "curated_table_migration_name": {
+               "type": "String",
+               "value": "nsip_project",
+            },
+            "primary_key": {
+               "type": "String",
+               "value": "caseId",
+            },
+            "migration_primary_key": {
+               "type": "String",
+               "value": "caseReference",
+            }
         }
     }
     notebook_raw_params.update(constants.SPARK_POOL_CONFIG)
@@ -50,7 +70,7 @@ def test_pins_lpa_curated(credential_name, azure_credential, synapse_endpoint: s
     print("Notebook response *" +str(exitMessage) +"*")
     assert notebook_run_result == constants.NOTEBOOK_SUCCESS_STATUS 
     assert exitMessage == constants.NOTEBOOK_EXIT_CODE_SUCCESS
-    print("test_pins_lpa_curated Completed")
+    print("test_nsip_project Completed")
 
 @pytest.fixture(autouse=True)
 def run_before_and_after_tests():

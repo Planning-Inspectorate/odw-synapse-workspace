@@ -1,6 +1,6 @@
 import pytest
-import pipelineutils
-import constants
+import workspace.testing.util.pipelineutils as pipelineutils
+import testing.util.constants as constants
 import warnings
 
 def test_nsip_s51_advice_notebook(credential_name, azure_credential, synapse_endpoint: str):
