@@ -56,7 +56,7 @@ def extract_datasets_from_pipeline_file(pipeline_file):
         try:
             data = json.load(f)
         except json.JSONDecodeError:
-            print(f"⚠️ Skipping invalid JSON: {pipeline_file}")
+            print(f" Skipping invalid JSON: {pipeline_file}")
             return set()
     datasets = set()
     activities = data.get("properties", {}).get("activities", [])
@@ -79,7 +79,7 @@ def update_dataset_paths_in_place(unused_datasets, dataset_dir, dataset_to_pipel
     for dataset in unused_datasets:
         file_path = os.path.join(dataset_dir, f"{dataset}.json")
         if not os.path.exists(file_path):
-            print(f"❌ File not found: {file_path}")
+            print(f" File not found: {file_path}")
             continue
 
         # Determine if any associated pipeline is still active
@@ -93,7 +93,7 @@ def update_dataset_paths_in_place(unused_datasets, dataset_dir, dataset_to_pipel
             try:
                 content = json.load(f)
             except json.JSONDecodeError:
-                print(f"⚠️ Invalid JSON in: {file_path}")
+                print(f"Invalid JSON in: {file_path}")
                 continue
 
         changed = False
@@ -126,7 +126,7 @@ def update_dataset_paths_in_place(unused_datasets, dataset_dir, dataset_to_pipel
         if changed:
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(content, f, indent=4)
-            print(f"{'✅ Archived' if should_archive else '♻️ Unarchived'}: {dataset}.json")
+            print(f"{' Archived' if should_archive else ' Unarchived'}: {dataset}.json")
 
 def main():
     pipeline_dir = "workspace/pipeline"
@@ -134,7 +134,7 @@ def main():
     master_pipeline_file = os.path.join(pipeline_dir, "pln_master.json")
 
     if not os.path.exists(master_pipeline_file):
-        print("❌ Master pipeline not found.")
+        print(" Master pipeline not found.")
         return
 
     used_pipelines = set(extract_used_pipelines(master_pipeline_file, pipeline_dir))
@@ -145,7 +145,7 @@ def main():
 
     unused_datasets = get_datasets_from_unused_pipelines(pipeline_dir, unused_pipelines)
 
-    print(f"\n📦 Datasets used only in unused pipelines ({len(unused_datasets)}):")
+    print(f"\n Datasets used only in unused pipelines ({len(unused_datasets)}):")
     for ds in sorted(unused_datasets):
         print(f"- {ds}")
 
