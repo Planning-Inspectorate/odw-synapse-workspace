@@ -1,6 +1,6 @@
 from azure.identity import ClientSecretCredential
 from azure.storage.filedatalake import DataLakeServiceClient
-import constants
+import workspace.testing.util.constants as constants
 from io import BytesIO
 import pandas as pd
 

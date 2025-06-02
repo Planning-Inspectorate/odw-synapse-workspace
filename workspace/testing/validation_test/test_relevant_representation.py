@@ -1,21 +1,21 @@
 import pytest
-import pipelineutils
-import constants
+import workspace.testing.util.pipelineutils as pipelineutils
+import testing.util.constants as constants
 import warnings
 
-def test_appeal_event_notebook(credential_name, azure_credential, synapse_endpoint: str):
+def test_relevant_representation_notebook(credential_name, azure_credential, synapse_endpoint: str):
 
     warnings.filterwarnings("ignore", category=DeprecationWarning) 
 
     # run the testing notebook
-    notebookname: str = "py_unit_tests_appeals_events"
+    notebookname: str = "py_unit_tests_relevant_representation"
     
     notebook_raw_params = {
         "notebook": notebookname,
         "parameters": {
             "entity_name": {
                "type": "String",
-               "value": "appeal-event",
+               "value": "nsip-representation",
             },
             "std_db_name": {
                "type": "String",
@@ -29,17 +29,33 @@ def test_appeal_event_notebook(credential_name, azure_credential, synapse_endpoi
                "type": "String",
                "value": "odw_curated_db",
             },
+            "curated_migration_db_name": {
+               "type": "String",
+               "value": "odw_curated_migration_db",
+            },
             "std_table_name": {
                "type": "String",
-               "value": "sb_appeal_event",
+               "value": "sb_nsip_representation",
             },
             "hrm_table_name": {
                "type": "String",
-               "value": "sb_appeal_event",
+               "value": "sb_nsip_representation",
+            },
+            "hrm_table_final": {
+               "type": "String",
+               "value": "nsip_representation",
             },
             "curated_table_name": {
                "type": "String",
-               "value": "appeal_event",
+               "value": "nsip_representation",
+            },
+            "std_hzn_table_name": {
+               "type": "String",
+               "value": "horizon_nsip_relevant_representation",
+            },
+            "curated_migration_table_name": {
+               "type": "String",
+               "value": "nsip_representation",
             }
         }
     }
@@ -50,7 +66,7 @@ def test_appeal_event_notebook(credential_name, azure_credential, synapse_endpoi
     print("Notebook response *" +str(exitMessage) +"*")
     assert notebook_run_result == constants.NOTEBOOK_SUCCESS_STATUS 
     assert exitMessage == constants.NOTEBOOK_EXIT_CODE_SUCCESS
-    print("test_appeal_event Completed")
+    print("test_relevant_representation Completed")
 
 @pytest.fixture(autouse=True)
 def run_before_and_after_tests():
