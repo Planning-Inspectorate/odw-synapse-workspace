@@ -144,3 +144,8 @@ variable "vnet_subnet_ids_failover" {
   description = "A map of subnet names and IDs comprising the linked Virtual Network"
   type        = map(string)
 }
+
+variable "external_resource_links_enabled" {
+  description = "If connections and links to resources outside of the ODW should be made"
+  type        = bool
+}

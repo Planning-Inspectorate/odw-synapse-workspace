@@ -34,7 +34,7 @@ build {
     image_sku       = "20_04-lts"
 
     location        = "UK South"
-    vm_size         = "Standard_DS2_v2"
+    vm_size         = "Standard_F2s_v2"
   }
 
   provisioner "shell" {

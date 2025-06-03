@@ -61,3 +61,8 @@ variable "vnet_subnet_ids" {
   description = "A map of subnet names and IDs comprising the linked Virtual Network"
   type        = map(string)
 }
+
+variable "run_shir_setup_script" {
+  description = "If the SHIR setup script should be triggered on start-up of the VM"
+  type        = bool
+}

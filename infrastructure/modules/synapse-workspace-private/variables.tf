@@ -44,14 +44,13 @@ variable "key_vault_name" {
   type        = string
 }
 
-variable "odt_appeals_back_office_service_bus_name" {
-  description = "The name of the Appeals BO Service Bus namespace"
-  type        = string
-  default     = null
+variable "create_service_bus_resources" {
+  description = "If we should create extra resources related to the service bus"
+  type        = bool
+  default     = false
 }
-
-variable "odt_appeals_back_office_service_bus_resource_group_name" {
-  description = "The name of the resource group for the Appeals BO Service Bus"
+variable "odt_appeals_back_office_service_bus_id" {
+  description = "The id of the Appeals BO Service Bus namespace"
   type        = string
   default     = null
 }

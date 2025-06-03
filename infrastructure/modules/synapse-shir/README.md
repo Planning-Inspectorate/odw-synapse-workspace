@@ -2,11 +2,15 @@
 This module provisions an VM to work as a Self-Hosted Integration Runtime for Synapse.
 
 ### Table of Contents
-1. [Usage](#usage)
-2. [Requirements](#requirements)
-3. [Providers](#Providers)
-4. [Inputs](#inputs)
-5. [Outputs](#outputs)
+- [Synapse Self-Hosted Integration Runtime](#synapse-self-hosted-integration-runtime)
+    - [Table of Contents](#table-of-contents)
+  - [Usage](#usage)
+  - [Requirements](#requirements)
+  - [Providers](#providers)
+  - [Modules](#modules)
+  - [Resources](#resources)
+  - [Inputs](#inputs)
+  - [Outputs](#outputs)
 
 ## Usage
 
@@ -62,6 +66,7 @@ No requirements.
 | <a name="input_synapse_workspace_id"></a> [synapse\_workspace\_id](#input\_synapse\_workspace\_id) | The ID of the Synapse Workspace to register the self-hosted integration runtime with | `string` | n/a | yes |
 | <a name="input_tags"></a> [tags](#input\_tags) | A collection of tags to assign to taggable resources | `map(string)` | `{}` | no |
 | <a name="input_vnet_subnet_ids"></a> [vnet\_subnet\_ids](#input\_vnet\_subnet\_ids) | A map of subnet names and IDs comprising the linked Virtual Network | `map(string)` | n/a | yes |
+| <a name="input_run_shir_setup_script"></a> [run\_shir\_setup\_script](#input\_run\_shir\_setup\_script) | If the SHIR setup script should be triggered on start-up of the VM | `bool` | n/a | yes |
 
 ## Outputs
 

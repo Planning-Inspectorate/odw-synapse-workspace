@@ -26,4 +26,24 @@ locals {
       ModuleName = local.module_name
     }
   )
+
+  external_vnet_subnet_ids = var.external_resource_links_enabled ? [data.azurerm_subnet.horizon_database[0].id] : []
+
+  azurerm_key_vault_synapse_vnet_subnet_ids = concat(
+    [
+      var.vnet_subnet_ids[var.devops_agent_subnet_name],
+      var.vnet_subnet_ids_failover[var.devops_agent_subnet_name]
+    ],
+    local.external_vnet_subnet_ids
+  )
+
+  azurerm_synapse_vnet_subnet_ids = concat(
+    [
+      var.vnet_subnet_ids[var.devops_agent_subnet_name],
+      var.vnet_subnet_ids_failover[var.devops_agent_subnet_name],
+      var.vnet_subnet_ids[var.function_app_subnet_name],
+      var.vnet_subnet_ids_failover[var.function_app_subnet_name]
+    ],
+    local.external_vnet_subnet_ids
+  )
 }

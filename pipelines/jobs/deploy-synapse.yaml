@@ -19,6 +19,8 @@ jobs:
   - name: artifactName
     value: 'synapse-release'
   - name: synapseTriggers 
+    ${{ if eq(parameters.env , 'build') }}: 
+      value: ''
     ${{ if eq(parameters.env , 'dev') }}: 
       value: 'tr_daily_weekdays_1500,tr_backup_daily,tr_weekly,tr_delta_backup_daily_0800,tr_delta_backup_daily_0900' 
     ${{ if eq(parameters.env , 'test') }}:
@@ -99,7 +101,7 @@ jobs:
   
   # Re-enable triggers in the target Synapse Workspace
   - task: AzureSynapseWorkspace.synapsecicd-deploy.toggle-trigger.toggle-triggers-dev@2
-    condition: succeededOrFailed()
+    condition: and(succeededOrFailed(), ne(variables.synapseTriggers, ''))
     displayName: 'Enable Synapse Triggers'
     inputs:
       azureSubscription: ${{ parameters.armServiceConnectionName }}

@@ -2,11 +2,15 @@
 This module deploys a Synapse Workspace with private virtual network enabled. Private endpoints are established and provisioned in the chosen virtual network subnet. An optional Apache Spark pool and/or dedicated SQL pool may be provisioned as requied. Git-enabling the Synapse Workspace will cause the workspace to automatically pull in data pipelines, linked services, etc from the target repository.
 
 ### Table of Contents
-1. [Usage](#usage)
-2. [Requirements](#requirements)
-3. [Providers](#Providers)
-4. [Inputs](#inputs)
-5. [Outputs](#outputs)
+- [Synapse Workspace Private](#synapse-workspace-private)
+    - [Table of Contents](#table-of-contents)
+  - [Usage](#usage)
+  - [Requirements](#requirements)
+  - [Providers](#providers)
+  - [Modules](#modules)
+  - [Resources](#resources)
+  - [Inputs](#inputs)
+  - [Outputs](#outputs)
 
 ## Usage
 The below module definition provides an example of usage. This module is designed to depend on the outputs from the associated `synapse_network` and `synapse_management` modules. These associate modules provision the Synapse virtual network components as well as Azure Purview.
@@ -123,8 +127,7 @@ module "synapse_workspace_private" {
 | <a name="input_key_vault_name"></a> [key\_vault\_name](#input\_key\_vault\_name) | The name of the Key Vault to use for secret storage | `string` | n/a | yes |
 | <a name="input_location"></a> [location](#input\_location) | The short-format Azure region into which resources will be deployed | `string` | n/a | yes |
 | <a name="input_network_resource_group_name"></a> [network\_resource\_group\_name](#input\_network\_resource\_group\_name) | The name of the resource group into which private endpoints will be deployed | `string` | n/a | yes |
-| <a name="input_odt_appeals_back_office_service_bus_name"></a> [odt\_appeals\_back\_office\_service\_bus\_name](#input\_odt\_appeals\_back\_office\_service\_bus\_name) | The name of the Appeals BO Service Bus namespace | `string` | `null` | no |
-| <a name="input_odt_appeals_back_office_service_bus_resource_group_name"></a> [odt\_appeals\_back\_office\_service\_bus\_resource\_group\_name](#input\_odt\_appeals\_back\_office\_service\_bus\_resource\_group\_name) | The name of the resource group for the Appeals BO Service Bus | `string` | `null` | no |
+| <a name="input_odt_appeals_back_office_service_bus_id"></a> [odt\_appeals\_back\_office\_service\_bus\_id](#input\_odt\_appeals\_back\_office\_service\_bus\_id) | The id of the Appeals BO Service Bus namespace | `string` | `null` | no |`null` | no |
 | <a name="input_purview_id"></a> [purview\_id](#input\_purview\_id) | The ID of the Purview account to link with the Synapse Workspace | `string` | `null` | no |
 | <a name="input_resource_group_name"></a> [resource\_group\_name](#input\_resource\_group\_name) | The name of the resource group into which resources will be deployed | `string` | n/a | yes |
 | <a name="input_service_name"></a> [service\_name](#input\_service\_name) | The short-format name of the overarching service being deployed | `string` | n/a | yes |
@@ -150,6 +153,7 @@ module "synapse_workspace_private" {
 | <a name="input_synapse_sql_administrator_username"></a> [synapse\_sql\_administrator\_username](#input\_synapse\_sql\_administrator\_username) | The SQL administrator username for the Synapse Workspace | `string` | `"synadmin"` | no |
 | <a name="input_tags"></a> [tags](#input\_tags) | A collection of tags to assign to taggable resources | `map(string)` | `{}` | no |
 | <a name="input_tenant_id"></a> [tenant\_id](#input\_tenant\_id) | The ID of the Azure AD tenant containing the identities used for RBAC assignments | `string` | n/a | yes |
+| <a name="input_create_service_bus_resources"></a> [create\_service\_bus\_resources](#input\_create\_service\_bus\_resources) | If we should create extra resources related to the service bus | `string` | n/a | yes |
 
 ## Outputs
 
