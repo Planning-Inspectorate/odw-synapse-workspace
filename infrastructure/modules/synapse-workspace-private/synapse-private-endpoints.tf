@@ -193,7 +193,7 @@ resource "azurerm_private_endpoint" "synapse_workspace_tooling" {
 # private endpoints for Purview
 
 resource "azurerm_synapse_managed_private_endpoint" "synapse_mpe_purview_account" {
-  count = var.create_service_bus_resources ? 1 : 0
+  count = var.create_service_bus_resources && var.purview_ids != null ? 1 : 0
 
   name                 = "synapse-mpe-purview-account--${local.resource_suffix}"
   synapse_workspace_id = azurerm_synapse_workspace.synapse.id
@@ -207,7 +207,7 @@ resource "azurerm_synapse_managed_private_endpoint" "synapse_mpe_purview_account
 }
 
 resource "azurerm_synapse_managed_private_endpoint" "synapse_mpe_purview_storage_blob" {
-  count = var.create_service_bus_resources ? 1 : 0
+  count = var.create_service_bus_resources && var.purview_ids != null ? 1 : 0
 
   name                 = "synapse-mpe-purview-storage-blob--${local.resource_suffix}"
   synapse_workspace_id = azurerm_synapse_workspace.synapse.id
@@ -221,7 +221,7 @@ resource "azurerm_synapse_managed_private_endpoint" "synapse_mpe_purview_storage
 }
 
 resource "azurerm_synapse_managed_private_endpoint" "synapse_mpe_purview_storage_queue" {
-  count = var.create_service_bus_resources ? 1 : 0
+  count = var.create_service_bus_resources && var.purview_ids != null ? 1 : 0
 
   name                 = "synapse-mpe-purview-storage-queue--${local.resource_suffix}"
   synapse_workspace_id = azurerm_synapse_workspace.synapse.id
@@ -235,7 +235,7 @@ resource "azurerm_synapse_managed_private_endpoint" "synapse_mpe_purview_storage
 }
 
 resource "azurerm_synapse_managed_private_endpoint" "synapse_mpe_purview_event_hubs" {
-  count = var.create_service_bus_resources ? 1 : 0
+  count = var.create_service_bus_resources && var.purview_ids != null ? 1 : 0
 
   name                 = "synapse-mpe-purview-event-hubs--${local.resource_suffix}"
   synapse_workspace_id = azurerm_synapse_workspace.synapse.id
