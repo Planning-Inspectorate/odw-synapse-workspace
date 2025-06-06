@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "31f493e0-279a-40d1-8f70-a6ed682b3cc8"
+				"spark.autotune.trackingId": "3c50e373-050c-4f1c-aac1-fa65e033252b"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -366,25 +366,18 @@
 			},
 			{
 				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
 				"source": [
 					"def differentiate_std_and_hrm(std_table_full: str, hrm_table_full: str, data_model_columns: list):\n",
-					"    # filter standardised df with non-null message_type and exclude 'Delete' message_type since it doesn't add a new row in hrm\n",
+					"    # Load the standardised DataFrame\n",
 					"    std_df: DataFrame = spark.table(std_table_full)\n",
-					"    if \"message_type\" in std_df.columns:\n",
-					"        std_df = std_df.filter((std_df.message_type != 'Delete') & (std_df.message_type.isNotNull()))\n",
 					"\n",
-					"    hrm_df  = spark.table(hrm_table_full)\n",
+					"    # Filter to include only specific message types\n",
+					"    allowed_message_types = ['Create', 'update', 'Update', 'Publish', 'Unpublish', 'Delete']\n",
+					"    if \"message_type\" in std_df.columns:\n",
+					"        std_df = std_df.filter(std_df.message_type.isin(allowed_message_types))\n",
+					"\n",
+					"    # Load the harmonised DataFrame\n",
+					"    hrm_df = spark.table(hrm_table_full)\n",
 					"\n",
 					"    # Find rows in the original table that are not in the new table\n",
 					"    missing_rows_in_std = hrm_df.select(data_model_columns).subtract(std_df.select(data_model_columns))\n",
