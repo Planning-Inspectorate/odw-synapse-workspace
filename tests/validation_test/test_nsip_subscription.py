@@ -1,6 +1,6 @@
 import pytest
-import workspace.testing.util.pipelineutils as pipelineutils
-from testing.util.constants import NOTEBOOK_EXIT_CODE_SUCCESS, NOTEBOOK_SUCCESS_STATUS, SPARK_POOL_CONFIG
+import tests.util.pipelineutils as pipelineutils
+from tests.util.constants import NOTEBOOK_EXIT_CODE_SUCCESS, NOTEBOOK_SUCCESS_STATUS, SPARK_POOL_CONFIG
 from warnings import filterwarnings
 
 def test_nsip_project_notebook(credential_name, azure_credential, synapse_endpoint: str):

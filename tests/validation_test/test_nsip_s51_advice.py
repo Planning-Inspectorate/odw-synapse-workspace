@@ -1,25 +1,25 @@
 import pytest
-import workspace.testing.util.pipelineutils as pipelineutils
-import testing.util.constants as constants
+import tests.util.pipelineutils as pipelineutils
+import tests.util.constants as constants
 import warnings
 
-def test_nsip_exam_timetable_notebook(credential_name, azure_credential, synapse_endpoint: str):
+def test_nsip_s51_advice_notebook(credential_name, azure_credential, synapse_endpoint: str):
 
     warnings.filterwarnings("ignore", category=DeprecationWarning) 
 
     # run the testing notebook
-    notebookname: str = "py_unit_tests_nsip_exam_timetable"
+    notebookname: str = "py_unit_tests_nsip_s51_advice"
     
     notebook_raw_params = {
         "notebook": notebookname,
         "parameters": {
             "entity_name": {
                 "type": "String",
-                "value": "nsip-exam-timetable"
+                "value": "s51-advice"
             },
             "folder_name": {
                 "type": "String",
-                "value": "nsip-exam-timetable"
+                "value": "s51-advice"
             },
             "std_db_name": {
                 "type": "String",
@@ -35,35 +35,35 @@ def test_nsip_exam_timetable_notebook(credential_name, azure_credential, synapse
             },
             "std_table_name": {
                 "type": "String",
-                "value": "sb_nsip_exam_timetable"
+                "value": "sb_s51_advice"
+            },
+            "horizon_std_table_name": {
+                "type": "String",
+                "value": "horizon_nsip_advice"
             },
             "hrm_table_name": {
                 "type": "String",
-                "value": "sb_nsip_exam_timetable"
+                "value": "sb_s51_advice"
             },
             "hrm_table_final": {
                 "type": "String",
-                "value": "nsip_exam_timetable"
+                "value": "nsip_s51_advice"
             },
             "curated_table_name": {
                 "type": "String",
-                "value": "nsip_exam_timetable"
-            },
-            "primary_key": {
-                "type": "String",
-                "value": "caseReference"
-            },
-            "std_hzn_table_name": {
-                "type": "String",
-                "value": "horizon_examination_timetable"
+                "value": "s51_advice"
             },
             "curated_db_migration_name": {
                 "type": "String",
                 "value": "odw_curated_migration_db"
             },
-            "curated_migration_table_name": {
+            "curated_table_migration_name": {
                 "type": "String",
-                "value": "nsip_exam_timetable"
+                "value": "s51_advice"
+            },
+            "primary_key": {
+                "type": "String",
+                "value": "adviceId"
             },
         }
     }
@@ -74,7 +74,7 @@ def test_nsip_exam_timetable_notebook(credential_name, azure_credential, synapse
     print("Notebook response *" +str(exitMessage) +"*")
     assert notebook_run_result == constants.NOTEBOOK_SUCCESS_STATUS 
     assert exitMessage == constants.NOTEBOOK_EXIT_CODE_SUCCESS
-    print("test_nsip_exam_timetable Completed")
+    print("test_nsip_s51_advice Completed")
 
 @pytest.fixture(autouse=True)
 def run_before_and_after_tests():

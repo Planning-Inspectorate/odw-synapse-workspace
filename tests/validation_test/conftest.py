@@ -1,4 +1,4 @@
-from workspace.testing.util.conftest_util import ConftestUtil
+from tests.util.conftest_util import ConftestUtil
 import pytest
 
 

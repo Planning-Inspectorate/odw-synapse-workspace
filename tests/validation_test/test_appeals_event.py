@@ -1,21 +1,21 @@
 import pytest
-import workspace.testing.util.pipelineutils as pipelineutils
-import testing.util.constants as constants
+import tests.util.pipelineutils as pipelineutils
+import tests.util.constants as constants
 import warnings
 
-def test_appeal_appeals_has(credential_name, azure_credential, synapse_endpoint: str):
+def test_appeal_event_notebook(credential_name, azure_credential, synapse_endpoint: str):
 
     warnings.filterwarnings("ignore", category=DeprecationWarning) 
 
     # run the testing notebook
-    notebookname: str = "py_unit_tests_has_appeals"
+    notebookname: str = "py_unit_tests_appeals_events"
     
     notebook_raw_params = {
         "notebook": notebookname,
         "parameters": {
             "entity_name": {
                "type": "String",
-               "value": "appeal-has",
+               "value": "appeal-event",
             },
             "std_db_name": {
                "type": "String",
@@ -31,15 +31,15 @@ def test_appeal_appeals_has(credential_name, azure_credential, synapse_endpoint:
             },
             "std_table_name": {
                "type": "String",
-               "value": "sb_appeal_has",
+               "value": "sb_appeal_event",
             },
             "hrm_table_name": {
                "type": "String",
-               "value": "sb_appeal_has",
+               "value": "sb_appeal_event",
             },
             "curated_table_name": {
                "type": "String",
-               "value": "appeal_has",
+               "value": "appeal_event",
             }
         }
     }

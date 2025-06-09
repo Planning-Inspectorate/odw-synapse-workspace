@@ -1,21 +1,20 @@
 import pytest
-import workspace.testing.util.pipelineutils as pipelineutils
-import testing.util.constants as constants
+import tests.util.constants as constants
+import tests.util.pipelineutils as pipelineutils
 import warnings
 
-def test_appeal_event_notebook(credential_name, azure_credential, synapse_endpoint: str):
+def test_appeal_document_notebook(credential_name, azure_credential, synapse_endpoint: str):
 
     warnings.filterwarnings("ignore", category=DeprecationWarning) 
 
     # run the testing notebook
-    notebookname: str = "py_unit_tests_appeals_events"
-    
+    notebookname: str = "py_unit_tests_appeal_document"
     notebook_raw_params = {
         "notebook": notebookname,
         "parameters": {
             "entity_name": {
                "type": "String",
-               "value": "appeal-event",
+               "value": "appeal-document",
             },
             "std_db_name": {
                "type": "String",
@@ -31,15 +30,19 @@ def test_appeal_event_notebook(credential_name, azure_credential, synapse_endpoi
             },
             "std_table_name": {
                "type": "String",
-               "value": "sb_appeal_event",
+               "value": "sb_appeal_document",
             },
             "hrm_table_name": {
                "type": "String",
-               "value": "sb_appeal_event",
+               "value": "sb_appeal_document",
+            },
+            "hrm_table_final": {
+               "type": "String",
+               "value": "appeals_document_metadata",
             },
             "curated_table_name": {
                "type": "String",
-               "value": "appeal_event",
+               "value": "appeal_document",
             }
         }
     }
@@ -50,7 +53,7 @@ def test_appeal_event_notebook(credential_name, azure_credential, synapse_endpoi
     print("Notebook response *" +str(exitMessage) +"*")
     assert notebook_run_result == constants.NOTEBOOK_SUCCESS_STATUS 
     assert exitMessage == constants.NOTEBOOK_EXIT_CODE_SUCCESS
-    print("test_appeal_event Completed")
+    print("test_appeal_document Completed")
 
 @pytest.fixture(autouse=True)
 def run_before_and_after_tests():

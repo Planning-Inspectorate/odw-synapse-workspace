@@ -1,6 +1,6 @@
 import pytest
-import workspace.testing.util.pipelineutils as pipelineutils
-import testing.util.constants as constants
+import tests.util.pipelineutils as pipelineutils
+import tests.util.constants as constants
 import warnings
 
 def test_entraid_pipeline(credential_name, azure_credential, synapse_endpoint: str):

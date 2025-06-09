@@ -1,25 +1,25 @@
 import pytest
-import workspace.testing.util.pipelineutils as pipelineutils
-import testing.util.constants as constants
+import tests.util.pipelineutils as pipelineutils
+import tests.util.constants as constants
 import warnings
 
-def test_nsip_s51_advice_notebook(credential_name, azure_credential, synapse_endpoint: str):
+def test_nsip_document_notebook(credential_name, azure_credential, synapse_endpoint: str):
 
     warnings.filterwarnings("ignore", category=DeprecationWarning) 
 
     # run the testing notebook
-    notebookname: str = "py_unit_tests_nsip_s51_advice"
+    notebookname: str = "py_unit_tests_nsip_document"
     
     notebook_raw_params = {
         "notebook": notebookname,
         "parameters": {
             "entity_name": {
                 "type": "String",
-                "value": "s51-advice"
+                "value": "nsip-document"
             },
             "folder_name": {
                 "type": "String",
-                "value": "s51-advice"
+                "value": "nsip-document"
             },
             "std_db_name": {
                 "type": "String",
@@ -35,23 +35,27 @@ def test_nsip_s51_advice_notebook(credential_name, azure_credential, synapse_end
             },
             "std_table_name": {
                 "type": "String",
-                "value": "sb_s51_advice"
+                "value": "sb_nsip_document"
             },
             "horizon_std_table_name": {
                 "type": "String",
-                "value": "horizon_nsip_advice"
+                "value": "document_meta_data"
             },
             "hrm_table_name": {
                 "type": "String",
-                "value": "sb_s51_advice"
+                "value": "sb_nsip_document"
             },
             "hrm_table_final": {
                 "type": "String",
-                "value": "nsip_s51_advice"
+                "value": "nsip_document"
             },
             "curated_table_name": {
                 "type": "String",
-                "value": "s51_advice"
+                "value": "nsip_document"
+            },
+            "std_hzn_table_name": {
+                "type": "String",
+                "value": "document_meta_data"
             },
             "curated_db_migration_name": {
                 "type": "String",
@@ -59,11 +63,7 @@ def test_nsip_s51_advice_notebook(credential_name, azure_credential, synapse_end
             },
             "curated_table_migration_name": {
                 "type": "String",
-                "value": "s51_advice"
-            },
-            "primary_key": {
-                "type": "String",
-                "value": "adviceId"
+                "value": "nsip_document"
             },
         }
     }
@@ -74,7 +74,7 @@ def test_nsip_s51_advice_notebook(credential_name, azure_credential, synapse_end
     print("Notebook response *" +str(exitMessage) +"*")
     assert notebook_run_result == constants.NOTEBOOK_SUCCESS_STATUS 
     assert exitMessage == constants.NOTEBOOK_EXIT_CODE_SUCCESS
-    print("test_nsip_s51_advice Completed")
+    print("test_nsip_document Completed")
 
 @pytest.fixture(autouse=True)
 def run_before_and_after_tests():

@@ -1,6 +1,6 @@
 from azure.identity import ClientSecretCredential
 from azure.identity import DefaultAzureCredential
-import workspace.testing.util.constants as constants
+import tests.util.constants as constants
 import os
 
 
