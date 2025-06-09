@@ -44,7 +44,7 @@ module "synapse_workspace_private" {
   }
 
   create_service_bus_resources           = var.create_service_bus_resources
-  odt_appeals_back_office_service_bus_id = var.odt_appeals_back_office.service_bus_enabled && var.external_resource_links_enabled ? data.azurerm_servicebus_namespace.odt_appeals_backoffice_sb[0].id : null
+  odt_appeals_back_office_service_bus_id = var.odt_appeals_back_office.service_bus_enabled && var.external_resource_links_enabled ? local.odt_appeals_back_office_service_bus_id : null
 
   tags = local.tags
 
