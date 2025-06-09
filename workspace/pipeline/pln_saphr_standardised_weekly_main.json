@@ -3,38 +3,11 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "Saphr_Standardised_weekly",
+				"name": "Send Sap HR Standardised failed",
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
-						"activity": "Record loading Sap HR Harmonised data",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_saphr_odw_standardised_weekly",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"Param_File_Load_Type": "WEEKLY",
-						"Param_FileFolder_Path": "SapHr"
-					}
-				}
-			},
-			{
-				"name": "Send SAP HR Standardised failed",
-				"type": "ExecutePipeline",
-				"dependsOn": [
-					{
-						"activity": "Saphr_Standardised_weekly",
+						"activity": "If Standardised Transformation Weekly Failed",
 						"dependencyConditions": [
 							"Failed"
 						]
@@ -71,9 +44,9 @@
 							"value": "@pipeline().Pipeline",
 							"type": "Expression"
 						},
-						"activityMessage": "SAP HR Standardised Weekly data load failed",
+						"activityMessage": "Sap HR Standardised Layer Weekly data load failed",
 						"activityDuration": {
-							"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('standardised_weekly_start_time'))), 10000000)",
 							"type": "Expression"
 						},
 						"activityStatus": "Failed",
@@ -85,13 +58,13 @@
 							"value": "@pipeline().parameters.failed_image",
 							"type": "Expression"
 						},
-						"Message_title": "SAP HR Standardised Weekly Master pipeline failed",
-						"Message_subtitle": "SAP HR Standardised feed failed"
+						"Message_title": "SAP HR Standardised Layer Weekly pipeline failed",
+						"Message_subtitle": "Sap HR Standardised Weekly feed failed"
 					}
 				}
 			},
 			{
-				"name": "Record loading Sap HR Harmonised data",
+				"name": "Record loading Sap HR Standardised Weekly data",
 				"type": "ExecutePipeline",
 				"dependsOn": [],
 				"policy": {
@@ -118,7 +91,7 @@
 							"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
 							"type": "Expression"
 						},
-						"StatusMessage": "Loading Sap HR Harmonised Layer",
+						"StatusMessage": "Loading SAP HR Standardised Monthly",
 						"PipelineTriggerID": {
 							"value": "@pipeline().TriggerId",
 							"type": "Expression"
@@ -148,11 +121,11 @@
 				}
 			},
 			{
-				"name": "Record completed SAP HR Standardised Weekly",
+				"name": "Record completed Sap HR Standardised data",
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
-						"activity": "Saphr_Standardised_weekly",
+						"activity": "If Standardised Transformation Weekly Failed",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -178,7 +151,15 @@
 							"value": "@pipeline().RunId",
 							"type": "Expression"
 						},
-						"StatusMessage": "Sap HR Standardised Weekly data loaded",
+						"StartTime": {
+							"value": "@variables('standardised_weekly_start_time')",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@utcNow()",
+							"type": "Expression"
+						},
+						"StatusMessage": "SAP HR Standardised Weekly data loaded",
 						"PipelineTriggerID": {
 							"value": "@pipeline().TriggerId",
 							"type": "Expression"
@@ -200,10 +181,719 @@
 							"type": "Expression"
 						},
 						"ActivityType": "Pipeline",
+						"DurationSeconds": {
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('standardised_weekly_start_time'))), 10000000)",
+							"type": "Expression"
+						},
+						"StatusCode": "200",
 						"AppInsIKey": {
 							"value": "@pipeline().parameters.apps_insights_ikey",
 							"type": "Expression"
 						}
+					}
+				}
+			},
+			{
+				"name": "ForEachTableWeekly",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "set_json variable",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@variables('raw_weekly_json')",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "Switch_weekly_table_status",
+							"type": "Switch",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"on": {
+									"value": "@item().table_result",
+									"type": "Expression"
+								},
+								"cases": [
+									{
+										"value": "success",
+										"activities": [
+											{
+												"name": "Record completed Sap HR Standardised Weekly data",
+												"type": "ExecutePipeline",
+												"dependsOn": [],
+												"policy": {
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"pipeline": {
+														"referenceName": "pln_log_to_appins",
+														"type": "PipelineReference"
+													},
+													"waitOnCompletion": true,
+													"parameters": {
+														"Stage": "Completion",
+														"PipelineName": {
+															"value": "@pipeline().Pipeline",
+															"type": "Expression"
+														},
+														"PipelineRunID": {
+															"value": "@pipeline().RunId",
+															"type": "Expression"
+														},
+														"StartTime": {
+															"value": "@item().start_exec_time",
+															"type": "Expression"
+														},
+														"EndTime": {
+															"value": "@item().end_exec_time",
+															"type": "Expression"
+														},
+														"Inserts": {
+															"value": "@item().record_count",
+															"type": "Expression"
+														},
+														"StatusMessage": {
+															"value": "@concat('SAP HR Weekly data loaded for table: ',item().delta_table_name)",
+															"type": "Expression"
+														},
+														"PipelineTriggerID": {
+															"value": "@pipeline().TriggerId",
+															"type": "Expression"
+														},
+														"PipelineTriggerName": {
+															"value": "@pipeline().TriggerName",
+															"type": "Expression"
+														},
+														"PipelineTriggerType": {
+															"value": "@pipeline().TriggerType",
+															"type": "Expression"
+														},
+														"PipelineTriggeredbyPipelineName": {
+															"value": "@pipeline()?.TriggeredByPipelineName",
+															"type": "Expression"
+														},
+														"PipelineTriggeredbyPipelineRunID": {
+															"value": "@pipeline()?.TriggeredByPipelineRunId",
+															"type": "Expression"
+														},
+														"ActivityType": "Pipeline",
+														"DurationSeconds": {
+															"value": "@item().total_exec_time",
+															"type": "Expression"
+														},
+														"StatusCode": "200",
+														"AppInsIKey": {
+															"value": "@pipeline().parameters.apps_insights_ikey",
+															"type": "Expression"
+														}
+													}
+												}
+											}
+										]
+									},
+									{
+										"value": "failed",
+										"activities": [
+											{
+												"name": "Record failed Sap HR Standardised Weekly data",
+												"type": "ExecutePipeline",
+												"dependsOn": [],
+												"policy": {
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"pipeline": {
+														"referenceName": "pln_log_to_appins",
+														"type": "PipelineReference"
+													},
+													"waitOnCompletion": true,
+													"parameters": {
+														"Stage": "Fail",
+														"PipelineName": {
+															"value": "@pipeline().Pipeline",
+															"type": "Expression"
+														},
+														"PipelineRunID": {
+															"value": "@pipeline().RunId",
+															"type": "Expression"
+														},
+														"StartTime": {
+															"value": "@item().start_exec_time",
+															"type": "Expression"
+														},
+														"EndTime": {
+															"value": "@item().end_exec_time",
+															"type": "Expression"
+														},
+														"Inserts": {
+															"value": "@item().record_count",
+															"type": "Expression"
+														},
+														"ErrorMessage": {
+															"value": "@concat(item().error_message,' for loading file : ',item().csv_file_name)",
+															"type": "Expression"
+														},
+														"StatusMessage": {
+															"value": "@concat('raw to standardised failed:',item().csv_file_name)",
+															"type": "Expression"
+														},
+														"PipelineTriggerID": {
+															"value": "@pipeline().TriggerId",
+															"type": "Expression"
+														},
+														"PipelineTriggerName": {
+															"value": "@pipeline().TriggerName",
+															"type": "Expression"
+														},
+														"PipelineTriggerType": {
+															"value": "@pipeline().TriggerType",
+															"type": "Expression"
+														},
+														"PipelineTriggeredbyPipelineName": {
+															"value": "@pipeline()?.TriggeredByPipelineName",
+															"type": "Expression"
+														},
+														"PipelineTriggeredbyPipelineRunID": {
+															"value": "@pipeline()?.TriggeredByPipelineRunId",
+															"type": "Expression"
+														},
+														"ActivityType": "Pipeline",
+														"DurationSeconds": {
+															"value": "@item().total_exec_time",
+															"type": "Expression"
+														},
+														"StatusCode": "400",
+														"AppInsIKey": {
+															"value": "@pipeline().parameters.apps_insights_ikey",
+															"type": "Expression"
+														}
+													}
+												}
+											},
+											{
+												"name": "Set Error Weekly Flag",
+												"type": "SetVariable",
+												"dependsOn": [
+													{
+														"activity": "Record failed Sap HR Standardised Weekly data",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"policy": {
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"variableName": "error_weekly_flag",
+													"value": {
+														"value": "@item().table_result",
+														"type": "Expression"
+													}
+												}
+											}
+										]
+									}
+								],
+								"defaultActivities": [
+									{
+										"name": "Dummy_weekly",
+										"type": "Wait",
+										"dependsOn": [],
+										"userProperties": [],
+										"typeProperties": {
+											"waitTimeInSeconds": 1
+										}
+									}
+								]
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "nb_saphr_odw_raw_odw_standardised",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Set_start_time",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Record loading Sap HR Standardised Weekly data",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_utils_common_raw_standardised",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"Param_File_Load_Type": {
+							"value": {
+								"value": "WEEKLY",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"Param_FileFolder_Path": {
+							"value": {
+								"value": "SapHr",
+								"type": "Expression"
+							},
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "nb_odw_standardised_transformation",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "If Standardised Weekly Failed",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_saphr_standardised_transformation",
+						"type": "NotebookReference"
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "set_json variable",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "nb_saphr_odw_raw_odw_standardised",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "raw_weekly_json",
+					"value": {
+						"value": "@json(activity('nb_saphr_odw_raw_odw_standardised').output.status.output.result.exitValue).table_details",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Set_start_time",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "standardised_weekly_start_time",
+					"value": {
+						"value": "@utcNow()",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "If Standardised Weekly Failed",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "ForEachTableWeekly",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(toLower(trim(variables('error_weekly_flag'))), 'failed')",
+						"type": "Expression"
+					},
+					"ifFalseActivities": [
+						{
+							"name": "WaitProceedWeekly",
+							"type": "Wait",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"waitTimeInSeconds": 1
+							}
+						}
+					],
+					"ifTrueActivities": [
+						{
+							"name": "FailSapHr_Load",
+							"type": "Fail",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"message": "Standardised Notebook failed. One of the csv file couldn't be loaded successfully. Please App Insight Log for further details",
+								"errorCode": "99"
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "ForEachUpdateWeeklyTable",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Set json weekly update variable",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@variables('raw_weekly_json_update')",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "Switch_update_table_status",
+							"type": "Switch",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"on": {
+									"value": "@item().table_result",
+									"type": "Expression"
+								},
+								"cases": [
+									{
+										"value": "success",
+										"activities": [
+											{
+												"name": "Record completed Sap HR transformation weekly data",
+												"type": "ExecutePipeline",
+												"dependsOn": [],
+												"policy": {
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"pipeline": {
+														"referenceName": "pln_log_to_appins",
+														"type": "PipelineReference"
+													},
+													"waitOnCompletion": true,
+													"parameters": {
+														"Stage": "Completion",
+														"PipelineName": {
+															"value": "@pipeline().Pipeline",
+															"type": "Expression"
+														},
+														"PipelineRunID": {
+															"value": "@pipeline().RunId",
+															"type": "Expression"
+														},
+														"StartTime": {
+															"value": "@item().start_update_exec_time",
+															"type": "Expression"
+														},
+														"EndTime": {
+															"value": "@item().end_update_exec_time",
+															"type": "Expression"
+														},
+														"Updates": {
+															"value": "@item().update_count",
+															"type": "Expression"
+														},
+														"StatusMessage": {
+															"value": "@concat('SAP HR Weekly standardised post transformation for table: ',item().delta_table_name)",
+															"type": "Expression"
+														},
+														"PipelineTriggerID": {
+															"value": "@pipeline().TriggerId",
+															"type": "Expression"
+														},
+														"PipelineTriggerName": {
+															"value": "@pipeline().TriggerName",
+															"type": "Expression"
+														},
+														"PipelineTriggerType": {
+															"value": "@pipeline().TriggerType",
+															"type": "Expression"
+														},
+														"PipelineTriggeredbyPipelineName": {
+															"value": "@pipeline()?.TriggeredByPipelineName",
+															"type": "Expression"
+														},
+														"PipelineTriggeredbyPipelineRunID": {
+															"value": "@pipeline()?.TriggeredByPipelineRunId",
+															"type": "Expression"
+														},
+														"ActivityType": "Pipeline",
+														"DurationSeconds": {
+															"value": "@item().total_update_exec_time",
+															"type": "Expression"
+														},
+														"StatusCode": "200",
+														"AppInsIKey": {
+															"value": "@pipeline().parameters.apps_insights_ikey",
+															"type": "Expression"
+														}
+													}
+												}
+											}
+										]
+									},
+									{
+										"value": "failed",
+										"activities": [
+											{
+												"name": "Record failed Sap HR transformation weekly data",
+												"type": "ExecutePipeline",
+												"dependsOn": [],
+												"policy": {
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"pipeline": {
+														"referenceName": "pln_log_to_appins",
+														"type": "PipelineReference"
+													},
+													"waitOnCompletion": true,
+													"parameters": {
+														"Stage": "Fail",
+														"PipelineName": {
+															"value": "@pipeline().Pipeline",
+															"type": "Expression"
+														},
+														"PipelineRunID": {
+															"value": "@pipeline().RunId",
+															"type": "Expression"
+														},
+														"StartTime": {
+															"value": "@item().start_update_exec_time",
+															"type": "Expression"
+														},
+														"EndTime": {
+															"value": "@item().end_update_exec_time",
+															"type": "Expression"
+														},
+														"ErrorMessage": {
+															"value": "@concat(item().error_message,' for updating table : ',item().delta_table_name)",
+															"type": "Expression"
+														},
+														"StatusMessage": {
+															"value": "@concat('Post standardised transformation failed:',item().delta_table_name)",
+															"type": "Expression"
+														},
+														"PipelineTriggerID": {
+															"value": "@pipeline().TriggerId",
+															"type": "Expression"
+														},
+														"PipelineTriggerName": {
+															"value": "@pipeline().TriggerName",
+															"type": "Expression"
+														},
+														"PipelineTriggerType": {
+															"value": "@pipeline().TriggerType",
+															"type": "Expression"
+														},
+														"PipelineTriggeredbyPipelineName": {
+															"value": "@pipeline()?.TriggeredByPipelineName",
+															"type": "Expression"
+														},
+														"PipelineTriggeredbyPipelineRunID": {
+															"value": "@pipeline()?.TriggeredByPipelineRunId",
+															"type": "Expression"
+														},
+														"ActivityType": "Pipeline",
+														"DurationSeconds": {
+															"value": "@item().total_update_exec_time",
+															"type": "Expression"
+														},
+														"StatusCode": "400",
+														"AppInsIKey": {
+															"value": "@pipeline().parameters.apps_insights_ikey",
+															"type": "Expression"
+														}
+													}
+												}
+											},
+											{
+												"name": "Set Error Update Weekly Flag",
+												"type": "SetVariable",
+												"dependsOn": [
+													{
+														"activity": "Record failed Sap HR transformation weekly data",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"policy": {
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"variableName": "error_weekly_flag",
+													"value": {
+														"value": "@item().table_result",
+														"type": "Expression"
+													}
+												}
+											}
+										]
+									}
+								],
+								"defaultActivities": [
+									{
+										"name": "Dummy_updateWeekly",
+										"type": "Wait",
+										"dependsOn": [],
+										"userProperties": [],
+										"typeProperties": {
+											"waitTimeInSeconds": 1
+										}
+									}
+								]
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "If Standardised Transformation Weekly Failed",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "ForEachUpdateWeeklyTable",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(toLower(trim(variables('error_weekly_flag'))), 'failed')",
+						"type": "Expression"
+					},
+					"ifFalseActivities": [
+						{
+							"name": "WaitUpdateProceedWeekly",
+							"type": "Wait",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"waitTimeInSeconds": 1
+							}
+						}
+					],
+					"ifTrueActivities": [
+						{
+							"name": "FailSapHr_Transformation_Weekly_Load",
+							"type": "Fail",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"message": "Standardised Post Transformation Notebook failed. One of the Delta table couldn't be updated successfully. Please App Insight Log for further details",
+								"errorCode": "99"
+							}
+						},
+						{
+							"name": "Wait1_copy1",
+							"type": "Wait",
+							"state": "Inactive",
+							"onInactiveMarkAs": "Succeeded",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"waitTimeInSeconds": 1
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Set json weekly update variable",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "nb_odw_standardised_transformation",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "raw_weekly_json_update",
+					"value": {
+						"value": "@json(activity('nb_odw_standardised_transformation').output.status.output.result.exitValue).update_table_details",
+						"type": "Expression"
 					}
 				}
 			}
@@ -296,6 +986,18 @@
 			"wait8": {
 				"type": "Integer",
 				"defaultValue": 8
+			},
+			"raw_weekly_json": {
+				"type": "Array"
+			},
+			"standardised_weekly_start_time": {
+				"type": "String"
+			},
+			"error_weekly_flag": {
+				"type": "String"
+			},
+			"raw_weekly_json_update": {
+				"type": "Array"
 			}
 		},
 		"folder": {

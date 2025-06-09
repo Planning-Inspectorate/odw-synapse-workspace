@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d0d8341c-fc22-448a-b27e-0211d1ad75bb"
+				"spark.autotune.trackingId": "746e4025-9291-44ee-8233-1ff008ad0ee6"
 			}
 		},
 		"metadata": {
@@ -445,10 +445,14 @@
 				"source": [
 					"from pyspark.sql import SparkSession\n",
 					"from pyspark.sql.functions import col, to_date\n",
+					"import json\n",
 					"\n",
-					"# verify that the holiday dates are properly formatted\n",
-					"# and that May 30, 2022 exists in the holidays table\n",
-					"\n",
+					"# Initialize result object\n",
+					"result = {\n",
+					"    \"status\": \"success\",\n",
+					"    \"record_count\": 0,\n",
+					"    \"error_message\": None\n",
+					"}\n",
 					"\n",
 					"try:\n",
 					"    # Create the filtered view\n",
@@ -491,6 +495,7 @@
 					"        \n",
 					"        # Verify final count\n",
 					"        final_count = spark.sql(\"SELECT COUNT(*) FROM odw_harmonised_db.sap_hr_fact_absence_all\").collect()[0][0]\n",
+					"        result[\"record_count\"] = final_count\n",
 					"        print(f\"Final count after deletion: {final_count}\")\n",
 					"        print(f\"Total records removed: {original_count - final_count}\")\n",
 					"        \n",
@@ -515,6 +520,7 @@
 					"            \n",
 					"            # Verify final count\n",
 					"            final_count = spark.sql(\"SELECT COUNT(*) FROM odw_harmonised_db.sap_hr_fact_absence_all\").collect()[0][0]\n",
+					"            result[\"record_count\"] = final_count\n",
 					"            print(f\"Final count after replacement: {final_count}\")\n",
 					"            print(f\"Total records removed: {original_count - final_count}\")\n",
 					"            \n",
@@ -532,17 +538,42 @@
 					"                \n",
 					"                # Verify final count\n",
 					"                final_count = spark.sql(\"SELECT COUNT(*) FROM odw_harmonised_db.sap_hr_fact_absence_all\").collect()[0][0]\n",
+					"                result[\"record_count\"] = final_count\n",
 					"                print(f\"Final count after INSERT OVERWRITE: {final_count}\")\n",
 					"                print(f\"Total records removed: {original_count - final_count}\")\n",
 					"                \n",
 					"            except Exception as e3:\n",
 					"                print(f\"All methods failed. Final error: {e3}\")\n",
+					"                # Try to get current count even in case of error\n",
+					"                try:\n",
+					"                    error_count = spark.sql(\"SELECT COUNT(*) FROM odw_harmonised_db.sap_hr_fact_absence_all\").collect()[0][0]\n",
+					"                    result[\"record_count\"] = error_count\n",
+					"                except:\n",
+					"                    result[\"record_count\"] = 0\n",
+					"                \n",
+					"                result[\"status\"] = \"failed\"\n",
+					"                result[\"error_message\"] = str(e3)\n",
 					"                print(\"Please contact your database administrator for assistance.\")\n",
 					"    \n",
 					"except Exception as e:\n",
-					"    print(f\"Error in initial setup: {e}\")"
+					"    print(f\"Error in initial setup: {e}\")\n",
+					"    # Try to get current count even in case of error\n",
+					"    try:\n",
+					"        error_count = spark.sql(\"SELECT COUNT(*) FROM odw_harmonised_db.sap_hr_fact_absence_all\").collect()[0][0]\n",
+					"        result[\"record_count\"] = error_count\n",
+					"    except:\n",
+					"        result[\"record_count\"] = 0\n",
+					"    \n",
+					"    result[\"status\"] = \"failed\"\n",
+					"    result[\"error_message\"] = str(e)\n",
+					"\n",
+					"finally:\n",
+					"    \n",
+					"    print(f\"RESULT: {json.dumps(result)}\")\n",
+					"\n",
+					"mssparkutils.notebook.exit(json.dumps(result))"
 				],
-				"execution_count": null
+				"execution_count": 8
 			}
 		]
 	}
