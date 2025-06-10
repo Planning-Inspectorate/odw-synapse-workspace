@@ -22,7 +22,7 @@ class ConftestUtil():
         return endpoint
 
     @classmethod
-    def get_azure_credential(cls, client_id: str, client_secret: str, tenant_id: str):
+    def get_azure_credential(cls, client_id: str = None, client_secret: str = None, tenant_id: str = None):
         if client_id is None or client_secret is None or tenant_id is None:
             print(f"Credentials created from default")
             credentials = DefaultAzureCredential()
