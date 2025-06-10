@@ -40,7 +40,7 @@ def copy_secrets_between_key_vaults(source_vault: str, target_vault: str):
     target_secrets = target_kv_manager.get_secrets()
     secrets_to_copy = source_secrets - target_secrets
     for secret_name in secrets_to_copy:
-        logging.info(f"Copying secret '{secret_name}' from {source_vault} to {target_vault}")
+        logging.info(f"Copying secret from {source_vault} to {target_vault}")
         secret_value = source_kv_manager.get_secret(secret_name).value
         target_kv_manager.create_secret(secret_name, secret_value)
 
