@@ -37,7 +37,7 @@ class NotebookRunTestCase(SynapseTestCase):
             return notebook_run_id
         raise NotebookRunException(f"Failed to run notebook {notebook_name}. RunID: '{notebook_run_id}'. Error is {response.text}...\n")
 
-    def _wait_for_notebook_run(self, notebook_run_id: str, poll_interval = 15, max_wait_time_minutes: int = 10) -> requests.Response:
+    def _wait_for_notebook_run(self, notebook_run_id: str, poll_interval = 15, max_wait_time_minutes: int = 10) -> Dict[str, Any]:
         """
             Wait for a synapse notebook run to finish
         """
