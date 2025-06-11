@@ -11,7 +11,6 @@ class TestCase():
         """
         pass
 
-    @pytest.fixture(scope="module", autouse=True)
     def module_teardown(self):
         """
             Remove any created components during testing after testing has completed
