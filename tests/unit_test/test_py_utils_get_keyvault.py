@@ -2,8 +2,8 @@ from tests.util.config import TEST_CONFIG
 from tests.util.notebook_run_test_case import NotebookRunTestCase
 
 
-class TestPyUtilsGetStorageAccount(NotebookRunTestCase):
-    def test_py_utils_get_storage_account(self):
+class TestPyUtilsGetKeyvault(NotebookRunTestCase):
+    def test_py_utils_get_keyvault(self):
         test_secret_name = "test_secret_name"
         return_value = self.run_notebook(
             "py_utils_get_keyvault",
