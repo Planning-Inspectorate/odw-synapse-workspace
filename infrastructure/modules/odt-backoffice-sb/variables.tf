@@ -43,13 +43,8 @@ variable "odt_backoffice_sb_topic_subscriptions" {
   EOT
 }
 
-variable "odt_back_office_service_bus_name" {
-  description = "The name of the Service Bus namespace into which resources will be deployed"
-  type        = string
-}
-
-variable "odt_back_office_service_bus_resource_group_name" {
-  description = "The name of the resource group into which resources will be deployed"
+variable "odt_back_office_service_bus_id" {
+  description = "The id of the Service Bus namespace into which resources will be deployed"
   type        = string
 }
 

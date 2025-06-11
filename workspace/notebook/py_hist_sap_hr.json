@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "4d9d64b1-93ff-4937-9de0-32f5f80c6ac6"
+				"spark.autotune.trackingId": "8d044ed4-f39f-4275-9bf2-a98220d02b5d"
 			}
 		},
 		"metadata": {
@@ -131,6 +131,14 @@
 					"collapsed": false
 				},
 				"source": [
+					"import json\n",
+					"\n",
+					"# Initialize result dictionary\n",
+					"result = {\n",
+					"    \"status\": \"success\",\n",
+					"    \"record_count\": 0,\n",
+					"    \"error_message\": None\n",
+					"}\n",
 					"\n",
 					"try:\n",
 					"    logInfo(\"Starting historical SAP HR data processing\")\n",
@@ -261,7 +269,7 @@
 					"    FROM \n",
 					"        odw_harmonised_db.load_sap_hr_monthly h\n",
 					"    LEFT JOIN \n",
-					"        odw_harmonised_db.fact_absence_all f\n",
+					"        odw_harmonised_db.sap_hr_fact_absence_all f\n",
 					"    ON \n",
 					"        h.PersNo = cast(f.staffnumber as int)\n",
 					"        AND f.AttendanceorAbsenceType IN ('PT Annual / P&P Leave', 'FT Annual / Priv Leave')\n",
@@ -400,21 +408,34 @@
 					"    SELECT COUNT(*) as count FROM odw_harmonised_db.hist_SAP_HR\n",
 					"    WHERE PDAC_ETL_Date = CURRENT_DATE()\n",
 					"    \"\"\").collect()[0]['count']\n",
+					"    result[\"record_count\"] = inserted_count\n",
 					"    logInfo(f\"Successfully inserted {inserted_count} records into hist_SAP_HR\")\n",
 					"    \n",
 					"    logInfo(\"Historical SAP HR data processing completed successfully\")\n",
 					"\n",
 					"except Exception as e:\n",
-					"    # Log the exception in detail\n",
-					"    logError(f\"Error in historical SAP HR data processing: {str(e)}\")\n",
+					"    # Capture error information and limit to 300 characters\n",
+					"    error_msg = f\"Error in historical SAP HR data processing: {str(e)}\"\n",
+					"    logError(error_msg)\n",
 					"    logException(e)\n",
+					"    \n",
+					"    # Truncate error message if it exceeds 300 characters\n",
+					"    truncated_error = (error_msg[:297] + '...') if len(error_msg) > 300 else error_msg\n",
+					"    \n",
+					"    result[\"status\"] = \"failed\"\n",
+					"    result[\"error_message\"] = truncated_error\n",
+					"    result[\"record_count\"] = -1  # Indicate failure with -1 count\n",
 					"    \n",
 					"    # Re-raise the exception to ensure the notebook fails properly\n",
 					"    raise e\n",
+					"\n",
 					"finally:\n",
 					"    # Always flush logs regardless of success or failure\n",
 					"    logInfo(\"Flushing logs\")\n",
-					"    flushLogging()"
+					"    flushLogging()\n",
+					"    \n",
+					"    # Output the result as JSON for ADF to capture\n",
+					"    mssparkutils.notebook.exit(json.dumps(result))"
 				],
 				"execution_count": null
 			}

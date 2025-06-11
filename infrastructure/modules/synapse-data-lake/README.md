@@ -1,11 +1,15 @@
 # Synapse Data Lake
 
 ### Table of Contents
-1. [Usage](#usage)
-2. [Requirements](#requirements)
-3. [Providers](#Providers)
-4. [Inputs](#inputs)
-5. [Outputs](#outputs)
+- [Synapse Data Lake](#synapse-data-lake)
+    - [Table of Contents](#table-of-contents)
+  - [Usage](#usage)
+  - [Requirements](#requirements)
+  - [Providers](#providers)
+  - [Modules](#modules)
+  - [Resources](#resources)
+  - [Inputs](#inputs)
+  - [Outputs](#outputs)
 
 ## Usage
 
@@ -77,6 +81,7 @@
 | <a name="input_tenant_id"></a> [tenant\_id](#input\_tenant\_id) | The ID of the Azure AD tenant containing the identities used for RBAC assignments | `string` | n/a | yes |
 | <a name="input_vnet_subnet_ids"></a> [vnet\_subnet\_ids](#input\_vnet\_subnet\_ids) | A map of subnet names and IDs comprising the linked Virtual Network | `map(string)` | n/a | yes |
 | <a name="input_vnet_subnet_ids_failover"></a> [vnet\_subnet\_ids\_failover](#input\_vnet\_subnet\_ids\_failover) | A map of subnet names and IDs comprising the linked Virtual Network | `map(string)` | n/a | yes |
+| <a name="input_external_resource_links_enabled"></a> [external\_resource\_links](#input\_external\_resource\_links) | If connections and links to resources outside of the ODW should be made | `bool` | n/a | yes |
 
 ## Outputs
 

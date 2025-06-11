@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ae39a079-0d8b-472d-9d63-3c3c8d547b9f"
+				"spark.autotune.trackingId": "7e37d2ad-4eb3-494a-9fad-44dafb38c273"
 			}
 		},
 		"metadata": {
@@ -324,18 +324,70 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"# Write data to target Delta Table\n",
+					"import json\n",
+					"\n",
+					"# Initialize result dictionary\n",
+					"result = {\n",
+					"    \"status\": \"success\",\n",
+					"    \"record_count\": 0,\n",
+					"    \"error_message\": None\n",
+					"}\n",
+					"\n",
 					"try:\n",
+					"    # Write data to target Delta Table\n",
 					"    df_load_vw_sap_email.write.format(\"delta\").mode(\"overwrite\").save(delta_view_path)\n",
 					"\n",
 					"    # Ensure the table exists\n",
 					"    spark.sql(f\"CREATE TABLE IF NOT EXISTS {target_delta_view} USING DELTA LOCATION '{delta_view_path}'\")\n",
 					"\n",
-					"    logInfo(f\" Data successfully written to {target_delta_view}\")\n",
+					"    logInfo(f\"Data successfully written to {target_delta_view}\")\n",
+					"    \n",
+					"    # Get record count after successful write\n",
+					"    loaded_count = spark.sql(f\"SELECT COUNT(*) as count FROM {target_delta_view}\").collect()[0]['count']\n",
+					"    result[\"record_count\"] = loaded_count\n",
 					"\n",
 					"except Exception as e:\n",
-					"    logError(f\" Error writing to {df_load_vw_sap_email}: {str(e)}\")\n",
-					"    raise"
+					"    # Capture error information and limit to 300 characters\n",
+					"    error_msg = f\"Error writing to {target_delta_view}: {str(e)}\"\n",
+					"    logError(error_msg)\n",
+					"    \n",
+					"    # Truncate error message if it exceeds 300 characters\n",
+					"    truncated_error = (error_msg[:297] + '...') if len(error_msg) > 300 else error_msg\n",
+					"    \n",
+					"    result[\"status\"] = \"failed\"\n",
+					"    result[\"error_message\"] = truncated_error\n",
+					"    result[\"record_count\"] = -1  # Indicate failure with -1 count\n",
+					"    \n",
+					"    # Re-raise the exception to ensure the notebook fails properly\n",
+					"    raise\n",
+					"\n",
+					"finally:\n",
+					"    # Output the result as JSON for ADF to capture\n",
+					"    mssparkutils.notebook.exit(json.dumps(result))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"editable": true,
+					"run_control": {
+						"frozen": false
+					}
+				},
+				"source": [
+					"# Write data to target Delta Table\n",
+					"#try:\n",
+					"  #  df_load_vw_sap_email.write.format(\"delta\").mode(\"overwrite\").save(delta_view_path)\n",
+					"\n",
+					"    # Ensure the table exists\n",
+					" #   spark.sql(f\"CREATE TABLE IF NOT EXISTS {target_delta_view} USING DELTA LOCATION '{delta_view_path}'\")\n",
+					"\n",
+					"  #  logInfo(f\" Data successfully written to {target_delta_view}\")\n",
+					"\n",
+					"#except Exception as e:\n",
+					"#    logError(f\" Error writing to {df_load_vw_sap_email}: {str(e)}\")\n",
+					" #   raise"
 				],
 				"execution_count": null
 			},

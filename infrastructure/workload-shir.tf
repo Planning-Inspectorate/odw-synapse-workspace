@@ -27,6 +27,8 @@ module "synapse_shir" {
   vnet_subnet_ids          = module.synapse_network.vnet_subnets
 
   tags = local.tags
+
+  run_shir_setup_script = var.run_shir_setup_script
 }
 
 module "synapse_shir_failover" {
@@ -44,4 +46,6 @@ module "synapse_shir_failover" {
   vnet_subnet_ids          = module.synapse_network_failover.vnet_subnets
 
   tags = local.tags
+
+  run_shir_setup_script = var.run_shir_setup_script
 }

@@ -35,4 +35,7 @@ locals {
   tooling_storage_dns_zone_ids = {
     for zone in toset(local.storage_zones) : zone => data.azurerm_private_dns_zone.tooling_storage[zone].id
   }
+
+  odt_back_office_service_bus_id         = var.odt_back_office_service_bus_failover_enabled == true ? "/subscriptions/${var.odt_subscription_id}/resourceGroups/${var.odt_back_office_service_bus_resource_group_name_failover}/providers/Microsoft.ServiceBus/namespaces/${var.odt_back_office_service_bus_name_failover}" : "/subscriptions/${var.odt_subscription_id}/resourceGroups/${var.odt_back_office_service_bus_resource_group_name}/providers/Microsoft.ServiceBus/namespaces/${var.odt_back_office_service_bus_name}"
+  odt_appeals_back_office_service_bus_id = "/subscriptions/${var.odt_subscription_id}/resourceGroups/${var.odt_appeals_back_office.resource_group_name}/providers/Microsoft.ServiceBus/namespaces/${var.odt_appeals_back_office.service_bus_name}"
 }

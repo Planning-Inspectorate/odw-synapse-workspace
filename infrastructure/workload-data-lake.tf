@@ -36,6 +36,7 @@ module "synapse_data_lake" {
   network_resource_group_name            = azurerm_resource_group.network.name
   synapse_private_endpoint_subnet_name   = module.synapse_network.synapse_private_endpoint_subnet_name
   tenant_id                              = var.tenant_id
+  external_resource_links_enabled        = var.external_resource_links_enabled
   tooling_config = {
     key_vault_private_dns_zone_id = data.azurerm_private_dns_zone.tooling_key_vault.id
     storage_private_dns_zone_id   = local.tooling_storage_dns_zone_ids
@@ -75,6 +76,7 @@ module "synapse_data_lake_failover" {
   network_resource_group_name            = azurerm_resource_group.network_failover.name
   synapse_private_endpoint_subnet_name   = module.synapse_network_failover.synapse_private_endpoint_subnet_name
   tenant_id                              = var.tenant_id
+  external_resource_links_enabled        = var.external_resource_links_enabled
   tooling_config = {
     key_vault_private_dns_zone_id = data.azurerm_private_dns_zone.tooling_key_vault.id
     storage_private_dns_zone_id   = local.tooling_storage_dns_zone_ids

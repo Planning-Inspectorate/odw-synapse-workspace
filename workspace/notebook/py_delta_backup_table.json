@@ -18,7 +18,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "be7f3680-6493-4e44-9346-e868dd391939"
+				"spark.autotune.trackingId": "bb14972c-4230-4d5e-af72-8685e477611f"
 			}
 		},
 		"metadata": {
@@ -43,12 +43,19 @@
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"###### This notebook is created as a POC for delta backup and cost value benefit on a single table listed_builing in harmonised layer."
+				],
+				"execution_count": null
+			},
 			{
 				"cell_type": "code",
 				"source": [
@@ -117,6 +124,29 @@
 					"# Print the result\n",
 					"delta_files = base_path_list-backup_path_list\n",
 					"print(len(delta_files))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"directory_path = \"abfss://odw-harmonised@pinsstodwdevuks9h80mb.dfs.core.windows.net/listed_building/\"\n",
+					"\n",
+					"df = spark.read.format(\"binaryFile\").load(directory_path)\n",
+					"total_size = df.selectExpr(\"sum(length)\").collect()[0][0]\n",
+					"total_files = df.count()\n",
+					"\n",
+					"print(f\"Directory size: {total_size / 1024 / 1024:.2f} MB\")\n",
+					"print(f\"Total_Files: {df.count()}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"percentage_savings = ((total_files - len(delta_files)) / total_files)*100\n",
+					"\n",
+					"print(percentage_savings)"
 				],
 				"execution_count": null
 			},

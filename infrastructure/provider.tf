@@ -13,7 +13,7 @@ terraform {
       version = "= 4.28.0"
     }
   }
-  required_version = ">= 1.1.6, < 1.12.0"
+  required_version = ">= 1.1.6, <= 1.12.1"
 }
 
 provider "azurerm" {
@@ -27,7 +27,7 @@ provider "azurerm" {
 }
 
 provider "azurerm" {
-  subscription_id                 = var.odt_subscription_id
+  subscription_id                 = var.environment == "build" ? null : var.odt_subscription_id
   alias                           = "odt"
   resource_provider_registrations = "none"
 
@@ -35,7 +35,7 @@ provider "azurerm" {
 }
 
 provider "azurerm" {
-  subscription_id                 = var.horizon_subscription_id
+  subscription_id                 = var.environment == "build" ? null : var.horizon_subscription_id
   alias                           = "horizon"
   resource_provider_registrations = "none"
 

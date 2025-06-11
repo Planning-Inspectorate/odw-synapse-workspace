@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5a0cd7c9-6747-485b-a80c-c50f676e470a"
+				"spark.autotune.trackingId": "5a53a4ec-5575-4148-89c6-733e4da61405"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -300,6 +300,7 @@
 					"def get_table_metadata(db_name: str, table_name: str) -> (str, str, str):\n",
 					"    \"\"\"\n",
 					"    Extracts table_location and table_type given a database and table name.\n",
+					"    Replaces the hardcoded storage account in table_location with the correct one.\n",
 					"    \"\"\"\n",
 					"    filtered_df = df_exploded.filter(\n",
 					"        (col(\"database_name\") == db_name) & (col(\"table_name\") == table_name)\n",
@@ -311,7 +312,18 @@
 					"    # Collect and return the result\n",
 					"    result = filtered_df.collect()\n",
 					"    if result:\n",
-					"        return result[0][\"table_location\"], result[0][\"table_type\"], result[0][\"table_format\"]\n",
+					"        original_location = result[0][\"table_location\"]\n",
+					"        table_type = result[0][\"table_type\"]\n",
+					"        table_format = result[0][\"table_format\"]\n",
+					"\n",
+					"        if \"abfss://\" in original_location and \"@\" in original_location:\n",
+					"            container = original_location.split(\"abfss://\")[1].split(\"@\")[0]\n",
+					"            path = original_location.split(\"@\")[1].split(\"/\", 1)[1]\n",
+					"            corrected_location = f\"abfss://{container}@{storage_account}/{path}\"\n",
+					"        else:\n",
+					"            corrected_location = original_location\n",
+					"\n",
+					"        return corrected_location, table_type, table_format\n",
 					"    else:\n",
 					"        return None, None, None\n",
 					""

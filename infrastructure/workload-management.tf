@@ -23,7 +23,7 @@ module "synapse_management" {
   service_name        = local.service_name
 
   data_lake_account_id                   = module.synapse_data_lake.data_lake_account_id
-  deploy_purview                         = true
+  deploy_purview                         = var.create_purview_account
   devops_agent_subnet_name               = module.synapse_network.devops_agent_subnet_name
   firewall_allowed_ip_addresses          = local.firewall_allowed_ip_addresses
   key_vault_private_endpoint_dns_zone_id = azurerm_private_dns_zone.key_vault.id
@@ -39,6 +39,7 @@ module "synapse_management" {
 
 # grant access to the data
 resource "azurerm_synapse_role_assignment" "purview_synapse" {
+  count                = var.create_purview_account ? 1 : 0
   synapse_workspace_id = module.synapse_workspace_private.synapse_workspace_id
   role_name            = "Synapse Contributor"
   principal_id         = module.synapse_management.purview_identity_principal_id
@@ -46,12 +47,14 @@ resource "azurerm_synapse_role_assignment" "purview_synapse" {
 }
 
 resource "azurerm_role_assignment" "purview_synapse" {
+  count                = var.create_purview_account ? 1 : 0
   scope                = module.synapse_workspace_private.synapse_workspace_id
   role_definition_name = "Contributor"
   principal_id         = module.synapse_management.purview_identity_principal_id
 }
 
 resource "azurerm_role_assignment" "purview_data" {
+  count                = var.create_purview_account ? 1 : 0
   scope                = module.synapse_data_lake.data_lake_account_id
   role_definition_name = "Storage Blob Data Contributor"
   principal_id         = module.synapse_management.purview_identity_principal_id

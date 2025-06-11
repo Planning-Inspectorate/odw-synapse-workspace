@@ -15,7 +15,7 @@ module "synapse_workspace_private" {
   key_vault_id                          = module.synapse_data_lake.key_vault_id
   key_vault_name                        = module.synapse_data_lake.key_vault_name
   network_resource_group_name           = azurerm_resource_group.network.name
-  purview_ids                           = module.synapse_management.purview_ids
+  purview_ids                           = var.create_purview_account ? module.synapse_management.purview_ids : null
   spark_pool_enabled                    = var.spark_pool_enabled
   spark_pool_max_node_count             = var.spark_pool_max_node_count
   spark_pool_min_node_count             = var.spark_pool_min_node_count
@@ -43,8 +43,8 @@ module "synapse_workspace_private" {
     synapse_dev_private_dns_zone_id = data.azurerm_private_dns_zone.tooling_synapse_dev.id
   }
 
-  odt_appeals_back_office_service_bus_name                = var.odt_appeals_back_office.service_bus_name
-  odt_appeals_back_office_service_bus_resource_group_name = var.odt_appeals_back_office.resource_group_name
+  create_service_bus_resources           = var.create_service_bus_resources
+  odt_appeals_back_office_service_bus_id = var.odt_appeals_back_office.service_bus_enabled && var.external_resource_links_enabled ? local.odt_appeals_back_office_service_bus_id : null
 
   tags = local.tags
 
@@ -73,7 +73,7 @@ module "synapse_workspace_private_failover" {
   key_vault_id                          = module.synapse_data_lake_failover.key_vault_id
   key_vault_name                        = module.synapse_data_lake_failover.key_vault_name
   network_resource_group_name           = azurerm_resource_group.network_failover.name
-  purview_ids                           = module.synapse_management_failover[0].purview_ids
+  purview_ids                           = var.create_purview_account ? module.synapse_management_failover.purview_ids : null
   spark_pool_enabled                    = var.spark_pool_enabled
   spark_pool_max_node_count             = var.spark_pool_max_node_count
   spark_pool_min_node_count             = var.spark_pool_min_node_count

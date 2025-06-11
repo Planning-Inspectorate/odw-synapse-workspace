@@ -11,14 +11,10 @@ resource "azurerm_key_vault" "synapse" {
   tenant_id                  = var.tenant_id
 
   network_acls {
-    bypass         = "AzureServices"
-    default_action = "Deny"
-    ip_rules       = var.firewall_allowed_ip_addresses
-    virtual_network_subnet_ids = [
-      var.vnet_subnet_ids[var.devops_agent_subnet_name],
-      var.vnet_subnet_ids_failover[var.devops_agent_subnet_name],
-      data.azurerm_subnet.horizon_database.id
-    ]
+    bypass                     = "AzureServices"
+    default_action             = "Deny"
+    ip_rules                   = var.firewall_allowed_ip_addresses
+    virtual_network_subnet_ids = local.azurerm_key_vault_synapse_vnet_subnet_ids
   }
 
   tags = local.tags

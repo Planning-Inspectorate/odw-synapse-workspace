@@ -132,19 +132,12 @@ resource "azurerm_synapse_managed_private_endpoint" "synapse_mpe_kv" {
 # synapse PE for connecting to the Appeals BO Service Bus instance when running in the Azure integration runtime
 #
 
-data "azurerm_servicebus_namespace" "appeals_back_office" {
-  count               = var.odt_appeals_back_office_service_bus_name == null ? 0 : 1
-  name                = var.odt_appeals_back_office_service_bus_name
-  resource_group_name = var.odt_appeals_back_office_service_bus_resource_group_name
-  provider            = azurerm.odt
-}
-
 resource "azurerm_synapse_managed_private_endpoint" "synapse_mpe_appeals_bo_sb" {
-  count = var.odt_appeals_back_office_service_bus_name == null ? 0 : 1
+  count = var.create_service_bus_resources ? 1 : 0
 
   name                 = "synapse-mpe-appeals-bo--${local.resource_suffix}"
   synapse_workspace_id = azurerm_synapse_workspace.synapse.id
-  target_resource_id   = data.azurerm_servicebus_namespace.appeals_back_office[0].id
+  target_resource_id   = var.odt_appeals_back_office_service_bus_id
   subresource_name     = "namespace"
 
   depends_on = [
@@ -200,7 +193,7 @@ resource "azurerm_private_endpoint" "synapse_workspace_tooling" {
 # private endpoints for Purview
 
 resource "azurerm_synapse_managed_private_endpoint" "synapse_mpe_purview_account" {
-  count = var.odt_appeals_back_office_service_bus_name == null ? 0 : 1
+  count = var.create_service_bus_resources && var.purview_ids != null ? 1 : 0
 
   name                 = "synapse-mpe-purview-account--${local.resource_suffix}"
   synapse_workspace_id = azurerm_synapse_workspace.synapse.id
@@ -214,7 +207,7 @@ resource "azurerm_synapse_managed_private_endpoint" "synapse_mpe_purview_account
 }
 
 resource "azurerm_synapse_managed_private_endpoint" "synapse_mpe_purview_storage_blob" {
-  count = var.odt_appeals_back_office_service_bus_name == null ? 0 : 1
+  count = var.create_service_bus_resources && var.purview_ids != null ? 1 : 0
 
   name                 = "synapse-mpe-purview-storage-blob--${local.resource_suffix}"
   synapse_workspace_id = azurerm_synapse_workspace.synapse.id
@@ -228,7 +221,7 @@ resource "azurerm_synapse_managed_private_endpoint" "synapse_mpe_purview_storage
 }
 
 resource "azurerm_synapse_managed_private_endpoint" "synapse_mpe_purview_storage_queue" {
-  count = var.odt_appeals_back_office_service_bus_name == null ? 0 : 1
+  count = var.create_service_bus_resources && var.purview_ids != null ? 1 : 0
 
   name                 = "synapse-mpe-purview-storage-queue--${local.resource_suffix}"
   synapse_workspace_id = azurerm_synapse_workspace.synapse.id
@@ -242,7 +235,7 @@ resource "azurerm_synapse_managed_private_endpoint" "synapse_mpe_purview_storage
 }
 
 resource "azurerm_synapse_managed_private_endpoint" "synapse_mpe_purview_event_hubs" {
-  count = var.odt_appeals_back_office_service_bus_name == null ? 0 : 1
+  count = var.create_service_bus_resources && var.purview_ids != null ? 1 : 0
 
   name                 = "synapse-mpe-purview-event-hubs--${local.resource_suffix}"
   synapse_workspace_id = azurerm_synapse_workspace.synapse.id

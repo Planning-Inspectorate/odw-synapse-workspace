@@ -1,15 +1,7 @@
-data "azurerm_resources" "odt_pe_backoffice_sb" {
-  resource_group_name = var.odt_back_office_service_bus_resource_group_name
-  name                = var.odt_back_office_service_bus_name
-  type                = "Microsoft.ServiceBus/namespaces"
-
-  provider = azurerm.odt
-}
-
 data "azurerm_servicebus_topic" "topic_id" {
   count        = length(local.odt_backoffice_sb_topic_names)
   name         = local.odt_backoffice_sb_topic_names[count.index]
-  namespace_id = data.azurerm_resources.odt_pe_backoffice_sb.resources[0].id
+  namespace_id = var.odt_back_office_service_bus_id
 
   provider = azurerm.odt
 }
@@ -18,7 +10,7 @@ data "azurerm_servicebus_topic" "topics_to_send" {
   for_each = toset(var.topics_to_send)
 
   name         = each.value
-  namespace_id = data.azurerm_resources.odt_pe_backoffice_sb.resources[0].id
+  namespace_id = var.odt_back_office_service_bus_id
 
   provider = azurerm.odt
 }

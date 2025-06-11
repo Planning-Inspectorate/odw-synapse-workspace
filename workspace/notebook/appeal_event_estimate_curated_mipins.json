@@ -1,0 +1,147 @@
+{
+	"name": "appeal_event_estimate_curated_mipins",
+	"properties": {
+		"folder": {
+			"name": "odw-curated"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "49b75970-3cef-4cb9-b764-9c9eb76f7e3e"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"from notebookutils import mssparkutils\n",
+					"from datetime import datetime, date\n",
+					"import pyspark.sql.functions as F"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"CREATE OR REPLACE VIEW odw_curated_db.vw_appeal_event_estimate_curated_mipins\n",
+					"AS\n",
+					"SELECT DISTINCT \n",
+					"AppealsEstimateEventID,\n",
+					"ID,\n",
+					"caseReference,\n",
+					"preparationTime,\n",
+					"sittingTime,\n",
+					"reportingTime,\n",
+					"migrated,\n",
+					"ODTSourceSystem,\n",
+					"SourceSystemID,\n",
+					"IngestionDate,\n",
+					"ValidTO,\n",
+					"ROWID,\n",
+					"ISActive\n",
+					"\n",
+					"FROM\n",
+					"  odw_harmonised_db.sb_appeal_event_estimate"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"view_df = spark.sql(\"SELECT * FROM odw_curated_db.vw_appeal_event_estimate_curated_mipins\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# prepare dataframe convert UTC to Day light savings for all timestamp fields\n",
+					"\n",
+					"# List of UTC timestamp columns to convert\n",
+					"timestamp_columns = [\n",
+					"'IngestionDate',\n",
+					"'ValidTO'\n",
+					"]\n",
+					"\n",
+					"# Apply the UTC to London conversion for each column\n",
+					"final_view_df = view_df\n",
+					"for column_name in timestamp_columns:\n",
+					"    final_view_df = final_view_df.withColumn(column_name, F.to_timestamp(F.from_utc_timestamp(F.col(column_name), 'Europe/London'), \"yyyy-MM-dd'T'HH:mm:ss.SSS\"))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"spark.sql(f\"drop table if exists odw_curated_db.appeal_event_estimate_curated_mipins;\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"final_view_df.write.mode(\"overwrite\").saveAsTable(\"odw_curated_db.appeal_event_estimate_curated_mipins\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"##%%sql\n",
+					"##select * from odw_curated_db.appeal_event_estimate_curated_mipins"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
