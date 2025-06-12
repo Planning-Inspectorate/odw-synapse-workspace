@@ -278,7 +278,6 @@ def main():
         "pln_main_source_system_fact",
         "create_selected_tables",
         "pln_sb_reload",
-        "pln_run_function_app_unit_test",
         "rel_1347_nsip_representation",
         "rel_1047_migration_db",
         "rel_1273_s51",
