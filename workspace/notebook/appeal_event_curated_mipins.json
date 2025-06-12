@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "61e51462-eb20-46e4-8335-b1db557a08e4"
+				"spark.autotune.trackingId": "0c60a1a5-bbd2-4af4-ac36-ed08c4738f96"
 			}
 		},
 		"metadata": {
@@ -45,12 +45,21 @@
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"from notebookutils import mssparkutils\n",
+					"from datetime import datetime, date\n",
+					"import pyspark.sql.functions as F "
+				],
+				"execution_count": null
+			},
 			{
 				"cell_type": "code",
 				"metadata": {
@@ -102,6 +111,34 @@
 			},
 			{
 				"cell_type": "code",
+				"source": [
+					"view_df = spark.sql(\"SELECT * FROM vw_Appeal_event_curated_mipins\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# prepare dataframe convert UTC to Day light savings for all timestamp fields\n",
+					"\n",
+					"# List of all UTC timestamp columns to convert\n",
+					"timestamp_columns = [\n",
+					"    'eventStartDateTime',\n",
+					"    'eventEndDateTime',\n",
+					"    'NotificationOfSiteVisit',\n",
+					"    'IngestionDate',\n",
+					"    'ValidTo'\n",
+					"]\n",
+					"\n",
+					"# Apply the conversion in a loop\n",
+					"final_view_df = view_df\n",
+					"for column_name in timestamp_columns:\n",
+					"    final_view_df = final_view_df.withColumn(column_name, F.to_timestamp(F.from_utc_timestamp(F.col(column_name), 'Europe/London'), \"yyyy-MM-dd'T'HH:mm:ss.SSS\"))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
 						"source_hidden": false,
@@ -133,35 +170,7 @@
 					"collapsed": false
 				},
 				"source": [
-					"df = spark.sql(\"\"\"\n",
-					"                SELECT\n",
-					"                    eventId\n",
-					"                    ,caseReference\n",
-					"                    ,eventType\n",
-					"                    ,eventName\n",
-					"                    ,eventStatus\n",
-					"                    ,isUrgent\n",
-					"                    ,eventPublished\n",
-					"                    ,eventStartDateTime\n",
-					"                    ,eventEndDateTime\n",
-					"                    ,NotificationOfSiteVisit\n",
-					"                    ,addressLine1\n",
-					"                    ,addressLine2\n",
-					"                    ,addressTown\n",
-					"                    ,addressCounty\n",
-					"                    ,addressPostcode\n",
-					"                    ,Migrated\n",
-					"                    ,ODTSourceSystem\n",
-					"                    ,SourceSystemID\n",
-					"                    ,IngestionDate\n",
-					"                    ,ValidTo\n",
-					"                    ,RowID\n",
-					"                    ,IsActive\n",
-					"                FROM\n",
-					"                    vw_Appeal_event_curated_mipins\n",
-					"            \"\"\")\n",
-					"\n",
-					"df.write.format(\"delta\").mode(\"Overwrite\").saveAsTable(\"odw_curated_db.appeal_event_curated_mipins\")"
+					"final_view_df.write.mode(\"overwrite\").saveAsTable(\"odw_curated_db.appeal_event_curated_mipins\")"
 				],
 				"execution_count": null
 			},
