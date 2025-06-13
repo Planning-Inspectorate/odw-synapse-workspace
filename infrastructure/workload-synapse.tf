@@ -15,7 +15,9 @@ module "synapse_workspace_private" {
   key_vault_id                          = module.synapse_data_lake.key_vault_id
   key_vault_name                        = module.synapse_data_lake.key_vault_name
   network_resource_group_name           = azurerm_resource_group.network.name
-  purview_ids                           = var.create_purview_account ? module.synapse_management.purview_ids : null
+  purview_id                            = var.link_purview_account ? var.purview_id : null
+  purview_storage_id                    = var.link_purview_account ? var.purview_storage_id : null
+  purview_event_hub_id                  = var.link_purview_account ? var.purview_event_hub_id : null
   spark_pool_enabled                    = var.spark_pool_enabled
   spark_pool_max_node_count             = var.spark_pool_max_node_count
   spark_pool_min_node_count             = var.spark_pool_min_node_count
@@ -73,7 +75,9 @@ module "synapse_workspace_private_failover" {
   key_vault_id                          = module.synapse_data_lake_failover.key_vault_id
   key_vault_name                        = module.synapse_data_lake_failover.key_vault_name
   network_resource_group_name           = azurerm_resource_group.network_failover.name
-  purview_ids                           = var.create_purview_account ? module.synapse_management_failover.purview_ids : null
+  purview_id                            = var.link_purview_account ? var.purview_id : null
+  purview_storage_id                    = var.link_purview_account ? var.purview_storage_id : null
+  purview_event_hub_id                  = var.link_purview_account ? var.purview_event_hub_id : null
   spark_pool_enabled                    = var.spark_pool_enabled
   spark_pool_max_node_count             = var.spark_pool_max_node_count
   spark_pool_min_node_count             = var.spark_pool_min_node_count

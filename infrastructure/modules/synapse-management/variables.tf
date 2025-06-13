@@ -3,9 +3,9 @@ variable "data_lake_account_id" {
   type        = string
 }
 
-variable "deploy_purview" {
+variable "link_purview" {
   default     = true
-  description = "Determines whether Purview will be deployed"
+  description = "Determines whether Purview will be linked to"
   type        = bool
 }
 
@@ -77,4 +77,9 @@ variable "vnet_subnet_ids" {
 variable "vnet_subnet_ids_failover" {
   description = "A map of subnet names and IDs comprising the linked Virtual Network"
   type        = map(string)
+}
+
+variable "purview_msi_id" {
+  description = "The id of the Purview MSI"
+  type        = string
 }
