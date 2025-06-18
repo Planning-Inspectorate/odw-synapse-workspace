@@ -12,7 +12,7 @@ class TestIntegrationPyDeleteTable(NotebookRunTestCase):
     def module_setup(self):
         try:
             SynapseUtil.delete_blob(TEST_CONFIG["DATA_LAKE_STORAGE"], self.target_container, self.target_blob)
-        except ResourceNotFoundError as e:
+        except ResourceNotFoundError:
             pass
         df = pd.DataFrame(
             {
@@ -28,7 +28,10 @@ class TestIntegrationPyDeleteTable(NotebookRunTestCase):
         SynapseUtil.upload_blob(tmp, TEST_CONFIG["DATA_LAKE_STORAGE"], self.target_container, self.target_blob)
 
     def module_teardown(self):
-        SynapseUtil.delete_blob(TEST_CONFIG["DATA_LAKE_STORAGE"], "odw-standardised", "test/test_py_delete_table.parquet")
+        try:
+            SynapseUtil.delete_blob(TEST_CONFIG["DATA_LAKE_STORAGE"], "odw-standardised", "test/test_py_delete_table.parquet")
+        except ResourceNotFoundError:
+            pass
 
     def test_py_delete_table(self):
         # Unfortunately we cannot create tables in the lake database from outside of Synapse, so the rest of the test is done in Synapse
