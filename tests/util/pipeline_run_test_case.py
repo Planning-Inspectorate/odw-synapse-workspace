@@ -47,7 +47,7 @@ class PipelineRunTestCase(SynapseTestCase):
                 raise PipelineWaitException(f"Pipeline poll request raised a status code {response.status_code}")
             current_wait_time += poll_interval
             time.sleep(poll_interval)
-        return PipelineWaitException(f"Exceeded max wait time for the test pipeline run with id {pipeline_run_id} of {max_wait_time_minutes} minutes")
+        raise PipelineWaitException(f"Exceeded max wait time for the test pipeline run with id {pipeline_run_id} of {max_wait_time_minutes} minutes")
 
     """
         Test Case to handle running tests defined in Azure Synapse
