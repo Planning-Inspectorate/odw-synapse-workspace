@@ -46,5 +46,6 @@ class TestIntegrationPyDeleteTable(NotebookRunTestCase):
                     "type": "String",
                     "value": self.target_blob
                 }
-            }
+            },
+            max_wait_time_minutes = 30
         )

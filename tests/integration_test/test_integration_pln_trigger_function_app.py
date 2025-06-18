@@ -33,7 +33,8 @@ class TestIntegrationPlnTriggerFunctionApp(PipelineRunTestCase):
             "pln_trigger_function_app",
             {
                 "function_name": function_name
-            }
+            },
+            max_wait_time_minutes = 30
         )
         pipeline_return_value = pipeline_result["pipelineReturnValue"]
         # This pipeline always returns a Messages value, so it is not possible to check the underlying logic, only that the pipeline returns succesfully
