@@ -2,8 +2,6 @@ from tests.util.notebook_run_test_case import NotebookRunTestCase
 from tests.util.synapse_util import SynapseUtil
 from azure.core.exceptions import ResourceNotFoundError
 from tests.util.config import TEST_CONFIG
-import tests.util.constants as constants
-import tempfile
 import pandas as pd
 from io import BytesIO
 

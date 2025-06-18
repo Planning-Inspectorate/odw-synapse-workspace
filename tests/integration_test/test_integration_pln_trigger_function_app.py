@@ -1,6 +1,6 @@
 from tests.util.pipeline_run_test_case import PipelineRunTestCase
 import pytest
-import json
+
 
 class TestIntegrationPlnTriggerFunctionApp(PipelineRunTestCase):
     @pytest.mark.parametrize(
@@ -36,4 +36,5 @@ class TestIntegrationPlnTriggerFunctionApp(PipelineRunTestCase):
             }
         )
         pipeline_return_value = pipeline_result["pipelineReturnValue"]
+        # This pipeline always returns a Messages value, so it is not possible to check the underlying logic, only that the pipeline returns succesfully
         assert "Messages" in pipeline_return_value and isinstance(pipeline_return_value["Messages"], int) and pipeline_return_value["Messages"] >= 0
