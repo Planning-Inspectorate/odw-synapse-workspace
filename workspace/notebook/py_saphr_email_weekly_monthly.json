@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "7e37d2ad-4eb3-494a-9fad-44dafb38c273"
+				"spark.autotune.trackingId": "e835d9e9-8954-489b-a10d-263a7da2e0fa"
 			}
 		},
 		"metadata": {
@@ -213,8 +213,6 @@
 					"    col(\"Firstname\"),\n",
 					"    col(\"Lastname\"),\n",
 					"    col(\"EmailAddress\"),\n",
-					"    #col(\"TextLineManager\"),\n",
-					"    #col(\"LMEmail\"),    \n",
 					"    # Add additional metadata fields\n",
 					"    lit(\"SapHr\").alias(\"SourceSystemID\"),\n",
 					"    current_timestamp().alias(\"IngestionDate\"),\n",
@@ -281,7 +279,7 @@
 					"#view [load].[vw_SAP_HR_email] \n",
 					"\n",
 					"df_load_vw_sap_email = spark.sql(\"\"\"SELECT COALESCE(e.EmailAddress, e2.EmailAddress) AS email_address,h.*\n",
-					"                                    FROM odw_harmonised_db.load_sap_hr_weekly h\n",
+					"                                    FROM odw_harmonised_db.load_sap_hr_monthly h\n",
 					"                                    LEFT JOIN odw_harmonised_db.load_sap_pins_email e \n",
 					"                                    ON CAST(REPLACE(LTRIM(REPLACE(h.PersNo, '0', ' ')), ' ', '0') AS INT) = e.StaffNumber\n",
 					"                                    LEFT JOIN odw_harmonised_db.load_sap_pins_email e2 \n",
@@ -291,14 +289,17 @@
 					"                                        ELSE h.PersNo\n",
 					"                                        END = e2.StaffNumber\"\"\")\n",
 					"\n",
-					"\n",
 					"# Exclude \"ingested_datetime\", \"expected_from\", \"expected_to\" from rowid_columns\n",
-					"excluded_columns = {\"ingested_datetime\", \"expected_from\", \"expected_to\",\"SourceSystemID\",\"IngestionDate\",\"ValidTo\",\"RowID\",\"IsActive\"} \n",
+					"excluded_columns = {\"PDAC_ETL_Date\",\"Report_MonthEnd_Date\",\"DatetoSubstGrade\",\"DatetoCurrentJob\",\"ingested_datetime\", \"expected_from\", \"expected_to\",\"SourceSystemID\",\"IngestionDate\",\"ValidTo\",\"RowID\",\"IsActive\"} \n",
 					"\n",
 					"rowid_columns = [c for c in df_load_vw_sap_email.columns if c not in excluded_columns]\n",
 					"\n",
 					"df_load_vw_sap_email = df_load_vw_sap_email.select(*[col(c) for c in rowid_columns],    \n",
+					"    col(\"DatetoCurrentJob\").cast(\"string\").alias(\"DatetoCurrentJob\"),\n",
+					"    col(\"DatetoSubstGrade\").cast(\"date\").alias(\"DatetoSubstGrade\"),\n",
 					"    # Add additional metadata fields\n",
+					"    col(\"Report_MonthEnd_Date\").cast(\"date\").alias(\"Report_MonthEnd_Date\"),\n",
+					"    col(\"PDAC_ETL_Date\").cast(\"date\").alias(\"PDAC_ETL_Date\"),\n",
 					"    lit(\"SapHr\").alias(\"SourceSystemID\"),\n",
 					"    current_timestamp().alias(\"IngestionDate\"),\n",
 					"    current_date().cast(\"timestamp\").alias(\"ValidTo\"),\n",
@@ -393,16 +394,13 @@
 			},
 			{
 				"cell_type": "code",
-				"source": [
-					"#spark.sql(f\"DROP TABLE IF EXISTS odw_harmonised_db.load_sap_hr_weekly\")"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
 				"source": [
 					"#spark.sql(f\"DROP TABLE IF EXISTS odw_harmonised_db.load_sap_hr_weekly\")\n",
-					"#spark.sql(f\"DROP TABLE IF EXISTS odw_harmonised_db.load_sap_pins_email_weekly\")"
+					"#spark.sql(f\"DROP TABLE IF EXISTS odw_harmonised_db.load_sap_pins_email_weekly\")\n",
+					""
 				],
 				"execution_count": null
 			}

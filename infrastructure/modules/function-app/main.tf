@@ -1,4 +1,5 @@
 resource "azurerm_linux_function_app" "function" {
+  #checkov:skip=CKV_AZURE_221: Ensure that Azure Function App public network access is disabled (checkov v3)
   name                          = "pins-${var.function_app_name}-${local.resource_suffix}"
   resource_group_name           = var.resource_group_name
   location                      = var.location

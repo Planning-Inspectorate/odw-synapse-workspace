@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "a8439031-cafa-492f-8f5e-982cdd58f94a"
+				"spark.autotune.trackingId": "a1ca1d93-e2ac-4b92-bac4-d18e2f40e0fe"
 			}
 		},
 		"metadata": {
@@ -176,7 +176,7 @@
 					"        END AS Wkhrs,\n",
 					"        CASE \n",
 					"            WHEN TRIM(IndicatorPartTimeEmployee) = '' OR TRIM(IndicatorPartTimeEmployee) = 'NULL' THEN NULL \n",
-					"            ELSE TRY_CAST(IndicatorPartTimeEmployee AS BOOLEAN) \n",
+					"            ELSE IndicatorPartTimeEmployee \n",
 					"        END AS IndicatorPartTimeEmployee,\n",
 					"        S,\n",
 					"        EmploymentStatus,\n",
@@ -235,10 +235,15 @@
 					"    ELSE Loc \n",
 					"  END AS Loc,\n",
 					"        Location,\n",
-					"           CASE \n",
-					"        WHEN OrgStartDate IS NULL THEN NULL\n",
-					"        ELSE DATE_FORMAT(TO_DATE(OrgStartDate, 'yyyy/MM/dd'), 'yyyy-MM-dd') \n",
-					"    END  AS OrgStartDate,\n",
+					"CASE \n",
+					"    WHEN OrgStartDate IS NULL OR TRIM(OrgStartDate) = '' OR TRIM(OrgStartDate) = 'NULL' \n",
+					"        THEN NULL\n",
+					"    -- For dd/MM/yyyy format (your actual data format)\n",
+					"    WHEN OrgStartDate LIKE '%/%'\n",
+					"        THEN TO_DATE(OrgStartDate, 'dd/MM/yyyy')\n",
+					"    -- Fallback for other formats (if any exist)\n",
+					"    ELSE TRY_CAST(OrgStartDate AS DATE)\n",
+					"END AS OrgStartDate ,\n",
 					"        CASE\n",
 					"        WHEN FixTermEndDate IS NULL THEN NULL\n",
 					"        ELSE DATE_FORMAT(TO_DATE(FixTermEndDate, 'dd/MM/yyyy'), 'yyyy-MM-dd')\n",

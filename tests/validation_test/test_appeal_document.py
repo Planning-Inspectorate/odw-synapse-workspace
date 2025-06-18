@@ -1,61 +1,44 @@
-import pytest
+from tests.util.notebook_run_test_case import NotebookRunTestCase
 import tests.util.constants as constants
-import tests.util.pipelineutils as pipelineutils
-import warnings
 
-def test_appeal_document_notebook(credential_name, azure_credential, synapse_endpoint: str):
 
-    warnings.filterwarnings("ignore", category=DeprecationWarning) 
-
-    # run the testing notebook
-    notebookname: str = "py_unit_tests_appeal_document"
-    notebook_raw_params = {
-        "notebook": notebookname,
-        "parameters": {
+class TestAppealDocument(NotebookRunTestCase):
+    def test_appeal_document_notebook(self):
+        notebook_name = "py_unit_tests_appeal_document"
+        notebook_parameters = {
             "entity_name": {
-               "type": "String",
-               "value": "appeal-document",
+                "type": "String",
+                "value": "appeal-document"
             },
             "std_db_name": {
-               "type": "String",
-               "value": "odw_standardised_db",
+                "type": "String",
+                "value": "odw_standardised_db"
             },
             "hrm_db_name": {
-               "type": "String",
-               "value": "odw_harmonised_db",
+                "type": "String",
+                "value": "odw_harmonised_db"
             },
             "curated_db_name": {
-               "type": "String",
-               "value": "odw_curated_db",
+                "type": "String",
+                "value": "odw_curated_db"
             },
             "std_table_name": {
-               "type": "String",
-               "value": "sb_appeal_document",
+                "type": "String",
+                "value": "sb_appeal_document"
             },
             "hrm_table_name": {
-               "type": "String",
-               "value": "sb_appeal_document",
+                "type": "String",
+                "value": "sb_appeal_document"
             },
             "hrm_table_final": {
-               "type": "String",
-               "value": "appeals_document_metadata",
+                "type": "String",
+                "value": "appeals_document_metadata"
             },
             "curated_table_name": {
-               "type": "String",
-               "value": "appeal_document",
+                "type": "String",
+                "value": "appeal_document"
             }
         }
-    }
-    notebook_raw_params.update(constants.SPARK_POOL_CONFIG)
 
-    #run the notebook
-    (notebook_run_result, exitMessage) = pipelineutils.run_and_observe_notebook(credential_name, azure_credential, synapse_endpoint, notebookname, notebook_raw_params)
-    print("Notebook response *" +str(exitMessage) +"*")
-    assert notebook_run_result == constants.NOTEBOOK_SUCCESS_STATUS 
-    assert exitMessage == constants.NOTEBOOK_EXIT_CODE_SUCCESS
-    print("test_appeal_document Completed")
-
-@pytest.fixture(autouse=True)
-def run_before_and_after_tests():
-    yield
-    print("Before and After running")
+        notebook_run_result = self.run_notebook(notebook_name, notebook_parameters)
+        assert notebook_run_result["result"]["exitValue"] == constants.NOTEBOOK_EXIT_CODE_SUCCESS

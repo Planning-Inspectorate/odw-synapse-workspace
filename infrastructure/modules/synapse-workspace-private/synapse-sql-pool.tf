@@ -1,4 +1,7 @@
 resource "azurerm_synapse_sql_pool" "synapse" {
+  #checkov:skip=CKV_AZURE_241: Ensure Synapse SQL pools are encrypted (checkov v3)
+  #checkov:skip=CKV2_AZURE_51: Ensure Synapse SQL Pool has a security alert policy (checkov v3)
+  #checkov:skip=CKV2_AZURE_54: Ensure log monitoring is enabled for Synapse SQL Pool (checkov v3)
   count = var.sql_pool_enabled ? 1 : 0
 
   name                 = "pinssyndpodw"

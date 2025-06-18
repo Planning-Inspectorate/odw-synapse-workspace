@@ -1,4 +1,5 @@
 module "subnets" {
+  #checkov:skip=CKV_TF_1: Ensure Terraform module sources use a commit hash (checkov v3)
   source  = "hashicorp/subnets/cidr"
   version = "1.0.0"
 

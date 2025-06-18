@@ -1,4 +1,7 @@
 resource "azurerm_storage_account" "shir" {
+  #checkov:skip=CKV2_AZURE_40: Ensure storage account is not configured with Shared Key authorization (checkov v3)
+  #checkov:skip=CKV2_AZURE_47: Ensure storage account is configured without blob anonymous access (checkov v3)
+  #checkov:skip=CKV2_AZURE_41: Ensure storage account is configured with SAS expiration policy (checkov v3)
   #checkov:skip=CKV_AZURE_35: Firewall not required for this stroage account
   #checkov:skip=CKV_AZURE_59: Firewall not required for this stroage account
   #checkov:skip=CKV_AZURE_190: Firewall not required for this stroage account

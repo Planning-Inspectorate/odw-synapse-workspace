@@ -1,0 +1,306 @@
+{
+	"name": "py_saphr_load_inspector_address_oneoff",
+	"properties": {
+		"folder": {
+			"name": "odw-harmonised/saphr"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "47b1c5b1-6d08-40be-b456-a8b2d681c6c0"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### This pyspark notebook is one off historical load to Delta table load_saphr_inspector from a csv file extract.\n",
+					"\n",
+					"**Author** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Created Date** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Description**  \n",
+					"Rohit Shukla &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;04-Mar-2025 &nbsp;&nbsp;&nbsp;\n",
+					"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;This pyspark notebook is one off historical load to Delta table load_saphr_inspector &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\n",
+					"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;from a csv file extract.\n",
+					"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\n",
+					"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\n",
+					"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\n",
+					"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\n",
+					"&nbsp;&nbsp;&nbsp;\n",
+					"\n",
+					"**Spark Cluster Configuration** -> Apache Spark Version- 3.4, Python Version \t\t- 3.10, Delta Lake Version \t- 2.4\n",
+					"\n",
+					"\n",
+					""
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Import all python libraries"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"#import all libraries and initialise Spark Session\n",
+					"import json\n",
+					"import calendar\n",
+					"from datetime import datetime, timedelta, date\n",
+					"import requests\n",
+					"#import pandas as pd\n",
+					"import pyspark.sql.functions as F \n",
+					"import os\n",
+					"import re\n",
+					"from operator import add\n",
+					"from notebookutils import mssparkutils\n",
+					"from pyspark.sql.functions import lit,length,lpad,row_number, current_timestamp, to_date ,expr, md5, col, date_format,when, to_date,current_date,concat,cast,regexp_replace,coalesce\n",
+					"from pprint import pprint as pp\n",
+					"from pyspark.sql.types import *\n",
+					"from pyspark.sql.window import Window\n",
+					"from pyspark.sql import SparkSession\n",
+					"spark = SparkSession.builder.getOrCreate()\n",
+					"from delta.tables import DeltaTable\n",
+					"#ignore FutureWarning messages \n",
+					"import warnings\n",
+					"warnings.filterwarnings(\"ignore\", message=\"iteritems is deprecated\")\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Get storage account"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"#Get Storage account name\n",
+					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"print(storage_account)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Enable message logging"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Define all storage path"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Define delta table names, database name and table paths\n",
+					"source_csv_file_name = \"load_saphr_inspector_address_oneoff.csv\"\n",
+					"source_csv_file_path = f\"abfss://odw-raw@{storage_account}StaticTables/\"\n",
+					"\n",
+					"target_delta_table = f\"odw_harmonised_db.sap_hr_inspector_address\"\n",
+					"delta_table_path = f\"abfss://odw-harmonised@{storage_account}saphr/sap_hr_inspector_address\"\n",
+					"\n",
+					"print(target_delta_table)\n",
+					"print(delta_table_path)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Get latest folder\n",
+					"def get_latest_folder(path):\n",
+					"    folders = [f.name for f in mssparkutils.fs.ls(path) if f.isDir]\n",
+					"    folders = sorted([f for f in folders if re.match(r\"\\d{4}-\\d{2}-\\d{2}\", f)], reverse=True)\n",
+					"    return folders[0] if folders else None"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Process all steps to transform into sap_hr_inspector_address one off load"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"# Step 1: get One Off Historical Load latest folder path\n",
+					"\n",
+					"source_csv_folder_name =  get_latest_folder(source_csv_file_path)\n",
+					"\n",
+					"source_csv_saphr_inspector_file_path = f\"{source_csv_file_path}/{source_csv_folder_name}/{source_csv_file_name}\"\n",
+					"\n",
+					"# Step 2: Truncate Delta Table for One Off Historical Load\n",
+					"#spark.sql(f\"truncate table {target_delta_table}\")\n",
+					"\n",
+					"# Step 3: Read csv file\n",
+					"df_source_csv_saphr_inspector = spark.read.format(\"csv\").option(\"header\", \"true\").option(\"inferSchema\", \"false\").load(source_csv_saphr_inspector_file_path)\n",
+					"\n",
+					"excluded_columns = {\"ValidFrom\",\"ValidTo\",\"StartDate\",\"EndDate\",\"Chngdon\"} \n",
+					"\n",
+					"rowid_columns = [c for c in df_source_csv_saphr_inspector.columns]\n",
+					"\n",
+					"df_source_csv_saphr_inspector = df_source_csv_saphr_inspector.select(\n",
+					"    *[col(c).cast(\"string\") for c in df_source_csv_saphr_inspector.columns if c not in excluded_columns], # Convert other columns to STRING\n",
+					"    to_date(col(\"Chngdon\"), \"d/M/yyyy\").alias(\"Chngdon\"),\n",
+					"    to_date(col(\"StartDate\"), \"d/M/yyyy\").alias(\"StartDate\"),\n",
+					"    to_date(col(\"EndDate\"), \"d/M/yyyy\").alias(\"EndDate\"),\n",
+					"    to_date(col(\"ValidFrom\"), \"d/M/yyyy\").alias(\"ValidFrom\"),\n",
+					"    to_date(col(\"ValidTo\"), \"d/M/yyyy\").cast(\"timestamp\").alias(\"ValidTo\"),\n",
+					"    # Add additional metadata fields\n",
+					"    lit(\"SapHr\").alias(\"SourceSystemID\"),\n",
+					"    current_timestamp().alias(\"IngestionDate\"),\n",
+					"    md5(concat(*[coalesce(col(c).cast(\"string\"), lit(\"\")) for c in rowid_columns])).alias(\"RowID\"),\n",
+					"    lit(\"Y\").alias(\"IsActive\")\n",
+					")\n",
+					"\n",
+					"df_source_csv_saphr_inspector = df_source_csv_saphr_inspector.withColumn(\n",
+					"    \"StaffNumber\",\n",
+					"    when(length(\"StaffNumber\") < 8, lpad(\"StaffNumber\", 8, \"0\")).otherwise(col(\"StaffNumber\"))\n",
+					")\n",
+					"\n",
+					"# Removing duplicate records using row_number\n",
+					"dedup_spec = Window.partitionBy(\"StaffNumber\").orderBy(to_date(col(\"Chngdon\"),'yyyy-MM-dd').desc())\n",
+					"df_source_csv_saphr_inspector = df_source_csv_saphr_inspector.withColumn(\"rn\", row_number().over(dedup_spec)).filter(\"rn == 1\").drop(\"rn\")\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Overwrite delta table to load one off sap_hr_inspector_address"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Write data to target Delta Table\n",
+					"try:\n",
+					"    df_source_csv_saphr_inspector.write.format(\"delta\").mode(\"overwrite\").save(delta_table_path)\n",
+					"\n",
+					"    # Ensure the table exists\n",
+					"    spark.sql(f\"CREATE TABLE IF NOT EXISTS {target_delta_table} USING DELTA LOCATION '{delta_table_path}'\")\n",
+					"\n",
+					"    logInfo(f\" Data successfully written to {target_delta_table}\")\n",
+					"\n",
+					"except Exception as e:\n",
+					"    logError(f\" Error writing to {target_delta_table}: {str(e)}\")\n",
+					"    raise\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"#spark.sql(f\"DROP TABLE IF EXISTS odw_harmonised_db.sap_hr_inspector_address\")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}

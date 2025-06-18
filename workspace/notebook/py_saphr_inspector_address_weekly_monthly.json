@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "51cb41bb-e29c-4322-84fe-b2dea690b526"
+				"spark.autotune.trackingId": "d28f98ba-38e9-46eb-a000-66cb1d3fe69c"
 			}
 		},
 		"metadata": {
@@ -275,8 +275,16 @@
 					").withColumn(\"SourceSystemID\", lit(\"SapHr\")).withColumn(\"IngestionDate\", current_timestamp()).withColumn(\"ValidFrom\", col(\"StartDate\")).withColumn(\"ValidTo\", to_timestamp(col(\"EndDate\"),\"yyyy-MM-dd HH:mm:ss.SSS\")).withColumn(\"IsActive\", lit('Y'))\n",
 					"\n",
 					"\n",
-					"df_merged_records_inspector_address = df_new_records_inspector_address.union(df_new_records_inspector_address).dropDuplicates()\n",
+					"df_merged_records_inspector_address = df_new_records_inspector_address.union(df_update_records_inspector_address).dropDuplicates()\n",
 					"\n",
+					"#Reorder columns to match final dataframe with delta table schema\n",
+					"df_tgt_col_reorder = df_tgt_inspector_address.select(df_merged_records_inspector_address.columns)\n",
+					"\n",
+					"df_final_records_inspector_address = df_merged_records_inspector_address.union(df_tgt_col_reorder)\n",
+					"\n",
+					"# Removing duplicate records using row_number\n",
+					"dedup_spec = Window.partitionBy(\"StaffNumber\").orderBy(to_date(col(\"Chngdon\"),'dd/MM/yyyy').desc())\n",
+					"df_final_records_inspector_address = df_final_records_inspector_address.withColumn(\"rn\", row_number().over(dedup_spec)).filter(\"rn == 1\").drop(\"rn\")\n",
 					""
 				],
 				"execution_count": null
@@ -300,7 +308,7 @@
 					"# Write new records to target Delta Table\n",
 					"try:\n",
 					"    # Overwrite the entire delta table with transfored dataframe\n",
-					"    df_merged_records_inspector_address.write.format(\"delta\").mode(\"overwrite\").save(delta_table_path)\n",
+					"    df_final_records_inspector_address.write.format(\"delta\").mode(\"overwrite\").save(delta_table_path)\n",
 					"\n",
 					"\n",
 					"    logInfo(f\" Records overwritten successfully to {target_delta_table}\")\n",
@@ -313,17 +321,17 @@
 				"execution_count": null
 			},
 			{
-				"cell_type": "code",
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
 				"source": [
-					"\n",
-					"#spark.sql(f\"DROP TABLE IF EXISTS odw_harmonised_db.sap_hr_inspector_address\")\n",
-					"\n",
-					"#spark.sql(f\"delete from odw_harmonised_db.sap_hr_inspector_address\")\n",
-					"\n",
-					"\n",
-					""
-				],
-				"execution_count": null
+					"##### Write json format data for capturing record counts, error message to target Delta Table"
+				]
 			},
 			{
 				"cell_type": "code",
@@ -347,7 +355,7 @@
 					"    total_source_records = df_transform_inspector_address.count()\n",
 					"    new_records_count = df_new_records_inspector_address.count()\n",
 					"    updated_records_count = df_update_records_inspector_address.count()\n",
-					"    merged_records_count = df_merged_records_inspector_address.count()\n",
+					"    merged_records_count = df_final_records_inspector_address.count()\n",
 					"    \n",
 					"    result[\"total_source_records\"] = total_source_records\n",
 					"    result[\"new_records_count\"] = new_records_count\n",
@@ -384,7 +392,7 @@
 					"            logInfo(warning_msg)\n",
 					"            result[\"status\"] = \"warning\"\n",
 					"        else:\n",
-					"            logInfo(\"✓ Record count verification successful - all records written correctly\")\n",
+					"            logInfo(\"Record count verification successful - all records written correctly\")\n",
 					"        \n",
 					"        # Additional validation - check for any duplicate StaffNumbers in the final table\n",
 					"        duplicate_check = spark.sql(f\"\"\"\n",
@@ -403,7 +411,7 @@
 					"            if result[\"status\"] != \"warning\":\n",
 					"                result[\"status\"] = \"partial_success\"\n",
 					"        else:\n",
-					"            logInfo(\"✓ No duplicate StaffNumbers found in target table\")\n",
+					"            logInfo(\"No duplicate StaffNumbers found in target table\")\n",
 					"    \n",
 					"    # Log final summary\n",
 					"    logInfo(f\"Inspector address write operation completed with status: {result['status']}\")\n",
@@ -448,6 +456,19 @@
 					"    \n",
 					"    # Output the result as JSON for ADF to capture\n",
 					"    mssparkutils.notebook.exit(json.dumps(result))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"\n",
+					"#spark.sql(f\"DROP TABLE IF EXISTS odw_harmonised_db.sap_hr_inspector_address\")\n",
+					"\n",
+					"#spark.sql(f\"delete from odw_harmonised_db.sap_hr_inspector_address\")\n",
+					"\n",
+					"\n",
+					""
 				],
 				"execution_count": null
 			}

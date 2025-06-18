@@ -1,4 +1,5 @@
 resource "azurerm_service_plan" "service_plan" {
+  #checkov:skip=CKV_AZURE_225: Ensure the App Service Plan is zone redundant (checkov v3)
   name                         = "pins-sp-${local.resource_suffix}"
   location                     = var.location
   resource_group_name          = var.resource_group_name

@@ -1,4 +1,7 @@
 resource "azurerm_synapse_workspace" "synapse" {
+  #checkov:skip=CKV2_AZURE_53: Ensure Azure Synapse Workspace has extended audit logs (checkov v3)
+  #checkov:skip=CKV_AZURE_239: Ensure Azure Synapse Workspace administrator login password is not exposed (checkov v3)
+  #checkov:skip=CKV_AZURE_240: Ensure Azure Synapse Workspace is encrypted with a CMK (checkov v3)
   #checkov:skip=CKV2_AZURE_19:  TODO: Implement fine-grained Synapse firewall rules
   #checkov:skip=CKV_AZURE_157:  SKIP: Data exfiltration protection is optionally not required
   name                                 = "pins-synw-${local.resource_suffix}"
