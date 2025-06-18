@@ -2,7 +2,7 @@ from tests.util.pipeline_run_test_case import PipelineRunTestCase
 import pytest
 import json
 
-class TestPlnTriggerFunctionApp(PipelineRunTestCase):
+class TestIntegrationPlnTriggerFunctionApp(PipelineRunTestCase):
     @pytest.mark.parametrize(
         "function_name",
         [

@@ -8,7 +8,7 @@ import pandas as pd
 from io import BytesIO
 
 
-class TestPyDeleteTable(NotebookRunTestCase):
+class TestIntegrationPyDeleteTable(NotebookRunTestCase):
     target_container = "odw-standardised"
     target_blob = "test/test_py_delete_table.parquet"
     def module_setup(self):
