@@ -16,7 +16,7 @@ class SynapseUtil:
         """
             Get a connection to a dedicated SQL pool registered with synapse
         """
-        server = f"pins-synw-odw-{TEST_CONFIG['ENV'].lower()}-uks-ondemand.sql.azuresynapse.net"  # Convert ODBC Connection String to libpq Connection String
+        server = f"pins-synw-odw-{TEST_CONFIG['ENV'].lower()}-uks-ondemand.sql.azuresynapse.net"
         return cls._get_connection(server, database)
 
     @classmethod
