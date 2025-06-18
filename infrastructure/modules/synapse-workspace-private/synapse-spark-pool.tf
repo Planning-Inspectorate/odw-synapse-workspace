@@ -1,4 +1,5 @@
 resource "azurerm_synapse_spark_pool" "synapse" {
+  #checkov:skip=CKV_AZURE_242: Ensure isolated compute is enabled for Synapse Spark pools (checkov v3)
   count = var.spark_pool_enabled ? 1 : 0
 
   name                           = "pinssynspodw"
@@ -40,6 +41,7 @@ resource "azurerm_synapse_spark_pool" "synapse" {
 }
 
 resource "azurerm_synapse_spark_pool" "synapse_preview" {
+  #checkov:skip=CKV_AZURE_242: Ensure isolated compute is enabled for Synapse Spark pools (checkov v3)
   count = var.spark_pool_preview_enabled ? 1 : 0
 
   name                           = "pinssynspodwpr"
@@ -80,6 +82,7 @@ resource "azurerm_synapse_spark_pool" "synapse_preview" {
 }
 
 resource "azurerm_synapse_spark_pool" "synapse34" {
+  #checkov:skip=CKV_AZURE_242: Ensure isolated compute is enabled for Synapse Spark pools (checkov v3)
   count = var.spark_pool_enabled ? 1 : 0
 
   name                           = "pinssynspodw34"

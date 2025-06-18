@@ -1,18 +1,11 @@
-import pytest
-import tests.util.pipelineutils as pipelineutils
+from tests.util.notebook_run_test_case import NotebookRunTestCase
 import tests.util.constants as constants
-import warnings
 
-def test_nsip_s51_advice_notebook(credential_name, azure_credential, synapse_endpoint: str):
 
-    warnings.filterwarnings("ignore", category=DeprecationWarning) 
-
-    # run the testing notebook
-    notebookname: str = "py_unit_tests_nsip_s51_advice"
-    
-    notebook_raw_params = {
-        "notebook": notebookname,
-        "parameters": {
+class TestNsipS51Advice(NotebookRunTestCase):
+    def test_nsip_s51_advice_notebook(self):
+        notebook_name = "py_unit_tests_nsip_s51_advice"
+        notebook_parameters = {
             "entity_name": {
                 "type": "String",
                 "value": "s51-advice"
@@ -66,17 +59,6 @@ def test_nsip_s51_advice_notebook(credential_name, azure_credential, synapse_end
                 "value": "adviceId"
             },
         }
-    }
-    notebook_raw_params.update(constants.SPARK_POOL_CONFIG)
 
-    #run the notebook
-    (notebook_run_result, exitMessage) = pipelineutils.run_and_observe_notebook(credential_name, azure_credential, synapse_endpoint, notebookname, notebook_raw_params)
-    print("Notebook response *" +str(exitMessage) +"*")
-    assert notebook_run_result == constants.NOTEBOOK_SUCCESS_STATUS 
-    assert exitMessage == constants.NOTEBOOK_EXIT_CODE_SUCCESS
-    print("test_nsip_s51_advice Completed")
-
-@pytest.fixture(autouse=True)
-def run_before_and_after_tests():
-    yield
-    print("Before and After running")
+        notebook_run_result = self.run_notebook(notebook_name, notebook_parameters)
+        assert notebook_run_result["result"]["exitValue"] == constants.NOTEBOOK_EXIT_CODE_SUCCESS

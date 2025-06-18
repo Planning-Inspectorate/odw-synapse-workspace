@@ -38,10 +38,11 @@ class PipelineRunTestCase(SynapseTestCase):
             logging.info(f"Waiting for the pipeline run id '{pipeline_run_id}' exist state to be one of {pipeline_run_end_states}")
             headers = {"Authorization": f"Bearer {self.SYNAPSE_ACCESS_TOKEN}", "Content-Type": "application/json"}
             response = requests.get(run_pipeline_url, headers=headers)
-            if response.status_code >= 200 and response.status_code < 400: 
-                pipeline_run_status = response.json()["result"]["runStatus"]
+            if response.status_code >= 200 and response.status_code < 400:
+                pipeline_run_json = response.json()
+                pipeline_run_status = pipeline_run_json["status"]
                 if pipeline_run_status in pipeline_run_end_states:
-                    return pipeline_run_status
+                    return pipeline_run_json
             else:
                 raise PipelineWaitException(f"Pipeline poll request raised a status code {response.status_code}")
             current_wait_time += poll_interval
@@ -53,5 +54,6 @@ class PipelineRunTestCase(SynapseTestCase):
     """
     def run_pipeline(self, pipeline_name: str, pipeline_parameters: Dict[str, Any], max_wait_time_minutes: int = 10):
         pipeline_run_id = self._trigger_pipeline(pipeline_name, pipeline_parameters)
-        pipeline_run_status = self._wait_for_pipeline_run(pipeline_run_id, max_wait_time_minutes)
-        assert pipeline_run_status == "Succeeded"
+        pipeline_run_result = self._wait_for_pipeline_run(pipeline_run_id, max_wait_time_minutes=max_wait_time_minutes)
+        assert pipeline_run_result["status"] == "Succeeded"
+        return pipeline_run_result

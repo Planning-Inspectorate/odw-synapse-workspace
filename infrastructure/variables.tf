@@ -553,8 +553,8 @@ variable "external_resource_links_enabled" {
   type        = bool
 }
 
-variable "create_purview_account" {
-  description = "If a purview account should be created. Only 3 Purview accounts can exist per tenant"
+variable "link_purview_account" {
+  description = "If the PINS purview account should be linked"
   type        = bool
 }
 
@@ -567,4 +567,28 @@ variable "create_service_bus_resources" {
   description = "If resources related to service buses should be created"
   type        = bool
   default     = true
+}
+
+variable "purview_msi_id" {
+  description = "The id of the Purview MSI"
+  type        = string
+  default     = null
+}
+
+variable "purview_id" {
+  description = "The id of the Purview account"
+  type        = string
+  default     = null
+}
+
+variable "purview_storage_id" {
+  description = "The id of Purview's managed storage account"
+  type        = string
+  default     = null
+}
+
+variable "purview_event_hub_id" {
+  description = "The id of Purview's managed event hub"
+  type        = string
+  default     = null
 }

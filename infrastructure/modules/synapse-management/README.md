@@ -2,11 +2,15 @@
 This module provisions an Azure Purview account for data governance, and Key Vault for secret storage.
 
 ### Table of Contents
-1. [Usage](#usage)
-2. [Requirements](#requirements)
-3. [Providers](#Providers)
-4. [Inputs](#inputs)
-5. [Outputs](#outputs)
+- [Synapse Management](#synapse-management)
+    - [Table of Contents](#table-of-contents)
+  - [Usage](#usage)
+  - [Requirements](#requirements)
+  - [Providers](#providers)
+  - [Modules](#modules)
+  - [Resources](#resources)
+  - [Inputs](#inputs)
+  - [Outputs](#outputs)
 
 ## Usage
 The below module definition provides an example of usage.
@@ -61,7 +65,7 @@ No requirements.
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
-| <a name="input_deploy_purview"></a> [deploy\_purview](#input\_deploy\_purview) | Determines whether Purview will be deployed | `bool` | `true` | no |
+| <a name="input_link_purview"></a> [link\_purview](#input\_link\_purview) | Determines whether Purview will be linked to | `bool` | `true` | no |
 | <a name="input_devops_agent_subnet_name"></a> [devops\_agent\_subnet\_name](#input\_devops\_agent\_subnet\_name) | The name of the subnet into which the devops agents will be deployed | `string` | `"ComputeSubnet"` | no |
 | <a name="input_environment"></a> [environment](#input\_environment) | The name of the environment in which resources will be deployed | `string` | n/a | yes |
 | <a name="input_firewall_allowed_ip_addresses"></a> [firewall\_allowed\_ip\_addresses](#input\_firewall\_allowed\_ip\_addresses) | A list of CIDR ranges to be permitted access to the data lake Storage Account | `list(string)` | `[]` | no |

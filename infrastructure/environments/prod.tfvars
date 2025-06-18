@@ -296,6 +296,6 @@ vnet_subnets = [
 
 external_resource_links_enabled = true
 
-create_purview_account = false
+link_purview_account = false
 
 run_shir_setup_script = false

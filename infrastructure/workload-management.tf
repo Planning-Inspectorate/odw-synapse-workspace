@@ -23,7 +23,7 @@ module "synapse_management" {
   service_name        = local.service_name
 
   data_lake_account_id                   = module.synapse_data_lake.data_lake_account_id
-  deploy_purview                         = var.create_purview_account
+  link_purview                           = var.link_purview_account
   devops_agent_subnet_name               = module.synapse_network.devops_agent_subnet_name
   firewall_allowed_ip_addresses          = local.firewall_allowed_ip_addresses
   key_vault_private_endpoint_dns_zone_id = azurerm_private_dns_zone.key_vault.id
@@ -32,6 +32,7 @@ module "synapse_management" {
   synapse_private_endpoint_subnet_name   = module.synapse_network.synapse_private_endpoint_subnet_name
   vnet_subnet_ids                        = module.synapse_network.vnet_subnets
   vnet_subnet_ids_failover               = module.synapse_network_failover.vnet_subnets
+  purview_msi_id                         = var.purview_msi_id
 
   tags = local.tags
 }
@@ -39,25 +40,25 @@ module "synapse_management" {
 
 # grant access to the data
 resource "azurerm_synapse_role_assignment" "purview_synapse" {
-  count                = var.create_purview_account ? 1 : 0
+  count                = var.link_purview_account ? 1 : 0
   synapse_workspace_id = module.synapse_workspace_private.synapse_workspace_id
   role_name            = "Synapse Contributor"
-  principal_id         = module.synapse_management.purview_identity_principal_id
+  principal_id         = var.purview_msi_id
   principal_type       = "ServicePrincipal"
 }
 
 resource "azurerm_role_assignment" "purview_synapse" {
-  count                = var.create_purview_account ? 1 : 0
+  count                = var.link_purview_account ? 1 : 0
   scope                = module.synapse_workspace_private.synapse_workspace_id
   role_definition_name = "Contributor"
-  principal_id         = module.synapse_management.purview_identity_principal_id
+  principal_id         = var.purview_msi_id
 }
 
 resource "azurerm_role_assignment" "purview_data" {
-  count                = var.create_purview_account ? 1 : 0
+  count                = var.link_purview_account ? 1 : 0
   scope                = module.synapse_data_lake.data_lake_account_id
   role_definition_name = "Storage Blob Data Contributor"
-  principal_id         = module.synapse_management.purview_identity_principal_id
+  principal_id         = var.purview_msi_id
 }
 
 module "synapse_management_failover" {
@@ -71,7 +72,7 @@ module "synapse_management_failover" {
   service_name        = local.service_name
 
   data_lake_account_id                   = module.synapse_data_lake_failover.data_lake_account_id
-  deploy_purview                         = false # Not supported in the UK West region
+  link_purview                           = false # Not supported in the UK West region
   devops_agent_subnet_name               = module.synapse_network_failover.devops_agent_subnet_name
   firewall_allowed_ip_addresses          = local.firewall_allowed_ip_addresses
   key_vault_private_endpoint_dns_zone_id = azurerm_private_dns_zone.key_vault.id
@@ -80,6 +81,7 @@ module "synapse_management_failover" {
   synapse_private_endpoint_subnet_name   = module.synapse_network_failover.synapse_private_endpoint_subnet_name
   vnet_subnet_ids                        = module.synapse_network_failover.vnet_subnets
   vnet_subnet_ids_failover               = module.synapse_network.vnet_subnets
+  purview_msi_id                         = var.purview_msi_id
 
   tags = local.tags
 }

@@ -24,14 +24,20 @@ class NotebookRunTestCase(SynapseTestCase):
         """
         logging.info(f"RUNNING notebook {notebook_name}...\n")
         notebook_run_id = str(uuid.uuid4())
-        run_notebook_url = f'{self.SYNAPSE_ENDPOINT}/notebooks/runs/{notebook_run_id}?api-version=2022-03-01-preview'
+        run_notebook_url = f"{self.SYNAPSE_ENDPOINT}/notebooks/runs/{notebook_run_id}?api-version=2022-03-01-preview"
         headers = {"Authorization": f"Bearer {self.SYNAPSE_ACCESS_TOKEN}", "Content-Type": "application/json"}
-        response = requests.put(run_notebook_url, headers=headers,data=json.dumps(notebook_parameters))
+        run_parameters = {
+            "notebook": notebook_name,
+            "parameters": notebook_parameters
+        }
+        if notebook_parameters:
+            run_parameters["parameters"] = notebook_parameters
+        response: requests.Response = requests.put(run_notebook_url, headers=headers, data=json.dumps(run_parameters))
         if response.status_code >= 200 and response.status_code < 400 : 
             return notebook_run_id
-        raise NotebookRunException(f"Failed to run notebook {notebook_name}. RunID: '{notebook_run_id}'. Error is {response.status_code}...\n")
+        raise NotebookRunException(f"Failed to run notebook {notebook_name}. RunID: '{notebook_run_id}'. Error is {response.text}...\n")
 
-    def _wait_for_notebook_run(self, notebook_run_id: str, poll_interval = 15, max_wait_time_minutes: int = 10) -> str:
+    def _wait_for_notebook_run(self, notebook_run_id: str, poll_interval = 15, max_wait_time_minutes: int = 10) -> Dict[str, Any]:
         """
             Wait for a synapse notebook run to finish
         """
@@ -44,16 +50,20 @@ class NotebookRunTestCase(SynapseTestCase):
             headers = {"Authorization": f"Bearer {self.SYNAPSE_ACCESS_TOKEN}", "Content-Type": "application/json"}
             response = requests.get(run_notebook_url, headers=headers)
             if response.status_code >= 200 and response.status_code < 400: 
-                notebook_run_status = response.json()["result"]["runStatus"]
+                notebook_run_json = response.json()
+                notebook_run_status = notebook_run_json["result"]["runStatus"]
                 if notebook_run_status in notebook_run_end_states:
-                    return notebook_run_status
+                    return notebook_run_json
             else:
                 raise NotebookWaitException(f"Notebook poll request raised a status code {response.status_code}")
             current_wait_time += poll_interval
             time.sleep(poll_interval)
-        return NotebookWaitException(f"Exceeded max wait time for the test notebook run with id {notebook_run_id} of {max_wait_time_minutes} minutes")
+        raise NotebookWaitException(f"Exceeded max wait time for the test notebook run with id {notebook_run_id} of {max_wait_time_minutes} minutes")
 
-    def run_notebook(self, notebook_name: str, notebook_parameters: Dict[str, Any], max_wait_time_minutes: int = 10):
+    def run_notebook(self, notebook_name: str, notebook_parameters: Dict[str, Any], max_wait_time_minutes: int = 60):
         notebook_run_id = self._trigger_notebook(notebook_name, notebook_parameters)
-        notebook_run_status = self._wait_for_notebook_run(notebook_run_id, max_wait_time_minutes)
-        assert notebook_run_status == "Succeeded"
+        notebook_run_result = self._wait_for_notebook_run(notebook_run_id, max_wait_time_minutes=max_wait_time_minutes)
+        assert "result" in notebook_run_result, "Notebook run json does not have a 'result' property"
+        assert "runStatus" in notebook_run_result["result"], "Notebook run json property 'result' does not have a 'runStatus' property"
+        assert notebook_run_result["result"]["runStatus"] == "Succeeded"
+        return notebook_run_result

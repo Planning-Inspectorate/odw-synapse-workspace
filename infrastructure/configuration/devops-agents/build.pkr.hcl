@@ -11,7 +11,7 @@ source "azure-arm" "azure-agents" {
   azure_tags = {
     Project          = "tooling"
     CreatedBy        = "packer"
-    TerraformVersion = "1.11.4"
+    TerraformVersion = "1.12.2"
     pythonVersion    = "3.7"
   }
 
@@ -30,12 +30,18 @@ build {
 
     os_type         = "Linux"
     image_publisher = "canonical"
-    image_offer     = "0001-com-ubuntu-server-focal"
-    image_sku       = "20_04-lts"
+    image_offer     = "0001-com-ubuntu-server-jammy"
+    image_sku       = "22_04-lts"
 
     location        = "UK South"
     vm_size         = "Standard_F2s_v2"
   }
+
+  provisioner "file" {
+    source = "${path.cwd}/../../../tests/requirements.txt"
+    destination = "tests_requirements.txt"
+  }
+
 
   provisioner "shell" {
     execute_command = "chmod +x {{ .Path }}; {{ .Vars }} sudo -E bash -e '{{ .Path }}'"

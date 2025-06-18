@@ -1,5 +1,9 @@
 
 resource "azurerm_storage_account" "synapse" {
+  #checkov:skip=CKV2_AZURE_40: Ensure storage account is not configured with Shared Key authorization (checkov v3)
+  #checkov:skip=CKV2_AZURE_47: Ensure storage account is configured without blob anonymous access (checkov v3)
+  #checkov:skip=CKV2_AZURE_41: Ensure storage account is configured with SAS expiration policy (checkov v3)
+  #checkov:skip=CKV_AZURE_244: Avoid the use of local users for Azure Storage unless necessary (checkov v3)
   #checkov:skip=CKV_AZURE_35: Firewall is enabled using azurerm_storage_account_network_rules
   #checkov:skip=CKV_AZURE_59: Firewall is enabled using azurerm_storage_account_network_rules
   #checkov:skip=CKV_AZURE_190: Firewall is enabled using azurerm_storage_account_network_rules

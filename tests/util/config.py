@@ -11,6 +11,9 @@ load_dotenv(verbose=True)
 TEST_CONFIG = {
     k: os.environ.get(k, None)
     for k in [
-        "ENV"
+        "ENV",
+        "DATA_LAKE_STORAGE",
+        "SUBSCRIPTION_ID",
+        "PURVIEW_ID"
     ]
 }

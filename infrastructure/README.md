@@ -335,7 +335,7 @@ The below tables outline the steps in each stage of the `Terraform CD` pipeline:
 | <a name="input_vnet_subnets"></a> [vnet\_subnets](#input\_vnet\_subnets) | A collection of subnet definitions used to logically partition the Virtual Network | <pre>list(object({<br>    name              = string<br>    new_bits          = number<br>    service_endpoints = list(string)<br>    service_delegation = list(object({<br>      delegation_name = string<br>      actions         = list(string)<br>    }))<br>  }))</pre> | n/a | yes |
 | <a name="input_devops_agent_failover_enabled"></a> [devops\_agent\_failover\_enabled](#input\_devops\_agent\_failover\_enabled) | If failover devops agents should be created or not | `bool` | `true` | no |
 | <a name="input_external_resource_links_enabled"></a> [external\_resource\_links\_enabled](#input\_external\_resource\_links\_enabled) | If connections and links to resources outside of the ODW should be made | `bool` | n/a | yes |
-| <a name="input_create_purview_account"></a> [create\_purview\_account](#input\_create\_purview\_account) | If a purview account should be created. Only 3 Purview accounts can exist per tenant | `bool` | n/a | yes |
+| <a name="input_link_purview_account"></a> [link\_purview\_account](#input\_create\_purview\_account) | If a purview account should be linked | `bool` | n/a | yes |
 | <a name="input_run_shir_setup_script"></a> [run\_shir\_setup\_script](#input\_run\_shir\_setup\_script) | If the SHIR setup script should be triggered on start-up of the VM | `bool` | n/a | yes |
 | <a name="input_create_service_bus_resources"></a> [create\_service\_bus\_resources](#input\_create\_service\_bus\_resources) | If resources related to service buses should be created | `bool` | `true` | no |
 
