@@ -3,7 +3,7 @@ from tests.util.azure_management_test_case import AzureManagementTestCase
 from tests.util.synapse_test_case import SynapseTestCase
 from typing import Dict, Any
 import requests
-import json
+import pytest
 
 
 class TestSmokeSynapse(AzureManagementTestCase, SynapseTestCase):
@@ -37,7 +37,8 @@ class TestSmokeSynapse(AzureManagementTestCase, SynapseTestCase):
             f"Expected the status code to be '200' when polling synapse, but was '{synapse_response.status_code}'. "
             "Check that the VPN is enabled on the test host, and that Synapse private endpoints exist and are enabled"
         )
-    
+
+    @pytest.mark.skipif(not TEST_CONFIG["PURVIEW_ID"] == "BUILD", reason="Purview is not connected to the build environment")
     def test_purview_configuration(self):
         workspace_details = self._get_synapse_workspace(self.WORKSPACE_NAME)
         properties = workspace_details["properties"]
