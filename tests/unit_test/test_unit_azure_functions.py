@@ -8,7 +8,7 @@ import pytest
 import json
 
 
-class TestAzureFunctions(TestCase):
+class TestUnitAzureFunctions(TestCase):
     KEY_VAULT_CLIENT = SecretClient(vault_url=f"https://pinskvsynwodw{TEST_CONFIG['ENV'].lower()}uks.vault.azure.net", credential=AzureCliCredential())
 
     @pytest.mark.parametrize(

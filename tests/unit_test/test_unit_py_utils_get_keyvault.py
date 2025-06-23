@@ -2,7 +2,7 @@ from tests.util.config import TEST_CONFIG
 from tests.util.notebook_run_test_case import NotebookRunTestCase
 
 
-class TestPyUtilsGetKeyvault(NotebookRunTestCase):
+class TestUnitPyUtilsGetKeyvault(NotebookRunTestCase):
     def test_py_utils_get_keyvault(self):
         test_secret_name = "test_secret_name"
         return_value = self.run_notebook(
