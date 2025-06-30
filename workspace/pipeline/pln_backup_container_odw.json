@@ -1,0 +1,81 @@
+{
+	"name": "pln_backup_container_odw",
+	"properties": {
+		"activities": [
+			{
+				"name": "backup container",
+				"description": "This pipeline is used to backup entire container, primarily for day-1 full load.",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "BinarySource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true,
+							"wildcardFileName": "*",
+							"deleteFilesAfterCompletion": false
+						},
+						"formatSettings": {
+							"type": "BinaryReadSettings"
+						}
+					},
+					"sink": {
+						"type": "BinarySink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings",
+							"copyBehavior": "PreserveHierarchy"
+						}
+					},
+					"enableStaging": false
+				},
+				"inputs": [
+					{
+						"referenceName": "ds_bkp_source",
+						"type": "DatasetReference",
+						"parameters": {
+							"source_container": {
+								"value": "@pipeline().parameters.source_container",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "ds_bkp_destination",
+						"type": "DatasetReference",
+						"parameters": {
+							"dest_container": {
+								"value": "@pipeline().parameters.dest_container",
+								"type": "Expression"
+							}
+						}
+					}
+				]
+			}
+		],
+		"parameters": {
+			"source_container": {
+				"type": "string",
+				"defaultValue": "logging"
+			},
+			"dest_container": {
+				"type": "string",
+				"defaultValue": "delta-backup-logging-db"
+			}
+		},
+		"folder": {
+			"name": "distaster recovery"
+		},
+		"annotations": []
+	}
+}

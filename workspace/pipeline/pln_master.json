@@ -1917,9 +1917,15 @@
 				}
 			},
 			{
-				"name": "Notify curated failure via email",
-				"type": "WebActivity",
+				"name": "Notify Curated failure via email",
+				"type": "ExecutePipeline",
 				"dependsOn": [
+					{
+						"activity": "Send curated failed",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
 					{
 						"activity": "Record curated failure",
 						"dependencyConditions": [
@@ -1928,30 +1934,49 @@
 					}
 				],
 				"policy": {
-					"timeout": "0.00:10:00",
-					"retry": 3,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
 					"secureInput": false
 				},
 				"userProperties": [],
 				"typeProperties": {
-					"method": "POST",
-					"headers": {
-						"Content-Type": "application/json"
+					"pipeline": {
+						"referenceName": "pln_pipeline_result_email_notifcation",
+						"type": "PipelineReference"
 					},
-					"url": "https://prod-50.uksouth.logic.azure.com:443/workflows/edf644dce8e24b96b2684b825615faa6/triggers/When_a_HTTP_request_is_received/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2FWhen_a_HTTP_request_is_received%2Frun&sv=1.0&sig=mPuvKYA7JLK8hX30pXXCmoAxgubekmoYhzKhwkcT8Lw",
-					"connectVia": {
-						"referenceName": "AutoResolveIntegrationRuntime",
-						"type": "IntegrationRuntimeReference"
+					"waitOnCompletion": true,
+					"parameters": {
+						"pipelineSucceeded": false
+					}
+				}
+			},
+			{
+				"name": "Notify Curated success via email",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Send completion notification",
+						"dependencyConditions": [
+							"Succeeded"
+						]
 					},
-					"body": {
-						"pipelineName": "@{pipeline().Pipeline}",
-						"status": "Failed",
-						"runId": "@{pipeline().RunId}",
-						"timestamp": "@{formatDateTime(utcNow(), 'yyyy-MM-ddTHH:mm:ss')}",
-						"dataFactory": "@{pipeline().DataFactory}",
-						"environment": "@{split(pipeline().DataFactory, '-')[3]}"
+					{
+						"activity": "Record pipeline completed",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_pipeline_result_email_notifcation",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"pipelineSucceeded": true
 					}
 				}
 			}
