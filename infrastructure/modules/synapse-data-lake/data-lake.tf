@@ -13,7 +13,7 @@ resource "azurerm_storage_account" "synapse" {
   #checkov:skip=CKV2_AZURE_18: Microsoft managed keys are acceptable
   #checkov:skip=CKV2_AZURE_33: Private Endpoint is not enabled as networking is controlled by Firewall
   name                             = replace("pins-st-${local.resource_suffix}-${random_string.unique_id.id}", "-", "")
-  resource_group_name              = var.resource_group_name
+  resource_group_name              = "ZRS"
   location                         = var.location
   account_tier                     = var.data_lake_account_tier
   account_replication_type         = var.data_lake_replication_type
