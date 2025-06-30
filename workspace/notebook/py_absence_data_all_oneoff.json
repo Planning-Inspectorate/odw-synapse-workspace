@@ -1,0 +1,254 @@
+{
+	"name": "py_absence_data_all_oneoff",
+	"properties": {
+		"folder": {
+			"name": "odw-harmonised/saphr"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "a1d8a658-c386-4a44-833b-b2bbc594ffdb"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### The purpose of this notebook is to read data from Standardised layer and build a table for Curated Layer.\n",
+					"\n",
+					"**Author** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   **Created Date** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Description**  \n",
+					"Prathap Adicherla &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;01-April-2025 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; This Notebook is designed to facilitate the monthly processing and harmonization of absence data. It includes steps for initializing the environment, creating and managing Delta tables, and inserting data into harmonized tables. The Notebook ensures that absence data is accurately transformed, stored, and made available for reporting and analysis."
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Intialisations"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql.functions import udf, col, lit, when, coalesce, concat, sum, avg, max, min, count, countDistinct, date_format, to_date, datediff, months_between, year, month,  hour, minute, second, expr, asc, desc\n",
+					"from pyspark.sql.types import DateType, TimestampType, StringType, IntegerType, FloatType, DoubleType, BooleanType, StructType, StructField, ArrayType, MapType\n",
+					"from pyspark.sql.window import Window\n",
+					"from pyspark.sql.functions import row_number, rank, dense_rank, lag, lead, ntile\n",
+					"from pyspark.sql import SQLContext\n",
+					"from pyspark.sql import DataFrame\n",
+					"from pyspark.sql import functions as F\n",
+					"from pyspark.sql.avro.functions import from_avro, to_avro\n",
+					"from pyspark.sql.streaming import DataStreamReader, DataStreamWriter\n",
+					"from pyspark.sql.utils import AnalysisException\n",
+					"from pyspark.sql.catalog import Catalog\n",
+					"from pyspark.sql.column import Column\n",
+					"from pyspark.sql.group import GroupedData\n",
+					"from pyspark.sql.pandas.functions import pandas_udf\n",
+					"\n",
+					"from datetime import datetime, timedelta\n",
+					"import pandas as pd\n",
+					"import logging"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"\n",
+					"\n",
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Entity : absence_all"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"import json\n",
+					"\n",
+					"# Initialize result dictionary\n",
+					"result = {\n",
+					"    \"status\": \"success\",\n",
+					"    \"record_count\": 0,\n",
+					"    \"error_message\": None\n",
+					"}\n",
+					"\n",
+					"try:\n",
+					"    # Set legacy time parser for compatibility\n",
+					"    logInfo(\"Setting legacy time parser policy\")\n",
+					"    spark.sql(\"\"\"SET spark.sql.legacy.timeParserPolicy = LEGACY\"\"\")\n",
+					"    logInfo(\"Legacy time parser policy set successfully\")\n",
+					"    \n",
+					"    # Step 1: Delete all rows from the target table\n",
+					"    logInfo(\"Starting deletion of all rows from odw_harmonised_db.sap_hr_absence_all\")\n",
+					"    spark.sql(\"\"\"\n",
+					"    DELETE FROM odw_harmonised_db.sap_hr_absence_all\n",
+					"    \"\"\")\n",
+					"    logInfo(\"Successfully deleted all rows from odw_harmonised_db.sap_hr_absence_all\")\n",
+					"    \n",
+					"    # Step 2: Insert data with deduplication built-in using a window function\n",
+					"    logInfo(\"Starting data insertion with built-in deduplication\")\n",
+					"    spark.sql(\"\"\"\n",
+					"    INSERT INTO odw_harmonised_db.sap_hr_absence_all\n",
+					"    SELECT  \n",
+					"        StaffNumber, AbsType, SicknessGroup, StartDate, EndDate, \n",
+					"        AttendanceorAbsenceType, Days, Hrs, Start, Endtime, \n",
+					"        Caldays, WorkScheduleRule, Wkhrs, HrsDay, WkDys, \n",
+					"        AnnualLeaveStart, SourceSystemID, IngestionDate, ValidTo, \n",
+					"        RowID, IsActive\n",
+					"    FROM\n",
+					"    (\n",
+					"        SELECT  \n",
+					"            StaffNumber,\n",
+					"            COALESCE(AbsType, '') AS AbsType,\n",
+					"            COALESCE(SicknessGroup, '') AS SicknessGroup,\n",
+					"            cast(to_date(StartDate,'dd/MM/yyyy') as date) as StartDate,\n",
+					"            cast(to_date(EndDate,'dd/MM/yyyy') as date) as EndDate,\n",
+					"            AttendanceorAbsenceType,\n",
+					"            REPLACE(Days, ',', '') AS Days,\n",
+					"            REPLACE(Hrs, ',', '') AS Hrs,\n",
+					"            to_date('31/12/1899','dd/MM/yyyy') as Start,\n",
+					"            to_date('31/12/1899','dd/MM/yyyy') as Endtime,  \n",
+					"            Caldays,\n",
+					"            WorkScheduleRule,\n",
+					"            TRY_CAST(REPLACE(Wkhrs, ',', '') AS DOUBLE) AS Wkhrs,  \n",
+					"            TRY_CAST(REPLACE(HrsDay, ',', '') AS DOUBLE) AS HrsDay,  \n",
+					"            TRY_CAST(REPLACE(WkDys, ',', '') AS DOUBLE) AS WkDys,  \n",
+					"            to_date(AnnualLeaveStart,'dd/MM/yyyy') AS AnnualLeaveStart,\n",
+					"            'saphr' AS SourceSystemID,\n",
+					"            CURRENT_DATE() AS IngestionDate,\n",
+					"            CURRENT_TIMESTAMP() AS ValidTo,\n",
+					"            md5(concat_ws('|',\n",
+					"                StaffNumber,            \n",
+					"                COALESCE(AbsType, ''),                \n",
+					"                COALESCE(SicknessGroup, ''),          \n",
+					"                to_date(StartDate,'dd/MM/yyyy'),              \n",
+					"                to_date(EndDate,'dd/MM/yyyy'),                \n",
+					"                AttendanceorAbsenceType,\n",
+					"                REPLACE(Days, ',', ''),                   \n",
+					"                REPLACE(Hrs, ',', ''),                    \n",
+					"                to_date('31/12/1899','dd/MM/yyyy'),                  \n",
+					"                to_date('31/12/1899','dd/MM/yyyy'),                \n",
+					"                Caldays,                \n",
+					"                WorkScheduleRule,       \n",
+					"                REPLACE(Wkhrs, ',', ''),                  \n",
+					"                REPLACE(HrsDay, ',', ''),                 \n",
+					"                REPLACE(WkDys, ',', '')\n",
+					"            )) AS RowID,\n",
+					"            'Y' AS IsActive,\n",
+					"            ROW_NUMBER() OVER (PARTITION BY StaffNumber, StartDate ORDER BY StaffNumber, StartDate) AS row_num\n",
+					"        FROM odw_standardised_db.absence_data_historic\n",
+					"        WHERE \n",
+					"            StaffNumber IS NOT NULL \n",
+					"            AND StartDate IS NOT NULL \n",
+					"            AND EndDate IS NOT NULL\n",
+					"    ) ranked\n",
+					"    WHERE row_num = 1\n",
+					"    \"\"\")\n",
+					"    \n",
+					"    # Get final record count (only records inserted in this run)\n",
+					"    final_record_count = spark.sql(\"\"\"\n",
+					"    SELECT COUNT(*) as count FROM odw_harmonised_db.sap_hr_absence_all\n",
+					"    WHERE IngestionDate = CURRENT_DATE()\n",
+					"    \"\"\").collect()[0]['count']\n",
+					"    \n",
+					"    result[\"record_count\"] = final_record_count\n",
+					"    logInfo(f\"Successfully inserted {final_record_count} records into target table\")\n",
+					"    \n",
+					"    # Final success message\n",
+					"    logInfo(\"Absence data processing completed successfully\")\n",
+					"\n",
+					"except Exception as e:\n",
+					"    # Capture error information and limit to 300 characters\n",
+					"    error_msg = f\"Error in absence data processing: {str(e)}\"\n",
+					"    logError(error_msg)\n",
+					"    logException(e)\n",
+					"    \n",
+					"    # Truncate error message if it exceeds 300 characters\n",
+					"    truncated_error = (error_msg[:297] + '...') if len(error_msg) > 300 else error_msg\n",
+					"    \n",
+					"    result[\"status\"] = \"failed\"\n",
+					"    result[\"error_message\"] = truncated_error\n",
+					"    result[\"record_count\"] = -1  # Indicate failure with -1 count\n",
+					"    \n",
+					"    # Re-raise the exception to ensure the notebook fails properly\n",
+					"    raise e\n",
+					"\n",
+					"finally:\n",
+					"    # Always flush logs regardless of success or failure\n",
+					"    logInfo(\"Flushing logs\")\n",
+					"    flushLogging()\n",
+					"    \n",
+					"    # Output the result as JSON for ADF to capture\n",
+					"    mssparkutils.notebook.exit(json.dumps(result))"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
