@@ -5,7 +5,7 @@ output "synapse_endpoints" {
 
 output "synapse_spark_pool_id" {
   description = "The ID of the Synapse Spark Pool"
-  value       = var.spark_pool_enabled ? one(azurerm_synapse_spark_pool.synapse).id : null
+  value       = var.spark_pool_enabled ? one(azurerm_synapse_spark_pool.synapse34).id : null
 }
 
 output "synapse_sql_pool_id" {
