@@ -1,0 +1,409 @@
+{
+	"name": "py_saphr_email_weekly",
+	"properties": {
+		"folder": {
+			"name": "odw-harmonised/saphr"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "1eeee055-30f0-4771-8dcd-817f4590ee18"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### The purpose of this pyspark notebook is to read Delta tables from owb_standarsied_db to owb_harmonisied_db and load all records as Delta tables along with metadata columns.\n",
+					"\n",
+					"**Author** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Created Date** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Description**  \n",
+					"Rohit Shukla &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;04-Mar-2025 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The functionality of this notebook is to load Delta Table load_load_sap_pins_email and vw_sap_hr_email into owb-harmonisied_db layer from MiPiNS using this stored procedure:\n",
+					"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[Build].[sap_PINS_email_weekly_adf] and view [load].[vw_SAP_HR_email] \n",
+					"\n",
+					"**Spark Cluster Configuration** -> Apache Spark Version- 3.4, Python Version \t\t- 3.10, Delta Lake Version \t- 2.4\n",
+					"\n",
+					"\n",
+					""
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Import all required Python Libraries"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"#import all libraries and initialise Spark Session\n",
+					"import json\n",
+					"from datetime import datetime, timedelta, date\n",
+					"#import pandas as pd\n",
+					"import pyspark.sql.functions as F \n",
+					"import re\n",
+					"from operator import add\n",
+					"from notebookutils import mssparkutils\n",
+					"from pyspark.sql.functions import lit,coalesce, current_timestamp, to_date ,expr, md5, col, date_format,when, to_date,current_date,concat,cast,regexp_replace\n",
+					"from pyspark.sql.types import *\n",
+					"from pyspark.sql import SparkSession\n",
+					"spark = SparkSession.builder.getOrCreate()\n",
+					"from delta.tables import DeltaTable\n",
+					"#ignore FutureWarning messages \n",
+					"import warnings\n",
+					"warnings.filterwarnings(\"ignore\", message=\"iteritems is deprecated\")\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Get storage account"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"#Get Storage account name\n",
+					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"print(storage_account)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Enable message logging"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Define all storage path"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Define delta table names, database name and table paths\n",
+					"source_database_name = \"odw_standardised_db\"\n",
+					"target_database_name = \"odw_harmonised_db\"\n",
+					"source_delta_table = f\"{source_database_name}.sap_email_weekly\"\n",
+					"target_delta_table = f\"{target_database_name}.load_sap_pins_email_weekly\"\n",
+					"target_delta_view = f\"{target_database_name}.load_vw_sap_hr_email_weekly\"\n",
+					"delta_table_path = f\"abfss://odw-harmonised@{storage_account}saphr/load_sap_pins_email_weekly\"\n",
+					"delta_view_path = f\"abfss://odw-harmonised@{storage_account}saphr/load_vw_sap_hr_email_weekly\"\n",
+					"\n",
+					"print(target_delta_table)\n",
+					"print(delta_table_path)\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Process all steps to transform load_sap_pins_email"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"\n",
+					"# Step 1: Read source Delta Table\n",
+					"df_source_sap_email_weekly = spark.read.format(\"delta\").option(\"inferSchema\", \"false\").table(source_delta_table)\n",
+					"\n",
+					"# Exclude \"ingested_datetime\", \"expected_from\", \"expected_to\" from rowid_columns\n",
+					"excluded_columns = {\"ingested_datetime\", \"expected_from\", \"expected_to\"} \n",
+					"\n",
+					"rowid_columns = [c for c in df_source_sap_email_weekly.columns if c not in excluded_columns]\n",
+					"\n",
+					"# Select required columns and ensure correct data types present in the target dataframe\n",
+					"target_sap_hr_weekly_df = df_source_sap_email_weekly.select(    \n",
+					"    col(\"StaffNumber\"),\n",
+					"    col(\"Firstname\"),\n",
+					"    col(\"Lastname\"),\n",
+					"    col(\"EmailAddress\"),\n",
+					"    # Add additional metadata fields\n",
+					"    lit(\"SapHr\").alias(\"SourceSystemID\"),\n",
+					"    current_timestamp().alias(\"IngestionDate\"),\n",
+					"    current_date().cast(\"timestamp\").alias(\"ValidTo\"),\n",
+					"    md5(concat(*[coalesce(col(c).cast(\"string\"), lit(\"\")) for c in rowid_columns])).alias(\"RowID\"),\n",
+					"    lit(\"Y\").alias(\"IsActive\")\n",
+					")\n",
+					"\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Overwrite data to target Delta Table  load_sap_pins_email"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Write data to target Delta Table\n",
+					"try:\n",
+					"    target_sap_hr_weekly_df.write.format(\"delta\").mode(\"overwrite\").save(delta_table_path)\n",
+					"\n",
+					"    # Ensure the table exists\n",
+					"    spark.sql(f\"CREATE TABLE IF NOT EXISTS {target_delta_table} USING DELTA LOCATION '{delta_table_path}'\")\n",
+					"\n",
+					"    logInfo(f\" Data successfully written to {target_delta_table}\")\n",
+					"\n",
+					"except Exception as e:\n",
+					"    logError(f\" Error writing to {target_delta_table}: {str(e)}\")\n",
+					"    raise\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Process all steps to transform load_vw_sap_hr_email"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"#view [load].[vw_SAP_HR_email] \n",
+					"\n",
+					"df_load_vw_sap_email = spark.sql(\"\"\"SELECT COALESCE(e.EmailAddress, e2.EmailAddress) AS email_address,h.*\n",
+					"                                    FROM odw_harmonised_db.load_sap_hr_weekly h\n",
+					"                                    LEFT JOIN odw_harmonised_db.load_sap_pins_email_weekly e \n",
+					"                                    ON CAST(REPLACE(LTRIM(REPLACE(h.PersNo, '0', ' ')), ' ', '0') AS INT) = e.StaffNumber\n",
+					"                                    LEFT JOIN odw_harmonised_db.load_sap_pins_email_weekly e2 \n",
+					"                                    ON CASE \n",
+					"                                        WHEN LEFT(h.PersNo, 2) = '50' \n",
+					"                                            THEN SUBSTRING(CAST(h.PersNo AS STRING), 3, LENGTH(CAST(h.PersNo AS STRING)) - 2)\n",
+					"                                        ELSE h.PersNo\n",
+					"                                        END = e2.StaffNumber\"\"\")\n",
+					"\n",
+					"# Exclude \"ingested_datetime\", \"expected_from\", \"expected_to\" from rowid_columns\n",
+					"excluded_columns = {\"PDAC_ETL_Date\",\"Report_MonthEnd_Date\",\"DatetoSubstGrade\",\"DatetoCurrentJob\",\"ingested_datetime\", \"expected_from\", \"expected_to\",\"SourceSystemID\",\"IngestionDate\",\"ValidTo\",\"RowID\",\"IsActive\"} \n",
+					"\n",
+					"rowid_columns = [c for c in df_load_vw_sap_email.columns if c not in excluded_columns]\n",
+					"\n",
+					"df_load_vw_sap_email = df_load_vw_sap_email.select(*[col(c) for c in rowid_columns],    \n",
+					"    col(\"DatetoCurrentJob\").cast(\"string\").alias(\"DatetoCurrentJob\"),\n",
+					"    col(\"DatetoSubstGrade\").cast(\"date\").alias(\"DatetoSubstGrade\"),\n",
+					"    # Add additional metadata fields\n",
+					"    col(\"Report_MonthEnd_Date\").cast(\"date\").alias(\"Report_MonthEnd_Date\"),\n",
+					"    col(\"PDAC_ETL_Date\").cast(\"date\").alias(\"PDAC_ETL_Date\"),\n",
+					"    lit(\"SapHr\").alias(\"SourceSystemID\"),\n",
+					"    current_timestamp().alias(\"IngestionDate\"),\n",
+					"    current_date().cast(\"timestamp\").alias(\"ValidTo\"),\n",
+					"    md5(concat(*[coalesce(col(c).cast(\"string\"), lit(\"\")) for c in rowid_columns])).alias(\"RowID\"),\n",
+					"    lit(\"Y\").alias(\"IsActive\"))\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Process all steps to transform load_vw_sap_hr_email_weekly"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"import json\n",
+					"\n",
+					"# Initialize result dictionary\n",
+					"result = {\n",
+					"    \"status\": \"success\",\n",
+					"    \"record_count\": 0,\n",
+					"    \"error_message\": None\n",
+					"}\n",
+					"\n",
+					"try:\n",
+					"    # Write data to target Delta Table\n",
+					"    df_load_vw_sap_email.write.format(\"delta\").mode(\"overwrite\").save(delta_view_path)\n",
+					"\n",
+					"    # Ensure the table exists\n",
+					"    spark.sql(f\"CREATE TABLE IF NOT EXISTS {target_delta_view} USING DELTA LOCATION '{delta_view_path}'\")\n",
+					"\n",
+					"    logInfo(f\"Data successfully written to {target_delta_view}\")\n",
+					"    \n",
+					"    # Get record count after successful write\n",
+					"    loaded_count = spark.sql(f\"SELECT COUNT(*) as count FROM {target_delta_view}\").collect()[0]['count']\n",
+					"    result[\"record_count\"] = loaded_count\n",
+					"\n",
+					"except Exception as e:\n",
+					"    # Capture error information and limit to 300 characters\n",
+					"    error_msg = f\"Error writing to {target_delta_view}: {str(e)}\"\n",
+					"    logError(error_msg)\n",
+					"    \n",
+					"    # Truncate error message if it exceeds 300 characters\n",
+					"    truncated_error = (error_msg[:297] + '...') if len(error_msg) > 300 else error_msg\n",
+					"    \n",
+					"    result[\"status\"] = \"failed\"\n",
+					"    result[\"error_message\"] = truncated_error\n",
+					"    result[\"record_count\"] = -1  # Indicate failure with -1 count\n",
+					"    \n",
+					"    # Re-raise the exception to ensure the notebook fails properly\n",
+					"    raise\n",
+					"\n",
+					"finally:\n",
+					"    # Output the result as JSON for ADF to capture\n",
+					"    mssparkutils.notebook.exit(json.dumps(result))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"editable": true,
+					"run_control": {
+						"frozen": false
+					}
+				},
+				"source": [
+					"# Write data to target Delta Table\n",
+					"#try:\n",
+					"  #  df_load_vw_sap_email.write.format(\"delta\").mode(\"overwrite\").save(delta_view_path)\n",
+					"\n",
+					"    # Ensure the table exists\n",
+					" #   spark.sql(f\"CREATE TABLE IF NOT EXISTS {target_delta_view} USING DELTA LOCATION '{delta_view_path}'\")\n",
+					"\n",
+					"  #  logInfo(f\" Data successfully written to {target_delta_view}\")\n",
+					"\n",
+					"#except Exception as e:\n",
+					"#    logError(f\" Error writing to {df_load_vw_sap_email}: {str(e)}\")\n",
+					" #   raise"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"#spark.sql(f\"DROP TABLE IF EXISTS odw_harmonised_db.load_sap_hr_weekly\")\n",
+					"#spark.sql(f\"DROP TABLE IF EXISTS odw_harmonised_db.load_sap_pins_email_weekly\")\n",
+					""
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
