@@ -1,0 +1,48 @@
+name: Synapse artifact archival
+
+on:
+  schedule:
+    - cron: '00 9 * * tues'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10"]
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Archive notebooks and raise pull request
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+        git config user.name "${GITHUB_ACTOR}"
+
+        pullRequests=$(gh pr list -B main -H "fix/autoArchive")
+        if [[ -z "$pullRequests" ]]; then
+            git pull
+            git checkout -b "fix/autoArchive"
+
+            python3 -m pip install ast2json azure-identity 
+            export PYTHONPATH="${PYTHONPATH}:/./"
+            python3 pipelines/scripts/archive_artifacts.py
+
+            if [[ `git status --porcelain` ]]; then
+                git add -A
+                git commit -m "chore(synapse): Auto archive Synapse artifacts"
+                git push --set-upstream origin "fix/autoArchive"
+
+                echo "No pull requests found from "fix/autoArchive"->main , raising a pull request"
+                gh pr create -B main -H "fix/autoArchive" --title "Auto archive Synapse artifacts" --body "Auto archive Synapse artifacts"
+            else
+                echo "No artifacts to acrchive or delete - aborting the creation of the pull request"
+                git branch -D "fix/autoArchive"
+            fi
+        else
+            echo "A pull request from the "fix/autoArchive" branch to the main branch already exists. This must be merged before more artifacts can be archived" 
+        fi
