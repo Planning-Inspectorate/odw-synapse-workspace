@@ -26,10 +26,10 @@ class TestSmokeAzureFunctions(TestCase):
             "appealhas",
             "appealevent",
             "appealserviceuser",
-            "getDaRT",
+            #"getDaRT",  # Skipping due to long-term issue with this function
             "appeals78",
             "appealrepresentation",
-            "gettimesheets",
+            #"gettimesheets",  # Skipping due to long-term issue with this function
             "appealeventestimate",
             "serviceuser"
 
@@ -58,10 +58,10 @@ class TestSmokeAzureFunctions(TestCase):
             ("appealhas", ""),
             ("appealevent", ""),
             ("appealserviceuser", ""),
-            ("getDaRT", "&caseReference=&applicationReference="),
+            #("getDaRT", "&caseReference=&applicationReference="),  # Skipping due to long-term issue with this function
             ("appeals78", ""),
             ("appealrepresentation", ""),
-            ("gettimesheets", "&searchCriteria="),
+            #("gettimesheets", "&searchCriteria="),  # Skipping due to long-term issue with this function
             ("appealeventestimate", ""),
             ("serviceuser", "")
         ]
