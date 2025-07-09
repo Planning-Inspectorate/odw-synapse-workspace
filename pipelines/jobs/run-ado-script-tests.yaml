@@ -1,0 +1,19 @@
+parameters:
+  agentPool: ''
+
+##
+# Run ADO util script tests
+##
+jobs:
+- job: RunADOScriptTestsJob
+  pool: ${{ parameters.agentPool }}
+  steps:
+  - checkout: self
+    clean: true
+  - template: ${{variables['System.DefaultWorkingDirectory']}}/pipelines/steps/azure-login.yaml
+  - script: |
+      export PATH="$PATH:/home/AzDevOps/.local/bin/"
+      sudo apt-get install unixodbc-dev
+      sudo curl -fsSL https://aka.ms/install-azd.sh | bash
+      python3 -m pytest $(Build.SourcesDirectory)/pipelines/scripts/test -vv -rP
+    displayName: 'pytest'
