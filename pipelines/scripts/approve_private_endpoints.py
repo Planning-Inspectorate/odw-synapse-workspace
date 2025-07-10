@@ -12,8 +12,7 @@ logging.basicConfig(level=logging.INFO)
 
 
 ENDPOINTS_TO_EXCLUDE = {
-    "synapse-mpe-appeals-bo--odw-prod-uks",
-    "synapse-mpe-kv--odw-prod-uks"
+    "synapse-mpe-appeals-bo--odw-prod-uks"
 }
 
 
