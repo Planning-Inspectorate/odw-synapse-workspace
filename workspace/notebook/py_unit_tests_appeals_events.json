@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "567d7a0e-d769-4037-afd7-6f827c12384d"
+				"spark.autotune.trackingId": "0ad94ef8-dd73-49ce-9d1f-96d5aff228b1"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -91,10 +91,12 @@
 					"hrm_db_name: str = 'odw_harmonised_db'\r\n",
 					"curated_db_name: str = 'odw_curated_db'\r\n",
 					"std_table_name: str = 'sb_appeal_event'\r\n",
-					"horizon_std_table_name: str = 'horizon_appeals_event'\r\n",
 					"hrm_table_name: str = 'sb_appeal_event'\r\n",
 					"hrm_table_final: str = 'appeal_event'\r\n",
-					"curated_table_name: str = 'appeal_event'"
+					"curated_table_name: str = 'appeal_event'\r\n",
+					"\r\n",
+					"horizon_std_table_name: str = 'horizon_appeals_event' #horizon std table name\r\n",
+					"odw_config_entity = 'HorizonAppealsEvent' #horizon odw_config schema"
 				],
 				"execution_count": null
 			},
@@ -187,7 +189,11 @@
 					"sb_hrm_schema = create_spark_schema(hrm_db_name, entity_name)\r\n",
 					"sb_hrm_table_schema = spark.table(f\"{hrm_db_name}.{hrm_table_name}\").schema\r\n",
 					"curated_schema = create_spark_schema(curated_db_name, entity_name)\r\n",
-					"curated_table_schema = spark.table(f\"{curated_db_name}.{curated_table_name}\").schema"
+					"curated_table_schema = spark.table(f\"{curated_db_name}.{curated_table_name}\").schema\r\n",
+					"\r\n",
+					"#horizon\r\n",
+					"std_schema_odw_config = create_spark_schema(std_db_name,entity_name, odw_config_entity)\r\n",
+					"horizon_std_table_schema = spark.table(f\"{std_db_name}.{horizon_std_table_name}\").schema"
 				],
 				"execution_count": null
 			},
@@ -246,7 +252,13 @@
 					"exitCode += int(not hrm_schema_correct)\r\n",
 					"cur_schema_correct: bool = test_compare_schemas(curated_schema, curated_table_schema)\r\n",
 					"print(f\"Curated schema correct: {cur_schema_correct}\\nTable: {curated_db_name}.{curated_table_name}\\nDifferences shown above (if any)\")\r\n",
-					"exitCode += int(not cur_schema_correct)"
+					"exitCode += int(not cur_schema_correct)\r\n",
+					"\r\n",
+					"#horizon validate schema \r\n",
+					"print(f\"\\nHorizon odw_config schema validation started\")\r\n",
+					"std_schema_correct: bool = test_compare_schemas(std_schema_odw_config, horizon_std_table_schema)\r\n",
+					"print(f\"odw_config standardised schema correct: {std_schema_correct}\\nTable: {std_db_name}.{horizon_std_table_name}\\nDifferences shown above (if any)\")\r\n",
+					"exitCode += int(not std_schema_correct)"
 				],
 				"execution_count": null
 			},

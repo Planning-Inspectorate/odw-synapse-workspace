@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "b4afd566-bbc4-4e3e-b596-9d385b715b36"
+				"spark.autotune.trackingId": "fe7e5339-e0fd-4dad-aabe-cd5658da3371"
 			}
 		},
 		"metadata": {
@@ -91,6 +91,7 @@
 					"incremental_key = ''\r\n",
 					"is_servicebus_schema: bool = True\r\n",
 					"return_json_schema = False\r\n",
+					"odw_config_entity = ''\r\n",
 					"version = '1.10.2'"
 				],
 				"execution_count": null
@@ -144,7 +145,8 @@
 					"    'integer': LongType(),\r\n",
 					"    'boolean': BooleanType(),\r\n",
 					"    'null': NullType(),\r\n",
-					"    'date-time': TimestampType()\r\n",
+					"    'date-time': TimestampType(),\r\n",
+					"    'timestamp': TimestampType() \r\n",
 					"    }"
 				],
 				"execution_count": null
@@ -248,23 +250,26 @@
 				},
 				"source": [
 					"@logging_to_appins\r\n",
-					"def get_spark_type(field_schema: dict) -> dict:\r\n",
-					"    json_type: str = field_schema.get('type')\r\n",
-					"    \r\n",
-					"    if isinstance(json_type, list):\r\n",
-					"        json_type = json_type[0]  # Consider the first type in the list for simplicity\r\n",
+					"def get_spark_type(field_schema: dict) -> DataType:\r\n",
+					"    try:\r\n",
+					"        json_type = field_schema.get('type')\r\n",
+					"        print(f\"Processing type: {json_type}\")\r\n",
 					"\r\n",
-					"    if json_type == 'array':\r\n",
-					"        element_schema = field_schema['items']\r\n",
-					"        element_type = get_spark_type(element_schema)\r\n",
-					"        return ArrayType(element_type)\r\n",
-					"    elif json_type == 'object':\r\n",
-					"        return transform_schema(field_schema)\r\n",
-					"    elif json_type in type_mapping:\r\n",
-					"        return type_mapping[json_type]\r\n",
-					"    else:\r\n",
-					"        logException(e)\r\n",
-					"        raise ValueError(f\"Unsupported type: {json_type}\")"
+					"        if isinstance(json_type, list):\r\n",
+					"            json_type = json_type[0]\r\n",
+					"\r\n",
+					"        if json_type == 'array':\r\n",
+					"            element_schema = field_schema['items']\r\n",
+					"            return ArrayType(get_spark_type(element_schema))\r\n",
+					"        elif json_type == 'object':\r\n",
+					"            return transform_schema(field_schema)\r\n",
+					"        elif json_type in type_mapping:\r\n",
+					"            return type_mapping[json_type]\r\n",
+					"        else:\r\n",
+					"            raise ValueError(f\"Unsupported type: {json_type}\")\r\n",
+					"    except Exception as e:\r\n",
+					"        logException(e) \r\n",
+					"        raise"
 				],
 				"execution_count": null
 			},
@@ -283,14 +288,21 @@
 				},
 				"source": [
 					"@logging_to_appins\r\n",
-					"def transform_schema(schema: dict) -> StructType:\r\n",
+					"def transform_schema(schema: dict, is_servicebus_schema = True) -> StructType:\r\n",
 					"    fields: list = []\r\n",
-					"    for field_name, field_schema in schema['properties'].items():\r\n",
-					"        if field_schema != {}:\r\n",
-					"            spark_type = get_spark_type(field_schema)\r\n",
-					"            field_nullable = 'null' in field_schema.get('type', []) if isinstance(field_schema.get('type'), list) else False\r\n",
-					"            fields.append(StructField(field_name, spark_type, field_nullable))\r\n",
-					"    return StructType(fields)"
+					"    if is_servicebus_schema: \r\n",
+					"        for field_name, field_schema in schema['properties'].items():\r\n",
+					"            if field_schema != {}:\r\n",
+					"                spark_type = get_spark_type(field_schema)\r\n",
+					"                field_nullable = 'null' in field_schema.get('type', []) if isinstance(field_schema.get('type'), list) else False\r\n",
+					"                fields.append(StructField(field_name, spark_type, field_nullable))\r\n",
+					"        return StructType(fields)\r\n",
+					"    else:\r\n",
+					"        for field in schema.get(\"fields\", []):\r\n",
+					"            spark_type = get_spark_type(field)\r\n",
+					"            nullable = field.get(\"nullable\", True)\r\n",
+					"            fields.append(StructField(field[\"name\"], spark_type, nullable))\r\n",
+					"        return StructType(fields)"
 				],
 				"execution_count": null
 			},
@@ -367,24 +379,22 @@
 			},
 			{
 				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
 				"source": [
-					"url: str = f\"https://raw.githubusercontent.com/Planning-Inspectorate/data-model/refs/tags/{version}/schemas/{entity_name}.schema.json\"\r\n",
-					"logInfo(f\"Fetching from {url}\")\r\n",
-					"json_schema: dict = get_schema_from_url(url)\r\n",
-					"if not json_schema:\r\n",
-					"    logError(f\"Invalid schema retrieved from {url}\")\r\n",
-					"    mssparkutils.notebook.exit('')"
+					"def fetch_schema( is_servicebus_schema: bool,entity_name: str,version: str) -> dict:\r\n",
+					"\r\n",
+					"    if is_servicebus_schema:\r\n",
+					"        url = f\"https://raw.githubusercontent.com/Planning-Inspectorate/data-model/refs/tags/{version}/schemas/{entity_name}.schema.json\"\r\n",
+					"    else:\r\n",
+					"        url = f\"https://raw.githubusercontent.com/Planning-Inspectorate/odw-config/refs/heads/main/data-lake/standardised_table_definitions/Horizon/{entity_name}.json\"\r\n",
+					"\r\n",
+					"    logInfo(f\"Fetching from {url}\")\r\n",
+					"    json_schema: dict = get_schema_from_url(url)\r\n",
+					"\r\n",
+					"    if not json_schema:\r\n",
+					"        logError(f\"Invalid schema retrieved from {url}\")\r\n",
+					"        mssparkutils.notebook.exit('')\r\n",
+					"\r\n",
+					"    return json_schema"
 				],
 				"execution_count": null
 			},
@@ -402,11 +412,44 @@
 					}
 				},
 				"source": [
+					"# url: str = f\"https://raw.githubusercontent.com/Planning-Inspectorate/data-model/refs/tags/{version}/schemas/{entity_name}.schema.json\"\r\n",
+					"# logInfo(f\"Fetching from {url}\")\r\n",
+					"# json_schema: dict = get_schema_from_url(url)\r\n",
+					"# if not json_schema:\r\n",
+					"#     logError(f\"Invalid schema retrieved from {url}\")\r\n",
+					"#     mssparkutils.notebook.exit('')"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"if is_servicebus_schema:\r\n",
+					"    json_schema = fetch_schema(is_servicebus_schema, entity_name, version)\r\n",
+					"else:\r\n",
+					"    json_schema = fetch_schema(False,odw_config_entity, version)\r\n",
+					"\r\n",
 					"resolved_schema: dict = resolve_refs(json_schema, json_schema.get('$defs', {}))\r\n",
 					"if return_json_schema:\r\n",
 					"    mssparkutils.notebook.exit(resolved_schema)\r\n",
-					"    \r\n",
-					"spark_schema: StructType = transform_schema(resolved_schema)\r\n",
+					"\r\n",
+					"if is_servicebus_schema:\r\n",
+					"    spark_schema: StructType = transform_schema(json_schema)\r\n",
+					"else:\r\n",
+					"    spark_schema: StructType = transform_schema(json_schema, False)\r\n",
+					"\r\n",
+					"\r\n",
 					"final_schema: StructType = add_master_columns_to_schema(db_name)"
 				],
 				"execution_count": null
