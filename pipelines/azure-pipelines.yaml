@@ -6,18 +6,6 @@ parameters:
 - name: runTests
   type: boolean
   default: true
-# Whether or not to enforce the deployment of the infrastructure
-- name: enforceInfrastructureDeployment
-  type: boolean
-  default: false
-# Whether or not to enforce the deployment of the synapse workspace
-- name: enforceSynapseDeployment
-  type: boolean
-  default: false
-# Whether or not the deployment is for the backup resources
-- name: failoverDeployment
-  type: boolean
-  default: false
 # User-specified environment to deploy to
 - name: env
   default: 'build'
@@ -27,9 +15,6 @@ parameters:
   - 'test'
   - 'prod'
 - name: fullDeployment
-  type: boolean
-  default: false
-- name: runTerraformApply
   type: boolean
   default: false
 
@@ -75,24 +60,10 @@ stages:
   - template: stages/run-ado-script-tests.yaml
     parameters:
       agentPool: ${{ variables.agentPool }}
-- template: stages/pre-deployment.yaml
-  parameters:
-    agentPool: ${{ variables.agentPool }}
-    enforceInfrastructureDeployment: ${{ parameters.enforceInfrastructureDeployment }}
-    enforceSynapseDeployment: ${{ parameters.enforceSynapseDeployment }}
 
 - template: stages/wait-for-approval.yaml
 
-- template: stages/conditional-deployment-infrastructure.yaml
-  parameters:
-    agentPool: ${{ variables.agentPool }}
-    env: ${{ parameters.env }}
-    armServiceConnectionName: "Azure Devops Pipelines - ODW ${{ upper(parameters.env) }} - Infrastructure"
-    failoverDeployment: ${{ parameters.failoverDeployment }}
-    outputsFileName: "tfoutputs.json"
-    runTerraformApply: ${{ parameters.runTerraformApply }}
-
-- template: stages/conditional-deployment-synapse.yaml
+- template: stages/deploy-synapse-stage.yaml
   parameters:
     agentPool: ${{ variables.agentPool }}
     env: ${{ parameters.env }}
