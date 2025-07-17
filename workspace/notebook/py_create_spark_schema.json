@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "fe7e5339-e0fd-4dad-aabe-cd5658da3371"
+				"spark.autotune.trackingId": "d6608b50-ff1c-4e37-8cc3-14d15b86c2b4"
 			}
 		},
 		"metadata": {
@@ -92,7 +92,7 @@
 					"is_servicebus_schema: bool = True\r\n",
 					"return_json_schema = False\r\n",
 					"odw_config_entity = ''\r\n",
-					"version = '1.10.2'"
+					"version = '1.10.3'"
 				],
 				"execution_count": null
 			},
@@ -237,23 +237,25 @@
 			},
 			{
 				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
 				"source": [
+					"# #latest version of get_spark_type tested on 14/July/2025\r\n",
 					"@logging_to_appins\r\n",
 					"def get_spark_type(field_schema: dict) -> DataType:\r\n",
+					"    print(\"get_spark_type is being called in July\")\r\n",
 					"    try:\r\n",
 					"        json_type = field_schema.get('type')\r\n",
-					"        print(f\"Processing type: {json_type}\")\r\n",
+					"        print(f\"Processing type: {json_type} | schema: {field_schema}\")\r\n",
+					"\r\n",
+					"        # Try resolving $ref if type is missing\r\n",
+					"        if json_type is None and '$ref' in field_schema:\r\n",
+					"            ref = field_schema['$ref']\r\n",
+					"            ref_path = ref.split('/')\r\n",
+					"            if ref_path[0] == '#' and ref_path[1] == '$defs':\r\n",
+					"                resolved = json_schema['$defs'][ref_path[2]]\r\n",
+					"                return get_spark_type(resolved)\r\n",
+					"\r\n",
+					"        if json_type is None:\r\n",
+					"            raise ValueError(f\"Missing 'type' in schema: {field_schema}\")\r\n",
 					"\r\n",
 					"        if isinstance(json_type, list):\r\n",
 					"            json_type = json_type[0]\r\n",
@@ -268,8 +270,9 @@
 					"        else:\r\n",
 					"            raise ValueError(f\"Unsupported type: {json_type}\")\r\n",
 					"    except Exception as e:\r\n",
-					"        logException(e) \r\n",
-					"        raise"
+					"        logException(e)\r\n",
+					"        raise\r\n",
+					""
 				],
 				"execution_count": null
 			},
@@ -445,7 +448,7 @@
 					"    mssparkutils.notebook.exit(resolved_schema)\r\n",
 					"\r\n",
 					"if is_servicebus_schema:\r\n",
-					"    spark_schema: StructType = transform_schema(json_schema)\r\n",
+					"    spark_schema: StructType = transform_schema(resolved_schema)\r\n",
 					"else:\r\n",
 					"    spark_schema: StructType = transform_schema(json_schema, False)\r\n",
 					"\r\n",
