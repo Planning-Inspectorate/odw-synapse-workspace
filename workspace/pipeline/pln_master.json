@@ -25,7 +25,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"pipeline": {
-						"referenceName": "pln_horizon",
+						"referenceName": "pln_all_horizon_data",
 						"type": "PipelineReference"
 					},
 					"waitOnCompletion": true,
@@ -54,10 +54,6 @@
 							"value": "@variables('failed_colour')",
 							"type": "Expression"
 						},
-						"start_time": {
-							"value": "@variables('start_time')",
-							"type": "Expression"
-						},
 						"starting_image": {
 							"value": "@variables('starting_image')",
 							"type": "Expression"
@@ -76,10 +72,6 @@
 						},
 						"warning_colour": {
 							"value": "@variables('warning_colour')",
-							"type": "Expression"
-						},
-						"horizon_feed": {
-							"value": "@variables('horizon_feed')",
 							"type": "Expression"
 						},
 						"apps_insights_ikey": {
@@ -375,12 +367,6 @@
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
-						"activity": "Set Horizon feed",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					},
-					{
 						"activity": "Set Service Bus feed",
 						"dependencyConditions": [
 							"Succeeded"
@@ -537,12 +523,6 @@
 						"dependencyConditions": [
 							"Succeeded"
 						]
-					},
-					{
-						"activity": "pln_horizon_2",
-						"dependencyConditions": [
-							"Succeeded"
-						]
 					}
 				],
 				"policy": {
@@ -591,7 +571,10 @@
 							"type": "Expression"
 						},
 						"Message_title": "ODW - Master pipeline progressing",
-						"Message_subtitle": "ODW is starting to load data from the service bus"
+						"Message_subtitle": {
+							"value": "Horizon To Odw load Completed and  starting to load data from the service bus",
+							"type": "Expression"
+						}
 					}
 				}
 			},
@@ -1017,93 +1000,6 @@
 				}
 			},
 			{
-				"name": "pln_horizon_2",
-				"type": "ExecutePipeline",
-				"dependsOn": [
-					{
-						"activity": "Send progressing to Horizon data",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					},
-					{
-						"activity": "Record moving on to loading Horizon data",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_horizon_2",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"webhook_url": {
-							"value": "@variables('webhook_url')",
-							"type": "Expression"
-						},
-						"subscription_id": {
-							"value": "@variables('subscription_id')",
-							"type": "Expression"
-						},
-						"resource_group": {
-							"value": "@variables('resource_group')",
-							"type": "Expression"
-						},
-						"starting_colour": {
-							"value": "@variables('starting_colour')",
-							"type": "Expression"
-						},
-						"on_progress_colour": {
-							"value": "@variables('on_progress_colour')",
-							"type": "Expression"
-						},
-						"failed_colour": {
-							"value": "@variables('failed_colour')",
-							"type": "Expression"
-						},
-						"start_time": {
-							"value": "@variables('start_time')",
-							"type": "Expression"
-						},
-						"starting_image": {
-							"value": "@variables('starting_image')",
-							"type": "Expression"
-						},
-						"progress_image": {
-							"value": "@variables('progress_image')",
-							"type": "Expression"
-						},
-						"warning_image": {
-							"value": "@variables('warning_image')",
-							"type": "Expression"
-						},
-						"failed_image": {
-							"value": "@variables('failed_image')",
-							"type": "Expression"
-						},
-						"warning_colour": {
-							"value": "@variables('warning_colour')",
-							"type": "Expression"
-						},
-						"horizon_feed": {
-							"value": "@variables('horizon_feed')",
-							"type": "Expression"
-						},
-						"apps_insights_ikey": {
-							"value": "@variables('apps_insights_ikey')",
-							"type": "Expression"
-						}
-					}
-				}
-			},
-			{
 				"name": "Set key vault URL",
 				"type": "SetVariable",
 				"dependsOn": [],
@@ -1115,7 +1011,7 @@
 				"typeProperties": {
 					"variableName": "Key_Vault_Url",
 					"value": {
-						"value": "@if(\n    equals(\n        pipeline().DataFactory,\n        'pins-synw-odw-dev-uks'\n    ),\n    'https://pinskvsynwodwdevuks.vault.azure.net/secrets/',\n    if(\n        equals(\n            pipeline().DataFactory,\n            'pins-synw-odw-test-uks'\n        ),\n        'https://pinskvsynwodwtestuks.vault.azure.net/secrets/',\n        if(\n            equals(\n                pipeline().DataFactory,\n                'pins-synw-odw-build-uks'\n            ),\n            'https://pinskvsynwodwbuilduks.vault.azure.net/secrets',\n            'https://pinskvsynwodwproduks.vault.azure.net/secrets/'\n        )\n    )\n)",
+						"value": "@if(equals(pipeline().DataFactory, 'pins-synw-odw-dev-uks'), 'https://pinskvsynwodwdevuks.vault.azure.net/secrets/', if(equals(pipeline().DataFactory, 'pins-synw-odw-test-uks'), 'https://pinskvsynwodwtestuks.vault.azure.net/secrets/', 'https://pinskvsynwodwproduks.vault.azure.net/secrets/'))",
 						"type": "Expression"
 					}
 				}
@@ -1174,64 +1070,6 @@
 					"variableName": "service_bus_feed",
 					"value": {
 						"value": "@split(activity('Get Service Bus feed').output.value[0].entities, ',')\n\n",
-						"type": "Expression"
-					}
-				}
-			},
-			{
-				"name": "Get Horizon feed",
-				"description": "Get the enabled horizon feed from master pipeline config",
-				"type": "Lookup",
-				"dependsOn": [
-					{
-						"activity": "Send starting teams notification",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"source": {
-						"type": "AzureSqlSource",
-						"sqlReaderQuery": "SELECT STRING_AGG(Object, ',') AS entities\nFROM [odw_config_db].[dbo].[main_pipeline_config]\nWHERE is_enabled = 1\nAND System_name != 'Service bus'",
-						"queryTimeout": "02:00:00",
-						"partitionOption": "None"
-					},
-					"dataset": {
-						"referenceName": "ds_odw_main_config",
-						"type": "DatasetReference"
-					},
-					"firstRowOnly": false
-				}
-			},
-			{
-				"name": "Set Horizon feed",
-				"type": "SetVariable",
-				"dependsOn": [
-					{
-						"activity": "Get Horizon feed",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"variableName": "horizon_feed",
-					"value": {
-						"value": "@split(activity('Get Horizon feed').output.value[0].entities, ',')\n\n",
 						"type": "Expression"
 					}
 				}
@@ -1369,12 +1207,6 @@
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
-						"activity": "pln_horizon_2",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					},
-					{
 						"activity": "Load Horizon data",
 						"dependencyConditions": [
 							"Succeeded"
@@ -1392,7 +1224,7 @@
 					},
 					"waitOnCompletion": true,
 					"parameters": {
-						"Stage": "OnProgress",
+						"Stage": "Horizon To Odw load Successfully Completed",
 						"PipelineName": {
 							"value": "@pipeline().Pipeline",
 							"type": "Expression"
@@ -1559,147 +1391,7 @@
 				}
 			},
 			{
-				"name": "Record horizon failure_copy1",
-				"type": "ExecutePipeline",
-				"dependsOn": [
-					{
-						"activity": "pln_horizon_2",
-						"dependencyConditions": [
-							"Failed"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_log_to_appins",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"Stage": "Fail",
-						"PipelineName": {
-							"value": "@activity('pln_horizon_2').Output.pipelineName",
-							"type": "Expression"
-						},
-						"PipelineRunID": {
-							"value": "@activity('pln_horizon_2').Output.pipelineRunId",
-							"type": "Expression"
-						},
-						"StartTime": {
-							"value": "@activity('pln_horizon_2').ExecutionStartTime",
-							"type": "Expression"
-						},
-						"EndTime": {
-							"value": "@activity('pln_horizon_2').ExecutionEndTime",
-							"type": "Expression"
-						},
-						"ErrorMessage": {
-							"value": "@activity('pln_horizon_2').Error.message",
-							"type": "Expression"
-						},
-						"StatusMessage": {
-							"value": "@activity('pln_horizon_2').Status",
-							"type": "Expression"
-						},
-						"PipelineTriggeredbyPipelineName": {
-							"value": "@activity('pln_horizon_2').PipelineName",
-							"type": "Expression"
-						},
-						"PipelineTriggeredbyPipelineRunID": {
-							"value": "@activity('pln_horizon_2').PipelineRunId",
-							"type": "Expression"
-						},
-						"PipelineExecutionTimeInSec": {
-							"value": "@activity('pln_horizon_2').Duration",
-							"type": "Expression"
-						},
-						"ActivityType": {
-							"value": "@activity('pln_horizon_2').ActivityType",
-							"type": "Expression"
-						},
-						"DurationSeconds": {
-							"value": "@activity('pln_horizon_2').Duration",
-							"type": "Expression"
-						},
-						"AppInsCustomEventName": "ODW_Master_Pipeline_Logs",
-						"StatusCode": {
-							"value": "@activity('pln_horizon_2').StatusCode",
-							"type": "Expression"
-						},
-						"AppInsIKey": {
-							"value": "@variables('apps_insights_ikey')",
-							"type": "Expression"
-						}
-					}
-				}
-			},
-			{
-				"name": "Send Horizon failed_copy1",
-				"type": "ExecutePipeline",
-				"dependsOn": [
-					{
-						"activity": "pln_horizon_2",
-						"dependencyConditions": [
-							"Failed"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": true
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_utl_Send_Teams_Message",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"dataFactorySubscription": {
-							"value": "@variables('subscription_id')",
-							"type": "Expression"
-						},
-						"dataFactoryResourceGroup": {
-							"value": "@variables('resource_group')",
-							"type": "Expression"
-						},
-						"pipelineRunId": {
-							"value": "@pipeline().RunId",
-							"type": "Expression"
-						},
-						"teamsWebhookUrl": {
-							"value": "@variables('webhook_url')",
-							"type": "Expression"
-						},
-						"activityName": {
-							"value": "@pipeline().Pipeline",
-							"type": "Expression"
-						},
-						"activityMessage": "Horizon data failed",
-						"activityDuration": {
-							"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(variables('start_time'),'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(variables('start_time'),'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
-							"type": "Expression"
-						},
-						"activityStatus": "Failed",
-						"Colour": {
-							"value": "@variables('failed_colour')",
-							"type": "Expression"
-						},
-						"Image": {
-							"value": "@variables('failed_image')",
-							"type": "Expression"
-						},
-						"Message_title": "ODW - Master pipeline failed",
-						"Message_subtitle": "ODW failed to load data from Horizon"
-					}
-				}
-			},
-			{
-				"name": "Record horizon failure_copy1_copy1",
+				"name": "Record horizon failure",
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
@@ -1720,7 +1412,7 @@
 					},
 					"waitOnCompletion": true,
 					"parameters": {
-						"Stage": "Fail",
+						"Stage": "Horizon To Odw Failed",
 						"PipelineName": {
 							"value": "@activity('Load Horizon data').Output.pipelineName",
 							"type": "Expression"
@@ -1915,70 +1607,6 @@
 						"type": "Expression"
 					}
 				}
-			},
-			{
-				"name": "Notify Curated failure via email",
-				"type": "ExecutePipeline",
-				"dependsOn": [
-					{
-						"activity": "Send curated failed",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					},
-					{
-						"activity": "Record curated failure",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_pipeline_result_email_notifcation",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"pipelineSucceeded": false
-					}
-				}
-			},
-			{
-				"name": "Notify Curated success via email",
-				"type": "ExecutePipeline",
-				"dependsOn": [
-					{
-						"activity": "Send completion notification",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					},
-					{
-						"activity": "Record pipeline completed",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_pipeline_result_email_notifcation",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"pipelineSucceeded": true
-					}
-				}
 			}
 		],
 		"variables": {
@@ -2049,6 +1677,9 @@
 			},
 			"apps_insights_ikey": {
 				"type": "String"
+			},
+			"H_NoteBook_errorMessage": {
+				"type": "Array"
 			}
 		},
 		"folder": {
