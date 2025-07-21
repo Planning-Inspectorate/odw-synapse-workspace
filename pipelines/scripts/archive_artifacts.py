@@ -27,7 +27,6 @@ class ArtifactArchiver():
             "trigger/tr_delta_backup_odw_hrm_0900.json",
             "trigger/tr_delta_backup_odw_logging_0900.json",
             "trigger/tr_delta_backup_odw_std_0900.json",
-            "trigger/tr_master_Refactored_Horizon_2100.json",
             "trigger/tr_saphr_daily_800.json",
             "trigger/tr_weekly.json",
             "notebook/py_unit_tests_appeal_document.json",  # Keep tests
