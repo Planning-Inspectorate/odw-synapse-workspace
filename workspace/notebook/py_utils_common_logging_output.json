@@ -1,0 +1,325 @@
+{
+	"name": "py_utils_common_logging_output",
+	"properties": {
+		"folder": {
+			"name": "utils"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "f3845a70-6731-4789-89c0-4bf4b27a6cde"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": true,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### The purpose of this generic pyspark notebook is to provide all public functions to prodcude the logging output in Json format which can be consumed for Application Insights logging purpose.\r\n",
+					"\r\n",
+					"**Author** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Created Date** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Description**  \r\n",
+					"Rohit Shukla &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;22-Jul-2025 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The functionality of this notebook is generic to cater to produce in the form of public functions which can be reused Application Insights logging purpose.\r\n",
+					"\r\n",
+					"**Spark Cluster Configuration** -> Apache Spark Version- 3.4, Python Version \t\t- 3.10, Delta Lake Version \t- 2.4\r\n",
+					"\r\n",
+					""
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Import required Python libraries"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"tags": []
+				},
+				"source": [
+					"import json\r\n",
+					"import traceback\r\n",
+					"from datetime import datetime\r\n",
+					"from typing import Dict, Any, Union\r\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Enable message logging"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### ProcessLogging Class - for processing Logging process Functions"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"class ProcessingLogger:\r\n",
+					"    \"\"\"\r\n",
+					"    class to organize processing result functions.\r\n",
+					"    \"\"\"\r\n",
+					"    \r\n",
+					"    def __init__(self):\r\n",
+					"        \"\"\"Initialize the ProcessingLogger with processing_results as instance variable\"\"\"\r\n",
+					"        self.processing_results = {\r\n",
+					"            \"processing_summary\": {\r\n",
+					"                \"total_tables_processed\": 0,\r\n",
+					"                \"successful_tables\": 0,\r\n",
+					"                \"failed_tables\": 0\r\n",
+					"            },\r\n",
+					"            \"table_details\": []\r\n",
+					"        }\r\n",
+					"\r\n",
+					"    @logging_to_appins\r\n",
+					"    def time_diff_seconds(self, start: str | datetime, end: str | datetime) -> int:\r\n",
+					"        \"\"\"\r\n",
+					"        Calculate time difference in seconds between start and end times\r\n",
+					"        Args:\r\n",
+					"            start: Start time (string or datetime)\r\n",
+					"            end: End time (string or datetime)    \r\n",
+					"        Returns:\r\n",
+					"            Time difference in seconds\r\n",
+					"        \"\"\"\r\n",
+					"        try:\r\n",
+					"            if not start or not end:\r\n",
+					"                return 0\r\n",
+					"\r\n",
+					"            # Parse strings into datetime objects if needed\r\n",
+					"            if isinstance(start, str):\r\n",
+					"                start = datetime.strptime(start, \"%Y-%m-%d %H:%M:%S.%f\")\r\n",
+					"            if isinstance(end, str):\r\n",
+					"                end = datetime.strptime(end, \"%Y-%m-%d %H:%M:%S.%f\")\r\n",
+					"\r\n",
+					"            diff_seconds = int((end - start).total_seconds())\r\n",
+					"            return diff_seconds if diff_seconds > 0 else 0\r\n",
+					"\r\n",
+					"        except Exception as e:\r\n",
+					"            return 0\r\n",
+					"\r\n",
+					"    @logging_to_appins\r\n",
+					"    def add_table_result(self, \r\n",
+					"                        delta_table_name: str = \"\", \r\n",
+					"                        insert_count: int = 0, \r\n",
+					"                        table_result: str = \"success\",\r\n",
+					"                        start_exec_time: str = \"\",\r\n",
+					"                        end_exec_time: str = \"\",\r\n",
+					"                        total_exec_time: Union[str, int] = \"\", \r\n",
+					"                        error_message: str = \"\") -> Dict[str, Any]:\r\n",
+					"        \"\"\"\r\n",
+					"        Add processing result for a table to the tracking structure\r\n",
+					"        \r\n",
+					"        Args:\r\n",
+					"            delta_table_name: Name of the delta table\r\n",
+					"            insert_count: Number of records inserted\r\n",
+					"            table_result: Result status (\"success\" or \"failed\")\r\n",
+					"            start_exec_time: Start execution time\r\n",
+					"            end_exec_time: End execution time\r\n",
+					"            total_exec_time: Total execution time (calculated if not provided)\r\n",
+					"            error_message: Error message if failed\r\n",
+					"            \r\n",
+					"        Returns:\r\n",
+					"            Updated processing_results dictionary\r\n",
+					"        \"\"\"\r\n",
+					"        # Calculate total execution time if not provided\r\n",
+					"        if not total_exec_time and start_exec_time and end_exec_time:\r\n",
+					"            total_exec_time = self.time_diff_seconds(start_exec_time, end_exec_time)\r\n",
+					"        \r\n",
+					"        table_detail = {\r\n",
+					"            \"delta_table_name\": delta_table_name,\r\n",
+					"            \"insert_count\": insert_count,\r\n",
+					"            \"table_result\": table_result,\r\n",
+					"            \"start_exec_time\": start_exec_time,\r\n",
+					"            \"end_exec_time\": end_exec_time,\r\n",
+					"            \"total_exec_time\": total_exec_time,\r\n",
+					"            \"error_message\": error_message\r\n",
+					"        }\r\n",
+					"        \r\n",
+					"        self.processing_results[\"table_details\"].append(table_detail)\r\n",
+					"        self.processing_results[\"processing_summary\"][\"total_tables_processed\"] += 1\r\n",
+					"        \r\n",
+					"        if table_result == \"success\":\r\n",
+					"            self.processing_results[\"processing_summary\"][\"successful_tables\"] += 1\r\n",
+					"        else:\r\n",
+					"            self.processing_results[\"processing_summary\"][\"failed_tables\"] += 1\r\n",
+					"        \r\n",
+					"        return self.processing_results\r\n",
+					"\r\n",
+					"    @logging_to_appins\r\n",
+					"    def generate_processing_results(self) -> Dict[str, Any]:\r\n",
+					"        \"\"\"\r\n",
+					"        Generate and display the final processing results in JSON format\r\n",
+					"        \r\n",
+					"        Returns:\r\n",
+					"            Final processing results dictionary\r\n",
+					"        \"\"\"\r\n",
+					"        # Create the final result structure\r\n",
+					"        exit_value = {\r\n",
+					"            \"processing_summary\": self.processing_results[\"processing_summary\"],\r\n",
+					"            \"table_details\": self.processing_results[\"table_details\"]\r\n",
+					"        }\r\n",
+					"        \r\n",
+					"        # Convert to JSON string for display\r\n",
+					"        json_output = json.dumps(exit_value, indent=2, default=lambda obj: obj.isoformat() if isinstance(obj, datetime) else None)\r\n",
+					"        \r\n",
+					"        # Display summary information\r\n",
+					"        logInfo(f\"Total tables processed: {exit_value['processing_summary']['total_tables_processed']}\")\r\n",
+					"        logInfo(f\"Successful tables: {exit_value['processing_summary']['successful_tables']}\")\r\n",
+					"        logInfo(f\"Failed tables: {exit_value['processing_summary']['failed_tables']}\")\r\n",
+					"        \r\n",
+					"        # Display detailed results\r\n",
+					"        logInfo(f\"ExitValue: {json_output}\")\r\n",
+					"        \r\n",
+					"        # Log any failures for quick reference\r\n",
+					"        failed_tables = [table for table in exit_value['table_details'] if table['table_result'] == 'failed']\r\n",
+					"        if failed_tables:\r\n",
+					"            logInfo(\"\\nFailed Tables:\")\r\n",
+					"            for table in failed_tables:\r\n",
+					"                logInfo(f\"Table: {table['delta_table_name']} - Error: {table['error_message']}\")\r\n",
+					"        \r\n",
+					"        return exit_value\r\n",
+					"\r\n",
+					"    @logging_to_appins\r\n",
+					"    def format_error_message(self, error: Exception, max_length: int = 300) -> str:\r\n",
+					"        \"\"\"\r\n",
+					"        Format error message with traceback, truncated to specified length\r\n",
+					"        \r\n",
+					"        Args:\r\n",
+					"            error: Exception object\r\n",
+					"            max_length: Maximum length of error message\r\n",
+					"            \r\n",
+					"        Returns:\r\n",
+					"            Formatted error message string\r\n",
+					"        \"\"\"\r\n",
+					"        # Get full traceback\r\n",
+					"        full_trace = traceback.format_exc()\r\n",
+					"        \r\n",
+					"        # Combine error message and trace\r\n",
+					"        table_error_msg = str(error)\r\n",
+					"        complete_msg = table_error_msg + \"\\n\" + full_trace\r\n",
+					"        error_text = complete_msg[:max_length]           \r\n",
+					"        \r\n",
+					"        # Find the position of the last full stop before max_length characters\r\n",
+					"        last_period_index = error_text.rfind('.')\r\n",
+					"\r\n",
+					"        # Use up to the last full stop, if found; else fall back to max_length chars\r\n",
+					"        if last_period_index != -1:\r\n",
+					"            error_message = error_text[:last_period_index + 1] \r\n",
+					"        else:\r\n",
+					"            error_message = error_text\r\n",
+					"        \r\n",
+					"        return error_message"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Create Global Instance"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"app_insight_logger = ProcessingLogger()"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}

@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "7212fb73-defe-4707-a562-b1a9ad3f7af7"
+				"spark.autotune.trackingId": "a412e252-7741-4c38-a05f-7f3d0cd7ee73"
 			}
 		},
 		"metadata": {
@@ -45,12 +45,34 @@
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### The purpose of this pyspark notebook is to read json format files for service bus and appends into single owb_standarsied_db Delta tables.\r\n",
+					"\r\n",
+					"**Author** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Created Date** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Description**  \r\n",
+					"Rohit Shukla &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;15-Jul-2025 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The functionality of this notebook is to ingest odw-standardised/ServiceBus Delta Tables after &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;successful reading of json formatted data.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\r\n",
+					"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\r\n",
+					"Rohit Shukla &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;15-Jul-2025 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The addtitional functionality has been added to log the audit information to Application Insight by &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;creating a Json dump at notebook exist&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\r\n",
+					"\r\n",
+					"**Spark Cluster Configuration** -> Apache Spark Version- 3.4, Python Version \t\t- 3.10, Delta Lake Version \t- 2.4\r\n",
+					"\r\n",
+					""
+				]
+			},
 			{
 				"cell_type": "code",
 				"metadata": {
@@ -94,9 +116,10 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"import json\r\n",
+					"import traceback\r\n",
 					"from pyspark.sql import SparkSession\r\n",
 					"from notebookutils import mssparkutils\r\n",
-					"import json\r\n",
 					"from datetime import datetime, date\r\n",
 					"from pyspark.sql.functions import current_timestamp, expr, to_timestamp, lit, input_file_name\r\n",
 					"from pyspark.sql import DataFrame\r\n",
@@ -126,7 +149,8 @@
 					"date_folder = datetime.now().date().strftime('%Y-%m-%d') if date_folder == '' else date_folder\r\n",
 					"source_path: str = f\"abfss://odw-raw@{storage_account}ServiceBus/{entity_name}/\"\r\n",
 					"schema = mssparkutils.notebook.run(\"/py_create_spark_schema\", 30, {\"db_name\": 'odw_standardised_db', \"entity_name\": entity_name})\r\n",
-					"spark_schema = StructType.fromJson(json.loads(schema)) if schema != '' else ''"
+					"spark_schema = StructType.fromJson(json.loads(schema)) if schema != '' else ''\r\n",
+					""
 				],
 				"execution_count": null
 			},
@@ -145,6 +169,26 @@
 				},
 				"source": [
 					"%run service-bus/py_spark_df_ingestion_functions"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialize Logging Output "
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_utils_common_logging_output"
 				],
 				"execution_count": null
 			},
@@ -381,6 +425,9 @@
 					"\r\n",
 					"    except Exception as e:\r\n",
 					"        logError(f'Raw data not found at {source_path}, Exception is {e}')\r\n",
+					"        \r\n",
+					"        # Use the imported format_error_message function\r\n",
+					"        error_message = app_insight_processor.format_error_message(e, max_length=300)\r\n",
 					"        mssparkutils.notebook.exit('')\r\n",
 					"\r\n",
 					"    return df"
@@ -516,6 +563,9 @@
 					}
 				},
 				"source": [
+					"start_exec_time = str(datetime.now())\r\n",
+					"insert_count = 0\r\n",
+					"\r\n",
 					"USE_MAX_DATE_FILTER = False\r\n",
 					"\r\n",
 					"if USE_MAX_DATE_FILTER:\r\n",
@@ -526,6 +576,7 @@
 					"        print(f\"max_extracted_date: {max_extracted_date}\")\r\n",
 					"    except Exception as e:\r\n",
 					"        logError(f\"Error getting the maximum file date:\\n{e}\")\r\n",
+					"        error_message = app_insight_logger.format_error_message(e, max_length=300)\r\n",
 					"\r\n",
 					"    try:\r\n",
 					"        logInfo(\"Getting the filtered list of paths\")\r\n",
@@ -533,13 +584,16 @@
 					"        df = read_raw_messages(filtered_paths=filtered_paths)\r\n",
 					"    except Exception as e:\r\n",
 					"        logError(f\"Error getting the filtered list of paths:\\n{e}\")\r\n",
+					"        error_message = app_insight_logger.format_error_message(e, max_length=300)\r\n",
+					"\r\n",
 					"else:\r\n",
 					"    try:\r\n",
 					"        logInfo(\"Getting list of missing files\")\r\n",
 					"        missing_files = get_missing_files(table_name, source_path)\r\n",
 					"        df = read_raw_messages(filtered_paths=missing_files)\r\n",
 					"    except Exception as e:\r\n",
-					"        logError(f\"Error getting list of missing files:\\n{e}\")"
+					"        logError(f\"Error getting list of missing files:\\n{e}\")\r\n",
+					"        error_message = app_insight_logger.format_error_message(e, max_length=300)"
 				],
 				"execution_count": null
 			},
@@ -582,11 +636,13 @@
 					"    logInfo(f\"Row count before append: {table_row_count}\")\r\n",
 					"    df = dedupe_dataframe(df=df)\r\n",
 					"    rows_to_append = df.count()\r\n",
+					"    insert_count = rows_to_append\r\n",
 					"    logInfo(f\"Rows to append: {rows_to_append}\")\r\n",
 					"    expected_new_count = table_row_count + rows_to_append\r\n",
 					"    logInfo(f\"Expected new count: {expected_new_count}\")\r\n",
 					"except Exception as e:\r\n",
-					"    logError(f\"Error deduping and generating counts:\\n{e}\")"
+					"    logError(f\"Error deduping and generating counts:\\n{e}\")\r\n",
+					"    error_message = app_insight_logger.format_error_message(e, max_length=300)"
 				],
 				"execution_count": null
 			},
@@ -623,10 +679,35 @@
 					"try:\r\n",
 					"    logInfo(f\"Appending new rows to table {table_name}\")\r\n",
 					"    append_df_to_table(df=df, table_name=table_name)\r\n",
+					"    \r\n",
+					"    end_exec_time = str(datetime.now())\r\n",
+					"    app_insight_logger.add_table_result(                    \r\n",
+					"                        delta_table_name = table_name, \r\n",
+					"                        insert_count = insert_count, \r\n",
+					"                        table_result = \"success\",\r\n",
+					"                        start_exec_time = start_exec_time, \r\n",
+					"                        end_exec_time = start_exec_time,\r\n",
+					"                        total_exec_time = \"\",\r\n",
+					"                        error_message = \"\"\r\n",
+					"                        )\r\n",
+					"\r\n",
 					"    logInfo(\"Done appending rows to table\")\r\n",
 					"    new_table_row_count = spark.table(table_name).count()\r\n",
 					"except Exception as e:\r\n",
-					"    logError(f\"Error appending rows:\\n{e}\")"
+					"    logError(f\"Error appending rows:\\n{e}\")\r\n",
+					"    error_message = format_error_message(e, max_length=300)\r\n",
+					"    \r\n",
+					"    end_exec_time = str(datetime.now())\r\n",
+					"    \r\n",
+					"    app_insight_logger.add_table_result(\r\n",
+					"                        delta_table_name = table_name,\r\n",
+					"                        insert_count = insert_count,\r\n",
+					"                        table_result = \"failed\",\r\n",
+					"                        start_exec_time = start_exec_time, \r\n",
+					"                        end_exec_time = start_exec_time,\r\n",
+					"                        total_exec_time = \"\",\r\n",
+					"                        error_message = error_message\r\n",
+					"                        )"
 				],
 				"execution_count": null
 			},
@@ -661,8 +742,29 @@
 				"source": [
 					"if not test_rows_appended(new_table_row_count=new_table_row_count, expected_row_count=expected_new_count):\r\n",
 					"    logError(\"Error appending rows. The new row count isn't as expected.\")\r\n",
+					"\r\n",
+					"    error_msg = f\"Error appending rows: {table_name} . The new row count isn't as expected.\"\r\n",
+					"    end_exec_time = str(datetime.now())\r\n",
+					"    \r\n",
+					"    app_insight_logger.add_table_result(\r\n",
+					"                        delta_table_name = table_name,\r\n",
+					"                        insert_count = insert_count,\r\n",
+					"                        table_result = \"failed\",\r\n",
+					"                        start_exec_time = start_exec_time, \r\n",
+					"                        end_exec_time = start_exec_time,\r\n",
+					"                        total_exec_time = \"\",\r\n",
+					"                        error_message = error_msg\r\n",
+					"                        )\r\n",
 					"else:\r\n",
 					"    logInfo(\"Rows appended successfully.\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Exit with the JSON result\r\n",
+					"mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
 				],
 				"execution_count": null
 			}

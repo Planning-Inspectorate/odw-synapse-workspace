@@ -343,8 +343,12 @@
 										"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
 										"type": "Expression"
 									},
+									"Inserts": {
+										"value": "@int(json(activity('Raw to Std').output.status.output.result.exitValue).table_details[0].insert_count)",
+										"type": "Expression"
+									},
 									"ErrorMessage": {
-										"value": "@activity('Raw to Std').Error.message ",
+										"value": "@json(activity('Raw to Std').output.status.output.result.exitValue).table_details[0].error_message",
 										"type": "Expression"
 									},
 									"StatusMessage": {
@@ -371,7 +375,10 @@
 										"value": "@pipeline()?.TriggeredByPipelineRunId",
 										"type": "Expression"
 									},
-									"ActivityType": "Pipeline",
+									"PipelineExecutionTimeInSec": "@string(json(activity('Raw to Std').output.status.output.result.exitValue).table_details[0].total_exec_time)",
+									"ActivityType": "Notebook",
+									"DurationSeconds": "@string(json(activity('Raw to Std').output.status.output.result.exitValue).table_details[0].total_exec_time)",
+									"StatusCode": "400",
 									"AppInsIKey": {
 										"value": "@pipeline().parameters.apps_insights_ikey",
 										"type": "Expression"
@@ -459,7 +466,7 @@
 							"type": "ExecutePipeline",
 							"dependsOn": [
 								{
-									"activity": "Raw to Std",
+									"activity": "Record src to std",
 									"dependencyConditions": [
 										"Succeeded"
 									]
@@ -514,6 +521,88 @@
 										"type": "Expression"
 									},
 									"ActivityType": "Pipeline",
+									"StatusCode": "200",
+									"AppInsIKey": {
+										"value": "@pipeline().parameters.apps_insights_ikey",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Record src to std",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Raw to Std",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "Completion",
+									"PipelineName": {
+										"value": "@variables('pipeline name')",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StartTime": {
+										"value": "@string(json(activity('Raw to Std').output.status.output.result.exitValue).table_details[0].start_exec_time)",
+										"type": "Expression"
+									},
+									"EndTime": {
+										"value": "@string(json(activity('Raw to Std').output.status.output.result.exitValue).table_details[0].end_exec_time)",
+										"type": "Expression"
+									},
+									"Inserts": {
+										"value": "@int(json(activity('Raw to Std').output.status.output.result.exitValue).table_details[0].insert_count)",
+										"type": "Expression"
+									},
+									"StatusMessage": {
+										"value": "@concat(variables('entity_name'), ': Processing source to standardised completed')",
+										"type": "Expression"
+									},
+									"PipelineTriggerID": {
+										"value": "@pipeline().TriggerId",
+										"type": "Expression"
+									},
+									"PipelineTriggerName": {
+										"value": "@pipeline().TriggerName",
+										"type": "Expression"
+									},
+									"PipelineTriggerType": {
+										"value": "@pipeline().TriggerType",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": "@pipeline()?.TriggeredByPipelineName",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": "@pipeline()?.TriggeredByPipelineRunId",
+										"type": "Expression"
+									},
+									"PipelineExecutionTimeInSec": "@string(json(activity('Raw to Std').output.status.output.result.exitValue).table_details[0].total_exec_time)",
+									"ActivityType": "Notebook",
+									"DurationSeconds": {
+										"value": "@string(json(activity('Raw to Std').output.status.output.result.exitValue).table_details[0].total_exec_time)",
+										"type": "Expression"
+									},
+									"StatusCode": "200",
 									"AppInsIKey": {
 										"value": "@pipeline().parameters.apps_insights_ikey",
 										"type": "Expression"
@@ -1551,6 +1640,13 @@
 			"pipeline name": {
 				"type": "String",
 				"defaultValue": "test"
+			},
+			"record_count": {
+				"type": "String",
+				"defaultValue": "0"
+			},
+			"Error_message": {
+				"type": "String"
 			}
 		},
 		"folder": {
