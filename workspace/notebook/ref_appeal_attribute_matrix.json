@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "00551325-56a6-436d-97e2-217d2c2b69c9"
+				"spark.autotune.trackingId": "df1f776a-aa57-46ea-8a56-7ca6179ec1d8"
 			}
 		},
 		"metadata": {
@@ -53,17 +53,29 @@
 		"cells": [
 			{
 				"cell_type": "code",
+				"source": [
+					"#Get Storage account name\n",
+					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"print(storage_account)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
 				"metadata": {
 					"collapsed": false
 				},
 				"source": [
 					"import re\n",
 					"from pyspark.sql.functions import col\n",
+					"from datetime import datetime\n",
 					"\n",
-					"ingestion_date = \"2025-06-20\"\n",
+					"#Latest ingestion date from odw-raw\n",
+					"ingestion_date = datetime.today().strftime('%Y-%m-%d')\n",
+					"print(ingestion_date)\n",
 					"\n",
-					"file_path = f\"abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/AppealAttributeMatrix/{ingestion_date}/appeals-attribute-matrix.csv\"\n",
-					"target_path = \"abfss://odw-standardised@pinsstodwdevuks9h80mb.dfs.core.windows.net/AppealAttributeMatrix/appeal_attribute_matrix\"\n",
+					"file_path = f\"abfss://odw-raw@{storage_account}AppealAttributeMatrix/{ingestion_date}/appeals-attribute-matrix.csv\"\n",
+					"target_path = f\"abfss://odw-standardised@{storage_account}AppealAttributeMatrix/appeal_attribute_matrix\"\n",
 					"\n",
 					"df = (\n",
 					"    spark.read\n",
@@ -88,6 +100,13 @@
 					"    df = df.withColumnRenamed(colname, new_name)\n",
 					"\n",
 					"df.write.mode(\"overwrite\").format(\"delta\").save(target_path)\n",
+					"table_name = \"odw_standardised_db.appeal_attribute_matrix\"\n",
+					"\n",
+					"if not spark.catalog.tableExists(table_name):\n",
+					"    df.write.format(\"delta\").mode(\"overwrite\").saveAsTable(table_name)\n",
+					"    print(f\"Table '{table_name}' created.\")\n",
+					"else:\n",
+					"    print(f\"Table '{table_name}' already exists. Skipping write.\")\n",
 					"\n",
 					"display(df)"
 				],
