@@ -1,0 +1,151 @@
+{
+	"name": "test_smoke_py_connectivity",
+	"properties": {
+		"folder": {
+			"name": "test/smokeTest"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "true",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "4d5ef9ae-f9a7-452b-8bac-32b2aea23804"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"import json\n",
+					"import re\n",
+					"import traceback"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def test_keyvault_connectivity():\n",
+					"    exception_raised = None\n",
+					"    try:\n",
+					"        mssparkutils.credentials.getSecretWithLS(\"ls_kv\", \"application-insights-connection-string\")\n",
+					"    except Exception as e:\n",
+					"        exception_raised = e\n",
+					"    assert not exception_raised, \"Could not fetch a secret from the key vault\""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def test_datalake_connectivity():\n",
+					"    storage_endpoint = re.search('url=https://(.+?);', mssparkutils.credentials.getFullConnectionString(\"ls_storage\")).group(1)\n",
+					"    exception_raised = None\n",
+					"    try:\n",
+					"        mssparkutils.fs.mount( \n",
+					"            f\"abfss://odw-standardised@{storage_endpoint}AIEDocumentData//\", \n",
+					"            \"/temp_test_datalake_connectivity\", \n",
+					"            {\"linkedService\": \"ls_storage\"} \n",
+					"        )\n",
+					"    except Exception as e:\n",
+					"        exception_raised = e\n",
+					"    finally:\n",
+					"        mssparkutils.fs.unmount(\"/temp_test_datalake_connectivity\")\n",
+					"    assert not exception_raised, f\"Could not connect to the main data lake '{storage_endpoint}'\""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def test_datalake_failover_connectivity():\n",
+					"    storage_endpoint = re.search('url=https://(.+?);', mssparkutils.credentials.getFullConnectionString(\"ls_backup_destination\")).group(1)\n",
+					"    env = re.search(\"pinsstodw(.*)ukw\", storage_endpoint).group(1)\n",
+					"    if env == \"build\":\n",
+					"        print(\"Skipping test_datalake_failover_connectivity because the build environment does not have any backup data\")\n",
+					"        return\n",
+					"    exception_raised = None\n",
+					"    try:\n",
+					"        mssparkutils.fs.mount( \n",
+					"            f\"abfss://odw-raw@{storage_endpoint}ListedBuildings//\", \n",
+					"            \"/temp_test_datalake_failover_connectivity\", \n",
+					"            {\"linkedService\": \"ls_backup_destination\"} \n",
+					"        )\n",
+					"    except Exception as e:\n",
+					"        exception_raised = e\n",
+					"    finally:\n",
+					"        mssparkutils.fs.unmount(\"/temp_test_datalake_failover_connectivity\")\n",
+					"    assert not exception_raised, f\"Could not connect to the main data lake '{storage_endpoint}'\""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"tests_to_run = {\n",
+					"    symbol: eval(symbol)\n",
+					"    for symbol in locals()\n",
+					"    if symbol.startswith(\"test_\") and callable(eval(symbol))\n",
+					"}\n",
+					"print(\"Running tests\\n\")\n",
+					"exception_map = dict()\n",
+					"for test_name, test in tests_to_run.items():\n",
+					"    print(f\"Running test '{test_name}'\")\n",
+					"    try:\n",
+					"        test()\n",
+					"    except Exception:\n",
+					"        exception_map[test_name] = traceback.format_exc()\n",
+					"\n",
+					"if exception_map:\n",
+					"    for test_case, exception in exception_map.items():\n",
+					"        print(f\"Test '{test_case}' failed with the below exception\")\n",
+					"        print(exception)\n",
+					"        print()\n",
+					"    \n",
+					"    failing_tests = list(exception_map.keys())\n",
+					"    mssparkutils.notebook.exit(failing_tests)\n",
+					"mssparkutils.notebook.exit([])"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}

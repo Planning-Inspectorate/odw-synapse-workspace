@@ -2,7 +2,7 @@ from dotenv import load_dotenv
 import os
 
 
-load_dotenv(verbose=True)
+load_dotenv(verbose=True, override=True)
 
 """
     Extract environment variables
