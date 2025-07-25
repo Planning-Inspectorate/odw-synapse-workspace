@@ -1,5 +1,6 @@
 from pipelines.scripts.synapse_artifact.synapse_artifact_util import SynapseArtifactUtil
 from pipelines.scripts.synapse_artifact.synapse_credential_util import SynapseCredentialUtil
+from pipelines.scripts.synapse_artifact.synapse_dataflow_util import SynapseDataFlowUtil
 from pipelines.scripts.synapse_artifact.synapse_dataset_util import SynapseDatasetUtil
 from pipelines.scripts.synapse_artifact.synapse_linked_service_util import SynapseLinkedServiceUtil
 from pipelines.scripts.synapse_artifact.synapse_managed_private_endpoint_util import SynapseManagedPrivateEndpointUtil
@@ -25,7 +26,8 @@ class SynapseArtifactUtilFactory():
             SynapseSparkConfigurationUtil,
             SynapseSQLScriptUtil,
             SynapseTriggerUtil,
-            SynapseIntegrationRuntimeUtil
+            SynapseIntegrationRuntimeUtil,
+            SynapseDataFlowUtil
         ]
     }
 

@@ -490,7 +490,8 @@ class SynapseArtifactUtil(ABC):
             "PipelineReference": "pipeline",
             "ManagedVirtualNetworkReference": "managedVirtualNetwork",
             "IntegrationRuntimeReference": "integrationRuntime",
-            "SparkConfigurationReference": "sparkConfiguration"
+            "SparkConfigurationReference": "sparkConfiguration",
+            "DataFlowReference": "dataflow"
         }
         reference_types_to_ignore = {
             "BigDataPoolReference"

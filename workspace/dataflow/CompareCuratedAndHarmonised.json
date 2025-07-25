@@ -1,0 +1,88 @@
+{
+	"name": "CompareCuratedAndHarmonised",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"name": "CuratedSource"
+				},
+				{
+					"name": "ServiceBusHarmonisedSource"
+				},
+				{
+					"name": "HorizonHarmonisedSource"
+				}
+			],
+			"sinks": [
+				{
+					"name": "TestResultOutput"
+				}
+			],
+			"transformations": [
+				{
+					"name": "ServiceBusHarmonisedCount"
+				},
+				{
+					"name": "HorizonHarmonisedCount"
+				},
+				{
+					"name": "CuratedCount"
+				},
+				{
+					"name": "JoinTables"
+				},
+				{
+					"name": "rowDifference"
+				},
+				{
+					"name": "HarmonisedCount"
+				}
+			],
+			"scriptLines": [
+				"source(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     store: 'synapse',",
+				"     databaseType: 'spark',",
+				"     format: 'table',",
+				"     database: 'odw_curated_db',",
+				"     tableName: 's51_advice') ~> CuratedSource",
+				"source(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     store: 'synapse',",
+				"     databaseType: 'spark',",
+				"     format: 'table',",
+				"     database: 'odw_harmonised_db',",
+				"     tableName: 'sb_s51_advice') ~> ServiceBusHarmonisedSource",
+				"source(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     store: 'synapse',",
+				"     databaseType: 'spark',",
+				"     format: 'table',",
+				"     database: 'odw_standardised_db',",
+				"     tableName: 'horizon_nsip_advice') ~> HorizonHarmonisedSource",
+				"ServiceBusHarmonisedSource aggregate(rowServiceBusHarmonisedCount = count(1)) ~> ServiceBusHarmonisedCount",
+				"HorizonHarmonisedSource aggregate(rowHorizonHarmonisedCount = count(1)) ~> HorizonHarmonisedCount",
+				"CuratedSource aggregate(rowCuratedCount = count(1)) ~> CuratedCount",
+				"CuratedCount, HarmonisedCount join(1 == 1,",
+				"     joinType:'cross',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> JoinTables",
+				"JoinTables derive(rowDifference = rowCuratedCount - (rowServiceBusHarmonisedCount + rowHorizonHarmonisedCount)) ~> rowDifference",
+				"ServiceBusHarmonisedCount, HorizonHarmonisedCount join(1 == 1,",
+				"     joinType:'cross',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> HarmonisedCount",
+				"rowDifference sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     store: 'synapse',",
+				"     databaseType: 'spark',",
+				"     format: 'table',",
+				"     database: 'logging',",
+				"     tableName: ('row_comparison_' + toString(currentUTC()) + '.csv')) ~> TestResultOutput"
+			]
+		}
+	}
+}
