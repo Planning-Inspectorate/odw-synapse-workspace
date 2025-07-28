@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "e3f4f962-30b5-451d-b94b-c455c05c2ad7"
+				"spark.autotune.trackingId": "2c44131b-8ecf-40a2-85e6-8b809315298d"
 			}
 		},
 		"metadata": {
@@ -189,6 +189,7 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"\n",
 					"try:\n",
 					"    # Step 1: Create staging view with parsed AbsType data\n",
 					"    logInfo(\"Creating staging view with parsed AbsType data\")\n",
@@ -293,18 +294,15 @@
 					"    deleted_count = records_to_update.count()\n",
 					"    logInfo(f\"Found {deleted_count} outdated records to replace\")\n",
 					"    \n",
-					"    # Step 5: Create view of records to keep (excluding outdated ones)\n",
+					"    # Step 5: Create view of records to keep (excluding outdated ones) - SECURITY FIX APPLIED\n",
 					"    if deleted_count > 0:\n",
-					"        old_rowids_list = [f\"'{row.old_rowid}'\" for row in records_to_update.collect()]\n",
-					"        old_rowids_str = \",\".join(old_rowids_list)\n",
+					"        logInfo(f\"Creating view excluding {deleted_count} outdated records\")\n",
 					"        \n",
-					"        logInfo(f\"Creating view excluding {len(old_rowids_list)} outdated records\")\n",
-					"        \n",
-					"        spark.sql(f\"\"\"\n",
-					"        CREATE OR REPLACE TEMPORARY VIEW records_to_keep AS\n",
-					"        SELECT * FROM current_target\n",
-					"        WHERE RowID NOT IN ({old_rowids_str})\n",
-					"        \"\"\")\n",
+					"        # SECURE: Use DataFrame operations instead of f-string SQL to prevent SQL injection\n",
+					"        outdated_rowids = [row.old_rowid for row in records_to_update.collect()]\n",
+					"        current_target_df = spark.table(\"odw_harmonised_db.sap_hr_absence_all\")\n",
+					"        records_to_keep_df = current_target_df.filter(~col(\"RowID\").isin(outdated_rowids))\n",
+					"        records_to_keep_df.createOrReplaceTempView(\"records_to_keep\")\n",
 					"    else:\n",
 					"        logInfo(\"No outdated records found - keeping all current records\")\n",
 					"        spark.sql(\"\"\"\n",
@@ -312,6 +310,30 @@
 					"        SELECT * FROM current_target\n",
 					"        \"\"\")\n",
 					"    \n",
+					"    logInfo(\"Data preparation and staging completed successfully\")\n",
+					"\n",
+					"except Exception as e:\n",
+					"    error_msg = f\"Error in data preparation phase: {str(e)}\"\n",
+					"    logError(error_msg)\n",
+					"    logException(e)\n",
+					"    \n",
+					"    # Clean up on error in this phase\n",
+					"    try:\n",
+					"        spark.sql(\"DROP VIEW IF EXISTS staging_absence\")\n",
+					"        spark.sql(\"DROP VIEW IF EXISTS latest_staging_records\")\n",
+					"        spark.sql(\"DROP VIEW IF EXISTS current_target\")\n",
+					"        spark.sql(\"DROP VIEW IF EXISTS records_to_keep\")\n",
+					"    except:\n",
+					"        pass\n",
+					"    \n",
+					"    raise e"
+				],
+				"execution_count": 40
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"try:\n",
 					"    # Step 6: Get new records from staging (those not in current target)\n",
 					"    logInfo(\"Identifying new records to insert\")\n",
 					"    spark.sql(\"\"\"\n",
@@ -418,7 +440,7 @@
 					"    logInfo(\"Successfully completed incremental load process\")\n",
 					"\n",
 					"except Exception as e:\n",
-					"    error_msg = f\"Error in status-based incremental absence data processing: {str(e)}\"\n",
+					"    error_msg = f\"Error in final processing phase: {str(e)}\"\n",
 					"    logError(error_msg)\n",
 					"    logException(e)\n",
 					"    \n",
@@ -446,14 +468,12 @@
 					"    \n",
 					"    raise e\n",
 					"\n",
-					"\n",
-					"\n",
 					"finally:\n",
 					"    logInfo(\"Flushing logs\")\n",
 					"    flushLogging()\n",
 					"    mssparkutils.notebook.exit(json.dumps(result))"
 				],
-				"execution_count": null
+				"execution_count": 41
 			}
 		]
 	}
