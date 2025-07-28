@@ -21,16 +21,35 @@ class SynapseLakeDatabaseUtil(SynapseArtifactUtil):
     def get_all(self, **kwargs: Dict[str, Any]) -> List[Dict[str, Any]]:
         """
         Retrieves all Lake Database definitions in the workspace.
+        Handles empty or invalid responses gracefully.
         """
-        response = self._web_request(
-            f"{self.synapse_endpoint}/lakeDatabases?api-version=2020-12-01",
-        ).json()
+        url = f"{self.synapse_endpoint}/lakeDatabases?api-version=2020-12-01"
+        response = self._web_request(url)
 
-        all_lake_dbs = response.get("value", [])
-        while "nextLink" in response:
-            next_link = response["nextLink"]
-            response = self._web_request(next_link).json()
-            all_lake_dbs.extend(response.get("value", []))
+        # If the response has no content (204) or an empty body, return empty list
+        if not response.text.strip():
+            return []
+
+        try:
+            data = response.json()
+        except ValueError:
+            raise RuntimeError(f"Invalid JSON returned from {url}: {response.text[:200]}")
+
+        all_lake_dbs = data.get("value", [])
+        while "nextLink" in data:
+            next_link = data["nextLink"]
+            next_response = self._web_request(next_link)
+
+            if not next_response.text.strip():
+                break
+
+            try:
+                data = next_response.json()
+            except ValueError:
+                raise RuntimeError(f"Invalid JSON returned from {next_link}: {next_response.text[:200]}")
+
+            all_lake_dbs.extend(data.get("value", []))
+
         return all_lake_dbs
 
     def get_uncomparable_attributes(self) -> List[str]:
