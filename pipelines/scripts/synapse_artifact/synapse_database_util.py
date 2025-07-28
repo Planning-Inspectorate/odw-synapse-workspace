@@ -8,7 +8,7 @@ class SynapseLakeDatabaseUtil(SynapseArtifactUtil):
 
     @classmethod
     def get_type_name(cls) -> str:
-        return "lakeDatabase"
+        return "database"
 
     def get(self, artifact_name: str, **kwargs: Dict[str, Any]) -> Dict[str, Any]:
         """
