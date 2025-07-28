@@ -25,6 +25,7 @@ class SynapseLakeDatabaseUtil(SynapseArtifactUtil):
         """
         url = f"{self.synapse_endpoint}/lakeDatabases?api-version=2020-12-01"
         response = self._web_request(url)
+        print(f"---- This is the endpoint----{response}")
 
         # If the response has no content (204) or an empty body, return empty list
         if not response.text.strip():
