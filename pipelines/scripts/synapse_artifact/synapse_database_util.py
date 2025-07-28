@@ -26,8 +26,9 @@ class SynapseDatabaseUtil(SynapseArtifactUtil):
         response = self._web_request(
             f"{self.synapse_endpoint}/sqlPools?api-version=2021-06-01",
         ).json()
-
+        print(response)
         all_databases = response["value"]
+
         while "nextLink" in response:
             next_link = response["nextLink"]
             response = self._web_request(next_link).json()
