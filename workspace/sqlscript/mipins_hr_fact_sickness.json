@@ -2,7 +2,7 @@
 	"name": "mipins_hr_fact_sickness",
 	"properties": {
 		"folder": {
-			"name": "HR"
+			"name": "archive/HR"
 		},
 		"content": {
 			"query": "\n-- IPORTANT INFO : Prior to running this notebook you should update the calendar_dim_plus table, \n-- to get the most up to date informations regarding the columns which use the date \n-- To run update the table jus run the Calendar notebook \n\nIF NOT EXISTS ( SELECT  *\n                FROM    sys.schemas\n                WHERE   name = 'miPINS' )\n    EXEC('CREATE SCHEMA [miPINS]');\nGO\n\n-- CREATE VIEW FOR SICKNESS FACT--\n\nCREATE OR ALTER VIEW miPINS.vw_mipins_hr_fact_sickness\nAS\n\n\nSELECT [StaffNumber],[PreviousFY],[CurrentFY],[PreviousCY],[CurrentCY]\nFROM(\nSELECT DISTINCT\n\nvw.StaffNumber,\ndate.financial_year AS MeasureYear,\nCOUNT(*) as SicknessCount\n\n\nFROM [odw_curated_db].[dbo].[mipins_fact_absence_all] vw \nFULL JOIN [default].[dbo].[calendar_dim_plus] date on date.calendarDate = vw.AbsenceDate\nWHERE vw.AbsenceType in  ('Sickness') and financial_year in ('CurrentFY','PreviousFY') \nGROUP BY StaffNumber\n      ,financial_year\n\n\nUNION\n\nSELECT DISTINCT\n\nvw.StaffNumber,\ndate.calendar_year AS MeasureYear,\nCOUNT(*) as SicknessCount\n\n\nFROM [odw_curated_db].[dbo].[mipins_fact_absence_all] vw \nFULL JOIN [default].[dbo].[calendar_dim_plus] date on date.calendarDate = vw.AbsenceDate\nWHERE vw.AbsenceType in  ('Sickness') and calendar_year in ('CurrentCY','PreviousCY') \nGROUP BY StaffNumber\n      ,calendar_year\n) AS SourceTable\nPIVOT\n(\nmax(SicknessCount)\nFOR MeasureYear IN ([PreviousFY],[CurrentFY],[PreviousCY],[CurrentCY])\n) AS PivotTable\n-- ORDER BY [StaffNumber]\n\nGO",

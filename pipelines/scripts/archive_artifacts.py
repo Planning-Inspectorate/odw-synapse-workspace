@@ -15,6 +15,14 @@ class ArtifactArchiver():
         self.ROOT_ARTIFACTS = {
             "pipeline/pln_master.json",
             "pipeline/pln_saphr_master.json",
+            "pipeline/0_Timesheets_Data_Copy_RAW.json",  # Keep artifacts related to timesheets
+            "pipeline/0_Legacy_Timesheet_Data_Copy_RAW.json",
+            "notebook/timesheets_master.json",
+            "notebook/timesheets_minutes_dim.json",
+            "notebook/timesheets_record_fact.json",
+            "notebook/timesheets_segment_type_reference_dim.json",
+            "notebook/timesheets_work_segment_dim.json",
+            "notebook/timesheets_work_segment_lock_dim.json",
             "trigger/tr_backup_daily.json",  # Keep relevant triggers
             "trigger/tr_daily_7days_1800.json",
             "trigger/tr_daily_7days_2100.json",
@@ -29,6 +37,9 @@ class ArtifactArchiver():
             "trigger/tr_delta_backup_odw_std_0900.json",
             "trigger/tr_saphr_daily_800.json",
             "trigger/tr_weekly.json",
+            "linkedService/ls_delta_backup.json",  # Keep artifacts related to DR (need to review these at a later date)
+            "notebook/new_rebuild_tables.json",
+            "notebook/py_utils_log_stage.json",
             "notebook/py_unit_tests_appeal_document.json",  # Keep tests
             "notebook/py_unit_tests_appeal_event_estimate.json",
             "notebook/py_unit_tests_appeal_s78.json",
@@ -48,6 +59,7 @@ class ArtifactArchiver():
             "notebook/py_unit_tests_relevant_representation.json",
             "notebook/py_unit_tests_s62a_view_cases.json",
             "notebook/py_unit_tests_service_user.json",
+            "notebook/test_smoke_py_connectivity.json",
             "pipeline/rel_2_0_0.json",  # Keep release pipelines
             "pipeline/rel_2_0_3.json",
             "pipeline/rel_2_0_4.json",
@@ -97,15 +109,9 @@ class ArtifactArchiver():
             "pipeline/rel_1416_master_fixes.json",
             "pipeline/rel_has_156.json",
             "pipeline/rel_THEODW-992-WelshFields.json",
-            "managedVirtualNetwork/default/managedPrivateEndpoint/AzureSqlDatabase639.json",  # Keep private endpoints
-            "managedVirtualNetwork/default/managedPrivateEndpoint/synapse-sql-sqlServer--sql-odw-dev-uks.json",
-            "managedVirtualNetwork/default/managedPrivateEndpoint/synapse-sql-sqlServer--sql-odw-dev-ukw.json",
-            "managedVirtualNetwork/default/managedPrivateEndpoint/synapse-st-dfs--pinsstodwdevuks9h80mb.json",
-            "managedVirtualNetwork/default/managedPrivateEndpoint/synapse-st-dfs--pinsstodwdevukwdvzrjm.json",
-            "managedVirtualNetwork/default/managedPrivateEndpoint/synapse-ws-sql--pins-synw-odw-dev-uks.json",
-            "managedVirtualNetwork/default/managedPrivateEndpoint/synapse-ws-sql--pins-synw-odw-dev-ukw.json",
+            "pipeline/rel_16_0_2_appeal_attribute_matrix_adhoc_ingestion.json",
+            "managedVirtualNetwork/default/managedPrivateEndpoint/synapse-ws-sql--pins-synw-odw-dev-uks.json", # Keep private endpoints
             "managedVirtualNetwork/default/managedPrivateEndpoint/synapse-ws-sqlOnDemand--pins-synw-odw-dev-uks.json",
-            "managedVirtualNetwork/default/managedPrivateEndpoint/synapse-ws-sqlOnDemand--pins-synw-odw-dev-ukw.json",
             "notebook/py_sap_hr_protected_data.json"  # Keep specific SAPHR notebook
         }
         """Artifacts to use as the base of the dependency analysis"""
