@@ -1,5 +1,6 @@
 from pipelines.scripts.synapse_artifact.synapse_artifact_util import SynapseArtifactUtil
 from typing import List, Dict, Any
+import json
 
 class SynapseLakeDatabaseUtil(SynapseArtifactUtil):
     """
@@ -15,17 +16,16 @@ class SynapseLakeDatabaseUtil(SynapseArtifactUtil):
         Retrieves a specific Lake Database definition by name.
         """
         return self._web_request(
-            f"{self.synapse_endpoint}/lakeDatabases/{artifact_name}?api-version=2020-12-01",
+            f"{self.synapse_endpoint}/databases?/{artifact_name}?api-version=2021-04-01",
         ).json()
 
-    def get_all(self, **kwargs: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def get_all(self,**kwargs: Dict[str, Any])-> List[Dict[str, Any]]:
         """
         Retrieves all Lake Database definitions in the workspace.
         Handles empty or invalid responses gracefully.
         """
-        url = f"{self.synapse_endpoint}/lakeDatabases?api-version=2020-12-01"
+        url = f"{self.synapse_endpoint}/databases?api-version=2021-04-01"
         response = self._web_request(url)
-        print(f"---- This is the endpoint----{response}")
 
         # If the response has no content (204) or an empty body, return empty list
         if not response.text.strip():
@@ -36,7 +36,8 @@ class SynapseLakeDatabaseUtil(SynapseArtifactUtil):
         except ValueError:
             raise RuntimeError(f"Invalid JSON returned from {url}: {response.text[:200]}")
 
-        all_lake_dbs = data.get("value", [])
+        all_lake_dbs = data["items"]
+
         while "nextLink" in data:
             next_link = data["nextLink"]
             next_response = self._web_request(next_link)
@@ -52,7 +53,36 @@ class SynapseLakeDatabaseUtil(SynapseArtifactUtil):
             all_lake_dbs.extend(data.get("value", []))
 
         return all_lake_dbs
+    
+    def get_tables(self, database_name: str) -> List[Dict[str, Any]]:
+        url = f"{self.synapse_endpoint}/databases/{database_name}/tables?api-version=2021-04-01"
+        response = self._web_request(url)
 
+        if not response.text.strip():
+            return []
+
+        try:
+            data = response.json()
+        except ValueError:
+            raise RuntimeError(f"Invalid JSON from {url}: {response.text[:200]}")
+
+        all_tables = data.get("items", []) or data.get("value", [])
+
+        while "nextLink" in data:
+            next_link = data["nextLink"]
+            next_response = self._web_request(next_link)
+            if not next_response.text.strip():
+                break
+            data = next_response.json()
+            all_tables.extend(data.get("items", []) or data.get("value", []))
+
+        return all_tables
+    
+    def get_table(self, database_name: str, table_name: str) -> Dict[str, Any]:
+        url = f"{self.synapse_endpoint}/databases/{database_name}/tables/{table_name}?api-version=2021-04-01"
+        response = self._web_request(url)
+        return response.json()
+        
     def get_uncomparable_attributes(self) -> List[str]:
         """
         Attributes that should not be compared across environments.
@@ -82,3 +112,20 @@ class SynapseLakeDatabaseUtil(SynapseArtifactUtil):
             r"^properties.defaultStorageAccountName$",
             r"^properties.defaultDataLakeStorageAccountUrl$"
         ]
+
+
+# util = SynapseLakeDatabaseUtil("pins-synw-odw-dev-uks")
+
+# all_dbs = util.get_all()
+# all_tbs = util.get_tables("logging")
+
+# print(f"Found {len(all_dbs)} lake databases")
+
+
+# for db in all_dbs:
+#     db_name = db["name"]
+#     tables= util.get_tables(db_name)
+#     print(f"{db_name} has {len(tables)} tables")
+
+# # print(json.dumps(all_dbs, indent=4))
+# print(json.dumps(all_tbs, indent=4))
