@@ -60,6 +60,7 @@ class ArtifactArchiver():
             "notebook/py_unit_tests_s62a_view_cases.json",
             "notebook/py_unit_tests_service_user.json",
             "notebook/test_smoke_py_connectivity.json",
+            "notebook/test_py_delete_table.json",
             "pipeline/rel_2_0_0.json",  # Keep release pipelines
             "pipeline/rel_2_0_3.json",
             "pipeline/rel_2_0_4.json",
