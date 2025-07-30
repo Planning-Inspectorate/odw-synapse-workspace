@@ -1,2 +1,5 @@
+from odw.core.nested_dummy.inner_module import inner_function
+
+
 def a_test_function():
-    return "Hello world"
+    return inner_function()
