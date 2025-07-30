@@ -3,6 +3,7 @@ This repo contains all the artifacts and infrastructure code for the PINS Operat
 * [Infrastructure](infrastructure/) - Contains the root Terraform module for deploying the ODW environment
 * [Pipelines](pipelines/) - Contains Azure DevOps Pipeline definitions and steps
 * [Workspace](workspace/) - Contains development data artifacts ingested into the development Azure Synapse Workspace
+* [odw](odw/) - Contains ETL code and utility functions that are installed on Synapse spark pools
 
 # Reference Documentation
 * Azure Data Landscape
