@@ -10,5 +10,6 @@ This folder holds the definition of the ODW Python package. Complex notebook fun
 │    │   └── unit_test/ # Where unit tests are defined
 │    │   └── integration_test/ # Where integration tests are defined
 │    │   └── resources/ # Where any resources used by the tests are defined
-│    └── requirements.txt # Where the requirements for the ODW package are defined
+│    └── build-requirements.txt # Where the requirements for package building are defined
+│    └── pyproject.toml # Where the build config is defined
 ```
