@@ -5,5 +5,6 @@ root_package = "odw"
 setup(
     name="odw",
     version="1",
-    packages=[root_package] + [f"{root_package}.{item}" for item in find_packages(where=root_package) if "test" not in item]
+    packages=[root_package] + [f"{root_package}.{item}" for item in find_packages(where=root_package) if "test" not in item],
+    python_requires="~=3.10"
 )
