@@ -140,6 +140,7 @@ if __name__ == "__main__":
     most_recent_wheel = existing_wheels[-1] if existing_wheels else None
     logging.info("Uploading new workspace package")
     synapse_workspace_manager.upload_workspace_package(f"dist/{new_wheel_name}")
+    # Prepare to update the spark pools to use the new package
     spark_pools = {spark_pool: synapse_workspace_manager.get_spark_pool(spark_pool) for spark_pool in TARGET_SPARK_POOLS}
     existing_spark_pool_packages = {
         spark_pool: spark_pool_json["properties"]["customLibraries"] if "customLibraries" in spark_pool_json["properties"] else []
