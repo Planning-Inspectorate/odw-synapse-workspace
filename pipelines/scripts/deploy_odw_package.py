@@ -141,11 +141,12 @@ if __name__ == "__main__":
     logging.info("Uploading new workspace package")
     synapse_workspace_manager.upload_workspace_package(f"dist/{new_wheel_name}")
     # Prepare to update the spark pools to use the new package
-    initial_spark_pools_map = {spark_pool: synapse_workspace_manager.get_spark_pool(spark_pool) for spark_pool in TARGET_SPARK_POOLS}
+    initial_spark_pool_json_map = {spark_pool: synapse_workspace_manager.get_spark_pool(spark_pool) for spark_pool in TARGET_SPARK_POOLS}
     existing_spark_pool_packages = {
         spark_pool: spark_pool_json["properties"]["customLibraries"] if "customLibraries" in spark_pool_json["properties"] else []
-        for spark_pool, spark_pool_json in initial_spark_pools_map.items()
+        for spark_pool, spark_pool_json in initial_spark_pool_json_map.items()
     }
+    # Enrich the customLibraries
     new_pool_packages = {
         spark_pool: [
             package
@@ -162,15 +163,16 @@ if __name__ == "__main__":
         ]
         for spark_pool, spark_pool_packages in existing_spark_pool_packages.items()
     }
-    pool_json_map = {
+    # Update the base spark pool json with the new customLibraries
+    new_spark_pool_json_map = {
         spark_pool: {
-            k: v if k != "properties" else v | {"customLibraries": new_pool_packages[spark_pool]}
+            k: v if k != "properties" else v | {"customLibraries": new_pool_packages[spark_pool]}  # Overwrite the properties.custonLibraries attribute
             for k, v in spark_pool_json.items()
         }
-        for spark_pool, spark_pool_json in initial_spark_pools_map.items()
+        for spark_pool, spark_pool_json in initial_spark_pool_json_map.items()
     }
     logging.info("Updating spark pool packages")
-    resp = synapse_workspace_manager.update_sparkpool("pinssynspodw34", pool_json_map["pinssynspodw34"])
+    resp = synapse_workspace_manager.update_sparkpool("pinssynspodw34", new_spark_pool_json_map["pinssynspodw34"])
     logging.info(json.dumps(resp, indent=4))
     logging.info("Removing old workspace packages")
     for package in existing_wheel_names:
