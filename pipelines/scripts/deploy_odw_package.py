@@ -146,7 +146,7 @@ if __name__ == "__main__":
         spark_pool: spark_pool_json["properties"]["customLibraries"] if "customLibraries" in spark_pool_json["properties"] else []
         for spark_pool, spark_pool_json in initial_spark_pool_json_map.items()
     }
-    # Enrich the customLibraries
+    # Enrich the customLibraries by removing the old odw packages and adding the new one
     new_pool_packages = {
         spark_pool: [
             package
