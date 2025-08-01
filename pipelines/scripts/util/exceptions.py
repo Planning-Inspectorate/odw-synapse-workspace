@@ -1,0 +1,2 @@
+class MaxWaitTimeNeededException(Exception):
+    pass

@@ -1,8 +1,10 @@
+from pipelines.scripts.util.exceptions import MaxWaitTimeNeededException
 from pipelines.scripts.util.util import Util
 from azure.identity import AzureCliCredential
 import requests
 import json
-from typing import Dict, Any
+from typing import List, Dict, Any
+import time
 
 
 class SynapseWorkspaceManager():
@@ -24,7 +26,7 @@ class SynapseWorkspaceManager():
             cls._token = AzureCliCredential().get_token("https://management.azure.com/.default").token
         return cls._token
 
-    def get_workspace_packages(self) -> Dict[str, Any]:
+    def get_workspace_packages(self) -> List[Dict[str, Any]]:
         resp: requests.Response = requests.get(
             f"{self.ENDPOINT}/libraries?api-version=2021-06-01",
             headers={"Authorization": f"Bearer {self._get_token()}"}
@@ -33,7 +35,7 @@ class SynapseWorkspaceManager():
             resp_json = resp.json()
             if "value" in resp_json:
                 return resp_json["value"]
-            raise ValueError(f"response raised an exception: {json.dumps(resp_json, indent=4)}")
+            raise ValueError(f"Response raised an exception: {json.dumps(resp_json, indent=4)}")
         raise ValueError(f"http endpoint did not respond with a json object. Received {resp}")
     
     def upload_workspace_package(self, package_name: str):
@@ -70,8 +72,15 @@ class SynapseWorkspaceManager():
                 ]
             )
         )
-        # Need to wait for the package to be deleted before continuing
-        return resp
+        max_wait_time = 2 * 60 # Wait 2 minutes
+        current_wait_time = 0
+        retry_delay_seconds = 20
+        while current_wait_time < max_wait_time:
+            workspace_package_names = [package["name"] for package in self.get_workspace_packages()]
+            if package_name not in workspace_package_names:
+                return resp
+            current_wait_time += retry_delay_seconds
+        raise MaxWaitTimeNeededException(f"Exceeded max wait time for deletion of workspace package '{package_name}'")
     
     def get_spark_pool(self, spark_pool_name: str):
         resp = requests.Response = requests.get(
@@ -90,5 +99,19 @@ class SynapseWorkspaceManager():
         )
         if "application/json" in resp.headers.get("Content-Type", ""):
             # Need to wait for the spark pool to exit provisioning state
-            return resp.json()
+            max_wait_time = 50 * 60 # Wait 50 minutes, this is a slow operation
+            current_wait_time = 0
+            retry_delay_seconds = 60
+            while current_wait_time < max_wait_time:
+                spark_pool = self.get_spark_pool(spark_pool_name)
+                provisioning_state = spark_pool["properties"]["provisioningState"]
+                if provisioning_state == "Succeeded":
+                    return resp.json()
+                if provisioning_state in {"Failed", "Canceled"}:
+                    raise ValueError(
+                        f"Failed to provision the spark pool '{spark_pool_name}' - final state was '{provisioning_state}'. Please inspect the logs"
+                    )
+                current_wait_time += retry_delay_seconds
+                time.sleep(retry_delay_seconds)
+            raise MaxWaitTimeNeededException(f"Exceeded max wait time for spark pool update for spark pool '{spark_pool_name}'")
         raise ValueError(f"http endpint did not respond with a json object. Received {resp}")
