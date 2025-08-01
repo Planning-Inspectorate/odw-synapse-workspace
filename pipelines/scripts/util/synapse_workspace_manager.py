@@ -37,7 +37,7 @@ class SynapseWorkspaceManager():
                 return resp_json["value"]
             raise ValueError(f"Response raised an exception: {json.dumps(resp_json, indent=4)}")
         raise ValueError(f"http endpoint did not respond with a json object. Received {resp}")
-    
+
     def upload_workspace_package(self, package_name: str):
         return json.loads(
             Util.run_az_cli_command(
@@ -54,23 +54,22 @@ class SynapseWorkspaceManager():
                 ]
             )
         )
-    
+
     def remove_workspace_package(self, package_name: str):
-        resp = json.loads(
-            Util.run_az_cli_command(
-                [
-                    "az",
-                    "synapse",
-                    "workspace-package",
-                    "delete",
-                    "--workspace-name",
-                    self.workspace_name,
-                    "--package",
-                    package_name,
-                    "--no-wait",
-                    "-y"
-                ]
-            )
+        # This command returns nothing
+        Util.run_az_cli_command(
+            [
+                "az",
+                "synapse",
+                "workspace-package",
+                "delete",
+                "--workspace-name",
+                self.workspace_name,
+                "--package",
+                package_name,
+                "--no-wait",
+                "-y"
+            ]
         )
         max_wait_time = 2 * 60 # Wait 2 minutes
         current_wait_time = 0
@@ -78,10 +77,10 @@ class SynapseWorkspaceManager():
         while current_wait_time < max_wait_time:
             workspace_package_names = [package["name"] for package in self.get_workspace_packages()]
             if package_name not in workspace_package_names:
-                return resp
+                return
             current_wait_time += retry_delay_seconds
         raise MaxWaitTimeNeededException(f"Exceeded max wait time for deletion of workspace package '{package_name}'")
-    
+
     def get_spark_pool(self, spark_pool_name: str):
         resp = requests.Response = requests.get(
             f"{self.ENDPOINT}/bigDataPools/{spark_pool_name}?api-version=2021-06-01",
