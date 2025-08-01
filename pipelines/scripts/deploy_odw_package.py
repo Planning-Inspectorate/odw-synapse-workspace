@@ -1,4 +1,5 @@
 from pipelines.scripts.util.synapse_workspace_manager import SynapseWorkspaceManager
+from concurrent.futures import ThreadPoolExecutor
 from pipelines.scripts.config import CONFIG
 import argparse
 import json
@@ -79,8 +80,18 @@ if __name__ == "__main__":
         for spark_pool, spark_pool_json in initial_spark_pool_json_map.items()
     }
     logging.info("Updating spark pool packages")
-    resp = synapse_workspace_manager.update_sparkpool("pinssynspodwpr", new_spark_pool_json_map["pinssynspodwpr"])
-    logging.info(json.dumps(resp, indent=4))
+    spark_pool_names_to_update = list(new_spark_pool_json_map.keys())
+    with ThreadPoolExecutor() as tpe:
+        # Update all relevant spark pools in parallel to boost performance
+        [
+            thread_response
+            for thread_response in tpe.map(
+                synapse_workspace_manager.update_sparkpool,
+                spark_pool_names_to_update,
+                [new_spark_pool_json_map[pool] for pool in spark_pool_names_to_update]
+            )
+            if thread_response
+        ]
     logging.info("Removing old workspace packages")
     for package in existing_wheel_names:
         synapse_workspace_manager.remove_workspace_package(package)
