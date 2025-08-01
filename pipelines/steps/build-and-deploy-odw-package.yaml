@@ -7,11 +7,12 @@ parameters:
 steps:
   - script: |
       set -x
-      buildTimestamp=$(date '+%Y%m%d%H%M%S')
-      echo "Building with timestamp $buildTimestamp"
-      poetry build --config-settings local-version=$buildTimestamp
+      # Build id set to the commit hash - this is used to work out if the package has already been uploaded to Synapse
+      buildId=$(git rev-parse HEAD)
+      echo "Building with timestamp $buildId"
+      poetry build --config-settings local-version=$buildId
 
       export PYTHONPATH="${PYTHONPATH}:/./"
-      python3 $(Build.SourcesDirectory)/pipelines/scripts/deploy_odw_package.py -e ${{ parameters.env }} -wn "odw-1.0.0+$buildTimestamp-py3-none-any.whl"
+      python3 $(Build.SourcesDirectory)/pipelines/scripts/deploy_odw_package.py -e ${{ parameters.env }} -wn "odw-1.0.0+$buildId-py3-none-any.whl"
     displayName: 'Build and Deploy ODW package'
     name: BuildODWPackage

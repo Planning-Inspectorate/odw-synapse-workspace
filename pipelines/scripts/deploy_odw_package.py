@@ -2,7 +2,6 @@ from pipelines.scripts.util.synapse_workspace_manager import SynapseWorkspaceMan
 from concurrent.futures import ThreadPoolExecutor
 from pipelines.scripts.config import CONFIG
 import argparse
-import json
 from typing import List, Dict, Any
 from datetime import datetime
 import logging
@@ -26,16 +25,7 @@ def get_existing_odw_wheels(workspace_manager: SynapseWorkspaceManager) -> List[
     )
 
 
-#def download_wheel(workspace_name: str, wheel_name: str) -> bool:
-#    Util.run_az_cli_command()
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("-e", "--env", required=True, help="The environment to target")
-    parser.add_argument("-wn", "--new_wheel_name", required=True, help="The name of the new odw wheel to deploy")
-    args = parser.parse_args()
-    env = args.env
-    new_wheel_name = args.new_wheel_name
+def upload_new_wheel(env: str, new_wheel_name: str):
     workspace_name = f"pins-synw-odw-{env}-uks"
     subscription = CONFIG["SUBSCRIPTION_ID"]
     resource_group = f"pins-rg-data-odw-{env}-uks"
@@ -44,8 +34,10 @@ if __name__ == "__main__":
     existing_wheels = get_existing_odw_wheels(synapse_workspace_manager)
     existing_wheel_names = {x["name"] for x in existing_wheels}
     if new_wheel_name in existing_wheel_names:
-        raise ValueError(f"Cannot upload the wheel '{new_wheel_name}' because it already exists in the workspace, aborting deployment")
-    most_recent_wheel = existing_wheels[-1] if existing_wheels else None
+        # The assumption is that each wheel name contains the commit hash of the newest commit. This hash identifies the wheel version
+        # If the new wheel name already exists in synapse, then there is no need to upload again
+        logging.info(f"Cannot upload the wheel '{new_wheel_name}' because it already exists in the workspace, aborting deployment")
+        return
     logging.info("Uploading new workspace package")
     synapse_workspace_manager.upload_workspace_package(f"dist/{new_wheel_name}")
     # Prepare to update the spark pools to use the new package
@@ -95,3 +87,13 @@ if __name__ == "__main__":
     logging.info("Removing old workspace packages")
     for package in existing_wheel_names:
         synapse_workspace_manager.remove_workspace_package(package)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("-e", "--env", required=True, help="The environment to target")
+    parser.add_argument("-wn", "--new_wheel_name", required=True, help="The name of the new odw wheel to deploy")
+    args = parser.parse_args()
+    env = args.env
+    new_wheel_name = args.new_wheel_name
+    upload_new_wheel(env, new_wheel_name)
