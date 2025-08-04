@@ -1,4 +1,5 @@
 from pipelines.scripts.util.synapse_workspace_manager import SynapseWorkspaceManager
+from pipelines.scripts.util.exceptions import ConcurrentWheelUploadException
 from concurrent.futures import ThreadPoolExecutor
 from pipelines.scripts.config import CONFIG
 import argparse
@@ -33,6 +34,15 @@ def upload_new_wheel(env: str, new_wheel_name: str):
     # Get existing workspace packages
     existing_wheels = get_existing_odw_wheels(synapse_workspace_manager)
     existing_wheel_names = {x["name"] for x in existing_wheels}
+    if len(existing_wheels) > 1:
+        raise ConcurrentWheelUploadException(
+            (
+                f"There are {len(existing_wheels)} odw wheels already deployed in workspace '{workspace_name}', "
+                "which indicates another wheel deployment is in progress. Please wait for this concurrent run to complete. "
+                "If there are no other concurrent runs, then please review the deployed wheels, and remove whichever wheel is not applied "
+                "manually"
+            )
+        )
     if new_wheel_name in existing_wheel_names:
         # The assumption is that each wheel name contains the commit hash of the newest commit. This hash identifies the wheel version
         # If the new wheel name already exists in synapse, then there is no need to upload again
