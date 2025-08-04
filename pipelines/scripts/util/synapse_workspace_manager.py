@@ -71,7 +71,7 @@ class SynapseWorkspaceManager():
                 "-y"
             ]
         )
-        max_wait_time = 2 * 60 # Wait 2 minutes
+        max_wait_time = 10 * 60 # Wait 2 minutes
         current_wait_time = 0
         retry_delay_seconds = 20
         while current_wait_time < max_wait_time:
