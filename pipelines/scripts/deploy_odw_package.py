@@ -88,7 +88,7 @@ def upload_new_wheel(env: str, new_wheel_name: str):
         [
             thread_response
             for thread_response in tpe.map(
-                synapse_workspace_manager.update_sparkpool,
+                synapse_workspace_manager.update_spark_pool,
                 spark_pool_names_to_update,
                 [new_spark_pool_json_map[pool] for pool in spark_pool_names_to_update]
             )

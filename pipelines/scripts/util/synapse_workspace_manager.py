@@ -104,7 +104,7 @@ class SynapseWorkspaceManager():
             pass
         raise ValueError(f"http endpint did not respond with a json object. Received {resp}")
 
-    def update_sparkpool(self, spark_pool_name: str, spark_pool_json: Dict[str, Any]):
+    def update_spark_pool(self, spark_pool_name: str, spark_pool_json: Dict[str, Any]):
         resp: requests.Response = requests.put(
             f"{self.ENDPOINT}/bigDataPools/{spark_pool_name}?api-version=2021-06-01",
             json=spark_pool_json,
