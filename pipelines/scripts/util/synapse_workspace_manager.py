@@ -63,6 +63,7 @@ class SynapseWorkspaceManager():
             if package_name in workspace_package_names:
                 return resp
             current_wait_time += retry_delay_seconds
+            time.sleep(retry_delay_seconds)
         raise MaxWaitTimeNeededException(f"Exceeded max wait time for creation of workspace package '{package_name}'")
 
     def remove_workspace_package(self, package_name: str):
@@ -89,6 +90,7 @@ class SynapseWorkspaceManager():
             if package_name not in workspace_package_names:
                 return
             current_wait_time += retry_delay_seconds
+            time.sleep(retry_delay_seconds)
         raise MaxWaitTimeNeededException(f"Exceeded max wait time for deletion of workspace package '{package_name}'")
 
     def get_spark_pool(self, spark_pool_name: str):
