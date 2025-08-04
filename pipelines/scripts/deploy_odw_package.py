@@ -81,7 +81,7 @@ def upload_new_wheel(env: str, new_wheel_name: str):
         }
         for spark_pool, spark_pool_json in initial_spark_pool_json_map.items()
     }
-    logging.info("Updating spark pool packages")
+    logging.info("Updating spark pool packages (This is a slow operation, and can take between 20 and 50 minutes)")
     spark_pool_names_to_update = list(new_spark_pool_json_map.keys())
     with ThreadPoolExecutor() as tpe:
         # Update all relevant spark pools in parallel to boost performance
