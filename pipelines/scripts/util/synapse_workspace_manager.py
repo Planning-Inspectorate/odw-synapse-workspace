@@ -38,7 +38,7 @@ class SynapseWorkspaceManager():
             raise ValueError(f"Response raised an exception: {json.dumps(resp_json, indent=4)}")
         raise ValueError(f"http endpoint did not respond with a json object. Received {resp}")
 
-    def upload_workspace_package(self, package_name: str):
+    def upload_workspace_package(self, package_path: str):
         resp = json.loads(
             Util.run_az_cli_command(
                 [
@@ -49,11 +49,12 @@ class SynapseWorkspaceManager():
                     "--workspace-name",
                     self.workspace_name,
                     "--package",
-                    package_name,
+                    package_path,
                     "--no-progress"
                 ]
             )
         )
+        package_name = package_path.replace("dist/", "")
         max_wait_time = 5 * 60 # Wait 5 minutes
         current_wait_time = 0
         retry_delay_seconds = 20
