@@ -39,7 +39,7 @@ class SynapseWorkspaceManager():
         raise ValueError(f"http endpoint did not respond with a json object. Received {resp}")
 
     def upload_workspace_package(self, package_name: str):
-        return json.loads(
+        resp = json.loads(
             Util.run_az_cli_command(
                 [
                     "az",
@@ -54,6 +54,15 @@ class SynapseWorkspaceManager():
                 ]
             )
         )
+        max_wait_time = 5 * 60 # Wait 5 minutes
+        current_wait_time = 0
+        retry_delay_seconds = 20
+        while current_wait_time < max_wait_time:
+            workspace_package_names = [package["name"] for package in self.get_workspace_packages()]
+            if package_name in workspace_package_names:
+                return resp
+            current_wait_time += retry_delay_seconds
+        raise MaxWaitTimeNeededException(f"Exceeded max wait time for creation of workspace package '{package_name}'")
 
     def remove_workspace_package(self, package_name: str):
         # This command returns nothing
@@ -71,7 +80,7 @@ class SynapseWorkspaceManager():
                 "-y"
             ]
         )
-        max_wait_time = 10 * 60 # Wait 2 minutes
+        max_wait_time = 10 * 60 # Wait 10 minutes
         current_wait_time = 0
         retry_delay_seconds = 20
         while current_wait_time < max_wait_time:
