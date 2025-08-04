@@ -31,12 +31,12 @@ class SynapseWorkspaceManager():
             f"{self.ENDPOINT}/libraries?api-version=2021-06-01",
             headers={"Authorization": f"Bearer {self._get_token()}"}
         )
-        if "application/json" in resp.headers.get("Content-Type", ""):
+        try:
             resp_json = resp.json()
-            if "value" in resp_json:
-                return resp_json["value"]
-            raise ValueError(f"Response raised an exception: {json.dumps(resp_json, indent=4)}")
-        raise ValueError(f"http endpoint did not respond with a json object. Received {resp}")
+            return resp_json["value"]
+        except json.JSONDecodeError:
+            pass
+        raise ValueError(f"Http endpoint did not respond with a json object. Received {resp}")
 
     def upload_workspace_package(self, package_path: str):
         resp = json.loads(
@@ -96,8 +96,10 @@ class SynapseWorkspaceManager():
             f"{self.ENDPOINT}/bigDataPools/{spark_pool_name}?api-version=2021-06-01",
             headers={"Authorization": f"Bearer {self._get_token()}"}
         )
-        if "application/json" in resp.headers.get("Content-Type", ""):
+        try:
             return resp.json()
+        except json.JSONDecodeError:
+            pass
         raise ValueError(f"http endpint did not respond with a json object. Received {resp}")
 
     def update_sparkpool(self, spark_pool_name: str, spark_pool_json: Dict[str, Any]):
@@ -106,21 +108,25 @@ class SynapseWorkspaceManager():
             json=spark_pool_json,
             headers={"Authorization": f"Bearer {self._get_token()}"}
         )
-        if "application/json" in resp.headers.get("Content-Type", ""):
-            # Need to wait for the spark pool to exit provisioning state
-            max_wait_time = 50 * 60 # Wait 50 minutes, this is a slow operation
-            current_wait_time = 0
-            retry_delay_seconds = 60
-            while current_wait_time < max_wait_time:
-                spark_pool = self.get_spark_pool(spark_pool_name)
-                provisioning_state = spark_pool["properties"]["provisioningState"]
-                if provisioning_state == "Succeeded":
-                    return resp.json()
-                if provisioning_state in {"Failed", "Canceled"}:
-                    raise ValueError(
-                        f"Failed to provision the spark pool '{spark_pool_name}' - final state was '{provisioning_state}'. Please inspect the logs"
-                    )
-                current_wait_time += retry_delay_seconds
-                time.sleep(retry_delay_seconds)
-            raise MaxWaitTimeNeededException(f"Exceeded max wait time for spark pool update for spark pool '{spark_pool_name}'")
-        raise ValueError(f"http endpint did not respond with a json object. Received {resp}")
+        try:
+            resp_json = resp.json()
+        except json.JSONDecodeError:
+            resp_json = None
+        if not resp_json:
+            raise ValueError(f"http endpint did not respond with a json object. Received {resp}")
+        # Need to wait for the spark pool to exit provisioning state
+        max_wait_time = 50 * 60 # Wait 50 minutes, this is a slow operation
+        current_wait_time = 0
+        retry_delay_seconds = 60
+        while current_wait_time < max_wait_time:
+            spark_pool = self.get_spark_pool(spark_pool_name)
+            provisioning_state = spark_pool["properties"]["provisioningState"]
+            if provisioning_state == "Succeeded":
+                return resp_json
+            if provisioning_state in {"Failed", "Canceled"}:
+                raise ValueError(
+                    f"Failed to provision the spark pool '{spark_pool_name}' - final state was '{provisioning_state}'. Please inspect the logs"
+                )
+            current_wait_time += retry_delay_seconds
+            time.sleep(retry_delay_seconds)
+        raise MaxWaitTimeNeededException(f"Exceeded max wait time for spark pool update for spark pool '{spark_pool_name}'")
