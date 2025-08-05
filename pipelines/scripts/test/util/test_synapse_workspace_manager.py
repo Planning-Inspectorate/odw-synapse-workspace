@@ -135,6 +135,15 @@ def test_get_spark_pool():
             assert resp == {"value": "get_response"}
 
 
+def test_get_spark_pool_with_azure_error():
+    pool_name = "some_spark_pool"
+    with mock.patch.object(requests, "get") as mock_get:
+        mock_get.return_value.json.return_value = {"error": "some error message"}
+        with mock.patch.object(SynapseWorkspaceManager, "_get_token", return_value="some_token"):
+            with pytest.raises(ValueError):
+                SynapseWorkspaceManager(SYNAPSE_WORKSPACE_NAME, SUBSCRIPTION_ID, RESOURCE_GROUP_NAME).get_spark_pool(pool_name)
+
+
 def test_get_spark_pool_with_exception():
     pool_name = "some_spark_pool"
     with mock.patch.object(requests, "get") as mock_get:
