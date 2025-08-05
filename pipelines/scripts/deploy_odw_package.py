@@ -12,12 +12,18 @@ logging.basicConfig(level=logging.INFO)
 
 
 class ODWPackageDeployer():
+    """
+        Class for managing the deployment of the ODW Python Package
+    """
     TARGET_SPARK_POOLS = [
         "pinssynspodwpr",
         "pinssynspodw34"
     ]
 
     def get_existing_odw_wheels(self, workspace_manager: SynapseWorkspaceManager) -> List[Dict[str, Any]]:
+        """
+            Return all ODW Python wheels currently deployed in the workspace
+        """
         packages = workspace_manager.get_workspace_packages()
         odw_packages = [package for package in packages if package["name"].startswith("odw")]
         return sorted(
@@ -26,6 +32,16 @@ class ODWPackageDeployer():
         )
 
     def upload_new_wheel(self, env: str, new_wheel_name: str):
+        """
+            Upload the new wheel to the target environment
+
+            This follows the below process
+            1. If there are already 2 or more ODW packages in the workspace, then abort with an exception (there is likely to be another deployment ongoing)
+            2. If the new wheel already exists in the workspace, abort (it has already been uploaded)
+            3. Upload the new wheel to the Synapse workspace
+            4. Update the two spark pools to use the new ODW package (and to un-link the old ODW package)
+            5. Remove the old ODW packages from the workspace
+        """
         workspace_name = f"pins-synw-odw-{env}-uks"
         subscription = CONFIG["SUBSCRIPTION_ID"]
         resource_group = f"pins-rg-data-odw-{env}-uks"
