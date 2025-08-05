@@ -41,7 +41,7 @@ def test_get_workspace_packages_with_exception():
 def test_upload_workspace_package():
     package_path = "dist/some_package.whl"
     mock_packages = [
-        {"name": "some_package.whl"}
+        {"name": "some_package.whl", "properties": {"provisioningStatus": "Succeeded"}}
     ]
     expected_cli_call_args = [
         "az",
@@ -66,7 +66,7 @@ def test_upload_workspace_package():
 def test_upload_workspace_package_exceeded_wait_time():
     package_path = "dist/a_missing_package.whl"
     mock_packages = [
-        {"name": "some_package.whl"}
+        {"name": "some_package.whl", "properties": {"provisioningStatus": "Queued"}}
     ]
     max_wait_time = 300  # Seconds
     retry_delay = 20  # Seconds

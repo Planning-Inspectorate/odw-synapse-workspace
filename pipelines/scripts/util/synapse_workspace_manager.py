@@ -59,9 +59,10 @@ class SynapseWorkspaceManager():
         current_wait_time = 0
         retry_delay_seconds = 20
         while current_wait_time < max_wait_time:
-            workspace_package_names = [package["name"] for package in self.get_workspace_packages()]
+            workspace_package_names = {package["name"]: package for package in self.get_workspace_packages()}
             if package_name in workspace_package_names:
-                return resp
+                if workspace_package_names[package_name]["properties"]["provisioningStatus"] == "Succeeded":
+                    return resp
             current_wait_time += retry_delay_seconds
             time.sleep(retry_delay_seconds)
         raise MaxWaitTimeNeededException(f"Exceeded max wait time for creation of workspace package '{package_name}'")
