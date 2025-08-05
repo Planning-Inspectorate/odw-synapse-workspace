@@ -100,7 +100,10 @@ class SynapseWorkspaceManager():
             headers={"Authorization": f"Bearer {self._get_token()}"}
         )
         try:
-            return resp.json()
+            resp = resp.json()
+            if "error" in resp:
+                raise ValueError(f"A http exception was raised when calling get_spark_pool(): {json.dumps(resp, indent=4)}")
+            return resp
         except json.JSONDecodeError:
             pass
         raise ValueError(f"http endpint did not respond with a json object. Received {resp}")
