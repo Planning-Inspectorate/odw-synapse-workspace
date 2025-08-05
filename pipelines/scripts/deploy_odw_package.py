@@ -65,7 +65,7 @@ def upload_new_wheel(env: str, new_wheel_name: str):
         ] + [
             {
                 "name": new_wheel_name,
-                "path": f"pins-synw-odw-dev-uks/libraries/{new_wheel_name}",
+                "path": f"pins-synw-odw-{env}-uks/libraries/{new_wheel_name}",
                 "containerName": "prep",
                 "uploadedTimestamp": "0001-01-01T00:00:00+00:00",
                 "type": "whl"
