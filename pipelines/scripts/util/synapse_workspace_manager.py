@@ -130,7 +130,7 @@ class SynapseWorkspaceManager():
             return resp
         except json.JSONDecodeError:
             pass
-        raise ValueError(f"http endpint did not respond with a json object. Received {resp}")
+        raise ValueError(f"http endpoint did not respond with a json object. Received {resp}")
 
     def update_spark_pool(self, spark_pool_name: str, spark_pool_json: Dict[str, Any]):
         """
@@ -150,7 +150,7 @@ class SynapseWorkspaceManager():
         except json.JSONDecodeError:
             resp_json = None
         if not resp_json:
-            raise ValueError(f"http endpint did not respond with a json object. Received {resp}")
+            raise ValueError(f"http endpoint did not respond with a json object. Received {resp}")
         # Need to wait for the spark pool to exit provisioning state
         max_wait_time = 50 * 60 # Wait 50 minutes, this is a slow operation
         current_wait_time = 0
