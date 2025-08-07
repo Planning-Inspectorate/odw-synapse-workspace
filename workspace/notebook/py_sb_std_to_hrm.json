@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ccae219f-a48a-434b-b456-07c392922f4f"
+				"spark.autotune.trackingId": "09e99b08-3d22-422f-ab6a-be3a42698258"
 			}
 		},
 		"metadata": {
@@ -45,19 +45,15 @@
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
 			{
-				"cell_type": "code",
+				"cell_type": "markdown",
 				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
 					"nteract": {
 						"transient": {
 							"deleting": false
@@ -65,9 +61,14 @@
 					}
 				},
 				"source": [
-					"%run utils/py_logging_decorator"
-				],
-				"execution_count": null
+					"#### The purpose of this pyspark notebook is to read service bus data from owb_standarsied_db Delta table and appends into single owb_harmonised_db Delta table based on passing the table name as a parameter.\r\n",
+					"\r\n",
+					"**Description**  \r\n",
+					"The purpose of this pyspark notebook is to read service bus data from owb_standarsied_db Delta table and appends into single owb_harmonised_db Delta tables based on passing the table names as a parameter\r\n",
+					"\r\n",
+					"**Spark Cluster Configuration** -> Apache Spark Version- 3.4, Python Version \t\t- 3.10, Delta Lake Version \t- 2.4\r\n",
+					""
+				]
 			},
 			{
 				"cell_type": "markdown",
@@ -146,6 +147,44 @@
 					}
 				},
 				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialize Application Insight Logging functions"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_utils_common_logging_output"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
 					"%run service-bus/py_spark_df_ingestion_functions"
 				],
 				"execution_count": null
@@ -187,7 +226,21 @@
 					"definition: dict = next((d for d in definitions if entity_name == d['Source_Filename_Start']), None)\r\n",
 					"if not definition:\r\n",
 					"    logError(f\"Failed to read definition for {entity_name}\")\r\n",
-					"    mssparkutils.notebook.exit(f\"Definition not found for {entity_name}\")\r\n",
+					"    error_meesage = f\"Failed to read definition for {entity_name}\"\r\n",
+					"    end_exec_time = str(datetime.now())\r\n",
+					"    app_insight_logger.add_table_result(\r\n",
+					"        delta_table_name = table_name,\r\n",
+					"        insert_count = insert_count,\r\n",
+					"        update_count = update_count, \r\n",
+					"        delete_count = delete_count, \r\n",
+					"        table_result = \"failed\",\r\n",
+					"        start_exec_time = start_exec_time, \r\n",
+					"        end_exec_time = end_exec_time,\r\n",
+					"        total_exec_time = \"\",\r\n",
+					"        error_message = error_message\r\n",
+					"    )\r\n",
+					"    # Exit with the JSON result\r\n",
+					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())\r\n",
 					"logInfo(\"Done reading orchestration config\")"
 				],
 				"execution_count": null
@@ -229,7 +282,13 @@
 					"print(hrm_table)\r\n",
 					"\r\n",
 					"hrm_incremental_key: str = definition[\"Harmonised_Incremental_Key\"]\r\n",
-					"entity_primary_key: str = definition[\"Entity_Primary_Key\"]"
+					"entity_primary_key: str = definition[\"Entity_Primary_Key\"]\r\n",
+					"\r\n",
+					"start_exec_time = str(datetime.now())\r\n",
+					"insert_count = 0\r\n",
+					"update_count = 0\r\n",
+					"delete_count = 0\r\n",
+					""
 				],
 				"execution_count": null
 			},
@@ -266,26 +325,44 @@
 				"source": [
 					"@logging_to_appins\r\n",
 					"def set_harmonised_master_columns(df: DataFrame) -> DataFrame:\r\n",
-					"    source_system_df: DataFrame = spark.sql(f\"SELECT * FROM {hrm_db}.main_sourcesystem_fact WHERE Description = 'Casework' AND IsActive = 'Y'\")\r\n",
-					"    \r\n",
-					"    # Set source system ID\r\n",
-					"    df: DataFrame = df.withColumn(\"SourceSystemID\", lit(source_system_df.select('SourceSystemID').collect()[0][0]))\r\n",
-					"    \r\n",
-					"    # Set master column values\r\n",
-					"    df: DataFrame = df.withColumn(\"RowID\", lit('').cast(\"string\"))\r\n",
-					"    df: DataFrame = df.withColumn(\"migrated\", lit('1').cast(\"string\"))\r\n",
-					"    df: DataFrame = df.withColumn(\"ODTSourceSystem\", lit('ODT').cast(\"string\"))\r\n",
-					"    df: DataFrame = df.withColumn(\"ValidTo\", lit('').cast(\"string\"))\r\n",
-					"    df: DataFrame = df.withColumn(\"IsActive\", lit('Y').cast(\"string\"))\r\n",
-					"    df: DataFrame = df.withColumn(hrm_incremental_key, lit(None).cast(LongType()))\r\n",
-					"    df: DataFrame = df.withColumn(\"IngestionDate\", col(\"message_enqueued_time_utc\").cast(\"string\"))\r\n",
-					"    \r\n",
-					"    # drop standardised columns from DataFrame\r\n",
-					"    df: DataFrame = df.drop(\"message_enqueued_time_utc\")\r\n",
-					"    df: DataFrame = df.drop(\"expected_from\")\r\n",
-					"    df: DataFrame = df.drop(\"expected_to\")\r\n",
-					"    df: DataFrame = df.drop(\"input_file\")\r\n",
-					"    \r\n",
+					"    try:\r\n",
+					"        source_system_df: DataFrame = spark.sql(f\"SELECT * FROM {hrm_db}.main_sourcesystem_fact WHERE Description = 'Casework' AND IsActive = 'Y'\")\r\n",
+					"        \r\n",
+					"        # Set source system ID\r\n",
+					"        df: DataFrame = df.withColumn(\"SourceSystemID\", lit(source_system_df.select('SourceSystemID').collect()[0][0]))\r\n",
+					"        \r\n",
+					"        # Set master column values\r\n",
+					"        df: DataFrame = df.withColumn(\"RowID\", lit('').cast(\"string\"))\r\n",
+					"        df: DataFrame = df.withColumn(\"migrated\", lit('1').cast(\"string\"))\r\n",
+					"        df: DataFrame = df.withColumn(\"ODTSourceSystem\", lit('ODT').cast(\"string\"))\r\n",
+					"        df: DataFrame = df.withColumn(\"ValidTo\", lit('').cast(\"string\"))\r\n",
+					"        df: DataFrame = df.withColumn(\"IsActive\", lit('Y').cast(\"string\"))\r\n",
+					"        df: DataFrame = df.withColumn(hrm_incremental_key, lit(None).cast(LongType()))\r\n",
+					"        df: DataFrame = df.withColumn(\"IngestionDate\", col(\"message_enqueued_time_utc\").cast(\"string\"))\r\n",
+					"        \r\n",
+					"        # drop standardised columns from DataFrame\r\n",
+					"        df: DataFrame = df.drop(\"message_enqueued_time_utc\")\r\n",
+					"        df: DataFrame = df.drop(\"expected_from\")\r\n",
+					"        df: DataFrame = df.drop(\"expected_to\")\r\n",
+					"        df: DataFrame = df.drop(\"input_file\")\r\n",
+					"    except Exception as e:\r\n",
+					"        logError(f\"Error setting up Audit columns:\\n{e}\")\r\n",
+					"        error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
+					"        \r\n",
+					"        end_exec_time = str(datetime.now())\r\n",
+					"        app_insight_logger.add_table_result(\r\n",
+					"            delta_table_name = table_name,\r\n",
+					"            insert_count = insert_count,\r\n",
+					"            update_count = update_count, \r\n",
+					"            delete_count = delete_count, \r\n",
+					"            table_result = \"failed\",\r\n",
+					"            start_exec_time = start_exec_time, \r\n",
+					"            end_exec_time = end_exec_time,\r\n",
+					"            total_exec_time = \"\",\r\n",
+					"            error_message = error_message\r\n",
+					"        )\r\n",
+					"        # Exit with the JSON result\r\n",
+					"        mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())\r\n",
 					"    return df"
 				],
 				"execution_count": null
@@ -306,12 +383,30 @@
 				"source": [
 					"@logging_to_appins\r\n",
 					"def insert_rows_in_df(source_df: DataFrame, target_df: DataFrame, incremental_key: str) -> DataFrame:\r\n",
-					"    # appending the incremental key\r\n",
-					"    max_id: int = target_df.count()\r\n",
+					"    try:\r\n",
+					"        # appending the incremental key\r\n",
+					"        max_id: int = target_df.count()\r\n",
 					"\r\n",
-					"    w: Window = Window.orderBy(lit(1))\r\n",
-					"    source_df: DataFrame = source_df.withColumn(incremental_key, (max_id + row_number().over(w)).cast(LongType()))\r\n",
-					"\r\n",
+					"        w: Window = Window.orderBy(lit(1))\r\n",
+					"        source_df: DataFrame = source_df.withColumn(incremental_key, (max_id + row_number().over(w)).cast(LongType()))\r\n",
+					"    except Exception as e:\r\n",
+					"        logError(f\"Error in creating source data frame :\\n{e}\")\r\n",
+					"        error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
+					"        \r\n",
+					"        end_exec_time = str(datetime.now())\r\n",
+					"        app_insight_logger.add_table_result(\r\n",
+					"            delta_table_name = table_name,\r\n",
+					"            insert_count = insert_count,\r\n",
+					"            update_count = update_count, \r\n",
+					"            delete_count = delete_count, \r\n",
+					"            table_result = \"failed\",\r\n",
+					"            start_exec_time = start_exec_time, \r\n",
+					"            end_exec_time = end_exec_time,\r\n",
+					"            total_exec_time = \"\",\r\n",
+					"            error_message = error_message\r\n",
+					"        )\r\n",
+					"        # Exit with the JSON result\r\n",
+					"        mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())\r\n",
 					"    return target_df.union(source_df)"
 				],
 				"execution_count": null
@@ -360,31 +455,75 @@
 						"transient": {
 							"deleting": false
 						}
+					},
+					"editable": true,
+					"run_control": {
+						"frozen": false
 					}
 				},
 				"source": [
 					"@logging_to_appins\r\n",
 					"def get_latest_ingested_data() -> tuple:\r\n",
-					"    latest_ingestion = spark.sql(f\"SELECT * FROM {std_db}.{std_table} WHERE message_id not in (SELECT DISTINCT message_id FROM {hrm_db}.{hrm_table} where message_id IS NOT NULL) ORDER BY message_enqueued_time_utc\")\r\n",
+					"    # Initialize defaults\r\n",
+					"    latest_ingestion = None\r\n",
+					"    create_df = spark.createDataFrame([], schema=StructType([]))\r\n",
+					"    update_df = spark.createDataFrame([], schema=StructType([]))\r\n",
+					"    delete_df = spark.createDataFrame([], schema=StructType([]))\r\n",
+					"    target_df = spark.createDataFrame([], schema=StructType([]))\r\n",
+					"    \r\n",
+					"    try:\r\n",
+					"        latest_ingestion = spark.sql(f\"SELECT * FROM {std_db}.{std_table} WHERE message_id not in (SELECT DISTINCT message_id FROM {hrm_db}.{hrm_table} where message_id IS NOT NULL) ORDER BY message_enqueued_time_utc\")\r\n",
 					"\r\n",
-					"    if latest_ingestion.count() == 0:\r\n",
-					"        logError(f\"Standardised data not available for {entity_name}\")\r\n",
-					"        mssparkutils.notebook.exit(f\"Standardised data not available for {entity_name}\")\r\n",
+					"        if latest_ingestion.count() == 0:\r\n",
+					"            logError(f\"Standardised data not available for {entity_name}\")\r\n",
 					"\r\n",
-					"    # remove the column ingested_datetime and then remove duplicates\r\n",
-					"    latest_ingestion = latest_ingestion.drop(\"ingested_datetime\").dropDuplicates()\r\n",
-					"    latest_ingestion = set_harmonised_master_columns(latest_ingestion)\r\n",
-					"    # create dataframes for each message type and the target dataframe (the harmonised target table)\r\n",
-					"    create_df: DataFrame = latest_ingestion[latest_ingestion[\"message_type\"] == \"Create\"]\r\n",
-					"    update_df: DataFrame = latest_ingestion[latest_ingestion[\"message_type\"].isin([\"update\", \"Update\", \"Publish\", \"Unpublish\"])]\r\n",
-					"    delete_df: DataFrame = latest_ingestion[latest_ingestion[\"message_type\"] == \"Delete\"]\r\n",
-					"    target_df: DataFrame = spark.table(f\"{hrm_db}.{hrm_table}\").drop(\"input_file\")\r\n",
+					"            error_msg = f\"Standardised data not available for {entity_name}\"\r\n",
+					"            error_message = app_insight_logger.format_error_message(error_msg, max_length=800)\r\n",
+					"            end_exec_time = str(datetime.now())\r\n",
+					"            \r\n",
+					"            app_insight_logger.add_table_result(\r\n",
+					"                delta_table_name=f\"{hrm_db}.{hrm_table}\",\r\n",
+					"                insert_count=insert_count, \r\n",
+					"                update_count=update_count, \r\n",
+					"                delete_count=delete_count, \r\n",
+					"                table_result=\"failed\",\r\n",
+					"                start_exec_time=start_exec_time, \r\n",
+					"                end_exec_time=end_exec_time,\r\n",
+					"                total_exec_time=\"\",\r\n",
+					"                error_message=error_message\r\n",
+					"            )\r\n",
+					"            \r\n",
+					"            # Return defaults instead of exiting - let the calling code decide what to do\r\n",
+					"            return (latest_ingestion, create_df, update_df, delete_df, target_df)\r\n",
 					"\r\n",
-					"    return (latest_ingestion,\r\n",
-					"            create_df, \r\n",
-					"            update_df,\r\n",
-					"            delete_df,\r\n",
-					"            target_df)"
+					"        # Process the data if available\r\n",
+					"        latest_ingestion = latest_ingestion.drop(\"ingested_datetime\").dropDuplicates()\r\n",
+					"        latest_ingestion = set_harmonised_master_columns(latest_ingestion)\r\n",
+					"        \r\n",
+					"        create_df = latest_ingestion[latest_ingestion[\"message_type\"] == \"Create\"]\r\n",
+					"        update_df = latest_ingestion[latest_ingestion[\"message_type\"].isin([\"update\", \"Update\", \"Publish\", \"Unpublish\"])]\r\n",
+					"        delete_df = latest_ingestion[latest_ingestion[\"message_type\"] == \"Delete\"]\r\n",
+					"        target_df = spark.table(f\"{hrm_db}.{hrm_table}\").drop(\"input_file\")\r\n",
+					"        \r\n",
+					"        return (latest_ingestion, create_df, update_df, delete_df, target_df)\r\n",
+					"\r\n",
+					"    except Exception as e:\r\n",
+					"        logError(f\"Error in getting latest ingestion date from data frames :\\n{e}\")\r\n",
+					"        error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
+					"        \r\n",
+					"        end_exec_time = str(datetime.now())        \r\n",
+					"        app_insight_logger.add_table_result(\r\n",
+					"            delta_table_name=f\"{hrm_db}.{hrm_table}\",\r\n",
+					"            insert_count=0,\r\n",
+					"            table_result=\"failed\",\r\n",
+					"            start_exec_time=start_exec_time, \r\n",
+					"            end_exec_time=end_exec_time,\r\n",
+					"            error_message=error_message\r\n",
+					"        )\r\n",
+					"        # Exit with the JSON result\r\n",
+					"        mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())\r\n",
+					"        \r\n",
+					"        return (latest_ingestion, create_df, update_df, delete_df, target_df)"
 				],
 				"execution_count": null
 			},
@@ -399,12 +538,35 @@
 						"transient": {
 							"deleting": false
 						}
+					},
+					"editable": true,
+					"run_control": {
+						"frozen": false
 					}
 				},
 				"source": [
 					"logInfo(\"Reading ingested data\")\r\n",
-					"latest_ingestion, create_df, update_df, delete_df, target_df = get_latest_ingested_data()\r\n",
-					"logInfo(\"Read ingested data\")"
+					"latest_ingestion, create_df, update_df, delete_df, target_df = (\r\n",
+					"    get_latest_ingested_data()\r\n",
+					"    )\r\n",
+					"logInfo(\"Read ingested data successfully\")\r\n",
+					"\r\n",
+					"# Check if there is valid data available\r\n",
+					"if latest_ingestion is None or latest_ingestion.count() == 0:\r\n",
+					"    logError(\"No data available for processing. Exiting notebook.\")\r\n",
+					"    error_message = \"No data available for processing. Exiting notebook.\"\r\n",
+					"    \r\n",
+					"    end_exec_time = str(datetime.now())        \r\n",
+					"    app_insight_logger.add_table_result(\r\n",
+					"        delta_table_name=f\"{hrm_db}.{hrm_table}\",\r\n",
+					"        insert_count=0,\r\n",
+					"        table_result=\"failed\",\r\n",
+					"        start_exec_time=start_exec_time, \r\n",
+					"        end_exec_time=end_exec_time,\r\n",
+					"        error_message=error_message\r\n",
+					"    )\r\n",
+					"    # Exit with the JSON result    \r\n",
+					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
 				],
 				"execution_count": null
 			},
@@ -565,6 +727,19 @@
 				"execution_count": null
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Process record counts"
+				]
+			},
+			{
 				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
@@ -582,7 +757,14 @@
 					"print(f\"Create: {create_df.count()}\")\r\n",
 					"print(f\"Update: {update_df.count()}\") \r\n",
 					"print(f\"Delete: {delete_df.count()}\")\r\n",
-					"print(f\"Target: {target_df.count()}\")"
+					"print(f\"Target: {target_df.count()}\")\r\n",
+					"\r\n",
+					"start_exec_time = str(datetime.now())\r\n",
+					"\r\n",
+					"insert_count = create_df.count()\r\n",
+					"update_count = update_df.count()\r\n",
+					"delete_count = delete_df.count()\r\n",
+					""
 				],
 				"execution_count": null
 			},
@@ -648,44 +830,60 @@
 					"collapsed": false
 				},
 				"source": [
-					"if update_df.count() > 0:\r\n",
-					"    logInfo(\"Handling updated rows\")\r\n",
-					"    update_df = update_df.dropDuplicates().orderBy(\"IngestionDate\")\r\n",
+					"if update_df.count() > 0:    \r\n",
+					"    try:        \r\n",
+					"        logInfo(\"Handling updated rows\")\r\n",
+					"        update_df = update_df.dropDuplicates().orderBy(\"IngestionDate\")\r\n",
 					"\r\n",
-					"    #Assume we have multiple updates for the same record to be applied in a single load. We need to deal with that to make sure we're handling it correctly\r\n",
-					"    window_spec = Window.partitionBy(f\"{entity_primary_key}\").orderBy(update_df[\"IngestionDate\"].desc())\r\n",
-					"    update_df = update_df.withColumn('Submitted', row_number().over(window_spec))\r\n",
+					"        #Assume we have multiple updates for the same record to be applied in a single load. We need to deal with that to make sure we're handling it correctly\r\n",
+					"        window_spec = Window.partitionBy(f\"{entity_primary_key}\").orderBy(update_df[\"IngestionDate\"].desc())\r\n",
+					"        update_df = update_df.withColumn('Submitted', row_number().over(window_spec))\r\n",
 					"\r\n",
-					"    #The first pot of data we need are the straight inserts of the most recent data\r\n",
-					"    # latest_updates = update_df.filter(update_df.Submitted == 1)\r\n",
-					"    latest_updates = update_df\r\n",
-					"    latest_updates = latest_updates.select(target_df.columns)\r\n",
+					"        #The first pot of data we need are the straight inserts of the most recent data\r\n",
+					"        # latest_updates = update_df.filter(update_df.Submitted == 1)\r\n",
+					"        latest_updates = update_df\r\n",
+					"        latest_updates = latest_updates.select(target_df.columns)\r\n",
 					"\r\n",
-					"    target_df = insert_rows_in_df(latest_updates, target_df, hrm_incremental_key)\r\n",
+					"        target_df = insert_rows_in_df(latest_updates, target_df, hrm_incremental_key)\r\n",
 					"\r\n",
-					"    #Now we are likely to have multiple records in target_df that have IsActive = 'Y' we need to deal with\r\n",
-					"    #First split the target into active and inactive\r\n",
-					"    inactive = target_df.filter(target_df.IsActive == 'N')\r\n",
-					"    active = target_df.filter(target_df.IsActive == 'Y')\r\n",
+					"        #Now we are likely to have multiple records in target_df that have IsActive = 'Y' we need to deal with\r\n",
+					"        #First split the target into active and inactive\r\n",
+					"        inactive = target_df.filter(target_df.IsActive == 'N')\r\n",
+					"        active = target_df.filter(target_df.IsActive == 'Y')\r\n",
 					"\r\n",
-					"    #We will need to assume that we have more than 1 active record for each primary key, we need to deal with this and rebuild the target dataframe\r\n",
-					"    window_spec = Window.partitionBy(f\"{entity_primary_key}\").orderBy(active[\"IngestionDate\"].desc())\r\n",
-					"    active = active.withColumn('Reverse_order_submitted', row_number().over(window_spec))\r\n",
+					"        #We will need to assume that we have more than 1 active record for each primary key, we need to deal with this and rebuild the target dataframe\r\n",
+					"        window_spec = Window.partitionBy(f\"{entity_primary_key}\").orderBy(active[\"IngestionDate\"].desc())\r\n",
+					"        active = active.withColumn('Reverse_order_submitted', row_number().over(window_spec))\r\n",
 					"\r\n",
-					"    #We know that we don't need to touch the inactive pot and the pot that are the truely latest records. We'll start by combining these into the new dataframe\r\n",
-					"    latest = active.filter(active.Reverse_order_submitted == 1).select(inactive.columns)\r\n",
-					"    target_df_new = latest.union(inactive)\r\n",
+					"        #We know that we don't need to touch the inactive pot and the pot that are the truely latest records. We'll start by combining these into the new dataframe\r\n",
+					"        latest = active.filter(active.Reverse_order_submitted == 1).select(inactive.columns)\r\n",
+					"        target_df_new = latest.union(inactive)\r\n",
 					"\r\n",
-					"    #Next we need to deal with the records that aren't active to set the ValidTo correctly\r\n",
-					"    reasign = active.filter(active.Reverse_order_submitted > 1).drop(\"IsActive\", \"ValidTo\")\r\n",
-					"    valid_to = active.selectExpr(f\"{entity_primary_key} AS Pk\", \"IngestionDate AS ValidTo\", \"Reverse_order_submitted + 1 AS Next_record\")\r\n",
-					"    reasign = reasign.join(valid_to, (reasign[f\"{entity_primary_key}\"] == valid_to[f\"Pk\"]) &  (reasign[\"Reverse_order_submitted\"] == valid_to[\"Next_record\"]))\r\n",
+					"        #Next we need to deal with the records that aren't active to set the ValidTo correctly\r\n",
+					"        reasign = active.filter(active.Reverse_order_submitted > 1).drop(\"IsActive\", \"ValidTo\")\r\n",
+					"        valid_to = active.selectExpr(f\"{entity_primary_key} AS Pk\", \"IngestionDate AS ValidTo\", \"Reverse_order_submitted + 1 AS Next_record\")\r\n",
+					"        reasign = reasign.join(valid_to, (reasign[f\"{entity_primary_key}\"] == valid_to[f\"Pk\"]) &  (reasign[\"Reverse_order_submitted\"] == valid_to[\"Next_record\"]))\r\n",
 					"\r\n",
-					"    #Add the IsActive flag back in, set it correctly, and select the columns we're interested in\r\n",
-					"    reasign = reasign.withColumn(\"IsActive\", lit('N').cast(\"string\")).select(target_df_new.columns)\r\n",
-					"    target_df = target_df_new.union(reasign)\r\n",
+					"        #Add the IsActive flag back in, set it correctly, and select the columns we're interested in\r\n",
+					"        reasign = reasign.withColumn(\"IsActive\", lit('N').cast(\"string\")).select(target_df_new.columns)\r\n",
+					"        target_df = target_df_new.union(reasign)\r\n",
 					"\r\n",
-					"    logInfo(\"Done handling updated rows\")\r\n",
+					"        logInfo(\"Done handling updated rows\")\r\n",
+					"    except Exception as e:\r\n",
+					"        logError(f\"Error in data frames processing steps: \\n{e}\")\r\n",
+					"        error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
+					"        \r\n",
+					"        end_exec_time = str(datetime.now())        \r\n",
+					"        app_insight_logger.add_table_result(\r\n",
+					"            delta_table_name=f\"{hrm_db}.{hrm_table}\",\r\n",
+					"            insert_count=0,\r\n",
+					"            table_result=\"failed\",\r\n",
+					"            start_exec_time=start_exec_time, \r\n",
+					"            end_exec_time=end_exec_time,\r\n",
+					"            error_message=error_message\r\n",
+					"        )\r\n",
+					"        # Exit with the JSON result    \r\n",
+					"        mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())        \r\n",
 					"\r\n",
 					"logInfo(f\"Updated rows: {update_df.count()}\\nTarget dataframe: {target_df.count()}\")"
 				],
@@ -944,9 +1142,67 @@
 					"collapsed": false
 				},
 				"source": [
-					"logInfo(\"Applying new dataframe to table\")\r\n",
-					"apply_df_to_table(target_df, hrm_db, hrm_table)\r\n",
-					"logInfo(\"Done applying new dataframe to table\")"
+					"try:\r\n",
+					"    logInfo(\"Applying new dataframe to table\")\r\n",
+					"    apply_df_to_table(\r\n",
+					"        target_df, \r\n",
+					"        hrm_db, \r\n",
+					"        hrm_table\r\n",
+					"        )\r\n",
+					"    \r\n",
+					"    end_exec_time = str(datetime.now())\r\n",
+					"    app_insight_logger.add_table_result(                    \r\n",
+					"        delta_table_name = f\"{hrm_db}.{hrm_table}\",\r\n",
+					"        insert_count = insert_count, \r\n",
+					"        update_count = update_count, \r\n",
+					"        delete_count = delete_count, \r\n",
+					"        table_result = \"success\",\r\n",
+					"        start_exec_time = start_exec_time, \r\n",
+					"        end_exec_time = end_exec_time,\r\n",
+					"        total_exec_time = \"\",\r\n",
+					"        error_message = \"\"\r\n",
+					"    )\r\n",
+					"\r\n",
+					"    logInfo(\"Done applying new dataframe to table\")\r\n",
+					"\r\n",
+					"except Exception as e:\r\n",
+					"        logError(f\"Error appending data to the harmonised layer table :\\n{e}\")\r\n",
+					"        error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
+					"        end_exec_time = str(datetime.now())\r\n",
+					"        app_insight_logger.add_table_result(\r\n",
+					"            delta_table_name = f\"{hrm_db}.{hrm_table}\",\r\n",
+					"            insert_count = insert_count, \r\n",
+					"            update_count = update_count, \r\n",
+					"            delete_count = delete_count, \r\n",
+					"            table_result = \"failed\",\r\n",
+					"            start_exec_time = start_exec_time, \r\n",
+					"            end_exec_time = end_exec_time,\r\n",
+					"            total_exec_time = \"\",\r\n",
+					"            error_message = error_message\r\n",
+					"        )\r\n",
+					"        # Exit with the JSON result\r\n",
+					"        mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Produce Json formatted output"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Exit with the JSON result\r\n",
+					"mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
 				],
 				"execution_count": null
 			}
