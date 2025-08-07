@@ -21,12 +21,12 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "cfb36f0b-2544-48b1-a989-56e69313354a"
+				"spark.autotune.trackingId": "81e6a38c-7df5-4c4d-bc67-e176dacc9ea1"
 			}
 		},
 		"metadata": {
 			"saveOutput": true,
-			"enableDebugMode": true,
+			"enableDebugMode": false,
 			"kernelspec": {
 				"name": "synapse_pyspark",
 				"display_name": "Synapse PySpark"
@@ -62,6 +62,26 @@
 					}
 				},
 				"source": [
+					"#### The purpose of this pyspark notebook is to ingest service bus data and appends into single odw_curated_db.nsip_exam_timetable delta table.\n",
+					"\n",
+					"**Description**  \n",
+					"The functionality of this notebook is to ingest data into odw_curated_db.nsip_exam_timetable Delta Table reading from odw_curated_db.nsip_exam_timetable delta table.The addtitional functionality has been added to log the audit information to Application Insight by creating a Json dump at notebook exist&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\n",
+					"\n",
+					"**Spark Cluster Configuration** -> Apache Spark Version- 3.4, Python Version \t\t- 3.10, Delta Lake Version \t- 2.4\n",
+					"\n",
+					""
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
 					"##### Import Packages"
 				]
 			},
@@ -82,9 +102,23 @@
 					"from pyspark.sql.functions import *\n",
 					"from pyspark.sql.types import *\n",
 					"from pyspark.sql import DataFrame\n",
+					"from datetime import datetime, date\n",
 					"import json"
 				],
 				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise Logging decorator"
+				]
 			},
 			{
 				"cell_type": "code",
@@ -105,6 +139,26 @@
 				"execution_count": null
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise Application Insight Logging functions"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_utils_common_logging_output"
+				],
+				"execution_count": null
+			},
+			{
 				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
@@ -120,7 +174,12 @@
 				"source": [
 					"db_name: str = \"odw_curated_db\"\n",
 					"entity_name: str = \"nsip-exam-timetable\"\n",
-					"table_name: str = \"odw_curated_db.nsip_exam_timetable\""
+					"table_name: str = \"odw_curated_db.nsip_exam_timetable\"\n",
+					"\n",
+					"start_exec_time = str(datetime.now())\n",
+					"insert_count = 0\n",
+					"update_count = 0\n",
+					"delete_count = 0"
 				],
 				"execution_count": null
 			},
@@ -143,25 +202,39 @@
 					"collapsed": false
 				},
 				"source": [
-					"df = spark.sql(\"\"\"\n",
+					"try:\n",
+					"    df = spark.sql(\"\"\"\n",
+					"        SELECT DISTINCT\n",
+					"            exam_tbl.caseReference,\n",
+					"            published,\n",
+					"            events\n",
+					"        FROM odw_harmonised_db.nsip_exam_timetable exam_tbl\n",
+					"        --- inner joining with nsiproject as we need to make sure the casereference exists in the project too\n",
+					"        INNER JOIN odw_curated_db.nsip_project proj_tbl\n",
+					"        on exam_tbl.caseReference = proj_tbl.caseReference\n",
+					"        WHERE exam_tbl.IsActive = 'Y'\n",
+					"        ORDER BY caseReference\n",
+					"        \"\"\"\n",
+					"        )\n",
 					"\n",
-					"SELECT DISTINCT\n",
-					"\n",
-					"    exam_tbl.caseReference,\n",
-					"    published,\n",
-					"    events\n",
-					"\n",
-					"FROM odw_harmonised_db.nsip_exam_timetable exam_tbl\n",
-					"--- inner joining with nsiproject as we need to make sure the casereference exists in the project too\n",
-					"INNER JOIN odw_curated_db.nsip_project proj_tbl\n",
-					"on exam_tbl.caseReference = proj_tbl.caseReference\n",
-					"\n",
-					"WHERE exam_tbl.IsActive = 'Y'\n",
-					"\n",
-					"\n",
-					"ORDER BY caseReference\n",
-					"\"\"\"\n",
-					")"
+					"except Exception as e:\n",
+					"    logError(f\"Error in odw_harmonised_db.nsip_exam_timetable SQL query:\\n{e}\")\n",
+					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\n",
+					"    \n",
+					"    end_exec_time = str(datetime.now())\n",
+					"    app_insight_logger.add_table_result(\n",
+					"        delta_table_name = table_name,\n",
+					"        insert_count = insert_count,\n",
+					"        update_count = update_count, \n",
+					"        delete_count = delete_count, \n",
+					"        table_result = \"failed\",\n",
+					"        start_exec_time = start_exec_time, \n",
+					"        end_exec_time = end_exec_time,\n",
+					"        total_exec_time = \"\",\n",
+					"        error_message = error_message\n",
+					"    )\n",
+					"    # Exit with the JSON result\n",
+					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
 				],
 				"execution_count": null
 			},
@@ -245,9 +318,62 @@
 					"collapsed": false
 				},
 				"source": [
-					"logInfo(f\"Writing to {table_name}\")\n",
-					"df.write.mode(\"overwrite\").format(\"parquet\").saveAsTable(table_name)\n",
-					"logInfo(f\"Written to {table_name}\")"
+					"try:\n",
+					"    logInfo(f\"Writing to {table_name}\")\n",
+					"    insert_count = df.count()\n",
+					"    df.write.mode(\"overwrite\").format(\"parquet\").saveAsTable(table_name)\n",
+					"    logInfo(f\"Written to {table_name}\")\n",
+					"\n",
+					"    end_exec_time = str(datetime.now())\n",
+					"    app_insight_logger.add_table_result(                    \n",
+					"        delta_table_name = table_name,\n",
+					"        insert_count = insert_count, \n",
+					"        update_count = update_count, \n",
+					"        delete_count = delete_count, \n",
+					"        table_result = \"success\",\n",
+					"        start_exec_time = start_exec_time, \n",
+					"        end_exec_time = end_exec_time,\n",
+					"        total_exec_time = \"\",\n",
+					"        error_message = \"\"\n",
+					"    )\n",
+					"except Exception as e:\n",
+					"    logError(f\"Error appending data to the curated layer table :\\n{e}\")\n",
+					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\n",
+					"    end_exec_time = str(datetime.now())\n",
+					"    app_insight_logger.add_table_result(\n",
+					"        delta_table_name = table_name,\n",
+					"        insert_count = insert_count, \n",
+					"        update_count = update_count, \n",
+					"        delete_count = delete_count, \n",
+					"        table_result = \"failed\",\n",
+					"        start_exec_time = start_exec_time, \n",
+					"        end_exec_time = end_exec_time,\n",
+					"        total_exec_time = \"\",\n",
+					"        error_message = error_message\n",
+					"    )\n",
+					"    # Exit with the JSON result\n",
+					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Produce Json formatted output"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Exit with the JSON result\n",
+					"mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
 				],
 				"execution_count": null
 			}
