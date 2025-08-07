@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "1006ef2c-1f38-4efc-9ea4-eb760b4216fa"
+				"spark.autotune.trackingId": "a069632e-a657-4f86-af81-1b701cb634f2"
 			}
 		},
 		"metadata": {
@@ -46,12 +46,65 @@
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### The purpose of this pyspark notebook is to ingest service bus data and appends into single odw_curated_db.vw_legacy_folder_data delta table.\n",
+					"\n",
+					"**Description**  \n",
+					"The functionality of this notebook is to ingest data into odw_curated_db.vw_legacy_folder_data Delta Table reading from odw_harmonised_db.horizon_folder delta table.The addtitional functionality has been added to log the audit information to Application Insight by creating a Json dump at notebook exist&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\n",
+					"\n",
+					"**Spark Cluster Configuration** -> Apache Spark Version- 3.4, Python Version \t\t- 3.10, Delta Lake Version \t- 2.4\n",
+					""
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Import required libraries"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from datetime import datetime, date\n",
+					"import json"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise Logging decorator"
+				]
+			},
 			{
 				"cell_type": "code",
 				"metadata": {
@@ -80,7 +133,50 @@
 					}
 				},
 				"source": [
-					"## View odw_curated_db.vw_legacy_folder_data is created"
+					"##### Initialise Application Insight Logging functions"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_utils_common_logging_output"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise variables"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"start_exec_time = str(datetime.now())\n",
+					"insert_count = 0\n",
+					"update_count = 0\n",
+					"delete_count = 0"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### View odw_curated_db.vw_legacy_folder_data is created"
 				]
 			},
 			{
@@ -105,11 +201,8 @@
 					"%%sql\n",
 					"\n",
 					"CREATE OR REPLACE VIEW odw_curated_db.vw_legacy_folder_data\n",
-					"\n",
 					"    AS\n",
-					"\n",
 					"SELECT DISTINCT\n",
-					"\n",
 					"    -- CAST(LFD.HorizonFolderID AS INT)    AS horizonFolderId,\n",
 					"    CAST(LFD.ID AS INT)                 AS id,\n",
 					"    LFD.CaseReference                   AS caseReference,\n",
@@ -140,7 +233,6 @@
 					"        THEN 'withdrawn'\n",
 					"        ELSE Lower(LFD.caseStage)\n",
 					"        END                            AS caseStage\n",
-					"\n",
 					"FROM odw_harmonised_db.horizon_folder   AS LFD\n",
 					"\n",
 					"-- WHERE LEFT(LFD.CaseReference,3) IN (\"TR0\",\"WW0\",\"BC0\",\"WA0\",\"WS0\",\"EN0\");\n",
@@ -194,9 +286,62 @@
 				},
 				"source": [
 					"from pyspark.sql import SparkSession\n",
-					"spark = SparkSession.builder.getOrCreate()\n",
-					"view_df = spark.sql('SELECT * FROM odw_curated_db.vw_legacy_folder_data')\n",
-					"view_df.write.mode(\"overwrite\").saveAsTable('odw_curated_db.legacy_folder_data')"
+					"spark = SparkSession.builder.getOrCreate()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Create odw_curated_db.vw_legacy_folder_data"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"try:\n",
+					"    view_df = spark.sql('SELECT * FROM odw_curated_db.vw_legacy_folder_data')\n",
+					"\n",
+					"    logInfo(f\"Writing to odw_curated_db.legacy_folder_data\")\n",
+					"    insert_count = view_df.count()\n",
+					"    view_df.write.mode(\"overwrite\").saveAsTable('odw_curated_db.legacy_folder_data')\n",
+					"    logInfo(\"Written odw_curated_db.legacy_folder_data\")\n",
+					"    end_exec_time = str(datetime.now())\n",
+					"    app_insight_logger.add_table_result(                    \n",
+					"        delta_table_name = 'odw_curated_db.legacy_folder_data',\n",
+					"        insert_count = insert_count, \n",
+					"        update_count = update_count, \n",
+					"        delete_count = delete_count, \n",
+					"        table_result = \"success\",\n",
+					"        start_exec_time = start_exec_time, \n",
+					"        end_exec_time = end_exec_time,\n",
+					"        total_exec_time = \"\",\n",
+					"        error_message = \"\"\n",
+					"    )\n",
+					"except Exception as e:\n",
+					"    logError(f\"Error appending data to the curated layer table :\\n{e}\")\n",
+					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\n",
+					"    end_exec_time = str(datetime.now())\n",
+					"    app_insight_logger.add_table_result(\n",
+					"        delta_table_name = 'odw_curated_db.legacy_folder_data',\n",
+					"        insert_count = insert_count, \n",
+					"        update_count = update_count, \n",
+					"        delete_count = delete_count, \n",
+					"        table_result = \"failed\",\n",
+					"        start_exec_time = start_exec_time, \n",
+					"        end_exec_time = end_exec_time,\n",
+					"        total_exec_time = \"\",\n",
+					"        error_message = error_message\n",
+					"    )\n",
+					"    # Exit with the JSON result\n",
+					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())    "
 				],
 				"execution_count": null
 			},
@@ -214,7 +359,7 @@
 					}
 				},
 				"source": [
-					"logInfo(\"Written odw_curated_db.legacy_folder_data\")"
+					""
 				],
 				"execution_count": null
 			}
