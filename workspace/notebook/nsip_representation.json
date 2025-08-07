@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "c5fcaeef-6025-4a1d-8463-5601becff425"
+				"spark.autotune.trackingId": "dbcf2bd6-f0cb-4d35-b67e-5adc5e047484"
 			}
 		},
 		"metadata": {
@@ -46,12 +46,31 @@
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### The purpose of this pyspark notebook is to ingest service bus data and appends into single odw_curated_db.nsip_representation delta table.\n",
+					"\n",
+					"**Description**  \n",
+					"The functionality of this notebook is to ingest data into odw_curated_db.nsip_representation Delta Table reading from odw_curated_db.nsip_representation delta table.The addtitional functionality has been added to log the audit information to Application Insight by creating a Json dump at notebook exist&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\n",
+					"\n",
+					"**Spark Cluster Configuration** -> Apache Spark Version- 3.4, Python Version \t\t- 3.10, Delta Lake Version \t- 2.4\n",
+					""
+				]
+			},
 			{
 				"cell_type": "markdown",
 				"metadata": {
@@ -87,6 +106,19 @@
 				"execution_count": null
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise Logging decorator"
+				]
+			},
+			{
 				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
@@ -101,6 +133,26 @@
 				},
 				"source": [
 					"%run utils/py_logging_decorator"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise Application Insight Logging functions"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_utils_common_logging_output"
 				],
 				"execution_count": null
 			},
@@ -120,7 +172,12 @@
 				"source": [
 					"db_name: str = \"odw_curated_db\"\n",
 					"entity_name: str = \"nsip-representation\"\n",
-					"table_name: str = \"odw_curated_db.nsip_representation\""
+					"table_name: str = \"odw_curated_db.nsip_representation\"\n",
+					"\n",
+					"start_exec_time = str(datetime.now())\n",
+					"insert_count = 0\n",
+					"update_count = 0\n",
+					"delete_count = 0"
 				],
 				"execution_count": null
 			},
@@ -146,83 +203,97 @@
 					"collapsed": false
 				},
 				"source": [
-					"df = spark.sql(\"\"\"\r\n",
-					"\r\n",
-					"SELECT DISTINCT\r\n",
-					"\r\n",
-					"    RR.representationId\r\n",
-					"    ,RR.webreference As referenceId\r\n",
-					"    ,RR.examinationLibraryRef\r\n",
-					"    ,RR.caseRef\r\n",
-					"    ,RR.caseId\r\n",
-					"    ,CASE\r\n",
-					"        WHEN RR.status = 'New' OR RR.status = 'In Progress' THEN\r\n",
-					"            'awaiting_review'\r\n",
-					"        WHEN RR.status = 'Complete' THEN\r\n",
-					"            'valid'\r\n",
-					"        WHEN RR.status = 'Do Not Publish' THEN\r\n",
-					"            'invalid'\r\n",
-					"        ELSE \r\n",
-					"            LOWER(RR.status)\r\n",
-					"    END AS status\r\n",
-					"    ,COALESCE(RR.originalRepresentation, '') AS originalRepresentation\r\n",
-					"    ,RR.redacted\r\n",
-					"    ,RR.redactedRepresentation\r\n",
-					"    ,RR.redactedBy\r\n",
-					"    ,RR.redactedNotes\r\n",
-					"    ,CASE\r\n",
-					"        WHEN RR.representationFrom = 'An Organisation' THEN \r\n",
-					"            'ORGANISATION'\r\n",
-					"        -- WHEN RR.representationFrom = 'Members of the Public/Businesses' and SU2.Organisation IS NOT NULL THEN\r\n",
-					"        --     'ORGANISATION'\r\n",
-					"        WHEN RR.representationFrom = 'Members of the Public/Businesses' THEN\r\n",
-					"            'PERSON'\r\n",
-					"        -- WHEN RR.representationFrom = 'Another Individual or Organisation' and SU2.Organisation IS NOT NULL THEN\r\n",
-					"        --      'ORGANISATION'\r\n",
-					"        WHEN RR.representationFrom = 'Another Individual or Organisation' THEN\r\n",
-					"            'PERSON'\r\n",
-					"        WHEN RR.representationFrom = 'Myself' THEN\r\n",
-					"            'PERSON'\r\n",
-					"        ELSE\r\n",
-					"            RR.representationFrom\r\n",
-					"    END AS representationFrom\r\n",
-					"    ,RR.representedId\r\n",
-					"    ,RR.representativeId\r\n",
-					"    ,CASE\r\n",
-					"        WHEN RR.representationFrom = 'An Organisation' THEN\r\n",
-					"            'ORGANISATION'\r\n",
-					"        -- WHEN RR.representationFrom = 'Members of the Public/Businesses' AND SU1.Organisation IS NOT NULL THEN\r\n",
-					"        --     'ORGANISATION'\r\n",
-					"        WHEN RR.representationFrom = 'Members of the Public/Businesses' THEN\r\n",
-					"            'PERSON'\r\n",
-					"        -- WHEN RR.representationFrom = 'Another Individual or Organisation' AND SU1.Organisation IS NOT NULL THEN \r\n",
-					"        --     'ORGANISATION'\r\n",
-					"        WHEN RR.representationFrom = 'Another Individual or Organisation' THEN\r\n",
-					"            'PERSON'\r\n",
-					"        WHEN RR.representationFrom = 'Myself' THEN\r\n",
-					"            'PERSON'\r\n",
-					"        ELSE\r\n",
-					"            RR.registerFor\r\n",
-					"    END AS registerFor\r\n",
-					"    ,CASE\r\n",
-					"        WHEN RR.representationType = 'Other Statutory Consultees' THEN\r\n",
-					"            'Statutory Consultees'\r\n",
-					"        ELSE\r\n",
-					"            RR.representationType\r\n",
-					"        END AS representationType\r\n",
-					"        ,RR.dateReceived\r\n",
-					"        ,RR.attachmentIds\r\n",
-					"\r\n",
-					"\r\n",
-					"FROM odw_harmonised_db.nsip_representation AS RR\r\n",
-					"\r\n",
-					"-- INNER JOIN odw_curated_db.nsip_project AS NP -- project\r\n",
-					"--     ON RR.caseRef = NP.caseReference\r\n",
-					"\r\n",
-					"WHERE RR.IsActive = 'Y'\r\n",
-					"    AND RR.caseRef IS NOT NULL\r\n",
-					"\"\"\"\r\n",
-					")\r\n",
+					"try:\n",
+					"    df = spark.sql(\"\"\"\n",
+					"        SELECT DISTINCT\n",
+					"        RR.representationId\n",
+					"        ,RR.webreference As referenceId\n",
+					"        ,RR.examinationLibraryRef\n",
+					"        ,RR.caseRef\n",
+					"        ,RR.caseId\n",
+					"        ,CASE\n",
+					"            WHEN RR.status = 'New' OR RR.status = 'In Progress' THEN\n",
+					"                'awaiting_review'\n",
+					"            WHEN RR.status = 'Complete' THEN\n",
+					"                'valid'\n",
+					"            WHEN RR.status = 'Do Not Publish' THEN\n",
+					"                'invalid'\n",
+					"            ELSE \n",
+					"                LOWER(RR.status)\n",
+					"        END AS status\n",
+					"        ,COALESCE(RR.originalRepresentation, '') AS originalRepresentation\n",
+					"        ,RR.redacted\n",
+					"        ,RR.redactedRepresentation\n",
+					"        ,RR.redactedBy\n",
+					"        ,RR.redactedNotes\n",
+					"        ,CASE\n",
+					"            WHEN RR.representationFrom = 'An Organisation' THEN \n",
+					"                'ORGANISATION'\n",
+					"            -- WHEN RR.representationFrom = 'Members of the Public/Businesses' and SU2.Organisation IS NOT NULL THEN\n",
+					"            --     'ORGANISATION'\n",
+					"            WHEN RR.representationFrom = 'Members of the Public/Businesses' THEN\n",
+					"                'PERSON'\n",
+					"            -- WHEN RR.representationFrom = 'Another Individual or Organisation' and SU2.Organisation IS NOT NULL THEN\n",
+					"            --      'ORGANISATION'\n",
+					"            WHEN RR.representationFrom = 'Another Individual or Organisation' THEN\n",
+					"                'PERSON'\n",
+					"            WHEN RR.representationFrom = 'Myself' THEN\n",
+					"                'PERSON'\n",
+					"            ELSE\n",
+					"                RR.representationFrom\n",
+					"        END AS representationFrom\n",
+					"        ,RR.representedId\n",
+					"        ,RR.representativeId\n",
+					"        ,CASE\n",
+					"            WHEN RR.representationFrom = 'An Organisation' THEN\n",
+					"                'ORGANISATION'\n",
+					"            -- WHEN RR.representationFrom = 'Members of the Public/Businesses' AND SU1.Organisation IS NOT NULL THEN\n",
+					"            --     'ORGANISATION'\n",
+					"            WHEN RR.representationFrom = 'Members of the Public/Businesses' THEN\n",
+					"                'PERSON'\n",
+					"            -- WHEN RR.representationFrom = 'Another Individual or Organisation' AND SU1.Organisation IS NOT NULL THEN \n",
+					"            --     'ORGANISATION'\n",
+					"            WHEN RR.representationFrom = 'Another Individual or Organisation' THEN\n",
+					"                'PERSON'\n",
+					"            WHEN RR.representationFrom = 'Myself' THEN\n",
+					"                'PERSON'\n",
+					"            ELSE\n",
+					"                RR.registerFor\n",
+					"        END AS registerFor\n",
+					"        ,CASE\n",
+					"            WHEN RR.representationType = 'Other Statutory Consultees' THEN\n",
+					"                'Statutory Consultees'\n",
+					"            ELSE\n",
+					"                RR.representationType\n",
+					"            END AS representationType\n",
+					"            ,RR.dateReceived\n",
+					"            ,RR.attachmentIds\n",
+					"    FROM odw_harmonised_db.nsip_representation AS RR\n",
+					"    -- INNER JOIN odw_curated_db.nsip_project AS NP -- project\n",
+					"    --     ON RR.caseRef = NP.caseReference\n",
+					"    WHERE RR.IsActive = 'Y'\n",
+					"        AND RR.caseRef IS NOT NULL\n",
+					"    \"\"\"\n",
+					"    )\n",
+					"\n",
+					"except Exception as e:\n",
+					"    logError(f\"Error in odw_harmonised_db.nsip_representation SQL query:\\n{e}\")\n",
+					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\n",
+					"    \n",
+					"    end_exec_time = str(datetime.now())\n",
+					"    app_insight_logger.add_table_result(\n",
+					"        delta_table_name = table_name,\n",
+					"        insert_count = insert_count,\n",
+					"        update_count = update_count, \n",
+					"        delete_count = delete_count, \n",
+					"        table_result = \"failed\",\n",
+					"        start_exec_time = start_exec_time, \n",
+					"        end_exec_time = end_exec_time,\n",
+					"        total_exec_time = \"\",\n",
+					"        error_message = error_message\n",
+					"    )\n",
+					"    # Exit with the JSON result\n",
+					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())\n",
 					""
 				],
 				"execution_count": null
@@ -304,9 +375,62 @@
 					}
 				},
 				"source": [
-					"logInfo(f\"Writing to {table_name}\")\n",
-					"df.write.mode(\"overwrite\").format(\"parquet\").saveAsTable(table_name)\n",
-					"logInfo(f\"Written to {table_name}\")"
+					"try:\n",
+					"    logInfo(f\"Writing to {table_name}\")\n",
+					"    insert_count = df.count()\n",
+					"    df.write.mode(\"overwrite\").format(\"parquet\").saveAsTable(table_name)\n",
+					"    logInfo(f\"Written to {table_name}\")\n",
+					"\n",
+					"    end_exec_time = str(datetime.now())\n",
+					"    app_insight_logger.add_table_result(                    \n",
+					"        delta_table_name = table_name,\n",
+					"        insert_count = insert_count, \n",
+					"        update_count = update_count, \n",
+					"        delete_count = delete_count, \n",
+					"        table_result = \"success\",\n",
+					"        start_exec_time = start_exec_time, \n",
+					"        end_exec_time = end_exec_time,\n",
+					"        total_exec_time = \"\",\n",
+					"        error_message = \"\"\n",
+					"    )\n",
+					"except Exception as e:\n",
+					"    logError(f\"Error appending data to the curated layer table :\\n{e}\")\n",
+					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\n",
+					"    end_exec_time = str(datetime.now())\n",
+					"    app_insight_logger.add_table_result(\n",
+					"        delta_table_name = table_name,\n",
+					"        insert_count = insert_count, \n",
+					"        update_count = update_count, \n",
+					"        delete_count = delete_count, \n",
+					"        table_result = \"failed\",\n",
+					"        start_exec_time = start_exec_time, \n",
+					"        end_exec_time = end_exec_time,\n",
+					"        total_exec_time = \"\",\n",
+					"        error_message = error_message\n",
+					"    )\n",
+					"    # Exit with the JSON result\n",
+					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Produce Json formatted output"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Exit with the JSON result\n",
+					"mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
 				],
 				"execution_count": null
 			}
