@@ -112,20 +112,4 @@ class SynapseLakeDatabaseUtil(SynapseArtifactUtil):
             r"^properties.defaultStorageAccountName$",
             r"^properties.defaultDataLakeStorageAccountUrl$"
         ]
-
-
-# util = SynapseLakeDatabaseUtil("pins-synw-odw-dev-uks")
-
-# all_dbs = util.get_all()
-# all_tbs = util.get_tables("logging")
-
-# print(f"Found {len(all_dbs)} lake databases")
-
-
-# for db in all_dbs:
-#     db_name = db["name"]
-#     tables= util.get_tables(db_name)
-#     print(f"{db_name} has {len(tables)} tables")
-
-# # print(json.dumps(all_dbs, indent=4))
-# print(json.dumps(all_tbs, indent=4))
+ 
