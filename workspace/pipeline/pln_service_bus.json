@@ -375,9 +375,15 @@
 										"value": "@pipeline()?.TriggeredByPipelineRunId",
 										"type": "Expression"
 									},
-									"PipelineExecutionTimeInSec": "@string(json(activity('Raw to Std').output.status.output.result.exitValue).table_details[0].total_exec_time)",
+									"PipelineExecutionTimeInSec": {
+										"value": "@string(json(activity('Raw to Std').output.status.output.result.exitValue).table_details[0].total_exec_time)",
+										"type": "Expression"
+									},
 									"ActivityType": "Notebook",
-									"DurationSeconds": "@string(json(activity('Raw to Std').output.status.output.result.exitValue).table_details[0].total_exec_time)",
+									"DurationSeconds": {
+										"value": "@string(json(activity('Raw to Std').output.status.output.result.exitValue).table_details[0].total_exec_time)",
+										"type": "Expression"
+									},
 									"StatusCode": "400",
 									"AppInsIKey": {
 										"value": "@pipeline().parameters.apps_insights_ikey",
@@ -425,8 +431,20 @@
 										"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
 										"type": "Expression"
 									},
+									"Inserts": {
+										"value": "@int(json(activity('Std to Hrm').output.status.output.result.exitValue).table_details[0].insert_count)",
+										"type": "Expression"
+									},
+									"Updates": {
+										"value": "@int(json(activity('Std to Hrm').output.status.output.result.exitValue).table_details[0].update_count)",
+										"type": "Expression"
+									},
+									"Deletes": {
+										"value": "@int(json(activity('Std to Hrm').output.status.output.result.exitValue).table_details[0].delete_count)",
+										"type": "Expression"
+									},
 									"ErrorMessage": {
-										"value": "@activity('Std to Hrm').Error.message ",
+										"value": "@json(activity('Std to Hrm').output.status.output.result.exitValue).table_details[0].error_message",
 										"type": "Expression"
 									},
 									"StatusMessage": {
@@ -453,7 +471,16 @@
 										"value": "@pipeline()?.TriggeredByPipelineRunId",
 										"type": "Expression"
 									},
-									"ActivityType": "Pipeline",
+									"PipelineExecutionTimeInSec": {
+										"value": "@string(json(activity('Std to Hrm').output.status.output.result.exitValue).table_details[0].total_exec_time)",
+										"type": "Expression"
+									},
+									"ActivityType": "Notebook",
+									"DurationSeconds": {
+										"value": "@string(json(activity('Std to Hrm').output.status.output.result.exitValue).table_details[0].total_exec_time)",
+										"type": "Expression"
+									},
+									"StatusCode": "400",
 									"AppInsIKey": {
 										"value": "@pipeline().parameters.apps_insights_ikey",
 										"type": "Expression"
@@ -596,10 +623,105 @@
 										"value": "@pipeline()?.TriggeredByPipelineRunId",
 										"type": "Expression"
 									},
-									"PipelineExecutionTimeInSec": "@string(json(activity('Raw to Std').output.status.output.result.exitValue).table_details[0].total_exec_time)",
+									"PipelineExecutionTimeInSec": {
+										"value": "@string(json(activity('Raw to Std').output.status.output.result.exitValue).table_details[0].total_exec_time)",
+										"type": "Expression"
+									},
 									"ActivityType": "Notebook",
 									"DurationSeconds": {
 										"value": "@string(json(activity('Raw to Std').output.status.output.result.exitValue).table_details[0].total_exec_time)",
+										"type": "Expression"
+									},
+									"StatusCode": "200",
+									"AppInsIKey": {
+										"value": "@pipeline().parameters.apps_insights_ikey",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Record std to hrm completed",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Std to Hrm",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "Completion",
+									"PipelineName": {
+										"value": "@variables('pipeline name')",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StartTime": {
+										"value": "@string(json(activity('Std to Hrm').output.status.output.result.exitValue).table_details[0].start_exec_time)",
+										"type": "Expression"
+									},
+									"EndTime": {
+										"value": "@string(json(activity('Std to Hrm').output.status.output.result.exitValue).table_details[0].end_exec_time)",
+										"type": "Expression"
+									},
+									"Inserts": {
+										"value": "@int(json(activity('Std to Hrm').output.status.output.result.exitValue).table_details[0].insert_count)",
+										"type": "Expression"
+									},
+									"Updates": {
+										"value": "@int(json(activity('Std to Hrm').output.status.output.result.exitValue).table_details[0].update_count)",
+										"type": "Expression"
+									},
+									"Deletes": {
+										"value": "@int(json(activity('Std to Hrm').output.status.output.result.exitValue).table_details[0].delete_count)",
+										"type": "Expression"
+									},
+									"StatusMessage": {
+										"value": "@concat(variables('entity_name'), ': Processing standardised to harmonised completed')",
+										"type": "Expression"
+									},
+									"PipelineTriggerID": {
+										"value": "@pipeline().TriggerId",
+										"type": "Expression"
+									},
+									"PipelineTriggerName": {
+										"value": "@pipeline().TriggerName",
+										"type": "Expression"
+									},
+									"PipelineTriggerType": {
+										"value": "@pipeline().TriggerType",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": "@pipeline()?.TriggeredByPipelineName",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": "@pipeline()?.TriggeredByPipelineRunId",
+										"type": "Expression"
+									},
+									"PipelineExecutionTimeInSec": {
+										"value": "@string(json(activity('Std to Hrm').output.status.output.result.exitValue).table_details[0].total_exec_time)",
+										"type": "Expression"
+									},
+									"ActivityType": "Notebook",
+									"DurationSeconds": {
+										"value": "@string(json(activity('Std to Hrm').output.status.output.result.exitValue).table_details[0].total_exec_time)",
 										"type": "Expression"
 									},
 									"StatusCode": "200",
