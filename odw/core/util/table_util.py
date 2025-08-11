@@ -55,6 +55,6 @@ class TableUtil():
                 raise RuntimeError("too many locations associated with the table!")
             else:
                 spark.sql(f"DELETE FROM {db_name}.{table_name}")
-                LoggingUtil().log_info(f"Dropped delta table {db_name}.{table_name}")
+                LoggingUtil().log_info(f"Deleted the content from table {db_name}.{table_name}")
         else:
-            logger.info("Table does not exist")
+            LoggingUtil().log_info("Table does not exist")
