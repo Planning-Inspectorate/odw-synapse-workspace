@@ -109,6 +109,7 @@ class LoggingUtil():
 
         # Try to flush the logging in a separate thread, because the operation can sometimes timeout unexpectedly
         # which and shouldn't block ETL
+        # This is preserved to match the original py_logging_decorator notebook, but we should seek a better solution
         if self._CURRENT_WORKER_POOLS_COUNT < self._MAX_WORKER_POOLS:
             self._CURRENT_WORKER_POOLS_COUNT += 1
             t = Process(target=_flush_logging_inner, daemon=True)
