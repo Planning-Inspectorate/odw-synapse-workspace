@@ -174,7 +174,7 @@ def test_logging_util__logging_to_appins__with_notebook_exception():
             LoggingUtil.log_info.assert_has_calls(
                 [
                     mock.call(f"Function my_function_with_notebook_exception called with args: {', '.join(args_repr + kwargs_repr)}"),
-                    mock.call(f"Notebook exited: Some exception")
+                    mock.call("Notebook exited: Some exception")
                 ]
             )
             notebookutils.mssparkutils.notebook.exit.assert_called_once_with(notebook_exit_exception)
