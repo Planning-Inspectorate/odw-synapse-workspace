@@ -42,7 +42,7 @@ class TableUtil():
     @LoggingUtil.logging_to_appins
     def delete_table_contents(db_name: str, table_name: str):
         """
-            Delete the given content from the given table in the given database. This should be used for
+            Delete the content from the given table in the given database. This should be used for
             tables that use delta format as the underlying storage mechanism
 
             :param db_name: Name of the database the table belongs to
