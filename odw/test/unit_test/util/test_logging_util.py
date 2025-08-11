@@ -196,3 +196,37 @@ def test_logging_util__logging_to_appins__with_exception():
                     my_function_with_exception()
                 LoggingUtil.log_info.assert_called_once_with(f"Function my_function_with_exception called with args: {', '.join(args_repr + kwargs_repr)}")
                 LoggingUtil.log_exception.assert_called_once_with(exception)
+
+
+def test_logging_util__logging_to_appins__with_class_method():
+    class MyClass():
+        @LoggingUtil.logging_to_appins
+        def my_function(self):
+            return "Hello world"
+
+    inst = MyClass()
+    args_repr = [str(inst)]
+    kwargs_repr = []
+
+    with mock.patch.object(LoggingUtil, "log_info", return_value=None):
+        with mock.patch.object(LoggingUtil, "__init__", return_value=None):
+            resp = inst.my_function()
+            LoggingUtil.log_info.assert_called_once_with(f"Function my_function called with args: {', '.join(args_repr + kwargs_repr)}")
+            assert resp == "Hello world"
+
+
+def test_logging_util__logging_to_appins__with_class_method():
+    class MyClass():
+        @classmethod
+        @LoggingUtil.logging_to_appins
+        def my_function(cls):
+            return "Hello world"
+
+    args_repr = [str(MyClass)]
+    kwargs_repr = []
+
+    with mock.patch.object(LoggingUtil, "log_info", return_value=None):
+        with mock.patch.object(LoggingUtil, "__init__", return_value=None):
+            resp = MyClass.my_function()
+            LoggingUtil.log_info.assert_called_once_with(f"Function my_function called with args: {', '.join(args_repr + kwargs_repr)}")
+            assert resp == "Hello world"

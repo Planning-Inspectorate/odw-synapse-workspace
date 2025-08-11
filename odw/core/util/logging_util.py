@@ -133,6 +133,13 @@ class LoggingUtil():
             def my_function_that_will_be_logged(param_a, param_b):
                 ...
             ```
+
+            ```
+            @classmethod
+            @LoggingUtil.logging_to_appins
+            def my_class_method_that_will_be_logged(cls, param_a, param_b):
+                ...
+            ```
         """
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
