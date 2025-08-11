@@ -10,6 +10,14 @@ from multiprocessing import Process
 from tenacity import retry, wait_exponential, stop_after_delay, before_sleep
 
 
+def _flush_logging_inner():
+    print("Flushing logs")
+    try:
+        LoggingUtil().LOGGER_PROVIDER.force_flush()
+    except Exception as e:
+        print(f"Flush failed: {e}")
+
+
 class LoggingUtil():
     """
         Singleton logging utility class that provides functionality to send logs to app insights.
@@ -96,20 +104,14 @@ class LoggingUtil():
 
     def flush_logging(self, timeout: int = 60):
         """
-            Attemptr to flush logs to Azure App Insights
+            Attempt to flush logs to Azure App Insights
         """
-        def flush_logging_inner():
-            print("Flushing logs")
-            try:
-                self.LOGGER_PROVIDER.force_flush()
-            except Exception as e:
-                print(f"Flush failed: {e}")
 
         # Try to flush the logging in a separate thread, because the operation can sometimes timeout unexpectedly
         # which and shouldn't block ETL
         if self._CURRENT_WORKER_POOLS_COUNT < self._MAX_WORKER_POOLS:
             self._CURRENT_WORKER_POOLS_COUNT += 1
-            t = Process(target=flush_logging_inner, daemon=True)
+            t = Process(target=_flush_logging_inner, daemon=True)
             t.start()
             t.join(timeout)
             if t.is_alive():
