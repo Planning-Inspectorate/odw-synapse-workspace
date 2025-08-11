@@ -11,6 +11,11 @@ This is based on functionality defined at https://learn.microsoft.com/en-us/fabr
 Usage:
 - Import `notebookutils` from this module BEFORE the real import. Use odw/test/unit_test/util/test_logging_util.py as an example
 """
+
+class NotebookExit(Exception):
+    pass
+
+
 # This overrides the import of notebookutils, which is essential for testing locally
 module_name = "notebookutils"
 # All submodules of notebookutils. Each leaf submodule is overwritten to be a mock object, which can then be used in tests
@@ -23,6 +28,7 @@ submodules = [
     "mssparkutils.session",
     "mssparkutils.udf",
     "mssparkutils.variableLibrary",
+    "mssparkutils.handlers",
     "credentials",
     "fs",
     "lakehouse",
@@ -49,3 +55,5 @@ for submodule in submodules:
         current_module = getattr(current_module, module)
     if not getattr(current_module, leaf_module_name, False):
         setattr(current_module, leaf_module_name, Mock(name=".".join([current_module_name, leaf_module_name])))
+
+notebookutils.mssparkutils.handlers.notebookHandler.NotebookExit = NotebookExit

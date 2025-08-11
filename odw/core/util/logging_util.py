@@ -121,6 +121,7 @@ class LoggingUtil():
         else:
             print("Could not start logging export in odw/core/util/logging_util.py - max number of flush threads has been reached")
 
+    @classmethod
     def logging_to_appins(cls, func):
         """
             Decorator that adds extra logging to function calls
