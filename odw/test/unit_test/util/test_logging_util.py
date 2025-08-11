@@ -198,7 +198,7 @@ def test_logging_util__logging_to_appins__with_exception():
                 LoggingUtil.log_exception.assert_called_once_with(exception)
 
 
-def test_logging_util__logging_to_appins__with_class_method():
+def test_logging_util__logging_to_appins__with_instance_method():
     class MyClass():
         @LoggingUtil.logging_to_appins
         def my_function(self):
