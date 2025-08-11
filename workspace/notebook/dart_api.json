@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "f1c14273-dc2a-4c3e-8152-cd03aee423eb"
+				"spark.autotune.trackingId": "a0ac691a-c309-46f9-88d5-427456e15ed7"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -80,6 +80,19 @@
 				},
 				"source": [
 					"##### Create DataFrame of required data"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Additional functionality to include appeals for Dart API (union Appeal_s78)"
 				]
 			},
 			{
@@ -146,6 +159,78 @@
 					"    ,i.qualifications as inspectorQualifications\r\n",
 					"FROM \r\n",
 					"    odw_harmonised_db.sb_appeal_has h\r\n",
+					"        left join odw_harmonised_db.pins_lpa l on h.lpaCode = l.pinsLpaCode and l.isActive = 'Y'\r\n",
+					"        left join odw_harmonised_db.sb_service_user su on h.caseReference = su.caseReference and su.serviceUserType = 'Appellant' and su.isActive = 'Y'\r\n",
+					"        left join odw_harmonised_db.sb_appeal_event e on h.caseReference = e.caseReference and e.isActive = 'Y'\r\n",
+					"        left join odw_harmonised_db.entraid ent_ins on h.inspectorId = ent_ins.id and ent_ins.isActive = 'Y'\r\n",
+					"        left join odw_harmonised_db.entraid ent_co on h.caseOfficerId = ent_co.id and ent_co.isActive = 'Y'\r\n",
+					"        left join odw_harmonised_db.pins_inspector i on ent_ins.userPrincipalName = i.email and i.isActive = 'Y'\r\n",
+					"WHERE\r\n",
+					"    h.IsActive = 'Y'\r\n",
+					"\tand\r\n",
+					"\th.lpaCode <> 'Q9999'\r\n",
+					" \r\n",
+					"UNION\r\n",
+					" \r\n",
+					"    SELECT\r\n",
+					"    h.caseId\r\n",
+					"    ,h.caseReference\r\n",
+					"    ,h.caseStatus\r\n",
+					"    ,h.caseType\r\n",
+					"    ,h.caseProcedure\r\n",
+					"    ,h.lpaCode\r\n",
+					"    ,l.lpaName\r\n",
+					"    ,h.allocationLevel\r\n",
+					"    ,h.allocationBand\r\n",
+					"    ,h.caseSpecialisms\r\n",
+					"    ,h.caseSubmittedDate\r\n",
+					"    ,h.caseCreatedDate\r\n",
+					"    ,h.caseUpdatedDate\r\n",
+					"    ,h.caseValidDate\r\n",
+					"    ,h.caseValidationDate\r\n",
+					"    ,h.caseValidationOutcome\r\n",
+					"    ,h.caseValidationInvalidDetails\r\n",
+					"    ,h.caseValidationIncompleteDetails\r\n",
+					"    ,h.caseExtensionDate\r\n",
+					"    ,h.caseStartedDate\r\n",
+					"    ,h.casePublishedDate\r\n",
+					"    ,h.linkedCaseStatus\r\n",
+					"    ,h.leadCaseReference\r\n",
+					"    ,h.caseWithdrawnDate\r\n",
+					"    ,h.caseTransferredDate\r\n",
+					"    ,h.transferredCaseClosedDate\r\n",
+					"    ,h.caseDecisionOutcomeDate\r\n",
+					"    ,h.caseDecisionPublishedDate\r\n",
+					"    ,h.caseDecisionOutcome\r\n",
+					"    ,h.caseCompletedDate\r\n",
+					"    ,h.enforcementNotice\r\n",
+					"    ,h.applicationReference\r\n",
+					"    ,h.applicationDate\r\n",
+					"    ,h.applicationDecision\r\n",
+					"    ,h.applicationDecisionDate as lpaDecisionDate\r\n",
+					"    ,h.caseSubmissionDueDate\r\n",
+					"    ,h.siteAddressLine1\r\n",
+					"    ,h.siteAddressLine2\r\n",
+					"    ,h.siteAddressTown\r\n",
+					"    ,h.siteAddressCounty\r\n",
+					"    ,h.siteAddressPostcode\r\n",
+					"    ,h.isCorrectAppealType\r\n",
+					"    ,h.originalDevelopmentDescription\r\n",
+					"    ,h.changedDevelopmentDescription\r\n",
+					"    ,h.newConditionDetails\r\n",
+					"    ,h.nearbyCaseReferences\r\n",
+					"    ,h.neighbouringSiteAddresses\r\n",
+					"    ,h.affectedListedBuildingNumbers\r\n",
+					"    ,h.appellantCostsAppliedFor\r\n",
+					"    ,h.lpaCostsAppliedFor\r\n",
+					"    ,su.firstName + ' ' + su.LastName as appellantName\r\n",
+					"    ,e.eventType as typeOfEvent\r\n",
+					"    ,e.eventStartDateTime as startDateOfTheEvent\r\n",
+					"    ,ent_ins.givenName + ' ' +  ent_ins.surname as inspectorName\r\n",
+					"    ,ent_co.givenName + ' ' +  ent_co.surname as caseOfficerName\r\n",
+					"    ,i.qualifications as inspectorQualifications\r\n",
+					"FROM \r\n",
+					"    odw_harmonised_db.sb_appeal_s78 h\r\n",
 					"        left join odw_harmonised_db.pins_lpa l on h.lpaCode = l.pinsLpaCode and l.isActive = 'Y'\r\n",
 					"        left join odw_harmonised_db.sb_service_user su on h.caseReference = su.caseReference and su.serviceUserType = 'Appellant' and su.isActive = 'Y'\r\n",
 					"        left join odw_harmonised_db.sb_appeal_event e on h.caseReference = e.caseReference and e.isActive = 'Y'\r\n",
