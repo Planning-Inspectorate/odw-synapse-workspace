@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "64a8be62-444d-422f-98cb-f772886b07fc"
+				"spark.autotune.trackingId": "f8394661-43c2-4347-adad-e876d94fd846"
 			}
 		},
 		"metadata": {
@@ -45,12 +45,30 @@
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### The purpose of this pyspark notebook is to ingest service bus data and appends into single odw_curated_db.appeal-event delta table.\r\n",
+					"\r\n",
+					"**Description**  \r\n",
+					"The functionality of this notebook is to ingest data into odw_curated_db.vw_legacy_folder_data Delta Table reading from odw_harmonised_db.appeal-event delta table.The addtitional functionality has been added to log the audit information to Application Insight by creating a Json dump at notebook exist&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\r\n",
+					"\r\n",
+					"**Spark Cluster Configuration** -> Apache Spark Version- 3.4, Python Version \t\t- 3.10, Delta Lake Version \t- 2.4"
+				]
+			},
 			{
 				"cell_type": "markdown",
 				"metadata": {
@@ -86,6 +104,19 @@
 				"execution_count": null
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise Logging decorator"
+				]
+			},
+			{
 				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
@@ -100,6 +131,26 @@
 				},
 				"source": [
 					"%run utils/py_logging_decorator"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise Application Insight Logging functions"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_utils_common_logging_output"
 				],
 				"execution_count": null
 			},
@@ -119,7 +170,12 @@
 				"source": [
 					"db_name: str = \"odw_curated_db\"\r\n",
 					"entity_name: str = \"appeal-event\"\r\n",
-					"table_name: str = \"odw_curated_db.appeal_event\""
+					"table_name: str = \"odw_curated_db.appeal_event\"\r\n",
+					"\r\n",
+					"start_exec_time = str(datetime.now())\r\n",
+					"insert_count = 0\r\n",
+					"update_count = 0\r\n",
+					"delete_count = 0"
 				],
 				"execution_count": null
 			},
@@ -151,30 +207,48 @@
 					"collapsed": false
 				},
 				"source": [
-					"df = spark.sql(\"\"\"\r\n",
+					"try:\r\n",
+					"    df = spark.sql(\"\"\"\r\n",
+					"        SELECT\r\n",
+					"            eventId\r\n",
+					"            ,caseReference\r\n",
+					"            ,eventType\r\n",
+					"            ,eventName\r\n",
+					"            ,eventStatus\r\n",
+					"            ,IsUrgent as isUrgent\r\n",
+					"            ,eventPublished\r\n",
+					"            ,eventStartDateTime\r\n",
+					"            ,eventEndDateTime\r\n",
+					"            ,notificationOfSitevisit as notificationOfSiteVisit\r\n",
+					"            ,addressLine1\r\n",
+					"            ,addressLine2\r\n",
+					"            ,addressTown\r\n",
+					"            ,addressCounty\r\n",
+					"            ,addressPostcode\r\n",
+					"        FROM\r\n",
+					"            odw_harmonised_db.appeal_event\r\n",
+					"        WHERE\r\n",
+					"            IsActive = 'Y'\r\n",
+					"        \"\"\"\r\n",
+					"        )\r\n",
 					"\r\n",
-					"SELECT\r\n",
-					"    eventId\r\n",
-					"    ,caseReference\r\n",
-					"    ,eventType\r\n",
-					"    ,eventName\r\n",
-					"    ,eventStatus\r\n",
-					"    ,IsUrgent as isUrgent\r\n",
-					"    ,eventPublished\r\n",
-					"    ,eventStartDateTime\r\n",
-					"    ,eventEndDateTime\r\n",
-					"    ,notificationOfSitevisit as notificationOfSiteVisit\r\n",
-					"    ,addressLine1\r\n",
-					"    ,addressLine2\r\n",
-					"    ,addressTown\r\n",
-					"    ,addressCounty\r\n",
-					"    ,addressPostcode\r\n",
-					"FROM\r\n",
-					"    odw_harmonised_db.appeal_event\r\n",
-					"WHERE\r\n",
-					"    IsActive = 'Y'\r\n",
-					"\"\"\"\r\n",
-					")"
+					"except Exception as e:\r\n",
+					"    logError(f\"Error appending data to the curated layer table :\\n{e}\")\r\n",
+					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
+					"    end_exec_time = str(datetime.now())\r\n",
+					"    app_insight_logger.add_table_result(\r\n",
+					"        delta_table_name = table_name,\r\n",
+					"        insert_count = insert_count, \r\n",
+					"        update_count = update_count, \r\n",
+					"        delete_count = delete_count, \r\n",
+					"        table_result = \"failed\",\r\n",
+					"        start_exec_time = start_exec_time, \r\n",
+					"        end_exec_time = end_exec_time,\r\n",
+					"        total_exec_time = \"\",\r\n",
+					"        error_message = error_message\r\n",
+					"    )\r\n",
+					"    # Exit with the JSON result\r\n",
+					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())    "
 				],
 				"execution_count": null
 			},
@@ -269,9 +343,63 @@
 					"collapsed": false
 				},
 				"source": [
-					"logInfo(f\"Writing to {table_name}\")\r\n",
-					"df.write.mode(\"overwrite\").format(\"parquet\").saveAsTable(table_name)\r\n",
-					"logInfo(f\"Written to {table_name}\")"
+					"try:\r\n",
+					"    logInfo(f\"Writing to {table_name}\")\r\n",
+					"\r\n",
+					"    insert_count = df.count()\r\n",
+					"    df.write.mode(\"overwrite\").format(\"parquet\").saveAsTable(table_name)\r\n",
+					"    logInfo(f\"Written to {table_name}\")\r\n",
+					"    \r\n",
+					"    end_exec_time = str(datetime.now())\r\n",
+					"    app_insight_logger.add_table_result(                    \r\n",
+					"        delta_table_name = table_name,\r\n",
+					"        insert_count = insert_count, \r\n",
+					"        update_count = update_count, \r\n",
+					"        delete_count = delete_count, \r\n",
+					"        table_result = \"success\",\r\n",
+					"        start_exec_time = start_exec_time, \r\n",
+					"        end_exec_time = end_exec_time,\r\n",
+					"        total_exec_time = \"\",\r\n",
+					"        error_message = \"\"\r\n",
+					"    )\r\n",
+					"except Exception as e:\r\n",
+					"    logError(f\"Error appending data to the curated layer table :\\n{e}\")\r\n",
+					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
+					"    end_exec_time = str(datetime.now())\r\n",
+					"    app_insight_logger.add_table_result(\r\n",
+					"        delta_table_name = table_name,\r\n",
+					"        insert_count = insert_count, \r\n",
+					"        update_count = update_count, \r\n",
+					"        delete_count = delete_count, \r\n",
+					"        table_result = \"failed\",\r\n",
+					"        start_exec_time = start_exec_time, \r\n",
+					"        end_exec_time = end_exec_time,\r\n",
+					"        total_exec_time = \"\",\r\n",
+					"        error_message = error_message\r\n",
+					"    )\r\n",
+					"    # Exit with the JSON result\r\n",
+					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())    "
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Produce Json formatted output"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Exit with the JSON result\r\n",
+					"mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
 				],
 				"execution_count": null
 			}
