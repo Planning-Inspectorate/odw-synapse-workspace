@@ -116,12 +116,9 @@ def test_logging_util__setup_logging__already_initialised():
                 assert not BatchLogRecordProcessor.__new__.called
 
 
-@pytest.mark.skip(reason="It is not possible to mock mssparkutils in a multithreaded function call, so skipping this test")
 def test_logging_util__flush_logging():
     logging_util_inst = get_new_logging_instance()
     logging_util_inst.LOGGER_PROVIDER = LoggerProvider()
-    logging_util_inst._CURRENT_WORKER_POOLS_COUNT = 0
-    logging_util_inst._MAX_WORKER_POOLS = 5
     with mock.patch.object(LoggerProvider, "force_flush", return_value=None):
         with mock.patch.object(LoggingUtil, "__init__", return_value=None):
             logging_util_inst.flush_logging()

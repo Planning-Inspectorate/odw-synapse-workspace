@@ -6,16 +6,7 @@ from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
 from opentelemetry._logs import set_logger_provider
 from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
 from azure.monitor.opentelemetry.exporter import AzureMonitorLogExporter
-from multiprocessing import Process
 from tenacity import retry, wait_exponential, stop_after_delay, before_sleep
-
-
-def _flush_logging_inner():
-    print("Flushing logs")
-    try:
-        LoggingUtil().LOGGER_PROVIDER.force_flush()
-    except Exception as e:
-        print(f"Flush failed: {e}")
 
 
 class LoggingUtil():
@@ -47,10 +38,6 @@ class LoggingUtil():
         """
         self.LOGGER_PROVIDER = LoggerProvider()
         self._LOGGING_INITIALISED = False
-        self._MAX_WORKER_POOLS = 5
-        if not hasattr(self, "_CURRENT_WORKER_POOLS_COUNT"):
-            # Prevent overwriting the variable from other threads
-            self._CURRENT_WORKER_POOLS_COUNT = 0
         self.pipelinejobid = mssparkutils.runtime.context["pipelinejobid"] if mssparkutils.runtime.context.get("isForPipeline", False) else uuid.uuid4()
         self.logger = logging.getLogger()
         for h in list(self.logger.handlers):
@@ -102,25 +89,14 @@ class LoggingUtil():
         self._LOGGING_INITIALISED = True
         self.log_info("Logging initialised.")
 
-    def flush_logging(self, timeout: int = 60):
+    def flush_logging(self, timeout_seconds: int = 60):
         """
             Attempt to flush logs to Azure App Insights
         """
-
-        # Try to flush the logging in a separate thread, because the operation can sometimes timeout unexpectedly
-        # which and shouldn't block ETL
-        # This is preserved to match the original py_logging_decorator notebook, but we should seek a better solution
-        if self._CURRENT_WORKER_POOLS_COUNT < self._MAX_WORKER_POOLS:
-            self._CURRENT_WORKER_POOLS_COUNT += 1
-            t = Process(target=_flush_logging_inner, daemon=True)
-            t.start()
-            t.join(timeout)
-            if t.is_alive():
-                print(f"Logging flush timed out in odw/core/util/logging_util.py. Waited {timeout} seconds. Killing the running thread")
-                t.terminate()
-            self._CURRENT_WORKER_POOLS_COUNT -= 1
-        else:
-            print("Could not start logging export in odw/core/util/logging_util.py - max number of flush threads has been reached")
+        try:
+            self.LOGGER_PROVIDER.force_flush(timeout_millis=timeout_seconds * 1000)
+        except Exception as e:
+            print(f"Flush failed: {e}")
 
     @classmethod
     def logging_to_appins(cls, func):
