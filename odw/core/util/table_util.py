@@ -28,7 +28,7 @@ class TableUtil():
             :param table_name: The name of the table to delete
         """
         spark = SparkSession.builder.getOrCreate()
-        if spark.catalog.tableExists(table_name, db_name):
+        if spark.catalog.tableExists(f"{db_name}.{table_name}"):
             table_details_query = spark.sql(f"DESCRIBE DETAIL {db_name}.{table_name}")
             num_tables = table_details_query.count()
             if num_tables > 1:
@@ -52,7 +52,7 @@ class TableUtil():
             :param table_name: The name of the table to delete
         """
         spark = SparkSession.builder.getOrCreate()
-        if spark.catalog.tableExists(table_name, db_name):
+        if spark.catalog.tableExists(f"{db_name}.{table_name}"):
             table_details_query = spark.sql(f"DESCRIBE DETAIL {db_name}.{table_name}")
             num_tables = table_details_query.count()
             if num_tables > 1:
