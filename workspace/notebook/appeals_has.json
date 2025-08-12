@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ff3cb35f-752c-4f7f-be39-242de02124b9"
+				"spark.autotune.trackingId": "e7d100a9-e9a9-4e73-9cd8-72dfb67fb838"
 			}
 		},
 		"metadata": {
@@ -45,12 +45,30 @@
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### The purpose of this pyspark notebook is to ingest service bus data  into single odw_curated_db.appeal_has delta table.\n",
+					"\n",
+					"**Description**  \n",
+					"The functionality of this notebook is to ingest data into odw_curated_db.appeal_has Delta Table reading from odw_harmonised_db.appeal_has delta table.The addtitional functionality has been added to log the audit information to Application Insight by creating a Json dump at notebook exist&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\n",
+					"\n",
+					"**Spark Cluster Configuration** -> Apache Spark Version- 3.4, Python Version \t\t- 3.10, Delta Lake Version \t- 2.4"
+				]
+			},
 			{
 				"cell_type": "markdown",
 				"metadata": {
@@ -86,6 +104,19 @@
 				"execution_count": null
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise Logging decorator"
+				]
+			},
+			{
 				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
@@ -100,6 +131,26 @@
 				},
 				"source": [
 					"%run utils/py_logging_decorator"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise Application Insight Logging functions"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_utils_common_logging_output"
 				],
 				"execution_count": null
 			},
@@ -119,7 +170,12 @@
 				"source": [
 					"db_name: str = \"odw_curated_db\"\n",
 					"entity_name: str = \"appeal-has\"\n",
-					"table_name: str = \"odw_curated_db.appeal_has\""
+					"table_name: str = \"odw_curated_db.appeal_has\"\n",
+					"\n",
+					"start_exec_time = str(datetime.now())\n",
+					"insert_count = 0\n",
+					"update_count = 0\n",
+					"delete_count = 0"
 				],
 				"execution_count": null
 			},
@@ -142,90 +198,105 @@
 					"collapsed": false
 				},
 				"source": [
-					"df = spark.sql(\"\"\"\n",
-					"\n",
-					"SELECT DISTINCT \n",
-					"\n",
-					"AH.caseId                                   AS caseId,\n",
-					"AH.caseReference                            AS caseReference,\n",
-					"AH.submissionId                             AS submissionId,\n",
-					"AH.caseStatus                               AS caseStatus,\n",
-					"AH.caseType                                 AS caseType,\n",
-					"AH.caseProcedure                            AS caseProcedure,\n",
-					"AH.lpaCode                                  AS lpaCode,\n",
-					"AH.caseOfficerId                            AS caseOfficerId,\n",
-					"AH.inspectorId                              AS inspectorId,\n",
-					"AH.allocationLevel                          AS allocationLevel,\n",
-					"AH.allocationBand                           AS allocationBand,\n",
-					"AH.caseSpecialisms                          AS caseSpecialisms,\n",
-					"AH.caseSubmittedDate                        AS caseSubmittedDate,\n",
-					"AH.caseCreatedDate                          AS caseCreatedDate,\n",
-					"AH.caseUpdatedDate                          AS caseUpdatedDate,\n",
-					"AH.caseValidDate                            AS caseValidDate,\n",
-					"AH.caseValidationDate                       AS caseValidationDate,\n",
-					"AH.caseValidationOutcome                    AS caseValidationOutcome,\n",
-					"AH.caseValidationInvalidDetails             AS caseValidationInvalidDetails,\n",
-					"AH.caseValidationIncompleteDetails          AS caseValidationIncompleteDetails,\n",
-					"AH.caseExtensionDate                        AS caseExtensionDate,\n",
-					"AH.caseStartedDate                          AS caseStartedDate,\n",
-					"AH.casePublishedDate                        AS casePublishedDate,\n",
-					"AH.linkedCaseStatus                         AS linkedCaseStatus,\n",
-					"AH.leadCaseReference                        AS leadCaseReference,\n",
-					"AH.lpaQuestionnaireDueDate                  AS lpaQuestionnaireDueDate,\n",
-					"AH.lpaQuestionnaireSubmittedDate            AS lpaQuestionnaireSubmittedDate,\n",
-					"AH.lpaQuestionnaireCreatedDate              AS lpaQuestionnaireCreatedDate,\n",
-					"AH.lpaQuestionnairePublishedDate            AS lpaQuestionnairePublishedDate,\n",
-					"AH.lpaQuestionnaireValidationOutcome        AS lpaQuestionnaireValidationOutcome,\n",
-					"AH.lpaQuestionnaireValidationOutcomeDate    AS lpaQuestionnaireValidationOutcomeDate,\n",
-					"AH.lpaQuestionnaireValidationDetails        AS lpaQuestionnaireValidationDetails,\n",
-					"AH.lpaStatement                             AS lpaStatement,\n",
-					"AH.caseWithdrawnDate                        AS caseWithdrawnDate,\n",
-					"AH.caseTransferredDate                      AS caseTransferredDate,\n",
-					"AH.transferredCaseClosedDate                AS transferredCaseClosedDate,\n",
-					"AH.caseDecisionOutcomeDate                  AS caseDecisionOutcomeDate,\n",
-					"AH.caseDecisionPublishedDate                AS caseDecisionPublishedDate,\n",
-					"AH.caseDecisionOutcome                      AS caseDecisionOutcome,\n",
-					"AH.caseCompletedDate                        AS caseCompletedDate,\n",
-					"AH.enforcementNotice                        AS enforcementNotice,\n",
-					"AH.applicationReference                     AS applicationReference,\n",
-					"AH.applicationDate                          AS applicationDate,\n",
-					"AH.applicationDecision                      AS applicationDecision,\n",
-					"AH.applicationDecisionDate                  AS applicationDecisionDate,\n",
-					"AH.caseSubmissionDueDate                    AS caseSubmissionDueDate,\n",
-					"AH.siteAddressLine1                         AS siteAddressLine1,\n",
-					"AH.siteAddressLine2                         AS siteAddressLine2,\n",
-					"AH.siteAddressTown                          AS siteAddressTown,\n",
-					"AH.siteAddressCounty                        AS siteAddressCounty,\n",
-					"AH.siteAddressPostcode                      AS siteAddressPostcode,\n",
-					"AH.siteAccessDetails                        AS siteAccessDetails,\n",
-					"AH.siteSafetyDetails                        AS siteSafetyDetails,\n",
-					"AH.siteAreaSquareMetres                     AS siteAreaSquareMetres,\n",
-					"AH.floorSpaceSquareMetres                   AS floorSpaceSquareMetres,\n",
-					"AH.isCorrectAppealType                      AS isCorrectAppealType,\n",
-					"AH.isGreenBelt                              AS isGreenBelt,\n",
-					"AH.inConservationArea                       AS inConservationArea,\n",
-					"AH.ownsAllLand                              AS ownsAllLand,\n",
-					"AH.ownsSomeLand                             AS ownsSomeLand,\n",
-					"AH.knowsOtherOwners                         AS knowsOtherOwners,\n",
-					"AH.knowsAllOwners                           AS knowsAllOwners,\n",
-					"AH.advertisedAppeal                         AS advertisedAppeal,\n",
-					"AH.notificationMethod                       AS notificationMethod,\n",
-					"AH.ownersInformed                           AS ownersInformed,\n",
-					"AH.originalDevelopmentDescription           AS originalDevelopmentDescription,\n",
-					"AH.changedDevelopmentDescription            AS changedDevelopmentDescription,\n",
-					"AH.newConditionDetails                      AS newConditionDetails,\n",
-					"AH.nearbyCaseReferences                     AS nearbyCaseReferences,\n",
-					"AH.neighbouringSiteAddresses                AS neighbouringSiteAddresses,\n",
-					"AH.reasonForNeighbourVisits                 AS reasonForNeighbourVisits, \n",
-					"AH.affectedListedBuildingNumbers            AS affectedListedBuildingNumbers,\n",
-					"AH.appellantCostsAppliedFor                 AS appellantCostsAppliedFor,\n",
-					"AH.lpaCostsAppliedFor                       AS lpaCostsAppliedFor,\n",
-					"AH.typeOfPlanningApplication                AS typeOfPlanningApplication\n",
-					"\n",
-					"FROM odw_harmonised_db.sb_appeal_has AS AH\n",
-					"WHERE AH.IsActive = 'Y'\n",
-					"\"\"\"\n",
-					")"
+					"try:\n",
+					"    df = spark.sql(\"\"\"\n",
+					"        SELECT DISTINCT \n",
+					"            AH.caseId                                   AS caseId,\n",
+					"            AH.caseReference                            AS caseReference,\n",
+					"            AH.submissionId                             AS submissionId,\n",
+					"            AH.caseStatus                               AS caseStatus,\n",
+					"            AH.caseType                                 AS caseType,\n",
+					"            AH.caseProcedure                            AS caseProcedure,\n",
+					"            AH.lpaCode                                  AS lpaCode,\n",
+					"            AH.caseOfficerId                            AS caseOfficerId,\n",
+					"            AH.inspectorId                              AS inspectorId,\n",
+					"            AH.allocationLevel                          AS allocationLevel,\n",
+					"            AH.allocationBand                           AS allocationBand,\n",
+					"            AH.caseSpecialisms                          AS caseSpecialisms,\n",
+					"            AH.caseSubmittedDate                        AS caseSubmittedDate,\n",
+					"            AH.caseCreatedDate                          AS caseCreatedDate,\n",
+					"            AH.caseUpdatedDate                          AS caseUpdatedDate,\n",
+					"            AH.caseValidDate                            AS caseValidDate,\n",
+					"            AH.caseValidationDate                       AS caseValidationDate,\n",
+					"            AH.caseValidationOutcome                    AS caseValidationOutcome,\n",
+					"            AH.caseValidationInvalidDetails             AS caseValidationInvalidDetails,\n",
+					"            AH.caseValidationIncompleteDetails          AS caseValidationIncompleteDetails,\n",
+					"            AH.caseExtensionDate                        AS caseExtensionDate,\n",
+					"            AH.caseStartedDate                          AS caseStartedDate,\n",
+					"            AH.casePublishedDate                        AS casePublishedDate,\n",
+					"            AH.linkedCaseStatus                         AS linkedCaseStatus,\n",
+					"            AH.leadCaseReference                        AS leadCaseReference,\n",
+					"            AH.lpaQuestionnaireDueDate                  AS lpaQuestionnaireDueDate,\n",
+					"            AH.lpaQuestionnaireSubmittedDate            AS lpaQuestionnaireSubmittedDate,\n",
+					"            AH.lpaQuestionnaireCreatedDate              AS lpaQuestionnaireCreatedDate,\n",
+					"            AH.lpaQuestionnairePublishedDate            AS lpaQuestionnairePublishedDate,\n",
+					"            AH.lpaQuestionnaireValidationOutcome        AS lpaQuestionnaireValidationOutcome,\n",
+					"            AH.lpaQuestionnaireValidationOutcomeDate    AS lpaQuestionnaireValidationOutcomeDate,\n",
+					"            AH.lpaQuestionnaireValidationDetails        AS lpaQuestionnaireValidationDetails,\n",
+					"            AH.lpaStatement                             AS lpaStatement,\n",
+					"            AH.caseWithdrawnDate                        AS caseWithdrawnDate,\n",
+					"            AH.caseTransferredDate                      AS caseTransferredDate,\n",
+					"            AH.transferredCaseClosedDate                AS transferredCaseClosedDate,\n",
+					"            AH.caseDecisionOutcomeDate                  AS caseDecisionOutcomeDate,\n",
+					"            AH.caseDecisionPublishedDate                AS caseDecisionPublishedDate,\n",
+					"            AH.caseDecisionOutcome                      AS caseDecisionOutcome,\n",
+					"            AH.caseCompletedDate                        AS caseCompletedDate,\n",
+					"            AH.enforcementNotice                        AS enforcementNotice,\n",
+					"            AH.applicationReference                     AS applicationReference,\n",
+					"            AH.applicationDate                          AS applicationDate,\n",
+					"            AH.applicationDecision                      AS applicationDecision,\n",
+					"            AH.applicationDecisionDate                  AS applicationDecisionDate,\n",
+					"            AH.caseSubmissionDueDate                    AS caseSubmissionDueDate,\n",
+					"            AH.siteAddressLine1                         AS siteAddressLine1,\n",
+					"            AH.siteAddressLine2                         AS siteAddressLine2,\n",
+					"            AH.siteAddressTown                          AS siteAddressTown,\n",
+					"            AH.siteAddressCounty                        AS siteAddressCounty,\n",
+					"            AH.siteAddressPostcode                      AS siteAddressPostcode,\n",
+					"            AH.siteAccessDetails                        AS siteAccessDetails,\n",
+					"            AH.siteSafetyDetails                        AS siteSafetyDetails,\n",
+					"            AH.siteAreaSquareMetres                     AS siteAreaSquareMetres,\n",
+					"            AH.floorSpaceSquareMetres                   AS floorSpaceSquareMetres,\n",
+					"            AH.isCorrectAppealType                      AS isCorrectAppealType,\n",
+					"            AH.isGreenBelt                              AS isGreenBelt,\n",
+					"            AH.inConservationArea                       AS inConservationArea,\n",
+					"            AH.ownsAllLand                              AS ownsAllLand,\n",
+					"            AH.ownsSomeLand                             AS ownsSomeLand,\n",
+					"            AH.knowsOtherOwners                         AS knowsOtherOwners,\n",
+					"            AH.knowsAllOwners                           AS knowsAllOwners,\n",
+					"            AH.advertisedAppeal                         AS advertisedAppeal,\n",
+					"            AH.notificationMethod                       AS notificationMethod,\n",
+					"            AH.ownersInformed                           AS ownersInformed,\n",
+					"            AH.originalDevelopmentDescription           AS originalDevelopmentDescription,\n",
+					"            AH.changedDevelopmentDescription            AS changedDevelopmentDescription,\n",
+					"            AH.newConditionDetails                      AS newConditionDetails,\n",
+					"            AH.nearbyCaseReferences                     AS nearbyCaseReferences,\n",
+					"            AH.neighbouringSiteAddresses                AS neighbouringSiteAddresses,\n",
+					"            AH.reasonForNeighbourVisits                 AS reasonForNeighbourVisits, \n",
+					"            AH.affectedListedBuildingNumbers            AS affectedListedBuildingNumbers,\n",
+					"            AH.appellantCostsAppliedFor                 AS appellantCostsAppliedFor,\n",
+					"            AH.lpaCostsAppliedFor                       AS lpaCostsAppliedFor,\n",
+					"            AH.typeOfPlanningApplication                AS typeOfPlanningApplication\n",
+					"            FROM odw_harmonised_db.sb_appeal_has AS AH\n",
+					"            WHERE AH.IsActive = 'Y'\n",
+					"            \"\"\"\n",
+					"        )\n",
+					"except Exception as e:\n",
+					"    logError(f\"Error in SQL query for table odw_harmonised_db.sb_appeal_has :\\n{e}\")\n",
+					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\n",
+					"    end_exec_time = str(datetime.now())\n",
+					"    app_insight_logger.add_table_result(\n",
+					"        delta_table_name = table_name,\n",
+					"        insert_count = insert_count, \n",
+					"        update_count = update_count, \n",
+					"        delete_count = delete_count, \n",
+					"        table_result = \"failed\",\n",
+					"        start_exec_time = start_exec_time, \n",
+					"        end_exec_time = end_exec_time,\n",
+					"        total_exec_time = \"\",\n",
+					"        error_message = error_message\n",
+					"    )\n",
+					"    # Exit with the JSON result\n",
+					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())    "
 				],
 				"execution_count": null
 			},
@@ -319,9 +390,64 @@
 					}
 				},
 				"source": [
-					"logInfo(f\"Writing to {table_name}\")\n",
-					"df.write.mode(\"overwrite\").format(\"parquet\").saveAsTable(table_name)\n",
-					"logInfo(f\"Written to {table_name}\")"
+					"try:\n",
+					"    logInfo(f\"Writing to {table_name}\")\n",
+					"    insert_count = df.count()\n",
+					"\n",
+					"    df.write.mode(\"overwrite\").format(\"parquet\").saveAsTable(table_name)\n",
+					"    logInfo(f\"Written to {table_name}\")\n",
+					"    \n",
+					"    end_exec_time = str(datetime.now())\n",
+					"    app_insight_logger.add_table_result(                    \n",
+					"        delta_table_name = table_name,\n",
+					"        insert_count = insert_count, \n",
+					"        update_count = update_count, \n",
+					"        delete_count = delete_count, \n",
+					"        table_result = \"success\",\n",
+					"        start_exec_time = start_exec_time, \n",
+					"        end_exec_time = end_exec_time,\n",
+					"        total_exec_time = \"\",\n",
+					"        error_message = \"\"\n",
+					"    )\n",
+					"    \n",
+					"except Exception as e:\n",
+					"    logError(f\"Error appending data to the curated layer table :\\n{e}\")\n",
+					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\n",
+					"    end_exec_time = str(datetime.now())\n",
+					"    app_insight_logger.add_table_result(\n",
+					"        delta_table_name = table_name,\n",
+					"        insert_count = insert_count, \n",
+					"        update_count = update_count, \n",
+					"        delete_count = delete_count, \n",
+					"        table_result = \"failed\",\n",
+					"        start_exec_time = start_exec_time, \n",
+					"        end_exec_time = end_exec_time,\n",
+					"        total_exec_time = \"\",\n",
+					"        error_message = error_message\n",
+					"    )\n",
+					"    # Exit with the JSON result\n",
+					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())    "
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Produce Json formatted output"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Exit with the JSON result\n",
+					"mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())    "
 				],
 				"execution_count": null
 			}
