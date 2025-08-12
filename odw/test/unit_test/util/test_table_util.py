@@ -65,7 +65,7 @@ def test_delete_table__successful():
     with mock.patch.object(Catalog, "tableExists", return_value=True):
         mock_df = get_sample_table_dataframe([{"db_name": db_name, "table_name": table_name, "table_location": table_location}], "parquet")
         with mock.patch.object(SparkSession, "sql", return_value=mock_df):
-            with mock.patch.object(LoggingUtil, "__init__", return_value=None):
+            with mock.patch.object(LoggingUtil, "_initialise", return_value=None):
                 with mock.patch.object(LoggingUtil, "log_info", return_value=None):
                     with mock.patch.object(LoggingUtil, "log_exception", return_value=None):
                         notebookutils.mssparkutils.fs.rm = mock.MagicMock()
@@ -85,7 +85,7 @@ def test_delete_table__table_does_not_exist():
     table_name = "some_table"
     with mock.patch.object(Catalog, "tableExists", return_value=False):
         with mock.patch.object(SparkSession, "sql", return_value=None):
-            with mock.patch.object(LoggingUtil, "__init__", return_value=None):
+            with mock.patch.object(LoggingUtil, "_initialise", return_value=None):
                 with mock.patch.object(LoggingUtil, "log_info", return_value=None):
                     notebookutils.mssparkutils.fs.rm = mock.MagicMock()
                     notebookutils.mssparkutils.fs.rm.return_value = None
@@ -114,7 +114,7 @@ def test_delete_table__multiple_occurrences():
             "parquet"
         )
         with mock.patch.object(SparkSession, "sql", return_value=mock_df):
-            with mock.patch.object(LoggingUtil, "__init__", return_value=None):
+            with mock.patch.object(LoggingUtil, "_initialise", return_value=None):
                 with mock.patch.object(LoggingUtil, "log_info", return_value=None):
                     with mock.patch.object(LoggingUtil, "log_exception", return_value=None):
                         with pytest.raises(RuntimeError):
@@ -133,7 +133,7 @@ def test_delete_table_contents__successful():
     with mock.patch.object(Catalog, "tableExists", return_value=True):
         mock_df = get_sample_table_dataframe([{"db_name": db_name, "table_name": table_name, "table_location": table_location}], "delta")
         with mock.patch.object(SparkSession, "sql", return_value=mock_df):
-            with mock.patch.object(LoggingUtil, "__init__", return_value=None):
+            with mock.patch.object(LoggingUtil, "_initialise", return_value=None):
                 with mock.patch.object(LoggingUtil, "log_info", return_value=None):
                     with mock.patch.object(LoggingUtil, "log_exception", return_value=None):
                         notebookutils.mssparkutils.fs.rm = mock.MagicMock()
@@ -154,7 +154,7 @@ def test_delete_table_contents__table_does_not_exist():
     table_name = "some_table"
     with mock.patch.object(Catalog, "tableExists", return_value=False):
         with mock.patch.object(SparkSession, "sql", return_value=None):
-            with mock.patch.object(LoggingUtil, "__init__", return_value=None):
+            with mock.patch.object(LoggingUtil, "_initialise", return_value=None):
                 with mock.patch.object(LoggingUtil, "log_info", return_value=None):
                     TableUtil.delete_table_contents(db_name, table_name)
                     assert not SparkSession.sql.called
@@ -180,7 +180,7 @@ def test_delete_table_contents__multiple_occurrences():
             "delta"
         )
         with mock.patch.object(SparkSession, "sql", return_value=mock_df):
-            with mock.patch.object(LoggingUtil, "__init__", return_value=None):
+            with mock.patch.object(LoggingUtil, "_initialise", return_value=None):
                 with mock.patch.object(LoggingUtil, "log_info", return_value=None):
                     with mock.patch.object(LoggingUtil, "log_exception", return_value=None):
                         with pytest.raises(RuntimeError):

@@ -10,19 +10,20 @@ import logging
 
 
 def get_new_logging_instance():
-    with mock.patch.object(LoggingUtil, "__init__", return_value=None):
-        with mock.patch.object(LoggingUtil, "__new__", return_value=object.__new__(LoggingUtil)):
-            return LoggingUtil()
+    with mock.patch.object(LoggingUtil, "__new__", return_value=object.__new__(LoggingUtil)):
+        return LoggingUtil()
 
 
 def test_logging_util_is_a_singleton():
-    with mock.patch.object(LoggingUtil, "__init__", return_value=None):
+    with mock.patch.object(LoggingUtil, "_initialise", return_value=None):
         instance_a = LoggingUtil()
         instance_b = LoggingUtil()
         assert id(instance_a) == id(instance_b), "Expected the same object to be returned by the constructor, but different objects were returned"
+        LoggingUtil._initialise.assert_called_once()
 
 
-def test_logging_util__init():
+def test_logging_util__initialise():
+    LoggingUtil._INSTANCE = None
     with mock.patch.object(LoggingUtil, "setup_logging", return_value=None):
         with mock.patch.object(LoggingUtil, "flush_logging", return_value=None):
             with mock.patch.object(Logger, "removeHandler", return_value=None):
@@ -120,7 +121,7 @@ def test_logging_util__flush_logging():
     logging_util_inst = get_new_logging_instance()
     logging_util_inst.LOGGER_PROVIDER = LoggerProvider()
     with mock.patch.object(LoggerProvider, "force_flush", return_value=None):
-        with mock.patch.object(LoggingUtil, "__init__", return_value=None):
+        with mock.patch.object(LoggingUtil, "_initialise", return_value=None):
             logging_util_inst.flush_logging()
             LoggerProvider.force_flush.assert_called_once()
 
@@ -134,7 +135,7 @@ def test_logging_util__logging_to_appins():
     kwargs_repr = []
 
     with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-        with mock.patch.object(LoggingUtil, "__init__", return_value=None):
+        with mock.patch.object(LoggingUtil, "_initialise", return_value=None):
             resp = my_function()
             LoggingUtil.log_info.assert_called_once_with(f"Function my_function called with args: {', '.join(args_repr + kwargs_repr)}")
             assert resp == "Hello world"
@@ -149,7 +150,7 @@ def test_logging_util__logging_to_appins__with_args():
     kwargs_repr = ["c='bob'"]
 
     with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-        with mock.patch.object(LoggingUtil, "__init__", return_value=None):
+        with mock.patch.object(LoggingUtil, "_initialise", return_value=None):
             resp = my_function_with_args(1, 2, c="bob")
             LoggingUtil.log_info.assert_called_once_with(f"Function my_function_with_args called with args: {', '.join(args_repr + kwargs_repr)}")
             assert resp == "Hello world (1, 2, bob)"
@@ -165,7 +166,7 @@ def test_logging_util__logging_to_appins__with_notebook_exception():
     kwargs_repr = []
 
     with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-        with mock.patch.object(LoggingUtil, "__init__", return_value=None):
+        with mock.patch.object(LoggingUtil, "_initialise", return_value=None):
             notebookutils.mssparkutils.notebook.exit.return_value = "notebook exit"
             my_function_with_notebook_exception()
             LoggingUtil.log_info.assert_has_calls(
@@ -188,7 +189,7 @@ def test_logging_util__logging_to_appins__with_exception():
 
     with mock.patch.object(LoggingUtil, "log_info", return_value=None):
         with mock.patch.object(LoggingUtil, "log_exception", return_value=None):
-            with mock.patch.object(LoggingUtil, "__init__", return_value=None):
+            with mock.patch.object(LoggingUtil, "_initialise", return_value=None):
                 with pytest.raises(Exception):
                     my_function_with_exception()
                 LoggingUtil.log_info.assert_called_once_with(f"Function my_function_with_exception called with args: {', '.join(args_repr + kwargs_repr)}")
@@ -206,7 +207,7 @@ def test_logging_util__logging_to_appins__with_instance_method():
     kwargs_repr = []
 
     with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-        with mock.patch.object(LoggingUtil, "__init__", return_value=None):
+        with mock.patch.object(LoggingUtil, "_initialise", return_value=None):
             resp = inst.my_function()
             LoggingUtil.log_info.assert_called_once_with(f"Function my_function called with args: {', '.join(args_repr + kwargs_repr)}")
             assert resp == "Hello world"
@@ -223,7 +224,7 @@ def test_logging_util__logging_to_appins__with_class_method():
     kwargs_repr = []
 
     with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-        with mock.patch.object(LoggingUtil, "__init__", return_value=None):
+        with mock.patch.object(LoggingUtil, "_initialise", return_value=None):
             resp = MyClass.my_function()
             LoggingUtil.log_info.assert_called_once_with(f"Function my_function called with args: {', '.join(args_repr + kwargs_repr)}")
             assert resp == "Hello world"

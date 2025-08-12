@@ -7,6 +7,7 @@ from opentelemetry._logs import set_logger_provider
 from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
 from azure.monitor.opentelemetry.exporter import AzureMonitorLogExporter
 from tenacity import retry, wait_exponential, stop_after_delay, before_sleep
+import threading
 
 
 class LoggingUtil():
@@ -30,11 +31,14 @@ class LoggingUtil():
     def __new__(cls, *args, **kwargs):
         if not cls._INSTANCE:
             cls._INSTANCE = super(LoggingUtil, cls).__new__(cls, *args, **kwargs)
+            cls._INSTANCE._initialise()
         return cls._INSTANCE
 
-    def __init__(self):
+    def _initialise(self):
         """
-            Create a `LoggingUtil` instance. Only 1 instance is ever created, which is reused
+            Create a `LoggingUtil` instance. Only 1 instance is ever created, which is reused.
+
+            __init__ cannot be used because it is always called by __new__, even if cls._INSTANCE is not None
         """
         self.LOGGER_PROVIDER = LoggerProvider()
         self._LOGGING_INITIALISED = False
@@ -93,10 +97,26 @@ class LoggingUtil():
         """
             Attempt to flush logs to Azure App Insights
         """
-        try:
-            self.LOGGER_PROVIDER.force_flush(timeout_millis=timeout_seconds * 1000)
-        except Exception as e:
-            print(f"Flush failed: {e}")
+        print("Calling flush")
+        event = threading.Event()
+
+        def flush_logging_inner():
+            print("Flushing logs")
+            try:
+                self.LOGGER_PROVIDER.force_flush()
+            except Exception as e:
+                print(f"Flush failed: {e}")
+            event.set()
+
+        t = threading.Thread(target=flush_logging_inner)
+        t.daemon = True
+        t.start()
+
+        finished = event.wait(timeout=timeout_seconds)
+        if not finished:
+            print(f"force_flush() hung for >{timeout_seconds}s - continuing anyway")
+        else:
+            print("force_flush() completed")
 
     @classmethod
     def logging_to_appins(cls, func):
