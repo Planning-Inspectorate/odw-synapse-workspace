@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "c6e88e19-4f09-445b-b2a9-3cd5def8e0ec"
+				"spark.autotune.trackingId": "59ed28e4-bc1a-49ba-b5ba-a16d8c3ef26e"
 			}
 		},
 		"metadata": {
@@ -98,6 +98,49 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
+				"execution_count": 1
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise Application Insight Logging functions"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_utils_common_logging_output"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise variables"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"start_exec_time = str(datetime.now())\n",
+					"insert_count = 0\n",
+					"update_count = 0\n",
+					"delete_count = 0"
+				],
 				"execution_count": null
 			},
 			{
@@ -122,11 +165,8 @@
 					"%%sql\n",
 					"\n",
 					"CREATE OR REPLACE VIEW vw_appeal_folder\n",
-					"\n",
 					"    AS\n",
-					"\n",
-					"SELECT DISTINCT\n",
-					"\n",
+					"    SELECT DISTINCT\n",
 					"    -- CAST(LFD.HorizonFolderID AS INT)    AS horizonFolderId,\n",
 					"    CAST(LFD.ID AS INT)                 AS id,\n",
 					"    LFD.CaseReference                   AS caseReference,\n",
@@ -157,13 +197,11 @@
 					"        THEN 'withdrawn'\n",
 					"        ELSE Lower(LFD.caseStage)\n",
 					"        END                            AS caseStage\n",
-					"\n",
 					"FROM odw_harmonised_db.appeals_folder   AS LFD\n",
-					"\n",
 					"-- WHERE LEFT(LFD.CaseReference,3) IN (\"TR0\",\"WW0\",\"BC0\",\"WA0\",\"WS0\",\"EN0\");\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
@@ -181,38 +219,7 @@
 				"source": [
 					"spark.sql(f\"drop table if exists odw_curated_db.appeal_folder;\")"
 				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"## Table odw_curated_db.appeal_folder is created"
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"#logInfo(\"Writing odw_curated_db.appeal_folder\")"
-				],
-				"execution_count": null
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
@@ -230,7 +237,26 @@
 				"source": [
 					"from pyspark.sql import SparkSession\n",
 					"spark = SparkSession.builder.getOrCreate()\n",
-					"view_df = spark.sql('SELECT * FROM vw_appeal_folder')\n",
+					"view_df = spark.sql('SELECT * FROM vw_appeal_folder')"
+				],
+				"execution_count": 5
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Table odw_curated_db.appeal_folder is created"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"logInfo(\"Writing odw_curated_db.appeal_folder\")\n",
 					"view_df.write.mode(\"overwrite\").saveAsTable('odw_curated_db.appeal_folder')\n",
 					"logInfo(\"Written odw_curated_db.appeal_folder\")"
