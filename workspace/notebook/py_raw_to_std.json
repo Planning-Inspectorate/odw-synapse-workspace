@@ -20,12 +20,12 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "27c7bbab-36c4-40ef-be7c-8b1ebed99c68"
+				"spark.autotune.trackingId": "e1a52f4a-991d-42d1-9e55-ccb29f0659b3"
 			}
 		},
 		"metadata": {
 			"saveOutput": true,
-			"enableDebugMode": true,
+			"enableDebugMode": false,
 			"kernelspec": {
 				"name": "synapse_pyspark",
 				"display_name": "Synapse PySpark"
@@ -64,51 +64,11 @@
 					"## Prerequisites\n",
 					"1. Make sure the new raw file's entry has been added to the Orchestration i.e `/infrastructure/configuration/data-lake/orchestration/orchestration.json`\n",
 					"2. Make sure the standardised table's schema is present on the path specified in the entry added in step 1.\n",
-					"3. Only if the raw file is huge (several GBs), the spark pool might need some upscaling. Hence the following cell"
+					"3. Only if the raw file is huge (several GBs), the spark pool might need some upscaling. Hence the following cell\n",
+					"\n",
+					"**Spark Cluster Configuration** -> Apache Spark Version- 3.4, Python Version \t\t- 3.10, Delta Lake Version \t- 2.4\n",
+					""
 				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"%%configure -f\n",
-					"{\n",
-					"    \"conf\": {\n",
-					"        \"spark.kryoserializer.buffer.max\": \"2047m\",\n",
-					"        \"spark.driver.maxResultSize\": \"10g\",\n",
-					"        \"spark.rpc.message.maxSize\": \"1280\"\n",
-					"    }\n",
-					"}"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"%run utils/py_logging_decorator"
-				],
-				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -120,7 +80,7 @@
 					}
 				},
 				"source": [
-					"### Get the Storage Account"
+					"##### Import Required libraries"
 				]
 			},
 			{
@@ -132,32 +92,9 @@
 					"import calendar\n",
 					"from datetime import datetime, timedelta, date\n",
 					"import pandas as pd\n",
-					"import os\n",
-					"\n",
-					"spark = SparkSession.builder.getOrCreate()\n",
-					"\n",
-					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
-					"raw_container = \"abfss://odw-raw@\" + storage_account"
+					"import os"
 				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"%run \"1-odw-raw-to-standardised/Fileshare/SAP_HR/py_1_raw_to_standardised_hr_functions\""
-				],
-				"execution_count": null
+				"execution_count": 9
 			},
 			{
 				"cell_type": "markdown",
@@ -190,14 +127,14 @@
 				},
 				"source": [
 					"date_folder=''\n",
-					"source_folder=''\n",
+					"source_folder='AIEDocumentData'\n",
 					"source_frequency_folder=''\n",
 					"specific_file='' # if not provided, it will ingest all files in the date_folder\n",
 					"isMultiLine = True\n",
 					"delete_existing_table=False\n",
 					"dataAttribute = \"\""
 				],
-				"execution_count": null
+				"execution_count": 10
 			},
 			{
 				"cell_type": "markdown",
@@ -209,7 +146,142 @@
 					}
 				},
 				"source": [
-					"### Ingest the data from the raw/source into the standardised table. \n",
+					"##### Configure spark session"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%%configure -f\n",
+					"{\n",
+					"    \"conf\": {\n",
+					"        \"spark.kryoserializer.buffer.max\": \"2047m\",\n",
+					"        \"spark.driver.maxResultSize\": \"10g\",\n",
+					"        \"spark.rpc.message.maxSize\": \"1280\"\n",
+					"    }\n",
+					"}"
+				],
+				"execution_count": 11
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise Logging decorator"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": 12
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise Application Insight Logging functions"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_utils_common_logging_output"
+				],
+				"execution_count": 13
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Get the Storage Account"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"spark = SparkSession.builder.getOrCreate()\n",
+					"\n",
+					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"raw_container = \"abfss://odw-raw@\" + storage_account\n",
+					"\n",
+					"start_exec_time = str(datetime.now())\n",
+					"insert_count = 0\n",
+					"update_count = 0\n",
+					"delete_count = 0"
+				],
+				"execution_count": 14
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%run \"1-odw-raw-to-standardised/Fileshare/SAP_HR/py_1_raw_to_standardised_hr_functions\""
+				],
+				"execution_count": 15
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Ingest the data from the raw/source into the standardised table. \n",
 					"If the table doesn't already exist, this will create the table first and ingest the data."
 				]
 			},
@@ -279,13 +351,45 @@
 					"\n",
 					"        logInfo(f\"Ingesting {file.name}\")\n",
 					"        (ingestion_failure, row_count) = ingest_adhoc(storage_account, definition, source_path, file.name, expected_from, expected_to, process_name, isMultiLine, dataAttribute)\n",
+					"        \n",
+					"        insert_count = row_count\n",
+					"        end_exec_time = str(datetime.now())\n",
+					"        app_insight_logger.add_table_result(                    \n",
+					"            delta_table_name = f\"odw_standardised_db.{definition['Standardised_Table_Name']}\", \n",
+					"            insert_count = insert_count, \n",
+					"            update_count = 0, \n",
+					"            delete_count = 0, \n",
+					"            table_result = \"success\",\n",
+					"            start_exec_time = start_exec_time, \n",
+					"            end_exec_time = end_exec_time,\n",
+					"            total_exec_time = \"\",\n",
+					"            error_message = \"\"\n",
+					"        )\n",
+					"        \n",
 					"        logInfo(f\"Ingested {row_count} rows\")\n",
 					"\n",
 					"        if ingestion_failure:\n",
-					"            print(f\"Errors reported during Ingestion!!\")\n",
-					"            raise RuntimeError(\"Ingestion Failure\")\n",
+					"            logInfo(f\"Errors reported during Ingestion!!\")\n",
+					"            \n",
+					"            error_msg = f\"Errors reported during Ingestion!!\"\n",
+					"            \n",
+					"            error_message = app_insight_processor.format_error_message(error_msg, max_length=800)\n",
+					"            end_exec_time = str(datetime.now())\n",
+					"            app_insight_logger.add_table_result(\n",
+					"                delta_table_name = f\"odw_standardised_db.{definition['Standardised_Table_Name']}\",\n",
+					"                insert_count = insert_count,\n",
+					"                update_count = 0, \n",
+					"                delete_count = 0, \n",
+					"                table_result = \"failed\",\n",
+					"                start_exec_time = start_exec_time, \n",
+					"                end_exec_time = end_exec_time,\n",
+					"                total_exec_time = \"\",\n",
+					"                error_message = error_message\n",
+					"            )\n",
+					"            # Exit with the JSON result\n",
+					"            mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())            \n",
 					"        else:\n",
-					"            print(f\"No Errors reported during Ingestion\")\n",
+					"            logInfo(f\"No Errors reported during Ingestion\")\n",
 					"\n",
 					"            # Log ingestion metrics after successful ingestion\n",
 					"            logInfo(\"Updating ingestion metrics\")\n",
@@ -297,6 +401,27 @@
 					"        else:\n",
 					"            logError(\"No definition found\")\n",
 					""
+				],
+				"execution_count": 16
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Produce Json format output"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Exit with the JSON result\n",
+					"mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
 				],
 				"execution_count": null
 			}
