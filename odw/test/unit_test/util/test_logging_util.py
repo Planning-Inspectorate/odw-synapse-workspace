@@ -27,14 +27,15 @@ def test_logging_util__initialise():
     with mock.patch.object(LoggingUtil, "setup_logging", return_value=None):
         with mock.patch.object(LoggingUtil, "flush_logging", return_value=None):
             with mock.patch.object(Logger, "removeHandler", return_value=None):
-                notebookutils.mssparkutils.runtime.context = {
+                mock_mssparkutils_context = {
                     "pipelinejobid": "some_guid",
                     "isForPipeline": True
                 }
-                logging_util_inst = LoggingUtil()
-                assert isinstance(logging_util_inst.LOGGER_PROVIDER, LoggerProvider)
-                assert logging_util_inst.pipelinejobid == "some_guid"
-                assert isinstance(logging_util_inst.logger, Logger)
+                with mock.patch("notebookutils.mssparkutils.runtime.context", mock_mssparkutils_context):
+                    logging_util_inst = LoggingUtil()
+                    assert isinstance(logging_util_inst.LOGGER_PROVIDER, LoggerProvider)
+                    assert logging_util_inst.pipelinejobid == "some_guid"
+                    assert isinstance(logging_util_inst.logger, Logger)
 
 
 def test_logging_util__log_info():
@@ -85,17 +86,17 @@ def test_logging_util__setup_logging(test_case):
     logging_util_inst._LOGGING_INITIALISED = logging_initialised
     logging_util_inst.logger = logging.getLogger()
     logging_util_inst.pipelinejobid = "some_pipeline_guid"
-    notebookutils.mssparkutils.credentials.getSecretWithLS.return_value = "some_connection_string;blah;blah"
-    mock_exporter = mock.MagicMock()
-    mock_batch_log_record_processor = mock.MagicMock()
-    with mock.patch.object(AzureMonitorLogExporter, "from_connection_string", return_value=mock_exporter):
-        with mock.patch.object(LoggerProvider, "add_log_record_processor"):
-            with mock.patch.object(BatchLogRecordProcessor, "__new__", return_value=mock_batch_log_record_processor):
-                logging_util_inst.setup_logging(force_initialise)
-                BatchLogRecordProcessor.__new__.assert_called_once_with(BatchLogRecordProcessor, mock_exporter, schedule_delay_millis=5000)
-                LoggerProvider.add_log_record_processor.assert_called_once_with(mock_batch_log_record_processor)
-                assert logging_util_inst.logger.level == logging.INFO
-                assert logging_util_inst._LOGGING_INITIALISED
+    with mock.patch.object(notebookutils.mssparkutils.credentials, "getSecretWithLS", return_value="some_connection_string;blah;blah"):
+        mock_exporter = mock.MagicMock()
+        mock_batch_log_record_processor = mock.MagicMock()
+        with mock.patch.object(AzureMonitorLogExporter, "from_connection_string", return_value=mock_exporter):
+            with mock.patch.object(LoggerProvider, "add_log_record_processor"):
+                with mock.patch.object(BatchLogRecordProcessor, "__new__", return_value=mock_batch_log_record_processor):
+                    logging_util_inst.setup_logging(force_initialise)
+                    BatchLogRecordProcessor.__new__.assert_called_once_with(BatchLogRecordProcessor, mock_exporter, schedule_delay_millis=5000)
+                    LoggerProvider.add_log_record_processor.assert_called_once_with(mock_batch_log_record_processor)
+                    assert logging_util_inst.logger.level == logging.INFO
+                    assert logging_util_inst._LOGGING_INITIALISED
 
 
 def test_logging_util__setup_logging__already_initialised():
@@ -105,16 +106,16 @@ def test_logging_util__setup_logging__already_initialised():
     logging_util_inst._LOGGING_INITIALISED = True
     logging_util_inst.logger = logging.getLogger()
     logging_util_inst.pipelinejobid = "some_pipeline_guid"
-    notebookutils.mssparkutils.credentials.getSecretWithLS.return_value = "some_connection_string;blah;blah"
-    mock_exporter = mock.MagicMock()
-    mock_batch_log_record_processor = mock.MagicMock()
-    with mock.patch.object(AzureMonitorLogExporter, "from_connection_string", return_value=mock_exporter):
-        with mock.patch.object(LoggerProvider, "add_log_record_processor"):
-            with mock.patch.object(BatchLogRecordProcessor, "__new__", return_value=mock_batch_log_record_processor):
-                logging_util_inst.setup_logging()
-                assert not AzureMonitorLogExporter.from_connection_string.called
-                assert not LoggerProvider.add_log_record_processor.called
-                assert not BatchLogRecordProcessor.__new__.called
+    with mock.patch.object(notebookutils.mssparkutils.credentials, "getSecretWithLS", return_value="some_connection_string;blah;blah"):
+        mock_exporter = mock.MagicMock()
+        mock_batch_log_record_processor = mock.MagicMock()
+        with mock.patch.object(AzureMonitorLogExporter, "from_connection_string", return_value=mock_exporter):
+            with mock.patch.object(LoggerProvider, "add_log_record_processor"):
+                with mock.patch.object(BatchLogRecordProcessor, "__new__", return_value=mock_batch_log_record_processor):
+                    logging_util_inst.setup_logging()
+                    assert not AzureMonitorLogExporter.from_connection_string.called
+                    assert not LoggerProvider.add_log_record_processor.called
+                    assert not BatchLogRecordProcessor.__new__.called
 
 
 def test_logging_util__flush_logging():
@@ -167,15 +168,16 @@ def test_logging_util__logging_to_appins__with_notebook_exception():
 
     with mock.patch.object(LoggingUtil, "log_info", return_value=None):
         with mock.patch.object(LoggingUtil, "_initialise", return_value=None):
-            notebookutils.mssparkutils.notebook.exit.return_value = "notebook exit"
-            my_function_with_notebook_exception()
-            LoggingUtil.log_info.assert_has_calls(
-                [
-                    mock.call(f"Function my_function_with_notebook_exception called with args: {', '.join(args_repr + kwargs_repr)}"),
-                    mock.call("Notebook exited: Some exception")
-                ]
-            )
-            notebookutils.mssparkutils.notebook.exit.assert_called_once_with(notebook_exit_exception)
+            with mock.patch.object(notebookutils.mssparkutils.notebook.exit, "exit", return_value="notebook exit"):
+                notebookutils.mssparkutils.notebook.exit.return_value = "notebook exit"
+                my_function_with_notebook_exception()
+                LoggingUtil.log_info.assert_has_calls(
+                    [
+                        mock.call(f"Function my_function_with_notebook_exception called with args: {', '.join(args_repr + kwargs_repr)}"),
+                        mock.call("Notebook exited: Some exception")
+                    ]
+                )
+                notebookutils.mssparkutils.notebook.exit.assert_called_once_with(notebook_exit_exception)
 
 
 def test_logging_util__logging_to_appins__with_exception():

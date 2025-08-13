@@ -68,16 +68,15 @@ def test_delete_table__successful():
             with mock.patch.object(LoggingUtil, "_initialise", return_value=None):
                 with mock.patch.object(LoggingUtil, "log_info", return_value=None):
                     with mock.patch.object(LoggingUtil, "log_exception", return_value=None):
-                        notebookutils.mssparkutils.fs.rm = mock.MagicMock()
-                        notebookutils.mssparkutils.fs.rm.return_value = None
-                        TableUtil.delete_table(db_name, table_name)
-                        SparkSession.sql.assert_has_calls(
-                            [
-                                mock.call(f"DESCRIBE DETAIL {db_name}.{table_name}"),
-                                mock.call(f"DROP TABLE IF EXISTS {db_name}.{table_name}")
-                            ]
-                        )
-                        notebookutils.mssparkutils.fs.rm.assert_called_once_with(table_location, True)
+                        with mock.patch.object(notebookutils.mssparkutils.fs, "rm", return_value=None):
+                            TableUtil.delete_table(db_name, table_name)
+                            SparkSession.sql.assert_has_calls(
+                                [
+                                    mock.call(f"DESCRIBE DETAIL {db_name}.{table_name}"),
+                                    mock.call(f"DROP TABLE IF EXISTS {db_name}.{table_name}")
+                                ]
+                            )
+                            notebookutils.mssparkutils.fs.rm.assert_called_once_with(table_location, True)
 
 
 def test_delete_table__table_does_not_exist():
@@ -87,17 +86,16 @@ def test_delete_table__table_does_not_exist():
         with mock.patch.object(SparkSession, "sql", return_value=None):
             with mock.patch.object(LoggingUtil, "_initialise", return_value=None):
                 with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-                    notebookutils.mssparkutils.fs.rm = mock.MagicMock()
-                    notebookutils.mssparkutils.fs.rm.return_value = None
-                    TableUtil.delete_table(db_name, table_name)
-                    assert not SparkSession.sql.called
-                    LoggingUtil.log_info.assert_has_calls(
-                        [
-                            mock.call("Table does not exist")
-                        ],
-                        any_order=True
-                    )
-                    assert not notebookutils.mssparkutils.fs.rm.called
+                    with mock.patch.object(notebookutils.mssparkutils.fs, "rm", return_value=None):
+                        TableUtil.delete_table(db_name, table_name)
+                        assert not SparkSession.sql.called
+                        LoggingUtil.log_info.assert_has_calls(
+                            [
+                                mock.call("Table does not exist")
+                            ],
+                            any_order=True
+                        )
+                        assert not notebookutils.mssparkutils.fs.rm.called
 
 
 def test_delete_table__multiple_occurrences():
@@ -117,12 +115,11 @@ def test_delete_table__multiple_occurrences():
             with mock.patch.object(LoggingUtil, "_initialise", return_value=None):
                 with mock.patch.object(LoggingUtil, "log_info", return_value=None):
                     with mock.patch.object(LoggingUtil, "log_exception", return_value=None):
-                        with pytest.raises(RuntimeError):
-                            notebookutils.mssparkutils.fs.rm = mock.MagicMock()
-                            notebookutils.mssparkutils.fs.rm.return_value = None
-                            TableUtil.delete_table(db_name, table_name)
-                        SparkSession.sql.assert_called_once_with(f"DESCRIBE DETAIL {db_name}.{table_name}")
-                        assert not notebookutils.mssparkutils.fs.rm.called
+                        with mock.patch.object(notebookutils.mssparkutils.fs, "rm", return_value=None):
+                            with pytest.raises(RuntimeError):
+                                TableUtil.delete_table(db_name, table_name)
+                                SparkSession.sql.assert_called_once_with(f"DESCRIBE DETAIL {db_name}.{table_name}")
+                                assert not notebookutils.mssparkutils.fs.rm.called
 
 
 def test_delete_table_contents__successful():
@@ -136,17 +133,16 @@ def test_delete_table_contents__successful():
             with mock.patch.object(LoggingUtil, "_initialise", return_value=None):
                 with mock.patch.object(LoggingUtil, "log_info", return_value=None):
                     with mock.patch.object(LoggingUtil, "log_exception", return_value=None):
-                        notebookutils.mssparkutils.fs.rm = mock.MagicMock()
-                        notebookutils.mssparkutils.fs.rm.return_value = None
-                        TableUtil.delete_table_contents(db_name, table_name)
-                        SparkSession.sql.assert_has_calls(
-                            [
-                                mock.call(f"DESCRIBE DETAIL {db_name}.{table_name}"),
-                                mock.call(f"DELETE FROM {db_name}.{table_name}")
-                            ]
-                        )
-                        # Should not delete the underlying file system
-                        assert not notebookutils.mssparkutils.fs.rm.called
+                        with mock.patch.object(notebookutils.mssparkutils.fs, "rm", return_value=None):
+                            TableUtil.delete_table_contents(db_name, table_name)
+                            SparkSession.sql.assert_has_calls(
+                                [
+                                    mock.call(f"DESCRIBE DETAIL {db_name}.{table_name}"),
+                                    mock.call(f"DELETE FROM {db_name}.{table_name}")
+                                ]
+                            )
+                            # Should not delete the underlying file system
+                            assert not notebookutils.mssparkutils.fs.rm.called
 
 
 def test_delete_table_contents__table_does_not_exist():
@@ -183,9 +179,8 @@ def test_delete_table_contents__multiple_occurrences():
             with mock.patch.object(LoggingUtil, "_initialise", return_value=None):
                 with mock.patch.object(LoggingUtil, "log_info", return_value=None):
                     with mock.patch.object(LoggingUtil, "log_exception", return_value=None):
-                        with pytest.raises(RuntimeError):
-                            notebookutils.mssparkutils.fs.rm = mock.MagicMock()
-                            notebookutils.mssparkutils.fs.rm.return_value = None
-                            TableUtil.delete_table_contents(db_name, table_name)
-                        SparkSession.sql.assert_called_once_with(f"DESCRIBE DETAIL {db_name}.{table_name}")
-                        assert not notebookutils.mssparkutils.fs.rm.called
+                        with mock.patch.object(notebookutils.mssparkutils.fs, "rm", return_value=None):
+                            with pytest.raises(RuntimeError):
+                                TableUtil.delete_table_contents(db_name, table_name)
+                            SparkSession.sql.assert_called_once_with(f"DESCRIBE DETAIL {db_name}.{table_name}")
+                            assert not notebookutils.mssparkutils.fs.rm.called
