@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "59ed28e4-bc1a-49ba-b5ba-a16d8c3ef26e"
+				"spark.autotune.trackingId": "3121c70e-3b0f-43ac-9e25-4c323a43a8a8"
 			}
 		},
 		"metadata": {
@@ -257,9 +257,44 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"logInfo(\"Writing odw_curated_db.appeal_folder\")\n",
-					"view_df.write.mode(\"overwrite\").saveAsTable('odw_curated_db.appeal_folder')\n",
-					"logInfo(\"Written odw_curated_db.appeal_folder\")"
+					"try:\n",
+					"    logInfo(\"Writing odw_curated_db.appeal_folder\")\n",
+					"\n",
+					"    insert_count = view_df.count()\n",
+					"    view_df.write.mode(\"overwrite\").saveAsTable('odw_curated_db.appeal_folder')\n",
+					"    logInfo(\"Written odw_curated_db.appeal_folder\")\n",
+					"    \n",
+					"    end_exec_time = str(datetime.now())\n",
+					"    app_insight_logger.add_table_result(                    \n",
+					"        delta_table_name = 'odw_curated_db.appeal_folder',\n",
+					"        insert_count = insert_count, \n",
+					"        update_count = update_count, \n",
+					"        delete_count = delete_count, \n",
+					"        table_result = \"success\",\n",
+					"        start_exec_time = start_exec_time, \n",
+					"        end_exec_time = end_exec_time,\n",
+					"        total_exec_time = \"\",\n",
+					"        error_message = \"\"\n",
+					"    )\n",
+					"    \n",
+					"except Exception as e:\n",
+					"    logError(f\"Error appending data to the curated layer table :\\n{e}\")\n",
+					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\n",
+					"    end_exec_time = str(datetime.now())\n",
+					"    app_insight_logger.add_table_result(\n",
+					"        delta_table_name = 'odw_curated_db.appeal_folder',\n",
+					"        insert_count = insert_count, \n",
+					"        update_count = update_count, \n",
+					"        delete_count = delete_count, \n",
+					"        table_result = \"failed\",\n",
+					"        start_exec_time = start_exec_time, \n",
+					"        end_exec_time = end_exec_time,\n",
+					"        total_exec_time = \"\",\n",
+					"        error_message = error_message\n",
+					"    )\n",
+					"    # Exit with the JSON result\n",
+					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())    \n",
+					""
 				],
 				"execution_count": null
 			}
