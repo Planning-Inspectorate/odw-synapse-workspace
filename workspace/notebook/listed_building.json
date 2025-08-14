@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "3c6274c0-92a1-4943-932c-990f7f8b3d18"
+				"spark.autotune.trackingId": "0120a10f-4ae5-4999-949b-7ad50e06478f"
 			}
 		},
 		"metadata": {
@@ -61,6 +61,24 @@
 					}
 				},
 				"source": [
+					"#### The purpose of this pyspark notebook is to ingest from odw_harmonised_db.listed_building  into single odw_curated_db.appelisted_buildingal_s78 external table.\n",
+					"\n",
+					"**Description**  \n",
+					"The functionality of this notebook is to ingest data from odw_harmonised_db.listed_building table into a single odw_curated_db.listed_building table.The addtitional functionality has been added to log the audit information to Application Insight by creating a Json dump at notebook exist&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\n",
+					"\n",
+					"**Spark Cluster Configuration** -> Apache Spark Version- 3.4, Python Version \t\t- 3.10, Delta Lake Version \t- 2.4"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
 					"##### Import Packages"
 				]
 			},
@@ -86,6 +104,19 @@
 				"execution_count": null
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise Logging decorator"
+				]
+			},
+			{
 				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
@@ -104,6 +135,19 @@
 				"execution_count": null
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise Application Insight Logging functions"
+				]
+			},
+			{
 				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
@@ -119,7 +163,12 @@
 				"source": [
 					"db_name: str = \"odw_curated_db\"\n",
 					"entity_name: str = \"listed-building\"\n",
-					"table_name: str = \"odw_curated_db.listed_building\""
+					"table_name: str = \"odw_curated_db.listed_building\"\n",
+					"\n",
+					"start_exec_time = str(datetime.now())\n",
+					"insert_count = 0\n",
+					"update_count = 0\n",
+					"delete_count = 0"
 				],
 				"execution_count": null
 			},
@@ -150,85 +199,38 @@
 					}
 				},
 				"source": [
-					"df = spark.sql(f\"\"\"\n",
-					"    SELECT DISTINCT\n",
-					"    \n",
-					"        CAST(entity AS LONG) AS entity,\n",
-					"        reference,\n",
-					"        name,\n",
-					"        listedBuildingGrade\n",
-					"    \n",
-					"    FROM odw_harmonised_db.listed_building\n",
-					"    \n",
-					"    WHERE dateReceived = (\n",
-					"        SELECT MAX(dateReceived) \n",
-					"        FROM odw_harmonised_db.listed_building\n",
+					"try:\n",
+					"    df = spark.sql(f\"\"\"\n",
+					"        SELECT DISTINCT    \n",
+					"            CAST(entity AS LONG) AS entity,\n",
+					"            reference,\n",
+					"            name,\n",
+					"            listedBuildingGrade    \n",
+					"        FROM odw_harmonised_db.listed_building    \n",
+					"        WHERE dateReceived = (\n",
+					"            SELECT MAX(dateReceived) \n",
+					"            FROM odw_harmonised_db.listed_building\n",
+					"            )\n",
+					"        \"\"\")\n",
+					"\n",
+					"except Exception as e:\n",
+					"    logError(f\"Error in SQL query for table odw_harmonised_db.listed_building :\\n{e}\")\n",
+					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\n",
+					"    end_exec_time = str(datetime.now())\n",
+					"    app_insight_logger.add_table_result(\n",
+					"        delta_table_name = table_name,\n",
+					"        insert_count = insert_count, \n",
+					"        update_count = update_count, \n",
+					"        delete_count = delete_count, \n",
+					"        table_result = \"failed\",\n",
+					"        start_exec_time = start_exec_time, \n",
+					"        end_exec_time = end_exec_time,\n",
+					"        total_exec_time = \"\",\n",
+					"        error_message = error_message\n",
 					"    )\n",
-					"\"\"\")\n",
+					"    # Exit with the JSON result\n",
+					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())    \n",
 					""
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"##### Define schema"
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"schema = mssparkutils.notebook.run(\"py_create_spark_schema\", 30, {\"db_name\": db_name, \"entity_name\": entity_name})\n",
-					"spark_schema = StructType.fromJson(json.loads(schema))"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"##### Create DataFrame with the correct schema"
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"data = spark.createDataFrame(df.rdd, schema=spark_schema)"
 				],
 				"execution_count": null
 			},
@@ -248,9 +250,43 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"logInfo(f\"Writing to {table_name}\")\n",
-					"df.write.mode(\"overwrite\").format(\"delta\").saveAsTable(table_name)\n",
-					"logInfo(f\"Written to {table_name}\")"
+					"try:\n",
+					"    logInfo(f\"Writing to {table_name}\")\n",
+					"    insert_count = df.count()\n",
+					"\n",
+					"    df.write.mode(\"overwrite\").format(\"delta\").saveAsTable(table_name)\n",
+					"    logInfo(f\"Written to {table_name}\")\n",
+					"    \n",
+					"    end_exec_time = str(datetime.now())\n",
+					"    app_insight_logger.add_table_result(                    \n",
+					"        delta_table_name = table_name,\n",
+					"        insert_count = insert_count, \n",
+					"        update_count = update_count, \n",
+					"        delete_count = delete_count, \n",
+					"        table_result = \"success\",\n",
+					"        start_exec_time = start_exec_time, \n",
+					"        end_exec_time = end_exec_time,\n",
+					"        total_exec_time = \"\",\n",
+					"        error_message = \"\"\n",
+					"    )\n",
+					"    \n",
+					"except Exception as e:\n",
+					"    logError(f\"Error appending data to the curated layer table :\\n{e}\")\n",
+					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\n",
+					"    end_exec_time = str(datetime.now())\n",
+					"    app_insight_logger.add_table_result(\n",
+					"        delta_table_name = table_name,\n",
+					"        insert_count = insert_count, \n",
+					"        update_count = update_count, \n",
+					"        delete_count = delete_count, \n",
+					"        table_result = \"failed\",\n",
+					"        start_exec_time = start_exec_time, \n",
+					"        end_exec_time = end_exec_time,\n",
+					"        total_exec_time = \"\",\n",
+					"        error_message = error_message\n",
+					"    )\n",
+					"    # Exit with the JSON result\n",
+					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())    "
 				],
 				"execution_count": null
 			}
