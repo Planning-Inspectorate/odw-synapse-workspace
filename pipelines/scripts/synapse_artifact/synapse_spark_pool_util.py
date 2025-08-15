@@ -1,4 +1,4 @@
-from pipelines.scripts.util import Util
+from pipelines.scripts.util.util import Util
 from pipelines.scripts.synapse_artifact.synapse_artifact_util import SynapseArtifactUtil
 from typing import List, Dict, Any
 

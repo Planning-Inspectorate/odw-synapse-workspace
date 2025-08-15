@@ -1,0 +1,23 @@
+parameters:
+  agentPool: ''
+  env: ''
+
+##
+# Run tests for the odw python package
+##
+stages:
+- stage: RunODWPackageTests
+  displayName: 'Run tests for the ODW package in the ${{ parameters.env }} environment'
+  condition: |
+    and(not(or(failed(), canceled())), ne('${{ parameters.env }}', 'prod'))
+  jobs:
+  - template: ${{variables['System.DefaultWorkingDirectory']}}/pipelines/jobs/run-odw-package-unittests.yaml
+    parameters:
+      agentPool: ${{ parameters.agentPool }}
+      env: ${{ parameters.env }}
+  - ${{ if ne(parameters.env, 'build') }}:
+    - template: ${{variables['System.DefaultWorkingDirectory']}}/pipelines/jobs/run-odw-package-integrationtests.yaml
+      parameters:
+        agentPool: ${{ parameters.agentPool }}
+        env: ${{ parameters.env }}
+

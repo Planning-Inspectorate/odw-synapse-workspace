@@ -1,6 +1,6 @@
 from pipelines.scripts.synapse_artifact.synapse_artifact_util import SynapseArtifactUtil
 from pipelines.scripts.synapse_artifact.synapse_notebook_util import SynapseNotebookUtil, NotAPythonNotebookException
-from pipelines.scripts.util import Util
+from pipelines.scripts.util.util import Util
 from copy import deepcopy
 import mock
 from typing import Tuple
