@@ -1,37 +1,58 @@
 **PR Template**
 
- 1. Are there new source to raw datasets?
+Note: Run the correct ADO pipeline for this PR - check the list here:
+[ODW Repositories](https://pins-ds.atlassian.net/wiki/spaces/ODW/pages/2285764637/ODW+repositories)
+ 1. JIRA Ticket Reference  :
+         <!-- Replace with JIRA ticket number and title -->
+    [ Enter JIRA ticket number and Title here]
+
+ 2.  Summary of the work : 
+         <!-- Replace with a short summary of changes -->
+    [ Enter Summary here]
+ 
+ 3.  New Source-to-Raw Datasets
 	
-	 - [ ] If yes - has a trigger been attached at the appropriate frequency?
-  	 - [ ] No
+	 - [ ] New source data has been added
+  	    - A trigger has been attached at the appropriate frequency
 
- 2. Have any new tables been created in Standardised?
+ 4.  New Tables in Standardised Layer
 
-  	- [ ] No
-   	- [ ] If yes:
-		- [ ] orchestration.json has been updated and tested in Dev and has been / is about to be PRd into main
-		- [ ] the new schema exists inside *odw-config/standardised-table-definitions* OR is about to be PRd into main
-			- Make sure to run Platform Integrate and Platform Deploy to Dev at least to ensure the schema is deployed into Synapse Dev Live 
-		- [ ] Is the raw-to-standardised python script scheduled to run for this dataset grouping?
- 3. Have any new tables been created in Harmonised or Curated?
+   	 - [ ] New standardised tables have been created
+		 -  orchestration.json is updated and tested in Dev, and PR is open or merged to main
+		 -  Schema exists in odw-config/standardised-table-definitions or is about to be PRd
+ 
+ 5.   New Tables in Harmonised or Curated Layers
 
-   	 - [ ] No
-     	 - [ ] If yes
-	 	- [ ]  *2-odw-standardised-to-harmonised/py_odw_harmonised_table_creation* OR 4-*odw-harmonised-to-curated/py_odw_curated_table_creation* are set up to run in the pipeline *pln_post_deployments* with the base parameter specifying the correct table
-		- [ ] the new schema exists inside *odw-config/harmonised-table-definitions* / *odw-config/curated-table-definitions* OR is about to be PRd into main
-			- Make sure to run Platform Integrate and Platform Deploy to Dev at least to ensure the schema is deployed into Synapse Dev Live 
- 4. Have any tables changed AND/OR have any columns changed in any scripts?
-We only care about new columns or columns that change type.
-	- [ ] No
- 	- [ ] If yes:
-		- [ ] Please set py_change_table to run in the pipeline *pln_post_deployments*
-		- [ ] Please create a script to backdate and fill in this new column in Test and Prod
-			Only delete and recreate tables with caution!
- 4. Have any scripts run in isolation in dev? Please look at the *"spark.autotune.trackingId"*
-		- If these changes need to be reflected in Test and Prod, please add to the pipeline *post-			deployment/pln_post_deployment*
-	- [ ] Yes - I have reflected this script in the *pln_post_deployments* pipeline
-	- [ ] Yes - This script is part of a scheduled run and has been added to the appropriate end to end pipeline with a trigger at the correct frequency
-	- [ ] No - This change does not need to take place in Test and Prod
-	- [ ] No - No scripts have run 
+      - [ ] New harmonised or curated tables have been created
+ 		- Script is configured in the pipeline pln_post_deployments
+        - Schema exists in odw-config/harmonised-table-definitions or curated-table-definitions or is about to be PRd
+ 
+ 6.  Schema or Column Changes
+    (Only new columns or columns with changed data types are in scope)
+
+     - [ ] Changes to table structure or columns
+		  - py_change_table is set to run in pln_post_deployments
+	      - A script has been created to backfill or populate new column(s) in Test and Prod
+			 - [ ] Avoid dropping and recreating tables unless strictly necessary
+
+ 7. Script Execution in Build
+	 - [ ] Scripts have run in isolation in Build
+		-  Script has been added to pln_post_deployments
+	    -  Script is now part of a scheduled pipeline with correct triggers
+	 - [ ] No scripts have run or no action required in Test/Prod
+
+8. Table Creation and Schema Validation
+   
+  	 - [ ] All required tables have been created
+  	 - [ ] Schema has been validated against the requirements
+
+9.  Deployment and Schema Change Documentation
 	
+  	 - [ ] Deployment steps and rollback procedures are documented
+  	 - [ ] Schema change handling is outlined and tested
+
+10. Archiving Process Review
+
+  	 - [ ] Automatic archiving logic has been reviewed
+  	 - [ ] Archiving schedules and retention policies are validated
  
