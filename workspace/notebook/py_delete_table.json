@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "92ecc26d-85c7-4b8f-a2f9-36848261fbaf"
+				"spark.autotune.trackingId": "b034842c-5b0b-45de-90ef-22606136441e"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -70,6 +70,13 @@
 				"execution_count": null
 			},
 			{
+				"cell_type": "code",
+				"source": [
+					"from odw.core.util.table_util import TableUtil"
+				],
+				"execution_count": null
+			},
+			{
 				"cell_type": "markdown",
 				"metadata": {
 					"nteract": {
@@ -80,7 +87,7 @@
 				},
 				"source": [
 					"**IMPORTANT**\r\n",
-					"Delta recommends that if you want to only delete the content of a table, then not to delete the table itself as this will remove the history. Please see py_delete_table_contents"
+					"Delta recommends that if you want to only delete the content of a table, then not to delete the table itself as this will remove the history. Please see `py_delete_table_contents` or `TableUtil.delete_table_contents`"
 				]
 			},
 			{
@@ -103,59 +110,15 @@
 					"#db_name=\"odw_standardised_db\"\r\n",
 					"#db_name=\"odw_harmonised_db\"\r\n",
 					"#db_name=\"odw_curated_db\"\r\n",
-					"db_name=\"\"\r\n",
-					"table_name=\"\""
+					"db_name = \"\"\r\n",
+					"table_name = \"\""
 				],
 				"execution_count": null
 			},
 			{
 				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
 				"source": [
-					"@logging_to_appins\r\n",
-					"def delete_table(db_name, table_name):\r\n",
-					"    from pyspark.sql import SparkSession\r\n",
-					"    from notebookutils import mssparkutils\r\n",
-					"    spark = SparkSession.builder.getOrCreate()\r\n",
-					"    if spark._jsparkSession.catalog().tableExists(db_name, table_name):\r\n",
-					"        table_details = spark.sql(f\"DESCRIBE DETAIL {db_name}.{table_name}\").toPandas()\r\n",
-					"        if len(table_details) > 1:\r\n",
-					"            raise RuntimeError(\"too many locations associated with the table!\")\r\n",
-					"        else:\r\n",
-					"            loc = table_details['location'][0]\r\n",
-					"            mssparkutils.fs.rm(loc, True)\r\n",
-					"            spark.sql(f\"DROP TABLE IF EXISTS {db_name}.{table_name}\")\r\n",
-					"            logInfo(f\"Dropped table {db_name}.{table_name}\")\r\n",
-					"    else:\r\n",
-					"        logInfo(\"Table does not exist\")"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"delete_table(db_name,table_name)"
+					"TableUtil.delete_table(db_name, table_name)"
 				],
 				"execution_count": null
 			}
