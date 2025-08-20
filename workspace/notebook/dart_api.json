@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "a0ac691a-c309-46f9-88d5-427456e15ed7"
+				"spark.autotune.trackingId": "fe94ee97-7aa0-4561-a6a9-ad0440531b47"
 			}
 		},
 		"metadata": {
@@ -52,6 +52,24 @@
 		},
 		"cells": [
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### The purpose of this pyspark notebook is to ingest into a single delta table, odw_curated_db.dart_api.\r\n",
+					"\r\n",
+					"**Description**  \r\n",
+					"The functionality of this notebook is to ingest data from multiple table sources into a single odw_curated_db.dart_api delta table, reading from multiple odw_harmonised layer delta tables.The addtitional functionality has been added to log the audit information to Application Insight by creating a Json dump at notebook exit.\r\n",
+					"\r\n",
+					"**Spark Cluster Configuration** -> Apache Spark Version- 3.4, Python Version \t\t- 3.10, Delta Lake Version \t- 2.4"
+				]
+			},
+			{
 				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
@@ -66,6 +84,50 @@
 				},
 				"source": [
 					"from delta.tables import DeltaTable"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise Application Insight Logging functions"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_utils_common_logging_output"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise variables"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"table_name = \"odw_curated_db.dart_api\"\r\n",
+					"start_exec_time = str(datetime.now())\r\n",
+					"insert_count = 0\r\n",
+					"update_count = 0\r\n",
+					"delete_count = 0"
 				],
 				"execution_count": null
 			},
@@ -98,151 +160,169 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"df = spark.sql(\r\n",
-					"    \"\"\"\r\n",
-					"    SELECT\r\n",
-					"    h.caseId\r\n",
-					"    ,h.caseReference\r\n",
-					"    ,h.caseStatus\r\n",
-					"    ,h.caseType\r\n",
-					"    ,h.caseProcedure\r\n",
-					"    ,h.lpaCode\r\n",
-					"    ,l.lpaName\r\n",
-					"    ,h.allocationLevel\r\n",
-					"    ,h.allocationBand\r\n",
-					"    ,h.caseSpecialisms\r\n",
-					"    ,h.caseSubmittedDate\r\n",
-					"    ,h.caseCreatedDate\r\n",
-					"    ,h.caseUpdatedDate\r\n",
-					"    ,h.caseValidDate\r\n",
-					"    ,h.caseValidationDate\r\n",
-					"    ,h.caseValidationOutcome\r\n",
-					"    ,h.caseValidationInvalidDetails\r\n",
-					"    ,h.caseValidationIncompleteDetails\r\n",
-					"    ,h.caseExtensionDate\r\n",
-					"    ,h.caseStartedDate\r\n",
-					"    ,h.casePublishedDate\r\n",
-					"    ,h.linkedCaseStatus\r\n",
-					"    ,h.leadCaseReference\r\n",
-					"    ,h.caseWithdrawnDate\r\n",
-					"    ,h.caseTransferredDate\r\n",
-					"    ,h.transferredCaseClosedDate\r\n",
-					"    ,h.caseDecisionOutcomeDate\r\n",
-					"    ,h.caseDecisionPublishedDate\r\n",
-					"    ,h.caseDecisionOutcome\r\n",
-					"    ,h.caseCompletedDate\r\n",
-					"    ,h.enforcementNotice\r\n",
-					"    ,h.applicationReference\r\n",
-					"    ,h.applicationDate\r\n",
-					"    ,h.applicationDecision\r\n",
-					"    ,h.applicationDecisionDate as lpaDecisionDate\r\n",
-					"    ,h.caseSubmissionDueDate\r\n",
-					"    ,h.siteAddressLine1\r\n",
-					"    ,h.siteAddressLine2\r\n",
-					"    ,h.siteAddressTown\r\n",
-					"    ,h.siteAddressCounty\r\n",
-					"    ,h.siteAddressPostcode\r\n",
-					"    ,h.isCorrectAppealType\r\n",
-					"    ,h.originalDevelopmentDescription\r\n",
-					"    ,h.changedDevelopmentDescription\r\n",
-					"    ,h.newConditionDetails\r\n",
-					"    ,h.nearbyCaseReferences\r\n",
-					"    ,h.neighbouringSiteAddresses\r\n",
-					"    ,h.affectedListedBuildingNumbers\r\n",
-					"    ,h.appellantCostsAppliedFor\r\n",
-					"    ,h.lpaCostsAppliedFor\r\n",
-					"    ,su.firstName + ' ' + su.LastName as appellantName\r\n",
-					"    ,e.eventType as typeOfEvent\r\n",
-					"    ,e.eventStartDateTime as startDateOfTheEvent\r\n",
-					"    ,ent_ins.givenName + ' ' +  ent_ins.surname as inspectorName\r\n",
-					"    ,ent_co.givenName + ' ' +  ent_co.surname as caseOfficerName\r\n",
-					"    ,i.qualifications as inspectorQualifications\r\n",
-					"FROM \r\n",
-					"    odw_harmonised_db.sb_appeal_has h\r\n",
-					"        left join odw_harmonised_db.pins_lpa l on h.lpaCode = l.pinsLpaCode and l.isActive = 'Y'\r\n",
-					"        left join odw_harmonised_db.sb_service_user su on h.caseReference = su.caseReference and su.serviceUserType = 'Appellant' and su.isActive = 'Y'\r\n",
-					"        left join odw_harmonised_db.sb_appeal_event e on h.caseReference = e.caseReference and e.isActive = 'Y'\r\n",
-					"        left join odw_harmonised_db.entraid ent_ins on h.inspectorId = ent_ins.id and ent_ins.isActive = 'Y'\r\n",
-					"        left join odw_harmonised_db.entraid ent_co on h.caseOfficerId = ent_co.id and ent_co.isActive = 'Y'\r\n",
-					"        left join odw_harmonised_db.pins_inspector i on ent_ins.userPrincipalName = i.email and i.isActive = 'Y'\r\n",
-					"WHERE\r\n",
-					"    h.IsActive = 'Y'\r\n",
-					"\tand\r\n",
-					"\th.lpaCode <> 'Q9999'\r\n",
-					" \r\n",
-					"UNION\r\n",
-					" \r\n",
-					"    SELECT\r\n",
-					"    h.caseId\r\n",
-					"    ,h.caseReference\r\n",
-					"    ,h.caseStatus\r\n",
-					"    ,h.caseType\r\n",
-					"    ,h.caseProcedure\r\n",
-					"    ,h.lpaCode\r\n",
-					"    ,l.lpaName\r\n",
-					"    ,h.allocationLevel\r\n",
-					"    ,h.allocationBand\r\n",
-					"    ,h.caseSpecialisms\r\n",
-					"    ,h.caseSubmittedDate\r\n",
-					"    ,h.caseCreatedDate\r\n",
-					"    ,h.caseUpdatedDate\r\n",
-					"    ,h.caseValidDate\r\n",
-					"    ,h.caseValidationDate\r\n",
-					"    ,h.caseValidationOutcome\r\n",
-					"    ,h.caseValidationInvalidDetails\r\n",
-					"    ,h.caseValidationIncompleteDetails\r\n",
-					"    ,h.caseExtensionDate\r\n",
-					"    ,h.caseStartedDate\r\n",
-					"    ,h.casePublishedDate\r\n",
-					"    ,h.linkedCaseStatus\r\n",
-					"    ,h.leadCaseReference\r\n",
-					"    ,h.caseWithdrawnDate\r\n",
-					"    ,h.caseTransferredDate\r\n",
-					"    ,h.transferredCaseClosedDate\r\n",
-					"    ,h.caseDecisionOutcomeDate\r\n",
-					"    ,h.caseDecisionPublishedDate\r\n",
-					"    ,h.caseDecisionOutcome\r\n",
-					"    ,h.caseCompletedDate\r\n",
-					"    ,h.enforcementNotice\r\n",
-					"    ,h.applicationReference\r\n",
-					"    ,h.applicationDate\r\n",
-					"    ,h.applicationDecision\r\n",
-					"    ,h.applicationDecisionDate as lpaDecisionDate\r\n",
-					"    ,h.caseSubmissionDueDate\r\n",
-					"    ,h.siteAddressLine1\r\n",
-					"    ,h.siteAddressLine2\r\n",
-					"    ,h.siteAddressTown\r\n",
-					"    ,h.siteAddressCounty\r\n",
-					"    ,h.siteAddressPostcode\r\n",
-					"    ,h.isCorrectAppealType\r\n",
-					"    ,h.originalDevelopmentDescription\r\n",
-					"    ,h.changedDevelopmentDescription\r\n",
-					"    ,h.newConditionDetails\r\n",
-					"    ,h.nearbyCaseReferences\r\n",
-					"    ,h.neighbouringSiteAddresses\r\n",
-					"    ,h.affectedListedBuildingNumbers\r\n",
-					"    ,h.appellantCostsAppliedFor\r\n",
-					"    ,h.lpaCostsAppliedFor\r\n",
-					"    ,su.firstName + ' ' + su.LastName as appellantName\r\n",
-					"    ,e.eventType as typeOfEvent\r\n",
-					"    ,e.eventStartDateTime as startDateOfTheEvent\r\n",
-					"    ,ent_ins.givenName + ' ' +  ent_ins.surname as inspectorName\r\n",
-					"    ,ent_co.givenName + ' ' +  ent_co.surname as caseOfficerName\r\n",
-					"    ,i.qualifications as inspectorQualifications\r\n",
-					"FROM \r\n",
-					"    odw_harmonised_db.sb_appeal_s78 h\r\n",
-					"        left join odw_harmonised_db.pins_lpa l on h.lpaCode = l.pinsLpaCode and l.isActive = 'Y'\r\n",
-					"        left join odw_harmonised_db.sb_service_user su on h.caseReference = su.caseReference and su.serviceUserType = 'Appellant' and su.isActive = 'Y'\r\n",
-					"        left join odw_harmonised_db.sb_appeal_event e on h.caseReference = e.caseReference and e.isActive = 'Y'\r\n",
-					"        left join odw_harmonised_db.entraid ent_ins on h.inspectorId = ent_ins.id and ent_ins.isActive = 'Y'\r\n",
-					"        left join odw_harmonised_db.entraid ent_co on h.caseOfficerId = ent_co.id and ent_co.isActive = 'Y'\r\n",
-					"        left join odw_harmonised_db.pins_inspector i on ent_ins.userPrincipalName = i.email and i.isActive = 'Y'\r\n",
-					"WHERE\r\n",
-					"    h.IsActive = 'Y'\r\n",
-					"\tand\r\n",
-					"\th.lpaCode <> 'Q9999'\r\n",
-					"    \"\"\"\r\n",
-					"    )"
+					"try:\r\n",
+					"    df = spark.sql(\"\"\"\r\n",
+					"        SELECT\r\n",
+					"        h.caseId\r\n",
+					"        ,h.caseReference\r\n",
+					"        ,h.caseStatus\r\n",
+					"        ,h.caseType\r\n",
+					"        ,h.caseProcedure\r\n",
+					"        ,h.lpaCode\r\n",
+					"        ,l.lpaName\r\n",
+					"        ,h.allocationLevel\r\n",
+					"        ,h.allocationBand\r\n",
+					"        ,h.caseSpecialisms\r\n",
+					"        ,h.caseSubmittedDate\r\n",
+					"        ,h.caseCreatedDate\r\n",
+					"        ,h.caseUpdatedDate\r\n",
+					"        ,h.caseValidDate\r\n",
+					"        ,h.caseValidationDate\r\n",
+					"        ,h.caseValidationOutcome\r\n",
+					"        ,h.caseValidationInvalidDetails\r\n",
+					"        ,h.caseValidationIncompleteDetails\r\n",
+					"        ,h.caseExtensionDate\r\n",
+					"        ,h.caseStartedDate\r\n",
+					"        ,h.casePublishedDate\r\n",
+					"        ,h.linkedCaseStatus\r\n",
+					"        ,h.leadCaseReference\r\n",
+					"        ,h.caseWithdrawnDate\r\n",
+					"        ,h.caseTransferredDate\r\n",
+					"        ,h.transferredCaseClosedDate\r\n",
+					"        ,h.caseDecisionOutcomeDate\r\n",
+					"        ,h.caseDecisionPublishedDate\r\n",
+					"        ,h.caseDecisionOutcome\r\n",
+					"        ,h.caseCompletedDate\r\n",
+					"        ,h.enforcementNotice\r\n",
+					"        ,h.applicationReference\r\n",
+					"        ,h.applicationDate\r\n",
+					"        ,h.applicationDecision\r\n",
+					"        ,h.applicationDecisionDate as lpaDecisionDate\r\n",
+					"        ,h.caseSubmissionDueDate\r\n",
+					"        ,h.siteAddressLine1\r\n",
+					"        ,h.siteAddressLine2\r\n",
+					"        ,h.siteAddressTown\r\n",
+					"        ,h.siteAddressCounty\r\n",
+					"        ,h.siteAddressPostcode\r\n",
+					"        ,h.isCorrectAppealType\r\n",
+					"        ,h.originalDevelopmentDescription\r\n",
+					"        ,h.changedDevelopmentDescription\r\n",
+					"        ,h.newConditionDetails\r\n",
+					"        ,h.nearbyCaseReferences\r\n",
+					"        ,h.neighbouringSiteAddresses\r\n",
+					"        ,h.affectedListedBuildingNumbers\r\n",
+					"        ,h.appellantCostsAppliedFor\r\n",
+					"        ,h.lpaCostsAppliedFor\r\n",
+					"        ,su.firstName + ' ' + su.LastName as appellantName\r\n",
+					"        ,e.eventType as typeOfEvent\r\n",
+					"        ,e.eventStartDateTime as startDateOfTheEvent\r\n",
+					"        ,ent_ins.givenName + ' ' +  ent_ins.surname as inspectorName\r\n",
+					"        ,ent_co.givenName + ' ' +  ent_co.surname as caseOfficerName\r\n",
+					"        ,i.qualifications as inspectorQualifications\r\n",
+					"    FROM \r\n",
+					"        odw_harmonised_db.sb_appeal_has h\r\n",
+					"            left join odw_harmonised_db.pins_lpa l on h.lpaCode = l.pinsLpaCode and l.isActive = 'Y'\r\n",
+					"            left join odw_harmonised_db.sb_service_user su on h.caseReference = su.caseReference and su.serviceUserType = 'Appellant' and su.isActive = 'Y'\r\n",
+					"            left join odw_harmonised_db.sb_appeal_event e on h.caseReference = e.caseReference and e.isActive = 'Y'\r\n",
+					"            left join odw_harmonised_db.entraid ent_ins on h.inspectorId = ent_ins.id and ent_ins.isActive = 'Y'\r\n",
+					"            left join odw_harmonised_db.entraid ent_co on h.caseOfficerId = ent_co.id and ent_co.isActive = 'Y'\r\n",
+					"            left join odw_harmonised_db.pins_inspector i on ent_ins.userPrincipalName = i.email and i.isActive = 'Y'\r\n",
+					"    WHERE\r\n",
+					"        h.IsActive = 'Y'\r\n",
+					"        and\r\n",
+					"        h.lpaCode <> 'Q9999'\r\n",
+					"    \r\n",
+					"    UNION    \r\n",
+					"        SELECT\r\n",
+					"        h.caseId\r\n",
+					"        ,h.caseReference\r\n",
+					"        ,h.caseStatus\r\n",
+					"        ,h.caseType\r\n",
+					"        ,h.caseProcedure\r\n",
+					"        ,h.lpaCode\r\n",
+					"        ,l.lpaName\r\n",
+					"        ,h.allocationLevel\r\n",
+					"        ,h.allocationBand\r\n",
+					"        ,h.caseSpecialisms\r\n",
+					"        ,h.caseSubmittedDate\r\n",
+					"        ,h.caseCreatedDate\r\n",
+					"        ,h.caseUpdatedDate\r\n",
+					"        ,h.caseValidDate\r\n",
+					"        ,h.caseValidationDate\r\n",
+					"        ,h.caseValidationOutcome\r\n",
+					"        ,h.caseValidationInvalidDetails\r\n",
+					"        ,h.caseValidationIncompleteDetails\r\n",
+					"        ,h.caseExtensionDate\r\n",
+					"        ,h.caseStartedDate\r\n",
+					"        ,h.casePublishedDate\r\n",
+					"        ,h.linkedCaseStatus\r\n",
+					"        ,h.leadCaseReference\r\n",
+					"        ,h.caseWithdrawnDate\r\n",
+					"        ,h.caseTransferredDate\r\n",
+					"        ,h.transferredCaseClosedDate\r\n",
+					"        ,h.caseDecisionOutcomeDate\r\n",
+					"        ,h.caseDecisionPublishedDate\r\n",
+					"        ,h.caseDecisionOutcome\r\n",
+					"        ,h.caseCompletedDate\r\n",
+					"        ,h.enforcementNotice\r\n",
+					"        ,h.applicationReference\r\n",
+					"        ,h.applicationDate\r\n",
+					"        ,h.applicationDecision\r\n",
+					"        ,h.applicationDecisionDate as lpaDecisionDate\r\n",
+					"        ,h.caseSubmissionDueDate\r\n",
+					"        ,h.siteAddressLine1\r\n",
+					"        ,h.siteAddressLine2\r\n",
+					"        ,h.siteAddressTown\r\n",
+					"        ,h.siteAddressCounty\r\n",
+					"        ,h.siteAddressPostcode\r\n",
+					"        ,h.isCorrectAppealType\r\n",
+					"        ,h.originalDevelopmentDescription\r\n",
+					"        ,h.changedDevelopmentDescription\r\n",
+					"        ,h.newConditionDetails\r\n",
+					"        ,h.nearbyCaseReferences\r\n",
+					"        ,h.neighbouringSiteAddresses\r\n",
+					"        ,h.affectedListedBuildingNumbers\r\n",
+					"        ,h.appellantCostsAppliedFor\r\n",
+					"        ,h.lpaCostsAppliedFor\r\n",
+					"        ,su.firstName + ' ' + su.LastName as appellantName\r\n",
+					"        ,e.eventType as typeOfEvent\r\n",
+					"        ,e.eventStartDateTime as startDateOfTheEvent\r\n",
+					"        ,ent_ins.givenName + ' ' +  ent_ins.surname as inspectorName\r\n",
+					"        ,ent_co.givenName + ' ' +  ent_co.surname as caseOfficerName\r\n",
+					"        ,i.qualifications as inspectorQualifications\r\n",
+					"    FROM \r\n",
+					"        odw_harmonised_db.sb_appeal_s78 h\r\n",
+					"            left join odw_harmonised_db.pins_lpa l on h.lpaCode = l.pinsLpaCode and l.isActive = 'Y'\r\n",
+					"            left join odw_harmonised_db.sb_service_user su on h.caseReference = su.caseReference and su.serviceUserType = 'Appellant' and su.isActive = 'Y'\r\n",
+					"            left join odw_harmonised_db.sb_appeal_event e on h.caseReference = e.caseReference and e.isActive = 'Y'\r\n",
+					"            left join odw_harmonised_db.entraid ent_ins on h.inspectorId = ent_ins.id and ent_ins.isActive = 'Y'\r\n",
+					"            left join odw_harmonised_db.entraid ent_co on h.caseOfficerId = ent_co.id and ent_co.isActive = 'Y'\r\n",
+					"            left join odw_harmonised_db.pins_inspector i on ent_ins.userPrincipalName = i.email and i.isActive = 'Y'\r\n",
+					"    WHERE\r\n",
+					"        h.IsActive = 'Y'\r\n",
+					"        and\r\n",
+					"        h.lpaCode <> 'Q9999'\r\n",
+					"        \"\"\"\r\n",
+					"    )\r\n",
+					"    \r\n",
+					"except Exception as e:\r\n",
+					"    logError(f\"Error in SQL query for table odw_harmonised_db.appeal_document :\\n{e}\")\r\n",
+					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
+					"    end_exec_time = str(datetime.now())\r\n",
+					"    app_insight_logger.add_table_result(\r\n",
+					"        delta_table_name = table_name,\r\n",
+					"        insert_count = insert_count, \r\n",
+					"        update_count = update_count, \r\n",
+					"        delete_count = delete_count, \r\n",
+					"        table_result = \"failed\",\r\n",
+					"        start_exec_time = start_exec_time, \r\n",
+					"        end_exec_time = end_exec_time,\r\n",
+					"        total_exec_time = \"\",\r\n",
+					"        error_message = error_message\r\n",
+					"    )\r\n",
+					"    # Exit with the JSON result\r\n",
+					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())    \r\n",
+					""
 				],
 				"execution_count": null
 			},
@@ -256,37 +336,7 @@
 					}
 				},
 				"source": [
-					"##### Write DataFrame to delta table"
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"table_name = \"odw_curated_db.dart_api\""
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
+					"##### Write DataFrame to delta table\r\n",
 					"Partition by `applicationReference` as this field only contains around 50 unique values and will be included in the search filters by users."
 				]
 			},
@@ -304,11 +354,48 @@
 					}
 				},
 				"source": [
-					"df.write.mode(\"overwrite\") \\\r\n",
-					"    .partitionBy(\"applicationReference\") \\\r\n",
-					"    .option(\"overwriteSchema\", \"true\") \\\r\n",
-					"    .format(\"delta\") \\\r\n",
-					"    .saveAsTable(table_name)"
+					"try:\r\n",
+					"    logInfo(f\"Writing to {table_name}\")\r\n",
+					"    insert_count = df.count()\r\n",
+					"\r\n",
+					"    df.write.mode(\"overwrite\") \\\r\n",
+					"        .partitionBy(\"applicationReference\") \\\r\n",
+					"        .option(\"overwriteSchema\", \"true\") \\\r\n",
+					"        .format(\"delta\") \\\r\n",
+					"        .saveAsTable(table_name)\r\n",
+					"    \r\n",
+					"    logInfo(f\"Written to {table_name}\")\r\n",
+					"    \r\n",
+					"    end_exec_time = str(datetime.now())\r\n",
+					"    app_insight_logger.add_table_result(                    \r\n",
+					"        delta_table_name = table_name,\r\n",
+					"        insert_count = insert_count, \r\n",
+					"        update_count = update_count, \r\n",
+					"        delete_count = delete_count, \r\n",
+					"        table_result = \"success\",\r\n",
+					"        start_exec_time = start_exec_time, \r\n",
+					"        end_exec_time = end_exec_time,\r\n",
+					"        total_exec_time = \"\",\r\n",
+					"        error_message = \"\"\r\n",
+					"    )\r\n",
+					"    \r\n",
+					"except Exception as e:\r\n",
+					"    logError(f\"Error appending data to the curated layer table :\\n{e}\")\r\n",
+					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
+					"    end_exec_time = str(datetime.now())\r\n",
+					"    app_insight_logger.add_table_result(\r\n",
+					"        delta_table_name = table_name,\r\n",
+					"        insert_count = insert_count, \r\n",
+					"        update_count = update_count, \r\n",
+					"        delete_count = delete_count, \r\n",
+					"        table_result = \"failed\",\r\n",
+					"        start_exec_time = start_exec_time, \r\n",
+					"        end_exec_time = end_exec_time,\r\n",
+					"        total_exec_time = \"\",\r\n",
+					"        error_message = error_message\r\n",
+					"    )\r\n",
+					"    # Exit with the JSON result\r\n",
+					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())    "
 				],
 				"execution_count": null
 			},
@@ -342,6 +429,27 @@
 					"delta_table = DeltaTable.forName(spark, table_name)\r\n",
 					"delta_table.optimize().executeZOrderBy(\"caseReference\")\r\n",
 					"delta_table.optimize()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Produce Json formatted output"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Exit with the JSON result\r\n",
+					"mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
 				],
 				"execution_count": null
 			}

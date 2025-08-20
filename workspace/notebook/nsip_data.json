@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "98a66524-1b82-4d7c-bc0c-9751a4dafbbd"
+				"spark.autotune.trackingId": "897b0dfb-b62a-42e6-b9c2-73aeddc33c1c"
 			}
 		},
 		"metadata": {
@@ -53,12 +53,8 @@
 		},
 		"cells": [
 			{
-				"cell_type": "code",
+				"cell_type": "markdown",
 				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
 					"nteract": {
 						"transient": {
 							"deleting": false
@@ -66,7 +62,31 @@
 					}
 				},
 				"source": [
-					"%run utils/py_logging_decorator"
+					"#### The purpose of this pyspark notebook is to ingest service bus data  into single external table, odw_curated_db.nsip_project.\r\n",
+					"\r\n",
+					"**Description**  \r\n",
+					"The functionality of this notebook is to ingest data into odw_curated_db.nsip_project external table reading from odw_harmonised_db.nsip_project delta table.The addtitional functionality has been added to log the audit information to Application Insight by creating a Json dump at notebook exit.\r\n",
+					"\r\n",
+					"**Spark Cluster Configuration** -> Apache Spark Version- 3.4, Python Version \t\t- 3.10, Delta Lake Version \t- 2.4"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise Application Insight Logging functions"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_utils_common_logging_output"
 				],
 				"execution_count": null
 			},
@@ -107,7 +127,12 @@
 				"source": [
 					"db_name: str = \"odw_curated_db\"\r\n",
 					"entity_name: str = \"nsip-project\"\r\n",
-					"table_name: str = \"odw_curated_db.nsip_project\""
+					"table_name: str = \"odw_curated_db.nsip_project\"\r\n",
+					"\r\n",
+					"start_exec_time = str(datetime.now())\r\n",
+					"insert_count = 0\r\n",
+					"update_count = 0\r\n",
+					"delete_count = 0"
 				],
 				"execution_count": null
 			},
@@ -139,168 +164,124 @@
 					"collapsed": false
 				},
 				"source": [
-					"df = spark.sql(\"\"\"\r\n",
-					"\tSELECT\r\n",
-					"\t\tCAST(Project.caseId AS INT) as caseId\r\n",
-					"\t\t,Project.caseReference\r\n",
-					"\t\t,Project.projectName\r\n",
-					"\t\t,Project.projectNameWelsh\r\n",
-					"\t\t,Project.projectDescription\r\n",
-					"\t\t,Project.projectDescriptionWelsh\r\n",
-					"\t\t,Project.decision\r\n",
-					"\t\t,LOWER(project.publishStatus) AS publishStatus\r\n",
-					"\t\t,Project.sector\r\n",
-					"\t\t,CASE\r\n",
-					"\t\t\tWHEN Project.ProjectType = 'WW01 - Waste Water treatment Plants' THEN\r\n",
-					"\t\t\t\t'WW01 - Waste Water Treatment Plants'\r\n",
-					"\t\t\tELSE \r\n",
-					"\t\t\t\tProject.ProjectType\r\n",
-					"\t\tEND AS projectType\r\n",
-					"\t\t,LOWER(\tCASE \r\n",
-					"\t\t\t\t\tWHEN Project.ODTSourceSystem = 'ODT' THEN \r\n",
-					"\t\t\t\t\t\t'back-office-applications' \r\n",
-					"\t\t\t\t\tELSE \r\n",
-					"\t\t\t\t\t\tProject.ODTSourceSystem \r\n",
-					"\t\t\t\tEND) AS sourceSystem\r\n",
-					"\t\t,LOWER(REPLACE(REPLACE(Project.Stage,'-', '_'),' ', '_')) AS stage\r\n",
-					"\t\t,Project.projectLocation\r\n",
-					"\t\t,Project.projectLocationWelsh\r\n",
-					"\t\t,Project.projectEmailAddress\r\n",
-					"\t\t,Project.regions\r\n",
-					"\t\t,Project.transboundary\r\n",
-					"\t\t,CAST(project.Easting AS INT) AS easting\r\n",
-					"\t\t,CAST(project.Northing AS INT) AS northing\r\n",
-					"\t\t,Project.WelshLanguage AS welshLanguage\r\n",
-					"\t\t,Project.mapZoomLevel\r\n",
-					"\t\t,Project.SecretaryOfState AS secretaryOfState\r\n",
-					"\t\t-- Pre-application dates\r\n",
-					"\t\t,Project.datePINSFirstNotifiedOfProject\r\n",
-					"\t\t,Project.dateProjectAppearsOnWebsite\t\r\n",
-					"\t\t,Project.anticipatedSubmissionDateNonSpecific\r\n",
-					"\t\t,Project.anticipatedDateOfSubmission\r\n",
-					"\t\t,Project.screeningOpinionSought\t\r\n",
-					"\t\t,Project.screeningOpinionIssued\r\n",
-					"\t\t,Project.scopingOpinionSought\r\n",
-					"\t\t,Project.scopingOpinionIssued\r\n",
-					"\t\t,Project.section46Notification\r\n",
-					"\t\t-- acceptance dates\r\n",
-					"\t\t,Project.dateOfDCOSubmission\r\n",
-					"\t\t,Project.deadlineForAcceptanceDecision\r\n",
-					"\t\t,Project.dateOfDCOAcceptance\r\n",
-					"\t\t,Project.dateOfNonAcceptance\r\n",
-					"\t\t--pre examination dates\r\n",
-					"\t\t,Project.dateOfRepresentationPeriodOpen\r\n",
-					"\t\t,Project.dateOfRelevantRepresentationClose\r\n",
-					"\t\t,Project.extensionToDateRelevantRepresentationsClose\r\n",
-					"\t\t,Project.dateRRepAppearOnWebsite\r\n",
-					"\t\t,Project.dateIAPIDue\r\n",
-					"\t\t,Project.rule6LetterPublishDate\r\n",
-					"\t\t,Project.preliminaryMeetingStartDate\r\n",
-					"\t\t,Project.notificationDateForPMAndEventsDirectlyFollowingPM\r\n",
-					"\t\t,Project.notificationDateForEventsDeveloper\r\n",
-					"\t\t-- examination dates\r\n",
-					"\t\t,Project.dateSection58NoticeReceived\r\n",
-					"\t\t,Project.confirmedStartOfExamination\r\n",
-					"\t\t,CAST (Project.rule8LetterPublishDate AS DATE) AS rule8LetterPublishDate\r\n",
-					"\t\t,Project.deadlineForCloseOfExamination\r\n",
-					"\t\t,Project.dateTimeExaminationEnds\r\n",
-					"\t\t,Project.stage4ExtensionToExamCloseDate\r\n",
-					"\t\t--recommendation dates\r\n",
-					"\t\t,Project.deadlineForSubmissionOfRecommendation\r\n",
-					"\t\t,Project.dateOfRecommendations\r\n",
-					"\t\t,Project.stage5ExtensionToRecommendationDeadline\r\n",
-					"\t\t--decision dates\r\n",
-					"\t\t,Project.deadlineForDecision\r\n",
-					"\t\t,Project.confirmedDateOfDecision\r\n",
-					"\t\t,Project.stage5ExtensionToDecisionDeadline\r\n",
-					"\t\t--post decision dates\r\n",
-					"\t\t,Project.jRPeriodEndDate\r\n",
-					"\t\t--withdrawl dates\r\n",
-					"\t\t,Project.dateProjectWithdrawn\r\n",
-					"\t\t-- Additional fields\r\n",
-					"\t\t,Project.operationsLeadId\r\n",
-					"\t\t,Project.operationsManagerId\r\n",
-					"\t\t,Project.caseManagerId\r\n",
-					"\t\t,Project.nsipOfficerIds\r\n",
-					"\t\t,Project.nsipAdministrationOfficerIds\r\n",
-					"\t\t,Project.leadInspectorId\r\n",
-					"\t\t,Project.inspectorIds\r\n",
-					"\t\t,Project.environmentalServicesOfficerId\r\n",
-					"\t\t,Project.legalOfficerId\r\n",
-					"\t\t,Project.applicantId\r\n",
-					"\t\t,Project.migrationStatus\r\n",
-					"\t\t,Project.dateOfReOpenRelevantRepresentationStart\r\n",
-					"\t\t,Project.dateOfReOpenRelevantRepresentationClose\r\n",
-					"\t\t,Project.isMaterialChange\r\n",
-					"\tFROM \r\n",
-					"\t\todw_harmonised_db.nsip_project AS Project\r\n",
-					"\tWHERE \r\n",
-					"\t\tProject.IsActive='Y'\r\n",
-					"\t\"\"\"\r\n",
-					")"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"##### Define schema"
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"schema = mssparkutils.notebook.run(\"py_create_spark_schema\", 30, {\"db_name\": db_name, \"entity_name\": entity_name})\r\n",
-					"spark_schema = StructType.fromJson(json.loads(schema))"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"##### Create DataFrame with correct schema"
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"data = spark.createDataFrame(df.rdd, schema=spark_schema)"
+					"try:\r\n",
+					"\tdf = spark.sql(\"\"\"\r\n",
+					"\t\tSELECT\r\n",
+					"\t\t\tCAST(Project.caseId AS INT) as caseId\r\n",
+					"\t\t\t,Project.caseReference\r\n",
+					"\t\t\t,Project.projectName\r\n",
+					"\t\t\t,Project.projectNameWelsh\r\n",
+					"\t\t\t,Project.projectDescription\r\n",
+					"\t\t\t,Project.projectDescriptionWelsh\r\n",
+					"\t\t\t,Project.decision\r\n",
+					"\t\t\t,LOWER(project.publishStatus) AS publishStatus\r\n",
+					"\t\t\t,Project.sector\r\n",
+					"\t\t\t,CASE\r\n",
+					"\t\t\t\tWHEN Project.ProjectType = 'WW01 - Waste Water treatment Plants' THEN\r\n",
+					"\t\t\t\t\t'WW01 - Waste Water Treatment Plants'\r\n",
+					"\t\t\t\tELSE \r\n",
+					"\t\t\t\t\tProject.ProjectType\r\n",
+					"\t\t\tEND AS projectType\r\n",
+					"\t\t\t,LOWER(\tCASE \r\n",
+					"\t\t\t\t\t\tWHEN Project.ODTSourceSystem = 'ODT' THEN \r\n",
+					"\t\t\t\t\t\t\t'back-office-applications' \r\n",
+					"\t\t\t\t\t\tELSE \r\n",
+					"\t\t\t\t\t\t\tProject.ODTSourceSystem \r\n",
+					"\t\t\t\t\tEND) AS sourceSystem\r\n",
+					"\t\t\t,LOWER(REPLACE(REPLACE(Project.Stage,'-', '_'),' ', '_')) AS stage\r\n",
+					"\t\t\t,Project.projectLocation\r\n",
+					"\t\t\t,Project.projectLocationWelsh\r\n",
+					"\t\t\t,Project.projectEmailAddress\r\n",
+					"\t\t\t,Project.regions\r\n",
+					"\t\t\t,Project.transboundary\r\n",
+					"\t\t\t,CAST(project.Easting AS INT) AS easting\r\n",
+					"\t\t\t,CAST(project.Northing AS INT) AS northing\r\n",
+					"\t\t\t,Project.WelshLanguage AS welshLanguage\r\n",
+					"\t\t\t,Project.mapZoomLevel\r\n",
+					"\t\t\t,Project.SecretaryOfState AS secretaryOfState\r\n",
+					"\t\t\t-- Pre-application dates\r\n",
+					"\t\t\t,Project.datePINSFirstNotifiedOfProject\r\n",
+					"\t\t\t,Project.dateProjectAppearsOnWebsite\t\r\n",
+					"\t\t\t,Project.anticipatedSubmissionDateNonSpecific\r\n",
+					"\t\t\t,Project.anticipatedDateOfSubmission\r\n",
+					"\t\t\t,Project.screeningOpinionSought\t\r\n",
+					"\t\t\t,Project.screeningOpinionIssued\r\n",
+					"\t\t\t,Project.scopingOpinionSought\r\n",
+					"\t\t\t,Project.scopingOpinionIssued\r\n",
+					"\t\t\t,Project.section46Notification\r\n",
+					"\t\t\t-- acceptance dates\r\n",
+					"\t\t\t,Project.dateOfDCOSubmission\r\n",
+					"\t\t\t,Project.deadlineForAcceptanceDecision\r\n",
+					"\t\t\t,Project.dateOfDCOAcceptance\r\n",
+					"\t\t\t,Project.dateOfNonAcceptance\r\n",
+					"\t\t\t--pre examination dates\r\n",
+					"\t\t\t,Project.dateOfRepresentationPeriodOpen\r\n",
+					"\t\t\t,Project.dateOfRelevantRepresentationClose\r\n",
+					"\t\t\t,Project.extensionToDateRelevantRepresentationsClose\r\n",
+					"\t\t\t,Project.dateRRepAppearOnWebsite\r\n",
+					"\t\t\t,Project.dateIAPIDue\r\n",
+					"\t\t\t,Project.rule6LetterPublishDate\r\n",
+					"\t\t\t,Project.preliminaryMeetingStartDate\r\n",
+					"\t\t\t,Project.notificationDateForPMAndEventsDirectlyFollowingPM\r\n",
+					"\t\t\t,Project.notificationDateForEventsDeveloper\r\n",
+					"\t\t\t-- examination dates\r\n",
+					"\t\t\t,Project.dateSection58NoticeReceived\r\n",
+					"\t\t\t,Project.confirmedStartOfExamination\r\n",
+					"\t\t\t,CAST (Project.rule8LetterPublishDate AS DATE) AS rule8LetterPublishDate\r\n",
+					"\t\t\t,Project.deadlineForCloseOfExamination\r\n",
+					"\t\t\t,Project.dateTimeExaminationEnds\r\n",
+					"\t\t\t,Project.stage4ExtensionToExamCloseDate\r\n",
+					"\t\t\t--recommendation dates\r\n",
+					"\t\t\t,Project.deadlineForSubmissionOfRecommendation\r\n",
+					"\t\t\t,Project.dateOfRecommendations\r\n",
+					"\t\t\t,Project.stage5ExtensionToRecommendationDeadline\r\n",
+					"\t\t\t--decision dates\r\n",
+					"\t\t\t,Project.deadlineForDecision\r\n",
+					"\t\t\t,Project.confirmedDateOfDecision\r\n",
+					"\t\t\t,Project.stage5ExtensionToDecisionDeadline\r\n",
+					"\t\t\t--post decision dates\r\n",
+					"\t\t\t,Project.jRPeriodEndDate\r\n",
+					"\t\t\t--withdrawl dates\r\n",
+					"\t\t\t,Project.dateProjectWithdrawn\r\n",
+					"\t\t\t-- Additional fields\r\n",
+					"\t\t\t,Project.operationsLeadId\r\n",
+					"\t\t\t,Project.operationsManagerId\r\n",
+					"\t\t\t,Project.caseManagerId\r\n",
+					"\t\t\t,Project.nsipOfficerIds\r\n",
+					"\t\t\t,Project.nsipAdministrationOfficerIds\r\n",
+					"\t\t\t,Project.leadInspectorId\r\n",
+					"\t\t\t,Project.inspectorIds\r\n",
+					"\t\t\t,Project.environmentalServicesOfficerId\r\n",
+					"\t\t\t,Project.legalOfficerId\r\n",
+					"\t\t\t,Project.applicantId\r\n",
+					"\t\t\t,Project.migrationStatus\r\n",
+					"\t\t\t,Project.dateOfReOpenRelevantRepresentationStart\r\n",
+					"\t\t\t,Project.dateOfReOpenRelevantRepresentationClose\r\n",
+					"\t\t\t,Project.isMaterialChange\r\n",
+					"\t\tFROM \r\n",
+					"\t\t\todw_harmonised_db.nsip_project AS Project\r\n",
+					"\t\tWHERE \r\n",
+					"\t\t\tProject.IsActive='Y'\r\n",
+					"\t\t\"\"\"\r\n",
+					"\t)\r\n",
+					"\t\r\n",
+					"except Exception as e:\r\n",
+					"    logError(f\"Error in SQL query for table odw_harmonised_db.sb_appeal_event_estimate :\\n{e}\")\r\n",
+					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
+					"    end_exec_time = str(datetime.now())\r\n",
+					"    app_insight_logger.add_table_result(\r\n",
+					"        delta_table_name = table_name,\r\n",
+					"        insert_count = insert_count, \r\n",
+					"        update_count = update_count, \r\n",
+					"        delete_count = delete_count, \r\n",
+					"        table_result = \"failed\",\r\n",
+					"        start_exec_time = start_exec_time, \r\n",
+					"        end_exec_time = end_exec_time,\r\n",
+					"        total_exec_time = \"\",\r\n",
+					"        error_message = error_message\r\n",
+					"    )\r\n",
+					"    # Exit with the JSON result\r\n",
+					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())    "
 				],
 				"execution_count": null
 			},
@@ -331,9 +312,64 @@
 					}
 				},
 				"source": [
-					"logInfo(f\"Writing to {table_name}\")\r\n",
-					"data.write.mode(\"overwrite\").format(\"parquet\").saveAsTable(table_name)\r\n",
-					"logInfo(f\"Written to {table_name}\")"
+					"try:\r\n",
+					"    logInfo(f\"Writing to {table_name}\")\r\n",
+					"    insert_count = df.count()\r\n",
+					"\r\n",
+					"    df.write.mode(\"overwrite\").format(\"parquet\").saveAsTable(table_name)\r\n",
+					"    logInfo(f\"Written to {table_name}\")\r\n",
+					"    \r\n",
+					"    end_exec_time = str(datetime.now())\r\n",
+					"    app_insight_logger.add_table_result(                    \r\n",
+					"        delta_table_name = table_name,\r\n",
+					"        insert_count = insert_count, \r\n",
+					"        update_count = update_count, \r\n",
+					"        delete_count = delete_count, \r\n",
+					"        table_result = \"success\",\r\n",
+					"        start_exec_time = start_exec_time, \r\n",
+					"        end_exec_time = end_exec_time,\r\n",
+					"        total_exec_time = \"\",\r\n",
+					"        error_message = \"\"\r\n",
+					"    )\r\n",
+					"    \r\n",
+					"except Exception as e:\r\n",
+					"    logError(f\"Error appending data to the curated layer table :\\n{e}\")\r\n",
+					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
+					"    end_exec_time = str(datetime.now())\r\n",
+					"    app_insight_logger.add_table_result(\r\n",
+					"        delta_table_name = table_name,\r\n",
+					"        insert_count = insert_count, \r\n",
+					"        update_count = update_count, \r\n",
+					"        delete_count = delete_count, \r\n",
+					"        table_result = \"failed\",\r\n",
+					"        start_exec_time = start_exec_time, \r\n",
+					"        end_exec_time = end_exec_time,\r\n",
+					"        total_exec_time = \"\",\r\n",
+					"        error_message = error_message\r\n",
+					"    )\r\n",
+					"    # Exit with the JSON result\r\n",
+					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())    "
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Produce Json formatted output"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Exit with the JSON result\r\n",
+					"mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
 				],
 				"execution_count": null
 			}
