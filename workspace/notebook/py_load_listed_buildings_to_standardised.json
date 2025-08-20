@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d8e2d9f6-ba40-4a1e-89dc-d46b45237c80"
+				"spark.autotune.trackingId": "0b06d560-5cb0-4665-9738-064951a9a896"
 			}
 		},
 		"metadata": {
@@ -119,6 +119,52 @@
 					}
 				},
 				"source": [
+					"##### Initialise Application Insight Logging functions"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_utils_common_logging_output"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise variables"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"table_name_lbdng = \"odw_standardised_db.listed_building\"\r\n",
+					"table_name_lbo = \"odw_standardised_db.listed_building_outline\"\r\n",
+					"\r\n",
+					"start_exec_time = str(datetime.now())\r\n",
+					"insert_count = 0\r\n",
+					"update_count = 0\r\n",
+					"delete_count = 0"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
 					"Load Listed buildings"
 				]
 			},
@@ -137,28 +183,47 @@
 					"collapsed": false
 				},
 				"source": [
-					"json_schema = StructType([\r\n",
-					"    StructField(\"dataset\", StringType(), True),\r\n",
-					"    StructField(\"end-date\", StringType(), True),\r\n",
-					"    StructField(\"entity\", StringType(), True),\r\n",
-					"    StructField(\"entry-date\", StringType(), True),\r\n",
-					"    StructField(\"geometry\", StringType(), True),\r\n",
-					"    StructField(\"name\", StringType(), True),\r\n",
-					"    StructField(\"organisation-entity\", StringType(), True),\r\n",
-					"    StructField(\"point\", StringType(), True),\r\n",
-					"    StructField(\"prefix\", StringType(), True),\r\n",
-					"    StructField(\"reference\", StringType(), True),\r\n",
-					"    StructField(\"start-date\", StringType(), True),\r\n",
-					"    StructField(\"typology\", StringType(), True),\r\n",
-					"    StructField(\"documentation-url\", StringType(), True),\r\n",
-					"    StructField(\"listed-building-grade\", StringType(), True)\r\n",
-					"])\r\n",
+					"try:    \r\n",
+					"    json_schema = StructType([\r\n",
+					"        StructField(\"dataset\", StringType(), True),\r\n",
+					"        StructField(\"end-date\", StringType(), True),\r\n",
+					"        StructField(\"entity\", StringType(), True),\r\n",
+					"        StructField(\"entry-date\", StringType(), True),\r\n",
+					"        StructField(\"geometry\", StringType(), True),\r\n",
+					"        StructField(\"name\", StringType(), True),\r\n",
+					"        StructField(\"organisation-entity\", StringType(), True),\r\n",
+					"        StructField(\"point\", StringType(), True),\r\n",
+					"        StructField(\"prefix\", StringType(), True),\r\n",
+					"        StructField(\"reference\", StringType(), True),\r\n",
+					"        StructField(\"start-date\", StringType(), True),\r\n",
+					"        StructField(\"typology\", StringType(), True),\r\n",
+					"        StructField(\"documentation-url\", StringType(), True),\r\n",
+					"        StructField(\"listed-building-grade\", StringType(), True)\r\n",
+					"    ])\r\n",
 					"\r\n",
-					"storage_acc_name = spark.sparkContext.environment.get('dataLakeAccountName', 'get')\r\n",
-					"df = spark.read.option(\"multiline\",\"true\").json(f\"abfss://odw-raw@{storage_acc_name}.dfs.core.windows.net/ListedBuildings/{date_folder}/listed_building.json\")\r\n",
-					"entities_df = df.selectExpr(\"explode(entities) as entity\")\r\n",
-					"entities = [row.entity.asDict() for row in entities_df.collect()]\r\n",
-					"final_df = spark.createDataFrame(data=entities, schema=json_schema)"
+					"    storage_acc_name = spark.sparkContext.environment.get('dataLakeAccountName', 'get')\r\n",
+					"    df = spark.read.option(\"multiline\",\"true\").json(f\"abfss://odw-raw@{storage_acc_name}.dfs.core.windows.net/ListedBuildings/{date_folder}/listed_building.json\")\r\n",
+					"    entities_df = df.selectExpr(\"explode(entities) as entity\")\r\n",
+					"    entities = [row.entity.asDict() for row in entities_df.collect()]\r\n",
+					"    final_df = spark.createDataFrame(data=entities, schema=json_schema)\r\n",
+					"\r\n",
+					"except Exception as e:\r\n",
+					"    logError(f\"Error in creating data frame for file {date_folder}/listed_building.json\" :\\n{e}\")\r\n",
+					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
+					"    end_exec_time = str(datetime.now())\r\n",
+					"    app_insight_logger.add_table_result(\r\n",
+					"        delta_table_name = table_name,\r\n",
+					"        insert_count = insert_count, \r\n",
+					"        update_count = update_count, \r\n",
+					"        delete_count = delete_count, \r\n",
+					"        table_result = \"failed\",\r\n",
+					"        start_exec_time = start_exec_time, \r\n",
+					"        end_exec_time = end_exec_time,\r\n",
+					"        total_exec_time = \"\",\r\n",
+					"        error_message = error_message\r\n",
+					"    )\r\n",
+					"    # Exit with the JSON result\r\n",
+					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())    "
 				],
 				"execution_count": null
 			},
@@ -176,7 +241,44 @@
 					}
 				},
 				"source": [
-					"final_df.write.mode(\"overwrite\").saveAsTable(\"odw_standardised_db.listed_building\")"
+					"try:\r\n",
+					"    \r\n",
+					"    logInfo(f\"Writing to {table_name_lbdng}\")\r\n",
+					"    insert_count = df.count()\r\n",
+					"\r\n",
+					"    final_df.write.mode(\"overwrite\").saveAsTable(table_name_lbdng)\r\n",
+					"    logInfo(f\"Written to {table_name_lbdng}\")\r\n",
+					"    \r\n",
+					"    end_exec_time = str(datetime.now())\r\n",
+					"    app_insight_logger.add_table_result(                    \r\n",
+					"        delta_table_name = table_name_lbdng,\r\n",
+					"        insert_count = insert_count, \r\n",
+					"        update_count = update_count, \r\n",
+					"        delete_count = delete_count, \r\n",
+					"        table_result = \"success\",\r\n",
+					"        start_exec_time = start_exec_time, \r\n",
+					"        end_exec_time = end_exec_time,\r\n",
+					"        total_exec_time = \"\",\r\n",
+					"        error_message = \"\"\r\n",
+					"    )\r\n",
+					"\r\n",
+					"except Exception as e:\r\n",
+					"    logError(f\"Error appending data to the curated layer table :\\n{e}\")\r\n",
+					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
+					"    end_exec_time = str(datetime.now())\r\n",
+					"    app_insight_logger.add_table_result(\r\n",
+					"        delta_table_name = table_name,\r\n",
+					"        insert_count = insert_count, \r\n",
+					"        update_count = update_count, \r\n",
+					"        delete_count = delete_count, \r\n",
+					"        table_result = \"failed\",\r\n",
+					"        start_exec_time = start_exec_time, \r\n",
+					"        end_exec_time = end_exec_time,\r\n",
+					"        total_exec_time = \"\",\r\n",
+					"        error_message = error_message\r\n",
+					"    )\r\n",
+					"    # Exit with the JSON result\r\n",
+					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())    "
 				],
 				"execution_count": null
 			},
