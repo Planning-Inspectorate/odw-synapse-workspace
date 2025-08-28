@@ -80,6 +80,62 @@
 					}
 				},
 				"source": [
+					"##### Initialize Application Insight Logging functions"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_utils_common_logging_output"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from datetime import datetime\n",
+					"from notebookutils import mssparkutils\n",
+					"\n",
+					"# Define variables\n",
+					"target_table = \"odw_harmonised_db.s62a_view_case_basic_data_dim\"\n",
+					"\n",
+					"# Initialize tracking variables\n",
+					"start_exec_time = str(datetime.now())\n",
+					"insert_count = 0\n",
+					"update_count = 0\n",
+					"delete_count = 0"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Initialize Application Insights logger\n",
+					"app_insight_logger = ProcessingLogger()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
 					"The below cell is creating the table if it does not exist"
 				]
 			},
@@ -97,23 +153,29 @@
 					}
 				},
 				"source": [
-					"from notebookutils import mssparkutils\r\n",
-					"\r\n",
-					"db_name: str = 'odw_harmonised_db'\r\n",
-					"table_name: str = 's62a_view_case_basic_data_dim'\r\n",
-					"\r\n",
-					"@logging_to_appins\r\n",
-					"def test_table_exists(db_name: str, table_name: str) -> bool:\r\n",
-					"    spark.sql(f\"USE {db_name}\")\r\n",
-					"    tables_df: DataFrame = spark.sql(\"SHOW TABLES\")\r\n",
-					"    table_names: list = [row['tableName'] for row in tables_df.collect()]\r\n",
-					"    return table_name in table_names\r\n",
-					"\r\n",
-					"if test_table_exists(db_name, table_name):\r\n",
-					"    logInfo(\"Table exists in harmonised, updating the harmonised layer\")\r\n",
-					"else:\r\n",
-					"    logInfo(\"Table doesn't exist, creating table first.\")\r\n",
-					"    mssparkutils.notebook.run(\"/py_odw_harmonised_table_creation\",300,{'specific_table': table_name } )"
+					"# Process s62a_view_case_basic_data_dim data with App Insights logging\n",
+					"try:\n",
+					"    logInfo('Starting s62a_view_case_basic_data_dim processing')\n",
+					"    \n",
+					"    db_name: str = 'odw_harmonised_db'\n",
+					"    table_name: str = 's62a_view_case_basic_data_dim'\n",
+					"    \n",
+					"    def test_table_exists(db_name: str, table_name: str) -> bool:\n",
+					"        spark.sql(f\"USE {db_name}\")\n",
+					"        tables_df: DataFrame = spark.sql(\"SHOW TABLES\")\n",
+					"        table_names: list = [row['tableName'] for row in tables_df.collect()]\n",
+					"        return table_name in table_names\n",
+					"    \n",
+					"    if test_table_exists(db_name, table_name):\n",
+					"        logInfo(f'Table {db_name}.{table_name} exists in harmonised, updating the harmonised layer')\n",
+					"    else:\n",
+					"        logInfo(f'Table {db_name}.{table_name} does not exist, creating table first.')\n",
+					"        mssparkutils.notebook.run('/py_odw_harmonised_table_creation',300,{'specific_table': table_name } )\n",
+					"        logInfo(f'Table {db_name}.{table_name} created')\n",
+					"        \n",
+					"except Exception as e:\n",
+					"    logError(f'Error in table existence check: {str(e)}')\n",
+					"    raise"
 				],
 				"execution_count": null
 			},
@@ -517,6 +579,19 @@
 				"execution_count": null
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Processing summary cell"
+				]
+			},
+			{
 				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
@@ -530,7 +605,60 @@
 					}
 				},
 				"source": [
-					"logInfo(f\"{db_name}.{table_name}\")"
+					"# Count records processed and log results\n",
+					"try:\n",
+					"    # Get row counts for logging\n",
+					"    changed_rows_df = spark.sql(\"SELECT COUNT(*) as count FROM s62a_view_case_basic_data_dim_changed_rows_final\")\n",
+					"    changed_count = changed_rows_df.collect()[0]['count']\n",
+					"    \n",
+					"    final_table_df = spark.sql(\"SELECT COUNT(*) as count FROM odw_harmonised_db.s62a_view_case_basic_data_dim WHERE IsActive = 'Y'\")\n",
+					"    final_count = final_table_df.collect()[0]['count']\n",
+					"    \n",
+					"    logInfo(f's62a_view_case_basic_data_dim processing completed successfully. Processed {changed_count} changed rows. Final active record count: {final_count}')\n",
+					"    \n",
+					"    # Calculate execution duration\n",
+					"    end_exec_time = str(datetime.now())\n",
+					"    execution_duration = (datetime.strptime(end_exec_time[:19], '%Y-%m-%d %H:%M:%S') - \n",
+					"                         datetime.strptime(start_exec_time[:19], '%Y-%m-%d %H:%M:%S')).total_seconds()\n",
+					"    \n",
+					"    # Log successful processing with App Insights structure\n",
+					"    app_insight_logger.add_table_result(\n",
+					"        delta_table_name=target_table,\n",
+					"        insert_count=changed_count,\n",
+					"        update_count=0,  # Combined with insert in this process\n",
+					"        delete_count=0,  # Handled via IsActive flag\n",
+					"        table_result=\"success\",\n",
+					"        start_exec_time=start_exec_time,\n",
+					"        end_exec_time=end_exec_time,\n",
+					"        total_exec_time=execution_duration,\n",
+					"        error_message=\"\"\n",
+					"    )\n",
+					"        \n",
+					"except Exception as processing_error:\n",
+					"    error_message = f'Error processing s62a_view_case_basic_data_dim data: {str(processing_error)}'\n",
+					"    logError(error_message)\n",
+					"    \n",
+					"    # Calculate execution duration for error case\n",
+					"    end_exec_time = str(datetime.now())\n",
+					"    execution_duration = (datetime.strptime(end_exec_time[:19], '%Y-%m-%d %H:%M:%S') - \n",
+					"                         datetime.strptime(start_exec_time[:19], '%Y-%m-%d %H:%M:%S')).total_seconds()\n",
+					"    \n",
+					"    app_insight_logger.add_table_result(\n",
+					"        delta_table_name=target_table,\n",
+					"        insert_count=0,\n",
+					"        update_count=0,\n",
+					"        delete_count=0,\n",
+					"        table_result=\"failed\",\n",
+					"        start_exec_time=start_exec_time,\n",
+					"        end_exec_time=end_exec_time,\n",
+					"        total_exec_time=execution_duration,\n",
+					"        error_message=error_message\n",
+					"    )\n",
+					"    raise\n",
+					"\n",
+					"# Generate and return processing results for notebook exit\n",
+					"processing_results = app_insight_logger.generate_processing_results()\n",
+					"mssparkutils.notebook.exit(processing_results)"
 				],
 				"execution_count": null
 			}

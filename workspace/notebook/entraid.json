@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "c3fb8f59-3159-4287-a9ef-1bf4cc037263"
+				"spark.autotune.trackingId": "e22b865e-8788-4ccf-b40c-b9bd81999ff1"
 			}
 		},
 		"metadata": {
@@ -46,12 +46,78 @@
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialize Application Insight Logging functions"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_utils_common_logging_output"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from datetime import datetime\n",
+					"from notebookutils import mssparkutils\n",
+					"\n",
+					"# Define variables\n",
+					"target_table = \"odw_harmonised_db.entraid\"\n",
+					"\n",
+					"# Initialize tracking variables\n",
+					"start_exec_time = str(datetime.now())\n",
+					"insert_count = 0\n",
+					"update_count = 0\n",
+					"delete_count = 0"
+				],
+				"execution_count": null
+			},
 			{
 				"cell_type": "markdown",
 				"metadata": {
@@ -457,20 +523,66 @@
 						"transient": {
 							"deleting": false
 						}
-					},
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
+					}
 				},
 				"source": [
-					"%%sql\n",
-					"\n",
-					"--SELECT count(*) FROM odw_harmonised_db.entraid WHERE id IS NULL;\n",
-					"--SELECT count(*) FROM odw_harmonised_db.entraid WHERE employeeId IS NULL;\n",
-					"--SELECT count(*) FROM odw_harmonised_db.entraid WHERE userPrincipalName IS NULL;\n",
-					"SELECT * FROM odw_harmonised_db.entraid WHERE userPrincipalName LIKE 'DELETED%%';\n",
-					""
+					"try:\n",
+					"    # Get record counts for logging\n",
+					"    final_count_df = spark.sql(\"SELECT COUNT(*) as count FROM odw_harmonised_db.entraid\")\n",
+					"    insert_count = final_count_df.collect()[0]['count']\n",
+					"    \n",
+					"    end_exec_time = str(datetime.now())\n",
+					"    logInfo(f\"Successfully processed {target_table} with {insert_count} total records\")\n",
+					"    \n",
+					"    # Add successful result to logger\n",
+					"    app_insight_logger.add_table_result(\n",
+					"        delta_table_name=target_table,\n",
+					"        insert_count=insert_count,\n",
+					"        update_count=update_count,\n",
+					"        delete_count=delete_count,\n",
+					"        table_result=\"success\",\n",
+					"        start_exec_time=start_exec_time,\n",
+					"        end_exec_time=end_exec_time\n",
+					"    )\n",
+					"    \n",
+					"except Exception as e:\n",
+					"    # Handle errors with proper logging\n",
+					"    logError(f\"Error processing {target_table}: {e}\")\n",
+					"    error_message = app_insight_processor.format_error_message(e, max_length=800)\n",
+					"    \n",
+					"    end_exec_time = str(datetime.now())\n",
+					"    app_insight_logger.add_table_result(\n",
+					"        delta_table_name=target_table,\n",
+					"        insert_count=insert_count,\n",
+					"        update_count=update_count,\n",
+					"        delete_count=delete_count,\n",
+					"        table_result=\"failed\",\n",
+					"        start_exec_time=start_exec_time,\n",
+					"        end_exec_time=end_exec_time,\n",
+					"        error_message=error_message\n",
+					"    )\n",
+					"    \n",
+					"    # Exit with the JSON result\n",
+					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Generate and exit with final logging results\n",
+					"mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
 				],
 				"execution_count": null
 			}
