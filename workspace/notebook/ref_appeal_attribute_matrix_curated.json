@@ -1,0 +1,185 @@
+{
+	"name": "ref_appeal_attribute_matrix_curated",
+	"properties": {
+		"folder": {
+			"name": "odw-curated"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "e9f52d14-bf12-43d8-94bd-a87771c8fede"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"**Purpose**\n",
+					"\n",
+					"Curates the AppealAttributeMatrix entity from the harmonised layer into odw-curated, applying rules for active record selection and aligning the final schema for downstream consumption. This notebook is designed to run as part of the pln_ref_appeal_attribute_matrix pipeline whenever a new file has been uploaded to fileshare (i.e. when the appeal matrix gets updated)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"from pyspark.sql import types as T\n",
+					"from pyspark.sql.window import Window"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"**Inputs**\n",
+					"\n",
+					"Source table (harmonised): odw_harmonised_db.ref_appeal_attribute_matrix\n",
+					"\n",
+					"Reference schema (from standardised): odw_standardised_db.appeal_attribute_matrix\n",
+					"\n",
+					"**Outputs**\n",
+					"\n",
+					"Delta path: odw-curated/AppealAttributeMatrix/appeal_attribute_matrix\n",
+					"\n",
+					"Table: odw_curated_db.ref_appeal_attribute_matrix"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"std_table: str = \"odw_standardised_db.appeal_attribute_matrix\"\n",
+					"hrm_table: str = \"odw_harmonised_db.ref_appeal_attribute_matrix\"\n",
+					"table_name: str = \"odw_curated_db.ref_appeal_attribute_matrix\""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"#Get Storage account name\n",
+					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"print(storage_account)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"**Key curated dataset rules:**\n",
+					"\n",
+					"Record selection: If the harmonised table contains an IsActive column, only active records (IsActive = 'Y') are kept. If IsActive is not available but both TEMP_PK and IngestionDate are present, then the latest record for each TEMP_PK is chosen by taking the maximum IngestionDate. Where neither of these conditions applies, all records from the harmonised layer are carried forward.\n",
+					"\n",
+					"Schema alignment: Curated dataset is aligned with the schema of the standardised table for consistency across all layers. The final schema has standardised columns first then followed by any additional harmonised attributes (TEMP_PK, ODTSourceSystem, IngestionDate, and IsActive).\n",
+					"\n",
+					"Write outputs: The curated results are written to the curated container in Delta format using overwrite mode with schema merge enabled. odw_curated_db.ref_appeal_attribute_matrix table is then created if it does not exist, or is overwritten with the new data if it already does. \n",
+					"\n",
+					"**Note:** Where schema changes occur such as modifications to column types, nullability, or column removals - the overwriteSchema option should be uncommented to ensure the table definition is updated accordingly. This option has been left commented out, as the pipeline enforces a fixed schema from the standardised to harmonised layers and unintentional schema changes must be avoided.\n",
+					""
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"std_cols = spark.table(std_table).columns\n",
+					"df_h = spark.table(hrm_table)\n",
+					"\n",
+					"target_path = f\"abfss://odw-curated@{storage_account}AppealAttributeMatrix/appeal_attribute_matrix\"\n",
+					"\n",
+					"if \"IsActive\" in df_h.columns:\n",
+					"    df = df_h.filter(F.col(\"IsActive\") == \"Y\")\n",
+					"elif {\"TEMP_PK\",\"IngestionDate\"}.issubset(set(df_h.columns)):\n",
+					"    latest = df_h.groupBy(\"TEMP_PK\").agg(F.max(\"IngestionDate\").alias(\"IngestionDate\"))\n",
+					"    df = df_h.join(latest, on=[\"TEMP_PK\", \"IngestionDate\"], how=\"inner\")\n",
+					"else:\n",
+					"    df = df_h\n",
+					"\n",
+					"for c in std_cols:\n",
+					"    if c not in df.columns:\n",
+					"        df = df.withColumn(c, F.lit(None).cast(\"string\"))\n",
+					"\n",
+					"extras = [c for c in df.columns if c not in std_cols]\n",
+					"ordered = std_cols + extras\n",
+					"df = df.select(*[F.col(c) for c in ordered])\n",
+					"\n",
+					"df.write.format(\"delta\").mode(\"overwrite\").option(\"mergeSchema\",\"true\").save(target_path)\n",
+					"\n",
+					"if not spark.catalog.tableExists(table_name):\n",
+					"    print(f\"Table '{table_name}' created.\")\n",
+					"else: \n",
+					"    print(f\"Table '{table_name}' already exists. If new schema changes have been added and 'overwriteSchema' has been uncommented, the table has been updated.\")\n",
+					"\n",
+					"(df.write.format(\"delta\").mode(\"overwrite\").option(\"mergeSchema\", \"true\")\n",
+					"        # .option(\"overwriteSchema\", \"true\")   # uncomment if there is change in a column’s type/nullability or columns have been removed/renamed only.\n",
+					"        .saveAsTable(table_name))\n",
+					"\n",
+					"display(spark.table(table_name).limit(50))"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
