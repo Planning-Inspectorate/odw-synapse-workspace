@@ -1,26 +1,45 @@
-name: Data Validation Test
+name: Nightly Data Validation Tests - Test
 
 # This is the nightly data validation pipeline against the test environment
+# Runs the pln_e2e_test Synapse pipeline for end-to-end testing
+# Scheduled to run daily at 11pm
 
-# Automatically run against the main branch at a set time every day
+# No manual triggers - this pipeline runs only on schedule
 trigger: none
 pr: none
+
+# Schedule for daily execution at 11pm
 schedules:
-- cron: '0 20 * * 1-5' # cron syntax defining a schedule. At 8pm every week day
-  displayName: Daily main branch run against the test env
+- cron: '0 23 * * *' # Daily at 11pm UTC
+  displayName: Daily E2E data validation tests at 11pm
   branches:
     include:
     - main
   always: true
   batch: false
 
+# Import the common templates repository
+resources:
+  repositories:
+  - repository: odw-common
+    type: github
+    name: Planning-Inspectorate/odw-common
+    endpoint: Planning-Inspectorate
+    ref: main
+
 variables:
 - name: env
   value: test
-- group: "Terraform Test"
+- name: variableGroupName
+  value: "Terraform Test"
+- name: agentPool
+  value: "pins-agent-pool-odw-${{ variables.env }}-uks"
+- group: ${{ variables.variableGroupName }}
 
 stages:
-- template: stages/run-validation-tests-stage.yaml
+# Run E2E data validation tests
+- template: stages/run-e2e-tests.yaml
   parameters:
-    agentPool: 'pins-agent-pool-odw-${{ variables.env }}-uks'
+    agentPool: ${{ variables.agentPool }}
     env: ${{ variables.env }}
+
