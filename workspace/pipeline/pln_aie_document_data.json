@@ -13,6 +13,12 @@
 						"dependencyConditions": [
 							"Succeeded"
 						]
+					},
+					{
+						"activity": "Set_start_time",
+						"dependencyConditions": [
+							"Succeeded"
+						]
 					}
 				],
 				"policy": {
@@ -62,14 +68,7 @@
 			{
 				"name": "Std to Hrm",
 				"type": "SynapseNotebook",
-				"dependsOn": [
-					{
-						"activity": "Raw to Std",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
+				"dependsOn": [],
 				"policy": {
 					"timeout": "0.12:00:00",
 					"retry": 0,
@@ -90,282 +89,6 @@
 						"spark.dynamicAllocation.maxExecutors": null
 					},
 					"numExecutors": null
-				}
-			},
-			{
-				"name": "record count Raw to Std",
-				"type": "SetVariable",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
-				"dependsOn": [
-					{
-						"activity": "Raw to Std",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"variableName": "recordCount",
-					"value": {
-						"value": "@activity('Raw to Std').output.status.output.result.exitValue\n",
-						"type": "Expression"
-					}
-				}
-			},
-			{
-				"name": "Record completed pln_aie_document_data_Raw to Std",
-				"type": "ExecutePipeline",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
-				"dependsOn": [
-					{
-						"activity": "error message Raw to Std",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_log_to_appins",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"Stage": "Completion",
-						"PipelineName": {
-							"value": "@pipeline().Pipeline",
-							"type": "Expression"
-						},
-						"PipelineRunID": {
-							"value": "@pipeline().RunId",
-							"type": "Expression"
-						},
-						"StartTime": {
-							"value": "@variables('starttime')",
-							"type": "Expression"
-						},
-						"EndTime": {
-							"value": "@utcNow()",
-							"type": "Expression"
-						},
-						"Inserts": {
-							"value": "@variables('recordCount')",
-							"type": "Expression"
-						},
-						"StatusMessage": "Load pln_aie_document_data loaded",
-						"PipelineTriggerID": {
-							"value": "@pipeline().TriggerId",
-							"type": "Expression"
-						},
-						"PipelineTriggerName": {
-							"value": "@pipeline().TriggerName",
-							"type": "Expression"
-						},
-						"PipelineTriggerType": {
-							"value": "@pipeline().TriggerType",
-							"type": "Expression"
-						},
-						"PipelineTriggeredbyPipelineName": {
-							"value": "@pipeline()?.TriggeredByPipelineName",
-							"type": "Expression"
-						},
-						"PipelineTriggeredbyPipelineRunID": {
-							"value": "@pipeline()?.TriggeredByPipelineRunId",
-							"type": "Expression"
-						},
-						"ActivityType": "Pipeline",
-						"DurationSeconds": {
-							"value": "@div(sub(ticks(utcNow()), ticks(variables('starttime'))), 10000000)",
-							"type": "Expression"
-						},
-						"StatusCode": "200",
-						"AppInsIKey": {
-							"value": "@pipeline().parameters.apps_insights_ikey",
-							"type": "Expression"
-						}
-					}
-				}
-			},
-			{
-				"name": "pln_aie_document_data Raw to Std failed",
-				"type": "ExecutePipeline",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
-				"dependsOn": [
-					{
-						"activity": "error message Raw to Std",
-						"dependencyConditions": [
-							"Failed"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": true
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_utl_Send_Teams_Message",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"dataFactorySubscription": {
-							"value": "@pipeline().parameters.subscription_id",
-							"type": "Expression"
-						},
-						"dataFactoryResourceGroup": {
-							"value": "@pipeline().parameters.resource_group",
-							"type": "Expression"
-						},
-						"pipelineRunId": {
-							"value": "@pipeline().RunId",
-							"type": "Expression"
-						},
-						"teamsWebhookUrl": {
-							"value": "@pipeline().parameters.webhook_url",
-							"type": "Expression"
-						},
-						"activityName": {
-							"value": "@pipeline().Pipeline",
-							"type": "Expression"
-						},
-						"activityMessage": "pln_aie_document_data Saw to Std load failed",
-						"activityDuration": {
-							"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
-							"type": "Expression"
-						},
-						"activityStatus": "Failed",
-						"Colour": {
-							"value": "@pipeline().parameters.failed_colour",
-							"type": "Expression"
-						},
-						"Image": {
-							"value": "@pipeline().parameters.failed_image",
-							"type": "Expression"
-						},
-						"Message_title": "pln_aie_document_data Raw to Std failed",
-						"Message_subtitle": "pln_aie_document_data Raw to Std  failed"
-					}
-				}
-			},
-			{
-				"name": "error message Raw to Std",
-				"type": "SetVariable",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
-				"dependsOn": [
-					{
-						"activity": "record count Raw to Std",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"variableName": "error_message",
-					"value": {
-						"value": "@if(\n  not(empty(activity('Raw to Std')?['output']?['status']?['output']?['result']?['exitValue'])),\n  json(activity('Raw to Std').output.status.output.result.exitValue).error_message,\n  'No error message'\n)\n\n",
-						"type": "Expression"
-					}
-				}
-			},
-			{
-				"name": "Record completed pln_aie_document_data Raw to Std data",
-				"type": "ExecutePipeline",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
-				"dependsOn": [
-					{
-						"activity": "error message Raw to Std",
-						"dependencyConditions": [
-							"Failed"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_log_to_appins",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"Stage": {
-							"value": "Fail",
-							"type": "Expression"
-						},
-						"PipelineName": {
-							"value": "@pipeline().Pipeline",
-							"type": "Expression"
-						},
-						"PipelineRunID": {
-							"value": "@pipeline().RunId",
-							"type": "Expression"
-						},
-						"StartTime": {
-							"value": "@variables('starttime')",
-							"type": "Expression"
-						},
-						"EndTime": {
-							"value": "@utcNow()",
-							"type": "Expression"
-						},
-						"ErrorMessage": {
-							"value": "@variables('error_message')",
-							"type": "Expression"
-						},
-						"StatusMessage": "pln_aie_document _data  Raw to Std Layer loaded",
-						"PipelineTriggerID": {
-							"value": "@pipeline().TriggerId",
-							"type": "Expression"
-						},
-						"PipelineTriggerName": {
-							"value": "@pipeline().TriggerName",
-							"type": "Expression"
-						},
-						"PipelineTriggerType": {
-							"value": "@pipeline().TriggerType",
-							"type": "Expression"
-						},
-						"PipelineTriggeredbyPipelineName": {
-							"value": "@pipeline()?.TriggeredByPipelineName",
-							"type": "Expression"
-						},
-						"PipelineTriggeredbyPipelineRunID": {
-							"value": "@pipeline()?.TriggeredByPipelineRunId",
-							"type": "Expression"
-						},
-						"ActivityType": "Pipeline",
-						"DurationSeconds": {
-							"value": "@div(sub(ticks(utcNow()), ticks(variables('starttime'))), 10000000)",
-							"type": "Expression"
-						},
-						"StatusCode": "400",
-						"AppInsIKey": {
-							"value": "@pipeline().parameters.apps_insights_ikey",
-							"type": "Expression"
-						}
-					}
 				}
 			},
 			{
@@ -643,6 +366,44 @@
 						}
 					}
 				}
+			},
+			{
+				"name": "set_json variable",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Raw to Std",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "raw_json",
+					"value": {
+						"value": "@json(activity('Raw to Std').output.status.output.result.exitValue).table_details",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Set_start_time",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "start time",
+					"value": "@utcNow()"
+				}
 			}
 		],
 		"parameters": {
@@ -678,8 +439,17 @@
 			"error_message": {
 				"type": "String"
 			},
-			"starttime": {
+			"start time": {
 				"type": "String"
+			},
+			"raw_json": {
+				"type": "Array"
+			},
+			"error_flag": {
+				"type": "String"
+			},
+			"raw_json_update": {
+				"type": "Array"
 			}
 		},
 		"folder": {
