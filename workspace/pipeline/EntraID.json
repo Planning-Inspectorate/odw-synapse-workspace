@@ -29,13 +29,13 @@
 						]
 					}
 				],
-			"policy": {
-				"timeout": "1:00:00",
-				"retry": 3,
-				"retryIntervalInSeconds": 30,
-				"secureOutput": false,
-				"secureInput": false
-			},
+				"policy": {
+					"timeout": "1:00:00",
+					"retry": 3,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
 				"userProperties": [],
 				"typeProperties": {
 					"notebook": {
@@ -105,6 +105,524 @@
 						"spark.dynamicAllocation.maxExecutors": null
 					},
 					"numExecutors": null
+				}
+			},
+			{
+				"name": "record count Std to Hrm",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "recordCount",
+					"value": {
+						"value": "@activity('Std to Hrm').output.status.output.result.exitValue\n",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Record completed pln_aie_document_data Std to Hrm",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "error message Std to Hrm",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Completion",
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@variables('starttime')",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@utcNow()",
+							"type": "Expression"
+						},
+						"Inserts": {
+							"value": "@variables('recordCount')",
+							"type": "Expression"
+						},
+						"StatusMessage": "pln_aie_document_data loaded",
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"ActivityType": "Pipeline",
+						"DurationSeconds": {
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('starttime'))), 10000000)",
+							"type": "Expression"
+						},
+						"StatusCode": "200",
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "pln_aie_document_data Std to Hrm failed",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "error message Std to Hrm",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_utl_Send_Teams_Message",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"dataFactorySubscription": {
+							"value": "@pipeline().parameters.subscription_id",
+							"type": "Expression"
+						},
+						"dataFactoryResourceGroup": {
+							"value": "@pipeline().parameters.resource_group",
+							"type": "Expression"
+						},
+						"pipelineRunId": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"teamsWebhookUrl": {
+							"value": "@pipeline().parameters.webhook_url",
+							"type": "Expression"
+						},
+						"activityName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"activityMessage": "pln_aie_document_data failed",
+						"activityDuration": {
+							"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
+							"type": "Expression"
+						},
+						"activityStatus": "Failed",
+						"Colour": {
+							"value": "@pipeline().parameters.failed_colour",
+							"type": "Expression"
+						},
+						"Image": {
+							"value": "@pipeline().parameters.failed_image",
+							"type": "Expression"
+						},
+						"Message_title": "pln_aie_document_data Std to Hrm failed",
+						"Message_subtitle": "pln_aie_document_data Std to Hrm failed"
+					}
+				}
+			},
+			{
+				"name": "error message Std to Hrm",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "record count Std to Hrm",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "error_message",
+					"value": {
+						"value": "@if(\n  not(empty(activity('Std to Hrm')?['output']?['status']?['output']?['result']?['exitValue'])),\n  json(activity('Std to Hrm').output.status.output.result.exitValue).error_message,\n  'No error message'\n)\n\n",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Record completed Std to Hrm Std Hrm data",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "error message Std to Hrm",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": {
+							"value": "Fail",
+							"type": "Expression"
+						},
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@variables('starttime')",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@utcNow()",
+							"type": "Expression"
+						},
+						"ErrorMessage": {
+							"value": "@variables('error_message')",
+							"type": "Expression"
+						},
+						"StatusMessage": "pln_aie_document _data  Std to Hrm Layer loaded",
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"ActivityType": "Pipeline",
+						"DurationSeconds": {
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('starttime'))), 10000000)",
+							"type": "Expression"
+						},
+						"StatusCode": "400",
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "record count Std to Hrm_copy1",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "recordCount",
+					"value": {
+						"value": "@activity('Std to Hrm').output.status.output.result.exitValue\n",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Record completed pln_aie_document_data Std to Hrm_copy1",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "error message Std to Hrm_copy1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Completion",
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@variables('starttime')",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@utcNow()",
+							"type": "Expression"
+						},
+						"Inserts": {
+							"value": "@variables('recordCount')",
+							"type": "Expression"
+						},
+						"StatusMessage": "pln_aie_document_data loaded",
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"ActivityType": "Pipeline",
+						"DurationSeconds": {
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('starttime'))), 10000000)",
+							"type": "Expression"
+						},
+						"StatusCode": "200",
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "pln_aie_document_data Std to Hrm failed_copy1",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "error message Std to Hrm_copy1",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_utl_Send_Teams_Message",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"dataFactorySubscription": {
+							"value": "@pipeline().parameters.subscription_id",
+							"type": "Expression"
+						},
+						"dataFactoryResourceGroup": {
+							"value": "@pipeline().parameters.resource_group",
+							"type": "Expression"
+						},
+						"pipelineRunId": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"teamsWebhookUrl": {
+							"value": "@pipeline().parameters.webhook_url",
+							"type": "Expression"
+						},
+						"activityName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"activityMessage": "pln_aie_document_data failed",
+						"activityDuration": {
+							"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
+							"type": "Expression"
+						},
+						"activityStatus": "Failed",
+						"Colour": {
+							"value": "@pipeline().parameters.failed_colour",
+							"type": "Expression"
+						},
+						"Image": {
+							"value": "@pipeline().parameters.failed_image",
+							"type": "Expression"
+						},
+						"Message_title": "pln_aie_document_data Std to Hrm failed",
+						"Message_subtitle": "pln_aie_document_data Std to Hrm failed"
+					}
+				}
+			},
+			{
+				"name": "error message Std to Hrm_copy1",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "record count Std to Hrm_copy1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "error_message",
+					"value": {
+						"value": "@if(\n  not(empty(activity('Std to Hrm')?['output']?['status']?['output']?['result']?['exitValue'])),\n  json(activity('Std to Hrm').output.status.output.result.exitValue).error_message,\n  'No error message'\n)\n\n",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Record completed Std to Hrm Std Hrm data_copy1",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "error message Std to Hrm_copy1",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": {
+							"value": "Fail",
+							"type": "Expression"
+						},
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@variables('starttime')",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@utcNow()",
+							"type": "Expression"
+						},
+						"ErrorMessage": {
+							"value": "@variables('error_message')",
+							"type": "Expression"
+						},
+						"StatusMessage": "pln_aie_document _data  Std to Hrm Layer loaded",
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"ActivityType": "Pipeline",
+						"DurationSeconds": {
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('starttime'))), 10000000)",
+							"type": "Expression"
+						},
+						"StatusCode": "400",
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
+					}
 				}
 			}
 		],
