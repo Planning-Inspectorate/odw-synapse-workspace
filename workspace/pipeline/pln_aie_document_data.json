@@ -404,6 +404,92 @@
 					"variableName": "start time",
 					"value": "@utcNow()"
 				}
+			},
+			{
+				"name": "ForEachTable",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "set_json variable",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@variables('raw_json')",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "Switch_table_status",
+							"type": "Switch",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"cases": [
+									{
+										"value": "success",
+										"activities": [
+											{
+												"name": "Record completed pln_aie_document_data",
+												"type": "ExecutePipeline",
+												"dependsOn": [],
+												"policy": {
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"pipeline": {
+														"referenceName": "pln_log_to_appins",
+														"type": "PipelineReference"
+													},
+													"waitOnCompletion": true,
+													"parameters": {
+														"Stage": "Completion",
+														"PipelineName": "@pipeline().Pipeline",
+														"PipelineRunID": "@pipeline().RunId",
+														"StartTime": "@item().start_exec_time",
+														"EndTime": "@item().end_exec_time",
+														"Inserts": "@item().record_count",
+														"StatusMessage": {
+															"value": "@concat('pln_aie_document_data loaded for table: ',item().delta_table_name)",
+															"type": "Expression"
+														},
+														"PipelineTriggerID": "@pipeline().TriggerId",
+														"PipelineTriggerName": "@pipeline().TriggerName",
+														"PipelineTriggerType": "@pipeline().TriggerType",
+														"PipelineTriggeredbyPipelineName": "@pipeline()?.TriggeredByPipelineName",
+														"PipelineTriggeredbyPipelineRunID": "@pipeline()?.TriggeredByPipelineRunId",
+														"DurationSeconds": "@item().total_exec_time",
+														"StatusCode": "200",
+														"AppInsIKey": "@pipeline().parameters.apps_insights_ikey"
+													}
+												}
+											}
+										]
+									},
+									{
+										"value": "failed"
+									}
+								],
+								"defaultActivities": [
+									{
+										"name": "Dummy",
+										"type": "Wait",
+										"dependsOn": [],
+										"userProperties": [],
+										"typeProperties": {
+											"waitTimeInSeconds": 1
+										}
+									}
+								]
+							}
+						}
+					]
+				}
 			}
 		],
 		"parameters": {
