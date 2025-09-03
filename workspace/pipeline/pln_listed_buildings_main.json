@@ -6,6 +6,8 @@
 				"name": "Src to Raw",
 				"description": "Source to Raw",
 				"type": "ExecutePipeline",
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [],
 				"policy": {
 					"secureInput": false
@@ -22,6 +24,8 @@
 			{
 				"name": "Raw to Std",
 				"type": "SynapseNotebook",
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "Src to Raw",
@@ -120,6 +124,8 @@
 			{
 				"name": "set_json variable",
 				"type": "SetVariable",
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "Raw to Std",
@@ -144,6 +150,8 @@
 			{
 				"name": "ForEachTable",
 				"type": "ForEach",
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "set_json variable",
@@ -373,6 +381,8 @@
 			{
 				"name": "If Raw to Std Faild",
 				"type": "IfCondition",
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "ForEachTable",
@@ -434,7 +444,7 @@
 				"typeProperties": {
 					"variableName": "recordCount",
 					"value": {
-						"value": "@activity('Std to Hrm').output.status.output.result.exitValue",
+						"value": "@json(activity('Std to Hrm').output.status.output.result.exitValue).table_details[0].insert_count",
 						"type": "Expression"
 					}
 				}
@@ -458,7 +468,7 @@
 				"typeProperties": {
 					"variableName": "error_message",
 					"value": {
-						"value": "@activity('Std to Hrm').output.status.output.result.exitValue",
+						"value": "@json(activity('Std to Hrm').output.status.output.result.exitValue).table_details[0].error_message",
 						"type": "Expression"
 					}
 				}
@@ -529,7 +539,7 @@
 						},
 						"ActivityType": "Pipeline",
 						"DurationSeconds": {
-							"value": "@div(sub(ticks(utcNow()), ticks(variables('start time'))), 10000000)",
+							"value": "@json(activity('Std to Hrm').output.status.output.result.exitValue).table_details[0].total_exec_time",
 							"type": "Expression"
 						},
 						"StatusCode": "200",
@@ -674,7 +684,7 @@
 						},
 						"ActivityType": "Pipeline",
 						"DurationSeconds": {
-							"value": "@json(activity('Std to Hrm').output.status.output.result.exitValue).table_details.total_exec_time",
+							"value": "@json(activity('Std to Hrm').output.status.output.result.exitValue).table_details.total_exec_time[0]",
 							"type": "Expression"
 						},
 						"StatusCode": "400",
@@ -714,8 +724,7 @@
 		},
 		"variables": {
 			"recordCount": {
-				"type": "Integer",
-				"defaultValue": "default value"
+				"type": "Integer"
 			},
 			"error_message": {
 				"type": "String"
