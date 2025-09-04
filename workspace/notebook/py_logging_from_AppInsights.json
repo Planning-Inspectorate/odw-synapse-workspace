@@ -1,0 +1,548 @@
+{
+	"name": "py_logging_from_AppInsights",
+	"properties": {
+		"folder": {
+			"name": "utils"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"runAsWorkspaceSystemIdentity": false,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "fd66827f-6e27-4378-8ce6-fdca0d5a4e70"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": true,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%run py_retry_logic"
+				],
+				"execution_count": 5
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Test connection is working"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"import requests\n",
+					"\n",
+					"tenant_id = \"5878df98-6f88-48ab-9322-998ce557088d\"       # \"tenant\" from SP JSON tennat id: 5878df98-6f88-48ab-9322-998ce557088d\n",
+					"client_id = \"2a302373-df67-4c1e-91a1-f6301b87f42b\"       # \"appId\" from SP JSON\n",
+					"client_secret = \"cS38Q~avsYoky-adBlNxErA.aYdSDvQ6ez.t.cH_\" # use the keyvault not secret\n",
+					"\n",
+					"token_url = f\"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token\"\n",
+					"token_data = {\n",
+					"    \"grant_type\": \"client_credentials\",\n",
+					"    \"client_id\": client_id,\n",
+					"    \"client_secret\": client_secret,\n",
+					"    \"scope\": \"https://api.loganalytics.io/.default\"  # or https://api.applicationinsights.io/.default\n",
+					"}\n",
+					"\n",
+					"resp = requests.post(token_url, data=token_data)\n",
+					"resp.raise_for_status()\n",
+					"print(\"Token acquired OK\")\n",
+					"\n",
+					""
+				],
+				"execution_count": 33
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Check the query returns results"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"import requests\n",
+					"\n",
+					"tenant_id = \"5878df98-6f88-48ab-9322-998ce557088d\"       # \"tenant\" from SP JSON tennat id: 5878df98-6f88-48ab-9322-998ce557088d\n",
+					"client_id = \"2a302373-df67-4c1e-91a1-f6301b87f42b\"       # \"appId\" from SP JSON\n",
+					"client_secret = \"cS38Q~avsYoky-adBlNxErA.aYdSDvQ6ez.t.cH_\" # use the keyvault not secret\n",
+					"app_id = \"15f0aed3-e987-496c-85fe-01267ae5430f\"  # from Azure Portal > API Access appInsight_id = \"15f0aed3-e987-496c-85fe-01267ae5430f\"\n",
+					"\n",
+					"\n",
+					"# 1. Get token\n",
+					"token_url = f\"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token\"\n",
+					"token_data = {\n",
+					"    \"grant_type\": \"client_credentials\",\n",
+					"    \"client_id\": client_id,\n",
+					"    \"client_secret\": client_secret,\n",
+					"    \"scope\": \"https://api.applicationinsights.io/.default\"\n",
+					"}\n",
+					"token = requests.post(token_url, data=token_data).json()[\"access_token\"]\n",
+					"print(token)\n",
+					"\n",
+					"# 2. Query App Insights API\n",
+					"url = f\"https://api.applicationinsights.io/v1/apps/{app_id}/query\"\n",
+					"headers = {\"Authorization\": f\"Bearer {token}\"}\n",
+					"params = \".show tables\"  #{\"query\": \"requests | take 5\"}\n",
+					"\n",
+					"resp = requests.get(url, headers=headers, params=params)\n",
+					"print(resp.json())\n",
+					""
+				],
+				"execution_count": 36
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"import requests\n",
+					"\n",
+					"\n",
+					"tenant_id = \"5878df98-6f88-48ab-9322-998ce557088d\"       # \"tenant\" from SP JSON tennat id: 5878df98-6f88-48ab-9322-998ce557088d\n",
+					"client_id = \"2a302373-df67-4c1e-91a1-f6301b87f42b\"       # \"appId\" from SP JSON\n",
+					"client_secret = \"cS38Q~avsYoky-adBlNxErA.aYdSDvQ6ez.t.cH_\" # use the keyvault not secret\n",
+					"app_id = \"15f0aed3-e987-496c-85fe-01267ae5430f\"  # from Azure Portal > API Access appInsight_id = \"15f0aed3-e987-496c-85fe-01267ae5430f\"\n",
+					"\n",
+					"# 1. Get token\n",
+					"token_url = f\"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token\"\n",
+					"token_data = {\n",
+					"    \"grant_type\": \"client_credentials\",\n",
+					"    \"client_id\": client_id,\n",
+					"    \"client_secret\": client_secret,\n",
+					"    \"scope\": \"https://api.applicationinsights.io/.default\"\n",
+					"}\n",
+					"token = requests.post(token_url, data=token_data).json()[\"access_token\"]\n",
+					"\n",
+					"# 2. Query App Insights API\n",
+					"url = f\"https://api.applicationinsights.io/v1/apps/{app_id}/query\"\n",
+					"headers = {\"Authorization\": f\"Bearer {token}\"}\n",
+					"params = {\"query\": \"requests | take 1\"}\n",
+					"\n",
+					"resp = requests.get(url, headers=headers, params=params)\n",
+					"print(resp.json())\n",
+					""
+				],
+				"execution_count": 35
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from azure.identity import AzureAuthorityHosts, DefaultAzureCredential\n",
+					"from azure.monitor.query import LogsQueryClient\n",
+					"\n",
+					"credential = DefaultAzureCredential(authority=AzureAuthorityHosts.AZURE_GOVERNMENT)\n",
+					"client = LogsQueryClient(credential, endpoint=\"https://api.loganalytics.us/v1\")"
+				],
+				"execution_count": 11
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"print(credential)"
+				],
+				"execution_count": 13
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from azure.identity import AzureCliCredential\n",
+					"import requests\n",
+					"from uuid import uuid4\n",
+					"from datetime import timedelta"
+				],
+				"execution_count": 14
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"pip install azure.monitor.query\n",
+					""
+				],
+				"execution_count": 15
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from azure.identity import DefaultAzureCredential\n",
+					"from azure.monitor.query import LogsQueryClient\n",
+					"from datetime import timedelta\n",
+					"\n",
+					"# Auth\n",
+					"credential = DefaultAzureCredential()\n",
+					"client = LogsQueryClient(credential)\n",
+					"\n",
+					"# Workspace ID (Log Analytics workspace linked to App Insights)\n",
+					"workspace_id = \"40d95e90-7686-49cd-8aba-ab1a40bd5971\"\n",
+					""
+				],
+				"execution_count": 16
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from azure.identity import ClientSecretCredential\n",
+					"from azure.monitor.query import LogsQueryClient\n",
+					"\n",
+					"tenant_id = \"5878df98-6f88-48ab-9322-998ce557088d\"          # \"tenant\" from SP JSON tennat id: 5878df98-6f88-48ab-9322-998ce557088d\n",
+					"client_id = \"2a302373-df67-4c1e-91a1-f6301b87f42b\"          # \"appId\" from SP JSON\n",
+					"client_secret = \"cS38Q~avsYoky-adBlNxErA.aYdSDvQ6ez.t.cH_\"  # \"password\" from SP JSON\n",
+					"appInsight_id = \"15f0aed3-e987-496c-85fe-01267ae5430f\"\n",
+					"\n",
+					"credential = ClientSecretCredential(tenant_id, client_id, client_secret)\n",
+					"client = LogsQueryClient(credential)\n",
+					"\n",
+					"workspace_id = \"40d95e90-7686-49cd-8aba-ab1a40bd5971\"\n",
+					"\n",
+					"query = \".show tables\"\n",
+					"result = client.query_workspace(workspace_id, query, timespan=timedelta(hours=1))\n",
+					"\n",
+					"for table in result.tables:\n",
+					"    for row in table.rows:\n",
+					"        print(row)\n",
+					"        print(dict(zip(table.columns, row)))\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"APP_INSIGHTS_TOKEN = AzureCliCredential().get_token(\"https://api.applicationinsights.io/.default\").token\n",
+					"JOB_ID = uuid4()\n",
+					"\n",
+					"\n",
+					"def query_app_insights(app_id: str, expected_message: str):\n",
+					"    query = f'traces | where message contains \"{expected_message}\"'\n",
+					"    payload = {\"query\": query, \"timespan\": \"PT30M\"}\n",
+					"    resp = requests.post(\n",
+					"        f\"https://api.applicationinsights.io/v1/apps/{app_id}/query\", json=payload, headers={\"Authorization\": f\"Bearer {APP_INSIGHTS_TOKEN}\"}\n",
+					"    )\n",
+					"    resp_json = resp.json()\n",
+					"    return resp_json"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%%sh\n",
+					"\n",
+					"pip install azure "
+				],
+				"execution_count": 5
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"query = \"\"\"requests\n",
+					"| where timestamp > ago(1h)\n",
+					"| project timestamp, name, resultCode, duration, success\"\"\"\n",
+					"\n",
+					"response = client.query_workspace(\n",
+					"    workspace_id=workspace_id,\n",
+					"    query=query,\n",
+					"    timespan=timedelta(hours=1)\n",
+					")\n",
+					"\n",
+					"# Print results\n",
+					"for table in response.tables:\n",
+					"    for row in table.rows:\n",
+					"        print(dict(zip(table.columns, row)))\n",
+					""
+				],
+				"execution_count": 12
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"#https://github.com/Azure/azure-sdk-for-python/blob/main/sdk/monitor/azure-monitor-opentelemetry-exporter/samples/logs/sample_log.py\n",
+					"import logging\n",
+					"import functools\n",
+					"import uuid\n",
+					"from pyspark.sql import SparkSession\n",
+					"from notebookutils import mssparkutils\n",
+					"from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler\n",
+					"from opentelemetry._logs import get_logger_provider, set_logger_provider\n",
+					"from opentelemetry.sdk._logs.export import BatchLogRecordProcessor\n",
+					"from azure.monitor.opentelemetry.exporter import AzureMonitorLogExporter\n",
+					"from multiprocessing import Process\n",
+					"\n",
+					"logger = logging.getLogger()\n",
+					"for h in list(logger.handlers):\n",
+					"    if isinstance(h, LoggingHandler):\n",
+					"        logger.removeHandler(h)\n",
+					"\n",
+					"logger_provider = LoggerProvider()\n",
+					"LOGGING_INITIALISED = globals().get(\"LOGGING_INITIALISED\", False)\n",
+					"MAX_WORKER_POOLS = 5\n",
+					"if \"CURRENT_WORKER_POOLS_COUNT\" not in globals():\n",
+					"    # Prevent overwriting the variable\n",
+					"    CURRENT_WORKER_POOLS_COUNT = 0\n",
+					"\n",
+					"pipelinejobid = (\n",
+					"    mssparkutils.runtime.context['pipelinejobid']\n",
+					"    if mssparkutils.runtime.context.get('isForPipeline', False)\n",
+					"    else uuid.uuid4()\n",
+					")\n",
+					"\n",
+					"def logInfo(msg: str): logger.info(f\"{pipelinejobid} : {msg}\")\n",
+					"def logError(msg: str): logger.error(f\"{pipelinejobid} : {msg}\")\n",
+					"def logException(ex: Exception): logger.exception(f\"{pipelinejobid} : {ex}\")\n",
+					"\n",
+					"@retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_delay(20), reraise=True, before_sleep=before_sleep)\n",
+					"def setupLogging(force=False):\n",
+					"    global LOGGING_INITIALISED\n",
+					"\n",
+					"    if LOGGING_INITIALISED and not force:\n",
+					"        logInfo(\"Logging already initialized.\")\n",
+					"        return\n",
+					"\n",
+					"    try:\n",
+					"        key = mssparkutils.credentials.getSecretWithLS(\"ls_kv\", \"application-insights-connection-string\")\n",
+					"        conn_string = key.split(\";\")[0]\n",
+					"    except Exception as e:\n",
+					"        print(\"Failed to get connection string:\", e)\n",
+					"        return\n",
+					"\n",
+					"    set_logger_provider(logger_provider)\n",
+					"    exporter = AzureMonitorLogExporter.from_connection_string(conn_string)\n",
+					"    logger_provider.add_log_record_processor(\n",
+					"        BatchLogRecordProcessor(exporter, schedule_delay_millis=5000)\n",
+					"    )\n",
+					"\n",
+					"    if not any(isinstance(h, LoggingHandler) for h in logger.handlers):\n",
+					"        logger.addHandler(LoggingHandler())\n",
+					"\n",
+					"    if not any(isinstance(h, logging.StreamHandler) for h in logger.handlers):\n",
+					"        logger.addHandler(logging.StreamHandler())\n",
+					"\n",
+					"    logger.setLevel(logging.INFO)\n",
+					"    LOGGING_INITIALISED = True\n",
+					"    logInfo(\"Logging initialized.\")\n",
+					"\n",
+					"def flushLogging(timeout: int = 60):\n",
+					"    global MAX_WORKER_POOLS\n",
+					"    global CURRENT_WORKER_POOLS_COUNT\n",
+					"    def flushLoggingInner():\n",
+					"        print(\"Flushing logs\")\n",
+					"        try:\n",
+					"            logger_provider.force_flush()\n",
+					"        except Exception as e:\n",
+					"            print(f\"Flush failed: {e}\")\n",
+					"    if CURRENT_WORKER_POOLS_COUNT < MAX_WORKER_POOLS:\n",
+					"        CURRENT_WORKER_POOLS_COUNT += 1\n",
+					"        t = Process(target=flushLoggingInner, daemon=True)\n",
+					"        t.start()\n",
+					"        t.join(timeout)\n",
+					"        if t.is_alive():\n",
+					"            print(f\"Logging flush timed out in py_logging_decorator. Waited {timeout} seconds. Killing the running thread\")\n",
+					"            t.terminate()\n",
+					"        CURRENT_WORKER_POOLS_COUNT -= 1\n",
+					"    else:\n",
+					"        print(\"Could not start logging export in py_logging_decorator - max number of flush threads has been reached\")\n",
+					"\n",
+					"def shutdownLogging():\n",
+					"    try:\n",
+					"        logger_provider.shutdown()\n",
+					"    except Exception as e:\n",
+					"        print(f\"Shutdown failed: {e}\")\n",
+					"\n",
+					"def logging_to_appins(func):\n",
+					"    @functools.wraps(func)\n",
+					"    def wrapper(*args, **kwargs):\n",
+					"        args_repr = [repr(a) for a in args]\n",
+					"        kwargs_repr = [f\"{k}={v!r}\" for k, v in kwargs.items()]\n",
+					"        logInfo(f\"Function {func.__name__} called with args: {', '.join(args_repr + kwargs_repr)}\")\n",
+					"        try:\n",
+					"            return func(*args, **kwargs)\n",
+					"        except mssparkutils.handlers.notebookHandler.NotebookExit as e:\n",
+					"            logInfo(f\"Notebook exited: {e}\")\n",
+					"            mssparkutils.notebook.exit(e)\n",
+					"        except Exception as e:\n",
+					"            logException(e)\n",
+					"            raise\n",
+					"    return wrapper\n",
+					"\n",
+					"if not LOGGING_INITIALISED:\n",
+					"    setupLogging()\n",
+					"    flushLogging()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"if False:\n",
+					"    @logging_to_appins\n",
+					"    def testException():\n",
+					"        raise Exception(\"Test Exception\")\n",
+					"\n",
+					"    try:\n",
+					"        logInfo(\"Running testException\")\n",
+					"        testException()\n",
+					"    except Exception as e:\n",
+					"        logError(\"Caught error\")\n",
+					"        flushLogging()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"if False:\n",
+					"    @logging_to_appins\n",
+					"    def test():\n",
+					"        raise ValueError('BANANA')\n",
+					"\n",
+					"    try:\n",
+					"        logInfo(\"Running test\")\n",
+					"        test()\n",
+					"    except Exception:\n",
+					"        logError(\"Caught error\")\n",
+					"        flushLogging()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"if False:\n",
+					"    @logging_to_appins\n",
+					"    def test2():\n",
+					"        raise ValueError('CARROT')\n",
+					"\n",
+					"    try:\n",
+					"        logInfo(\"Running test2\")\n",
+					"        test2()\n",
+					"    except Exception:\n",
+					"        logError(\"Caught error\")\n",
+					"        flushLogging()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"if False:\n",
+					"    @logging_to_appins\n",
+					"    def test3():\n",
+					"        raise ValueError('CAULIFLOWER')\n",
+					"\n",
+					"    try:\n",
+					"        logInfo(\"Running test3\")\n",
+					"        test3()\n",
+					"    except Exception:\n",
+					"        logError(\"Caught error\")\n",
+					"        flushLogging()"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
