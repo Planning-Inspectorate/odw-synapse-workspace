@@ -9,6 +9,11 @@ from azure.monitor.opentelemetry.exporter import AzureMonitorLogExporter
 from tenacity import retry, wait_exponential, stop_after_delay
 from tenacity.before_sleep import before_sleep_nothing
 import threading
+import multiprocessing
+import sys
+import time
+import psutil
+import os
 
 
 class LoggingUtil:
@@ -29,6 +34,11 @@ class LoggingUtil:
     """
 
     _INSTANCE = None
+    _MAX_FLUSH_PROCESSES = 3  # Limit concurrent flush processes
+    _CURRENT_FLUSH_COUNT = 0
+    _FLUSH_LOCK = threading.Lock()
+    _MAX_LOG_MEMORY_MB = 50  # Max memory usage before forcing flush
+    _LOG_COUNT_THRESHOLD = 1000  # Max log entries before checking memory
 
     def __new__(cls, *args, **kwargs):
         if not cls._INSTANCE:
@@ -51,6 +61,12 @@ class LoggingUtil:
         for h in list(self.logger.handlers):
             if isinstance(h, LoggingHandler):
                 self.logger.removeHandler(h)
+        
+        # Initialize logging monitoring
+        self._log_count = 0
+        self._last_memory_check = time.time()
+        self._flush_in_progress = False
+        
         self.setup_logging()
         self.flush_logging()
 
@@ -59,18 +75,21 @@ class LoggingUtil:
         Log an information message
         """
         self.logger.info(f"{self.pipelinejobid} : {msg}")
+        self._check_memory_usage()
 
     def log_error(self, msg: str):
         """
         Log an error message string
         """
         self.logger.error(f"{self.pipelinejobid} : {msg}")
+        self._check_memory_usage()
 
     def log_exception(self, ex: Exception):
         """
         Log an exception
         """
         self.logger.exception(f"{self.pipelinejobid} : {ex}")
+        self._check_memory_usage()
 
     @retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_delay(20), reraise=True, before_sleep=before_sleep_nothing)
     def setup_logging(self, force=False):
@@ -99,30 +118,104 @@ class LoggingUtil:
         self._LOGGING_INITIALISED = True
         self.log_info("Logging initialised.")
 
-    def flush_logging(self, timeout_seconds: int = 60):
+    def _check_memory_usage(self):
         """
-        Attempt to flush logs to Azure App Insights
+        Monitor memory usage and trigger flush if necessary
         """
-        print("Calling flush")
-        event = threading.Event()
-
-        def flush_logging_inner():
-            print("Flushing logs")
+        self._log_count += 1
+        current_time = time.time()
+        
+        # Check memory usage periodically
+        if (self._log_count % self._LOG_COUNT_THRESHOLD == 0 or 
+            current_time - self._last_memory_check > 30):  # Check every 30 seconds
+            
             try:
-                self.LOGGER_PROVIDER.force_flush()
+                process = psutil.Process(os.getpid())
+                memory_mb = process.memory_info().rss / 1024 / 1024
+                
+                if memory_mb > self._MAX_LOG_MEMORY_MB:
+                    print(f"Memory usage ({memory_mb:.1f}MB) exceeds threshold ({self._MAX_LOG_MEMORY_MB}MB), forcing flush")
+                    self.flush_logging(timeout_seconds=30, force=True)
+                    
+                self._last_memory_check = current_time
+                
             except Exception as e:
-                print(f"Flush failed: {e}")
-            event.set()
+                # Don't fail logging due to memory check issues
+                print(f"Memory check failed: {e}")
 
-        t = threading.Thread(target=flush_logging_inner)
-        t.daemon = True
-        t.start()
-
-        finished = event.wait(timeout=timeout_seconds)
-        if not finished:
-            print(f"force_flush() hung for >{timeout_seconds}s - continuing anyway")
-        else:
-            print("force_flush() completed")
+    def flush_logging(self, timeout_seconds: int = 60, force: bool = False):
+        """
+        Attempt to flush logs to Azure App Insights using process isolation
+        
+        Args:
+            timeout_seconds: Maximum time to wait for flush completion
+            force: If True, bypass concurrency limits (use with caution)
+        """
+        if not force and self._flush_in_progress:
+            print("Flush already in progress, skipping duplicate flush request")
+            return
+            
+        with self._FLUSH_LOCK:
+            if not force and self._CURRENT_FLUSH_COUNT >= self._MAX_FLUSH_PROCESSES:
+                print(f"Max flush processes ({self._MAX_FLUSH_PROCESSES}) reached, skipping flush")
+                return
+                
+            self._CURRENT_FLUSH_COUNT += 1
+            self._flush_in_progress = True
+            
+        try:
+            print("Starting log flush process")
+            
+            def flush_target():
+                """Target function for flush process"""
+                try:
+                    print("Process: Flushing logs")
+                    # Create a new logger provider instance in the subprocess
+                    # to avoid sharing state with the main process
+                    self.LOGGER_PROVIDER.force_flush()
+                    print("Process: Flush completed successfully")
+                except Exception as e:
+                    print(f"Process: Flush failed: {e}")
+                    
+            # Use multiprocessing for better isolation
+            process = multiprocessing.Process(target=flush_target)
+            process.daemon = True
+            process.start()
+            
+            # Wait for completion with timeout
+            process.join(timeout=timeout_seconds)
+            
+            if process.is_alive():
+                print(f"Flush process hung for >{timeout_seconds}s, terminating process")
+                process.terminate()
+                # Give it a moment to terminate gracefully
+                time.sleep(1)
+                if process.is_alive():
+                    print("Force killing hung flush process")
+                    process.kill()
+                process.join(timeout=5)
+            else:
+                print("Log flush completed successfully")
+                
+        except Exception as e:
+            print(f"Error during flush process management: {e}")
+        finally:
+            with self._FLUSH_LOCK:
+                self._CURRENT_FLUSH_COUNT -= 1
+                self._flush_in_progress = False
+                
+    def shutdown_logging(self):
+        """
+        Shutdown logging provider and clean up resources
+        """
+        try:
+            print("Shutting down logging provider")
+            # Final flush before shutdown
+            self.flush_logging(timeout_seconds=30, force=True)
+            self.LOGGER_PROVIDER.shutdown()
+            print("Logging provider shutdown completed")
+        except Exception as e:
+            print(f"Error during logging shutdown: {e}")
 
     @classmethod
     def logging_to_appins(cls, func):
