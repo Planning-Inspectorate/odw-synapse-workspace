@@ -1457,6 +1457,64 @@
 									"AppInsIKey": "@pipeline().parameters.apps_insights_ikey"
 								}
 							}
+						},
+						{
+							"name": "Record failed Src to Raw - service user",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "End_time",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "Fail",
+									"PipelineName": "@pipeline().Pipeline",
+									"PipelineRunID": "@pipeline().RunId",
+									"StartTime": "@variables('Src to Raw_start_time')",
+									"EndTime": "@variables('Src to Raw_End_time')",
+									"Inserts": "@variables('Number_of_messages')",
+									"Updates": "@variables('Number_of_messages')",
+									"StatusMessage": "Src to Raw - service user and Src to Raw - appeal service user Failed",
+									"PipelineTriggerID": "@pipeline().TriggerId",
+									"PipelineTriggerName": "@pipeline().TriggerName",
+									"PipelineTriggerType": "@pipeline().TriggerType",
+									"PipelineTriggeredbyPipelineName": "@pipeline()?.TriggeredByPipelineName",
+									"PipelineTriggeredbyPipelineRunID": "@pipeline()?.TriggeredByPipelineRunId",
+									"DurationSeconds": "@div(sub(ticks(variables('Src to Raw_End_time')), ticks(variables('Src to Raw_start_time'))), 10000000)\n",
+									"StatusCode": "400",
+									"AppInsIKey": "@pipeline().parameters.apps_insights_ikey"
+								}
+							}
+						},
+						{
+							"name": "Set Error Flag",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Record failed Src to Raw - service user",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": []
 						}
 					]
 				}
