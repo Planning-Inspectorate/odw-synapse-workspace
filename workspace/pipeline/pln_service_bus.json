@@ -1283,7 +1283,14 @@
 							"name": "Src to Raw - service user",
 							"description": "Triggers Function App to read messages from Service Bus and write to odw-raw",
 							"type": "ExecutePipeline",
-							"dependsOn": [],
+							"dependsOn": [
+								{
+									"activity": "Set_start_time",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
 							"policy": {
 								"secureInput": false
 							},
@@ -1310,7 +1317,14 @@
 							"name": "Src to Raw - appeal service user",
 							"description": "Triggers Function App to read messages from Service Bus and write to odw-raw",
 							"type": "ExecutePipeline",
-							"dependsOn": [],
+							"dependsOn": [
+								{
+									"activity": "Set_start_time",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
 							"policy": {
 								"secureInput": false
 							},
@@ -1361,6 +1375,41 @@
 									"value": "@add(\n    int(coalesce(activity('Src to Raw - service user').output.pipelineReturnValue.Messages, '0')),\n    int(coalesce(activity('Src to Raw - appeal service user').output.pipelineReturnValue.Messages, '0'))\n    )",
 									"type": "Expression"
 								}
+							}
+						},
+						{
+							"name": "Set_start_time",
+							"type": "SetVariable",
+							"dependsOn": [],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "Src to Raw_start_time",
+								"value": "@utcNow()"
+							}
+						},
+						{
+							"name": "End_time",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Set number of messages received - service user",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "Src to Raw_End_time",
+								"value": "@utcNow()"
 							}
 						}
 					]
@@ -1786,6 +1835,12 @@
 				"type": "String"
 			},
 			"Key_Vault_Url": {
+				"type": "String"
+			},
+			"Src to Raw_start_time": {
+				"type": "String"
+			},
+			"Src to Raw_End_time": {
 				"type": "String"
 			}
 		},
