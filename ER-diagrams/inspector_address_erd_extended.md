@@ -1,3 +1,4 @@
+```mermaid
 erDiagram
     LIVE_DIM_INSPECTOR {
         varchar source_id PK
