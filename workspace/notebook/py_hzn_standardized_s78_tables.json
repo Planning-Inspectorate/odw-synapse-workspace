@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "c1df0c84-90d8-49ce-90a3-9a1f659a5de4"
+				"spark.autotune.trackingId": "cfb4d4af-67fe-474b-8298-2ff0235a9c50"
 			}
 		},
 		"metadata": {
@@ -113,6 +113,7 @@
 					}
 				},
 				"source": [
+					"spark.conf.set(\"spark.sql.session.timeZone\", \"UTC\")\r\n",
 					"horizon_cases_s78 = \"odw_standardised_db.horizoncases_s78\"\r\n",
 					"table_name = \"odw_standardised_db.horizon_appeal_s78_final\"\r\n",
 					"primary_key = 'caseReference'\r\n",
@@ -216,7 +217,16 @@
 				"cell_type": "code",
 				"source": [
 					"final_df = final_df.withColumn(\"preserveGrantLoan\", F.lit(None).cast(\"boolean\"))\r\n",
-					"final_df = final_df.withColumn(\"consultHistoricEngland\", F.lit(None).cast(\"boolean\"))"
+					"final_df = final_df.withColumn(\"consultHistoricEngland\", F.lit(None).cast(\"boolean\"))\r\n",
+					"\r\n",
+					"for colname, dtype in [\r\n",
+					"    (\"statementOfCommonGroundDueDate\", \"timestamp\"),\r\n",
+					"    (\"planningObligationDueDate\", \"timestamp\"),\r\n",
+					"]:\r\n",
+					"    if colname in final_df.columns:\r\n",
+					"        final_df = final_df.withColumn(colname, F.col(colname).cast(dtype))\r\n",
+					"    else:\r\n",
+					"        final_df = final_df.withColumn(colname, F.lit(None).cast(dtype))"
 				],
 				"execution_count": null
 			},
