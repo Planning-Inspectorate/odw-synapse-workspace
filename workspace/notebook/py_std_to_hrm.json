@@ -90,7 +90,7 @@
 					}
 				},
 				"source": [
-					"%run utils/py_logging_decorator"
+					"from odw.core.util.logging_util import LoggingUtil\n"
 				],
 				"execution_count": null
 			},
@@ -183,7 +183,7 @@
 					}
 				},
 				"source": [
-					"logInfo(\"Loading orchestration and definition from config\")\n",
+					"LoggingUtil().log_info(\"Loading orchestration and definition from config\")\n",
 					"\n",
 					"spark = SparkSession.builder.getOrCreate()\n",
 					"\n",
@@ -197,9 +197,9 @@
 					"definition = next((d for d in definitions if entity_name == d['Source_Filename_Start']), None)\n",
 					"\n",
 					"if not definition:\n",
-					"    logError(\"No definition found\")\n",
+					"    LoggingUtil().log_error(\"No definition found\")\n",
 					"    mssparkutils.notebook.exit(f\"Definition not found for {entity_name}\")\n",
-					"logInfo(\"Definition found\")"
+					"LoggingUtil().log_info(\"Definition found\")"
 				],
 				"execution_count": null
 			},
@@ -335,10 +335,10 @@
 					"    if schema:\n",
 					"        create_table_from_schema(schema, hrm_db, hrm_table, harmonised_container, hrm_table)   \n",
 					"    else:\n",
-					"        logError(f\"Cannot create table {hrm_table} since the Schema for {entity_name} not found.\")\n",
+					"        LoggingUtil().log_error(f\"Cannot create table {hrm_table} since the Schema for {entity_name} not found.\")\n",
 					"        raise ValueError(f\"Cannot create table {hrm_table} since the Schema for {entity_name} not found.\")\n",
 					"else:\n",
-					"    logInfo(f\"Table {hrm_table} already exists.\")"
+					"    LoggingUtil().log_info(f\"Table {hrm_table} already exists.\")"
 				],
 				"execution_count": null
 			},
@@ -389,14 +389,14 @@
 					}
 				},
 				"source": [
-					"logInfo(\"Getting data from standardised\")\n",
+					"LoggingUtil().log_info(\"Getting data from standardised\")\n",
 					"latest_ingestion = spark.sql(f\"SELECT * FROM {std_db}.{std_table} WHERE expected_from = (SELECT MAX(expected_from) FROM {std_db}.{std_table}) ORDER BY message_enqueued_time_utc\")\n",
 					"\n",
 					"# remove the column ingested_datetime and then removing duplicates\n",
 					"latest_ingestion = latest_ingestion.toPandas()\n",
 					"\n",
 					"if len(latest_ingestion) == 0:\n",
-					"    logError(f\"Standardised data not available for {entity_name}\")\n",
+					"    LoggingUtil().log_error(f\"Standardised data not available for {entity_name}\")\n",
 					"    mssparkutils.notebook.exit(f\"Standardised data not available for {entity_name}\")\n",
 					"\n",
 					"latest_ingestion = latest_ingestion.drop(columns=['ingested_datetime']).drop_duplicates()\n",
@@ -414,7 +414,7 @@
 					"    schema = json.loads(schema)\n",
 					"    mapping = {field[\"name\"]: field[\"name\"] for field in schema[\"fields\"]}\n",
 					"\n",
-					"logInfo(\"Read data from standardised\")"
+					"LoggingUtil().log_info(\"Read data from standardised\")"
 				],
 				"execution_count": null
 			},
@@ -517,13 +517,13 @@
 				"source": [
 					"import hashlib\n",
 					"\n",
-					"@logging_to_appins\n",
+					"@LoggingUtil.logging_to_appins\n",
 					"def calculate_md5(row):\n",
 					"    row_str = ''.join(map(str, row))\n",
 					"    md5_hash = hashlib.md5(row_str.encode()).hexdigest()\n",
 					"    return md5_hash\n",
 					"\n",
-					"@logging_to_appins\n",
+					"@LoggingUtil.logging_to_appins\n",
 					"def cast_dtypes(source_df: pd.DataFrame, target_df: pd.DataFrame):\n",
 					"    for source_column, source_dtype in source_df.dtypes.items():\n",
 					"        for target_column, target_dtype in target_df.dtypes.items():\n",
@@ -540,7 +540,7 @@
 					"                    source_df[source_column] = source_df[source_column].astype(target_dtype)\n",
 					"\n",
 					"               \n",
-					"@logging_to_appins\n",
+					"@LoggingUtil.logging_to_appins\n",
 					"def apply_mapping(df: pd.DataFrame, target_df: pd.DataFrame) -> pd.DataFrame:\n",
 					"    output_df = pd.DataFrame()\n",
 					"\n",
@@ -565,7 +565,7 @@
 					"    cast_dtypes(output_df, target_df)\n",
 					"    return output_df\n",
 					"\n",
-					"@logging_to_appins\n",
+					"@LoggingUtil.logging_to_appins\n",
 					"def insert_rows_in_df(source_df: pd.DataFrame, target_df: pd.DataFrame, incremental_key) -> pd.DataFrame:\n",
 					"    # appending the incremental key\n",
 					"    max_id = int(target_df[incremental_key].astype(int).max()) if len(target_df) > 0 else 0\n",
@@ -610,7 +610,7 @@
 					"if len(new_rows_df) > 0:\n",
 					"    target_df = insert_rows_in_df(new_rows_df, target_df, hrm_incremental_key)\n",
 					"\n",
-					"logInfo(f\"New rows: {len(new_rows_df)}\\nTarget dataframe: {len(target_df)}\")\n",
+					"LoggingUtil().log_info(f\"New rows: {len(new_rows_df)}\\nTarget dataframe: {len(target_df)}\")\n",
 					""
 				],
 				"execution_count": null
@@ -670,7 +670,7 @@
 					"        target_df.loc[mask, 'ValidTo'] = row['IngestionDate']\n",
 					"        target_df = insert_rows_in_df(pd.DataFrame([row]), target_df, hrm_incremental_key)\n",
 					"\n",
-					"logInfo(f\"Updated rows: {len(updated_rows_df)}\\nTarget dataframe: {len(target_df)}\")"
+					"LoggingUtil().log_info(f\"Updated rows: {len(updated_rows_df)}\\nTarget dataframe: {len(target_df)}\")"
 				],
 				"execution_count": null
 			},
@@ -727,7 +727,7 @@
 					"        target_df.loc[mask, 'IsActive'] = 'N'\n",
 					"        target_df.loc[mask, 'ValidTo'] = row['IngestionDate']\n",
 					"\n",
-					"logInfo(f\"Deleted rows: {len(deleted_rows_df)}\\nTarget dataframe: {len(target_df)}\")"
+					"LoggingUtil().log_info(f\"Deleted rows: {len(deleted_rows_df)}\\nTarget dataframe: {len(target_df)}\")"
 				],
 				"execution_count": null
 			},
@@ -832,17 +832,17 @@
 					"# remove duplicates\n",
 					"target_df = target_df.drop_duplicates(subset=target_df.columns.difference([hrm_incremental_key]))\n",
 					"\n",
-					"logInfo(f\"target_df - de-duped: {len(target_df)} rows\")\n",
+					"LoggingUtil().log_info(f\"target_df - de-duped: {len(target_df)} rows\")\n",
 					"\n",
 					"# overwrite onto existing harmonised table\n",
 					"new_df = spark.createDataFrame(target_df)\n",
 					"existing_df = spark.sql(f\"SELECT * FROM {hrm_db}.{hrm_table}\")\n",
 					"\n",
-					"logInfo(f\"Spark dataframe created with {new_df.count()} rows\")\n",
+					"LoggingUtil().log_info(f\"Spark dataframe created with {new_df.count()} rows\")\n",
 					"\n",
-					"logInfo(f\"Row count matches: {new_df.count() == len(target_df)}\")\n",
+					"LoggingUtil().log_info(f\"Row count matches: {new_df.count() == len(target_df)}\")\n",
 					"\n",
-					"logInfo(f\"Schemas match: {existing_df.schema == new_df.schema}\")\n",
+					"LoggingUtil().log_info(f\"Schemas match: {existing_df.schema == new_df.schema}\")\n",
 					"\n",
 					"# use the existing harmonised table dataframe to cast the data types of the columns in the spark dataframe so they match\n",
 					"for field in existing_df.schema.fields:\n",
@@ -857,7 +857,7 @@
 					"# load data to harmonised table\n",
 					"new_df.write.format(\"delta\").mode(\"overwrite\").saveAsTable(f\"{hrm_db}.{hrm_table}\")\n",
 					"\n",
-					"logInfo(\"Harmonised table updated\")"
+					"LoggingUtil().log_info(\"Harmonised table updated\")"
 				],
 				"execution_count": null
 			},

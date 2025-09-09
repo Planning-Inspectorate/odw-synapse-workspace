@@ -49,13 +49,6 @@
 		"cells": [
 			{
 				"cell_type": "code",
-				"source": [
-					"%run utils/py_logging_decorator"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
 						"source_hidden": false,
@@ -68,6 +61,7 @@
 					}
 				},
 				"source": [
+					"from odw.core.util.logging_util import LoggingUtil\n",
 					"import pprint\n",
 					"from pyspark.sql.types import *\n",
 					"import json\n",
@@ -91,14 +85,14 @@
 					}
 				},
 				"source": [
-					"@logging_to_appins\n",
+					"@LoggingUtil.logging_to_appins\n",
 					"def test_table_exists(db_name: str, table_name: str) -> bool:\n",
 					"    spark.sql(f\"USE {db_name}\")\n",
 					"    tables_df: DataFrame = spark.sql(\"SHOW TABLES\")\n",
 					"    table_names: list = [row['tableName'] for row in tables_df.collect()]\n",
 					"    return table_name in table_names\n",
 					"\n",
-					"@logging_to_appins\n",
+					"@LoggingUtil.logging_to_appins\n",
 					"def get_incremental_key(entity_id: int, storage_account: str, path_to_orchestration_file: str) -> str:\n",
 					"    # getting the incremental key from the odw-config/orchestration\n",
 					"    df: DataFrame = spark.read.option(\"multiline\",\"true\").json(path_to_orchestration_file)\n",
@@ -106,22 +100,22 @@
 					"    definition: dict = next((d for d in definitions if entity_id == d['Source_ID']), None)\n",
 					"    return definition['Harmonised_Incremental_Key'] if definition and 'Harmonised_Incremental_Key' in definition else None\n",
 					"\n",
-					"@logging_to_appins\n",
+					"@LoggingUtil.logging_to_appins\n",
 					"def create_spark_schema(db_name: str, entity_name: str) -> StructType:\n",
 					"    incremental_key: str = get_incremental_key(entity_id, storage_account, path_to_orchestration_file) if db_name == 'odw_harmonised_db' else None\n",
 					"    schema = mssparkutils.notebook.run(\"/py_create_spark_schema\", 30, {\"db_name\": db_name, \"entity_name\": entity_name, \"incremental_key\": incremental_key, \"is_servicebus_schema\": False})\n",
 					"    spark_schema = StructType.fromJson(json.loads(schema))\n",
 					"    return spark_schema\n",
 					"\n",
-					"@logging_to_appins\n",
+					"@LoggingUtil.logging_to_appins\n",
 					"def create_spark_dataframe() -> DataFrame:\n",
 					"    spark_dataframe: DataFrame = spark.createDataFrame([], schema=create_spark_schema(db_name, entity_name))\n",
 					"    return spark_dataframe\n",
 					"\n",
-					"@logging_to_appins\n",
+					"@LoggingUtil.logging_to_appins\n",
 					"def create_spark_table(db_name: str, table_name: str, spark_dataframe: DataFrame) -> None:\n",
 					"    spark_dataframe.write.format(\"delta\").saveAsTable(f\"{db_name}.{table_name}\")\n",
-					"    logInfo(\"Table created\")"
+					"    LoggingUtil().log_info(\"Table created\")"
 				],
 				"execution_count": null
 			},
@@ -185,7 +179,7 @@
 				"source": [
 					"#create folder in odw-raw/pins_lpa for the RAW data\n",
 					"pins_lpa_raw_container = 'abfss://odw-raw@' + storage_account + \"pins_lpa\"\n",
-					"logInfo('pins_lpa_raw_container '+pins_lpa_raw_container)\n",
+					"LoggingUtil().log_info('pins_lpa_raw_container '+pins_lpa_raw_container)\n",
 					"files = mssparkutils.fs.mkdirs(pins_lpa_raw_container)"
 				],
 				"execution_count": null
@@ -212,12 +206,12 @@
 					"spark_dataframe.show()\n",
 					"\n",
 					"if test_table_exists(db_name, table_name):\n",
-					"    logInfo('Table ' +full_table_name +\" already exists\")    \n",
+					"    LoggingUtil().log_info('Table ' +full_table_name +\" already exists\")    \n",
 					"else:\n",
-					"    logInfo('Creating ' +full_table_name)    \n",
+					"    LoggingUtil().log_info('Creating ' +full_table_name)    \n",
 					"    create_spark_table(db_name, table_name, spark_dataframe)\n",
 					"    if test_table_exists(db_name, table_name):\n",
-					"        logInfo('Table ' +full_table_name +\" created\") "
+					"        LoggingUtil().log_info('Table ' +full_table_name +\" created\") "
 				],
 				"execution_count": null
 			},
@@ -243,12 +237,12 @@
 					"spark_dataframe.show()\n",
 					"\n",
 					"if test_table_exists(db_name, table_name):\n",
-					"    logInfo('Table ' +full_table_name +\" already exists\")    \n",
+					"    LoggingUtil().log_info('Table ' +full_table_name +\" already exists\")    \n",
 					"else:\n",
-					"    logInfo('Creating ' +full_table_name)    \n",
+					"    LoggingUtil().log_info('Creating ' +full_table_name)    \n",
 					"    create_spark_table(db_name, table_name, spark_dataframe)\n",
 					"    if test_table_exists(db_name, table_name):\n",
-					"        logInfo('Table ' +full_table_name +\" created\") "
+					"        LoggingUtil().log_info('Table ' +full_table_name +\" created\") "
 				],
 				"execution_count": null
 			}

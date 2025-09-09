@@ -53,25 +53,8 @@
 		"cells": [
 			{
 				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
 				"source": [
-					"%run utils/py_logging_decorator"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
+					"from odw.core.util.logging_util import LoggingUtil\n",
 					"from pyspark.sql.types import IntegerType, ArrayType, StructType, StructField\n",
 					"from pyspark.sql import Row\n",
 					"from pyspark.sql.functions import *\n",
@@ -152,7 +135,7 @@
 				"source": [
 					"try:\n",
 					"    # Read and transform data from source\n",
-					"    logInfo(f\"Reading data from {horizon_table}\")\n",
+					"    LoggingUtil().log_info(f\"Reading data from {horizon_table}\")\n",
 					"    results = spark.sql(f\"\"\"\n",
 					"                    SELECT DISTINCT \n",
 					"                        MD5(\n",
@@ -208,11 +191,11 @@
 					"                        expected_from = (SELECT MAX(expected_from) FROM {horizon_table})\n",
 					"                \"\"\")\n",
 					"        # Initial write to create temp table structure\n",
-					"    logInfo(f\"Initial write to {spark_table_final}\")\n",
+					"    LoggingUtil().log_info(f\"Initial write to {spark_table_final}\")\n",
 					"    results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\n",
 					"    \n",
 					"    # Create calculations view for internal IDs and IsActive flags\n",
-					"    logInfo(\"Creating calculations for internal IDs and IsActive flags\")\n",
+					"    LoggingUtil().log_info(\"Creating calculations for internal IDs and IsActive flags\")\n",
 					"    spark.sql(f\"\"\"\n",
 					"        CREATE OR REPLACE TEMPORARY VIEW vw_aie_document_data_calculations_base\n",
 					"            AS\n",
@@ -342,7 +325,7 @@
 					"    results_clean = results_final.drop(\"AIEDocumentDataID\", \"ValidTo\", \"Migrated\", \"IsActive\")\n",
 					"    \n",
 					"    # Final merge and deduplication\n",
-					"    logInfo(f\"Merging and de-duplicating data\")\n",
+					"    LoggingUtil().log_info(f\"Merging and de-duplicating data\")\n",
 					"    final_df = results_clean.join(df_calcs, (df_calcs[f\"temp_{primary_key}\"] == results_clean[primary_key]) & (df_calcs[\"temp_IngestionDate\"] == results_clean[\"IngestionDate\"])).select(columns)\n",
 					"    final_df = final_df.drop(primary_key).drop_duplicates()\n",
 					"    \n",
@@ -350,11 +333,11 @@
 					"    insert_count = final_df.count()\n",
 					"    \n",
 					"    # Final write\n",
-					"    logInfo(f\"Writing final data to {spark_table_final}\")\n",
+					"    LoggingUtil().log_info(f\"Writing final data to {spark_table_final}\")\n",
 					"    final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\n",
 					"    \n",
 					"    end_exec_time = str(datetime.now())\n",
-					"    logInfo(f\"Successfully processed {spark_table_final} with {insert_count} records\")\n",
+					"    LoggingUtil().log_info(f\"Successfully processed {spark_table_final} with {insert_count} records\")\n",
 					"    \n",
 					"    # Add successful result to logger\n",
 					"    app_insight_logger.add_table_result(\n",
@@ -369,7 +352,7 @@
 					"    \n",
 					"except Exception as e:\n",
 					"    # Handle errors with proper logging\n",
-					"    logError(f\"Error processing {spark_table_final}: {e}\")\n",
+					"    LoggingUtil().log_error(f\"Error processing {spark_table_final}: {e}\")\n",
 					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\n",
 					"    \n",
 					"    end_exec_time = str(datetime.now())\n",

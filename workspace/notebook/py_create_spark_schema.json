@@ -62,24 +62,6 @@
 						"transient": {
 							"deleting": false
 						}
-					}
-				},
-				"source": [
-					"%run utils/py_logging_decorator"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
 					},
 					"tags": [
 						"parameters"
@@ -99,6 +81,7 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"from odw.core.util.logging_util import LoggingUtil\n",
 					"from pyspark.sql.types import *\r\n",
 					"from pyspark.sql import DataFrame\r\n",
 					"import pprint\r\n",
@@ -166,7 +149,7 @@
 				},
 				"source": [
 					"if is_servicebus_schema:\r\n",
-					"    logInfo(\"Creating service bus schema\")\r\n",
+					"    LoggingUtil().log_info(\"Creating service bus schema\")\r\n",
 					"    standardised_fields = StructType([\r\n",
 					"        StructField(\"ingested_datetime\", TimestampType(), False),\r\n",
 					"        StructField(\"expected_from\", TimestampType(), False),\r\n",
@@ -177,7 +160,7 @@
 					"        StructField(\"input_file\", StringType(), False)\r\n",
 					"    ])\r\n",
 					"else:\r\n",
-					"    logInfo(\"Creating standard schema\")\r\n",
+					"    LoggingUtil().log_info(\"Creating standard schema\")\r\n",
 					"    standardised_fields = StructType([\r\n",
 					"        StructField(\"ingested_datetime\", TimestampType(), False),\r\n",
 					"        StructField(\"expected_from\", TimestampType(), False),\r\n",
@@ -186,7 +169,7 @@
 					"\r\n",
 					"\r\n",
 					"if incremental_key:\r\n",
-					"    logInfo(\"Adding incremental key\")\r\n",
+					"    LoggingUtil().log_info(\"Adding incremental key\")\r\n",
 					"    incremental_key_field = StructType([\r\n",
 					"        StructField(incremental_key, LongType(), False)\r\n",
 					"    ])\r\n",
@@ -221,7 +204,7 @@
 					}
 				},
 				"source": [
-					"@logging_to_appins\r\n",
+					"@LoggingUtil.logging_to_appins\r\n",
 					"def get_schema_from_url(url: str) -> dict:\r\n",
 					"    try:\r\n",
 					"        response = requests.get(url)\r\n",
@@ -229,9 +212,9 @@
 					"            data = response.json()\r\n",
 					"            return data\r\n",
 					"        else:\r\n",
-					"            logError(f\"Failed to fetch data from URL. Status code:{response.status_code}\")\r\n",
+					"            LoggingUtil().log_error(f\"Failed to fetch data from URL. Status code:{response.status_code}\")\r\n",
 					"    except requests.exceptions.RequestException as e:\r\n",
-					"        logException(e)"
+					"        LoggingUtil().log_exception(e)"
 				],
 				"execution_count": null
 			},
@@ -239,7 +222,7 @@
 				"cell_type": "code",
 				"source": [
 					"# #latest version of get_spark_type tested on 14/July/2025\r\n",
-					"@logging_to_appins\r\n",
+					"@LoggingUtil.logging_to_appins\r\n",
 					"def get_spark_type(field_schema: dict) -> DataType:\r\n",
 					"    print(\"get_spark_type is being called in July\")\r\n",
 					"    try:\r\n",
@@ -270,7 +253,7 @@
 					"        else:\r\n",
 					"            raise ValueError(f\"Unsupported type: {json_type}\")\r\n",
 					"    except Exception as e:\r\n",
-					"        logException(e)\r\n",
+					"        LoggingUtil().log_exception(e)\r\n",
 					"        raise\r\n",
 					""
 				],
@@ -290,7 +273,7 @@
 					}
 				},
 				"source": [
-					"@logging_to_appins\r\n",
+					"@LoggingUtil.logging_to_appins\r\n",
 					"def transform_schema(schema: dict, is_servicebus_schema = True) -> StructType:\r\n",
 					"    fields: list = []\r\n",
 					"    if is_servicebus_schema: \r\n",
@@ -323,7 +306,7 @@
 					}
 				},
 				"source": [
-					"@logging_to_appins\r\n",
+					"@LoggingUtil.logging_to_appins\r\n",
 					"def resolve_refs(schema: dict, definitions: dict) -> dict:\r\n",
 					"    if isinstance(schema, dict):\r\n",
 					"        if '$ref' in schema:\r\n",
@@ -353,7 +336,7 @@
 					}
 				},
 				"source": [
-					"@logging_to_appins\r\n",
+					"@LoggingUtil.logging_to_appins\r\n",
 					"def add_master_columns_to_schema(db_name: str) -> StructType:\r\n",
 					"    if not db_name:\r\n",
 					"        raise ValueError(\"Missing db_name\")\r\n",
@@ -390,11 +373,11 @@
 					"    else:\r\n",
 					"        url = f\"https://raw.githubusercontent.com/Planning-Inspectorate/odw-config/refs/heads/main/data-lake/standardised_table_definitions/Horizon/{entity_name}.json\"\r\n",
 					"\r\n",
-					"    logInfo(f\"Fetching from {url}\")\r\n",
+					"    LoggingUtil().log_info(f\"Fetching from {url}\")\r\n",
 					"    json_schema: dict = get_schema_from_url(url)\r\n",
 					"\r\n",
 					"    if not json_schema:\r\n",
-					"        logError(f\"Invalid schema retrieved from {url}\")\r\n",
+					"        LoggingUtil().log_error(f\"Invalid schema retrieved from {url}\")\r\n",
 					"        mssparkutils.notebook.exit('')\r\n",
 					"\r\n",
 					"    return json_schema"
@@ -416,10 +399,10 @@
 				},
 				"source": [
 					"# url: str = f\"https://raw.githubusercontent.com/Planning-Inspectorate/data-model/refs/tags/{version}/schemas/{entity_name}.schema.json\"\r\n",
-					"# logInfo(f\"Fetching from {url}\")\r\n",
+					"# LoggingUtil().log_info(f\"Fetching from {url}\")\r\n",
 					"# json_schema: dict = get_schema_from_url(url)\r\n",
 					"# if not json_schema:\r\n",
-					"#     logError(f\"Invalid schema retrieved from {url}\")\r\n",
+					"#     LoggingUtil().log_error(f\"Invalid schema retrieved from {url}\")\r\n",
 					"#     mssparkutils.notebook.exit('')"
 				],
 				"execution_count": null
@@ -471,7 +454,7 @@
 					}
 				},
 				"source": [
-					"logInfo(f\"Spark schema created\")\r\n",
+					"LoggingUtil().log_info(f\"Spark schema created\")\r\n",
 					"mssparkutils.notebook.exit(final_schema.json())"
 				],
 				"execution_count": null

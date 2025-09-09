@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "2184cee1-8d4e-481a-990f-314102ea4eda"
+				"spark.autotune.trackingId": "6a21ee82-d645-416b-b552-0017f31060d3"
 			}
 		},
 		"metadata": {
@@ -82,24 +82,6 @@
 						"transient": {
 							"deleting": false
 						}
-					}
-				},
-				"source": [
-					"%run utils/py_logging_decorator"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
 					},
 					"tags": [
 						"parameters"
@@ -114,6 +96,7 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"from odw.core.util.logging_util import LoggingUtil\r\n",
 					"import json\r\n",
 					"import traceback\r\n",
 					"from pyspark.sql import SparkSession\r\n",
@@ -146,7 +129,7 @@
 					"table_name: str = f\"odw_standardised_db.sb_{entity_name.replace('-', '_')}\"\r\n",
 					"date_folder = datetime.now().date().strftime('%Y-%m-%d') if date_folder == '' else date_folder\r\n",
 					"source_path: str = f\"abfss://odw-raw@{storage_account}ServiceBus/{entity_name}/\"\r\n",
-					"schema = mssparkutils.notebook.run(\"/py_create_spark_schema\", 30, {\"db_name\": 'odw_standardised_db', \"entity_name\": entity_name})\r\n",
+					"schema = mssparkutils.notebook.run(\"/py_create_spark_schema\", 120, {\"db_name\": 'odw_standardised_db', \"entity_name\": entity_name})\r\n",
 					"spark_schema = StructType.fromJson(json.loads(schema)) if schema != '' else ''\r\n",
 					"\r\n",
 					"start_exec_time = str(datetime.now())\r\n",
@@ -207,7 +190,7 @@
 					}
 				},
 				"source": [
-					"@logging_to_appins\r\n",
+					"@LoggingUtil.logging_to_appins\r\n",
 					"def get_max_value_from_column(table_name: str, column_name: str) -> datetime:\r\n",
 					"    \"\"\"\r\n",
 					"    Gets the maximum value from a given table column\r\n",
@@ -241,7 +224,7 @@
 					"collapsed": false
 				},
 				"source": [
-					"@logging_to_appins\r\n",
+					"@LoggingUtil.logging_to_appins\r\n",
 					"def get_max_file_date(df: DataFrame) -> datetime:\r\n",
 					"    \"\"\"\r\n",
 					"    Gets the maximum date from a file path field in a DataFrame.\r\n",
@@ -278,7 +261,7 @@
 					}
 				},
 				"source": [
-					"@logging_to_appins\r\n",
+					"@LoggingUtil.logging_to_appins\r\n",
 					"def get_all_files_recursive(source_path: str) -> list:\r\n",
 					"    \"\"\"\r\n",
 					"    Lists all files in a given source path.\r\n",
@@ -322,7 +305,7 @@
 					"collapsed": false
 				},
 				"source": [
-					"@logging_to_appins\r\n",
+					"@LoggingUtil.logging_to_appins\r\n",
 					"def get_missing_files(table_name: str, source_path: str) -> list:\r\n",
 					"    \"\"\"\r\n",
 					"    Gets the difference between the files in the source path and the files in the table.\r\n",
@@ -361,7 +344,7 @@
 					}
 				},
 				"source": [
-					"@logging_to_appins\r\n",
+					"@LoggingUtil.logging_to_appins\r\n",
 					"def extract_and_filter_paths(files: list, filter_date: str):\r\n",
 					"    \"\"\"\r\n",
 					"    Takes a list of file paths and filters them to return the file paths greater than the filter_date\r\n",
@@ -403,7 +386,7 @@
 					}
 				},
 				"source": [
-					"@logging_to_appins\r\n",
+					"@LoggingUtil.logging_to_appins\r\n",
 					"def read_raw_messages(filtered_paths: list[str]) -> DataFrame:\r\n",
 					"    \"\"\"\r\n",
 					"    Ingests data from service bus messages stored as json files in the raw layer\r\n",
@@ -417,7 +400,7 @@
 					"    try:\r\n",
 					"        # Read JSON files from filtered paths\r\n",
 					"        df = spark.read.json(filtered_paths, schema=spark_schema)\r\n",
-					"        logInfo(f\"Found {df.count()} new rows.\")\r\n",
+					"        LoggingUtil().log_info(f\"Found {df.count()} new rows.\")\r\n",
 					"        # Adding the standardised columns\r\n",
 					"        df = df.withColumn(\"expected_from\", current_timestamp())\r\n",
 					"        df = df.withColumn(\"expected_to\", expr(\"current_timestamp() + INTERVAL 1 DAY\"))\r\n",
@@ -425,7 +408,7 @@
 					"        df = df.withColumn(\"input_file\", input_file_name())\r\n",
 					"\r\n",
 					"    except Exception as e:\r\n",
-					"        logError(f'Raw data not found at {source_path}, Exception is {e}')\r\n",
+					"        LoggingUtil().log_error(f'Raw data not found at {source_path}, Exception is {e}')\r\n",
 					"        \r\n",
 					"        # Use the imported format_error_message function\r\n",
 					"        error_message = app_insight_processor.format_error_message(e, max_length=800)\r\n",
@@ -462,7 +445,7 @@
 					}
 				},
 				"source": [
-					"@logging_to_appins\r\n",
+					"@LoggingUtil.logging_to_appins\r\n",
 					"def dedupe_dataframe(df: DataFrame) -> DataFrame:\r\n",
 					"    \"\"\"\r\n",
 					"    Dedupes a DataFrame based on certain columns\r\n",
@@ -497,7 +480,7 @@
 					}
 				},
 				"source": [
-					"@logging_to_appins\r\n",
+					"@LoggingUtil.logging_to_appins\r\n",
 					"def append_df_to_table(df: DataFrame, table_name: str) -> None:\r\n",
 					"    \"\"\"\r\n",
 					"    Appends the new rows to the target table\r\n",
@@ -529,7 +512,7 @@
 					}
 				},
 				"source": [
-					"@logging_to_appins\r\n",
+					"@LoggingUtil.logging_to_appins\r\n",
 					"def test_rows_appended(new_table_row_count: int, expected_row_count: int) -> bool:\r\n",
 					"    \"\"\"\r\n",
 					"    Test if the new row count matches the expected row count.\r\n",
@@ -581,20 +564,20 @@
 					"\r\n",
 					"if USE_MAX_DATE_FILTER:\r\n",
 					"    try:\r\n",
-					"        logInfo(\"Getting the maximum file date\")\r\n",
+					"        LoggingUtil().log_info(\"Getting the maximum file date\")\r\n",
 					"        table_df = spark.table(table_name)\r\n",
 					"        max_extracted_date = get_max_file_date(df=table_df)\r\n",
 					"        print(f\"max_extracted_date: {max_extracted_date}\")\r\n",
 					"    except Exception as e:\r\n",
-					"        logError(f\"Error getting the maximum file date:\\n{e}\")\r\n",
+					"        LoggingUtil().log_error(f\"Error getting the maximum file date:\\n{e}\")\r\n",
 					"        error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
 					"\r\n",
 					"    try:\r\n",
-					"        logInfo(\"Getting the filtered list of paths\")\r\n",
+					"        LoggingUtil().log_info(\"Getting the filtered list of paths\")\r\n",
 					"        filtered_paths = extract_and_filter_paths(get_all_files_recursive(source_path=source_path), max_extracted_date)\r\n",
 					"        df = read_raw_messages(filtered_paths=filtered_paths)\r\n",
 					"    except Exception as e:\r\n",
-					"        logError(f\"Error getting the filtered list of paths:\\n{e}\")\r\n",
+					"        LoggingUtil().log_error(f\"Error getting the filtered list of paths:\\n{e}\")\r\n",
 					"        error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
 					"        end_exec_time = str(datetime.now())\r\n",
 					"        app_insight_logger.add_table_result(\r\n",
@@ -613,11 +596,11 @@
 					"\r\n",
 					"else:\r\n",
 					"    try:\r\n",
-					"        logInfo(\"Getting list of missing files\")\r\n",
+					"        LoggingUtil().log_info(\"Getting list of missing files\")\r\n",
 					"        missing_files = get_missing_files(table_name, source_path)\r\n",
 					"        df = read_raw_messages(filtered_paths=missing_files)\r\n",
 					"    except Exception as e:\r\n",
-					"        logError(f\"Error getting list of missing files:\\n{e}\")\r\n",
+					"        LoggingUtil().log_error(f\"Error getting list of missing files:\\n{e}\")\r\n",
 					"        error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
 					"        end_exec_time = str(datetime.now())\r\n",
 					"        app_insight_logger.add_table_result(\r\n",
@@ -672,15 +655,15 @@
 					"\r\n",
 					"try:\r\n",
 					"    table_row_count = spark.table(table_name).count()\r\n",
-					"    logInfo(f\"Row count before append: {table_row_count}\")\r\n",
+					"    LoggingUtil().log_info(f\"Row count before append: {table_row_count}\")\r\n",
 					"    df = dedupe_dataframe(df=df)\r\n",
 					"    rows_to_append = df.count()\r\n",
 					"    insert_count = rows_to_append\r\n",
-					"    logInfo(f\"Rows to append: {rows_to_append}\")\r\n",
+					"    LoggingUtil().log_info(f\"Rows to append: {rows_to_append}\")\r\n",
 					"    expected_new_count = table_row_count + rows_to_append\r\n",
-					"    logInfo(f\"Expected new count: {expected_new_count}\")\r\n",
+					"    LoggingUtil().log_info(f\"Expected new count: {expected_new_count}\")\r\n",
 					"except Exception as e:\r\n",
-					"    logError(f\"Error deduping and generating counts:\\n{e}\")\r\n",
+					"    LoggingUtil().log_error(f\"Error deduping and generating counts:\\n{e}\")\r\n",
 					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
 					"    \r\n",
 					"    end_exec_time = str(datetime.now())\r\n",
@@ -731,7 +714,7 @@
 					"new_table_row_count = 0\r\n",
 					"\r\n",
 					"try:\r\n",
-					"    logInfo(f\"Appending new rows to table {table_name}\")\r\n",
+					"    LoggingUtil().log_info(f\"Appending new rows to table {table_name}\")\r\n",
 					"    append_df_to_table(df=df, table_name=table_name)\r\n",
 					"    \r\n",
 					"    end_exec_time = str(datetime.now())\r\n",
@@ -747,10 +730,10 @@
 					"        error_message = \"\"\r\n",
 					"    )\r\n",
 					"\r\n",
-					"    logInfo(\"Done appending rows to table\")\r\n",
+					"    LoggingUtil().log_info(\"Done appending rows to table\")\r\n",
 					"    new_table_row_count = spark.table(table_name).count()\r\n",
 					"except Exception as e:\r\n",
-					"    logError(f\"Error appending rows:\\n{e}\")\r\n",
+					"    LoggingUtil().log_error(f\"Error appending rows:\\n{e}\")\r\n",
 					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
 					"    \r\n",
 					"    end_exec_time = str(datetime.now())\r\n",
@@ -801,7 +784,7 @@
 				},
 				"source": [
 					"if not test_rows_appended(new_table_row_count=new_table_row_count, expected_row_count=expected_new_count):\r\n",
-					"    logError(\"Error appending rows. The new row count isn't as expected.\")\r\n",
+					"    LoggingUtil().log_error(\"Error appending rows. The new row count isn't as expected.\")\r\n",
 					"\r\n",
 					"    error_msg = f\"Error appending rows: {table_name} . The new row count isn't as expected.\"\r\n",
 					"    end_exec_time = str(datetime.now())\r\n",
@@ -818,7 +801,7 @@
 					"        error_message = error_msg\r\n",
 					"    )\r\n",
 					"else:\r\n",
-					"    logInfo(\"Rows appended successfully.\")"
+					"    LoggingUtil().log_info(\"Rows appended successfully.\")"
 				],
 				"execution_count": null
 			},

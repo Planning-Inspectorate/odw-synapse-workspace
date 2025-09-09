@@ -70,6 +70,7 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"from odw.core.util.logging_util import LoggingUtil\n",
 					"from pyspark.sql.functions import udf,col,lit,when,coalesce,concat,sum,avg,max,min,count,countDistinct,date_format,to_date,datediff,months_between,year,month,hour,minute,second,expr,asc,desc\n",
 					"from pyspark.sql.types import DateType,TimestampType,StringType,IntegerType,FloatType,DoubleType,BooleanType,StructType,StructField,ArrayType,MapType\n",
 					"from pyspark.sql.window import Window\n",
@@ -91,13 +92,6 @@
 				"execution_count": null
 			},
 			{
-				"cell_type": "code",
-				"source": [
-					"%run utils/py_logging_decorator"
-				],
-				"execution_count": null
-			},
-			{
 				"cell_type": "markdown",
 				"metadata": {
 					"nteract": {
@@ -114,7 +108,7 @@
 				"cell_type": "code",
 				"source": [
 					"try:\n",
-					"    logInfo(\"Starting SAP HR historical data load\")\n",
+					"    LoggingUtil().log_info(\"Starting SAP HR historical data load\")\n",
 					"    spark.conf.set(\"spark.sql.legacy.timeParserPolicy\", \"LEGACY\")\n",
 					"    # First get count of records to be loaded\n",
 					"    source_count = spark.sql(\"\"\"\n",
@@ -122,14 +116,14 @@
 					"    FROM odw_standardised_db.sap_hr_hist_mig\n",
 					"    \"\"\").collect()[0]['count']\n",
 					"    \n",
-					"    logInfo(f\"Found {source_count} records in source table\")\n",
+					"    LoggingUtil().log_info(f\"Found {source_count} records in source table\")\n",
 					"    \n",
 					"    # Clear historical data\n",
-					"    logInfo(\"Clearing existing data from hist_SAP_HR\")\n",
+					"    LoggingUtil().log_info(\"Clearing existing data from hist_SAP_HR\")\n",
 					"    spark.sql(\"DELETE FROM odw_harmonised_db.hist_SAP_HR\")\n",
 					"    \n",
 					"    # Insert data with type conversions\n",
-					"    logInfo(\"Loading transformed data into hist_SAP_HR\")\n",
+					"    LoggingUtil().log_info(\"Loading transformed data into hist_SAP_HR\")\n",
 					"    spark.sql(\"\"\"\n",
 					"    INSERT INTO odw_harmonised_db.hist_SAP_HR\n",
 					"    SELECT\n",
@@ -343,26 +337,26 @@
 					"    WHERE IngestionDate = current_date()\n",
 					"    \"\"\").collect()[0]['count']\n",
 					"    \n",
-					"    logInfo(f\"Successfully loaded {loaded_count} records\")\n",
+					"    LoggingUtil().log_info(f\"Successfully loaded {loaded_count} records\")\n",
 					"    \n",
 					"    if loaded_count != source_count:\n",
 					"        logWarning(f\"Count mismatch: Source had {source_count} records, loaded {loaded_count} records\")\n",
 					"    else:\n",
-					"        logInfo(\"Record counts match between source and target\")\n",
+					"        LoggingUtil().log_info(\"Record counts match between source and target\")\n",
 					"    \n",
-					"    logInfo(\"SAP HR historical data load completed successfully\")\n",
+					"    LoggingUtil().log_info(\"SAP HR historical data load completed successfully\")\n",
 					"\n",
 					"except Exception as e:\n",
 					"    # Log the exception in detail\n",
-					"    logError(f\"Error during SAP HR historical data load: {str(e)}\")\n",
-					"    logException(e)\n",
+					"    LoggingUtil().log_error(f\"Error during SAP HR historical data load: {str(e)}\")\n",
+					"    LoggingUtil().log_exception(e)\n",
 					"    \n",
 					"    # Re-raise the exception to ensure the notebook fails properly\n",
 					"    raise e\n",
 					"finally:\n",
 					"    # Always flush logs regardless of success or failure\n",
-					"    logInfo(\"Flushing logs\")\n",
-					"    flushLogging()"
+					"    LoggingUtil().log_info(\"Flushing logs\")\n",
+					"    LoggingUtil().flush_logging()"
 				],
 				"execution_count": null
 			}

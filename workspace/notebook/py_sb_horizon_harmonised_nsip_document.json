@@ -85,6 +85,7 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"from odw.core.util.logging_util import LoggingUtil\n",
 					"from pyspark.sql.types import IntegerType, ArrayType, StructType, StructField\n",
 					"from pyspark.sql import Row\n",
 					"from pyspark.sql.functions import *\n",
@@ -104,24 +105,6 @@
 				"source": [
 					"##### Initialise Logging decorator"
 				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"%run utils/py_logging_decorator"
-				],
-				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -260,7 +243,7 @@
 					"                        \"\"\")\n",
 					"\n",
 					"except Exception as e:\n",
-					"        logError(f\"Error in source Service Bus SQL query {service_bus_table}:\\n{e}\")\n",
+					"        LoggingUtil().log_error(f\"Error in source Service Bus SQL query {service_bus_table}:\\n{e}\")\n",
 					"        error_message = app_insight_logger.format_error_message(e, max_length=800)\n",
 					"\n",
 					"        end_exec_time = str(datetime.now())\n",
@@ -363,7 +346,7 @@
 					"                \"\"\")\n",
 					"\n",
 					"except Exception as e:\n",
-					"        logError(f\"Error in source Horizon SQL query {horizon_table}:\\n{e}\")\n",
+					"        LoggingUtil().log_error(f\"Error in source Horizon SQL query {horizon_table}:\\n{e}\")\n",
 					"        error_message = app_insight_logger.format_error_message(e, max_length=800)\n",
 					"\n",
 					"        end_exec_time = str(datetime.now())\n",
@@ -398,10 +381,10 @@
 					}
 				},
 				"source": [
-					"logInfo(f\"Combining data for {spark_table_final}\")\n",
+					"LoggingUtil().log_info(f\"Combining data for {spark_table_final}\")\n",
 					"horizon_data = horizon_data.select(service_bus_data.columns)\n",
 					"results = service_bus_data.union(horizon_data)\n",
-					"logInfo(f\"Combined data for {spark_table_final}\")"
+					"LoggingUtil().log_info(f\"Combined data for {spark_table_final}\")"
 				],
 				"execution_count": null
 			},
@@ -433,12 +416,12 @@
 				},
 				"source": [
 					"try:\n",
-					"    logInfo(f\"Writing {spark_table_final}\")\n",
+					"    LoggingUtil().log_info(f\"Writing {spark_table_final}\")\n",
 					"    results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\n",
-					"    logInfo(f\"Written {spark_table_final}\")\n",
+					"    LoggingUtil().log_info(f\"Written {spark_table_final}\")\n",
 					"\n",
 					"except Exception as e:\n",
-					"        logError(f\"Error in ingesting delta table {spark_table_final}:\\n{e}\")\n",
+					"        LoggingUtil().log_error(f\"Error in ingesting delta table {spark_table_final}:\\n{e}\")\n",
 					"        error_message = app_insight_logger.format_error_message(e, max_length=800)\n",
 					"\n",
 					"        end_exec_time = str(datetime.now())\n",
@@ -693,7 +676,7 @@
 					"                    \"\"\")\n",
 					"\n",
 					"except Exception as e:\n",
-					"        logError(f\"Error in preparing final results dataframe for {spark_table_final}:\\n{e}\")\n",
+					"        LoggingUtil().log_error(f\"Error in preparing final results dataframe for {spark_table_final}:\\n{e}\")\n",
 					"        error_message = app_insight_logger.format_error_message(e, max_length=800)\n",
 					"\n",
 					"        end_exec_time = str(datetime.now())\n",
@@ -803,9 +786,9 @@
 					"try:\n",
 					"    \n",
 					"    insert_count = final_df.count()\n",
-					"    logInfo(f\"Writing finalised {spark_table_final}\")\n",
+					"    LoggingUtil().log_info(f\"Writing finalised {spark_table_final}\")\n",
 					"    final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\n",
-					"    logInfo(f\"Written finalised {spark_table_final}\")\n",
+					"    LoggingUtil().log_info(f\"Written finalised {spark_table_final}\")\n",
 					"\n",
 					"    end_exec_time = str(datetime.now())\n",
 					"    app_insight_logger.add_table_result(                    \n",
@@ -820,7 +803,7 @@
 					"        error_message = \"\"\n",
 					"    )\n",
 					"except Exception as e:\n",
-					"        logError(f\"Error in ingesting delta table in the final step {spark_table_final}:\\n{e}\")\n",
+					"        LoggingUtil().log_error(f\"Error in ingesting delta table in the final step {spark_table_final}:\\n{e}\")\n",
 					"        error_message = app_insight_logger.format_error_message(e, max_length=800)\n",
 					"        \n",
 					"        end_exec_time = str(datetime.now())\n",

@@ -1,5 +1,6 @@
 from tests.util.notebook_run_test_case import NotebookRunTestCase
 import json
+import ast
 
 
 class TestSmokeSynapseConnectivity(NotebookRunTestCase):
@@ -17,5 +18,12 @@ class TestSmokeSynapseConnectivity(NotebookRunTestCase):
 
         notebook_run_result = self.run_notebook(notebook_name, notebook_parameters)
         exit_value = notebook_run_result["result"]["exitValue"]
-        failing_tests = json.loads(exit_value)
+        
+        # Parse the exit value - it might be JSON or a Python literal
+        try:
+            failing_tests = json.loads(exit_value)
+        except json.JSONDecodeError:
+            # If JSON parsing fails, try parsing as Python literal (e.g., ['test_name'])
+            failing_tests = ast.literal_eval(exit_value)
+            
         assert not failing_tests, f"The following tests failed in the test_smoke_py_connectivity notebook : {json.dumps(failing_tests, indent=4)}"

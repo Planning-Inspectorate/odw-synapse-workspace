@@ -86,6 +86,7 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"from odw.core.util.logging_util import LoggingUtil\n",
 					"from pyspark.sql.types import IntegerType, ArrayType, StructType, StructField\r\n",
 					"from pyspark.sql import Row\r\n",
 					"from pyspark.sql.functions import *\r\n",
@@ -105,24 +106,6 @@
 				"source": [
 					"##### Initialise Logging decorator"
 				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"%run utils/py_logging_decorator"
-				],
-				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -270,7 +253,7 @@
 					"                        \"\"\")\r\n",
 					"\r\n",
 					"except Exception as e:\r\n",
-					"        logError(f\"Error in source Service Bus SQL query {service_bus_table}:\\n{e}\")\r\n",
+					"        LoggingUtil().log_error(f\"Error in source Service Bus SQL query {service_bus_table}:\\n{e}\")\r\n",
 					"        error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
 					"\r\n",
 					"        end_exec_time = str(datetime.now())\r\n",
@@ -386,7 +369,7 @@
 					"                    \"\"\")\r\n",
 					"\r\n",
 					"except Exception as e:\r\n",
-					"        logError(f\"Error in source Horizon SQL query {horizon_table}:\\n{e}\")\r\n",
+					"        LoggingUtil().log_error(f\"Error in source Horizon SQL query {horizon_table}:\\n{e}\")\r\n",
 					"        error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
 					"\r\n",
 					"        end_exec_time = str(datetime.now())\r\n",
@@ -479,12 +462,12 @@
 				},
 				"source": [
 					"try:\r\n",
-					"    logInfo(f\"Writing {spark_table_final}\")\r\n",
+					"    LoggingUtil().log_info(f\"Writing {spark_table_final}\")\r\n",
 					"    results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\r\n",
-					"    logInfo(f\"Written {spark_table_final}\")\r\n",
+					"    LoggingUtil().log_info(f\"Written {spark_table_final}\")\r\n",
 					"\r\n",
 					"except Exception as e:\r\n",
-					"        logError(f\"Error in ingesting delta table {spark_table_final}:\\n{e}\")\r\n",
+					"        LoggingUtil().log_error(f\"Error in ingesting delta table {spark_table_final}:\\n{e}\")\r\n",
 					"        error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
 					"\r\n",
 					"        end_exec_time = str(datetime.now())\r\n",
@@ -790,7 +773,7 @@
 					"                        FROM \r\n",
 					"                            {spark_table_final} AS Target\"\"\")\r\n",
 					"except Exception as e:\r\n",
-					"        logError(f\"Error in preparing results dataframe for {spark_table_final}:\\n{e}\")\r\n",
+					"        LoggingUtil().log_error(f\"Error in preparing results dataframe for {spark_table_final}:\\n{e}\")\r\n",
 					"        error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
 					"\r\n",
 					"        end_exec_time = str(datetime.now())\r\n",
@@ -844,9 +827,9 @@
 					}
 				},
 				"source": [
-					"logInfo(f\"Merging final {spark_table_final}\")\r\n",
+					"LoggingUtil().log_info(f\"Merging final {spark_table_final}\")\r\n",
 					"final_df = results.join(df_calcs, (df_calcs[\"temp_representationId\"] == results[\"representationId\"]) & (df_calcs[\"temp_IngestionDate\"] == results[\"IngestionDate\"])).select(columns)\r\n",
-					"logInfo(f\"Dropping dupes from {spark_table_final}\")\r\n",
+					"LoggingUtil().log_info(f\"Dropping dupes from {spark_table_final}\")\r\n",
 					"final_df = final_df.drop_duplicates()"
 				],
 				"execution_count": null
@@ -870,11 +853,11 @@
 					"try:\r\n",
 					"    \r\n",
 					"    insert_count = final_df.count()\r\n",
-					"    logInfo(f\"Writing final {spark_table_final}\")\r\n",
+					"    LoggingUtil().log_info(f\"Writing final {spark_table_final}\")\r\n",
 					"    final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\r\n",
 					"    \r\n",
 					"    end_exec_time = str(datetime.now())\r\n",
-					"    logInfo(f\"Written final {spark_table_final}\")\r\n",
+					"    LoggingUtil().log_info(f\"Written final {spark_table_final}\")\r\n",
 					"    \r\n",
 					"    app_insight_logger.add_table_result(                    \r\n",
 					"        delta_table_name = spark_table_final,\r\n",
@@ -888,7 +871,7 @@
 					"        error_message = \"\"\r\n",
 					"    )\r\n",
 					"except Exception as e:\r\n",
-					"        logError(f\"Error in ingesting delta table in the final step {spark_table_final}:\\n{e}\")\r\n",
+					"        LoggingUtil().log_error(f\"Error in ingesting delta table in the final step {spark_table_final}:\\n{e}\")\r\n",
 					"        error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
 					"        \r\n",
 					"        end_exec_time = str(datetime.now())\r\n",
