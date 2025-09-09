@@ -187,6 +187,7 @@
 					"            `start-date` AS startDate,\n",
 					"            typology,\n",
 					"            `documentation-url` AS documentationUrl,\n",
+					"            'Y' as IsActive\n",
 					"        FROM {source_table}\n",
 					"    \"\"\") \\\n",
 					"    .withColumn(\"dateReceived\", F.current_date())\n",
@@ -212,7 +213,8 @@
 					"            coalesce(col(\"reference\"), lit('.')),\n",
 					"            coalesce(col(\"startDate\"), lit('.')),\n",
 					"            coalesce(col(\"typology\"), lit('.')),\n",
-					"            coalesce(col(\"documentationUrl\"), lit('.')),\n"
+					"            coalesce(col(\"documentationUrl\"), lit('.')),\n",
+					"            coalesce(col(\"dateReceived\"), lit('.'))\n",
 					"            ))\n",
 					"    ) \\\n",
 					"    .withColumn(\"validTo\", lit(None).cast(\"timestamp\")) \\\n",
@@ -241,8 +243,8 @@
 					"            .whenMatchedUpdate(\n",
 					"                condition=\"t.rowID <> s.rowID\",\n",
 					"                set={\n",
-					"                    \"validTo\": \"s.validTo\",\n",
-					"                    \"isActive\": \"s.isActive\"\n",
+					"                    \"validTo\": \"current_date()\",\n",
+					"                    \"isActive\": \"'N'\"\n",
 					"                }\n",
 					"            )\n",
 					"            .execute()\n",
@@ -344,13 +346,6 @@
 			},
 			{
 				"cell_type": "code",
-				"source": [
-					"deltaTable"
-				],
-				"execution_count": 254
-			},
-			{
-				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
 						"source_hidden": false,
@@ -365,121 +360,6 @@
 				"source": [
 					"# Generate and exit with final logging results\n",
 					"mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"# from pyspark.sql import SparkSession\n",
-					"# from pyspark.sql.types import StructType, StructField, StringType\n",
-					"\n",
-					"# spark = SparkSession.builder.getOrCreate()\n",
-					"\n",
-					"# # Define schema matching your table\n",
-					"# schema = StructType([\n",
-					"#     StructField(\"dataset\", StringType(), True),\n",
-					"#     StructField(\"end-date\", StringType(), True),\n",
-					"#     StructField(\"entity\", StringType(), True),\n",
-					"#     StructField(\"entry-date\", StringType(), True),\n",
-					"#     StructField(\"geometry\", StringType(), True),\n",
-					"#     StructField(\"name\", StringType(), True),\n",
-					"#     StructField(\"organisation-entity\", StringType(), True),\n",
-					"#     StructField(\"point\", StringType(), True),\n",
-					"#     StructField(\"prefix\", StringType(), True),\n",
-					"#     StructField(\"reference\", StringType(), True),\n",
-					"#     StructField(\"start-date\", StringType(), True),\n",
-					"#     StructField(\"typology\", StringType(), True),\n",
-					"#     StructField(\"documentation-url\", StringType(), True),\n",
-					"#     StructField(\"listed-building-grade\", StringType(), True)\n",
-					"# ])\n",
-					"\n",
-					"# # Mock row data\n",
-					"# data = [(\n",
-					"#     \"TestDataset\",\n",
-					"#     \"2025-12-31\",\n",
-					"#     \"31717216\",\n",
-					"#     \"2025-09-09\",\n",
-					"#     None,\n",
-					"#     \"Test Building\",\n",
-					"#     \"TestOrganisation\",\n",
-					"#     None,\n",
-					"#     \"TB\",\n",
-					"#     \"REF123\",\n",
-					"#     \"2025-01-01\",\n",
-					"#     \"TestType\",\n",
-					"#     \"http://example.com\",\n",
-					"#     \"A\"\n",
-					"# )]\n",
-					"\n",
-					"# # Create DataFrame\n",
-					"# mock_df = spark.createDataFrame(data, schema)\n",
-					"\n",
-					"# # Show mock row\n",
-					"# mock_df.show(truncate=False)\n",
-					"# mock_df.write.format(\"parquet\").mode(\"append\").saveAsTable(\"odw_standardised_db.listed_building\")"
-				],
-				"execution_count": 233
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"# from pyspark.sql import SparkSession\n",
-					"\n",
-					"# spark = SparkSession.builder.getOrCreate()\n",
-					"\n",
-					"# # Load the table\n",
-					"# df = spark.table(\"odw_standardised_db.listed_building\")\n",
-					"\n",
-					"# # Filter out the row you want to drop\n",
-					"# df_filtered = df.filter(\n",
-					"#     ~((df[\"entity\"] == \"31717216\") & (df[\"dataset\"] == \"listed-building\"))\n",
-					"# )\n",
-					"\n",
-					"# # Write to a temporary table\n",
-					"# df_filtered.write.mode(\"overwrite\").saveAsTable(\"odw_standardised_db.listed_building_temp\")\n",
-					"\n",
-					"# # Replace the original table with the temp table\n",
-					"# spark.sql(\"DROP TABLE odw_standardised_db.listed_building\")\n",
-					"# spark.sql(\"ALTER TABLE odw_standardised_db.listed_building_temp RENAME TO odw_standardised_db.listed_building\")\n",
-					""
-				],
-				"execution_count": 241
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
-				},
-				"source": [
-					"%%sql\n",
-					"select * from odw_standardised_db.listed_building\n",
-					"where entity = '31717216'"
-				],
-				"execution_count": 242
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
-				},
-				"source": [
-					"%%sql\n",
-					"select count(*) from odw_harmonised_db.listed_building\n",
-					"where entity = '31717216'"
-				],
-				"execution_count": 247
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					""
 				],
 				"execution_count": null
 			}
