@@ -88,12 +88,7 @@ class LoggingUtil:
         set_logger_provider(self.LOGGER_PROVIDER)
         exporter = AzureMonitorLogExporter.from_connection_string(conn_string)
         self.LOGGER_PROVIDER.add_log_record_processor(
-            BatchLogRecordProcessor(
-                exporter,
-                max_export_batch_size=256,
-                export_timeout_millis=6000,
-                schedule_delay_millis=5000
-            )
+            BatchLogRecordProcessor(exporter, max_export_batch_size=256, export_timeout_millis=6000, schedule_delay_millis=5000)
         )
 
         if not any(isinstance(h, LoggingHandler) for h in self.logger.handlers):
