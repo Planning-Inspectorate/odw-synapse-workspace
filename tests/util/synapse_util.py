@@ -7,7 +7,7 @@ from typing import Any, List, Tuple
 
 
 SQL_COPT_SS_ACCESS_TOKEN = 1256
-SQL_SERVER_VERSION = 17
+SQL_SERVER_VERSION = 18
 
 
 class SynapseUtil:

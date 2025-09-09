@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "a16088c6-41aa-44df-9cf0-b8826d1a9db0"
+				"spark.autotune.trackingId": "c1df0c84-90d8-49ce-90a3-9a1f659a5de4"
 			}
 		},
 		"metadata": {
@@ -52,12 +52,50 @@
 		},
 		"cells": [
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### The purpose of this pyspark notebook is to ingest horizon data into a single delta table,odw_standardised_db.horizon_appeal_s78_final.\r\n",
+					"\r\n",
+					"**Description**  \r\n",
+					"The functionality of this notebook is to ingest data into odw_standardised_db.horizon_appeal_s78_final delta table reading from multiple odw_standardised_db delta table sources.The addtitional functionality has been added to log the audit information to Application Insight by creating a Json dump at notebook exit.\r\n",
+					"\r\n",
+					"**Spark Cluster Configuration** -> Apache Spark Version- 3.4, Python Version \t\t- 3.10, Delta Lake Version \t- 2.4"
+				]
+			},
+			{
 				"cell_type": "code",
 				"source": [
 					"from pyspark.sql.types import IntegerType, ArrayType, StructType, StructField\r\n",
 					"from pyspark.sql import Row\r\n",
 					"from pyspark.sql.functions import *\r\n",
 					"from pyspark.sql import functions as F"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise Application Insight Logging functions"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_utils_common_logging_output"
 				],
 				"execution_count": null
 			},
@@ -76,8 +114,15 @@
 				},
 				"source": [
 					"horizon_cases_s78 = \"odw_standardised_db.horizoncases_s78\"\r\n",
+					"table_name = \"odw_standardised_db.horizon_appeal_s78_final\"\r\n",
 					"primary_key = 'caseReference'\r\n",
-					"incremental_key = 'AppealS78ID'"
+					"incremental_key = 'AppealS78ID'\r\n",
+					"\r\n",
+					"# Initialise variables for Logging and Tracking\r\n",
+					"start_exec_time = str(datetime.now())\r\n",
+					"insert_count = 0\r\n",
+					"update_count = 0\r\n",
+					"delete_count = 0"
 				],
 				"execution_count": null
 			},
@@ -119,16 +164,36 @@
 					}
 				},
 				"source": [
-					"# Define all tables as Dataframes\r\n",
-					"hzn_cases_s78_df = get_spark_df(\"odw_standardised_db.horizoncases_s78\")\r\n",
-					"cases_specialism_df = get_spark_df(\"odw_standardised_db.cases_specialisms\")\r\n",
-					"vw_case_dates_df = get_spark_df(\"odw_standardised_db.vw_case_dates\")\r\n",
-					"CaseDocumentDatesDates_df = get_spark_df(\"odw_standardised_db.casedocumentdatesdates\")\r\n",
-					"CaseSiteStrings_df = get_spark_df(\"odw_standardised_db.casesitestrings\")\r\n",
-					"TypeOfProcedure_df = get_spark_df(\"odw_standardised_db.typeofprocedure\")\r\n",
-					"Horizon_TypeOfReasonForCase_df = get_spark_df(\"odw_standardised_db.horizon_typeofreasonforcase\")\r\n",
-					"vw_AddAdditionalData_df = get_spark_df(\"odw_standardised_db.vw_addadditionaldata\")\r\n",
-					"vw_AdditionalFields_df = get_spark_df(\"odw_standardised_db.vw_additionalfields\")"
+					"try:\r\n",
+					"    # Define all tables as Dataframes\r\n",
+					"    hzn_cases_s78_df = get_spark_df(\"odw_standardised_db.horizoncases_s78\")\r\n",
+					"    cases_specialism_df = get_spark_df(\"odw_standardised_db.cases_specialisms\")\r\n",
+					"    vw_case_dates_df = get_spark_df(\"odw_standardised_db.vw_case_dates\")\r\n",
+					"    CaseDocumentDatesDates_df = get_spark_df(\"odw_standardised_db.casedocumentdatesdates\")\r\n",
+					"    CaseSiteStrings_df = get_spark_df(\"odw_standardised_db.casesitestrings\")\r\n",
+					"    TypeOfProcedure_df = get_spark_df(\"odw_standardised_db.typeofprocedure\")\r\n",
+					"    Horizon_TypeOfReasonForCase_df = get_spark_df(\"odw_standardised_db.horizon_typeofreasonforcase\")\r\n",
+					"    vw_AddAdditionalData_df = get_spark_df(\"odw_standardised_db.vw_addadditionaldata\")\r\n",
+					"    vw_AdditionalFields_df = get_spark_df(\"odw_standardised_db.vw_additionalfields\")\r\n",
+					"\r\n",
+					"except Exception as e:\r\n",
+					"    \r\n",
+					"    logError(f\"Error in data frame creation :\\n{e}\")\r\n",
+					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
+					"    end_exec_time = str(datetime.now())\r\n",
+					"    app_insight_logger.add_table_result(\r\n",
+					"        delta_table_name = table_name,\r\n",
+					"        insert_count = insert_count, \r\n",
+					"        update_count = update_count, \r\n",
+					"        delete_count = delete_count, \r\n",
+					"        table_result = \"failed\",\r\n",
+					"        start_exec_time = start_exec_time, \r\n",
+					"        end_exec_time = end_exec_time,\r\n",
+					"        total_exec_time = \"\",\r\n",
+					"        error_message = error_message\r\n",
+					"    )\r\n",
+					"    # Exit with the JSON result\r\n",
+					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())    "
 				],
 				"execution_count": null
 			},
@@ -158,8 +223,44 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"# create a unified table for horizon_appeal_s78\r\n",
-					"final_df.write.mode(\"overwrite\").saveAsTable(\"odw_standardised_db.horizon_appeal_s78_final\")"
+					"try:\r\n",
+					"    logInfo(f\"Writing to {table_name}\")\r\n",
+					"    insert_count = final_df.count()\r\n",
+					"\r\n",
+					"    # create a unified table for horizon_appeal_s78\r\n",
+					"    final_df.write.mode(\"overwrite\").saveAsTable(table_name)\r\n",
+					"    logInfo(f\"Written to {table_name}\")\r\n",
+					"    \r\n",
+					"    end_exec_time = str(datetime.now())\r\n",
+					"    app_insight_logger.add_table_result(                    \r\n",
+					"        delta_table_name = table_name,\r\n",
+					"        insert_count = insert_count, \r\n",
+					"        update_count = update_count, \r\n",
+					"        delete_count = delete_count, \r\n",
+					"        table_result = \"success\",\r\n",
+					"        start_exec_time = start_exec_time, \r\n",
+					"        end_exec_time = end_exec_time,\r\n",
+					"        total_exec_time = \"\",\r\n",
+					"        error_message = \"\"\r\n",
+					"    )\r\n",
+					"    \r\n",
+					"except Exception as e:\r\n",
+					"    logError(f\"Error appending data to the curated layer table :\\n{e}\")\r\n",
+					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
+					"    end_exec_time = str(datetime.now())\r\n",
+					"    app_insight_logger.add_table_result(\r\n",
+					"        delta_table_name = table_name,\r\n",
+					"        insert_count = insert_count, \r\n",
+					"        update_count = update_count, \r\n",
+					"        delete_count = delete_count, \r\n",
+					"        table_result = \"failed\",\r\n",
+					"        start_exec_time = start_exec_time, \r\n",
+					"        end_exec_time = end_exec_time,\r\n",
+					"        total_exec_time = \"\",\r\n",
+					"        error_message = error_message\r\n",
+					"    )\r\n",
+					"    # Exit with the JSON result\r\n",
+					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())    "
 				],
 				"execution_count": null
 			},
@@ -185,6 +286,19 @@
 				"execution_count": null
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Produce Json formatted output"
+				]
+			},
+			{
 				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
@@ -198,7 +312,8 @@
 					}
 				},
 				"source": [
-					""
+					"# Exit with the JSON result\r\n",
+					"mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
 				],
 				"execution_count": null
 			}

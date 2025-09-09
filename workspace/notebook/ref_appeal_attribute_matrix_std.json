@@ -1,5 +1,5 @@
 {
-	"name": "ref_appeal_attribute_matrix",
+	"name": "ref_appeal_attribute_matrix_std",
 	"properties": {
 		"folder": {
 			"name": "1-odw-raw-to-standardised"
@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "df1f776a-aa57-46ea-8a56-7ca6179ec1d8"
+				"spark.autotune.trackingId": "0bf0a4a8-0732-4f5b-9d8d-72495ee18f3d"
 			}
 		},
 		"metadata": {
@@ -52,6 +52,21 @@
 		},
 		"cells": [
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"**Purpose**\n",
+					"\n",
+					"Standardises the AppealAttributeMatrix entity from raw (odw-raw) into the odw-standardised zone as a Delta table. This notebook is designed to run as part of the pln_ref_appeal_attribute_matrix pipeline whenever a new file has been uploaded to fileshare (i.e. when the appeal matrix gets updated)"
+				]
+			},
+			{
 				"cell_type": "code",
 				"source": [
 					"#Get Storage account name\n",
@@ -59,6 +74,42 @@
 					"print(storage_account)"
 				],
 				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"**Inputs**\n",
+					"\n",
+					"Latest folder from: odw-raw/AppealAttributeMatrix/<YYYY-MM-DD>/appeals-attribute-matrix.csv\n",
+					"\n",
+					"**Outputs**\n",
+					"\n",
+					"Delta path: odw-standardised/AppealAttributeMatrix/appeal_attribute_matrix\n",
+					"\n",
+					"Table: odw_standardised_db.appeal_attribute_matrix\n",
+					"\n",
+					"**Key Transformations**\n",
+					"\n",
+					"Pick latest ingestion folder (YYYY-MM-DD).\n",
+					"\n",
+					"Drop unnamed / _c* columns.\n",
+					"\n",
+					"Rename columns to camelCase.\n",
+					"\n",
+					"Filter out rows with null/blank attribute.\n",
+					"\n",
+					"Write as Delta with schema merge + overwrite.\n",
+					"\n",
+					"**Note:** \n",
+					"mergeSchema and overwriteSchema ensure any schema changes (new/removed columns) are applied automatically so its not needed to drop/recreate the table manually if a new file arrives - the overwrite handles it."
+				]
 			},
 			{
 				"cell_type": "code",
@@ -71,10 +122,19 @@
 					"from datetime import datetime\n",
 					"\n",
 					"#Latest ingestion date from odw-raw\n",
-					"ingestion_date = datetime.today().strftime('%Y-%m-%d')\n",
-					"print(ingestion_date)\n",
+					"base_dir = f\"abfss://odw-raw@{storage_account}AppealAttributeMatrix/\"\n",
+					"entries = mssparkutils.fs.ls(base_dir)\n",
+					"date_dirs = [e.name.strip(\"/\").split(\"/\")[-1]\n",
+					"             for e in entries\n",
+					"             if re.fullmatch(r\"\\d{4}-\\d{2}-\\d{2}\", e.name.strip(\"/\").split(\"/\")[-1])]\n",
 					"\n",
-					"file_path = f\"abfss://odw-raw@{storage_account}AppealAttributeMatrix/{ingestion_date}/appeals-attribute-matrix.csv\"\n",
+					"if not date_dirs:\n",
+					"    raise FileNotFoundError(f\"No YYYY-MM-DD folders found under {base_dir}\")\n",
+					"\n",
+					"ingestion_date = max(date_dirs)\n",
+					"print(f\"Using latest ingestion_date: {ingestion_date}\")\n",
+					"\n",
+					"file_path = f\"{base_dir}{ingestion_date}/appeals-attribute-matrix.csv\"\n",
 					"target_path = f\"abfss://odw-standardised@{storage_account}AppealAttributeMatrix/appeal_attribute_matrix\"\n",
 					"\n",
 					"df = (\n",
@@ -99,14 +159,15 @@
 					"    new_name = to_camel_case(colname)\n",
 					"    df = df.withColumnRenamed(colname, new_name)\n",
 					"\n",
-					"df.write.mode(\"overwrite\").format(\"delta\").save(target_path)\n",
+					"df.write.format(\"delta\").mode(\"overwrite\").option(\"mergeSchema\",\"true\").save(target_path)\n",
 					"table_name = \"odw_standardised_db.appeal_attribute_matrix\"\n",
 					"\n",
 					"if not spark.catalog.tableExists(table_name):\n",
-					"    df.write.format(\"delta\").mode(\"overwrite\").saveAsTable(table_name)\n",
 					"    print(f\"Table '{table_name}' created.\")\n",
 					"else:\n",
-					"    print(f\"Table '{table_name}' already exists. Skipping write.\")\n",
+					"    print(f\"Table '{table_name}' already exists. If new schema changes have been added, the table has been updated.\")\n",
+					"\n",
+					"df.write.format(\"delta\").mode(\"overwrite\").option(\"mergeSchema\",\"true\").option(\"overwriteSchema\",\"true\").saveAsTable(table_name)\n",
 					"\n",
 					"display(df)"
 				],

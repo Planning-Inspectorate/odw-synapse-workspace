@@ -155,10 +155,10 @@ if __name__ == "__main__":
     # Save variables to Azure Pipeline
     variables = {
         "data_lake_account_id": main_datalake["id"],
-        "data_lake_account_id_failover": backup_datalake["id"],
+        "data_lake_account_id_failover": backup_datalake["id"] if backup_datalake else "",
         "data_lake_account_name": main_datalake["name"],
         "data_lake_dfs_endpoint": main_datalake["primaryEndpoints"]["dfs"],
-        "data_lake_dfs_endpoint_failover": backup_datalake["primaryEndpoints"]["dfs"],
+        "data_lake_dfs_endpoint_failover": backup_datalake["primaryEndpoints"]["dfs"] if backup_datalake else "",
         "data_resource_group_name": f"pins-rg-data-odw-{env}-uks",
         "devops_agent_pool_resource_group_name": devops_agent_pool_resource_group_name,
         "key_vault_uri": key_vault["properties"]["vaultUri"],
