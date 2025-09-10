@@ -286,7 +286,7 @@ erDiagram
         varchar IsActive
     }
     
-    odw_standardised_db.LOAD_SP_LIST_INSPECTOR_MAP" {
+    "odw_standardised_db|LOAD_SP_LIST_INSPECTOR_MAP" {
         datetime2 ingested_datetime
         datetime2 expected_from
         datetime2 expected_to
@@ -298,7 +298,7 @@ erDiagram
         varchar horizon_inspector_name
     }
     
-    odw_standardised_db.LOAD_INSPECTOR_RAW" {
+    "odw_standardised_db|LOAD_INSPECTOR_RAW" {
         datetime2 ingested_datetime
         datetime2 expected_from
         datetime2 expected_to
@@ -328,7 +328,7 @@ erDiagram
         varchar PDAC_ETL_Date
     }
     
-    odw_standardised_db.LOAD_SAPPREFERREDNAME" {
+    "odw_standardised_db|LOAD_SAPPREFERREDNAME" {
         datetime2 ingested_datetime
         datetime2 expected_from
         datetime2 expected_to
@@ -338,7 +338,7 @@ erDiagram
         varchar PERSNO FK
     }
     
-    odw_standardised_db.BIS_INSPECTOR_GROUP" {
+    "odw_standardised_db|BIS_INSPECTOR_GROUP" {
         datetime2 ingested_datetime
         datetime2 expected_from
         datetime2 expected_to
@@ -352,7 +352,7 @@ erDiagram
         varchar sap_ou PK
     }
     
-    odw_standardised_db.HIST_ISS_JOB" {
+    "odw_standardised_db|HIST_ISS_JOB" {
         datetime2 ingested_datetime
         datetime2 expected_from
         datetime2 expected_to
@@ -397,7 +397,7 @@ erDiagram
         varchar record_end_date
     }
     
-    odw_standardised_db.LOAD_ISS_JOB" {
+    "odw_standardised_db|LOAD_ISS_JOB" {
         datetime2 ingested_datetime
         datetime2 expected_from
         datetime2 expected_to
