@@ -1,6 +1,6 @@
 ```mermaid
 erDiagram
-    LIVE_DIM_INSPECTOR {
+    odw_harmonised_db.LIVE_DIM_INSPECTOR {
         varchar source_id PK
         varchar pins_staff_number FK
         varchar given_names
@@ -22,7 +22,7 @@ erDiagram
         varchar inspectorSource
     }
     
-    LOAD_SAP_HR_MONTHLY {
+    odw_harmonised_db.LOAD_SAP_HR_MONTHLY {
         varchar PersNo PK
         varchar EmployeeNo
         varchar FirstName
@@ -37,7 +37,7 @@ erDiagram
         decimal FTE
     }
     
-    SAP_HR_INSPECTOR_ADDRESS {
+    odw_harmonised_db.SAP_HR_INSPECTOR_ADDRESS {
         varchar StaffNumber FK
         varchar PostalCode
         varchar StreetandHouseNumber
@@ -49,7 +49,7 @@ erDiagram
         varchar IsActive
     }
     
-    LOAD_SAP_HR_LEAVERS {
+    odw_harmonised_db.LOAD_SAP_HR_LEAVERS {
         varchar PersNo FK
         varchar FirstName
         varchar LastName
@@ -59,19 +59,19 @@ erDiagram
         varchar OrganizationalUnit
     }
     
-    LOAD_VW_SAP_HR_EMAIL {
+    odw_harmonised_db.LOAD_VW_SAP_HR_EMAIL {
         varchar PersNo FK
         varchar email_address
         varchar EmployeeNo
     }
     
-    LOAD_SP_LIST_INSPECTOR_MAP {
+    odw_standardised_db.LOAD_SP_LIST_INSPECTOR_MAP {
         varchar StaffNumber FK
         varchar HorizonID
         datetime Modified
     }
     
-    LOAD_INSPECTOR_RAW {
+    odw_standardised_db.LOAD_INSPECTOR_RAW {
         int id PK
         int PINSStaffNumber
         varchar GivenNames
@@ -81,26 +81,26 @@ erDiagram
         varchar ResourceGroup
     }
     
-    LOAD_SAPPREFERREDNAME {
+    odw_standardised_db.LOAD_SAPPREFERREDNAME {
         varchar PERSNO FK
         varchar PreferredFirstName
         varchar PreferredFamilyName
     }
     
-    BIS_INSPECTOR_GROUP {
+    odw_standardised_db.BIS_INSPECTOR_GROUP {
         varchar sap_ou PK
         varchar resource_group
         varchar inspector_group
     }
     
-    HIST_ISS_JOB {
+    odw_standardised_db.HIST_ISS_JOB {
         varchar ID PK
         varchar LeadInspector
         datetime record_start_date
         datetime record_end_date
     }
     
-    LOAD_ISS_JOB {
+    odw_standardised_db.LOAD_ISS_JOB {
         varchar ID PK
         varchar LeadInspector
         varchar Status

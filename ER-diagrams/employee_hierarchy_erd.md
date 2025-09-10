@@ -1,6 +1,6 @@
 ```mermaid
 erDiagram
-    LOAD_SAP_HR_MONTHLY {
+    odw_harmonised_db.LOAD_SAP_HR_MONTHLY {
         varchar PersNo PK
         varchar Firstname
         varchar Lastname
@@ -104,7 +104,7 @@ erDiagram
         varchar DataQuality
     }
     
-    LOAD_VW_SAP_HR_EMAIL {
+    odw_harmonised_db.LOAD_VW_SAP_HR_EMAIL {
         varchar email_address FK
         varchar PersNo FK
         varchar Firstname
@@ -209,7 +209,7 @@ erDiagram
         varchar DataQuality
     }
     
-    LOAD_SAP_PINS_EMAIL {
+    odw_harmonised_db.LOAD_SAP_PINS_EMAIL {
         varchar StaffNumber FK
         varchar Firstname
         varchar Lastname
@@ -221,7 +221,7 @@ erDiagram
         varchar IsActive
     }
     
-    LIVE_DIM_INSPECTOR {
+    odw_harmonised_db.LIVE_DIM_INSPECTOR {
         varchar source_id PK
         varchar pins_staff_number FK
         varchar given_names
@@ -265,7 +265,7 @@ erDiagram
         varchar effective_to
     }
     
-    LIVE_DIM_EMP_HIERARCHY {
+    odw_harmonised_db.LIVE_DIM_EMP_HIERARCHY {
         varchar emp_id FK
         varchar emp_name
         varchar emp_email_address FK
