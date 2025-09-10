@@ -52,6 +52,75 @@
 		},
 		"cells": [
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Listed Buildings ETL - Harmonised Layer\n",
+					"\n",
+					"## Overview\n",
+					"This notebook processes listed building data from the standardised layer to the harmonised layer, implementing proper change data capture (CDC) and versioning using Delta Lake MERGE operations.\n",
+					"\n",
+					"## New Implementation vs Previous Approach\n",
+					"\n",
+					"### Previous Approach (Before THEODW-2247)\n",
+					"- **Simple Overwrite**: Used basic `.write.mode('overwrite').saveAsTable()` approach\n",
+					"- **No Change Tracking**: Complete table replacement without preserving historical versions\n",
+					"- **No SCD Support**: No Slowly Changing Dimension (SCD) Type 2 versioning\n",
+					"- **Limited Observability**: Basic logging with minimal change detection\n",
+					"- **Data Loss Risk**: Historical data completely replaced on each run\n",
+					"\n",
+					"### New Implementation (Post THEODW-2247)\n",
+					"- **Delta MERGE Operations**: Uses sophisticated two-step Delta Lake MERGE logic\n",
+					"- **SCD Type 2 Versioning**: Maintains complete history of record changes\n",
+					"- **Content-Based Change Detection**: Uses MD5 hash (rowID) to detect actual data changes\n",
+					"- **Enhanced Logging**: Detailed tracking of inserts, updates, and change metrics\n",
+					"- **Historical Preservation**: Old versions marked inactive but retained for audit/analysis\n",
+					"\n",
+					"## Technical Implementation Details\n",
+					"\n",
+					"### Two-Step Delta MERGE Process\n",
+					"\n",
+					"**Step 1: Mark Old Versions Inactive**\n",
+					"```sql\n",
+					"MERGE target t USING source s\n",
+					"ON t.entity = s.entity AND t.isActive = 'Y'\n",
+					"WHEN MATCHED AND t.rowID <> s.rowID THEN\n",
+					"  UPDATE SET validTo = current_date(), isActive = 'N'\n",
+					"```\n",
+					"\n",
+					"**Step 2: Insert New and Changed Records**\n",
+					"```sql\n",
+					"MERGE target t USING source s\n",
+					"ON t.entity = s.entity AND t.rowID = s.rowID AND t.isActive = 'Y'\n",
+					"WHEN NOT MATCHED THEN INSERT (...)\n",
+					"```\n",
+					"\n",
+					"### Change Detection Logic\n",
+					"\n",
+					"1. **Perfect Match**: `entity + rowID` both match → No action (already exists)\n",
+					"2. **Content Change**: Same `entity`, different `rowID` → Mark old inactive + Insert new version\n",
+					"3. **New Entity**: `entity` doesn't exist → Insert as brand new record\n",
+					"\n",
+					"### Key Benefits\n",
+					"\n",
+					"- **Data Lineage**: Complete audit trail of all changes\n",
+					"- **Performance**: Only processes actual changes, not entire dataset\n",
+					"- **Rollback Capability**: Can query historical states using `isActive` and `validTo`\n",
+					"- **Production Ready**: Robust error handling and detailed metrics\n",
+					"- **Compliance**: Meets regulatory requirements for change tracking\n",
+					"\n",
+					"---\n",
+					"\n",
+					"**Related Tickets**: THEODW-2247 - Fix Delta table change detection for overwrite scenarios"
+				]
+			},
+			{
 				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
