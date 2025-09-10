@@ -37,5 +37,5 @@ erDiagram
         date LastUpdated
     }
     
-    "odw_standardised_db|inspector_specialisms_monthly" ||--|| "odw_harmonised_db|transform_inspector_Specialisms" : "transforms_to"
-    "odw_harmonised_db|transform_inspector_Specialisms" ||--|| "odw_harmonised_db|sap_hr_inspector_Specialisms" : "loads_to"
+    "odw_standardised_db|INSPECTOR_SPECIALISMS_MONTHLY" ||--|| "odw_harmonised_db|TRANSFORM_INSPECTOR_SPECIALISMS" : "transforms_to"
+    "odw_harmonised_db|TRANSFORM_INSPECTOR_SPECIALISMS" ||--|| "odw_harmonised_db|SAP_HR_INSPECTOR_SPECIALISMS" : "loads_to"
