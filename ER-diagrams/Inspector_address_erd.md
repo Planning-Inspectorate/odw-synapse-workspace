@@ -107,7 +107,7 @@ erDiagram
     }
 
     %% PRIMARY RELATIONSHIPS - Source tables feeding LIVE_DIM_INSPECTOR
-    "odw_standardised_db|LOAD_SAP_HR_MONTHLY" ||--o{ "odw_harmonised_db|LIVE_DIM_INSPECTOR" : "PersNo-pins_staff_number"
+    "odw_harmonised_db|LOAD_SAP_HR_MONTHLY" ||--o{ "odw_harmonised_db|LIVE_DIM_INSPECTOR" : "PersNo-pins_staff_number"
     "odw_harmonised_db|SAP_HR_INSPECTOR_ADDRESS" ||--o{ "odw_harmonised_db|LIVE_DIM_INSPECTOR" : "StaffNumber-pins_staff_number"
     
     %% Supporting source relationships for LIVE_DIM_INSPECTOR
@@ -119,11 +119,11 @@ erDiagram
     "odw_standardised_db|LOAD_SAPPREFERREDNAME" ||--o{ "odw_harmonised_db|LIVE_DIM_INSPECTOR" : "PERSNO-pins_staff_number"
     
     %% Core source table relationships
-    "odw_standardised_db|LOAD_SAP_HR_MONTHLY" ||--o{ "odw_harmonised_db|SAP_HR_INSPECTOR_ADDRESS" : "PersNo-StaffNumber"
-    "odw_standardised_db|LOAD_SAP_HR_MONTHLY" ||--o{ "odw_standardised_db|LOAD_SP_LIST_INSPECTOR_MAP" : "PersNo-StaffNumber"
-    "odw_standardised_db|LOAD_SAP_HR_MONTHLY" ||--o{ "odw_harmonised_db|LOAD_VW_SAP_HR_EMAIL" : "PersNo-PersNo"
-    "odw_standardised_db|LOAD_SAP_HR_MONTHLY" ||--o{ "odw_standardised_db|LOAD_SAPPREFERREDNAME" : "PersNo-PERSNO"
-    "odw_standardised_db|LOAD_SAP_HR_MONTHLY" ||--|| "odw_standardised_db|BIS_INSPECTOR_GROUP" : "OrganizationalUnit-sap_ou"
+    "odw_harmonised_db|LOAD_SAP_HR_MONTHLY" ||--o{ "odw_harmonised_db|SAP_HR_INSPECTOR_ADDRESS" : "PersNo-StaffNumber"
+    "odw_harmonised_db|LOAD_SAP_HR_MONTHLY" ||--o{ "odw_standardised_db|LOAD_SP_LIST_INSPECTOR_MAP" : "PersNo-StaffNumber"
+    "odw_harmonised_db|LOAD_SAP_HR_MONTHLY" ||--o{ "odw_harmonised_db|LOAD_VW_SAP_HR_EMAIL" : "PersNo-PersNo"
+    "odw_harmonised_db|LOAD_SAP_HR_MONTHLY" ||--o{ "odw_standardised_db|LOAD_SAPPREFERREDNAME" : "PersNo-PERSNO"
+    "odw_harmonised_db|LOAD_SAP_HR_MONTHLY" ||--|| "odw_standardised_db|BIS_INSPECTOR_GROUP" : "OrganizationalUnit-sap_ou"
     
     %% Target table usage in horizon appeals
     "odw_harmonised_db|LIVE_DIM_INSPECTOR" ||--o{ "odw_standardised_db|HIST_ISS_JOB" : "source_id-LeadInspector"
