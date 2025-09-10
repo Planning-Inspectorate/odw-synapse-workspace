@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "3d843edc-30c5-42d9-a50c-57aaa3171d16"
+				"spark.autotune.trackingId": "81031092-775b-4cac-a773-bfa565cacfe0"
 			}
 		},
 		"metadata": {
@@ -49,6 +49,20 @@
 		},
 		"cells": [
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Create and seed the watermark control table for incremental ingestion\n",
+					"## This table stores the LastIngestDate per source table for Horizon files"
+				]
+			},
+			{
 				"cell_type": "code",
 				"metadata": {
 					"microsoft": {
@@ -61,6 +75,7 @@
 					"\n",
 					"USE odw_standardised_db;\n",
 					"\n",
+					"-- Drop and recreate the table if it already exists (clean setup)\n",
 					"DROP TABLE IF EXISTS last_ingest_dates;\n",
 					"\n",
 					"CREATE TABLE last_ingest_dates (\n",
@@ -69,7 +84,7 @@
 					")\n",
 					"USING DELTA;\n",
 					"\n",
-					"-- 3) Seed rows\n",
+					"-- Seed with default values to ensure first incremental run pulls all data\n",
 					"INSERT INTO last_ingest_dates (TableName, LastIngestDate) VALUES\n",
 					"  ('Horizon_ODW_vw_DocumentMetadata', timestamp('1900-01-01 00:00:00')),\n",
 					"  ('Horizon_ODW_vw_DocumentMetadataAppeals', timestamp('1900-01-01 00:00:00'));\n",
