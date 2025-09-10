@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "665fae9e-7392-495f-ac03-4ddb4ac85686"
+				"spark.autotune.trackingId": "6044d56b-4228-48ad-80c3-aaaa27f2979b"
 			}
 		},
 		"metadata": {
@@ -86,7 +86,7 @@
 					"odw_json_folder_path = f\"abfss://odw-config@{storage_account}odw-config/logging_table_definitions\"\n",
 					"delta_table_path = f\"abfss://logging@{storage_account}\"\n",
 					"\n",
-					"schema_json_path = f\"abfss://odw-config@{storage_account}orchestration/orchestration.json\"\n",
+					"schema_json_path = f\"abfss://odw-config@{storage_account}logging_table_definitions/tables_logs.json\"\n",
 					"\n",
 					"print(odw_json_folder_path)\n",
 					"print(delta_table_path)\n",
@@ -100,10 +100,7 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"\n",
-					"\n",
 					"# Create delta table steps\n",
-					"\n",
 					"database_name = \"logging\"\n",
 					"table_name = \"tables_logs\"\n",
 					"\n",
@@ -112,7 +109,16 @@
 					"schema_json = schema_df.toJSON().first()\n",
 					"\n",
 					"# Parse JSON schema into StructType\n",
-					"schema_struct = StructType.fromJson(json.loads(schema_json))\n",
+					"parsed_json = json.loads(schema_json)\n",
+					"fields_array = parsed_json[\"fields\"]\n",
+					"\n",
+					"for field in fields_array:\n",
+					"    field.setdefault(\"metadata\", {})\n",
+					"\n",
+					"schema_struct = StructType.fromJson({\n",
+					"    \"type\": \"struct\",\n",
+					"    \"fields\": fields_array\n",
+					"})\n",
 					"\n",
 					"# Create Database if not exists\n",
 					"spark.sql(f\"CREATE DATABASE IF NOT EXISTS {database_name}\")\n",
@@ -120,18 +126,19 @@
 					"# Create Delta Table if not exists\n",
 					"if not spark._jsparkSession.catalog().tableExists(database_name, table_name):\n",
 					"\n",
+					"    column_definitions = ', '.join([f\"{field.name} {field.dataType.simpleString()}\" for field in schema_struct])\n",
+					"\n",
 					"    # Create Delta Table\n",
-					"    spark.sql(f\"CREATE TABLE IF NOT EXISTS {database_name}.{table_name} USING DELTA LOCATION '{delta_table_path}'\")\n",
+					"    spark.sql(f\"\"\"\n",
+					"        CREATE TABLE IF NOT EXISTS {database_name}.{table_name}\n",
+					"        ({column_definitions})\n",
+					"        USING DELTA\n",
+					"        LOCATION '{delta_table_path}'\n",
+					"    \"\"\")\n",
 					"\n",
 					"    print(f\"Delta table {database_name}.{table_name} created successfully.\")\n",
 					"else:\n",
-					"    print(f\"Delta table {database_name}.{table_name} already exists.\")"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
+					"    print(f\"Delta table {database_name}.{table_name} already exists.\")\n",
 					""
 				],
 				"execution_count": null
