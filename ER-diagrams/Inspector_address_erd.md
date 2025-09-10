@@ -1,6 +1,6 @@
 ```mermaid
 erDiagram
-    odw_harmonised_db.LIVE_DIM_INSPECTOR {
+    "odw_harmonised_db|LIVE_DIM_INSPECTOR" {
         varchar source_id PK
         varchar pins_staff_number FK
         varchar given_names
@@ -22,7 +22,7 @@ erDiagram
         varchar inspectorSource
     }
     
-    odw_harmonised_db.LOAD_SAP_HR_MONTHLY {
+    "odw_harmonised_db|LOAD_SAP_HR_MONTHLY" {
         varchar PersNo PK
         varchar EmployeeNo
         varchar FirstName
@@ -37,7 +37,7 @@ erDiagram
         decimal FTE
     }
     
-    odw_harmonised_db.SAP_HR_INSPECTOR_ADDRESS {
+    "odw_harmonised_db|SAP_HR_INSPECTOR_ADDRESS" {
         varchar StaffNumber FK
         varchar PostalCode
         varchar StreetandHouseNumber
@@ -49,7 +49,7 @@ erDiagram
         varchar IsActive
     }
     
-    odw_harmonised_db.LOAD_SAP_HR_LEAVERS {
+    "odw_harmonised_db|LOAD_SAP_HR_LEAVERS" {
         varchar PersNo FK
         varchar FirstName
         varchar LastName
@@ -59,19 +59,19 @@ erDiagram
         varchar OrganizationalUnit
     }
     
-    odw_harmonised_db.LOAD_VW_SAP_HR_EMAIL {
+    "odw_harmonised_db|LOAD_VW_SAP_HR_EMAIL" {
         varchar PersNo FK
         varchar email_address
         varchar EmployeeNo
     }
     
-    odw_standardised_db.LOAD_SP_LIST_INSPECTOR_MAP {
+    "odw_standardised_db|LOAD_SP_LIST_INSPECTOR_MAP" {
         varchar StaffNumber FK
         varchar HorizonID
         datetime Modified
     }
     
-    odw_standardised_db.LOAD_INSPECTOR_RAW {
+    "odw_standardised_db|LOAD_INSPECTOR_RAW" {
         int id PK
         int PINSStaffNumber
         varchar GivenNames
@@ -81,50 +81,50 @@ erDiagram
         varchar ResourceGroup
     }
     
-    odw_standardised_db.LOAD_SAPPREFERREDNAME {
+    "odw_standardised_db|LOAD_SAPPREFERREDNAME" {
         varchar PERSNO FK
         varchar PreferredFirstName
         varchar PreferredFamilyName
     }
     
-    odw_standardised_db.BIS_INSPECTOR_GROUP {
+    "odw_standardised_db|BIS_INSPECTOR_GROUP" {
         varchar sap_ou PK
         varchar resource_group
         varchar inspector_group
     }
     
-    odw_standardised_db.HIST_ISS_JOB {
+    "odw_standardised_db|HIST_ISS_JOB" {
         varchar ID PK
         varchar LeadInspector
         datetime record_start_date
         datetime record_end_date
     }
     
-    odw_standardised_db.LOAD_ISS_JOB {
+    "odw_standardised_db|LOAD_ISS_JOB" {
         varchar ID PK
         varchar LeadInspector
         varchar Status
     }
 
     %% PRIMARY RELATIONSHIPS - Source tables feeding LIVE_DIM_INSPECTOR
-    LOAD_SAP_HR_MONTHLY ||--o{ LIVE_DIM_INSPECTOR : "PersNo-pins_staff_number"
-    SAP_HR_INSPECTOR_ADDRESS ||--o{ LIVE_DIM_INSPECTOR : "StaffNumber-pins_staff_number"
+    "odw_standardised_db|LOAD_SAP_HR_MONTHLY" ||--o{ "odw_harmonised_db|LIVE_DIM_INSPECTOR" : "PersNo-pins_staff_number"
+    "odw_harmonised_db|SAP_HR_INSPECTOR_ADDRESS" ||--o{ "odw_harmonised_db|LIVE_DIM_INSPECTOR" : "StaffNumber-pins_staff_number"
     
     %% Supporting source relationships for LIVE_DIM_INSPECTOR
-    LOAD_SP_LIST_INSPECTOR_MAP ||--o{ LIVE_DIM_INSPECTOR : "StaffNumber-pins_staff_number"
-    LOAD_INSPECTOR_RAW ||--o{ LIVE_DIM_INSPECTOR : "PINSStaffNumber-pins_staff_number"
-    LOAD_SAP_HR_LEAVERS ||--o{ LIVE_DIM_INSPECTOR : "PersNo-pins_staff_number"
-    BIS_INSPECTOR_GROUP ||--o{ LIVE_DIM_INSPECTOR : "sap_ou-resource_group"
-    LOAD_VW_SAP_HR_EMAIL ||--o{ LIVE_DIM_INSPECTOR : "PersNo-pins_staff_number"
-    LOAD_SAPPREFERREDNAME ||--o{ LIVE_DIM_INSPECTOR : "PERSNO-pins_staff_number"
+    "odw_standardised_db|LOAD_SP_LIST_INSPECTOR_MAP" ||--o{ "odw_harmonised_db|LIVE_DIM_INSPECTOR" : "StaffNumber-pins_staff_number"
+    "odw_standardised_db|LOAD_INSPECTOR_RAW" ||--o{ "odw_harmonised_db|LIVE_DIM_INSPECTOR" : "PINSStaffNumber-pins_staff_number"
+    "odw_harmonised_db|LOAD_SAP_HR_LEAVERS" ||--o{ "odw_harmonised_db|LIVE_DIM_INSPECTOR" : "PersNo-pins_staff_number"
+    "odw_standardised_db|BIS_INSPECTOR_GROUP" ||--o{ "odw_harmonised_db|LIVE_DIM_INSPECTOR" : "sap_ou-resource_group"
+    "odw_harmonised_db|LOAD_VW_SAP_HR_EMAIL" ||--o{ "odw_harmonised_db|LIVE_DIM_INSPECTOR" : "PersNo-pins_staff_number"
+    "odw_standardised_db|LOAD_SAPPREFERREDNAME" ||--o{ "odw_harmonised_db|LIVE_DIM_INSPECTOR" : "PERSNO-pins_staff_number"
     
     %% Core source table relationships
-    LOAD_SAP_HR_MONTHLY ||--o{ SAP_HR_INSPECTOR_ADDRESS : "PersNo-StaffNumber"
-    LOAD_SAP_HR_MONTHLY ||--o{ LOAD_SP_LIST_INSPECTOR_MAP : "PersNo-StaffNumber"
-    LOAD_SAP_HR_MONTHLY ||--o{ LOAD_VW_SAP_HR_EMAIL : "PersNo-PersNo"
-    LOAD_SAP_HR_MONTHLY ||--o{ LOAD_SAPPREFERREDNAME : "PersNo-PERSNO"
-    LOAD_SAP_HR_MONTHLY ||--|| BIS_INSPECTOR_GROUP : "OrganizationalUnit-sap_ou"
+    "odw_standardised_db|LOAD_SAP_HR_MONTHLY" ||--o{ "odw_harmonised_db|SAP_HR_INSPECTOR_ADDRESS" : "PersNo-StaffNumber"
+    "odw_standardised_db|LOAD_SAP_HR_MONTHLY" ||--o{ "odw_standardised_db|LOAD_SP_LIST_INSPECTOR_MAP" : "PersNo-StaffNumber"
+    "odw_standardised_db|LOAD_SAP_HR_MONTHLY" ||--o{ "odw_harmonised_db|LOAD_VW_SAP_HR_EMAIL" : "PersNo-PersNo"
+    "odw_standardised_db|LOAD_SAP_HR_MONTHLY" ||--o{ "odw_standardised_db|LOAD_SAPPREFERREDNAME" : "PersNo-PERSNO"
+    "odw_standardised_db|LOAD_SAP_HR_MONTHLY" ||--|| "odw_standardised_db|BIS_INSPECTOR_GROUP" : "OrganizationalUnit-sap_ou"
     
     %% Target table usage in horizon appeals
-    LIVE_DIM_INSPECTOR ||--o{ HIST_ISS_JOB : "source_id-LeadInspector"
-    HIST_ISS_JOB ||--|| LOAD_ISS_JOB : "ID-ID"
+    "odw_harmonised_db|LIVE_DIM_INSPECTOR" ||--o{ "odw_standardised_db|HIST_ISS_JOB" : "source_id-LeadInspector"
+    "odw_standardised_db|HIST_ISS_JOB" ||--|| "odw_standardised_db|LOAD_ISS_JOB" : "ID-ID"
