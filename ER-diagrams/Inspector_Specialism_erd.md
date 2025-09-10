@@ -1,6 +1,6 @@
 ```mermaid
 erDiagram
-    odw_standardised_db.INSPECTOR_SPECIALISMS_MONTHLY {
+    "odw_standardised_db.INSPECTOR_SPECIALISMS_MONTHLY" {
         string StaffNumber PK
         string Firstname
         string Lastname
@@ -8,7 +8,7 @@ erDiagram
         string Proficien
     }
     
-    odw_harmonised_db.TRANSFORM_INSPECTOR_SPECIALISMS {
+    "odw_harmonised_db.TRANSFORM_INSPECTOR_SPECIALISMS" {
         string StaffNumber PK
         string Firstname
         string Lastname
@@ -21,7 +21,7 @@ erDiagram
         string IsActive
     }
     
-    odw_harmonised_db.SAP_HR_INSPECTOR_SPECIALISMS {
+    "odw_harmonised_db.SAP_HR_INSPECTOR_SPECIALISMS" {
         string StaffNumber PK
         string Firstname
         string Lastname
