@@ -1,0 +1,172 @@
+{
+	"name": "py_create_e2e_test_results_table",
+	"properties": {
+		"folder": {
+			"name": "utils"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "d55825d6-1849-40b7-b0ef-8c9fbff4d692"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"source": [
+					"## Create e2e_test_results table in logging database\n",
+					"\n",
+					"This notebook creates the `e2e_test_results` table in the `logging` database to store results from the end-to-end test framework.\n",
+					"\n",
+					"**Table Schema:**\n",
+					"- entity: The entity being tested (e.g., appeal-has)\n",
+					"- Various count fields for validation\n",
+					"- Boolean match fields for test results\n",
+					"- test_status: Overall status with detailed error messages\n",
+					"- test_timestamp: When the test was executed"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Import libraries\n",
+					"from pyspark.sql import SparkSession\n",
+					"from notebookutils import mssparkutils\n",
+					"\n",
+					"# Initialize Spark Session\n",
+					"spark = SparkSession.builder.getOrCreate()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Get Storage account name\n",
+					"storage_account = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"print(f\"Storage account: {storage_account}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Define paths\n",
+					"delta_table_path = f\"abfss://logging@{storage_account}/e2e_test_results\"\n",
+					"database_name = \"logging\"\n",
+					"table_name = \"e2e_test_results\"\n",
+					"\n",
+					"print(f\"Delta table path: {delta_table_path}\")\n",
+					"print(f\"Table: {database_name}.{table_name}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Create the logging database if it doesn't exist\n",
+					"spark.sql(f\"CREATE DATABASE IF NOT EXISTS {database_name}\")\n",
+					"print(f\"Database {database_name} ensured to exist\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Create the e2e_test_results table\n",
+					"create_table_sql = f\"\"\"\n",
+					"CREATE TABLE IF NOT EXISTS {database_name}.{table_name} (\n",
+					"    entity STRING COMMENT 'The entity being tested (e.g., appeal-has)',\n",
+					"    std_count BIGINT COMMENT 'Count of records in standardised table',\n",
+					"    hrm_count BIGINT COMMENT 'Count of records in harmonised table', \n",
+					"    hrm_active_count BIGINT COMMENT 'Count of active records in harmonised table',\n",
+					"    cur_count BIGINT COMMENT 'Count of records in curated table',\n",
+					"    cur_distinct_count BIGINT COMMENT 'Count of distinct records in curated table based on primary key',\n",
+					"    std_to_hrm_match BOOLEAN COMMENT 'Whether standardised and harmonised counts match',\n",
+					"    hrm_to_cur_match BOOLEAN COMMENT 'Whether harmonised active and curated counts match',\n",
+					"    cur_unique_check BOOLEAN COMMENT 'Whether curated table has unique primary keys',\n",
+					"    std_hrm_diff BIGINT COMMENT 'Difference between standardised and harmonised counts',\n",
+					"    hrm_cur_diff BIGINT COMMENT 'Difference between harmonised active and curated counts', \n",
+					"    test_status STRING COMMENT 'Overall test status: Passed or detailed error message',\n",
+					"    test_timestamp TIMESTAMP COMMENT 'Timestamp when the test was executed'\n",
+					")\n",
+					"USING DELTA\n",
+					"LOCATION '{delta_table_path}'\n",
+					"COMMENT 'End-to-end test results for data pipeline validation'\n",
+					"\"\"\"\n",
+					"\n",
+					"# Execute the create table statement\n",
+					"spark.sql(create_table_sql)\n",
+					"print(f\"Table {database_name}.{table_name} created successfully\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Verify table creation\n",
+					"spark.sql(f\"DESCRIBE EXTENDED {database_name}.{table_name}\").show(truncate=False)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Show table information\n",
+					"print(\"Table created successfully!\")\n",
+					"print(f\"Database: {database_name}\")\n",
+					"print(f\"Table: {table_name}\")\n",
+					"print(f\"Location: {delta_table_path}\")\n",
+					"print(\"\\nTable is ready to receive data from the e2e test framework.\")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}

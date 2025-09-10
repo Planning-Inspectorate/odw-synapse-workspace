@@ -1,0 +1,230 @@
+{
+	"name": "py_create_orchestration_table",
+	"properties": {
+		"folder": {
+			"name": "utils"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "5fe7d545-da7c-4ae6-ad25-ad16696eb519"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"source": [
+					"## Create orchestration table in odw_config_db database\n",
+					"\n",
+					"This notebook creates the `orchestration` table in the `odw_config_db` database by reading from the orchestration.json file in the config storage and creating a Delta table with all the orchestration definitions.\n",
+					"\n",
+					"The orchestration table is used by various pipelines, including `pln_master_test`, to look up metadata about data sources including:\n",
+					"- Standardised table names\n",
+					"- Harmonised table names\n",
+					"- Entity primary keys\n",
+					"- Source frequency and folder information"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Import libraries\n",
+					"from pyspark.sql import SparkSession\n",
+					"from notebookutils import mssparkutils\n",
+					"import json\n",
+					"\n",
+					"# Initialize Spark Session\n",
+					"spark = SparkSession.builder.getOrCreate()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Get Storage account name\n",
+					"storage_account = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"print(f\"Storage account: {storage_account}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Read orchestration.json from config storage\n",
+					"orchestration_json_path = f\"abfss://odw-config@{storage_account}/orchestration/orchestration.json\"\n",
+					"orchestration_json_content = spark.read.text(orchestration_json_path, wholetext=True).first().value\n",
+					"orchestration_config = json.loads(orchestration_json_content)\n",
+					"definitions = orchestration_config['definitions']\n",
+					"print(f\"Found {len(definitions)} orchestration definitions\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Define paths\n",
+					"delta_table_path = f\"abfss://odw-config@{storage_account}/config/orchestration\"\n",
+					"database_name = \"odw_config_db\"\n",
+					"table_name = \"orchestration\"\n",
+					"\n",
+					"print(f\"Delta table path: {delta_table_path}\")\n",
+					"print(f\"Table: {database_name}.{table_name}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Create the config database if it doesn't exist\n",
+					"spark.sql(f\"CREATE DATABASE IF NOT EXISTS {database_name}\")\n",
+					"print(f\"Database {database_name} ensured to exist\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Create the orchestration table using SQL DDL to match orchestration.json structure\n",
+					"create_table_sql = f\"\"\"\n",
+					"CREATE TABLE IF NOT EXISTS {database_name}.{table_name} (\n",
+					"    Source_ID INT COMMENT 'Unique identifier for each orchestration definition',\n",
+					"    Source_Folder STRING COMMENT 'Raw data source folder path',\n",
+					"    Horizon_Table_Name STRING COMMENT 'Name on Horizon SQL table',\n",
+					"    Source_Frequency_Folder STRING COMMENT 'Frequency subfolder (Weekly/Monthly)',\n",
+					"    Source_Filename_Format STRING COMMENT 'Expected filename format pattern',\n",
+					"    Source_Filename_Start STRING COMMENT 'Filename prefix for identification',\n",
+					"    Standardised_Path STRING COMMENT 'Path in standardised layer',\n",
+					"    Standardised_Table_Name STRING COMMENT 'Name of standardised table',\n",
+					"    Standardised_Table_Definition STRING COMMENT 'JSON schema file location',\n",
+					"    Harmonised_Table_Name STRING COMMENT 'Name of harmonised table',\n",
+					"    Harmonised_Incremental_Key STRING COMMENT 'Incremental Key for harmonised table',\n",
+					"    Entity_Primary_Key STRING COMMENT 'Primary key field for the entity'\n",
+					")\n",
+					"USING DELTA\n",
+					"LOCATION '{delta_table_path}'\n",
+					"COMMENT 'Orchestration metadata for data pipeline configuration'\n",
+					"\"\"\"\n",
+					"\n",
+					"# Execute the create table statement\n",
+					"spark.sql(create_table_sql)\n",
+					"print(f\"Table {database_name}.{table_name} created successfully\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Insert orchestration data from JSON\n",
+					"from datetime import datetime\n",
+					"from pyspark.sql.types import *\n",
+					"\n",
+					"# Convert JSON definitions to DataFrame rows\n",
+					"rows = []\n",
+					"\n",
+					"for definition in definitions:\n",
+					"    rows.append((\n",
+					"        definition.get('Source_ID'),\n",
+					"        definition.get('Source_Folder'),\n",
+					"        definition.get('Source_Frequency_Folder', ''),\n",
+					"        definition.get('Horizon_Table_Name'),\n",
+					"        definition.get('Source_Filename_Format'),\n",
+					"        definition.get('Source_Filename_Start'),\n",
+					"        definition.get('Standardised_Path'),\n",
+					"        definition.get('Standardised_Table_Name'),\n",
+					"        definition.get('Standardised_Table_Definition'),\n",
+					"        definition.get('Harmonised_Table_Name'),\n",
+					"        definition.get('Harmonised_Incremental_Key'),\n",
+					"        definition.get('Entity_Primary_Key')\n",
+					"    ))\n",
+					"\n",
+					"# Define schema\n",
+					"schema = StructType([\n",
+					"    StructField('Source_ID', IntegerType(), True),\n",
+					"    StructField('Source_Folder', StringType(), True),\n",
+					"    StructField('Source_Frequency_Folder', StringType(), True),\n",
+					"    StructField('Horizon_Table_Name', StringType(), True),\n",
+					"    StructField('Source_Filename_Format', StringType(), True),\n",
+					"    StructField('Source_Filename_Start', StringType(), True),\n",
+					"    StructField('Standardised_Path', StringType(), True),\n",
+					"    StructField('Standardised_Table_Name', StringType(), True),\n",
+					"    StructField('Standardised_Table_Definition', StringType(), True),\n",
+					"    StructField('Harmonised_Table_Name', StringType(), True),\n",
+					"    StructField('Harmonised_Incremental_Key', StringType(), True),\n",
+					"    StructField('Entity_Primary_Key', StringType(), True)\n",
+					"])\n",
+					"\n",
+					"# Create DataFrame and insert data\n",
+					"df = spark.createDataFrame(rows, schema)\n",
+					"df.write.format('delta').mode('overwrite').saveAsTable(f'{database_name}.{table_name}')\n",
+					"\n",
+					"print(f\"Inserted {len(rows)} records into {database_name}.{table_name}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Verify table creation and data\n",
+					"result_count = spark.sql(f\"SELECT COUNT(*) as count FROM {database_name}.{table_name}\").collect()[0]['count']\n",
+					"print(f\"Table {database_name}.{table_name} contains {result_count} records\")\n",
+					"\n",
+					"# Show sample data\n",
+					"print(\"\\nSample records:\")\n",
+					"spark.sql(f\"SELECT Source_ID, Standardised_Table_Name, Harmonised_Table_Name, Entity_Primary_Key FROM {database_name}.{table_name} LIMIT 5\").show(truncate=False)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Show table information\n",
+					"print(\"Orchestration table created successfully!\")\n",
+					"print(f\"Database: {database_name}\")\n",
+					"print(f\"Table: {table_name}\")\n",
+					"print(f\"Location: {delta_table_path}\")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
