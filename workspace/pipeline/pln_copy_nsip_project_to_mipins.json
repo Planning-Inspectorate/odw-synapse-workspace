@@ -5,7 +5,14 @@
 			{
 				"name": "Copy NSIP Project",
 				"type": "Copy",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "Lookup-LogStart",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"timeout": "0.02:00:00",
 					"retry": 0,
@@ -50,8 +57,285 @@
 						"type": "DatasetReference"
 					}
 				]
+			},
+			{
+				"name": "Lookup-LogStart",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.02:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderStoredProcedureName": "[Audit].[usp_addETLLog]",
+						"storedProcedureParameters": {
+							"Description": {
+								"type": "String",
+								"value": "NSIP_curated_mipins_pipeline_started"
+							},
+							"ErrorMessage": {
+								"type": "String",
+								"value": null
+							},
+							"LogType": {
+								"type": "String",
+								"value": "1"
+							},
+							"Param1Value": {
+								"type": "String",
+								"value": null
+							},
+							"RowCount": {
+								"type": "Int32",
+								"value": null
+							},
+							"RunId": {
+								"type": "Int32",
+								"value": null
+							},
+							"Source": {
+								"type": "String",
+								"value": "NSIP Project"
+							}
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "Lookup_LogStart",
+						"type": "DatasetReference"
+					}
+				}
+			},
+			{
+				"name": "Record_Count",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Copy NSIP Project",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "RowCount_NSIP Project",
+					"value": {
+						"value": "@activity('Copy NSIP Project').output.rowscopied",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "SP_update dim_source_system",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "Record_Count",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.02:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[Live].[upd_dim_source_system]",
+					"storedProcedureParameters": {
+						"refresh_date": {
+							"value": {
+								"value": "@utcNow('yyyy-MM-ddTHH:mm:ss.fff')",
+								"type": "Expression"
+							},
+							"type": "DateTime"
+						},
+						"source_system": {
+							"value": "NSIP Project",
+							"type": "String"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "ls_sql_mipins",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "Sp_log_success",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "SP_update dim_source_system",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.02:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[Audit].[usp_addETLLog]",
+					"storedProcedureParameters": {
+						"Description": {
+							"value": "NSIP_curated_mipins_pipeline_completed",
+							"type": "String"
+						},
+						"ErrorMessage": {
+							"value": null,
+							"type": "String"
+						},
+						"LogType": {
+							"value": "2",
+							"type": "String"
+						},
+						"Param1Value": {
+							"value": null,
+							"type": "String"
+						},
+						"RowCount": {
+							"value": {
+								"value": "@variables('RowCount_NSIP Project')",
+								"type": "Expression"
+							},
+							"type": "Int32"
+						},
+						"RunId": {
+							"value": {
+								"value": "@activity('Lookup-LogStart').output.firstRow.Runid",
+								"type": "Expression"
+							},
+							"type": "Int32"
+						},
+						"Source": {
+							"value": "NSIP Project",
+							"type": "String"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "ls_sql_mipins",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "Error_NSIP Project",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "SP_update dim_source_system",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "Error_NSIP",
+					"value": {
+						"value": "@replace(concat(activity('Lookup-LogStart').Error?.message,'|',activity('Copy NSIP Project').Error?.message,'|',activity('SP_update dim_source_system').Error?.message),'|','')",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Sp_log_failed",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "Error_NSIP Project",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.02:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[Audit].[usp_addETLLog]",
+					"storedProcedureParameters": {
+						"Description": {
+							"value": "NSIP_curated_mipins_pipeline_failed",
+							"type": "String"
+						},
+						"ErrorMessage": {
+							"value": {
+								"value": "@variables('Error_NSIP')",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"LogType": {
+							"value": "2",
+							"type": "String"
+						},
+						"Param1Value": {
+							"value": null,
+							"type": "String"
+						},
+						"RowCount": {
+							"value": null,
+							"type": "Int32"
+						},
+						"RunId": {
+							"value": {
+								"value": "@activity('Lookup-LogStart').output.firstRow.Runid",
+								"type": "Expression"
+							},
+							"type": "Int32"
+						},
+						"Source": {
+							"value": "NSIP Project",
+							"type": "String"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "ls_sql_mipins",
+					"type": "LinkedServiceReference"
+				}
 			}
 		],
+		"variables": {
+			"RowCount_NSIP Project": {
+				"type": "Integer"
+			},
+			"Error_NSIP": {
+				"type": "String"
+			}
+		},
 		"folder": {
 			"name": "nsip project"
 		},
