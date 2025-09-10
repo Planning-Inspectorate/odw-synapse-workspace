@@ -1,6 +1,6 @@
 ```mermaid
 erDiagram
-    odw_harmonised_db.LOAD_SAP_HR_MONTHLY {
+    "odw_harmonised_db|LOAD_SAP_HR_MONTHLY" {
         varchar PersNo PK
         varchar Firstname
         varchar Lastname
@@ -104,7 +104,7 @@ erDiagram
         varchar DataQuality
     }
     
-    odw_harmonised_db.LOAD_VW_SAP_HR_EMAIL {
+    "odw_harmonised_db|LOAD_VW_SAP_HR_EMAIL" {
         varchar email_address FK
         varchar PersNo FK
         varchar Firstname
@@ -209,7 +209,7 @@ erDiagram
         varchar DataQuality
     }
     
-    odw_harmonised_db.LOAD_SAP_PINS_EMAIL {
+    "odw_harmonised_db|LOAD_SAP_PINS_EMAIL" {
         varchar StaffNumber FK
         varchar Firstname
         varchar Lastname
@@ -221,7 +221,7 @@ erDiagram
         varchar IsActive
     }
     
-    odw_harmonised_db.LIVE_DIM_INSPECTOR {
+    "odw_harmonised_db|LIVE_DIM_INSPECTOR" {
         varchar source_id PK
         varchar pins_staff_number FK
         varchar given_names
@@ -265,7 +265,7 @@ erDiagram
         varchar effective_to
     }
     
-    odw_harmonised_db.LIVE_DIM_EMP_HIERARCHY {
+    "odw_harmonised_db|LIVE_DIM_EMP_HIERARCHY" {
         varchar emp_id FK
         varchar emp_name
         varchar emp_email_address FK
@@ -283,11 +283,11 @@ erDiagram
     }
 
     %% Primary Data Flow Relationships
-    LOAD_SAP_HR_MONTHLY ||--o{ LOAD_VW_SAP_HR_EMAIL : "email_view"
-    LOAD_SAP_HR_MONTHLY ||--o{ LOAD_SAP_PINS_EMAIL : "pins_integration"
-    LOAD_SAP_HR_MONTHLY ||--o{ LIVE_DIM_INSPECTOR : "inspector_subset"
-    LOAD_SAP_HR_MONTHLY ||--o{ LIVE_DIM_EMP_HIERARCHY : "hierarchy_member"
+    "odw_harmonised_db|LOAD_SAP_HR_MONTHLY" ||--o{ "odw_harmonised_db|LOAD_VW_SAP_HR_EMAIL" : "email_view"
+    "odw_harmonised_db|LOAD_SAP_HR_MONTHLY" ||--o{ "odw_harmonised_db|LOAD_SAP_PINS_EMAIL" : "pins_integration"
+    "odw_harmonised_db|LOAD_SAP_HR_MONTHLY" ||--o{ "odw_harmonised_db|LIVE_DIM_INSPECTOR" : "inspector_subset"
+    "odw_harmonised_db|LOAD_SAP_HR_MONTHLY" ||--o{ "odw_harmonised_db|LIVE_DIM_EMP_HIERARCHY" : "hierarchy_member"
     
     %% Cross-Reference Relationships  
-    LOAD_SAP_PINS_EMAIL ||--o{ LOAD_VW_SAP_HR_EMAIL : "email_mapping"
-    LOAD_VW_SAP_HR_EMAIL ||--o{ LIVE_DIM_EMP_HIERARCHY : "email_hierarchy_ref"
+    "odw_harmonised_db|LOAD_SAP_PINS_EMAIL" ||--o{ "odw_harmonised_db|LOAD_VW_SAP_HR_EMAIL" : "email_mapping"
+    "odw_harmonised_db|LOAD_VW_SAP_HR_EMAIL" ||--o{ "odw_harmonised_db|LIVE_DIM_EMP_HIERARCHY" : "email_hierarchy_ref"
