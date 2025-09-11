@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "a1dd80ae-e5ef-4d0a-abf5-ed4f36997498"
+				"spark.autotune.trackingId": "f0f724da-744d-48e4-811c-b96e4768208d"
 			}
 		},
 		"metadata": {
@@ -80,7 +80,7 @@
 					"import nest_asyncio\r\n",
 					"from datetime import datetime"
 				],
-				"execution_count": null
+				"execution_count": 25
 			},
 			{
 				"cell_type": "markdown",
@@ -98,9 +98,16 @@
 			{
 				"cell_type": "code",
 				"source": [
+					" %run utils/py_logging_decorator"
+				],
+				"execution_count": 26
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 27
 			},
 			{
 				"cell_type": "code",
@@ -128,7 +135,7 @@
 					"delete_count = 0\r\n",
 					"error_message=''"
 				],
-				"execution_count": null
+				"execution_count": 28
 			},
 			{
 				"cell_type": "code",
@@ -143,7 +150,7 @@
 					"PipelineTriggeredbyPipelineRunID = \"7cd26982-eaab-4646-b3fd-afd12b4bee73\"\r\n",
 					"instrumentation_key='a1609846-e819-4880-976a-de745a22203f'"
 				],
-				"execution_count": null
+				"execution_count": 29
 			},
 			{
 				"cell_type": "code",
@@ -167,7 +174,7 @@
 					"    return df_filtered\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 30
 			},
 			{
 				"cell_type": "code",
@@ -200,7 +207,7 @@
 					"    error_message = logError(f\"Error in data frame creation :\\n{e}\")\r\n",
 					"    end_exec_time = str(datetime.now()) "
 				],
-				"execution_count": null
+				"execution_count": 31
 			},
 			{
 				"cell_type": "code",
@@ -228,53 +235,21 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"try:\r\n",
-					"    logInfo(f\"Preparing to write to {table_name}\")\r\n",
-					"\r\n",
-					"    # Get existing record count before overwrite\r\n",
+					"@logging_to_appins\r\n",
+					"def write_table_with_logging(table_name, final_df):\r\n",
 					"    try:\r\n",
-					"        existing_count = spark.table(table_name).count()\r\n",
-					"        logInfo(f\"Existing record count in {table_name}: {existing_count}\")\r\n",
+					"        logInfo(f\"Writing to {table_name}\")\r\n",
+					"        insert_count = final_df.count()\r\n",
+					"\r\n",
+					"        # Overwrite the table\r\n",
+					"        final_df.write.mode(\"overwrite\").saveAsTable(table_name)\r\n",
+					"        logInfo(f\"Written to {table_name}\")\r\n",
+					"\r\n",
+					"        end_exec_time = datetime.now()\r\n",
+					"\r\n",
 					"    except Exception as e:\r\n",
-					"        existing_count = 0\r\n",
-					"        logInfo(f\"{table_name} does not exist or failed to read. Assuming 0 existing records.\")\r\n",
-					"\r\n",
-					"    # Count records in the new DataFrame\r\n",
-					"    new_count = final_df.count()\r\n",
-					"    insert_count = new_count - existing_count if new_count > existing_count else 0\r\n",
-					"    update_count = existing_count if new_count <= existing_count else 0\r\n",
-					"\r\n",
-					"    logInfo(f\"Insert Count: {insert_count}, Update Count: {update_count}\")\r\n",
-					"\r\n",
-					"    # Overwrite the table\r\n",
-					"    final_df.write.mode(\"overwrite\").saveAsTable(table_name)\r\n",
-					"    logInfo(f\"Successfully written to {table_name}\")\r\n",
-					"\r\n",
-					"    end_exec_time = datetime.now()\r\n",
-					"\r\n",
-					"except Exception as e:\r\n",
-					"    error_message = logError(f\"Error writing data to curated layer table:\\n{e}\")\r\n",
-					"    end_exec_time = datetime.now()"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"# try:\r\n",
-					"#     logInfo(f\"Writing to {table_name}\")\r\n",
-					"#     insert_count = final_df.count()\r\n",
-					"\r\n",
-					"#     # create a unified table for horizon_appeal_s78\r\n",
-					"#     final_df.write.mode(\"overwrite\").saveAsTable(table_name)\r\n",
-					"#     logInfo(f\"Written to {table_name}\")\r\n",
-					"    \r\n",
-					"#     end_exec_time = str(datetime.now())\r\n",
-					"    \r\n",
-					"# except Exception as e:\r\n",
-					"#     error_message =logError(f\"Error appending data to the curated layer table :\\n{e}\")\r\n",
-					"#     error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
-					"#     end_exec_time = str(datetime.now())  "
+					"        error_message = logError(f\"Error appending data to the curated layer table:\\n{e}\")\r\n",
+					"        end_exec_time = datetime.now()"
 				],
 				"execution_count": null
 			},
