@@ -7,10 +7,6 @@ from logging import Logger
 import logging
 
 
-def mock_configure_azure_monitor():
-    pass
-
-
 def get_new_logging_instance():
     with mock.patch.object(LoggingUtil, "__new__", return_value=object.__new__(LoggingUtil)):
         with mock.patch("odw.core.util.logging_util.configure_azure_monitor"):
