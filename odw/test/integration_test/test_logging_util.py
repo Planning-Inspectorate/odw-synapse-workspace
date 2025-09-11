@@ -33,7 +33,6 @@ def run_logging_util():
     with mock.patch("notebookutils.mssparkutils.runtime.context", mock_mssparkutils_context):
         with mock.patch.object(notebookutils.mssparkutils.credentials, "getSecretWithLS", return_value=app_insights_connection_string):
             some_test_function("Hello", mock_arg_b="There")
-            LoggingUtil().flush_logging()
 
 
 def test_logging_initialised():
