@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "f0f724da-744d-48e4-811c-b96e4768208d"
+				"spark.autotune.trackingId": "e93fb86c-3361-46a3-b889-b45f39061e6d"
 			}
 		},
 		"metadata": {
@@ -78,9 +78,9 @@
 					"from pyspark.sql import functions as F\r\n",
 					"import asyncio\r\n",
 					"import nest_asyncio\r\n",
-					"from datetime import datetime"
+					"from datetime import datetime, timedelta, date"
 				],
-				"execution_count": 25
+				"execution_count": 92
 			},
 			{
 				"cell_type": "markdown",
@@ -100,14 +100,14 @@
 				"source": [
 					" %run utils/py_logging_decorator"
 				],
-				"execution_count": 26
+				"execution_count": 93
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 27
+				"execution_count": 94
 			},
 			{
 				"cell_type": "code",
@@ -135,7 +135,7 @@
 					"delete_count = 0\r\n",
 					"error_message=''"
 				],
-				"execution_count": 28
+				"execution_count": 95
 			},
 			{
 				"cell_type": "code",
@@ -150,7 +150,7 @@
 					"PipelineTriggeredbyPipelineRunID = \"7cd26982-eaab-4646-b3fd-afd12b4bee73\"\r\n",
 					"instrumentation_key='a1609846-e819-4880-976a-de745a22203f'"
 				],
-				"execution_count": 29
+				"execution_count": 96
 			},
 			{
 				"cell_type": "code",
@@ -174,7 +174,7 @@
 					"    return df_filtered\r\n",
 					""
 				],
-				"execution_count": 30
+				"execution_count": 97
 			},
 			{
 				"cell_type": "code",
@@ -205,9 +205,9 @@
 					"except Exception as e:\r\n",
 					"    \r\n",
 					"    error_message = logError(f\"Error in data frame creation :\\n{e}\")\r\n",
-					"    end_exec_time = str(datetime.now()) "
+					"    end_exec_time = datetime.now() "
 				],
-				"execution_count": 31
+				"execution_count": 98
 			},
 			{
 				"cell_type": "code",
@@ -222,7 +222,7 @@
 					"final_df = final_df.join(vw_AddAdditionalData_df, hzn_cases_s78_df.caseuniqueid == vw_AddAdditionalData_df.appealrefnumber, 'left').select( final_df[\"*\"], vw_AddAdditionalData_df.floorspaceinsquaremetres, vw_AddAdditionalData_df.costsappliedforindicator, vw_AddAdditionalData_df.procedureappellant, vw_AddAdditionalData_df.isthesitewithinanaonb, vw_AddAdditionalData_df.procedurelpa, vw_AddAdditionalData_df.inspectorneedtoentersite, vw_AddAdditionalData_df.sitegridreferenceeasting, vw_AddAdditionalData_df.sitegridreferencenorthing , vw_AddAdditionalData_df.sitewithinsssi)\r\n",
 					"final_df = final_df.join(vw_AdditionalFields_df, hzn_cases_s78_df.caseuniqueid == vw_AdditionalFields_df.appealrefnumber, 'left').select( final_df[\"*\"], vw_AdditionalFields_df.importantinformation)"
 				],
-				"execution_count": null
+				"execution_count": 99
 			},
 			{
 				"cell_type": "code",
@@ -230,28 +230,27 @@
 					"final_df = final_df.withColumn(\"preserveGrantLoan\", F.lit(None).cast(\"boolean\"))\r\n",
 					"final_df = final_df.withColumn(\"consultHistoricEngland\", F.lit(None).cast(\"boolean\"))"
 				],
-				"execution_count": null
+				"execution_count": 100
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"@logging_to_appins\r\n",
-					"def write_table_with_logging(table_name, final_df):\r\n",
-					"    try:\r\n",
-					"        logInfo(f\"Writing to {table_name}\")\r\n",
-					"        insert_count = final_df.count()\r\n",
+					"try:\r\n",
+					"    logInfo(f\"Writing to {table_name}\")\r\n",
+					"    insert_count = final_df.count()\r\n",
 					"\r\n",
-					"        # Overwrite the table\r\n",
-					"        final_df.write.mode(\"overwrite\").saveAsTable(table_name)\r\n",
-					"        logInfo(f\"Written to {table_name}\")\r\n",
+					"    # create a unified table for horizon_appeal_s78\r\n",
+					"    final_df.write.mode(\"overwrite\").saveAsTable(table_name)\r\n",
+					"    logInfo(f\"Written to {table_name}\")\r\n",
+					"    \r\n",
+					"    end_exec_time = datetime.now()\r\n",
 					"\r\n",
-					"        end_exec_time = datetime.now()\r\n",
-					"\r\n",
-					"    except Exception as e:\r\n",
-					"        error_message = logError(f\"Error appending data to the curated layer table:\\n{e}\")\r\n",
-					"        end_exec_time = datetime.now()"
+					"except Exception as e:\r\n",
+					"    error_message = logError(f\"Error appending data to the curated layer table:\\n{e}\")\r\n",
+					"    end_exec_time = datetime.now()\r\n",
+					""
 				],
-				"execution_count": null
+				"execution_count": 101
 			},
 			{
 				"cell_type": "markdown",
@@ -269,61 +268,61 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"# Calculate execution duration\r\n",
-					"duration_seconds = (end_exec_time - start_exec_time).total_seconds()\r\n",
+					"try:\r\n",
+					"    # Calculate execution duration\r\n",
+					"    duration_seconds = (end_exec_time - start_exec_time).total_seconds()\r\n",
 					"\r\n",
-					"# Define activity type\r\n",
-					"activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\r\n",
+					"    # Define activity type\r\n",
+					"    activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\r\n",
 					"\r\n",
-					"# Determine status and message\r\n",
-					"stage = \"Success\" if not error_message else \"Failed\"\r\n",
-					"status_message = (\r\n",
-					"    f\"Successfully loaded data into {table_name} table\"\r\n",
-					"    if not error_message\r\n",
-					"    else f\"Failed to load data from {table_name} table\"\r\n",
-					")\r\n",
-					"status_code = \"200\" if stage == \"Success\" else \"500\"\r\n",
+					"    # Determine status and message\r\n",
+					"    stage = \"Success\" if not error_message else \"Failed\"\r\n",
+					"    status_message = (\r\n",
+					"        f\"Successfully loaded data into {table_name} table\"\r\n",
+					"        if not error_message\r\n",
+					"        else f\"Failed to load data from {table_name} table\"\r\n",
+					"    )\r\n",
+					"    status_code = \"200\" if stage == \"Success\" else \"500\"\r\n",
 					"\r\n",
-					"# Prepare telemetry parameters\r\n",
-					"params = {\r\n",
-					"    \"Stage\": stage,\r\n",
-					"    \"PipelineName\": PipelineName,\r\n",
-					"    \"PipelineRunID\": PipelineRunID,\r\n",
-					"    \"StartTime\": start_exec_time.isoformat(),\r\n",
-					"    \"EndTime\": end_exec_time.isoformat(),\r\n",
-					"    \"Inserts\": insert_count,\r\n",
-					"    \"Updates\": update_count,\r\n",
-					"    \"Deletes\": delete_count,\r\n",
-					"    \"ErrorMessage\": error_message,\r\n",
-					"    \"StatusMessage\": status_message,\r\n",
-					"    \"PipelineTriggerID\": PipelineTriggerID,\r\n",
-					"    \"PipelineTriggerName\": PipelineTriggerName,\r\n",
-					"    \"PipelineTriggerType\": PipelineTriggerType,\r\n",
-					"    \"PipelineTriggeredbyPipelineName\": PipelineTriggeredbyPipelineName,\r\n",
-					"    \"PipelineTriggeredbyPipelineRunID\": PipelineTriggeredbyPipelineRunID,\r\n",
-					"    \"PipelineExecutionTimeInSec\": duration_seconds,\r\n",
-					"    \"ActivityType\": activity_type,\r\n",
-					"    \"DurationSeconds\": duration_seconds,\r\n",
-					"    \"StatusCode\": status_code,\r\n",
-					"    \"AppInsCustomEventName\": \"ODW_Master_Pipeline_Logs\"\r\n",
-					"}\r\n",
+					"    # Prepare telemetry parameters\r\n",
+					"    params = {\r\n",
+					"        \"Stage\": stage,\r\n",
+					"        \"PipelineName\": PipelineName,\r\n",
+					"        \"PipelineRunID\": PipelineRunID,\r\n",
+					"        \"StartTime\": start_exec_time.isoformat(),\r\n",
+					"        \"EndTime\": end_exec_time.isoformat(),\r\n",
+					"        \"Inserts\": insert_count,\r\n",
+					"        \"Updates\": update_count,\r\n",
+					"        \"Deletes\": delete_count,\r\n",
+					"        \"ErrorMessage\": error_message,\r\n",
+					"        \"StatusMessage\": status_message,\r\n",
+					"        \"PipelineTriggerID\": PipelineTriggerID,\r\n",
+					"        \"PipelineTriggerName\": PipelineTriggerName,\r\n",
+					"        \"PipelineTriggerType\": PipelineTriggerType,\r\n",
+					"        \"PipelineTriggeredbyPipelineName\": PipelineTriggeredbyPipelineName,\r\n",
+					"        \"PipelineTriggeredbyPipelineRunID\": PipelineTriggeredbyPipelineRunID,\r\n",
+					"        \"PipelineExecutionTimeInSec\": duration_seconds,\r\n",
+					"        \"ActivityType\": activity_type,\r\n",
+					"        \"DurationSeconds\": duration_seconds,\r\n",
+					"        \"StatusCode\": status_code,\r\n",
+					"        \"AppInsCustomEventName\": \"ODW_Master_Pipeline_Logs\"\r\n",
+					"    }\r\n",
 					"\r\n",
-					"# Send telemetry asynchronously\r\n",
-					"await asyncio.to_thread(send_telemetry_to_app_insights, params, instrumentation_key)\r\n",
+					"    # Send telemetry asynchronously\r\n",
+					"    await asyncio.to_thread(send_telemetry_to_app_insights, params, instrumentation_key)\r\n",
 					"\r\n",
-					"# Raise error if execution failed\r\n",
-					"if error_message:\r\n",
-					"    print(f\"Notebook failed for file {file}: {error_message}\")\r\n",
-					"    raise RuntimeError(f\"Notebook failed due to error in file {file}: {error_message}\")\r\n",
+					"    # Raise error if execution failed\r\n",
+					"    if error_message:\r\n",
+					"        print(f\"Notebook failed for file {file}: {error_message}\")\r\n",
+					"        raise RuntimeError(f\"Notebook failed due to error in file {file}: {error_message}\")\r\n",
 					"\r\n",
-					"# Handle runtime error and exit\r\n",
 					"except RuntimeError as e:\r\n",
 					"    print(str(e))\r\n",
 					"    import sys\r\n",
 					"    sys.exit(1)\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 102
 			}
 		]
 	}
