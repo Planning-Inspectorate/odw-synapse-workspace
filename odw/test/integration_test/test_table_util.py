@@ -1,6 +1,4 @@
 from odw.test.util.mock.import_mock_notebook_utils import notebookutils
-from odw.core.util.logging_util import LoggingUtil
-import odw.core.util.logging_util
 from odw.core.util.table_util import TableUtil
 from odw.test.util.config import TEST_CONFIG
 from pyspark.sql import SparkSession
