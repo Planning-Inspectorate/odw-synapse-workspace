@@ -1,0 +1,98 @@
+{
+	"name": "create_last_ingest_dates",
+	"properties": {
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "81031092-775b-4cac-a773-bfa565cacfe0"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Create and seed the watermark control table for incremental ingestion\n",
+					"## This table stores the LastIngestDate per source table for Horizon files"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"USE odw_standardised_db;\n",
+					"\n",
+					"-- Drop and recreate the table if it already exists (clean setup)\n",
+					"DROP TABLE IF EXISTS last_ingest_dates;\n",
+					"\n",
+					"CREATE TABLE last_ingest_dates (\n",
+					"  TableName STRING,\n",
+					"  LastIngestDate TIMESTAMP\n",
+					")\n",
+					"USING DELTA;\n",
+					"\n",
+					"-- Seed with default values to ensure first incremental run pulls all data\n",
+					"INSERT INTO last_ingest_dates (TableName, LastIngestDate) VALUES\n",
+					"  ('Horizon_ODW_vw_DocumentMetadata', timestamp('1900-01-01 00:00:00')),\n",
+					"  ('Horizon_ODW_vw_DocumentMetadataAppeals', timestamp('1900-01-01 00:00:00'));\n",
+					"\n",
+					""
+				],
+				"execution_count": null
+			}
+		]
+	}
+}

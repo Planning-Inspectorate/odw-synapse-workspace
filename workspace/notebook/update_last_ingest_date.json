@@ -1,0 +1,109 @@
+{
+	"name": "update_last_ingest_date",
+	"properties": {
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "648e94ff-487a-454b-be6b-e5f3a08a5f32"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"import json\n",
+					"from datetime import datetime\n",
+					"\n",
+					"# Parameters passed from the pipeline\n",
+					"notebook_input = json.loads(input)\n",
+					"table_name = notebook_input[\"table_name\"]\n",
+					"\n",
+					"print(f\"Updating ingestion timestamp for: {table_name}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Read current watermark table from the Lake Database\n",
+					"watermark_table = spark.read.table(\"odw_standardised_db.last_ingest_dates\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql.functions import lit, to_timestamp\n",
+					"from pyspark.sql.types import StructType, StructField, StringType, TimestampType\n",
+					"from datetime import datetime, timezone\n",
+					"\n",
+					"# Create new row with current UTC timestamp\n",
+					"new_row = spark.createDataFrame(\n",
+					"    [(table_name, datetime.now(timezone.utc))], # UTC timestamp ensures consistent tracking\n",
+					"    schema=StructType([\n",
+					"        StructField(\"TableName\", StringType(), False), # Table name column\n",
+					"        StructField(\"LastIngestDate\", TimestampType(), False) # UTC datetime column\n",
+					"    ])\n",
+					")\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Remove existing record (if any) for the same table\n",
+					"filtered = watermark_table.filter(watermark_table.TableName != table_name)\n",
+					"\n",
+					"# Combine new + filtered data\n",
+					"final_df = filtered.unionByName(new_row)\n",
+					"\n",
+					"# Write the updated table back\n",
+					"final_df.write.format(\"delta\").mode(\"overwrite\").saveAsTable(\"odw_standardised_db.last_ingest_dates\")\n",
+					""
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
