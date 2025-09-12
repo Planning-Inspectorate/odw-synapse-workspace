@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "c0937580-c01f-440b-8d6b-46fa9ccbce7c"
+				"spark.autotune.trackingId": "7a4eb4a7-91aa-4a76-9165-9aabef34f8ce"
 			}
 		},
 		"metadata": {
@@ -66,36 +66,23 @@
 					}
 				},
 				"source": [
-					"%run py_retry_logic"
+					"import logging\n",
+					"from azure.monitor.opentelemetry import configure_azure_monitor\n",
+					"import functools\n",
+					"import uuid\n",
+					"from notebookutils import mssparkutils"
 				],
 				"execution_count": null
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"#https://github.com/Azure/azure-sdk-for-python/blob/main/sdk/monitor/azure-monitor-opentelemetry-exporter/samples/logs/sample_log.py\n",
-					"import logging\n",
-					"import functools\n",
-					"import uuid\n",
-					"from pyspark.sql import SparkSession\n",
-					"from notebookutils import mssparkutils\n",
-					"from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler\n",
-					"from opentelemetry._logs import get_logger_provider, set_logger_provider\n",
-					"from opentelemetry.sdk._logs.export import BatchLogRecordProcessor\n",
-					"from azure.monitor.opentelemetry.exporter import AzureMonitorLogExporter\n",
-					"from multiprocessing import Process\n",
+					"# https://learn.microsoft.com/en-us/azure/azure-monitor/app/opentelemetry-enable?tabs=python#enable-azure-monitor-opentelemetry-for-net-nodejs-python-and-java-applications\n",
 					"\n",
-					"logger = logging.getLogger()\n",
-					"for h in list(logger.handlers):\n",
-					"    if isinstance(h, LoggingHandler):\n",
-					"        logger.removeHandler(h)\n",
-					"\n",
-					"logger_provider = LoggerProvider()\n",
 					"LOGGING_INITIALISED = globals().get(\"LOGGING_INITIALISED\", False)\n",
-					"MAX_WORKER_POOLS = 5\n",
-					"if \"CURRENT_WORKER_POOLS_COUNT\" not in globals():\n",
-					"    # Prevent overwriting the variable\n",
-					"    CURRENT_WORKER_POOLS_COUNT = 0\n",
+					"\n",
+					"logger_name_space = \"odw_logs\"\n",
+					"logger = logging.getLogger(logger_name_space)\n",
 					"\n",
 					"pipelinejobid = (\n",
 					"    mssparkutils.runtime.context['pipelinejobid']\n",
@@ -103,67 +90,29 @@
 					"    else uuid.uuid4()\n",
 					")\n",
 					"\n",
-					"def logInfo(msg: str): logger.info(f\"{pipelinejobid} : {msg}\")\n",
-					"def logError(msg: str): logger.error(f\"{pipelinejobid} : {msg}\")\n",
-					"def logException(ex: Exception): logger.exception(f\"{pipelinejobid} : {ex}\")\n",
+					"def logInfo(msg: str):\n",
+					"    logger.info(f\"{pipelinejobid} : {msg}\")\n",
 					"\n",
-					"@retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_delay(20), reraise=True, before_sleep=before_sleep)\n",
+					"\n",
+					"def logError(msg: str):\n",
+					"    logger.error(f\"{pipelinejobid} : {msg}\")\n",
+					"\n",
+					"\n",
+					"def logException(ex: Exception):\n",
+					"    logger.exception(f\"{pipelinejobid} : {ex}\")\n",
+					"\n",
+					"\n",
 					"def setupLogging(force=False):\n",
-					"    global LOGGING_INITIALISED\n",
-					"\n",
-					"    if LOGGING_INITIALISED and not force:\n",
-					"        logInfo(\"Logging already initialized.\")\n",
-					"        return\n",
-					"\n",
 					"    try:\n",
-					"        key = mssparkutils.credentials.getSecretWithLS(\"ls_kv\", \"application-insights-connection-string\")\n",
-					"        conn_string = key.split(\";\")[0]\n",
+					"        app_insights_connection_string = mssparkutils.credentials.getSecretWithLS(\"ls_kv\", \"application-insights-connection-string\")\n",
 					"    except Exception as e:\n",
 					"        print(\"Failed to get connection string:\", e)\n",
 					"        return\n",
-					"\n",
-					"    set_logger_provider(logger_provider)\n",
-					"    exporter = AzureMonitorLogExporter.from_connection_string(conn_string)\n",
-					"    logger_provider.add_log_record_processor(\n",
-					"        BatchLogRecordProcessor(exporter, schedule_delay_millis=5000)\n",
-					"    )\n",
-					"\n",
-					"    if not any(isinstance(h, LoggingHandler) for h in logger.handlers):\n",
-					"        logger.addHandler(LoggingHandler())\n",
-					"\n",
-					"    if not any(isinstance(h, logging.StreamHandler) for h in logger.handlers):\n",
-					"        logger.addHandler(logging.StreamHandler())\n",
+					"    configure_azure_monitor(logger_name=self.logger_name_space, connection_string=app_insights_connection_string)\n",
 					"\n",
 					"    logger.setLevel(logging.INFO)\n",
-					"    LOGGING_INITIALISED = True\n",
 					"    logInfo(\"Logging initialized.\")\n",
 					"\n",
-					"def flushLogging(timeout: int = 60):\n",
-					"    global MAX_WORKER_POOLS\n",
-					"    global CURRENT_WORKER_POOLS_COUNT\n",
-					"    def flushLoggingInner():\n",
-					"        print(\"Flushing logs\")\n",
-					"        try:\n",
-					"            logger_provider.force_flush()\n",
-					"        except Exception as e:\n",
-					"            print(f\"Flush failed: {e}\")\n",
-					"    if CURRENT_WORKER_POOLS_COUNT < MAX_WORKER_POOLS:\n",
-					"        CURRENT_WORKER_POOLS_COUNT += 1\n",
-					"        t = Process(target=flushLoggingInner, daemon=True)\n",
-					"        t.start()\n",
-					"        t.join(timeout)\n",
-					"        if t.is_alive():\n",
-					"            print(f\"Logging flush timed out in py_logging_decorator. Waited {timeout} seconds. Killing the running thread\")\n",
-					"            t.terminate()\n",
-					"        CURRENT_WORKER_POOLS_COUNT -= 1\n",
-					"    else:\n",
-					"        print(\"Could not start logging export in py_logging_decorator - max number of flush threads has been reached\")\n",
-					"\n",
-					"def shutdownLogging():\n",
-					"    try:\n",
-					"        logger_provider.shutdown()\n",
-					"    except Exception as e:\n",
-					"        print(f\"Shutdown failed: {e}\")\n",
 					"\n",
 					"def logging_to_appins(func):\n",
 					"    @functools.wraps(func)\n",
@@ -182,120 +131,7 @@
 					"    return wrapper\n",
 					"\n",
 					"if not LOGGING_INITIALISED:\n",
-					"    setupLogging()\n",
-					"    flushLogging()"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"if False:\n",
-					"    @logging_to_appins\n",
-					"    def testException():\n",
-					"        raise Exception(\"Test Exception\")\n",
-					"\n",
-					"    try:\n",
-					"        logInfo(\"Running testException\")\n",
-					"        testException()\n",
-					"    except Exception as e:\n",
-					"        logError(\"Caught error\")\n",
-					"        flushLogging()"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"if False:\n",
-					"    @logging_to_appins\n",
-					"    def test():\n",
-					"        raise ValueError('BANANA')\n",
-					"\n",
-					"    try:\n",
-					"        logInfo(\"Running test\")\n",
-					"        test()\n",
-					"    except Exception:\n",
-					"        logError(\"Caught error\")\n",
-					"        flushLogging()"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"if False:\n",
-					"    @logging_to_appins\n",
-					"    def test2():\n",
-					"        raise ValueError('CARROT')\n",
-					"\n",
-					"    try:\n",
-					"        logInfo(\"Running test2\")\n",
-					"        test2()\n",
-					"    except Exception:\n",
-					"        logError(\"Caught error\")\n",
-					"        flushLogging()"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"if False:\n",
-					"    @logging_to_appins\n",
-					"    def test3():\n",
-					"        raise ValueError('CAULIFLOWER')\n",
-					"\n",
-					"    try:\n",
-					"        logInfo(\"Running test3\")\n",
-					"        test3()\n",
-					"    except Exception:\n",
-					"        logError(\"Caught error\")\n",
-					"        flushLogging()"
+					"    setupLogging()"
 				],
 				"execution_count": null
 			}
