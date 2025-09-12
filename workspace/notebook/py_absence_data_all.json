@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5c8f4d11-c397-41da-8442-d77416b78923"
+				"spark.autotune.trackingId": "5d8008e6-3724-44ea-9b0a-75de0ee0f28a"
 			}
 		},
 		"metadata": {
@@ -95,7 +95,7 @@
 					"from pyspark.sql.functions import col\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 67
 			},
 			{
 				"cell_type": "code",
@@ -104,7 +104,7 @@
 					"\n",
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": null
+				"execution_count": 68
 			},
 			{
 				"cell_type": "markdown",
@@ -171,7 +171,7 @@
 					"spark.sql(\"\"\"SET spark.sql.legacy.timeParserPolicy = LEGACY\"\"\")\n",
 					"logInfo(\"Legacy time parser policy set successfully\")"
 				],
-				"execution_count": null
+				"execution_count": 69
 			},
 			{
 				"cell_type": "markdown",
@@ -189,11 +189,11 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"\n",
 					"try:\n",
-					"    # Step 1: Create staging view with parsed AbsType data\n",
+					"    # Step 1: Create staging view with enhanced NULL AbsType handling\n",
 					"    logInfo(\"Creating staging view with parsed AbsType data\")\n",
 					"    spark.sql(\"\"\"\n",
+					"    \n",
 					"    CREATE OR REPLACE TEMPORARY VIEW staging_absence AS\n",
 					"    SELECT  \n",
 					"        StaffNumber,\n",
@@ -202,28 +202,38 @@
 					"        CAST(TO_DATE(StartDate,'dd/MM/yyyy') AS DATE) AS StartDate,\n",
 					"        CAST(TO_DATE(EndDate,'dd/MM/yyyy') AS DATE) AS EndDate,\n",
 					"        AttendanceorAbsenceType,\n",
-					"    ROUND(CAST(REPLACE(Days, ',', '') AS DOUBLE), 2) AS Days,\n",
-					"    ROUND(CAST(REPLACE(Hrs, ',', '') AS DOUBLE), 2) AS Hrs,\n",
+					"        ROUND(CAST(REPLACE(Days, ',', '') AS DOUBLE), 2) AS Days,\n",
+					"        ROUND(CAST(REPLACE(Hrs, ',', '') AS DOUBLE), 2) AS Hrs,\n",
 					"        TO_DATE('31/12/1899','dd/MM/yyyy') AS Start,\n",
 					"        TO_DATE('31/12/1899','dd/MM/yyyy') AS Endtime,  \n",
 					"        Caldays,\n",
 					"        WorkScheduleRule,\n",
-					"    ROUND(TRY_CAST(REPLACE(Wkhrs, ',', '') AS DOUBLE), 2) AS Wkhrs,  \n",
-					"    ROUND(TRY_CAST(REPLACE(HrsDay, ',', '') AS DOUBLE), 2) AS HrsDay,  \n",
+					"        ROUND(TRY_CAST(REPLACE(Wkhrs, ',', '') AS DOUBLE), 2) AS Wkhrs,  \n",
+					"        ROUND(TRY_CAST(REPLACE(HrsDay, ',', '') AS DOUBLE), 2) AS HrsDay,  \n",
 					"        TRY_CAST(REPLACE(WkDys, ',', '') AS DOUBLE) AS WkDys,  \n",
 					"        TO_DATE(AnnualLeaveStart,'dd/MM/yyyy') AS AnnualLeaveStart,\n",
 					"        'saphr' AS SourceSystemID,\n",
 					"        CURRENT_DATE() AS IngestionDate,\n",
 					"        CURRENT_TIMESTAMP() AS ValidTo,\n",
 					"        \n",
+					"        -- Enhanced approval status handling for NULL AbsType\n",
 					"        CASE \n",
+					"            WHEN AbsType IS NULL OR TRIM(AbsType) = '' THEN 'NULL_ABSTYPE'\n",
 					"            WHEN AbsType LIKE '%-%' THEN TRIM(SPLIT(AbsType, '-')[0])\n",
 					"            ELSE 'UNKNOWN'\n",
 					"        END AS ApprovalStatus,\n",
 					"        \n",
-					"        extract_uuid(AbsType) AS RecordUUID,\n",
+					"        -- Enhanced UUID generation for NULL AbsType\n",
+					"        CASE\n",
+					"            WHEN AbsType IS NULL OR TRIM(AbsType) = '' THEN\n",
+					"                CONCAT('NULL_', MD5(CONCAT_WS('_', StaffNumber, TO_DATE(StartDate,'dd/MM/yyyy'), TO_DATE(EndDate,'dd/MM/yyyy'))))\n",
+					"            ELSE\n",
+					"                extract_uuid(AbsType)\n",
+					"        END AS RecordUUID,\n",
 					"        \n",
+					"        -- Enhanced last modified date handling\n",
 					"        CASE \n",
+					"            WHEN AbsType IS NULL OR TRIM(AbsType) = '' THEN CURRENT_TIMESTAMP()\n",
 					"            WHEN AbsType RLIKE '^[A-Z_]+-[0-9]{4}-[0-9]{2}-[0-9]{2}' THEN\n",
 					"                TRY_CAST(\n",
 					"                    REGEXP_EXTRACT(AbsType, '^[A-Z_]+-([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2})', 1)\n",
@@ -234,7 +244,7 @@
 					"        \n",
 					"        MD5(CONCAT_WS('|',\n",
 					"            StaffNumber,            \n",
-					"            COALESCE(AbsType, ''),                \n",
+					"            COALESCE(AbsType, 'NULL_ABSTYPE'),                \n",
 					"            COALESCE(SicknessGroup, ''),          \n",
 					"            TO_DATE(StartDate,'dd/MM/yyyy'),              \n",
 					"            TO_DATE(EndDate,'dd/MM/yyyy'),                \n",
@@ -254,7 +264,7 @@
 					"        StaffNumber IS NOT NULL \n",
 					"        AND StartDate IS NOT NULL \n",
 					"        AND EndDate IS NOT NULL\n",
-					"        AND AbsType IS NOT NULL\n",
+					"        -- REMOVED: AND AbsType IS NOT NULL  <-- This was filtering out 13,688 records!\n",
 					"    \"\"\")\n",
 					"    \n",
 					"    # Step 2: Create view of latest records per UUID (handling duplicates)\n",
@@ -328,7 +338,7 @@
 					"    \n",
 					"    raise e"
 				],
-				"execution_count": null
+				"execution_count": 70
 			},
 			{
 				"cell_type": "markdown",
@@ -376,7 +386,7 @@
 					"    SELECT * FROM new_records\n",
 					"    \"\"\")\n",
 					"    \n",
-					"    # Step 8: Remove cancelled/rejected records from final dataset\n",
+					"    # Step 8: Enhanced filtering - preserve NULL_ABSTYPE records\n",
 					"    logInfo(\"Filtering out cancelled/rejected records\")\n",
 					"    \n",
 					"    total_before_filter = spark.sql(\"SELECT COUNT(*) as count FROM final_dataset\").collect()[0]['count']\n",
@@ -386,9 +396,11 @@
 					"    SELECT * FROM final_dataset\n",
 					"    WHERE NOT (\n",
 					"        UPPER(CASE \n",
+					"            WHEN AbsType IS NULL OR TRIM(AbsType) = '' THEN 'NULL_ABSTYPE'\n",
 					"            WHEN AbsType LIKE '%-%' THEN TRIM(SPLIT(AbsType, '-')[0])\n",
 					"            ELSE 'UNKNOWN'\n",
 					"        END) IN ('CANCELLED', 'PENDING_CANCELLATION', 'REJECTED')\n",
+					"        -- Note: NULL_ABSTYPE records are preserved\n",
 					"    )\n",
 					"    \"\"\")\n",
 					"    \n",
@@ -486,7 +498,7 @@
 					"    flushLogging()\n",
 					"    mssparkutils.notebook.exit(json.dumps(result))"
 				],
-				"execution_count": null
+				"execution_count": 71
 			}
 		]
 	}
