@@ -51,7 +51,7 @@
 				"type": "Copy",
 				"dependsOn": [
 					{
-						"activity": "ListedBuilding",
+						"activity": "Set ListedBuildingCount",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -99,8 +99,67 @@
 						"type": "DatasetReference"
 					}
 				]
+			},
+			{
+				"name": "Set ListedBuildingCount",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "ListedBuilding",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "ListedBuildingCount",
+					"value": {
+						"value": "@int(activity('ListedBuilding').output.rowsCopied)",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Set ListedBuildingOutlineCount",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "ListedBuildingOutline",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "pipelineReturnValue",
+					"value": [
+						{
+							"key": "ListedBuildingCombinedCount",
+							"value": {
+								"type": "Expression",
+								"content": "@add(int(activity('ListedBuildingOutline').output.rowsCopied),variables('ListedBuildingCount'))"
+							}
+						}
+					],
+					"setSystemVariable": true
+				}
 			}
 		],
+		"variables": {
+			"ListedBuildingCount": {
+				"type": "Integer"
+			}
+		},
 		"folder": {
 			"name": "listed buildings/layers/0-raw"
 		},
