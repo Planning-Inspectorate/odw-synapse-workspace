@@ -1283,7 +1283,14 @@
 							"name": "Src to Raw - service user",
 							"description": "Triggers Function App to read messages from Service Bus and write to odw-raw",
 							"type": "ExecutePipeline",
-							"dependsOn": [],
+							"dependsOn": [
+								{
+									"activity": "Set_start_time",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
 							"policy": {
 								"secureInput": false
 							},
@@ -1310,7 +1317,14 @@
 							"name": "Src to Raw - appeal service user",
 							"description": "Triggers Function App to read messages from Service Bus and write to odw-raw",
 							"type": "ExecutePipeline",
-							"dependsOn": [],
+							"dependsOn": [
+								{
+									"activity": "Set_start_time",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
 							"policy": {
 								"secureInput": false
 							},
@@ -1360,6 +1374,209 @@
 								"value": {
 									"value": "@add(\n    int(coalesce(activity('Src to Raw - service user').output.pipelineReturnValue.Messages, '0')),\n    int(coalesce(activity('Src to Raw - appeal service user').output.pipelineReturnValue.Messages, '0'))\n    )",
 									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Set_start_time",
+							"type": "SetVariable",
+							"dependsOn": [],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "Src to Raw_start_time",
+								"value": {
+									"value": "@utcNow()",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "End_time",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Set number of messages received - service user",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "Src to Raw_End_time",
+								"value": {
+									"value": "@utcNow()",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Record completed Src to Raw Service user",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "End_time",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "Completion",
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StartTime": {
+										"value": "@variables('Src to Raw_start_time')",
+										"type": "Expression"
+									},
+									"EndTime": {
+										"value": "@variables('Src to Raw_End_time')",
+										"type": "Expression"
+									},
+									"Inserts": {
+										"value": "@variables('Number_of_messages')",
+										"type": "Expression"
+									},
+									"StatusMessage": "Src to Raw - service user and Src to Raw - appeal service user completed successfully",
+									"PipelineTriggerID": {
+										"value": "@pipeline().TriggerId",
+										"type": "Expression"
+									},
+									"PipelineTriggerName": {
+										"value": "@pipeline().TriggerName",
+										"type": "Expression"
+									},
+									"PipelineTriggerType": {
+										"value": "@pipeline().TriggerType",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": "@pipeline()?.TriggeredByPipelineName",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": "@pipeline()?.TriggeredByPipelineRunId",
+										"type": "Expression"
+									},
+									"DurationSeconds": {
+										"value": "@div(sub(ticks(variables('Src to Raw_End_time')), ticks(variables('Src to Raw_start_time'))), 10000000)\n",
+										"type": "Expression"
+									},
+									"StatusCode": "200",
+									"AppInsIKey": {
+										"value": "@pipeline().parameters.apps_insights_ikey",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Record failed Src to Raw - service user",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Src to Raw - service user",
+									"dependencyConditions": [
+										"Failed"
+									]
+								},
+								{
+									"activity": "Src to Raw - appeal service user",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "Fail",
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StartTime": {
+										"value": "@variables('Src to Raw_start_time')",
+										"type": "Expression"
+									},
+									"EndTime": {
+										"value": "@utcNow()",
+										"type": "Expression"
+									},
+									"Updates": {
+										"value": "@variables('Number_of_messages')",
+										"type": "Expression"
+									},
+									"ErrorMessage": {
+										"value": "@coalesce(activity('Src to Raw - service user').Error.message,activity('Src to Raw - appeal service user').Error.message)",
+										"type": "Expression"
+									},
+									"StatusMessage": "Src to Raw - service user and Src to Raw - appeal service user Failed",
+									"PipelineTriggerID": {
+										"value": "@pipeline().TriggerId",
+										"type": "Expression"
+									},
+									"PipelineTriggerName": {
+										"value": "@pipeline().TriggerName",
+										"type": "Expression"
+									},
+									"PipelineTriggerType": {
+										"value": "@pipeline().TriggerType",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": "@pipeline()?.TriggeredByPipelineName",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": "@pipeline()?.TriggeredByPipelineRunId",
+										"type": "Expression"
+									},
+									"DurationSeconds": {
+										"value": "@div(sub(ticks(utcNow()), ticks(variables('Src to Raw_start_time'))), 10000000)\n",
+										"type": "Expression"
+									},
+									"StatusCode": "400",
+									"AppInsIKey": {
+										"value": "@pipeline().parameters.apps_insights_ikey",
+										"type": "Expression"
+									}
 								}
 							}
 						}
@@ -1786,6 +2003,15 @@
 				"type": "String"
 			},
 			"Key_Vault_Url": {
+				"type": "String"
+			},
+			"Src to Raw_start_time": {
+				"type": "String"
+			},
+			"Src to Raw_End_time": {
+				"type": "String"
+			},
+			"error_flag": {
 				"type": "String"
 			}
 		},
