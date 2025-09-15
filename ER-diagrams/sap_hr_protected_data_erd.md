@@ -1,6 +1,6 @@
 ```mermaid
 erDiagram
-    "odw_standardised_db|sap_protected_monthly" {
+    "odw_standardised_db|SAP_PROTECTED_MONTHLY" {
 		date ingested_datetime
 		date expected_from
 		date expected_to
@@ -33,7 +33,7 @@ erDiagram
         string IsActive
     }
     
-    "odw_harmonised_db|sap_hr_protected_data" {
+    "odw_harmonised_db|SAP_HR_PROTECTED_DATA" {
         string RefNo PK
         string EthnicOrigin
         string ReligiousDenominationKey
@@ -48,7 +48,7 @@ erDiagram
         string IsActive
     }
     
-    "odw_harmonised_db|live_dim_date" {
+    "odw_harmonised_db|LIVE_DIM_DATE" {
         date date PK
         int dim_date_key
 		int	day_int
@@ -83,7 +83,7 @@ erDiagram
 		string week_starting_date
     }
     
-    "odw_curated_db|vw_HR_ProtectedData" {
+    "odw_curated_db|VW_HR_PROTECTEDDATA" {
         date PC_Date PK, FK
         string PC_Month
         int month_int
@@ -110,7 +110,7 @@ erDiagram
         string Data_Completeness
     }
     
-    "odw_curated_db|pbi_HR_ProtectedData" {
+    "odw_curated_db|PBI_HR_PROTECTEDDATA" {
         date PC_Date PK, FK
         string PC_Month
         int month_int
@@ -137,8 +137,8 @@ erDiagram
         string Data_Completeness
     }
     
-    "odw_standardised_db|sap_protected_monthly" ||--|| "odw_harmonised_db|SAP_HR_PC" : "transforms_to"
-    "odw_harmonised_db|SAP_HR_PC" ||--|| "odw_harmonised_db|sap_hr_protected_data" : "merges_to"
-    "odw_harmonised_db|sap_hr_protected_data" ||--|| "odw_curated_db|vw_HR_ProtectedData" : "transforms_to"
-    "odw_harmonised_db|live_dim_date" ||--o{ "odw_curated_db|vw_HR_ProtectedData" : "provides_date_attributes"
-    "odw_curated_db|vw_HR_ProtectedData" ||--|| "odw_curated_db|pbi_HR_ProtectedData" : "materializes_to"
+    "odw_standardised_db|SAP_PROTECTED_MONTHLY" ||--|| "odw_harmonised_db|SAP_HR_PC" : "transforms_to"
+    "odw_harmonised_db|SAP_HR_PC" ||--|| "odw_harmonised_db|SAP_HR_PROTECTED_DATA" : "merges_to"
+    "odw_harmonised_db|SAP_HR_PROTECTED_DATA" ||--|| "odw_curated_db|VW_HR_PROTECTEDDATA" : "transforms_to"
+    "odw_harmonised_db|LIVE_DIM_DATE" ||--o{ "odw_curated_db|VW_HR_PROTECTEDDATA" : "provides_date_attributes"
+    "odw_curated_db|VW_HR_PROTECTEDDATA" ||--|| "odw_curated_db|PBI_HR_PROTECTEDDATA" : "materializes_to"
