@@ -304,7 +304,7 @@ erDiagram
     "odw_standardised_db|SAP_HR_LEAVERS_MONTHLY" ||--|| "odw_harmonised_db|STAGE_SAP_HR_LEAVERS" : "transforms_to"
     "odw_harmonised_db|STAGE_SAP_HR_LEAVERS" ||--|| "odw_harmonised_db|LOAD_SAP_HR_LEAVERS" : "loads_to"
 	"odw_harmonised_db|HIST_SAP_HR" ||--o{ "odw_curated_db|VW_HR_MEASURES" : "provides_person_no_data"
-	"odw_harmonised_db|LIVE_DIM_DATE" ||--o{ "odw_harmonised_db|load_SAP_HR_Leavers" : "provides_leavers_joiners_date"
+	"odw_harmonised_db|LIVE_DIM_DATE" ||--o{ "odw_harmonised_db|LOAD_SAP_HR_LEAVERS" : "provides_leavers_joiners_date"
     "odw_harmonised_db|LIVE_DIM_DATE_LEAVERS" ||--o{ "odw_curated_db|VW_HR_MEASURES" : "provides_leavers_date"
     "odw_harmonised_db|LIVE_DIM_DATE_STARTED" ||--o{ "odw_curated_db|VW_HR_MEASURES" : "provides_started_date"
 	"odw_harmonised_db|LOAD_SAP_HR_LEAVERS" ||--o{ "odw_curated_db|VW_HR_MEASURES" : "provides_leaver_data"
