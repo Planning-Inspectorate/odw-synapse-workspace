@@ -35,6 +35,7 @@ erDiagram
         date IngestionDate
         date ValidFrom
         date ValidTo
+		date LastUpdated
         int Current
         string RowID
         string IsActive		
