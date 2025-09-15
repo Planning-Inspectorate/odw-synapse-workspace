@@ -1,6 +1,6 @@
 ```mermaid
 erDiagram
-    "odw_harmonised_db|load_SAP_HR_Leavers" {
+    "odw_harmonised_db|LOAD_SAP_HR_LEAVERS" {
         string PersNo PK
         string Lastname
         string Firstname
@@ -45,7 +45,7 @@ erDiagram
         string IsActive
     }
     
-    "odw_harmonised_db|stage_SAP_HR_Leavers" {
+    "odw_harmonised_db|STAGE_SAP_HR_LEAVERS" {
         string PersNo PK
         string Lastname
         string Firstname
@@ -90,7 +90,7 @@ erDiagram
         string IsActive
     }
     
-    "odw_standardised_db|sap_hr_leavers_monthly" {
+    "odw_standardised_db|SAP_HR_LEAVERS_MONTHLY" {
         string PersNo PK
         string Lastname
         string Firstname
@@ -130,7 +130,7 @@ erDiagram
         string LMEmail
     }
 
-	"odw_harmonised_db|hist_sap_hr" {
+	"odw_harmonised_db|HIST_SAP_HR" {
         string PersNo PK
         date Report_MonthEnd_Date PK
         date OrgStartDate
@@ -156,7 +156,7 @@ erDiagram
         string PArea
     }
 
-	"odw_harmonised_db|live_dim_date" {
+	"odw_harmonised_db|LIVE_DIM_DATE" {
         date date PK
         int dim_date_key
 		int	day_int
@@ -191,7 +191,7 @@ erDiagram
 		string week_starting_date
     }
 
-"odw_harmonised_db|live_dim_date_leavers" {
+	"odw_harmonised_db|LIVE_DIM_DATE_LEAVERS" {
         date date PK
         int dim_date_key
 		int	day_int
@@ -226,7 +226,7 @@ erDiagram
 		string week_starting_date
     }
 
-"odw_harmonised_db|live_dim_date_started" {
+	"odw_harmonised_db|LIVE_DIM_DATE_STARTED" {
         date date PK
         int dim_date_key
 		int	day_int
@@ -261,7 +261,7 @@ erDiagram
 		string week_starting_date
     }
 
-	"odw_curated_db|vw_hr_measures" {
+	"odw_curated_db|VW_HR_MEASURES" {
         string PersonReportMonthEndKey PK
         string PersonKey FK
         decimal FTE
@@ -301,10 +301,10 @@ erDiagram
         string Country
     }
     
-    "odw_standardised_db|sap_hr_leavers_monthly" ||--|| "odw_harmonised_db|stage_SAP_HR_Leavers" : "transforms_to"
-    "odw_harmonised_db|stage_SAP_HR_Leavers" ||--|| "odw_harmonised_db|load_SAP_HR_Leavers" : "loads_to"
-	"odw_harmonised_db|hist_sap_hr" ||--o{ "odw_curated_db|vw_hr_measures" : "provides_person_no_data"
-	"odw_harmonised_db|live_dim_date" ||--o{ "odw_harmonised_db|load_SAP_HR_Leavers" : "provides_leavers_joiners_date"
-    "odw_harmonised_db|live_dim_date_leavers" ||--o{ "odw_curated_db|vw_hr_measures" : "provides_leavers_date"
-    "odw_harmonised_db|live_dim_date_started" ||--o{ "odw_curated_db|vw_hr_measures" : "provides_started_date"
-	"odw_harmonised_db|load_SAP_HR_Leavers" ||--o{ "odw_curated_db|vw_hr_measures" : "provides_leaver_data"
+    "odw_standardised_db|SAP_HR_LEAVERS_MONTHLY" ||--|| "odw_harmonised_db|STAGE_SAP_HR_LEAVERS" : "transforms_to"
+    "odw_harmonised_db|STAGE_SAP_HR_LEAVERS" ||--|| "odw_harmonised_db|LOAD_SAP_HR_LEAVERS" : "loads_to"
+	"odw_harmonised_db|HIST_SAP_HR" ||--o{ "odw_curated_db|VW_HR_MEASURES" : "provides_person_no_data"
+	"odw_harmonised_db|LIVE_DIM_DATE" ||--o{ "odw_harmonised_db|load_SAP_HR_Leavers" : "provides_leavers_joiners_date"
+    "odw_harmonised_db|LIVE_DIM_DATE_LEAVERS" ||--o{ "odw_curated_db|VW_HR_MEASURES" : "provides_leavers_date"
+    "odw_harmonised_db|LIVE_DIM_DATE_STARTED" ||--o{ "odw_curated_db|VW_HR_MEASURES" : "provides_started_date"
+	"odw_harmonised_db|LOAD_SAP_HR_LEAVERS" ||--o{ "odw_curated_db|VW_HR_MEASURES" : "provides_leaver_data"
