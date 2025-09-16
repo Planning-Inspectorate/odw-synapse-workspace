@@ -1,3 +1,4 @@
+```mermaid
 erDiagram
     "odw_standardised_db|HR_ABSENCE_MONTHLY" {
         string StaffNumber PK
