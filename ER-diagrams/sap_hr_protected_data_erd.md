@@ -28,7 +28,7 @@ erDiagram
         date Report_MonthEnd_Date PK
         string SourceSystemID
         date IngestionDate
-        timestamp ValidTo
+        date ValidTo
         string RowID
         string IsActive
     }
@@ -43,7 +43,7 @@ erDiagram
         date Report_MonthEnd_Date PK
         string SourceSystemID
         date IngestionDate
-        timestamp ValidTo
+        date ValidTo
         string RowID
         string IsActive
     }

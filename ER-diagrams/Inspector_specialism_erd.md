@@ -41,5 +41,5 @@ erDiagram
         string IsActive		
     }
     
-    "odw_standardised_db|INSPECTOR_SPECIALISMS_MONTHLY" ||--|| "odw_harmonised_db|TRANSFORM_INSPECTOR_SPECIALISMS" : "transforms_to"
-    "odw_harmonised_db|TRANSFORM_INSPECTOR_SPECIALISMS" ||--|| "odw_harmonised_db|SAP_HR_INSPECTOR_SPECIALISMS" : "loads_to"
+    "odw_standardised_db|INSPECTOR_SPECIALISMS_MONTHLY" ||--|| "odw_harmonised_db|TRANSFORM_INSPECTOR_SPECIALISMS" : "transforms_to_weekly_monthly"
+    "odw_harmonised_db|TRANSFORM_INSPECTOR_SPECIALISMS" ||--|| "odw_harmonised_db|SAP_HR_INSPECTOR_SPECIALISMS" : "loads_to_weekly_monthly"

@@ -29,7 +29,7 @@ erDiagram
         string EmployeeNo
         string Position
         string Position1
-        double Annualsalary
+        float Annualsalary
         string Curr
         string UserID
         string EmailAddress
@@ -40,7 +40,7 @@ erDiagram
         string LMEmail
         string SourceSystemID
         date IngestionDate
-        timestamp ValidTo
+        date ValidTo
         string RowID
         string IsActive
     }
@@ -133,27 +133,93 @@ erDiagram
 	"odw_harmonised_db|HIST_SAP_HR" {
         string PersNo PK
         date Report_MonthEnd_Date PK
-        date OrgStartDate
-        decimal FTE2
-        string CostCtr
-        string PA
-        string PSubarea
-        string Orgunit
-        string PSgroup
-        string WorkC
-        string WorkContract
-        string GenderKey
-        date Birthdate
-        decimal Wkhrs
-        decimal leave_entitlement_hrs
-        decimal leave_taken_hrs
-        decimal leave_remaining_hours
-        decimal leave_remaining_prorata_hours
-        decimal Annualsalary
-        string Position1
-        date FixTermEndDate
-        string ContractType
-        string PArea
+		string Firstname
+		string Lastname
+		string EmployeeNo
+		string CoCd
+		string CompanyCode
+		string PA
+		string PersonnelArea
+		string PSubarea
+		string PersonnelSubarea
+		string Orgunit
+		string OrganizationalUnit
+		string Organizationalkey
+		string OrganizationalKey1
+		string WorkC
+		string WorkContract
+		string CT
+		string ContractType
+		string PSgroup
+		string PayBandDescription
+		float FTE
+		float Wkhrs
+		string IndicatorPartTimeEmployee
+		string S
+		string EmploymentStatus
+		string GenderKey
+		string TRAStartDate
+		string TRAEndDate
+		string TRAStatus
+		string TRAGrade
+		string PrevPersNo
+		string ActR
+		string ReasonforAction
+		string Position
+		string Position1
+		string CostCtr
+		string CostCentre
+		date CivilServiceStart
+		varchar DatetoCurrentJob
+		varchar SeniorityDate
+		date DatetoSubstGrade
+		string PersNo1
+		string NameofManagerOM
+		string ManagerPosition
+		string ManagerPositionText
+		string CounterSignManager
+		string Loc
+		string Location
+		date OrgStartDate
+		string FixTermEndDate
+		string LoanStartDate
+		string LoanEndDate
+		string EEGrp
+		string EmployeeGroup
+		string Annualsalary
+		string Curr
+		string NInumber
+		string Birthdate
+		string Ageofemployee
+		string EO
+		string Ethnicorigin
+		string NID
+		string Rel
+		string ReligiousDenominationKey
+		string SxO
+		string WageType
+		string EmployeeSubgroup
+		string LOAAbsType
+		string LOAAbsenceTypeText
+		string Schemereference
+		string PensionSchemeName
+		string DisabilityCode
+		string DisabilityText
+		string DisabilityCodeDescription
+		string PArea
+		string PayrollArea
+		string AssignmentNumber
+		float FTE2
+		date PDAC_ETL_Date
+		varchar SourceSystemID
+		date IngestionDate
+		date ValidTo
+		string RowID
+		string IsActive
+		float leave_entitlement_hrs
+		float leave_taken_hrs
+		float leave_remaining_hours
+		float leave_remaining_prorata_hours
     }
 
 	"odw_harmonised_db|LIVE_DIM_DATE" {
@@ -264,7 +330,7 @@ erDiagram
 	"odw_curated_db|VW_HR_MEASURES" {
         string PersonReportMonthEndKey PK
         string PersonKey FK
-        decimal FTE
+        float FTE
         string dim_cost_centre_key
         int dim_personnel_area_key
         int dim_personnel_subarea_key
@@ -278,25 +344,25 @@ erDiagram
         int dim_leaving_date_key FK
         string ReasonForAction
         string PArea
-        decimal WorkingHours
-        decimal LengthOfService
-        decimal Age
-        decimal LeaveEntitlementHours
-        decimal LeaveTakenHours
-        decimal LeaveRemainingHours
-        decimal LeaveRemainingProrataHours
-        decimal AnnualSalary
+        float WorkingHours
+        float LengthOfService
+        float Age
+        float LeaveEntitlementHours
+        float LeaveTakenHours
+        float LeaveRemainingHours
+        float LeaveRemainingProrataHours
+        float AnnualSalary
         string Position1
         string Fix_Term_End_Date
         string Contract_Type
         string Directorate
         int LOS_SortKey
         string Age_Group_Civil_Service
-        decimal Hourly_Rate
+        float Hourly_Rate
         string ReasonforAction_Voluntary_Involuntary
-        decimal Leave_Remaining_Pro_rata_Cost
+        float Leave_Remaining_Pro_rata_Cost
         string Age_Group_MHCLG
-        decimal LeaveEntitlementDays
+        float LeaveEntitlementDays
         string PartTimeFullTime
         string Country
     }
