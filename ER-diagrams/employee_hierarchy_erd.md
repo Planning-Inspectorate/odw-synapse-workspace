@@ -517,5 +517,5 @@ erDiagram
     %% Cross-Reference Relationships  
     "odw_harmonised_db|LOAD_SAP_PINS_EMAIL" ||--o{ "odw_harmonised_db|LOAD_VW_SAP_HR_EMAIL" : "email_mapping_monthly"
     "odw_harmonised_db|LOAD_VW_SAP_HR_EMAIL" ||--o{ "odw_harmonised_db|LIVE_DIM_EMP_HIERARCHY" : "email_hierarchy_ref"
-	"odw_harmonised_db|LOAD_SAP_PINS_EMAIL_WEEKLY" ||--o{ "odw_harmonised_db|LOAD_VW_SAP_HR_EMAIL" : "email_mapping_weekly"
+	"odw_harmonised_db|LOAD_SAP_PINS_EMAIL_WEEKLY" ||--o{ "odw_harmonised_db|LOAD_VW_SAP_HR_EMAIL_WEEKLY" : "email_mapping_weekly"
     "odw_harmonised_db|LOAD_VW_SAP_HR_EMAIL_WEKLY" ||--o{ "odw_harmonised_db|LIVE_DIM_EMP_HIERARCHY" : "email_hierarchy_ref_weekly"
