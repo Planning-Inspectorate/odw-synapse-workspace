@@ -1,3 +1,4 @@
+```mermaid
 erDiagram
     "odw_harmonised_db|HIST_SAP_HR" {
         string PersNo PK
