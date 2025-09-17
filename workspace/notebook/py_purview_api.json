@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "6b0059c9-1d99-4d52-a15a-9240ce0646cb"
+				"spark.autotune.trackingId": "a9b55b8d-ee69-4d35-b9e4-b6e7b6b85bde"
 			}
 		},
 		"metadata": {
@@ -64,7 +64,7 @@
 					"ASSET_QUALIFIED_NAME    = None\n",
 					"CLASSIFICATION_NAME     = \"PotentialID\""
 				],
-				"execution_count": 86
+				"execution_count": 55
 			},
 			{
 				"cell_type": "code",
@@ -89,7 +89,7 @@
 					"HDRS = {\"Authorization\": f\"Bearer {ACCESS_TOKEN}\", \"Content-Type\": \"application/json\"}\n",
 					""
 				],
-				"execution_count": 87
+				"execution_count": 56
 			},
 			{
 				"cell_type": "code",
@@ -133,23 +133,7 @@
 					"   raise Exception(f\"Could not resolve GUID for {type_name} :: {qualified_name}\")\n",
 					""
 				],
-				"execution_count": 88
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"# Asset GUID\n",
-					"'''\n",
-					"if (not ASSET_GUID or ASSET_GUID.startswith(\"00000000-\")) and ASSET_TYPE_NAME and ASSET_QUALIFIED_NAME:\n",
-					"   ASSET_GUID = get_guid_by_unique_attrs(ASSET_TYPE_NAME, ASSET_QUALIFIED_NAME)\n",
-					"\n",
-					"if not ASSET_GUID or ASSET_GUID.startswith(\"00000000-\"):\n",
-					"   raise ValueError(\"Please set a valid ASSET_GUID or provide ASSET_TYPE_NAME + ASSET_QUALIFIED_NAME.\")\n",
-					"   \n",
-					"'''\n",
-					""
-				],
-				"execution_count": 89
+				"execution_count": 57
 			},
 			{
 				"cell_type": "code",
@@ -195,7 +179,7 @@
 					"   # Inline classifications, if present\n",
 					"   cls_list = col_ent.get(\"classifications\", []) or []\n",
 					"   if not cls_list:\n",
-					"       # Fallback (some tenants don’t inline)\n",
+					"       # Fallback (based on observations from Pre-POC)\n",
 					"       cls_list = get_entity_classifications(col_guid)\n",
 					"\n",
 					"   # Match exact classification \n",
@@ -217,12 +201,15 @@
 					"           ))\n",
 					""
 				],
-				"execution_count": 90
+				"execution_count": 58
 			},
 			{
 				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
 				"source": [
-					"#Build DF\n",
+					"#DF\n",
 					"\n",
 					"schema = StructType([\n",
 					"   StructField(\"asset_guid\",           StringType(), True),\n",
@@ -240,30 +227,12 @@
 					"\n",
 					"df = spark.createDataFrame(rows, schema) if rows else spark.createDataFrame([], schema)\n",
 					"df.createOrReplaceTempView(\"columns_with_classification\")\n",
-					""
-				],
-				"execution_count": 91
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"collapsed": false
-				},
-				"source": [
-					"#Inspect results\n",
 					"\n",
 					"display(df.orderBy(\"column_name\"))\n",
 					"\n",
-					"spark.sql(\"\"\"\n",
-					"SELECT\n",
-					" asset_name, asset_fqn, column_name, column_data_type,\n",
-					" classification_name, column_entity_type\n",
-					"FROM columns_with_classification\n",
-					"ORDER BY column_name\n",
-					"\"\"\").show(truncate=False)\n",
 					""
 				],
-				"execution_count": 92
+				"execution_count": 59
 			}
 		]
 	}
