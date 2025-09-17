@@ -312,8 +312,125 @@ erDiagram
         varchar SourceSystem
         varchar DataQuality
     }
+
+    "odw_harmonised_db|LOAD_VW_SAP_HR_EMAIL_WEEKLY" {
+        varchar email_address FK
+        varchar PersNo FK
+        varchar Firstname
+        varchar Lastname
+        varchar EmployeeNo
+        varchar CoCd
+        varchar CompanyCode
+        varchar PA
+        varchar PersonnelArea
+        varchar PSG
+        varchar PersonnelSubGroup
+        varchar PSA
+        varchar PersonnelSubArea
+        varchar EmpGrp
+        varchar EmployeeGroup
+        varchar EmpSubGrp
+        varchar EmployeeSubGroup
+        varchar PayrollArea
+        varchar PayrollAreaTx
+        varchar OrgUnit
+        varchar OrgUnitTx
+        varchar Position
+        varchar PositionTx
+        varchar Job
+        varchar JobTx
+        varchar Location
+        varchar LocationTx
+        varchar CostCtr
+        varchar CostCtrTx
+        varchar CompCode
+        varchar CompCodeTx
+        varchar BusinessArea
+        varchar BusinessAreaTx
+        varchar ProfitCenter
+        varchar ProfitCenterTx
+        varchar FunctionalArea
+        varchar FunctionalAreaTx
+        varchar HireDate
+        varchar EndDate
+        varchar BirthDate
+        varchar Age
+        varchar Gender
+        varchar MaritalStatus
+        varchar Nationality
+        varchar EmplStatus
+        varchar EmplStatusTx
+        varchar EmplClass
+        varchar EmplClassTx
+        varchar ContractType
+        varchar ContractTypeTx
+        varchar PartTimePercent
+        varchar WeeklyHours
+        varchar DailyHours
+        varchar TimeRecording
+        varchar TimeRecordingTx
+        varchar Calendar
+        varchar CalendarTx
+        varchar WorkSchedule
+        varchar WorkScheduleTx
+        varchar PayScale
+        varchar PayScaleTx
+        varchar PayGrade
+        varchar PayGradeTx
+        varchar PayStep
+        varchar PayStepTx
+        varchar Currency
+        varchar BasicPay
+        varchar AnnualSalary
+        varchar HourlyRate
+        varchar BankAccount
+        varchar BankKey
+        varchar BankName
+        varchar PaymentMethod
+        varchar PaymentMethodTx
+        varchar TaxCode
+        varchar TaxCodeTx
+        varchar SocialSecNo
+        varchar HealthInsurance
+        varchar PensionScheme
+        varchar UnionMembership
+        varchar EmergencyContact
+        varchar EmergencyPhone
+        varchar HomeAddress
+        varchar HomePhone
+        varchar MobilePhone
+        varchar WorkPhone
+        varchar Fax
+        varchar Email
+        varchar Department
+        varchar Team
+        varchar Manager
+        varchar ManagerEmail
+        varchar SkillSet
+        varchar Qualifications
+        varchar TrainingRecord
+        varchar PerformanceRating
+        varchar LastPromotion
+        varchar NextReview
+        varchar Comments
+        datetime LoadDate
+        varchar SourceSystem
+        varchar DataQuality
+    }
     
     "odw_harmonised_db|LOAD_SAP_PINS_EMAIL" {
+        varchar StaffNumber FK
+        varchar Firstname
+        varchar Lastname
+        varchar EmailAddress PK
+        varchar SourceSystemID
+        datetime2 IngestionDate
+        datetime2 ValidTo
+        varchar RowID
+        varchar IsActive
+    }
+
+    "odw_harmonised_db|LOAD_SAP_PINS_EMAIL_WEEKLY" {
         varchar StaffNumber FK
         varchar Firstname
         varchar Lastname
@@ -392,11 +509,13 @@ erDiagram
     "odw_harmonised_db|LOAD_SAP_HR_MONTHLY" ||--o{ "odw_harmonised_db|LIVE_DIM_INSPECTOR" : "inspector_assigned_monthly"
     "odw_harmonised_db|LOAD_SAP_HR_MONTHLY" ||--o{ "odw_harmonised_db|LIVE_DIM_EMP_HIERARCHY" : "hierarchy_member_monthly"
 	
-	"odw_harmonised_db|LOAD_SAP_HR_WEEKLY" ||--o{ "odw_harmonised_db|LOAD_VW_SAP_HR_EMAIL" : "email_view_weekly"
-    "odw_harmonised_db|LOAD_SAP_HR_WEEKLY" ||--o{ "odw_harmonised_db|LOAD_SAP_PINS_EMAIL" : "pins_email_assigned_weekly"
+	"odw_harmonised_db|LOAD_SAP_HR_WEEKLY" ||--o{ "odw_harmonised_db|LOAD_VW_SAP_HR_EMAIL_WEEKLY" : "email_view_weekly"
+    "odw_harmonised_db|LOAD_SAP_HR_WEEKLY" ||--o{ "odw_harmonised_db|LOAD_SAP_PINS_EMAIL_WEEKLY" : "pins_email_assigned_weekly"
     "odw_harmonised_db|LOAD_SAP_HR_WEEKLY" ||--o{ "odw_harmonised_db|LIVE_DIM_INSPECTOR" : "inspector_assigned_weekly"
     "odw_harmonised_db|LOAD_SAP_HR_WEEKLY" ||--o{ "odw_harmonised_db|LIVE_DIM_EMP_HIERARCHY" : "hierarchy_member_weekly"
     
     %% Cross-Reference Relationships  
-    "odw_harmonised_db|LOAD_SAP_PINS_EMAIL" ||--o{ "odw_harmonised_db|LOAD_VW_SAP_HR_EMAIL" : "email_mapping"
+    "odw_harmonised_db|LOAD_SAP_PINS_EMAIL" ||--o{ "odw_harmonised_db|LOAD_VW_SAP_HR_EMAIL" : "email_mapping_monthly"
     "odw_harmonised_db|LOAD_VW_SAP_HR_EMAIL" ||--o{ "odw_harmonised_db|LIVE_DIM_EMP_HIERARCHY" : "email_hierarchy_ref"
+	"odw_harmonised_db|LOAD_SAP_PINS_EMAIL_WEEKLY" ||--o{ "odw_harmonised_db|LOAD_VW_SAP_HR_EMAIL" : "email_mapping_weekly"
+    "odw_harmonised_db|LOAD_VW_SAP_HR_EMAIL_WEKLY" ||--o{ "odw_harmonised_db|LIVE_DIM_EMP_HIERARCHY" : "email_hierarchy_ref_weekly"
