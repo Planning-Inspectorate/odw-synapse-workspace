@@ -506,17 +506,16 @@ erDiagram
     %% Primary Data Flow Relationships
     "odw_harmonised_db|LOAD_SAP_HR_MONTHLY" ||--o{ "odw_harmonised_db|LOAD_VW_SAP_HR_EMAIL" : "email_view_monthly"
     "odw_harmonised_db|LOAD_SAP_HR_MONTHLY" ||--o{ "odw_harmonised_db|LOAD_SAP_PINS_EMAIL" : "pins_email_assigned_monthly"
-    "odw_harmonised_db|LOAD_SAP_HR_MONTHLY" ||--o{ "odw_harmonised_db|LIVE_DIM_INSPECTOR" : "inspector_assigned_weekly_monthly"
-    "odw_harmonised_db|LOAD_SAP_HR_MONTHLY" ||--o{ "odw_harmonised_db|LIVE_DIM_EMP_HIERARCHY" : "hierarchy_member_weekly_monthly"
+    "odw_harmonised_db|LOAD_SAP_HR_MONTHLY" ||--o{ "odw_harmonised_db|LIVE_DIM_INSPECTOR" : "inspector_assigned_monthly"
+    "odw_harmonised_db|LOAD_SAP_HR_MONTHLY" ||--o{ "odw_harmonised_db|LIVE_DIM_EMP_HIERARCHY" : "hierarchy_member_monthly"
 	
 	"odw_harmonised_db|LOAD_SAP_HR_WEEKLY" ||--o{ "odw_harmonised_db|LOAD_VW_SAP_HR_EMAIL_WEEKLY" : "email_view_weekly"
     "odw_harmonised_db|LOAD_SAP_HR_WEEKLY" ||--o{ "odw_harmonised_db|LOAD_SAP_PINS_EMAIL_WEEKLY" : "pins_email_assigned_weekly"
-    "odw_harmonised_db|LOAD_SAP_HR_WEEKLY" ||--o{ "odw_harmonised_db|LIVE_DIM_INSPECTOR" : "inspector_assigned_weekly_monthly"
-    "odw_harmonised_db|LOAD_SAP_HR_WEEKLY" ||--o{ "odw_harmonised_db|LIVE_DIM_EMP_HIERARCHY" : "hierarchy_member_weekly_monthly"
+    "odw_harmonised_db|LOAD_SAP_HR_WEEKLY" ||--o{ "odw_harmonised_db|LIVE_DIM_INSPECTOR" : "inspector_assigned_weekly"
+    "odw_harmonised_db|LOAD_SAP_HR_WEEKLY" ||--o{ "odw_harmonised_db|LIVE_DIM_EMP_HIERARCHY" : "hierarchy_member_weekly"
     
     %% Cross-Reference Relationships  
     "odw_harmonised_db|LOAD_SAP_PINS_EMAIL" ||--o{ "odw_harmonised_db|LOAD_VW_SAP_HR_EMAIL" : "email_mapping_monthly"
-    "odw_harmonised_db|LOAD_VW_SAP_HR_EMAIL" ||--o{ "odw_harmonised_db|LIVE_DIM_EMP_HIERARCHY" : "email_hierarchy_ref_weekly_monthly"
-	
+    "odw_harmonised_db|LOAD_VW_SAP_HR_EMAIL" ||--o{ "odw_harmonised_db|LIVE_DIM_EMP_HIERARCHY" : "email_hierarchy_ref"
 	"odw_harmonised_db|LOAD_SAP_PINS_EMAIL_WEEKLY" ||--o{ "odw_harmonised_db|LOAD_VW_SAP_HR_EMAIL_WEEKLY" : "email_mapping_weekly"
-    "odw_harmonised_db|LOAD_VW_SAP_HR_EMAIL_WEKLY" ||--o{ "odw_harmonised_db|LIVE_DIM_EMP_HIERARCHY" : "email_hierarchy_ref_weekly_monthly"
+    "odw_harmonised_db|LOAD_VW_SAP_HR_EMAIL_WEKLY" ||--o{ "odw_harmonised_db|LIVE_DIM_EMP_HIERARCHY" : "email_hierarchy_ref_weekly"
