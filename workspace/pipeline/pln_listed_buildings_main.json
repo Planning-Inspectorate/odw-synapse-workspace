@@ -6,7 +6,14 @@
 				"name": "Src to Raw",
 				"description": "Source to Raw",
 				"type": "ExecutePipeline",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "Set_start_time",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"secureInput": false
 				},
@@ -24,19 +31,19 @@
 				"type": "SynapseNotebook",
 				"dependsOn": [
 					{
-						"activity": "Src to Raw",
+						"activity": "Record completed Listed Building Src to Raw",
 						"dependencyConditions": [
 							"Succeeded"
 						]
 					}
 				],
-			"policy": {
-				"timeout": "1:00:00",
-				"retry": 3,
-				"retryIntervalInSeconds": 30,
-				"secureOutput": false,
-				"secureInput": false
-			},
+				"policy": {
+					"timeout": "1:00:00",
+					"retry": 3,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
 				"userProperties": [],
 				"typeProperties": {
 					"notebook": {
@@ -66,7 +73,7 @@
 				"type": "SynapseNotebook",
 				"dependsOn": [
 					{
-						"activity": "Raw to Std",
+						"activity": "If Raw to Std Faild",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -95,7 +102,621 @@
 				}
 			},
 			{
-				"name": "Record ListedBuilding Failure",
+				"name": "Set_start_time",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "start time",
+					"value": {
+						"value": "@utcNow()",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "set_json variable",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Raw to Std",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "raw_json",
+					"value": {
+						"value": "@json(activity('Raw to Std').output.status.output.result.exitValue).table_details",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "ForEachTable",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "set_json variable",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@variables('raw_json')",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "Switch_table_status",
+							"type": "Switch",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"on": {
+									"value": "@item().table_result",
+									"type": "Expression"
+								},
+								"cases": [
+									{
+										"value": "success",
+										"activities": [
+											{
+												"name": "Record completed pln_listed_buildings_main",
+												"type": "ExecutePipeline",
+												"dependsOn": [],
+												"policy": {
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"pipeline": {
+														"referenceName": "pln_log_to_appins",
+														"type": "PipelineReference"
+													},
+													"waitOnCompletion": true,
+													"parameters": {
+														"Stage": "Completion",
+														"PipelineName": {
+															"value": "@pipeline().Pipeline",
+															"type": "Expression"
+														},
+														"PipelineRunID": {
+															"value": "@pipeline().RunId",
+															"type": "Expression"
+														},
+														"StartTime": {
+															"value": "@item().start_exec_time",
+															"type": "Expression"
+														},
+														"EndTime": {
+															"value": "@item().end_exec_time",
+															"type": "Expression"
+														},
+														"Inserts": {
+															"value": "@item().insert_count",
+															"type": "Expression"
+														},
+														"StatusMessage": {
+															"value": "@concat('pln_listed_buildings_main loaded for table: ',item().delta_table_name)",
+															"type": "Expression"
+														},
+														"PipelineTriggerID": {
+															"value": "@pipeline().TriggerId",
+															"type": "Expression"
+														},
+														"PipelineTriggerName": {
+															"value": "@pipeline().TriggerName",
+															"type": "Expression"
+														},
+														"PipelineTriggerType": {
+															"value": "@pipeline().TriggerType",
+															"type": "Expression"
+														},
+														"PipelineTriggeredbyPipelineName": {
+															"value": "@pipeline()?.TriggeredByPipelineName",
+															"type": "Expression"
+														},
+														"PipelineTriggeredbyPipelineRunID": {
+															"value": "@pipeline()?.TriggeredByPipelineRunId",
+															"type": "Expression"
+														},
+														"DurationSeconds": {
+															"value": "@item().total_exec_time",
+															"type": "Expression"
+														},
+														"StatusCode": "200",
+														"AppInsIKey": {
+															"value": "@pipeline().parameters.apps_insights_ikey",
+															"type": "Expression"
+														}
+													}
+												}
+											}
+										]
+									},
+									{
+										"value": "failed",
+										"activities": [
+											{
+												"name": "Record failed pln_listed_buildings_main",
+												"type": "ExecutePipeline",
+												"dependsOn": [],
+												"policy": {
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"pipeline": {
+														"referenceName": "pln_log_to_appins",
+														"type": "PipelineReference"
+													},
+													"waitOnCompletion": true,
+													"parameters": {
+														"Stage": "Fail",
+														"PipelineName": {
+															"value": "@pipeline().Pipeline",
+															"type": "Expression"
+														},
+														"PipelineRunID": {
+															"value": "@pipeline().RunId",
+															"type": "Expression"
+														},
+														"StartTime": {
+															"value": "@item().start_exec_time",
+															"type": "Expression"
+														},
+														"EndTime": {
+															"value": "@item().end_exec_time",
+															"type": "Expression"
+														},
+														"Inserts": {
+															"value": "@item().insert_count",
+															"type": "Expression"
+														},
+														"ErrorMessage": {
+															"value": "@concat(item().error_message,' for loading file : ',item().csv_file_name)",
+															"type": "Expression"
+														},
+														"StatusMessage": {
+															"value": "@concat('Raw to Std failed:',item().csv_file_name)",
+															"type": "Expression"
+														},
+														"PipelineTriggerID": {
+															"value": "@pipeline().TriggerId",
+															"type": "Expression"
+														},
+														"PipelineTriggerName": {
+															"value": "@pipeline().TriggerName",
+															"type": "Expression"
+														},
+														"PipelineTriggerType": {
+															"value": "@pipeline().TriggerType",
+															"type": "Expression"
+														},
+														"PipelineTriggeredbyPipelineName": {
+															"value": "@pipeline()?.TriggeredByPipelineName",
+															"type": "Expression"
+														},
+														"PipelineTriggeredbyPipelineRunID": {
+															"value": "@pipeline()?.TriggeredByPipelineRunId",
+															"type": "Expression"
+														},
+														"ActivityType": "Pipeline",
+														"DurationSeconds": {
+															"value": "@item().total_exec_time",
+															"type": "Expression"
+														},
+														"StatusCode": "400",
+														"AppInsIKey": {
+															"value": "@pipeline().parameters.apps_insights_ikey",
+															"type": "Expression"
+														}
+													}
+												}
+											},
+											{
+												"name": "Set Error Flag",
+												"type": "SetVariable",
+												"dependsOn": [
+													{
+														"activity": "Record failed pln_listed_buildings_main",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"policy": {
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"variableName": "error_flag",
+													"value": {
+														"value": "@item().table_result",
+														"type": "Expression"
+													}
+												}
+											}
+										]
+									}
+								],
+								"defaultActivities": [
+									{
+										"name": "Dummy",
+										"type": "Wait",
+										"dependsOn": [],
+										"userProperties": [],
+										"typeProperties": {
+											"waitTimeInSeconds": 1
+										}
+									}
+								]
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "If Raw to Std Faild",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "ForEachTable",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(toLower(trim(variables('error_flag'))), 'failed')",
+						"type": "Expression"
+					},
+					"ifFalseActivities": [
+						{
+							"name": "Wait1",
+							"type": "Wait",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"waitTimeInSeconds": 1
+							}
+						}
+					],
+					"ifTrueActivities": [
+						{
+							"name": "Fail EntraID_load",
+							"type": "Fail",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"message": {
+									"value": "Standardised Notebook failed. One of the csv file couldn't be loaded successfully. Please App Insight Log for further details",
+									"type": "Expression"
+								},
+								"errorCode": "99"
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Record completed pln_listed_buildings_main Std to Hrm",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Std to Hrm",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Completion",
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@json(activity('Std to Hrm').output.status.output.result.exitValue).table_details[0].start_exec_time",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@json(activity('Std to Hrm').output.status.output.result.exitValue).table_details[0].end_exec_time",
+							"type": "Expression"
+						},
+						"Inserts": {
+							"value": "@json(activity('Std to Hrm').output.status.output.result.exitValue).table_details[0].insert_count",
+							"type": "Expression"
+						},
+						"StatusMessage": "pln_listed_buildings_main loaded",
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"ActivityType": "Pipeline",
+						"DurationSeconds": {
+							"value": "@json(activity('Std to Hrm').output.status.output.result.exitValue).table_details[0].total_exec_time",
+							"type": "Expression"
+						},
+						"StatusCode": "200",
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "pln_listed_buildings_main Std to Hrm failed",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Std to Hrm",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_utl_Send_Teams_Message",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"dataFactorySubscription": {
+							"value": "@pipeline().parameters.subscription_id",
+							"type": "Expression"
+						},
+						"dataFactoryResourceGroup": {
+							"value": "@pipeline().parameters.resource_group",
+							"type": "Expression"
+						},
+						"pipelineRunId": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"teamsWebhookUrl": {
+							"value": "@pipeline().parameters.webhook_url",
+							"type": "Expression"
+						},
+						"activityName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"activityMessage": "pln_listed_buildings_main failed",
+						"activityDuration": {
+							"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
+							"type": "Expression"
+						},
+						"activityStatus": "Failed",
+						"Colour": {
+							"value": "@pipeline().parameters.failed_colour",
+							"type": "Expression"
+						},
+						"Image": {
+							"value": "@pipeline().parameters.failed_image",
+							"type": "Expression"
+						},
+						"Message_title": "EntraID Std to Hrm failed",
+						"Message_subtitle": "EntraID Std to Hrm failed"
+					}
+				}
+			},
+			{
+				"name": "Record completed Std to Hrm Std Hrm data",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Std to Hrm",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": {
+							"value": "Fail",
+							"type": "Expression"
+						},
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@json(activity('Std to Hrm').output.status.output.result.exitValue).table_details.start_exec_time[0]",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@json(activity('Std to Hrm').output.status.output.result.exitValue).table_details.end_exec_time[0]",
+							"type": "Expression"
+						},
+						"Inserts": {
+							"value": "@json(activity('Std to Hrm').output.status.output.result.exitValue).table_details[0].insert_count",
+							"type": "Expression"
+						},
+						"ErrorMessage": {
+							"value": "@json(activity('Std to Hrm').output.status.output.result.exitValue).table_details[0].error_message",
+							"type": "Expression"
+						},
+						"StatusMessage": "pln_listed_buildings_main  Std to Hrm Layer loaded",
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"ActivityType": "Pipeline",
+						"DurationSeconds": {
+							"value": "@json(activity('Std to Hrm').output.status.output.result.exitValue).table_details.total_exec_time[0]",
+							"type": "Expression"
+						},
+						"StatusCode": "400",
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Record completed Listed Building Src to Raw",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Src to Raw",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Completion",
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@variables('start time')",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@utcNow()",
+							"type": "Expression"
+						},
+						"Inserts": {
+							"value": "@int(activity('Src to Raw').output.pipelineReturnValue.ListedBuildingCombinedCount)",
+							"type": "Expression"
+						},
+						"StatusMessage": "Src to Raw - Listed Building and Listed buliding Outline loaded successfully",
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"ActivityType": "Pipeline",
+						"DurationSeconds": {
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('start time'))), 10000000)",
+							"type": "Expression"
+						},
+						"StatusCode": "200",
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Record completed Src to Raw Error",
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
@@ -116,59 +737,111 @@
 					},
 					"waitOnCompletion": true,
 					"parameters": {
-						"Stage": "Fail",
+						"Stage": {
+							"value": "Fail",
+							"type": "Expression"
+						},
 						"PipelineName": {
-							"value": "@activity('Src to Raw').Output.pipelineName",
+							"value": "@pipeline().Pipeline",
 							"type": "Expression"
 						},
 						"PipelineRunID": {
-							"value": "@activity('Src to Raw').Output.pipelineRunId",
+							"value": "@pipeline().RunId",
 							"type": "Expression"
 						},
 						"StartTime": {
-							"value": "@activity('Src to Raw').ExecutionStartTime",
+							"value": "@variables('start time')",
 							"type": "Expression"
 						},
 						"EndTime": {
-							"value": "@activity('Src to Raw').ExecutionEndTime",
+							"value": "@utcNow()",
 							"type": "Expression"
 						},
 						"ErrorMessage": {
 							"value": "@activity('Src to Raw').Error.message",
 							"type": "Expression"
 						},
-						"StatusMessage": {
-							"value": "@activity('Src to Raw').Status",
+						"StatusMessage": "Src to Raw Layer - Listed building and Listed Building Outline loaded",
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
 							"type": "Expression"
 						},
 						"PipelineTriggeredbyPipelineName": {
-							"value": "@activity('Src to Raw').PipelineName",
+							"value": "@pipeline()?.TriggeredByPipelineName",
 							"type": "Expression"
 						},
 						"PipelineTriggeredbyPipelineRunID": {
-							"value": "@activity('Src to Raw').PipelineRunId",
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
 							"type": "Expression"
 						},
-						"PipelineExecutionTimeInSec": {
-							"value": "@activity('Src to Raw').Duration",
-							"type": "Expression"
-						},
-						"ActivityType": {
-							"value": "@activity('Src to Raw').ActivityType",
-							"type": "Expression"
-						},
+						"ActivityType": "Pipeline",
 						"DurationSeconds": {
-							"value": "@activity('Src to Raw').Duration",
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('start time'))), 10000000)",
 							"type": "Expression"
 						},
-						"StatusCode": {
-							"value": "@activity('Src to Raw').StatusCode",
+						"StatusCode": "400",
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
 							"type": "Expression"
 						}
 					}
 				}
 			}
 		],
+		"parameters": {
+			"apps_insights_ikey": {
+				"type": "string"
+			},
+			"subscription_id": {
+				"type": "string"
+			},
+			"resource_group": {
+				"type": "string"
+			},
+			"webhook_url": {
+				"type": "string"
+			},
+			"start_time": {
+				"type": "string"
+			},
+			"warning_colour": {
+				"type": "string"
+			},
+			"failed_colour": {
+				"type": "string"
+			},
+			"failed_image": {
+				"type": "string"
+			}
+		},
+		"variables": {
+			"recordCount": {
+				"type": "Integer"
+			},
+			"error_message": {
+				"type": "String"
+			},
+			"start time": {
+				"type": "String"
+			},
+			"error_flag": {
+				"type": "String"
+			},
+			"raw_json_update": {
+				"type": "Array"
+			},
+			"raw_json": {
+				"type": "Array"
+			}
+		},
 		"folder": {
 			"name": "listed buildings"
 		},
