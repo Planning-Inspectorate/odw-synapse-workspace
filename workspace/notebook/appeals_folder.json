@@ -16,12 +16,11 @@
 			"executorMemory": "28g",
 			"executorCores": 4,
 			"numExecutors": 2,
-			"runAsWorkspaceSystemIdentity": false,
 			"conf": {
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "96e3b9bb-6c1b-46d2-9e05-d169d72fdc90"
+				"spark.autotune.trackingId": "21542acc-7314-4470-8c60-1f58a83cadcd"
 			}
 		},
 		"metadata": {
@@ -55,30 +54,28 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"%run utils/py_logging_decorator"
+					"import asyncio\n",
+					"import nest_asyncio\n",
+					"import tracemalloc\n",
+					"tracemalloc.start()\n",
+					"from pyspark.sql import SparkSession\n",
+					"from notebookutils import mssparkutils\n",
+					"import json\n",
+					"import calendar\n",
+					"from datetime import datetime, timedelta, date\n",
+					"import pandas as pd\n",
+					"import os\n",
+					"import re\n",
+					"from pyspark.sql.functions import col, lit, input_file_name, current_timestamp, sha2, concat,max as spark_max\n",
+					"from pyspark.sql.types import StringType, DateType, TimestampType, IntegerType, FloatType, StructType, StructField\n",
+					"from delta import DeltaTable"
 				],
-				"execution_count": null
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
 				"source": [
-					"# Import necessary libraries\n",
-					"import json\n",
-					"from datetime import datetime\n",
-					"from notebookutils import mssparkutils\n",
-					"from pyspark.sql import DataFrame\n",
-					"from pyspark.sql.functions import col, desc"
+					"%run utils/py_logging_decorator"
 				],
 				"execution_count": null
 			},
@@ -92,29 +89,32 @@
 					}
 				},
 				"source": [
-					"## Import App Insights logging\n",
+					"### Initialize Application Insight Logging functions\n",
 					""
 				]
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"%run utils/py_utils_common_logging_output"
+					"%run utils/py_applicationinsights"
 				],
 				"execution_count": null
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"# Initialize Application Insights logger\n",
-					"app_insight_logger = ProcessingLogger()\n",
+					"from datetime import datetime\n",
+					"from notebookutils import mssparkutils\n",
+					"\n",
+					"# Define variables\n",
+					"target_table = 'appeals_folder'\n",
 					"\n",
 					"# Initialize tracking variables\n",
-					"execution_start_time = datetime.now()\n",
-					"start_exec_time = str(datetime.now())\n",
+					"start_exec_time = datetime.now()\n",
 					"insert_count = 0\n",
 					"update_count = 0\n",
-					"delete_count = 0"
+					"delete_count = 0\n",
+					"error_message=''"
 				],
 				"execution_count": null
 			},
@@ -441,6 +441,29 @@
 			},
 			{
 				"cell_type": "code",
+				"source": [
+					"update_count = spark.sql(\"\"\"\n",
+					"    SELECT COUNT(*) AS update_count\n",
+					"    FROM odw_harmonised_db.appeals_folder AS Target\n",
+					"    JOIN appeals_folder_changed_rows_final AS Source\n",
+					"        ON Source.HorizonAppealFolderId = Target.HorizonAppealFolderId\n",
+					"    WHERE Target.IsActive = 'Y'\n",
+					"\"\"\").collect()[0][\"update_count\"]\n",
+					"print(update_count)\n",
+					"insert_count = spark.sql(\"\"\"\n",
+					"    SELECT COUNT(*) AS insert_count\n",
+					"    FROM appeals_folder_changed_rows_final AS Source\n",
+					"    LEFT JOIN odw_harmonised_db.appeals_folder AS Target\n",
+					"        ON Source.HorizonAppealFolderId = Target.HorizonAppealFolderId AND Target.IsActive = 'Y'\n",
+					"    WHERE Target.HorizonAppealFolderId IS NULL\n",
+					"\"\"\").collect()[0][\"insert_count\"]\n",
+					"print(insert_count)\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
 						"source_hidden": false,
@@ -569,71 +592,74 @@
 			},
 			{
 				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
 				"source": [
-					"    # Count records processed\n",
-					"    try:\n",
-					"        # Get row counts for logging\n",
-					"        changed_rows_df = spark.sql(\"SELECT COUNT(*) as count FROM appeals_folder_changed_rows_final\")\n",
-					"        changed_count = changed_rows_df.collect()[0]['count']\n",
-					"        \n",
-					"        final_table_df = spark.sql(\"SELECT COUNT(*) as count FROM odw_harmonised_db.appeals_folder WHERE IsActive = 'Y'\")\n",
-					"        final_count = final_table_df.collect()[0]['count']\n",
-					"        \n",
-					"        logInfo(f'appeals_folder processing completed successfully. Processed {changed_count} changed rows. Final active record count: {final_count}')\n",
-					"        \n",
-					"        # Log successful processing\n",
-					"        execution_end_time = datetime.now()\n",
-					"        execution_duration = (execution_end_time - execution_start_time).total_seconds()\n",
-					"        \n",
-					"        app_insight_logger.add_table_result(\n",
-					"            delta_table_name='odw_harmonised_db.appeals_folder',\n",
-					"            insert_count=changed_count,\n",
-					"            update_count=0,  # Combined with insert in this process\n",
-					"            delete_count=0,  # Handled via IsActive flag\n",
-					"            table_result='success',\n",
-					"            start_exec_time=start_exec_time,\n",
-					"            end_exec_time=str(execution_end_time),\n",
-					"            total_exec_time=execution_duration\n",
-					"        )\n",
-					"        \n",
-					"    except Exception as processing_error:\n",
-					"        error_message = f'Error processing appeals_folder data: {str(processing_error)}'\n",
-					"        logError(error_message)\n",
-					"        \n",
-					"        execution_end_time = datetime.now()\n",
-					"        execution_duration = (execution_end_time - execution_start_time).total_seconds()\n",
-					"        \n",
-					"        app_insight_logger.add_table_result(\n",
-					"            delta_table_name='odw_harmonised_db.appeals_folder',\n",
-					"            insert_count=0,\n",
-					"            update_count=0,\n",
-					"            delete_count=0,\n",
-					"            table_result='failed',\n",
-					"            start_exec_time=start_exec_time,\n",
-					"            end_exec_time=str(execution_end_time),\n",
-					"            total_exec_time=execution_duration,\n",
-					"            error_message=error_message\n",
-					"        )\n",
-					"        raise"
+					"end_exec_time = datetime.now()"
 				],
 				"execution_count": null
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"# Exit notebook with App Insights results\n",
-					"mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
+					"try:\n",
+					"    # Calculate execution duration\n",
+					"    \n",
+					"    duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
+					" \n",
+					"    # Define activity type\n",
+					"    activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
+					" \n",
+					"    # Determine status and message\n",
+					"    stage = \"Success\" if not error_message else \"Failed\"\n",
+					"    status_message = (\n",
+					"        f\"Successfully loaded data into {target_table} table\"\n",
+					"        if not error_message\n",
+					"        else f\"Failed to load data from {target_table} table\"\n",
+					"    )\n",
+					"    status_code = \"200\" if stage == \"Success\" else \"500\"\n",
+					" \n",
+					"    # Prepare telemetry parameters\n",
+					"    params = {\n",
+					"        \"Stage\": stage,\n",
+					"        \"PipelineName\": PipelineName,\n",
+					"        \"PipelineRunID\": PipelineRunID,\n",
+					"        \"StartTime\": start_exec_time.isoformat(),\n",
+					"        \"EndTime\": end_exec_time.isoformat(),\n",
+					"        \"Inserts\": insert_count,\n",
+					"        \"Updates\": update_count,\n",
+					"        \"Deletes\": delete_count,\n",
+					"        \"ErrorMessage\": error_message,\n",
+					"        \"StatusMessage\": status_message,\n",
+					"        \"PipelineTriggerID\": PipelineTriggerID,\n",
+					"        \"PipelineTriggerName\": PipelineTriggerName,\n",
+					"        \"PipelineTriggerType\": PipelineTriggerType,\n",
+					"        \"PipelineTriggeredbyPipelineName\": PipelineTriggeredbyPipelineName,\n",
+					"        \"PipelineTriggeredbyPipelineRunID\": PipelineTriggeredbyPipelineRunID,\n",
+					"        \"PipelineExecutionTimeInSec\": duration_seconds,\n",
+					"        \"ActivityType\": activity_type,\n",
+					"        \"DurationSeconds\": duration_seconds,\n",
+					"        \"StatusCode\": status_code,\n",
+					"        \"AppInsCustomEventName\": \"ODW_Master_Pipeline_Logs\"\n",
+					"    }\n",
+					" \n",
+					"    # Send telemetry asynchronously\n",
+					"    send_telemetry_to_app_insights(params)\n",
+					" \n",
+					"    # Raise error if execution failed\n",
+					"    if error_message:\n",
+					"        print(f\"Notebook Failed for load {table_name} : {error_message}\")\n",
+					"        raise RuntimeError(f\"Notebook Failed due to error in {table_name} Table: {error_message}\")\n",
+					" \n",
+					"except RuntimeError as e:\n",
+					"    print(str(e))\n",
+					"    import sys\n",
+					"    sys.exit(1)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					""
 				],
 				"execution_count": null
 			}
