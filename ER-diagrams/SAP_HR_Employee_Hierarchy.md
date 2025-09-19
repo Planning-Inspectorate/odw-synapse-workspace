@@ -130,31 +130,6 @@ classDiagram
     
     }
 
-    namespace Curated {
-
-        class LIVE_DIM_INSPECTOR {
-            source_id: varchar
-            pins_staff_number: varchar
-            inspector_name: varchar
-            email_address: varchar
-            manager_name: varchar
-            directorate: varchar
-            grade: varchar
-            active_status: varchar
-        }
-
-        class LIVE_DIM_EMP_HIERARCHY {
-            emp_id: varchar
-            emp_name: varchar
-            emp_email_address: varchar
-            mgr_id: varchar
-            mgr_name: varchar
-            hierarchy: varchar
-            department: varchar
-            reporting_chain: varchar
-        }
-    }
-
 %% Source to Standardised Flow
 SAP_HR_Source --> sap_hr_monthly_std
 SAP_HR_Source --> sap_hr_weekly_std
@@ -166,11 +141,10 @@ sap_hr_weekly_std --> LOAD_SAP_HR_WEEKLY
 sap_pins_email_std --> LOAD_SAP_PINS_EMAIL
 sap_pins_email_std --> LOAD_SAP_PINS_EMAIL_WEEKLY
 
-%% Harmonised Internal Flow
+%% Harmonised to Harmonised Flow
 LOAD_SAP_HR_MONTHLY --> LOAD_VW_SAP_HR_EMAIL
 LOAD_SAP_HR_WEEKLY --> LOAD_VW_SAP_HR_EMAIL_WEEKLY
 
-%% Harmonised to Curated Flow
 LOAD_SAP_HR_MONTHLY --> LIVE_DIM_INSPECTOR
 LOAD_SAP_HR_WEEKLY --> LIVE_DIM_INSPECTOR
 LOAD_SAP_PINS_EMAIL --> LIVE_DIM_INSPECTOR
