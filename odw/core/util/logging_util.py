@@ -1,4 +1,5 @@
 import logging
+import os
 from azure.monitor.opentelemetry import configure_azure_monitor
 import functools
 import uuid
@@ -45,9 +46,15 @@ class LoggingUtil:
         app_insights_connection_string = mssparkutils.credentials.getSecretWithLS("ls_kv", "application-insights-connection-string")
         if not app_insights_connection_string:
             raise RuntimeError("The credential returned by mssparkutils.credentials.getSecretWithLS was blank or None")
+        # Set service name for easier attribution in App Insights
+        os.environ.setdefault("OTEL_SERVICE_NAME", "odw-synapse-notebook")
         configure_azure_monitor(logger_name=self.logger_name_space, connection_string=app_insights_connection_string)
 
-        self.logger.setLevel(logging.INFO)
+        # Silence Azure SDK HTTP network-trace logs
+        logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(logging.ERROR)
+        logging.getLogger("azure").setLevel(logging.WARNING)
+
+        self.logger.setLevel(logging.WARNING)
         self.log_info("Logging initialised.")
 
     def log_info(self, msg: str):
