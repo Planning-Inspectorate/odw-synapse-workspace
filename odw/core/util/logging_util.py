@@ -47,7 +47,7 @@ class LoggingUtil:
             raise RuntimeError("The credential returned by mssparkutils.credentials.getSecretWithLS was blank or None")
         configure_azure_monitor(logger_name=self.logger_name_space, connection_string=app_insights_connection_string)
 
-        self.logger.setLevel(logging.DEBUG)
+        self.logger.setLevel(logging.WARNING)
         self.log_info("Logging initialised.")
 
     def log_info(self, msg: str):
