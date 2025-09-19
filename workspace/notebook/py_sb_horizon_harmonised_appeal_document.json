@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "f0067155-f956-47c6-9532-7820b99328d6"
+				"spark.autotune.trackingId": "5a81000a-9ef6-47f4-bbc5-c71a6d202747"
 			}
 		},
 		"metadata": {
@@ -45,7 +45,8 @@
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 28
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -115,7 +116,7 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"%run utils/py_utils_common_logging_output"
+					"%run utils/py_applicationinsights"
 				],
 				"execution_count": null
 			},
@@ -140,10 +141,11 @@
 					"\n",
 					"primary_key = 'TEMP_PK'\n",
 					"\n",
-					"start_exec_time = str(datetime.now())\n",
+					"start_exec_time = datetime.now()\n",
 					"insert_count = 0\n",
 					"update_count = 0\n",
-					"delete_count = 0"
+					"delete_count = 0\n",
+					"error_message=''"
 				],
 				"execution_count": null
 			},
@@ -215,24 +217,10 @@
 					"                            {service_bus_table}\n",
 					"\n",
 					"                    \"\"\")\n",
+					"\n",
 					"except Exception as e:\n",
-					"    logError(f\"Error in source Service Bus SQL query :\\n{e}\")\n",
-					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\n",
-					"        \n",
-					"    end_exec_time = str(datetime.now())\n",
-					"    app_insight_logger.add_table_result(\n",
-					"        delta_table_name = spark_table_final,\n",
-					"        insert_count = insert_count, \n",
-					"        update_count = update_count, \n",
-					"        delete_count = delete_count, \n",
-					"        table_result = \"failed\",\n",
-					"        start_exec_time = start_exec_time, \n",
-					"        end_exec_time = end_exec_time,\n",
-					"        total_exec_time = \"\",\n",
-					"        error_message = error_message\n",
-					"    )\n",
-					"    # Exit with the JSON result\n",
-					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
+					"    error_message = f\"Error in source Service Bus SQL query : {str(e)[:800]}\"\n",
+					"    end_exec_time = datetime.now()"
 				],
 				"execution_count": null
 			},
@@ -315,24 +303,10 @@
 					"                    WHERE\n",
 					"                        Doc.ingested_datetime = (SELECT MAX(ingested_datetime) FROM {horizon_table})\n",
 					"                \"\"\")\n",
-					"except Exception as e:\n",
-					"    logError(f\"Error in source Horizon SQL query:\\n{e}\")\n",
-					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\n",
 					"\n",
-					"    end_exec_time = str(datetime.now())\n",
-					"    app_insight_logger.add_table_result(\n",
-					"        delta_table_name = spark_table_final,\n",
-					"        insert_count = insert_count, \n",
-					"        update_count = update_count, \n",
-					"        delete_count = delete_count, \n",
-					"        table_result = \"failed\",\n",
-					"        start_exec_time = start_exec_time, \n",
-					"        end_exec_time = end_exec_time,\n",
-					"        total_exec_time = \"\",\n",
-					"        error_message = error_message\n",
-					"    )\n",
-					"    # Exit with the JSON result\n",
-					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
+					"except Exception as e:\n",
+					"    error_message = f\"Error in source Horizon SQL query: {str(e)[:800]}\"\n",
+					"    end_exec_time = datetime.now()"
 				],
 				"execution_count": null
 			},
@@ -384,25 +358,9 @@
 				"source": [
 					"try:\n",
 					"    results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\n",
-					"\n",
 					"except Exception as e:\n",
-					"    logError(f\"Error in ingesting delta table {spark_table_final}:\\n{e}\")\n",
-					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\n",
-					"\n",
-					"    end_exec_time = str(datetime.now())\n",
-					"    app_insight_logger.add_table_result(\n",
-					"        delta_table_name = spark_table_final,\n",
-					"        insert_count = insert_count, \n",
-					"        update_count = update_count, \n",
-					"        delete_count = delete_count, \n",
-					"        table_result = \"failed\",\n",
-					"        start_exec_time = start_exec_time, \n",
-					"        end_exec_time = end_exec_time,\n",
-					"        total_exec_time = \"\",\n",
-					"        error_message = error_message\n",
-					"    )\n",
-					"    # Exit with the JSON result\n",
-					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
+					"    error_message = f\"Error in ingesting delta table {spark_table_final}: {str(e)[:800]}\"\n",
+					"    end_exec_time = datetime.now()"
 				],
 				"execution_count": null
 			},
@@ -621,24 +579,10 @@
 					"        FROM \n",
 					"            {spark_table_final}\n",
 					"        \"\"\")\n",
-					"except Exception as e:\n",
-					"    logError(f\"Error in preparing final dataframe for {spark_table_final}:\\n{e}\")\n",
-					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\n",
 					"\n",
-					"    end_exec_time = str(datetime.now())\n",
-					"    app_insight_logger.add_table_result(\n",
-					"        delta_table_name = spark_table_final,\n",
-					"        insert_count = insert_count, \n",
-					"        update_count = update_count, \n",
-					"        delete_count = delete_count, \n",
-					"        table_result = \"failed\",\n",
-					"        start_exec_time = start_exec_time, \n",
-					"        end_exec_time = end_exec_time,\n",
-					"        total_exec_time = \"\",\n",
-					"        error_message = error_message\n",
-					"    )\n",
-					"    # Exit with the JSON result\n",
-					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
+					"except Exception as e:\n",
+					"    error_message = f\"Error in preparing final dataframe for {spark_table_final}: {str(e)[:800]}\"\n",
+					"    end_exec_time = datetime.now()"
 				],
 				"execution_count": null
 			},
@@ -725,58 +669,69 @@
 					"    \n",
 					"    insert_count = final_df.count()\n",
 					"    final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\n",
-					"    \n",
-					"    end_exec_time = str(datetime.now())\n",
-					"    app_insight_logger.add_table_result(                    \n",
-					"        delta_table_name = spark_table_final,\n",
-					"        insert_count = insert_count, \n",
-					"        update_count = update_count, \n",
-					"        delete_count = delete_count, \n",
-					"        table_result = \"success\",\n",
-					"        start_exec_time = start_exec_time, \n",
-					"        end_exec_time = end_exec_time,\n",
-					"        total_exec_time = \"\",\n",
-					"        error_message = \"\"\n",
-					"    )\n",
+					"    end_exec_time = datetime.now()\n",
+					"\n",
 					"except Exception as e:\n",
-					"    logError(f\"Error in ingesting delta table in the final step {spark_table_final}:\\n{e}\")\n",
-					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\n",
-					"    \n",
-					"    end_exec_time = str(datetime.now())\n",
-					"    app_insight_logger.add_table_result(\n",
-					"        delta_table_name = spark_table_final,\n",
-					"        insert_count = insert_count, \n",
-					"        update_count = update_count, \n",
-					"        delete_count = delete_count, \n",
-					"        table_result = \"failed\",\n",
-					"        start_exec_time = start_exec_time, \n",
-					"        end_exec_time = end_exec_time,\n",
-					"        total_exec_time = \"\",\n",
-					"        error_message = error_message\n",
-					"    )\n",
-					"    # Exit with the JSON result\n",
-					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
+					"    error_message = f\"Error in ingesting delta table in the final step {spark_table_final}: {str(e)[:800]}\"\n",
+					"    end_exec_time = datetime.now()"
 				],
 				"execution_count": null
 			},
 			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"##### Produce Json formatted output"
-				]
-			},
-			{
 				"cell_type": "code",
 				"source": [
-					"# Exit with the JSON result\n",
-					"mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
+					"try:\n",
+					"    # Calculate execution duration\n",
+					"    duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
+					"\n",
+					"    # Define activity type\n",
+					"    activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
+					"\n",
+					"    # Determine status and message\n",
+					"    stage = \"Success\" if not error_message else \"Failed\"\n",
+					"    status_message = (\n",
+					"        f\"Successfully loaded data into {spark_table_final} table\"\n",
+					"        if not error_message\n",
+					"        else f\"Failed to load data from {spark_table_final} table\"\n",
+					"    )\n",
+					"    status_code = \"200\" if stage == \"Success\" else \"500\"\n",
+					"\n",
+					"    # Prepare telemetry parameters\n",
+					"    params = {\n",
+					"        \"Stage\": stage,\n",
+					"        \"PipelineName\": PipelineName,\n",
+					"        \"PipelineRunID\": PipelineRunID,\n",
+					"        \"StartTime\": start_exec_time.isoformat(),\n",
+					"        \"EndTime\": end_exec_time.isoformat(),\n",
+					"        \"Inserts\": insert_count,\n",
+					"        \"Updates\": update_count,\n",
+					"        \"Deletes\": delete_count,\n",
+					"        \"ErrorMessage\": error_message,\n",
+					"        \"StatusMessage\": status_message,\n",
+					"        \"PipelineTriggerID\": PipelineTriggerID,\n",
+					"        \"PipelineTriggerName\": PipelineTriggerName,\n",
+					"        \"PipelineTriggerType\": PipelineTriggerType,\n",
+					"        \"PipelineTriggeredbyPipelineName\": PipelineTriggeredbyPipelineName,\n",
+					"        \"PipelineTriggeredbyPipelineRunID\": PipelineTriggeredbyPipelineRunID,\n",
+					"        \"PipelineExecutionTimeInSec\": duration_seconds,\n",
+					"        \"ActivityType\": activity_type,\n",
+					"        \"DurationSeconds\": duration_seconds,\n",
+					"        \"StatusCode\": status_code,\n",
+					"        \"AppInsCustomEventName\": \"ODW_Master_Pipeline_Logs\"\n",
+					"    }\n",
+					"\n",
+					"    # Send telemetry asynchronously\n",
+					"    send_telemetry_to_app_insights(params)\n",
+					"\n",
+					"    # Raise error if execution failed\n",
+					"    if error_message:\n",
+					"        print(f\"Notebook Failed for load {spark_table_final} : {error_message}\")\n",
+					"        raise RuntimeError(f\"Notebook Failed due to error in {spark_table_final} Table: {error_message}\")\n",
+					"\n",
+					"except RuntimeError as e:\n",
+					"    print(str(e))\n",
+					"    import sys\n",
+					"    sys.exit(1)"
 				],
 				"execution_count": null
 			}
