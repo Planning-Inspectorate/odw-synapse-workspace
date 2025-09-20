@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "0ac11e13-8020-4f7d-96ce-5e0d259a9a18"
+				"spark.autotune.trackingId": "20832268-3ab4-4984-a673-ecc043b7fa08"
 			}
 		},
 		"metadata": {
@@ -73,6 +73,23 @@
 			},
 			{
 				"cell_type": "code",
+				"source": [
+					"\r\n",
+					"PipelineName = 'pln_service_bus'\r\n",
+					"PipelineRunID = '2e464ed3-c5dd-4538-9d15-ed45497d3a09'\r\n",
+					"PipelineTriggerID = \"3bce4d94-24eb-4abb-a02b-93d081dd47a5\"\r\n",
+					"PipelineTriggerName =  \"3bce4d94-24eb-4abb-a02b-93d081dd47a5\"\r\n",
+					"PipelineTriggerType = \"PipelineActivity\"\r\n",
+					"PipelineTriggeredbyPipelineName =  \"pln_master\"\r\n",
+					"PipelineTriggeredbyPipelineRunID = \"ae55a687-bef1-4b6d-a7e1-65e2ade2dddf\"\r\n",
+					"error_message = 'run sucessfully'\r\n",
+					"\r\n",
+					""
+				],
+				"execution_count": 118
+			},
+			{
+				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
 						"source_hidden": false,
@@ -87,7 +104,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": null
+				"execution_count": 119
 			},
 			{
 				"cell_type": "code",
@@ -109,7 +126,7 @@
 					"entity_name='appeal-has'\r\n",
 					"date_folder=''"
 				],
-				"execution_count": null
+				"execution_count": 120
 			},
 			{
 				"cell_type": "code",
@@ -125,14 +142,14 @@
 					"from pyspark.sql.functions import *\r\n",
 					"import re"
 				],
-				"execution_count": null
+				"execution_count": 121
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 122
 			},
 			{
 				"cell_type": "code",
@@ -156,11 +173,11 @@
 					"schema = mssparkutils.notebook.run(\"/py_create_spark_schema\", 30, {\"db_name\": 'odw_standardised_db', \"entity_name\": entity_name})\r\n",
 					"spark_schema = StructType.fromJson(json.loads(schema)) if schema != '' else ''\r\n",
 					"\r\n",
-					"start_exec_time = str(datetime.now())\r\n",
+					"start_exec_time = datetime.now()\r\n",
 					"insert_count = 0\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 123
 			},
 			{
 				"cell_type": "code",
@@ -178,7 +195,7 @@
 				"source": [
 					"%run service-bus/py_spark_df_ingestion_functions"
 				],
-				"execution_count": null
+				"execution_count": 124
 			},
 			{
 				"cell_type": "markdown",
@@ -198,7 +215,78 @@
 				"source": [
 					"%run utils/py_utils_common_logging_output"
 				],
-				"execution_count": null
+				"execution_count": 125
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def send_pipeline_telemetry(\r\n",
+					"    table_name: str,\r\n",
+					"    insert_count: int,\r\n",
+					"    error_message: str,\r\n",
+					"    start_exec_time,\r\n",
+					"    end_exec_time,\r\n",
+					"    PipelineName: str,\r\n",
+					"    PipelineRunID: str,\r\n",
+					"    PipelineTriggerID: str,\r\n",
+					"    PipelineTriggerName: str,\r\n",
+					"    PipelineTriggerType: str,\r\n",
+					"    PipelineTriggeredbyPipelineName: str,\r\n",
+					"    PipelineTriggeredbyPipelineRunID: str\r\n",
+					"):\r\n",
+					"    # Calculate execution duration\r\n",
+					"    duration_seconds = (end_exec_time - start_exec_time).total_seconds()\r\n",
+					"\r\n",
+					"    # Define activity type\r\n",
+					"    activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\r\n",
+					"\r\n",
+					"    # Normalize and evaluate error message\r\n",
+					"    normalized_error = error_message.strip().lower() if error_message else \"\"\r\n",
+					"    is_success = not normalized_error or normalized_error in [\"run successfully\", \"success\"]\r\n",
+					"\r\n",
+					"    # Determine status and message\r\n",
+					"    stage = \"Success\" if is_success else \"Failed\"\r\n",
+					"    status_message = (\r\n",
+					"        f\"Successfully loaded data into {table_name} table\"\r\n",
+					"        if is_success\r\n",
+					"        else f\"Failed to load data from {table_name} table\"\r\n",
+					"    )\r\n",
+					"    status_code = \"200\" if stage == \"Success\" else \"500\"\r\n",
+					"\r\n",
+					"    # Prepare telemetry parameters\r\n",
+					"    params = {\r\n",
+					"        \"Stage\": stage,\r\n",
+					"        \"PipelineName\": PipelineName,\r\n",
+					"        \"PipelineRunID\": PipelineRunID,\r\n",
+					"        \"StartTime\": start_exec_time.isoformat(),\r\n",
+					"        \"EndTime\": end_exec_time.isoformat(),\r\n",
+					"        \"Inserts\": insert_count,\r\n",
+					"        \"Updates\": 0,\r\n",
+					"        \"Deletes\": 0,\r\n",
+					"        \"ErrorMessage\": error_message,\r\n",
+					"        \"StatusMessage\": status_message,\r\n",
+					"        \"PipelineTriggerID\": PipelineTriggerID,\r\n",
+					"        \"PipelineTriggerName\": PipelineTriggerName,\r\n",
+					"        \"PipelineTriggerType\": PipelineTriggerType,\r\n",
+					"        \"PipelineTriggeredbyPipelineName\": PipelineTriggeredbyPipelineName,\r\n",
+					"        \"PipelineTriggeredbyPipelineRunID\": PipelineTriggeredbyPipelineRunID,\r\n",
+					"        \"PipelineExecutionTimeInSec\": duration_seconds,\r\n",
+					"        \"ActivityType\": activity_type,\r\n",
+					"        \"DurationSeconds\": duration_seconds,\r\n",
+					"        \"StatusCode\": status_code,\r\n",
+					"        \"AppInsCustomEventName\": \"ODW_Master_Pipeline_Logs\"\r\n",
+					"    }\r\n",
+					"\r\n",
+					"    # Send telemetry asynchronously\r\n",
+					"    send_telemetry_to_app_insights(params)\r\n",
+					"\r\n",
+					"    # Raise error if execution failed\r\n",
+					"    if not is_success:\r\n",
+					"        print(f\"Notebook Failed for load {table_name} : {error_message}\")\r\n",
+					"        raise RuntimeError(f\"Notebook Failed due to error in {table_name} Table: {error_message}\")\r\n",
+					""
+				],
+				"execution_count": 126
 			},
 			{
 				"cell_type": "code",
@@ -231,7 +319,7 @@
 					"\r\n",
 					"    return max_value"
 				],
-				"execution_count": null
+				"execution_count": 127
 			},
 			{
 				"cell_type": "code",
@@ -269,7 +357,7 @@
 					"    formatted_timestamp: str = max_timestamp.strftime(\"%Y-%m-%dT%H:%M:%S.%f\")+\"+0000\"\r\n",
 					"    return formatted_timestamp"
 				],
-				"execution_count": null
+				"execution_count": 128
 			},
 			{
 				"cell_type": "code",
@@ -312,7 +400,7 @@
 					"    \r\n",
 					"    return files"
 				],
-				"execution_count": null
+				"execution_count": 129
 			},
 			{
 				"cell_type": "code",
@@ -352,7 +440,7 @@
 					"\r\n",
 					"    return missing_files"
 				],
-				"execution_count": null
+				"execution_count": 130
 			},
 			{
 				"cell_type": "code",
@@ -394,7 +482,7 @@
 					"\r\n",
 					"    return filtered_paths"
 				],
-				"execution_count": null
+				"execution_count": 131
 			},
 			{
 				"cell_type": "code",
@@ -435,25 +523,29 @@
 					"        logError(f'Raw data not found at {source_path}, Exception is {e}')\r\n",
 					"        \r\n",
 					"        # Use the imported format_error_message function\r\n",
-					"        error_message = app_insight_processor.format_error_message(e, max_length=800)\r\n",
-					"        end_exec_time = str(datetime.now())\r\n",
-					"        app_insight_logger.add_table_result(\r\n",
-					"            delta_table_name = table_name,\r\n",
-					"            insert_count = insert_count,\r\n",
-					"            update_count = 0, \r\n",
-					"            delete_count = 0, \r\n",
-					"            table_result = \"failed\",\r\n",
-					"            start_exec_time = start_exec_time, \r\n",
-					"            end_exec_time = end_exec_time,\r\n",
-					"            total_exec_time = \"\",\r\n",
-					"            error_message = error_message\r\n",
+					"        # error_message = app_insight_processor.format_error_message(e, max_length=800)\r\n",
+					"        end_exec_time = datetime.now()\r\n",
+					"        send_pipeline_telemetry(\r\n",
+					"        table_name=table_name,\r\n",
+					"        insert_count=insert_count,\r\n",
+					"        error_message=error_message,\r\n",
+					"        start_exec_time=start_exec_time,\r\n",
+					"        end_exec_time=end_exec_time,\r\n",
+					"        PipelineName=PipelineName,\r\n",
+					"        PipelineRunID=PipelineRunID,\r\n",
+					"        PipelineTriggerID=PipelineTriggerID,\r\n",
+					"        PipelineTriggerName=PipelineTriggerName,\r\n",
+					"        PipelineTriggerType=PipelineTriggerType,\r\n",
+					"        PipelineTriggeredbyPipelineName=PipelineTriggeredbyPipelineName,\r\n",
+					"        PipelineTriggeredbyPipelineRunID=PipelineTriggeredbyPipelineRunID\r\n",
 					"        )\r\n",
+					"\r\n",
 					"        # Exit with the JSON result\r\n",
 					"        mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())\r\n",
 					"\r\n",
 					"    return df"
 				],
-				"execution_count": null
+				"execution_count": 132
 			},
 			{
 				"cell_type": "code",
@@ -488,7 +580,7 @@
 					"    return df\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 133
 			},
 			{
 				"cell_type": "code",
@@ -520,7 +612,7 @@
 					"    .saveAsTable(table_name)\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 134
 			},
 			{
 				"cell_type": "code",
@@ -551,7 +643,7 @@
 					"    \"\"\"\r\n",
 					"    return new_table_row_count == expected_new_count"
 				],
-				"execution_count": null
+				"execution_count": 135
 			},
 			{
 				"cell_type": "markdown",
@@ -569,6 +661,13 @@
 					"\r\n",
 					"If `USE_MAX_DATE_FILTER` is set to `False` then we compare the files ingested already in the target table with the source files and get the difference, i.e. the missing files."
 				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"error_message =''"
+				],
+				"execution_count": 136
 			},
 			{
 				"cell_type": "code",
@@ -594,28 +693,30 @@
 					"        print(f\"max_extracted_date: {max_extracted_date}\")\r\n",
 					"    except Exception as e:\r\n",
 					"        logError(f\"Error getting the maximum file date:\\n{e}\")\r\n",
-					"        error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
+					"        # error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
 					"\r\n",
 					"    try:\r\n",
 					"        logInfo(\"Getting the filtered list of paths\")\r\n",
 					"        filtered_paths = extract_and_filter_paths(get_all_files_recursive(source_path=source_path), max_extracted_date)\r\n",
 					"        df = read_raw_messages(filtered_paths=filtered_paths)\r\n",
 					"    except Exception as e:\r\n",
-					"        logError(f\"Error getting the filtered list of paths:\\n{e}\")\r\n",
-					"        error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
-					"        end_exec_time = str(datetime.now())\r\n",
-					"        app_insight_logger.add_table_result(\r\n",
-					"            delta_table_name = table_name,\r\n",
-					"            insert_count = insert_count,\r\n",
-					"            update_count = 0, \r\n",
-					"            delete_count = 0, \r\n",
-					"            table_result = \"failed\",\r\n",
-					"            start_exec_time = start_exec_time, \r\n",
-					"            end_exec_time = end_exec_time,\r\n",
-					"            total_exec_time = \"\",\r\n",
-					"            error_message = error_message\r\n",
+					"        end_exec_time = datetime.now()\r\n",
+					"        send_pipeline_telemetry(\r\n",
+					"        table_name=table_name,\r\n",
+					"        insert_count=insert_count,\r\n",
+					"        error_message=error_message,\r\n",
+					"        start_exec_time=start_exec_time,\r\n",
+					"        end_exec_time=end_exec_time,\r\n",
+					"        PipelineName=PipelineName,\r\n",
+					"        PipelineRunID=PipelineRunID,\r\n",
+					"        PipelineTriggerID=PipelineTriggerID,\r\n",
+					"        PipelineTriggerName=PipelineTriggerName,\r\n",
+					"        PipelineTriggerType=PipelineTriggerType,\r\n",
+					"        PipelineTriggeredbyPipelineName=PipelineTriggeredbyPipelineName,\r\n",
+					"        PipelineTriggeredbyPipelineRunID=PipelineTriggeredbyPipelineRunID\r\n",
 					"        )\r\n",
-					"        # Exit with the JSON result\r\n",
+					"\r\n",
+					"            # Exit with the JSON result\r\n",
 					"        mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())\r\n",
 					"\r\n",
 					"else:\r\n",
@@ -624,24 +725,26 @@
 					"        missing_files = get_missing_files(table_name, source_path)\r\n",
 					"        df = read_raw_messages(filtered_paths=missing_files)\r\n",
 					"    except Exception as e:\r\n",
-					"        logError(f\"Error getting list of missing files:\\n{e}\")\r\n",
-					"        error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
-					"        end_exec_time = str(datetime.now())\r\n",
-					"        app_insight_logger.add_table_result(\r\n",
-					"            delta_table_name = table_name,\r\n",
-					"            insert_count = insert_count,\r\n",
-					"            update_count = 0, \r\n",
-					"            delete_count = 0, \r\n",
-					"            table_result = \"failed\",\r\n",
-					"            start_exec_time = start_exec_time, \r\n",
-					"            end_exec_time = end_exec_time,\r\n",
-					"            total_exec_time = \"\",\r\n",
-					"            error_message = error_message\r\n",
+					"        end_exec_time = datetime.now()\r\n",
+					"        send_pipeline_telemetry(\r\n",
+					"        table_name=table_name,\r\n",
+					"        insert_count=insert_count,\r\n",
+					"        error_message=error_message,\r\n",
+					"        start_exec_time=start_exec_time,\r\n",
+					"        end_exec_time=end_exec_time,\r\n",
+					"        PipelineName=PipelineName,\r\n",
+					"        PipelineRunID=PipelineRunID,\r\n",
+					"        PipelineTriggerID=PipelineTriggerID,\r\n",
+					"        PipelineTriggerName=PipelineTriggerName,\r\n",
+					"        PipelineTriggerType=PipelineTriggerType,\r\n",
+					"        PipelineTriggeredbyPipelineName=PipelineTriggeredbyPipelineName,\r\n",
+					"        PipelineTriggeredbyPipelineRunID=PipelineTriggeredbyPipelineRunID\r\n",
 					"        )\r\n",
-					"        # Exit with the JSON result\r\n",
+					"\r\n",
+					"            # Exit with the JSON result\r\n",
 					"        mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
 				],
-				"execution_count": null
+				"execution_count": 137
 			},
 			{
 				"cell_type": "markdown",
@@ -688,24 +791,28 @@
 					"    logInfo(f\"Expected new count: {expected_new_count}\")\r\n",
 					"except Exception as e:\r\n",
 					"    logError(f\"Error deduping and generating counts:\\n{e}\")\r\n",
-					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
+					"    # error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
 					"    \r\n",
-					"    end_exec_time = str(datetime.now())\r\n",
-					"    app_insight_logger.add_table_result(\r\n",
-					"        delta_table_name = table_name,\r\n",
-					"        insert_count = insert_count,\r\n",
-					"        update_count = 0, \r\n",
-					"        delete_count = 0, \r\n",
-					"        table_result = \"failed\",\r\n",
-					"        start_exec_time = start_exec_time, \r\n",
-					"        end_exec_time = end_exec_time,\r\n",
-					"        total_exec_time = \"\",\r\n",
-					"        error_message = error_message\r\n",
+					"    end_exec_time = datetime.now()\r\n",
+					"    send_pipeline_telemetry(\r\n",
+					"    table_name=table_name,\r\n",
+					"    insert_count=insert_count,\r\n",
+					"    error_message=error_message,\r\n",
+					"    start_exec_time=start_exec_time,\r\n",
+					"    end_exec_time=end_exec_time,\r\n",
+					"    PipelineName=PipelineName,\r\n",
+					"    PipelineRunID=PipelineRunID,\r\n",
+					"    PipelineTriggerID=PipelineTriggerID,\r\n",
+					"    PipelineTriggerName=PipelineTriggerName,\r\n",
+					"    PipelineTriggerType=PipelineTriggerType,\r\n",
+					"    PipelineTriggeredbyPipelineName=PipelineTriggeredbyPipelineName,\r\n",
+					"    PipelineTriggeredbyPipelineRunID=PipelineTriggeredbyPipelineRunID\r\n",
 					"    )\r\n",
+					"\r\n",
 					"    # Exit with the JSON result\r\n",
 					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
 				],
-				"execution_count": null
+				"execution_count": 138
 			},
 			{
 				"cell_type": "markdown",
@@ -740,43 +847,52 @@
 					"try:\r\n",
 					"    logInfo(f\"Appending new rows to table {table_name}\")\r\n",
 					"    append_df_to_table(df=df, table_name=table_name)\r\n",
-					"    \r\n",
-					"    end_exec_time = str(datetime.now())\r\n",
-					"    app_insight_logger.add_table_result(                    \r\n",
-					"        delta_table_name = table_name, \r\n",
-					"        insert_count = insert_count, \r\n",
-					"        update_count = 0, \r\n",
-					"        delete_count = 0, \r\n",
-					"        table_result = \"success\",\r\n",
-					"        start_exec_time = start_exec_time, \r\n",
-					"        end_exec_time = end_exec_time,\r\n",
-					"        total_exec_time = \"\",\r\n",
-					"        error_message = \"\"\r\n",
+					"    end_exec_time = datetime.now()\r\n",
+					"    send_pipeline_telemetry(\r\n",
+					"    table_name=table_name,\r\n",
+					"    insert_count=insert_count,\r\n",
+					"    error_message=error_message,\r\n",
+					"    start_exec_time=start_exec_time,\r\n",
+					"    end_exec_time=end_exec_time,\r\n",
+					"    PipelineName=PipelineName,\r\n",
+					"    PipelineRunID=PipelineRunID,\r\n",
+					"    PipelineTriggerID=PipelineTriggerID,\r\n",
+					"    PipelineTriggerName=PipelineTriggerName,\r\n",
+					"    PipelineTriggerType=PipelineTriggerType,\r\n",
+					"    PipelineTriggeredbyPipelineName=PipelineTriggeredbyPipelineName,\r\n",
+					"    PipelineTriggeredbyPipelineRunID=PipelineTriggeredbyPipelineRunID\r\n",
 					"    )\r\n",
 					"\r\n",
 					"    logInfo(\"Done appending rows to table\")\r\n",
 					"    new_table_row_count = spark.table(table_name).count()\r\n",
 					"except Exception as e:\r\n",
 					"    logError(f\"Error appending rows:\\n{e}\")\r\n",
-					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
+					"    # error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
 					"    \r\n",
-					"    end_exec_time = str(datetime.now())\r\n",
+					"    end_exec_time = datetime.now()\r\n",
 					"    \r\n",
-					"    app_insight_logger.add_table_result(\r\n",
-					"        delta_table_name = table_name,\r\n",
-					"        insert_count = insert_count,\r\n",
-					"        update_count = 0, \r\n",
-					"        delete_count = 0, \r\n",
-					"        table_result = \"failed\",\r\n",
-					"        start_exec_time = start_exec_time, \r\n",
-					"        end_exec_time = end_exec_time,\r\n",
-					"        total_exec_time = \"\",\r\n",
-					"        error_message = error_message\r\n",
+					"    send_pipeline_telemetry(\r\n",
+					"    table_name=table_name,\r\n",
+					"    insert_count=insert_count,\r\n",
+					"    error_message=error_message,\r\n",
+					"    start_exec_time=start_exec_time,\r\n",
+					"    end_exec_time=end_exec_time,\r\n",
+					"    PipelineName=PipelineName,\r\n",
+					"    PipelineRunID=PipelineRunID,\r\n",
+					"    PipelineTriggerID=PipelineTriggerID,\r\n",
+					"    PipelineTriggerName=PipelineTriggerName,\r\n",
+					"    PipelineTriggerType=PipelineTriggerType,\r\n",
+					"    PipelineTriggeredbyPipelineName=PipelineTriggeredbyPipelineName,\r\n",
+					"    PipelineTriggeredbyPipelineRunID=PipelineTriggeredbyPipelineRunID\r\n",
 					"    )\r\n",
+					"\r\n",
+					"\r\n",
+					"\r\n",
+					"\r\n",
 					"    # Exit with the JSON result\r\n",
 					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
 				],
-				"execution_count": null
+				"execution_count": 139
 			},
 			{
 				"cell_type": "markdown",
@@ -810,83 +926,91 @@
 					"if not test_rows_appended(new_table_row_count=new_table_row_count, expected_row_count=expected_new_count):\r\n",
 					"    logError(\"Error appending rows. The new row count isn't as expected.\")\r\n",
 					"\r\n",
-					"    error_msg = f\"Error appending rows: {table_name} . The new row count isn't as expected.\"\r\n",
-					"    end_exec_time = str(datetime.now())\r\n",
+					"    # error_message = f\"Error appending rows: {table_name} . The new row count isn't as expected.\"\r\n",
+					"    end_exec_time = datetime.now()\r\n",
 					"    \r\n",
-					"    app_insight_logger.add_table_result(\r\n",
-					"        delta_table_name = table_name,\r\n",
-					"        insert_count = insert_count,\r\n",
-					"        update_count = 0, \r\n",
-					"        delete_count = 0, \r\n",
-					"        table_result = \"failed\",\r\n",
-					"        start_exec_time = start_exec_time, \r\n",
-					"        end_exec_time = end_exec_time,\r\n",
-					"        total_exec_time = \"\",\r\n",
-					"        error_message = error_msg\r\n",
+					"    send_pipeline_telemetry(\r\n",
+					"    table_name=table_name,\r\n",
+					"    insert_count=insert_count,\r\n",
+					"    error_message=error_message,\r\n",
+					"    start_exec_time=start_exec_time,\r\n",
+					"    end_exec_time=end_exec_time,\r\n",
+					"    PipelineName=PipelineName,\r\n",
+					"    PipelineRunID=PipelineRunID,\r\n",
+					"    PipelineTriggerID=PipelineTriggerID,\r\n",
+					"    PipelineTriggerName=PipelineTriggerName,\r\n",
+					"    PipelineTriggerType=PipelineTriggerType,\r\n",
+					"    PipelineTriggeredbyPipelineName=PipelineTriggeredbyPipelineName,\r\n",
+					"    PipelineTriggeredbyPipelineRunID=PipelineTriggeredbyPipelineRunID\r\n",
 					"    )\r\n",
+					"\r\n",
+					"\r\n",
 					"else:\r\n",
 					"    logInfo(\"Rows appended successfully.\")"
 				],
-				"execution_count": null
+				"execution_count": 140
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"try:\r\n",
-					"    # Calculate execution duration\r\n",
-					"    \r\n",
-					"    duration_seconds = (end_exec_time - start_exec_time).total_seconds()\r\n",
-					" \r\n",
-					"    # Define activity type\r\n",
-					"    activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\r\n",
-					" \r\n",
-					"    # Determine status and message\r\n",
-					"    stage = \"Success\" if not error_message else \"Failed\"\r\n",
-					"    status_message = (\r\n",
-					"        f\"Successfully loaded data into {table_name} table\"\r\n",
-					"        if not error_message\r\n",
-					"        else f\"Failed to load data from {table_name} table\"\r\n",
-					"    )\r\n",
-					"    status_code = \"200\" if stage == \"Success\" else \"500\"\r\n",
-					" \r\n",
-					"    # Prepare telemetry parameters\r\n",
-					"    params = {\r\n",
-					"        \"Stage\": stage,\r\n",
-					"        \"PipelineName\": PipelineName,\r\n",
-					"        \"PipelineRunID\": PipelineRunID,\r\n",
-					"        \"StartTime\": start_exec_time.isoformat(),\r\n",
-					"        \"EndTime\": end_exec_time.isoformat(),\r\n",
-					"        \"Inserts\": insert_count,\r\n",
-					"        \"Updates\": update_count,\r\n",
-					"        \"Deletes\": delete_count,\r\n",
-					"        \"ErrorMessage\": error_message,\r\n",
-					"        \"StatusMessage\": status_message,\r\n",
-					"        \"PipelineTriggerID\": PipelineTriggerID,\r\n",
-					"        \"PipelineTriggerName\": PipelineTriggerName,\r\n",
-					"        \"PipelineTriggerType\": PipelineTriggerType,\r\n",
-					"        \"PipelineTriggeredbyPipelineName\": PipelineTriggeredbyPipelineName,\r\n",
-					"        \"PipelineTriggeredbyPipelineRunID\": PipelineTriggeredbyPipelineRunID,\r\n",
-					"        \"PipelineExecutionTimeInSec\": duration_seconds,\r\n",
-					"        \"ActivityType\": activity_type,\r\n",
-					"        \"DurationSeconds\": duration_seconds,\r\n",
-					"        \"StatusCode\": status_code,\r\n",
-					"        \"AppInsCustomEventName\": \"ODW_Master_Pipeline_Logs\"\r\n",
-					"    }\r\n",
-					" \r\n",
-					"    # Send telemetry asynchronously\r\n",
-					"    send_telemetry_to_app_insights(params)\r\n",
-					" \r\n",
-					"    # Raise error if execution failed\r\n",
-					"    if error_message:\r\n",
-					"        print(f\"Notebook Failed for load {table_name} : {error_message}\")\r\n",
-					"        raise RuntimeError(f\"Notebook Failed due to error in {table_name} Table: {error_message}\")\r\n",
-					" \r\n",
-					"except RuntimeError as e:\r\n",
-					"    print(str(e))\r\n",
-					"    import sys\r\n",
-					"    sys.exit(1)"
+					"end_exec_time = datetime.now()"
 				],
-				"execution_count": null
+				"execution_count": 141
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"\r\n",
+					"# # Calculate execution duration\r\n",
+					"# duration_seconds = (end_exec_time - start_exec_time).total_seconds()\r\n",
+					"\r\n",
+					"# # Define activity type\r\n",
+					"# activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\r\n",
+					"\r\n",
+					"# # Normalize and evaluate error message\r\n",
+					"# normalized_error = error_message.strip().lower() if error_message else \"\"\r\n",
+					"# is_success = not normalized_error or normalized_error in [\"run successfully\", \"success\"]\r\n",
+					"\r\n",
+					"# # Determine status and message\r\n",
+					"# stage = \"Success\" if is_success else \"Failed\"\r\n",
+					"# status_message = (\r\n",
+					"#     f\"Successfully loaded data into {table_name} table\"\r\n",
+					"#     if is_success\r\n",
+					"#     else f\"Failed to load data from {table_name} table\"\r\n",
+					"# )\r\n",
+					"# status_code = \"200\" if stage == \"Success\" else \"500\"\r\n",
+					"\r\n",
+					"# # Prepare telemetry parameters\r\n",
+					"# params = {\r\n",
+					"#     \"Stage\": stage,\r\n",
+					"#     \"PipelineName\": PipelineName,\r\n",
+					"#     \"PipelineRunID\": PipelineRunID,\r\n",
+					"#     \"StartTime\": start_exec_time.isoformat(),\r\n",
+					"#     \"EndTime\": end_exec_time.isoformat(),\r\n",
+					"#     \"Inserts\": insert_count,\r\n",
+					"#     \"Updates\": 0,\r\n",
+					"#     \"Deletes\": 0,\r\n",
+					"#     \"ErrorMessage\": error_message,\r\n",
+					"#     \"StatusMessage\": status_message,\r\n",
+					"#     \"PipelineTriggerID\": PipelineTriggerID,\r\n",
+					"#     \"PipelineTriggerName\": PipelineTriggerName,\r\n",
+					"#     \"PipelineTriggerType\": PipelineTriggerType,\r\n",
+					"#     \"PipelineTriggeredbyPipelineName\": PipelineTriggeredbyPipelineName,\r\n",
+					"#     \"PipelineTriggeredbyPipelineRunID\": PipelineTriggeredbyPipelineRunID,\r\n",
+					"#     \"PipelineExecutionTimeInSec\": duration_seconds,\r\n",
+					"#     \"ActivityType\": activity_type,\r\n",
+					"#     \"DurationSeconds\": duration_seconds,\r\n",
+					"#     \"StatusCode\": status_code,\r\n",
+					"#     \"AppInsCustomEventName\": \"ODW_Master_Pipeline_Logs\"\r\n",
+					"# }\r\n",
+					"\r\n",
+					"# # Send telemetry asynchronously\r\n",
+					"# send_telemetry_to_app_insights(params)\r\n",
+					"\r\n",
+					"\r\n",
+					""
+				],
+				"execution_count": 142
 			},
 			{
 				"cell_type": "markdown",
@@ -907,7 +1031,7 @@
 					"# Exit with the JSON result\r\n",
 					"mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
 				],
-				"execution_count": null
+				"execution_count": 143
 			}
 		]
 	}
