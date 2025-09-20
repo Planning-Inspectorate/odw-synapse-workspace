@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "2184cee1-8d4e-481a-990f-314102ea4eda"
+				"spark.autotune.trackingId": "0ac11e13-8020-4f7d-96ce-5e0d259a9a18"
 			}
 		},
 		"metadata": {
@@ -124,6 +124,13 @@
 					"from pyspark.sql.types import StructType,TimestampType\r\n",
 					"from pyspark.sql.functions import *\r\n",
 					"import re"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_applicationinsights"
 				],
 				"execution_count": null
 			},
@@ -819,6 +826,65 @@
 					"    )\r\n",
 					"else:\r\n",
 					"    logInfo(\"Rows appended successfully.\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"try:\r\n",
+					"    # Calculate execution duration\r\n",
+					"    \r\n",
+					"    duration_seconds = (end_exec_time - start_exec_time).total_seconds()\r\n",
+					" \r\n",
+					"    # Define activity type\r\n",
+					"    activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\r\n",
+					" \r\n",
+					"    # Determine status and message\r\n",
+					"    stage = \"Success\" if not error_message else \"Failed\"\r\n",
+					"    status_message = (\r\n",
+					"        f\"Successfully loaded data into {table_name} table\"\r\n",
+					"        if not error_message\r\n",
+					"        else f\"Failed to load data from {table_name} table\"\r\n",
+					"    )\r\n",
+					"    status_code = \"200\" if stage == \"Success\" else \"500\"\r\n",
+					" \r\n",
+					"    # Prepare telemetry parameters\r\n",
+					"    params = {\r\n",
+					"        \"Stage\": stage,\r\n",
+					"        \"PipelineName\": PipelineName,\r\n",
+					"        \"PipelineRunID\": PipelineRunID,\r\n",
+					"        \"StartTime\": start_exec_time.isoformat(),\r\n",
+					"        \"EndTime\": end_exec_time.isoformat(),\r\n",
+					"        \"Inserts\": insert_count,\r\n",
+					"        \"Updates\": update_count,\r\n",
+					"        \"Deletes\": delete_count,\r\n",
+					"        \"ErrorMessage\": error_message,\r\n",
+					"        \"StatusMessage\": status_message,\r\n",
+					"        \"PipelineTriggerID\": PipelineTriggerID,\r\n",
+					"        \"PipelineTriggerName\": PipelineTriggerName,\r\n",
+					"        \"PipelineTriggerType\": PipelineTriggerType,\r\n",
+					"        \"PipelineTriggeredbyPipelineName\": PipelineTriggeredbyPipelineName,\r\n",
+					"        \"PipelineTriggeredbyPipelineRunID\": PipelineTriggeredbyPipelineRunID,\r\n",
+					"        \"PipelineExecutionTimeInSec\": duration_seconds,\r\n",
+					"        \"ActivityType\": activity_type,\r\n",
+					"        \"DurationSeconds\": duration_seconds,\r\n",
+					"        \"StatusCode\": status_code,\r\n",
+					"        \"AppInsCustomEventName\": \"ODW_Master_Pipeline_Logs\"\r\n",
+					"    }\r\n",
+					" \r\n",
+					"    # Send telemetry asynchronously\r\n",
+					"    send_telemetry_to_app_insights(params)\r\n",
+					" \r\n",
+					"    # Raise error if execution failed\r\n",
+					"    if error_message:\r\n",
+					"        print(f\"Notebook Failed for load {table_name} : {error_message}\")\r\n",
+					"        raise RuntimeError(f\"Notebook Failed due to error in {table_name} Table: {error_message}\")\r\n",
+					" \r\n",
+					"except RuntimeError as e:\r\n",
+					"    print(str(e))\r\n",
+					"    import sys\r\n",
+					"    sys.exit(1)"
 				],
 				"execution_count": null
 			},
