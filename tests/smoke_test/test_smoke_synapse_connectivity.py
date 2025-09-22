@@ -16,7 +16,8 @@ class TestSmokeSynapseConnectivity(NotebookRunTestCase):
         notebook_parameters = dict()
 
         notebook_run_result = self.run_notebook(notebook_name, notebook_parameters)
-        exit_value = notebook_run_result["result"]["exitValue"].replace("'", "\"")
+        exit_value = notebook_run_result["result"]["exitValue"].replace('"', '\"').replace("'", "\"")
         if exit_value:
-            failing_tests = json.loads(exit_value)
-            assert not failing_tests, f"The following tests failed in the test_smoke_py_connectivity notebook : {json.dumps(failing_tests, indent=4)}"
+            test_output = json.loads(exit_value)
+            test_output_json = json.dumps(test_output, indent=4)
+            assert not test_output, f"The following tests failed in the test_smoke_py_connectivity notebook : {test_output_json}"
