@@ -5,14 +5,14 @@ classDiagram
 
     namespace Sources {
 
-        class SAP_HR_Source {
+        class sap_hr_history.csv {
             PersNo: varchar
             EmployeeNo: varchar
             Firstname: varchar
             Lastname: varchar
         }
 
-        class SAP_PINS_Source {
+        class sap_email.csv {
             StaffNumber: varchar
             EmailAddress: varchar
             Firstname: varchar
@@ -23,7 +23,7 @@ classDiagram
     
     namespace Standardised {
 
-        class sap_hr_monthly_std {
+        class SAP_HR_MONTHLY {
             PersNo: varchar
             EmployeeNo: varchar
             Firstname: varchar
@@ -31,17 +31,7 @@ classDiagram
             CompanyCode: varchar
             PersonnelArea: varchar
         }
-
-        class sap_hr_weekly_std {
-            PersNo: varchar
-            EmployeeNo: varchar
-            Firstname: varchar
-            Lastname: varchar
-            CompanyCode: varchar
-            PersonnelArea: varchar
-        }
-
-        class sap_pins_email_std {
+        class SAP_EMAIL_MONTHLY {
             StaffNumber: varchar
             EmailAddress: varchar
             Firstname: varchar
@@ -63,17 +53,6 @@ classDiagram
             LoadDate: datetime
         }
 
-        class LOAD_SAP_HR_WEEKLY {
-            PersNo: varchar
-            Firstname: varchar
-            Lastname: varchar
-            EmployeeNo: varchar
-            Email: varchar
-            Manager: varchar
-            Department: varchar
-            LoadDate: datetime
-        }
-
         class LOAD_VW_SAP_HR_EMAIL {
             email_address: varchar
             PersNo: varchar
@@ -82,23 +61,7 @@ classDiagram
             EmployeeNo: varchar
         }
 
-        class LOAD_VW_SAP_HR_EMAIL_WEEKLY {
-            email_address: varchar
-            PersNo: varchar
-            Firstname: varchar
-            Lastname: varchar
-            EmployeeNo: varchar
-        }
-
         class LOAD_SAP_PINS_EMAIL {
-            StaffNumber: varchar
-            EmailAddress: varchar
-            Firstname: varchar
-            Lastname: varchar
-            SourceSystemID: varchar
-        }
-
-        class LOAD_SAP_PINS_EMAIL_WEEKLY {
             StaffNumber: varchar
             EmailAddress: varchar
             Firstname: varchar
@@ -131,26 +94,17 @@ classDiagram
     }
 
 %% Source to Standardised Flow
-SAP_HR_Source --> sap_hr_monthly_std
-SAP_HR_Source --> sap_hr_weekly_std
-SAP_PINS_Source --> sap_pins_email_std
+sap_hr_history.csv --> SAP_HR_MONTHLY
+sap_email.csv --> SAP_EMAIL_MONTHLY
 
 %% Standardised to Harmonised Flow
-sap_hr_monthly_std --> LOAD_SAP_HR_MONTHLY
-sap_hr_weekly_std --> LOAD_SAP_HR_WEEKLY
-sap_pins_email_std --> LOAD_SAP_PINS_EMAIL
-sap_pins_email_std --> LOAD_SAP_PINS_EMAIL_WEEKLY
+SAP_HR_MONTHLY --> LOAD_SAP_HR_MONTHLY
+SAP_EMAIL_MONTHLY --> LOAD_SAP_PINS_EMAIL
 
 %% Harmonised to Harmonised Flow
 LOAD_SAP_HR_MONTHLY --> LOAD_VW_SAP_HR_EMAIL
-LOAD_SAP_HR_WEEKLY --> LOAD_VW_SAP_HR_EMAIL_WEEKLY
-
+SAP_EMAIL_MONTHLY --> LOAD_VW_SAP_HR_EMAIL
 LOAD_SAP_HR_MONTHLY --> LIVE_DIM_INSPECTOR
-LOAD_SAP_HR_WEEKLY --> LIVE_DIM_INSPECTOR
-LOAD_SAP_PINS_EMAIL --> LIVE_DIM_INSPECTOR
-LOAD_SAP_PINS_EMAIL_WEEKLY --> LIVE_DIM_INSPECTOR
-
+LOAD_VW_SAP_HR_EMAIL --> LIVE_DIM_INSPECTOR
 LOAD_VW_SAP_HR_EMAIL --> LIVE_DIM_EMP_HIERARCHY
-LOAD_VW_SAP_HR_EMAIL_WEEKLY --> LIVE_DIM_EMP_HIERARCHY
 LOAD_SAP_HR_MONTHLY --> LIVE_DIM_EMP_HIERARCHY
-LOAD_SAP_HR_WEEKLY --> LIVE_DIM_EMP_HIERARCHY
