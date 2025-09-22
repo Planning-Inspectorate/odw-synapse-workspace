@@ -1,4 +1,5 @@
 from odw.test.util.mock.import_mock_notebook_utils import notebookutils
+from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.table_util import TableUtil
 from odw.test.util.config import TEST_CONFIG
 from pyspark.sql import SparkSession
@@ -41,8 +42,8 @@ def validate_table_deleted(database_name: str, table_name: str, raw_data_path: s
         app_insights_connection_string = TEST_CONFIG["APP_INSIGHTS_CONNECTION_STRING"]
         with mock.patch("notebookutils.mssparkutils.runtime.context", mock_mssparkutils_context):
             with mock.patch.object(notebookutils.mssparkutils.credentials, "getSecretWithLS", return_value=app_insights_connection_string):
-                # Mock configure_azure_monitor to save time, since this takes 1 minute each time it is called
-                with mock.patch("odw.core.util.logging_util.configure_azure_monitor"):
+                # Mock flush_logging to save time, since this 1 minute each time it is called
+                with mock.patch.object(LoggingUtil, "flush_logging", return_value=None):
                     datetime_format = "%Y-%m-%d %H:%M:%S.%f"
                     mock_table_details = spark.createDataFrame(
                         [
