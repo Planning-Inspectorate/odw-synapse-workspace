@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "52f333e3-e2c3-48c3-ba8a-f130a1852d88"
+				"spark.autotune.trackingId": "d9cdbdff-fc79-42e6-97d6-e3c990639732"
 			}
 		},
 		"metadata": {
@@ -114,6 +114,7 @@
 				"cell_type": "code",
 				"source": [
 					"def log_telemetry_and_exit(\n",
+					"    stage,\n",
 					"    start_exec_time,\n",
 					"    end_exec_time,\n",
 					"    error_message,\n",
@@ -127,17 +128,12 @@
 					"    PipelineTriggerName,\n",
 					"    PipelineTriggerType,\n",
 					"    PipelineTriggeredbyPipelineName,\n",
-					"    PipelineTriggeredbyPipelineRunID\n",
+					"    PipelineTriggeredbyPipelineRunID,\n",
+					"    activity_type,\n",
+					"    duration_seconds,\n",
+					"    status_message,\n",
+					"    status_code\n",
 					"):\n",
-					"    duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
-					"    activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
-					"    stage = \"Success\" if not error_message else \"Failed\"\n",
-					"    status_message = (\n",
-					"        f\"Successfully loaded data into {table_name} table\"\n",
-					"        if not error_message\n",
-					"        else f\"Failed to load data from {table_name} table\"\n",
-					"    )\n",
-					"    status_code = \"200\" if stage == \"Success\" else \"500\"\n",
 					"    params = {\n",
 					"        \"Stage\": stage,\n",
 					"        \"PipelineName\": PipelineName,\n",
@@ -160,7 +156,9 @@
 					"        \"StatusCode\": status_code,\n",
 					"        \"AppInsCustomEventName\": \"ODW_Master_Pipeline_Logs\"\n",
 					"    }\n",
+					"\n",
 					"    send_telemetry_to_app_insights(params)\n",
+					"\n",
 					"    if error_message:\n",
 					"        print(f\"Notebook Failed for load {table_name} : {error_message}\")\n",
 					"        sys.exit(1)"
