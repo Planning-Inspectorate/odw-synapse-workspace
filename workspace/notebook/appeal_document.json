@@ -20,12 +20,12 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "3487eb80-a89a-4b9a-8a0a-a6ddb103491d"
+				"spark.autotune.trackingId": "d61cc9c2-c9e9-4ecf-9a2d-020fde2e2b3b"
 			}
 		},
 		"metadata": {
 			"saveOutput": true,
-			"enableDebugMode": false,
+			"enableDebugMode": true,
 			"kernelspec": {
 				"name": "synapse_pyspark",
 				"display_name": "Synapse PySpark"
@@ -101,7 +101,7 @@
 					"from pyspark.sql import DataFrame\n",
 					"import json"
 				],
-				"execution_count": 28
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -121,7 +121,60 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 29
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def log_telemetry_and_exit(\n",
+					"    stage,\n",
+					"    start_exec_time,\n",
+					"    end_exec_time,\n",
+					"    error_message,\n",
+					"    table_name,\n",
+					"    insert_count,\n",
+					"    update_count,\n",
+					"    delete_count,\n",
+					"    PipelineName,\n",
+					"    PipelineRunID,\n",
+					"    PipelineTriggerID,\n",
+					"    PipelineTriggerName,\n",
+					"    PipelineTriggerType,\n",
+					"    PipelineTriggeredbyPipelineName,\n",
+					"    PipelineTriggeredbyPipelineRunID,\n",
+					"    activity_type,\n",
+					"    duration_seconds\n",
+					"    status_message,\n",
+					"    status_code\n",
+					"):\n",
+					"        params = {\n",
+					"        \"Stage\": stage,\n",
+					"        \"PipelineName\": PipelineName,\n",
+					"        \"PipelineRunID\": PipelineRunID,\n",
+					"        \"StartTime\": start_exec_time.isoformat(),\n",
+					"        \"EndTime\": end_exec_time.isoformat(),\n",
+					"        \"Inserts\": insert_count,\n",
+					"        \"Updates\": update_count,\n",
+					"        \"Deletes\": delete_count,\n",
+					"        \"ErrorMessage\": error_message,\n",
+					"        \"StatusMessage\": status_message,\n",
+					"        \"PipelineTriggerID\": PipelineTriggerID,\n",
+					"        \"PipelineTriggerName\": PipelineTriggerName,\n",
+					"        \"PipelineTriggerType\": PipelineTriggerType,\n",
+					"        \"PipelineTriggeredbyPipelineName\": PipelineTriggeredbyPipelineName,\n",
+					"        \"PipelineTriggeredbyPipelineRunID\": PipelineTriggeredbyPipelineRunID\n",
+					"        \"PipelineExecutionTimeInSec\": duration_seconds,\n",
+					"        \"ActivityType\": activity_type,\n",
+					"        \"DurationSeconds\": duration_seconds,\n",
+					"        \"StatusCode\": status_code,\n",
+					"        \"AppInsCustomEventName\": \"ODW_Master_Pipeline_Logs\"\n",
+					"    }\n",
+					"    send_telemetry_to_app_insights(params)\n",
+					"    if error_message:\n",
+					"        print(f\"Notebook Failed for load {table_name} : {error_message}\")\n",
+					"        sys.exit(1)"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -135,7 +188,7 @@
 					"PipelineTriggeredbyPipelineRunID = \"7cd26982-eaab-4646-b3fd-afd12b4bee73\"\n",
 					"instrumentation_key='a1609846-e819-4880-976a-de745a22203f'"
 				],
-				"execution_count": 30
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -161,7 +214,7 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": 31
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -237,7 +290,7 @@
 					"    error_message = f\"Error in SQL query for table odw_harmonised_db.appeal-event : {str(e)[:800]}\"\n",
 					"    end_exec_time = datetime.now() "
 				],
-				"execution_count": 32
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -278,7 +331,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 33
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -296,7 +349,18 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
+					"activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
+					"stage = \"Success\" if not error_message else \"Failed\"\n",
+					"status_message = (\n",
+					"    f\"Successfully loaded data into {table_name} table\"\n",
+					"    if not error_message\n",
+					"    else f\"Failed to load data from {table_name} table\"\n",
+					")\n",
+					"status_code = \"200\" if stage == \"Success\" else \"500\"\n",
+					"\n",
 					"log_telemetry_and_exit(\n",
+					"    stage,\n",
 					"    start_exec_time,\n",
 					"    end_exec_time,\n",
 					"    error_message,\n",
@@ -310,10 +374,14 @@
 					"    PipelineTriggerName,\n",
 					"    PipelineTriggerType,\n",
 					"    PipelineTriggeredbyPipelineName,\n",
-					"    PipelineTriggeredbyPipelineRunID\n",
+					"    PipelineTriggeredbyPipelineRunID,\n",
+					"    activity_type,\n",
+					"    duration_seconds,\n",
+					"    status_message,\n",
+					"    status_code\n",
 					")"
 				],
-				"execution_count": 34
+				"execution_count": null
 			}
 		]
 	}
