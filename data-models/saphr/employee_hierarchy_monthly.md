@@ -1,3 +1,9 @@
+#### ODW SAPHR Data Model
+
+##### entity: SAP HR Employee
+
+Data model for SAP_HR_Employee Monthly Load data flow from source to harmonised.
+
 ```mermaid
 classDiagram
 
@@ -94,17 +100,17 @@ classDiagram
     }
 
 %% Source to Standardised Flow
-sap_hr_history.csv --> SAP_HR_MONTHLY
-sap_email.csv --> SAP_EMAIL_MONTHLY
+`sap_hr_history.csv` --> `SAP_HR_MONTHLY`
+`sap_email.csv` --> `SAP_EMAIL_MONTHLY`
 
 %% Standardised to Harmonised Flow
-SAP_HR_MONTHLY --> LOAD_SAP_HR_MONTHLY
-SAP_EMAIL_MONTHLY --> LOAD_SAP_PINS_EMAIL
+`SAP_HR_MONTHLY` --> `LOAD_SAP_HR_MONTHLY`
+`SAP_EMAIL_MONTHLY` --> `LOAD_SAP_PINS_EMAIL`
 
 %% Harmonised to Harmonised Flow
-LOAD_SAP_HR_MONTHLY --> LOAD_VW_SAP_HR_EMAIL
-SAP_EMAIL_MONTHLY --> LOAD_VW_SAP_HR_EMAIL
-LOAD_SAP_HR_MONTHLY --> LIVE_DIM_INSPECTOR
-LOAD_VW_SAP_HR_EMAIL --> LIVE_DIM_INSPECTOR
-LOAD_VW_SAP_HR_EMAIL --> LIVE_DIM_EMP_HIERARCHY
-LOAD_SAP_HR_MONTHLY --> LIVE_DIM_EMP_HIERARCHY
+`LOAD_SAP_HR_MONTHLY` --> `LOAD_VW_SAP_HR_EMAIL`
+`SAP_EMAIL_MONTHLY` --> `LOAD_VW_SAP_HR_EMAIL`
+`LOAD_SAP_HR_MONTHLY` --> `LIVE_DIM_INSPECTOR`
+`LOAD_VW_SAP_HR_EMAIL` --> `LIVE_DIM_INSPECTOR`
+`LOAD_VW_SAP_HR_EMAIL` --> `LIVE_DIM_EMP_HIERARCHY`
+`LOAD_SAP_HR_MONTHLY` --> `LIVE_DIM_EMP_HIERARCHY`
