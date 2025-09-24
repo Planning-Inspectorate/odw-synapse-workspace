@@ -12,17 +12,17 @@ classDiagram
     namespace Sources {
 
         class sap_hr.csv {
-            PersNo: varchar
-            EmployeeNo: varchar
-            Firstname: varchar
-            Lastname: varchar
+            PersNo: string
+            EmployeeNo: string
+            Firstname: string
+            Lastname: string
         }
 
         class sap_email.csv {
-            StaffNumber: varchar
-            EmailAddress: varchar
-            Firstname: varchar
-            Lastname: varchar
+            StaffNumber: string
+            EmailAddress: string
+            Firstname: string
+            Lastname: string
         }
 
     }
@@ -30,18 +30,18 @@ classDiagram
     namespace Standardised {
 
         class SAP_HR_WEEKLY {
-            PersNo: varchar
-            EmployeeNo: varchar
-            Firstname: varchar
-            Lastname: varchar
-            CompanyCode: varchar
-            PersonnelArea: varchar
+            PersNo: string
+            EmployeeNo: string
+            Firstname: string
+            Lastname: string
+            CompanyCode: string
+            PersonnelArea: string
         }
         class SAP_EMAIL_WEEKLY {
-            StaffNumber: varchar
-            EmailAddress: varchar
-            Firstname: varchar
-            Lastname: varchar
+            StaffNumber: string
+            EmailAddress: string
+            Firstname: string
+            Lastname: string
         }
 
     }
@@ -49,52 +49,52 @@ classDiagram
     namespace Harmonised {
 
         class LOAD_SAP_HR_WEEKLY {
-            PersNo: varchar
-            Firstname: varchar
-            Lastname: varchar
-            EmployeeNo: varchar
-            Email: varchar
-            Manager: varchar
-            Department: varchar
+            PersNo: string
+            Firstname: string
+            Lastname: string
+            EmployeeNo: string
+            Email: string
+            Manager: string
+            Department: string
             LoadDate: datetime
         }
 
         class LOAD_VW_SAP_HR_EMAIL_WEEKLY {
-            email_address: varchar
-            PersNo: varchar
-            Firstname: varchar
-            Lastname: varchar
-            EmployeeNo: varchar
+            email_address: string
+            PersNo: string
+            Firstname: string
+            Lastname: string
+            EmployeeNo: string
         }
 
         class LOAD_SAP_PINS_EMAIL_WEEKLY {
-            StaffNumber: varchar
-            EmailAddress: varchar
-            Firstname: varchar
-            Lastname: varchar
-            SourceSystemID: varchar
+            StaffNumber: string
+            EmailAddress: string
+            Firstname: string
+            Lastname: string
+            SourceSystemID: string
         }
 
         class LIVE_DIM_INSPECTOR {
-            source_id: varchar
-            pins_staff_number: varchar
-            inspector_name: varchar
-            email_address: varchar
-            manager_name: varchar
-            directorate: varchar
-            grade: varchar
-            active_status: varchar
+            source_id: string
+            pins_staff_number: string
+            inspector_name: string
+            email_address: string
+            manager_name: string
+            directorate: string
+            grade: string
+            active_status: string
         }
 
         class LIVE_DIM_EMP_HIERARCHY {
-            emp_id: varchar
-            emp_name: varchar
-            emp_email_address: varchar
-            mgr_id: varchar
-            mgr_name: varchar
-            hierarchy: varchar
-            department: varchar
-            reporting_chain: varchar
+            emp_id: string
+            emp_name: string
+            emp_email_address: string
+            mgr_id: string
+            mgr_name: string
+            hierarchy: string
+            department: string
+            reporting_chain: string
         }		
     
     }
