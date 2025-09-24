@@ -1,15 +1,21 @@
+#### ODW SAPHR Data Model
+
+##### entity: Inspector_Specialisms
+
+Data model for Inspector_Specialisms data flow from source to harmonised.
+
 classDiagram
 
     direction LR
 
     namespace Sources {
 
-        class sap_hr_specialisms.csv {
-            StaffNumber: varchar
-            Firstname: varchar
-            Lastname: varchar
-            QualificationName: varchar
-            Proficien: varchar
+        class Inspector_specialisms.csv {
+            StaffNumber: string
+            Firstname: string
+            Lastname: string
+            QualificationName: string
+            Proficien: string
         }
 
     }
@@ -20,11 +26,11 @@ classDiagram
             ingested_datetime: date
             expected_from: date
             expected_to: date
-            StaffNumber: varchar
-            Firstname: varchar
-            Lastname: varchar
-            QualificationName: varchar
-            Proficien: varchar
+            StaffNumber: string
+            Firstname: string
+            Lastname: string
+            QualificationName: string
+            Proficien: string
         }
 
     }
@@ -32,38 +38,38 @@ classDiagram
     namespace Harmonised {
 
         class TRANSFORM_INSPECTOR_SPECIALISMS {
-            StaffNumber: varchar
-            Firstname: varchar
-            Lastname: varchar
-            QualificationName: varchar
-            Proficien: varchar
-            SourceSystemID: varchar
+            StaffNumber: string
+            Firstname: string
+            Lastname: string
+            QualificationName: string
+            Proficien: string
+            SourceSystemID: string
             IngestionDate: date
             ValidTo: date
-            RowID: varchar
-            IsActive: varchar
+            RowID: string
+            IsActive: string
         }
 
         class SAP_HR_INSPECTOR_SPECIALISMS {
-            StaffNumber: varchar
-            Firstname: varchar
-            Lastname: varchar
-            QualificationName: varchar
-            Proficien: varchar
-            SourceSystemID: varchar
+            StaffNumber: string
+            Firstname: string
+            Lastname: string
+            QualificationName: string
+            Proficien: string
+            SourceSystemID: string
             IngestionDate: date
             ValidFrom: date
             ValidTo: date
             LastUpdated: date
             Current: int
-            RowID: varchar
-            IsActive: varchar
+            RowID: string
+            IsActive: string
         }
     
     }
 
 %% Source to Standardised Flow
-sap_hr_specialisms.csv --> INSPECTOR_SPECIALISMS_MONTHLY
+Inspector_specialisms.csv --> INSPECTOR_SPECIALISMS_MONTHLY
 
 %% Standardised to Harmonised Flow
 INSPECTOR_SPECIALISMS_MONTHLY --> TRANSFORM_INSPECTOR_SPECIALISMS
