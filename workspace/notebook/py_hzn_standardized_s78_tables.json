@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "12faf40f-56ef-472d-84fe-9d15e50bb692"
+				"spark.autotune.trackingId": "c203a1ef-5365-47a5-ae2a-d6c729aea610"
 			}
 		},
 		"metadata": {
@@ -77,7 +77,7 @@
 					"from pyspark.sql.functions import *\r\n",
 					"from pyspark.sql import functions as F"
 				],
-				"execution_count": null
+				"execution_count": 1
 			},
 			{
 				"cell_type": "markdown",
@@ -97,14 +97,14 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": null
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
@@ -132,7 +132,7 @@
 					"delete_count = 0\r\n",
 					"error_message=''"
 				],
-				"execution_count": null
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -156,7 +156,7 @@
 					"    return df_filtered\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
@@ -184,10 +184,135 @@
 					"    vw_AddAdditionalData_df = get_spark_df(\"odw_standardised_db.vw_addadditionaldata\")\r\n",
 					"    vw_AdditionalFields_df = get_spark_df(\"odw_standardised_db.vw_additionalfields\")\r\n",
 					"\r\n",
+					"    # New columns (red ones) from the spreadsheet\r\n",
+					"    Horizon_vw_curr_TypeOfLevel_df        = get_spark_df(\"odw_standardised_db.horizon_vw_curr_typeoflevel\")\r\n",
+					"    Horizon_vw_BIS_SpecialistCaseDates_df = get_spark_df(\"odw_standardised_db.horizon_vw_bis_specialistcasedates\")\r\n",
+					"    Horizon_vw_BIS_PlanningAppStrings_df  = get_spark_df(\"odw_standardised_db.horizon_vw_bis_planningappstrings\")\r\n",
+					"    Horizon_vw_BIS_PlanningAppDates_df    = get_spark_df(\"odw_standardised_db.horizon_vw_bis_planningappdates\")\r\n",
+					"    Horizon_vw_BIS_LeadCase_df            = get_spark_df(\"odw_standardised_db.horizon_vw_bis_leadcase\")\r\n",
+					"    Horizon_vw_BIS_CaseStrings_df         = get_spark_df(\"odw_standardised_db.horizon_vw_bis_casestrings\")\r\n",
+					"    Horizon_vw_BIS_CaseInfo_df            = get_spark_df(\"odw_standardised_db.horizon_vw_bis_caseinfo\")\r\n",
+					"    Horizon_vw_BIS_CaseDates_df           = get_spark_df(\"odw_standardised_db.horizon_vw_bis_casedates\")\r\n",
+					"    Horizon_vw_BIS_AppealsAdditionalData_df = get_spark_df(\"odw_standardised_db.horizon_vw_bis_appealsadditionaldata\")\r\n",
+					"\r\n",
 					"except Exception as e:\r\n",
 					"    \r\n",
 					"    error_message = logError(f\"Error in data frame creation :\\n{e}\")\r\n",
 					"    end_exec_time = datetime.now() "
+				],
+				"execution_count": 8
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"spark.sql(\"SHOW TABLES IN odw_standardised_db\").show(200, truncate=False)\r\n",
+					""
+				],
+				"execution_count": 9
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Register temp views\r\n",
+					"hzn_cases_s78_df.createOrReplaceTempView(\"h\")\r\n",
+					"cases_specialism_df.createOrReplaceTempView(\"cs\")\r\n",
+					"vw_case_dates_df.createOrReplaceTempView(\"cd\")\r\n",
+					"CaseDocumentDatesDates_df.createOrReplaceTempView(\"cdd\")\r\n",
+					"CaseSiteStrings_df.createOrReplaceTempView(\"css\")\r\n",
+					"vw_AddAdditionalData_df.createOrReplaceTempView(\"aad_old\")\r\n",
+					"vw_AdditionalFields_df.createOrReplaceTempView(\"af\")\r\n",
+					"TypeOfProcedure_df.createOrReplaceTempView(\"tp\")\r\n",
+					"\r\n",
+					"# New columns (red ones) from the spreadsheet\r\n",
+					"Horizon_vw_curr_TypeOfLevel_df.createOrReplaceTempView(\"ctl\")\r\n",
+					"Horizon_vw_BIS_SpecialistCaseDates_df.createOrReplaceTempView(\"scd\")\r\n",
+					"Horizon_vw_BIS_PlanningAppStrings_df.createOrReplaceTempView(\"pas\")\r\n",
+					"Horizon_vw_BIS_PlanningAppDates_df.createOrReplaceTempView(\"pad\")\r\n",
+					"Horizon_vw_BIS_LeadCase_df.createOrReplaceTempView(\"lc\")\r\n",
+					"Horizon_vw_BIS_CaseStrings_df.createOrReplaceTempView(\"cs2\")\r\n",
+					"Horizon_vw_BIS_CaseInfo_df.createOrReplaceTempView(\"ci\")\r\n",
+					"Horizon_vw_BIS_CaseDates_df.createOrReplaceTempView(\"cdh\")\r\n",
+					"Horizon_vw_BIS_AppealsAdditionalData_df.createOrReplaceTempView(\"aad\")\r\n",
+					"\r\n",
+					"final_df = spark.sql(\"\"\"\r\n",
+					"SELECT\r\n",
+					"  h.*,\r\n",
+					"\r\n",
+					"  cs.casespecialism,\r\n",
+					"  cd.receiptdate,\r\n",
+					"  cd.appealdocscomplete,\r\n",
+					"  cd.startdate,\r\n",
+					"  cd.appealwithdrawndate,\r\n",
+					"  cd.casedecisiondate,\r\n",
+					"  cd.datenotrecoveredorderecovered,\r\n",
+					"  cd.daterecovered,\r\n",
+					"  cd.originalcasedecisiondate,\r\n",
+					"  cdd.questionnairedue,\r\n",
+					"  cdd.questionnairereceived,\r\n",
+					"  cdd.interestedpartyrepsduedate,\r\n",
+					"  cdd.proofsdue,\r\n",
+					"  css.siteviewablefromroad,\r\n",
+					"  aad_old.floorspaceinsquaremetres,\r\n",
+					"  aad_old.costsappliedforindicator,\r\n",
+					"  aad_old.procedureappellant,\r\n",
+					"  aad_old.isthesitewithinanaonb,\r\n",
+					"  aad_old.procedurelpa,\r\n",
+					"  aad_old.inspectorneedtoentersite,\r\n",
+					"  aad_old.sitegridreferenceeasting,\r\n",
+					"  aad_old.sitegridreferencenorthing,\r\n",
+					"  aad_old.sitewithinsssi,\r\n",
+					"  af.importantinformation,\r\n",
+					"\r\n",
+					"  -- ===== New columns (red ones) from the spreadsheet =====\r\n",
+					"  ctl.Name                                 AS allocationLevel,\r\n",
+					"  ctl.Band                                 AS allocationBand,\r\n",
+					"  scd.DateCostsReportDespatched            AS dateCostsReportDespatched,\r\n",
+					"  pas.LPAApplicationReference              AS applicationReference,\r\n",
+					"  pas.PlanningApplicationType              AS typeOfPlanningApplication,\r\n",
+					"  pad.DateOfApplication                    AS applicationDate,\r\n",
+					"  pad.DateOfLPADecision                    AS applicationDecisionDate,\r\n",
+					"  lc.LeadCaseNodeId                        AS leadCaseReference,\r\n",
+					"  cs2.ProcessingState                      AS caseStatus,\r\n",
+					"  cs2.LPACode                              AS lpaCode,\r\n",
+					"  cs2.LinkedStatus                         AS linkedCaseStatus,\r\n",
+					"  cs2.Decision                             AS caseDecisionOutcome,\r\n",
+					"  cs2.Jurisdiction                         AS jurisdiction,\r\n",
+					"  cs2.Redetermined                         AS redeterminedIndicator,\r\n",
+					"  cs2.DevelopmentType                      AS developmentType,\r\n",
+					"  ci.Validity                               AS caseValidationOutcome,\r\n",
+					"  cdh.ValidityStatusDate                   AS caseValidationDate,\r\n",
+					"  aad.DevelopmentOrAllegation              AS originalDevelopmentDescription,\r\n",
+					"  aad.AppellantCommentsSubmitted           AS appellantCommentsSubmittedDate,\r\n",
+					"  aad.AppellantStatementSubmitted          AS appellantStatementSubmittedDate,\r\n",
+					"  aad.LPACommentsSubmitted                 AS lpaCommentsSubmittedDate,\r\n",
+					"  aad.LPAProofsSubmitted                   AS lpaProofsSubmittedDate,\r\n",
+					"  aad.LPAStatementSubmitted                AS lpaStatementSubmittedDate,\r\n",
+					"  aad.SiteNoticeSent                       AS siteNoticesSentDate,\r\n",
+					"  aad.StatementsDue                        AS statementDueDate,\r\n",
+					"  aad.NumberOfResidences                   AS numberOfResidencesNetChange,\r\n",
+					"  tp.ProcCode                              AS caseProcedure\r\n",
+					"\r\n",
+					"FROM h\r\n",
+					"  LEFT JOIN cs   ON h.caseuniqueid = cs.casereference\r\n",
+					"  LEFT JOIN cd   ON h.casenodeid   = cd.casenodeid\r\n",
+					"  LEFT JOIN cdd  ON h.casenodeid   = cdd.casenodeid\r\n",
+					"  LEFT JOIN css  ON h.casenodeid   = css.casenodeid\r\n",
+					"  LEFT JOIN aad_old ON h.caseuniqueid = aad_old.appealrefnumber\r\n",
+					"  LEFT JOIN af   ON h.caseuniqueid = af.appealrefnumber\r\n",
+					"\r\n",
+					"  -- New columns (red ones) from the spreadsheet\r\n",
+					"  LEFT JOIN ctl  ON h.casenodeid   = ctl.casenodeid\r\n",
+					"  LEFT JOIN scd  ON h.casenodeid   = scd.casenodeid\r\n",
+					"  LEFT JOIN pas  ON h.casenodeid   = pas.casenodeid\r\n",
+					"  LEFT JOIN pad  ON h.casenodeid   = pad.casenodeid\r\n",
+					"  LEFT JOIN lc   ON h.casenodeid   = lc.casenodeid\r\n",
+					"  LEFT JOIN cs2  ON h.casenodeid   = cs2.casenodeid\r\n",
+					"  LEFT JOIN ci   ON h.casenodeid   = ci.casenodeid\r\n",
+					"  LEFT JOIN cdh  ON h.casenodeid   = cdh.casenodeid\r\n",
+					"  LEFT JOIN aad  ON h.caseuniqueid = aad.appealrefnumber\r\n",
+					"  LEFT JOIN tp   ON h.casenodeid   = tp.casenodeid\r\n",
+					"\"\"\")\r\n",
+					""
 				],
 				"execution_count": null
 			},
