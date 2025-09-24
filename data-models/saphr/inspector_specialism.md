@@ -4,6 +4,7 @@
 
 Data model for Inspector_Specialisms data flow from source to harmonised.
 
+```mermaid
 classDiagram
 
     direction LR
