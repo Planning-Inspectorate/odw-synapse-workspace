@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "77a0aa7f-eff2-4643-9008-afdd97d3171d"
+				"spark.autotune.trackingId": "c8d57a90-951c-4be1-950a-2e7633cc4ac9"
 			}
 		},
 		"metadata": {
@@ -70,7 +70,7 @@
 					"from datetime import datetime\n",
 					"from notebookutils import mssparkutils"
 				],
-				"execution_count": null
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
@@ -88,7 +88,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": null
+				"execution_count": 3
 			},
 			{
 				"cell_type": "markdown",
@@ -108,7 +108,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -134,7 +134,7 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": null
+				"execution_count": 5
 			},
 			{
 				"cell_type": "markdown",
@@ -171,7 +171,7 @@
 				"source": [
 					"logInfo(f\"Starting horizon_folder data processing for {target_table}\")"
 				],
-				"execution_count": null
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
@@ -252,7 +252,7 @@
 					"    AND T1.expected_from = (SELECT MAX(expected_from) FROM odw_standardised_db.horizon_folder)\n",
 					";"
 				],
-				"execution_count": null
+				"execution_count": 7
 			},
 			{
 				"cell_type": "markdown",
@@ -336,7 +336,7 @@
 					"FROM odw_harmonised_db.horizon_folder\n",
 					"WHERE ID IN (SELECT ID FROM horizon_folder_new WHERE HorizonFolderID IS NULL) AND IsActive = 'Y'; "
 				],
-				"execution_count": null
+				"execution_count": 8
 			},
 			{
 				"cell_type": "code",
@@ -391,7 +391,7 @@
 					"FROM horizon_folder_changed_rows T1\n",
 					"FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive"
 				],
-				"execution_count": null
+				"execution_count": 9
 			},
 			{
 				"cell_type": "markdown",
@@ -443,7 +443,7 @@
 					"print(insert_count)\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 10
 			},
 			{
 				"cell_type": "code",
@@ -513,7 +513,7 @@
 					"        Source.IsActive)\n",
 					"     ;   "
 				],
-				"execution_count": null
+				"execution_count": 11
 			},
 			{
 				"cell_type": "markdown",
@@ -547,7 +547,7 @@
 				"source": [
 					"logInfo(\"Writing odw_harmonised_db.horizon_folder\")"
 				],
-				"execution_count": null
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
@@ -589,25 +589,20 @@
 					"FROM odw_harmonised_db.horizon_folder;\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 13
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"end_exec_time = datetime.now()"
 				],
-				"execution_count": null
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"# Calculate execution duration\n",
 					"duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
-					" \n",
-					" \n",
 					"activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
-					" \n",
-					"# Determine status and message\n",
 					"stage = \"Success\" if not error_message else \"Failed\"\n",
 					"status_message = (\n",
 					"    f\"Successfully loaded data into {target_table} table\"\n",
@@ -616,39 +611,29 @@
 					")\n",
 					"status_code = \"200\" if stage == \"Success\" else \"500\"\n",
 					" \n",
-					"# Prepare telemetry parameters\n",
-					"params = {\n",
-					"    \"Stage\": stage,\n",
-					"    \"PipelineName\": PipelineName,\n",
-					"    \"PipelineRunID\": PipelineRunID,\n",
-					"    \"StartTime\": start_exec_time.isoformat(),\n",
-					"    \"EndTime\": end_exec_time.isoformat(),\n",
-					"    \"Inserts\": insert_count,\n",
-					"    \"Updates\": update_count,\n",
-					"    \"Deletes\": delete_count,\n",
-					"    \"ErrorMessage\": error_message,\n",
-					"    \"StatusMessage\": status_message,\n",
-					"    \"PipelineTriggerID\": PipelineTriggerID,\n",
-					"    \"PipelineTriggerName\": PipelineTriggerName,\n",
-					"    \"PipelineTriggerType\": PipelineTriggerType,\n",
-					"    \"PipelineTriggeredbyPipelineName\": PipelineTriggeredbyPipelineName,\n",
-					"    \"PipelineTriggeredbyPipelineRunID\": PipelineTriggeredbyPipelineRunID,\n",
-					"    \"PipelineExecutionTimeInSec\": duration_seconds,\n",
-					"    \"ActivityType\": activity_type,\n",
-					"    \"DurationSeconds\": duration_seconds,\n",
-					"    \"StatusCode\": status_code,\n",
-					"    \"AppInsCustomEventName\": \"ODW_Master_Pipeline_Logs\"\n",
-					"}\n",
-					" \n",
-					" \n",
-					"send_telemetry_to_app_insights(params)\n",
-					" \n",
-					" \n",
-					"if error_message:\n",
-					"    logError(f\"Notebook Failed for load {table_name} : {error_message}\")\n",
-					"    sys.exit(1)"
+					"log_telemetry_and_exit(\n",
+					"    stage,\n",
+					"    start_exec_time,\n",
+					"    end_exec_time,\n",
+					"    error_message,\n",
+					"    target_table,\n",
+					"    insert_count,\n",
+					"    update_count,\n",
+					"    delete_count,\n",
+					"    PipelineName,\n",
+					"    PipelineRunID,\n",
+					"    PipelineTriggerID,\n",
+					"    PipelineTriggerName,\n",
+					"    PipelineTriggerType,\n",
+					"    PipelineTriggeredbyPipelineName,\n",
+					"    PipelineTriggeredbyPipelineRunID,\n",
+					"    activity_type,\n",
+					"    duration_seconds,\n",
+					"    status_message,\n",
+					"    status_code\n",
+					")"
 				],
-				"execution_count": null
+				"execution_count": 16
 			}
 		]
 	}
