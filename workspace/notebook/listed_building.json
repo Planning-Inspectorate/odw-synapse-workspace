@@ -20,12 +20,12 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "3914f47d-bc9d-45d9-8e7b-13b4cdfcdf34"
+				"spark.autotune.trackingId": "8d3e3a2e-272e-4ece-8f63-3161032834d6"
 			}
 		},
 		"metadata": {
 			"saveOutput": true,
-			"enableDebugMode": false,
+			"enableDebugMode": true,
 			"kernelspec": {
 				"name": "synapse_pyspark",
 				"display_name": "Synapse PySpark"
@@ -99,7 +99,8 @@
 					"from pyspark.sql.functions import *\n",
 					"from pyspark.sql.types import *\n",
 					"from pyspark.sql import DataFrame\n",
-					"import json"
+					"import json\n",
+					"from datetime import datetime"
 				],
 				"execution_count": null
 			},
@@ -119,7 +120,7 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"%run utils/py_utils_common_logging_output"
+					"%run utils/py_applicationinsights"
 				],
 				"execution_count": null
 			},
@@ -141,10 +142,11 @@
 					"entity_name: str = \"listed-building\"\n",
 					"table_name: str = \"odw_curated_db.listed_building\"\n",
 					"\n",
-					"start_exec_time = str(datetime.now())\n",
+					"start_exec_time = datetime.now()\n",
 					"insert_count = 0\n",
 					"update_count = 0\n",
-					"delete_count = 0"
+					"delete_count = 0\n",
+					"error_message=''"
 				],
 				"execution_count": null
 			},
@@ -187,23 +189,8 @@
 					"        \"\"\")\n",
 					"\n",
 					"except Exception as e:\n",
-					"    logError(f\"Error in SQL query for table odw_harmonised_db.listed_building :\\n{e}\")\n",
-					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\n",
-					"    end_exec_time = str(datetime.now())\n",
-					"    app_insight_logger.add_table_result(\n",
-					"        delta_table_name = table_name,\n",
-					"        insert_count = insert_count, \n",
-					"        update_count = update_count, \n",
-					"        delete_count = delete_count, \n",
-					"        table_result = \"failed\",\n",
-					"        start_exec_time = start_exec_time, \n",
-					"        end_exec_time = end_exec_time,\n",
-					"        total_exec_time = \"\",\n",
-					"        error_message = error_message\n",
-					"    )\n",
-					"    # Exit with the JSON result\n",
-					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())    \n",
-					""
+					"    error_message = f\"Error appending data to the curated layer table : {str(e)[:800]}\"\n",
+					"    end_exec_time = datetime.now()"
 				],
 				"execution_count": null
 			},
@@ -223,43 +210,21 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"try:\n",
-					"    logInfo(f\"Writing to {table_name}\")\n",
-					"    insert_count = df.count()\n",
+					"if not error_message:\n",
+					"    try:\n",
+					"        insert_count = df.count()\n",
+					"        print(insert_count)\n",
 					"\n",
-					"    df.write.mode(\"overwrite\").format(\"delta\").saveAsTable(table_name)\n",
-					"    logInfo(f\"Written to {table_name}\")\n",
+					"        df.write.mode(\"overwrite\").format(\"parquet\").saveAsTable(table_name)\n",
+					"        print(f\"Written to {table_name}\")\n",
+					"\n",
+					"        end_exec_time = datetime.now()\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error appending data to the curated layer {table_name} table : {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
 					"    \n",
-					"    end_exec_time = str(datetime.now())\n",
-					"    app_insight_logger.add_table_result(                    \n",
-					"        delta_table_name = table_name,\n",
-					"        insert_count = insert_count, \n",
-					"        update_count = update_count, \n",
-					"        delete_count = delete_count, \n",
-					"        table_result = \"success\",\n",
-					"        start_exec_time = start_exec_time, \n",
-					"        end_exec_time = end_exec_time,\n",
-					"        total_exec_time = \"\",\n",
-					"        error_message = \"\"\n",
-					"    )\n",
-					"    \n",
-					"except Exception as e:\n",
-					"    logError(f\"Error appending data to the curated layer table :\\n{e}\")\n",
-					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\n",
-					"    end_exec_time = str(datetime.now())\n",
-					"    app_insight_logger.add_table_result(\n",
-					"        delta_table_name = table_name,\n",
-					"        insert_count = insert_count, \n",
-					"        update_count = update_count, \n",
-					"        delete_count = delete_count, \n",
-					"        table_result = \"failed\",\n",
-					"        start_exec_time = start_exec_time, \n",
-					"        end_exec_time = end_exec_time,\n",
-					"        total_exec_time = \"\",\n",
-					"        error_message = error_message\n",
-					"    )\n",
-					"    # Exit with the JSON result\n",
-					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())    "
+					"    start_exec_time = datetime.now()"
 				],
 				"execution_count": null
 			},
@@ -273,14 +238,43 @@
 					}
 				},
 				"source": [
-					"##### Produce Json formatted output"
+					"#####  Logging Execution Metadata to Azure Application Insights"
 				]
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"# Exit with the JSON result\n",
-					"mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
+					"duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
+					"activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
+					"stage = \"Success\" if not error_message else \"Failed\"\n",
+					"status_message = (\n",
+					"    f\"Successfully loaded data into {table_name} table\"\n",
+					"    if not error_message\n",
+					"    else f\"Failed to load data from {table_name} table\"\n",
+					")\n",
+					"status_code = \"200\" if stage == \"Success\" else \"500\"\n",
+					"\n",
+					"log_telemetry_and_exit(\n",
+					"    stage,\n",
+					"    start_exec_time,\n",
+					"    end_exec_time,\n",
+					"    error_message,\n",
+					"    table_name,\n",
+					"    insert_count,\n",
+					"    update_count,\n",
+					"    delete_count,\n",
+					"    PipelineName,\n",
+					"    PipelineRunID,\n",
+					"    PipelineTriggerID,\n",
+					"    PipelineTriggerName,\n",
+					"    PipelineTriggerType,\n",
+					"    PipelineTriggeredbyPipelineName,\n",
+					"    PipelineTriggeredbyPipelineRunID,\n",
+					"    activity_type,\n",
+					"    duration_seconds,\n",
+					"    status_message,\n",
+					"    status_code\n",
+					")"
 				],
 				"execution_count": null
 			}
