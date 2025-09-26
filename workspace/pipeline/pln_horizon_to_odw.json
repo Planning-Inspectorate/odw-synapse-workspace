@@ -197,243 +197,606 @@
 					"batchCount": 10,
 					"activities": [
 						{
-							"name": "Copy horizon Files",
-							"description": "Copies data from Horizon to odw-raw",
-							"type": "Copy",
+							"name": "Incremental Load",
+							"description": "Checks whether the current file requires incremental loading. If true, triggers the incremental load branch; otherwise, proceeds with full load.",
+							"type": "IfCondition",
 							"dependsOn": [],
-							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
 							"userProperties": [],
 							"typeProperties": {
-								"source": {
-									"type": "SqlServerSource",
-									"queryTimeout": "02:00:00",
-									"isolationLevel": "ReadCommitted",
-									"partitionOption": "None"
-								},
-								"sink": {
-									"type": "DelimitedTextSink",
-									"storeSettings": {
-										"type": "AzureBlobFSWriteSettings"
-									},
-									"formatSettings": {
-										"type": "DelimitedTextWriteSettings",
-										"quoteAllText": true,
-										"fileExtension": ".txt"
-									}
-								},
-								"enableStaging": false,
-								"translator": {
-									"type": "TabularTranslator",
-									"typeConversion": true,
-									"typeConversionSettings": {
-										"allowDataTruncation": true,
-										"treatBooleanAsNumber": false
-									}
-								}
-							},
-							"inputs": [
-								{
-									"referenceName": "ds_Horizon_Source_table",
-									"type": "DatasetReference",
-									"parameters": {
-										"table_name": {
-											"value": "@item().Horizon_Table_Name",
-											"type": "Expression"
-										}
-									}
-								}
-							],
-							"outputs": [
-								{
-									"referenceName": "ds_Horizon_odw_raw",
-									"type": "DatasetReference",
-									"parameters": {
-										"FileName": {
-											"value": "@item().Source_Filename_Format",
-											"type": "Expression"
-										}
-									}
-								}
-							]
-						},
-						{
-							"name": "Record completed horizon to odw data load",
-							"type": "ExecutePipeline",
-							"dependsOn": [
-								{
-									"activity": "Copy horizon Files",
-									"dependencyConditions": [
-										"Completed"
-									]
-								}
-							],
-							"policy": {
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_log_to_appins",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true,
-								"parameters": {
-									"Stage": {
-										"value": "@if(or(equals(activity('Copy horizon Files')?.Error?.Message, ''),equals(activity('Copy horizon Files')?.Error?.Message, null)),'Successfully','Failed')\n",
-										"type": "Expression"
-									},
-									"PipelineName": {
-										"value": "@pipeline().Pipeline",
-										"type": "Expression"
-									},
-									"PipelineRunID": {
-										"value": "@pipeline().RunId",
-										"type": "Expression"
-									},
-									"EndTime": {
-										"value": "@utcNow()",
-										"type": "Expression"
-									},
-									"Inserts": {
-										"value": "@if(\n    or(\n        equals(activity('Copy horizon Files')?.Error?.Message, ''),\n        equals(activity('Copy horizon Files')?.Error?.Message, null)\n    ),\n    activity('Copy horizon Files').output.rowsCopied,\n    ''\n)\n",
-										"type": "Expression"
-									},
-									"ErrorMessage": {
-										"value": "@{if(or(equals(activity('Copy horizon Files')?.Error?.Message, ''), equals(activity('Copy horizon Files')?.Error?.Message, null)), '', activity('Copy horizon Files')?.Error?.Message)}",
-										"type": "Expression"
-									},
-									"StatusMessage": {
-										"value": "@concat('Data Copied From ', item().Horizon_Table_Name, ' To ', item().Source_Filename_Format)",
-										"type": "Expression"
-									},
-									"PipelineTriggerID": {
-										"value": "@pipeline().TriggerId",
-										"type": "Expression"
-									},
-									"PipelineTriggerName": {
-										"value": "@pipeline().TriggerName",
-										"type": "Expression"
-									},
-									"PipelineTriggerType": {
-										"value": "@pipeline().TriggerType",
-										"type": "Expression"
-									},
-									"PipelineTriggeredbyPipelineName": {
-										"value": "@pipeline()?.TriggeredByPipelineName",
-										"type": "Expression"
-									},
-									"PipelineTriggeredbyPipelineRunID": {
-										"value": "@pipeline()?.TriggeredByPipelineRunId",
-										"type": "Expression"
-									},
-									"ActivityType": {
-										"value": "Copy Activity",
-										"type": "Expression"
-									},
-									"DurationSeconds": {
-										"value": "@activity('Copy horizon Files').output.copyDuration\n",
-										"type": "Expression"
-									},
-									"AppInsIKey": {
-										"value": "@pipeline().parameters.apps_insights_ikey",
-										"type": "Expression"
-									}
-								}
-							}
-						},
-						{
-							"name": "Send horizon to odw copy  data failed",
-							"type": "ExecutePipeline",
-							"dependsOn": [
-								{
-									"activity": "Copy horizon Files errorMessage",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"secureInput": true
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_utl_Send_Teams_Message",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true,
-								"parameters": {
-									"dataFactorySubscription": {
-										"value": "@pipeline().parameters.subscription_id",
-										"type": "Expression"
-									},
-									"dataFactoryResourceGroup": {
-										"value": "@pipeline().parameters.resource_group",
-										"type": "Expression"
-									},
-									"pipelineRunId": {
-										"value": "@pipeline().RunId",
-										"type": "Expression"
-									},
-									"teamsWebhookUrl": {
-										"value": "@pipeline().parameters.webhook_url",
-										"type": "Expression"
-									},
-									"activityName": {
-										"value": "@pipeline().Pipeline",
-										"type": "Expression"
-									},
-									"activityMessage": "Copy horizon data failed",
-									"activityDuration": {
-										"value": "@concat(\n    string(div(div(sub(\n        ticks(formatDateTime(utcNow(), 'yyyy-MM-dd HH:mm:sss')),\n        ticks(formatDateTime(if(equals(pipeline().parameters.start_time, null), utcNow(), pipeline().parameters.start_time), 'yyyy-MM-dd HH:mm:sss'))\n    ), 600000000), 60)), 'H:', \n    string(mod(div(sub(\n        ticks(formatDateTime(utcNow(), 'yyyy-MM-dd HH:mm:sss')),\n        ticks(formatDateTime(if(equals(pipeline().parameters.start_time, null), utcNow(), pipeline().parameters.start_time), 'yyyy-MM-dd HH:mm:sss'))\n    ), 600000000), 60)), 'M:00s'\n)",
-										"type": "Expression"
-									},
-									"activityStatus": "Failed",
-									"Colour": {
-										"value": "@pipeline().parameters.failed_colour",
-										"type": "Expression"
-									},
-									"Image": {
-										"value": "@pipeline().parameters.failed_image",
-										"type": "Expression"
-									},
-									"Message_title": "Copy Data from Horizon to ODW_Raw Failed",
-									"Message_subtitle": {
-										"value": "@concat('Data Copied From ', item().Horizon_Table_Name, ' To ', item().Source_Filename_Format, ' Failed with the following error:    ',variables('errorMessage'))",
-										"type": "Expression"
-									}
-								}
-							}
-						},
-						{
-							"name": "Copy horizon Files errorMessage",
-							"description": "",
-							"type": "SetVariable",
-							"dependsOn": [
-								{
-									"activity": "Copy horizon Files",
-									"dependencyConditions": [
-										"Failed"
-									]
-								}
-							],
-							"policy": {
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"variableName": "errorMessage",
-								"value": {
-									"value": "@split(activity('Copy horizon Files')?.Error?.Message, ',')[2]",
+								"expression": {
+									"value": "@equals(item().Incremental, true)\n",
 									"type": "Expression"
-								}
+								},
+								"ifFalseActivities": [
+									{
+										"name": "Copy horizon Files",
+										"description": "Copies data from Horizon to odw-raw",
+										"type": "Copy",
+										"dependsOn": [],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"source": {
+												"type": "SqlServerSource",
+												"queryTimeout": "02:00:00",
+												"isolationLevel": "ReadCommitted",
+												"partitionOption": "None"
+											},
+											"sink": {
+												"type": "DelimitedTextSink",
+												"storeSettings": {
+													"type": "AzureBlobFSWriteSettings"
+												},
+												"formatSettings": {
+													"type": "DelimitedTextWriteSettings",
+													"quoteAllText": true,
+													"fileExtension": ".txt"
+												}
+											},
+											"enableStaging": false,
+											"translator": {
+												"type": "TabularTranslator",
+												"typeConversion": true,
+												"typeConversionSettings": {
+													"allowDataTruncation": true,
+													"treatBooleanAsNumber": false
+												}
+											}
+										},
+										"inputs": [
+											{
+												"referenceName": "ds_Horizon_Source_table",
+												"type": "DatasetReference",
+												"parameters": {
+													"table_name": {
+														"value": "@item().Horizon_Table_Name",
+														"type": "Expression"
+													}
+												}
+											}
+										],
+										"outputs": [
+											{
+												"referenceName": "ds_Horizon_odw_raw",
+												"type": "DatasetReference",
+												"parameters": {
+													"FileName": {
+														"value": "@item().Source_Filename_Format",
+														"type": "Expression"
+													}
+												}
+											}
+										]
+									},
+									{
+										"name": "Record completed horizon to odw data load",
+										"type": "ExecutePipeline",
+										"dependsOn": [
+											{
+												"activity": "Copy horizon Files",
+												"dependencyConditions": [
+													"Completed"
+												]
+											}
+										],
+										"policy": {
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"pipeline": {
+												"referenceName": "pln_log_to_appins",
+												"type": "PipelineReference"
+											},
+											"waitOnCompletion": true,
+											"parameters": {
+												"Stage": {
+													"value": "@if(or(equals(activity('Copy horizon Files')?.Error?.Message, ''),equals(activity('Copy horizon Files')?.Error?.Message, null)),'Successfully','Failed')\n",
+													"type": "Expression"
+												},
+												"PipelineName": {
+													"value": "@pipeline().Pipeline",
+													"type": "Expression"
+												},
+												"PipelineRunID": {
+													"value": "@pipeline().RunId",
+													"type": "Expression"
+												},
+												"EndTime": {
+													"value": "@utcNow()",
+													"type": "Expression"
+												},
+												"Inserts": {
+													"value": "@if(\n    or(\n        equals(activity('Copy horizon Files')?.Error?.Message, ''),\n        equals(activity('Copy horizon Files')?.Error?.Message, null)\n    ),\n    activity('Copy horizon Files').output.rowsCopied,\n    ''\n)\n",
+													"type": "Expression"
+												},
+												"ErrorMessage": {
+													"value": "@{if(or(equals(activity('Copy horizon Files')?.Error?.Message, ''), equals(activity('Copy horizon Files')?.Error?.Message, null)), '', activity('Copy horizon Files')?.Error?.Message)}",
+													"type": "Expression"
+												},
+												"StatusMessage": {
+													"value": "@concat('Data Copied From ', item().Horizon_Table_Name, ' To ', item().Source_Filename_Format)",
+													"type": "Expression"
+												},
+												"PipelineTriggerID": {
+													"value": "@pipeline().TriggerId",
+													"type": "Expression"
+												},
+												"PipelineTriggerName": {
+													"value": "@pipeline().TriggerName",
+													"type": "Expression"
+												},
+												"PipelineTriggerType": {
+													"value": "@pipeline().TriggerType",
+													"type": "Expression"
+												},
+												"PipelineTriggeredbyPipelineName": {
+													"value": "@pipeline()?.TriggeredByPipelineName",
+													"type": "Expression"
+												},
+												"PipelineTriggeredbyPipelineRunID": {
+													"value": "@pipeline()?.TriggeredByPipelineRunId",
+													"type": "Expression"
+												},
+												"ActivityType": {
+													"value": "Copy Activity",
+													"type": "Expression"
+												},
+												"DurationSeconds": {
+													"value": "@activity('Copy horizon Files').output.copyDuration\n",
+													"type": "Expression"
+												},
+												"AppInsIKey": {
+													"value": "@pipeline().parameters.apps_insights_ikey",
+													"type": "Expression"
+												}
+											}
+										}
+									},
+									{
+										"name": "Send horizon to odw copy  data failed",
+										"type": "ExecutePipeline",
+										"dependsOn": [
+											{
+												"activity": "Copy horizon Files errorMessage",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureInput": true
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"pipeline": {
+												"referenceName": "pln_utl_Send_Teams_Message",
+												"type": "PipelineReference"
+											},
+											"waitOnCompletion": true,
+											"parameters": {
+												"dataFactorySubscription": {
+													"value": "@pipeline().parameters.subscription_id",
+													"type": "Expression"
+												},
+												"dataFactoryResourceGroup": {
+													"value": "@pipeline().parameters.resource_group",
+													"type": "Expression"
+												},
+												"pipelineRunId": {
+													"value": "@pipeline().RunId",
+													"type": "Expression"
+												},
+												"teamsWebhookUrl": {
+													"value": "@pipeline().parameters.webhook_url",
+													"type": "Expression"
+												},
+												"activityName": {
+													"value": "@pipeline().Pipeline",
+													"type": "Expression"
+												},
+												"activityMessage": "Copy horizon data failed",
+												"activityDuration": {
+													"value": "@concat(\n    string(div(div(sub(\n        ticks(formatDateTime(utcNow(), 'yyyy-MM-dd HH:mm:sss')),\n        ticks(formatDateTime(if(equals(pipeline().parameters.start_time, null), utcNow(), pipeline().parameters.start_time), 'yyyy-MM-dd HH:mm:sss'))\n    ), 600000000), 60)), 'H:', \n    string(mod(div(sub(\n        ticks(formatDateTime(utcNow(), 'yyyy-MM-dd HH:mm:sss')),\n        ticks(formatDateTime(if(equals(pipeline().parameters.start_time, null), utcNow(), pipeline().parameters.start_time), 'yyyy-MM-dd HH:mm:sss'))\n    ), 600000000), 60)), 'M:00s'\n)",
+													"type": "Expression"
+												},
+												"activityStatus": "Failed",
+												"Colour": {
+													"value": "@pipeline().parameters.failed_colour",
+													"type": "Expression"
+												},
+												"Image": {
+													"value": "@pipeline().parameters.failed_image",
+													"type": "Expression"
+												},
+												"Message_title": "Copy Data from Horizon to ODW_Raw Failed",
+												"Message_subtitle": {
+													"value": "@concat('Data Copied From ', item().Horizon_Table_Name, ' To ', item().Source_Filename_Format, ' Failed with the following error:    ',variables('errorMessage'))",
+													"type": "Expression"
+												}
+											}
+										}
+									},
+									{
+										"name": "Copy horizon Files errorMessage",
+										"description": "",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "Copy horizon Files",
+												"dependencyConditions": [
+													"Failed"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "errorMessage",
+											"value": {
+												"value": "@split(activity('Copy horizon Files')?.Error?.Message, ',')[2]",
+												"type": "Expression"
+											}
+										}
+									}
+								],
+								"ifTrueActivities": [
+									{
+										"name": "Get LastIngestDate",
+										"description": "Looks up the most recent LastIngestDate from the odw_standardised_db.last_ingest_dates control table for the current Horizon table.",
+										"type": "Lookup",
+										"dependsOn": [],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"source": {
+												"type": "AzureSqlSource",
+												"sqlReaderQuery": {
+													"value": "SELECT LastIngestDate \nFROM dbo.last_ingest_dates \nWHERE TableName = '@{item().Horizon_Table_Name}'\n",
+													"type": "Expression"
+												},
+												"queryTimeout": "02:00:00",
+												"partitionOption": "None"
+											},
+											"dataset": {
+												"referenceName": "ds_sql_odw",
+												"type": "DatasetReference",
+												"parameters": {
+													"table_name": "last_ingest_dates",
+													"db_name": "odw_standardised_db"
+												}
+											},
+											"firstRowOnly": true
+										}
+									},
+									{
+										"name": "Set LastIngestDate",
+										"description": "Stores the LastIngestDate retrieved from the control table into a pipeline variable. This value is used to parameterize the incremental query during the data extraction step.",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "Get LastIngestDate",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "LastIngestDate",
+											"value": {
+												"value": "@coalesce(activity('Get LastIngestDate').output.firstRow.LastIngestDate, '1900-01-01T00:00:00')\n",
+												"type": "Expression"
+											}
+										}
+									},
+									{
+										"name": "Incremental Copy",
+										"description": "Copies new or updated records from the Horizon using the @lastIngestDate parameter to filter records in the source query.",
+										"type": "Copy",
+										"dependsOn": [
+											{
+												"activity": "Set LastIngestDate",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"source": {
+												"type": "SqlServerSource",
+												"sqlReaderQuery": {
+													"value": "@concat(\n  'SELECT * FROM ', \n  item().Horizon_Table_Name, \n  ' WHERE ', \n  item().Incremental_Key, \n  ' > CAST(''', \n  variables('LastIngestDate'), \n  ''' AS DATETIME2)'\n)",
+													"type": "Expression"
+												},
+												"queryTimeout": "02:00:00",
+												"partitionOption": "None"
+											},
+											"sink": {
+												"type": "DelimitedTextSink",
+												"storeSettings": {
+													"type": "AzureBlobFSWriteSettings"
+												},
+												"formatSettings": {
+													"type": "DelimitedTextWriteSettings",
+													"quoteAllText": true,
+													"fileExtension": ".txt"
+												}
+											},
+											"enableStaging": false,
+											"translator": {
+												"type": "TabularTranslator",
+												"typeConversion": true,
+												"typeConversionSettings": {
+													"allowDataTruncation": true,
+													"treatBooleanAsNumber": false
+												}
+											}
+										},
+										"inputs": [
+											{
+												"referenceName": "ds_Horizon_Source_table",
+												"type": "DatasetReference",
+												"parameters": {
+													"table_name": "@item().Horizon_Table_Name"
+												}
+											}
+										],
+										"outputs": [
+											{
+												"referenceName": "ds_Horizon_odw_raw",
+												"type": "DatasetReference",
+												"parameters": {
+													"FileName": "@item().Source_Filename_Format"
+												}
+											}
+										]
+									},
+									{
+										"name": "Update LastIngestDate",
+										"description": "Updates the watermark control table (last_ingest_dates) with the current UTC timestamp for the processed table after a successful load.",
+										"type": "SynapseNotebook",
+										"dependsOn": [
+											{
+												"activity": "Incremental Copy",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"notebook": {
+												"referenceName": "update_last_ingest_date",
+												"type": "NotebookReference"
+											},
+											"parameters": {
+												"input": {
+													"value": {
+														"value": "{\n  \"table_name\": \"@{item().Horizon_Table_Name}\"\n}\n\n",
+														"type": "Expression"
+													},
+													"type": "string"
+												}
+											},
+											"snapshot": true,
+											"conf": {
+												"spark.dynamicAllocation.enabled": null,
+												"spark.dynamicAllocation.minExecutors": null,
+												"spark.dynamicAllocation.maxExecutors": null
+											},
+											"numExecutors": null
+										}
+									},
+									{
+										"name": "Record completed Incremental horizon to odw data load",
+										"type": "ExecutePipeline",
+										"dependsOn": [
+											{
+												"activity": "Incremental Copy",
+												"dependencyConditions": [
+													"Completed"
+												]
+											}
+										],
+										"policy": {
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"pipeline": {
+												"referenceName": "pln_log_to_appins",
+												"type": "PipelineReference"
+											},
+											"waitOnCompletion": true,
+											"parameters": {
+												"Stage": {
+													"value": "@if(or(equals(activity('Incremental Copy')?.Error?.Message, ''),equals(activity('Incremental Copy')?.Error?.Message, null)),'Successfully','Failed')\n",
+													"type": "Expression"
+												},
+												"PipelineName": {
+													"value": "@pipeline().Pipeline",
+													"type": "Expression"
+												},
+												"PipelineRunID": {
+													"value": "@pipeline().RunId",
+													"type": "Expression"
+												},
+												"EndTime": {
+													"value": "@utcNow()",
+													"type": "Expression"
+												},
+												"Inserts": {
+													"value": "@if(\n    or(\n        equals(activity('Incremental Copy')?.Error?.Message, ''),\n        equals(activity('Incremental Copy')?.Error?.Message, null)\n    ),\n    activity('Incremental Copy').output.rowsCopied,\n    ''\n)\n",
+													"type": "Expression"
+												},
+												"ErrorMessage": {
+													"value": "@{if(or(equals(activity('Incremental Copy')?.Error?.Message, ''), equals(activity('Incremental Copy')?.Error?.Message, null)), '', activity('Incremental Copy')?.Error?.Message)}",
+													"type": "Expression"
+												},
+												"StatusMessage": {
+													"value": "@concat('Data Copied From ', item().Horizon_Table_Name, ' To ', item().Source_Filename_Format)",
+													"type": "Expression"
+												},
+												"PipelineTriggerID": {
+													"value": "@pipeline().TriggerId",
+													"type": "Expression"
+												},
+												"PipelineTriggerName": {
+													"value": "@pipeline().TriggerName",
+													"type": "Expression"
+												},
+												"PipelineTriggerType": {
+													"value": "@pipeline().TriggerType",
+													"type": "Expression"
+												},
+												"PipelineTriggeredbyPipelineName": {
+													"value": "@pipeline()?.TriggeredByPipelineName",
+													"type": "Expression"
+												},
+												"PipelineTriggeredbyPipelineRunID": {
+													"value": "@pipeline()?.TriggeredByPipelineRunId",
+													"type": "Expression"
+												},
+												"ActivityType": {
+													"value": "Copy Activity",
+													"type": "Expression"
+												},
+												"DurationSeconds": {
+													"value": "@activity('Incremental Copy').output.copyDuration\n",
+													"type": "Expression"
+												},
+												"AppInsIKey": {
+													"value": "@pipeline().parameters.apps_insights_ikey",
+													"type": "Expression"
+												}
+											}
+										}
+									},
+									{
+										"name": "Send horizon to odw Incremental copy data failed",
+										"type": "ExecutePipeline",
+										"dependsOn": [
+											{
+												"activity": "Copy Incremental horizon Files errorMessage",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureInput": true
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"pipeline": {
+												"referenceName": "pln_utl_Send_Teams_Message",
+												"type": "PipelineReference"
+											},
+											"waitOnCompletion": true,
+											"parameters": {
+												"dataFactorySubscription": {
+													"value": "@pipeline().parameters.subscription_id",
+													"type": "Expression"
+												},
+												"dataFactoryResourceGroup": {
+													"value": "@pipeline().parameters.resource_group",
+													"type": "Expression"
+												},
+												"pipelineRunId": {
+													"value": "@pipeline().RunId",
+													"type": "Expression"
+												},
+												"teamsWebhookUrl": {
+													"value": "@pipeline().parameters.webhook_url",
+													"type": "Expression"
+												},
+												"activityName": {
+													"value": "@pipeline().Pipeline",
+													"type": "Expression"
+												},
+												"activityMessage": "Copy horizon data failed",
+												"activityDuration": {
+													"value": "@concat(\n    string(div(div(sub(\n        ticks(formatDateTime(utcNow(), 'yyyy-MM-dd HH:mm:sss')),\n        ticks(formatDateTime(if(equals(pipeline().parameters.start_time, null), utcNow(), pipeline().parameters.start_time), 'yyyy-MM-dd HH:mm:sss'))\n    ), 600000000), 60)), 'H:', \n    string(mod(div(sub(\n        ticks(formatDateTime(utcNow(), 'yyyy-MM-dd HH:mm:sss')),\n        ticks(formatDateTime(if(equals(pipeline().parameters.start_time, null), utcNow(), pipeline().parameters.start_time), 'yyyy-MM-dd HH:mm:sss'))\n    ), 600000000), 60)), 'M:00s'\n)",
+													"type": "Expression"
+												},
+												"activityStatus": "Failed",
+												"Colour": {
+													"value": "@pipeline().parameters.failed_colour",
+													"type": "Expression"
+												},
+												"Image": {
+													"value": "@pipeline().parameters.failed_image",
+													"type": "Expression"
+												},
+												"Message_title": "Copy Data from Horizon to ODW_Raw Failed",
+												"Message_subtitle": {
+													"value": "@concat('Data Copied From ', item().Horizon_Table_Name, ' To ', item().Source_Filename_Format, ' Failed with the following error:    ',variables('errorMessage'))",
+													"type": "Expression"
+												}
+											}
+										}
+									},
+									{
+										"name": "Copy Incremental horizon Files errorMessage",
+										"description": "",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "Incremental Copy",
+												"dependencyConditions": [
+													"Failed"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "errorMessage",
+											"value": {
+												"value": "@split(activity('Incremental Copy')?.Error?.Message, ',')[2]",
+												"type": "Expression"
+											}
+										}
+									}
+								]
 							}
 						}
 					]
@@ -476,7 +839,7 @@
 				],
 				"policy": {
 					"timeout": "0.12:00:00",
-					"retry": 0,
+					"retry": 3,
 					"retryIntervalInSeconds": 30,
 					"secureOutput": false,
 					"secureInput": false
@@ -489,45 +852,27 @@
 					},
 					"parameters": {
 						"PipelineName": {
-							"value": {
-								"value": "@pipeline().Pipeline",
-								"type": "Expression"
-							},
+							"value": "@pipeline().Pipeline",
 							"type": "string"
 						},
 						"PipelineRunID": {
-							"value": {
-								"value": "@pipeline().RunId",
-								"type": "Expression"
-							},
+							"value": "@pipeline().RunId",
 							"type": "string"
 						},
 						"PipelineTriggerID": {
-							"value": {
-								"value": "@pipeline().TriggerId",
-								"type": "Expression"
-							},
+							"value": "@pipeline().TriggerId",
 							"type": "string"
 						},
 						"PipelineTriggerName": {
-							"value": {
-								"value": "@pipeline().TriggerName",
-								"type": "Expression"
-							},
+							"value": "@pipeline().TriggerName",
 							"type": "string"
 						},
 						"PipelineTriggerType": {
-							"value": {
-								"value": "@pipeline().TriggerType",
-								"type": "Expression"
-							},
+							"value": "@pipeline().TriggerType",
 							"type": "string"
 						},
 						"PipelineTriggeredbyPipelineName": {
-							"value": {
-								"value": "@pipeline()?.TriggeredByPipelineName",
-								"type": "Expression"
-							},
+							"value": "@pipeline()?.TriggeredByPipelineName",
 							"type": "string"
 						},
 						"PipelineTriggeredbyPipelineRunID": {
@@ -868,8 +1213,8 @@
 			"H_NoteBook_errorMessage": {
 				"type": "Array"
 			},
-			"horizon_raw_to_std_output": {
-				"type": "Array"
+			"LastIngestDate": {
+				"type": "String"
 			}
 		},
 		"folder": {
