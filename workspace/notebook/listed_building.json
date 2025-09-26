@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "2bb32779-4ca5-4b4e-b8f2-18b91ab016df"
+				"spark.autotune.trackingId": "0491188b-4439-4870-a538-cd9ef0135b59"
 			}
 		},
 		"metadata": {
@@ -102,7 +102,7 @@
 					"import json\n",
 					"from datetime import datetime"
 				],
-				"execution_count": null
+				"execution_count": 1
 			},
 			{
 				"cell_type": "markdown",
@@ -121,6 +121,20 @@
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_applicationinsights"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"PipelineName = \"pln_curated\"\n",
+					"PipelineRunID = \"ae4d7397-72e7-4147-9152-e8711c6d6dab\"\n",
+					"PipelineTriggerID = \"e41e5d48-981a-4c76-8f0e-7079be79686f\"\n",
+					"PipelineTriggerName = \"e41e5d48-981a-4c76-8f0e-7079be79686f\"\n",
+					"PipelineTriggerType = \"PipelineActivity\"\n",
+					"PipelineTriggeredbyPipelineName = \"pln_curated\"\n",
+					"PipelineTriggeredbyPipelineRunID = \"7cd26982-eaab-4646-b3fd-afd12b4bee73\"\n",
+					"instrumentation_key='a1609846-e819-4880-976a-de745a22203f'"
 				],
 				"execution_count": null
 			},
@@ -178,8 +192,7 @@
 				},
 				"source": [
 					"try:\n",
-					"    df = spark.sql(\n",
-					"        f\"\"\"\n",
+					"    df = spark.sql(f\"\"\"\n",
 					"        SELECT DISTINCT    \n",
 					"            CAST(entity AS LONG) AS entity,\n",
 					"            reference,\n",
@@ -187,8 +200,7 @@
 					"            listedBuildingGrade    \n",
 					"        FROM odw_harmonised_db.listed_building    \n",
 					"        WHERE isActive = 'Y'\n",
-					"        \"\"\"\n",
-					"    )\n",
+					"        \"\"\")\n",
 					"\n",
 					"except Exception as e:\n",
 					"    error_message = f\"Error appending data to the curated layer table : {str(e)[:800]}\"\n",
@@ -214,22 +226,17 @@
 				"source": [
 					"if not error_message:\n",
 					"    try:\n",
-					"    start_exec_time = datetime.now()\n",
+					"        insert_count = df.count()\n",
+					"        print(insert_count)\n",
 					"\n",
-					"    insert_count = df.count()\n",
-					"    print(insert_count)\n",
+					"        df.write.mode(\"overwrite\").format(\"parquet\").saveAsTable(table_name)\n",
+					"        print(f\"Written to {table_name}\")\n",
 					"\n",
-					"    df.write.mode(\"overwrite\").format(\"parquet\").saveAsTable(table_name)\n",
-					"    print(f\"Written to {table_name}\")\n",
+					"        end_exec_time = datetime.now()\n",
 					"\n",
-					"    end_exec_time = datetime.now()\n",
-					"\n",
-					"except Exception as e:\n",
-					"    error_message = f\"Error appending data to the curated layer table : {str(e)[:800]}\"\n",
-					"    print(error_message)\n",
-					"\n",
-					"    end_exec_time = datetime.now()\n",
-					""
+					"    except Exception as e:\n",
+					"        error_message = f\"Error appending data to the curated layer {table_name} table : {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()"
 				],
 				"execution_count": null
 			},
