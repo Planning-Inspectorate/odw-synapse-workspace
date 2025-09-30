@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "1c3d76c7-64fd-4dcf-9828-68a70d9b5ad9"
+				"spark.autotune.trackingId": "86b34dc4-ae6b-41fc-83e0-33846c0d9ed5"
 			}
 		},
 		"metadata": {
@@ -53,12 +53,46 @@
 		},
 		"cells": [
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### This purpose of this notebook is to extract logs from AppInsights and store incremental data into pipeline_logs_odw table \n",
+					"##### It does a API call to AppInsigts and get the relevant pipeline logs from master pipeline logs table"
+				]
+			},
+			{
 				"cell_type": "code",
 				"source": [
 					"import requests\n",
 					"import json\n",
+					"import re\n",
 					"from datetime import datetime\n",
-					"from pyspark.sql.types import StructType, StructField, StringType, TimestampType, IntegerType\n",
+					"from pyspark.sql.types import StructType, StructField, StringType, TimestampType, IntegerType"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"<!--  -->"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"\n",
 					"# credentials\n",
 					"tenant_id = \"5878df98-6f88-48ab-9322-998ce557088d\"         \n",
@@ -66,22 +100,19 @@
 					"app_id = \"2e64e70e-4202-411d-9db9-0d4fa7af8278\"    \n",
 					"client_secret= mssparkutils.credentials.getSecretWithLS(\"ls_kv\", \"application-insights-dev-reader\")\n",
 					"\n",
-					"# ------------------------------------------------------------------------------\n",
-					"# 1. Get last timestamp (checkpoint)\n",
-					"# You can maintain this in a Delta table, SQL table, or a config file.\n",
-					"# For demo, assume last checkpoint is pulled from a Delta table:\n",
+					"\n",
+					"# Get the last Max data from the table and log incremental based on this watermark\n",
 					"\n",
 					"try:\n",
 					"    last_checkpoint =  spark.sql('select MAX(timestamp) from logging.pipeline_logs_odw').collect()[0][0]\n",
 					"\n",
 					"except:\n",
-					"    # First run fallback - pull last 7 days\n",
+					"    # For a full load\n",
 					"    last_checkpoint = \"1900-01-01T13:42:28.121734Z\"\n",
 					"\n",
 					"print(f\"Using last checkpoint timestamp: {last_checkpoint}\")\n",
-					"# ------------------------------------------------------------------------------\n",
 					"\n",
-					"# 2. Get AAD token\n",
+					"# Get AAD token\n",
 					"token_url = f\"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token\"\n",
 					"token_data = {\n",
 					"    \"grant_type\": \"client_credentials\",\n",
@@ -93,8 +124,7 @@
 					"token_resp.raise_for_status()\n",
 					"access_token = token_resp.json()[\"access_token\"]\n",
 					"\n",
-					"# ------------------------------------------------------------------------------\n",
-					"# 3. Define KQL query with incremental filter\n",
+					"# KQL query with incremental filter\n",
 					"query = f\"\"\"\n",
 					"customEvents\n",
 					"| where name == \"ODW_Master_Pipeline_Logs\"\n",
@@ -122,9 +152,8 @@
 					"    DurationSeconds = tostring(customDimensions.DurationSeconds)\n",
 					"| order by timestamp asc\n",
 					"\"\"\"\n",
-					"# ------------------------------------------------------------------------------\n",
 					"\n",
-					"# 4. Call App Insights API\n",
+					"\n",
 					"url = f\"https://api.applicationinsights.io/v1/apps/{app_id}/query\"\n",
 					"headers = {\"Authorization\": f\"Bearer {access_token}\"}\n",
 					"params = {\"query\": query}\n",
@@ -133,7 +162,7 @@
 					"resp.raise_for_status()\n",
 					"result = resp.json()\n",
 					"\n",
-					"# 5. Extract rows & columns\n",
+					"\n",
 					"if result[\"tables\"]:\n",
 					"    columns = [c[\"name\"] for c in result[\"tables\"][0][\"columns\"]]\n",
 					"    rows = result[\"tables\"][0][\"rows\"]\n",
@@ -151,7 +180,17 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"df.write.format(\"delta\").mode(\"append\").option(\"path\",\"abfss://logging@pinsstodwdevuks9h80mb.dfs.core.windows.net/logging/pipeline_logs_odw\").saveAsTable(\"logging.pipeline_logs_odw\")"
+					"source_storage_account_path = re.search('url=https://(.+?);', mssparkutils.credentials.getFullConnectionString('ls_backup_source')).group(1)\n",
+					"\n",
+					"full_storage_path    = f'abfss://logging@{source_storage_account_path}logging/pipeline_logs_odw'"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"\n",
+					"df.write.format(\"delta\").mode(\"append\").option(\"path\",full_storage_path).saveAsTable(\"logging.pipeline_logs_odw\")"
 				],
 				"execution_count": null
 			}
