@@ -1,4 +1,5 @@
 from tests.util.pipeline_run_test_case import PipelineRunTestCase
+from tests.util.config import TEST_CONFIG
 import pytest
 
 
@@ -32,7 +33,8 @@ class TestIntegrationPlnTriggerFunctionApp(PipelineRunTestCase):
         pipeline_result = self.run_pipeline(
             "pln_trigger_function_app",
             {
-                "function_name": function_name
+                "function_name": function_name,
+                "Key_Vault_Url": f"https://pinskvsynwodw{TEST_CONFIG['ENV'].lower()}uks.vault.azure.net/secrets/"
             },
             max_wait_time_minutes = 30
         )

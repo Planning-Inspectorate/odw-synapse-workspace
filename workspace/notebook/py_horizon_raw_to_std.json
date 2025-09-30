@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "9256a6cb-016a-46f0-ae65-bcb693c6bb83"
+				"spark.autotune.trackingId": "6760a602-9f16-46e7-8134-0ba4f1e384d3"
 			}
 		},
 		"metadata": {
@@ -127,6 +127,26 @@
 					}
 				},
 				"source": [
+					"### Initialise Application Insight Logging functions"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_applicationinsights"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
 					"### Get the Storage Account"
 				]
 			},
@@ -185,9 +205,27 @@
 					"source_folder='Horizon' #need change\n",
 					"specific_file='' # if not provided, it will ingest all files in the date_folder\n",
 					"delete_existing_table=False\n",
-					"dataAttribute = \"\""
+					"dataAttribute = \"\"\n",
+					"start_exec_time = datetime.now()\n",
+					"insert_count = 0\n",
+					"update_count = 0\n",
+					"delete_count = 0\n",
+					"error_message=''"
 				],
 				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Initialise Logging and Tracking Metrics"
+				]
 			},
 			{
 				"cell_type": "code",
@@ -432,10 +470,15 @@
 					"    logInfo(f\"Writing data to odw_standardised_db.{standardised_table_name}\")\n",
 					"    sparkDF.write.option(\"mergeSchema\", \"true\").format(\"delta\").mode(\"append\").saveAsTable(f\"odw_standardised_db.{standardised_table_name}\")\n",
 					"    logInfo(f\"Written data to odw_standardised_db.{standardised_table_name}\")\n",
+					"    end_exec_time = datetime.now()\n",
 					"    \n",
 					"    standardised_table_df_new = spark.read.format(\"delta\").load(standardised_table_location)\n",
 					"    rows_new = standardised_table_df.filter((standardised_table_df.expected_from == expected_from) & (standardised_table_df.expected_to == expected_to)).count()\n",
 					"    \n",
+					"    #logging and Tracking\n",
+					"    table_name = f\"odw_standardised_db.{definition['Standardised_Table_Name']}\"\n",
+					"    insert_count = rows_new\n",
+					"\n",
 					"    try:\n",
 					"        ingestion_log_schema_loc = f\"abfss://odw-config@{storage_account}tables_logs.json\"\n",
 					"        ingestion_log_schema = spark.read.text(ingestion_log_schema_loc, wholetext=True).first().value\n",
@@ -479,7 +522,7 @@
 					"        logError(f\"All rows have NOT been successfully written. Expected {rows_raw} but {rows_new} written\")\n",
 					"        ingestion_failure = True\n",
 					"    \n",
-					"    return ingestion_failure, rows_raw"
+					"    return ingestion_failure, rows_raw,standardised_table_name,end_exec_time"
 				],
 				"execution_count": null
 			},
@@ -488,6 +531,9 @@
 				"source": [
 					"@logging_to_appins\n",
 					"async def ingest_horizon(date_folder: str, file: str):\n",
+					"    row_count = 0\n",
+					"    error_message = \"\"\n",
+					"    start_exec_time = datetime.now()\n",
 					"    try:\n",
 					"        spark = SparkSession.builder.getOrCreate()\n",
 					"\n",
@@ -517,11 +563,11 @@
 					"                print(f\"Deleting existing table if exists odw_standardised_db.{definition['Standardised_Table_Name']}\")\n",
 					"                mssparkutils.notebook.run('/utils/py_delete_table', 300, arguments={'db_name': 'odw_standardised_db', 'table_name': definition['Standardised_Table_Name']})\n",
 					"\n",
-					"            ingestion_failure, row_count = ingest_adhoc(storage_account, definition, source_path, file, expected_from, expected_to)\n",
+					"            ingestion_failure, row_count,standardised_table_name,end_exec_time = ingest_adhoc(storage_account, definition, source_path, file, expected_from, expected_to)\n",
 					"\n",
 					"            if ingestion_failure:\n",
 					"                print(\"Errors reported during Ingestion!!\")\n",
-					"                raise RuntimeError(\"Ingestion Failure\")\n",
+					"                error_message = \"Errors reported during Ingestion!!\"\n",
 					"            else:\n",
 					"                print(\"No Errors reported during Ingestion\")\n",
 					"        else:\n",
@@ -530,22 +576,83 @@
 					"            else:\n",
 					"                print(f\"Condition Not Satisfied for Load {file} File\")\n",
 					"    except Exception as e:\n",
-					"        print(f\"Failed to process {file}: {e}\")"
+					"        print(f\"Failed to process {file}: {e}\")\n",
+					"        error_message = f\"Failed to process {file}: {str(e)}\"\n",
+					"\n",
+					"    return row_count, error_message,standardised_table_name,start_exec_time,end_exec_time"
 				],
 				"execution_count": null
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"async def load_horizon_async():\n",
-					"    tasks: list = [\n",
-					"        ingest_horizon(date_folder=latest_folder, file=file) for file in horizon_files\n",
-					"    ]\n",
-					"    await asyncio.gather(*tasks)\n",
+					"import asyncio\n",
+					"import nest_asyncio\n",
+					"from datetime import datetime\n",
 					"\n",
 					"nest_asyncio.apply()\n",
-					"loop = asyncio.get_event_loop()\n",
-					"loop.run_until_complete(load_horizon_async())"
+					"\n",
+					"async def process_file(file):\n",
+					"    # Ingest file, returning insert count, error message, and table name\n",
+					"    insert_count, error_message, standardised_table_name, start_exec_time, end_exec_time = await ingest_horizon(date_folder=latest_folder, file=file)\n",
+					"\n",
+					"    # For testing error, uncomment below line or inject error_message dynamically\n",
+					"    # error_message = \"Errors reported during Ingestion!!\"\n",
+					"\n",
+					"    DurationSeconds = (end_exec_time - start_exec_time).total_seconds()\n",
+					"    ActivityType = mssparkutils.runtime.context['currentNotebookName'] + \" NoteBook\"\n",
+					"    StatusMessage = (\n",
+					"    f\"Successfully loaded data from {file} into {standardised_table_name} table\"\n",
+					"    if not error_message\n",
+					"    else f\"Failed to load data from {file} into {standardised_table_name} table\"\n",
+					")\n",
+					"    Stage = \"Success\" if not error_message else \"Failed\"\n",
+					"\n",
+					"    params = {\n",
+					"        \"Stage\": Stage,\n",
+					"        \"PipelineName\": PipelineName,\n",
+					"        \"PipelineRunID\": PipelineRunID,\n",
+					"        \"StartTime\": start_exec_time.isoformat(),\n",
+					"        \"EndTime\": end_exec_time.isoformat(),\n",
+					"        \"Inserts\": insert_count,\n",
+					"        \"Updates\": update_count,\n",
+					"        \"Deletes\": delete_count,\n",
+					"        \"ErrorMessage\": error_message,\n",
+					"        \"StatusMessage\": StatusMessage,\n",
+					"        \"PipelineTriggerID\": PipelineTriggerID,\n",
+					"        \"PipelineTriggerName\": PipelineTriggerName,\n",
+					"        \"PipelineTriggerType\": PipelineTriggerType,\n",
+					"        \"PipelineTriggeredbyPipelineName\": PipelineTriggeredbyPipelineName,\n",
+					"        \"PipelineTriggeredbyPipelineRunID\": PipelineTriggeredbyPipelineRunID,\n",
+					"        \"PipelineExecutionTimeInSec\": DurationSeconds,\n",
+					"        \"ActivityType\": ActivityType,\n",
+					"        \"DurationSeconds\": DurationSeconds,\n",
+					"        \"StatusCode\": \"200\" if Stage == \"Success\" else \"500\",\n",
+					"        \"AppInsCustomEventName\": \"ODW_Master_Pipeline_Logs\"\n",
+					"    }\n",
+					"\n",
+					"    # Send telemetry in a separate thread\n",
+					"    await asyncio.to_thread(send_telemetry_to_app_insights, params)\n",
+					"\n",
+					"    # If error found, raise exception to stop overall processing and quit notebook\n",
+					"    if error_message:\n",
+					"        print(f\"Notebook failed for file {file}: {error_message}\")\n",
+					"        raise RuntimeError(f\"Notebook failed due to error in file {file}: {error_message}\")\n",
+					"\n",
+					"async def load_horizon_async():\n",
+					"    # Process files sequentially to stop on first error,\n",
+					"    # or use gather with return_exceptions=False to stop on exceptions\n",
+					"    for file in horizon_files:\n",
+					"        await process_file(file)\n",
+					"\n",
+					"# Run and handle exception to quit notebook cleanly\n",
+					"try:\n",
+					"    loop = asyncio.get_event_loop()\n",
+					"    loop.run_until_complete(load_horizon_async())\n",
+					"except RuntimeError as e:\n",
+					"    print(str(e))\n",
+					"    import sys\n",
+					"    sys.exit(1)  # Quits the notebook with error code 1"
 				],
 				"execution_count": null
 			}

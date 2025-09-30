@@ -5,7 +5,7 @@ from pipelines.scripts.synapse_artifact.synapse_notebook_util import SynapseNote
 from pipelines.scripts.synapse_artifact.synapse_pipeline_util import SynapsePipelineUtil
 from pipelines.scripts.synapse_artifact.synapse_dataset_util import SynapseDatasetUtil
 from pipelines.scripts.synapse_artifact.synapse_sql_script_util import SynapseSQLScriptUtil
-from pipelines.scripts.util import Util
+from pipelines.scripts.util.util import Util
 from typing import Dict, Any
 import pytest
 import mock

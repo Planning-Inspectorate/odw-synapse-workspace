@@ -48,15 +48,17 @@ resources:
     ref: main
 
 variables:
-- name: variableGroupName
+- name: adoEnvName
   ${{ if eq(parameters.env, 'prod') }}:
-    value: "Terraform Prod"
+    value: "Prod"
   ${{ elseif eq(parameters.env, 'test') }}:
-    value: "Terraform Test"
+    value: "Test"
   ${{ elseif eq(parameters.env, 'build') }}:
-    value: "Terraform Build"
+    value: "Build"
   ${{ else }}:
-    value: "Terraform Dev"
+    value: "Dev"
+- name: variableGroupName
+  value: "Terraform ${{ variables.adoEnvName }}"
 - name: agentPool
   value: 'pins-agent-pool-odw-${{ parameters.env }}-uks'
 - name: azureSubscription
@@ -71,12 +73,19 @@ stages:
 
 - template: pipelines/stages/wait-for-approval.yaml@odw-common
 
+- ${{ if eq(parameters.runTests, true) }}:
+  - template: stages/run-odw-package-tests.yaml
+    parameters:
+      agentPool: ${{ variables.agentPool }}
+      env: ${{ parameters.env }}
+
 - template: stages/deploy-synapse-stage.yaml
   parameters:
     agentPool: ${{ variables.agentPool }}
     env: ${{ parameters.env }}
     armServiceConnectionName: "ODW ${{ upper(parameters.env) }} - Infrastructure"
     fullDeployment: ${{ parameters.fullDeployment }}
+    adoEnvName: ${{ variables.adoEnvName }}
 
 - ${{ if eq(parameters.runTests, true) }}:
   - template: stages/conditional-run-tests.yaml

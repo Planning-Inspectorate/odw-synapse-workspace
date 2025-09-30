@@ -20,12 +20,12 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5f709b8b-0f27-4cd7-96c7-a5d16a5fdbc3"
+				"spark.autotune.trackingId": "f0067155-f956-47c6-9532-7820b99328d6"
 			}
 		},
 		"metadata": {
 			"saveOutput": true,
-			"enableDebugMode": false,
+			"enableDebugMode": true,
 			"kernelspec": {
 				"name": "synapse_pyspark",
 				"display_name": "Synapse PySpark"
@@ -45,18 +45,78 @@
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### The purpose of this pyspark notebook is to read service bus data from owb_standarsied_db.sb_appeal_document Delta table along with other source tables and proccess to owb_harmonised_db.appeal_document Delta table based on existing MiPINS business logic.\n",
+					"\n",
+					"**Description**  \n",
+					"The purpose of this pyspark notebook is to read service bus data from owb_standarsied_db.sb_appeal_document Delta table along with other source tables and proccess to owb_harmonised_db.appeal_document Delta table based on existing MiPINS business logic.\n",
+					"\n",
+					"**Spark Cluster Configuration** -> Apache Spark Version- 3.4, Python Version \t\t- 3.10, Delta Lake Version \t- 2.4\n",
+					""
+				]
+			},
+			{
 				"cell_type": "code",
 				"source": [
 					"from pyspark.sql.types import IntegerType, ArrayType, StructType, StructField\n",
 					"from pyspark.sql import Row\n",
-					"from pyspark.sql.functions import *"
+					"from pyspark.sql.functions import *\n",
+					"from datetime import date,datetime"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise Logging decorator"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise Application Insight Logging functions"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_utils_common_logging_output"
 				],
 				"execution_count": null
 			},
@@ -79,7 +139,12 @@
 					"aie_extracts_table = \"odw_harmonised_db.aie_document_data\"\n",
 					"spark_table_final = \"odw_harmonised_db.appeal_document\"\n",
 					"\n",
-					"primary_key = 'TEMP_PK'"
+					"primary_key = 'TEMP_PK'\n",
+					"\n",
+					"start_exec_time = str(datetime.now())\n",
+					"insert_count = 0\n",
+					"update_count = 0\n",
+					"delete_count = 0"
 				],
 				"execution_count": null
 			},
@@ -97,140 +162,178 @@
 					}
 				},
 				"source": [
-					"# Get data out of the service bus with additional fields needed for Horizon data\n",
-					"service_bus_data = spark.sql(f\"\"\"\n",
-					"                    SELECT DISTINCT\n",
-					"                        MD5(CONCAT(documentId, filename, version, documentURI)) AS {primary_key}\n",
-					"                        ,AppealsDocumentMetadataID\n",
-					"                        ,documentId\n",
-					"                        ,caseId\n",
-					"                        ,caseReference\n",
-					"                        ,version\n",
-					"                        ,filename\n",
-					"                        ,originalFilename\n",
-					"                        ,size\n",
-					"                        ,mime\n",
-					"                        ,documentURI\n",
-					"                        ,publishedDocumentURI\n",
-					"                        ,virusCheckStatus\n",
-					"                        ,fileMD5\n",
-					"                        ,dateCreated\n",
-					"                        ,dateReceived\n",
-					"                        ,datePublished\n",
-					"                        ,lastModified\n",
-					"                        ,caseType\n",
-					"                        ,redactedStatus\n",
-					"                        ,documentType\n",
-					"                        ,sourceSystem\n",
-					"                        ,origin\n",
-					"                        ,owner\n",
-					"                        ,author\n",
-					"                        ,description\n",
-					"                        ,caseStage\n",
-					"                        ,horizonFolderId\n",
+					"try:\n",
+					"    # Get data out of the service bus with additional fields needed for Horizon data\n",
+					"    service_bus_data = spark.sql(f\"\"\"\n",
+					"                        SELECT DISTINCT\n",
+					"                            MD5(CONCAT(documentId, filename, version, documentURI)) AS {primary_key}\n",
+					"                            ,AppealsDocumentMetadataID\n",
+					"                            ,documentId\n",
+					"                            ,caseId\n",
+					"                            ,caseReference\n",
+					"                            ,version\n",
+					"                            ,filename\n",
+					"                            ,originalFilename\n",
+					"                            ,size\n",
+					"                            ,mime\n",
+					"                            ,documentURI\n",
+					"                            ,publishedDocumentURI\n",
+					"                            ,virusCheckStatus\n",
+					"                            ,fileMD5\n",
+					"                            ,dateCreated\n",
+					"                            ,dateReceived\n",
+					"                            ,datePublished\n",
+					"                            ,lastModified\n",
+					"                            ,caseType\n",
+					"                            ,redactedStatus\n",
+					"                            ,documentType\n",
+					"                            ,sourceSystem\n",
+					"                            ,origin\n",
+					"                            ,owner\n",
+					"                            ,author\n",
+					"                            ,description\n",
+					"                            ,caseStage\n",
+					"                            ,horizonFolderId\n",
 					"\n",
-					"                        -- Start Horizon columns\n",
-					"                        ,CAST(NULL AS String) AS caseNumber\n",
-					"                        ,CAST(NULL AS String) AS caseworkTypeGroup\n",
-					"                        ,CAST(NULL AS String) AS caseworkTypeAbbreviation\n",
-					"                        ,CAST(NULL AS String) AS versionFilename\n",
-					"                        ,CAST(NULL AS String) AS incomingOutgoingExternal\n",
-					"                        ,CAST(NULL AS String) AS publishedStatus\n",
-					"                        -- End Horizon columns\n",
+					"                            -- Start Horizon columns\n",
+					"                            ,CAST(NULL AS String) AS caseNumber\n",
+					"                            ,CAST(NULL AS String) AS caseworkTypeGroup\n",
+					"                            ,CAST(NULL AS String) AS caseworkTypeAbbreviation\n",
+					"                            ,CAST(NULL AS String) AS versionFilename\n",
+					"                            ,CAST(NULL AS String) AS incomingOutgoingExternal\n",
+					"                            ,CAST(NULL AS String) AS publishedStatus\n",
+					"                            -- End Horizon columns\n",
+					"                            \n",
+					"                            ,Migrated\n",
+					"                            ,ODTSourceSystem\n",
+					"                            ,SourceSystemID\n",
+					"                            ,IngestionDate \n",
+					"                            ,NULLIF(ValidTo, '') AS ValidTo\n",
+					"                            ,'' as RowID\n",
+					"                            ,IsActive\n",
+					"                            \n",
+					"                        FROM \n",
+					"                            {service_bus_table}\n",
+					"\n",
+					"                    \"\"\")\n",
+					"except Exception as e:\n",
+					"    logError(f\"Error in source Service Bus SQL query :\\n{e}\")\n",
+					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\n",
+					"        \n",
+					"    end_exec_time = str(datetime.now())\n",
+					"    app_insight_logger.add_table_result(\n",
+					"        delta_table_name = spark_table_final,\n",
+					"        insert_count = insert_count, \n",
+					"        update_count = update_count, \n",
+					"        delete_count = delete_count, \n",
+					"        table_result = \"failed\",\n",
+					"        start_exec_time = start_exec_time, \n",
+					"        end_exec_time = end_exec_time,\n",
+					"        total_exec_time = \"\",\n",
+					"        error_message = error_message\n",
+					"    )\n",
+					"    # Exit with the JSON result\n",
+					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"try:\n",
+					"    # Get data out of Horizon and matching the SB schema (with additional fields and ensure data types match)\n",
+					"    horizon_data = spark.sql(f\"\"\"\n",
+					"                    SELECT DISTINCT \n",
+					"                        MD5(\n",
+					"                            CONCAT(\n",
+					"                                COALESCE(Doc.documentId, ''), \n",
+					"                                COALESCE(Doc.filename, ''), \n",
+					"                                COALESCE(CAST(Doc.version AS INTEGER), ''),\n",
+					"                                COALESCE(Aie.documentURI, '')\n",
+					"                            )\n",
+					"                        ) AS {primary_key}\n",
+					"                        ,CAST(NULL AS LONG) AS AppealsDocumentMetadataID\n",
+					"                        ,Doc.documentId\n",
+					"                        ,CAST(Doc.casenodeid AS INTEGER) AS caseId\n",
+					"                        ,Doc.caseReference\n",
+					"                        ,CAST(Doc.version AS INTEGER) AS version\n",
+					"                        ,Doc.filename as filename\n",
+					"                        ,Doc.filename as originalFilename\n",
+					"                        ,CAST(Doc.size AS INTEGER) AS size\n",
+					"                        ,Aie.mime\n",
+					"                        ,Aie.documentURI\n",
+					"                        ,CAST(NULL AS String) AS publishedDocumentURI\n",
+					"                        ,Doc.virusCheckStatus\n",
+					"                        ,Aie.fileMD5\n",
+					"                        ,Doc.dateCreated\n",
+					"                        ,CAST(NULL AS String) AS dateReceived\n",
+					"                        ,Doc.datePublished\n",
+					"                        ,Doc.lastModified\n",
+					"                        ,Doc.caseworkType as caseType\n",
+					"                        ,Doc.redactedStatus\n",
+					"                        ,Doc.documentType\n",
+					"                        ,Doc.sourceSystem -- set to horizon\n",
+					"                        ,CAST(NULL AS String) AS origin\n",
+					"                        ,Aie.owner\n",
+					"                        ,Aie.author\n",
+					"                        ,Doc.documentDescription AS description\n",
+					"                        ,CAST(NULL AS String) AS caseStage\n",
+					"                        ,Doc.folderid AS horizonFolderId\n",
 					"                        \n",
-					"                        ,Migrated\n",
-					"                        ,ODTSourceSystem\n",
-					"                        ,SourceSystemID\n",
-					"                        ,IngestionDate \n",
-					"                        ,NULLIF(ValidTo, '') AS ValidTo\n",
+					"                        -- Start Horizon Fields Not in SB\n",
+					"                        ,Doc.caseNumber\n",
+					"                        ,Doc.caseworkTypeGroup\n",
+					"                        ,Doc.caseworkTypeAbbreviation\n",
+					"                        ,Doc.versionFilename\n",
+					"                        ,Doc.incomingOutgoingExternal\n",
+					"                        ,Doc.publishedStatus\n",
+					"                        -- END Horizon Fields Not in SB\n",
+					"\n",
+					"                        ,\"0\" as Migrated\n",
+					"                        ,\"Horizon\" as ODTSourceSystem\n",
+					"                        ,NULL AS SourceSystemID\n",
+					"                        , to_timestamp(Doc.expected_from)  AS IngestionDate\n",
+					"                        ,CAST(null as string) as ValidTo -- to avoid any null descrepancies\n",
 					"                        ,'' as RowID\n",
-					"                        ,IsActive\n",
-					"                        \n",
-					"                    FROM \n",
-					"                        {service_bus_table}\n",
+					"                        ,'Y' as IsActive\n",
+					"                    FROM\n",
+					"                        {horizon_table} AS Doc\n",
+					"                    LEFT JOIN {aie_extracts_table} AS Aie\n",
+					"                        ON Doc.documentId = Aie.documentid\n",
+					"                        AND Doc.size = Aie.size\n",
+					"                        AND Doc.version = Aie.version\n",
+					"                    WHERE\n",
+					"                        Doc.ingested_datetime = (SELECT MAX(ingested_datetime) FROM {horizon_table})\n",
+					"                \"\"\")\n",
+					"except Exception as e:\n",
+					"    logError(f\"Error in source Horizon SQL query:\\n{e}\")\n",
+					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\n",
 					"\n",
-					"                    \"\"\")"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"# Get data out of Horizon and matching the SB schema (with additional fields and ensure data types match)\n",
-					"horizon_data = spark.sql(f\"\"\"\n",
-					"                SELECT DISTINCT \n",
-					"                    MD5(\n",
-					"                        CONCAT(\n",
-					"                            COALESCE(Doc.documentId, ''), \n",
-					"                            COALESCE(Doc.filename, ''), \n",
-					"                            COALESCE(CAST(Doc.version AS INTEGER), ''),\n",
-					"                            COALESCE(Aie.documentURI, '')\n",
-					"                        )\n",
-					"                    ) AS {primary_key}\n",
-					"                    ,CAST(NULL AS LONG) AS AppealsDocumentMetadataID\n",
-					"                    ,Doc.documentId\n",
-					"                    ,CAST(Doc.casenodeid AS INTEGER) AS caseId\n",
-					"                    ,Doc.caseReference\n",
-					"                    ,CAST(Doc.version AS INTEGER) AS version\n",
-					"                    ,Doc.filename as filename\n",
-					"                    ,Doc.filename as originalFilename\n",
-					"                    ,CAST(Doc.size AS INTEGER) AS size\n",
-					"                    ,Aie.mime\n",
-					"                    ,Aie.documentURI\n",
-					"                    ,CAST(NULL AS String) AS publishedDocumentURI\n",
-					"                    ,Doc.virusCheckStatus\n",
-					"                    ,Aie.fileMD5\n",
-					"                    ,Doc.dateCreated\n",
-					"                    ,CAST(NULL AS String) AS dateReceived\n",
-					"                    ,Doc.datePublished\n",
-					"                    ,Doc.lastModified\n",
-					"                    ,Doc.caseworkType as caseType\n",
-					"                    ,Doc.redactedStatus\n",
-					"                    ,Doc.documentType\n",
-					"                    ,Doc.sourceSystem -- set to horizon\n",
-					"                    ,CAST(NULL AS String) AS origin\n",
-					"                    ,Aie.owner\n",
-					"                    ,Aie.author\n",
-					"                    ,Doc.documentDescription AS description\n",
-					"                    ,CAST(NULL AS String) AS caseStage\n",
-					"                    ,Doc.folderid AS horizonFolderId\n",
-					"                    \n",
-					"                    -- Start Horizon Fields Not in SB\n",
-					"                    ,Doc.caseNumber\n",
-					"                    ,Doc.caseworkTypeGroup\n",
-					"                    ,Doc.caseworkTypeAbbreviation\n",
-					"                    ,Doc.versionFilename\n",
-					"                    ,Doc.incomingOutgoingExternal\n",
-					"                    ,Doc.publishedStatus\n",
-					"                    -- END Horizon Fields Not in SB\n",
-					"\n",
-					"                    ,\"0\" as Migrated\n",
-					"                    ,\"Horizon\" as ODTSourceSystem\n",
-					"                    ,NULL AS SourceSystemID\n",
-					"                    , to_timestamp(Doc.expected_from)  AS IngestionDate\n",
-					"                    ,CAST(null as string) as ValidTo -- to avoid any null descrepancies\n",
-					"                    ,'' as RowID\n",
-					"                    ,'Y' as IsActive\n",
-					"                FROM\n",
-					"                    {horizon_table} AS Doc\n",
-					"                LEFT JOIN {aie_extracts_table} AS Aie\n",
-					"                    ON Doc.documentId = Aie.documentid\n",
-					"                    AND Doc.size = Aie.size\n",
-					"                    AND Doc.version = Aie.version\n",
-					"                WHERE\n",
-					"                    Doc.ingested_datetime = (SELECT MAX(ingested_datetime) FROM {horizon_table})\n",
-					"            \"\"\")"
+					"    end_exec_time = str(datetime.now())\n",
+					"    app_insight_logger.add_table_result(\n",
+					"        delta_table_name = spark_table_final,\n",
+					"        insert_count = insert_count, \n",
+					"        update_count = update_count, \n",
+					"        delete_count = delete_count, \n",
+					"        table_result = \"failed\",\n",
+					"        start_exec_time = start_exec_time, \n",
+					"        end_exec_time = end_exec_time,\n",
+					"        total_exec_time = \"\",\n",
+					"        error_message = error_message\n",
+					"    )\n",
+					"    # Exit with the JSON result\n",
+					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
 				],
 				"execution_count": null
 			},
@@ -254,6 +357,19 @@
 				"execution_count": null
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Prepare data for intermediate appeal_document processing"
+				]
+			},
+			{
 				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
@@ -267,7 +383,27 @@
 					}
 				},
 				"source": [
-					"results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
+					"try:\n",
+					"    results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\n",
+					"\n",
+					"except Exception as e:\n",
+					"    logError(f\"Error in ingesting delta table {spark_table_final}:\\n{e}\")\n",
+					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\n",
+					"\n",
+					"    end_exec_time = str(datetime.now())\n",
+					"    app_insight_logger.add_table_result(\n",
+					"        delta_table_name = spark_table_final,\n",
+					"        insert_count = insert_count, \n",
+					"        update_count = update_count, \n",
+					"        delete_count = delete_count, \n",
+					"        table_result = \"failed\",\n",
+					"        start_exec_time = start_exec_time, \n",
+					"        end_exec_time = end_exec_time,\n",
+					"        total_exec_time = \"\",\n",
+					"        error_message = error_message\n",
+					"    )\n",
+					"    # Exit with the JSON result\n",
+					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
 				],
 				"execution_count": null
 			},
@@ -338,27 +474,27 @@
 				},
 				"source": [
 					"df_calcs = spark.sql(f\"\"\"\n",
-					"                        SELECT\n",
-					"                            CurrentRow.AppealsDocumentMetadataID\n",
-					"                            ,CurrentRow.{primary_key} \n",
-					"                            ,CurrentRow.IngestionDate\n",
-					"                            ,COALESCE(NULLIF(CurrentRow.ValidTo,''), NextRow.IngestionDate) AS ValidTo\n",
-					"                            ,CASE\n",
-					"                                WHEN raw.{primary_key} IS NOT NULL THEN \n",
-					"                                    \"1\"\n",
-					"                                ELSE \n",
-					"                                    \"0\"\n",
-					"                            END AS Migrated\n",
-					"                            ,CurrentRow.IsActive\n",
-					"                        FROM\n",
-					"                            vw_appeal_document_calculations_base AS CurrentRow\n",
-					"                            LEFT OUTER JOIN vw_appeal_document_calculations_base AS NextRow\n",
-					"                                ON CurrentRow.{primary_key} = NextRow.{primary_key}\n",
-					"                                AND CurrentRow.ReverseOrderProcessed - 1 = NextRow.ReverseOrderProcessed\n",
-					"                            LEFT OUTER JOIN (SELECT DISTINCT MD5(CONCAT(documentId, filename, version)) AS {primary_key} FROM  odw_harmonised_db.sb_appeal_document) AS Raw\n",
-					"                                ON CurrentRow.{primary_key} = Raw.{primary_key} \n",
-					"                            ORDER BY currentRow.ReverseOrderProcessed\n",
-					"                    \"\"\")"
+					"    SELECT\n",
+					"    CurrentRow.AppealsDocumentMetadataID\n",
+					"    ,CurrentRow.{primary_key} \n",
+					"    ,CurrentRow.IngestionDate\n",
+					"    ,COALESCE(NULLIF(CurrentRow.ValidTo,''), NextRow.IngestionDate) AS ValidTo\n",
+					"    ,CASE\n",
+					"        WHEN raw.{primary_key} IS NOT NULL THEN \n",
+					"            \"1\"\n",
+					"        ELSE \n",
+					"            \"0\"\n",
+					"    END AS Migrated\n",
+					"    ,CurrentRow.IsActive\n",
+					"    FROM vw_appeal_document_calculations_base AS CurrentRow\n",
+					"    LEFT OUTER JOIN vw_appeal_document_calculations_base AS NextRow\n",
+					"        ON CurrentRow.{primary_key} = NextRow.{primary_key}\n",
+					"        AND CurrentRow.ReverseOrderProcessed - 1 = NextRow.ReverseOrderProcessed\n",
+					"    LEFT OUTER JOIN (SELECT DISTINCT MD5(CONCAT(documentId, filename, version)) AS {primary_key} FROM  odw_harmonised_db.sb_appeal_document) AS Raw\n",
+					"        ON CurrentRow.{primary_key} = Raw.{primary_key} \n",
+					"    ORDER BY currentRow.ReverseOrderProcessed\n",
+					"    \"\"\")\n",
+					""
 				],
 				"execution_count": null
 			},
@@ -395,96 +531,115 @@
 					"collapsed": false
 				},
 				"source": [
-					"results = spark.sql(f\"\"\"\n",
-					"                    SELECT DISTINCT AppealsDocumentMetadataID\n",
-					"                        ,{primary_key}\n",
-					"                        ,documentId\n",
-					"                        ,caseId\n",
-					"                        ,caseReference\n",
-					"                        ,version\n",
-					"                        ,filename\n",
-					"                        ,originalFilename\n",
-					"                        ,size\n",
-					"                        ,mime\n",
-					"                        ,documentURI\n",
-					"                        ,publishedDocumentURI\n",
-					"                        ,virusCheckStatus\n",
-					"                        ,fileMD5\n",
-					"                        ,dateCreated\n",
-					"                        ,dateReceived\n",
-					"                        ,datePublished\n",
-					"                        ,lastModified\n",
-					"                        ,caseType\n",
-					"                        ,redactedStatus\n",
-					"                        ,documentType\n",
-					"                        ,sourceSystem\n",
-					"                        ,origin\n",
-					"                        ,owner\n",
-					"                        ,author\n",
-					"                        ,description\n",
-					"                        ,caseStage\n",
-					"                        ,horizonFolderId\n",
+					"try:\n",
+					"    results = spark.sql(\n",
+					"        f\"\"\"\n",
+					"        SELECT DISTINCT AppealsDocumentMetadataID\n",
+					"            ,{primary_key}\n",
+					"            ,documentId\n",
+					"            ,caseId\n",
+					"            ,caseReference\n",
+					"            ,version\n",
+					"            ,filename\n",
+					"            ,originalFilename\n",
+					"            ,size\n",
+					"            ,mime\n",
+					"            ,documentURI\n",
+					"            ,publishedDocumentURI\n",
+					"            ,virusCheckStatus\n",
+					"            ,fileMD5\n",
+					"            ,dateCreated\n",
+					"            ,dateReceived\n",
+					"            ,datePublished\n",
+					"            ,lastModified\n",
+					"            ,caseType\n",
+					"            ,redactedStatus\n",
+					"            ,documentType\n",
+					"            ,sourceSystem\n",
+					"            ,origin\n",
+					"            ,owner\n",
+					"            ,author\n",
+					"            ,description\n",
+					"            ,caseStage\n",
+					"            ,horizonFolderId\n",
 					"\n",
-					"                        --Start Horizon only fields\n",
-					"                        ,caseNumber\n",
-					"                        ,caseworkTypeGroup\n",
-					"                        ,caseworkTypeAbbreviation\n",
-					"                        ,versionFilename\n",
-					"                        ,incomingOutgoingExternal\n",
-					"                        ,publishedStatus\n",
-					"                        --End Horizon only fields\n",
+					"            --Start Horizon only fields\n",
+					"            ,caseNumber\n",
+					"            ,caseworkTypeGroup\n",
+					"            ,caseworkTypeAbbreviation\n",
+					"            ,versionFilename\n",
+					"            ,incomingOutgoingExternal\n",
+					"            ,publishedStatus\n",
+					"            --End Horizon only fields\n",
 					"\n",
-					"                        ,Migrated\n",
-					"                        ,ODTSourceSystem\n",
-					"                        ,IngestionDate\n",
-					"                        ,ValidTo\n",
-					"                        ,MD5(CONCAT(\n",
-					"                                IFNULL(CAST(AppealsDocumentMetadataID AS bigint), '.')\n",
-					"                                ,IFNULL(CAST(documentId AS String), '.')\n",
-					"                                ,IFNULL(CAST(caseId AS integer), '.')\n",
-					"                                ,IFNULL(CAST(caseReference AS String), '.')\n",
-					"                                ,IFNULL(CAST(version AS integer), '.')\n",
-					"                                ,IFNULL(CAST(filename AS String), '.')\n",
-					"                                ,IFNULL(CAST(originalFilename AS String), '.')\n",
-					"                                ,IFNULL(CAST(size AS integer), '.')\n",
-					"                                ,IFNULL(CAST(mime AS String), '.')\n",
-					"                                ,IFNULL(CAST(documentURI AS String), '.')\n",
-					"                                ,IFNULL(CAST(publishedDocumentURI AS String), '.')\n",
-					"                                ,IFNULL(CAST(virusCheckStatus AS String), '.')\n",
-					"                                ,IFNULL(CAST(fileMD5 AS String), '.')\n",
-					"                                ,IFNULL(CAST(dateCreated AS String), '.')\n",
-					"                                ,IFNULL(CAST(dateReceived AS String), '.')\n",
-					"                                ,IFNULL(CAST(datePublished AS String), '.')\n",
-					"                                ,IFNULL(CAST(lastModified AS String), '.')\n",
-					"                                ,IFNULL(CAST(caseType AS String), '.')\n",
-					"                                ,IFNULL(CAST(redactedStatus AS String), '.')\n",
-					"                                ,IFNULL(CAST(documentType AS String), '.')\n",
-					"                                ,IFNULL(CAST(sourceSystem AS String), '.')\n",
-					"                                ,IFNULL(CAST(origin AS String), '.')\n",
-					"                                ,IFNULL(CAST(owner AS String), '.')\n",
-					"                                ,IFNULL(CAST(author AS String), '.')\n",
-					"                                ,IFNULL(CAST(description AS String), '.')\n",
-					"                                ,IFNULL(CAST(caseStage AS String), '.')\n",
-					"                                ,IFNULL(CAST(horizonFolderId AS String), '.')\n",
+					"            ,Migrated\n",
+					"            ,ODTSourceSystem\n",
+					"            ,IngestionDate\n",
+					"            ,ValidTo\n",
+					"            ,MD5(CONCAT(\n",
+					"                    IFNULL(CAST(AppealsDocumentMetadataID AS bigint), '.')\n",
+					"                    ,IFNULL(CAST(documentId AS String), '.')\n",
+					"                    ,IFNULL(CAST(caseId AS integer), '.')\n",
+					"                    ,IFNULL(CAST(caseReference AS String), '.')\n",
+					"                    ,IFNULL(CAST(version AS integer), '.')\n",
+					"                    ,IFNULL(CAST(filename AS String), '.')\n",
+					"                    ,IFNULL(CAST(originalFilename AS String), '.')\n",
+					"                    ,IFNULL(CAST(size AS integer), '.')\n",
+					"                    ,IFNULL(CAST(mime AS String), '.')\n",
+					"                    ,IFNULL(CAST(documentURI AS String), '.')\n",
+					"                    ,IFNULL(CAST(publishedDocumentURI AS String), '.')\n",
+					"                    ,IFNULL(CAST(virusCheckStatus AS String), '.')\n",
+					"                    ,IFNULL(CAST(fileMD5 AS String), '.')\n",
+					"                    ,IFNULL(CAST(dateCreated AS String), '.')\n",
+					"                    ,IFNULL(CAST(dateReceived AS String), '.')\n",
+					"                    ,IFNULL(CAST(datePublished AS String), '.')\n",
+					"                    ,IFNULL(CAST(lastModified AS String), '.')\n",
+					"                    ,IFNULL(CAST(caseType AS String), '.')\n",
+					"                    ,IFNULL(CAST(redactedStatus AS String), '.')\n",
+					"                    ,IFNULL(CAST(documentType AS String), '.')\n",
+					"                    ,IFNULL(CAST(sourceSystem AS String), '.')\n",
+					"                    ,IFNULL(CAST(origin AS String), '.')\n",
+					"                    ,IFNULL(CAST(owner AS String), '.')\n",
+					"                    ,IFNULL(CAST(author AS String), '.')\n",
+					"                    ,IFNULL(CAST(description AS String), '.')\n",
+					"                    ,IFNULL(CAST(caseStage AS String), '.')\n",
+					"                    ,IFNULL(CAST(horizonFolderId AS String), '.')\n",
 					"\n",
-					"                                ,IFNULL(CAST(caseNumber AS String), '.')\n",
-					"                                ,IFNULL(CAST(caseworkTypeGroup AS String), '.')\n",
-					"                                ,IFNULL(CAST(caseworkTypeAbbreviation AS String), '.')\n",
-					"                                ,IFNULL(CAST(versionFilename AS String), '.')\n",
-					"                                ,IFNULL(CAST(incomingOutgoingExternal AS String), '.')\n",
-					"                                ,IFNULL(CAST(publishedStatus AS String), '.')\n",
-					"                                \n",
-					"                                ,IFNULL(CAST(Migrated AS String), '.')\n",
-					"                                ,IFNULL(CAST(ODTSourceSystem AS String), '.')\n",
-					"                                ,IFNULL(CAST(IngestionDate AS String), '.')\n",
-					"                                ,IFNULL(CAST(ValidTo AS String), '.')\n",
-					"                            )\n",
-					"                        ) AS RowID\n",
-					"                        ,IsActive\n",
-					"                    FROM \n",
-					"                        {spark_table_final}\n",
-					"                \"\"\")\n",
-					"    "
+					"                    ,IFNULL(CAST(caseNumber AS String), '.')\n",
+					"                    ,IFNULL(CAST(caseworkTypeGroup AS String), '.')\n",
+					"                    ,IFNULL(CAST(caseworkTypeAbbreviation AS String), '.')\n",
+					"                    ,IFNULL(CAST(versionFilename AS String), '.')\n",
+					"                    ,IFNULL(CAST(incomingOutgoingExternal AS String), '.')\n",
+					"                    ,IFNULL(CAST(publishedStatus AS String), '.')\n",
+					"                    \n",
+					"                    ,IFNULL(CAST(Migrated AS String), '.')\n",
+					"                    ,IFNULL(CAST(ODTSourceSystem AS String), '.')\n",
+					"                    ,IFNULL(CAST(IngestionDate AS String), '.')\n",
+					"                    ,IFNULL(CAST(ValidTo AS String), '.')\n",
+					"                )\n",
+					"            ) AS RowID\n",
+					"            ,IsActive\n",
+					"        FROM \n",
+					"            {spark_table_final}\n",
+					"        \"\"\")\n",
+					"except Exception as e:\n",
+					"    logError(f\"Error in preparing final dataframe for {spark_table_final}:\\n{e}\")\n",
+					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\n",
+					"\n",
+					"    end_exec_time = str(datetime.now())\n",
+					"    app_insight_logger.add_table_result(\n",
+					"        delta_table_name = spark_table_final,\n",
+					"        insert_count = insert_count, \n",
+					"        update_count = update_count, \n",
+					"        delete_count = delete_count, \n",
+					"        table_result = \"failed\",\n",
+					"        start_exec_time = start_exec_time, \n",
+					"        end_exec_time = end_exec_time,\n",
+					"        total_exec_time = \"\",\n",
+					"        error_message = error_message\n",
+					"    )\n",
+					"    # Exit with the JSON result\n",
+					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
 				],
 				"execution_count": null
 			},
@@ -509,6 +664,19 @@
 				"execution_count": null
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Prepare datafram for the final data set"
+				]
+			},
+			{
 				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
@@ -528,6 +696,19 @@
 				"execution_count": null
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Ingest new records to delta table"
+				]
+			},
+			{
 				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
@@ -541,7 +722,62 @@
 					}
 				},
 				"source": [
-					"final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")"
+					"try:\n",
+					"    \n",
+					"    insert_count = final_df.count()\n",
+					"    final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\n",
+					"    \n",
+					"    end_exec_time = str(datetime.now())\n",
+					"    app_insight_logger.add_table_result(                    \n",
+					"        delta_table_name = spark_table_final,\n",
+					"        insert_count = insert_count, \n",
+					"        update_count = update_count, \n",
+					"        delete_count = delete_count, \n",
+					"        table_result = \"success\",\n",
+					"        start_exec_time = start_exec_time, \n",
+					"        end_exec_time = end_exec_time,\n",
+					"        total_exec_time = \"\",\n",
+					"        error_message = \"\"\n",
+					"    )\n",
+					"except Exception as e:\n",
+					"    logError(f\"Error in ingesting delta table in the final step {spark_table_final}:\\n{e}\")\n",
+					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\n",
+					"    \n",
+					"    end_exec_time = str(datetime.now())\n",
+					"    app_insight_logger.add_table_result(\n",
+					"        delta_table_name = spark_table_final,\n",
+					"        insert_count = insert_count, \n",
+					"        update_count = update_count, \n",
+					"        delete_count = delete_count, \n",
+					"        table_result = \"failed\",\n",
+					"        start_exec_time = start_exec_time, \n",
+					"        end_exec_time = end_exec_time,\n",
+					"        total_exec_time = \"\",\n",
+					"        error_message = error_message\n",
+					"    )\n",
+					"    # Exit with the JSON result\n",
+					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Produce Json formatted output"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Exit with the JSON result\n",
+					"mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
 				],
 				"execution_count": null
 			}

@@ -20,12 +20,12 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "209984c1-f829-4f96-a7cb-61b2b0124d5d"
+				"spark.autotune.trackingId": "9d5403ea-230b-40d3-9c55-97b8e6d2005b"
 			}
 		},
 		"metadata": {
 			"saveOutput": true,
-			"enableDebugMode": false,
+			"enableDebugMode": true,
 			"kernelspec": {
 				"name": "synapse_pyspark",
 				"display_name": "Synapse PySpark"
@@ -45,12 +45,66 @@
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### The purpose of this pyspark notebook is to read service bus data from owb_standarsied_db.sb_appeal_document Delta table and other source tables to owb_harmonised_db.appeal_event Delta table based on existing MiPINS business logic.\n",
+					"\n",
+					"**Description**  \n",
+					"The purpose of this pyspark notebook is to read service bus data from owb_standarsied_db.sb_appeal_document Delta table and other source tables to owb_harmonised_db.appeal_event Delta table based on existing MiPINS business logic.\n",
+					"\n",
+					"**Spark Cluster Configuration** -> Apache Spark Version- 3.4, Python Version \t\t- 3.10, Delta Lake Version \t- 2.4"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Import required libraries"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql.types import IntegerType, ArrayType, StructType, StructField\n",
+					"from pyspark.sql import Row\n",
+					"from pyspark.sql.functions import *\n",
+					"from datetime import date,datetime"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise Logging decorator"
+				]
+			},
 			{
 				"cell_type": "code",
 				"metadata": {
@@ -70,11 +124,22 @@
 				"execution_count": null
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise Application Insight Logging functions"
+				]
+			},
+			{
 				"cell_type": "code",
 				"source": [
-					"from pyspark.sql.types import IntegerType, ArrayType, StructType, StructField\n",
-					"from pyspark.sql import Row\n",
-					"from pyspark.sql.functions import *"
+					"%run utils/py_utils_common_logging_output"
 				],
 				"execution_count": null
 			},
@@ -96,7 +161,12 @@
 					"horizon_table = \"odw_standardised_db.horizon_nsip_advice\"\n",
 					"spark_table_final = \"odw_harmonised_db.nsip_s51_advice\"\n",
 					"horizon_primary_key = \"advicenodeid\"\n",
-					"servicebus_primary_key = \"adviceId\""
+					"servicebus_primary_key = \"adviceId\"\n",
+					"\n",
+					"start_exec_time = str(datetime.now())\n",
+					"insert_count = 0\n",
+					"update_count = 0\n",
+					"delete_count = 0"
 				],
 				"execution_count": null
 			},
@@ -125,54 +195,73 @@
 					}
 				},
 				"source": [
-					"# Get data out of the service bus with additional fields needed for Horizon data\n",
-					"service_bus_data = spark.sql(\"\"\"\n",
-					"                    SELECT DISTINCT\n",
-					"                        NSIPAdviceID\n",
-					"                        ,adviceId\n",
-					"                        ,adviceReference\n",
-					"                        ,caseId\n",
-					"                        ,caseReference\n",
-					"                        ,title\n",
-					"                        ,titleWelsh\n",
-					"                        ,from\n",
-					"                        ,agent\n",
-					"                        ,method\n",
-					"                        ,enquiryDate\n",
-					"                        ,enquiryDetails\n",
-					"                        ,enquiryDetailsWelsh\n",
-					"                        ,adviceGivenBy\n",
-					"                        ,adviceDate\n",
-					"                        ,adviceDetails\n",
-					"                        ,adviceDetailsWelsh\n",
-					"                        ,status\n",
-					"                        ,redactionStatus\n",
-					"                        ,attachmentIds\n",
+					"try:\n",
+					"    # Get data out of the service bus with additional fields needed for Horizon data\n",
+					"    service_bus_data = spark.sql(\"\"\"\n",
+					"                        SELECT DISTINCT\n",
+					"                            NSIPAdviceID\n",
+					"                            ,adviceId\n",
+					"                            ,adviceReference\n",
+					"                            ,caseId\n",
+					"                            ,caseReference\n",
+					"                            ,title\n",
+					"                            ,titleWelsh\n",
+					"                            ,from\n",
+					"                            ,agent\n",
+					"                            ,method\n",
+					"                            ,enquiryDate\n",
+					"                            ,enquiryDetails\n",
+					"                            ,enquiryDetailsWelsh\n",
+					"                            ,adviceGivenBy\n",
+					"                            ,adviceDate\n",
+					"                            ,adviceDetails\n",
+					"                            ,adviceDetailsWelsh\n",
+					"                            ,status\n",
+					"                            ,redactionStatus\n",
+					"                            ,attachmentIds\n",
 					"\n",
-					"                        -- Start Horizon columns\n",
-					"                        ,'Yes' as Section51Advice\n",
-					"                        ,CAST(NULL AS String) as EnquirerFirstName\n",
-					"                        ,CAST(NULL AS String) as EnquirerLastName\n",
-					"                        ,CAST(NULL AS String) as AdviceLastModified\n",
-					"                        ,CAST(NULL AS String) as AttachmentCount\n",
-					"                        ,CAST(NULL AS String) as AttachmentsLastModified\n",
-					"                        ,CAST(NULL AS String) as LastPublishedDate\n",
-					"                        ,CAST(NULL AS String) as WelshLanguage\n",
-					"                        ,CAST(NULL AS String) as CaseWorkType\n",
-					"                        ,CAST(NULL AS String) as AttachmentModifyDate\n",
-					"                        -- End Horizon columns\n",
-					"                        \n",
-					"                        ,Migrated\n",
-					"                        ,ODTSourceSystem\n",
-					"                        ,SourceSystemID\n",
-					"                        ,IngestionDate \n",
-					"                        ,NULLIF(ValidTo, '') AS ValidTo\n",
-					"                        ,'' as RowID\n",
-					"                        ,IsActive\n",
-					"                    FROM \n",
-					"                        odw_harmonised_db.sb_s51_advice\n",
+					"                            -- Start Horizon columns\n",
+					"                            ,'Yes' as Section51Advice\n",
+					"                            ,CAST(NULL AS String) as EnquirerFirstName\n",
+					"                            ,CAST(NULL AS String) as EnquirerLastName\n",
+					"                            ,CAST(NULL AS String) as AdviceLastModified\n",
+					"                            ,CAST(NULL AS String) as AttachmentCount\n",
+					"                            ,CAST(NULL AS String) as AttachmentsLastModified\n",
+					"                            ,CAST(NULL AS String) as LastPublishedDate\n",
+					"                            ,CAST(NULL AS String) as WelshLanguage\n",
+					"                            ,CAST(NULL AS String) as CaseWorkType\n",
+					"                            ,CAST(NULL AS String) as AttachmentModifyDate\n",
+					"                            -- End Horizon columns\n",
+					"                            \n",
+					"                            ,Migrated\n",
+					"                            ,ODTSourceSystem\n",
+					"                            ,SourceSystemID\n",
+					"                            ,IngestionDate \n",
+					"                            ,NULLIF(ValidTo, '') AS ValidTo\n",
+					"                            ,'' as RowID\n",
+					"                            ,IsActive\n",
+					"                        FROM \n",
+					"                            odw_harmonised_db.sb_s51_advice\n",
+					"                        \"\"\")\n",
+					"except Exception as e:\n",
+					"        logError(f\"Error in source Service Bus SQL query odw_harmonised_db.sb_s51_advice :\\n{e}\")\n",
+					"        error_message = app_insight_logger.format_error_message(e, max_length=800)\n",
 					"\n",
-					"                    \"\"\")"
+					"        end_exec_time = str(datetime.now())\n",
+					"        app_insight_logger.add_table_result(\n",
+					"            delta_table_name = spark_table_final,\n",
+					"            insert_count = insert_count, \n",
+					"            update_count = update_count, \n",
+					"            delete_count = delete_count, \n",
+					"            table_result = \"failed\",\n",
+					"            start_exec_time = start_exec_time, \n",
+					"            end_exec_time = end_exec_time,\n",
+					"            total_exec_time = \"\",\n",
+					"            error_message = error_message\n",
+					"        )\n",
+					"        \n",
+					"        # Exit with the JSON result\n",
+					"        mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
 				],
 				"execution_count": null
 			},
@@ -190,55 +279,76 @@
 					}
 				},
 				"source": [
-					"# Get data out of Horizon and matching the SB schema (with additional fields and ensure data types match)\n",
-					"horizon_data = spark.sql(f\"\"\"\n",
-					"                SELECT DISTINCT \n",
-					"                        CAST(NULL AS Long) as NSIPAdviceID\n",
-					"                        ,Cast(advicenodeid as integer) as adviceId\n",
-					"                        ,adviceReference\n",
-					"                        ,Cast(casenodeid as integer) as caseId\n",
-					"                        ,caseReference\n",
-					"                        ,title\n",
-					"                        ,CAST(NULL AS String) as titleWelsh\n",
-					"                        ,concat(enquirerfirstname,' ',enquirerlastname)  as from\n",
-					"                        ,enquirerOrganisation as agent\n",
-					"                        ,enqirymethod as method\n",
-					"                        ,enquiryDate\n",
-					"                        ,enquiry as enquiryDetails\n",
-					"                        ,CAST(NULL AS String) as enquiryDetailsWelsh\n",
-					"                        ,adviceFrom as adviceGivenBy\n",
-					"                        ,adviceDate\n",
-					"                        ,advice as adviceDetails\n",
-					"                        ,CAST(NULL AS String) as adviceDetailsWelsh\n",
-					"                        ,adviceStatus as status\n",
-					"                        ,null as redactionStatus\n",
-					"                        ,attachmentdataID as attachmentIds\n",
-					"                        \n",
-					"                        -- Start Horizon Fields Not in SB\n",
-					"                        ,Section51Advice\n",
-					"                        ,EnquirerFirstName\n",
-					"                        ,EnquirerLastName\n",
-					"                        ,AdviceLastModified\n",
-					"                        ,AttachmentCount\n",
-					"                        ,AttachmentsLastModified\n",
-					"                        ,LastPublishedDate\n",
-					"                        ,WelshLanguage\n",
-					"                        ,CaseWorkType\n",
-					"                        ,AttachmentModifyDate\n",
-					"                        -- END Horizon Fields Not in SB\n",
+					"try:\n",
+					"    # Get data out of Horizon and matching the SB schema (with additional fields and ensure data types match)\n",
+					"    horizon_data = spark.sql(f\"\"\"\n",
+					"                    SELECT DISTINCT \n",
+					"                            CAST(NULL AS Long) as NSIPAdviceID\n",
+					"                            ,Cast(advicenodeid as integer) as adviceId\n",
+					"                            ,adviceReference\n",
+					"                            ,Cast(casenodeid as integer) as caseId\n",
+					"                            ,caseReference\n",
+					"                            ,title\n",
+					"                            ,CAST(NULL AS String) as titleWelsh\n",
+					"                            ,concat(enquirerfirstname,' ',enquirerlastname)  as from\n",
+					"                            ,enquirerOrganisation as agent\n",
+					"                            ,enqirymethod as method\n",
+					"                            ,enquiryDate\n",
+					"                            ,enquiry as enquiryDetails\n",
+					"                            ,CAST(NULL AS String) as enquiryDetailsWelsh\n",
+					"                            ,adviceFrom as adviceGivenBy\n",
+					"                            ,adviceDate\n",
+					"                            ,advice as adviceDetails\n",
+					"                            ,CAST(NULL AS String) as adviceDetailsWelsh\n",
+					"                            ,adviceStatus as status\n",
+					"                            ,null as redactionStatus\n",
+					"                            ,attachmentdataID as attachmentIds\n",
+					"                            \n",
+					"                            -- Start Horizon Fields Not in SB\n",
+					"                            ,Section51Advice\n",
+					"                            ,EnquirerFirstName\n",
+					"                            ,EnquirerLastName\n",
+					"                            ,AdviceLastModified\n",
+					"                            ,AttachmentCount\n",
+					"                            ,AttachmentsLastModified\n",
+					"                            ,LastPublishedDate\n",
+					"                            ,WelshLanguage\n",
+					"                            ,CaseWorkType\n",
+					"                            ,AttachmentModifyDate\n",
+					"                            -- END Horizon Fields Not in SB\n",
 					"\n",
-					"                        ,\"0\" as Migrated\n",
-					"                        ,\"Horizon\" as ODTSourceSystem\n",
-					"                        ,NULL AS SourceSystemID\n",
-					"                        , to_timestamp(expected_from)  AS IngestionDate\n",
-					"                        ,CAST(null as string) as ValidTo -- to avoid any null descrepancies\n",
-					"                        ,'' as RowID\n",
-					"                        ,'Y' as IsActive\n",
-					"FROM\n",
-					"    {horizon_table} AS Horizon\n",
-					"WHERE\n",
-					"    ingested_datetime = ( SELECT MAX(ingested_datetime) FROM {horizon_table} )\n",
-					"\"\"\")"
+					"                            ,\"0\" as Migrated\n",
+					"                            ,\"Horizon\" as ODTSourceSystem\n",
+					"                            ,NULL AS SourceSystemID\n",
+					"                            , to_timestamp(expected_from)  AS IngestionDate\n",
+					"                            ,CAST(null as string) as ValidTo -- to avoid any null descrepancies\n",
+					"                            ,'' as RowID\n",
+					"                            ,'Y' as IsActive\n",
+					"    FROM\n",
+					"        {horizon_table} AS Horizon\n",
+					"    WHERE\n",
+					"        ingested_datetime = ( SELECT MAX(ingested_datetime) FROM {horizon_table} )\n",
+					"    \"\"\")\n",
+					"\n",
+					"except Exception as e:\n",
+					"        logError(f\"Error in source Horizon SQL query {horizon_table}:\\n{e}\")\n",
+					"        error_message = app_insight_logger.format_error_message(e, max_length=800)\n",
+					"\n",
+					"        end_exec_time = str(datetime.now())\n",
+					"        app_insight_logger.add_table_result(\n",
+					"            delta_table_name = spark_table_final,\n",
+					"            insert_count = insert_count, \n",
+					"            update_count = update_count, \n",
+					"            delete_count = delete_count, \n",
+					"            table_result = \"failed\",\n",
+					"            start_exec_time = start_exec_time, \n",
+					"            end_exec_time = end_exec_time,\n",
+					"            total_exec_time = \"\",\n",
+					"            error_message = error_message\n",
+					"        )\n",
+					"        \n",
+					"        # Exit with the JSON result\n",
+					"        mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
 				],
 				"execution_count": null
 			},
@@ -284,6 +394,19 @@
 				"execution_count": null
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Prepare data for intermediate nsip_s51_advice processing"
+				]
+			},
+			{
 				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
@@ -297,9 +420,30 @@
 					}
 				},
 				"source": [
-					"logInfo(f\"Writing {spark_table_final}\")\n",
-					"results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\n",
-					"logInfo(f\"Written {spark_table_final}\")"
+					"try:\n",
+					"    logInfo(f\"Writing {spark_table_final}\")\n",
+					"    results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\n",
+					"    logInfo(f\"Written {spark_table_final}\")\n",
+					"\n",
+					"except Exception as e:\n",
+					"        logError(f\"Error in ingesting delta table {spark_table_final}:\\n{e}\")\n",
+					"        error_message = app_insight_logger.format_error_message(e, max_length=800)\n",
+					"\n",
+					"        end_exec_time = str(datetime.now())\n",
+					"        app_insight_logger.add_table_result(\n",
+					"            delta_table_name = spark_table_final,\n",
+					"            insert_count = insert_count, \n",
+					"            update_count = update_count, \n",
+					"            delete_count = delete_count, \n",
+					"            table_result = \"failed\",\n",
+					"            start_exec_time = start_exec_time, \n",
+					"            end_exec_time = end_exec_time,\n",
+					"            total_exec_time = \"\",\n",
+					"            error_message = error_message\n",
+					"        )\n",
+					"        \n",
+					"        # Exit with the JSON result\n",
+					"        mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
 				],
 				"execution_count": null
 			},
@@ -584,9 +728,23 @@
 					"# Set ValidTo if IsActive = N to the IngestionDate + 1 day\n",
 					"hrm_final = hrm_updated.withColumn(\n",
 					"    \"ValidTo\", when((col(\"ValidTo\").isNull()) & (col(\"IsActive\") == \"N\"), date_add(col(\"IngestionDate\"), 1).cast(\"timestamp\")).otherwise(col(\"ValidTo\"))\n",
-					")"
+					")\n",
+					""
 				],
 				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Ingest final data set to delta table nsip_s51_advice"
+				]
 			},
 			{
 				"cell_type": "code",
@@ -602,9 +760,66 @@
 					}
 				},
 				"source": [
-					"logInfo(f\"Writing to final {spark_table_final}\")\n",
-					"hrm_final.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\n",
-					"logInfo(f\"Written to final {spark_table_final}\")"
+					"try:\n",
+					"    \n",
+					"    insert_count = final_df.count()\n",
+					"    logInfo(f\"Writing to final {spark_table_final}\")\n",
+					"    hrm_final.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\n",
+					"    \n",
+					"    end_exec_time = str(datetime.now())\n",
+					"    logInfo(f\"Written to final {spark_table_final}\")\n",
+					"    \n",
+					"    app_insight_logger.add_table_result(                    \n",
+					"        delta_table_name = spark_table_final,\n",
+					"        insert_count = insert_count, \n",
+					"        update_count = update_count, \n",
+					"        delete_count = delete_count, \n",
+					"        table_result = \"success\",\n",
+					"        start_exec_time = start_exec_time, \n",
+					"        end_exec_time = end_exec_time,\n",
+					"        total_exec_time = \"\",\n",
+					"        error_message = \"\"\n",
+					"    )\n",
+					"except Exception as e:\n",
+					"        logError(f\"Error in ingesting delta table in the final step {spark_table_final}:\\n{e}\")\n",
+					"        error_message = app_insight_logger.format_error_message(e, max_length=800)\n",
+					"        \n",
+					"        end_exec_time = str(datetime.now())\n",
+					"        app_insight_logger.add_table_result(\n",
+					"            delta_table_name = spark_table_final,\n",
+					"            insert_count = insert_count, \n",
+					"            update_count = update_count, \n",
+					"            delete_count = delete_count, \n",
+					"            table_result = \"failed\",\n",
+					"            start_exec_time = start_exec_time, \n",
+					"            end_exec_time = end_exec_time,\n",
+					"            total_exec_time = \"\",\n",
+					"            error_message = error_message\n",
+					"        )\n",
+					"        \n",
+					"        # Exit with the JSON result\n",
+					"        mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Produce Json formatted output"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Exit with the JSON result\n",
+					"mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
 				],
 				"execution_count": null
 			}

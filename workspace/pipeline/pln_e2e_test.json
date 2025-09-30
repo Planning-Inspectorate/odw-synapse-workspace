@@ -1,0 +1,360 @@
+{
+	"name": "pln_e2e_test",
+	"properties": {
+		"activities": [
+			{
+				"name": "Lookup_main_pipeline_config",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": "SELECT STRING_AGG(entity_name, ',') AS entities\nFROM [odw_config_db].[dbo].[main_pipeline_config]\nWHERE is_enabled = 1\nAND System_name = 'Service bus'\nAND entity_name NOT IN ('appeal-document', 'appeal-s78', 'appeal-event', 'entraid', 'nsip-document', 'nsip-exam-timetable', 'nsip-project', 'nsip-project-update','s51-advice', 'nsip-representation')",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "ds_odw_main_config",
+						"type": "DatasetReference"
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "ForEach_service_bus",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Set Service Bus feed",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@variables('service_bus_feed')",
+						"type": "Expression"
+					},
+					"isSequential": true,
+					"activities": [
+						{
+							"name": "Set entity_name",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Lookup_orchestration_table",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "entity_name",
+								"value": {
+									"value": "@item()",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Set cur_table",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Set entity_name",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "cur_table",
+								"value": {
+									"value": "@replace(item(), '-', '_')",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Lookup_orchestration_table",
+							"type": "Lookup",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "AzureSqlSource",
+									"sqlReaderQuery": {
+										"value": "@concat('SELECT Standardised_Table_Name, Harmonised_Table_Name, Entity_Primary_Key FROM orchestration WHERE Source_Frequency_Folder = ''', item(), '''')",
+										"type": "Expression"
+									},
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"dataset": {
+									"referenceName": "ds_odw_config_db",
+									"type": "DatasetReference"
+								},
+								"firstRowOnly": true
+							}
+						},
+						{
+							"name": "Set std_table",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Set entity_name",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "std_table",
+								"value": {
+									"value": "@activity('Lookup_orchestration_table').output.firstRow.Standardised_Table_Name",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Set hrm_table",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Set entity_name",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "hrm_table",
+								"value": {
+									"value": "@activity('Lookup_orchestration_table').output.firstRow.Harmonised_Table_Name",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Set primary_key",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Set entity_name",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "primary_key",
+								"value": {
+									"value": "@activity('Lookup_orchestration_table').output.firstRow.Entity_Primary_Key",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "df_e2e_test_framework",
+							"type": "ExecuteDataFlow",
+							"dependsOn": [
+								{
+									"activity": "Set cur_table",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								},
+								{
+									"activity": "Set std_table",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								},
+								{
+									"activity": "Set hrm_table",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								},
+								{
+									"activity": "Set primary_key",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"dataflow": {
+									"referenceName": "df_e2e_test_framework",
+									"type": "DataFlowReference",
+									"parameters": {
+										"entity_name": {
+											"value": "'@{item()}'",
+											"type": "Expression"
+										},
+										"std_db": "'odw_standardised_db'",
+										"hrm_db": "'odw_harmonised_db'",
+										"cur_db": "'odw_curated_db'",
+										"std_table": {
+											"value": "'@{variables('std_table')}'",
+											"type": "Expression"
+										},
+										"hrm_table": {
+											"value": "'@{variables('hrm_table')}'",
+											"type": "Expression"
+										},
+										"cur_table": {
+											"value": "'@{variables('cur_table')}'",
+											"type": "Expression"
+										},
+										"primary_key": {
+											"value": "'@{variables('primary_key')}'",
+											"type": "Expression"
+										}
+									}
+								},
+								"compute": {
+									"coreCount": 8,
+									"computeType": "General"
+								},
+								"traceLevel": "Fine",
+								"parameters": {
+									"entity_name": {
+										"value": "@variables('entity_name')",
+										"type": "Expression"
+									},
+									"std_db": {
+										"value": "odw_standardised_db",
+										"type": "Expression"
+									},
+									"hrm_db": {
+										"value": "odw_harmonised_db",
+										"type": "Expression"
+									},
+									"cur_db": {
+										"value": "odw_curated_db",
+										"type": "Expression"
+									},
+									"std_table": {
+										"value": "@variables('std_table')",
+										"type": "Expression"
+									},
+									"hrm_table": {
+										"value": "@variables('hrm_table')",
+										"type": "Expression"
+									},
+									"cur_table": {
+										"value": "@variables('cur_table')",
+										"type": "Expression"
+									},
+									"primary_key": {
+										"value": "@variables('primary_key')",
+										"type": "Expression"
+									}
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Set Service Bus feed",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Lookup_main_pipeline_config",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "service_bus_feed",
+					"value": {
+						"value": "@split(activity('Lookup_main_pipeline_config').output.value[0].entities, ',')\n\n",
+						"type": "Expression"
+					}
+				}
+			}
+		],
+		"variables": {
+			"entity_name": {
+				"type": "String"
+			},
+			"std_table": {
+				"type": "String"
+			},
+			"hrm_table": {
+				"type": "String"
+			},
+			"cur_table": {
+				"type": "String"
+			},
+			"primary_key": {
+				"type": "String"
+			},
+			"service_bus_feed": {
+				"type": "Array"
+			}
+		},
+		"folder": {
+			"name": "utils/Master"
+		},
+		"annotations": []
+	}
+}

@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "7cd3f3ed-ce91-431a-9aaa-728f790b405b"
+				"spark.autotune.trackingId": "799f21df-fce0-4d0d-b6af-6be6038ae266"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -61,16 +61,17 @@
 					}
 				},
 				"source": [
-					"## View odw_curated_db.vw_appeal_folder is created"
+					"#### The purpose of this pyspark notebook is to ingest service bus data into a single external table, odw_curated_db.appeals_folder.\n",
+					"\n",
+					"**Description**  \n",
+					"The functionality of this notebook is to ingest data into odw_curated_db.appeals_folder external table reading from odw_harmonised_db.appeals_folder delta table.The addtitional functionality has been added to log the audit information to Application Insight by creating a Json dump at notebook exit.\n",
+					"\n",
+					"**Spark Cluster Configuration** -> Apache Spark Version- 3.4, Python Version \t\t- 3.10, Delta Lake Version \t- 2.4"
 				]
 			},
 			{
-				"cell_type": "code",
+				"cell_type": "markdown",
 				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
 					"nteract": {
 						"transient": {
 							"deleting": false
@@ -78,7 +79,49 @@
 					}
 				},
 				"source": [
-					"%run utils/py_logging_decorator"
+					"## View odw_curated_db.vw_appeal_folder is created"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise Application Insight Logging functions"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_utils_common_logging_output"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise variables"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"start_exec_time = str(datetime.now())\n",
+					"insert_count = 0\n",
+					"update_count = 0\n",
+					"delete_count = 0"
 				],
 				"execution_count": null
 			},
@@ -104,11 +147,8 @@
 					"%%sql\n",
 					"\n",
 					"CREATE OR REPLACE VIEW vw_appeal_folder\n",
-					"\n",
 					"    AS\n",
-					"\n",
-					"SELECT DISTINCT\n",
-					"\n",
+					"    SELECT DISTINCT\n",
 					"    -- CAST(LFD.HorizonFolderID AS INT)    AS horizonFolderId,\n",
 					"    CAST(LFD.ID AS INT)                 AS id,\n",
 					"    LFD.CaseReference                   AS caseReference,\n",
@@ -139,9 +179,7 @@
 					"        THEN 'withdrawn'\n",
 					"        ELSE Lower(LFD.caseStage)\n",
 					"        END                            AS caseStage\n",
-					"\n",
 					"FROM odw_harmonised_db.appeals_folder   AS LFD\n",
-					"\n",
 					"-- WHERE LEFT(LFD.CaseReference,3) IN (\"TR0\",\"WW0\",\"BC0\",\"WA0\",\"WS0\",\"EN0\");\n",
 					""
 				],
@@ -166,6 +204,24 @@
 				"execution_count": null
 			},
 			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"view_df = spark.sql('SELECT * FROM vw_appeal_folder')"
+				],
+				"execution_count": null
+			},
+			{
 				"cell_type": "markdown",
 				"metadata": {
 					"nteract": {
@@ -175,34 +231,56 @@
 					}
 				},
 				"source": [
-					"## Table odw_curated_db.appeal_folder is created"
+					"##### Table odw_curated_db.appeal_folder is created"
 				]
 			},
 			{
 				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
 				"source": [
-					"logInfo(\"Writing odw_curated_db.appeal_folder\")"
+					"try:\n",
+					"    logInfo(\"Writing odw_curated_db.appeal_folder\")\n",
+					"\n",
+					"    insert_count = view_df.count()\n",
+					"    view_df.write.mode(\"overwrite\").saveAsTable('odw_curated_db.appeal_folder')\n",
+					"    logInfo(\"Written odw_curated_db.appeal_folder\")\n",
+					"    \n",
+					"    end_exec_time = str(datetime.now())\n",
+					"    app_insight_logger.add_table_result(                    \n",
+					"        delta_table_name = 'odw_curated_db.appeal_folder',\n",
+					"        insert_count = insert_count, \n",
+					"        update_count = update_count, \n",
+					"        delete_count = delete_count, \n",
+					"        table_result = \"success\",\n",
+					"        start_exec_time = start_exec_time, \n",
+					"        end_exec_time = end_exec_time,\n",
+					"        total_exec_time = \"\",\n",
+					"        error_message = \"\"\n",
+					"    )\n",
+					"    \n",
+					"except Exception as e:\n",
+					"    logError(f\"Error appending data to the curated layer table :\\n{e}\")\n",
+					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\n",
+					"    end_exec_time = str(datetime.now())\n",
+					"    app_insight_logger.add_table_result(\n",
+					"        delta_table_name = 'odw_curated_db.appeal_folder',\n",
+					"        insert_count = insert_count, \n",
+					"        update_count = update_count, \n",
+					"        delete_count = delete_count, \n",
+					"        table_result = \"failed\",\n",
+					"        start_exec_time = start_exec_time, \n",
+					"        end_exec_time = end_exec_time,\n",
+					"        total_exec_time = \"\",\n",
+					"        error_message = error_message\n",
+					"    )\n",
+					"    # Exit with the JSON result\n",
+					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())    \n",
+					""
 				],
 				"execution_count": null
 			},
 			{
-				"cell_type": "code",
+				"cell_type": "markdown",
 				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
 					"nteract": {
 						"transient": {
 							"deleting": false
@@ -210,11 +288,14 @@
 					}
 				},
 				"source": [
-					"from pyspark.sql import SparkSession\n",
-					"spark = SparkSession.builder.getOrCreate()\n",
-					"view_df = spark.sql('SELECT * FROM vw_appeal_folder')\n",
-					"view_df.write.mode(\"overwrite\").saveAsTable('odw_curated_db.appeal_folder')\n",
-					"logInfo(\"Written odw_curated_db.appeal_folder\")"
+					"##### Produce Json formatted output"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Exit with the JSON result\n",
+					"mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
 				],
 				"execution_count": null
 			}

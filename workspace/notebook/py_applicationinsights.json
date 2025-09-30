@@ -1,0 +1,115 @@
+{
+	"name": "py_applicationinsights",
+	"properties": {
+		"folder": {
+			"name": "utils"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "26bb0c30-0dfe-4cae-896b-778ee0c84cbf"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": true,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"import requests\n",
+					"from datetime import datetime\n",
+					"\n",
+					"def send_telemetry_to_app_insights(params):\n",
+					"    try:\n",
+					"        key = mssparkutils.credentials.getSecretWithLS(\"ls_kv\", \"application-insights-connection-string\")\n",
+					"        instrumentation_key = key.split(\"InstrumentationKey=\")[-1].split(\";\")[0]\n",
+					"    except Exception as e:\n",
+					"        print(\"Failed to get instrumentation key:\", e)\n",
+					"        return\n",
+					"\n",
+					"    endpoint = \"https://uksouth-1.in.applicationinsights.azure.com/v2/track\"\n",
+					"\n",
+					"    body = {\n",
+					"        \"Stage\": params.get(\"Stage\"),\n",
+					"        \"PipelineName\": params.get(\"PipelineName\"),\n",
+					"        \"PipelineRunID\": params.get(\"PipelineRunID\"),\n",
+					"        \"StartTime\": params.get(\"StartTime\"),\n",
+					"        \"EndTime\": params.get(\"EndTime\"),\n",
+					"        \"Inserts\": str(params.get(\"Inserts\", 0)),\n",
+					"        \"Updates\": str(params.get(\"Updates\", 0)),\n",
+					"        \"Deletes\": str(params.get(\"Deletes\", 0)),\n",
+					"        \"ErrorMessage\": params.get(\"ErrorMessage\"),\n",
+					"        \"StatusMessage\": params.get(\"StatusMessage\"),\n",
+					"        \"PipelineTriggerID\": params.get(\"PipelineTriggerID\"),\n",
+					"        \"PipelineTriggerName\": params.get(\"PipelineTriggerName\"),\n",
+					"        \"PipelineTriggerType\": params.get(\"PipelineTriggerType\"),\n",
+					"        \"PipelineTriggeredbyPipelineName\": params.get(\"PipelineTriggeredbyPipelineName\"),\n",
+					"        \"PipelineTriggeredbyPipelineRunID\": params.get(\"PipelineTriggeredbyPipelineRunID\"),\n",
+					"        \"PipelineExecutionTimeInSec\": params.get(\"PipelineExecutionTimeInSec\"),\n",
+					"        \"ActivityType\": params.get(\"ActivityType\"),\n",
+					"        \"StatusCode\": params.get(\"StatusCode\"),\n",
+					"        \"DurationSeconds\": params.get(\"DurationSeconds\")\n",
+					"    }\n",
+					"\n",
+					"    payload = {\n",
+					"        \"name\": \"Microsoft.ApplicationInsights.Event\",\n",
+					"        \"time\": datetime.utcnow().isoformat() + \"Z\",\n",
+					"        \"iKey\": instrumentation_key,\n",
+					"        \"data\": {\n",
+					"            \"baseType\": \"EventData\",\n",
+					"            \"baseData\": {\n",
+					"                \"name\": params.get(\"AppInsCustomEventName\", \"ODW_Master_Pipeline_Logs\"),\n",
+					"                \"properties\": body\n",
+					"            }\n",
+					"        }\n",
+					"    }\n",
+					"\n",
+					"    try:\n",
+					"        response = requests.post(endpoint, json=payload)\n",
+					"        print(\"Telemetry sent:\", response.status_code)\n",
+					"    except Exception as e:\n",
+					"        print(\"Failed to send telemetry:\", e)"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
