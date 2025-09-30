@@ -1,3 +1,11 @@
+#### ODW SAPHR Data Model
+
+##### entity: SAP_HR_LEAVERS_MONTHLY
+
+Data model for SAP HR Leavers entity showing data flow from source to curated.
+
+```mermaid
+
 classDiagram
 
     direction LR
