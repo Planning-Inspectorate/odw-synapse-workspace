@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "233c4c1f-63a0-48f7-aece-100b21641093"
+				"spark.autotune.trackingId": "9c3f6364-0db0-433e-a003-69ae01748023"
 			}
 		},
 		"metadata": {
@@ -106,7 +106,7 @@
 					"    }\n",
 					"}"
 				],
-				"execution_count": null
+				"execution_count": 35
 			},
 			{
 				"cell_type": "markdown",
@@ -132,7 +132,7 @@
 					"import pandas as pd\n",
 					"import os"
 				],
-				"execution_count": null
+				"execution_count": 36
 			},
 			{
 				"cell_type": "markdown",
@@ -172,7 +172,7 @@
 					"delete_existing_table=False\n",
 					"dataAttribute = \"\""
 				],
-				"execution_count": null
+				"execution_count": 37
 			},
 			{
 				"cell_type": "markdown",
@@ -203,7 +203,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": null
+				"execution_count": 38
 			},
 			{
 				"cell_type": "markdown",
@@ -223,7 +223,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 39
 			},
 			{
 				"cell_type": "markdown",
@@ -251,7 +251,7 @@
 					"update_count = 0\n",
 					"delete_count = 0"
 				],
-				"execution_count": null
+				"execution_count": 40
 			},
 			{
 				"cell_type": "code",
@@ -269,7 +269,7 @@
 				"source": [
 					"%run \"1-odw-raw-to-standardised/Fileshare/SAP_HR/py_1_raw_to_standardised_hr_functions\""
 				],
-				"execution_count": null
+				"execution_count": 41
 			},
 			{
 				"cell_type": "markdown",
@@ -322,9 +322,8 @@
 					"    logInfo(f\"Reading from {source_path}\")\n",
 					"    files = mssparkutils.fs.ls(source_path)\n",
 					"except Exception as e:\n",
-					"    logError(f\"Raw file not found at {source_path}\")\n",
-					"    logException(e)\n",
-					"    mssparkutils.notebook.exit(f\"Raw file not found at {source_path}\")\n",
+					"        error_message = f\"Error in ingesting delta table in the final step {spark_table_final}: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
 					"\n",
 					"\n",
 					"for file in files:\n",
@@ -355,17 +354,7 @@
 					"        \n",
 					"        insert_count = row_count\n",
 					"        end_exec_time = str(datetime.now())\n",
-					"        app_insight_logger.add_table_result(                    \n",
-					"            delta_table_name = f\"odw_standardised_db.{definition['Standardised_Table_Name']}\", \n",
-					"            insert_count = insert_count, \n",
-					"            update_count = 0, \n",
-					"            delete_count = 0, \n",
-					"            table_result = \"success\",\n",
-					"            start_exec_time = start_exec_time, \n",
-					"            end_exec_time = end_exec_time,\n",
-					"            total_exec_time = \"\",\n",
-					"            error_message = \"\"\n",
-					"        )\n",
+					"        \n",
 					"        \n",
 					"        logInfo(f\"Ingested {row_count} rows\")\n",
 					"\n",
@@ -376,17 +365,7 @@
 					"            \n",
 					"            error_message = app_insight_processor.format_error_message(error_msg, max_length=800)\n",
 					"            end_exec_time = str(datetime.now())\n",
-					"            app_insight_logger.add_table_result(\n",
-					"                delta_table_name = f\"odw_standardised_db.{definition['Standardised_Table_Name']}\",\n",
-					"                insert_count = insert_count,\n",
-					"                update_count = 0, \n",
-					"                delete_count = 0, \n",
-					"                table_result = \"failed\",\n",
-					"                start_exec_time = start_exec_time, \n",
-					"                end_exec_time = end_exec_time,\n",
-					"                total_exec_time = \"\",\n",
-					"                error_message = error_message\n",
-					"            )\n",
+					"            \n",
 					"            # Exit with the JSON result\n",
 					"            mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())            \n",
 					"        else:\n",
@@ -403,7 +382,7 @@
 					"            logError(\"No definition found\")\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 42
 			},
 			{
 				"cell_type": "markdown",
@@ -424,7 +403,7 @@
 					"# Exit with the JSON result\n",
 					"mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
 				],
-				"execution_count": null
+				"execution_count": 43
 			}
 		]
 	}
