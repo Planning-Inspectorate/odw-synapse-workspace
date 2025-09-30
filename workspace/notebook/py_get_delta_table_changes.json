@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "9f207e6b-b633-4094-8cb2-bd218096da92"
+				"spark.autotune.trackingId": "66fe80c6-3003-4db8-bfa7-926ee59262bf"
 			}
 		},
 		"metadata": {
@@ -113,6 +113,7 @@
 					"import json\n",
 					"\n",
 					"spark: SparkSession = SparkSession.builder.getOrCreate()\n",
+					"storage_account = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
 					"table_name_full = f\"{db_name}.{table_name}\""
 				],
 				"execution_count": null
@@ -175,11 +176,7 @@
 				},
 				"source": [
 					"table_path: str = get_delta_table_path(table_name_full)\n",
-					"latest_version: int = get_delta_table_lastest_version(table_path)\n",
-					"\n",
-					"if latest_version == 0:\n",
-					"    logInfo(f\"Failed to read changes in delta table: {table_name_full}. Exception: No history found\")\n",
-					"    mssparkutils.notebook.exit('[]')"
+					"latest_version: int = get_delta_table_lastest_version(table_path)"
 				],
 				"execution_count": null
 			},
@@ -244,7 +241,7 @@
 					"collapsed": false
 				},
 				"source": [
-					"display(changes_df)"
+					"# display(changes_df)"
 				],
 				"execution_count": null
 			},
@@ -286,7 +283,10 @@
 					}
 				},
 				"source": [
-					"mssparkutils.notebook.exit(formatted_data)"
+					"target_folder = f\"abfss://odw-curated@{storage_account}/{table_name}/curated_to_sb\"\n",
+					"target_file = f\"{target_folder}/sb_message.json\"\n",
+					"mssparkutils.fs.mkdirs(target_folder)\n",
+					"mssparkutils.fs.put(target_file, json.dumps(formatted_data), True)"
 				],
 				"execution_count": null
 			}
