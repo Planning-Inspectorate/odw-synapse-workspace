@@ -4,30 +4,12 @@
 		"description": "Use this pipeline template to send notification on a teams channel. \n\nhttps://adf.azure.com/en-us/monitoring/pipelineruns/f90465ff-b8ea-4f0f-9110-178164bc8ee4?factory=/subscriptions/7b68d2b5-dfbe-46e1-938f-98ed143b7953/resourceGroups/demo101-rg/providers/Microsoft.DataFactory/factories/demofactory101",
 		"activities": [
 			{
-				"name": "Set Facts",
-				"description": "Details on Fact schema for teams messages: https://adaptivecards.io/explorer/Fact.html",
-				"type": "SetVariable",
-				"dependsOn": [],
-				"policy": {
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"variableName": "messageCardString",
-					"value": {
-						"value": "{\n    \"@type\": \"MessageCard\",\n    \"@context\": \"http://schema.org/extensions\",\n    \"themeColor\": \"@{pipeline().parameters.Colour}\",\n    \"summary\": \"Pipeline status alert message​​​​\",\n    \"sections\": [\n        {\n            \"activityTitle\": \"@{pipeline().parameters.Message_title}​​​​\",\n            \"activitySubtitle\": \"@{pipeline().parameters.Message_subtitle}\",\n            \"activityImage\": \"@{pipeline().parameters.Image}\",\n            \"facts\": [\n                {\n                    \"name\": \"Pipeline RunId:\",\n                    \"value\": \"@{pipeline().parameters.pipelineRunId}\"\n                },\n                {\n                    \"name\": \"Activity name:\",\n                    \"value\": \"@{pipeline().parameters.activityName}\"\n                },\n                {\n                    \"name\": \"Activity status:\",\n                    \"value\": \"@{pipeline().parameters.activityStatus}\"\n                },\n                {\n                    \"name\": \"Pipeline duration:\",\n                    \"value\": \"@{pipeline().parameters.activityDuration}\"\n                },\n                {\n                    \"name\": \"Message\",\n                    \"value\": \"@{pipeline().parameters.activityMessage}\"\n                },\n                {\n                    \"name\": \"Notification time (UTC):\",\n                    \"value\": \"@{utcNow()}\"\n                },\n                {\n                    \"name\": \"Data Factory name:\",\n                    \"value\": \"@{pipeline().DataFactory}\"\n                }\n            ],\n            \"markdown\": true\n        }\n    ],\n    \"potentialAction\": [\n        {\n            \"@type\": \"OpenUri\",\n            \"name\": \"View pipeline run\",\n            \"targets\": [\n                {\n                    \"os\": \"default\",\n                    \"uri\": \"@{concat('https://web.azuresynapse.net/en/monitoring/pipelineruns/',pipeline().parameters.pipelineRunId,'?workspace=/subscriptions/',pipeline().parameters.dataFactorySubscription,'/resourceGroups/',pipeline().parameters.dataFactoryResourceGroup,'/providers/Microsoft.Synapse/workspaces/',pipeline().DataFactory,'&filter.pipelinename=', pipeline().parameters.activityName)}\"\n                }\n            ]\n        }\n    ]\n}",
-						"type": "Expression"
-					}
-				}
-			},
-			{
 				"name": "Call Teams Webhook",
 				"description": "Invokes teams channel's webbook.",
 				"type": "WebActivity",
 				"dependsOn": [
 					{
-						"activity": "Set Facts_copy1",
+						"activity": "Set Facts",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -58,12 +40,12 @@
 				}
 			},
 			{
-				"name": "Set Facts_copy1",
+				"name": "Set Facts",
 				"description": "Details on Fact schema for teams messages: https://adaptivecards.io/explorer/Fact.html",
 				"type": "SetVariable",
 				"dependsOn": [
 					{
-						"activity": "Set Facts",
+						"activity": "Set Title Colour",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -77,7 +59,24 @@
 				"typeProperties": {
 					"variableName": "messageCardString",
 					"value": {
-						"value": "{\n    \"type\": \"message\",\n    \"attachments\": [\n        {\n            \"contentType\": \"application/vnd.microsoft.card.adaptive\",\n            \"content\": {\n                \"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",\n                \"type\": \"AdaptiveCard\",\n                \"version\": \"1.0\",\n                \"body\": [\n                    {\n                        \"type\": \"TextBlock\",\n                        \"size\": \"large\",\n                        \"weight\": \"bolder\",\n                        \"text\": \"@{pipeline().parameters.Message_title}\",\n                        \"color\": \"good\"\n                    },\n                    {\n                        \"type\": \"TextBlock\",\n                        \"size\": \"small\",\n                        \"weight\": \"bolder\",\n                        \"text\": \"@{pipeline().parameters.Message_subtitle}\"\n                    },\n                    {\n                        \"type\": \"FactSet\",\n                        \"facts\": [\n                            {\n                                \"title\": \"Pipeline RunId:\",\n                                \"value\": \"@{pipeline().parameters.pipelineRunId}\"\n                            },\n                            {\n                                \"title\": \"Activity name:\",\n                                \"value\": \"@{pipeline().parameters.activityName}\"\n                            },\n                            {\n                                \"title\": \"Activity status:\",\n                                \"value\": \"@{pipeline().parameters.activityStatus}\"\n                            },\n                            {\n                                \"title\": \"Pipeline duration:\",\n                                \"value\": \"@{pipeline().parameters.activityDuration}\"\n                            },\n                            {\n                                \"title\": \"Message\",\n                                \"value\": \"@{pipeline().parameters.activityMessage}\"\n                            },\n                            {\n                                \"title\": \"Notification time (UTC):\",\n                                \"value\": \"@{utcNow()}\"\n                            },\n                            {\n                                \"title\": \"Data Factory name:\",\n                                \"value\": \"@{pipeline().DataFactory}\"\n                            }\n                        ]\n                    }\n                ],\n                \"actions\": [\n                    {\n                        \"type\": \"Action.OpenUrl\",\n                        \"title\": \"View pipeline run\",\n                        \"style\": \"positive\",\n                        \"url\": \"@{concat('https://web.azuresynapse.net/en/monitoring/pipelineruns/',pipeline().parameters.pipelineRunId,'?workspace=/subscriptions/',pipeline().parameters.dataFactorySubscription,'/resourceGroups/',pipeline().parameters.dataFactoryResourceGroup,'/providers/Microsoft.Synapse/workspaces/',pipeline().DataFactory,'&filter.pipelinename=', pipeline().parameters.activityName)}\"\n                    }\n                ]\n            }\n        }\n    ]\n}",
+						"value": "{\n    \"type\": \"message\",\n    \"attachments\": [\n        {\n            \"contentType\": \"application/vnd.microsoft.card.adaptive\",\n            \"content\": {\n                \"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",\n                \"type\": \"AdaptiveCard\",\n                \"version\": \"1.0\",\n                \"body\": [\n                    {\n                        \"type\": \"TextBlock\",\n                        \"size\": \"large\",\n                        \"weight\": \"bolder\",\n                        \"text\": \"@{pipeline().parameters.Message_title}\",\n                        \"color\": \"@{variables('titleColour')}\"\n                    },\n                    {\n                        \"type\": \"TextBlock\",\n                        \"size\": \"small\",\n                        \"weight\": \"bolder\",\n                        \"text\": \"@{pipeline().parameters.Message_subtitle}\"\n                    },\n                    {\n                        \"type\": \"FactSet\",\n                        \"facts\": [\n                            {\n                                \"title\": \"Pipeline RunId:\",\n                                \"value\": \"@{pipeline().parameters.pipelineRunId}\"\n                            },\n                            {\n                                \"title\": \"Activity name:\",\n                                \"value\": \"@{pipeline().parameters.activityName}\"\n                            },\n                            {\n                                \"title\": \"Activity status:\",\n                                \"value\": \"@{pipeline().parameters.activityStatus}\"\n                            },\n                            {\n                                \"title\": \"Pipeline duration:\",\n                                \"value\": \"@{pipeline().parameters.activityDuration}\"\n                            },\n                            {\n                                \"title\": \"Message\",\n                                \"value\": \"@{pipeline().parameters.activityMessage}\"\n                            },\n                            {\n                                \"title\": \"Notification time (UTC):\",\n                                \"value\": \"@{utcNow()}\"\n                            },\n                            {\n                                \"title\": \"Data Factory name:\",\n                                \"value\": \"@{pipeline().DataFactory}\"\n                            }\n                        ]\n                    }\n                ],\n                \"actions\": [\n                    {\n                        \"type\": \"Action.OpenUrl\",\n                        \"title\": \"View pipeline run\",\n                        \"style\": \"positive\",\n                        \"url\": \"@{concat('https://web.azuresynapse.net/en/monitoring/pipelineruns/',pipeline().parameters.pipelineRunId,'?workspace=/subscriptions/',pipeline().parameters.dataFactorySubscription,'/resourceGroups/',pipeline().parameters.dataFactoryResourceGroup,'/providers/Microsoft.Synapse/workspaces/',pipeline().DataFactory,'&filter.pipelinename=', pipeline().parameters.activityName)}\"\n                    }\n                ]\n            }\n        }\n    ]\n}",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Set Title Colour",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "titleColour",
+					"value": {
+						"value": "@if(\n    contains(\n        createArray(\n            'default',\n            'dark',\n            'light',\n            'accent',\n            'good',\n            'warning',\n            'attention'\n        ),\n        toLower(pipeline().parameters.Colour)\n    ),\n    pipeline().parameters.Colour,\n    'Default'\n)",
 						"type": "Expression"
 					}
 				}
@@ -132,6 +131,9 @@
 		},
 		"variables": {
 			"messageCardString": {
+				"type": "String"
+			},
+			"titleColour": {
 				"type": "String"
 			}
 		},
