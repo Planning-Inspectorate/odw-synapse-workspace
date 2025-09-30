@@ -1,0 +1,199 @@
+{
+	"name": "py_logging_from_app_insights",
+	"properties": {
+		"folder": {
+			"name": "utils"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"runAsWorkspaceSystemIdentity": false,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "85ced6fa-6bdd-4bc4-85e5-a6141ee12d1e"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": true,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### This purpose of this notebook is to extract logs from AppInsights and store incremental data into pipeline_logs_odw table \n",
+					"##### It does a API call to AppInsigts and get the relevant pipeline logs from master pipeline logs table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"import requests\n",
+					"import json\n",
+					"import re\n",
+					"from datetime import datetime\n",
+					"from pyspark.sql.types import StructType, StructField, StringType, TimestampType, IntegerType"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"<!--  -->"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"\n",
+					"# credentials\n",
+					"tenant_id = \"5878df98-6f88-48ab-9322-998ce557088d\"         \n",
+					"client_id = \"2a302373-df67-4c1e-91a1-f6301b87f42b\"         \n",
+					"app_id = \"2e64e70e-4202-411d-9db9-0d4fa7af8278\"    \n",
+					"client_secret= mssparkutils.credentials.getSecretWithLS(\"ls_kv\", \"application-insights-dev-reader\")\n",
+					"\n",
+					"\n",
+					"# Get the last Max data from the table and log incremental based on this watermark\n",
+					"\n",
+					"try:\n",
+					"    last_checkpoint =  spark.sql('select MAX(timestamp) from logging.pipeline_logs_odw').collect()[0][0]\n",
+					"\n",
+					"except:\n",
+					"    # For a full load\n",
+					"    last_checkpoint = \"1900-01-01T13:42:28.121734Z\"\n",
+					"\n",
+					"print(f\"Using last checkpoint timestamp: {last_checkpoint}\")\n",
+					"\n",
+					"# Get AAD token\n",
+					"token_url = f\"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token\"\n",
+					"token_data = {\n",
+					"    \"grant_type\": \"client_credentials\",\n",
+					"    \"client_id\": client_id,\n",
+					"    \"client_secret\": client_secret,\n",
+					"    \"scope\": \"https://api.applicationinsights.io/.default\"\n",
+					"}\n",
+					"token_resp = requests.post(token_url, data=token_data)\n",
+					"token_resp.raise_for_status()\n",
+					"access_token = token_resp.json()[\"access_token\"]\n",
+					"\n",
+					"# KQL query with incremental filter\n",
+					"query = f\"\"\"\n",
+					"customEvents\n",
+					"| where name == \"ODW_Master_Pipeline_Logs\"\n",
+					"| where timestamp > datetime({last_checkpoint})\n",
+					"| project\n",
+					"    timestamp, \n",
+					"    Stage = tostring(customDimensions.Stage),\n",
+					"    PipelineName = tostring(customDimensions.PipelineName),\n",
+					"    PipelineRunID = tostring(customDimensions.PipelineRunID),\n",
+					"    StatusMessage = tostring(customDimensions.StatusMessage),\n",
+					"    StatusCode = tostring(customDimensions.StatusCode),\n",
+					"    ErrorMessage = tostring(customDimensions.ErrorMessage),\n",
+					"    StartTime = tostring(customDimensions.StartTime),\n",
+					"    EndTime = tostring(customDimensions.EndTime),\n",
+					"    PipelineTriggerType = tostring(customDimensions.PipelineTriggerType),\n",
+					"    PipelineTriggeredbyPipelineName = tostring(customDimensions.PipelineTriggeredbyPipelineName),\n",
+					"    PipelineTriggeredbyPipelineRunID = tostring(customDimensions.PipelineTriggeredbyPipelineRunID),\n",
+					"    PipelineExecutionTimeInSec = tostring(customDimensions.PipelineExecutionTimeInSec),\n",
+					"    ActivityType = tostring(customDimensions.ActivityType),\n",
+					"    Inserts = tostring(customDimensions.Inserts),\n",
+					"    Updates = tostring(customDimensions.Updates),\n",
+					"    Deletes = tostring(customDimensions.Deletes),\n",
+					"    PipelineTriggerID = tostring(customDimensions.PipelineTriggerID),\n",
+					"    PipelineTriggerName = tostring(customDimensions.PipelineTriggerName),\n",
+					"    DurationSeconds = tostring(customDimensions.DurationSeconds)\n",
+					"| order by timestamp asc\n",
+					"\"\"\"\n",
+					"\n",
+					"\n",
+					"url = f\"https://api.applicationinsights.io/v1/apps/{app_id}/query\"\n",
+					"headers = {\"Authorization\": f\"Bearer {access_token}\"}\n",
+					"params = {\"query\": query}\n",
+					"\n",
+					"resp = requests.get(url, headers=headers, params=params)\n",
+					"resp.raise_for_status()\n",
+					"result = resp.json()\n",
+					"\n",
+					"\n",
+					"if result[\"tables\"]:\n",
+					"    columns = [c[\"name\"] for c in result[\"tables\"][0][\"columns\"]]\n",
+					"    rows = result[\"tables\"][0][\"rows\"]\n",
+					"    if len(rows) == 0:\n",
+					"        mssparkutils.notebook.exit(\"No new data available\")\n",
+					"    else:\n",
+					"        df = spark.createDataFrame(rows, schema=columns)\n",
+					"\n",
+					"else:\n",
+					"    print(\"No new data found.\")\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"source_storage_account_path = re.search('url=https://(.+?);', mssparkutils.credentials.getFullConnectionString('ls_backup_source')).group(1)\n",
+					"\n",
+					"full_storage_path    = f'abfss://logging@{source_storage_account_path}logging/pipeline_logs_odw'"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"\n",
+					"df.write.format(\"delta\").mode(\"append\").option(\"path\",full_storage_path).saveAsTable(\"logging.pipeline_logs_odw\")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
