@@ -294,6 +294,35 @@ classDiagram
             Contract_Type: string
             Directorate: string
         }
+
+        class PBI_HR_MEASURES {
+            PersonReportMonthEndKey: string
+            PersonKey: string
+            FTE: float
+            dim_cost_centre_key: string
+            dim_personnel_area_key: int
+            dim_personnel_subarea_key: int
+            dim_organisation_key: int
+            Grade: string
+            dim_work_contract_key: int
+            dim_gender_key: int
+            dim_date_key: int
+            ReportFlag: string
+            dim_started_date_key: int
+            dim_leaving_date_key: int
+            ReasonForAction: string
+            PArea: string
+            WorkingHours: float
+            LengthOfService: float
+            Age: float
+            LeaveEntitlementHours: float
+            LeaveTakenHours: float
+            LeaveRemainingHours: float
+            AnnualSalary: float
+            Position1: string
+            Contract_Type: string
+            Directorate: string
+        }		
     }
 
 %% Source to Standardised Flow
@@ -313,3 +342,4 @@ classDiagram
 `LIVE_DIM_DATE` --> `LOAD_SAP_HR_LEAVERS`
 `LIVE_DIM_DATE_LEAVERS` --> `VW_HR_MEASURES`
 `LIVE_DIM_DATE_STARTED` --> `VW_HR_MEASURES`
+`VW_HR_MEASURES` --> `PBI_HR_MEASURES`
