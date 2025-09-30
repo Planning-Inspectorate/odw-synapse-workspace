@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "29188a79-89d5-4151-bd93-a28e58c49d41"
+				"spark.autotune.trackingId": "aef570d4-30fc-422a-b06f-3ab958204119"
 			}
 		},
 		"metadata": {
@@ -65,14 +65,14 @@
 					"import re\n",
 					"from pyspark.sql.functions import col"
 				],
-				"execution_count": 1
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 2
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
@@ -175,7 +175,12 @@
 					"            replacement_timesheet_uuid,\n",
 					"            timesheetactivity_uuid,\n",
 					"            replacement_timesheetactivity_uuid,\n",
-					"            extract_date\n",
+					"            extract_date,\n",
+					"            SourceSystemID,\n",
+					"            IngestionDate,\n",
+					"            ValidTo,\n",
+					"            RowID,\n",
+					"            IsActive\n",
 					"        )\n",
 					"        SELECT \n",
 					"            person_number,\n",
@@ -269,7 +274,18 @@
 					"            CASE \n",
 					"                WHEN TRIM(extract_date) = '' OR TRIM(extract_date) = 'NULL' OR extract_date IS NULL THEN CURRENT_DATE() \n",
 					"                ELSE TRY_CAST(to_timestamp(extract_date, 'dd/MM/yyyy') AS DATE)\n",
-					"            END AS extract_date\n",
+					"            END AS extract_date,\n",
+					"            'sap_timesheets' AS SourceSystemID,\n",
+					"            CURRENT_TIMESTAMP() AS IngestionDate,\n",
+					"            CAST('9999-12-31 23:59:59' AS TIMESTAMP) AS ValidTo,\n",
+					"            md5(concat_ws('|', \n",
+					"                CAST(person_number AS STRING),\n",
+					"                timesheet_uuid,\n",
+					"                activity_uuid,\n",
+					"                CAST(timesheet_startdate AS STRING),\n",
+					"                CAST(extract_date AS STRING)\n",
+					"            )) AS RowID,\n",
+					"            'Y' AS IsActive\n",
 					"        FROM odw_standardised_db.load_sap_timesheets\n",
 					"    \"\"\")\n",
 					"    \n",
@@ -323,14 +339,7 @@
 					"    # Output the result as JSON for ADF to capture\n",
 					"    mssparkutils.notebook.exit(json.dumps(result))"
 				],
-				"execution_count": 8
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					""
-				],
-				"execution_count": null
+				"execution_count": 4
 			}
 		]
 	}
