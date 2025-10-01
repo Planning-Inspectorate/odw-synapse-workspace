@@ -1,0 +1,203 @@
+{
+	"name": "py_generate_artifacts_for_tables",
+	"properties": {
+		"description": "This notebook helps generate the ARM/JSON artifacts for tables given a database, container, storage account",
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "cec2cd0a-bb48-4f24-b774-95dfa72200e0"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"import re\n",
+					"import json\n",
+					"\n",
+					"def convert_list_to_synapse_artifact(lines: list[str], table_name: str, database_name: str, storage_account:str, container_name: str) -> dict:\n",
+					"    \n",
+					"    if lines and lines[0].startswith(\"Table:\"):\n",
+					"        lines = lines[1:]\n",
+					"\n",
+					"    type_mapping = {\n",
+					"        \"IntegerType\": \"bigint\",\n",
+					"        \"StringType\": \"string\",\n",
+					"        \"TimestampType\": \"timestamp\",\n",
+					"        \"BooleanType\": \"boolean\",\n",
+					"        \"DoubleType\": \"double\",\n",
+					"        \"FloatType\": \"float\",\n",
+					"        \"Timestamp\" : \"timestamp\",\n",
+					"        \"Integer\" : \"bigint\",\n",
+					"        \"Boolean\" : \"boolean\",\n",
+					"        \"Double\" : \"double\",\n",
+					"        \"Float\" : \"float\",\n",
+					"        \"Long\": \"bigint\"\n",
+					"\n",
+					"    }\n",
+					"\n",
+					"    columns = []\n",
+					"    for line in lines:\n",
+					"        match = re.match(r\"-\\s*(\\w+):\\s*(\\w+)Type\\(\\)\", line.strip())\n",
+					"        if match:\n",
+					"            col_name, col_type = match.groups()\n",
+					"           \n",
+					"            mapped_type = type_mapping.get(col_type, \"string\")\n",
+					"            \n",
+					"            columns.append({\n",
+					"                \"Name\": col_name,\n",
+					"                \"OriginDataTypeName\": {\n",
+					"                    \"TypeName\": mapped_type,\n",
+					"                    \"IsNullable\": True,\n",
+					"                    \"IsComplexType\": False,\n",
+					"                    \"Properties\": {\n",
+					"                        \"HIVE_TYPE_STRING\": mapped_type\n",
+					"                    }\n",
+					"                },\n",
+					"                \"DeltaFormatInvalidMessages\": []\n",
+					"            })\n",
+					"\n",
+					"    artifact = {\n",
+					"        \"name\": table_name,\n",
+					"        \"type\": \"TABLE\",\n",
+					"        \"properties\": {\n",
+					"            \"Name\": table_name,\n",
+					"            \"EntityType\": \"TABLE\",\n",
+					"            \"Namespace\": {\n",
+					"                \"DatabaseName\": database_name\n",
+					"            },\n",
+					"            \"Description\": \"\",\n",
+					"            \"TableType\": \"EXTERNAL\",\n",
+					"            \"Origin\": {\n",
+					"                \"Type\": \"SPARK\"\n",
+					"            },\n",
+					"            \"StorageDescriptor\": {\n",
+					"                \"Columns\": columns,\n",
+					"                \"Format\": {\n",
+					"                    \"InputFormat\": \"org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat\",\n",
+					"                    \"OutputFormat\": \"org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat\",\n",
+					"                    \"FormatType\": \"parquet\",\n",
+					"                    \"SerializeLib\": \"org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe\",\n",
+					"                    \"Properties\": {\n",
+					"                        \"path\": f\"abfss://{container_name}@{storage_account}.dfs.core.windows.net/{database_name}/{table_name}\",\n",
+					"                        \"FormatTypeSetToDatabaseDefault\": True\n",
+					"                    }\n",
+					"                },\n",
+					"                \"Source\": {\n",
+					"                    \"Provider\": \"ADLS\",\n",
+					"                    \"Location\": f\"abfss://{container_name}@{storage_account}.dfs.core.windows.net/{database_name}/{table_name}\",\n",
+					"                    \"Properties\": {\n",
+					"                        \"LinkedServiceName\": \"pins-synw-odw-dev-uks-WorkspaceDefaultStorage\",\n",
+					"                        \"LocationSetToDatabaseDefault\": True\n",
+					"                    }\n",
+					"                },\n",
+					"                \"Properties\": {\n",
+					"                    \"textinputformat.record.delimiter\": \",\",\n",
+					"                    \"compression\": \"{\\\"type\\\":\\\"None\\\",\\\"level\\\":\\\"optimal\\\"}\",\n",
+					"                    \"derivedModelAttributeInfo\": \"{\\\"attributeReferences\\\":{}}\"\n",
+					"                },\n",
+					"                \"Compressed\": False,\n",
+					"                \"IsStoredAsSubdirectories\": False\n",
+					"            },\n",
+					"            \"Properties\": {\n",
+					"                \"Description\": \"\",\n",
+					"                \"DisplayFolderInfo\": \"{\\\"name\\\":\\\"Others\\\",\\\"colorCode\\\":\\\"\\\"}\",\n",
+					"                \"PrimaryKeys\": \"\",\n",
+					"                \"spark.sql.sources.provider\": \"parquet\",\n",
+					"                \"sql:IsAppendOnly\": False\n",
+					"            },\n",
+					"            \"Retention\": 0,\n",
+					"            \"Temporary\": False,\n",
+					"            \"IsRewriteEnabled\": False\n",
+					"        }\n",
+					"    }\n",
+					"\n",
+					"    return artifact\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"'''\n",
+					"Generates artifacts for tables in the format of Synapse workspace\n",
+					"'''\n",
+					"storage_account = \"pinsstodwdevuks9h80mb\"\n",
+					"container_name = \"logging\"\n",
+					"database_name = \"logging\"\n",
+					"tables = spark.catalog.listTables(database_name)\n",
+					"\n",
+					"for table in tables:\n",
+					"    output = []\n",
+					"    #print(f\"Table: {table.name}\")\n",
+					"    table_name = f\"Table: {table.name}\"\n",
+					"    output.append(table_name)\n",
+					"    df = spark.read.table(f\"{database_name}.{table.name}\")\n",
+					"    for col in df.schema.fields:\n",
+					"        #print(f\"  - {col.name}: {col.dataType}\")\n",
+					"        column_name = f\"  - {col.name}: {col.dataType}\"\n",
+					"        \n",
+					"        output.append(column_name)\n",
+					"    artifact = convert_list_to_synapse_artifact(output, table.name, database_name, storage_account, container_name)\n",
+					"    print(json.dumps(artifact, indent=2))\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					""
+				]
+			}
+		]
+	}
+}
