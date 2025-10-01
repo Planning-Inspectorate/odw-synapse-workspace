@@ -35,6 +35,9 @@ class TestUnitAzureFunctions(TestCase):
             ("serviceuser", "")
         ]
     )
+    @pytest.mark.skipif(
+        TEST_CONFIG["ENV"] == "BUILD", reason="Cannot run Azure Functions in the build environment, skipping tests"
+    )
     def test_azure_function_return_value(self, function_name: str, url_parameters: str):
         function_secret_name = f"function-url-{function_name.replace('-', '')}"
         try:
