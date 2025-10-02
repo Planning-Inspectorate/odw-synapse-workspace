@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "8dc7ea5a-5caa-468b-81aa-13b92c8b5a35"
+				"spark.autotune.trackingId": "964527a5-b687-48ac-a893-7a9f16dc6575"
 			}
 		},
 		"metadata": {
@@ -94,10 +94,6 @@
 						"transient": {
 							"deleting": false
 						}
-					},
-					"editable": false,
-					"run_control": {
-						"frozen": true
 					}
 				},
 				"source": [
@@ -110,7 +106,7 @@
 					"    }\n",
 					"}"
 				],
-				"execution_count": 2
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -133,9 +129,10 @@
 					"import json\n",
 					"import calendar\n",
 					"from datetime import datetime, timedelta, date\n",
+					"import pandas as pd\n",
 					"import os"
 				],
-				"execution_count": 15
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -173,17 +170,9 @@
 					"specific_file='' # if not provided, it will ingest all files in the date_folder\n",
 					"isMultiLine = True\n",
 					"delete_existing_table=False\n",
-					"dataAttribute = \"\"\n",
-					"\n",
-					"PipelineName = \"\"\n",
-					"PipelineRunID = \"\"\n",
-					"PipelineTriggerID = \"\"\n",
-					"PipelineTriggerName = \"\"\n",
-					"PipelineTriggerType = \"\"\n",
-					"PipelineTriggeredbyPipelineName = \"\"\n",
-					"PipelineTriggeredbyPipelineRunID = \"\""
+					"dataAttribute = \"\""
 				],
-				"execution_count": 16
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -214,7 +203,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 17
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -232,9 +221,9 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"%run utils/py_applicationinsights"
+					"%run utils/py_utils_common_logging_output"
 				],
-				"execution_count": 18
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -257,14 +246,12 @@
 					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
 					"raw_container = \"abfss://odw-raw@\" + storage_account\n",
 					"\n",
-					"start_exec_time = datetime.now()\n",
+					"start_exec_time = str(datetime.now())\n",
 					"insert_count = 0\n",
 					"update_count = 0\n",
-					"delete_count = 0\n",
-					"error_message =\"\" \n",
-					""
+					"delete_count = 0"
 				],
-				"execution_count": 19
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -282,7 +269,7 @@
 				"source": [
 					"%run \"1-odw-raw-to-standardised/Fileshare/SAP_HR/py_1_raw_to_standardised_hr_functions\""
 				],
-				"execution_count": 20
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -335,8 +322,9 @@
 					"    logInfo(f\"Reading from {source_path}\")\n",
 					"    files = mssparkutils.fs.ls(source_path)\n",
 					"except Exception as e:\n",
-					"        error_message = f\"Error in ingesting delta table in the final step {definition['Standardised_Table_Name']}: {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()\n",
+					"    logError(f\"Raw file not found at {source_path}\")\n",
+					"    logException(e)\n",
+					"    mssparkutils.notebook.exit(f\"Raw file not found at {source_path}\")\n",
 					"\n",
 					"\n",
 					"for file in files:\n",
@@ -366,44 +354,18 @@
 					"        (ingestion_failure, row_count) = ingest_adhoc(storage_account, definition, source_path, file.name, expected_from, expected_to, process_name, isMultiLine, dataAttribute)\n",
 					"        \n",
 					"        insert_count = row_count\n",
-					"        end_exec_time = datetime.now()\n",
-					"\n",
-					"\n",
-					"        print(\"Envalgelos Code start here\")\n",
-					"\n",
-					"        duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
-					"        activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
-					"        stage = \"Success\" if not error_message else \"Failed\"\n",
-					"        status_message = (\n",
-					"            f\"Successfully loaded data into {definition['Standardised_Table_Name']} table\"\n",
-					"            if not error_message\n",
-					"            else f\"Failed to load data from {definition['Standardised_Table_Name']} table\"\n",
+					"        end_exec_time = str(datetime.now())\n",
+					"        app_insight_logger.add_table_result(                    \n",
+					"            delta_table_name = f\"odw_standardised_db.{definition['Standardised_Table_Name']}\", \n",
+					"            insert_count = insert_count, \n",
+					"            update_count = 0, \n",
+					"            delete_count = 0, \n",
+					"            table_result = \"success\",\n",
+					"            start_exec_time = start_exec_time, \n",
+					"            end_exec_time = end_exec_time,\n",
+					"            total_exec_time = \"\",\n",
+					"            error_message = \"\"\n",
 					"        )\n",
-					"        status_code = \"200\" if stage == \"Success\" else \"500\"\n",
-					"        \n",
-					"        log_telemetry_and_exit(\n",
-					"            stage,\n",
-					"            start_exec_time,\n",
-					"            end_exec_time,\n",
-					"            error_message,\n",
-					"            f\"odw_standardised_db.{definition['Standardised_Table_Name']}\",\n",
-					"            insert_count,\n",
-					"            update_count,\n",
-					"            delete_count,\n",
-					"            PipelineName,\n",
-					"            PipelineRunID,\n",
-					"            PipelineTriggerID,\n",
-					"            PipelineTriggerName,\n",
-					"            PipelineTriggerType,\n",
-					"            PipelineTriggeredbyPipelineName,\n",
-					"            PipelineTriggeredbyPipelineRunID,\n",
-					"            activity_type,\n",
-					"            duration_seconds,\n",
-					"            status_message,\n",
-					"            status_code\n",
-					"        )\n",
-					"        \n",
-					"        print(\"Envalgelos Code ends here\")\n",
 					"        \n",
 					"        logInfo(f\"Ingested {row_count} rows\")\n",
 					"\n",
@@ -414,7 +376,17 @@
 					"            \n",
 					"            error_message = app_insight_processor.format_error_message(error_msg, max_length=800)\n",
 					"            end_exec_time = str(datetime.now())\n",
-					"            \n",
+					"            app_insight_logger.add_table_result(\n",
+					"                delta_table_name = f\"odw_standardised_db.{definition['Standardised_Table_Name']}\",\n",
+					"                insert_count = insert_count,\n",
+					"                update_count = 0, \n",
+					"                delete_count = 0, \n",
+					"                table_result = \"failed\",\n",
+					"                start_exec_time = start_exec_time, \n",
+					"                end_exec_time = end_exec_time,\n",
+					"                total_exec_time = \"\",\n",
+					"                error_message = error_message\n",
+					"            )\n",
 					"            # Exit with the JSON result\n",
 					"            mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())            \n",
 					"        else:\n",
@@ -431,7 +403,7 @@
 					"            logError(\"No definition found\")\n",
 					""
 				],
-				"execution_count": 21
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -445,6 +417,14 @@
 				"source": [
 					"##### Produce Json format output"
 				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Exit with the JSON result\n",
+					"mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
+				],
+				"execution_count": null
 			}
 		]
 	}
