@@ -1,0 +1,274 @@
+{
+  "name": "listed_building_parquet_to_delta",
+  "properties": {
+    "folder": {
+      "name": "odw-curated"
+    },
+    "nbformat": 4,
+    "nbformat_minor": 2,
+    "bigDataPool": {
+      "referenceName": "pinssynspodw34",
+      "type": "BigDataPoolReference"
+    },
+    "sessionProperties": {
+      "driverMemory": "28g",
+      "driverCores": 4,
+      "executorMemory": "28g",
+      "executorCores": 4,
+      "numExecutors": 2,
+      "conf": {
+        "spark.dynamicAllocation.enabled": "false",
+        "spark.dynamicAllocation.minExecutors": "2",
+        "spark.dynamicAllocation.maxExecutors": "2",
+        "spark.autotune.trackingId": "1d49f005-7257-4def-b06b-de723cac7611"
+      }
+    },
+    "metadata": {
+      "saveOutput": true,
+      "enableDebugMode": true,
+      "kernelspec": {
+        "name": "synapse_pyspark",
+        "display_name": "Synapse PySpark"
+      },
+      "language_info": {
+        "name": "python"
+      },
+      "a365ComputeOptions": {
+        "id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+        "name": "pinssynspodw34",
+        "type": "Spark",
+        "endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+        "auth": {
+          "type": "AAD",
+          "authResource": "https://dev.azuresynapse.net"
+        },
+        "sparkVersion": "3.4",
+        "nodeCount": 3,
+        "cores": 4,
+        "memory": 28,
+        "automaticScaleJobs": false
+      },
+      "sessionKeepAliveTimeout": 30
+    },
+    "cells": [
+      {
+        "cell_type": "markdown",
+        "metadata": {
+          "nteract": {"transient": {"deleting": false}}
+        },
+        "source": [
+          "### Convert Parquet (partitioned) to Delta: listed_building\n",
+          "\n",
+          "This notebook converts a partitioned Parquet dataset in ADLS Gen2 to Delta format, preserving the partition columns.\n",
+          "- Source (Parquet): abfss://odw-curated@pinsstodwdevuks9h80mb.dfs.core.windows.net/listed_building/\n",
+          "- Destination (Delta): abfss://odw-curated@pinsstodwdevuks9h80mb.dfs.core.windows.net/listed_building_delta/\n",
+          "\n",
+          "Flags let you optionally: attempt in-place conversion (CONVERT TO DELTA), swap folder names after copy, and register a metastore table.\n"
+        ]
+      },
+      {
+        "cell_type": "code",
+        "metadata": {
+          "jupyter": {"source_hidden": false, "outputs_hidden": false},
+          "nteract": {"transient": {"deleting": false}}
+        },
+        "source": [
+          "from datetime import datetime\n",
+          "from pyspark.sql.functions import col\n",
+          "\n",
+          "# Storage settings\n",
+          "account = \"pinsstodwdevuks9h80mb\"\n",
+          "container = \"odw-curated\"\n",
+          "source_dir = \"listed_building\"\n",
+          "dest_dir = \"listed_building_delta\"\n",
+          "\n",
+          "# Derived paths\n",
+          "src = f\"abfss://{container}@{account}.dfs.core.windows.net/{source_dir}/\"\n",
+          "dst = f\"abfss://{container}@{account}.dfs.core.windows.net/{dest_dir}/\"\n",
+          "\n",
+          "# Behaviour flags\n",
+          "convert_in_place = False      # If True, try CONVERT TO DELTA on the existing Parquet folder\n",
+          "perform_swap = False          # If True (and copy path used), move original to backup and delta into original location\n",
+          "register_in_metastore = False # If True, register a Spark metastore table for the Delta path\n",
+          "metastore_database = \"odw_curated_db\"\n",
+          "metastore_table = \"listed_building\"\n",
+          "\n",
+          "print(\"Source:\", src)\n",
+          "print(\"Destination:\", dst)\n"
+        ],
+        "execution_count": null
+      },
+      {
+        "cell_type": "markdown",
+        "metadata": {"nteract": {"transient": {"deleting": false}}},
+        "source": [
+          "#### Optional: In-place conversion (CONVERT TO DELTA)\n",
+          "If your Synapse runtime supports it, you can convert in place. Otherwise, leave `convert_in_place=False` to do a copy-based conversion.\n"
+        ]
+      },
+      {
+        "cell_type": "code",
+        "metadata": {
+          "jupyter": {"source_hidden": false, "outputs_hidden": false},
+          "nteract": {"transient": {"deleting": false}}
+        },
+        "source": [
+          "if convert_in_place:\n",
+          "    try:\n",
+          "        spark.sql(f\"\"\"\n",
+          "            CONVERT TO DELTA parquet.`{src}`\n",
+          "        \"\"\")\n",
+          "        print(\"In-place conversion succeeded.\")\n",
+          "    except Exception as e:\n",
+          "        print(\"In-place conversion not supported or failed:\", str(e)[:800])\n",
+          "        convert_in_place = False\n",
+          "else:\n",
+          "    print(\"Skipping in-place conversion (convert_in_place=False)\")\n"
+        ],
+        "execution_count": null
+      },
+      {
+        "cell_type": "markdown",
+        "metadata": {"nteract": {"transient": {"deleting": false}}},
+        "source": [
+          "#### Discover partition columns from folder structure\n",
+          "Detects Hive-style partitions like `col=value`.\n"
+        ]
+      },
+      {
+        "cell_type": "code",
+        "metadata": {
+          "jupyter": {"source_hidden": false, "outputs_hidden": false},
+          "nteract": {"transient": {"deleting": false}}
+        },
+        "source": [
+          "from typing import List, Set, Tuple\n",
+          "\n",
+          "def discover_partition_columns(root: str, max_depth: int = 5) -> List[str]:\n",
+          "    cols: Set[str] = set()\n",
+          "    queue: List[Tuple[str, int]] = [(root, 0)]\n",
+          "    seen: Set[str] = set()\n",
+          "    while queue:\n",
+          "        path, depth = queue.pop(0)\n",
+          "        if path in seen or depth >= max_depth:\n",
+          "            continue\n",
+          "        seen.add(path)\n",
+          "        try:\n",
+          "            entries = mssparkutils.fs.ls(path)\n",
+          "        except Exception as e:\n",
+          "            print(f\"Warning: cannot list {path}: {e}\")\n",
+          "            continue\n",
+          "        for entry in entries:\n",
+          "            name = entry.name.rstrip('/')\n",
+          "            if entry.isDir:\n",
+          "                if '=' in name:\n",
+          "                    colname = name.split('=', 1)[0]\n",
+          "                    cols.add(colname)\n",
+          "                queue.append((entry.path, depth + 1))\n",
+          "    return sorted(cols)\n",
+          "\n",
+          "partition_cols = discover_partition_columns(src)\n",
+          "print(\"Detected partition columns:\", partition_cols)\n"
+        ],
+        "execution_count": null
+      },
+      {
+        "cell_type": "markdown",
+        "metadata": {"nteract": {"transient": {"deleting": false}}},
+        "source": [
+          "#### Copy Parquet -> Delta preserving partitions\n"
+        ]
+      },
+      {
+        "cell_type": "code",
+        "metadata": {
+          "jupyter": {"source_hidden": false, "outputs_hidden": false},
+          "nteract": {"transient": {"deleting": false}}
+        },
+        "source": [
+          "if not convert_in_place:\n",
+          "    df = spark.read.parquet(src)\n",
+          "    writer = df.write.format(\"delta\").mode(\"overwrite\").option(\"overwriteSchema\", \"true\")\n",
+          "    if partition_cols:\n",
+          "        writer = writer.partitionBy(*partition_cols)\n",
+          "    writer.save(dst)\n",
+          "    print(\"Delta write completed:\", dst)\n"
+        ],
+        "execution_count": null
+      },
+      {
+        "cell_type": "markdown",
+        "metadata": {"nteract": {"transient": {"deleting": false}}},
+        "source": [
+          "#### Validate Delta output\n"
+        ]
+      },
+      {
+        "cell_type": "code",
+        "metadata": {
+          "jupyter": {"source_hidden": false, "outputs_hidden": false},
+          "nteract": {"transient": {"deleting": false}}
+        },
+        "source": [
+          "delta_df = spark.read.format(\"delta\").load(dst if not convert_in_place else src)\n",
+          "print(\"Row count:\", delta_df.count())\n",
+          "if partition_cols:\n",
+          "    delta_df.select(*partition_cols).dropDuplicates().limit(20).show(truncate=False)\n"
+        ],
+        "execution_count": null
+      },
+      {
+        "cell_type": "markdown",
+        "metadata": {"nteract": {"transient": {"deleting": false}}},
+        "source": [
+          "#### Optional: Swap folders (rename original parquet to backup, move delta into original path)\n",
+          "Ensure there are no active readers of the source path before running.\n"
+        ]
+      },
+      {
+        "cell_type": "code",
+        "metadata": {
+          "jupyter": {"source_hidden": false, "outputs_hidden": false},
+          "nteract": {"transient": {"deleting": false}}
+        },
+        "source": [
+          "if perform_swap and not convert_in_place:\n",
+          "    ts = datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')\n",
+          "    backup = f\"abfss://{container}@{account}.dfs.core.windows.net/{source_dir}_parquet_backup_{ts}/\"\n",
+          "    print(\"Backing up original:\", src, \"->\", backup)\n",
+          "    mssparkutils.fs.mv(src, backup, True)\n",
+          "    print(\"Moving delta into place:\", dst, \"->\", src)\n",
+          "    mssparkutils.fs.mv(dst, src, True)\n",
+          "    print(\"Swap complete.\")\n",
+          "else:\n",
+          "    print(\"Swap skipped (perform_swap=False or convert_in_place=True)\")\n"
+        ],
+        "execution_count": null
+      },
+      {
+        "cell_type": "markdown",
+        "metadata": {"nteract": {"transient": {"deleting": false}}},
+        "source": [
+          "#### Optional: Register as Spark metastore table\n"
+        ]
+      },
+      {
+        "cell_type": "code",
+        "metadata": {
+          "jupyter": {"source_hidden": false, "outputs_hidden": false},
+          "nteract": {"transient": {"deleting": false}}
+        },
+        "source": [
+          "if register_in_metastore:\n",
+          "    spark.sql(f\"CREATE DATABASE IF NOT EXISTS {metastore_database}\")\n",
+          "    location = src if (perform_swap or convert_in_place) else dst\n",
+          "    spark.sql(f\"CREATE TABLE IF NOT EXISTS {metastore_database}.{metastore_table} USING DELTA LOCATION '{location}'\")\n",
+          "    print(f\"Registered table: {metastore_database}.{metastore_table} -> {location}\")\n",
+          "else:\n",
+          "    print(\"Metastore registration skipped.\")\n"
+        ],
+        "execution_count": null
+      }
+    ]
+  }
+}
