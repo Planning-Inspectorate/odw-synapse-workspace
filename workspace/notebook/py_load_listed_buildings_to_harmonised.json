@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "fde5d1e5-b193-4bf6-892e-5c8412cbb3e0"
+				"spark.autotune.trackingId": "9c668819-8831-4ad8-93ac-a47f56ac935a"
 			}
 		},
 		"metadata": {
@@ -83,7 +83,7 @@
 				"source": [
 					"# Using common logging utils: %run utils/py_utils_common_logging_output"
 				],
-				"execution_count": null
+				"execution_count": 10
 			},
 			{
 				"cell_type": "code",
@@ -97,7 +97,7 @@
 					"from pyspark.sql.functions import md5, concat, coalesce, lit, col\n",
 					"from delta.tables import DeltaTable"
 				],
-				"execution_count": null
+				"execution_count": 11
 			},
 			{
 				"cell_type": "markdown",
@@ -115,9 +115,23 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"%run utils/py_utils_common_logging_output"
+					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 12
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Evangelos Remove these parameters after testing of the notebook\n",
+					"PipelineName = \"\"\n",
+					"PipelineRunID = \"\"\n",
+					"PipelineTriggerID = \"\"\n",
+					"PipelineTriggerName = \"\"\n",
+					"PipelineTriggerType = \"\"\n",
+					"PipelineTriggeredbyPipelineName = \"\"\n",
+					"PipelineTriggeredbyPipelineRunID = \"\""
+				],
+				"execution_count": 13
 			},
 			{
 				"cell_type": "code",
@@ -143,17 +157,10 @@
 					"start_exec_time = str(datetime.now())\n",
 					"insert_count = 0\n",
 					"update_count = 0\n",
-					"delete_count = 0"
+					"delete_count = 0\n",
+					"error_message = \"\""
 				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"# Initialize Application Insights logger\n",
-					"app_insight_logger = ProcessingLogger()"
-				],
-				"execution_count": null
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
@@ -324,56 +331,76 @@
 					"    \n",
 					"    \n",
 					"    # Add successful result to logger\n",
-					"    app_insight_logger.add_table_result(\n",
-					"        delta_table_name=target_table,\n",
-					"        insert_count=insert_count,\n",
-					"        update_count=update_count,\n",
-					"        delete_count=delete_count,\n",
-					"        table_result=\"success\",\n",
-					"        start_exec_time=start_exec_time,\n",
-					"        end_exec_time=end_exec_time\n",
+					"    duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
+					"    \n",
+					"    activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
+					"    stage = \"Success\"\n",
+					"    status_message = (\n",
+					"        f\"Successfully loaded data into {spark_table_final} table\"        \n",
+					"    )\n",
+					"    status_code = \"200\"\n",
+					"    log_telemetry_and_exit(\n",
+					"        stage,\n",
+					"        start_exec_time,\n",
+					"        end_exec_time,\n",
+					"        error_message,\n",
+					"        spark_table_final,\n",
+					"        insert_count,\n",
+					"        update_count,\n",
+					"        delete_count,\n",
+					"        PipelineName,\n",
+					"        PipelineRunID,\n",
+					"        PipelineTriggerID,\n",
+					"        PipelineTriggerName,\n",
+					"        PipelineTriggerType,\n",
+					"        PipelineTriggeredbyPipelineName,\n",
+					"        PipelineTriggeredbyPipelineRunID,\n",
+					"        activity_type,\n",
+					"        duration_seconds,\n",
+					"        status_message,\n",
+					"        status_code\n",
 					"    )\n",
 					"    \n",
 					"except Exception as e:\n",
 					"    # Handle errors with proper logging\n",
-					"    logError(f\"Error processing {target_table}: {e}\")\n",
-					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\n",
+					"    logError(f\"Error processing {spark_table_final}: {e}\")\n",
+					"    error_message = format_error_message(e, max_length=800)\n",
 					"    \n",
-					"    end_exec_time = str(datetime.now())\n",
-					"    app_insight_logger.add_table_result(\n",
-					"        delta_table_name=target_table,\n",
-					"        insert_count=insert_count,\n",
-					"        update_count=update_count,\n",
-					"        delete_count=delete_count,\n",
-					"        table_result=\"failed\",\n",
-					"        start_exec_time=start_exec_time,\n",
-					"        end_exec_time=end_exec_time,\n",
-					"        error_message=error_message\n",
+					"    end_exec_time = datetime.now()\n",
+					"    duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
+					"    \n",
+					"    activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
+					"    stage = \"Failed\"\n",
+					"    status_message = (\n",
+					"        f\"Failed to load data from {spark_table_final} table\"\n",
+					"    )\n",
+					"\n",
+					"    status_code = \"500\"    \n",
+					"    log_telemetry_and_exit(\n",
+					"        stage,\n",
+					"        start_exec_time,\n",
+					"        end_exec_time,\n",
+					"        error_message,\n",
+					"        f\"odw_standardised_db.{spark_table_final}\",\n",
+					"        insert_count,\n",
+					"        update_count,\n",
+					"        delete_count,\n",
+					"        PipelineName,\n",
+					"        PipelineRunID,\n",
+					"        PipelineTriggerID,\n",
+					"        PipelineTriggerName,\n",
+					"        PipelineTriggerType,\n",
+					"        PipelineTriggeredbyPipelineName,\n",
+					"        PipelineTriggeredbyPipelineRunID,\n",
+					"        activity_type,\n",
+					"        duration_seconds,\n",
+					"        status_message,\n",
+					"        status_code\n",
 					"    )\n",
 					"    \n",
-					"    # Exit with the JSON result\n",
-					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
+					"    "
 				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"# Generate and exit with final logging results\n",
-					"mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
-				],
-				"execution_count": null
+				"execution_count": 15
 			}
 		]
 	}
