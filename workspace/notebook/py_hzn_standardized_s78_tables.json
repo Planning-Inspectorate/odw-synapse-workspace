@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "0426897a-eb95-43e2-a403-5f5d83bbe0e0"
+				"spark.autotune.trackingId": "b86d76d0-3e98-4737-8e14-c48e0191aca9"
 			}
 		},
 		"metadata": {
@@ -61,21 +61,26 @@
 					}
 				},
 				"source": [
-					"#### The purpose of this pyspark notebook is to ingest horizon data into a single delta table,odw_standardised_db.horizon_appeal_s78_final.\r\n",
+					"### Purpose\r\n",
+					"The purpose of this PySpark Notebook is to ingest Horizon Data into a single Delta Table: **odw_standardised_db.horizoncases_s78**\r\n",
 					"\r\n",
-					"**Description**  \r\n",
-					"The functionality of this notebook is to ingest data into odw_standardised_db.horizon_appeal_s78_final delta table reading from multiple odw_standardised_db delta table sources.The addtitional functionality has been added to log the audit information to Application Insight by creating a Json dump at notebook exit.\r\n",
+					"### Description\r\n",
+					"##### This Notebook: \r\n",
+					"- Reads from multiple odw_standardised_db Delta table sources.\r\n",
+					"- Transforms and unifies the data into odw_standardised_db.horizon_appeal_s78.\r\n",
+					"- Logs audit information to Application Insights by creating a JSON dump at notebook exit.\r\n",
 					"\r\n",
-					"**Spark Cluster Configuration** -> Apache Spark Version- 3.4, Python Version \t\t- 3.10, Delta Lake Version \t- 2.4"
+					"**Spark Cluster Configuration**\r\n",
+					"- Apache Spark Version: 3.4\r\n",
+					"- Python Version: 3.10\r\n",
+					"- Delta Lake Version: 2.4"
 				]
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"from pyspark.sql.types import IntegerType, ArrayType, StructType, StructField\r\n",
-					"from pyspark.sql import Row\r\n",
-					"from pyspark.sql.functions import *\r\n",
-					"from pyspark.sql import functions as F"
+					"from pyspark.sql import functions as F\r\n",
+					"from datetime import datetime"
 				],
 				"execution_count": null
 			},
@@ -121,7 +126,7 @@
 				},
 				"source": [
 					"horizon_cases_s78 = \"odw_standardised_db.horizoncases_s78\"\r\n",
-					"table_name = \"odw_standardised_db.horizon_appeal_s78_final\"\r\n",
+					"table_name = \"odw_standardised_db.horizon_appeal_s78\"\r\n",
 					"primary_key = 'caseReference'\r\n",
 					"incremental_key = 'AppealS78ID'\r\n",
 					"\r\n",
@@ -153,8 +158,7 @@
 					"    ## To get the most updated record for expected from\r\n",
 					"    max_date = df.agg(F.max(\"expected_from\")).collect()[0][0]\r\n",
 					"    df_filtered = df.filter(F.col(\"expected_from\") == max_date)\r\n",
-					"    return df_filtered\r\n",
-					""
+					"    return df_filtered"
 				],
 				"execution_count": null
 			},
@@ -436,9 +440,7 @@
 					"\r\n",
 					"final_df = spark.sql(sql_text).drop(\"level_code\")\r\n",
 					"\r\n",
-					"print(\"final_df rows:\", final_df.count())\r\n",
-					"display(final_df)\r\n",
-					""
+					"print(\"final_df rows:\", final_df.count())"
 				],
 				"execution_count": null
 			},
