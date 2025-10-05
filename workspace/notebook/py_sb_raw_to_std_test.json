@@ -20,12 +20,12 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "e9333b91-c3d9-461b-b071-3696a144dfcc"
+				"spark.autotune.trackingId": "ab3769fe-4822-4793-bb64-fc4614038ebe"
 			}
 		},
 		"metadata": {
 			"saveOutput": true,
-			"enableDebugMode": false,
+			"enableDebugMode": true,
 			"kernelspec": {
 				"name": "synapse_pyspark",
 				"display_name": "Synapse PySpark"
@@ -70,6 +70,20 @@
 					"\r\n",
 					""
 				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"PipelineName = 'pln_service_bus'\r\n",
+					"PipelineRunID = '2e464ed3-c5dd-4538-9d15-ed45497d3a09'\r\n",
+					"PipelineTriggerID = \"3bce4d94-24eb-4abb-a02b-93d081dd47a5\"\r\n",
+					"PipelineTriggerName =  \"3bce4d94-24eb-4abb-a02b-93d081dd47a5\"\r\n",
+					"PipelineTriggerType = \"PipelineActivity\"\r\n",
+					"PipelineTriggeredbyPipelineName =  \"pln_master\"\r\n",
+					"PipelineTriggeredbyPipelineRunID = \"ae55a687-bef1-4b6d-a7e1-65e2ade2dddf\"\r\n",
+					"error_message = 'run sucessfully'"
+				],
+				"execution_count": 101
 			},
 			{
 				"cell_type": "code",
@@ -144,7 +158,7 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"start_exec_time = datetime.now()\r\n",
+					"start_exec_time = str(datetime.now())\r\n",
 					"insert_count = 0\r\n",
 					"update_count = 0\r\n",
 					"delete_count = 0\r\n",
@@ -174,7 +188,7 @@
 					"schema = mssparkutils.notebook.run(\"/py_create_spark_schema\", 30, {\"db_name\": 'odw_standardised_db', \"entity_name\": entity_name})\r\n",
 					"spark_schema = StructType.fromJson(json.loads(schema)) if schema != '' else ''\r\n",
 					"\r\n",
-					"start_exec_time = str(datetime.now())\r\n",
+					"start_exec_time = (datetime.now())\r\n",
 					"insert_count = 0\r\n",
 					""
 				],
@@ -877,125 +891,6 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"import requests\r\n",
-					"import sys\r\n",
-					"from datetime import datetime\r\n",
-					"\r\n",
-					"def send_telemetry_to_app_insights(params):\r\n",
-					"    try:\r\n",
-					"        key = mssparkutils.credentials.getSecretWithLS(\"ls_kv\", \"application-insights-connection-string\")\r\n",
-					"        instrumentation_key = key.split(\"InstrumentationKey=\")[-1].split(\";\")[0]\r\n",
-					"    except Exception as e:\r\n",
-					"        print(\"Failed to get instrumentation key:\", e)\r\n",
-					"        return\r\n",
-					"\r\n",
-					"    endpoint = \"https://uksouth-1.in.applicationinsights.azure.com/v2/track\"\r\n",
-					"\r\n",
-					"    body = {\r\n",
-					"        \"Stage\": params.get(\"Stage\"),\r\n",
-					"        \"PipelineName\": params.get(\"PipelineName\"),\r\n",
-					"        \"PipelineRunID\": params.get(\"PipelineRunID\"),\r\n",
-					"        \"StartTime\": params.get(\"StartTime\"),\r\n",
-					"        \"EndTime\": params.get(\"EndTime\"),\r\n",
-					"        \"Inserts\": str(params.get(\"Inserts\", 0)),\r\n",
-					"        \"Updates\": str(params.get(\"Updates\", 0)),\r\n",
-					"        \"Deletes\": str(params.get(\"Deletes\", 0)),\r\n",
-					"        \"ErrorMessage\": params.get(\"ErrorMessage\"),\r\n",
-					"        \"StatusMessage\": params.get(\"StatusMessage\"),\r\n",
-					"        \"PipelineTriggerID\": params.get(\"PipelineTriggerID\"),\r\n",
-					"        \"PipelineTriggerName\": params.get(\"PipelineTriggerName\"),\r\n",
-					"        \"PipelineTriggerType\": params.get(\"PipelineTriggerType\"),\r\n",
-					"        \"PipelineTriggeredbyPipelineName\": params.get(\"PipelineTriggeredbyPipelineName\"),\r\n",
-					"        \"PipelineTriggeredbyPipelineRunID\": params.get(\"PipelineTriggeredbyPipelineRunID\"),\r\n",
-					"        \"PipelineExecutionTimeInSec\": params.get(\"PipelineExecutionTimeInSec\"),\r\n",
-					"        \"ActivityType\": params.get(\"ActivityType\"),\r\n",
-					"        \"StatusCode\": params.get(\"StatusCode\"),\r\n",
-					"        \"DurationSeconds\": params.get(\"DurationSeconds\")\r\n",
-					"    }\r\n",
-					"\r\n",
-					"    payload = {\r\n",
-					"        \"name\": \"Microsoft.ApplicationInsights.Event\",\r\n",
-					"        \"time\": datetime.utcnow().isoformat() + \"Z\",\r\n",
-					"        \"iKey\": instrumentation_key,\r\n",
-					"        \"data\": {\r\n",
-					"            \"baseType\": \"EventData\",\r\n",
-					"            \"baseData\": {\r\n",
-					"                \"name\": params.get(\"AppInsCustomEventName\", \"ODW_Master_Pipeline_Logs\"),\r\n",
-					"                \"properties\": body\r\n",
-					"            }\r\n",
-					"        }\r\n",
-					"    }\r\n",
-					"\r\n",
-					"    try:\r\n",
-					"        response = requests.post(endpoint, json=payload)\r\n",
-					"        print(\"Telemetry sent:\", response.status_code)\r\n",
-					"    except Exception as e:\r\n",
-					"        print(\"Failed to send telemetry:\", e)\r\n",
-					"\r\n",
-					"\r\n",
-					"def log_telemetry_and_exit(\r\n",
-					"    stage,\r\n",
-					"    start_exec_time,\r\n",
-					"    end_exec_time,\r\n",
-					"    error_message,\r\n",
-					"    table_name,\r\n",
-					"    insert_count,\r\n",
-					"    update_count,\r\n",
-					"    delete_count,\r\n",
-					"    PipelineName,\r\n",
-					"    PipelineRunID,\r\n",
-					"    PipelineTriggerID,\r\n",
-					"    PipelineTriggerName,\r\n",
-					"    PipelineTriggerType,\r\n",
-					"    PipelineTriggeredbyPipelineName,\r\n",
-					"    PipelineTriggeredbyPipelineRunID,\r\n",
-					"    activity_type,\r\n",
-					"    duration_seconds,\r\n",
-					"    status_message,\r\n",
-					"    status_code\r\n",
-					"):\r\n",
-					"    params = {\r\n",
-					"        \"Stage\": stage,\r\n",
-					"        \"PipelineName\": PipelineName,\r\n",
-					"        \"PipelineRunID\": PipelineRunID,\r\n",
-					"        \"StartTime\": start_exec_time.isoformat(),\r\n",
-					"        \"EndTime\": end_exec_time.isoformat(),\r\n",
-					"        \"Inserts\": insert_count,\r\n",
-					"        \"Updates\": update_count,\r\n",
-					"        \"Deletes\": delete_count,\r\n",
-					"        \"ErrorMessage\": error_message,\r\n",
-					"        \"StatusMessage\": status_message,\r\n",
-					"        \"PipelineTriggerID\": PipelineTriggerID,\r\n",
-					"        \"PipelineTriggerName\": PipelineTriggerName,\r\n",
-					"        \"PipelineTriggerType\": PipelineTriggerType,\r\n",
-					"        \"PipelineTriggeredbyPipelineName\": PipelineTriggeredbyPipelineName,\r\n",
-					"        \"PipelineTriggeredbyPipelineRunID\": PipelineTriggeredbyPipelineRunID,\r\n",
-					"        \"PipelineExecutionTimeInSec\": duration_seconds,\r\n",
-					"        \"ActivityType\": activity_type,\r\n",
-					"        \"DurationSeconds\": duration_seconds,\r\n",
-					"        \"StatusCode\": status_code,\r\n",
-					"        \"AppInsCustomEventName\": \"ODW_Master_Pipeline_Logs\"\r\n",
-					"    }\r\n",
-					" \r\n",
-					"    send_telemetry_to_app_insights(params)\r\n",
-					" \r\n",
-					"    if error_message:\r\n",
-					"        print(f\"Notebook Failed for load : {error_message}\")\r\n",
-					"        sys.exit(1)"
-				],
-				"execution_count": 124
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"end_exec_time = datetime.now()\r\n",
-					"start_exec_time = datetime.now()"
-				],
-				"execution_count": 126
-			},
-			{
-				"cell_type": "code",
-				"source": [
 					"duration_seconds = (end_exec_time - start_exec_time).total_seconds()\r\n",
 					"activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\r\n",
 					"stage = \"Success\" if not error_message else \"Failed\"\r\n",
@@ -1028,7 +923,7 @@
 					"    status_code\r\n",
 					")"
 				],
-				"execution_count": 127
+				"execution_count": 124
 			}
 		]
 	}
