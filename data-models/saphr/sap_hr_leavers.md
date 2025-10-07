@@ -1,4 +1,4 @@
-#### ODW SAPHR Data Model
+#### ODW SAP HR Data Model
 
 ##### entity: SAP_HR_LEAVERS_MONTHLY
 
