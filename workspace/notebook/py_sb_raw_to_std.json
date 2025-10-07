@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d6e456c6-2d03-4f65-87f2-94e64a6f421e"
+				"spark.autotune.trackingId": "220db1a1-28ec-4dd7-bb29-bf1851b4e32e"
 			}
 		},
 		"metadata": {
@@ -70,6 +70,20 @@
 					"\r\n",
 					""
 				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"PipelineName = 'pln_service_bus'\r\n",
+					"PipelineRunID = '2e464ed3-c5dd-4538-9d15-ed45497d3a09'\r\n",
+					"PipelineTriggerID = \"3bce4d94-24eb-4abb-a02b-93d081dd47a5\"\r\n",
+					"PipelineTriggerName =  \"3bce4d94-24eb-4abb-a02b-93d081dd47a5\"\r\n",
+					"PipelineTriggerType = \"PipelineActivity\"\r\n",
+					"PipelineTriggeredbyPipelineName =  \"pln_master\"\r\n",
+					"PipelineTriggeredbyPipelineRunID = \"ae55a687-bef1-4b6d-a7e1-65e2ade2dddf\"\r\n",
+					"error_message = 'run sucessfully'"
+				],
+				"execution_count": 1
 			},
 			{
 				"cell_type": "code",
@@ -347,12 +361,17 @@
 					"    Returns:\r\n",
 					"        missing_files: a list of missing files not yet loaded to the table.\r\n",
 					"    \"\"\"\r\n",
-					"    df: DataFrame = spark.table(table_name)\r\n",
-					"    files_in_path: set = set(get_all_files_recursive(source_path))\r\n",
-					"    files_in_table: set = set(df.select(\"input_file\").rdd.flatMap(lambda x: x).collect())\r\n",
-					"    missing_files = list(files_in_path - files_in_table)\r\n",
-					"\r\n",
-					"    return missing_files"
+					"    try:\r\n",
+					"        df: DataFrame = spark.table(table_name)\r\n",
+					"        files_in_path: set = set(get_all_files_recursive(source_path))\r\n",
+					"        files_in_table: set = set(df.select(\"input_file\").rdd.flatMap(lambda x: x).collect())\r\n",
+					"        missing_files = list(files_in_path - files_in_table)\r\n",
+					"        \r\n",
+					"        return missing_files\r\n",
+					"    except Exception as e:\r\n",
+					"        error_message = f\"Error getting missing files for table '{table_name}' from source path '{source_path}': {str(e)}\"\r\n",
+					"        logError(error_message)\r\n",
+					"        raise"
 				],
 				"execution_count": null
 			},
