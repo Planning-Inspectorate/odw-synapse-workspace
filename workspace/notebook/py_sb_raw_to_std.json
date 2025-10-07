@@ -20,12 +20,12 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "0ac7e0b1-a99b-4b12-bbe3-c1d1d3fbffa5"
+				"spark.autotune.trackingId": "d6e456c6-2d03-4f65-87f2-94e64a6f421e"
 			}
 		},
 		"metadata": {
 			"saveOutput": true,
-			"enableDebugMode": false,
+			"enableDebugMode": true,
 			"kernelspec": {
 				"name": "synapse_pyspark",
 				"display_name": "Synapse PySpark"
@@ -219,10 +219,14 @@
 					"    Returns:\r\n",
 					"        max_value: the maximum value from the table column\r\n",
 					"    \"\"\"\r\n",
-					"    df = spark.table(table_name)\r\n",
-					"    max_value = df.agg(max(column_name)).collect()[0][0]\r\n",
-					"\r\n",
-					"    return max_value"
+					"    try:\r\n",
+					"        df = spark.table(table_name)\r\n",
+					"        max_value = df.agg(max(column_name)).collect()[0][0]\r\n",
+					"        return max_value\r\n",
+					"    except Exception as e:\r\n",
+					"        error_message = f\"Error getting max value from column '{column_name}' in table '{table_name}': {str(e)}\"\r\n",
+					"        logError(error_message)\r\n",
+					"        raise"
 				],
 				"execution_count": null
 			},
@@ -255,12 +259,17 @@
 					"    Returns:\r\n",
 					"        formatted_timestamp: a string of the maximum file date\r\n",
 					"    \"\"\"\r\n",
-					"    date_pattern: str = r'(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}\\+\\d{4})'\r\n",
-					"    df: DataFrame = df.withColumn(\"file_date\", regexp_extract(df[\"input_file\"], date_pattern, 1))\r\n",
-					"    df: DataFrame = df.withColumn(\"file_date\", df[\"file_date\"].cast(TimestampType()))\r\n",
-					"    max_timestamp: list = df.agg(max(\"file_date\")).collect()[0][0]\r\n",
-					"    formatted_timestamp: str = max_timestamp.strftime(\"%Y-%m-%dT%H:%M:%S.%f\")+\"+0000\"\r\n",
-					"    return formatted_timestamp"
+					"    try:\r\n",
+					"        date_pattern: str = r'(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}\\+\\d{4})'\r\n",
+					"        df: DataFrame = df.withColumn(\"file_date\", regexp_extract(df[\"input_file\"], date_pattern, 1))\r\n",
+					"        df: DataFrame = df.withColumn(\"file_date\", df[\"file_date\"].cast(TimestampType()))\r\n",
+					"        max_timestamp: list = df.agg(max(\"file_date\")).collect()[0][0]\r\n",
+					"        formatted_timestamp: str = max_timestamp.strftime(\"%Y-%m-%dT%H:%M:%S.%f\")+\"+0000\"\r\n",
+					"        return formatted_timestamp\r\n",
+					"    except Exception as e:\r\n",
+					"        error_message = f\"Error extracting maximum file date from DataFrame: {str(e)}\"\r\n",
+					"        logError(error_message)\r\n",
+					"        raise"
 				],
 				"execution_count": null
 			},
@@ -473,12 +482,17 @@
 					"    Returns:\r\n",
 					"        a deduped DataFrame\r\n",
 					"    \"\"\"\r\n",
-					"    # removing duplicates while ignoring the ingestion dates columns\r\n",
-					"    columns_to_ignore: list = ['expected_to', 'expected_from', 'ingested_datetime']\r\n",
-					"    columns_to_consider: list = [c for c in df.columns if c not in columns_to_ignore]\r\n",
-					"    df: DataFrame = df.dropDuplicates(subset=columns_to_consider)\r\n",
-					"    \r\n",
-					"    return df\r\n",
+					"    try:\r\n",
+					"        # removing duplicates while ignoring the ingestion dates columns\r\n",
+					"        columns_to_ignore: list = ['expected_to', 'expected_from', 'ingested_datetime']\r\n",
+					"        columns_to_consider: list = [c for c in df.columns if c not in columns_to_ignore]\r\n",
+					"        df: DataFrame = df.dropDuplicates(subset=columns_to_consider)\r\n",
+					"        \r\n",
+					"        return df\r\n",
+					"    except Exception as e:\r\n",
+					"        error_message = f\"Error during DataFrame deduplication: {str(e)}\"\r\n",
+					"        logError(error_message)\r\n",
+					"        raise\r\n",
 					""
 				],
 				"execution_count": null
@@ -837,9 +851,52 @@
 			},
 			{
 				"cell_type": "code",
+				"metadata": {
+					"editable": false,
+					"run_control": {
+						"frozen": true
+					}
+				},
 				"source": [
 					"# Exit with the JSON result\r\n",
 					"mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"duration_seconds = (end_exec_time - start_exec_time).total_seconds()\r\n",
+					"activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\r\n",
+					"stage = \"Success\" if not error_message else \"Failed\"\r\n",
+					"status_message = (\r\n",
+					"    f\"Successfully loaded data into {table_name} table\"\r\n",
+					"    if not error_message\r\n",
+					"    else f\"Failed to load data from {table_name} table\"\r\n",
+					")\r\n",
+					"status_code = \"200\" if stage == \"Success\" else \"500\"\r\n",
+					" \r\n",
+					"log_telemetry_and_exit(\r\n",
+					"    stage,\r\n",
+					"    start_exec_time,\r\n",
+					"    end_exec_time,\r\n",
+					"    error_message,\r\n",
+					"    table_name,\r\n",
+					"    insert_count,\r\n",
+					"    update_count,\r\n",
+					"    delete_count,\r\n",
+					"    PipelineName,\r\n",
+					"    PipelineRunID,\r\n",
+					"    PipelineTriggerID,\r\n",
+					"    PipelineTriggerName,\r\n",
+					"    PipelineTriggerType,\r\n",
+					"    PipelineTriggeredbyPipelineName,\r\n",
+					"    PipelineTriggeredbyPipelineRunID,\r\n",
+					"    activity_type,\r\n",
+					"    duration_seconds,\r\n",
+					"    status_message,\r\n",
+					"    status_code\r\n",
+					")"
 				],
 				"execution_count": null
 			}
