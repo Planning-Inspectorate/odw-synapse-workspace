@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "6b0e312f-08a7-4691-bc3e-0bc11867c0bc"
+				"spark.autotune.trackingId": "0018c456-f03a-4bca-bfd0-92c2b43d7ce6"
 			}
 		},
 		"metadata": {
@@ -654,8 +654,22 @@
 					"    F.row_number().over(W.partitionBy(\"caseReference\").orderBy(F.col(\"IngestionDate\").asc())).cast(\"bigint\")\r\n",
 					")\r\n",
 					"\r\n",
+					"# Here I Build the final column list from the Service Bus schema\r\n",
+					"sb_schema = spark.table(service_bus_table).schema\r\n",
+					"\r\n",
+					"# Here I Cast/add columns to match SB schema exactly\r\n",
+					"for f in sb_schema:\r\n",
+					"    if f.name not in scd2.columns:\r\n",
+					"        scd2 = scd2.withColumn(f.name, F.lit(None).cast(f.dataType))\r\n",
+					"    else:\r\n",
+					"        scd2 = scd2.withColumn(f.name, F.col(f.name).cast(f.dataType))\r\n",
+					"\r\n",
+					"# Here I project to the exact SB column order\r\n",
+					"final_cols = [f.name for f in sb_schema]\r\n",
+					"scd2_final = scd2.select(*[F.col(c) for c in final_cols])\r\n",
+					"\r\n",
 					"# And to finish I write final partitioned by activity\r\n",
-					"(scd2\r\n",
+					"(scd2_final\r\n",
 					" .write\r\n",
 					" .format(\"delta\")\r\n",
 					" .mode(\"overwrite\")\r\n",
@@ -663,7 +677,7 @@
 					" .partitionBy(\"IsActive\")\r\n",
 					" .saveAsTable(FINAL))\r\n",
 					"\r\n",
-					"print(f\"Final written: {FINAL}, rows = {scd2.count():,}\")\r\n",
+					"print(f\"Final written: {FINAL}, rows = {scd2_final.count():,}\")\r\n",
 					""
 				],
 				"execution_count": null
