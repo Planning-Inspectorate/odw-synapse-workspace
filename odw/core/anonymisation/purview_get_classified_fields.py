@@ -86,6 +86,36 @@ def find_classified_columns(
         logging.warning("Search API query failed; will fallback to Atlas basic. %s", e)
 
     if not raw_items:
+        # Try Atlas advanced search (recommended for classification + attribute filters)
+        try:
+            raw_items = _search_columns_via_atlas_advanced(
+                base_url=base_url,
+                classifications=classifications,
+                container_filter=container_filter,
+                page_size=page_size,
+                max_pages=max_pages,
+                timeout=timeout,
+                auth=auth,
+            )
+        except Exception as e:
+            logging.warning("Atlas advanced search failed; will try DSL/basic. %s", e)
+
+    if not raw_items:
+        # Try Atlas DSL which supports classification predicates explicitly
+        try:
+            raw_items = _search_columns_via_atlas_dsl(
+                base_url=base_url,
+                classifications=classifications,
+                container_filter=container_filter,
+                page_size=page_size,
+                max_pages=max_pages,
+                timeout=timeout,
+                auth=auth,
+            )
+        except Exception as e:
+            logging.warning("Atlas DSL search failed; will fallback to basic. %s", e)
+
+    if not raw_items:
         raw_items = _search_columns_via_atlas_basic(
             base_url=base_url,
             classifications=classifications,
@@ -260,8 +290,10 @@ def _search_columns_via_search_api(
                 "filter": {
                     "and": [
                         {"entityType": "column"},
-                        {"attributeName": "qualifiedName", "operator": "contains", "attributeValue": container_filter},
-                        {"attributeName": "classification", "operator": op, "attributeValue": cls},
+                        {"classification": cls},
+                        {"attributes": [
+                            {"attributeName": "qualifiedName", "operator": "contains", "attributeValue": container_filter}
+                        ]}
                     ]
                 },
             }
@@ -306,6 +338,127 @@ def _search_columns_via_search_api(
     return results
 
 
+def _search_columns_via_atlas_advanced(
+    *,
+    base_url: str,
+    classifications: Sequence[str],
+    container_filter: str,
+    page_size: int = 100,
+    max_pages: int = 50,
+    timeout: int = 60,
+    auth: Optional[Callable[[], str]] = None,
+) -> List[Dict[str, Any]]:
+    """Use Atlas advanced search with classification + attribute filter."""
+    api_version = os.getenv("PURVIEW_ATLAS_API_VERSION", "2023-09-01").strip()
+    results: List[Dict[str, Any]] = []
+    base_paths = ("/datamap/api/atlas/v2/search/advanced", "/catalog/api/atlas/v2/search/advanced")
+    for cls in classifications:
+        offset = 0
+        for _ in range(max_pages):
+            body = {
+                "classification": cls,
+                "typeName": "column",
+                "excludeDeletedEntities": True,
+                "entityFilters": {
+                    "condition": "AND",
+                    "criterion": [
+                        {
+                            "attributeName": "qualifiedName",
+                            "operator": "contains",
+                            "attributeValue": container_filter
+                        }
+                    ]
+                },
+                "limit": page_size,
+                "offset": offset
+            }
+            resp = None
+            for path in base_paths:
+                r = _purview_request(
+                    base_url=base_url,
+                    method="POST",
+                    path=path,
+                    params={"api-version": api_version},
+                    json_body=body,
+                    retries=3,
+                    timeout=timeout,
+                    auth=auth,
+                )
+                if r.ok:
+                    resp = r
+                    break
+                if r.status_code in (404, 405):
+                    continue
+                if "NotSupportedAPIVersion" in (r.text or ""):
+                    continue
+                resp = r
+                break
+            if resp is None or not resp.ok:
+                logging.warning("Atlas advanced search failed for %s: %s %s", cls, getattr(resp, "status_code", None), ("" if resp is None else resp.text[:200]))
+                break
+            data = resp.json()
+            items = data.get("entities") or []
+            if not items:
+                break
+            results.extend(items)
+            if len(items) < page_size:
+                break
+            offset += page_size
+    return results
+
+
+def _search_columns_via_atlas_dsl(
+    *,
+    base_url: str,
+    classifications: Sequence[str],
+    container_filter: str,
+    page_size: int = 100,
+    max_pages: int = 50,
+    timeout: int = 60,
+    auth: Optional[Callable[[], str]] = None,
+) -> List[Dict[str, Any]]:
+    """Use Atlas DSL on /datamap/api to query columns by classification and qualifiedName LIKE."""
+    api_version = os.getenv("PURVIEW_ATLAS_API_VERSION", "2023-09-01").strip()
+    results: List[Dict[str, Any]] = []
+    base_paths = ("/datamap/api/atlas/v2/search/dsl", "/catalog/api/atlas/v2/search/dsl")
+    for cls in classifications:
+        offset = 0
+        for _ in range(max_pages):
+            query = f"from column where __classification = '{cls}' and qualifiedName like '%{container_filter}%'"
+            resp = None
+            for path in base_paths:
+                r = _purview_request(
+                    base_url=base_url,
+                    method="GET",
+                    path=path,
+                    params={"query": query, "limit": page_size, "offset": offset, "api-version": api_version},
+                    retries=3,
+                    timeout=timeout,
+                    auth=auth,
+                )
+                if r.ok:
+                    resp = r
+                    break
+                if r.status_code in (404, 405):
+                    continue
+                if "NotSupportedAPIVersion" in (r.text or ""):
+                    continue
+                resp = r
+                break
+            if resp is None or not resp.ok:
+                logging.warning("Atlas DSL search failed for %s: %s %s", cls, getattr(resp, "status_code", None), ("" if resp is None else resp.text[:200]))
+                break
+            data = resp.json()
+            items = data.get("entities") or []
+            if not items:
+                break
+            results.extend(items)
+            if len(items) < page_size:
+                break
+            offset += page_size
+    return results
+
+
 def _search_columns_via_atlas_basic(
     *,
     base_url: str,
@@ -317,6 +470,7 @@ def _search_columns_via_atlas_basic(
     auth: Optional[Callable[[], str]] = None,
 ) -> List[Dict[str, Any]]:
     results: List[Dict[str, Any]] = []
+    api_version = os.getenv("PURVIEW_ATLAS_API_VERSION", "2023-09-01").strip()
     base_paths = ("/datamap/api/atlas/v2/search/basic", "/catalog/api/atlas/v2/search/basic")
     for cls in classifications:
         offset = 0
@@ -327,6 +481,7 @@ def _search_columns_via_atlas_basic(
                 "query": container_filter,
                 "limit": page_size,
                 "offset": offset,
+                "api-version": api_version,
             }
             resp = None
             for path in base_paths:
