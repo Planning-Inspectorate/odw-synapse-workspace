@@ -1,256 +1,264 @@
 {
-  "name": "Purview_Find_Email_Fields_in_odw_raw",
-  "properties": {
-    "folder": {
-      "name": "catalog/"
-    },
-    "nbformat": 4,
-    "nbformat_minor": 2,
-    "bigDataPool": {
-      "referenceName": "pinssynspodw34",
-      "type": "BigDataPoolReference"
-    },
-    "sessionProperties": {
-      "driverMemory": "28g",
-      "driverCores": 4,
-      "executorMemory": "28g",
-      "executorCores": 4,
-      "numExecutors": 2,
-      "conf": {
-        "spark.dynamicAllocation.enabled": "false",
-        "spark.dynamicAllocation.minExecutors": "2",
-        "spark.dynamicAllocation.maxExecutors": "2"
-      }
-    },
-    "metadata": {
-      "saveOutput": true,
-      "enableDebugMode": false,
-      "kernelspec": {
-        "name": "synapse_pyspark",
-        "display_name": "Synapse PySpark"
-      },
-      "language_info": {
-        "name": "python"
-      },
-      "a365ComputeOptions": {
-        "id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
-        "name": "pinssynspodw34",
-        "type": "Spark",
-        "endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
-        "auth": {
-          "type": "AAD",
-          "authResource": "https://dev.azuresynapse.net"
-        },
-        "sparkVersion": "3.4",
-        "nodeCount": 3,
-        "cores": 4,
-        "memory": 32,
-        "automaticScaleJobs": true
-      },
-      "sessionKeepAliveTimeout": 30
-    },
-    "cells": [
-      {
-        "cell_type": "markdown",
-        "source": [
-          "# Purview: Find 'Email Address' classified fields in odw-raw\r\n",
-          "\r\n",
-          "This notebook queries Microsoft Purview (Atlas Search) to identify column-level fields within the `odw-raw` container that are classified as 'Email Address'.\r\n",
-          "\r\n",
-          "Prerequisites:\r\n",
-          "- Synapse workspace Managed Identity (or a Service Principal) has Catalog Reader permissions in Purview.\r\n",
-          "- Environment variable `PURVIEW_ACCOUNT_NAME` is set to your Purview account name (e.g., `pins-purview-dev`).\r\n",
-          "- Optional: `ODW_CONTAINER_NAME` (defaults to `odw-raw`) and `PURVIEW_CLASSIFICATION_NAMES` (JSON array, defaults to common email labels).\r\n",
-          "\r\n",
-          "If the next cell installs packages, allow the Python session to restart, then re-run remaining cells.\r\n"
-        ]
-      },
-      {
-        "cell_type": "code",
-        "source": [
-          "from notebookutils import mssparkutils\r\n",
-          "try:\r\n",
-          "    import requests, pandas as pd\r\n",
-          "    from azure.identity import DefaultAzureCredential, ManagedIdentityCredential, ChainedTokenCredential\r\n",
-          "    import msal\r\n",
-          "    print('Libraries available')\r\n",
-          "except Exception:\r\n",
-          "    print('Installing required packages via mssparkutils...')\r\n",
-          "    mssparkutils.library.installPyPI('requests')\r\n",
-          "    mssparkutils.library.installPyPI('msal')\r\n",
-          "    mssparkutils.library.installPyPI('azure-identity')\r\n",
-          "    mssparkutils.library.installPyPI('pandas')\r\n",
-          "    mssparkutils.library.restartPython()\r\n"
-        ],
-        "execution_count": null
-      },
-      {
-        "cell_type": "code",
-        "source": [
-          "import os, json\r\n",
-          "PURVIEW_ACCOUNT_NAME = os.environ.get('PURVIEW_ACCOUNT_NAME', '').strip()\r\n",
-          "CONTAINER_FILTER = os.environ.get('ODW_CONTAINER_NAME', 'odw-raw').strip()\r\n",
-          "CLASSIFICATION_CANDIDATES = json.loads(os.environ.get('PURVIEW_CLASSIFICATION_NAMES', '[\"Email Address\",\"MICROSOFT.PERSONAL.EMAIL\",\"MICROSOFT.PII.EmailAddress\"]'))\r\n",
-          "API_VERSION_SEARCH = os.environ.get('PURVIEW_SEARCH_API_VERSION', '2023-09-01').strip()\r\n",
-          "if not PURVIEW_ACCOUNT_NAME:\r\n",
-          "    raise ValueError('Set PURVIEW_ACCOUNT_NAME environment variable to your Purview account name (without domain).')\r\n",
-          "BASE_URL = f'https://{PURVIEW_ACCOUNT_NAME}.purview.azure.com'\r\n",
-          "print('Using Purview account:', PURVIEW_ACCOUNT_NAME)\r\n",
-          "print('Container filter:', CONTAINER_FILTER)\r\n",
-          "print('Classification candidates:', CLASSIFICATION_CANDIDATES)\r\n"
-        ],
-        "execution_count": null
-      },
-      {
-        "cell_type": "code",
-        "source": [
-          "from azure.identity import DefaultAzureCredential, ManagedIdentityCredential, ChainedTokenCredential\r\n",
-          "SCOPE = 'https://purview.azure.net/.default'\r\n",
-          "tenant_id = os.environ.get('AZURE_TENANT_ID', '').strip()\r\n",
-          "client_id = os.environ.get('AZURE_CLIENT_ID', '').strip()\r\n",
-          "client_secret = os.environ.get('AZURE_CLIENT_SECRET', '').strip()\r\n",
-          "def get_token() -> str:\r\n",
-          "    cred_chain = ChainedTokenCredential(\r\n",
-          "        ManagedIdentityCredential(),\r\n",
-          "        DefaultAzureCredential(exclude_interactive_browser_credential=True, exclude_visual_studio_code_credential=True)\r\n",
-          "    )\r\n",
-          "    try:\r\n",
-          "        return cred_chain.get_token(SCOPE).token\r\n",
-          "    except Exception:\r\n",
-          "        if tenant_id and client_id and client_secret:\r\n",
-          "            import msal\r\n",
-          "            app = msal.ConfidentialClientApplication(\r\n",
-          "                client_id, authority=f'https://login.microsoftonline.com/{tenant_id}', client_credential=client_secret\r\n",
-          "            )\r\n",
-          "            result = app.acquire_token_for_client(scopes=[SCOPE])\r\n",
-          "            if 'access_token' in result:\r\n",
-          "                return result['access_token']\r\n",
-          "            raise RuntimeError('MSAL service principal auth failed')\r\n",
-          "        raise\r\n"
-        ],
-        "execution_count": null
-      },
-      {
-        "cell_type": "code",
-        "source": [
-          "import time, requests\r\n",
-          "from typing import Optional, Dict, Any, List\r\n",
-          "def purview_request(method: str, path: str, *, params: Optional[Dict[str, Any]] = None, json_body: Optional[Dict[str, Any]] = None, retries: int = 3, timeout: int = 60) -> requests.Response:\r\n",
-          "    url = f'{BASE_URL}{path}'\r\n",
-          "    last_exc = None\r\n",
-          "    for attempt in range(retries):\r\n",
-          "        token = get_token()\r\n",
-          "        headers = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}\r\n",
-          "        try:\r\n",
-          "            resp = requests.request(method, url, headers=headers, params=params, json=json_body, timeout=timeout)\r\n",
-          "        except Exception as ex:\r\n",
-          "            last_exc = ex\r\n",
-          "            time.sleep(min(2 ** attempt, 5))\r\n",
-          "            continue\r\n",
-          "        if resp.status_code in (401, 403, 429) and attempt < retries - 1:\r\n",
-          "            time.sleep(1 + attempt)\r\n",
-          "            continue\r\n",
-          "        if resp.status_code >= 500 and attempt < retries - 1:\r\n",
-          "            time.sleep(1 + attempt)\r\n",
-          "            continue\r\n",
-          "        return resp\r\n",
-          "    if last_exc:\r\n",
-          "        raise last_exc\r\n",
-          "    return resp\r\n",
-          "\r\n",
-          "def search_columns_via_atlas_basic(classifications: List[str], container_filter: str, page_size: int = 100, max_pages: int = 50):\r\n",
-          "    results = []\r\n",
-          "    for cls in classifications:\r\n",
-          "        offset = 0\r\n",
-          "        for _ in range(max_pages):\r\n",
-          "            params = {\r\n",
-          "                'classification': cls,\r\n",
-          "                'typeName': 'column',\r\n",
-          "                'query': container_filter,\r\n",
-          "                'limit': page_size,\r\n",
-          "                'offset': offset\r\n",
-          "            }\r\n",
-          "            resp = purview_request('GET', '/catalog/api/atlas/v2/search/basic', params=params)\r\n",
-          "            if not resp.ok:\r\n",
-          "                print(f'Atlas basic search failed for {cls}: {resp.status_code} {resp.text[:200]}')\r\n",
-          "                break\r\n",
-          "            data = resp.json()\r\n",
-          "            items = data.get('entities') or []\r\n",
-          "            if not items:\r\n",
-          "                break\r\n",
-          "            results.extend(items)\r\n",
-          "            if len(items) < page_size:\r\n",
-          "                break\r\n",
-          "            offset += page_size\r\n",
-          "    return results\r\n",
-          "\r\n",
-          "def normalize_results(raw_items: list, container_filter: str):\r\n",
-          "    rows = []\r\n",
-          "    for it in raw_items:\r\n",
-          "        guid = it.get('guid') or it.get('id')\r\n",
-          "        type_name = it.get('typeName')\r\n",
-          "        attrs = it.get('attributes') or {}\r\n",
-          "        name = attrs.get('name') or attrs.get('columnName')\r\n",
-          "        qn = attrs.get('qualifiedName') or it.get('qualifiedName')\r\n",
-          "        classes = it.get('classifications') or []\r\n",
-          "        cls_names = []\r\n",
-          "        for c in classes:\r\n",
-          "            if isinstance(c, dict):\r\n",
-          "                n = c.get('typeName') or c.get('name')\r\n",
-          "                if n: cls_names.append(n)\r\n",
-          "        parent_qn = qn.split('#', 1)[0] if isinstance(qn, str) else None\r\n",
-          "        rows.append({\r\n",
-          "            'guid': guid, 'entityType': type_name, 'column_name': name,\r\n",
-          "            'qualifiedName': qn, 'parentQualifiedName': parent_qn,\r\n",
-          "            'classification_names': sorted(set(cls_names))\r\n",
-          "        })\r\n",
-          "    import pandas as pd\r\n",
-          "    df = pd.DataFrame(rows)\r\n",
-          "    if not df.empty:\r\n",
-          "        df = df[df['qualifiedName'].astype(str).str.contains(container_filter, case=False, na=False)].copy()\r\n",
-          "    return df\r\n"
-        ],
-        "execution_count": null
-      },
-      {
-        "cell_type": "code",
-        "source": [
-          "# Execute search and display results\r\n",
-          "raw = search_columns_via_atlas_basic(CLASSIFICATION_CANDIDATES, CONTAINER_FILTER)\r\n",
-          "df = normalize_results(raw, CONTAINER_FILTER)\r\n",
-          "print(f'Total classified columns found in container {CONTAINER_FILTER}: {len(df)}')\r\n",
-          "if not df.empty:\r\n",
-          "    def matched_cls(names):\r\n",
-          "        for cand in CLASSIFICATION_CANDIDATES:\r\n",
-          "            for n in names or []:\r\n",
-          "                if cand.lower() in str(n).lower():\r\n",
-          "                    return cand\r\n",
-          "        return None\r\n",
-          "    df['matched_classification'] = df['classification_names'].apply(matched_cls)\r\n",
-          "    print('Sample rows:')\r\n",
-          "    print(df[['column_name','matched_classification','qualifiedName','parentQualifiedName','entityType']].head(50).to_string(index=False))\r\n",
-          "    try:\r\n",
-          "        sdf = spark.createDataFrame(df)\r\n",
-          "        display(sdf)\r\n",
-          "    except Exception:\r\n",
-          "        pass\r\n"
-        ],
-        "execution_count": null
-      },
-      {
-        "cell_type": "code",
-        "source": [
-          "# Optional: save CSV to ADLS using an abfss path provided via env var\r\n",
-          "OUTPUT_PATH_ABFSS = os.environ.get('PURVIEW_EMAIL_FIELDS_ABFSS_PATH','')\r\n",
-          "if OUTPUT_PATH_ABFSS:\r\n",
-          "    csv_data = df.to_csv(index=False)\r\n",
-          "    mssparkutils.fs.put(OUTPUT_PATH_ABFSS, csv_data, True)\r\n",
-          "    print(f'Saved CSV to {OUTPUT_PATH_ABFSS}')\r\n",
-          "else:\r\n",
-          "    print('Set PURVIEW_EMAIL_FIELDS_ABFSS_PATH to an abfss:// path to save results, e.g. abfss://curated@<account>.dfs.core.windows.net/exports/purview_email_fields.csv')\r\n"
-        ],
-        "execution_count": null
-      }
-    ]
-  }
+	"name": "Purview_Find_Email_Fields_in_odw_raw",
+	"properties": {
+		"folder": {
+			"name": "catalog/"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "9aa45a8d-833d-46a5-adba-3e39e26ac809"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"source": [
+					"# Purview: Find 'Email Address' classified fields in odw-raw\r\n",
+					"\r\n",
+					"This notebook queries Microsoft Purview (Atlas Search) to identify column-level fields within the `odw-raw` container that are classified as 'Email Address'.\r\n",
+					"\r\n",
+					"Prerequisites:\r\n",
+					"- Synapse workspace Managed Identity (or a Service Principal) has Catalog Reader permissions in Purview.\r\n",
+					"- Environment variable `PURVIEW_ACCOUNT_NAME` is set to your Purview account name (e.g., `pins-purview-dev`).\r\n",
+					"- `ODW_CONTAINER_NAME` (defaults to `odw-raw`) and `PURVIEW_CLASSIFICATION_NAMES` (JSON array, defaults to common email labels).\r\n",
+					"\r\n",
+					"If the next cell installs packages, allow the Python session to restart, then re-run remaining cells.\r\n",
+					""
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from notebookutils import mssparkutils\r\n",
+					"try:\r\n",
+					"    import requests, pandas as pd\r\n",
+					"    from azure.identity import DefaultAzureCredential, ManagedIdentityCredential, ChainedTokenCredential\r\n",
+					"    import msal\r\n",
+					"    print('Libraries available')\r\n",
+					"except Exception:\r\n",
+					"    print('Installing required packages via mssparkutils...')\r\n",
+					"    mssparkutils.library.installPyPI('requests')\r\n",
+					"    mssparkutils.library.installPyPI('msal')\r\n",
+					"    mssparkutils.library.installPyPI('azure-identity')\r\n",
+					"    mssparkutils.library.installPyPI('pandas')\r\n",
+					"    mssparkutils.library.restartPython()\r\n",
+					"\r\n",
+					"from azure.identity import DefaultAzureCredential, ManagedIdentityCredential, ChainedTokenCredential"
+				],
+				"execution_count": 3
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"import os, json\r\n",
+					"PURVIEW_ACCOUNT_NAME = 'pins-pview'\r\n",
+					"CONTAINER_FILTER = os.environ.get('ODW_CONTAINER_NAME', 'odw-raw').strip()\r\n",
+					"CLASSIFICATION_CANDIDATES = json.loads(os.environ.get('PURVIEW_CLASSIFICATION_NAMES', '[\"Email Address\",\"MICROSOFT.PERSONAL.EMAIL\",\"MICROSOFT.PII.EmailAddress\"]'))\r\n",
+					"API_VERSION_SEARCH = os.environ.get('PURVIEW_SEARCH_API_VERSION', '2023-09-01').strip()\r\n",
+					"if not PURVIEW_ACCOUNT_NAME:\r\n",
+					"    raise ValueError('Set PURVIEW_ACCOUNT_NAME environment variable to your Purview account name (without domain).')\r\n",
+					"BASE_URL = f'https://{PURVIEW_ACCOUNT_NAME}.purview.azure.com'\r\n",
+					"print('Using Purview account:', PURVIEW_ACCOUNT_NAME)\r\n",
+					"print('Container filter:', CONTAINER_FILTER)\r\n",
+					"print('Classification candidates:', CLASSIFICATION_CANDIDATES)\r\n",
+					"import time, requests\r\n",
+					"from typing import Optional, Dict, Any, List\r\n",
+					""
+				],
+				"execution_count": 7
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"SCOPE = 'https://purview.azure.net/.default'\r\n",
+					"tenant_id = os.environ.get('AZURE_TENANT_ID', '').strip()\r\n",
+					"client_id = os.environ.get('AZURE_CLIENT_ID', '').strip()\r\n",
+					"client_secret = os.environ.get('AZURE_CLIENT_SECRET', '').strip()\r\n",
+					"def get_token() -> str:\r\n",
+					"    cred_chain = ChainedTokenCredential(\r\n",
+					"        ManagedIdentityCredential(),\r\n",
+					"        DefaultAzureCredential(exclude_interactive_browser_credential=True, exclude_visual_studio_code_credential=True)\r\n",
+					"    )\r\n",
+					"    try:\r\n",
+					"        return cred_chain.get_token(SCOPE).token\r\n",
+					"    except Exception:\r\n",
+					"        if tenant_id and client_id and client_secret:\r\n",
+					"            import msal\r\n",
+					"            app = msal.ConfidentialClientApplication(\r\n",
+					"                client_id, authority=f'https://login.microsoftonline.com/{tenant_id}', client_credential=client_secret\r\n",
+					"            )\r\n",
+					"            result = app.acquire_token_for_client(scopes=[SCOPE])\r\n",
+					"            if 'access_token' in result:\r\n",
+					"                return result['access_token']\r\n",
+					"            raise RuntimeError('MSAL service principal auth failed')\r\n",
+					"        raise\r\n",
+					""
+				],
+				"execution_count": 6
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def purview_request(method: str, path: str, *, params: Optional[Dict[str, Any]] = None, json_body: Optional[Dict[str, Any]] = None, retries: int = 3, timeout: int = 60) -> requests.Response:\r\n",
+					"    url = f'{BASE_URL}{path}'\r\n",
+					"    last_exc = None\r\n",
+					"    for attempt in range(retries):\r\n",
+					"        token = get_token()\r\n",
+					"        headers = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}\r\n",
+					"        try:\r\n",
+					"            resp = requests.request(method, url, headers=headers, params=params, json=json_body, timeout=timeout)\r\n",
+					"        except Exception as ex:\r\n",
+					"            last_exc = ex\r\n",
+					"            time.sleep(min(2 ** attempt, 5))\r\n",
+					"            continue\r\n",
+					"        if resp.status_code in (401, 403, 429) and attempt < retries - 1:\r\n",
+					"            time.sleep(1 + attempt)\r\n",
+					"            continue\r\n",
+					"        if resp.status_code >= 500 and attempt < retries - 1:\r\n",
+					"            time.sleep(1 + attempt)\r\n",
+					"            continue\r\n",
+					"        return resp\r\n",
+					"    if last_exc:\r\n",
+					"        raise last_exc\r\n",
+					"    return resp\r\n",
+					"\r\n",
+					"def search_columns_via_atlas_basic(classifications: List[str], container_filter: str, page_size: int = 100, max_pages: int = 50):\r\n",
+					"    results = []\r\n",
+					"    for cls in classifications:\r\n",
+					"        offset = 0\r\n",
+					"        for _ in range(max_pages):\r\n",
+					"            params = {\r\n",
+					"                'classification': cls,\r\n",
+					"                'typeName': 'column',\r\n",
+					"                'query': container_filter,\r\n",
+					"                'limit': page_size,\r\n",
+					"                'offset': offset\r\n",
+					"            }\r\n",
+					"            resp = purview_request('GET', '/catalog/api/atlas/v2/search/basic', params=params)\r\n",
+					"            if not resp.ok:\r\n",
+					"                print(f'Atlas basic search failed for {cls}: {resp.status_code} {resp.text[:200]}')\r\n",
+					"                break\r\n",
+					"            data = resp.json()\r\n",
+					"            items = data.get('entities') or []\r\n",
+					"            if not items:\r\n",
+					"                break\r\n",
+					"            results.extend(items)\r\n",
+					"            if len(items) < page_size:\r\n",
+					"                break\r\n",
+					"            offset += page_size\r\n",
+					"    return results\r\n",
+					"\r\n",
+					"def normalize_results(raw_items: list, container_filter: str):\r\n",
+					"    rows = []\r\n",
+					"    for it in raw_items:\r\n",
+					"        guid = it.get('guid') or it.get('id')\r\n",
+					"        type_name = it.get('typeName')\r\n",
+					"        attrs = it.get('attributes') or {}\r\n",
+					"        name = attrs.get('name') or attrs.get('columnName')\r\n",
+					"        qn = attrs.get('qualifiedName') or it.get('qualifiedName')\r\n",
+					"        classes = it.get('classifications') or []\r\n",
+					"        cls_names = []\r\n",
+					"        for c in classes:\r\n",
+					"            if isinstance(c, dict):\r\n",
+					"                n = c.get('typeName') or c.get('name')\r\n",
+					"                if n: cls_names.append(n)\r\n",
+					"        parent_qn = qn.split('#', 1)[0] if isinstance(qn, str) else None\r\n",
+					"        rows.append({\r\n",
+					"            'guid': guid, 'entityType': type_name, 'column_name': name,\r\n",
+					"            'qualifiedName': qn, 'parentQualifiedName': parent_qn,\r\n",
+					"            'classification_names': sorted(set(cls_names))\r\n",
+					"        })\r\n",
+					"    import pandas as pd\r\n",
+					"    df = pd.DataFrame(rows)\r\n",
+					"    if not df.empty:\r\n",
+					"        df = df[df['qualifiedName'].astype(str).str.contains(container_filter, case=False, na=False)].copy()\r\n",
+					"    return df\r\n",
+					""
+				],
+				"execution_count": 8
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Execute search and display results\r\n",
+					"raw = search_columns_via_atlas_basic(CLASSIFICATION_CANDIDATES, CONTAINER_FILTER)\r\n",
+					"df = normalize_results(raw, CONTAINER_FILTER)\r\n",
+					"print(f'Total classified columns found in container {CONTAINER_FILTER}: {len(df)}')\r\n",
+					"if not df.empty:\r\n",
+					"    def matched_cls(names):\r\n",
+					"        for cand in CLASSIFICATION_CANDIDATES:\r\n",
+					"            for n in names or []:\r\n",
+					"                if cand.lower() in str(n).lower():\r\n",
+					"                    return cand\r\n",
+					"        return None\r\n",
+					"    df['matched_classification'] = df['classification_names'].apply(matched_cls)\r\n",
+					"    print('Sample rows:')\r\n",
+					"    print(df[['column_name','matched_classification','qualifiedName','parentQualifiedName','entityType']].head(50).to_string(index=False))\r\n",
+					"    try:\r\n",
+					"        sdf = spark.createDataFrame(df)\r\n",
+					"        display(sdf)\r\n",
+					"    except Exception:\r\n",
+					"        pass\r\n",
+					""
+				],
+				"execution_count": 9
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Optional: save CSV to ADLS using an abfss path provided via env var\r\n",
+					"OUTPUT_PATH_ABFSS = os.environ.get('PURVIEW_EMAIL_FIELDS_ABFSS_PATH','')\r\n",
+					"if OUTPUT_PATH_ABFSS:\r\n",
+					"    csv_data = df.to_csv(index=False)\r\n",
+					"    mssparkutils.fs.put(OUTPUT_PATH_ABFSS, csv_data, True)\r\n",
+					"    print(f'Saved CSV to {OUTPUT_PATH_ABFSS}')\r\n",
+					"else:\r\n",
+					"    print('Set PURVIEW_EMAIL_FIELDS_ABFSS_PATH to an abfss:// path to save results, e.g. abfss://curated@<account>.dfs.core.windows.net/exports/purview_email_fields.csv')\r\n",
+					""
+				],
+				"execution_count": null
+			}
+		]
+	}
 }
