@@ -70,15 +70,32 @@ def find_classified_columns(
     base_url = f"https://{purview_account_name}.purview.azure.com"
     classifications = list(classification_candidates or _classification_candidates_from_env() or get_default_classification_candidates())
 
-    raw_items = _search_columns_via_atlas_basic(
-        base_url=base_url,
-        classifications=classifications,
-        container_filter=container_filter,
-        page_size=page_size,
-        max_pages=max_pages,
-        timeout=timeout,
-        auth=auth,
-    )
+    # Try Search API first (works on newer accounts), then Atlas basic as fallback
+    raw_items: List[Dict[str, Any]] = []
+    try:
+        raw_items = _search_columns_via_search_api(
+            base_url=base_url,
+            classifications=classifications,
+            container_filter=container_filter,
+            page_size=page_size,
+            max_pages=max_pages,
+            timeout=timeout,
+            auth=auth,
+        )
+    except Exception as e:
+        logging.warning("Search API query failed; will fallback to Atlas basic. %s", e)
+
+    if not raw_items:
+        raw_items = _search_columns_via_atlas_basic(
+            base_url=base_url,
+            classifications=classifications,
+            container_filter=container_filter,
+            page_size=page_size,
+            max_pages=max_pages,
+            timeout=timeout,
+            auth=auth,
+        )
+
     rows = _normalize_results(raw_items, container_filter)
     return rows
 
@@ -211,6 +228,84 @@ def _purview_request(
     return resp  # type: ignore[name-defined]
 
 
+def _search_columns_via_search_api(
+    *,
+    base_url: str,
+    classifications: Sequence[str],
+    container_filter: str,
+    page_size: int = 100,
+    max_pages: int = 50,
+    timeout: int = 60,
+    auth: Optional[Callable[(), str]] = None,
+) -> List[Dict[str, Any]]:
+    """Use the Purview Search API to find column entities by classification and container filter.
+
+    Tries /datamap first, then /catalog for backward compatibility.
+    """
+    api_version = os.getenv("PURVIEW_SEARCH_API_VERSION", "2023-09-01").strip()
+    base_paths = ("/datamap/api/search/query", "/catalog/api/search/query")
+    results: List[Dict[str, Any]] = []
+
+    op = os.getenv("PURVIEW_CLASSIFICATION_OPERATOR", "eq").strip().lower()
+    if op not in ("eq", "contains"):
+        op = "eq"
+
+    for cls in classifications:
+        offset = 0
+        for _ in range(max_pages):
+            body = {
+                "keywords": "*",
+                "limit": page_size,
+                "offset": offset,
+                "filter": {
+                    "and": [
+                        {"entityType": "column"},
+                        {"attributeName": "qualifiedName", "operator": "contains", "attributeValue": container_filter},
+                        {"attributeName": "classification", "operator": op, "attributeValue": cls},
+                    ]
+                },
+            }
+            resp = None
+            for path in base_paths:
+                r = _purview_request(
+                    base_url=base_url,
+                    method="POST",
+                    path=path,
+                    params={"api-version": api_version},
+                    json_body=body,
+                    retries=3,
+                    timeout=timeout,
+                    auth=auth,
+                )
+                if r.ok:
+                    resp = r
+                    break
+                # Try next path on 404/405 or NotSupportedAPIVersion
+                if r.status_code in (404, 405):
+                    continue
+                if "NotSupportedAPIVersion" in (r.text or ""):
+                    continue
+                # Other error; keep the response and break
+                resp = r
+                break
+
+            if resp is None or not resp.ok:
+                logging.warning(
+                    "Search API query failed for %s: %s %s", cls, getattr(resp, "status_code", None), ("" if resp is None else resp.text[:200])
+                )
+                break
+
+            data = resp.json()
+            items = data.get("value") or data.get("searchResults") or []
+            if not items:
+                break
+            results.extend(items)
+            if len(items) < page_size:
+                break
+            offset += page_size
+    return results
+
+
 def _search_columns_via_atlas_basic(
     *,
     base_url: str,
@@ -222,6 +317,7 @@ def _search_columns_via_atlas_basic(
     auth: Optional[Callable[[], str]] = None,
 ) -> List[Dict[str, Any]]:
     results: List[Dict[str, Any]] = []
+    base_paths = ("/datamap/api/atlas/v2/search/basic", "/catalog/api/atlas/v2/search/basic")
     for cls in classifications:
         offset = 0
         for _ in range(max_pages):
@@ -232,17 +328,29 @@ def _search_columns_via_atlas_basic(
                 "limit": page_size,
                 "offset": offset,
             }
-            resp = _purview_request(
-                base_url=base_url,
-                method="GET",
-                path="/catalog/api/atlas/v2/search/basic",
-                params=params,
-                retries=3,
-                timeout=timeout,
-                auth=auth,
-            )
-            if not resp.ok:
-                logging.warning("Atlas basic search failed for %s: %s %s", cls, resp.status_code, resp.text[:200])
+            resp = None
+            for path in base_paths:
+                r = _purview_request(
+                    base_url=base_url,
+                    method="GET",
+                    path=path,
+                    params=params,
+                    retries=3,
+                    timeout=timeout,
+                    auth=auth,
+                )
+                if r.ok:
+                    resp = r
+                    break
+                if r.status_code in (404, 405):
+                    continue
+                if "NotSupportedAPIVersion" in (r.text or ""):
+                    continue
+                resp = r
+                break
+
+            if resp is None or not resp.ok:
+                logging.warning("Atlas basic search failed for %s: %s %s", cls, getattr(resp, "status_code", None), ("" if resp is None else resp.text[:200]))
                 break
             data = resp.json()
             items = data.get("entities") or []
