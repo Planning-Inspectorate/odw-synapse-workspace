@@ -1,0 +1,104 @@
+{
+	"name": "py_UpdatePipelineStatus",
+	"properties": {
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "cdbbaa53-ca5c-4da2-8833-3e0f965d6839"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import SparkSession\n",
+					"from notebookutils import mssparkutils\n",
+					"from pyspark.sql.functions import col, lit, current_timestamp, when"
+				],
+				"execution_count": 3
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Parameters passed from ADF\n",
+					"PipelineName = \"pln_all_horizon_data\"  # Replace with ADF parameter\n",
+					"Status = \"Success\"                     # Replace with ADF parameter"
+				],
+				"execution_count": 4
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"spark = SparkSession.builder.getOrCreate()\n",
+					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"table_path=f\"abfss://odw-config@{storage_account}/PipelineMaintenanceList\"\n",
+					"print(table_path)"
+				],
+				"execution_count": 5
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"\n",
+					"\n",
+					"# Load the existing Delta table\n",
+					"\n",
+					"df = spark.read.format(\"delta\").load(table_path)\n",
+					"\n",
+					"# Apply update logic\n",
+					"updated_df = df.withColumn(\"Status\", \n",
+					"    when(col(\"PipelineName\") == pipeline_name, lit(status)).otherwise(col(\"Status\"))\n",
+					").withColumn(\"LastRunDate\", \n",
+					"    when((col(\"PipelineName\") == pipeline_name) & (lit(status) == \"Success\"), current_timestamp()).otherwise(col(\"LastRunDate\"))\n",
+					").withColumn(\"RetryCount\", \n",
+					"    when((col(\"PipelineName\") == pipeline_name) & (lit(status) == \"Failed\"), col(\"RetryCount\") + 1).otherwise(col(\"RetryCount\"))\n",
+					")\n",
+					"\n",
+					"# Overwrite the table with updated data\n",
+					""
+				],
+				"execution_count": 6
+			}
+		]
+	}
+}
