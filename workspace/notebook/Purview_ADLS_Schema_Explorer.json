@@ -1,0 +1,293 @@
+{
+	"name": "Purview_ADLS_Schema_Explorer",
+	"properties": {
+		"folder": { "name": "catalog/" },
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": { "referenceName": "pinssynspodw34", "type": "BigDataPoolReference" },
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "e7df5a0f-3a5d-4d89-8fd8-6b4dfe123abc"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": { "name": "synapse_pyspark", "display_name": "Synapse PySpark" },
+			"language_info": { "name": "python" },
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": { "type": "AAD", "authResource": "https://dev.azuresynapse.net" },
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"source": [
+					"# Purview + ADLS Schema Explorer (Fresh Implementation)\r\n",
+					"\r\n",
+					"This notebook demonstrates a service-principal based approach using pyapacheatlas to query Purview (Atlas) and correlate results with files in ADLS Gen2 via Synapse `mssparkutils`.\r\n",
+					"\r\n",
+					"Prerequisites (set as environment variables or provide interactively when prompted):\r\n",
+					"- `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET` (Service Principal with Purview read permissions).\r\n",
+					"- `PURVIEW_ACCOUNT_NAME` (e.g., `pins-pview`).\r\n",
+					"- `ADLS_STORAGE_ACCOUNT` (e.g., `pinsstdlakeodwdevuks`).\r\n",
+					"- `ODW_CONTAINER_NAME` (defaults to `odw-raw`).\r\n",
+					"- `ADLS_LINKED_SERVICE_NAME` (Synapse linked service for ADLS; used to fetch SAS).\r\n",
+					"\r\n",
+					"Notes:\r\n",
+					"- Secrets are only captured in-process and never printed.\r\n",
+					"- In automated runs, ensure env vars are present; the interactive prompts will be skipped.\r\n"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%pip install --disable-pip-version-check --quiet pyapacheatlas jmespath pandas requests"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"import os, re, json, requests, getpass, time\r\n",
+					"import pandas as pd\r\n",
+					"import jmespath\r\n",
+					"from pprint import pprint\r\n",
+					"from notebookutils import mssparkutils\r\n",
+					"from pyapacheatlas.auth import ServicePrincipalAuthentication\r\n",
+					"from pyapacheatlas.core import PurviewClient\r\n",
+					"from pyspark.sql import SparkSession\r\n",
+					"from pyspark.sql.functions import col\r\n",
+					"from pyspark.sql.types import *\r\n"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Collect required configuration from env or prompt (no secrets printed)\r\n",
+					"TENANT_ID = os.environ.get('AZURE_TENANT_ID') or input('Azure Tenant ID: ').strip()\r\n",
+					"CLIENT_ID = os.environ.get('AZURE_CLIENT_ID') or input('App (client) ID: ').strip()\r\n",
+					"CLIENT_SECRET = os.environ.get('AZURE_CLIENT_SECRET') or getpass.getpass('Client secret: ').strip()\r\n",
+					"PURVIEW_ACCOUNT_NAME = os.environ.get('PURVIEW_ACCOUNT_NAME') or input('Purview account name (e.g., pins-pview): ').strip()\r\n",
+					"ADLS_STORAGE_ACCOUNT = os.environ.get('ADLS_STORAGE_ACCOUNT') or input('ADLS storage account (no suffix): ').strip()\r\n",
+					"ODW_CONTAINER_NAME = (os.environ.get('ODW_CONTAINER_NAME') or 'odw-raw').strip()\r\n",
+					"ADLS_LINKED_SERVICE_NAME = os.environ.get('ADLS_LINKED_SERVICE_NAME') or input('Synapse Linked Service name for ADLS: ').strip()\r\n",
+					"RESOURCE_URL = 'https://purview.azure.net'\r\n",
+					"assert TENANT_ID and CLIENT_ID and CLIENT_SECRET and PURVIEW_ACCOUNT_NAME and ADLS_STORAGE_ACCOUNT and ADLS_LINKED_SERVICE_NAME, 'Missing one or more required settings'\r\n",
+					"print('Using Purview:', PURVIEW_ACCOUNT_NAME)\r\n",
+					"print('Using ADLS container@account:', ODW_CONTAINER_NAME, '@', ADLS_STORAGE_ACCOUNT)\r\n"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Auth helpers (AAD token + Purview client)\r\n",
+					"def azuread_auth(tenant_id: str, client_id: str, client_secret: str, resource_url: str = 'https://purview.azure.net') -> str:\r\n",
+					"    token_endpoint = f'https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token'\r\n",
+					"    data = {\r\n",
+					"        'grant_type': 'client_credentials',\r\n",
+					"        'client_id': client_id,\r\n",
+					"        'client_secret': client_secret,\r\n",
+					"        'scope': f'{resource_url}/.default'\r\n",
+					"    }\r\n",
+					"    resp = requests.post(token_endpoint, data=data, timeout=30)\r\n",
+					"    resp.raise_for_status()\r\n",
+					"    return resp.json()['access_token']\r\n",
+					"\r\n",
+					"def purview_auth(tenant_id: str, client_id: str, client_secret: str, account_name: str, resource_url: str = 'https://purview.azure.net') -> PurviewClient:\r\n",
+					"    oauth = ServicePrincipalAuthentication(tenant_id=tenant_id, client_id=client_id, client_secret=client_secret, resource_url=resource_url)\r\n",
+					"    return PurviewClient(account_name=account_name, authentication=oauth)\r\n",
+					"\r\n",
+					"def purview_rest(method: str, path: str, token: str, *, params=None, json_body=None, timeout: int = 60) -> requests.Response:\r\n",
+					"    url = f'https://{PURVIEW_ACCOUNT_NAME}.purview.azure.com{path}'\r\n",
+					"    headers = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}\r\n",
+					"    return requests.request(method, url, headers=headers, params=params, json=json_body, timeout=timeout)\r\n"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# ADLS helpers: recursive listing using mssparkutils\r\n",
+					"def deep_ls(path: str, max_depth: int = 20, _depth: int = 0):\r\n",
+					"    try:\r\n",
+					"        entries = mssparkutils.fs.ls(path)\r\n",
+					"    except Exception as e:\r\n",
+					"        print(f'ls failed at {path}: {e}')\r\n",
+					"        return\r\n",
+					"    for it in entries:\r\n",
+					"        name = getattr(it, 'name', None) or os.path.basename(getattr(it, 'path', ''))\r\n",
+					"        p = getattr(it, 'path', None) or name\r\n",
+					"        is_dir = getattr(it, 'isDir', None)\r\n",
+					"        if is_dir is None:\r\n",
+					"            is_dir = not bool(getattr(it, 'isFile', False))\r\n",
+					"        yield { 'path': p, 'name': name, 'isDir': bool(is_dir) }\r\n",
+					"        if bool(is_dir) and _depth < max_depth:\r\n",
+					"            yield from deep_ls(p, max_depth, _depth + 1)\r\n",
+					"\r\n",
+					"def convertfiles2df(files: list) -> pd.DataFrame:\r\n",
+					"    df = pd.DataFrame(files)\r\n",
+					"    if not df.empty:\r\n",
+					"        df['basename'] = df['path'].apply(lambda s: s.split('/')[-1])\r\n",
+					"    return df\r\n"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Purview query helpers\r\n",
+					"def search_atlas_basic(token: str, *, query: str, type_name: str = None, classification: str = None, limit: int = 100, offset: int = 0) -> dict:\r\n",
+					"    params = { 'query': query, 'limit': limit, 'offset': offset }\r\n",
+					"    if type_name: params['typeName'] = type_name\r\n",
+					"    if classification: params['classification'] = classification\r\n",
+					"    resp = purview_rest('GET', '/catalog/api/atlas/v2/search/basic', token, params=params)\r\n",
+					"    resp.raise_for_status()\r\n",
+					"    return resp.json()\r\n",
+					"\r\n",
+					"def get_all_adls_assets(top_path: str, token: str, *, max_pages: int = 100, page_size: int = 100) -> list:\r\n",
+					"    results = []\r\n",
+					"    offset = 0\r\n",
+					"    for _ in range(max_pages):\r\n",
+					"        data = search_atlas_basic(token, query=top_path, type_name=None, limit=page_size, offset=offset)\r\n",
+					"        items = data.get('entities') or []\r\n",
+					"        if not items:\r\n",
+					"            break\r\n",
+					"        results.extend(items)\r\n",
+					"        if len(items) < page_size:\r\n",
+					"            break\r\n",
+					"        offset += page_size\r\n",
+					"    return results\r\n",
+					"\r\n",
+					"def abfss_to_purview_subpath(abfss_path: str, storage_account: str, container: str) -> str:\r\n",
+					"    prefix = f'abfss://{container}@{storage_account}.dfs.core.windows.net/'\r\n",
+					"    rel = abfss_path.split(prefix, 1)[-1] if prefix in abfss_path else abfss_path\r\n",
+					"    return f'/azure_datalake_gen2_filesystem#{container}/{rel}'.rstrip('/')\r\n",
+					"\r\n",
+					"def get_adls_asset_schema(abfss_path: str, token: str, *, storage_account: str, container: str, classification_filter: list = None) -> list:\r\n",
+					"    sub = abfss_to_purview_subpath(abfss_path, storage_account, container)\r\n",
+					"    cols = []\r\n",
+					"    offset = 0\r\n",
+					"    page = 0\r\n",
+					"    while page < 50:\r\n",
+					"        data = search_atlas_basic(token, query=sub, type_name='column', limit=200, offset=offset)\r\n",
+					"        entities = data.get('entities') or []\r\n",
+					"        if not entities:\r\n",
+					"            break\r\n",
+					"        for it in entities:\r\n",
+					"            attrs = it.get('attributes') or {}\r\n",
+					"            name = attrs.get('name') or attrs.get('columnName')\r\n",
+					"            qn = attrs.get('qualifiedName') or it.get('qualifiedName')\r\n",
+					"            classes = it.get('classifications') or []\r\n",
+					"            class_names = []\r\n",
+					"            for c in classes:\r\n",
+					"                if isinstance(c, dict):\r\n",
+					"                    n = c.get('typeName') or c.get('name')\r\n",
+					"                    if n: class_names.append(n)\r\n",
+					"            if classification_filter:\r\n",
+					"                lset = {x.lower() for x in class_names}\r\n",
+					"                if not any(cf.lower() in lset for cf in classification_filter):\r\n",
+					"                    continue\r\n",
+					"            cols.append({'column_name': name, 'qualifiedName': qn, 'classification_names': sorted(set(class_names))})\r\n",
+					"        if len(entities) < 200:\r\n",
+					"            break\r\n",
+					"        offset += 200\r\n",
+					"        page += 1\r\n",
+					"    return cols\r\n"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Authenticate\r\n",
+					"azuread_access_token = azuread_auth(TENANT_ID, CLIENT_ID, CLIENT_SECRET, RESOURCE_URL)\r\n",
+					"purview_client = purview_auth(TENANT_ID, CLIENT_ID, CLIENT_SECRET, PURVIEW_ACCOUNT_NAME, RESOURCE_URL)\r\n",
+					"print('Authenticated to Purview.')\r\n"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Configure Spark access to ADLS using linked service SAS\r\n",
+					"adls_sas_token = mssparkutils.credentials.getConnectionStringOrCreds(ADLS_LINKED_SERVICE_NAME)\r\n",
+					"root = f'abfss://{ODW_CONTAINER_NAME}@{ADLS_STORAGE_ACCOUNT}.dfs.core.windows.net/'\r\n",
+					"spark.conf.set(f'fs.azure.sas.{ODW_CONTAINER_NAME}.{ADLS_STORAGE_ACCOUNT}.dfs.core.windows.net', adls_sas_token)\r\n",
+					"print('Remote ADLS root path:', root)\r\n"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Recursively list files under the container (adjust max_depth as needed)\r\n",
+					"files = list(deep_ls(root, max_depth=10))\r\n",
+					"files_df = convertfiles2df(files)\r\n",
+					"# Keep files only\r\n",
+					"if not files_df.empty:\r\n",
+					"    files_df = files_df[files_df['isDir'] == False].reset_index(drop=True)\r\n",
+					"print('Total files listed:', len(files_df))\r\n",
+					"display(spark.createDataFrame(files_df.head(50)))\r\n"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Derive a normalized asset key (replace numeric segments with {N})\r\n",
+					"if not files_df.empty:\r\n",
+					"    files_df['asset_key'] = files_df['path'].str.replace(r'/\\d+', '/{N}', regex=True)\r\n",
+					"    display(spark.createDataFrame(files_df[['path','asset_key']].head(20)))\r\n"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Build Purview top path and fetch catalog assets (optional)\r\n",
+					"top_path = f"/azure_storage_account#{ADLS_STORAGE_ACCOUNT}.core.windows.net/azure_datalake_gen2_service#{ADLS_STORAGE_ACCOUNT}.dfs.core.windows.net/azure_datalake_gen2_filesystem#{ODW_CONTAINER_NAME}"\r\n",
+					"assets_all = list(get_all_adls_assets(top_path, azuread_access_token, max_pages=20, page_size=100))\r\n",
+					"print('Purview assets matched at top path:', len(assets_all))\r\n"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Append schema from Purview for each file (may take time; limit sample during dev)\r\n",
+					"CLASSIFICATION_FILTER = json.loads(os.environ.get('PURVIEW_CLASSIFICATION_NAMES', '[]'))  # e.g., [\"MICROSOFT.PII.EmailAddress\"]\r\n",
+					"sample_df = files_df.head(100).copy() if len(files_df) > 100 else files_df.copy()\r\n",
+					"schemas = []\r\n",
+					"for p in sample_df['path']:\r\n",
+					"    cols = get_adls_asset_schema(p, azuread_access_token, storage_account=ADLS_STORAGE_ACCOUNT, container=ODW_CONTAINER_NAME, classification_filter=CLASSIFICATION_FILTER or None)\r\n",
+					"    schemas.append(cols)\r\n",
+					"sample_df['schema'] = schemas\r\n",
+					"display(spark.createDataFrame(sample_df[['path','schema']]))\r\n",
+					"print('Completed schema fetch for', len(sample_df), 'files.')\r\n"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
