@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "8b7c4b5f-a69c-486c-85c3-7ae5838d83d3"
+				"spark.autotune.trackingId": "29673da3-0270-4253-982d-889c59e671a9"
 			}
 		},
 		"metadata": {
@@ -335,6 +335,8 @@
 					"        \"typeOfPlanningApplication\",\r\n",
 					"        \"preserveGrantLoan\",\r\n",
 					"        \"consultHistoricEngland\",\r\n",
+					"        \"planningObligationDueDate\",\r\n",
+					"        \"statementOfCommonGroundDueDate\",\r\n",
 					"    )\r\n",
 					"\r\n",
 					"    current_cols = set(h.columns)\r\n",
@@ -342,7 +344,14 @@
 					"    if missing:\r\n",
 					"        print(\"Missing in Harmonised:\", missing)\r\n",
 					"\r\n",
-					"    df = h.select(*[c for c in curated_cols if c in current_cols])\r\n",
+					"    select_exprs = []\r\n",
+					"    for c in curated_cols:\r\n",
+					"        if c in current_cols:\r\n",
+					"            select_exprs.append(F.col(c))\r\n",
+					"        else:\r\n",
+					"            select_exprs.append(F.lit(None).cast(\"string\").alias(c))\r\n",
+					"\r\n",
+					"    df = h.select(*select_exprs)\r\n",
 					"\r\n",
 					"except Exception as e:\r\n",
 					"    error_message = f\"Error building curated DataFrame from harmonised appeal_s78 : {str(e)[:800]}\"\r\n",
