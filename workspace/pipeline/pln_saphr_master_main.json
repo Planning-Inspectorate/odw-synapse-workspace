@@ -1,6 +1,199 @@
 {
 	"name": "pln_saphr_master_main",
 	"properties": {
+		"activities": [
+			{
+				"name": "Set Service Bus feed",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "service_bus_feed",
+					"value": {
+						"value": "@split(activity('Get Service Bus feed').output.value[0].entities, ',')\n\n",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Service bus loads",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Set Service Bus feed",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@variables('service_bus_feed')",
+						"type": "Expression"
+					},
+					"isSequential": false,
+					"activities": [
+						{
+							"name": "Random wait to allow parallelism_copy4",
+							"type": "Wait",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"waitTimeInSeconds": {
+									"value": "@rand(1, 20)",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Execute Service Bus Pipeline",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Random wait to allow parallelism_copy4",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_service_bus",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"entity_name_input": {
+										"value": "@item()",
+										"type": "Expression"
+									},
+									"apps_insights_ikey": {
+										"value": "@variables('apps_insights_ikey')",
+										"type": "Expression"
+									},
+									"Key_Vault_Url": {
+										"value": "@variables('Key_Vault_Url')",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Record Service Bus failure",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Execute Service Bus Pipeline",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "Fail",
+									"PipelineName": {
+										"value": "@activity('Execute Service Bus Pipeline').Output.pipelineName",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@activity('Execute Service Bus Pipeline').Output.pipelineRunId",
+										"type": "Expression"
+									},
+									"StartTime": {
+										"value": "@activity('Execute Service Bus Pipeline').ExecutionStartTime",
+										"type": "Expression"
+									},
+									"EndTime": {
+										"value": "@activity('Execute Service Bus Pipeline').ExecutionEndTime",
+										"type": "Expression"
+									},
+									"ErrorMessage": {
+										"value": "@activity('Execute Service Bus Pipeline').Error.message",
+										"type": "Expression"
+									},
+									"StatusMessage": {
+										"value": "@concat(item(), ': ', activity('Execute Service Bus Pipeline').Status)",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": "@activity('Execute Service Bus Pipeline').PipelineName",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": "@activity('Execute Service Bus Pipeline').PipelineRunId",
+										"type": "Expression"
+									},
+									"PipelineExecutionTimeInSec": {
+										"value": "@activity('Execute Service Bus Pipeline').Duration",
+										"type": "Expression"
+									},
+									"ActivityType": {
+										"value": "@activity('Execute Service Bus Pipeline').ActivityType",
+										"type": "Expression"
+									},
+									"DurationSeconds": {
+										"value": "@activity('Execute Service Bus Pipeline').Duration",
+										"type": "Expression"
+									},
+									"AppInsCustomEventName": "ODW_Master_Pipeline_Logs",
+									"StatusCode": {
+										"value": "@activity('Execute Service Bus Pipeline').StatusCode",
+										"type": "Expression"
+									},
+									"AppInsIKey": {
+										"value": "@variables('apps_insights_ikey')",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Return Failure",
+							"description": "Return as a failed activity after logging the error",
+							"type": "Fail",
+							"dependsOn": [
+								{
+									"activity": "Record Service Bus failure",
+									"dependencyConditions": [
+										"Completed"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"message": {
+									"value": "@activity('Execute Service Bus Pipeline').Error.message",
+									"type": "Expression"
+								},
+								"errorCode": {
+									"value": "@activity('Execute Service Bus Pipeline').StatusCode",
+									"type": "Expression"
+								}
+							}
+						}
+					]
+				}
+			}
+		],
 		"folder": {
 			"name": "utils/Master"
 		},
