@@ -1,0 +1,257 @@
+{
+	"name": "py_purview_api",
+	"properties": {
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "31cf42f6-650e-4a7b-b781-119b06cc7506"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"import os\n",
+					"import requests\n",
+					"from azure.identity import ClientSecretCredential\n",
+					"from notebookutils import mssparkutils\n",
+					"import requests"
+				],
+				"execution_count": 63
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"pip install --upgrade azure-identity azure-keyvault-secrets"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Config\n",
+					"\n",
+					"TENANT_ID       = \"5878df98-6f88-48ab-9322-998ce557088d\"\n",
+					"CLIENT_ID       = \"5750ab9b-597c-4b0d-b0f0-f4ef94e91fc0\"\n",
+					"CLIENT_SECRET = mssparkutils.credentials.getSecret(VAULT_NAME, SECRET_NAME)\n",
+					"PURVIEW_NAME    = \"pins-pview\"\n",
+					"API_VERSION     = \"2023-09-01\"\n",
+					"\n",
+					"ASSET_GUID              = \"a57a9600-6673-4e7f-b0e7-dcf6f6f60000\" \n",
+					"ASSET_TYPE_NAME         = None\n",
+					"ASSET_QUALIFIED_NAME    = None\n",
+					"CLASSIFICATION_NAME     = \"PotentialID\""
+				],
+				"execution_count": 82
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# AUTH\n",
+					"\n",
+					"import requests, json\n",
+					"\n",
+					"token_url = f\"https://login.microsoftonline.com/{TENANT_ID}/oauth2/v2.0/token\"\n",
+					"data = {\n",
+					"   \"grant_type\": \"client_credentials\",\n",
+					"   \"client_id\": CLIENT_ID,\n",
+					"   \"client_secret\": CLIENT_SECRET,\n",
+					"   \"scope\": \"https://purview.azure.net/.default\"\n",
+					"}\n",
+					"resp = requests.post(token_url, data=data, timeout=60)\n",
+					"if not resp.ok:\n",
+					"   raise Exception(f\"Token request failed [{resp.status_code}]: {resp.text}\")\n",
+					"ACCESS_TOKEN = resp.json()[\"access_token\"]\n",
+					"\n",
+					"BASE = f\"https://{PURVIEW_NAME}.catalog.purview.azure.com/api/atlas/v2\"\n",
+					"HDRS = {\"Authorization\": f\"Bearer {ACCESS_TOKEN}\", \"Content-Type\": \"application/json\"}\n",
+					""
+				],
+				"execution_count": 83
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# HTTP helpers\n",
+					"\n",
+					"from urllib.parse import quote\n",
+					"\n",
+					"def _get(url, headers=HDRS, timeout=60):\n",
+					"   r = requests.get(url, headers=headers, timeout=timeout)\n",
+					"   if not r.ok:\n",
+					"       raise Exception(f\"HTTP {r.status_code} – {r.text[:800]}\")\n",
+					"   return r.json()\n",
+					"\n",
+					"def get_entity_with_refs(guid: str):\n",
+					"   url = (\n",
+					"       f\"{BASE}/entity/guid/{guid}\"\n",
+					"       f\"?minExtInfo=true&ignoreRelationships=false&api-version={API_VERSION}\"\n",
+					"   )\n",
+					"   return _get(url)\n",
+					"\n",
+					"def get_entity_classifications(guid: str):\n",
+					"   url = f\"{BASE}/entity/guid/{guid}/classifications?api-version={API_VERSION}\"\n",
+					"   try:\n",
+					"       data = _get(url)\n",
+					"       return data.get(\"list\", []) or []\n",
+					"   except Exception:\n",
+					"       return []\n",
+					"\n",
+					"def get_guid_by_unique_attrs(type_name: str, qualified_name: str) -> str:\n",
+					"\n",
+					"   qn = quote(qualified_name, safe=\"\")\n",
+					"   url = (f\"{BASE}/entity/uniqueAttribute/type/{quote(type_name, safe='')}\"\n",
+					"          f\"?attr%3AqualifiedName={qn}&api-version={API_VERSION}\")\n",
+					"   data = _get(url)\n",
+					"   # Atlas may return either 'entity' or the flattened attributes + guid\n",
+					"   if \"entity\" in data and \"guid\" in data[\"entity\"]:\n",
+					"       return data[\"entity\"][\"guid\"]\n",
+					"   if \"guid\" in data:\n",
+					"       return data[\"guid\"]\n",
+					"   raise Exception(f\"Could not resolve GUID for {type_name} :: {qualified_name}\")\n",
+					""
+				],
+				"execution_count": 84
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Pull columns\n",
+					"\n",
+					"from pyspark.sql import Row\n",
+					"from pyspark.sql.types import StructType, StructField, StringType, BooleanType\n",
+					"\n",
+					"target_cls = CLASSIFICATION_NAME.casefold()\n",
+					"\n",
+					"payload = get_entity_with_refs(ASSET_GUID)\n",
+					"entity = payload.get(\"entity\", {}) or {}\n",
+					"ref_entities = payload.get(\"referredEntities\", {}) or {}\n",
+					"\n",
+					"asset_name = entity.get(\"attributes\", {}).get(\"name\") or entity.get(\"displayText\")\n",
+					"asset_fqn = entity.get(\"attributes\", {}).get(\"qualifiedName\")\n",
+					"asset_type = entity.get(\"typeName\")\n",
+					"\n",
+					"def is_column_like(type_name: str) -> bool:\n",
+					"   t = (type_name or \"\").lower()\n",
+					"   return (\n",
+					"       \"column\" in t\n",
+					"       or t.endswith(\"_field\")\n",
+					"       or t in {\n",
+					"           \"column\",\"tabular_column\",\"mssql_column\",\"azure_sql_table_column\",\n",
+					"           \"synapse_column\",\"snowflake_column\",\"fabric_column\"\n",
+					"       }\n",
+					"   )\n",
+					"\n",
+					"rows = []\n",
+					"for col_guid, col_ent in ref_entities.items():\n",
+					"   tname = col_ent.get(\"typeName\", \"\")\n",
+					"   if not is_column_like(tname):\n",
+					"       continue\n",
+					"\n",
+					"   col_attrs = col_ent.get(\"attributes\", {}) or {}\n",
+					"   col_name = col_attrs.get(\"name\") or col_attrs.get(\"qualifiedName\") or col_guid\n",
+					"   data_type = (col_attrs.get(\"dataType\")\n",
+					"                or col_attrs.get(\"type\")\n",
+					"                or col_attrs.get(\"data_type\"))\n",
+					"\n",
+					"   # Inline classifications, if present\n",
+					"   cls_list = col_ent.get(\"classifications\", []) or []\n",
+					"   if not cls_list:\n",
+					"       # Fallback (based on observations from Pre-POC)\n",
+					"       cls_list = get_entity_classifications(col_guid)\n",
+					"\n",
+					"   # Match exact classification \n",
+					"   for cls in cls_list:\n",
+					"       cls_name = (cls.get(\"typeName\") or \"\").casefold()\n",
+					"       if cls_name == target_cls:\n",
+					"           rows.append(Row(\n",
+					"               asset_guid            = ASSET_GUID,\n",
+					"               asset_name            = asset_name,\n",
+					"               asset_fqn             = asset_fqn,\n",
+					"               asset_type            = asset_type,\n",
+					"               column_guid           = col_guid,\n",
+					"               column_name           = col_name,\n",
+					"               column_entity_type    = tname,\n",
+					"               column_data_type      = data_type,\n",
+					"               classification_name   = cls.get(\"typeName\"),\n",
+					"               classification_state  = str(cls.get(\"entityStatus\") or cls.get(\"status\") or \"\"),\n",
+					"               propagate             = bool(cls.get(\"propagate\")) if isinstance(cls.get(\"propagate\"), bool) else None\n",
+					"           ))\n",
+					""
+				],
+				"execution_count": 85
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"#DF\n",
+					"\n",
+					"schema = StructType([\n",
+					"   StructField(\"asset_guid\",           StringType(), True),\n",
+					"   StructField(\"asset_name\",           StringType(), True),\n",
+					"   StructField(\"asset_fqn\",            StringType(), True),\n",
+					"   StructField(\"asset_type\",           StringType(), True),\n",
+					"   StructField(\"column_guid\",          StringType(), True),\n",
+					"   StructField(\"column_name\",          StringType(), True),\n",
+					"   StructField(\"column_entity_type\",   StringType(), True),\n",
+					"   StructField(\"column_data_type\",     StringType(), True),\n",
+					"   StructField(\"classification_name\",  StringType(), True),\n",
+					"   StructField(\"classification_state\", StringType(), True),\n",
+					"   StructField(\"propagate\",            BooleanType(), True),\n",
+					"])\n",
+					"\n",
+					"df = spark.createDataFrame(rows, schema) if rows else spark.createDataFrame([], schema)\n",
+					"df.createOrReplaceTempView(\"columns_with_classification\")\n",
+					"\n",
+					"display(df.orderBy(\"column_name\"))\n",
+					"\n",
+					""
+				],
+				"execution_count": 86
+			}
+		]
+	}
+}
