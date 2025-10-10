@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "31cf42f6-650e-4a7b-b781-119b06cc7506"
+				"spark.autotune.trackingId": "9ae32228-c0bc-4703-a874-62a6d850600c"
 			}
 		},
 		"metadata": {
@@ -57,7 +57,7 @@
 					"from notebookutils import mssparkutils\n",
 					"import requests"
 				],
-				"execution_count": 63
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -73,7 +73,7 @@
 					"\n",
 					"TENANT_ID       = \"5878df98-6f88-48ab-9322-998ce557088d\"\n",
 					"CLIENT_ID       = \"5750ab9b-597c-4b0d-b0f0-f4ef94e91fc0\"\n",
-					"CLIENT_SECRET = mssparkutils.credentials.getSecret(VAULT_NAME, SECRET_NAME)\n",
+					"SECRET_NAME     = \"application-insights-reader\"\n",
 					"PURVIEW_NAME    = \"pins-pview\"\n",
 					"API_VERSION     = \"2023-09-01\"\n",
 					"\n",
@@ -82,7 +82,38 @@
 					"ASSET_QUALIFIED_NAME    = None\n",
 					"CLASSIFICATION_NAME     = \"PotentialID\""
 				],
-				"execution_count": 82
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"ws = mssparkutils.env.getWorkspaceName().lower()\n",
+					"\n",
+					"def detect_env(workspace_name: str) -> str:\n",
+					"    if \"dev\" in workspace_name:\n",
+					"        return \"dev\"\n",
+					"    if \"test\" in workspace_name:\n",
+					"        return \"test\"\n",
+					"    if \"prod\" in workspace_name:\n",
+					"        return \"prod\"\n",
+					"    return \"unknown\"\n",
+					"\n",
+					"env = detect_env(ws)\n",
+					"\n",
+					"# Map your environments to the Key Vault linked service names you use in each\n",
+					"KV_BY_ENV = {\n",
+					"    \"dev\":  \"pinskvsynwodwdevuks\",\n",
+					"    \"test\": \"pinskvsynwodwtestuks\",\n",
+					"    \"prod\": \"pinskvsynwodwproduks\",\n",
+					"}\n",
+					"\n",
+					"VAULT_NAME = KV_BY_ENV.get(env)\n",
+					"if not VAULT_LS:\n",
+					"    raise ValueError(f\"Cannot determine Key Vault linked service for environment: {env}\")\n",
+					"\n",
+					"CLIENT_SECRET = mssparkutils.credentials.getSecret(VAULT_NAME, SECRET_NAME)"
+				],
+				"execution_count": 13
 			},
 			{
 				"cell_type": "code",
@@ -107,7 +138,7 @@
 					"HDRS = {\"Authorization\": f\"Bearer {ACCESS_TOKEN}\", \"Content-Type\": \"application/json\"}\n",
 					""
 				],
-				"execution_count": 83
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
@@ -151,7 +182,7 @@
 					"   raise Exception(f\"Could not resolve GUID for {type_name} :: {qualified_name}\")\n",
 					""
 				],
-				"execution_count": 84
+				"execution_count": 15
 			},
 			{
 				"cell_type": "code",
@@ -278,7 +309,7 @@
 					"           ))\n",
 					""
 				],
-				"execution_count": 85
+				"execution_count": 16
 			},
 			{
 				"cell_type": "code",
@@ -309,7 +340,7 @@
 					"\n",
 					""
 				],
-				"execution_count": 86
+				"execution_count": 17
 			}
 		]
 	}
