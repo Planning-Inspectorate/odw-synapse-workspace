@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "1c051f55-3d04-4260-b799-242350270140"
+				"spark.autotune.trackingId": "c88a217d-37b7-495e-8c57-0443aa30191e"
 			}
 		},
 		"metadata": {
@@ -52,14 +52,14 @@
 				"cell_type": "code",
 				"source": [
 					"import os\n",
-					"import requests\n",
+					"import requests, json\n",
 					"from azure.identity import ClientSecretCredential\n",
 					"from notebookutils import mssparkutils\n",
 					"import requests\n",
 					"from pyspark.sql import Row\n",
 					"from pyspark.sql.types import StructType, StructField, StringType, BooleanType"
 				],
-				"execution_count": 1
+				"execution_count": 71
 			},
 			{
 				"cell_type": "code",
@@ -68,7 +68,7 @@
 					"date_folder = ''\n",
 					"is_servicebus_schema = True"
 				],
-				"execution_count": 2
+				"execution_count": 72
 			},
 			{
 				"cell_type": "code",
@@ -83,10 +83,11 @@
 					"\n",
 					"ASSET_GUID              = \"\" \n",
 					"ASSET_TYPE_NAME         = \"azure_datalake_gen2_resource_set\"\n",
-					"ASSET_QUALIFIED_NAME    = \"https://pinsstodwdevuks9h80mb.dfs.core.windows.net/odw-raw/ServiceBus/nsip-project/{Year}-{Month}-{Day}/nsip-project.csv\"\n",
+					"# ASSET_QUALIFIED_NAME    = \"https://pinsstodwprodukson83nw.dfs.core.windows.net/odw-raw/Horizon/{Year}-{Month}-{Day}/NSIPData.csv\"\n",
+					"ASSET_QUALIFIED_NAME    = \"https://pinsstodwdevuks9h80mb.dfs.core.windows.net/odw-raw/ServiceBus/nsip-document/{Year}-{Month}-{Day}/nsip-document.csv\"\n",
 					"CLASSIFICATION_NAME     = \"PotentialID\""
 				],
-				"execution_count": 3
+				"execution_count": 82
 			},
 			{
 				"cell_type": "code",
@@ -117,15 +118,12 @@
 					"\n",
 					"CLIENT_SECRET = mssparkutils.credentials.getSecret(VAULT_NAME, SECRET_NAME)"
 				],
-				"execution_count": 4
+				"execution_count": 83
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"# AUTH\n",
-					"\n",
-					"import requests, json\n",
-					"\n",
 					"token_url = f\"https://login.microsoftonline.com/{TENANT_ID}/oauth2/v2.0/token\"\n",
 					"data = {\n",
 					"   \"grant_type\": \"client_credentials\",\n",
@@ -142,7 +140,7 @@
 					"HDRS = {\"Authorization\": f\"Bearer {ACCESS_TOKEN}\", \"Content-Type\": \"application/json\"}\n",
 					""
 				],
-				"execution_count": 5
+				"execution_count": 84
 			},
 			{
 				"cell_type": "code",
@@ -186,14 +184,7 @@
 					"   raise Exception(f\"Could not resolve GUID for {type_name} :: {qualified_name}\")\n",
 					""
 				],
-				"execution_count": 6
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"schema"
-				],
-				"execution_count": 17
+				"execution_count": 85
 			},
 			{
 				"cell_type": "code",
@@ -202,12 +193,58 @@
 					"target_cls = CLASSIFICATION_NAME.casefold()\n",
 					"\n",
 					"# Resolve asset GUID from provided inputs\n",
-					"asset_guid = ASSET_GUID\n",
-					"if not asset_guid:\n",
+					"resource_guid = ASSET_GUID\n",
+					"if not resource_guid:\n",
 					"    if ASSET_TYPE_NAME and ASSET_QUALIFIED_NAME:\n",
-					"        asset_guid = get_guid_by_unique_attrs(ASSET_TYPE_NAME, ASSET_QUALIFIED_NAME)\n",
+					"        resource_guid = get_guid_by_unique_attrs(ASSET_TYPE_NAME, ASSET_QUALIFIED_NAME)\n",
 					"    else:\n",
 					"        raise Exception(\"Provide ASSET_GUID or (ASSET_TYPE_NAME and ASSET_QUALIFIED_NAME)\")\n",
+					"\n",
+					"entity_data = get_entity_with_refs(resource_guid)"
+				],
+				"execution_count": 86
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Defensive extraction of relationshipAttributes and attachedSchema\n",
+					"rel_attrs = entity_data.get(\"entity\", {}).get(\"relationshipAttributes\", {})\n",
+					"attached_schema = rel_attrs.get(\"attachedSchema\", [])\n",
+					"\n",
+					"print(f\"Attached schema count: {len(attached_schema)}\")\n",
+					"for schema in attached_schema:\n",
+					"    print(f\"- GUID: {schema.get('guid')} | Name: {schema.get('displayText')} | Type: {schema.get('typeName')}\")"
+				],
+				"execution_count": 87
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"schema_guid = attached_schema[0][\"guid\"] if attached_schema else None\n",
+					"if not schema_guid:\n",
+					"    raise ValueError(\"No attached schema found.\")\n",
+					"\n",
+					"schema_entity = get_entity_with_refs(schema_guid)\n",
+					"columns = schema_entity.get(\"referredEntities\", {})\n",
+					"\n",
+					"classified_cols = []\n",
+					"for guid, col in columns.items():\n",
+					"    classifications = col.get(\"classifications\", [])\n",
+					"    if classifications:  # Filter only those with classification\n",
+					"        classified_cols.append({\n",
+					"            \"column_guid\": guid,\n",
+					"            \"column_name\": col[\"attributes\"].get(\"name\"),\n",
+					"            \"column_type\": col.get(\"typeName\"),\n",
+					"            \"classifications\": [c[\"typeName\"] for c in classifications],\n",
+					"        })\n",
+					"\n",
+					"print(json.dumps(classified_cols, indent=2))"
+				],
+				"execution_count": 88
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"\n",
 					"# Fetch entity + references\n",
 					"payload = get_entity_with_refs(asset_guid)\n",
@@ -334,7 +371,7 @@
 					"                propagate=bool(cls.get(\"propagate\")) if isinstance(cls.get(\"propagate\"), bool) else None\n",
 					"            ))"
 				],
-				"execution_count": 16
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
