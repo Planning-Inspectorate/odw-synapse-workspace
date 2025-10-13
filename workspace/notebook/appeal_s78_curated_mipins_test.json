@@ -1,0 +1,302 @@
+{
+	"name": "appeal_s78_curated_mipins_test",
+	"properties": {
+		"folder": {
+			"name": "odw-curated"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "8411ac25-39b7-439b-a4cd-71c67d2b9b33"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"from notebookutils import mssparkutils\n",
+					"from datetime import datetime, date\n",
+					"import pyspark.sql.functions as F "
+				],
+				"execution_count": 1
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"\n",
+					"view_df = spark.sql(\"\"\"\n",
+					"SELECT DISTINCT \n",
+					"CAST(AH.caseId AS INT)                      AS caseId,\n",
+					"AH.caseReference                            AS caseReference,\n",
+					"AH.submissionId                             AS submissionId,\n",
+					"AH.caseStatus                               AS caseStatus,\n",
+					"AH.caseType                                 AS caseType,\n",
+					"AH.caseProcedure                            AS caseProcedure,\n",
+					"AH.lpaCode                                  AS lpaCode,\n",
+					"AH.caseOfficerId                            AS caseOfficerId,\n",
+					"AH.inspectorId                              AS inspectorId,\n",
+					"AH.allocationLevel                          AS allocationLevel,\n",
+					"CAST(AH.allocationBand AS NUMERIC)          AS allocationBand,\n",
+					"AH.caseSpecialisms                          AS caseSpecialisms,\n",
+					"AH.caseSubmittedDate                        AS caseSubmittedDate,\n",
+					"AH.caseCreatedDate                          AS caseCreatedDate,\n",
+					"AH.caseUpdatedDate                          AS caseUpdatedDate,\n",
+					"AH.caseValidDate                            AS caseValidDate,\n",
+					"AH.caseValidationDate                       AS caseValidationDate,\n",
+					"AH.caseValidationOutcome                    AS caseValidationOutcome,\n",
+					"AH.caseValidationInvalidDetails             AS caseValidationInvalidDetails,\n",
+					"cast(AH.caseValidationIncompleteDetails as string)          AS caseValidationIncompleteDetails,\n",
+					"AH.caseExtensionDate                        AS caseExtensionDate,\n",
+					"AH.caseStartedDate                          AS caseStartedDate,\n",
+					"AH.casePublishedDate                        AS casePublishedDate,\n",
+					"AH.linkedCaseStatus                         AS linkedCaseStatus,\n",
+					"AH.leadCaseReference                        AS leadCaseReference,\n",
+					"AH.lpaQuestionnaireDueDate                  AS lpaQuestionnaireDueDate,\n",
+					"AH.lpaQuestionnaireSubmittedDate            AS lpaQuestionnaireSubmittedDate,\n",
+					"AH.lpaQuestionnaireCreatedDate              AS lpaQuestionnaireCreatedDate,\n",
+					"AH.lpaQuestionnairePublishedDate            AS lpaQuestionnairePublishedDate,\n",
+					"AH.lpaQuestionnaireValidationOutcome        AS lpaQuestionnaireValidationOutcome,\n",
+					"AH.lpaQuestionnaireValidationOutcomeDate    AS lpaQuestionnaireValidationOutcomeDate,\n",
+					"cast(AH.lpaQuestionnaireValidationDetails as string)        AS lpaQuestionnaireValidationDetails,\n",
+					"AH.lpaStatement                             AS lpaStatement,\n",
+					"AH.caseWithdrawnDate                        AS caseWithdrawnDate,\n",
+					"AH.caseTransferredDate                      AS caseTransferredDate,\n",
+					"AH.transferredCaseClosedDate                AS transferredCaseClosedDate,\n",
+					"AH.caseDecisionOutcomeDate                  AS caseDecisionOutcomeDate,\n",
+					"AH.caseDecisionPublishedDate                AS caseDecisionPublishedDate,\n",
+					"AH.caseDecisionOutcome                      AS caseDecisionOutcome,\n",
+					"AH.caseCompletedDate                        AS caseCompletedDate,\n",
+					"CAST(AH.enforcementNotice AS BOOLEAN)       AS enforcementNotice,\n",
+					"AH.applicationReference                     AS applicationReference,\n",
+					"AH.applicationDate                          AS applicationDate,\n",
+					"AH.applicationDecision                      AS applicationDecision,\n",
+					"AH.applicationDecisionDate                  AS applicationDecisionDate,\n",
+					"AH.caseSubmissionDueDate                    AS caseSubmissionDueDate,\n",
+					"AH.siteAddressLine1                         AS siteAddressLine1,\n",
+					"AH.siteAddressLine2                         AS siteAddressLine2,\n",
+					"AH.siteAddressTown                          AS siteAddressTown,\n",
+					"AH.siteAddressCounty                        AS siteAddressCounty,\n",
+					"AH.siteAddressPostcode                      AS siteAddressPostcode,\n",
+					"cast(AH.siteAccessDetails as string)        AS siteAccessDetails,\n",
+					"cast(AH.siteSafetyDetails as string)        AS siteSafetyDetails,\n",
+					"CAST(AH.siteAreaSquareMetres AS BOOLEAN)    AS siteAreaSquareMetres,\n",
+					"CAST(AH.floorSpaceSquareMetres AS NUMERIC)  AS floorSpaceSquareMetres,\n",
+					"CAST(AH.isCorrectAppealType AS BOOLEAN)     AS isCorrectAppealType,\n",
+					"CAST(AH.isGreenBelt AS BOOLEAN)             AS isGreenBelt,\n",
+					"CAST(AH.inConservationArea AS BOOLEAN)      AS inConservationArea,\n",
+					"CAST(AH.ownsAllLand AS BOOLEAN)             AS ownsAllLand,\n",
+					"CAST(AH.ownsSomeLand AS BOOLEAN)            AS ownsSomeLand,\n",
+					"AH.knowsOtherOwners                         AS knowsOtherOwners,\n",
+					"AH.knowsAllOwners                           AS knowsAllOwners,\n",
+					"CAST(AH.advertisedAppeal AS BOOLEAN)        AS advertisedAppeal,\n",
+					"cast(AH.notificationMethod as string)       AS notificationMethod,\n",
+					"CAST(AH.ownersInformed AS BOOLEAN)          AS ownersInformed,\n",
+					"AH.originalDevelopmentDescription           AS originalDevelopmentDescription,\n",
+					"CAST(AH.changedDevelopmentDescription       AS BOOLEAN) AS changedDevelopmentDescription,\n",
+					"AH.newConditionDetails                      AS newConditionDetails,\n",
+					"CAST(AH.nearbyCaseReferences AS STRING)     AS nearbyCaseReferences,\n",
+					"CAST(AH.neighbouringSiteAddresses AS STRING) AS neighbouringSiteAddresses,\n",
+					"CAST(AH.affectedListedBuildingNumbers AS STRING)   AS affectedListedBuildingNumbers,\n",
+					"CAST(AH.changedListedBuildingNumbers AS STRING)             AS changedListedBuildingNumbers,\n",
+					"CAST(AH.appellantCostsAppliedFor AS BOOLEAN) AS appellantCostsAppliedFor,\n",
+					"CAST(AH.lpaCostsAppliedFor AS BOOLEAN)       AS lpaCostsAppliedFor,\n",
+					"AH.agriculturalHolding                       AS agriculturalHolding,\n",
+					"AH.tenantAgriculturalHolding                 AS tenantAgriculturalHolding,\n",
+					"AH.otherTenantsAgriculturalHolding           AS otherTenantsAgriculturalHolding,\n",
+					"AH.informedTenantsAgriculturalHolding        AS informedTenantsAgriculturalHolding,\n",
+					"AH.appellantProcedurePreference              AS appellantProcedurePreference,\n",
+					"AH.appellantProcedurePreferenceDetails       AS appellantProcedurePreferenceDetails,\n",
+					"AH.appellantProcedurePreferenceDuration      AS appellantProcedurePreferenceDuration,\n",
+					"AH.appellantProcedurePreferenceWitnessCount  AS appellantProcedurePreferenceWitnessCount,\n",
+					"AH.statusPlanningObligation                  AS statusPlanningObligation,\n",
+					"AH.affectsScheduledMonument                  AS affectsScheduledMonument,\n",
+					"AH.hasProtectedSpecies                       AS hasProtectedSpecies,\n",
+					"AH.isAonbNationalLandscape                   AS isAonbNationalLandscape,\n",
+					"CAST(AH.designatedSitesNames AS STRING)       AS designatedSitesNames,\n",
+					"AH.isGypsyOrTravellerSite                    AS isGypsyOrTravellerSite,\n",
+					"AH.isPublicRightOfWay                        AS isPublicRightOfWay,\n",
+					"AH.eiaEnvironmentalImpactSchedule            AS eiaEnvironmentalImpactSchedule,\n",
+					"AH.eiaDevelopmentDescription                 AS eiaDevelopmentDescription,\n",
+					"AH.eiaSensitiveAreaDetails                   AS eiaSensitiveAreaDetails,\n",
+					"AH.eiaColumnTwoThreshold                     AS eiaColumnTwoThreshold,\n",
+					"AH.eiaScreeningOpinion                       AS eiaScreeningOpinion,\n",
+					"AH.eiaRequiresEnvironmentalStatement         AS eiaRequiresEnvironmentalStatement,\n",
+					"AH.eiaCompletedEnvironmentalStatement        AS eiaCompletedEnvironmentalStatement,\n",
+					"AH.hasStatutoryConsultees                    AS hasStatutoryConsultees,\n",
+					"AH.consultedBodiesDetails                    AS consultedBodiesDetails,\n",
+					"AH.hasInfrastructureLevy                     AS hasInfrastructureLevy,\n",
+					"AH.isInfrastructureLevyFormallyAdopted       AS isInfrastructureLevyFormallyAdopted,\n",
+					"AH.infrastructureLevyAdoptedDate             AS infrastructureLevyAdoptedDate,\n",
+					"AH.infrastructureLevyExpectedDate            AS infrastructureLevyExpectedDate,\n",
+					"AH.lpaProcedurePreference                    AS lpaProcedurePreference,\n",
+					"AH.lpaProcedurePreferenceDetails             AS lpaProcedurePreferenceDetails,\n",
+					"AH.lpaProcedurePreferenceDuration            AS lpaProcedurePreferenceDuration,\n",
+					"AH.caseworkReason                            AS caseworkReason,\n",
+					"AH.developmentType                           AS developmentType,\n",
+					"AH.importantInformation                      AS importantInformation, \n",
+					"AH.jurisdiction                              AS jurisdiction,\n",
+					"AH.redeterminedIndicator                     AS redeterminedIndicator,\n",
+					"AH.dateCostsReportDespatched                 AS dateCostsReportDespatched, \n",
+					"AH.dateNotRecoveredOrDerecovered             AS dateNotRecoveredOrDerecovered,\n",
+					"AH.dateRecovered                             AS dateRecovered,\n",
+					"AH.originalCaseDecisionDate                  AS originalCaseDecisionDate,\n",
+					"AH.targetDate                                AS targetDate,\n",
+					"AH.appellantCommentsSubmittedDate            AS appellantCommentsSubmittedDate,\n",
+					"AH.appellantStatementSubmittedDate           AS appellantStatementSubmittedDate,\n",
+					"AH.appellantProofsSubmittedDate              AS appellantProofsSubmittedDate,\n",
+					"AH.finalCommentsDueDate                      AS finalCommentsDueDate,\n",
+					"AH.interestedPartyRepsDueDate                AS interestedPartyRepsDueDate,\n",
+					"AH.lpaCommentsSubmittedDate                  AS lpaCommentsSubmittedDate,\n",
+					"AH.lpaProofsSubmittedDate                    AS lpaProofsSubmittedDate,\n",
+					"AH.lpaStatementSubmittedDate                 AS lpaStatementSubmittedDate,\n",
+					"AH.proofsOfEvidenceDueDate                   AS proofsOfEvidenceDueDate,\n",
+					"AH.siteNoticesSentDate                       AS siteNoticesSentDate,\n",
+					"AH.statementDueDate                          AS statementDueDate,\n",
+					"AH.reasonForNeighbourVisits                  AS reasonForNeighbourVisits, \n",
+					"AH.numberOfResidencesNetChange               AS numberOfResidencesNetChange,\n",
+					"AH.siteGridReferenceEasting                  AS siteGridReferenceEasting,\n",
+					"AH.siteGridReferenceNorthing                 AS siteGridReferenceNorthing,\n",
+					"AH.siteViewableFromRoad                      AS siteViewableFromRoad,\n",
+					"AH.siteWithinSSSI                            AS siteWithinSSSI,\n",
+					"AH.typeOfPlanningApplication                 AS typeOfPlanningApplication,\n",
+					"AH.preserveGrantLoan                         AS preserveGrantLoan,\n",
+					"AH.consultHistoricEngland                    AS consultHistoricEngland,\n",
+					"AH.IngestionDate                             AS IngestionDate,\n",
+					"AH.ValidTo                                   AS ValidTo,\n",
+					"AH.IsActive                                  AS IsActive,\n",
+					"AH.planningObligationDueDate\t             AS planningObligationDueDate,\n",
+					"AH.statementOfCommonGroundDueDate            AS statementOfCommonGroundDueDate\n",
+					"FROM odw_harmonised_db.sb_appeal_s78 AS AH\n",
+					"WHERE AH.lpaCode NOT IN ('Q9999', 'Q1111')\n",
+					"\"\"\")\n",
+					""
+				],
+				"execution_count": 2
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# view_df = spark.sql(\"SELECT * FROM odw_curated_db.vw_appeals_s78_curated_mipins\")"
+				],
+				"execution_count": 3
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"# prepare dataframe convert UTC to Day light savings for all timestamp fields\n",
+					"\n",
+					"# List of all UTC timestamp columns to convert\n",
+					"timestamp_columns = [\n",
+					"    'caseSubmittedDate',\n",
+					"    'caseCreatedDate',\n",
+					"    'caseUpdatedDate',\n",
+					"    'caseValidDate',\n",
+					"    'caseValidationDate',\n",
+					"    'caseExtensionDate',\n",
+					"    'caseStartedDate',\n",
+					"    'casePublishedDate',\n",
+					"    'lpaQuestionnaireDueDate',\n",
+					"    'lpaQuestionnaireSubmittedDate',\n",
+					"    'lpaQuestionnaireCreatedDate',\n",
+					"    'lpaQuestionnairePublishedDate',\n",
+					"    'lpaQuestionnaireValidationOutcomeDate',\n",
+					"    'caseWithdrawnDate',\n",
+					"    'caseTransferredDate',\n",
+					"    'transferredCaseClosedDate',\n",
+					"    'caseDecisionOutcomeDate',\n",
+					"    'caseDecisionPublishedDate',\n",
+					"    'caseCompletedDate',\n",
+					"    'applicationDate',\n",
+					"    'applicationDecisionDate',\n",
+					"    'caseSubmissionDueDate',\n",
+					"    'infrastructureLevyAdoptedDate',\n",
+					"    'infrastructureLevyExpectedDate',\n",
+					"    'finalCommentsDueDate',\n",
+					"    'interestedPartyRepsDueDate',\n",
+					"    'statementDueDate',\n",
+					"    'IngestionDate',\n",
+					"    'ValidTo'\n",
+					"]\n",
+					"\n",
+					"# Apply the conversion in a loop\n",
+					"final_view_df = view_df\n",
+					"for column_name in timestamp_columns:\n",
+					"    final_view_df = final_view_df.withColumn(column_name, F.to_timestamp(F.from_utc_timestamp(F.col(column_name), 'Europe/London'), \"yyyy-MM-dd'T'HH:mm:ss.SSS\"))\n",
+					""
+				],
+				"execution_count": 4
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"spark.sql(f\"drop table if exists odw_curated_db.appeals_s78_curated_mipins;\")"
+				],
+				"execution_count": 5
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"final_view_df.write.mode(\"overwrite\").saveAsTable(\"odw_curated_db.appeals_s78_curated_mipins\")"
+				],
+				"execution_count": 6
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"#%%sql\n",
+					"#select * from odw_curated_db.appeals_s78_curated_mipins"
+				],
+				"execution_count": 7
+			}
+		]
+	}
+}
