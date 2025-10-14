@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "7464ea09-2521-4fff-be9b-c5b74d6d4bae"
+				"spark.autotune.trackingId": "d6a52973-a953-46fc-a7ba-565f86483552"
 			}
 		},
 		"metadata": {
@@ -94,14 +94,14 @@
 					"import pandas as pd\n",
 					"import numpy as np"
 				],
-				"execution_count": null
+				"execution_count": 10
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 2
+				"execution_count": 11
 			},
 			{
 				"cell_type": "code",
@@ -110,7 +110,7 @@
 					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
 					"print(storage_account)"
 				],
-				"execution_count": 3
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
@@ -128,7 +128,7 @@
 					"print(target_delta_table)\n",
 					"print(delta_table_path)"
 				],
-				"execution_count": 4
+				"execution_count": 13
 			},
 			{
 				"cell_type": "markdown",
@@ -212,49 +212,32 @@
 					"   SELECT DISTINCT\n",
 					"       CAST(d.date_value AS DATE) AS absencedate,\n",
 					"       ROUND(CASE\n",
-					"           WHEN (CAST(aa.Days AS DOUBLE) BETWEEN 0.01 AND 0.99) THEN \n",
-					"               CASE \n",
-					"                   WHEN d.week_in_cycle = 1 THEN\n",
-					"                       CASE d.day_of_week\n",
-					"                           WHEN 2 THEN CAST(ws.MoWk1 AS DOUBLE) * CAST(aa.Days AS DOUBLE)\n",
-					"                           WHEN 3 THEN CAST(ws.TuWk1 AS DOUBLE) * CAST(aa.Days AS DOUBLE)\n",
-					"                           WHEN 4 THEN CAST(ws.WeWk1 AS DOUBLE) * CAST(aa.Days AS DOUBLE)\n",
-					"                           WHEN 5 THEN CAST(ws.ThWk1 AS DOUBLE) * CAST(aa.Days AS DOUBLE)\n",
-					"                           WHEN 6 THEN CAST(ws.FrWk1 AS DOUBLE) * CAST(aa.Days AS DOUBLE)\n",
-					"                           ELSE 0 \n",
-					"                       END\n",
-					"                   ELSE -- week_in_cycle = 2\n",
-					"                       CASE d.day_of_week\n",
-					"                           WHEN 2 THEN CAST(ws.MoWk2 AS DOUBLE) * CAST(aa.Days AS DOUBLE)\n",
-					"                           WHEN 3 THEN CAST(ws.TuWk2 AS DOUBLE) * CAST(aa.Days AS DOUBLE)\n",
-					"                           WHEN 4 THEN CAST(ws.WeWk2 AS DOUBLE) * CAST(aa.Days AS DOUBLE)\n",
-					"                           WHEN 5 THEN CAST(ws.ThWk2 AS DOUBLE) * CAST(aa.Days AS DOUBLE)\n",
-					"                           WHEN 6 THEN CAST(ws.FrWk2 AS DOUBLE) * CAST(aa.Days AS DOUBLE)\n",
-					"                           ELSE 0 \n",
-					"                       END\n",
-					"               END\n",
-					"           ELSE \n",
-					"               CASE \n",
-					"                   WHEN d.week_in_cycle = 1 THEN\n",
-					"                       CASE d.day_of_week\n",
-					"                           WHEN 2 THEN CAST(ws.MoWk1 AS DOUBLE)\n",
-					"                           WHEN 3 THEN CAST(ws.TuWk1 AS DOUBLE)\n",
-					"                           WHEN 4 THEN CAST(ws.WeWk1 AS DOUBLE)\n",
-					"                           WHEN 5 THEN CAST(ws.ThWk1 AS DOUBLE)\n",
-					"                           WHEN 6 THEN CAST(ws.FrWk1 AS DOUBLE)\n",
-					"                           ELSE 0 \n",
-					"                       END\n",
-					"                   ELSE -- week_in_cycle = 2\n",
-					"                       CASE d.day_of_week\n",
-					"                           WHEN 2 THEN CAST(ws.MoWk2 AS DOUBLE)\n",
-					"                           WHEN 3 THEN CAST(ws.TuWk2 AS DOUBLE)\n",
-					"                           WHEN 4 THEN CAST(ws.WeWk2 AS DOUBLE)\n",
-					"                           WHEN 5 THEN CAST(ws.ThWk2 AS DOUBLE)\n",
-					"                           WHEN 6 THEN CAST(ws.FrWk2 AS DOUBLE)\n",
-					"                           ELSE 0 \n",
-					"                       END\n",
-					"               END \n",
-					"       END, 2) AS absencehours,\n",
+					"    -- First check if Hrs field has a value, use it\n",
+					"    WHEN CAST(aa.Hrs AS DOUBLE) > 0 THEN \n",
+					"        CAST(aa.Hrs AS DOUBLE)\n",
+					"    -- Otherwise, use the scheduled hours from work schedule\n",
+					"    ELSE \n",
+					"        CASE \n",
+					"            WHEN d.week_in_cycle = 1 THEN\n",
+					"                CASE d.day_of_week\n",
+					"                    WHEN 2 THEN CAST(ws.MoWk1 AS DOUBLE)\n",
+					"                    WHEN 3 THEN CAST(ws.TuWk1 AS DOUBLE)\n",
+					"                    WHEN 4 THEN CAST(ws.WeWk1 AS DOUBLE)\n",
+					"                    WHEN 5 THEN CAST(ws.ThWk1 AS DOUBLE)\n",
+					"                    WHEN 6 THEN CAST(ws.FrWk1 AS DOUBLE)\n",
+					"                    ELSE 0 \n",
+					"                END\n",
+					"            ELSE -- week_in_cycle = 2\n",
+					"                CASE d.day_of_week\n",
+					"                    WHEN 2 THEN CAST(ws.MoWk2 AS DOUBLE)\n",
+					"                    WHEN 3 THEN CAST(ws.TuWk2 AS DOUBLE)\n",
+					"                    WHEN 4 THEN CAST(ws.WeWk2 AS DOUBLE)\n",
+					"                    WHEN 5 THEN CAST(ws.ThWk2 AS DOUBLE)\n",
+					"                    WHEN 6 THEN CAST(ws.FrWk2 AS DOUBLE)\n",
+					"                    ELSE 0 \n",
+					"                END\n",
+					"        END \n",
+					"END, 2) AS absencehours ,\n",
 					"       CASE\n",
 					"           WHEN lpad(CAST(aa.StaffNumber AS STRING), 8, '0') LIKE '004%' THEN \n",
 					"               '50' || substring(lpad(CAST(aa.StaffNumber AS STRING), 8, '0'), 3)\n",
@@ -488,7 +471,7 @@
 					"   logInfo(\"Flushing logs\")\n",
 					"   flushLogging()"
 				],
-				"execution_count": 7
+				"execution_count": 16
 			},
 			{
 				"cell_type": "code",
@@ -623,7 +606,7 @@
 					"\n",
 					"mssparkutils.notebook.exit(json.dumps(result))"
 				],
-				"execution_count": 8
+				"execution_count": 17
 			}
 		]
 	}
