@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "363d6cc8-02ed-4bd9-864a-37cf193ffc9f"
+				"spark.autotune.trackingId": "91b0618a-e47f-4250-ba23-135b5bd8c2be"
 			}
 		},
 		"metadata": {
@@ -94,14 +94,14 @@
 					"import pandas as pd\n",
 					"import numpy as np"
 				],
-				"execution_count": 31
+				"execution_count": 49
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 32
+				"execution_count": 50
 			},
 			{
 				"cell_type": "code",
@@ -110,7 +110,7 @@
 					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
 					"print(storage_account)"
 				],
-				"execution_count": 33
+				"execution_count": 51
 			},
 			{
 				"cell_type": "code",
@@ -128,7 +128,7 @@
 					"print(target_delta_table)\n",
 					"print(delta_table_path)"
 				],
-				"execution_count": 34
+				"execution_count": 52
 			},
 			{
 				"cell_type": "markdown",
@@ -212,13 +212,32 @@
 					"   SELECT DISTINCT\n",
 					"       CAST(d.date_value AS DATE) AS absencedate,\n",
 					"ROUND(CASE\n",
-					"    \n",
-					"    WHEN CAST(aa.StartDate AS DATE) = CAST(aa.EndDate AS DATE) AND CAST(aa.Hrs AS DOUBLE) > 0 THEN \n",
+					"    -- ONLY use Hrs field for SINGLE DAY absences where Hrs differs from work schedule\n",
+					"    WHEN CAST(aa.StartDate AS DATE) = CAST(aa.EndDate AS DATE) \n",
+					"         AND CAST(aa.Hrs AS DOUBLE) > 0 THEN \n",
 					"        CAST(aa.Hrs AS DOUBLE)\n",
-					"    -- For multi-day absences, distribute hours across days\n",
-					"    WHEN CAST(aa.StartDate AS DATE) <> CAST(aa.EndDate AS DATE) AND CAST(aa.Hrs AS DOUBLE) > 0 AND CAST(aa.Days AS DOUBLE) > 0 THEN \n",
-					"        CAST(aa.Hrs AS DOUBLE) / CAST(aa.Days AS DOUBLE)\n",
-					"    -- Otherwise, use the scheduled hours from work schedule\n",
+					"    -- For everything else (multi-day, Hrs=0, Hrs=NULL), use the OLD LOGIC\n",
+					"    WHEN (CAST(aa.Days AS DOUBLE) BETWEEN 0.01 AND 0.99) THEN \n",
+					"        CASE \n",
+					"            WHEN d.week_in_cycle = 1 THEN\n",
+					"                CASE d.day_of_week\n",
+					"                    WHEN 2 THEN CAST(ws.MoWk1 AS DOUBLE) * CAST(aa.Days AS DOUBLE)\n",
+					"                    WHEN 3 THEN CAST(ws.TuWk1 AS DOUBLE) * CAST(aa.Days AS DOUBLE)\n",
+					"                    WHEN 4 THEN CAST(ws.WeWk1 AS DOUBLE) * CAST(aa.Days AS DOUBLE)\n",
+					"                    WHEN 5 THEN CAST(ws.ThWk1 AS DOUBLE) * CAST(aa.Days AS DOUBLE)\n",
+					"                    WHEN 6 THEN CAST(ws.FrWk1 AS DOUBLE) * CAST(aa.Days AS DOUBLE)\n",
+					"                    ELSE 0 \n",
+					"                END\n",
+					"            ELSE -- week_in_cycle = 2\n",
+					"                CASE d.day_of_week\n",
+					"                    WHEN 2 THEN CAST(ws.MoWk2 AS DOUBLE) * CAST(aa.Days AS DOUBLE)\n",
+					"                    WHEN 3 THEN CAST(ws.TuWk2 AS DOUBLE) * CAST(aa.Days AS DOUBLE)\n",
+					"                    WHEN 4 THEN CAST(ws.WeWk2 AS DOUBLE) * CAST(aa.Days AS DOUBLE)\n",
+					"                    WHEN 5 THEN CAST(ws.ThWk2 AS DOUBLE) * CAST(aa.Days AS DOUBLE)\n",
+					"                    WHEN 6 THEN CAST(ws.FrWk2 AS DOUBLE) * CAST(aa.Days AS DOUBLE)\n",
+					"                    ELSE 0 \n",
+					"                END\n",
+					"        END\n",
 					"    ELSE \n",
 					"        CASE \n",
 					"            WHEN d.week_in_cycle = 1 THEN\n",
@@ -474,7 +493,7 @@
 					"   logInfo(\"Flushing logs\")\n",
 					"   flushLogging()"
 				],
-				"execution_count": 35
+				"execution_count": 53
 			},
 			{
 				"cell_type": "code",
@@ -609,7 +628,7 @@
 					"\n",
 					"mssparkutils.notebook.exit(json.dumps(result))"
 				],
-				"execution_count": 36
+				"execution_count": 54
 			}
 		]
 	}
