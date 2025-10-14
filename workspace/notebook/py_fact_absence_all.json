@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d6a52973-a953-46fc-a7ba-565f86483552"
+				"spark.autotune.trackingId": "28314729-0bc3-45b9-84b3-ed00152ec6fa"
 			}
 		},
 		"metadata": {
@@ -94,14 +94,14 @@
 					"import pandas as pd\n",
 					"import numpy as np"
 				],
-				"execution_count": 10
+				"execution_count": 31
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 11
+				"execution_count": 32
 			},
 			{
 				"cell_type": "code",
@@ -110,7 +110,7 @@
 					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
 					"print(storage_account)"
 				],
-				"execution_count": 12
+				"execution_count": 33
 			},
 			{
 				"cell_type": "code",
@@ -128,7 +128,7 @@
 					"print(target_delta_table)\n",
 					"print(delta_table_path)"
 				],
-				"execution_count": 13
+				"execution_count": 34
 			},
 			{
 				"cell_type": "markdown",
@@ -211,10 +211,13 @@
 					"   )\n",
 					"   SELECT DISTINCT\n",
 					"       CAST(d.date_value AS DATE) AS absencedate,\n",
-					"       ROUND(CASE\n",
-					"    -- First check if Hrs field has a value, use it\n",
-					"    WHEN CAST(aa.Hrs AS DOUBLE) > 0 THEN \n",
+					"ROUND(CASE\n",
+					"    -- For single day absences (StartDate = EndDate), use Hrs directly if available\n",
+					"    WHEN CAST(aa.StartDate AS DATE) = CAST(aa.EndDate AS DATE) AND CAST(aa.Hrs AS DOUBLE) > 0 THEN \n",
 					"        CAST(aa.Hrs AS DOUBLE)\n",
+					"    -- For multi-day absences, distribute hours across days\n",
+					"    WHEN CAST(aa.StartDate AS DATE) <> CAST(aa.EndDate AS DATE) AND CAST(aa.Hrs AS DOUBLE) > 0 AND CAST(aa.Days AS DOUBLE) > 0 THEN \n",
+					"        CAST(aa.Hrs AS DOUBLE) / CAST(aa.Days AS DOUBLE)\n",
 					"    -- Otherwise, use the scheduled hours from work schedule\n",
 					"    ELSE \n",
 					"        CASE \n",
@@ -237,7 +240,7 @@
 					"                    ELSE 0 \n",
 					"                END\n",
 					"        END \n",
-					"END, 2) AS absencehours ,\n",
+					"END, 2) AS absencehours,\n",
 					"       CASE\n",
 					"           WHEN lpad(CAST(aa.StaffNumber AS STRING), 8, '0') LIKE '004%' THEN \n",
 					"               '50' || substring(lpad(CAST(aa.StaffNumber AS STRING), 8, '0'), 3)\n",
@@ -471,7 +474,7 @@
 					"   logInfo(\"Flushing logs\")\n",
 					"   flushLogging()"
 				],
-				"execution_count": 16
+				"execution_count": 35
 			},
 			{
 				"cell_type": "code",
@@ -606,7 +609,7 @@
 					"\n",
 					"mssparkutils.notebook.exit(json.dumps(result))"
 				],
-				"execution_count": 17
+				"execution_count": 36
 			}
 		]
 	}
