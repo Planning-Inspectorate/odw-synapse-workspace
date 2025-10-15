@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "da66db65-4a1c-4a61-a2f5-04b8b117bc24"
+				"spark.autotune.trackingId": "eb4af62f-fe13-420b-8705-bb21129b4178"
 			}
 		},
 		"metadata": {
@@ -79,7 +79,7 @@
 					"import pandas as pd\n",
 					"import numpy as np"
 				],
-				"execution_count": 35
+				"execution_count": 39
 			},
 			{
 				"cell_type": "code",
@@ -87,7 +87,7 @@
 					"\n",
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 36
+				"execution_count": 40
 			},
 			{
 				"cell_type": "code",
@@ -183,18 +183,27 @@
 					"        all_patterns = range_patterns + day_patterns\n",
 					"        \n",
 					"        for pattern in all_patterns:\n",
-					"            # Try to match: \"pattern X hours Y minutes\" or \"pattern X hours Y min\"\n",
+					"            # Try to match: \"pattern X hours and Y minutes/min\" (with \"and\")\n",
+					"            regex_with_and = f'{pattern}[^0-9]*(\\\\d+)\\\\s*hours?\\\\s+and\\\\s+(\\\\d+)\\\\s*min'\n",
+					"            \n",
+					"            # Try to match: \"pattern X hours Y minutes/min\" (without \"and\")\n",
 					"            regex_with_min = f'{pattern}[^0-9]*(\\\\d+)\\\\s*hours?\\\\s+(\\\\d+)\\\\s*min'\n",
 					"            \n",
 					"            # Try to match: \"pattern X hours\" (no minutes following)\n",
 					"            regex_only_hours = f'{pattern}[^0-9]*(\\\\d+)\\\\s*hours?(?:\\\\s|$|[^0-9])'\n",
 					"            \n",
-					"            # First check if minutes exist\n",
+					"            # Check conditions in order of specificity\n",
+					"            has_and = col.rlike(regex_with_and)\n",
 					"            has_minutes = col.rlike(regex_with_min)\n",
 					"            \n",
 					"            result = F.when(\n",
+					"                has_and,\n",
+					"                # Has \"and\": extract hours + (minutes/60)\n",
+					"                F.regexp_extract(col, regex_with_and, 1).cast('double') +\n",
+					"                (F.regexp_extract(col, regex_with_and, 2).cast('double') / 60.0)\n",
+					"            ).when(\n",
 					"                has_minutes,\n",
-					"                # Has minutes: extract hours + (minutes/60)\n",
+					"                # Has minutes (no \"and\"): extract hours + (minutes/60)\n",
 					"                F.regexp_extract(col, regex_with_min, 1).cast('double') +\n",
 					"                (F.regexp_extract(col, regex_with_min, 2).cast('double') / 60.0)\n",
 					"            ).when(\n",
@@ -367,7 +376,14 @@
 					"    else:\n",
 					"        mssparkutils.notebook.exit(json.dumps(result, indent=2))"
 				],
-				"execution_count": 37
+				"execution_count": 43
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					""
+				],
+				"execution_count": null
 			}
 		]
 	}
