@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "f04c6a68-c112-4f2e-be9d-6aae77ccd281"
+				"spark.autotune.trackingId": "d90b2c66-4200-4e13-8036-fe1797b439b2"
 			}
 		},
 		"metadata": {
@@ -59,36 +59,40 @@
 					"from pyspark.sql import Row\n",
 					"from pyspark.sql.types import StructType, StructField, StringType, BooleanType"
 				],
-				"execution_count": 97
+				"execution_count": 30
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"entity_name = 'nsip-document'\n",
-					"is_servicebus_schema = True"
+					"entity_name = 'service-user'\n",
+					"is_servicebus_schema = False"
 				],
-				"execution_count": 98
+				"execution_count": 31
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')"
 				],
-				"execution_count": 112
+				"execution_count": 32
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"source_path: str = f\"https://{storage_account}odw-raw/ServiceBus/{entity_name}/\"+ \"{Year}-{Month}-{Day}\" + \"/\" + entity_name + \".csv\""
+					"if is_servicebus_schema:\n",
+					"    source_path: str = f\"https://{storage_account}odw-raw/ServiceBus/{entity_name}/\"+ \"{Year}-{Month}-{Day}\" + \"/\" + entity_name + \".csv\"\n",
+					"else:\n",
+					"    source_folder = 'Horizon'\n",
+					"    source_path: str = f\"https://{storage_account}odw-raw/Horizon/\" + \"{Year}-{Month}-{Day}\" + \"/\" + entity_name + \".csv\""
 				],
-				"execution_count": 117
+				"execution_count": 34
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"source_path"
 				],
-				"execution_count": 119
+				"execution_count": 35
 			},
 			{
 				"cell_type": "code",
@@ -108,7 +112,7 @@
 					"ASSET_QUALIFIED_NAME = source_path\n",
 					"CLASSIFICATION_NAME     = \"PotentialID\""
 				],
-				"execution_count": 120
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -139,7 +143,7 @@
 					"\n",
 					"CLIENT_SECRET = mssparkutils.credentials.getSecret(VAULT_NAME, SECRET_NAME)"
 				],
-				"execution_count": 121
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -161,7 +165,7 @@
 					"HDRS = {\"Authorization\": f\"Bearer {ACCESS_TOKEN}\", \"Content-Type\": \"application/json\"}\n",
 					""
 				],
-				"execution_count": 122
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -205,7 +209,7 @@
 					"   raise Exception(f\"Could not resolve GUID for {type_name} :: {qualified_name}\")\n",
 					""
 				],
-				"execution_count": 123
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -223,7 +227,7 @@
 					"\n",
 					"entity_data = get_entity_with_refs(resource_guid)"
 				],
-				"execution_count": 124
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -236,7 +240,7 @@
 					"for schema in attached_schema:\n",
 					"    print(f\"- GUID: {schema.get('guid')} | Name: {schema.get('displayText')} | Type: {schema.get('typeName')}\")"
 				],
-				"execution_count": 125
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -261,7 +265,7 @@
 					"\n",
 					"print(json.dumps(classified_cols, indent=2))"
 				],
-				"execution_count": 126
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -314,17 +318,17 @@
 					"#     \"\"\"Collect all potential column GUIDs from entity + referred entities.\"\"\"\n",
 					"#     candidates = set()\n",
 					"\n",
-					"#     # 1️⃣ Any referredEntities that already look like columns\n",
+					"#     # Any referredEntities that already look like columns\n",
 					"#     for g, e in ref_ents.items():\n",
 					"#         if is_column_like(e.get(\"typeName\", \"\")):\n",
 					"#             candidates.add(g)\n",
 					"\n",
-					"#     # 2️⃣ From entity attributes and relationshipAttributes\n",
+					"#     # From entity attributes and relationshipAttributes\n",
 					"#     for key in (\"columns\", \"fields\", \"schema\", \"tabular_schema\", \"schemaElements\"):\n",
 					"#         candidates |= _extract_guids(ent.get(\"attributes\", {}).get(key))\n",
 					"#         candidates |= _extract_guids(ent.get(\"relationshipAttributes\", {}).get(key))\n",
 					"\n",
-					"#     # 3️⃣ Look into schema-like referred entities, then take their columns/fields\n",
+					"#     # Look into schema-like referred entities, then take their columns/fields\n",
 					"#     schema_guids = [\n",
 					"#         g for g, e in ref_ents.items()\n",
 					"#         if \"schema\" in (e.get(\"typeName\", \"\") or \"\").lower()\n",
