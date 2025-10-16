@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d6ce89ee-9522-407a-a28d-4e6fd1a3c869"
+				"spark.autotune.trackingId": "c850e2a2-51f4-4213-8395-e500bdb11ef6"
 			}
 		},
 		"metadata": {
@@ -79,7 +79,7 @@
 					"import pandas as pd\n",
 					"import numpy as np"
 				],
-				"execution_count": 44
+				"execution_count": 1
 			},
 			{
 				"cell_type": "code",
@@ -87,7 +87,7 @@
 					"\n",
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 45
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
@@ -214,13 +214,39 @@
 					"        \n",
 					"        return result\n",
 					"    \n",
-					"    # Define day patterns and ranges - COMPLETE LIST with flexible spacing\n",
-					"    # Handle both \"mon-fri\" and \"mon - fri\" (with spaces around dash)\n",
-					"    mon_ranges = ['mon\\\\s*-\\\\s*tue', 'mon\\\\s*-\\\\s*wed', 'mon\\\\s*-\\\\s*thu', 'mon\\\\s*-\\\\s*fri']\n",
-					"    tue_ranges = ['mon\\\\s*-\\\\s*tue', 'mon\\\\s*-\\\\s*wed', 'mon\\\\s*-\\\\s*thu', 'mon\\\\s*-\\\\s*fri', 'tue\\\\s*-\\\\s*wed', 'tue\\\\s*-\\\\s*thu', 'tue\\\\s*-\\\\s*fri']\n",
-					"    wed_ranges = ['mon\\\\s*-\\\\s*wed', 'mon\\\\s*-\\\\s*thu', 'mon\\\\s*-\\\\s*fri', 'tue\\\\s*-\\\\s*wed', 'tue\\\\s*-\\\\s*thu', 'tue\\\\s*-\\\\s*fri', 'wed\\\\s*-\\\\s*thu', 'wed\\\\s*-\\\\s*fri']\n",
-					"    thu_ranges = ['mon\\\\s*-\\\\s*thu', 'mon\\\\s*-\\\\s*fri', 'tue\\\\s*-\\\\s*thu', 'tue\\\\s*-\\\\s*fri', 'wed\\\\s*-\\\\s*thu', 'wed\\\\s*-\\\\s*fri', 'thu\\\\s*-\\\\s*fri']\n",
-					"    fri_ranges = ['mon\\\\s*-\\\\s*fri', 'tue\\\\s*-\\\\s*fri', 'wed\\\\s*-\\\\s*fri', 'thu\\\\s*-\\\\s*fri']\n",
+					"\n",
+					"    mon_ranges = [\n",
+					"        'monday\\\\s*-\\\\s*tuesday', 'monday\\\\s*-\\\\s*wednesday', 'monday\\\\s*-\\\\s*thursday', 'monday\\\\s*-\\\\s*friday',\n",
+					"        'mon\\\\s*-\\\\s*tue', 'mon\\\\s*-\\\\s*wed', 'mon\\\\s*-\\\\s*thu', 'mon\\\\s*-\\\\s*fri'\n",
+					"    ]\n",
+					"    tue_ranges = [\n",
+					"        'monday\\\\s*-\\\\s*tuesday', 'monday\\\\s*-\\\\s*wednesday', 'monday\\\\s*-\\\\s*thursday', 'monday\\\\s*-\\\\s*friday',\n",
+					"        'tuesday\\\\s*-\\\\s*wednesday', 'tuesday\\\\s*-\\\\s*thursday', 'tuesday\\\\s*-\\\\s*friday',\n",
+					"        'mon\\\\s*-\\\\s*tue', 'mon\\\\s*-\\\\s*wed', 'mon\\\\s*-\\\\s*thu', 'mon\\\\s*-\\\\s*fri',\n",
+					"        'tue\\\\s*-\\\\s*wed', 'tue\\\\s*-\\\\s*thu', 'tue\\\\s*-\\\\s*fri'\n",
+					"    ]\n",
+					"    wed_ranges = [\n",
+					"        'monday\\\\s*-\\\\s*wednesday', 'monday\\\\s*-\\\\s*thursday', 'monday\\\\s*-\\\\s*friday',\n",
+					"        'tuesday\\\\s*-\\\\s*wednesday', 'tuesday\\\\s*-\\\\s*thursday', 'tuesday\\\\s*-\\\\s*friday',\n",
+					"        'wednesday\\\\s*-\\\\s*thursday', 'wednesday\\\\s*-\\\\s*friday',\n",
+					"        'mon\\\\s*-\\\\s*wed', 'mon\\\\s*-\\\\s*thu', 'mon\\\\s*-\\\\s*fri',\n",
+					"        'tue\\\\s*-\\\\s*wed', 'tue\\\\s*-\\\\s*thu', 'tue\\\\s*-\\\\s*fri',\n",
+					"        'wed\\\\s*-\\\\s*thu', 'wed\\\\s*-\\\\s*fri'\n",
+					"    ]\n",
+					"    thu_ranges = [\n",
+					"        'monday\\\\s*-\\\\s*thursday', 'monday\\\\s*-\\\\s*friday',\n",
+					"        'tuesday\\\\s*-\\\\s*thursday', 'tuesday\\\\s*-\\\\s*friday',\n",
+					"        'wednesday\\\\s*-\\\\s*thursday', 'wednesday\\\\s*-\\\\s*friday',\n",
+					"        'thursday\\\\s*-\\\\s*friday',\n",
+					"        'mon\\\\s*-\\\\s*thu', 'mon\\\\s*-\\\\s*fri',\n",
+					"        'tue\\\\s*-\\\\s*thu', 'tue\\\\s*-\\\\s*fri',\n",
+					"        'wed\\\\s*-\\\\s*thu', 'wed\\\\s*-\\\\s*fri',\n",
+					"        'thu\\\\s*-\\\\s*fri'\n",
+					"    ]\n",
+					"    fri_ranges = [\n",
+					"        'monday\\\\s*-\\\\s*friday', 'tuesday\\\\s*-\\\\s*friday', 'wednesday\\\\s*-\\\\s*friday', 'thursday\\\\s*-\\\\s*friday',\n",
+					"        'mon\\\\s*-\\\\s*fri', 'tue\\\\s*-\\\\s*fri', 'wed\\\\s*-\\\\s*fri', 'thu\\\\s*-\\\\s*fri'\n",
+					"    ]\n",
 					"    \n",
 					"    # Parse Week 1\n",
 					"    df = df.withColumn(\"mo_wk1\", parse_day_hours(\"week1_section\", ['monday', 'mon'], mon_ranges))\n",
@@ -377,7 +403,7 @@
 					"    else:\n",
 					"        mssparkutils.notebook.exit(json.dumps(result, indent=2))"
 				],
-				"execution_count": 47
+				"execution_count": 4
 			}
 		]
 	}
