@@ -20,12 +20,12 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "f0b0e326-e362-4da0-b57b-237a88c981b9"
+				"spark.autotune.trackingId": "5588c6dc-3853-4a72-89b4-b22e69550cb2"
 			}
 		},
 		"metadata": {
 			"saveOutput": true,
-			"enableDebugMode": true,
+			"enableDebugMode": false,
 			"kernelspec": {
 				"name": "synapse_pyspark",
 				"display_name": "Synapse PySpark"
@@ -45,8 +45,8 @@
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 28,
-				"automaticScaleJobs": false
+				"memory": 32,
+				"automaticScaleJobs": true
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -94,10 +94,6 @@
 						"transient": {
 							"deleting": false
 						}
-					},
-					"editable": true,
-					"run_control": {
-						"frozen": false
 					}
 				},
 				"source": [
@@ -139,19 +135,6 @@
 				"execution_count": null
 			},
 			{
-				"cell_type": "code",
-				"source": [
-					"PipelineName = \"\"\n",
-					"PipelineRunID = \"\"\n",
-					"PipelineTriggerID = \"\"\n",
-					"PipelineTriggerName = \"\"\n",
-					"PipelineTriggerType = \"\"\n",
-					"PipelineTriggeredbyPipelineName = \"\"\n",
-					"PipelineTriggeredbyPipelineRunID = \"\""
-				],
-				"execution_count": null
-			},
-			{
 				"cell_type": "markdown",
 				"metadata": {
 					"nteract": {
@@ -187,8 +170,7 @@
 					"specific_file='' # if not provided, it will ingest all files in the date_folder\n",
 					"isMultiLine = True\n",
 					"delete_existing_table=False\n",
-					"dataAttribute = \"\"\n",
-					""
+					"dataAttribute = \"\""
 				],
 				"execution_count": null
 			},
@@ -239,7 +221,7 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"%run utils/py_applicationinsights"
+					"%run utils/py_utils_common_logging_output"
 				],
 				"execution_count": null
 			},
@@ -264,11 +246,10 @@
 					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
 					"raw_container = \"abfss://odw-raw@\" + storage_account\n",
 					"\n",
-					"start_exec_time = datetime.now()\n",
+					"start_exec_time = str(datetime.now())\n",
 					"insert_count = 0\n",
 					"update_count = 0\n",
-					"delete_count = 0\n",
-					"error_message =''"
+					"delete_count = 0"
 				],
 				"execution_count": null
 			},
@@ -371,82 +352,77 @@
 					"\n",
 					"        logInfo(f\"Ingesting {file.name}\")\n",
 					"        (ingestion_failure, row_count) = ingest_adhoc(storage_account, definition, source_path, file.name, expected_from, expected_to, process_name, isMultiLine, dataAttribute)\n",
-					"\n",
+					"        \n",
 					"        insert_count = row_count\n",
-					"        end_exec_time = datetime.now()\n",
-					"\n",
-					"        duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
-					"        activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
-					"        stage = \"Success\" if not ingestion_failure else \"Failed\"\n",
-					"        status_message = (\n",
-					"            f\"Successfully loaded data into {definition['Standardised_Table_Name']} table\"\n",
-					"            if not ingestion_failure\n",
-					"            else f\"Failed to load data from {definition['Standardised_Table_Name']} table\"\n",
+					"        end_exec_time = str(datetime.now())\n",
+					"        app_insight_logger.add_table_result(                    \n",
+					"            delta_table_name = f\"odw_standardised_db.{definition['Standardised_Table_Name']}\", \n",
+					"            insert_count = insert_count, \n",
+					"            update_count = 0, \n",
+					"            delete_count = 0, \n",
+					"            table_result = \"success\",\n",
+					"            start_exec_time = start_exec_time, \n",
+					"            end_exec_time = end_exec_time,\n",
+					"            total_exec_time = \"\",\n",
+					"            error_message = \"\"\n",
 					"        )\n",
-					"        status_code = \"200\" \n",
-					"        error_message = \"\"\n",
-					"        log_telemetry_and_exit(\n",
-					"            stage,\n",
-					"            start_exec_time,\n",
-					"            end_exec_time,\n",
-					"            error_message,\n",
-					"            f\"odw_standardised_db.{definition['Standardised_Table_Name']}\",\n",
-					"            insert_count,\n",
-					"            update_count,\n",
-					"            delete_count,\n",
-					"            PipelineRunID,\n",
-					"            PipelineTriggerID,\n",
-					"            PipelineName,\n",
-					"            PipelineTriggerName,\n",
-					"            PipelineTriggerType,\n",
-					"            PipelineTriggeredbyPipelineName,\n",
-					"            PipelineTriggeredbyPipelineRunID,\n",
-					"            activity_type,\n",
-					"            duration_seconds,\n",
-					"            status_message,\n",
-					"            status_code\n",
-					"        )        \n",
 					"        \n",
 					"        logInfo(f\"Ingested {row_count} rows\")\n",
 					"\n",
 					"        if ingestion_failure:\n",
-					"            logInfo(f\"Errors reported during Ingestion!!\")            \n",
+					"            logInfo(f\"Errors reported during Ingestion!!\")\n",
+					"            \n",
 					"            error_msg = f\"Errors reported during Ingestion!!\"\n",
 					"            \n",
-					"            error_message = format_error_message(error_msg, max_length=800)\n",
-					"            end_exec_time = datetime.now()\n",
-					"            \n",
-					"            duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
-					"            activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
-					"            stage = \"Failed\"\n",
-					"            status_message = (\n",
-					"                f\"Failed to load data from {definition['Standardised_Table_Name']} table\"\n",
-					"                )\n",
-					"            status_code = \"500\"\n",
-					"            \n",
-					"            log_telemetry_and_exit(\n",
-					"                stage,\n",
-					"                start_exec_time,\n",
-					"                end_exec_time,\n",
-					"                error_message,\n",
-					"                f\"odw_standardised_db.{definition['Standardised_Table_Name']}\",\n",
-					"                insert_count,\n",
-					"                update_count,\n",
-					"                delete_count,\n",
-					"                PipelineRunID,\n",
-					"                PipelineName,\n",
-					"                PipelineTriggerID,\n",
-					"                PipelineTriggerName,\n",
-					"                PipelineTriggerType,\n",
-					"                PipelineTriggeredbyPipelineName,\n",
-					"                PipelineTriggeredbyPipelineRunID,\n",
-					"                activity_type,\n",
-					"                duration_seconds,\n",
-					"                status_message,\n",
-					"                status_code\n",
+					"            error_message = app_insight_processor.format_error_message(error_msg, max_length=800)\n",
+					"            end_exec_time = str(datetime.now())\n",
+					"            app_insight_logger.add_table_result(\n",
+					"                delta_table_name = f\"odw_standardised_db.{definition['Standardised_Table_Name']}\",\n",
+					"                insert_count = insert_count,\n",
+					"                update_count = 0, \n",
+					"                delete_count = 0, \n",
+					"                table_result = \"failed\",\n",
+					"                start_exec_time = start_exec_time, \n",
+					"                end_exec_time = end_exec_time,\n",
+					"                total_exec_time = \"\",\n",
+					"                error_message = error_message\n",
 					"            )\n",
+					"            # Exit with the JSON result\n",
+					"            mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())            \n",
+					"        else:\n",
+					"            logInfo(f\"No Errors reported during Ingestion\")\n",
 					"\n",
-					"        "
+					"            # Log ingestion metrics after successful ingestion\n",
+					"            logInfo(\"Updating ingestion metrics\")\n",
+					"            log_ingestion_metrics(storage_account, process_name)\n",
+					"\n",
+					"    else:\n",
+					"        if specific_file != '':\n",
+					"            raise ValueError(f\"No definition found for {specific_file}\")\n",
+					"        else:\n",
+					"            logError(\"No definition found\")\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Produce Json format output"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Exit with the JSON result\n",
+					"mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
 				],
 				"execution_count": null
 			}
