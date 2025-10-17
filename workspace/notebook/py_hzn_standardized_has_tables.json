@@ -1,0 +1,673 @@
+{
+	"name": "py_hzn_standardized_has_tables",
+	"properties": {
+		"folder": {
+			"name": "odw-standardised"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "bb8da7a7-8992-4923-b79e-fd5ce2db420d"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Purpose\n",
+					"The purpose of this PySpark Notebook is to ingest Horizon Data into a single Delta Table: **odw_standardised_db.horizon_appeal_has**\n",
+					"\n",
+					"### Description\n",
+					"##### This Notebook: \n",
+					"- Reads from multiple odw_standardised_db Delta table sources.\n",
+					"- Transforms and unifies the data into odw_standardised_db.horizon_appeal_has.\n",
+					"- Logs audit information to Application Insights by creating a JSON dump at notebook exit.\n",
+					"\n",
+					"**Spark Cluster Configuration**\n",
+					"- Apache Spark Version: 3.4\n",
+					"- Python Version: 3.10\n",
+					"- Delta Lake Version: 2.4"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Imports"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"from datetime import datetime\n",
+					"from pyspark.sql import DataFrame"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_applicationinsights"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Configuration & Run variables"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"horizon_cases_has = \"odw_standardised_db.horizon_cases_has\"\n",
+					"table_name = \"odw_standardised_db.horizon_appeal_has\"\n",
+					"primary_key = \"caseReference\"\n",
+					"incremental_key = \"AppealsHasID\"\n",
+					"\n",
+					"# Initialise variables for Logging and Tracking\n",
+					"start_exec_time = datetime.now()\n",
+					"insert_count = 0\n",
+					"update_count = 0\n",
+					"delete_count = 0\n",
+					"error_message = \"\""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Load latest Snapshot of a STD table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def get_spark_df(table_name: str) -> DataFrame:\n",
+					"    df = spark.table(table_name)\n",
+					"    # pick the most recent snapshot if the table is time-sliced\n",
+					"    max_date = df.agg(F.max(\"expected_from\")).collect()[0][0]\n",
+					"    df_filtered = df.filter(F.col(\"expected_from\") == max_date)\n",
+					"    return df_filtered"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Load all required Horizon views as DataFrame"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"try:\n",
+					"    hzn_cases_has_df = get_spark_df(\"odw_standardised_db.horizon_cases_has\")\n",
+					"\n",
+					"    # Common (same as s78)\n",
+					"    cases_specialism_df = get_spark_df(\"odw_standardised_db.cases_specialisms\")\n",
+					"    vw_case_dates_df = get_spark_df(\"odw_standardised_db.vw_case_dates\")\n",
+					"    CaseDocumentDatesDates_df = get_spark_df(\"odw_standardised_db.casedocumentdatesdates\")\n",
+					"    CaseSiteStrings_df = get_spark_df(\"odw_standardised_db.casesitestrings\")\n",
+					"    TypeOfProcedure_df = get_spark_df(\"odw_standardised_db.typeofprocedure\")\n",
+					"    vw_AddAdditionalData_df = get_spark_df(\"odw_standardised_db.vw_addadditionaldata\")\n",
+					"    vw_AdditionalFields_df = get_spark_df(\"odw_standardised_db.vw_additionalfields\")\n",
+					"\n",
+					"    # HAS extra / BIS sources from the ticket\n",
+					"    Horizon_vw_curr_TypeOfLevel_df          = get_spark_df(\"odw_standardised_db.TypeOfLevel\")\n",
+					"    Horizon_vw_BIS_SpecialistCaseDates_df   = get_spark_df(\"odw_standardised_db.horizon_specialist_case_dates\")\n",
+					"    Horizon_vw_BIS_PlanningAppStrings_df    = get_spark_df(\"odw_standardised_db.PlanningAppStrings\")\n",
+					"    Horizon_vw_BIS_PlanningAppDates_df      = get_spark_df(\"odw_standardised_db.PlanningAppDates\")\n",
+					"    Horizon_vw_BIS_LeadCase_df              = get_spark_df(\"odw_standardised_db.BIS_LeadCase\")\n",
+					"    Horizon_vw_BIS_CaseStrings_df           = get_spark_df(\"odw_standardised_db.CaseStrings\")\n",
+					"    Horizon_vw_BIS_CaseInfo_df              = get_spark_df(\"odw_standardised_db.horizon_case_info\")\n",
+					"    Horizon_vw_BIS_CaseDates_df             = get_spark_df(\"odw_standardised_db.horizon_case_dates\")\n",
+					"    Horizon_vw_BIS_AppealsAdditionalData_df = get_spark_df(\"odw_standardised_db.horizon_appeals_additional_data\")\n",
+					"\n",
+					"    # Additional HAS views from ticket\n",
+					"    Horizon_vw_BIS_CaseSiteCategoryAdditionalStr_df = get_spark_df(\"odw_standardised_db.horizon_case_site_category_additional_str\")\n",
+					"    Horizon_ODW_vw_Inspector_Cases_df               = get_spark_df(\"odw_standardised_db.horizon_inspector_cases\")\n",
+					"\n",
+					"\n",
+					"except Exception as e:\n",
+					"    error_message = logError(f\"Error in data frame creation :\\n{e}\")\n",
+					"    end_exec_time = datetime.now() \n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### SQL Assembly (joins, dedup, renames)\n",
+					"\n",
+					"**Purpose:**  \n",
+					"Reproduce the *appeal_s78* logic using HAS sources, applying all Group A mappings and ensuring one clean, deduplicated record per case.\n",
+					"\n",
+					"#### What this does\n",
+					"\n",
+					"- **`cs_agg`**  \n",
+					"  - Collapses multiple specialisms into a single comma-separated string.  \n",
+					"\n",
+					"- **`base`**  \n",
+					"  - Joins the stable Horizon views (dates, strings, additional fields) to the HAS case view.  \n",
+					"\n",
+					"- **`*_1row` CTEs** (e.g. `pas_1row`, `pad_1row`, `lc_1row`, etc.)  \n",
+					"  - Select the most recent record per key using deterministic ordering  \n",
+					"    (`expected_from`, `modified_datetime`, `ingested_datetime`, `file_id`).  \n",
+					"  - Ensures a single up-to-date row per case — identical to the s78 pattern.  \n",
+					"\n",
+					"- **`add_typeoflevel`**  \n",
+					"  - Maps `Level` → `allocationLevel`, `allocationBand`.  \n",
+					"\n",
+					"- **`add_planning`**  \n",
+					"  - Adds planning string/date data →  \n",
+					"    `applicationReference`, `typeOfPlanningApplication`,  \n",
+					"    `applicationDate`, and `applicationDecisionDate`.  \n",
+					"\n",
+					"- **`add_case_refs`**  \n",
+					"  - Enriches with case attributes including:  \n",
+					"    `caseStatus`, `lpaCode`, `linkedCaseStatus`,  \n",
+					"    `leadCaseReference`, `caseDecisionOutcome`,  \n",
+					"    `jurisdiction`, and `caseValidationOutcome`.  \n",
+					"\n",
+					"- **`add_dates`**  \n",
+					"  - Adds `caseValidationDate` and `dateCostsReportDespatched`.  \n",
+					"\n",
+					"- **`add_aad`**  \n",
+					"  - Brings in additional fields such as  \n",
+					"    `originalDevelopmentDescription`,  \n",
+					"    `appellantCommentsSubmittedDate`,  \n",
+					"    `lpaStatementSubmittedDate`, and related document dates  \n",
+					"    (statements, comments, proofs, notices).  \n",
+					"\n",
+					"- **`add_proc_inspector_geo`**  \n",
+					"  - Adds procedural and spatial fields:  \n",
+					"    `caseProcedure`, `inspectorId`, `isGreenBelt`, `inConservationArea`.  \n",
+					"\n",
+					"\n",
+					"#### Final Output\n",
+					"\n",
+					"- The **final SELECT** renames everything to the Group A / SB-aligned column names  \n",
+					"  defined in the ticket’s mapping, so the Harmonised layer can safely `unionByName` with SB.  \n",
+					"- Produces `final_df` — one deduplicated row per case, fully aligned to the SB schema.\n",
+					""
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# 1) Register temp views\n",
+					"def register_views():\n",
+					"    hzn_cases_has_df.createOrReplaceTempView(\"h\")\n",
+					"    cases_specialism_df.createOrReplaceTempView(\"cs\")\n",
+					"    vw_case_dates_df.createOrReplaceTempView(\"cd\")\n",
+					"    CaseDocumentDatesDates_df.createOrReplaceTempView(\"cdd\")\n",
+					"    CaseSiteStrings_df.createOrReplaceTempView(\"css\")\n",
+					"    vw_AddAdditionalData_df.createOrReplaceTempView(\"aad_old\")\n",
+					"    vw_AdditionalFields_df.createOrReplaceTempView(\"af\")\n",
+					"    TypeOfProcedure_df.createOrReplaceTempView(\"tp\")\n",
+					"\n",
+					"    Horizon_vw_curr_TypeOfLevel_df.createOrReplaceTempView(\"ctl\")\n",
+					"    Horizon_vw_BIS_SpecialistCaseDates_df.createOrReplaceTempView(\"scd\")\n",
+					"    Horizon_vw_BIS_PlanningAppStrings_df.createOrReplaceTempView(\"pas\")\n",
+					"    Horizon_vw_BIS_PlanningAppDates_df.createOrReplaceTempView(\"pad\")\n",
+					"    Horizon_vw_BIS_LeadCase_df.createOrReplaceTempView(\"lc\")\n",
+					"    Horizon_vw_BIS_CaseStrings_df.createOrReplaceTempView(\"cs2\")\n",
+					"    Horizon_vw_BIS_CaseInfo_df.createOrReplaceTempView(\"ci\")\n",
+					"    Horizon_vw_BIS_CaseDates_df.createOrReplaceTempView(\"cdh\")\n",
+					"    Horizon_vw_BIS_AppealsAdditionalData_df.createOrReplaceTempView(\"aad\")\n",
+					"\n",
+					"    Horizon_vw_BIS_CaseSiteCategoryAdditionalStr_df.createOrReplaceTempView(\"sce\")\n",
+					"    Horizon_ODW_vw_Inspector_Cases_df.createOrReplaceTempView(\"ic\")\n",
+					"\n",
+					"register_views()\n",
+					"\n",
+					"# 2) Same pattern as s78 – base + 1-row-per-key CTEs + enrich + final select\n",
+					"sql_text = \"\"\"\n",
+					"WITH\n",
+					"-- collapse multiple specialisms per case into one comma separated string\n",
+					"cs_agg AS (\n",
+					"  SELECT\n",
+					"    casereference,\n",
+					"    concat_ws(', ', sort_array(collect_set(trim(casespecialism)))) AS casespecialism\n",
+					"  FROM cs\n",
+					"  WHERE casespecialism IS NOT NULL AND trim(casespecialism) <> ''\n",
+					"  GROUP BY casereference\n",
+					"),\n",
+					"\n",
+					"base AS (\n",
+					"  SELECT\n",
+					"    h.*,\n",
+					"    cs_agg.casespecialism,\n",
+					"    cd.receiptdate,\n",
+					"    cd.appealdocscomplete,\n",
+					"    cd.startdate,\n",
+					"    cd.appealwithdrawndate,\n",
+					"    cd.casedecisiondate,\n",
+					"    cd.datenotrecoveredorderecovered,\n",
+					"    cd.daterecovered,\n",
+					"    cd.originalcasedecisiondate,\n",
+					"    cdd.questionnairedue,\n",
+					"    cdd.questionnairereceived,\n",
+					"    cdd.interestedpartyrepsduedate,\n",
+					"    cdd.proofsdue,\n",
+					"    css.siteviewablefromroad,\n",
+					"    aad_old.floorspaceinsquaremetres,\n",
+					"    aad_old.costsappliedforindicator,\n",
+					"    aad_old.procedureappellant,\n",
+					"    aad_old.isthesitewithinanaonb,\n",
+					"    aad_old.procedurelpa,\n",
+					"    aad_old.inspectorneedtoentersite,\n",
+					"    aad_old.sitegridreferenceeasting,\n",
+					"    aad_old.sitegridreferencenorthing,\n",
+					"    aad_old.sitewithinsssi,\n",
+					"    af.importantinformation,\n",
+					"    h.level AS level_code\n",
+					"  FROM h\n",
+					"  LEFT JOIN cs_agg  ON h.caseuniqueid = cs_agg.casereference\n",
+					"  LEFT JOIN cd      ON h.casenodeid   = cd.casenodeid\n",
+					"  LEFT JOIN cdd     ON h.casenodeid   = cdd.casenodeid\n",
+					"  LEFT JOIN css     ON h.casenodeid   = css.casenodeid\n",
+					"  LEFT JOIN aad_old ON h.caseuniqueid = aad_old.appealrefnumber\n",
+					"  LEFT JOIN af      ON h.caseuniqueid = af.appealrefnumber\n",
+					"),\n",
+					"\n",
+					"-- Dedup each “red” source to one row per key (deterministic ordering as per s78)\n",
+					"pas_1row AS (\n",
+					"  SELECT * FROM (\n",
+					"    SELECT p.*,\n",
+					"           ROW_NUMBER() OVER (PARTITION BY p.casenodeid\n",
+					"             ORDER BY p.expected_from DESC, p.modified_datetime DESC, p.ingested_datetime DESC, p.file_id DESC) rn\n",
+					"    FROM pas p\n",
+					"  ) t WHERE rn = 1\n",
+					"),\n",
+					"pad_1row AS (\n",
+					"  SELECT * FROM (\n",
+					"    SELECT p.*,\n",
+					"           ROW_NUMBER() OVER (PARTITION BY p.casenodeid\n",
+					"             ORDER BY p.expected_from DESC, p.modified_datetime DESC, p.ingested_datetime DESC, p.file_id DESC) rn\n",
+					"    FROM pad p\n",
+					"  ) t WHERE rn = 1\n",
+					"),\n",
+					"lc_1row AS (\n",
+					"  SELECT * FROM (\n",
+					"    SELECT x.*,\n",
+					"           ROW_NUMBER() OVER (PARTITION BY x.casenodeid\n",
+					"             ORDER BY x.expected_from DESC, x.modified_datetime DESC, x.ingested_datetime DESC, x.file_id DESC) rn\n",
+					"    FROM lc x\n",
+					"  ) t WHERE rn = 1\n",
+					"),\n",
+					"cs2_1row AS (\n",
+					"  SELECT * FROM (\n",
+					"    SELECT x.*,\n",
+					"           ROW_NUMBER() OVER (PARTITION BY x.casenodeid\n",
+					"             ORDER BY x.expected_from DESC, x.modified_datetime DESC, x.ingested_datetime DESC, x.file_id DESC) rn\n",
+					"    FROM cs2 x\n",
+					"  ) t WHERE rn = 1\n",
+					"),\n",
+					"ci_1row AS (\n",
+					"  SELECT * FROM (\n",
+					"    SELECT x.*,\n",
+					"           ROW_NUMBER() OVER (PARTITION BY x.appealrefnumber\n",
+					"             ORDER BY x.expected_from DESC, x.modified_datetime DESC, x.ingested_datetime DESC, x.file_id DESC) rn\n",
+					"    FROM ci x\n",
+					"  ) t WHERE rn = 1\n",
+					"),\n",
+					"cdh_1row AS (\n",
+					"  SELECT * FROM (\n",
+					"    SELECT x.*,\n",
+					"           ROW_NUMBER() OVER (PARTITION BY x.appealrefnumber\n",
+					"             ORDER BY x.expected_from DESC, x.modified_datetime DESC, x.ingested_datetime DESC, x.file_id DESC) rn\n",
+					"    FROM cdh x\n",
+					"  ) t WHERE rn = 1\n",
+					"),\n",
+					"scd_1row AS (\n",
+					"  SELECT * FROM (\n",
+					"    SELECT x.*,\n",
+					"           ROW_NUMBER() OVER (PARTITION BY x.appealrefnumber\n",
+					"             ORDER BY x.expected_from DESC, x.modified_datetime DESC, x.ingested_datetime DESC, x.file_id DESC) rn\n",
+					"    FROM scd x\n",
+					"  ) t WHERE rn = 1\n",
+					"),\n",
+					"aad_1row AS (\n",
+					"  SELECT * FROM (\n",
+					"    SELECT x.*,\n",
+					"           ROW_NUMBER() OVER (PARTITION BY x.appealrefnumber\n",
+					"             ORDER BY x.expected_from DESC, x.modified_datetime DESC, x.ingested_datetime DESC, x.file_id DESC) rn\n",
+					"    FROM aad x\n",
+					"  ) t WHERE rn = 1\n",
+					"),\n",
+					"sce_1row AS (\n",
+					"  SELECT * FROM (\n",
+					"    SELECT x.*,\n",
+					"           ROW_NUMBER() OVER (PARTITION BY x.caseuniqueid\n",
+					"             ORDER BY x.expected_from DESC, x.modified_datetime DESC, x.ingested_datetime DESC, x.file_id DESC) rn\n",
+					"    FROM sce x\n",
+					"  ) t WHERE rn = 1\n",
+					"),\n",
+					"ic_1row AS (\n",
+					"  SELECT * FROM (\n",
+					"    SELECT x.*,\n",
+					"           ROW_NUMBER() OVER (PARTITION BY x.caseuniqueid\n",
+					"             ORDER BY x.expected_from DESC, x.modified_datetime DESC, x.ingested_datetime DESC, x.file_id DESC) rn\n",
+					"    FROM ic x\n",
+					"  ) t WHERE rn = 1\n",
+					"),\n",
+					"\n",
+					"add_typeoflevel AS (\n",
+					"  SELECT b.*, ctl.name AS allocationLevel, ctl.band AS allocationBand\n",
+					"  FROM base b\n",
+					"  LEFT JOIN ctl ON b.level_code = ctl.name\n",
+					"),\n",
+					"\n",
+					"add_planning AS (\n",
+					"  SELECT\n",
+					"    t.*,\n",
+					"    pas.lpaapplicationreference  AS applicationReference,\n",
+					"    pas.planningapplicationtype  AS typeOfPlanningApplication,\n",
+					"    pad.dateofapplication        AS applicationDate,\n",
+					"    pad.dateoflpadecision        AS applicationDecisionDate\n",
+					"  FROM add_typeoflevel t\n",
+					"  LEFT JOIN pas_1row pas ON t.casenodeid = pas.casenodeid\n",
+					"  LEFT JOIN pad_1row pad ON t.casenodeid = pad.casenodeid\n",
+					"),\n",
+					"\n",
+					"add_case_refs AS (\n",
+					"  SELECT\n",
+					"    p.*,\n",
+					"    lc.leadcasenodeid      AS leadCaseReference,\n",
+					"    cs2.processingstate    AS caseStatus,\n",
+					"    cs2.lpacode            AS lpaCode,\n",
+					"    cs2.linkedstatus       AS linkedCaseStatus,\n",
+					"    cs2.decision           AS caseDecisionOutcome,\n",
+					"    cs2.jurisdiction       AS jurisdiction,\n",
+					"    cs2.redetermined       AS redeterminedIndicator,\n",
+					"    ci.validity            AS caseValidationOutcome\n",
+					"  FROM add_planning p\n",
+					"  LEFT JOIN lc_1row  lc  ON p.casenodeid   = lc.casenodeid\n",
+					"  LEFT JOIN cs2_1row cs2 ON p.casenodeid   = cs2.casenodeid\n",
+					"  LEFT JOIN ci_1row  ci  ON p.caseuniqueid = ci.appealrefnumber\n",
+					"),\n",
+					"\n",
+					"add_dates AS (\n",
+					"  SELECT\n",
+					"    c.*,\n",
+					"    cdh.validitystatusdate        AS caseValidationDate,\n",
+					"    scd.datecostsreportdespatched AS dateCostsReportDespatched\n",
+					"  FROM add_case_refs c\n",
+					"  LEFT JOIN cdh_1row cdh ON c.caseuniqueid = cdh.appealrefnumber\n",
+					"  LEFT JOIN scd_1row scd ON c.caseuniqueid = scd.appealrefnumber\n",
+					"),\n",
+					"\n",
+					"add_aad AS (\n",
+					"  SELECT\n",
+					"    d.*,\n",
+					"    aad.developmentorallegation     AS originalDevelopmentDescription,\n",
+					"    aad.appellantcommentssubmitted  AS appellantCommentsSubmittedDate,\n",
+					"    aad.appellantstatementsubmitted AS appellantStatementSubmittedDate,\n",
+					"    aad.lpacommentssubmitted        AS lpaCommentsSubmittedDate,\n",
+					"    aad.lpaproofssubmitted          AS lpaProofsSubmittedDate,\n",
+					"    aad.lpastatementsubmitted       AS lpaStatementSubmittedDate,\n",
+					"    aad.sitenoticesent              AS siteNoticesSentDate,\n",
+					"    aad.statementsdue               AS statementDueDate\n",
+					"  FROM add_dates d\n",
+					"  LEFT JOIN aad_1row aad ON d.caseuniqueid = aad.appealrefnumber\n",
+					"),\n",
+					"\n",
+					"add_proc_inspector_geo AS (\n",
+					"  SELECT\n",
+					"    a.*,\n",
+					"    tp.proccode                 AS caseProcedure,\n",
+					"    ic_1row.inspectorid         AS inspectorId,\n",
+					"    sce_1row.greenbelt          AS isGreenBelt,\n",
+					"    sce_1row.incarelatestoca    AS inConservationArea\n",
+					"  FROM add_aad a\n",
+					"  LEFT JOIN tp       ON a.procedureappellant = tp.name OR a.procedurelpa = tp.name  -- keep both, same as s78 pattern\n",
+					"  LEFT JOIN ic_1row  ON a.caseuniqueid = ic_1row.caseuniqueid\n",
+					"  LEFT JOIN sce_1row ON a.caseuniqueid = sce_1row.caseuniqueid\n",
+					")\n",
+					"\n",
+					"SELECT\n",
+					"  a.caseuniqueid                       AS caseReference,\n",
+					"  a.casenodeid                         AS caseId,\n",
+					"\n",
+					"  a.abbreviation                       AS caseType,\n",
+					"  a.processingstate                    AS _ignore_old_caseStatus,  -- kept only to show provenance we drop it later\n",
+					"  a.caseStatus,                                       \n",
+					"  a.applicationReference,\n",
+					"  a.typeOfPlanningApplication,\n",
+					"  a.applicationDate,\n",
+					"  a.applicationDecisionDate,\n",
+					"  a.caseDecisionOutcome,\n",
+					"  a.jurisdiction,\n",
+					"  a.redeterminedIndicator,\n",
+					"  a.lpaCode,\n",
+					"  a.linkedCaseStatus,\n",
+					"  a.leadCaseReference,\n",
+					"\n",
+					"  a.town                               AS siteAddressTown,\n",
+					"  a.postcode                           AS siteAddressPostcode,\n",
+					"  a.addressline2                       AS siteAddressLine2,\n",
+					"  a.addressline1                       AS siteAddressLine1,\n",
+					"  a.county                             AS siteAddressCounty,\n",
+					"\n",
+					"  a.isGreenBelt,\n",
+					"  a.inConservationArea,\n",
+					"  a.sitegridreferencenorthing          AS siteGridReferenceNorthing,\n",
+					"  a.sitegridreferenceeasting           AS siteGridReferenceEasting,\n",
+					"  a.isthesitewithinanaonb              AS isAonbNationalLandscape,\n",
+					"\n",
+					"  a.caseValidationOutcome,\n",
+					"  a.caseValidationDate,\n",
+					"\n",
+					"  a.questionnairereceived              AS lpaQuestionnaireSubmittedDate,\n",
+					"  a.questionnairedue                   AS lpaQuestionnaireDueDate,\n",
+					"  a.originalcasedecisiondate           AS originalCaseDecisionDate,\n",
+					"  a.daterecovered                      AS dateRecovered,\n",
+					"  a.datenotrecoveredorderecovered      AS dateNotRecoveredOrDerecovered,\n",
+					"  a.appealwithdrawndate                AS caseWithdrawnDate,\n",
+					"  a.startdate                          AS caseStartedDate,\n",
+					"  a.casedecisiondate                   AS caseDecisionOutcomeDate,\n",
+					"  a.receiptdate                        AS caseCreatedDate,\n",
+					"  a.casedecisiondate                   AS caseCompletedDate,\n",
+					"\n",
+					"  (a.areaofsiteinhectares*10000.0)     AS siteAreaSquareMetres,\n",
+					"  a.floorspaceinsquaremetres           AS floorSpaceSquareMetres,\n",
+					"  a.originalDevelopmentDescription,\n",
+					"  a.importantinformation,\n",
+					"\n",
+					"  a.procedurelpa                       AS lpaProcedurePreference,\n",
+					"  a.caseProcedure,\n",
+					"  a.inspectorId,\n",
+					"\n",
+					"  a.allocationLevel,\n",
+					"  a.allocationBand,\n",
+					"\n",
+					"  a.casespecialism                     AS caseSpecialisms,\n",
+					"  a.modifydate                         AS caseUpdatedDate\n",
+					"\n",
+					"FROM add_proc_inspector_geo a\n",
+					"\"\"\"\n",
+					"\n",
+					"final_df = spark.sql(sql_text).drop(\"_ignore_old_caseStatus\", \"level_code\")\n",
+					"print(\"final_df rows:\", final_df.count())\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Write Standardised HAS table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"        logInfo(f\"Writing to {table_name}\")\n",
+					"        insert_count = final_df.count()\n",
+					"\n",
+					"        # Create/overwrite standardised HAS table\n",
+					"        final_df.write.mode(\"overwrite\").saveAsTable(table_name)\n",
+					"        logInfo(f\"Written to {table_name}\")\n",
+					"\n",
+					"        end_exec_time = datetime.now()\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = logError(f\"Error writing data to the standardised table:\\n{e}\")\n",
+					"        end_exec_time = datetime.now()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Telemetry & Exit"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
+					"activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
+					"stage = \"Success\" if not error_message else \"Failed\"\n",
+					"status_message = (\n",
+					"    f\"Successfully loaded data into {table_name} table\"\n",
+					"    if not error_message\n",
+					"    else f\"Failed to load data into {table_name} table\"\n",
+					")\n",
+					"status_code = \"200\" if stage == \"Success\" else \"500\"\n",
+					"\n",
+					"log_telemetry_and_exit(\n",
+					"    stage,\n",
+					"    start_exec_time,\n",
+					"    end_exec_time,\n",
+					"    error_message,\n",
+					"    table_name,\n",
+					"    insert_count,\n",
+					"    update_count,\n",
+					"    delete_count,\n",
+					"    PipelineName,\n",
+					"    PipelineRunID,\n",
+					"    PipelineTriggerID,\n",
+					"    PipelineTriggerName,\n",
+					"    PipelineTriggerType,\n",
+					"    PipelineTriggeredbyPipelineName,\n",
+					"    PipelineTriggeredbyPipelineRunID,\n",
+					"    activity_type,\n",
+					"    duration_seconds,\n",
+					"    status_message,\n",
+					"    status_code\n",
+					")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
