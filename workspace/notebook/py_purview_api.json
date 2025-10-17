@@ -49,16 +49,26 @@
 		},
 		"cells": [
 			{
+				"cell_type": "markdown",
+				"source": [
+					"# py_purview_api",
+					"",
+					"Interacts with Azure Purview to resolve assets, retrieve classifications and apply anonymisation rules to Spark DataFrames.",
+					"",
+					"Sections: Imports, Parameters, Preview, Purview lookup, Anonymisation, Display."
+				]
+			},
+			{
 				"cell_type": "code",
 				"source": [
 					"import os\n",
-					"import requests, json\n",
-					"from functools import reduce\n",
-					"from azure.identity import ClientSecretCredential\n",
-					"from notebookutils import mssparkutils\n",
+					"import json\n",
 					"import requests\n",
+					"from notebookutils import mssparkutils\n",
 					"from pyspark.sql import functions as F\n",
-					"from pyspark.sql.types import Row, StructType, StructField, StringType, BooleanType"
+					"from pyspark.sql.functions import regexp_extract, max\n",
+					"from pyspark.sql.types import Row, StructType, StructField, StringType, BooleanType, TimestampType\n",
+					"from pyspark.sql import DataFrame"
 				],
 				"execution_count": 197
 			},
@@ -72,7 +82,11 @@
 					}
 				},
 				"source": [
-					"Parameters from SB or Horizon raw to std"
+					"## Parameters\n",
+					"\n",
+					"- entity_name: Service Bus entity name (e.g. 'service-user').\n",
+					"- file_name: Source filename when not using Service Bus schema.\n",
+					"- is_servicebus_schema: Set True when reading from Service Bus paths."
 				]
 			},
 			{
@@ -198,7 +212,7 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"VAULT_NAME =spark.sparkContext.environment.get('keyVaultName', 'get')\n",
+					"VAULT_NAME = spark.sparkContext.environment.get('keyVaultName', 'get')\n",
 					"if not VAULT_NAME:\n",
 					"    raise ValueError(f\"Cannot determine Key Vault linked service for environment: {env}\")\n",
 					"\n",
@@ -410,7 +424,7 @@
 					"            if s and s.lower() not in ('', 'none', 'null', 'n/a', 'nan'):\n",
 					"                base_identifier = s\n",
 					"        domain = '#PINS.com'\n",
-					"        return f"""{base_identifier}_LM@{domain}""" if bool(is_lm) else f"""{base_identifier}@{domain}"""\n",
+					"        return (f\"{base_identifier}_LM@{domain}\" if bool(is_lm) else f\"{base_identifier}@{domain}\")\n",
 					"    except Exception:\n",
 					"        return 'UNKNOWN_LM@#PINS.com' if bool(is_lm) else 'UNKNOWN@#PINS.com'\n",
 					"\n",
@@ -422,7 +436,7 @@
 					"    second = _rand.choice(letters)\n",
 					"    digits = ''.join(str(_rand.randint(0,9)) for _ in range(6))\n",
 					"    last = _rand.choice('ABCD')\n",
-					"    return f"""{first}{second}{digits}{last}"""\n",
+					"    return f\"{first}{second}{digits}{last}\"\n",
 					"\n",
 					"def apply_anonymisation_rules(df, sensitive_cols):\n",
 					"    seed = _seed_col(df)\n",
@@ -452,8 +466,6 @@
 					"    return out\n"
 				],
 				"execution_count": 240
-				],
-				"execution_count": null
 			},
 			{
 				"cell_type": "code",
