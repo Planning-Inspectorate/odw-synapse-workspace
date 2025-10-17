@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "361762dc-54c3-4e73-b0b5-e8a3e0ea6d56"
+				"spark.autotune.trackingId": "53ad2bf7-8a80-4cfa-8e36-08fadfbb3ebc"
 			}
 		},
 		"metadata": {
@@ -53,13 +53,14 @@
 				"source": [
 					"import os\n",
 					"import requests, json\n",
+					"from functools import reduce\n",
 					"from azure.identity import ClientSecretCredential\n",
 					"from notebookutils import mssparkutils\n",
 					"import requests\n",
 					"from pyspark.sql import functions as F\n",
 					"from pyspark.sql.types import Row, StructType, StructField, StringType, BooleanType"
 				],
-				"execution_count": 161
+				"execution_count": 197
 			},
 			{
 				"cell_type": "code",
@@ -288,21 +289,23 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"filt_classified_cols =  [col for col in classified_cols if any(c in CLASSIFIED_FIELDS for c in col[\"classifications\"])]"
+					""
 				],
 				"execution_count": 175
 			},
 			{
 				"cell_type": "code",
 				"source": [
+					"filt_classified_cols =  [col for col in classified_cols if any(c in CLASSIFIED_FIELDS for c in col[\"classifications\"])]\n",
 					"cols_to_null = [c['column_name'] for c in filt_classified_cols]\n",
 					"anonym_table_df = table_df  # start from the original\n",
-					"\n",
-					"for col_name in cols_to_null:\n",
-					"    if col_name in anonym_table_df.columns:\n",
-					"        anonym_table_df = anonym_table_df.withColumn(col_name, F.lit(None))"
+					"anonym_table_df = reduce(\n",
+					"    lambda df, c: df.withColumn(c, F.lit(None)) if c in df.columns else df,\n",
+					"    cols_to_null,\n",
+					"    table_df\n",
+					")"
 				],
-				"execution_count": 186
+				"execution_count": 200
 			},
 			{
 				"cell_type": "code",
@@ -313,7 +316,14 @@
 					"display(anonym_table_df)\n",
 					"# display(table_df)"
 				],
-				"execution_count": 190
+				"execution_count": 199
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					""
+				],
+				"execution_count": 198
 			},
 			{
 				"cell_type": "code",
