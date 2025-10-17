@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5e5da69b-d12b-4b75-8688-7168d8969bb4"
+				"spark.autotune.trackingId": "361762dc-54c3-4e73-b0b5-e8a3e0ea6d56"
 			}
 		},
 		"metadata": {
@@ -56,26 +56,66 @@
 					"from azure.identity import ClientSecretCredential\n",
 					"from notebookutils import mssparkutils\n",
 					"import requests\n",
-					"from pyspark.sql import Row\n",
-					"from pyspark.sql.types import StructType, StructField, StringType, BooleanType"
+					"from pyspark.sql import functions as F\n",
+					"from pyspark.sql.types import Row, StructType, StructField, StringType, BooleanType"
 				],
-				"execution_count": 52
+				"execution_count": 161
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"entity_name = 'service-user'\n",
-					"file = 'HorizonContactInformation.csv'\n",
-					"is_servicebus_schema = False"
+					"file_name = 'HorizonContactInformation.csv'\n",
+					"is_servicebus_schema = True"
 				],
-				"execution_count": 74
+				"execution_count": 162
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"@logging_to_appins\n",
+					"def get_max_file_date(df: DataFrame) -> datetime:\n",
+					"    \"\"\"\n",
+					"    Gets the maximum date from a file path field in a DataFrame.\n",
+					"    E.g. if the input_file field contained paths such as this:\n",
+					"    abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/ServiceBus/appeal-has/2024-12-02/appeal-has_2024-12-02T16:54:35.214679+0000.json\n",
+					"    It extracts the date from the string for each row and gets the maximum date.\n",
+					"\n",
+					"    Args:\n",
+					"        df: a spark DataFrame\n",
+					"\n",
+					"    Returns:\n",
+					"        formatted_timestamp: a string of the maximum file date\n",
+					"    \"\"\"\n",
+					"    try:\n",
+					"        date_pattern: str = r'(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}\\+\\d{4})'\n",
+					"        df: DataFrame = df.withColumn(\"file_date\", regexp_extract(df[\"input_file\"], date_pattern, 1))\n",
+					"        df: DataFrame = df.withColumn(\"file_date\", df[\"file_date\"].cast(TimestampType()))\n",
+					"        max_timestamp: list = df.agg(max(\"file_date\")).collect()[0][0]\n",
+					"        formatted_timestamp: str = max_timestamp.strftime(\"%Y-%m-%dT%H:%M:%S.%f\")+\"+0000\"\n",
+					"        return formatted_timestamp\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error extracting maximum file date from DataFrame: {str(e)}\"\n",
+					"        logError(error_message)\n",
+					"        raise"
+				],
+				"execution_count": 163
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"table_name: str = f\"odw_standardised_db.sb_{entity_name.replace('-', '_')}\"\n",
+					"table_df = spark.table(table_name)\n",
+					"max_extracted_date = get_max_file_date(df=table_df)"
+				],
+				"execution_count": 164
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')"
 				],
-				"execution_count": 40
+				"execution_count": 165
 			},
 			{
 				"cell_type": "code",
@@ -84,16 +124,16 @@
 					"    source_path: str = f\"https://{storage_account}odw-raw/ServiceBus/{entity_name}/\"+ \"{Year}-{Month}-{Day}\" + \"/\" + entity_name + \".csv\"\n",
 					"else:\n",
 					"    source_folder = 'Horizon'\n",
-					"    source_path: str = f\"https://{storage_account}odw-raw/Horizon/\" + \"{Year}-{Month}-{Day}\" + \"/\" + f\"{file}\""
+					"    source_path: str = f\"https://{storage_account}odw-raw/Horizon/\" + \"{Year}-{Month}-{Day}\" + \"/\" + f\"{file_name}\""
 				],
-				"execution_count": 75
+				"execution_count": 166
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"source_path"
 				],
-				"execution_count": 64
+				"execution_count": 167
 			},
 			{
 				"cell_type": "code",
@@ -111,47 +151,20 @@
 					"# ASSET_QUALIFIED_NAME    = \"https://pinsstodwprodukson83nw.dfs.core.windows.net/odw-raw/Horizon/{Year}-{Month}-{Day}/NSIPData.csv\"\n",
 					"# ASSET_QUALIFIED_NAME    = \"https://pinsstodwdevuks9h80mb.dfs.core.windows.net/odw-raw/ServiceBus/nsip-document/{Year}-{Month}-{Day}/nsip-document.csv\"\n",
 					"ASSET_QUALIFIED_NAME = source_path\n",
-					"CLASSIFICATION_NAME     = \"PotentialID\""
+					"CLASSIFIED_FIELDS = (\"PotentialID\", \"NI Number\", \"Email Address\", \"First Name\", \"Last Name\", \"Birth Date\", \"Annual Salary\", \"Person's Age\", \"MICROSOFT.PERSONAL.EMAIL\", \"MICROSOFT.PERSONAL.NAME\")"
 				],
-				"execution_count": 76
+				"execution_count": 168
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"ASSET_QUALIFIED_NAME"
-				],
-				"execution_count": 77
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"ws = mssparkutils.env.getWorkspaceName().lower()\n",
-					"\n",
-					"def detect_env(workspace_name: str) -> str:\n",
-					"    if \"dev\" in workspace_name:\n",
-					"        return \"dev\"\n",
-					"    if \"test\" in workspace_name:\n",
-					"        return \"test\"\n",
-					"    if \"prod\" in workspace_name:\n",
-					"        return \"prod\"\n",
-					"    return \"unknown\"\n",
-					"\n",
-					"env = detect_env(ws)\n",
-					"\n",
-					"# Map your environments to the Key Vault linked service names you use in each\n",
-					"KV_BY_ENV = {\n",
-					"    \"dev\":  \"pinskvsynwodwdevuks\",\n",
-					"    \"test\": \"pinskvsynwodwtestuks\",\n",
-					"    \"prod\": \"pinskvsynwodwproduks\",\n",
-					"}\n",
-					"\n",
-					"VAULT_NAME = KV_BY_ENV.get(env)\n",
+					"VAULT_NAME =spark.sparkContext.environment.get('keyVaultName', 'get')\n",
 					"if not VAULT_NAME:\n",
 					"    raise ValueError(f\"Cannot determine Key Vault linked service for environment: {env}\")\n",
 					"\n",
 					"CLIENT_SECRET = mssparkutils.credentials.getSecret(VAULT_NAME, SECRET_NAME)"
 				],
-				"execution_count": 78
+				"execution_count": 169
 			},
 			{
 				"cell_type": "code",
@@ -173,7 +186,7 @@
 					"HDRS = {\"Authorization\": f\"Bearer {ACCESS_TOKEN}\", \"Content-Type\": \"application/json\"}\n",
 					""
 				],
-				"execution_count": 79
+				"execution_count": 170
 			},
 			{
 				"cell_type": "code",
@@ -217,21 +230,11 @@
 					"   raise Exception(f\"Could not resolve GUID for {type_name} :: {qualified_name}\")\n",
 					""
 				],
-				"execution_count": 80
+				"execution_count": 171
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"resource_guid"
-				],
-				"execution_count": 60
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"# Pull columns\n",
-					"target_cls = CLASSIFICATION_NAME.casefold()\n",
-					"\n",
 					"# Resolve asset GUID from provided inputs\n",
 					"resource_guid = ASSET_GUID\n",
 					"if not resource_guid:\n",
@@ -242,7 +245,7 @@
 					"\n",
 					"entity_data = get_entity_with_refs(resource_guid)"
 				],
-				"execution_count": 81
+				"execution_count": 172
 			},
 			{
 				"cell_type": "code",
@@ -255,7 +258,7 @@
 					"for schema in attached_schema:\n",
 					"    print(f\"- GUID: {schema.get('guid')} | Name: {schema.get('displayText')} | Type: {schema.get('typeName')}\")"
 				],
-				"execution_count": 82
+				"execution_count": 173
 			},
 			{
 				"cell_type": "code",
@@ -280,7 +283,37 @@
 					"\n",
 					"print(json.dumps(classified_cols, indent=2))"
 				],
-				"execution_count": 83
+				"execution_count": 174
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"filt_classified_cols =  [col for col in classified_cols if any(c in CLASSIFIED_FIELDS for c in col[\"classifications\"])]"
+				],
+				"execution_count": 175
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"cols_to_null = [c['column_name'] for c in filt_classified_cols]\n",
+					"anonym_table_df = table_df  # start from the original\n",
+					"\n",
+					"for col_name in cols_to_null:\n",
+					"    if col_name in anonym_table_df.columns:\n",
+					"        anonym_table_df = anonym_table_df.withColumn(col_name, F.lit(None))"
+				],
+				"execution_count": 186
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"display(anonym_table_df)\n",
+					"# display(table_df)"
+				],
+				"execution_count": 190
 			},
 			{
 				"cell_type": "code",
@@ -411,7 +444,7 @@
 					"#                 propagate=bool(cls.get(\"propagate\")) if isinstance(cls.get(\"propagate\"), bool) else None\n",
 					"#             ))"
 				],
-				"execution_count": null
+				"execution_count": 157
 			},
 			{
 				"cell_type": "code",
@@ -442,7 +475,7 @@
 					"\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 158
 			}
 		]
 	}
