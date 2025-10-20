@@ -1,0 +1,888 @@
+{
+	"name": "py_sb_horizon_harmonised_appeal_has",
+	"properties": {
+		"folder": {
+			"name": "odw-harmonised"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "0dc090b7-c394-4b1e-8600-45e81e98f98f"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": true,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Purpose\r\n",
+					"This notebook builds the harmonised SCD-2 table **odw_harmonised_db.appeal_has** by combining:\r\n",
+					"- the Service Bus feed odw_harmonised_db.sb_appeal_has (tagged ODT)\r\n",
+					"- the Horizon standardised feed odw_standardised_db.horizon_appeal_has (tagged HORIZON)\r\n",
+					"\r\n",
+					"#### High level flow\r\n",
+					"###### **1.** Read & prep Service Bus (already in SB schema)\r\n",
+					"###### **2.** Read & clean Horizon\r\n",
+					"- de-duplicate same name columns (case insensitive)\r\n",
+					"- backfill/derive caseReference from common aliases\r\n",
+					"- derive IngestionDate (prefer ingested_datetime then expected_from else current_timestamp())\r\n",
+					"- add a small \"plumbin\" fields so Horizon looks like SB (AppealS78ID=Null, Migrated='0', OTDSourceSystem='Horizon' etc... This is temporary final isActive is recalculated in the SCD-2)\r\n",
+					"###### **3.** schema align Horizon/SB (add missing columns as NULL, cast to SB types, project to SB column order)\r\n",
+					"###### **4.** Union into Stage (ODT + Horizon), drop exact duplicates, drop rows with NULL caseReference\r\n",
+					"###### **5.** Build SCD-2 timeline keyed by caseReference:\r\n",
+					"- hash the \"business state\"\r\n",
+					"- order by IngestionDate (then source priority ODT > Horizon)\r\n",
+					"- keep only true changes\r\n",
+					"- set ValidTo to the next change point (nudge by 1 microsecond if equal)\r\n",
+					"- set IsActive='Y' where ValidTo is NULL\r\n",
+					"###### **6.** Write final Delta table partitioned by IsActive\r\n",
+					"###### **7.** QA checks (row/source counts, one active per key, period sanity)\r\n",
+					""
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql.types import IntegerType, ArrayType, StructType, StructField\r\n",
+					"from pyspark.sql import functions as F, Window as W\r\n",
+					"from pyspark.sql import Row\r\n",
+					"from pyspark.sql.functions import *\r\n",
+					"from datetime import date,datetime\r\n",
+					"import builtins"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise Logging decorator"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise Application Insight Logging functions"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_utils_common_logging_output"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_applicationinsights"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Config"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Tables\r\n",
+					"service_bus_table = \"odw_harmonised_db.sb_appeal_has\"\r\n",
+					"horizon_table     = \"odw_standardised_db.horizon_appeal_has\"\r\n",
+					"spark_table_final = \"odw_harmonised_db.appeal_has\"\r\n",
+					"\r\n",
+					"# Keys\r\n",
+					"primary_key = 'caseReference'\r\n",
+					"incremental_key = 'AppealHasID'\r\n",
+					"\r\n",
+					"# Run context\r\n",
+					"start_exec_time = datetime.now()\r\n",
+					"end_exec_time = start_exec_time\r\n",
+					"insert_count = 0\r\n",
+					"update_count = 0\r\n",
+					"delete_count = 0\r\n",
+					"error_message=''"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Read Service Bus (already in schema)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"if not error_message:\r\n",
+					"    try:\r\n",
+					"        # Get data out of the service bus with additional fields needed for Horizon data\r\n",
+					"        service_bus_data = spark.sql(f\"\"\"\r\n",
+					"                            SELECT DISTINCT\r\n",
+					"                                CAST(NULL AS BIGINT) as AppealHasID\r\n",
+					"                                ,caseReference as {primary_key}\r\n",
+					"                                ,caseId\r\n",
+					"                                ,submissionId\r\n",
+					"                                ,caseStatus\r\n",
+					"                                ,caseType\r\n",
+					"                                ,caseProcedure\r\n",
+					"                                ,lpaCode\r\n",
+					"                                ,caseOfficerId\r\n",
+					"                                ,inspectorId\r\n",
+					"                                ,allocationLevel\r\n",
+					"                                ,allocationBand\r\n",
+					"                                ,caseSpecialisms\r\n",
+					"                                ,caseSubmittedDate\r\n",
+					"                                ,caseCreatedDate\r\n",
+					"                                ,caseUpdatedDate\r\n",
+					"                                ,caseValidDate\r\n",
+					"                                ,caseValidationDate\r\n",
+					"                                ,caseValidationOutcome\r\n",
+					"                                ,caseValidationInvalidDetails\r\n",
+					"                                ,caseValidationIncompleteDetails\r\n",
+					"                                ,caseExtensionDate\r\n",
+					"                                ,caseStartedDate\r\n",
+					"                                ,casePublishedDate\r\n",
+					"                                ,linkedCaseStatus\r\n",
+					"                                ,leadCaseReference\r\n",
+					"                                ,lpaQuestionnaireDueDate\r\n",
+					"                                ,lpaQuestionnaireSubmittedDate\r\n",
+					"                                ,lpaQuestionnaireCreatedDate\r\n",
+					"                                ,lpaQuestionnairePublishedDate\r\n",
+					"                                ,lpaQuestionnaireValidationOutcome\r\n",
+					"                                ,lpaQuestionnaireValidationOutcomeDate\r\n",
+					"                                ,lpaQuestionnaireValidationDetails\r\n",
+					"                                ,lpaStatement\r\n",
+					"                                ,caseWithdrawnDate\r\n",
+					"                                ,caseTransferredDate\r\n",
+					"                                ,transferredCaseClosedDate\r\n",
+					"                                ,caseDecisionOutcomeDate\r\n",
+					"                                ,caseDecisionPublishedDate\r\n",
+					"                                ,caseDecisionOutcome\r\n",
+					"                                ,caseCompletedDate\r\n",
+					"                                ,enforcementNotice\r\n",
+					"                                ,applicationReference\r\n",
+					"                                ,applicationDate\r\n",
+					"                                ,applicationDecision\r\n",
+					"                                ,applicationDecisionDate\r\n",
+					"                                ,caseSubmissionDueDate\r\n",
+					"                                ,siteAddressLine1\r\n",
+					"                                ,siteAddressLine2\r\n",
+					"                                ,siteAddressTown\r\n",
+					"                                ,siteAddressCounty\r\n",
+					"                                ,siteAddressPostcode\r\n",
+					"                                ,siteAccessDetails\r\n",
+					"                                ,siteSafetyDetails\r\n",
+					"                                ,siteAreaSquareMetres\r\n",
+					"                                ,floorSpaceSquareMetres\r\n",
+					"                                ,isCorrectAppealType\r\n",
+					"                                ,isGreenBelt\r\n",
+					"                                ,inConservationArea\r\n",
+					"                                ,ownsAllLand\r\n",
+					"                                ,ownsSomeLand\r\n",
+					"                                ,knowsOtherOwners\r\n",
+					"                                ,knowsAllOwners\r\n",
+					"                                ,advertisedAppeal\r\n",
+					"                                ,notificationMethod\r\n",
+					"                                ,ownersInformed\r\n",
+					"                                ,originalDevelopmentDescription\r\n",
+					"                                ,changedDevelopmentDescription\r\n",
+					"                                ,newConditionDetails\r\n",
+					"                                ,nearbyCaseReferences\r\n",
+					"                                ,neighbouringSiteAddresses\r\n",
+					"                                ,affectedListedBuildingNumbers\r\n",
+					"                                ,changedListedBuildingNumbers\r\n",
+					"                                ,appellantCostsAppliedFor\r\n",
+					"                                ,lpaCostsAppliedFor\r\n",
+					"                                ,agriculturalHolding\r\n",
+					"                                ,tenantAgriculturalHolding\r\n",
+					"                                ,otherTenantsAgriculturalHolding\r\n",
+					"                                ,informedTenantsAgriculturalHolding\r\n",
+					"                                ,appellantProcedurePreference\r\n",
+					"                                ,appellantProcedurePreferenceDetails\r\n",
+					"                                ,appellantProcedurePreferenceDuration\r\n",
+					"                                ,appellantProcedurePreferenceWitnessCount\r\n",
+					"                                ,statusPlanningObligation\r\n",
+					"                                ,affectsScheduledMonument\r\n",
+					"                                ,hasProtectedSpecies\r\n",
+					"                                ,isAonbNationalLandscape\r\n",
+					"                                ,designatedSitesNames\r\n",
+					"                                ,isGypsyOrTravellerSite\r\n",
+					"                                ,isPublicRightOfWay\r\n",
+					"                                ,eiaEnvironmentalImpactSchedule\r\n",
+					"                                ,eiaDevelopmentDescription\r\n",
+					"                                ,eiaSensitiveAreaDetails\r\n",
+					"                                ,eiaColumnTwoThreshold\r\n",
+					"                                ,eiaScreeningOpinion\r\n",
+					"                                ,eiaRequiresEnvironmentalStatement\r\n",
+					"                                ,eiaCompletedEnvironmentalStatement\r\n",
+					"                                ,consultedBodiesDetails\r\n",
+					"                                ,hasStatutoryConsultees\r\n",
+					"                                ,hasInfrastructureLevy\r\n",
+					"                                ,isInfrastructureLevyFormallyAdopted\r\n",
+					"                                ,infrastructureLevyAdoptedDate\r\n",
+					"                                ,infrastructureLevyExpectedDate\r\n",
+					"                                ,lpaProcedurePreference\r\n",
+					"                                ,lpaProcedurePreferenceDetails\r\n",
+					"                                ,lpaProcedurePreferenceDuration\r\n",
+					"                                ,caseworkReason\r\n",
+					"                                ,developmentType\r\n",
+					"                                ,importantInformation\r\n",
+					"                                ,jurisdiction\r\n",
+					"                                ,redeterminedIndicator\r\n",
+					"                                ,dateCostsReportDespatched\r\n",
+					"                                ,dateNotRecoveredOrDerecovered\r\n",
+					"                                ,dateRecovered\r\n",
+					"                                ,originalCaseDecisionDate\r\n",
+					"                                ,targetDate\r\n",
+					"                                ,appellantCommentsSubmittedDate\r\n",
+					"                                ,appellantStatementSubmittedDate\r\n",
+					"                                ,appellantProofsSubmittedDate\r\n",
+					"                                ,finalCommentsDueDate\r\n",
+					"                                ,interestedPartyRepsDueDate\r\n",
+					"                                ,lpaCommentsSubmittedDate\r\n",
+					"                                ,lpaProofsSubmittedDate\r\n",
+					"                                ,lpaStatementSubmittedDate\r\n",
+					"                                ,proofsOfEvidenceDueDate\r\n",
+					"                                ,siteNoticesSentDate\r\n",
+					"                                ,statementDueDate\r\n",
+					"                                ,reasonForNeighbourVisits\r\n",
+					"                                ,numberOfResidencesNetChange\r\n",
+					"                                ,siteGridReferenceEasting\r\n",
+					"                                ,siteGridReferenceNorthing\r\n",
+					"                                ,siteViewableFromRoad\r\n",
+					"                                ,siteWithinSSSI\r\n",
+					"                                ,typeOfPlanningApplication\r\n",
+					"                                ,preserveGrantLoan\r\n",
+					"                                ,consultHistoricEngland\r\n",
+					"                                ,planningObligationDueDate\r\n",
+					"                                ,statementOfCommonGroundDueDate\r\n",
+					"                                ,Migrated\r\n",
+					"                                ,ODTSourceSystem\r\n",
+					"                                ,IngestionDate\r\n",
+					"                                ,NULLIF(ValidTo, '') AS ValidTo\r\n",
+					"                                ,'' as RowID\r\n",
+					"                                ,IsActive\r\n",
+					"                            FROM \r\n",
+					"                                {service_bus_table}\r\n",
+					"                            \"\"\")\r\n",
+					"\r\n",
+					"    except Exception as e:\r\n",
+					"        error_message = f\"Error in source Service Bus SQL query {service_bus_table}: {str(e)[:800]}\"\r\n",
+					"        end_exec_time = datetime.now()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Read & clean Horizon (STD layer)\r\n",
+					"De-dup duplicate columns names, derive caseReference and IngestionDate, add plumbing fields, align schema to SB and project to the exact SB column order\r\n",
+					"- Note on IsActive='N' in the Horizon prep\r\n",
+					"This value is only a placeholder to make Horizon rows look like SB rows. The real IsActive flags are derived later by the SCD-2 build (the last row per caseReference where ValidTo is NULL becomes IsActive='Y'). No Horizon row is forced inactive in the final result, the activity is determined purely by the timeline."
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"hzn_src = spark.table(horizon_table)\r\n",
+					"\r\n",
+					"# Here we dedup case insensitive duplicate column names\r\n",
+					"seen = {}\r\n",
+					"exprs = []\r\n",
+					"for n in hzn_src.columns:\r\n",
+					"    lc = n.lower()\r\n",
+					"    if lc in seen:\r\n",
+					"        continue\r\n",
+					"    seen[lc] = n\r\n",
+					"    exprs.append(F.col(n).alias(n))\r\n",
+					"hzn_src = hzn_src.select(*exprs)\r\n",
+					"\r\n",
+					"# Here we derive/backfill caseReference from likely aliases\r\n",
+					"def _col_or_none(name):\r\n",
+					"    return F.col(name).cast(\"string\") if name in hzn_src.columns else F.lit(None)\r\n",
+					"\r\n",
+					"if \"caseReference\" in hzn_src.columns:\r\n",
+					"    hzn_src = hzn_src.withColumn(\r\n",
+					"        \"caseReference\",\r\n",
+					"        F.coalesce(\r\n",
+					"            F.col(\"caseReference\").cast(\"string\"),\r\n",
+					"            _col_or_none(\"casereference\"),\r\n",
+					"            _col_or_none(\"caseuniqueid\"),\r\n",
+					"            _col_or_none(\"caseid\")\r\n",
+					"        )\r\n",
+					"    )\r\n",
+					"else:\r\n",
+					"    hzn_src = hzn_src.withColumn(\r\n",
+					"        \"caseReference\",\r\n",
+					"        F.coalesce(\r\n",
+					"            _col_or_none(\"casereference\"),\r\n",
+					"            _col_or_none(\"caseuniqueid\"),\r\n",
+					"            _col_or_none(\"caseid\")\r\n",
+					"        )\r\n",
+					"    )\r\n",
+					"\r\n",
+					"# Here is the last chance to rename if caseReference is still missing\r\n",
+					"if \"caseReference\" not in hzn_src.columns:\r\n",
+					"    if \"caseuniqueid\" in hzn_src.columns:\r\n",
+					"        hzn_src = hzn_src.withColumnRenamed(\"caseuniqueid\", \"caseReference\")\r\n",
+					"    elif \"casereference\" in hzn_src.columns:\r\n",
+					"        hzn_src = hzn_src.withColumnRenamed(\"casereference\", \"caseReference\")\r\n",
+					"\r\n",
+					"# Here we derive IngestionDate (Prefer ingested_datetime then expected_from else now)\r\n",
+					"if \"IngestionDate\" not in hzn_src.columns:\r\n",
+					"    ing_col = (\r\n",
+					"        F.col(\"ingested_datetime\")\r\n",
+					"        if \"ingested_datetime\" in hzn_src.columns else\r\n",
+					"        F.col(\"expected_from\")\r\n",
+					"        if \"expected_from\" in hzn_src.columns else\r\n",
+					"        F.current_timestamp()\r\n",
+					"    )\r\n",
+					"    hzn_src = hzn_src.withColumn(\"IngestionDate\", ing_col)\r\n",
+					"\r\n",
+					"# Here we add the \"plumbing\" to look like SB rows (the final IsActive is recomputed by SCD-2 later)\r\n",
+					"hzn_aligned = (\r\n",
+					"    hzn_src\r\n",
+					"      .withColumn(\"AppealHasID\", F.lit(None).cast(\"bigint\"))\r\n",
+					"      .withColumn(\"Migrated\", F.lit(\"0\"))\r\n",
+					"      .withColumn(\"ODTSourceSystem\", F.lit(\"HORIZON\"))\r\n",
+					"      .withColumn(\"ValidTo\", F.lit(None).cast(\"string\"))\r\n",
+					"      .withColumn(\"RowID\", F.lit(\"\"))\r\n",
+					"      .withColumn(\"IsActive\", F.lit(\"N\"))\r\n",
+					")\r\n",
+					"\r\n",
+					"# Here we align Horizon to SB schema (add missing columns and cast types)\r\n",
+					"sb_schema = service_bus_data.schema\r\n",
+					"for f in sb_schema:\r\n",
+					"    if f.name not in hzn_aligned.columns:\r\n",
+					"        hzn_aligned = hzn_aligned.withColumn(f.name, F.lit(None).cast(f.dataType))\r\n",
+					"    else:\r\n",
+					"        if str(hzn_aligned.schema[f.name].dataType) != str(f.dataType):\r\n",
+					"            hzn_aligned = hzn_aligned.withColumn(f.name, F.col(f.name).cast(f.dataType))\r\n",
+					"\r\n",
+					"# Here we drop the duplicate names case insensitively\r\n",
+					"seen = {}\r\n",
+					"for c in list(hzn_aligned.columns):\r\n",
+					"    lc = c.lower()\r\n",
+					"    if lc in seen:\r\n",
+					"        hzn_aligned = hzn_aligned.drop(c)\r\n",
+					"    else:\r\n",
+					"        seen[lc] = c\r\n",
+					"\r\n",
+					"# Here we project to the exact SB column order\r\n",
+					"proj = []\r\n",
+					"lower_map = {c.lower(): c for c in hzn_aligned.columns}\r\n",
+					"for f in sb_schema:\r\n",
+					"    if f.name in hzn_aligned.columns:\r\n",
+					"        proj.append(F.col(f.name).alias(f.name))\r\n",
+					"    elif f.name.lower() in lower_map:\r\n",
+					"        proj.append(F.col(lower_map[f.name.lower()]).cast(f.dataType).alias(f.name))\r\n",
+					"    else:\r\n",
+					"        proj.append(F.lit(None).cast(f.dataType).alias(f.name))\r\n",
+					"hzn_aligned = hzn_aligned.select(*proj)\r\n",
+					"\r\n",
+					"# Here we union Service bus to Stage\r\n",
+					"stg_df = service_bus_data.unionByName(hzn_aligned, allowMissingColumns=True).distinct()\r\n",
+					"\r\n",
+					"# Here we enforce non null key\r\n",
+					"null_key_cnt = stg_df.filter(F.col(\"caseReference\").isNull()).count()\r\n",
+					"print(f\"Stage rows with NULL caseReference: {null_key_cnt}\")\r\n",
+					"stg_df = stg_df.filter(F.col(\"caseReference\").isNotNull())\r\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Build Stage (ODT + Horizon)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"# Here we just do a quick check of the total rows + source split and confirm there is no null keys that sneak through\r\n",
+					"# Also check how many rows per source we have after the union ODT + Horizon\r\n",
+					"# And we display if there is any null keys existing should always be 0 (will show no data available)\r\n",
+					"print(\"Stage total rows (pre-write):\", stg_df.count())\r\n",
+					"display(stg_df.groupBy(\"ODTSourceSystem\").count())\r\n",
+					"display(stg_df.filter(F.col(\"caseReference\").isNull())\r\n",
+					"              .groupBy(\"ODTSourceSystem\").count())\r\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Persist Stage table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Here we only persist the union stage which we'll use to build the SCD-2\r\n",
+					"stg_tbl = \"odw_harmonised_db.appeal_has_stg\"\r\n",
+					"\r\n",
+					"(stg_df\r\n",
+					" .write\r\n",
+					" .format(\"delta\")\r\n",
+					" .mode(\"overwrite\")\r\n",
+					" .option(\"overwriteSchema\", \"true\")\r\n",
+					" .saveAsTable(stg_tbl))\r\n",
+					"\r\n",
+					"print(f\"Stage written: {stg_tbl}, rows = {stg_df.count():,}\")\r\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Build SCD-2 & write final"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Here we build the SCD-2 (dedup by state change) and write final table\r\n",
+					"FINAL = spark_table_final\r\n",
+					"# Here the business key must exists and we also ensure the type with cast \r\n",
+					"stg = (\r\n",
+					"    spark.table(\"odw_harmonised_db.appeal_has_stg\")\r\n",
+					"         .filter(F.col(\"caseReference\").isNotNull())\r\n",
+					"         .withColumn(\"IngestionDate\", F.col(\"IngestionDate\").cast(\"timestamp\"))\r\n",
+					")\r\n",
+					"\r\n",
+					"# Here are the columns excluded\r\n",
+					"exclude = {\r\n",
+					"    \"AppealS78ID\", \"RowID\", \"ValidTo\", \"IsActive\",\r\n",
+					"    \"IngestionDate\", \"ODTSourceSystem\", \"Migrated\"\r\n",
+					"}\r\n",
+					"hash_cols = [c for c in stg.columns if c not in exclude]\r\n",
+					"\r\n",
+					"# Here we have a stable state accross all columns\r\n",
+					"state_hash = F.sha2(\r\n",
+					"    F.concat_ws(\"||\", *[F.coalesce(F.col(c).cast(\"string\"), F.lit(\"\")) for c in hash_cols]),\r\n",
+					"    256\r\n",
+					")\r\n",
+					"\r\n",
+					"# Here we use a source priority only when the timestamp is a tie between ODT and Horizon (ODT beats Horizon)\r\n",
+					"src_priority = F.when(F.col(\"ODTSourceSystem\") == \"ODT\", F.lit(2)) \\\r\n",
+					"                .when(F.col(\"ODTSourceSystem\") == \"HORIZON\", F.lit(1)) \\\r\n",
+					"                .otherwise(F.lit(0))\r\n",
+					"\r\n",
+					"# Here is the tie breaker within the same key, timestamp, source (prefered lowest RowID)\r\n",
+					"tie = F.row_number().over(\r\n",
+					"        W.partitionBy(\"caseReference\",\"IngestionDate\",\"ODTSourceSystem\")\r\n",
+					"         .orderBy(F.coalesce(F.col(\"RowID\"), F.lit(\"\")).asc())\r\n",
+					"     )\r\n",
+					"\r\n",
+					"#Here we add the state + the ordering helpers\r\n",
+					"ordered = stg.withColumn(\"state_hash\", state_hash) \\\r\n",
+					"             .withColumn(\"src_priority\", src_priority) \\\r\n",
+					"             .withColumn(\"tie\", tie)\r\n",
+					"\r\n",
+					"# Here we order by timeline then by source priority and then the tie\r\n",
+					"w_ing = (W.partitionBy(\"caseReference\")\r\n",
+					"           .orderBy(F.col(\"IngestionDate\").asc(),\r\n",
+					"                    F.col(\"src_priority\").desc(),\r\n",
+					"                    F.col(\"tie\").asc()))\r\n",
+					"\r\n",
+					"# Here we mark the state changes per case\r\n",
+					"scd_base = (ordered\r\n",
+					"    .withColumn(\"prev_hash\", F.lag(\"state_hash\").over(w_ing))\r\n",
+					"    .withColumn(\"chg\", F.when(F.col(\"prev_hash\").isNull() | (F.col(\"prev_hash\") != F.col(\"state_hash\")), 1).otherwise(0))\r\n",
+					")\r\n",
+					"\r\n",
+					"# Here we keep only the changed rows (one per change point)\r\n",
+					"changes = scd_base.filter(F.col(\"chg\") == 1)\r\n",
+					"\r\n",
+					"# Here we compute ValidTo as the next change timestamp so (if equal we bump by 1 microsecond)\r\n",
+					"w_change = W.partitionBy(\"caseReference\") \\\r\n",
+					"            .orderBy(F.col(\"IngestionDate\").asc(), F.col(\"src_priority\").desc(), F.col(\"tie\").asc())\r\n",
+					"\r\n",
+					"scd2 = (changes\r\n",
+					"    .withColumn(\"ValidFrom\", F.col(\"IngestionDate\"))\r\n",
+					"    .withColumn(\"next_IngestionDate\", F.lead(\"IngestionDate\").over(w_change))\r\n",
+					"    .withColumn(\r\n",
+					"        \"ValidTo\",\r\n",
+					"        F.when(F.col(\"next_IngestionDate\").isNull(), F.lit(None).cast(\"timestamp\"))\r\n",
+					"         .when(F.col(\"next_IngestionDate\") == F.col(\"IngestionDate\"),\r\n",
+					"               F.col(\"next_IngestionDate\") + F.expr(\"INTERVAL 1 MICROSECOND\"))\r\n",
+					"         .otherwise(F.col(\"next_IngestionDate\"))\r\n",
+					"    )\r\n",
+					"    # Here is the Active (the last version no following change)\r\n",
+					"    .withColumn(\"IsActive\", F.when(F.col(\"next_IngestionDate\").isNull(), F.lit(\"Y\")).otherwise(F.lit(\"N\")))\r\n",
+					"    .drop(\"state_hash\",\"prev_hash\",\"chg\",\"next_IngestionDate\",\"src_priority\",\"tie\",\"ValidFrom\")\r\n",
+					")\r\n",
+					"\r\n",
+					"# Here we determine the surrogate per key so (1..n in timeline order)\r\n",
+					"scd2 = scd2.withColumn(\r\n",
+					"    \"AppealHasID\",\r\n",
+					"    F.row_number().over(W.partitionBy(\"caseReference\").orderBy(F.col(\"IngestionDate\").asc())).cast(\"bigint\")\r\n",
+					")\r\n",
+					"\r\n",
+					"# Here we Build the final column list from the Service Bus schema\r\n",
+					"sb_schema = spark.table(service_bus_table).schema\r\n",
+					"\r\n",
+					"missing_cols = [f.name for f in sb_schema if f.name not in scd2.columns]\r\n",
+					"if missing_cols:\r\n",
+					"    print(f\"Missing columns added to align with Service Bus schema: {missing_cols}\")\r\n",
+					"\r\n",
+					"# Here we Cast/add columns to match SB schema exactly\r\n",
+					"for f in sb_schema:\r\n",
+					"    if f.name not in scd2.columns:\r\n",
+					"        scd2 = scd2.withColumn(f.name, F.lit(None).cast(f.dataType))\r\n",
+					"    else:\r\n",
+					"        scd2 = scd2.withColumn(f.name, F.col(f.name).cast(f.dataType))\r\n",
+					"\r\n",
+					"# Here we project to the exact SB column order\r\n",
+					"final_cols = [f.name for f in sb_schema]\r\n",
+					"scd2_final = scd2.select(*[F.col(c) for c in final_cols])\r\n",
+					"\r\n",
+					"# And to finish we write final partitioned by activity\r\n",
+					"(scd2_final\r\n",
+					" .write\r\n",
+					" .format(\"delta\")\r\n",
+					" .mode(\"overwrite\")\r\n",
+					" .option(\"overwriteSchema\", \"true\")\r\n",
+					" .partitionBy(\"IsActive\")\r\n",
+					" .saveAsTable(FINAL))\r\n",
+					"\r\n",
+					"print(f\"Final written: {FINAL}, rows = {scd2_final.count():,}\")\r\n",
+					"end_exec_time = datetime.now()\r\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### QA"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"## %%sql\r\n",
+					"# -- Here I check for duplicates of active rows by key should be 0\r\n",
+					"# -- This means that there is only one IsActive='Y' per caseReference\r\n",
+					"# SELECT COUNT(*) AS dup_active_keys\r\n",
+					"# FROM (\r\n",
+					"#   SELECT caseReference, COUNT(*) c\r\n",
+					"#   FROM odw_harmonised_db.appeal_hasz\r\n",
+					"#   WHERE IsActive='Y'\r\n",
+					"#   GROUP BY caseReference\r\n",
+					"#   HAVING COUNT(*) > 1\r\n",
+					"# ) d;\r\n",
+					"\r\n",
+					"# -- Here I check the exact interval overlaps should be 0 or minimal\r\n",
+					"# WITH t AS (\r\n",
+					"#   SELECT caseReference,\r\n",
+					"#          IngestionDate AS ValidFrom,\r\n",
+					"#          COALESCE(ValidTo, TIMESTAMP '9999-12-31') AS ValidTo\r\n",
+					"#   FROM odw_harmonised_db.appeal_has\r\n",
+					"# )\r\n",
+					"# SELECT COUNT(*) AS overlaps_tolerant\r\n",
+					"# FROM (\r\n",
+					"#   SELECT a.caseReference\r\n",
+					"#   FROM t a\r\n",
+					"#   JOIN t b\r\n",
+					"#     ON a.caseReference = b.caseReference\r\n",
+					"#    AND a.ValidFrom < b.ValidTo\r\n",
+					"#    AND COALESCE(a.ValidTo, TIMESTAMP '9999-12-31') > b.ValidFrom\r\n",
+					"#    AND NOT (\r\n",
+					"#          a.ValidFrom = b.ValidTo\r\n",
+					"#       OR a.ValidFrom = b.ValidTo + INTERVAL 1 MICROSECOND\r\n",
+					"#       OR a.ValidTo   = b.ValidFrom\r\n",
+					"#       OR a.ValidTo   = b.ValidFrom + INTERVAL 1 MICROSECOND\r\n",
+					"#    )\r\n",
+					"#   LIMIT 1\r\n",
+					"# ) x;\r\n",
+					"\r\n",
+					"# -- Here I check for continuity tolerant should be small\r\n",
+					"# -- ATM 76 and tolarant 1. This is not a red flag it's just a side effect of same TS bursts and of the query not using the same ordering as the SCD build.\r\n",
+					"# WITH f AS (\r\n",
+					"#   SELECT caseReference,\r\n",
+					"#          IngestionDate,\r\n",
+					"#          ValidTo,\r\n",
+					"#          LEAD(IngestionDate) OVER (PARTITION BY caseReference ORDER BY IngestionDate) AS next_Ing\r\n",
+					"#   FROM odw_harmonised_db.appeal_has\r\n",
+					"# )\r\n",
+					"# SELECT\r\n",
+					"#   SUM(CASE\r\n",
+					"#         WHEN ValidTo IS NULL THEN 0\r\n",
+					"#         WHEN ValidTo = next_Ing THEN 0\r\n",
+					"#         WHEN ValidTo = next_Ing + INTERVAL 1 MICROSECOND THEN 0\r\n",
+					"#         ELSE 1\r\n",
+					"#       END) AS continuity_violations_tolerant\r\n",
+					"# FROM f;\r\n",
+					"\r\n",
+					"# -- Here I check for the collisions both ODT and HORIZON at exact same (key,timestamp) should be 0\r\n",
+					"# When it's 0 it means that it didn't have to take ODT over Horizon\r\n",
+					"# WITH z AS (\r\n",
+					"#   SELECT caseReference, IngestionDate\r\n",
+					"#   FROM odw_harmonised_db.appeal_has_stg\r\n",
+					"#   WHERE caseReference IS NOT NULL\r\n",
+					"#   GROUP BY 1,2\r\n",
+					"#   HAVING COUNT(DISTINCT ODTSourceSystem) > 1\r\n",
+					"# )\r\n",
+					"# SELECT COUNT(*) AS collisions FROM z;"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"# %%sql\r\n",
+					"# -- Here I check for any missing keys from stage to final should be 0\r\n",
+					"# SELECT COUNT(*) AS missing_keys\r\n",
+					"# FROM (\r\n",
+					"#   SELECT DISTINCT caseReference FROM odw_harmonised_db.appeal_has_stg\r\n",
+					"#   EXCEPT\r\n",
+					"#   SELECT DISTINCT caseReference FROM odw_harmonised_db.appeal_has\r\n",
+					"# ) x;\r\n",
+					"\r\n",
+					"# -- Here I check for multiple rows per (key, ts, source) in STAGE or FINAL should be 0\r\n",
+					"# -- There is atm 162 in stage and 160 in final, which means there are about 160 (key, IngestionDate, Source) groups with >1 row.\r\n",
+					"# -- It's almost always due to multiple events stamped wit hthe exact same TS. And the SCD logic tolerates this by ordering and using 1s nudge.\r\n",
+					"# -- It's also expected when multiple updates are published with Service Bus\r\n",
+					"# SELECT\r\n",
+					"#   (SELECT COUNT(*) FROM (\r\n",
+					"#      SELECT caseReference, IngestionDate, ODTSourceSystem, COUNT(*) c\r\n",
+					"#      FROM odw_harmonised_db.appeal_has_stg GROUP BY 1,2,3 HAVING COUNT(*)>1\r\n",
+					"#    ) t) AS multi_ties,\r\n",
+					"#   (SELECT COUNT(*) FROM (\r\n",
+					"#      SELECT caseReference, IngestionDate, ODTSourceSystem, COUNT(*) c\r\n",
+					"#      FROM odw_harmonised_db.appeal_has GROUP BY 1,2,3 HAVING COUNT(*)>1\r\n",
+					"#    ) t) AS multi_final;\r\n",
+					"\r\n",
+					"# -- Here I do a sample checksum + min/max ingestion window\r\n",
+					"# SELECT\r\n",
+					"#   SUM(crc32(concat_ws('~',\r\n",
+					"#        caseReference,\r\n",
+					"#        CAST(IngestionDate AS string),\r\n",
+					"#        CAST(COALESCE(ValidTo,timestamp'9999-12-31') AS string),\r\n",
+					"#        ODTSourceSystem))) AS sample_checksum,\r\n",
+					"#   COUNT(*) AS n,\r\n",
+					"#   MIN(IngestionDate) AS min_ts,\r\n",
+					"#   MAX(IngestionDate) AS max_ts,\r\n",
+					"#   SUM(CASE WHEN CAST(date_format(IngestionDate, 'XXX') AS string) IN ('+00:00','Z') THEN 0 ELSE 1 END) AS non_utc_hint\r\n",
+					"# FROM odw_harmonised_db.appeal_has;\r\n",
+					"\r\n",
+					"# -- Here I do a data presence sanity\r\n",
+					"# SELECT\r\n",
+					"#   SUM(CASE WHEN IngestionDate IS NULL THEN 1 ELSE 0 END) AS null_ingestion,\r\n",
+					"#   SUM(CASE WHEN ODTSourceSystem IS NULL THEN 1 ELSE 0 END) AS null_source\r\n",
+					"# FROM odw_harmonised_db.appeal_has;\r\n",
+					"\r\n",
+					"# -- And to finish here I pick a quick random sample of 20 keys\r\n",
+					"# WITH keys AS (\r\n",
+					"#   SELECT DISTINCT caseReference\r\n",
+					"#   FROM odw_harmonised_db.appeal_has\r\n",
+					"#   ORDER BY RAND() LIMIT 20\r\n",
+					"# )\r\n",
+					"# SELECT f.*\r\n",
+					"# FROM odw_harmonised_db.appeal_has f\r\n",
+					"# JOIN keys k USING (caseReference)\r\n",
+					"# ORDER BY f.caseReference, f.IngestionDate;\r\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"try:\r\n",
+					"    end_exec_time\r\n",
+					"except NameError:\r\n",
+					"    end_exec_time = datetime.now()\r\n",
+					"if end_exec_time is None:\r\n",
+					"    end_exec_time = datetime.now()\r\n",
+					"\r\n",
+					"duration_seconds = builtins.max(0.0, (end_exec_time - start_exec_time).total_seconds())\r\n",
+					"activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\r\n",
+					"stage = \"Success\" if not error_message else \"Failed\"\r\n",
+					"status_message = (\r\n",
+					"    f\"Successfully loaded data into {spark_table_final} table\"\r\n",
+					"    if not error_message\r\n",
+					"    else f\"Failed to load data from {spark_table_final} table\"\r\n",
+					")\r\n",
+					"status_code = \"200\" if stage == \"Success\" else \"500\"\r\n",
+					" \r\n",
+					"log_telemetry_and_exit(\r\n",
+					"    stage,\r\n",
+					"    start_exec_time,\r\n",
+					"    end_exec_time,\r\n",
+					"    error_message,\r\n",
+					"    spark_table_final,\r\n",
+					"    insert_count,\r\n",
+					"    update_count,\r\n",
+					"    delete_count,\r\n",
+					"    PipelineName,\r\n",
+					"    PipelineRunID,\r\n",
+					"    PipelineTriggerID,\r\n",
+					"    PipelineTriggerName,\r\n",
+					"    PipelineTriggerType,\r\n",
+					"    PipelineTriggeredbyPipelineName,\r\n",
+					"    PipelineTriggeredbyPipelineRunID,\r\n",
+					"    activity_type,\r\n",
+					"    duration_seconds,\r\n",
+					"    status_message,\r\n",
+					"    status_code\r\n",
+					")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
