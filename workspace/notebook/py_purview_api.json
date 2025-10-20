@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ca4868dd-971c-4b4f-8fd5-e09fd4d1e455"
+				"spark.autotune.trackingId": "65e130c8-ad83-4885-a14d-4ead2803e208"
 			}
 		},
 		"metadata": {
@@ -68,7 +68,7 @@
 					"from pyspark.sql import DataFrame\n",
 					""
 				],
-				"execution_count": 243
+				"execution_count": 90
 			},
 			{
 				"cell_type": "markdown",
@@ -90,11 +90,18 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"entity_name = 'service-user'\n",
-					"file_name = 'HorizonContactInformation.csv'\n",
-					"is_servicebus_schema = True "
+					"%run service-bus/py_sb_raw_to_std"
 				],
-				"execution_count": 251
+				"execution_count": 91
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"entity_name = 'nsip-project'\n",
+					"file_name = 'dart-lpa.csv'\n",
+					"source_folder= 'Horizon' # ServiceBus, Horizon, entraid"
+				],
+				"execution_count": 149
 			},
 			{
 				"cell_type": "markdown",
@@ -108,13 +115,6 @@
 				"source": [
 					"Test import of a Dataframe"
 				]
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"%run service-bus/py_sb_raw_to_std"
-				],
-				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -145,16 +145,16 @@
 					"        logError(error_message)\n",
 					"        raise"
 				],
-				"execution_count": 252
+				"execution_count": 150
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"table_name: str = f\"odw_standardised_db.sb_{entity_name.replace('-', '_')}\"\n",
-					"table_df = spark.table(table_name)\n",
-					"max_extracted_date = get_max_file_date(df=table_df)"
+					"# table_name: str = f\"odw_standardised_db.sb_{entity_name.replace('-', '_')}\"\n",
+					"table_name: str = f\"odw_standardised_db.pins_lpa\"\n",
+					"table_df = spark.table(table_name)"
 				],
-				"execution_count": 253
+				"execution_count": 195
 			},
 			{
 				"cell_type": "markdown",
@@ -174,25 +174,28 @@
 				"source": [
 					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')"
 				],
-				"execution_count": 254
+				"execution_count": 196
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"if is_servicebus_schema:\n",
-					"    source_path: str = f\"https://{storage_account}odw-raw/ServiceBus/{entity_name}/\"+ \"{Year}-{Month}-{Day}\" + \"/\" + entity_name + \".csv\"\n",
+					"source_folder"
+				],
+				"execution_count": 197
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if source_folder == 'ServiceBus':\n",
+					"    source_path: str = f\"https://{storage_account}odw-raw/{source_folder}/{entity_name}/\"+ \"{Year}-{Month}-{Day}\" + \"/\" + entity_name + \".csv\"\n",
+					"elif source_folder == 'Horizon':\n",
+					"    source_path: str = f\"https://{storage_account}odw-raw/archive/{source_folder}/\" + \"{Year}-{Month}-{Day}\" + \"/\" + f\"{file_name}\"\n",
+					"elif source_folder== 'entraid': \n",
+					"    source_path: str = f\"https://{storage_account}odw-raw/{source_folder}/{entity_name}/\"+ \"{Year}-{Month}-{Day}\" + \"/\" + entity_name + \".json\"\n",
 					"else:\n",
-					"    source_folder = 'Horizon'\n",
-					"    source_path: str = f\"https://{storage_account}odw-raw/Horizon/\" + \"{Year}-{Month}-{Day}\" + \"/\" + f\"{file_name}\""
+					"    raise Exception(\"Source Folder not recognised\")"
 				],
-				"execution_count": 255
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"source_path"
-				],
-				"execution_count": 228
+				"execution_count": 198
 			},
 			{
 				"cell_type": "code",
@@ -212,7 +215,7 @@
 					"ASSET_QUALIFIED_NAME = source_path\n",
 					"CLASSIFIED_FIELDS = (\"PotentialID\", \"NI Number\", \"Email Address\", \"First Name\", \"Last Name\", \"Birth Date\", \"Annual Salary\", \"Person's Age\", \"MICROSOFT.PERSONAL.EMAIL\", \"MICROSOFT.PERSONAL.NAME\")"
 				],
-				"execution_count": 262
+				"execution_count": 199
 			},
 			{
 				"cell_type": "code",
@@ -223,7 +226,7 @@
 					"\n",
 					"CLIENT_SECRET = mssparkutils.credentials.getSecret(VAULT_NAME, SECRET_NAME)"
 				],
-				"execution_count": 263
+				"execution_count": 200
 			},
 			{
 				"cell_type": "code",
@@ -245,7 +248,7 @@
 					"HDRS = {\"Authorization\": f\"Bearer {ACCESS_TOKEN}\", \"Content-Type\": \"application/json\"}\n",
 					""
 				],
-				"execution_count": 264
+				"execution_count": 201
 			},
 			{
 				"cell_type": "code",
@@ -289,7 +292,7 @@
 					"   raise Exception(f\"Could not resolve GUID for {type_name} :: {qualified_name}\")\n",
 					""
 				],
-				"execution_count": 265
+				"execution_count": 202
 			},
 			{
 				"cell_type": "code",
@@ -304,7 +307,7 @@
 					"\n",
 					"entity_data = get_entity_with_refs(resource_guid)"
 				],
-				"execution_count": 266
+				"execution_count": 203
 			},
 			{
 				"cell_type": "code",
@@ -317,7 +320,7 @@
 					"for schema in attached_schema:\n",
 					"    print(f\"- GUID: {schema.get('guid')} | Name: {schema.get('displayText')} | Type: {schema.get('typeName')}\")"
 				],
-				"execution_count": 267
+				"execution_count": 204
 			},
 			{
 				"cell_type": "code",
@@ -342,7 +345,7 @@
 					"\n",
 					"print(json.dumps(classified_cols, indent=2))"
 				],
-				"execution_count": 268
+				"execution_count": 205
 			},
 			{
 				"cell_type": "markdown",
@@ -358,17 +361,6 @@
 				]
 			},
 			{
-				"cell_type": "code",
-				"source": [
-					"anonym_table_df = apply_anonymisation_rules(\n",
-					"    table_df,\n",
-					"    classified_cols,\n",
-					"    CLASSIFIED_FIELDS\n",
-					")"
-				],
-				"execution_count": 284
-			},
-			{
 				"cell_type": "markdown",
 				"metadata": {
 					"nteract": {
@@ -380,17 +372,6 @@
 				"source": [
 					"## Anonymisation Rules"
 				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"collapsed": false
-				},
-				"source": [
-					"# display(anonym_table_df)\n",
-					"display(table_df)"
-				],
-				"execution_count": 285
 			},
 			{
 				"cell_type": "code",
@@ -442,52 +423,104 @@
 					"    last = _rand.choice('ABCD')\n",
 					"    return f\"{first}{second}{digits}{last}\"\n",
 					"\n",
-            "def apply_anonymisation_rules(df, sensitive_cols, classification):\n",
-            "    seed = _seed_col(df)\n",
-            "    out = df\n",
-            "    exists = set(df.columns)\n",
-            "    staff_col_name = next((c for c in ['Staff Number','PersNo','PersNo.','Personnel Number','Employee ID','EmployeeID'] if c in df.columns), None)\n",
-            "    staff_col = F.col(staff_col_name) if staff_col_name else seed\n",
-            "    # Ensure we have iterable of dicts with 'column_name' and 'classifications'\n",
-            "    if not isinstance(sensitive_cols, list):\n",
-            "        return out\n",
-            "    for item in sensitive_cols:\n",
-            "        if not isinstance(item, dict):\n",
-            "            continue\n",
-            "        col = item.get('column_name')\n",
-            "        if not col or col not in exists:\n",
-            "            continue\n",
-            "        classes = set(item.get('classifications', []) or [])\n",
-            "        # consider only classes in the provided classification allowlist\n",
-            "        if not any(c in classification for c in classes):\n",
-            "            continue\n",
-            "        is_lm = 'line manager' in col.lower()\n",
-            "        # Precedence-based application\n",
-            "        if 'NI Number' in classes:\n",
-            "            out = out.withColumn(col, generate_random_ni_number_udf(staff_col.cast('string')))\n",
-            "            continue\n",
-            "        if 'MICROSOFT.PERSONAL.EMAIL' in classes or 'Email Address' in classes:\n",
-            "            out = out.withColumn(col, mask_email_with_persno_udf(F.col(col), staff_col.cast('string'), F.lit(is_lm)))\n",
-            "            continue\n",
-            "        if 'MICROSOFT.PERSONAL.NAME' in classes or 'First Name' in classes or 'Last Name' in classes:\n",
-            "            # If appears to be a full name field, obfuscate each part; otherwise mask after first two\n",
-            "            if 'name' in col.lower() and 'first' not in col.lower() and 'last' not in col.lower():\n",
-            "                out = out.withColumn(col, mask_fullname_udf(F.col(col)))\n",
-            "            else:\n",
-            "                out = out.withColumn(col, mask_after_first_two_col(F.col(col)))\n",
-            "            continue\n",
-            "        if 'Birth Date' in classes or 'Date of Birth' in classes:\n",
-            "            out = out.withColumn(col, random_date_from_seed(seed))\n",
-            "            continue\n",
-            "        if \"Person's Age\" in classes or 'Employee Age' in classes:\n",
-            "            out = out.withColumn(col, random_int_from_seed(seed, 18, 70).cast('int'))\n",
-            "            continue\n",
-            "        if 'Annual Salary' in classes:\n",
-            "            out = out.withColumn(col, random_int_from_seed(seed, 20000, 100000).cast('int'))\n",
-            "            continue\n",
-            "    return out\n"
+					"def apply_anonymisation_rules(df, sensitive_cols, classification):\n",
+					"    seed = _seed_col(df)\n",
+					"    out = df\n",
+					"    exists = set(df.columns)\n",
+					"    staff_col_name = next((c for c in ['Staff Number','PersNo','PersNo.','Personnel Number','Employee ID','EmployeeID'] if c in df.columns), None)\n",
+					"    staff_col = F.col(staff_col_name) if staff_col_name else seed\n",
+					"    # Ensure we have iterable of dicts with 'column_name' and 'classifications'\n",
+					"    if not isinstance(sensitive_cols, list):\n",
+					"        return out\n",
+					"    for item in sensitive_cols:\n",
+					"        if not isinstance(item, dict):\n",
+					"            continue\n",
+					"        col = item.get('column_name')\n",
+					"        if not col or col not in exists:\n",
+					"            continue\n",
+					"        classes = set(item.get('classifications', []) or [])\n",
+					"        # consider only classes in the provided classification allowlist\n",
+					"        if not any(c in classification for c in classes):\n",
+					"            continue\n",
+					"        is_lm = 'line manager' in col.lower()\n",
+					"        # Precedence-based application\n",
+					"        if 'NI Number' or 'Potential ID' in classes:\n",
+					"            out = out.withColumn(col, generate_random_ni_number_udf(staff_col.cast('string')))\n",
+					"            continue\n",
+					"        if 'MICROSOFT.PERSONAL.EMAIL' in classes or 'Email Address' in classes:\n",
+					"            out = out.withColumn(col, mask_email_with_persno_udf(F.col(col), staff_col.cast('string'), F.lit(is_lm)))\n",
+					"            continue\n",
+					"        if 'MICROSOFT.PERSONAL.NAME' in classes or 'First Name' in classes or 'Last Name' in classes:\n",
+					"            # If appears to be a full name field, obfuscate each part; otherwise mask after first two\n",
+					"            if 'name' in col.lower() and 'first' not in col.lower() and 'last' not in col.lower():\n",
+					"                out = out.withColumn(col, mask_fullname_udf(F.col(col)))\n",
+					"            else:\n",
+					"                out = out.withColumn(col, mask_after_first_two_col(F.col(col)))\n",
+					"            continue\n",
+					"        if 'Birth Date' in classes or 'Date of Birth' in classes:\n",
+					"            out = out.withColumn(col, random_date_from_seed(seed))\n",
+					"            continue\n",
+					"        if \"Person's Age\" in classes or 'Employee Age' in classes:\n",
+					"            out = out.withColumn(col, random_int_from_seed(seed, 18, 70).cast('int'))\n",
+					"            continue\n",
+					"        if 'Annual Salary' in classes:\n",
+					"            out = out.withColumn(col, random_int_from_seed(seed, 20000, 100000).cast('int'))\n",
+					"            continue\n",
+					"    return out\n",
+					""
 				],
-				"execution_count": 282
+				"execution_count": 206
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Test"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"anonym_table_df = apply_anonymisation_rules(\n",
+					"    table_df,\n",
+					"    classified_cols,\n",
+					"    CLASSIFIED_FIELDS\n",
+					")"
+				],
+				"execution_count": 207
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"classified_cols"
+				],
+				"execution_count": 208
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"display(table_df)"
+				],
+				"execution_count": 209
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"display(anonym_table_df)"
+				],
+				"execution_count": 210
 			},
 			{
 				"cell_type": "code",
@@ -518,7 +551,7 @@
 					"\n",
 					""
 				],
-				"execution_count": 241
+				"execution_count": 211
 			}
 		]
 	}
