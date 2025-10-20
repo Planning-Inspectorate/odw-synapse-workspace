@@ -217,9 +217,9 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"VAULT_NAME = spark.sparkContext.environment.get('keyVaultName', 'get')\n",
+					"VAULT_NAME = spark.sparkContext.environment.get('keyVaultName')\n",
 					"if not VAULT_NAME:\n",
-					"    raise ValueError(f\"Cannot determine Key Vault linked service for environment: {env}\")\n",
+					"    raise ValueError(\"Cannot determine Key Vault linked service (keyVaultName) from Spark environment\")\n",
 					"\n",
 					"CLIENT_SECRET = mssparkutils.credentials.getSecret(VAULT_NAME, SECRET_NAME)"
 				],
@@ -360,10 +360,11 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"filt_classified_cols =  [col for col in classified_cols if any(c in CLASSIFIED_FIELDS for c in col['classifications'])]\n",
-					"cols_to_mask = [c['column_name'] for c in filt_classified_cols]\n",
-					"classification = [c['classifications']for c in filt_classified_cols]\n",
-					"anonym_table_df = apply_anonymisation_rules(table_df, cols_to_mask, classification)"
+					"anonym_table_df = apply_anonymisation_rules(\n",
+					"    table_df,\n",
+					"    classified_cols,\n",
+					"    CLASSIFIED_FIELDS\n",
+					")"
 				],
 				"execution_count": 284
 			},
@@ -478,7 +479,7 @@
             "        if 'Birth Date' in classes or 'Date of Birth' in classes:\n",
             "            out = out.withColumn(col, random_date_from_seed(seed))\n",
             "            continue\n",
-            "        if 'Person\'s Age' in classes or 'Employee Age' in classes:\n",
+            "        if \"Person's Age\" in classes or 'Employee Age' in classes:\n",
             "            out = out.withColumn(col, random_int_from_seed(seed, 18, 70).cast('int'))\n",
             "            continue\n",
             "        if 'Annual Salary' in classes:\n",
