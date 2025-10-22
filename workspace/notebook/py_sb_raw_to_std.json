@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "67fd13ce-dd1e-45f9-a83d-dcfffae565ee"
+				"spark.autotune.trackingId": "1639306a-a987-418b-a8dc-33ac87905fc4"
 			}
 		},
 		"metadata": {
@@ -83,14 +83,14 @@
 					"PipelineTriggeredbyPipelineRunID = \"ae55a687-bef1-4b6d-a7e1-65e2ade2dddf\"\r\n",
 					"error_message = 'run sucessfully'"
 				],
-				"execution_count": 115
+				"execution_count": 138
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 116
+				"execution_count": 139
 			},
 			{
 				"cell_type": "code",
@@ -108,7 +108,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 117
+				"execution_count": 140
 			},
 			{
 				"cell_type": "code",
@@ -130,7 +130,7 @@
 					"entity_name='appeal-has'\r\n",
 					"date_folder=''"
 				],
-				"execution_count": 118
+				"execution_count": 141
 			},
 			{
 				"cell_type": "code",
@@ -146,7 +146,7 @@
 					"from pyspark.sql.functions import *\r\n",
 					"import re"
 				],
-				"execution_count": 119
+				"execution_count": 142
 			},
 			{
 				"cell_type": "code",
@@ -157,7 +157,7 @@
 					"delete_count = 0\r\n",
 					"error_message=''"
 				],
-				"execution_count": 120
+				"execution_count": 143
 			},
 			{
 				"cell_type": "code",
@@ -185,7 +185,7 @@
 					"insert_count = 0\r\n",
 					""
 				],
-				"execution_count": 121
+				"execution_count": 144
 			},
 			{
 				"cell_type": "code",
@@ -203,7 +203,7 @@
 				"source": [
 					"%run service-bus/py_spark_df_ingestion_functions"
 				],
-				"execution_count": 122
+				"execution_count": 145
 			},
 			{
 				"cell_type": "markdown",
@@ -223,7 +223,7 @@
 				"source": [
 					"%run utils/py_utils_common_logging_output"
 				],
-				"execution_count": 123
+				"execution_count": 146
 			},
 			{
 				"cell_type": "code",
@@ -260,7 +260,7 @@
 					"        logError(error_message)\r\n",
 					"        raise"
 				],
-				"execution_count": 124
+				"execution_count": 147
 			},
 			{
 				"cell_type": "code",
@@ -303,7 +303,7 @@
 					"        logError(error_message)\r\n",
 					"        raise"
 				],
-				"execution_count": 125
+				"execution_count": 148
 			},
 			{
 				"cell_type": "code",
@@ -333,20 +333,30 @@
 					"        files: a list of files in the source path.\r\n",
 					"    \"\"\"\r\n",
 					"    files = []\r\n",
-					"    entries = mssparkutils.fs.ls(source_path)\r\n",
+					"    error_message = None\r\n",
 					"    \r\n",
-					"    for entry in entries:\r\n",
-					"        # Check if the entry is a directory\r\n",
-					"        if entry.isDir:\r\n",
-					"            # Recursively process the directory\r\n",
-					"            files.extend(get_all_files_recursive(entry.path))\r\n",
-					"        else:\r\n",
-					"            # If it's a file, add to the list\r\n",
-					"            files.append(entry.path)\r\n",
+					"    try:\r\n",
+					"        logInfo(f\"Listing files from {source_path}\")\r\n",
+					"        entries = mssparkutils.fs.ls(source_path)\r\n",
+					"        \r\n",
+					"        for entry in entries:\r\n",
+					"            # Check if the entry is a directory\r\n",
+					"            if entry.isDir:\r\n",
+					"                # Recursively process the directory\r\n",
+					"                files.extend(get_all_files_recursive(entry.path))\r\n",
+					"            else:\r\n",
+					"                # If it's a file, add to the list\r\n",
+					"                files.append(entry.path)\r\n",
+					"        \r\n",
+					"        logInfo(f\"Found {len(files)} file(s) in {source_path}\")\r\n",
+					"        \r\n",
+					"    except Exception as e:\r\n",
+					"        error_message = f\"Error in listing files from {source_path}: {str(e)[:800]}\"\r\n",
+					"        end_exec_time = datetime.now()\r\n",
 					"    \r\n",
 					"    return files"
 				],
-				"execution_count": 126
+				"execution_count": 149
 			},
 			{
 				"cell_type": "code",
@@ -391,7 +401,7 @@
 					"        logError(error_message)\r\n",
 					"        raise"
 				],
-				"execution_count": 127
+				"execution_count": 150
 			},
 			{
 				"cell_type": "code",
@@ -444,7 +454,7 @@
 					"\r\n",
 					"    return filtered_paths"
 				],
-				"execution_count": 128
+				"execution_count": 151
 			},
 			{
 				"cell_type": "code",
@@ -489,7 +499,7 @@
 					"\r\n",
 					"    return df"
 				],
-				"execution_count": 129
+				"execution_count": 152
 			},
 			{
 				"cell_type": "code",
@@ -528,7 +538,7 @@
 					"        logError(error_message)\r\n",
 					"        raise"
 				],
-				"execution_count": 130
+				"execution_count": 153
 			},
 			{
 				"cell_type": "code",
@@ -560,7 +570,7 @@
 					"    .saveAsTable(table_name)\r\n",
 					""
 				],
-				"execution_count": 131
+				"execution_count": 154
 			},
 			{
 				"cell_type": "code",
@@ -608,7 +618,7 @@
 					"        end_exec_time = datetime.now()\r\n",
 					"        return False  # Return False on error as a safe default"
 				],
-				"execution_count": 132
+				"execution_count": 155
 			},
 			{
 				"cell_type": "markdown",
@@ -672,7 +682,7 @@
 					"        \r\n",
 					""
 				],
-				"execution_count": 133
+				"execution_count": 156
 			},
 			{
 				"cell_type": "markdown",
@@ -723,7 +733,7 @@
 					"    \r\n",
 					""
 				],
-				"execution_count": 134
+				"execution_count": 157
 			},
 			{
 				"cell_type": "markdown",
@@ -770,7 +780,7 @@
 					"\r\n",
 					""
 				],
-				"execution_count": 135
+				"execution_count": 158
 			},
 			{
 				"cell_type": "markdown",
@@ -809,7 +819,7 @@
 					"else:\r\n",
 					"    logInfo(\"Rows appended successfully.\")"
 				],
-				"execution_count": 136
+				"execution_count": 159
 			},
 			{
 				"cell_type": "markdown",
@@ -859,7 +869,7 @@
 					"    status_code\r\n",
 					")"
 				],
-				"execution_count": 137
+				"execution_count": 160
 			}
 		]
 	}
