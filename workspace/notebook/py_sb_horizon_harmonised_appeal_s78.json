@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "29dc0acb-7aac-4a73-b1d0-3bb420d2d994"
+				"spark.autotune.trackingId": "242bc3a9-6256-4001-8999-a5183ca18b04"
 			}
 		},
 		"metadata": {
@@ -108,35 +108,8 @@
 					}
 				},
 				"source": [
-					"##### Initialise Logging decorator"
-				]
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"%run utils/py_logging_decorator"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
 					"##### Initialise Application Insight Logging functions"
 				]
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"%run utils/py_utils_common_logging_output"
-				],
-				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -364,6 +337,8 @@
 					"                                ,Migrated\r\n",
 					"                                ,ODTSourceSystem\r\n",
 					"                                ,IngestionDate\r\n",
+					"                                ,message_id\r\n",
+					"                                ,SourceSystemID\r\n",
 					"                                ,NULLIF(ValidTo, '') AS ValidTo\r\n",
 					"                                ,'' as RowID\r\n",
 					"                                ,IsActive\r\n",
@@ -496,8 +471,6 @@
 					"stg_df = service_bus_data.unionByName(hzn_aligned, allowMissingColumns=True).distinct()\r\n",
 					"\r\n",
 					"# Here we enforce non null key\r\n",
-					"null_key_cnt = stg_df.filter(F.col(\"caseReference\").isNull()).count()\r\n",
-					"print(f\"Stage rows with NULL caseReference: {null_key_cnt}\")\r\n",
 					"stg_df = stg_df.filter(F.col(\"caseReference\").isNotNull())\r\n",
 					""
 				],
@@ -525,11 +498,14 @@
 					"# Here we just do a quick check of the total rows + source split and confirm there is no null keys that sneak through\r\n",
 					"# Also check how many rows per source we have after the union ODT + Horizon\r\n",
 					"# And we display if there is any null keys existing should always be 0 (will show no data available)\r\n",
-					"print(\"Stage total rows (pre-write):\", stg_df.count())\r\n",
-					"display(stg_df.groupBy(\"ODTSourceSystem\").count())\r\n",
-					"display(stg_df.filter(F.col(\"caseReference\").isNull())\r\n",
-					"              .groupBy(\"ODTSourceSystem\").count())\r\n",
-					""
+					"DEBUG = False\r\n",
+					"if DEBUG:\r\n",
+					"    print(\"Stage total rows (pre-write):\", stg_df.count())\r\n",
+					"    display(stg_df.groupBy(\"ODTSourceSystem\").count())\r\n",
+					"    display(\r\n",
+					"        stg_df.filter(F.col(\"caseReference\").isNull())\r\n",
+					"              .groupBy(\"ODTSourceSystem\").count()\r\n",
+					"    )"
 				],
 				"execution_count": null
 			},
@@ -607,21 +583,46 @@
 					"                .when(F.col(\"ODTSourceSystem\") == \"HORIZON\", F.lit(1)) \\\r\n",
 					"                .otherwise(F.lit(0))\r\n",
 					"\r\n",
+					"# helpers for deterministic ordering when RowID is blank and content ties\r\n",
+					"normRowID = F.when(F.col(\"RowID\").isNull() | (F.col(\"RowID\") == \"\"), F.lit(\"~\")).otherwise(F.col(\"RowID\"))\r\n",
+					"fallback_hash = state_hash  # reuse state hash to fully order ties\r\n",
+					"\r\n",
 					"# Here is the tie breaker within the same key, timestamp, source (prefered lowest RowID)\r\n",
+					"# enhance tie ordering to be fully deterministic\r\n",
 					"tie = F.row_number().over(\r\n",
 					"        W.partitionBy(\"caseReference\",\"IngestionDate\",\"ODTSourceSystem\")\r\n",
-					"         .orderBy(F.coalesce(F.col(\"RowID\"), F.lit(\"\")).asc())\r\n",
+					"         .orderBy(\r\n",
+					"             F.col(\"normRowID\").asc(),\r\n",
+					"             F.col(\"caseUpdatedDate\").asc_nulls_last(),\r\n",
+					"             F.col(\"fallback_hash\").asc()\r\n",
+					"         )\r\n",
 					"     )\r\n",
 					"\r\n",
 					"#Here we add the state + the ordering helpers\r\n",
 					"ordered = stg.withColumn(\"state_hash\", state_hash) \\\r\n",
 					"             .withColumn(\"src_priority\", src_priority) \\\r\n",
+					"             .withColumn(\"normRowID\", normRowID) \\\r\n",
+					"             .withColumn(\"fallback_hash\", fallback_hash) \\\r\n",
 					"             .withColumn(\"tie\", tie)\r\n",
 					"\r\n",
+					"# collapse exact duplicates within (caseReference, IngestionDate, ODTSourceSystem, state_hash)\r\n",
+					"w_dup = (W.partitionBy(\"caseReference\",\"IngestionDate\",\"ODTSourceSystem\",\"state_hash\")\r\n",
+					"           .orderBy(F.col(\"normRowID\").asc(),\r\n",
+					"                    F.col(\"caseUpdatedDate\").asc_nulls_last(),\r\n",
+					"                    F.col(\"fallback_hash\").asc()))\r\n",
+					"ordered = (ordered\r\n",
+					"           .withColumn(\"dup_rn\", F.row_number().over(w_dup))\r\n",
+					"           .filter(F.col(\"dup_rn\") == 1)\r\n",
+					"           .drop(\"dup_rn\"))\r\n",
+					"\r\n",
 					"# Here we order by timeline then by source priority and then the tie\r\n",
+					"# extend ordering with deterministic keys to avoid run-to-run drift\r\n",
 					"w_ing = (W.partitionBy(\"caseReference\")\r\n",
 					"           .orderBy(F.col(\"IngestionDate\").asc(),\r\n",
 					"                    F.col(\"src_priority\").desc(),\r\n",
+					"                    F.col(\"normRowID\").asc(),\r\n",
+					"                    F.col(\"caseUpdatedDate\").asc_nulls_last(),\r\n",
+					"                    F.col(\"fallback_hash\").asc(),\r\n",
 					"                    F.col(\"tie\").asc()))\r\n",
 					"\r\n",
 					"# Here we mark the state changes per case\r\n",
@@ -634,8 +635,14 @@
 					"changes = scd_base.filter(F.col(\"chg\") == 1)\r\n",
 					"\r\n",
 					"# Here we compute ValidTo as the next change timestamp so (if equal we bump by 1 microsecond)\r\n",
+					"# use the same total order as w_ing to compute the \"next\" change deterministically\r\n",
 					"w_change = W.partitionBy(\"caseReference\") \\\r\n",
-					"            .orderBy(F.col(\"IngestionDate\").asc(), F.col(\"src_priority\").desc(), F.col(\"tie\").asc())\r\n",
+					"            .orderBy(F.col(\"IngestionDate\").asc(),\r\n",
+					"                     F.col(\"src_priority\").desc(),\r\n",
+					"                     F.col(\"normRowID\").asc(),\r\n",
+					"                     F.col(\"caseUpdatedDate\").asc_nulls_last(),\r\n",
+					"                     F.col(\"fallback_hash\").asc(),\r\n",
+					"                     F.col(\"tie\").asc())\r\n",
 					"\r\n",
 					"scd2 = (changes\r\n",
 					"    .withColumn(\"ValidFrom\", F.col(\"IngestionDate\"))\r\n",
@@ -649,14 +656,26 @@
 					"    )\r\n",
 					"    # Here is the Active (the last version no following change)\r\n",
 					"    .withColumn(\"IsActive\", F.when(F.col(\"next_IngestionDate\").isNull(), F.lit(\"Y\")).otherwise(F.lit(\"N\")))\r\n",
-					"    .drop(\"state_hash\",\"prev_hash\",\"chg\",\"next_IngestionDate\",\"src_priority\",\"tie\",\"ValidFrom\")\r\n",
+					"    .drop(\"prev_hash\",\"chg\",\"next_IngestionDate\",\"ValidFrom\")\r\n",
 					")\r\n",
 					"\r\n",
 					"# Here we determine the surrogate per key so (1..n in timeline order)\r\n",
+					"# use the same total order as above to assign stable IDs\r\n",
 					"scd2 = scd2.withColumn(\r\n",
 					"    \"AppealS78ID\",\r\n",
-					"    F.row_number().over(W.partitionBy(\"caseReference\").orderBy(F.col(\"IngestionDate\").asc())).cast(\"bigint\")\r\n",
+					"    F.row_number().over(\r\n",
+					"        W.partitionBy(\"caseReference\").orderBy(\r\n",
+					"            F.col(\"IngestionDate\").asc(),\r\n",
+					"            F.col(\"src_priority\").desc(),\r\n",
+					"            F.col(\"normRowID\").asc(),\r\n",
+					"            F.col(\"caseUpdatedDate\").asc_nulls_last(),\r\n",
+					"            F.col(\"fallback_hash\").asc()\r\n",
+					"        )\r\n",
+					"    ).cast(\"bigint\")\r\n",
 					")\r\n",
+					"\r\n",
+					"# drop helper columns now (projection will also remove them later)\r\n",
+					"scd2 = scd2.drop(\"src_priority\",\"normRowID\",\"fallback_hash\",\"tie\")\r\n",
 					"\r\n",
 					"# Here we Build the final column list from the Service Bus schema\r\n",
 					"sb_schema = spark.table(service_bus_table).schema\r\n",
