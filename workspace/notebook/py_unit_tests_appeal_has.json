@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "6f3b3e8f-b2ed-4d52-b6c4-a901113858ea"
+				"spark.autotune.trackingId": "2c5ecb8a-f546-42b7-a20e-eea4170e6689"
 			}
 		},
 		"metadata": {
@@ -94,7 +94,7 @@
 					"from pyspark.sql import functions as F\n",
 					"import pprint"
 				],
-				"execution_count": null
+				"execution_count": 48
 			},
 			{
 				"cell_type": "code",
@@ -116,7 +116,7 @@
 					"hrm_db_name: str = 'odw_harmonised_db'\n",
 					"cur_db_name: str = 'odw_curated_db'"
 				],
-				"execution_count": null
+				"execution_count": 49
 			},
 			{
 				"cell_type": "code",
@@ -143,7 +143,7 @@
 					"# CURATED\n",
 					"cur_table: str       = \"appeal_has\"                # HRM final"
 				],
-				"execution_count": null
+				"execution_count": 50
 			},
 			{
 				"cell_type": "code",
@@ -167,7 +167,7 @@
 					"\n",
 					"curated_df  = spark.table(f\"{cur_db_name}.{cur_table}\")"
 				],
-				"execution_count": null
+				"execution_count": 51
 			},
 			{
 				"cell_type": "code",
@@ -189,7 +189,7 @@
 					"hrm_fin_keys = hrm_fin_df.select(\"caseReference\")\n",
 					"cur_keys     = curated_df.select(\"caseReference\")"
 				],
-				"execution_count": null
+				"execution_count": 52
 			},
 			{
 				"cell_type": "code",
@@ -208,7 +208,7 @@
 					"#keep track of the exitCodes, if the exit code is not zero then we've had failures, we flip the boolean\n",
 					"exitCode: int = 0"
 				],
-				"execution_count": null
+				"execution_count": 53
 			},
 			{
 				"cell_type": "code",
@@ -226,7 +226,7 @@
 				"source": [
 					"%run /utils/unit-tests/py_unit_tests_functions"
 				],
-				"execution_count": null
+				"execution_count": 54
 			},
 			{
 				"cell_type": "code",
@@ -252,7 +252,7 @@
 					"hrm_final_table_schema = spark.table(f\"{hrm_db_name}.{hrm_final_table}\").schema\n",
 					"cur_table_schema       = spark.table(f\"{cur_db_name}.{cur_table}\").schema"
 				],
-				"execution_count": null
+				"execution_count": 55
 			},
 			{
 				"cell_type": "code",
@@ -270,7 +270,7 @@
 				"source": [
 					"data_model_columns = [f.name for f in cur_table_schema.fields]"
 				],
-				"execution_count": null
+				"execution_count": 56
 			},
 			{
 				"cell_type": "markdown",
@@ -312,7 +312,7 @@
 					"print(f\"Curated schema correct: {cur_schema_ok}\\nTable: {cur_db_name}.{cur_table}\")\n",
 					"exitCode += int(not cur_schema_ok)"
 				],
-				"execution_count": null
+				"execution_count": 57
 			},
 			{
 				"cell_type": "markdown",
@@ -355,7 +355,7 @@
 					"if std_cnt != hrm_stg_odt_cnt:\n",
 					"    print(\"WARNING: SB standardised row count != HRM stage ODT row count (some NULL keys are expected to be dropped)\")"
 				],
-				"execution_count": null
+				"execution_count": 58
 			},
 			{
 				"cell_type": "markdown",
@@ -396,7 +396,7 @@
 					"print(f\"HRM Stage / Final no dropping by key: {ok}\")\n",
 					"exitCode += int(not ok)"
 				],
-				"execution_count": null
+				"execution_count": 59
 			},
 			{
 				"cell_type": "code",
@@ -431,7 +431,7 @@
 					"exitCode += int(not match_active)\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 60
 			},
 			{
 				"cell_type": "code",
@@ -452,7 +452,7 @@
 					"print(f\"HRM FINAL to Curated no dropping by key: {ok}\")\n",
 					"exitCode += int(not ok)"
 				],
-				"execution_count": null
+				"execution_count": 61
 			},
 			{
 				"cell_type": "code",
@@ -478,7 +478,7 @@
 					"    print(\"Failed: both ODT and HORIZON rows should be present in HRM final\")\n",
 					"    exitCode += 1"
 				],
-				"execution_count": null
+				"execution_count": 62
 			},
 			{
 				"cell_type": "code",
@@ -532,7 +532,7 @@
 					"    return missing_cnt == 0\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 63
 			},
 			{
 				"cell_type": "code",
@@ -564,7 +564,35 @@
 					"    print(\"Failed: test_sb_std_to_hrm_no_active_deleted_record\")\n",
 					"    exitCode += 1"
 				],
-				"execution_count": null
+				"execution_count": 67
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"sb_df = spark.table(f\"{std_db_name}.{std_sb_table}\")\n",
+					"hrm_df = spark.table(f\"{hrm_db_name}.{hrm_stage_table}\")\n",
+					"\n",
+					"missing_msg_ids = sb_df.select(\"message_id\").distinct().subtract(\n",
+					"    hrm_df.select(\"message_id\").distinct()\n",
+					")\n",
+					"print(f\"Missing message IDs: {missing_msg_ids.count()}\")\n",
+					"missing_msg_ids.show(truncate=False)"
+				],
+				"execution_count": 69
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"SHOW COLUMNS from odw_standardised_db.sb_appeal_has"
+				],
+				"execution_count": 73
 			},
 			{
 				"cell_type": "code",
@@ -582,7 +610,7 @@
 				"source": [
 					"mssparkutils.notebook.exit(exitCode)"
 				],
-				"execution_count": null
+				"execution_count": 65
 			},
 			{
 				"cell_type": "markdown",
