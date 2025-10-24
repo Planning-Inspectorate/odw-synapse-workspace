@@ -1,12 +1,111 @@
 from azure.identity import AzureCliCredential, ChainedTokenCredential
+from typing import Dict, Any, Type
 import requests
 import json
 import os
 
 
+class SparkSchemaCallAnalyser():
+    @classmethod
+    def get_notebook(cls) -> str:
+        return "create_table_from_schema"
+
+    def get_tables_from_call(self):
+        entity_name = ""
+        is_service_bus_schema = False
+        version = "1.18.1"
+        if is_service_bus_schema:
+            schema_url = f"https://raw.githubusercontent.com/Planning-Inspectorate/data-model/refs/tags/{version}/schemas/{entity_name}.schema.json"
+        else:
+            schema_url = f"https://raw.githubusercontent.com/Planning-Inspectorate/odw-config/refs/heads/main/data-lake/standardised_table_definitions/Horizon/{entity_name}.json"
+        # The assumption is that all of the notebooks are correct and have no errors, so error handling is dropped here
+        response = requests.get(schema_url)
+        schema = response.json()
+
+
+    def get_inputs_to_py_create_spark_schema(self, activity_run: Dict[str, Any]) -> Dict[str, str]:
+        """
+        The inputs are a dictionary with the structure
+
+        ```
+        {
+            "db_name": "",  # For some lake database
+            "entity_name": ""  # For some table
+        }
+        ```
+        """
+        notebook_inputs = activity_run["input"]
+        return {
+            k: v["value"]
+            for k, v in notebook_inputs["parameters"].items()
+        }
+
+
+
+class DartAPICallAnalyser(SparkSchemaCallAnalyser):
+    @classmethod
+    def get_notebook(cls) -> str:
+        return "dart_api"
+
+    def get_inputs_to_py_create_spark_schema(self, activity_run: Dict[str, Any]):
+        return None
+
+
+class AppealsFolderCuratedAnalyser(SparkSchemaCallAnalyser):
+    @classmethod
+    def get_notebook(cls) -> str:
+        return "appeals_folder_curated"
+
+    def get_inputs_to_py_create_spark_schema(self, activity_run: Dict[str, Any]):
+        return None
+
+
+class PySBRawToStdAnalyser(SparkSchemaCallAnalyser):
+    @classmethod
+    def get_notebook(cls) -> str:
+        return "py_sb_raw_to_std"
+
+    def get_inputs_to_py_create_spark_schema(self, activity_run: Dict[str, Any]):
+        notebook_inputs = activity_run["input"]
+        args = {
+            k: v["value"]
+            for k, v in notebook_inputs["parameters"].items()
+        }
+        entity_name = args["entity_name"]
+        return {"db_name": 'odw_standardised_db', "entity_name": entity_name}
+
+
+class PyRawToStdAnalyser(SparkSchemaCallAnalyser):
+    @classmethod
+    def get_notebook(cls) -> str:
+        return "py_raw_to_std"
+
+    def get_inputs_to_py_create_spark_schema(self, activity_run: Dict[str, Any]):
+        return None
+
+
+class SparkSchemaCallAnalyserFactory():
+    @classmethod
+    def get(cls, notebook_name: str) -> Type[SparkSchemaCallAnalyser]:
+        analyser_map = {
+            analyser_class.get_notebook(): analyser_class
+            for analyser_class in [
+                SparkSchemaCallAnalyser,
+                DartAPICallAnalyser,
+                AppealsFolderCuratedAnalyser,
+                PySBRawToStdAnalyser,
+                PyRawToStdAnalyser
+            ]
+        }
+        if notebook_name not in analyser_map:
+            raise ValueError(f"No Analyser for notebook '{notebook_name}'")
+        return analyser_map[notebook_name]
+
+
 class TableArchiveUtil():
-    def __init__(self, workspace_name: str):
+    def __init__(self, workspace_name: str, env: str):
         self.workspace_name = workspace_name
+        self.env = env
 
     credential = None
     _token = None
@@ -26,11 +125,23 @@ class TableArchiveUtil():
     
     def get_all_unarchived_files_that_use_py_create_spark_schema(self):
         unachived_notebooks = self.get_all_unarchived_notebooks()
-        return {
-            file
+        notebook_content_map = {
+            file: open(f"workspace/notebook/{file}.json", "r").read()
             for file in unachived_notebooks
-            if "py_create_spark_schema" in open(f"workspace/notebook/{file}.json", "r").read()
         }
+        relationships = {"py_create_spark_schema"}
+        all_notebooks_with_references = {"py_create_spark_schema"}
+        while relationships:
+            next_relationship = relationships.pop()
+            new_relationships = {
+                file
+                for file in unachived_notebooks
+                if next_relationship in notebook_content_map[file]
+            }
+            new_relationships_to_explore = new_relationships.difference(all_notebooks_with_references)
+            all_notebooks_with_references |= new_relationships
+            relationships |= new_relationships_to_explore
+        return all_notebooks_with_references
     
     @classmethod
     def _get_token(cls) -> str:
@@ -112,13 +223,52 @@ class TableArchiveUtil():
             for k, v in relevant_notebook_calls.items()
             if v
         }
+    
+    def get_tables_referenced_by_notebooks(self, notebook_call_map: Dict[str, Dict[str, Any]]):
+        notebook_calls = [
+            x
+            for y in notebook_call_map.values()
+            for x in y
+        ]
+        referenced_tables = [
+            SparkSchemaCallAnalyserFactory.get(
+                notebook_call["input"]["notebook"]["referenceName"]
+            )().get_inputs_to_py_create_spark_schema(notebook_call)
+            for notebook_call in notebook_calls
+        ]
+        referenced_tables = [x for x in referenced_tables if x]
+        return referenced_tables
+    
+    def get_all_tables(self):
+        # Run this query in Synapse, it cannot be run from outside of Synapse
+        """
+        select concat('"', TABLE_CATALOG, '.', table_name, '",')
+        from INFORMATION_SCHEMA.TABLES
+        where TABLE_CATALOG = 'odw_curated_db' or TABLE_CATALOG = 'odw_harmonised_db' or TABLE_CATALOG = 'odw_standardised_db'
+        order by TABLE_CATALOG, table_name
+        """
+        local_tables_list_file_path = f"pipelines/scripts/{env}_tables.json"
+        if not os.path.exists(local_tables_list_file_path):
+            raise RuntimeError(f"Please manually create the file '{local_tables_list_file_path}' using the provided SQL command")
+        with open(local_tables_list_file_path, "r") as f:
+            return set(json.load(f))
+
+    def get_table_analysis_result(self, master_pipeline_run_id: str):
+        notebook_call_map = self.get_relevant_notebook_calls_for_pipeline("pln_master", master_pipeline_run_id)
+        tables_to_keep = {
+            f"{x['db_name']}.{x['entity_name']}".replace("-", "_")  # Synapse converts these to underscores
+            for x in self.get_tables_referenced_by_notebooks(notebook_call_map)
+        }
+        all_tables = self.get_all_tables()
+        tables_to_archive = all_tables.difference(tables_to_keep)
+        return {
+            "tables_to_keep": sorted(list(tables_to_keep)),
+            "tables_to_archive": sorted(list(tables_to_archive))
+        }
+
+
 
 env = "dev"
-#notebook_call_map = TableArchiveUtil(f"pins-synw-odw-{env}-uks").get_relevant_notebook_calls_for_pipeline("pln_master", "8141402c-de8e-4750-a845-2a8032cce37f")
-with open("pipelines/scripts/samples.json", "r") as f:
-    notebook_call_map = json.load(f)
-notebook_call_map_cleaned = {
-    k: [x["input"]["notebook"]["referenceName"] for x in v]
-    for k, v in notebook_call_map.items()
-}
-print(json.dumps(notebook_call_map_cleaned, indent=4))
+analysis_result = TableArchiveUtil(f"pins-synw-odw-{env}-uks", env).get_table_analysis_result("8141402c-de8e-4750-a845-2a8032cce37f")
+print(json.dumps(analysis_result, indent=4))
+
