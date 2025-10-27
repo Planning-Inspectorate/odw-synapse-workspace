@@ -1,6 +1,7 @@
 from tests.util.synapse_util import SynapseUtil
 from azure.identity import AzureCliCredential
 from typing import Dict, Any, Type, List
+import argparse
 import requests
 import json
 import os
@@ -66,25 +67,6 @@ class SparkSchemaCallAnalyser():
         }
 
 
-
-class DartAPICallAnalyser(SparkSchemaCallAnalyser):
-    @classmethod
-    def get_notebook(cls) -> str:
-        return "dart_api"
-
-    def get_inputs_to_py_create_spark_schema(self, activity_run: Dict[str, Any]):
-        return None
-
-
-class AppealsFolderCuratedAnalyser(SparkSchemaCallAnalyser):
-    @classmethod
-    def get_notebook(cls) -> str:
-        return "appeals_folder_curated"
-
-    def get_inputs_to_py_create_spark_schema(self, activity_run: Dict[str, Any]):
-        return None
-
-
 class PySBRawToStdAnalyser(SparkSchemaCallAnalyser):
     """
     Class for identifying how `py_create_spark_schema` is used by calls to `py_sb_raw_to_std`
@@ -109,6 +91,8 @@ class PyRawToStdAnalyser(SparkSchemaCallAnalyser):
         return "py_raw_to_std"
 
     def get_inputs_to_py_create_spark_schema(self, activity_run: Dict[str, Any]):
+        # This notebook transitively refers to `py_create_spark_schema`, but doesn't actually use it, so return None so it doesnt
+        # affect the overall process
         return None
 
 
@@ -118,8 +102,6 @@ class SparkSchemaCallAnalyserFactory():
     """
     NOTEBOOK_ANALYSERS: List[SparkSchemaCallAnalyser] = [
         SparkSchemaCallAnalyser,
-        DartAPICallAnalyser,
-        AppealsFolderCuratedAnalyser,
         PySBRawToStdAnalyser,
         PyRawToStdAnalyser
     ]
@@ -385,9 +367,16 @@ class TableArchiveUtil():
 
 if __name__ == "__main__":
     env = "dev"
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("-e", "--env", help="Environment to run against")
+    parser.add_argument("--pln_master_run_id", help="Most recent successful run of `pln_master` to use")
+    parser.add_argument("--pln_saphr_master_run_id", help="Most recent successful run of `pln_saphr_master` to use")
+    args = parser.parse_args()
+    env = args.env
+    pln_master_run_id = args.pln_master_run_id
+    pln_saphr_master_run_id = args.pln_saphr_master_run_id
     analysis_result = TableArchiveUtil(f"pins-synw-odw-{env}-uks", env).get_table_analysis_result(
-        "8141402c-de8e-4750-a845-2a8032cce37f",
-        "4522aad8-a0ff-402e-83ae-fc66f45a21c6"
+        pln_master_run_id,
+        pln_saphr_master_run_id
     )
     print(json.dumps(analysis_result, indent=4))
-
