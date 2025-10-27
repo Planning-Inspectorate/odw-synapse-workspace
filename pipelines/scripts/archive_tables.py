@@ -1,6 +1,6 @@
 from tests.util.synapse_util import SynapseUtil
 from azure.identity import AzureCliCredential, ChainedTokenCredential
-from typing import Dict, Any, Type
+from typing import Dict, Any, Type, List
 import requests
 import json
 import os
@@ -10,19 +10,6 @@ class SparkSchemaCallAnalyser():
     @classmethod
     def get_notebook(cls) -> str:
         return "create_table_from_schema"
-
-    def get_tables_from_call(self):
-        entity_name = ""
-        is_service_bus_schema = False
-        version = "1.18.1"
-        if is_service_bus_schema:
-            schema_url = f"https://raw.githubusercontent.com/Planning-Inspectorate/data-model/refs/tags/{version}/schemas/{entity_name}.schema.json"
-        else:
-            schema_url = f"https://raw.githubusercontent.com/Planning-Inspectorate/odw-config/refs/heads/main/data-lake/standardised_table_definitions/Horizon/{entity_name}.json"
-        # The assumption is that all of the notebooks are correct and have no errors, so error handling is dropped here
-        response = requests.get(schema_url)
-        schema = response.json()
-
 
     def get_inputs_to_py_create_spark_schema(self, activity_run: Dict[str, Any]) -> Dict[str, str]:
         """
@@ -86,17 +73,19 @@ class PyRawToStdAnalyser(SparkSchemaCallAnalyser):
 
 
 class SparkSchemaCallAnalyserFactory():
+    NOTEBOOK_ANALYSERS: List[SparkSchemaCallAnalyser] = [
+        SparkSchemaCallAnalyser,
+        DartAPICallAnalyser,
+        AppealsFolderCuratedAnalyser,
+        PySBRawToStdAnalyser,
+        PyRawToStdAnalyser
+    ]
+
     @classmethod
     def get(cls, notebook_name: str) -> Type[SparkSchemaCallAnalyser]:
         analyser_map = {
             analyser_class.get_notebook(): analyser_class
-            for analyser_class in [
-                SparkSchemaCallAnalyser,
-                DartAPICallAnalyser,
-                AppealsFolderCuratedAnalyser,
-                PySBRawToStdAnalyser,
-                PyRawToStdAnalyser
-            ]
+            for analyser_class in cls.NOTEBOOK_ANALYSERS
         }
         if notebook_name not in analyser_map:
             raise ValueError(f"No Analyser for notebook '{notebook_name}'")
@@ -104,6 +93,9 @@ class SparkSchemaCallAnalyserFactory():
 
 
 class TableArchiveUtil():
+    """
+    Class that contains functionality to detect tables to archive
+    """
     def __init__(self, workspace_name: str, env: str):
         self.workspace_name = workspace_name
         self.env = env
@@ -112,6 +104,9 @@ class TableArchiveUtil():
     _token = None
 
     def get_all_unarchived_notebooks(self):
+        """
+        Return all notebooks that have not been archived
+        """
         all_notebook_files = os.listdir("workspace/notebook")
         notebook_content_map = {
             file: json.load(open(f"workspace/notebook/{file}", "r"))
@@ -125,6 +120,11 @@ class TableArchiveUtil():
         return set(unarchived.keys())
 
     def get_all_unarchived_files_that_use_py_create_spark_schema(self):
+        """
+        Return all notebooks that contain a reference to the `py_create_spark_schema` notebook. This also
+        includes transitive relationships (i.e. notebooks that do not directly call `py_create_spark_schema`, but call
+        another notebook that does)
+        """
         unachived_notebooks = self.get_all_unarchived_notebooks()
         notebook_content_map = {
             file: open(f"workspace/notebook/{file}.json", "r").read()
@@ -146,6 +146,9 @@ class TableArchiveUtil():
 
     @classmethod
     def _get_token(cls) -> str:
+        """
+        Get an auth token to Synapse
+        """
         if not (cls.credential and cls._token):
             cls.credential = ChainedTokenCredential(
                 # ManagedIdentityCredential(),
@@ -165,11 +168,17 @@ class TableArchiveUtil():
         return requests.get(endpoint, headers=api_call_headers)
 
     def get_pipeline_run(self, run_id: str):
+        """
+        Return the details of a pipeline run
+        """
         return self._web_request(
             f"https://{self.workspace_name}.dev.azuresynapse.net/pipelineruns/{run_id}?api-version=2020-12-01",
         ).json()
 
-    def get_activities_for_pipeline(self, pipeline_name: str, run_id: str):
+    def get_activities_for_pipeline(self, pipeline_name: str, run_id: str) -> List[Dict[str, Any]]:
+        """
+        Return all activities of the given pipeline run
+        """
         api_call_headers = {'Authorization': 'Bearer ' + self._get_token()}
         return requests.post(
             f"https://{self.workspace_name}.dev.azuresynapse.net/pipelines/{pipeline_name}/pipelineruns/{run_id}/queryActivityruns?api-version=2020-12-01",
@@ -181,14 +190,25 @@ class TableArchiveUtil():
         ).json()["value"]
 
     def get_child_pipeline_runs(self, pipeline_name: str, run_id: str):
+        """
+        Return all child pipeline activities of the given pipeline run
+        """
         all_activities = self.get_activities_for_pipeline(pipeline_name, run_id)
         return [x for x in all_activities if x["activityType"] == "ExecutePipeline"]
 
     def get_notebook_calls(self, pipeline_name: str, run_id: str):
+        """
+        Return all child notebook activities of the given pipeline run
+        """
         all_activities = self.get_activities_for_pipeline(pipeline_name, run_id)
         return [x for x in all_activities if x["activityType"] == "SynapseNotebook"]
 
     def get_all_notebook_calls_for_pipeline(self, pipeline_name: str, pipeline_guid: str):
+        """
+        Deeply return all notebook calls of the given pipeline run
+
+        :return: A dict of the form <pipeline_name: [notebook_call_json]>
+        """
         child_pipelines_to_evaluate = self.get_child_pipeline_runs(pipeline_name, pipeline_guid)
         base_notebook_calls = self.get_notebook_calls(pipeline_name, pipeline_guid)
         notebook_call_map = {
@@ -209,6 +229,12 @@ class TableArchiveUtil():
         return notebook_call_map
 
     def get_relevant_notebook_calls_for_pipeline(self, pipeline_name: str, pipeline_guid: str):
+        """
+        Deeply return all notebook calls for the given pipeline run that either directly or indirectly call the
+        `py_create_spark_schema` notebook.
+
+        :return: A dict of the form <pipeline_name: [notebook_call_json]>
+        """
         relevant_notebooks = self.get_all_unarchived_files_that_use_py_create_spark_schema()
         all_notebook_calls = self.get_all_notebook_calls_for_pipeline(pipeline_name, pipeline_guid)
         relevant_notebook_calls = {
@@ -226,6 +252,14 @@ class TableArchiveUtil():
         }
 
     def get_tables_referenced_by_notebooks(self, notebook_call_map: Dict[str, Dict[str, Any]]):
+        """
+        Return all tables referred to by notebooks
+
+        :param notebook_call_map: A dictionary of the form <pipeline_name: [notebook_call] (i.e. the output of 
+        `get_relevant_notebook_calls_for_pipeline`)
+        :return: A list of the form [{entity_name: "", entity_name: ""}] (i.e. the list of input params for the
+        `py_create_spark_schema` notebook)
+        """
         notebook_calls = [
             x
             for y in notebook_call_map.values()
