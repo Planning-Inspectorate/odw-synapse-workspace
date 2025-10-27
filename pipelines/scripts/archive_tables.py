@@ -286,12 +286,12 @@ class TableArchiveUtil():
         """
         # Unfortunately we cannot run this from the master database - the query must be run from each database individually
         databases_to_query = ["odw_standardised_db", "odw_harmonised_db", "odw_curated_db"]
-        all_tables = []
+        all_tables = set()
         for database in databases_to_query:
             with SynapseUtil.get_pool_connection(database) as conn:
                 cursor = conn.cursor()
                 cursor.execute(query)
-                all_tables.extend([row[0] for row in cursor.fetchall()])
+                all_tables = all_tables.union([row[0] for row in cursor.fetchall()])
         return all_tables
 
     def get_table_analysis_result(self, master_pipeline_run_id: str):
