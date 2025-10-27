@@ -294,11 +294,15 @@ class TableArchiveUtil():
                 all_tables = all_tables.union([row[0] for row in cursor.fetchall()])
         return all_tables
 
-    def get_table_analysis_result(self, master_pipeline_run_id: str):
+    def get_table_analysis_result(self, master_pipeline_run_id: str, saphr_master_pipeline_run_id: str):
         """
         Generates a list of tables to archive and a list of tables to keep, in json format
         """
         notebook_call_map = self.get_relevant_notebook_calls_for_pipeline("pln_master", master_pipeline_run_id)
+        notebook_call_map = notebook_call_map | self.get_relevant_notebook_calls_for_pipeline(
+            "pln_saphr_master",
+            saphr_master_pipeline_run_id
+        )
         tables_to_keep = {
             f"{x['db_name']}.{x['entity_name']}".replace("-", "_")  # Synapse converts these to underscores
             for x in self.get_tables_referenced_by_notebooks(notebook_call_map)
@@ -313,6 +317,9 @@ class TableArchiveUtil():
 
 
 env = "dev"
-analysis_result = TableArchiveUtil(f"pins-synw-odw-{env}-uks", env).get_table_analysis_result("8141402c-de8e-4750-a845-2a8032cce37f")
+analysis_result = TableArchiveUtil(f"pins-synw-odw-{env}-uks", env).get_table_analysis_result(
+    "8141402c-de8e-4750-a845-2a8032cce37f",
+    "4522aad8-a0ff-402e-83ae-fc66f45a21c6"
+)
 print(json.dumps(analysis_result, indent=4))
 
