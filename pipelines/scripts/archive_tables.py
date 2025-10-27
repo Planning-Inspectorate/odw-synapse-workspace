@@ -1,3 +1,4 @@
+from tests.util.synapse_util import SynapseUtil
 from azure.identity import AzureCliCredential, ChainedTokenCredential
 from typing import Dict, Any, Type
 import requests
@@ -122,7 +123,7 @@ class TableArchiveUtil():
             if "achive" not in content["properties"].get("folder", "")
         }
         return set(unarchived.keys())
-    
+
     def get_all_unarchived_files_that_use_py_create_spark_schema(self):
         unachived_notebooks = self.get_all_unarchived_notebooks()
         notebook_content_map = {
@@ -142,7 +143,7 @@ class TableArchiveUtil():
             all_notebooks_with_references |= new_relationships
             relationships |= new_relationships_to_explore
         return all_notebooks_with_references
-    
+
     @classmethod
     def _get_token(cls) -> str:
         if not (cls.credential and cls._token):
@@ -152,7 +153,7 @@ class TableArchiveUtil():
             )
             cls._token = cls.credential.get_token("https://dev.azuresynapse.net").token
         return cls._token
-    
+
     def _web_request(self, endpoint: str) -> requests.Response:
         """
             Submit a http request against the specified endpoint
@@ -162,12 +163,12 @@ class TableArchiveUtil():
         """
         api_call_headers = {'Authorization': 'Bearer ' + self._get_token()}
         return requests.get(endpoint, headers=api_call_headers)
-    
+
     def get_pipeline_run(self, run_id: str):
         return self._web_request(
             f"https://{self.workspace_name}.dev.azuresynapse.net/pipelineruns/{run_id}?api-version=2020-12-01",
         ).json()
-    
+
     def get_activities_for_pipeline(self, pipeline_name: str, run_id: str):
         api_call_headers = {'Authorization': 'Bearer ' + self._get_token()}
         return requests.post(
@@ -178,15 +179,15 @@ class TableArchiveUtil():
             },
             headers=api_call_headers
         ).json()["value"]
-    
+
     def get_child_pipeline_runs(self, pipeline_name: str, run_id: str):
         all_activities = self.get_activities_for_pipeline(pipeline_name, run_id)
         return [x for x in all_activities if x["activityType"] == "ExecutePipeline"]
-    
+
     def get_notebook_calls(self, pipeline_name: str, run_id: str):
         all_activities = self.get_activities_for_pipeline(pipeline_name, run_id)
         return [x for x in all_activities if x["activityType"] == "SynapseNotebook"]
-    
+
     def get_all_notebook_calls_for_pipeline(self, pipeline_name: str, pipeline_guid: str):
         child_pipelines_to_evaluate = self.get_child_pipeline_runs(pipeline_name, pipeline_guid)
         base_notebook_calls = self.get_notebook_calls(pipeline_name, pipeline_guid)
@@ -206,7 +207,7 @@ class TableArchiveUtil():
                 else:
                     notebook_call_map[next_pipeline_name] = [notebook_call]
         return notebook_call_map
-    
+
     def get_relevant_notebook_calls_for_pipeline(self, pipeline_name: str, pipeline_guid: str):
         relevant_notebooks = self.get_all_unarchived_files_that_use_py_create_spark_schema()
         all_notebook_calls = self.get_all_notebook_calls_for_pipeline(pipeline_name, pipeline_guid)
@@ -223,7 +224,7 @@ class TableArchiveUtil():
             for k, v in relevant_notebook_calls.items()
             if v
         }
-    
+
     def get_tables_referenced_by_notebooks(self, notebook_call_map: Dict[str, Dict[str, Any]]):
         notebook_calls = [
             x
@@ -238,22 +239,31 @@ class TableArchiveUtil():
         ]
         referenced_tables = [x for x in referenced_tables if x]
         return referenced_tables
-    
+
     def get_all_tables(self):
-        # Run this query in Synapse, it cannot be run from outside of Synapse
         """
-        select concat('"', TABLE_CATALOG, '.', table_name, '",')
-        from INFORMATION_SCHEMA.TABLES
-        where TABLE_CATALOG = 'odw_curated_db' or TABLE_CATALOG = 'odw_harmonised_db' or TABLE_CATALOG = 'odw_standardised_db'
-        order by TABLE_CATALOG, table_name
+        Return all tables in the form `database.tablename`
         """
-        local_tables_list_file_path = f"pipelines/scripts/{env}_tables.json"
-        if not os.path.exists(local_tables_list_file_path):
-            raise RuntimeError(f"Please manually create the file '{local_tables_list_file_path}' using the provided SQL command")
-        with open(local_tables_list_file_path, "r") as f:
-            return set(json.load(f))
+        query = """
+            select concat(TABLE_CATALOG, '.', table_name)
+            from INFORMATION_SCHEMA.TABLES
+            where TABLE_CATALOG = 'odw_curated_db' or TABLE_CATALOG = 'odw_harmonised_db' or TABLE_CATALOG = 'odw_standardised_db'
+            order by TABLE_CATALOG, table_name
+        """
+        # Unfortunately we cannot run this from the master database - the query must be run from each database individually
+        databases_to_query = ["odw_standardised_db", "odw_harmonised_db", "odw_curated_db"]
+        all_tables = []
+        for database in databases_to_query:
+            with SynapseUtil.get_pool_connection(database) as conn:
+                cursor = conn.cursor()
+                cursor.execute(query)
+                all_tables.extend([row[0] for row in cursor.fetchall()])
+        return all_tables
 
     def get_table_analysis_result(self, master_pipeline_run_id: str):
+        """
+        Generates a list of tables to archive and a list of tables to keep, in json format
+        """
         notebook_call_map = self.get_relevant_notebook_calls_for_pipeline("pln_master", master_pipeline_run_id)
         tables_to_keep = {
             f"{x['db_name']}.{x['entity_name']}".replace("-", "_")  # Synapse converts these to underscores
