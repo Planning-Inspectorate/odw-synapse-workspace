@@ -6,7 +6,44 @@ import json
 import os
 
 
+"""
+This module identifies tables that are not referenced by the master pipelines
+
+# ASSUMPTIONS
+This works on the below assumptions
+- The notebook `py_create_spark_schema` is used to create tables
+- Tables may be referenced via loose code in notebooks/pipelines (i.e. using Pyspark/SQL directly)
+
+# HOW IT WORKS
+An analysis of the tables is done through the below process
+1. Find all UNARCHIVED notebooks that reference `py_create_spark_schema` either directly or transitively
+2. For a given pipeline run, find all "calls" of `py_create_spark_schema`
+3. For each "call" of `py_create_spark_schema`, work out the inputs to the notebook. (Step 2 includes the parameters for each call)
+   - A number of `SparkSchemaCallAnalyser` classes have been implemented to handle this logic for each calling notebook
+4. Fetch all tables. We need to keep the tables from step 3. The notebooks not found in step 3 are archive candidates
+5. Run an additional pass to check the archive candidate references against the output of step 1, incase these tables are
+   referenced directly
+6. Output is returned in the form
+   ```
+   {
+       "tables_to_keep": [],  # Tables that satisfy either above assumptions
+       "tables_to_arcive": []  # Tables that do no satisfy any of the above assumptions
+   }
+   ```
+
+# USAGE
+python3 pipelines/scripts/archive_tables.py -e dev --pln_master_run_id xxxx --pln_saphr_master_run_id yyyy
+
+# NOTES
+The output is not guaranteed to be correct, and mostly works on the defined assumptions due to the complexity of code analysis.
+If you are using this to remove unused data, please double check the output beforehand
+"""
+
+
 class SparkSchemaCallAnalyser():
+    """
+    Class for identifying the usage of `py_create_spark_schema`
+    """
     @classmethod
     def get_notebook(cls) -> str:
         return "create_table_from_schema"
@@ -49,6 +86,9 @@ class AppealsFolderCuratedAnalyser(SparkSchemaCallAnalyser):
 
 
 class PySBRawToStdAnalyser(SparkSchemaCallAnalyser):
+    """
+    Class for identifying how `py_create_spark_schema` is used by calls to `py_sb_raw_to_std`
+    """
     @classmethod
     def get_notebook(cls) -> str:
         return "py_sb_raw_to_std"
@@ -73,6 +113,9 @@ class PyRawToStdAnalyser(SparkSchemaCallAnalyser):
 
 
 class SparkSchemaCallAnalyserFactory():
+    """
+    Class to dynamically generate instances of `SparkSchemaCallAnalyser`
+    """
     NOTEBOOK_ANALYSERS: List[SparkSchemaCallAnalyser] = [
         SparkSchemaCallAnalyser,
         DartAPICallAnalyser,
@@ -103,37 +146,30 @@ class TableArchiveUtil():
     credential = None
     _token = None
 
-    def get_all_unarchived_notebooks(self):
-        """
-        Return all notebooks that have not been archived
-        """
-        all_notebook_files = os.listdir("workspace/notebook")
-        notebook_content_map = {
-            file: json.load(open(f"workspace/notebook/{file}", "r"))
+    def _get_unarchived_artifacts(self, artifact_directory: str):
+        all_notebook_files = os.listdir(artifact_directory)
+        file_content_map = {
+            file: json.load(open(f"{artifact_directory}/{file}", "r"))
             for file in all_notebook_files
         }
         unarchived = {
             file.replace(".json", ""): content
-            for file, content in notebook_content_map.items()
+            for file, content in file_content_map.items()
             if "archive" not in content["properties"].get("folder", dict()).get("name", "")
         }
         return set(unarchived.keys())
+
+    def get_all_unarchived_notebooks(self):
+        """
+        Return all notebooks that have not been archived
+        """
+        return self._get_unarchived_artifacts("workspace/notebook")
 
     def get_all_unarchived_pipelines(self):
         """
         Return all pipelines that have not been archived
         """
-        all_notebook_files = os.listdir("workspace/pipeline")
-        notebook_content_map = {
-            file: json.load(open(f"workspace/pipeline/{file}", "r"))
-            for file in all_notebook_files
-        }
-        unarchived = {
-            file.replace(".json", ""): content
-            for file, content in notebook_content_map.items()
-            if "archive" not in content["properties"].get("folder", dict()).get("name", "")
-        }
-        return set(unarchived.keys())
+        return self._get_unarchived_artifacts("workspace/pipeline")
 
     def get_all_unarchived_files_that_use_py_create_spark_schema(self):
         """
@@ -148,6 +184,7 @@ class TableArchiveUtil():
         }
         relationships = {"py_create_spark_schema"}
         all_notebooks_with_references = {"py_create_spark_schema"}
+        # Perform a search until there are no more references to explore
         while relationships:
             next_relationship = relationships.pop()
             new_relationships = {
