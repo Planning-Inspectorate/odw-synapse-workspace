@@ -380,7 +380,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"expression": {
-						"value": "@or(\n  empty(variables('apps_insights_ikey')),\n  empty(variables('subscription_id')),\n  empty(variables('resource_group')),\n  empty(variables('webhook_url'))\n)\n",
+						"value": "@or(\n    or(empty(variables('apps_insights_ikey')), empty(variables('subscription_id'))),\n    or(empty(variables('resource_group')), empty(variables('webhook_url')))\n)\n",
 						"type": "Expression"
 					},
 					"ifTrueActivities": [
@@ -401,10 +401,17 @@
 				"name": "Get Service Bus feed",
 				"description": "Get the enabled service bus feed from master pipeline config",
 				"type": "Lookup",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "If Condition1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"timeout": "0.12:00:00",
-					"retry": 0,
+					"retry": 3,
 					"retryIntervalInSeconds": 30,
 					"secureOutput": false,
 					"secureInput": false
@@ -413,7 +420,7 @@
 				"typeProperties": {
 					"source": {
 						"type": "AzureSqlSource",
-						"sqlReaderQuery": "SELECT STRING_AGG(entity_name, ',') AS entities\nFROM [odw_config_db].[dbo].[main_pipeline_config]\nWHERE is_enabled = 1\nAND System_name = 'Service bus'",
+						"sqlReaderQuery": "SELECT STRING_AGG(entity_name, ',') AS entities\nFROM [odw_config_db].[dbo].[main_pipeline_config]\nWHERE is_enabled = 1\n  AND System_name = 'Service bus'\n  AND entity_name IS NOT NULL\n",
 						"queryTimeout": "02:00:00",
 						"partitionOption": "None"
 					},
@@ -425,9 +432,16 @@
 				}
 			},
 			{
-				"name": "Set Service Bus Csv",
+				"name": "Set Service Bus CSV",
 				"type": "SetVariable",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "Get Service Bus feed",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"secureOutput": false,
 					"secureInput": false
@@ -444,7 +458,14 @@
 			{
 				"name": "Set Service Bus feed",
 				"type": "SetVariable",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "Get Service Bus feed",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"secureOutput": false,
 					"secureInput": false
@@ -452,9 +473,175 @@
 				"userProperties": [],
 				"typeProperties": {
 					"variableName": "service_bus_feed",
+					"value": {
+						"value": "@if(\n  equals(pipeline().parameters.includeServiceBus, true),\n  if(\n    greater(length(pipeline().parameters.sbEntitiesFilter), 0),\n    pipeline().parameters.sbEntitiesFilter,\n    if(\n      equals(variables('sbEntitiesCsv'), ''),\n      json('[]'),\n      split(variables('sbEntitiesCsv'), ',')\n    )\n  ),\n  json('[]')\n)\n",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Get Horizon feed",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "If Condition1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 3,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": "SELECT STRING_AGG(entity_name, ',') AS entities\nFROM [odw_config_db].[dbo].[main_pipeline_config]\nWHERE is_enabled = 1\n  AND System_name = 'Horizon'\n  AND entity_name IS NOT NULL\n",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "ds_odw_main_config",
+						"type": "DatasetReference"
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "Set Horizon CSV",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Get Horizon feed",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "hzEntitiesCsv",
+					"value": {
+						"value": "@coalesce(activity('Get Horizon feed').output.value[0].entities, '')\n",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Set Horizon feed",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Get Horizon feed",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "horizon_feed",
+					"value": {
+						"value": "@if(\n  equals(pipeline().parameters.includeHorizon, true),\n  if(\n    greater(length(pipeline().parameters.hzEntitiesFilter), 0),\n    pipeline().parameters.hzEntitiesFilter,\n    if(\n      equals(variables('hzEntitiesCsv'), ''),\n      json('[]'),\n      split(variables('hzEntitiesCsv'), ',')\n    )\n  ),\n  json('[]')\n)\n",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Assemble runContextJson",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Set Service Bus feed",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Set Horizon feed",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": true,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "runContextJson",
+					"value": {
+						"value": "@string(\n  json(\n    concat(\n      '{',\n      '\"env\":\"', toLower(pipeline().parameters.env), '\",',\n      '\"keyVaultUrl\":\"', variables('Key_Vault_Url'), '\",',\n      '\"appInsightsKey\":\"', variables('apps_insights_ikey'), '\",',\n      '\"subscriptionId\":\"', variables('subscription_id'), '\",',\n      '\"resourceGroup\":\"', variables('resource_group'), '\",',\n      '\"teamsWebhook\":\"', variables('webhook_url'), '\",',\n      '\"runId\":\"', variables('runId'), '\",',\n      '\"triggeredBy\":\"', variables('triggeredBy'), '\"',\n      '}'\n    )\n  )\n)\n",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Return outputs",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Assemble runContextJson",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "pipelineReturnValue",
 					"value": [
-						""
-					]
+						{
+							"key": "runContextJson",
+							"value": {
+								"type": "String",
+								"content": "@string(variables('runContextJson'))"
+							}
+						},
+						{
+							"key": "service_bus_feed",
+							"value": {
+								"type": "Array",
+								"content": [
+									{
+										"type": "String",
+										"content": "@variables('service_bus_feed')"
+									}
+								]
+							}
+						},
+						{
+							"key": "horizon_feed",
+							"value": {
+								"type": "Array",
+								"content": [
+									{
+										"type": "String",
+										"content": "@variables('horizon_feed')"
+									}
+								]
+							}
+						}
+					],
+					"setSystemVariable": true
 				}
 			}
 		],
