@@ -1,5 +1,5 @@
 from tests.util.synapse_util import SynapseUtil
-from azure.identity import AzureCliCredential, ChainedTokenCredential
+from azure.identity import AzureCliCredential
 from typing import Dict, Any, Type, List
 import requests
 import json
@@ -147,6 +147,10 @@ class TableArchiveUtil():
     _token = None
 
     def _get_unarchived_artifacts(self, artifact_directory: str):
+        """
+        For the given artifact directory, return all artifact names that do not have the word `archive` in their
+        underlying `folder.name` property
+        """
         all_notebook_files = os.listdir(artifact_directory)
         file_content_map = {
             file: json.load(open(f"{artifact_directory}/{file}", "r"))
@@ -173,7 +177,7 @@ class TableArchiveUtil():
 
     def get_all_unarchived_files_that_use_py_create_spark_schema(self):
         """
-        Return all notebooks that contain a reference to the `py_create_spark_schema` notebook. This also
+        Return all unachived notebooks that contain a reference to the `py_create_spark_schema` notebook. This also
         includes transitive relationships (i.e. notebooks that do not directly call `py_create_spark_schema`, but call
         another notebook that does)
         """
@@ -203,44 +207,27 @@ class TableArchiveUtil():
         Get an auth token to Synapse
         """
         if not (cls.credential and cls._token):
-            cls.credential = ChainedTokenCredential(
-                # ManagedIdentityCredential(),
-                AzureCliCredential()
-            )
+            cls.credential = AzureCliCredential()
             cls._token = cls.credential.get_token("https://dev.azuresynapse.net").token
         return cls._token
-
-    def _web_request(self, endpoint: str) -> requests.Response:
-        """
-            Submit a http request against the specified endpoint
-
-            :param endpooint: The url to send the request to
-            :return: The http response
-        """
-        api_call_headers = {'Authorization': 'Bearer ' + self._get_token()}
-        return requests.get(endpoint, headers=api_call_headers)
-
-    def get_pipeline_run(self, run_id: str):
-        """
-        Return the details of a pipeline run
-        """
-        return self._web_request(
-            f"https://{self.workspace_name}.dev.azuresynapse.net/pipelineruns/{run_id}?api-version=2020-12-01",
-        ).json()
 
     def get_activities_for_pipeline(self, pipeline_name: str, run_id: str) -> List[Dict[str, Any]]:
         """
         Return all activities of the given pipeline run
         """
         api_call_headers = {'Authorization': 'Bearer ' + self._get_token()}
-        return requests.post(
-            f"https://{self.workspace_name}.dev.azuresynapse.net/pipelines/{pipeline_name}/pipelineruns/{run_id}/queryActivityruns?api-version=2020-12-01",
+        url = f"https://{self.workspace_name}.dev.azuresynapse.net/pipelines/{pipeline_name}/pipelineruns/{run_id}/queryActivityruns?api-version=2020-12-01"
+        resp = requests.post(
+            url,
             json={
                 "lastUpdatedAfter": "2025-10-15T14:09:32.512Z",
                 "lastUpdatedBefore": "2030-10-22T02:15:45.7054869Z"
             },
             headers=api_call_headers
-        ).json()["value"]
+        ).json()
+        if "value" not in resp:
+            raise RuntimeError(f"The response from azure when hitting '{url}' had an unexpected structure: {resp}")
+        return resp["value"]
 
     def get_child_pipeline_runs(self, pipeline_name: str, run_id: str):
         """
@@ -324,8 +311,36 @@ class TableArchiveUtil():
             )().get_inputs_to_py_create_spark_schema(notebook_call)
             for notebook_call in notebook_calls
         ]
-        referenced_tables = [x for x in referenced_tables if x]
-        return referenced_tables
+        return {
+            f"{x['db_name']}.{x['entity_name']}".replace("-", "_")  # Synapse converts these to underscores
+            for x in referenced_tables
+            if x
+        }
+
+    def get_tables_referenced_by_code(self, tables_to_archive: List[str]):
+        """
+        :param tables_to_archive: A list of tables to apply a filter on
+        :return: The tables that are referenced by notebooks/pipelines
+        """
+        unarchived_notebooks = self.get_all_unarchived_notebooks()
+        unarchived_pipelines = self.get_all_unarchived_pipelines()
+        artifact_map = {
+            notebook: open(f"workspace/notebook/{notebook}.json").read()
+            for notebook in unarchived_notebooks
+        }
+        artifact_map |= {
+            pipeline: open(f"workspace/pipeline/{pipeline}.json").read()
+            for pipeline in unarchived_pipelines
+        }
+        return {
+            table_path
+            for table_path in tables_to_archive
+            if any(
+                # If the whole table name, or both parts of the table name are specified in the artifact
+                table_path in artifact or (table_path.split(".")[1] in artifact and table_path.split(".")[1] in artifact)
+                for artifact in artifact_map.values()
+            )
+        }
 
     def get_all_tables(self):
         """
@@ -356,10 +371,7 @@ class TableArchiveUtil():
             "pln_saphr_master",
             saphr_master_pipeline_run_id
         )
-        tables_to_keep = {
-            f"{x['db_name']}.{x['entity_name']}".replace("-", "_")  # Synapse converts these to underscores
-            for x in self.get_tables_referenced_by_notebooks(notebook_call_map)
-        }
+        tables_to_keep = self.get_tables_referenced_by_notebooks(notebook_call_map)
         all_tables = self.get_all_tables()
         tables_to_archive = all_tables.difference(tables_to_keep)
         tables_referenced_by_artifacts = self.get_tables_referenced_by_code(tables_to_archive)
@@ -369,37 +381,13 @@ class TableArchiveUtil():
             "tables_to_keep": sorted(list(tables_to_keep)),
             "tables_to_archive": sorted(list(tables_to_archive))
         }
-    
-    def get_tables_referenced_by_code(self, tables_to_archive: List[str]):
-        """
-        :param tables_to_archive: A list of tables to apply a filter on
-        :return: The tables that are referenced by notebooks/pipelines
-        """
-        unarchived_notebooks = self.get_all_unarchived_notebooks()
-        unarchived_pipelines = self.get_all_unarchived_pipelines()
-        artifact_map = {
-            notebook: open(f"workspace/notebook/{notebook}.json").read()
-            for notebook in unarchived_notebooks
-        }
-        artifact_map |= {
-            pipeline: open(f"workspace/pipeline/{pipeline}.json").read()
-            for pipeline in unarchived_pipelines
-        }
-        return {
-            table_path
-            for table_path in tables_to_archive
-            if any(
-                # If the whole table name, or both parts of the table name are specified in the artifact
-                table_path in artifact or (table_path.split(".")[1] in artifact and table_path.split(".")[1] in artifact)
-                for artifact in artifact_map.values()
-            )
-        }
 
 
-env = "dev"
-analysis_result = TableArchiveUtil(f"pins-synw-odw-{env}-uks", env).get_table_analysis_result(
-    "8141402c-de8e-4750-a845-2a8032cce37f",
-    "4522aad8-a0ff-402e-83ae-fc66f45a21c6"
-)
-print(json.dumps(analysis_result, indent=4))
+if __name__ == "__main__":
+    env = "dev"
+    analysis_result = TableArchiveUtil(f"pins-synw-odw-{env}-uks", env).get_table_analysis_result(
+        "8141402c-de8e-4750-a845-2a8032cce37f",
+        "4522aad8-a0ff-402e-83ae-fc66f45a21c6"
+    )
+    print(json.dumps(analysis_result, indent=4))
 
