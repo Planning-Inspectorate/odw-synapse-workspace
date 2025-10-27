@@ -115,7 +115,23 @@ class TableArchiveUtil():
         unarchived = {
             file.replace(".json", ""): content
             for file, content in notebook_content_map.items()
-            if "achive" not in content["properties"].get("folder", "")
+            if "archive" not in content["properties"].get("folder", dict()).get("name", "")
+        }
+        return set(unarchived.keys())
+
+    def get_all_unarchived_pipelines(self):
+        """
+        Return all pipelines that have not been archived
+        """
+        all_notebook_files = os.listdir("workspace/pipeline")
+        notebook_content_map = {
+            file: json.load(open(f"workspace/pipeline/{file}", "r"))
+            for file in all_notebook_files
+        }
+        unarchived = {
+            file.replace(".json", ""): content
+            for file, content in notebook_content_map.items()
+            if "archive" not in content["properties"].get("folder", dict()).get("name", "")
         }
         return set(unarchived.keys())
 
@@ -309,11 +325,38 @@ class TableArchiveUtil():
         }
         all_tables = self.get_all_tables()
         tables_to_archive = all_tables.difference(tables_to_keep)
+        tables_referenced_by_artifacts = self.get_tables_referenced_by_code(tables_to_archive)
+        tables_to_keep |= tables_referenced_by_artifacts
+        tables_to_archive = tables_to_archive.difference(tables_referenced_by_artifacts)
         return {
             "tables_to_keep": sorted(list(tables_to_keep)),
             "tables_to_archive": sorted(list(tables_to_archive))
         }
-
+    
+    def get_tables_referenced_by_code(self, tables_to_archive: List[str]):
+        """
+        :param tables_to_archive: A list of tables to apply a filter on
+        :return: The tables that are referenced by notebooks/pipelines
+        """
+        unarchived_notebooks = self.get_all_unarchived_notebooks()
+        unarchived_pipelines = self.get_all_unarchived_pipelines()
+        artifact_map = {
+            notebook: open(f"workspace/notebook/{notebook}.json").read()
+            for notebook in unarchived_notebooks
+        }
+        artifact_map |= {
+            pipeline: open(f"workspace/pipeline/{pipeline}.json").read()
+            for pipeline in unarchived_pipelines
+        }
+        return {
+            table_path
+            for table_path in tables_to_archive
+            if any(
+                # If the whole table name, or both parts of the table name are specified in the artifact
+                table_path in artifact or (table_path.split(".")[1] in artifact and table_path.split(".")[1] in artifact)
+                for artifact in artifact_map.values()
+            )
+        }
 
 
 env = "dev"
