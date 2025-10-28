@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "242bc3a9-6256-4001-8999-a5183ca18b04"
+				"spark.autotune.trackingId": "78ae4fe5-f89b-4fbe-9b88-b56987929f2e"
 			}
 		},
 		"metadata": {
@@ -96,7 +96,7 @@
 					"from datetime import date,datetime\r\n",
 					"import builtins"
 				],
-				"execution_count": null
+				"execution_count": 1
 			},
 			{
 				"cell_type": "markdown",
@@ -116,7 +116,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 2
 			},
 			{
 				"cell_type": "markdown",
@@ -160,9 +160,14 @@
 					"insert_count = 0\r\n",
 					"update_count = 0\r\n",
 					"delete_count = 0\r\n",
-					"error_message=''"
+					"error_message=''\r\n",
+					"\r\n",
+					"# Group resolver \r\n",
+					"current_group = \"B\"\r\n",
+					"resolver_table = \"odw_harmonised_db.GroupResolver\"\r\n",
+					"other_hrm = \"odw_harmonised_db.appeal_has\" "
 				],
-				"execution_count": null
+				"execution_count": 12
 			},
 			{
 				"cell_type": "markdown",
@@ -350,7 +355,7 @@
 					"        error_message = f\"Error in source Service Bus SQL query {service_bus_table}: {str(e)[:800]}\"\r\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": null
+				"execution_count": 4
 			},
 			{
 				"cell_type": "markdown",
@@ -474,7 +479,7 @@
 					"stg_df = stg_df.filter(F.col(\"caseReference\").isNotNull())\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 5
 			},
 			{
 				"cell_type": "markdown",
@@ -507,7 +512,7 @@
 					"              .groupBy(\"ODTSourceSystem\").count()\r\n",
 					"    )"
 				],
-				"execution_count": null
+				"execution_count": 6
 			},
 			{
 				"cell_type": "markdown",
@@ -538,7 +543,7 @@
 					"print(f\"Stage written: {stg_tbl}, rows = {stg_df.count():,}\")\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 7
 			},
 			{
 				"cell_type": "markdown",
@@ -695,6 +700,35 @@
 					"final_cols = [f.name for f in sb_schema]\r\n",
 					"scd2_final = scd2.select(*[F.col(c) for c in final_cols])\r\n",
 					"\r\n",
+					"#update resolver\r\n",
+					"case_refs_df = scd2_final.select(\"caseReference\").distinct()\r\n",
+					"case_refs_df.createOrReplaceTempView(\"case_refs\")\r\n",
+					"\r\n",
+					"resolver_updates_df = (\r\n",
+					"    case_refs_df\r\n",
+					"        .withColumn(\"currentGroup\", F.lit(current_group))\r\n",
+					"        .withColumn(\"asOfTimestamp\", F.current_timestamp())\r\n",
+					")\r\n",
+					"resolver_updates_df.createOrReplaceTempView(\"resolver_upd\")\r\n",
+					"\r\n",
+					"spark.sql(f\"\"\"\r\n",
+					"MERGE INTO {resolver_table} AS t\r\n",
+					"USING resolver_upd AS s\r\n",
+					"  ON t.caseReference = s.caseReference\r\n",
+					"WHEN MATCHED THEN UPDATE SET\r\n",
+					"  t.currentGroup  = s.currentGroup,\r\n",
+					"  t.asOfTimestamp = s.asOfTimestamp\r\n",
+					"WHEN NOT MATCHED THEN INSERT (caseReference, currentGroup, asOfTimestamp)\r\n",
+					"VALUES (s.caseReference, s.currentGroup, s.asOfTimestamp)\r\n",
+					"\"\"\")\r\n",
+					"\r\n",
+					"# deactivate the opposite group's rows for these cases\r\n",
+					"spark.sql(f\"\"\"\r\n",
+					"UPDATE {other_hrm_table}\r\n",
+					"SET IsActive = 'N'\r\n",
+					"WHERE caseReference IN (SELECT caseReference FROM case_refs)\r\n",
+					"\"\"\")\r\n",
+					"\r\n",
 					"# And to finish we write final partitioned by activity\r\n",
 					"(scd2_final\r\n",
 					" .write\r\n",
@@ -708,7 +742,49 @@
 					"end_exec_time = datetime.now()\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 15
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"\r\n",
+					"final_tbl = \"odw_harmonised_db.appeal_s78\"\r\n",
+					"resolver_tbl = \"odw_harmonised_db.GroupResolver\"\r\n",
+					"\r\n",
+					"# total SCD2 rows written\r\n",
+					"total_rows = spark.table(final_tbl).count()\r\n",
+					"\r\n",
+					"# unique cases present in final\r\n",
+					"distinct_cases = spark.table(final_tbl).select(\"caseReference\").distinct().count()\r\n",
+					"\r\n",
+					"#resolver\r\n",
+					"resolver_cases = spark.table(resolver_tbl).select(\"caseReference\").distinct().count()\r\n",
+					"\r\n",
+					"print(\"SCD2 rows in final:\", total_rows)\r\n",
+					"print(\"Distinct cases in final:\", distinct_cases)\r\n",
+					"print(\"Cases in resolver:\", resolver_cases)\r\n",
+					""
+				],
+				"execution_count": 22
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"SELECT \r\n",
+					"  COUNT(*)                            AS row_count,\r\n",
+					"  COUNT(DISTINCT caseReference)       AS case_count,\r\n",
+					"  SUM(CASE WHEN IsActive = 'Y' THEN 1 ELSE 0 END) AS active_rows\r\n",
+					"FROM odw_harmonised_db.appeal_s78;\r\n",
+					""
+				],
+				"execution_count": 16
 			},
 			{
 				"cell_type": "markdown",
@@ -794,7 +870,7 @@
 					"# )\r\n",
 					"# SELECT COUNT(*) AS collisions FROM z;"
 				],
-				"execution_count": null
+				"execution_count": 9
 			},
 			{
 				"cell_type": "code",
@@ -856,7 +932,7 @@
 					"# ORDER BY f.caseReference, f.IngestionDate;\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 10
 			},
 			{
 				"cell_type": "code",
@@ -900,7 +976,7 @@
 					"    status_code\r\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 11
 			}
 		]
 	}
