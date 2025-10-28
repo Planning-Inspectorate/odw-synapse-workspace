@@ -133,10 +133,10 @@ class TableArchiveUtil():
         For the given artifact directory, return all artifact names that do not have the word `archive` in their
         underlying `folder.name` property
         """
-        all_notebook_files = os.listdir(artifact_directory)
+        all_files = os.listdir(artifact_directory)
         file_content_map = {
             file: json.load(open(f"{artifact_directory}/{file}", "r"))
-            for file in all_notebook_files
+            for file in all_files
         }
         unarchived = {
             file.replace(".json", ""): content
@@ -366,7 +366,6 @@ class TableArchiveUtil():
 
 
 if __name__ == "__main__":
-    env = "dev"
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-e", "--env", help="Environment to run against")
     parser.add_argument("--pln_master_run_id", help="Most recent successful run of `pln_master` to use")
