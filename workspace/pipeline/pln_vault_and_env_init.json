@@ -3,41 +3,9 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "Validate env",
-				"type": "IfCondition",
-				"dependsOn": [],
-				"userProperties": [],
-				"typeProperties": {
-					"expression": {
-						"value": "@not(empty(pipeline().parameters.env))\n",
-						"type": "Expression"
-					},
-					"ifFalseActivities": [
-						{
-							"name": "Fail Missing env",
-							"description": "Failure in case of missing required parameter env",
-							"type": "Fail",
-							"dependsOn": [],
-							"userProperties": [],
-							"typeProperties": {
-								"message": "Missing required parameter: env. Expected dev | test | prod",
-								"errorCode": "ODW_INIT_400_ENV_REQUIRED"
-							}
-						}
-					]
-				}
-			},
-			{
 				"name": "Set key vault URL",
 				"type": "SetVariable",
-				"dependsOn": [
-					{
-						"activity": "Validate env",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
+				"dependsOn": [],
 				"policy": {
 					"secureOutput": false,
 					"secureInput": false
@@ -56,7 +24,7 @@
 				"type": "SetVariable",
 				"dependsOn": [
 					{
-						"activity": "Validate env",
+						"activity": "Set key vault URL",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -80,7 +48,7 @@
 				"type": "SetVariable",
 				"dependsOn": [
 					{
-						"activity": "Validate env",
+						"activity": "Set key vault URL",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -398,74 +366,17 @@
 				}
 			},
 			{
-				"name": "Get Horizon feed",
-				"type": "Lookup",
-				"dependsOn": [
-					{
-						"activity": "If Condition1",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 3,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"source": {
-						"type": "AzureSqlSource",
-						"sqlReaderQuery": "SELECT STRING_AGG(entity_name, ',') AS entities\nFROM [odw_config_db].[dbo].[main_pipeline_config]\nWHERE is_enabled = 1\n  AND System_name = 'Horizon'\n  AND entity_name IS NOT NULL\n",
-						"queryTimeout": "02:00:00",
-						"partitionOption": "None"
-					},
-					"dataset": {
-						"referenceName": "ds_odw_main_config",
-						"type": "DatasetReference"
-					},
-					"firstRowOnly": false
-				}
-			},
-			{
-				"name": "Set Horizon feed",
-				"type": "SetVariable",
-				"dependsOn": [
-					{
-						"activity": "Get Horizon feed",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"variableName": "horizon_feed",
-					"value": {
-						"value": "@if(\n  pipeline().parameters.includeHorizon,\n  if(\n    greater(length(pipeline().parameters.hzEntitiesFilter), 0),\n    pipeline().parameters.hzEntitiesFilter,\n    if(\n      equals(coalesce(activity('Get Horizon feed').output.value[0].entities, ''), ''),\n      json('[]'),\n      split(activity('Get Horizon feed').output.value[0].entities, ',')\n    )\n  ),\n  json('[]')\n)\n",
-						"type": "Expression"
-					}
-				}
-			},
-			{
 				"name": "Assemble runContextJson",
 				"type": "SetVariable",
 				"dependsOn": [
 					{
-						"activity": "Set Horizon feed",
+						"activity": "If_ServiceBus",
 						"dependencyConditions": [
 							"Succeeded"
 						]
 					},
 					{
-						"activity": "If_ServiceBus",
+						"activity": "If_Horizon",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -473,13 +384,13 @@
 				],
 				"policy": {
 					"secureOutput": true,
-					"secureInput": false
+					"secureInput": true
 				},
 				"userProperties": [],
 				"typeProperties": {
 					"variableName": "runContextJson",
 					"value": {
-						"value": "@string(\n  json(\n    concat(\n      '{',\n      '\"env\":\"', toLower(pipeline().parameters.env), '\",',\n      '\"keyVaultUrl\":\"', variables('Key_Vault_Url'), '\",',\n      '\"appInsightsKey\":\"', variables('apps_insights_ikey'), '\",',\n      '\"subscriptionId\":\"', variables('subscription_id'), '\",',\n      '\"resourceGroup\":\"', variables('resource_group'), '\",',\n      '\"teamsWebhook\":\"', variables('webhook_url'), '\",',\n      '\"runId\":\"', variables('runId'), '\",',\n      '\"triggeredBy\":\"', variables('triggeredBy'), '\"',\n      '}'\n    )\n  )\n)\n",
+						"value": "@string(\n  json(\n    concat(\n      '{',\n      '\"keyVaultUrl\":\"', variables('Key_Vault_Url'), '\",',\n      '\"appInsightsKey\":\"', variables('apps_insights_ikey'), '\",',\n      '\"subscriptionId\":\"', variables('subscription_id'), '\",',\n      '\"resourceGroup\":\"', variables('resource_group'), '\",',\n      '\"teamsWebhook\":\"', variables('webhook_url'), '\",',\n      '\"runId\":\"', variables('runId'), '\",',\n      '\"triggeredBy\":\"', variables('triggeredBy'), '\"',\n      '}'\n    )\n  )\n)\n",
 						"type": "Expression"
 					}
 				}
@@ -496,8 +407,8 @@
 					}
 				],
 				"policy": {
-					"secureOutput": false,
-					"secureInput": false
+					"secureOutput": true,
+					"secureInput": true
 				},
 				"userProperties": [],
 				"typeProperties": {
@@ -530,6 +441,7 @@
 			},
 			{
 				"name": "If_ServiceBus",
+				"description": "Check if includeServiceBus is True or False",
 				"type": "IfCondition",
 				"dependsOn": [
 					{
@@ -611,7 +523,98 @@
 							"typeProperties": {
 								"variableName": "service_bus_feed",
 								"value": {
-									"value": "@if(\n  greater(length(pipeline().parameters.sbEntitiesFilter), 0),\n  pipeline().parameters.sbEntitiesFilter,\n  if(\n    and(\n      greater(length(activity('Get Service Bus feed').output.value), 0),\n      greater(length(activity('Get Service Bus feed').output.value[0].entities), 0)\n    ),\n    split(activity('Get Service Bus feed').output.value[0].entities, ','),\n    json('[]')\n  )\n)\n",
+									"value": "@if(\n  greater(length(pipeline().parameters.sbEntitiesFilter), 0),\n  pipeline().parameters.sbEntitiesFilter,\n  if(\n    and(\n      not(empty(activity('Get Service Bus feed').output.value)),\n      not(empty(activity('Get Service Bus feed').output.value[0].entities))\n    ),\n    split(activity('Get Service Bus feed').output.value[0].entities, ','),\n    json('[]')\n  )\n)\n",
+									"type": "Expression"
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "If_Horizon",
+				"description": "Check if includeHorizon is True or False",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "If Condition1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@pipeline().parameters.includeHorizon",
+						"type": "Expression"
+					},
+					"ifFalseActivities": [
+						{
+							"name": "Init Horizon",
+							"type": "SetVariable",
+							"dependsOn": [],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "horizon_feed",
+								"value": {
+									"value": "@json('[]')",
+									"type": "Expression"
+								}
+							}
+						}
+					],
+					"ifTrueActivities": [
+						{
+							"name": "Get Horizon feed",
+							"type": "Lookup",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "AzureSqlSource",
+									"sqlReaderQuery": "SELECT STRING_AGG(entity_name, ',') AS entities\nFROM [odw_config_db].[dbo].[main_pipeline_config]\nWHERE is_enabled = 1\n  AND System_name = 'Horizon'\n  AND entity_name IS NOT NULL\n",
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"dataset": {
+									"referenceName": "ds_odw_main_config",
+									"type": "DatasetReference"
+								},
+								"firstRowOnly": false
+							}
+						},
+						{
+							"name": "Set Horizon feed",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Get Horizon feed",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "horizon_feed",
+								"value": {
+									"value": "@if(\n  greater(length(pipeline().parameters.hzEntitiesFilter), 0),\n  pipeline().parameters.hzEntitiesFilter,\n  if(\n    and(\n      not(empty(activity('Get Horizon feed').output.value)),\n      not(empty(activity('Get Horizon feed').output.value[0].entities))\n    ),\n    split(activity('Get Horizon feed').output.value[0].entities, ','),\n    json('[]')\n  )\n)\n",
 									"type": "Expression"
 								}
 							}
@@ -621,9 +624,6 @@
 			}
 		],
 		"parameters": {
-			"env": {
-				"type": "string"
-			},
 			"sbEntitiesFilter": {
 				"type": "array",
 				"defaultValue": []
