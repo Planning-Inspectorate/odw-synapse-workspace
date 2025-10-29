@@ -432,30 +432,6 @@
 				}
 			},
 			{
-				"name": "Set Service Bus CSV",
-				"type": "SetVariable",
-				"dependsOn": [
-					{
-						"activity": "Get Service Bus feed",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"variableName": "sbEntitiesCsv",
-					"value": {
-						"value": "@coalesce(activity('Get Service Bus feed').output.value[0].entities, '')\n",
-						"type": "Expression"
-					}
-				}
-			},
-			{
 				"name": "Set Service Bus feed",
 				"type": "SetVariable",
 				"dependsOn": [
@@ -474,7 +450,7 @@
 				"typeProperties": {
 					"variableName": "service_bus_feed",
 					"value": {
-						"value": "@if(\n  equals(pipeline().parameters.includeServiceBus, true),\n  if(\n    greater(length(pipeline().parameters.sbEntitiesFilter), 0),\n    pipeline().parameters.sbEntitiesFilter,\n    if(\n      equals(variables('sbEntitiesCsv'), ''),\n      json('[]'),\n      split(variables('sbEntitiesCsv'), ',')\n    )\n  ),\n  json('[]')\n)\n",
+						"value": "@split(activity('Get Service Bus feed').output.value[0].entities, ',')",
 						"type": "Expression"
 					}
 				}
@@ -513,30 +489,6 @@
 				}
 			},
 			{
-				"name": "Set Horizon CSV",
-				"type": "SetVariable",
-				"dependsOn": [
-					{
-						"activity": "Get Horizon feed",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"variableName": "hzEntitiesCsv",
-					"value": {
-						"value": "@coalesce(activity('Get Horizon feed').output.value[0].entities, '')\n",
-						"type": "Expression"
-					}
-				}
-			},
-			{
 				"name": "Set Horizon feed",
 				"type": "SetVariable",
 				"dependsOn": [
@@ -555,7 +507,7 @@
 				"typeProperties": {
 					"variableName": "horizon_feed",
 					"value": {
-						"value": "@if(\n  equals(pipeline().parameters.includeHorizon, true),\n  if(\n    greater(length(pipeline().parameters.hzEntitiesFilter), 0),\n    pipeline().parameters.hzEntitiesFilter,\n    if(\n      equals(variables('hzEntitiesCsv'), ''),\n      json('[]'),\n      split(variables('hzEntitiesCsv'), ',')\n    )\n  ),\n  json('[]')\n)\n",
+						"value": "@if(\n  pipeline().parameters.includeHorizon,\n  if(\n    greater(length(pipeline().parameters.hzEntitiesFilter), 0),\n    pipeline().parameters.hzEntitiesFilter,\n    if(\n      equals(coalesce(activity('Get Horizon feed').output.value[0].entities, ''), ''),\n      json('[]'),\n      split(activity('Get Horizon feed').output.value[0].entities, ',')\n    )\n  ),\n  json('[]')\n)\n",
 						"type": "Expression"
 					}
 				}
@@ -633,6 +585,12 @@
 					],
 					"setSystemVariable": true
 				}
+			},
+			{
+				"name": "If Condition2",
+				"type": "IfCondition",
+				"dependsOn": [],
+				"userProperties": []
 			}
 		],
 		"parameters": {
@@ -686,12 +644,6 @@
 				"type": "String"
 			},
 			"runContextJson": {
-				"type": "String"
-			},
-			"sbEntitiesCsv": {
-				"type": "String"
-			},
-			"hzEntitiesCsv": {
 				"type": "String"
 			},
 			"runId": {
