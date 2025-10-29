@@ -4,7 +4,7 @@
 		"nbformat": 4,
 		"nbformat_minor": 2,
 		"bigDataPool": {
-			"referenceName": "pinssynspodwTST",
+			"referenceName": "pinssynspodw34",
 			"type": "BigDataPoolReference"
 		},
 		"sessionProperties": {
@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5344097a-4ff5-4953-808e-823ce09aab32"
+				"spark.autotune.trackingId": "36519a74-0baa-49d4-accb-6c84271aebd6"
 			}
 		},
 		"metadata": {
@@ -31,10 +31,10 @@
 				"name": "python"
 			},
 			"a365ComputeOptions": {
-				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodwTST",
-				"name": "pinssynspodwTST",
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
 				"type": "Spark",
-				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodwTST",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
 				"auth": {
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
@@ -65,17 +65,16 @@
 					"from pyspark.sql import functions as F\n",
 					"from pyspark.sql.functions import regexp_extract, max\n",
 					"from pyspark.sql.types import Row, StructType, StructField, StringType, BooleanType, TimestampType\n",
-					"from pyspark.sql import DataFrame\n",
-					""
+					"from pyspark.sql import DataFrame, SparkSession"
 				],
-				"execution_count": 1
+				"execution_count": 15
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"from odw.core.anonymisation import *"
 				],
-				"execution_count": 2
+				"execution_count": 33
 			},
 			{
 				"cell_type": "markdown",
@@ -99,7 +98,7 @@
 				"source": [
 					"# %run service-bus/py_sb_raw_to_std"
 				],
-				"execution_count": 3
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -108,7 +107,7 @@
 					"file_name = 'dart-lpa.csv'\n",
 					"source_folder= 'Horizon' # ServiceBus, Horizon, entraid"
 				],
-				"execution_count": null
+				"execution_count": 17
 			},
 			{
 				"cell_type": "markdown",
@@ -130,7 +129,7 @@
 					"table_name: str = f\"odw_standardised_db.pins_lpa\"\n",
 					"table_df = spark.table(table_name)"
 				],
-				"execution_count": null
+				"execution_count": 18
 			},
 			{
 				"cell_type": "markdown",
@@ -150,7 +149,7 @@
 				"source": [
 					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')"
 				],
-				"execution_count": null
+				"execution_count": 19
 			},
 			{
 				"cell_type": "code",
@@ -164,7 +163,7 @@
 					"else:\n",
 					"    raise Exception(\"Source Folder not recognised\")"
 				],
-				"execution_count": null
+				"execution_count": 20
 			},
 			{
 				"cell_type": "code",
@@ -184,7 +183,7 @@
 					"ASSET_QUALIFIED_NAME = source_path\n",
 					"CLASSIFIED_FIELDS = (\"PotentialID\", \"NI Number\", \"Email Address\", \"First Name\", \"Last Name\", \"Birth Date\", \"Annual Salary\", \"Person's Age\", \"MICROSOFT.PERSONAL.EMAIL\", \"MICROSOFT.PERSONAL.NAME\")"
 				],
-				"execution_count": null
+				"execution_count": 21
 			},
 			{
 				"cell_type": "code",
@@ -195,7 +194,7 @@
 					"\n",
 					"CLIENT_SECRET = mssparkutils.credentials.getSecret(VAULT_NAME, SECRET_NAME)"
 				],
-				"execution_count": null
+				"execution_count": 22
 			},
 			{
 				"cell_type": "code",
@@ -217,7 +216,7 @@
 					"HDRS = {\"Authorization\": f\"Bearer {ACCESS_TOKEN}\", \"Content-Type\": \"application/json\"}\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 23
 			},
 			{
 				"cell_type": "code",
@@ -261,23 +260,60 @@
 					"#    raise Exception(f\"Could not resolve GUID for {type_name} :: {qualified_name}\")\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 24
 			},
 			{
 				"cell_type": "code",
 				"source": [
+					"from odw.core.anonymisation import AnonymisationEngine\n",
+					"engine = AnonymisationEngine()\n",
+					"out = engine.apply_from_purview(\n",
+					"    table_df,\n",
+					"    purview_name=PURVIEW_NAME,\n",
+					"    tenant_id=TENANT_ID,\n",
+					"    client_id=CLIENT_ID,\n",
+					"    client_secret=CLIENT_SECRET,\n",
+					"    asset_type_name=ASSET_TYPE_NAME,\n",
+					"    asset_qualified_name=ASSET_QUALIFIED_NAME,\n",
+					")"
+				],
+				"execution_count": 48
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"import re\n",
+					"def norm(s): return re.sub(r'[^a-z0-9]', '', s.lower())\n",
+					"name_map = {norm(c): c for c in table_df.columns}"
+				],
+				"execution_count": 53
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"display(table_df)"
+				],
+				"execution_count": 52
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"resource_guid = ''\n",
 					"# Resolve asset GUID from provided inputs\n",
 					"# resource_guid = ASSET_GUID\n",
 					"ASSET_QUALIFIED_NAME = \"https://pinsstodwdevuks9h80mb.dfs.core.windows.net/odw-raw/Horizon/{Year}-{Month}-{Day}/DaRT_LPA.csv\"\n",
 					"if not resource_guid:\n",
 					"    if ASSET_TYPE_NAME and ASSET_QUALIFIED_NAME:\n",
-					"        resource_guid = get_guid_by_unique_attrs(ASSET_TYPE_NAME, ASSET_QUALIFIED_NAME)\n",
+					"        resource_guid = _get_guid_by_unique_attrs(PURVIEW_NAME, ASSET_TYPE_NAME, ASSET_QUALIFIED_NAME, headers=headers)\n",
 					"    else:\n",
 					"        raise Exception(\"Provide ASSET_GUID or (ASSET_TYPE_NAME and ASSET_QUALIFIED_NAME)\")\n",
 					"\n",
-					"entity_data = get_entity_with_refs(resource_guid)"
+					"entity_data = _get_entity_with_refs(resource_guid)"
 				],
-				"execution_count": null
+				"execution_count": 41
 			},
 			{
 				"cell_type": "code",
@@ -315,7 +351,7 @@
 					"\n",
 					"print(json.dumps(classified_cols, indent=2))"
 				],
-				"execution_count": null
+				"execution_count": 30
 			},
 			{
 				"cell_type": "markdown",
@@ -470,7 +506,7 @@
 					"    CLASSIFIED_FIELDS\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 43
 			},
 			{
 				"cell_type": "code",
