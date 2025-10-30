@@ -22,5 +22,5 @@ if __name__ == "__main__":
     if not os.path.exists(private_endpoint_directory):
         os.makedirs(private_endpoint_directory)
     for endpoint_name, endpoint in private_endpoint_names.items():
-        with open(f"{private_endpoint_directory}/{endpoint_name}.json", "w") as f:
-            json.dump(endpoint, f, indent="\t", ensure_ascii=False)
+        with open(f"{private_endpoint_directory}/{endpoint_name}.json", "w", encoding="utf-8") as f:
+            json.dump(endpoint, f, indent="\t", ensure_ascii=False, sort_keys=True)
