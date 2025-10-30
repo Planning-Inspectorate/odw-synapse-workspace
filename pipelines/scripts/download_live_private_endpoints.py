@@ -1,6 +1,7 @@
 from pipelines.scripts.synapse_artifact.synapse_managed_private_endpoint_util import SynapseManagedPrivateEndpointUtil
 import argparse
 import json
+import os
 
 
 """
@@ -17,6 +18,9 @@ if __name__ == "__main__":
     synapse_workspace = f"pins-synw-odw-{env}-uks"
     all_endpoints = SynapseManagedPrivateEndpointUtil(synapse_workspace).get_all(vnet="default")
     private_endpoint_names = {endpoint["name"]: endpoint for endpoint in all_endpoints}
+    private_endpoint_directory = "workspace/managedVirtualNetwork/default/managedPrivateEndpoint"
+    if not os.path.exists(private_endpoint_directory):
+        os.makedirs(private_endpoint_directory)
     for endpoint_name, endpoint in private_endpoint_names.items():
-        with open(f"workspace/managedVirtualNetwork/default/managedPrivateEndpoint/{endpoint_name}.json", "w") as f:
+        with open(f"{private_endpoint_directory}/{endpoint_name}.json", "w") as f:
             json.dump(endpoint, f, indent="\t", ensure_ascii=False)
