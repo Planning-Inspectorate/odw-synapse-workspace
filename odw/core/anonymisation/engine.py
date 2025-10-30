@@ -66,28 +66,76 @@ def _get_entity_with_refs(
     return _http_get(url, headers=headers or {})
 
 
-def _extract_classified_columns(entity_with_refs: dict) -> List[dict]:
-    rel_attrs = entity_with_refs.get("entity", {}).get("relationshipAttributes", {})
-    attached_schema = rel_attrs.get("attachedSchema", [])
-    schema_guid = attached_schema[0]["guid"] if attached_schema else None
-    if not schema_guid:
-        return []
+def _extract_classified_columns(
+    entity_with_refs: dict,
+    purview_name: Optional[str] = None,
+    headers: Optional[Dict[str, str]] = None,
+    api_version: str = "2023-09-01",
+) -> List[dict]:
+    """Return classified columns for an asset.
 
-    # referredEntities already contains column entities with classifications
-    columns = entity_with_refs.get("referredEntities", {})
-    out = []
-    for guid, col in columns.items():
-        classifications = col.get("classifications", [])
-        if classifications:
-            out.append(
-                {
-                    "column_guid": guid,
-                    "column_name": col.get("attributes", {}).get("name"),
-                    "column_type": col.get("typeName"),
-                    "classifications": [c.get("typeName") for c in classifications],
-                }
-            )
-    return out
+    Many Purview assets link to a separate schema entity which holds the columns.
+    This function will, when possible, follow the attached schema GUID and read
+    its referred entities and relationships to collect column classifications.
+    Falls back to scanning the original entity's referredEntities if necessary.
+    """
+    rel_attrs = (entity_with_refs.get("entity", {}) or {}).get("relationshipAttributes", {}) or {}
+    attached_schema = rel_attrs.get("attachedSchema", []) or []
+    schema_guid = attached_schema[0].get("guid") if attached_schema else None
+
+    def _collect_from_referred(source: dict, only_guids: Optional[Set[str]] = None) -> List[dict]:
+        cols = source.get("referredEntities", {}) or {}
+        out: List[dict] = []
+        for guid, col in cols.items():
+            if only_guids is not None and guid not in only_guids:
+                continue
+            classifications = col.get("classifications", []) or []
+            if classifications:
+                out.append(
+                    {
+                        "column_guid": guid,
+                        "column_name": (col.get("attributes", {}) or {}).get("name"),
+                        "column_type": col.get("typeName"),
+                        "classifications": [c.get("typeName") for c in classifications],
+                    }
+                )
+        return out
+
+    # Prefer extracting from the schema entity if present
+    if schema_guid:
+        schema_entity = None
+        if purview_name:
+            try:
+                schema_entity = _get_entity_with_refs(purview_name, schema_guid, api_version, headers)
+            except Exception:
+                schema_entity = None
+        # If we couldn't fetch the schema entity, try to work with what we have
+        source = schema_entity or entity_with_refs
+
+        # Try to identify the column GUIDs from schema relationships
+        schema_rel = (source.get("entity", {}) or {}).get("relationshipAttributes", {}) or {}
+        rel_keys = [
+            "columns",
+            "column",
+            "tableColumns",
+            "attributes",
+            "fields",
+            "schemaElements",
+        ]
+        guids: Set[str] = set()
+        for k in rel_keys:
+            items = schema_rel.get(k) or []
+            for it in items:
+                gid = it.get("guid") if isinstance(it, dict) else None
+                if gid:
+                    guids.add(gid)
+
+        extracted = _collect_from_referred(source, only_guids=guids if guids else None)
+        if extracted:
+            return extracted
+
+    # Fallback: scan original entity's referredEntities
+    return _collect_from_referred(entity_with_refs)
 
 
 def fetch_purview_classifications_by_qualified_name(
@@ -107,7 +155,7 @@ def fetch_purview_classifications_by_qualified_name(
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     guid = _get_guid_by_unique_attrs(purview_name, asset_type_name, asset_qualified_name, api_version, headers)
     entity = _get_entity_with_refs(purview_name, guid, api_version, headers)
-    return _extract_classified_columns(entity)
+    return _extract_classified_columns(entity, purview_name=purview_name, headers=headers, api_version=api_version)
 
 
 # --- Engine ---
