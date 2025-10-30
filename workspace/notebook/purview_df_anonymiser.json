@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "36519a74-0baa-49d4-accb-6c84271aebd6"
+				"spark.autotune.trackingId": "8f9f5fff-6eeb-43f6-8bb2-7202e78a59b4"
 			}
 		},
 		"metadata": {
@@ -67,14 +67,14 @@
 					"from pyspark.sql.types import Row, StructType, StructField, StringType, BooleanType, TimestampType\n",
 					"from pyspark.sql import DataFrame, SparkSession"
 				],
-				"execution_count": 15
+				"execution_count": 1
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"from odw.core.anonymisation import *"
 				],
-				"execution_count": 33
+				"execution_count": 2
 			},
 			{
 				"cell_type": "markdown",
@@ -98,7 +98,7 @@
 				"source": [
 					"# %run service-bus/py_sb_raw_to_std"
 				],
-				"execution_count": null
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
@@ -107,7 +107,7 @@
 					"file_name = 'dart-lpa.csv'\n",
 					"source_folder= 'Horizon' # ServiceBus, Horizon, entraid"
 				],
-				"execution_count": 17
+				"execution_count": 4
 			},
 			{
 				"cell_type": "markdown",
@@ -129,7 +129,7 @@
 					"table_name: str = f\"odw_standardised_db.pins_lpa\"\n",
 					"table_df = spark.table(table_name)"
 				],
-				"execution_count": 18
+				"execution_count": 5
 			},
 			{
 				"cell_type": "markdown",
@@ -149,7 +149,7 @@
 				"source": [
 					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')"
 				],
-				"execution_count": 19
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
@@ -157,11 +157,19 @@
 					"if source_folder == 'ServiceBus':\n",
 					"    source_path: str = f\"https://{storage_account}odw-raw/{source_folder}/{entity_name}/\"+ \"{Year}-{Month}-{Day}\" + \"/\" + entity_name + \".csv\"\n",
 					"elif source_folder == 'Horizon':\n",
-					"    source_path: str = f\"https://{storage_account}odw-raw/archive/{source_folder}/\" + \"{Year}-{Month}-{Day}\" + \"/\" + f\"{file_name}\"\n",
+					"    source_path: str = f\"https://{storage_account}odw-raw/{source_folder}/\" + \"{Year}-{Month}-{Day}\" + \"/\" + f\"{file_name}\"\n",
 					"elif source_folder== 'entraid': \n",
 					"    source_path: str = f\"https://{storage_account}odw-raw/{source_folder}/{entity_name}/\"+ \"{Year}-{Month}-{Day}\" + \"/\" + entity_name + \".json\"\n",
 					"else:\n",
 					"    raise Exception(\"Source Folder not recognised\")"
+				],
+				"execution_count": 7
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"source_path\n",
+					"https://pinsstodwdevuks9h80mb.dfs.core.windows.net/odw-raw/Horizon/{Year}-{Month}-{Day}/DaRT_LPA.csv"
 				],
 				"execution_count": 20
 			},
@@ -183,7 +191,7 @@
 					"ASSET_QUALIFIED_NAME = source_path\n",
 					"CLASSIFIED_FIELDS = (\"PotentialID\", \"NI Number\", \"Email Address\", \"First Name\", \"Last Name\", \"Birth Date\", \"Annual Salary\", \"Person's Age\", \"MICROSOFT.PERSONAL.EMAIL\", \"MICROSOFT.PERSONAL.NAME\")"
 				],
-				"execution_count": 21
+				"execution_count": 8
 			},
 			{
 				"cell_type": "code",
@@ -194,7 +202,7 @@
 					"\n",
 					"CLIENT_SECRET = mssparkutils.credentials.getSecret(VAULT_NAME, SECRET_NAME)"
 				],
-				"execution_count": 22
+				"execution_count": 9
 			},
 			{
 				"cell_type": "code",
@@ -216,7 +224,7 @@
 					"HDRS = {\"Authorization\": f\"Bearer {ACCESS_TOKEN}\", \"Content-Type\": \"application/json\"}\n",
 					""
 				],
-				"execution_count": 23
+				"execution_count": 16
 			},
 			{
 				"cell_type": "code",
@@ -260,7 +268,7 @@
 					"#    raise Exception(f\"Could not resolve GUID for {type_name} :: {qualified_name}\")\n",
 					""
 				],
-				"execution_count": 24
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -277,16 +285,37 @@
 					"    asset_qualified_name=ASSET_QUALIFIED_NAME,\n",
 					")"
 				],
-				"execution_count": 48
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"import re\n",
-					"def norm(s): return re.sub(r'[^a-z0-9]', '', s.lower())\n",
-					"name_map = {norm(c): c for c in table_df.columns}"
+					"from pyspark.sql import functions as F\n",
+					"from odw.core.anonymisation import AnonymisationEngine, default_strategies\n",
+					"\n",
+					"df_test = spark.createDataFrame([{\"EmployeeID\":\"12345\",\"full_name\":\"John Doe\",\"email\":\"john.doe@example.com\"}])\n",
+					"cols_test = [\n",
+					"    {\"column_name\":\"full_name\",\"classifications\":[\"MICROSOFT.PERSONAL.NAME\"]},\n",
+					"    {\"column_name\":\"email\",\"classifications\":[\"MICROSOFT.PERSONAL.EMAIL\"]},\n",
+					"]\n",
+					"out_test = AnonymisationEngine(strategies=default_strategies()).apply(df_test, cols_test)\n",
+					"out_test.show(truncate=False)"
 				],
-				"execution_count": 53
+				"execution_count": 17
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from odw.core.anonymisation import fetch_purview_classifications_by_qualified_name\n",
+					"\n",
+					"raw_cols = fetch_purview_classifications_by_qualified_name(\n",
+					"    PURVIEW_NAME, TENANT_ID, CLIENT_ID, CLIENT_SECRET,\n",
+					"    ASSET_TYPE_NAME, ASSET_QUALIFIED_NAME\n",
+					")\n",
+					"print(\"raw_cols count:\", len(raw_cols))\n",
+					"print(raw_cols[:10])"
+				],
+				"execution_count": 18
 			},
 			{
 				"cell_type": "code",
@@ -296,7 +325,7 @@
 				"source": [
 					"display(table_df)"
 				],
-				"execution_count": 52
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
@@ -313,7 +342,7 @@
 					"\n",
 					"entity_data = _get_entity_with_refs(resource_guid)"
 				],
-				"execution_count": 41
+				"execution_count": 15
 			},
 			{
 				"cell_type": "code",
@@ -351,7 +380,7 @@
 					"\n",
 					"print(json.dumps(classified_cols, indent=2))"
 				],
-				"execution_count": 30
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -506,7 +535,7 @@
 					"    CLASSIFIED_FIELDS\n",
 					")"
 				],
-				"execution_count": 43
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
