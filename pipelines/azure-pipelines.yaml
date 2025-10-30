@@ -28,10 +28,16 @@ trigger:
   include:
   - main
 
-# Automatically run against the main branch at a set time every day
 schedules:
 - cron: '0 9 * * 1-5' # cron syntax defining a schedule. At 9am every week day
-  displayName: Daily main branch run against the test env
+  displayName: Daily main branch run against the build env
+  branches:
+    include:
+    - main
+  always: true
+  batch: false
+- cron: '0 10 * * 1-5' # cron syntax defining a schedule. At 10am every week day
+  displayName: Daily main branch deployment to the test env
   branches:
     include:
     - main
@@ -48,25 +54,36 @@ resources:
     ref: main
 
 variables:
+# Override the env the pipeline runs against depending on if the pipeline was triggered by a schedule
+- name: env
+  ${{ if eq( variables['Build.Reason'], 'Schedule' ) }}:
+    ${{ if contains( variables['Build.CronSchedule.DisplayName'], 'test') }}:
+      value: 'test'
+    ${{ elseif contains( variables['Build.CronSchedule.DisplayName'], 'test') }}:
+      value: 'build'
+    ${{ else }}:
+      value: ${{ parameters.env }
+  ${{ else }}:
+    value: ${{ parameters.env }
 - name: adoEnvName
-  ${{ if eq(parameters.env, 'prod') }}:
+  ${{ if eq(variables.env, 'prod') }}:
     value: "Prod"
-  ${{ elseif eq(parameters.env, 'test') }}:
+  ${{ elseif eq(variables.env, 'test') }}:
     value: "Test"
-  ${{ elseif eq(parameters.env, 'build') }}:
+  ${{ elseif eq(variables.env, 'build') }}:
     value: "Build"
   ${{ else }}:
     value: "Dev"
 - name: variableGroupName
   value: "Terraform ${{ variables.adoEnvName }}"
 - name: agentPool
-  value: 'pins-agent-pool-odw-${{ parameters.env }}-uks'
+  value: 'pins-agent-pool-odw-${{ variables.env }}-uks'
 - name: azureSubscription
-  value: 'pins-agent-pool-odw-${{ parameters.env }}-uks'
+  value: 'pins-agent-pool-odw-${{ variables.env }}-uks'
 - group: ${{ variables.variableGroupName }}
 
 stages:
-- ${{ if eq(parameters.env, 'build') }}:
+- ${{ if eq(variables.env, 'build') }}:
   - template: stages/run-ado-script-tests.yaml
     parameters:
       agentPool: ${{ variables.agentPool }}
@@ -77,13 +94,13 @@ stages:
   - template: stages/run-odw-package-tests.yaml
     parameters:
       agentPool: ${{ variables.agentPool }}
-      env: ${{ parameters.env }}
+      env: ${{ variables.env }}
 
 - template: stages/deploy-synapse-stage.yaml
   parameters:
     agentPool: ${{ variables.agentPool }}
-    env: ${{ parameters.env }}
-    armServiceConnectionName: "ODW ${{ upper(parameters.env) }} - Infrastructure"
+    env: ${{ variables.env }}
+    armServiceConnectionName: "ODW ${{ upper(variables.env) }} - Infrastructure"
     fullDeployment: ${{ parameters.fullDeployment }}
     adoEnvName: ${{ variables.adoEnvName }}
 
@@ -91,4 +108,4 @@ stages:
   - template: stages/conditional-run-tests.yaml
     parameters:
       agentPool: ${{ variables.agentPool }}
-      env: ${{ parameters.env }}
+      env: ${{ variables.env }}
