@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "545c4954-7b1d-427d-afe2-260fb66f76d4"
+				"spark.autotune.trackingId": "bb395e8d-043a-4af2-9f6a-d74f3b851279"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -94,7 +94,7 @@
 					"from pyspark.sql import functions as F\n",
 					"import pprint"
 				],
-				"execution_count": null
+				"execution_count": 1
 			},
 			{
 				"cell_type": "code",
@@ -116,7 +116,7 @@
 					"hrm_db_name: str = 'odw_harmonised_db'\n",
 					"cur_db_name: str = 'odw_curated_db'"
 				],
-				"execution_count": null
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
@@ -143,7 +143,7 @@
 					"# CURATED\n",
 					"cur_table: str       = \"appeal_s78\"                # HRM final"
 				],
-				"execution_count": null
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
@@ -167,7 +167,7 @@
 					"\n",
 					"curated_df  = spark.table(f\"{cur_db_name}.{cur_table}\")"
 				],
-				"execution_count": null
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -189,7 +189,7 @@
 					"hrm_fin_keys = hrm_fin_df.select(\"caseReference\")\n",
 					"cur_keys     = curated_df.select(\"caseReference\")"
 				],
-				"execution_count": null
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
@@ -208,7 +208,7 @@
 					"#keep track of the exitCodes, if the exit code is not zero then we've had failures, we flip the boolean\n",
 					"exitCode: int = 0"
 				],
-				"execution_count": null
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
@@ -226,7 +226,7 @@
 				"source": [
 					"%run /utils/unit-tests/py_unit_tests_functions"
 				],
-				"execution_count": null
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
@@ -252,7 +252,7 @@
 					"hrm_final_table_schema = spark.table(f\"{hrm_db_name}.{hrm_final_table}\").schema\n",
 					"cur_table_schema       = spark.table(f\"{cur_db_name}.{cur_table}\").schema"
 				],
-				"execution_count": null
+				"execution_count": 8
 			},
 			{
 				"cell_type": "code",
@@ -270,7 +270,7 @@
 				"source": [
 					"data_model_columns = [f.name for f in cur_table_schema.fields]"
 				],
-				"execution_count": null
+				"execution_count": 9
 			},
 			{
 				"cell_type": "markdown",
@@ -312,7 +312,7 @@
 					"print(f\"Curated schema correct: {cur_schema_ok}\\nTable: {cur_db_name}.{cur_table}\")\n",
 					"exitCode += int(not cur_schema_ok)"
 				],
-				"execution_count": null
+				"execution_count": 10
 			},
 			{
 				"cell_type": "markdown",
@@ -355,7 +355,7 @@
 					"if std_cnt != hrm_stg_odt_cnt:\n",
 					"    print(\"WARNING: SB standardised row count != HRM stage ODT row count (some NULL keys are expected to be dropped)\")"
 				],
-				"execution_count": null
+				"execution_count": 11
 			},
 			{
 				"cell_type": "markdown",
@@ -396,7 +396,7 @@
 					"print(f\"HRM Stage / Final no dropping by key: {ok}\")\n",
 					"exitCode += int(not ok)"
 				],
-				"execution_count": null
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
@@ -431,7 +431,7 @@
 					"exitCode += int(not match_active)\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 13
 			},
 			{
 				"cell_type": "code",
@@ -452,7 +452,7 @@
 					"print(f\"HRM FINAL to Curated no dropping by key: {ok}\")\n",
 					"exitCode += int(not ok)"
 				],
-				"execution_count": null
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
@@ -478,7 +478,7 @@
 					"    print(\"Failed: both ODT and HORIZON rows should be present in HRM final\")\n",
 					"    exitCode += 1"
 				],
-				"execution_count": null
+				"execution_count": 15
 			},
 			{
 				"cell_type": "code",
@@ -532,7 +532,140 @@
 					"    return missing_cnt == 0\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 16
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"outputs_hidden": false
+					}
+				},
+				"source": [
+					"#Inserts a test record into the GroupResolver table and verifies it was written correctly.\n",
+					"\n",
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"db_name = \"odw_harmonised_db\"\n",
+					"table_name = \"GroupResolver\"\n",
+					"\n",
+					"spark.sql(f\"\"\"\n",
+					"INSERT INTO {db_name}.{table_name} (caseReference, currentGroup, asOfTimestamp)\n",
+					"VALUES ('TEST-CASE-001', 'A', current_timestamp())\n",
+					"\"\"\")\n",
+					"\n",
+					"resolver_df = spark.table(f\"{db_name}.{table_name}\") \\\n",
+					"    .filter(F.col(\"caseReference\") == \"TEST-CASE-001\")\n",
+					"\n",
+					"count = resolver_df.count()\n",
+					"assert count == 1, f\"Expected 1 record in GroupResolver, found {count}\"\n",
+					"\n",
+					"current_group = resolver_df.first().currentGroup\n",
+					"assert current_group == \"A\", f\"Expected currentGroup='A', got '{current_group}'\"\n",
+					"\n",
+					"print(\"Test passed: Record successfully inserted into GroupResolver with correct values.\")\n",
+					"\n",
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"db_name = \"odw_harmonised_db\"\n",
+					"table_name = \"GroupResolver\"\n",
+					"\n",
+					"spark.sql(f\"\"\"\n",
+					"INSERT INTO {db_name}.{table_name} (caseReference, currentGroup, asOfTimestamp)\n",
+					"VALUES ('TEST-CASE-001', 'A', current_timestamp())\n",
+					"\"\"\")\n",
+					"\n",
+					"resolver_df = spark.table(f\"{db_name}.{table_name}\") \\\n",
+					"    .filter(F.col(\"caseReference\") == \"TEST-CASE-001\")\n",
+					"\n",
+					"count = resolver_df.count()\n",
+					"assert count == 1, f\"Expected 1 record in GroupResolver, found {count}\"\n",
+					"\n",
+					"current_group = resolver_df.first().currentGroup\n",
+					"assert current_group == \"A\", f\"Expected currentGroup='A', got '{current_group}'\"\n",
+					"\n",
+					"print(\"Test passed: Record successfully inserted into GroupResolver with correct values.\")\n",
+					""
+				],
+				"execution_count": 25
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def cleanup_test_data():\n",
+					"    spark.sql(\"\"\"\n",
+					"        DELETE FROM odw_harmonised_db.GroupResolver\n",
+					"        WHERE TRIM(UPPER(caseReference)) LIKE 'TEST-%'\n",
+					"    \"\"\")\n",
+					"    print(\"Cleanup complete.\")\n",
+					"\n",
+					"cleanup_test_data()\n",
+					"    \n",
+					"# Run cleanup after the test\n",
+					"cleanup_test_data()\n",
+					""
+				],
+				"execution_count": 27
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"#Verifies that updating an existing record in the GroupResolver table changes its currentGroup and refreshes the asOfTimestamp.\n",
+					"\n",
+					"\n",
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"db_name = \"odw_harmonised_db\"\n",
+					"table_name = \"GroupResolver\"\n",
+					"case_ref = \"TEST-CASE-002\"\n",
+					"\n",
+					"# Insert an initial record (Group A)\n",
+					"spark.sql(f\"\"\"\n",
+					"INSERT INTO {db_name}.{table_name} (caseReference, currentGroup, asOfTimestamp)\n",
+					"VALUES ('{case_ref}', 'A', current_timestamp())\n",
+					"\"\"\")\n",
+					"\n",
+					"# Capture the original timestamp\n",
+					"initial_timestamp = spark.table(f\"{db_name}.{table_name}\") \\\n",
+					"    .filter(F.col(\"caseReference\") == case_ref) \\\n",
+					"    .select(\"asOfTimestamp\").first().asOfTimestamp\n",
+					"\n",
+					"# Update the same case to Group B\n",
+					"spark.sql(f\"\"\"\n",
+					"MERGE INTO {db_name}.{table_name} AS t\n",
+					"USING (SELECT '{case_ref}' AS caseReference, 'B' AS currentGroup, current_timestamp() AS asOfTimestamp) AS s\n",
+					"ON TRIM(UPPER(t.caseReference)) = TRIM(UPPER(s.caseReference))\n",
+					"WHEN MATCHED THEN UPDATE SET\n",
+					"  t.currentGroup = s.currentGroup,\n",
+					"  t.asOfTimestamp = s.asOfTimestamp\n",
+					"\"\"\")\n",
+					"\n",
+					"# Verify the update\n",
+					"updated_record = spark.table(f\"{db_name}.{table_name}\") \\\n",
+					"    .filter(F.col(\"caseReference\") == case_ref).first()\n",
+					"\n",
+					"assert updated_record.currentGroup == \"B\", \"Expected currentGroup='B' after update\"\n",
+					"assert updated_record.asOfTimestamp > initial_timestamp, \"Expected asOfTimestamp to be updated\"\n",
+					"\n",
+					"print(\"Test passed: GroupResolver record updated correctly with new group and timestamp.\")\n",
+					""
+				],
+				"execution_count": 28
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def cleanup_test_data():\n",
+					"    spark.sql(\"\"\"\n",
+					"        DELETE FROM odw_harmonised_db.GroupResolver\n",
+					"        WHERE TRIM(UPPER(caseReference)) LIKE 'TEST-%'\n",
+					"    \"\"\")\n",
+					"    print(\"Cleanup complete.\")\n",
+					"\n",
+					"cleanup_test_data()\n",
+					""
+				],
+				"execution_count": 29
 			},
 			{
 				"cell_type": "code",
@@ -564,7 +697,7 @@
 					"    print(\"Failed: test_sb_std_to_hrm_no_active_deleted_record\")\n",
 					"    exitCode += 1"
 				],
-				"execution_count": null
+				"execution_count": 17
 			},
 			{
 				"cell_type": "code",
@@ -582,7 +715,7 @@
 				"source": [
 					"mssparkutils.notebook.exit(exitCode)"
 				],
-				"execution_count": null
+				"execution_count": 18
 			},
 			{
 				"cell_type": "markdown",
