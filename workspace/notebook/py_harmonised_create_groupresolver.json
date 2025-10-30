@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "1ca3d975-86e7-4aa6-a9ae-b2df11d2f06c"
+				"spark.autotune.trackingId": "ee81b5be-b542-4276-9c39-649c047b2e8c"
 			}
 		},
 		"metadata": {
@@ -54,14 +54,14 @@
 					"db_name = \"odw_harmonised_db\"\n",
 					"table_name = \"GroupResolver\"  "
 				],
-				"execution_count": 8
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"spark.sql(f\"CREATE DATABASE IF NOT EXISTS {db_name}\")"
 				],
-				"execution_count": 9
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -84,74 +84,6 @@
 					"        .mode(\"overwrite\")\n",
 					"        .saveAsTable(f\"{db_name}.{table_name}\"))\n",
 					""
-				],
-				"execution_count": 10
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
-				},
-				"source": [
-					"%%sql\n",
-					"WITH a AS (\n",
-					"  SELECT DISTINCT TRIM(UPPER(caseReference)) AS k\n",
-					"  FROM odw_harmonised_db.appeal_has\n",
-					"  WHERE TRIM(UPPER(IsActive))='Y'\n",
-					"),\n",
-					"b AS (\n",
-					"  SELECT DISTINCT TRIM(UPPER(caseReference)) AS k\n",
-					"  FROM odw_harmonised_db.appeal_s78\n",
-					"  WHERE TRIM(UPPER(IsActive))='Y'\n",
-					"),\n",
-					"both AS (\n",
-					"  SELECT k FROM a INTERSECT SELECT k FROM b\n",
-					")\n",
-					"SELECT\n",
-					"  both.k                                      AS case_ref_key,\n",
-					"  r.currentGroup                              AS resolver_group\n",
-					"FROM both\n",
-					"LEFT JOIN odw_harmonised_db.GroupResolver r\n",
-					"  ON TRIM(UPPER(r.caseReference)) = both.k\n",
-					"ORDER BY resolver_group;\n",
-					""
-				],
-				"execution_count": 12
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"spark.sql(f\"DELETE FROM {db_name}.{table_name}\")"
-				],
-				"execution_count": 11
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"outputs_hidden": false
-					},
-					"collapsed": false
-				},
-				"source": [
-					"display(spark.sql(f\"SELECT * FROM {db_name}.{table_name} ORDER BY asOfTimestamp DESC\"))"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
-				},
-				"source": [
-					"%%sql\n",
-					"select count(*) from odw_harmonised_db.GroupResolver"
 				],
 				"execution_count": null
 			}
