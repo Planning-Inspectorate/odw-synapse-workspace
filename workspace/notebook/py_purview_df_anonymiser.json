@@ -1,5 +1,5 @@
 {
-	"name": "purview_df_anonymiser",
+	"name": "py_purview_df_anonymiser",
 	"properties": {
 		"nbformat": 4,
 		"nbformat_minor": 2,
@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "8f9f5fff-6eeb-43f6-8bb2-7202e78a59b4"
+				"spark.autotune.trackingId": "7c2d8d21-3cc7-4300-8629-73852bd1f7fe"
 			}
 		},
 		"metadata": {
@@ -67,14 +67,14 @@
 					"from pyspark.sql.types import Row, StructType, StructField, StringType, BooleanType, TimestampType\n",
 					"from pyspark.sql import DataFrame, SparkSession"
 				],
-				"execution_count": 1
+				"execution_count": 140
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"from odw.core.anonymisation import *"
 				],
-				"execution_count": 2
+				"execution_count": 141
 			},
 			{
 				"cell_type": "markdown",
@@ -98,7 +98,7 @@
 				"source": [
 					"# %run service-bus/py_sb_raw_to_std"
 				],
-				"execution_count": 3
+				"execution_count": 142
 			},
 			{
 				"cell_type": "code",
@@ -107,7 +107,7 @@
 					"file_name = 'dart-lpa.csv'\n",
 					"source_folder= 'Horizon' # ServiceBus, Horizon, entraid"
 				],
-				"execution_count": 4
+				"execution_count": 143
 			},
 			{
 				"cell_type": "markdown",
@@ -129,7 +129,7 @@
 					"table_name: str = f\"odw_standardised_db.pins_lpa\"\n",
 					"table_df = spark.table(table_name)"
 				],
-				"execution_count": 5
+				"execution_count": 144
 			},
 			{
 				"cell_type": "markdown",
@@ -149,7 +149,7 @@
 				"source": [
 					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')"
 				],
-				"execution_count": 6
+				"execution_count": 145
 			},
 			{
 				"cell_type": "code",
@@ -163,15 +163,7 @@
 					"else:\n",
 					"    raise Exception(\"Source Folder not recognised\")"
 				],
-				"execution_count": 7
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"source_path\n",
-					"https://pinsstodwdevuks9h80mb.dfs.core.windows.net/odw-raw/Horizon/{Year}-{Month}-{Day}/DaRT_LPA.csv"
-				],
-				"execution_count": 20
+				"execution_count": 146
 			},
 			{
 				"cell_type": "code",
@@ -191,7 +183,7 @@
 					"ASSET_QUALIFIED_NAME = source_path\n",
 					"CLASSIFIED_FIELDS = (\"PotentialID\", \"NI Number\", \"Email Address\", \"First Name\", \"Last Name\", \"Birth Date\", \"Annual Salary\", \"Person's Age\", \"MICROSOFT.PERSONAL.EMAIL\", \"MICROSOFT.PERSONAL.NAME\")"
 				],
-				"execution_count": 8
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -202,7 +194,7 @@
 					"\n",
 					"CLIENT_SECRET = mssparkutils.credentials.getSecret(VAULT_NAME, SECRET_NAME)"
 				],
-				"execution_count": 9
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -224,7 +216,7 @@
 					"HDRS = {\"Authorization\": f\"Bearer {ACCESS_TOKEN}\", \"Content-Type\": \"application/json\"}\n",
 					""
 				],
-				"execution_count": 16
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -301,7 +293,7 @@
 					"out_test = AnonymisationEngine(strategies=default_strategies()).apply(df_test, cols_test)\n",
 					"out_test.show(truncate=False)"
 				],
-				"execution_count": 17
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -315,7 +307,7 @@
 					"print(\"raw_cols count:\", len(raw_cols))\n",
 					"print(raw_cols[:10])"
 				],
-				"execution_count": 18
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -325,7 +317,7 @@
 				"source": [
 					"display(table_df)"
 				],
-				"execution_count": 14
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -342,7 +334,7 @@
 					"\n",
 					"entity_data = _get_entity_with_refs(resource_guid)"
 				],
-				"execution_count": 15
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -360,25 +352,50 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"schema_guid = attached_schema[0][\"guid\"] if attached_schema else None\n",
-					"if not schema_guid:\n",
-					"    raise ValueError(\"No attached schema found.\")\n",
+					"# schema_guid = attached_schema[0][\"guid\"] if attached_schema else None\n",
+					"# if not schema_guid:\n",
+					"#     raise ValueError(\"No attached schema found.\")\n",
 					"\n",
-					"schema_entity = get_entity_with_refs(schema_guid)\n",
-					"columns = schema_entity.get(\"referredEntities\", {})\n",
+					"# schema_entity = get_entity_with_refs(schema_guid)\n",
+					"# columns = schema_entity.get(\"referredEntities\", {})\n",
 					"\n",
-					"classified_cols = []\n",
-					"for guid, col in columns.items():\n",
-					"    classifications = col.get(\"classifications\", [])\n",
-					"    if classifications:  # Filter only those with classification\n",
-					"        classified_cols.append({\n",
-					"            \"column_guid\": guid,\n",
-					"            \"column_name\": col[\"attributes\"].get(\"name\"),\n",
-					"            \"column_type\": col.get(\"typeName\"),\n",
-					"            \"classifications\": [c[\"typeName\"] for c in classifications],\n",
-					"        })\n",
+					"# classified_cols = []\n",
+					"# for guid, col in columns.items():\n",
+					"#     classifications = col.get(\"classifications\", [])\n",
+					"#     if classifications:  # Filter only those with classification\n",
+					"#         classified_cols.append({\n",
+					"#             \"column_guid\": guid,\n",
+					"#             \"column_name\": col[\"attributes\"].get(\"name\"),\n",
+					"#             \"column_type\": col.get(\"typeName\"),\n",
+					"#             \"classifications\": [c[\"typeName\"] for c in classifications],\n",
+					"#         })\n",
 					"\n",
-					"print(json.dumps(classified_cols, indent=2))"
+					"# print(json.dumps(classified_cols, indent=2))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def extract_cols(entity_with_refs: dict):\n",
+					"    rel_attrs = (entity_with_refs.get(\"entity\", {}) or {}).get(\"relationshipAttributes\", {}) or {}\n",
+					"    attached_schema = rel_attrs.get(\"attachedSchema\", []) or []\n",
+					"    schema_guid = attached_schema[0][\"guid\"] if attached_schema else None\n",
+					"    cols = entity_with_refs.get(\"referredEntities\", {}) or {}\n",
+					"    out = []\n",
+					"    for guid, col in cols.items():\n",
+					"        classes = col.get(\"classifications\", []) or []\n",
+					"        if classes:\n",
+					"            out.append({\n",
+					"                \"column_guid\": guid,\n",
+					"                \"column_name\": (col.get(\"attributes\", {}) or {}).get(\"name\"),\n",
+					"                \"column_type\": col.get(\"typeName\"),\n",
+					"                \"classifications\": [c.get(\"typeName\") for c in classes],\n",
+					"            })\n",
+					"    return out\n",
+					"\n",
+					"cols = extract_cols(ent)\n",
+					"print(\"classified columns:\", len(cols)); print(cols[:10])"
 				],
 				"execution_count": null
 			},
