@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "1a656073-1d71-42dd-9a68-c52abb8c0b3d"
+				"spark.autotune.trackingId": "50959ff9-0b81-4b1b-b9d6-377adad2051a"
 			}
 		},
 		"metadata": {
@@ -567,6 +567,94 @@
 					"else:\n",
 					"    print(\"Failed: test_sb_std_to_hrm_no_active_deleted_record\")\n",
 					"    exitCode += 1"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"db_name = \"odw_harmonised_db\"\n",
+					"table_name = \"appeal_has\"\n",
+					"target_table = f\"{db_name}.{table_name}\"\n",
+					"case_ref = \"TEST-HAS-001\"\n",
+					"\n",
+					"# Get schema of the target table\n",
+					"table_schema = spark.table(target_table).schema\n",
+					"\n",
+					"data = {field.name: None for field in table_schema.fields}\n",
+					"data.update({\n",
+					"    \"AppealsHasID\": 900001,\n",
+					"    \"caseReference\": case_ref,\n",
+					"    \"IsActive\": \"Y\"\n",
+					"})\n",
+					"\n",
+					"# Create DataFrame and insert\n",
+					"new_row = spark.createDataFrame([data], schema=table_schema)\n",
+					"new_row.write.mode(\"append\").insertInto(target_table)\n",
+					"\n",
+					"# Validate insert\n",
+					"has_df = spark.table(target_table).filter(F.col(\"caseReference\") == case_ref)\n",
+					"count = has_df.count()\n",
+					"assert count == 1, f\"Expected 1 record in appeal_has, found {count}\"\n",
+					"\n",
+					"is_active = has_df.first().IsActive\n",
+					"assert is_active == \"Y\", f\"Expected IsActive='Y', got '{is_active}'\"\n",
+					"\n",
+					"print(\"Test passed: Record successfully inserted into appeal_has with correct values.\")\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"#Verifies that updating an existing record in appeal_has correctly changes IsActive.\n",
+					"\n",
+					"db_name = \"odw_harmonised_db\"\n",
+					"table_name = \"appeal_has\"\n",
+					"target_table = f\"{db_name}.{table_name}\"\n",
+					"case_ref = \"TEST-HAS-002\"\n",
+					"\n",
+					"table_schema = spark.table(target_table).schema\n",
+					"data = {field.name: None for field in table_schema.fields}\n",
+					"data.update({\n",
+					"    \"AppealsHasID\": 900002,\n",
+					"    \"caseReference\": case_ref,\n",
+					"    \"IsActive\": \"Y\"\n",
+					"})\n",
+					"\n",
+					"# Insert record\n",
+					"new_row = spark.createDataFrame([data], schema=table_schema)\n",
+					"new_row.write.mode(\"append\").insertInto(target_table)\n",
+					"\n",
+					"# Update it to inactive\n",
+					"spark.sql(f\"\"\"\n",
+					"MERGE INTO {target_table} AS t\n",
+					"USING (SELECT '{case_ref}' AS caseReference, 'N' AS IsActive) AS s\n",
+					"ON TRIM(UPPER(t.caseReference)) = TRIM(UPPER(s.caseReference))\n",
+					"WHEN MATCHED THEN UPDATE SET t.IsActive = s.IsActive\n",
+					"\"\"\")\n",
+					"\n",
+					"# Validate update\n",
+					"updated_record = spark.table(target_table).filter(F.col(\"caseReference\") == case_ref).first()\n",
+					"assert updated_record.IsActive == \"N\", \"Expected IsActive='N' after update\"\n",
+					"\n",
+					"print(\"Test passed: appeal_has record updated correctly to inactive.\")\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def cleanup_test_data():\n",
+					"    spark.sql(\"\"\"\n",
+					"        DELETE FROM odw_harmonised_db.appeal_has\n",
+					"        WHERE TRIM(UPPER(caseReference)) LIKE 'TEST-HAS-%'\n",
+					"    \"\"\")\n",
+					"    print(\"Cleanup complete.\")\n",
+					"\n",
+					"cleanup_test_data()"
 				],
 				"execution_count": null
 			},

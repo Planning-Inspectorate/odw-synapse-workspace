@@ -66,7 +66,8 @@ class NotebookRunTestCase(SynapseTestCase):
         assert "result" in notebook_run_result, "Notebook run json does not have a 'result' property"
         assert "runStatus" in notebook_run_result["result"], "Notebook run json property 'result' does not have a 'runStatus' property"
         error_message = (
-            f"Expected the notebook's run status to be 'Succeeded', but was '{notebook_run_result['result']['runStatus']}'"
+            f"Expected the notebook's run status to be 'Succeeded', but was '{notebook_run_result['result']['runStatus']}'."
+            f" The notebook's response json is below {json.dumps(notebook_run_result, indent=4)}"
         )
         assert notebook_run_result["result"]["runStatus"] == "Succeeded", error_message
         return notebook_run_result
