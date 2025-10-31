@@ -98,6 +98,7 @@
 						"value": "@pipeline().parameters.sbEntities",
 						"type": "Expression"
 					},
+					"isSequential": false,
 					"batchCount": 4,
 					"activities": [
 						{
@@ -174,7 +175,10 @@
 										"userProperties": [],
 										"typeProperties": {
 											"variableName": "messagesCount",
-											"value": "@int(coalesce(activity('Src to Raw non service user').output.pipelineReturnValue.Messages,'0'))\n"
+											"value": {
+												"value": "@int(coalesce(activity('Src to Raw non service user').output.pipelineReturnValue.Messages,'0'))\n",
+												"type": "Expression"
+											}
 										}
 									}
 								],
@@ -250,7 +254,10 @@
 										"userProperties": [],
 										"typeProperties": {
 											"variableName": "messagesCount",
-											"value": "@add(\n    int(coalesce(activity('Src to Raw service user').output.pipelineReturnValue.Messages,'0')),\n    int(coalesce(activity('Src to Raw appeal service user').output.pipelineReturnValue.Messages,'0'))\n)\n"
+											"value": {
+												"value": "@add(\n    int(coalesce(activity('Src to Raw service user').output.pipelineReturnValue.Messages,'0')),\n    int(coalesce(activity('Src to Raw appeal service user').output.pipelineReturnValue.Messages,'0'))\n)\n",
+												"type": "Expression"
+											}
 										}
 									}
 								]
@@ -403,7 +410,7 @@
 										"type": "ExecutePipeline",
 										"dependsOn": [
 											{
-												"activity": "Write manifest and update watermarks",
+												"activity": "Set wmJson",
 												"dependencyConditions": [
 													"Succeeded"
 												]
@@ -463,7 +470,31 @@
 										"typeProperties": {
 											"variableName": "serviceBusStatus",
 											"value": {
-												"value": "@json(\n  concat(\n    '{',\n      '\"entity\":\"', string(item()), '\",',\n      '\"status\":\"Succeeded\",',\n      '\"recordsIngested\":', string(variables('messagesCount')), ',',\n      '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('loopStartTicks'))), 10000000)), ',',\n      '\"manifestPath\":\"', string(coalesce(activity('Write manifest and update watermarks').output.runOutput.manifestPath, '')) ,'\",',\n      '\"runId\":\"', pipeline().RunId, '\"',\n    '}'\n  )\n)\n",
+												"value": "@json(concat(\n  '{',\n    '\"entity\":\"', string(item()), '\",',\n    '\"status\":\"Succeeded\",',\n    '\"recordsIngested\":', string(variables('messagesCount')), ',',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('loopStartTicks'))), 10000000)), ',',\n    '\"manifestPath\":\"',\n      coalesce(\n        json(json(variables('wmJson')).status.Output.exitValue).manifestPath,\n        ''\n      ),\n    '\",',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n",
+												"type": "Expression"
+											}
+										}
+									},
+									{
+										"name": "Set wmJson",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "Write manifest and update watermarks",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "wmJson",
+											"value": {
+												"value": "@string(activity('Write manifest and update watermarks').output)\n",
 												"type": "Expression"
 											}
 										}
@@ -634,11 +665,26 @@
 								"waitOnCompletion": true,
 								"parameters": {
 									"Stage": "Start",
-									"PipelineName": "@pipeline().Pipeline",
-									"PipelineRunID": "@pipeline().RunId",
-									"StartTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
-									"EndTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
-									"StatusMessage": "@concat(item(), ' RAW ingest starting')",
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StartTime": {
+										"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
+									},
+									"EndTime": {
+										"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
+									},
+									"StatusMessage": {
+										"value": "@concat(item(), ' RAW ingest starting')",
+										"type": "Expression"
+									},
 									"AppInsIKey": {
 										"value": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n",
 										"type": "Expression"
@@ -664,7 +710,10 @@
 							"userProperties": [],
 							"typeProperties": {
 								"variableName": "loopStartTicks",
-								"value": "@string(ticks(utcNow()))\n"
+								"value": {
+									"value": "@string(ticks(utcNow()))\n",
+									"type": "Expression"
+								}
 							}
 						}
 					]
@@ -688,7 +737,10 @@
 				"userProperties": [],
 				"typeProperties": {
 					"variableName": "serviceBusStatusJson",
-					"value": "@string(variables('serviceBusStatus'))\n"
+					"value": {
+						"value": "@string(variables('serviceBusStatus'))\n",
+						"type": "Expression"
+					}
 				}
 			}
 		],
@@ -729,6 +781,9 @@
 			"loopStartTicks": {
 				"type": "String",
 				"defaultValue": "''"
+			},
+			"wmJson": {
+				"type": "String"
 			}
 		},
 		"folder": {
