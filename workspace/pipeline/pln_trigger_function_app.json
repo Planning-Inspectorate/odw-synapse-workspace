@@ -20,7 +20,7 @@
 				}
 			},
 			{
-				"name": "List secrets",
+				"name": "Get Function Secret",
 				"type": "WebActivity",
 				"dependsOn": [
 					{
@@ -41,7 +41,7 @@
 				"typeProperties": {
 					"method": "GET",
 					"url": {
-						"value": "@concat(pipeline().parameters.Key_Vault_Url, 'secrets?api-version=', pipeline().parameters.api_version)\n",
+						"value": "@concat(pipeline().parameters.Key_Vault_Url, 'secrets/', variables('secret_name'), '?api-version=', pipeline().parameters.api_version)\n",
 						"type": "Expression"
 					},
 					"connectVia": {
@@ -55,142 +55,104 @@
 				}
 			},
 			{
-				"name": "If secret exists",
-				"type": "IfCondition",
+				"name": "Trigger Function",
+				"type": "WebActivity",
 				"dependsOn": [
 					{
-						"activity": "List secrets",
+						"activity": "Get Function Secret",
 						"dependencyConditions": [
 							"Succeeded"
 						]
 					}
 				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 2,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": true
+				},
 				"userProperties": [],
 				"typeProperties": {
-					"expression": {
-						"value": "@contains(\n  string(activity('List secrets').output.value),\n  concat('/secrets/', variables('secret_name'))\n)\n",
+					"method": "GET",
+					"url": {
+						"value": "@activity('Get Function Secret').output.value",
 						"type": "Expression"
 					},
-					"ifFalseActivities": [
+					"connectVia": {
+						"referenceName": "PinsIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"authentication": {
+						"type": "MSI",
+						"resource": "https://vault.azure.net"
+					}
+				}
+			},
+			{
+				"name": "New Messages",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Trigger Function",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "pipelineReturnValue",
+					"value": [
 						{
-							"name": "No New Messages",
-							"type": "SetVariable",
-							"dependsOn": [],
-							"policy": {
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"variableName": "pipelineReturnValue",
-								"value": [
-									{
-										"key": "Messages",
-										"value": {
-											"type": "Int",
-											"content": 0
-										}
-									}
-								],
-								"setSystemVariable": true
+							"key": "Messages",
+							"value": {
+								"type": "Expression",
+								"content": "@activity('Trigger Function').output.count"
 							}
 						}
 					],
-					"ifTrueActivities": [
+					"setSystemVariable": true
+				}
+			},
+			{
+				"name": "No New Messages",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Get Function Secret",
+						"dependencyConditions": [
+							"Failed"
+						]
+					},
+					{
+						"activity": "Trigger Function",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "pipelineReturnValue",
+					"value": [
 						{
-							"name": "Get Function Secret",
-							"type": "WebActivity",
-							"dependsOn": [],
-							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 2,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": true,
-								"secureInput": true
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"method": "GET",
-								"url": {
-									"value": "@concat(pipeline().parameters.Key_Vault_Url, 'secrets/', variables('secret_name'), '?api-version=', pipeline().parameters.api_version)\n",
-									"type": "Expression"
-								},
-								"connectVia": {
-									"referenceName": "PinsIntegrationRuntime",
-									"type": "IntegrationRuntimeReference"
-								},
-								"authentication": {
-									"type": "MSI",
-									"resource": "https://vault.azure.net"
-								}
-							}
-						},
-						{
-							"name": "Trigger Function",
-							"type": "WebActivity",
-							"dependsOn": [
-								{
-									"activity": "Get Function Secret",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 2,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": true
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"method": "GET",
-								"url": {
-									"value": "@activity('Get Function Secret').output.value",
-									"type": "Expression"
-								},
-								"connectVia": {
-									"referenceName": "PinsIntegrationRuntime",
-									"type": "IntegrationRuntimeReference"
-								},
-								"authentication": {
-									"type": "MSI",
-									"resource": "https://vault.azure.net"
-								}
-							}
-						},
-						{
-							"name": "New Messages",
-							"type": "SetVariable",
-							"dependsOn": [
-								{
-									"activity": "Trigger Function",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"variableName": "pipelineReturnValue",
-								"value": [
-									{
-										"key": "Messages",
-										"value": {
-											"type": "Expression",
-											"content": "@activity('Trigger Function').output.count"
-										}
-									}
-								],
-								"setSystemVariable": true
+							"key": "Messages",
+							"value": {
+								"type": "Int",
+								"content": 0
 							}
 						}
-					]
+					],
+					"setSystemVariable": true
 				}
 			}
 		],
