@@ -12,109 +12,111 @@ logging.basicConfig(level=logging.INFO)
 
 class ArtifactArchiver():
     def __init__(self):
-        self.ROOT_ARTIFACTS = {
-            "pipeline/pln_master.json",
-            "pipeline/pln_saphr_master.json",
-            "pipeline/0_Timesheets_Data_Copy_RAW.json",  # Keep artifacts related to timesheets
-            "pipeline/0_Legacy_Timesheet_Data_Copy_RAW.json",
-            "notebook/timesheets_master.json",
-            "notebook/timesheets_minutes_dim.json",
-            "notebook/timesheets_record_fact.json",
-            "notebook/timesheets_segment_type_reference_dim.json",
-            "notebook/timesheets_work_segment_dim.json",
-            "notebook/timesheets_work_segment_lock_dim.json",
-            "trigger/tr_backup_daily.json",  # Keep relevant triggers
-            "trigger/tr_daily_7days_1800.json",
-            "trigger/tr_daily_7days_2100.json",
-            "trigger/tr_daily_weekdays_1500.json",
-            "trigger/tr_delta_backup_daily_0800.json",
-            "trigger/tr_delta_backup_daily_0900.json",
-            "trigger/tr_delta_backup_odw_config_0900.json",
-            "trigger/tr_delta_backup_odw_cur_0900.json",
-            "trigger/tr_delta_backup_odw_cur_migr_0900.json",
-            "trigger/tr_delta_backup_odw_hrm_0900.json",
-            "trigger/tr_delta_backup_odw_logging_0900.json",
-            "trigger/tr_delta_backup_odw_std_0900.json",
-            "trigger/tr_saphr_daily_800.json",
-            "trigger/tr_weekly.json",
-            "linkedService/ls_delta_backup.json",  # Keep artifacts related to DR (need to review these at a later date)
-            "notebook/new_rebuild_tables.json",
-            "notebook/py_utils_log_stage.json",
-            "notebook/py_unit_tests_appeal_document.json",  # Keep tests
-            "notebook/py_unit_tests_appeal_event_estimate.json",
-            "notebook/py_unit_tests_appeal_s78.json",
-            "notebook/py_unit_tests_appeals_events.json",
-            "notebook/py_unit_tests_appeals_representation.json",
-            "notebook/py_unit_tests_entraid.json",
-            "notebook/py_unit_tests_functions.json",
-            "notebook/py_unit_tests_has_appeals.json",
-            "notebook/py_unit_tests_listed_buildings.json",
-            "notebook/py_unit_tests_nsip_document.json",
-            "notebook/py_unit_tests_nsip_exam_timetable.json",
-            "notebook/py_unit_tests_nsip_project.json",
-            "notebook/py_unit_tests_nsip_s51_advice.json",
-            "notebook/py_unit_tests_nsip_subscription.json",
-            "notebook/py_unit_tests_pins_inspectors_curated.json",
-            "notebook/py_unit_tests_pins_lpa_curated.json",
-            "notebook/py_unit_tests_relevant_representation.json",
-            "notebook/py_unit_tests_s62a_view_cases.json",
-            "notebook/py_unit_tests_service_user.json",
-            "notebook/test_smoke_py_connectivity.json",
-            "notebook/test_py_delete_table.json",
-            "pipeline/rel_2_0_0.json",  # Keep release pipelines
-            "pipeline/rel_2_0_3.json",
-            "pipeline/rel_2_0_4.json",
-            "pipeline/rel_2_0_5.json",
-            "pipeline/rel_2_0_6.json",
-            "pipeline/rel_2_0_7.json",
-            "pipeline/rel_2_0_8.json",
-            "pipeline/rel_2_0_9.json",
-            "pipeline/rel_2_0_11_nsip_reps_migrated.json",
-            "pipeline/rel_3_0_0.json",
-            "pipeline/rel_3_0_3.json",
-            "pipeline/rel_3_0_4.json",
-            "pipeline/rel_4_0_0.json",
-            "pipeline/rel_4_0_1.json",
-            "pipeline/rel_6_0_1.json",
-            "pipeline/rel_6_0_2.json",
-            "pipeline/rel_6_0_3_s78.json",
-            "pipeline/rel_7_0_0.json",
-            "pipeline/rel_7_0_1.json",
-            "pipeline/Rel_7_0_2.json",
-            "pipeline/rel_7_0_3.json",
-            "pipeline/rel_8_0_1.json",
-            "pipeline/rel_8_0_2.json",
-            "pipeline/rel_8_0_3_hotfix.json",
-            "pipeline/rel_8_0_4_hotfix.json",
-            "pipeline/rel_8_0_5_pins_inspector.json",
-            "pipeline/rel_11_0_0_saphr_setup.json",
-            "pipeline/rel_12_0_0_appeal_event_estimate.json",
-            "pipeline/rel_13_0_0_saphr_setup.json",
-            "pipeline/rel_13_0_1_saphr_setup_v2.json",
-            "pipeline/rel_14_0_0_saphr_setup.json",
-            "pipeline/rel_15_0_0_saphr_setup.json",
-            "pipeline/rel_971_logging_monitoring.json",
-            "pipeline/rel_1047_migration_db.json",
-            "pipeline/rel_1151_appeals_events.json",
-            "pipeline/rel_1262_entra_id.json",
-            "pipeline/rel_1269_document metadata.json",  # The name of this one breaks the convention and should be investigated
-            "pipeline/rel_1272_nsip_data.json",
-            "pipeline/rel_1273_s51.json",
-            "pipeline/rel_1298_relevant_representation.json",
-            "pipeline/rel_1309_nsip_exam.json",
-            "pipeline/rel_1347_nsip_representation.json",
-            "pipeline/rel_1349_appeal_document.json",
-            "pipeline/rel_1374_aie.json",
-            "pipeline/rel_1381_appeal_has.json",
-            "pipeline/rel_1403_entraid.json",
-            "pipeline/rel_1416_master_fixes.json",
-            "pipeline/rel_has_156.json",
-            "pipeline/rel_THEODW-992-WelshFields.json",
-            "pipeline/rel_16_0_2_appeal_attribute_matrix_adhoc_ingestion.json",
-            "managedVirtualNetwork/default/managedPrivateEndpoint/synapse-ws-sql--pins-synw-odw-dev-uks.json", # Keep private endpoints
-            "managedVirtualNetwork/default/managedPrivateEndpoint/synapse-ws-sqlOnDemand--pins-synw-odw-dev-uks.json",
-            "notebook/py_sap_hr_protected_data.json"  # Keep specific SAPHR notebook
-        }
+        self.ROOT_ARTIFACTS = self._clean_root_artifacts(
+            {
+                "pipeline/pln_master.json",
+                "pipeline/pln_saphr_master.json",
+                "pipeline/0_Timesheets_Data_Copy_RAW.json",  # Keep artifacts related to timesheets
+                "pipeline/0_Legacy_Timesheet_Data_Copy_RAW.json",
+                "notebook/timesheets_master.json",
+                "notebook/timesheets_minutes_dim.json",
+                "notebook/timesheets_record_fact.json",
+                "notebook/timesheets_segment_type_reference_dim.json",
+                "notebook/timesheets_work_segment_dim.json",
+                "notebook/timesheets_work_segment_lock_dim.json",
+                "trigger/tr_backup_daily.json",  # Keep relevant triggers
+                "trigger/tr_daily_7days_1800.json",
+                "trigger/tr_daily_7days_2100.json",
+                "trigger/tr_daily_weekdays_1500.json",
+                "trigger/tr_delta_backup_daily_0800.json",
+                "trigger/tr_delta_backup_daily_0900.json",
+                "trigger/tr_delta_backup_odw_config_0900.json",
+                "trigger/tr_delta_backup_odw_cur_0900.json",
+                "trigger/tr_delta_backup_odw_cur_migr_0900.json",
+                "trigger/tr_delta_backup_odw_hrm_0900.json",
+                "trigger/tr_delta_backup_odw_logging_0900.json",
+                "trigger/tr_delta_backup_odw_std_0900.json",
+                "trigger/tr_saphr_daily_800.json",
+                "trigger/tr_weekly.json",
+                "linkedService/ls_delta_backup.json",  # Keep artifacts related to DR (need to review these at a later date)
+                "notebook/new_rebuild_tables.json",
+                "notebook/py_utils_log_stage.json",
+                "notebook/py_unit_tests_appeal_document.json",  # Keep tests
+                "notebook/py_unit_tests_appeal_event_estimate.json",
+                "notebook/py_unit_tests_appeal_s78.json",
+                "notebook/py_unit_tests_appeals_events.json",
+                "notebook/py_unit_tests_appeals_representation.json",
+                "notebook/py_unit_tests_entraid.json",
+                "notebook/py_unit_tests_functions.json",
+                "notebook/py_unit_tests_has_appeals.json",
+                "notebook/py_unit_tests_listed_buildings.json",
+                "notebook/py_unit_tests_nsip_document.json",
+                "notebook/py_unit_tests_nsip_exam_timetable.json",
+                "notebook/py_unit_tests_nsip_project.json",
+                "notebook/py_unit_tests_nsip_s51_advice.json",
+                "notebook/py_unit_tests_nsip_subscription.json",
+                "notebook/py_unit_tests_pins_inspectors_curated.json",
+                "notebook/py_unit_tests_pins_lpa_curated.json",
+                "notebook/py_unit_tests_relevant_representation.json",
+                "notebook/py_unit_tests_s62a_view_cases.json",
+                "notebook/py_unit_tests_service_user.json",
+                "notebook/test_smoke_py_connectivity.json",
+                "notebook/test_py_delete_table.json",
+                "pipeline/rel_2_0_0.json",  # Keep release pipelines
+                "pipeline/rel_2_0_3.json",
+                "pipeline/rel_2_0_4.json",
+                "pipeline/rel_2_0_5.json",
+                "pipeline/rel_2_0_6.json",
+                "pipeline/rel_2_0_7.json",
+                "pipeline/rel_2_0_8.json",
+                "pipeline/rel_2_0_9.json",
+                "pipeline/rel_2_0_11_nsip_reps_migrated.json",
+                "pipeline/rel_3_0_0.json",
+                "pipeline/rel_3_0_3.json",
+                "pipeline/rel_3_0_4.json",
+                "pipeline/rel_4_0_0.json",
+                "pipeline/rel_4_0_1.json",
+                "pipeline/rel_6_0_1.json",
+                "pipeline/rel_6_0_2.json",
+                "pipeline/rel_6_0_3_s78.json",
+                "pipeline/rel_7_0_0.json",
+                "pipeline/rel_7_0_1.json",
+                "pipeline/Rel_7_0_2.json",
+                "pipeline/rel_7_0_3.json",
+                "pipeline/rel_8_0_1.json",
+                "pipeline/rel_8_0_2.json",
+                "pipeline/rel_8_0_3_hotfix.json",
+                "pipeline/rel_8_0_4_hotfix.json",
+                "pipeline/rel_8_0_5_pins_inspector.json",
+                "pipeline/rel_11_0_0_saphr_setup.json",
+                "pipeline/rel_12_0_0_appeal_event_estimate.json",
+                "pipeline/rel_13_0_0_saphr_setup.json",
+                "pipeline/rel_13_0_1_saphr_setup_v2.json",
+                "pipeline/rel_14_0_0_saphr_setup.json",
+                "pipeline/rel_15_0_0_saphr_setup.json",
+                "pipeline/rel_971_logging_monitoring.json",
+                "pipeline/rel_1047_migration_db.json",
+                "pipeline/rel_1151_appeals_events.json",
+                "pipeline/rel_1262_entra_id.json",
+                "pipeline/rel_1269_document metadata.json",  # The name of this one breaks the convention and should be investigated
+                "pipeline/rel_1272_nsip_data.json",
+                "pipeline/rel_1273_s51.json",
+                "pipeline/rel_1298_relevant_representation.json",
+                "pipeline/rel_1309_nsip_exam.json",
+                "pipeline/rel_1347_nsip_representation.json",
+                "pipeline/rel_1349_appeal_document.json",
+                "pipeline/rel_1374_aie.json",
+                "pipeline/rel_1381_appeal_has.json",
+                "pipeline/rel_1403_entraid.json",
+                "pipeline/rel_1416_master_fixes.json",
+                "pipeline/rel_has_156.json",
+                "pipeline/rel_THEODW-992-WelshFields.json",
+                "pipeline/rel_16_0_2_appeal_attribute_matrix_adhoc_ingestion.json",
+                "managedVirtualNetwork/default/managedPrivateEndpoint/synapse-ws-sql--pins-synw-odw-dev-uks.json", # Keep private endpoints
+                "managedVirtualNetwork/default/managedPrivateEndpoint/synapse-ws-sqlOnDemand--pins-synw-odw-dev-uks.json",
+                "notebook/py_sap_hr_protected_data.json"  # Keep specific SAPHR notebook
+            }
+        )
         """Artifacts to use as the base of the dependency analysis"""
 
         self.ARTIFACTS_TO_IGNORE = {
@@ -162,6 +164,24 @@ class ArtifactArchiver():
             if SynapseArtifactUtil.is_archived(self.ALL_ARTIFACTS.get(artifact_path))
         }
         """Artifacts that have already been marked as archived"""
+
+    def _clean_root_artifacts(self, root_artifacts: Set[str]) -> Set[str]:
+        """
+            Return the artifacts that exist under the "workspace" directory
+        """
+        artifacts_that_exist = {
+            x
+            for x in root_artifacts
+            if os.path.exists(f"workspace/{x}")
+        }
+        missing_artifacts = root_artifacts.difference(artifacts_that_exist)
+        if missing_artifacts:
+            logging.info(
+                "The following artifacts were specified as being a 'root level' artifact (i.e. MUST be kept), but were missing\n"
+                f"{json.dumps(list(missing_artifacts), indent=4)}\n"
+                "These artifacts have been ignored by the archival process"
+            )
+        return artifacts_that_exist
 
     def _get_artifact_json(self, artifact_path: str) -> Dict[str, Any]:
         return json.load(open(artifact_path, "r"))
