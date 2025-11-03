@@ -410,7 +410,7 @@
 										"type": "ExecutePipeline",
 										"dependsOn": [
 											{
-												"activity": "Set wmJson",
+												"activity": "Write manifest and update watermarks",
 												"dependencyConditions": [
 													"Succeeded"
 												]
@@ -470,31 +470,7 @@
 										"typeProperties": {
 											"variableName": "serviceBusStatus",
 											"value": {
-												"value": "@json(concat(\n  '{',\n    '\"entity\":\"', string(item()), '\",',\n    '\"status\":\"Succeeded\",',\n    '\"recordsIngested\":', string(variables('messagesCount')), ',',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('loopStartTicks'))), 10000000)), ',',\n    '\"manifestPath\":\"',\n      coalesce(\n        json(json(variables('wmJson')).status.Output.exitValue).manifestPath,\n        ''\n      ),\n    '\",',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n",
-												"type": "Expression"
-											}
-										}
-									},
-									{
-										"name": "Set wmJson",
-										"type": "SetVariable",
-										"dependsOn": [
-											{
-												"activity": "Write manifest and update watermarks",
-												"dependencyConditions": [
-													"Succeeded"
-												]
-											}
-										],
-										"policy": {
-											"secureOutput": false,
-											"secureInput": false
-										},
-										"userProperties": [],
-										"typeProperties": {
-											"variableName": "wmJson",
-											"value": {
-												"value": "@string(activity('Write manifest and update watermarks').output)\n",
+												"value": "@json(concat(\n  '{',\n    '\"entity\":\"', string(item()), '\",',\n    '\"status\":\"Succeeded\",',\n    '\"recordsIngested\":', string(variables('messagesCount')), ',',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('loopStartTicks'))), 10000000)), ',',\n    '\"manifestPath\":\"',\n      if(\n        equals(activity('Write manifest and update watermarks').status,'Succeeded'),\n        string( json(activity('Write manifest and update watermarks').output.status.Output.result.exitValue).manifestPath ),\n        ''\n      ),\n    '\",',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n",
 												"type": "Expression"
 											}
 										}
@@ -781,9 +757,6 @@
 			"loopStartTicks": {
 				"type": "String",
 				"defaultValue": "''"
-			},
-			"wmJson": {
-				"type": "String"
 			}
 		},
 		"folder": {
