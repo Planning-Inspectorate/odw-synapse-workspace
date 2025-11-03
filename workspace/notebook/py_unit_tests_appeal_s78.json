@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "545c4954-7b1d-427d-afe2-260fb66f76d4"
+				"spark.autotune.trackingId": "aa95fd1a-3957-4385-829a-d86aec22e42e"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -529,8 +529,93 @@
 					"                      .select(\"caseReference\").dropna().dropDuplicates())\n",
 					"\n",
 					"    missing_cnt = std_keys.join(stg_keys, on=\"caseReference\", how=\"left_anti\").limit(1).count()\n",
-					"    return missing_cnt == 0\n",
+					"    return missing_cnt == 0"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"outputs_hidden": false
+					}
+				},
+				"source": [
+					"#Inserts a test record into the GroupResolver table and verifies it was written correctly.\n",
+					"db_name = \"odw_harmonised_db\"\n",
+					"table_name = \"GroupResolver\"\n",
+					"\n",
+					"spark.sql(f\"\"\"\n",
+					"INSERT INTO {db_name}.{table_name} (caseReference, currentGroup, asOfTimestamp)\n",
+					"VALUES ('TEST-CASE-001', 'A', current_timestamp())\n",
+					"\"\"\")\n",
+					"\n",
+					"resolver_df = spark.table(f\"{db_name}.{table_name}\") \\\n",
+					"    .filter(F.col(\"caseReference\") == \"TEST-CASE-001\")\n",
+					"\n",
+					"count = resolver_df.count()\n",
+					"assert count == 1, f\"Expected 1 record in GroupResolver, found {count}\"\n",
+					"\n",
+					"current_group = resolver_df.first().currentGroup\n",
+					"assert current_group == \"A\", f\"Expected currentGroup='A', got '{current_group}'\"\n",
+					"\n",
+					"print(\"Test passed: Record successfully inserted into GroupResolver with correct values.\")\n",
 					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"#Verifies that updating an existing record in the GroupResolver table changes its currentGroup and refreshes the asOfTimestamp.\n",
+					"\n",
+					"db_name = \"odw_harmonised_db\"\n",
+					"table_name = \"GroupResolver\"\n",
+					"case_ref = \"TEST-CASE-002\"\n",
+					"\n",
+					"# Insert an initial record (Group A)\n",
+					"spark.sql(f\"\"\"\n",
+					"INSERT INTO {db_name}.{table_name} (caseReference, currentGroup, asOfTimestamp)\n",
+					"VALUES ('{case_ref}', 'A', current_timestamp())\n",
+					"\"\"\")\n",
+					"\n",
+					"# Capture the original timestamp\n",
+					"initial_timestamp = spark.table(f\"{db_name}.{table_name}\") \\\n",
+					"    .filter(F.col(\"caseReference\") == case_ref) \\\n",
+					"    .select(\"asOfTimestamp\").first().asOfTimestamp\n",
+					"\n",
+					"# Update the same case to Group B\n",
+					"spark.sql(f\"\"\"\n",
+					"MERGE INTO {db_name}.{table_name} AS t\n",
+					"USING (SELECT '{case_ref}' AS caseReference, 'B' AS currentGroup, current_timestamp() AS asOfTimestamp) AS s\n",
+					"ON TRIM(UPPER(t.caseReference)) = TRIM(UPPER(s.caseReference))\n",
+					"WHEN MATCHED THEN UPDATE SET\n",
+					"  t.currentGroup = s.currentGroup,\n",
+					"  t.asOfTimestamp = s.asOfTimestamp\n",
+					"\"\"\")\n",
+					"\n",
+					"# Verify the update\n",
+					"updated_record = spark.table(f\"{db_name}.{table_name}\") \\\n",
+					"    .filter(F.col(\"caseReference\") == case_ref).first()\n",
+					"\n",
+					"assert updated_record.currentGroup == \"B\", \"Expected currentGroup='B' after update\"\n",
+					"assert updated_record.asOfTimestamp > initial_timestamp, \"Expected asOfTimestamp to be updated\"\n",
+					"\n",
+					"print(\"Test passed: GroupResolver record updated correctly with new group and timestamp.\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def cleanup_test_data():\n",
+					"    spark.sql(\"\"\"\n",
+					"        DELETE FROM odw_harmonised_db.GroupResolver\n",
+					"        WHERE TRIM(UPPER(caseReference)) LIKE 'TEST-%'\n",
+					"    \"\"\")\n",
+					"    print(\"Cleanup complete.\")\n",
+					"\n",
+					"cleanup_test_data()"
 				],
 				"execution_count": null
 			},
