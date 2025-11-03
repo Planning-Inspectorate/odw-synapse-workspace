@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "545d8906-14a9-475d-9e7f-e9c560768f1b"
+				"spark.autotune.trackingId": "bcab7736-df7b-4d52-b9e6-ff301ff16d1e"
 			}
 		},
 		"metadata": {
@@ -58,20 +58,18 @@
 					"from pyspark.sql.types import DateType, TimestampType, StringType, IntegerType, FloatType, DoubleType, BooleanType, StructType, StructField, ArrayType, MapType\n",
 					"from pyspark.sql.window import Window\n",
 					"from pyspark.sql.functions import row_number, rank, dense_rank, lag, lead, ntile\n",
-					"\n",
-					"\n",
 					"from datetime import datetime, timedelta\n",
 					"import pandas as pd\n",
 					"import numpy as np"
 				],
-				"execution_count": 1
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run /utils/py_logging_decorator"
 				],
-				"execution_count": 2
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
@@ -92,12 +90,12 @@
 					"    logInfo(\"Legacy time parser policy set successfully\")\n",
 					"    \n",
 					"    # Delete existing data\n",
-					"    logInfo(\"Starting deletion of all rows from odw_harmonised_db.casework_specialist\")\n",
+					"    logInfo(\"Starting deletion of all rows from odw_harmonised_db.load_casework_specialist\")\n",
 					"    spark.sql(\"DELETE FROM odw_harmonised_db.load_casework_specialist\")\n",
 					"    logInfo(\"Successfully deleted all rows from odw_harmonised_db.load_casework_specialist\")\n",
 					"    \n",
 					"    # Insert data from source table\n",
-					"    logInfo(\"Starting data insertion into odw_harmonised_db.casework_specialist from standardised.casework_specialist\")\n",
+					"    logInfo(\"Starting data insertion into odw_harmonised_db.casework_specialist from standardised.load_casework_specialist\")\n",
 					"    spark.sql(\"\"\"\n",
 					"    INSERT INTO odw_harmonised_db.load_casework_specialist (\n",
 					"        casework_specialist_id,\n",
@@ -147,7 +145,7 @@
 					"        IsActive\n",
 					"    )\n",
 					"    SELECT\n",
-					"        casework_specialist_id,\n",
+					"        ROW_NUMBER() OVER (ORDER BY greenCaseId, receiptDate) AS casework_specialist_id,\n",
 					"        greenCaseType,\n",
 					"        greenCaseId,\n",
 					"        caseReference,\n",
@@ -250,7 +248,7 @@
 					"    # Output the result as JSON for ADF to capture\n",
 					"    mssparkutils.notebook.exit(json.dumps(result))"
 				],
-				"execution_count": 3
+				"execution_count": 6
 			}
 		]
 	}
