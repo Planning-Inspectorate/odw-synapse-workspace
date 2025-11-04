@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "4dcc1324-552b-4f72-8d9c-bc571b42b712"
+				"spark.autotune.trackingId": "be59956e-20fc-46a2-8c7d-ed1a9caf6d30"
 			}
 		},
 		"metadata": {
@@ -78,14 +78,14 @@
 					"import pandas as pd\n",
 					"import numpy as np"
 				],
-				"execution_count": null
+				"execution_count": 9
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": null
+				"execution_count": 10
 			},
 			{
 				"cell_type": "code",
@@ -100,7 +100,7 @@
 					"}\n",
 					"\n",
 					"try:\n",
-					"    logInfo(\"Starting Casework Specialist curated table setup\")  \n",
+					"    logInfo(\"Starting Casework Specialist curated table setup\")\n",
 					"    \n",
 					"    # Get storage account \n",
 					"    storage_account = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
@@ -124,7 +124,7 @@
 					"        caseOfficerName,\n",
 					"        caseOfficerEmail,\n",
 					"        appealType,\n",
-					"        `procedure`,   \n",
+					"        `procedure`,\n",
 					"        processingState,\n",
 					"        pinsLpaCode,\n",
 					"        pinsLpaName,\n",
@@ -152,15 +152,15 @@
 					"        withdrawnOrTurnedAway,\n",
 					"        withdrawnOrTurnedAwayDate,\n",
 					"        comments,\n",
-					"        ODTSourceSystem AS sourceSystem,  \n",
+					"        ODTSourceSystem AS sourceSystem,\n",
 					"        SourceSystemID AS sourceSuid\n",
-					"    FROM odw_harmonised_db.load_casework_specialist   \n",
+					"    FROM odw_harmonised_db.load_casework_specialist\n",
 					"    \"\"\")\n",
-					"    logInfo(\"Successfully created view odw_curated_db.vw_casework_specialist\")   \n",
+					"    logInfo(\"Successfully created view odw_curated_db.vw_casework_specialist\")\n",
 					"    \n",
 					"    # Count records in view\n",
-					"    casework_count = spark.sql(\"SELECT COUNT(*) as count FROM odw_curated_db.vw_casework_specialist\").collect()[0]['count']   \n",
-					"    logInfo(f\"View contains {casework_count} casework specialist records\")   \n",
+					"    casework_count = spark.sql(\"SELECT COUNT(*) as count FROM odw_curated_db.vw_casework_specialist\").collect()[0]['count']\n",
+					"    logInfo(f\"View contains {casework_count} casework specialist records\")\n",
 					"    \n",
 					"    # Drop the table if it exists\n",
 					"    logInfo(\"Dropping table odw_curated_db.pbi_casework_specialist if it exists\")\n",
@@ -169,10 +169,18 @@
 					"    \"\"\")\n",
 					"    logInfo(\"Table dropped or did not exist\")\n",
 					"    \n",
+					"    # Delete the storage location to ensure clean state\n",
+					"    logInfo(f\"Cleaning up storage location: {delta_table_path}\")\n",
+					"    try:\n",
+					"        mssparkutils.fs.rm(delta_table_path, recurse=True)\n",
+					"        logInfo(\"Storage location cleaned successfully\")\n",
+					"    except Exception as cleanup_error:\n",
+					"        logInfo(f\"Storage location cleanup: {str(cleanup_error)} (location may not exist, proceeding)\")\n",
+					"    \n",
 					"    # Create table from view with specified location\n",
 					"    logInfo(\"Creating table odw_curated_db.pbi_casework_specialist from view with specified location\")\n",
 					"    spark.sql(f\"\"\"\n",
-					"    CREATE TABLE odw_curated_db.pbi_casework_specialist  \n",
+					"    CREATE TABLE odw_curated_db.pbi_casework_specialist\n",
 					"    USING delta\n",
 					"    LOCATION '{delta_table_path}'\n",
 					"    AS SELECT * FROM odw_curated_db.vw_casework_specialist\n",
@@ -183,18 +191,18 @@
 					"    result[\"record_count\"] = table_count\n",
 					"    logInfo(f\"Created table with {table_count} records at location: {delta_table_path}\")\n",
 					"    \n",
-					"    logInfo(\"Casework Specialist curated table setup completed successfully\")   \n",
+					"    logInfo(\"Casework Specialist curated table setup completed successfully\")\n",
 					"\n",
 					"except Exception as e:\n",
 					"    # Capture error information\n",
-					"    error_msg = f\"Error in Casework Specialist curated table setup: {str(e)}\"   \n",
+					"    error_msg = f\"Error in Casework Specialist curated table setup: {str(e)}\"\n",
 					"    logError(error_msg)\n",
 					"    logException(e)\n",
 					"    \n",
 					"    # Try to get current record count even in case of error\n",
 					"    try:\n",
 					"        # Try view first as table might not exist yet\n",
-					"        error_count = spark.sql(\"SELECT COUNT(*) as count FROM odw_curated_db.vw_casework_specialist\").collect()[0]['count']  \n",
+					"        error_count = spark.sql(\"SELECT COUNT(*) as count FROM odw_curated_db.vw_casework_specialist\").collect()[0]['count']\n",
 					"        result[\"record_count\"] = error_count\n",
 					"    except:\n",
 					"        result[\"record_count\"] = 0\n",
@@ -213,6 +221,13 @@
 					"    \n",
 					"    # Output the result as JSON for ADF to capture\n",
 					"    mssparkutils.notebook.exit(json.dumps(result))"
+				],
+				"execution_count": 11
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					""
 				],
 				"execution_count": null
 			}
