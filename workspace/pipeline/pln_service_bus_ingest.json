@@ -180,6 +180,23 @@
 												"type": "Expression"
 											}
 										}
+									},
+									{
+										"name": "Set variable1",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "Src to Raw non service user",
+												"dependencyConditions": [
+													"Failed"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": []
 									}
 								],
 								"ifTrueActivities": [
@@ -579,7 +596,7 @@
 							"typeProperties": {
 								"variableName": "serviceBusStatus",
 								"value": {
-									"value": "@json(\n  concat(\n    '{',\n      '\"entity\":\"', string(item()), '\",',\n      '\"status\":\"Failed\",',\n      '\"recordsIngested\":', string(variables('messagesCount')), ',',\n      '\"durationSeconds\":0,',\n      '\"manifestPath\":\"\",',\n      '\"error\":\"', replace(variables('lastErrorMessage'),'\"',''''), '\",',\n      '\"runId\":\"', pipeline().RunId, '\"',\n    '}'\n  )\n)\n",
+									"value": "@json(\n  concat(\n    '{',\n      '\"entity\":\"', string(item()), '\",',\n      '\"status\":\"Failed\",',\n      '\"recordsIngested\":0,',\n      '\"durationSeconds\":0,',\n      '\"manifestPath\":\"\",',\n      '\"error\":\"', replace(variables('lastErrorMessage'),'\"',''''), '\",',\n      '\"runId\":\"', pipeline().RunId, '\"',\n    '}'\n  )\n)\n",
 									"type": "Expression"
 								}
 							}
@@ -691,6 +708,29 @@
 									"type": "Expression"
 								}
 							}
+						},
+						{
+							"name": "Mark Iteration Complete",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "If failOnFirstError",
+									"dependencyConditions": [
+										"Succeeded",
+										"Skipped",
+										"Failed"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "iterationStatus",
+								"value": "Done"
+							}
 						}
 					]
 				}
@@ -702,7 +742,7 @@
 					{
 						"activity": "ForEach Service Bus entities",
 						"dependencyConditions": [
-							"Succeeded"
+							"Completed"
 						]
 					}
 				],
@@ -755,6 +795,10 @@
 				"defaultValue": "''"
 			},
 			"loopStartTicks": {
+				"type": "String",
+				"defaultValue": "''"
+			},
+			"iterationStatus": {
 				"type": "String",
 				"defaultValue": "''"
 			}
