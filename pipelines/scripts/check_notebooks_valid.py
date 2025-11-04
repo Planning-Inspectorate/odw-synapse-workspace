@@ -1,4 +1,4 @@
-from pipelines.scripts.util.util import Util
+from odw_common.util.util import Util
 import json
 from typing import Dict, Any
 import logging
