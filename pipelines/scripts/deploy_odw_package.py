@@ -1,5 +1,5 @@
-from pipelines.scripts.util.synapse_workspace_manager import SynapseWorkspaceManager
-from pipelines.scripts.util.exceptions import ConcurrentWheelUploadException
+from odw_common.util.synapse_workspace_manager import SynapseWorkspaceManager
+from odw_common.util.exceptions import ConcurrentWheelUploadException
 from concurrent.futures import ThreadPoolExecutor
 from pipelines.scripts.config import CONFIG
 import argparse
