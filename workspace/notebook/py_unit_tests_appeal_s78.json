@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "4edfaff4-65e5-4a66-b306-acd5c2aba095"
+				"spark.autotune.trackingId": "aa95fd1a-3957-4385-829a-d86aec22e42e"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -61,7 +61,17 @@
 					}
 				},
 				"source": [
-					"##### This unit test notebook needs more modification once we ingest all horizon tables as well as we  need tests on `odw_harmonised_db.appeal_s78` to trace both service bus and horizon records. There are not tests for this table `odw_harmonised_db.appeal_s78` yet as of today (6/03/2025)"
+					"##### Unit-test notebook status\n",
+					"This notebook currently validates end-to-end integrity across all layers now that both **Service Bus (ODT)** and **Horizon** data are merged into the harmonised model.\n",
+					"\n",
+					"It validates:\n",
+					"- STD SB schema, HRM FINAL schema, and Curated schema.\n",
+					"- STD SB → HRM STAGE row alignment and key preservation.\n",
+					"- HRM STAGE → HRM FINAL no-dropping by `caseReference`.\n",
+					"- HRM FINAL (IsActive='Y') row count equals Curated, and HRM FINAL → Curated no-dropping by `caseReference`.\n",
+					"- Presence of both ODT and HORIZON records in HRM FINAL, ensuring both sources are represented after the merge.\n",
+					"\n",
+					"**Note:** The Horizon ingestion is now complete, and this notebook includes validation for Horizon tables and their relationships as well."
 				]
 			},
 			{
@@ -104,7 +114,7 @@
 					"folder_name: str = 'appeal-s78'\n",
 					"std_db_name: str = 'odw_standardised_db'\n",
 					"hrm_db_name: str = 'odw_harmonised_db'\n",
-					"curated_db_name: str = 'odw_curated_db'"
+					"cur_db_name: str = 'odw_curated_db'"
 				],
 				"execution_count": null
 			},
@@ -122,32 +132,16 @@
 					}
 				},
 				"source": [
-					"std_table_name: str = 'sb_appeal_s78'\n",
-					"std_table_name_final : str = 'horizon_appeal_s78_final'\n",
-					"hrm_table_name: str = 'sb_appeal_s78'\n",
-					"curated_table_name: str = 'appeal_s78'"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
+					"# STD\n",
+					"std_sb_table: str   = \"sb_appeal_s78\"              # service bus standardised\n",
+					"std_hzn_table: str  = \"horizon_appeal_s78\"         # horizon standardised\n",
 					"\n",
-					"sb_std_df = spark.table(f\"{std_db_name}.{std_table_name}\")\n",
-					"sb_hrm_df = spark.table(f\"{hrm_db_name}.{hrm_table_name}\")\n",
-					"curated_df = spark.table(f\"{hrm_db_name}.{hrm_table_name}\")\n",
-					""
+					"# HRM\n",
+					"hrm_stage_table: str = \"appeal_s78_stg\"            # union ODT + Horizon, SB schema\n",
+					"hrm_final_table: str = \"appeal_s78\"                # SCD2 final\n",
+					"\n",
+					"# CURATED\n",
+					"cur_table: str       = \"appeal_s78\"                # HRM final"
 				],
 				"execution_count": null
 			},
@@ -165,9 +159,35 @@
 					}
 				},
 				"source": [
-					"sb_std_careference = sb_std_df.select(\"caseReference\")\n",
-					"sb_hrm_careference = sb_hrm_df.select(\"caseReference\")\n",
-					"curated_careference = curated_df.select(\"caseReference\")"
+					"sb_std_df   = spark.table(f\"{std_db_name}.{std_sb_table}\")\n",
+					"hzn_std_df  = spark.table(f\"{std_db_name}.{std_hzn_table}\")\n",
+					"\n",
+					"hrm_stg_df  = spark.table(f\"{hrm_db_name}.{hrm_stage_table}\")\n",
+					"hrm_fin_df  = spark.table(f\"{hrm_db_name}.{hrm_final_table}\")\n",
+					"\n",
+					"curated_df  = spark.table(f\"{cur_db_name}.{cur_table}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"sb_std_keys  = sb_std_df.select(\"caseReference\")\n",
+					"hzn_std_keys = hzn_std_df.select(\"caseReference\")\n",
+					"hrm_stg_keys = hrm_stg_df.select(\"caseReference\")\n",
+					"hrm_fin_keys = hrm_fin_df.select(\"caseReference\")\n",
+					"cur_keys     = curated_df.select(\"caseReference\")"
 				],
 				"execution_count": null
 			},
@@ -222,12 +242,15 @@
 					}
 				},
 				"source": [
-					"sb_std_schema = create_spark_schema(std_db_name, entity_name)\n",
-					"sb_std_table_schema = spark.table(f\"{std_db_name}.{std_table_name}\").schema\n",
-					"sb_hrm_schema = create_spark_schema(hrm_db_name, entity_name)\n",
-					"sb_hrm_table_schema = spark.table(f\"{hrm_db_name}.{hrm_table_name}\").schema\n",
-					"curated_schema = create_spark_schema(curated_db_name, entity_name)\n",
-					"curated_table_schema = spark.table(f\"{curated_db_name}.{curated_table_name}\").schema"
+					"# Data model schemas\n",
+					"sb_std_schema     = create_spark_schema(std_db_name, entity_name)        # SB schema\n",
+					"hrm_final_schema  = create_spark_schema(hrm_db_name, entity_name)        # HRM final should mirror SB schema\n",
+					"cur_schema_model  = create_spark_schema(cur_db_name, entity_name)        # curated\n",
+					"\n",
+					"# Table schemas\n",
+					"sb_std_table_schema    = spark.table(f\"{std_db_name}.{std_sb_table}\").schema\n",
+					"hrm_final_table_schema = spark.table(f\"{hrm_db_name}.{hrm_final_table}\").schema\n",
+					"cur_table_schema       = spark.table(f\"{cur_db_name}.{cur_table}\").schema"
 				],
 				"execution_count": null
 			},
@@ -245,7 +268,7 @@
 					}
 				},
 				"source": [
-					"data_model_columns = [field.name for field in curated_table_schema.fields]"
+					"data_model_columns = [f.name for f in cur_table_schema.fields]"
 				],
 				"execution_count": null
 			},
@@ -277,15 +300,17 @@
 					"collapsed": false
 				},
 				"source": [
-					"std_schema_correct: bool = test_compare_schemas(sb_std_schema, sb_std_table_schema)\n",
-					"exitCode += int(not std_schema_correct)\n",
-					"print(f\"Service bus standardised schema correct: {std_schema_correct}\\nTable: {std_db_name}.{std_table_name}\\nDifferences shown above (if any)\")\n",
-					"hrm_schema_correct: bool = test_compare_schemas(sb_hrm_schema, sb_hrm_table_schema)\n",
-					"print(f\"Service bus harmonised schema correct: {hrm_schema_correct}\\nTable: {hrm_db_name}.{hrm_table_name}\\nDifferences shown above (if any)\")\n",
-					"exitCode += int(not hrm_schema_correct)\n",
-					"cur_schema_correct: bool = test_compare_schemas(curated_schema, curated_table_schema)\n",
-					"print(f\"Curated schema correct: {cur_schema_correct}\\nTable: {curated_db_name}.{curated_table_name}\\nDifferences shown above (if any)\")\n",
-					"exitCode += int(not cur_schema_correct)"
+					"sb_schema_ok  = test_compare_schemas(sb_std_schema, sb_std_table_schema)\n",
+					"print(f\"STD SB schema correct: {sb_schema_ok}\\nTable: {std_db_name}.{std_sb_table}\")\n",
+					"exitCode += int(not sb_schema_ok)\n",
+					"\n",
+					"hrm_schema_ok = test_compare_schemas(hrm_final_schema, hrm_final_table_schema)\n",
+					"print(f\"HRM FINAL schema correct: {hrm_schema_ok}\\nTable: {hrm_db_name}.{hrm_final_table}\")\n",
+					"exitCode += int(not hrm_schema_ok)\n",
+					"\n",
+					"cur_schema_ok = test_compare_schemas(cur_schema_model, cur_table_schema)\n",
+					"print(f\"Curated schema correct: {cur_schema_ok}\\nTable: {cur_db_name}.{cur_table}\")\n",
+					"exitCode += int(not cur_schema_ok)"
 				],
 				"execution_count": null
 			},
@@ -299,8 +324,10 @@
 					}
 				},
 				"source": [
-					"##### Compare service bus standardised with harmonised\n",
-					"As of now ( 4/3/2025) we havent horizon and service bus merged yet."
+					"##### Compare Service Bus standardised with harmonised\n",
+					"This section compares the **Service Bus (ODT)** portion of the standardised layer with its harmonised equivalent.\n",
+					"Now that HRM STAGE includes both ODT and Horizon records, this validation ensures that the ODT slice of HRM remains consistent\n",
+					"with the original Service Bus source (while allowing for NULL-key drops)."
 				]
 			},
 			{
@@ -318,13 +345,15 @@
 					"collapsed": false
 				},
 				"source": [
-					"standardised_count, harmonised_count, counts_match = test_std_same_rows_hrm(std_table_name, hrm_table_name)\n",
-					"print(f\"Standardised Count: {standardised_count: ,}\\nHarmonised Count: {harmonised_count: ,}\\nCounts match: {counts_match}\")\n",
+					"# Compare SB STD vs HRM STAGE for ODT rows (should match, aside from NULL keys dropped in HRM stage)\n",
+					"std_cnt = sb_std_df.count()\n",
+					"hrm_stg_odt_cnt = hrm_stg_df.filter(F.col(\"ODTSourceSystem\")==\"ODT\").count()\n",
 					"\n",
-					"if standardised_count > harmonised_count:\n",
-					"    exitCode += 1\n",
-					"    print(f\"{standardised_count - harmonised_count} rows from Standardised are missing in Harmonised.\" )\n",
-					"    differentiate_std_and_hrm(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\", data_model_columns)"
+					"print(f\"STD SB rows (all): {std_cnt:,}\")\n",
+					"print(f\"HRM STAGE rows where ODTSourceSystem='ODT': {hrm_stg_odt_cnt:,}\")\n",
+					"\n",
+					"if std_cnt != hrm_stg_odt_cnt:\n",
+					"    print(\"WARNING: SB standardised row count != HRM stage ODT row count (some NULL keys are expected to be dropped)\")"
 				],
 				"execution_count": null
 			},
@@ -338,21 +367,14 @@
 					}
 				},
 				"source": [
-					"##### Compare final harmonised table (if combined with Horizon) with curated table\n",
-					"Comparing where IsActive = Y in harmonised = curated row count"
-				]
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					" ###### As of now (4/3/2025) this harmonised and curated table has only service bus data"
+					"##### Compare HRM FINAL with Curated\n",
+					"We assert:\n",
+					"- HRM STAGE → HRM FINAL: no dropping by `caseReference`.\n",
+					"- HRM FINAL active (`IsActive='Y'`) count equals Curated count.\n",
+					"- HRM FINAL → Curated: no dropping by `caseReference`.\n",
+					"\n",
+					"This section confirms that the Curated layer remains fully aligned with the merged HRM FINAL table,\n",
+					"which now includes both Service Bus (ODT) and Horizon data."
 				]
 			},
 			{
@@ -369,24 +391,12 @@
 					}
 				},
 				"source": [
-					"harmonised_final_count, curated_count, counts_match = test_curated_row_count(hrm_table_name, curated_table_name, data_model_columns)\n",
-					"print(f\"Harmonised Final Count: {harmonised_final_count: ,}\\nCurated Count: {curated_count: ,}\\nCounts match: {counts_match}\")\n",
-					"exitCode += int(not counts_match)"
+					"# should compare stage vs final by caseReference presence / row counts\n",
+					"ok = test_sb_hrm_to_hrm_final_no_dropping_records(hrm_stage_table, hrm_final_table, \"caseReference\")\n",
+					"print(f\"HRM Stage / Final no dropping by key: {ok}\")\n",
+					"exitCode += int(not ok)"
 				],
 				"execution_count": null
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"##### This needs to be changed once we have horizon and service bus together in harmonised."
-				]
 			},
 			{
 				"cell_type": "code",
@@ -402,22 +412,24 @@
 					}
 				},
 				"source": [
-					"# Check if there is data coming from ODT (back-office-appeals) and Horizon\n",
-					"# automated version of previous visual check which is now moved to bottom of notebook\n",
+					"# Always refresh before reading tables that were just (over)written in another job\n",
+					"spark.sql(\"REFRESH TABLE odw_harmonised_db.appeal_s78\")\n",
+					"spark.sql(\"REFRESH TABLE odw_curated_db.appeal_s78\")\n",
+					"spark.catalog.clearCache()\n",
 					"\n",
-					"check_ODT_and_horizon_data_query = \"\"\"\n",
-					"(SELECT DISTINCT\n",
-					"*\n",
-					"FROM odw_harmonised_db.appeal_s78\n",
-					"WHERE  ODTsourcesystem = 'ODT'\n",
-					"ORDER BY ingestiondate DESC)\n",
-					"\"\"\"\n",
+					"#Recreate clean DFs AFTER the refresh\n",
+					"hrm_fin_df  = spark.table(\"odw_harmonised_db.appeal_s78\")\n",
+					"curated_df  = spark.table(\"odw_curated_db.appeal_s78\")\n",
 					"\n",
-					"ODT_and_horizon_dataframe = get_dataframe(check_ODT_and_horizon_data_query)\n",
+					"harmonised_final_active = hrm_fin_df.filter(F.col(\"IsActive\") == \"Y\").count()\n",
+					"curated_cnt             = curated_df.count()\n",
 					"\n",
-					"if ODT_and_horizon_dataframe.isEmpty():\n",
-					"    print(\"Failed: data coming from ODT (back-office-appeals) and Horizon\")\n",
-					"    exitCode += 1"
+					"print(f\"Harmonised FINAL IsActive='Y' count: {harmonised_final_active:,}\")\n",
+					"print(f\"Curated count: {curated_cnt:,}\")\n",
+					"match_active = (harmonised_final_active == curated_cnt)\n",
+					"print(f\"Counts match (HRM active == Curated): {match_active}\")\n",
+					"exitCode += int(not match_active)\n",
+					""
 				],
 				"execution_count": null
 			},
@@ -435,11 +447,10 @@
 					}
 				},
 				"source": [
-					"if test_sb_std_to_sb_hrm_no_dropping_records(std_table_name, hrm_table_name, 'caseReference'):\n",
-					"    pass  \n",
-					"else:\n",
-					"    print(\"Failed: test_sb_std_to_sb_hrm_no_dropping_records\")\n",
-					"    exitCode += 1"
+					"curated_db_name = cur_db_name\n",
+					"ok = test_hrm_to_curated_no_dropping_records(hrm_final_table, cur_table, \"caseReference\")\n",
+					"print(f\"HRM FINAL to Curated no dropping by key: {ok}\")\n",
+					"exitCode += int(not ok)"
 				],
 				"execution_count": null
 			},
@@ -457,12 +468,154 @@
 					}
 				},
 				"source": [
-					"# To be changed once we have a hrm_table_final\n",
-					"if test_sb_hrm_to_hrm_final_no_dropping_records(hrm_table_name, hrm_table_name, 'caseReference'):\n",
-					"    pass\n",
-					"else:\n",
-					"    print(\"Failed: test_sb_hrm_to_hrm_final_no_dropping_records\")\n",
+					"has_odt     = hrm_fin_df.filter(F.col(\"ODTSourceSystem\")==\"ODT\").limit(1).count() > 0\n",
+					"has_horizon = hrm_fin_df.filter(F.col(\"ODTSourceSystem\")==\"HORIZON\").limit(1).count() > 0\n",
+					"\n",
+					"print(f\"ODT present in HRM FINAL: {has_odt}\")\n",
+					"print(f\"HORIZON present in HRM FINAL: {has_horizon}\")\n",
+					"\n",
+					"if not (has_odt and has_horizon):\n",
+					"    print(\"Failed: both ODT and HORIZON rows should be present in HRM final\")\n",
 					"    exitCode += 1"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"def test_sb_std_to_hrm_no_message_id_dropped(std_table: str, hrm_table: str) -> bool:\n",
+					"    std = (spark.table(std_table)\n",
+					"              .select(\"caseReference\")\n",
+					"              .dropna()\n",
+					"              .dropDuplicates())\n",
+					"\n",
+					"    stg = (spark.table(hrm_table)\n",
+					"              .filter(F.col(\"ODTSourceSystem\") == \"ODT\")\n",
+					"              .select(\"caseReference\")\n",
+					"              .dropna()\n",
+					"              .dropDuplicates())\n",
+					"\n",
+					"    missing_cnt = std.join(stg, on=\"caseReference\", how=\"left_anti\").limit(1).count()\n",
+					"    return missing_cnt == 0\n",
+					"\n",
+					"\n",
+					"def test_sb_std_to_hrm_no_active_deleted_record(std_table: str, hrm_table: str) -> bool:\n",
+					"    std_df = spark.table(std_table)\n",
+					"    stg_df = spark.table(hrm_table)\n",
+					"\n",
+					"    has_std_active = \"IsActive\" in std_df.columns\n",
+					"    has_stg_active = \"IsActive\" in stg_df.columns\n",
+					"\n",
+					"    if has_std_active and has_stg_active:\n",
+					"        std_active = (std_df\n",
+					"                        .filter(F.col(\"IsActive\") == \"Y\")\n",
+					"                        .select(\"caseReference\")\n",
+					"                        .dropna()\n",
+					"                        .dropDuplicates())\n",
+					"\n",
+					"        stg_active = (stg_df\n",
+					"                        .filter((F.col(\"ODTSourceSystem\") == \"ODT\") & (F.col(\"IsActive\") == \"Y\"))\n",
+					"                        .select(\"caseReference\")\n",
+					"                        .dropna()\n",
+					"                        .dropDuplicates())\n",
+					"\n",
+					"        missing_cnt = std_active.join(stg_active, on=\"caseReference\", how=\"left_anti\").limit(1).count()\n",
+					"        return missing_cnt == 0\n",
+					"\n",
+					"    std_keys = (std_df.select(\"caseReference\").dropna().dropDuplicates())\n",
+					"    stg_keys = (stg_df.filter(F.col(\"ODTSourceSystem\") == \"ODT\")\n",
+					"                      .select(\"caseReference\").dropna().dropDuplicates())\n",
+					"\n",
+					"    missing_cnt = std_keys.join(stg_keys, on=\"caseReference\", how=\"left_anti\").limit(1).count()\n",
+					"    return missing_cnt == 0"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"outputs_hidden": false
+					}
+				},
+				"source": [
+					"#Inserts a test record into the GroupResolver table and verifies it was written correctly.\n",
+					"db_name = \"odw_harmonised_db\"\n",
+					"table_name = \"GroupResolver\"\n",
+					"\n",
+					"spark.sql(f\"\"\"\n",
+					"INSERT INTO {db_name}.{table_name} (caseReference, currentGroup, asOfTimestamp)\n",
+					"VALUES ('TEST-CASE-001', 'A', current_timestamp())\n",
+					"\"\"\")\n",
+					"\n",
+					"resolver_df = spark.table(f\"{db_name}.{table_name}\") \\\n",
+					"    .filter(F.col(\"caseReference\") == \"TEST-CASE-001\")\n",
+					"\n",
+					"count = resolver_df.count()\n",
+					"assert count == 1, f\"Expected 1 record in GroupResolver, found {count}\"\n",
+					"\n",
+					"current_group = resolver_df.first().currentGroup\n",
+					"assert current_group == \"A\", f\"Expected currentGroup='A', got '{current_group}'\"\n",
+					"\n",
+					"print(\"Test passed: Record successfully inserted into GroupResolver with correct values.\")\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"#Verifies that updating an existing record in the GroupResolver table changes its currentGroup and refreshes the asOfTimestamp.\n",
+					"\n",
+					"db_name = \"odw_harmonised_db\"\n",
+					"table_name = \"GroupResolver\"\n",
+					"case_ref = \"TEST-CASE-002\"\n",
+					"\n",
+					"# Insert an initial record (Group A)\n",
+					"spark.sql(f\"\"\"\n",
+					"INSERT INTO {db_name}.{table_name} (caseReference, currentGroup, asOfTimestamp)\n",
+					"VALUES ('{case_ref}', 'A', current_timestamp())\n",
+					"\"\"\")\n",
+					"\n",
+					"# Capture the original timestamp\n",
+					"initial_timestamp = spark.table(f\"{db_name}.{table_name}\") \\\n",
+					"    .filter(F.col(\"caseReference\") == case_ref) \\\n",
+					"    .select(\"asOfTimestamp\").first().asOfTimestamp\n",
+					"\n",
+					"# Update the same case to Group B\n",
+					"spark.sql(f\"\"\"\n",
+					"MERGE INTO {db_name}.{table_name} AS t\n",
+					"USING (SELECT '{case_ref}' AS caseReference, 'B' AS currentGroup, current_timestamp() AS asOfTimestamp) AS s\n",
+					"ON TRIM(UPPER(t.caseReference)) = TRIM(UPPER(s.caseReference))\n",
+					"WHEN MATCHED THEN UPDATE SET\n",
+					"  t.currentGroup = s.currentGroup,\n",
+					"  t.asOfTimestamp = s.asOfTimestamp\n",
+					"\"\"\")\n",
+					"\n",
+					"# Verify the update\n",
+					"updated_record = spark.table(f\"{db_name}.{table_name}\") \\\n",
+					"    .filter(F.col(\"caseReference\") == case_ref).first()\n",
+					"\n",
+					"assert updated_record.currentGroup == \"B\", \"Expected currentGroup='B' after update\"\n",
+					"assert updated_record.asOfTimestamp > initial_timestamp, \"Expected asOfTimestamp to be updated\"\n",
+					"\n",
+					"print(\"Test passed: GroupResolver record updated correctly with new group and timestamp.\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def cleanup_test_data():\n",
+					"    spark.sql(\"\"\"\n",
+					"        DELETE FROM odw_harmonised_db.GroupResolver\n",
+					"        WHERE TRIM(UPPER(caseReference)) LIKE 'TEST-%'\n",
+					"    \"\"\")\n",
+					"    print(\"Cleanup complete.\")\n",
+					"\n",
+					"cleanup_test_data()"
 				],
 				"execution_count": null
 			},
@@ -480,52 +633,17 @@
 					}
 				},
 				"source": [
-					"# To be changed once we have a hrm_table_final\n",
-					"if test_hrm_to_curated_no_dropping_records(hrm_table_name, curated_table_name, 'caseReference'):\n",
-					"    pass\n",
-					"else:\n",
-					"    print(\"Failed: test_hrm_to_curated_no_dropping_records\")\n",
-					"    exitCode += 1"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"if test_sb_std_to_hrm_no_message_id_dropped(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\"):\n",
+					"# SB STD to HRM STAGE : no message id dropped\n",
+					"if test_sb_std_to_hrm_no_message_id_dropped(f\"{std_db_name}.{std_sb_table}\",\n",
+					"                                             f\"{hrm_db_name}.{hrm_stage_table}\"):\n",
 					"    pass\n",
 					"else:\n",
 					"    print(\"Failed: test_sb_std_to_hrm_no_message_id_dropped\")\n",
-					"    exitCode += 1"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"if test_sb_std_to_hrm_no_active_deleted_record(f\"{std_db_name}.{std_table_name}\", f\"{hrm_db_name}.{hrm_table_name}\"):\n",
+					"    exitCode += 1\n",
+					"\n",
+					"# SB STD to HRM STAGE : no active deleted record\n",
+					"if test_sb_std_to_hrm_no_active_deleted_record(f\"{std_db_name}.{std_sb_table}\",\n",
+					"                                               f\"{hrm_db_name}.{hrm_stage_table}\"):\n",
 					"    pass\n",
 					"else:\n",
 					"    print(\"Failed: test_sb_std_to_hrm_no_active_deleted_record\")\n",
@@ -561,39 +679,42 @@
 					}
 				},
 				"source": [
-					"# Visual checks moved to below notebook exit\n",
-					"This is so they won't run when notebook is called during automation run"
-				]
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"#### Below you will find a bit of EDA on horizon data as of now ( 4/3/2025)"
+					"## Visual checks\n",
+					"The following exploratory validations focus on the **Horizon** portion of the data, confirming coverage, parent-child relationships,\n",
+					"and reference-table uniqueness.  \n",
+					"\n",
+					"These checks are intentionally placed after `mssparkutils.notebook.exit(exitCode)` so they **don’t affect pipeline automation runs**."
 				]
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"def check_count_match(hzn_table: str, hzn_table_2: str, primary_k_1:str, primary_k_2:str) -> tuple: \n",
-					"    df_hzn_1: Dataframe = spark.sql(f\"\"\"\n",
-					"                                SELECT DISTINCT {primary_k_1}\n",
-					"                                FROM odw_standardised_db.{hzn_table}\n",
-					"                            \"\"\")\n",
+					"def std_fk_coverage(parent_tbl: str, child_tbl: str, parent_key: str, child_key: str) -> dict:\n",
+					"    p = spark.table(f\"odw_standardised_db.{parent_tbl}\") \\\n",
+					"             .select(F.col(parent_key).alias(\"k\")).dropna().dropDuplicates()\n",
+					"    c = spark.table(f\"odw_standardised_db.{child_tbl}\") \\\n",
+					"             .select(F.col(child_key).alias(\"k\")).dropna().dropDuplicates()\n",
 					"\n",
-					"    df_hzn_2: Dataframe = spark.sql(f\"\"\"\n",
-					"                                SELECT DISTINCT {primary_k_2}\n",
-					"                                FROM odw_standardised_db.{hzn_table_2}\n",
-					"                                \n",
-					"                            \"\"\")\n",
+					"    parent_without_child = p.join(c, \"k\", \"left_anti\").limit(1).count() == 0\n",
+					"    child_without_parent = c.join(p, \"k\", \"left_anti\").limit(1).count() == 0\n",
 					"\n",
-					"    return df_hzn_1.count(), df_hzn_2.count(), df_hzn_1.count() == df_hzn_2.count()\n",
+					"    return {\n",
+					"        \"all_parents_have_at_least_one_child\": parent_without_child,\n",
+					"        \"no_orphan_child_keys\": child_without_parent\n",
+					"    }\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def std_latest_snapshot_dupes(tbl: str, key: str) -> bool:\n",
+					"    df = spark.table(f\"odw_standardised_db.{tbl}\")\n",
+					"    time_col = \"expected_from\" if \"expected_from\" in df.columns else \"ingested_datetime\"\n",
+					"    latest = df.filter(F.col(time_col) == df.agg(F.max(time_col)).first()[0])\n",
+					"    has_dupes = latest.groupBy(key).count().filter(\"count > 1\").limit(1).count() > 0\n",
+					"    return not has_dupes\n",
 					""
 				],
 				"execution_count": null
@@ -608,513 +729,55 @@
 					}
 				},
 				"source": [
-					"##### All tables are expected to not have the same amount of records from the master table `horizon_Cases_s78` eg. for every caseunique id in case specialism there could be from 0-3 records.\n",
-					"##### All tables that have primary key = casenodeid they have same amount records and are expected to have duplicates as they are pivot tables confirmed with Gareth. (10/02/2025)\n",
-					"##### Also will not check if the count macth for typeofprocedure and horizon_typeofreasonforcase as they are reference tables and also they are not directly connected with horizon cases_s78."
-				]
-			},
-			{
-				"cell_type": "code",
-				"source": [
+					"##### Horizon Standardised Coverage Validation\n",
+					"These checks validate that **Horizon-derived tables** are properly related to each other\n",
+					"and that all child tables correctly reference existing parent cases.\n",
 					"\n",
-					"count_hzn_1, count_hzn_2, count_records = check_count_match('horizoncases_s78','cases_specialisms','casereference','caseReference')\n",
-					"print(f\"Count of horizon_cases_s78: {count_hzn_1}, Count of cases_specialisms: {count_hzn_2}, Does the count match?: {count_records}\")\n",
+					"**Note:** Some “No” results are **expected** because not every Horizon case has associated records\n",
+					"in all sub-tables:\n",
+					"- Some cases may not have `casespecialisms`\n",
+					"- Some may not have `casesitestrings`\n",
+					"- Others may lack `casedocumentdatesdates` or `vw_case_dates` entries\n",
 					"\n",
-					"count_hzn_1, count_hzn_2, count_records = check_count_match('horizoncases_s78','casesitestrings','caseuniqueid','casenodeid')\n",
-					"print(f\"Count of horizon_cases_s78: {count_hzn_1}, Count of casesitestrings: {count_hzn_2}, Does the count match?: {count_records}\")\n",
+					"The **Horizon and Service Bus (ODT)** data have already been **merged** in the harmonised layer\n",
+					"(`odw_harmonised_db.appeal_s78`), so these checks are focused solely on validating Horizon ingestion quality\n",
+					"and internal table relationships, not cross-source merging.\n",
 					"\n",
-					"count_hzn_1, count_hzn_2, count_records = check_count_match('horizoncases_s78','casedocumentdatesdates','caseuniqueid','casenodeid')\n",
-					"print(f\"Count of horizon_cases_s78: {count_hzn_1}, Count of casedocumentdatesdates: {count_hzn_2}, Does the count match?: {count_records}\")\n",
-					"\n",
-					"count_hzn_1, count_hzn_2, count_records = check_count_match('horizoncases_s78','vw_case_dates','caseuniqueid','casenodeid')\n",
-					"print(f\"Count of horizon_cases_s78: {count_hzn_1}, Count of vw_case_dates: {count_hzn_2}, Does the count match?: {count_records}\")\n",
-					"\n",
-					"\n",
-					"count_hzn_1, count_hzn_2, count_records = check_count_match('horizoncases_s78','vw_addadditionaldata','caseuniqueid','AppealRefNumber')\n",
-					"print(f\"Count of horizon_cases_s78: {count_hzn_1}, Count of vw_addadditionaldata: {count_hzn_2}, Does the count match?: {count_records}\")\n",
-					"\n",
-					"\n",
-					"count_hzn_1, count_hzn_2, count_records = check_count_match('horizoncases_s78','vw_additionalfields','caseuniqueid','AppealRefNumber')\n",
-					"print(f\"Count of horizon_cases_s78: {count_hzn_1}, Count of vw_additionalfields: {count_hzn_2}, Does the count match?: {count_records}\")\n",
-					"\n",
-					""
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"def check_dupl_records(hzn_table:str, primary_k:str)->True:\n",
-					"        df: Dataframe = spark.sql(f\"\"\"\n",
-					"                                SELECT distinct 1\n",
-					"                                FROM odw_standardised_db.{hzn_table} hzn_tbl\n",
-					"                                where hzn_tbl.ingested_datetime = (SELECT MAX(hzn_tbl.ingested_datetime) from odw_standardised_db.{hzn_table} hzn_tbl)\n",
-					"                                GROUP BY {primary_k}\n",
-					"                                HAVING COUNT(*) > 1 \n",
-					"                                Limit 1\n",
-					"                            \"\"\")\n",
-					"        # If df is empty, no duplicates; otherwise, duplicates exist\n",
-					"        return  df.count() != 0"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"##### Expected to have duplicate records in cases_specialism"
-				]
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"print('Does cases_specialism have duplicates?:', check_dupl_records('cases_specialisms','caseReference'))\n",
-					"print('Does horizoncases_s78 have duplicates?:',check_dupl_records('horizoncases_s78','casereference'))\n",
-					"print('Does casesitestrings have duplicates?:', check_dupl_records('casesitestrings','casenodeid'))\n",
-					"print('Does casedocumentdatesdates have duplicates?:',check_dupl_records('casedocumentdatesdates','casenodeid'))\n",
-					"print('Does vw_case_dates have duplicates?:', check_dupl_records('vw_case_dates','casenodeid'))\n",
-					"print('Does vw_addadditionaldata have duplicates?:',check_dupl_records('vw_addadditionaldata','AppealRefNumber'))\n",
-					"print('Does vw_additionalfields have duplicates?:',check_dupl_records('vw_additionalfields','AppealRefNumber'))\n",
-					"print('Does typeofprocedure have duplicates?:',check_dupl_records('typeofprocedure','Name'))\n",
-					"print('Does horizon_typeofreasonforcase have duplicates?:',check_dupl_records('horizon_typeofreasonforcase','Id'))"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"#### Trace some records to see if they exists in all horizon tables in phase 1. Below you will see SQL queries.\n",
-					"###### We are going to take `casereference = 'APP/B3030/W/17/3184391'` or  `'APP/L2630/W/16/3155500'` from horizon_cases_s78 and check if records exists in the following tables. Each table I am checking I am using their primary key to check accordingly."
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
-				},
-				"source": [
-					"%%sql\n",
-					"SELECT *\n",
-					"FROM odw_standardised_db.horizoncases_s78\n",
-					"-- where casereference = 'APP/B3030/W/17/3184391'\n",
-					"where casereference = 'APP/L2630/W/16/3155500'\n",
-					"and ingested_datetime = (select max(ingested_datetime) from odw_standardised_db.horizoncases_s78)\n",
-					"\n",
-					"\n",
-					"\n",
-					""
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
-				},
-				"source": [
-					"\n",
-					"%%sql\n",
-					"-- expected to see multiple rows for each casereference.\n",
-					"SELECT DISTINCT *\n",
-					"FROM odw_standardised_db.cases_specialisms\n",
-					"WHERE CASEREFERENCE = '3155500' and ingested_datetime = (select max(ingested_datetime) from odw_standardised_db.cases_specialisms)\n",
-					"\n",
-					"    -- where casereference = '3184391'"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
-				},
-				"source": [
-					"%%sql\n",
-					"SELECT *\n",
-					"FROM odw_standardised_db.casesitestrings\n",
-					"--where casenodeid = '23849934'\n",
-					"where casenodeid = '17248610'\n",
-					"and ingested_datetime = (select max(ingested_datetime) from odw_standardised_db.casesitestrings)\n",
-					"    "
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
-				},
-				"source": [
-					"%%sql\n",
-					"SELECT *\n",
-					"FROM odw_standardised_db.casedocumentdatesdates\n",
-					"--where casenodeid = '23849934'\n",
-					"where casenodeid = '17248610'\n",
-					"and ingested_datetime = (select max(ingested_datetime) from odw_standardised_db.casedocumentdatesdates)\n",
-					""
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
-				},
-				"source": [
-					"%%sql\n",
-					"SELECT *\n",
-					"FROM odw_standardised_db.vw_case_dates\n",
-					"-- where casenodeid = '23849934'\n",
-					"where casenodeid = '17248610'\n",
-					"and ingested_datetime = (select max(ingested_datetime) from odw_standardised_db.vw_case_dates)\n",
-					""
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
-				},
-				"source": [
-					"%%sql\n",
-					"SELECT *\n",
-					"FROM odw_standardised_db.vw_addadditionaldata\n",
-					"-- where appealrefnumber = '3184391'\n",
-					"where appealrefnumber = '3155500'\n",
-					"and ingested_datetime = (select max(ingested_datetime) from odw_standardised_db.vw_addadditionaldata)\n",
-					""
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
-				},
-				"source": [
-					"%%sql\n",
-					"SELECT *\n",
-					"FROM odw_standardised_db.vw_additionalfields\n",
-					"-- where appealrefnumber = '3184391'\n",
-					" where appealrefnumber = '3155500'\n",
-					"and ingested_datetime = (select max(ingested_datetime) from odw_standardised_db.vw_additionalfields)\n",
-					""
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"##### This table `horizon_appeal_s78_final` is the merged table that includes all horizon data tables. For this `casereference = 'APP/L2630/W/16/3155500'` we are expected to see 2 records per casereference as in `casespecialism` table there are 2 different info for casespecialism ( 1 to many relationship)"
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
-				},
-				"source": [
-					"%%sql\n",
-					"SELECT *\n",
-					"FROM odw_standardised_db.horizon_appeal_s78_final\n",
-					"-- where casereference = 'APP/B3030/W/17/3184391'\n",
-					"where casereference = 'APP/L2630/W/16/3155500'"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"#### The below two tables are reference tables and thats why we dont have that many records. There will be joining in the next phase with other tables. After that we can do some record tracing.\n",
+					"This section also verifies that reference tables such as `typeofprocedure`\n",
+					"and `horizon_typeofreasonforcase` remain **unique per key** in the latest snapshot.\n",
 					""
 				]
 			},
 			{
 				"cell_type": "code",
-				"metadata": {
-					"microsoft": {
-						"language": "sparksql"
-					}
-				},
 				"source": [
-					"%%sql\n",
-					"SELECT *\n",
-					"FROM odw_standardised_db.typeofprocedure\n",
+					"pairs = [\n",
+					"    (\"horizoncases_s78\", \"cases_specialisms\",      \"caseuniqueid\", \"casereference\"),\n",
+					"    (\"horizoncases_s78\", \"casesitestrings\",        \"caseuniqueid\", \"casenodeid\"),\n",
+					"    (\"horizoncases_s78\", \"casedocumentdatesdates\", \"caseuniqueid\", \"casenodeid\"),\n",
+					"    (\"horizoncases_s78\", \"vw_case_dates\",          \"caseuniqueid\", \"casenodeid\"),\n",
+					"    (\"horizoncases_s78\", \"vw_addadditionaldata\",   \"caseuniqueid\", \"AppealRefNumber\"),\n",
+					"    (\"horizoncases_s78\", \"vw_additionalfields\",    \"caseuniqueid\", \"AppealRefNumber\"),\n",
+					"]\n",
+					"\n",
+					"for parent_tbl, child_tbl, pkey, ckey in pairs:\n",
+					"    res = std_fk_coverage(parent_tbl, child_tbl, pkey, ckey)\n",
+					"    parent_has_child = \"Yes\" if res[\"all_parents_have_at_least_one_child\"] else \"No some parent cases have no matching records\"\n",
+					"    child_has_parent = \"Yes\" if res[\"no_orphan_child_keys\"] else \"No some child records dont have a matching parent\"\n",
+					"    \n",
+					"    print(f\"\\nParent table: {parent_tbl}\")\n",
+					"    print(f\"Child table:  {child_tbl}\")\n",
+					"    print(f\"Link:         {pkey} TO {ckey}\")\n",
+					"    print(f\"Do all parent cases have at least one related record? {parent_has_child}\")\n",
+					"    print(f\"Do all child records have a valid parent?              {child_has_parent}\")\n",
+					"\n",
+					"print(\"\\nReference Table Uniqueness Validation\")\n",
+					"ref_ok_1 = std_latest_snapshot_dupes(\"typeofprocedure\", \"Name\")\n",
+					"ref_ok_2 = std_latest_snapshot_dupes(\"horizon_typeofreasonforcase\", \"Id\")\n",
+					"\n",
+					"print(f\"typeofprocedure is unique by Name: { 'Yes' if ref_ok_1 else 'No (duplicates found)' }\")\n",
+					"print(f\"horizon_typeofreasonforcase is unique by Id: { 'Yes' if ref_ok_2 else 'No (duplicates found)' }\")\n",
 					""
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"microsoft": {
-						"language": "sparksql"
-					}
-				},
-				"source": [
-					"%%sql\n",
-					"SELECT *\n",
-					"FROM odw_standardised_db.horizon_typeofreasonforcase"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"Trace service bus data from standardised to harmonised\n",
-					"\n",
-					"We need to make sure the data has loaded through correctly. To do this efficiently, we will select a sample record and check that the data is maintained as it moves through the medallian architecture"
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
-				},
-				"source": [
-					"%%sql\n",
-					"SELECT * FROM  odw_standardised_db.sb_appeal_s78\n",
-					"where casereference in(select distinct casereference from FROM odw_standardised_db.horizon_appeal_s78_final)"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
-				},
-				"source": [
-					"%%sql\n",
-					"SELECT * FROM  odw_harmonised_db.sb_appeal_s78\n",
-					"where caseReference = ''\n",
-					"order by IngestionDate"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"Check if there is data coming from ODT (back-office-appeals) and Horizon"
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
-				},
-				"source": [
-					"%%sql\n",
-					"SELECT DISTINCT\n",
-					"*\n",
-					"FROM odw_harmonised_db.sb_appeal_s78\n",
-					"\n",
-					"-- where  horizonfolderid  is null and \n",
-					"where ODTsourcesystem = 'ODT'\n",
-					"order BY\n",
-					"    ingestiondate DESC"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"This is for later on once we have merged horizon and service bus :\n",
-					"\n",
-					"Horizon and Service Bus data successfully combined and flags set appropriately"
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"df_sb_hrm = spark.sql(\"select * from odw_harmonised_db.sb_appeal_s78 where caseReference = '' order by IngestionDate\")\n",
-					"\n",
-					"df_cur = spark.sql(\"select * from odw_curated_db.sb_appeal_s78 where caseReference = ''\")\n",
-					"\n",
-					"\n",
-					"\n",
-					"display(df_sb_hrm)\n",
-					"\n",
-					"display(df_cur)"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"Data updated in curated correctly"
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
-				},
-				"source": [
-					"%%sql\n",
-					"SELECT\n",
-					"    *\n",
-					"FROM\n",
-					"    odw_curated_db.sb_appeal_s78\n",
-					"WHERE\n",
-					"     caseReference = ''"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"data: DataFrame = spark.sql(\"SELECT * FROM odw_curated_db.sb_appeal_s78\")\n",
-					"data.printSchema()"
 				],
 				"execution_count": null
 			}

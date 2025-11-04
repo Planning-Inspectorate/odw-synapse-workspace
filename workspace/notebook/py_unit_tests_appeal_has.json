@@ -1,0 +1,793 @@
+{
+	"name": "py_unit_tests_appeal_has",
+	"properties": {
+		"folder": {
+			"name": "utils/unit-tests"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "50959ff9-0b81-4b1b-b9d6-377adad2051a"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": true,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Unit-test notebook status\n",
+					"This notebook currently validates end-to-end integrity across all layers now that both **Service Bus (ODT)** and **Horizon** data are merged into the harmonised model.\n",
+					"\n",
+					"It validates:\n",
+					"- STD SB schema, HRM FINAL schema, and Curated schema.\n",
+					"- STD SB → HRM STAGE row alignment and key preservation.\n",
+					"- HRM STAGE → HRM FINAL no-dropping by `caseReference`.\n",
+					"- HRM FINAL (IsActive='Y') row count equals Curated, and HRM FINAL → Curated no-dropping by `caseReference`.\n",
+					"- Presence of both ODT and HORIZON records in HRM FINAL, ensuring both sources are represented after the merge.\n",
+					"\n",
+					"**Note:** The Horizon ingestion is now complete, and this notebook includes validation for Horizon tables and their relationships as well."
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"import json\n",
+					"from pyspark.sql.types import *\n",
+					"from pyspark.sql import DataFrame\n",
+					"from pyspark.sql import functions as F\n",
+					"import pprint"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"entity_name: str = 'appeal-has'\n",
+					"folder_name: str = 'appeal-has'\n",
+					"std_db_name: str = 'odw_standardised_db'\n",
+					"hrm_db_name: str = 'odw_harmonised_db'\n",
+					"cur_db_name: str = 'odw_curated_db'"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# STD\n",
+					"std_sb_table: str   = \"sb_appeal_has\"              # service bus standardised\n",
+					"std_hzn_table: str  = \"horizon_appeal_has\"         # horizon standardised\n",
+					"\n",
+					"# HRM\n",
+					"hrm_stage_table: str = \"appeal_has_stg\"            # union ODT + Horizon, SB schema\n",
+					"hrm_final_table: str = \"appeal_has\"                # SCD2 final\n",
+					"\n",
+					"# CURATED\n",
+					"cur_table: str       = \"appeal_has\"                # HRM final"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"sb_std_df   = spark.table(f\"{std_db_name}.{std_sb_table}\")\n",
+					"hzn_std_df  = spark.table(f\"{std_db_name}.{std_hzn_table}\")\n",
+					"\n",
+					"hrm_stg_df  = spark.table(f\"{hrm_db_name}.{hrm_stage_table}\")\n",
+					"hrm_fin_df  = spark.table(f\"{hrm_db_name}.{hrm_final_table}\")\n",
+					"\n",
+					"curated_df  = spark.table(f\"{cur_db_name}.{cur_table}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"sb_std_keys  = sb_std_df.select(\"caseReference\")\n",
+					"hzn_std_keys = hzn_std_df.select(\"caseReference\")\n",
+					"hrm_stg_keys = hrm_stg_df.select(\"caseReference\")\n",
+					"hrm_fin_keys = hrm_fin_df.select(\"caseReference\")\n",
+					"cur_keys     = curated_df.select(\"caseReference\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#keep track of the exitCodes, if the exit code is not zero then we've had failures, we flip the boolean\n",
+					"exitCode: int = 0"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%run /utils/unit-tests/py_unit_tests_functions"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Data model schemas\n",
+					"sb_std_schema     = create_spark_schema(std_db_name, entity_name)        # SB schema\n",
+					"hrm_final_schema  = create_spark_schema(hrm_db_name, entity_name)        # HRM final should mirror SB schema\n",
+					"cur_schema_model  = create_spark_schema(cur_db_name, entity_name)        # curated\n",
+					"\n",
+					"# Table schemas\n",
+					"sb_std_table_schema    = spark.table(f\"{std_db_name}.{std_sb_table}\").schema\n",
+					"hrm_final_table_schema = spark.table(f\"{hrm_db_name}.{hrm_final_table}\").schema\n",
+					"cur_table_schema       = spark.table(f\"{cur_db_name}.{cur_table}\").schema"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"data_model_columns = [f.name for f in cur_table_schema.fields]"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Compare schemas"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"sb_schema_ok  = test_compare_schemas(sb_std_schema, sb_std_table_schema)\n",
+					"print(f\"STD SB schema correct: {sb_schema_ok}\\nTable: {std_db_name}.{std_sb_table}\")\n",
+					"exitCode += int(not sb_schema_ok)\n",
+					"\n",
+					"hrm_schema_ok = test_compare_schemas(hrm_final_schema, hrm_final_table_schema)\n",
+					"print(f\"HRM FINAL schema correct: {hrm_schema_ok}\\nTable: {hrm_db_name}.{hrm_final_table}\")\n",
+					"exitCode += int(not hrm_schema_ok)\n",
+					"\n",
+					"cur_schema_ok = test_compare_schemas(cur_schema_model, cur_table_schema)\n",
+					"print(f\"Curated schema correct: {cur_schema_ok}\\nTable: {cur_db_name}.{cur_table}\")\n",
+					"exitCode += int(not cur_schema_ok)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Compare Service Bus standardised with harmonised\n",
+					"This section compares the **Service Bus (ODT)** portion of the standardised layer with its harmonised equivalent.\n",
+					"Now that HRM STAGE includes both ODT and Horizon records, this validation ensures that the ODT slice of HRM remains consistent\n",
+					"with the original Service Bus source (while allowing for NULL-key drops)."
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"# Compare SB STD vs HRM STAGE for ODT rows (should match, aside from NULL keys dropped in HRM stage)\n",
+					"std_cnt = sb_std_df.count()\n",
+					"hrm_stg_odt_cnt = hrm_stg_df.filter(F.col(\"ODTSourceSystem\")==\"ODT\").count()\n",
+					"\n",
+					"print(f\"STD SB rows (all): {std_cnt:,}\")\n",
+					"print(f\"HRM STAGE rows where ODTSourceSystem='ODT': {hrm_stg_odt_cnt:,}\")\n",
+					"\n",
+					"if std_cnt != hrm_stg_odt_cnt:\n",
+					"    print(\"WARNING: SB standardised row count != HRM stage ODT row count (some NULL keys are expected to be dropped)\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Compare HRM FINAL with Curated\n",
+					"We assert:\n",
+					"- HRM STAGE → HRM FINAL: no dropping by `caseReference`.\n",
+					"- HRM FINAL active (`IsActive='Y'`) count equals Curated count.\n",
+					"- HRM FINAL → Curated: no dropping by `caseReference`.\n",
+					"\n",
+					"This section confirms that the Curated layer remains fully aligned with the merged HRM FINAL table,\n",
+					"which now includes both Service Bus (ODT) and Horizon data."
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# should compare stage vs final by caseReference presence / row counts\n",
+					"ok = test_sb_hrm_to_hrm_final_no_dropping_records(hrm_stage_table, hrm_final_table, \"caseReference\")\n",
+					"print(f\"HRM Stage / Final no dropping by key: {ok}\")\n",
+					"exitCode += int(not ok)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Always refresh before reading tables that were just (over)written in another job\n",
+					"spark.sql(\"REFRESH TABLE odw_harmonised_db.appeal_has\")\n",
+					"spark.sql(\"REFRESH TABLE odw_curated_db.appeal_has\")\n",
+					"spark.catalog.clearCache()\n",
+					"\n",
+					"#Recreate clean DFs AFTER the refresh\n",
+					"hrm_fin_df  = spark.table(\"odw_harmonised_db.appeal_has\")\n",
+					"curated_df  = spark.table(\"odw_curated_db.appeal_has\")\n",
+					"\n",
+					"harmonised_final_active = hrm_fin_df.filter(F.col(\"IsActive\") == \"Y\").count()\n",
+					"curated_cnt             = curated_df.count()\n",
+					"\n",
+					"print(f\"Harmonised FINAL IsActive='Y' count: {harmonised_final_active:,}\")\n",
+					"print(f\"Curated count: {curated_cnt:,}\")\n",
+					"match_active = (harmonised_final_active == curated_cnt)\n",
+					"print(f\"Counts match (HRM active == Curated): {match_active}\")\n",
+					"exitCode += int(not match_active)\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"curated_db_name = cur_db_name\n",
+					"ok = test_hrm_to_curated_no_dropping_records(hrm_final_table, cur_table, \"caseReference\")\n",
+					"print(f\"HRM FINAL to Curated no dropping by key: {ok}\")\n",
+					"exitCode += int(not ok)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"has_odt     = hrm_fin_df.filter(F.col(\"ODTSourceSystem\")==\"ODT\").limit(1).count() > 0\n",
+					"has_horizon = hrm_fin_df.filter(F.col(\"ODTSourceSystem\")==\"HORIZON\").limit(1).count() > 0\n",
+					"\n",
+					"print(f\"ODT present in HRM FINAL: {has_odt}\")\n",
+					"print(f\"HORIZON present in HRM FINAL: {has_horizon}\")\n",
+					"\n",
+					"if not (has_odt and has_horizon):\n",
+					"    print(\"Failed: both ODT and HORIZON rows should be present in HRM final\")\n",
+					"    exitCode += 1"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"def test_sb_std_to_hrm_no_message_id_dropped(std_table: str, hrm_table: str) -> bool:\n",
+					"    std = (spark.table(std_table)\n",
+					"              .select(\"caseReference\")\n",
+					"              .dropna()\n",
+					"              .dropDuplicates())\n",
+					"\n",
+					"    stg = (spark.table(hrm_table)\n",
+					"              .filter(F.col(\"ODTSourceSystem\") == \"ODT\")\n",
+					"              .select(\"caseReference\")\n",
+					"              .dropna()\n",
+					"              .dropDuplicates())\n",
+					"\n",
+					"    missing_cnt = std.join(stg, on=\"caseReference\", how=\"left_anti\").limit(1).count()\n",
+					"    return missing_cnt == 0\n",
+					"\n",
+					"\n",
+					"def test_sb_std_to_hrm_no_active_deleted_record(std_table: str, hrm_table: str) -> bool:\n",
+					"    std_df = spark.table(std_table)\n",
+					"    stg_df = spark.table(hrm_table)\n",
+					"\n",
+					"    has_std_active = \"IsActive\" in std_df.columns\n",
+					"    has_stg_active = \"IsActive\" in stg_df.columns\n",
+					"\n",
+					"    if has_std_active and has_stg_active:\n",
+					"        std_active = (std_df\n",
+					"                        .filter(F.col(\"IsActive\") == \"Y\")\n",
+					"                        .select(\"caseReference\")\n",
+					"                        .dropna()\n",
+					"                        .dropDuplicates())\n",
+					"\n",
+					"        stg_active = (stg_df\n",
+					"                        .filter((F.col(\"ODTSourceSystem\") == \"ODT\") & (F.col(\"IsActive\") == \"Y\"))\n",
+					"                        .select(\"caseReference\")\n",
+					"                        .dropna()\n",
+					"                        .dropDuplicates())\n",
+					"\n",
+					"        missing_cnt = std_active.join(stg_active, on=\"caseReference\", how=\"left_anti\").limit(1).count()\n",
+					"        return missing_cnt == 0\n",
+					"\n",
+					"    std_keys = (std_df.select(\"caseReference\").dropna().dropDuplicates())\n",
+					"    stg_keys = (stg_df.filter(F.col(\"ODTSourceSystem\") == \"ODT\")\n",
+					"                      .select(\"caseReference\").dropna().dropDuplicates())\n",
+					"\n",
+					"    missing_cnt = std_keys.join(stg_keys, on=\"caseReference\", how=\"left_anti\").limit(1).count()\n",
+					"    return missing_cnt == 0\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# SB STD to HRM STAGE : no message id dropped (non-null message_types)\n",
+					"std_sb_df = spark.table(f\"{std_db_name}.{std_sb_table}\")\n",
+					"std_filtered_df = std_sb_df.filter(F.col(\"message_type\").isNotNull())\n",
+					"std_filtered_df.createOrReplaceTempView(\"tmp_std_sb_filtered\")\n",
+					"\n",
+					"if test_sb_std_to_hrm_no_message_id_dropped(\"tmp_std_sb_filtered\",\n",
+					"                                             f\"{hrm_db_name}.{hrm_stage_table}\"):\n",
+					"    pass\n",
+					"else:\n",
+					"    print(\"Failed: test_sb_std_to_hrm_no_message_id_dropped\")\n",
+					"    exitCode += 1\n",
+					"\n",
+					"# SB STD to HRM STAGE : no active deleted record (non-null message_types)\n",
+					"if test_sb_std_to_hrm_no_active_deleted_record(\"tmp_std_sb_filtered\",\n",
+					"                                               f\"{hrm_db_name}.{hrm_stage_table}\"):\n",
+					"    pass\n",
+					"else:\n",
+					"    print(\"Failed: test_sb_std_to_hrm_no_active_deleted_record\")\n",
+					"    exitCode += 1"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"db_name = \"odw_harmonised_db\"\n",
+					"table_name = \"appeal_has\"\n",
+					"target_table = f\"{db_name}.{table_name}\"\n",
+					"case_ref = \"TEST-HAS-001\"\n",
+					"\n",
+					"# Get schema of the target table\n",
+					"table_schema = spark.table(target_table).schema\n",
+					"\n",
+					"data = {field.name: None for field in table_schema.fields}\n",
+					"data.update({\n",
+					"    \"AppealsHasID\": 900001,\n",
+					"    \"caseReference\": case_ref,\n",
+					"    \"IsActive\": \"Y\"\n",
+					"})\n",
+					"\n",
+					"# Create DataFrame and insert\n",
+					"new_row = spark.createDataFrame([data], schema=table_schema)\n",
+					"new_row.write.mode(\"append\").insertInto(target_table)\n",
+					"\n",
+					"# Validate insert\n",
+					"has_df = spark.table(target_table).filter(F.col(\"caseReference\") == case_ref)\n",
+					"count = has_df.count()\n",
+					"assert count == 1, f\"Expected 1 record in appeal_has, found {count}\"\n",
+					"\n",
+					"is_active = has_df.first().IsActive\n",
+					"assert is_active == \"Y\", f\"Expected IsActive='Y', got '{is_active}'\"\n",
+					"\n",
+					"print(\"Test passed: Record successfully inserted into appeal_has with correct values.\")\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"#Verifies that updating an existing record in appeal_has correctly changes IsActive.\n",
+					"\n",
+					"db_name = \"odw_harmonised_db\"\n",
+					"table_name = \"appeal_has\"\n",
+					"target_table = f\"{db_name}.{table_name}\"\n",
+					"case_ref = \"TEST-HAS-002\"\n",
+					"\n",
+					"table_schema = spark.table(target_table).schema\n",
+					"data = {field.name: None for field in table_schema.fields}\n",
+					"data.update({\n",
+					"    \"AppealsHasID\": 900002,\n",
+					"    \"caseReference\": case_ref,\n",
+					"    \"IsActive\": \"Y\"\n",
+					"})\n",
+					"\n",
+					"# Insert record\n",
+					"new_row = spark.createDataFrame([data], schema=table_schema)\n",
+					"new_row.write.mode(\"append\").insertInto(target_table)\n",
+					"\n",
+					"# Update it to inactive\n",
+					"spark.sql(f\"\"\"\n",
+					"MERGE INTO {target_table} AS t\n",
+					"USING (SELECT '{case_ref}' AS caseReference, 'N' AS IsActive) AS s\n",
+					"ON TRIM(UPPER(t.caseReference)) = TRIM(UPPER(s.caseReference))\n",
+					"WHEN MATCHED THEN UPDATE SET t.IsActive = s.IsActive\n",
+					"\"\"\")\n",
+					"\n",
+					"# Validate update\n",
+					"updated_record = spark.table(target_table).filter(F.col(\"caseReference\") == case_ref).first()\n",
+					"assert updated_record.IsActive == \"N\", \"Expected IsActive='N' after update\"\n",
+					"\n",
+					"print(\"Test passed: appeal_has record updated correctly to inactive.\")\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def cleanup_test_data():\n",
+					"    spark.sql(\"\"\"\n",
+					"        DELETE FROM odw_harmonised_db.appeal_has\n",
+					"        WHERE TRIM(UPPER(caseReference)) LIKE 'TEST-HAS-%'\n",
+					"    \"\"\")\n",
+					"    print(\"Cleanup complete.\")\n",
+					"\n",
+					"cleanup_test_data()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"mssparkutils.notebook.exit(exitCode)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Visual checks\n",
+					"The following exploratory validations focus on the **Horizon** portion of the data, confirming coverage, parent-child relationships,\n",
+					"and reference-table uniqueness.  \n",
+					"\n",
+					"These checks are intentionally placed after `mssparkutils.notebook.exit(exitCode)` so they **don’t affect pipeline automation runs**."
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def std_fk_coverage(parent_tbl: str, child_tbl: str, parent_key: str, child_key: str) -> dict:\n",
+					"    p = spark.table(f\"odw_standardised_db.{parent_tbl}\") \\\n",
+					"             .select(F.col(parent_key).alias(\"k\")).dropna().dropDuplicates()\n",
+					"    c = spark.table(f\"odw_standardised_db.{child_tbl}\") \\\n",
+					"             .select(F.col(child_key).alias(\"k\")).dropna().dropDuplicates()\n",
+					"\n",
+					"    parent_without_child = p.join(c, \"k\", \"left_anti\").limit(1).count() == 0\n",
+					"    child_without_parent = c.join(p, \"k\", \"left_anti\").limit(1).count() == 0\n",
+					"\n",
+					"    return {\n",
+					"        \"all_parents_have_at_least_one_child\": parent_without_child,\n",
+					"        \"no_orphan_child_keys\": child_without_parent\n",
+					"    }\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def std_latest_snapshot_dupes(tbl: str, key: str) -> bool:\n",
+					"    df = spark.table(f\"odw_standardised_db.{tbl}\")\n",
+					"    time_col = \"expected_from\" if \"expected_from\" in df.columns else \"ingested_datetime\"\n",
+					"    latest = df.filter(F.col(time_col) == df.agg(F.max(time_col)).first()[0])\n",
+					"    has_dupes = latest.groupBy(key).count().filter(\"count > 1\").limit(1).count() > 0\n",
+					"    return not has_dupes\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Horizon Standardised Coverage Validation\n",
+					"These checks validate that **Horizon-derived tables** are properly related to each other\n",
+					"and that all child tables correctly reference existing parent cases.\n",
+					"\n",
+					"**Note:** Some “No” results are **expected** because not every Horizon case has associated records\n",
+					"in all sub-tables:\n",
+					"- Some cases may not have `casespecialisms`\n",
+					"- Some may not have `casesitestrings`\n",
+					"- Others may lack `casedocumentdatesdates`\n",
+					"\n",
+					"The **Horizon and Service Bus (ODT)** data have already been **merged** in the harmonised layer\n",
+					"(`odw_harmonised_db.appeal_has`), so these checks are focused solely on validating Horizon ingestion quality\n",
+					"and internal table relationships, not cross-source merging.\n",
+					"\n",
+					"This section also verifies that reference tables such as `typeofprocedure`\n",
+					"and `horizon_typeofreasonforcase` remain **unique per key** in the latest snapshot.\n",
+					""
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"pairs = [\n",
+					"    (\"horizoncases_has\", \"cases_specialisms\",      \"caseUniqueId\", \"caseReference\"),\n",
+					"    (\"horizoncases_has\", \"casesitestrings\",        \"caseuniqueid\", \"casenodeid\"),\n",
+					"    (\"horizoncases_has\", \"casedocumentdatesdates\", \"caseuniqueid\", \"casenodeid\"),\n",
+					"    (\"horizoncases_has\", \"vw_case_dates\",          \"caseuniqueid\", \"casenodeid\"),\n",
+					"    (\"horizoncases_has\", \"vw_addadditionaldata\",   \"caseuniqueid\", \"AppealRefNumber\"),\n",
+					"    (\"horizoncases_has\", \"vw_additionalfields\",    \"caseuniqueid\", \"AppealRefNumber\"),\n",
+					"]\n",
+					"\n",
+					"for parent_tbl, child_tbl, pkey, ckey in pairs:\n",
+					"    res = std_fk_coverage(parent_tbl, child_tbl, pkey, ckey)\n",
+					"    parent_has_child = \"Yes\" if res[\"all_parents_have_at_least_one_child\"] else \"No some parent cases have no matching records\"\n",
+					"    child_has_parent = \"Yes\" if res[\"no_orphan_child_keys\"] else \"No some child records dont have a matching parent\"\n",
+					"    \n",
+					"    print(f\"\\nParent table: {parent_tbl}\")\n",
+					"    print(f\"Child table:  {child_tbl}\")\n",
+					"    print(f\"Link:         {pkey} TO {ckey}\")\n",
+					"    print(f\"Do all parent cases have at least one related record? {parent_has_child}\")\n",
+					"    print(f\"Do all child records have a valid parent?              {child_has_parent}\")\n",
+					"\n",
+					"print(\"\\nReference Table Uniqueness Validation\")\n",
+					"ref_ok_1 = std_latest_snapshot_dupes(\"typeofprocedure\", \"Name\")\n",
+					"ref_ok_2 = std_latest_snapshot_dupes(\"horizon_typeofreasonforcase\", \"Id\")\n",
+					"\n",
+					"print(f\"typeofprocedure is unique by Name: { 'Yes' if ref_ok_1 else 'No (duplicates found)' }\")\n",
+					"print(f\"horizon_typeofreasonforcase is unique by Id: { 'Yes' if ref_ok_2 else 'No (duplicates found)' }\")\n",
+					""
+				],
+				"execution_count": null
+			}
+		]
+	}
+}

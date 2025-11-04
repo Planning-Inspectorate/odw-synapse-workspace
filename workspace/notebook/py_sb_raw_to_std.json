@@ -20,12 +20,12 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "2184cee1-8d4e-481a-990f-314102ea4eda"
+				"spark.autotune.trackingId": "67492e12-48e1-4b62-a711-3d83a20d1146"
 			}
 		},
 		"metadata": {
 			"saveOutput": true,
-			"enableDebugMode": false,
+			"enableDebugMode": true,
 			"kernelspec": {
 				"name": "synapse_pyspark",
 				"display_name": "Synapse PySpark"
@@ -70,6 +70,13 @@
 					"\r\n",
 					""
 				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_applicationinsights"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -129,6 +136,17 @@
 			},
 			{
 				"cell_type": "code",
+				"source": [
+					"start_exec_time = (datetime.now())\r\n",
+					"insert_count = 0\r\n",
+					"update_count = 0\r\n",
+					"delete_count = 0\r\n",
+					"error_message=''"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
 						"source_hidden": false,
@@ -149,7 +167,7 @@
 					"schema = mssparkutils.notebook.run(\"/py_create_spark_schema\", 30, {\"db_name\": 'odw_standardised_db', \"entity_name\": entity_name})\r\n",
 					"spark_schema = StructType.fromJson(json.loads(schema)) if schema != '' else ''\r\n",
 					"\r\n",
-					"start_exec_time = str(datetime.now())\r\n",
+					"start_exec_time = datetime.now()\r\n",
 					"insert_count = 0\r\n",
 					""
 				],
@@ -219,10 +237,14 @@
 					"    Returns:\r\n",
 					"        max_value: the maximum value from the table column\r\n",
 					"    \"\"\"\r\n",
-					"    df = spark.table(table_name)\r\n",
-					"    max_value = df.agg(max(column_name)).collect()[0][0]\r\n",
-					"\r\n",
-					"    return max_value"
+					"    try:\r\n",
+					"        df = spark.table(table_name)\r\n",
+					"        max_value = df.agg(max(column_name)).collect()[0][0]\r\n",
+					"        return max_value\r\n",
+					"    except Exception as e:\r\n",
+					"        error_message = f\"Error getting max value from column '{column_name}' in table '{table_name}': {str(e)}\"\r\n",
+					"        logError(error_message)\r\n",
+					"        raise"
 				],
 				"execution_count": null
 			},
@@ -255,12 +277,17 @@
 					"    Returns:\r\n",
 					"        formatted_timestamp: a string of the maximum file date\r\n",
 					"    \"\"\"\r\n",
-					"    date_pattern: str = r'(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}\\+\\d{4})'\r\n",
-					"    df: DataFrame = df.withColumn(\"file_date\", regexp_extract(df[\"input_file\"], date_pattern, 1))\r\n",
-					"    df: DataFrame = df.withColumn(\"file_date\", df[\"file_date\"].cast(TimestampType()))\r\n",
-					"    max_timestamp: list = df.agg(max(\"file_date\")).collect()[0][0]\r\n",
-					"    formatted_timestamp: str = max_timestamp.strftime(\"%Y-%m-%dT%H:%M:%S.%f\")+\"+0000\"\r\n",
-					"    return formatted_timestamp"
+					"    try:\r\n",
+					"        date_pattern: str = r'(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}\\+\\d{4})'\r\n",
+					"        df: DataFrame = df.withColumn(\"file_date\", regexp_extract(df[\"input_file\"], date_pattern, 1))\r\n",
+					"        df: DataFrame = df.withColumn(\"file_date\", df[\"file_date\"].cast(TimestampType()))\r\n",
+					"        max_timestamp: list = df.agg(max(\"file_date\")).collect()[0][0]\r\n",
+					"        formatted_timestamp: str = max_timestamp.strftime(\"%Y-%m-%dT%H:%M:%S.%f\")+\"+0000\"\r\n",
+					"        return formatted_timestamp\r\n",
+					"    except Exception as e:\r\n",
+					"        error_message = f\"Error extracting maximum file date from DataFrame: {str(e)}\"\r\n",
+					"        logError(error_message)\r\n",
+					"        raise"
 				],
 				"execution_count": null
 			},
@@ -338,12 +365,17 @@
 					"    Returns:\r\n",
 					"        missing_files: a list of missing files not yet loaded to the table.\r\n",
 					"    \"\"\"\r\n",
-					"    df: DataFrame = spark.table(table_name)\r\n",
-					"    files_in_path: set = set(get_all_files_recursive(source_path))\r\n",
-					"    files_in_table: set = set(df.select(\"input_file\").rdd.flatMap(lambda x: x).collect())\r\n",
-					"    missing_files = list(files_in_path - files_in_table)\r\n",
-					"\r\n",
-					"    return missing_files"
+					"    try:\r\n",
+					"        df: DataFrame = spark.table(table_name)\r\n",
+					"        files_in_path: set = set(get_all_files_recursive(source_path))\r\n",
+					"        files_in_table: set = set(df.select(\"input_file\").rdd.flatMap(lambda x: x).collect())\r\n",
+					"        missing_files = list(files_in_path - files_in_table)\r\n",
+					"        \r\n",
+					"        return missing_files\r\n",
+					"    except Exception as e:\r\n",
+					"        error_message = f\"Error getting missing files for table '{table_name}' from source path '{source_path}': {str(e)}\"\r\n",
+					"        logError(error_message)\r\n",
+					"        raise"
 				],
 				"execution_count": null
 			},
@@ -429,7 +461,7 @@
 					"        \r\n",
 					"        # Use the imported format_error_message function\r\n",
 					"        error_message = app_insight_processor.format_error_message(e, max_length=800)\r\n",
-					"        end_exec_time = str(datetime.now())\r\n",
+					"        end_exec_time = datetime.now()\r\n",
 					"        app_insight_logger.add_table_result(\r\n",
 					"            delta_table_name = table_name,\r\n",
 					"            insert_count = insert_count,\r\n",
@@ -473,13 +505,17 @@
 					"    Returns:\r\n",
 					"        a deduped DataFrame\r\n",
 					"    \"\"\"\r\n",
-					"    # removing duplicates while ignoring the ingestion dates columns\r\n",
-					"    columns_to_ignore: list = ['expected_to', 'expected_from', 'ingested_datetime']\r\n",
-					"    columns_to_consider: list = [c for c in df.columns if c not in columns_to_ignore]\r\n",
-					"    df: DataFrame = df.dropDuplicates(subset=columns_to_consider)\r\n",
-					"    \r\n",
-					"    return df\r\n",
-					""
+					"    try:\r\n",
+					"        # removing duplicates while ignoring the ingestion dates columns\r\n",
+					"        columns_to_ignore: list = ['expected_to', 'expected_from', 'ingested_datetime']\r\n",
+					"        columns_to_consider: list = [c for c in df.columns if c not in columns_to_ignore]\r\n",
+					"        df: DataFrame = df.dropDuplicates(subset=columns_to_consider)\r\n",
+					"        \r\n",
+					"        return df\r\n",
+					"    except Exception as e:\r\n",
+					"        error_message = f\"Error during DataFrame deduplication: {str(e)}\"\r\n",
+					"        logError(error_message)\r\n",
+					"        raise"
 				],
 				"execution_count": null
 			},
@@ -596,7 +632,7 @@
 					"    except Exception as e:\r\n",
 					"        logError(f\"Error getting the filtered list of paths:\\n{e}\")\r\n",
 					"        error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
-					"        end_exec_time = str(datetime.now())\r\n",
+					"        end_exec_time = datetime.now()\r\n",
 					"        app_insight_logger.add_table_result(\r\n",
 					"            delta_table_name = table_name,\r\n",
 					"            insert_count = insert_count,\r\n",
@@ -619,7 +655,7 @@
 					"    except Exception as e:\r\n",
 					"        logError(f\"Error getting list of missing files:\\n{e}\")\r\n",
 					"        error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
-					"        end_exec_time = str(datetime.now())\r\n",
+					"        end_exec_time = datetime.now()\r\n",
 					"        app_insight_logger.add_table_result(\r\n",
 					"            delta_table_name = table_name,\r\n",
 					"            insert_count = insert_count,\r\n",
@@ -683,7 +719,7 @@
 					"    logError(f\"Error deduping and generating counts:\\n{e}\")\r\n",
 					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
 					"    \r\n",
-					"    end_exec_time = str(datetime.now())\r\n",
+					"    end_exec_time = datetime.now()\r\n",
 					"    app_insight_logger.add_table_result(\r\n",
 					"        delta_table_name = table_name,\r\n",
 					"        insert_count = insert_count,\r\n",
@@ -734,7 +770,7 @@
 					"    logInfo(f\"Appending new rows to table {table_name}\")\r\n",
 					"    append_df_to_table(df=df, table_name=table_name)\r\n",
 					"    \r\n",
-					"    end_exec_time = str(datetime.now())\r\n",
+					"    end_exec_time = datetime.now()\r\n",
 					"    app_insight_logger.add_table_result(                    \r\n",
 					"        delta_table_name = table_name, \r\n",
 					"        insert_count = insert_count, \r\n",
@@ -753,7 +789,7 @@
 					"    logError(f\"Error appending rows:\\n{e}\")\r\n",
 					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
 					"    \r\n",
-					"    end_exec_time = str(datetime.now())\r\n",
+					"    end_exec_time = datetime.now()\r\n",
 					"    \r\n",
 					"    app_insight_logger.add_table_result(\r\n",
 					"        delta_table_name = table_name,\r\n",
@@ -804,7 +840,7 @@
 					"    logError(\"Error appending rows. The new row count isn't as expected.\")\r\n",
 					"\r\n",
 					"    error_msg = f\"Error appending rows: {table_name} . The new row count isn't as expected.\"\r\n",
-					"    end_exec_time = str(datetime.now())\r\n",
+					"    end_exec_time = datetime.now()\r\n",
 					"    \r\n",
 					"    app_insight_logger.add_table_result(\r\n",
 					"        delta_table_name = table_name,\r\n",
@@ -838,8 +874,37 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"# Exit with the JSON result\r\n",
-					"mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
+					"duration_seconds = (end_exec_time - start_exec_time).total_seconds()\r\n",
+					"activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\r\n",
+					"stage = \"Success\" if not error_message else \"Failed\"\r\n",
+					"status_message = (\r\n",
+					"    f\"Successfully loaded data into {table_name} table\"\r\n",
+					"    if not error_message\r\n",
+					"    else f\"Failed to load data from {table_name} table\"\r\n",
+					")\r\n",
+					"status_code = \"200\" if stage == \"Success\" else \"500\"\r\n",
+					" \r\n",
+					"log_telemetry_and_exit(\r\n",
+					"    stage,\r\n",
+					"    start_exec_time,\r\n",
+					"    end_exec_time,\r\n",
+					"    error_message,\r\n",
+					"    table_name,\r\n",
+					"    insert_count,\r\n",
+					"    update_count,\r\n",
+					"    delete_count,\r\n",
+					"    PipelineName,\r\n",
+					"    PipelineRunID,\r\n",
+					"    PipelineTriggerID,\r\n",
+					"    PipelineTriggerName,\r\n",
+					"    PipelineTriggerType,\r\n",
+					"    PipelineTriggeredbyPipelineName,\r\n",
+					"    PipelineTriggeredbyPipelineRunID,\r\n",
+					"    activity_type,\r\n",
+					"    duration_seconds,\r\n",
+					"    status_message,\r\n",
+					"    status_code\r\n",
+					")"
 				],
 				"execution_count": null
 			}
