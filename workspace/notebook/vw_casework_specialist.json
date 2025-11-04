@@ -1,0 +1,201 @@
+{
+	"name": "vw_casework_specialist",
+	"properties": {
+		"folder": {
+			"name": "odw-curated/saphr"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "acd3a33a-a2e3-4b24-8158-8c3102ac4927"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### The purpose of this notebook is to read data from Harmoised layer and build a view & table for Power BI use.\n",
+					"\n",
+					"**Author** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   **Created Date** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Description**  \n",
+					"Prathap Adicherla &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;01-April-2025 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Pay Roll Area  details Covered in here;"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql.functions import udf, col, lit, when, coalesce, concat, sum, avg, max, min, count, countDistinct, date_format, to_date, datediff, months_between, year, month,  hour, minute, second, expr, asc, desc\n",
+					"from pyspark.sql.types import DateType, TimestampType, StringType, IntegerType, FloatType, DoubleType, BooleanType, StructType, StructField, ArrayType, MapType\n",
+					"from pyspark.sql.window import Window\n",
+					"from pyspark.sql.functions import row_number, rank, dense_rank, lag, lead, ntile\n",
+					"from pyspark.sql import SQLContext\n",
+					"from pyspark.sql import DataFrame\n",
+					"from pyspark.sql import functions as F\n",
+					"from pyspark.sql.avro.functions import from_avro, to_avro\n",
+					"from pyspark.sql.streaming import DataStreamReader, DataStreamWriter\n",
+					"from pyspark.sql.utils import AnalysisException\n",
+					"from pyspark.sql.catalog import Catalog\n",
+					"from pyspark.sql.column import Column\n",
+					"from pyspark.sql.group import GroupedData\n",
+					"from pyspark.sql.pandas.functions import pandas_udf\n",
+					"\n",
+					"from datetime import datetime, timedelta\n",
+					"import pandas as pd\n",
+					"import numpy as np"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"import json\n",
+					"\n",
+					"# Initialize result dictionary\n",
+					"result = {\n",
+					"    \"status\": \"success\",\n",
+					"    \"record_count\": 0,\n",
+					"    \"error_message\": None\n",
+					"}\n",
+					"\n",
+					"try:\n",
+					"    logInfo(\"Starting Payroll Area dimension setup\")\n",
+					"    \n",
+					"    # Get storage account \n",
+					"    storage_account = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"    logInfo(f\"Using storage account: {storage_account}\")\n",
+					"    \n",
+					"    # Fix the path\n",
+					"    storage_account = storage_account.rstrip('/')\n",
+					"    delta_table_path = f\"abfss://odw-curated@{storage_account}/saphr/pbi_PayrollArea\"\n",
+					"    logInfo(f\"Delta table will be created at: {delta_table_path}\")\n",
+					"    \n",
+					"    # Create/refresh view\n",
+					"    logInfo(\"Creating view odw_curated_db.vw_dim_HR_PayrollArea\")\n",
+					"    spark.sql(\"\"\"\n",
+					"    CREATE OR REPLACE VIEW odw_curated_db.vw_dim_HR_PayrollArea AS\n",
+					"    SELECT \n",
+					"        RANK() OVER(ORDER BY PArea) AS dim_payroll_area_key,\n",
+					"        PArea AS PayrollAreaCode,\n",
+					"        PayrollArea\n",
+					"    FROM (\n",
+					"        SELECT DISTINCT PArea, PayrollArea\n",
+					"        FROM odw_harmonised_db.hist_SAP_HR\n",
+					"        UNION\n",
+					"        SELECT '-1', 'Unknown'\n",
+					"    ) a\n",
+					"    \"\"\")\n",
+					"    logInfo(\"Successfully created view odw_curated_db.vw_dim_HR_PayrollArea\")\n",
+					"    \n",
+					"    # Count records in view\n",
+					"    payroll_area_count = spark.sql(\"SELECT COUNT(*) as count FROM odw_curated_db.vw_dim_HR_PayrollArea\").collect()[0]['count']\n",
+					"    logInfo(f\"View contains {payroll_area_count} distinct payroll area records\")\n",
+					"    \n",
+					"    # Drop the table if it exists\n",
+					"    logInfo(\"Dropping table odw_curated_db.pbi_dim_HR_PayrollArea if it exists\")\n",
+					"    spark.sql(\"\"\"\n",
+					"    DROP TABLE IF EXISTS odw_curated_db.pbi_dim_HR_PayrollArea\n",
+					"    \"\"\")\n",
+					"    logInfo(\"Table dropped or did not exist\")\n",
+					"    \n",
+					"    # Create table from view with specified location\n",
+					"    logInfo(\"Creating table odw_curated_db.pbi_dim_HR_PayrollArea from view with specified location\")\n",
+					"    spark.sql(f\"\"\"\n",
+					"    CREATE OR REPLACE TABLE odw_curated_db.pbi_dim_HR_PayrollArea\n",
+					"    USING delta\n",
+					"    LOCATION '{delta_table_path}'\n",
+					"    AS SELECT * FROM odw_curated_db.vw_dim_HR_PayrollArea\n",
+					"    \"\"\")\n",
+					"    \n",
+					"    # Count records in table - this is our final record count\n",
+					"    table_count = spark.sql(\"SELECT COUNT(*) as count FROM odw_curated_db.pbi_dim_HR_PayrollArea\").collect()[0]['count']\n",
+					"    result[\"record_count\"] = table_count\n",
+					"    logInfo(f\"Created table with {table_count} records at location: {delta_table_path}\")\n",
+					"    \n",
+					"    logInfo(\"Payroll Area dimension setup completed successfully\")\n",
+					"\n",
+					"except Exception as e:\n",
+					"    # Capture error information\n",
+					"    error_msg = f\"Error in Payroll Area dimension setup: {str(e)}\"\n",
+					"    logError(error_msg)\n",
+					"    logException(e)\n",
+					"    \n",
+					"    # Try to get current record count even in case of error\n",
+					"    try:\n",
+					"        error_count = spark.sql(\"SELECT COUNT(*) as count FROM odw_curated_db.pbi_dim_HR_PayrollArea\").collect()[0]['count']\n",
+					"        result[\"record_count\"] = error_count\n",
+					"    except:\n",
+					"        result[\"record_count\"] = 0\n",
+					"    \n",
+					"    # Update result for error case\n",
+					"    result[\"status\"] = \"failed\"\n",
+					"    result[\"error_message\"] = error_msg[:300]  # Truncate to 300 characters\n",
+					"    \n",
+					"    # Re-raise the exception to ensure the notebook fails properly\n",
+					"    raise e\n",
+					"\n",
+					"finally:\n",
+					"    # Always flush logs regardless of success or failure\n",
+					"    logInfo(\"Flushing logs\")\n",
+					"    flushLogging()\n",
+					"    \n",
+					"    # Output the result as JSON for ADF to capture\n",
+					"    mssparkutils.notebook.exit(json.dumps(result))"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
