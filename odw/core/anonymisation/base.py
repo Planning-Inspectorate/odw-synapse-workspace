@@ -28,6 +28,7 @@ def mask_keep_first_last_col(col: Column) -> Column:
 
 @F.udf(T.StringType())
 def mask_fullname_udf(v: str | None) -> str | None:
+    """Legacy full-name mask: keep first/last of each part (kept for backward compatibility)."""
     if v is None:
         return None
     parts = [p for p in str(v).split() if p]
@@ -39,6 +40,44 @@ def mask_fullname_udf(v: str | None) -> str | None:
         return p[0] + ("*" * (len(p) - 2)) + p[-1]
 
     return " ".join(m(p) for p in parts)
+
+
+@F.udf(T.StringType())
+def mask_fullname_initial_lastletter_udf(v: str | None) -> str | None:
+    """Mask full name keeping only:
+    - first letter of the first name
+    - last letter of the last name
+    All other letters are replaced by '*'.
+    Example: "John Doe" -> "J*** **e".
+    """
+    if v is None:
+        return None
+    tokens = [t for t in str(v).split() if t]
+    if not tokens:
+        return None
+    if len(tokens) == 1:
+        t = tokens[0]
+        if len(t) == 1:
+            return t
+        return t[0] + ("*" * max(0, len(t) - 2)) + t[-1]
+
+    first = tokens[0]
+    last = tokens[-1]
+    middle = tokens[1:-1] if len(tokens) > 2 else []
+
+    def mask_first(t: str) -> str:
+        return t[0] + ("*" * (len(t) - 1)) if len(t) >= 1 else ""
+
+    def mask_middle(t: str) -> str:
+        return "*" * len(t)
+
+    def mask_last(t: str) -> str:
+        return ("*" * (len(t) - 1)) + t[-1] if len(t) >= 1 else ""
+
+    out = [mask_first(first)]
+    out.extend(mask_middle(m) for m in middle)
+    out.append(mask_last(last))
+    return " ".join(out)
 
 
 def random_int_from_seed(seed: Column, min_value: int, max_value: int) -> Column:
@@ -55,6 +94,7 @@ def random_date_from_seed(seed: Column, start: str = "1955-01-01", end: str = "2
 
 @F.udf(T.StringType())
 def mask_email_udf(email: str | None) -> str | None:
+    """Mask email local part keeping first and last character, then append '#@pins.com'."""
     try:
         if email is None:
             return None
@@ -64,7 +104,7 @@ def mask_email_udf(email: str | None) -> str | None:
             masked_local = local
         else:
             masked_local = local[0] + ("*" * (len(local) - 2)) + local[-1]
-        return f"{masked_local}@#PINS.com"
+        return f"{masked_local}#@pins.com"
     except Exception:
         return None
 
@@ -114,7 +154,9 @@ class NameMaskStrategy(Strategy):
     def apply(self, df: DataFrame, column: str, seed: Column, context: dict) -> DataFrame:
         cname = column.lower()
         if "name" in cname and "first" not in cname and "last" not in cname:
-            return df.withColumn(column, mask_fullname_udf(F.col(column)))
+            # Full-name field: first letter of first name + last letter of last name
+            return df.withColumn(column, mask_fullname_initial_lastletter_udf(F.col(column)))
+        # Single-part name fields retain first and last letter
         return df.withColumn(column, mask_keep_first_last_col(F.col(column)))
 
 

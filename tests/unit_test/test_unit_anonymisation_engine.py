@@ -23,13 +23,13 @@ def test_engine_applies_email_and_name_masking():
         out = engine.apply(df, cols)
 
         rows = out.select("full_name", "email").collect()
-        # Name masking: first and last letter retained per part
-        assert rows[0][0] == "J**n D*e"
-        assert rows[1][0] == "J**e S***h"
-        # Email masking: local part masked, domain becomes #PINS.com
-        assert rows[0][1].endswith("@#PINS.com")
-        assert rows[1][1].endswith("@#PINS.com")
-        assert rows[0][1].split("@")[0].startswith("j")
-        assert rows[1][1].split("@")[0].startswith("j")
+        # Name masking: first letter of first name, last letter of last name
+        assert rows[0][0] == "J*** **e"
+        assert rows[1][0] == "J*** ****h"
+        # Email masking: local part masked, domain becomes #@pins.com
+        assert rows[0][1].endswith("#@pins.com")
+        assert rows[1][1].endswith("#@pins.com")
+        assert rows[0][1].split("#@")[0].startswith("j")
+        assert rows[1][1].split("#@")[0].startswith("j")
     finally:
         spark.stop()
