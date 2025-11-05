@@ -23,10 +23,7 @@ def main():
     parser.add_argument("--client-secret", default=os.environ.get("PURVIEW_CLIENT_SECRET"), help="AAD App secret")
     parser.add_argument(
         "--asset-qualified-name",
-        default=os.environ.get(
-            "PURVIEW_ASSET_QUALIFIED_NAME",
-            "https://pinsstodwdevuks9h80mb.dfs.core.windows.net/odw-raw/Horizon/{Year}-{Month}-{Day}/DaRT_LPA.csv",
-        ),
+        default=os.environ.get("PURVIEW_ASSET_QUALIFIED_NAME"),
         help="Qualified name of the ADLS Gen2 resource set for DaRT_LPA.csv",
     )
     parser.add_argument(
@@ -41,6 +38,20 @@ def main():
     client_id = args.client_id or get_env("PURVIEW_CLIENT_ID")
     client_secret = args.client_secret or get_env("PURVIEW_CLIENT_SECRET")
 
+    # Resolve asset qualified name if not provided, preferring Synapse mssparkutils
+    asset_qn = args.asset_qualified_name
+    if not asset_qn:
+        storage_host = os.environ.get("DATA_LAKE_STORAGE_HOST") or os.environ.get("DATA_LAKE_STORAGE")
+        if storage_host and not storage_host.endswith(".dfs.core.windows.net"):
+            storage_host = f"{storage_host}.dfs.core.windows.net"
+        if not storage_host:
+            try:
+                from notebookutils import mssparkutils  # type: ignore
+                storage_host = (mssparkutils.notebook.run('/utils/py_utils_get_storage_account') or '').strip('/')
+            except Exception:
+                storage_host = "pinsstodwdevuks9h80mb.dfs.core.windows.net"
+        asset_qn = f"https://{storage_host}/odw-raw/Horizon/{{Year}}-{{Month}}-{{Day}}/DaRT_LPA.csv"
+
     # 1) Get Purview classifications for the asset
     cols: List[Dict] = fetch_purview_classifications_by_qualified_name(
         purview_name=purview_name,
@@ -48,7 +59,7 @@ def main():
         client_id=client_id,
         client_secret=client_secret,
         asset_type_name=args.asset_type_name,
-        asset_qualified_name=args.asset_qualified_name,
+        asset_qualified_name=asset_qn,
     )
 
     email_items = [c for c in cols if (c.get("column_name") or "").lower() == "emailaddress"]
@@ -81,9 +92,9 @@ def main():
             print(" -", m)
 
         # Validate masking behaviour for non-null values
-        ok = all((m is None) or str(m).endswith("@#PINS.com") for m in masked)
+        ok = all((m is None) or str(m).endswith("#@pins.com") for m in masked)
         if not ok:
-            raise SystemExit("emailAddress masking FAILED (expected domain to be '#PINS.com')")
+            raise SystemExit("emailAddress masking FAILED (expected domain to be '#@pins.com')")
 
         print("OK: emailAddress masked as expected")
     finally:

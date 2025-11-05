@@ -94,7 +94,7 @@ def random_date_from_seed(seed: Column, start: str = "1955-01-01", end: str = "2
 
 @F.udf(T.StringType())
 def mask_email_udf(email: str | None) -> str | None:
-    """Mask email local part keeping first and last character, then append '#@pins.com'."""
+    """Mask email local part keeping first and last character, then replace domain with '@#PINS.com'."""
     try:
         if email is None:
             return None
@@ -104,7 +104,7 @@ def mask_email_udf(email: str | None) -> str | None:
             masked_local = local
         else:
             masked_local = local[0] + ("*" * (len(local) - 2)) + local[-1]
-        return f"{masked_local}#@pins.com"
+        return f"{masked_local}@#PINS.com"
     except Exception:
         return None
 
@@ -145,6 +145,10 @@ class EmailMaskStrategy(Strategy):
     classification_names = {"MICROSOFT.PERSONAL.EMAIL", "Email Address"}
 
     def apply(self, df: DataFrame, column: str, seed: Column, context: dict) -> DataFrame:
+        # If EmployeeID is present, build email as "<EmployeeID>@#PINS.com" per client requirement.
+        if "EmployeeID" in df.columns:
+            return df.withColumn(column, F.concat(F.col("EmployeeID").cast("string"), F.lit("@#PINS.com")))
+        # Fallback to legacy masking when EmployeeID is not available.
         return df.withColumn(column, mask_email_udf(F.col(column)))
 
 

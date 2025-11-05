@@ -28,6 +28,25 @@ def _http_get(url: str, headers: Dict[str, str], timeout: int = 60) -> dict:
 
 
 def _get_access_token(tenant_id: str, client_id: str, client_secret: str) -> str:
+    """Acquire an access token for Purview.
+
+    Prefers client-credential flow when client_secret is provided. If client_secret is blank
+    or equals one of {AZURE_IDENTITY, USE_AZURE_IDENTITY, DEFAULT}, fallback to Azure Identity
+    (DefaultAzureCredential -> AzureCliCredential).
+    """
+    if not client_secret or str(client_secret).strip().upper() in {"AZURE_IDENTITY", "USE_AZURE_IDENTITY", "DEFAULT"}:
+        try:
+            from azure.identity import DefaultAzureCredential  # type: ignore
+            return DefaultAzureCredential(exclude_interactive_browser_credential=True).get_token(
+                "https://purview.azure.net/.default"
+            ).token
+        except Exception:
+            try:
+                from azure.identity import AzureCliCredential  # type: ignore
+                return AzureCliCredential().get_token("https://purview.azure.net/.default").token
+            except Exception as ex:
+                raise Exception("Failed to acquire token via Azure Identity (Default/Azure CLI)") from ex
+
     token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
     data = {
         "grant_type": "client_credentials",
