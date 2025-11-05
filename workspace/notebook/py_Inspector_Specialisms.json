@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "56461bd1-f697-4e88-8d7f-ff526a422c39"
+				"spark.autotune.trackingId": "e9fb646c-6c05-4989-9fec-c2d21a41a332"
 			}
 		},
 		"metadata": {
@@ -105,7 +105,7 @@
 					"import pandas as pd\n",
 					"import numpy as np"
 				],
-				"execution_count": null
+				"execution_count": 33
 			},
 			{
 				"cell_type": "markdown",
@@ -126,7 +126,7 @@
 					"%run utils/py_logging_decorator\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 34
 			},
 			{
 				"cell_type": "markdown",
@@ -191,9 +191,9 @@
 					"    QualificationName,\n",
 					"    Proficien,\n",
 					"    'saphr' AS SourceSystemID,\n",
-					"    CURRENT_DATE() AS IngestionDate,\n",
-					"    cast(ValidFrom as timestamp) AS ValidFrom,\n",
-					"    cast(ValidTo as timestamp) AS ValidTo,\n",
+					"    CURRENT_TIMESTAMP() AS IngestionDate,\n",
+					"    cast(to_date(ValidFrom, \"d/M/yyyy\") as timestamp) AS ValidFrom,\n",
+					"    cast(to_date(ValidTo, \"d/M/yyyy\") as timestamp) AS ValidTo,\n",
 					"    -- Generate RowID during insert instead of separate update\n",
 					"    md5(concat_ws('|', \n",
 					"        coalesce(cast(\n",
@@ -228,7 +228,7 @@
 					"# Ensure logs are flushed\n",
 					"flushLogging()"
 				],
-				"execution_count": null
+				"execution_count": 35
 			},
 			{
 				"cell_type": "markdown",
@@ -290,13 +290,13 @@
 					"        souSpe.QualificationName, \n",
 					"        souSpe.Proficien, \n",
 					"        'saphr', \n",
-					"        current_date(), \n",
+					"        current_timestamp(), \n",
 					"        souSpe.ValidFrom, \n",
 					"        souSpe.ValidTo, \n",
 					"        1, \n",
 					"        souSpe.RowID, \n",
 					"        'Y', \n",
-					"        current_date()\n",
+					"        current_timestamp()\n",
 					"    FROM odw_harmonised_db.transform_inspector_Specialisms souSpe\n",
 					"    LEFT OUTER JOIN odw_harmonised_db.sap_hr_inspector_Specialisms tarSpe\n",
 					"        ON souSpe.StaffNumber = tarSpe.StaffNumber\n",
@@ -331,7 +331,7 @@
 					"    logInfo(\"Flushing logs\")\n",
 					"    flushLogging()"
 				],
-				"execution_count": null
+				"execution_count": 36
 			},
 			{
 				"cell_type": "code",
@@ -518,7 +518,7 @@
 					"    logInfo(\"Flushing logs and cleaning up\")\n",
 					"    flushLogging()"
 				],
-				"execution_count": null
+				"execution_count": 37
 			},
 			{
 				"cell_type": "code",
@@ -567,13 +567,13 @@
 					"        souSpe.QualificationName, \n",
 					"        souSpe.Proficien, \n",
 					"        'saphr', \n",
-					"        current_date(), \n",
-					"        current_date(), \n",
-					"        '9999-12-31', \n",
+					"        current_timestamp(), \n",
+					"        souSpe.ValidFrom, \n",
+					"        souSpe.ValidTo, \n",
 					"        1, \n",
 					"        souSpe.RowID, \n",
 					"        'Y', \n",
-					"        current_date()\n",
+					"        current_timestamp()\n",
 					"    FROM odw_harmonised_db.transform_inspector_Specialisms souSpe\n",
 					"    LEFT OUTER JOIN odw_harmonised_db.sap_hr_inspector_Specialisms tarSpe\n",
 					"        ON souSpe.StaffNumber = tarSpe.StaffNumber\n",
@@ -612,7 +612,20 @@
 					"    logInfo(\"Flushing logs\")\n",
 					"    flushLogging()"
 				],
-				"execution_count": null
+				"execution_count": 38
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"editable": false,
+					"run_control": {
+						"frozen": true
+					}
+				},
+				"source": [
+					"spark.sql(\"delete from odw_harmonised_db.sap_hr_inspector_specialisms where lastUpdated = CURRENT_DATE()\")"
+				],
+				"execution_count": 32
 			},
 			{
 				"cell_type": "code",
@@ -825,7 +838,7 @@
 					"    # Output the result as JSON for ADF to capture\n",
 					"    mssparkutils.notebook.exit(json.dumps(result))"
 				],
-				"execution_count": null
+				"execution_count": 39
 			}
 		]
 	}
