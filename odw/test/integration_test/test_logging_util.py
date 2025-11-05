@@ -6,6 +6,7 @@ import requests
 from uuid import uuid4
 import mock
 import pytest
+import time
 
 
 APP_INSIGHTS_TOKEN = AzureCliCredential().get_token("https://api.applicationinsights.io/.default").token
@@ -33,7 +34,8 @@ def run_logging_util():
     with mock.patch("notebookutils.mssparkutils.runtime.context", mock_mssparkutils_context):
         with mock.patch.object(notebookutils.mssparkutils.credentials, "getSecretWithLS", return_value=app_insights_connection_string):
             some_test_function("Hello", mock_arg_b="There")
-            LoggingUtil().flush_logging()
+            # The logs take time to appear in app insights
+            time.sleep(60)
 
 
 def test_logging_initialised():
