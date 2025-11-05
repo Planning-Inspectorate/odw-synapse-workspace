@@ -1,6 +1,6 @@
-from pipelines.scripts.util.synapse_workspace_manager import SynapseWorkspaceManager
-from pipelines.scripts.util.exceptions import MaxWaitTimeNeededException
-from pipelines.scripts.util.util import Util
+from odw_common.util.synapse_workspace_manager import SynapseWorkspaceManager
+from odw_common.util.exceptions import MaxWaitTimeNeededException
+from odw_common.util.util import Util
 import pytest
 import mock
 import requests

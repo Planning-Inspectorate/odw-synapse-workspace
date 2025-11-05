@@ -1,6 +1,6 @@
-from pipelines.scripts.util.synapse_workspace_manager import SynapseWorkspaceManager
+from odw_common.util.synapse_workspace_manager import SynapseWorkspaceManager
 from pipelines.scripts.deploy_odw_package import ODWPackageDeployer
-from pipelines.scripts.util.exceptions import ConcurrentWheelUploadException
+from odw_common.util.exceptions import ConcurrentWheelUploadException
 import pytest
 import mock
 
@@ -52,7 +52,7 @@ def test_get_odw_wheels():
             }
         }
     ]
-    with mock.patch("pipelines.scripts.util.synapse_workspace_manager.SynapseWorkspaceManager") as mock_workspace_manager:
+    with mock.patch("odw_common.util.synapse_workspace_manager.SynapseWorkspaceManager") as mock_workspace_manager:
         mock_workspace_manager.get_workspace_packages.return_value = mock_get_workspace_packages
         actual_odw_packages = ODWPackageDeployer().get_existing_odw_wheels(mock_workspace_manager)
         assert actual_odw_packages == expected_odw_packages
@@ -147,7 +147,7 @@ def test_upload_new_wheel__with_no_existing_package():
             }
         )
     ]
-    with mock.patch("pipelines.scripts.util.synapse_workspace_manager.SynapseWorkspaceManager"):
+    with mock.patch("odw_common.util.synapse_workspace_manager.SynapseWorkspaceManager"):
         with mock.patch.object(SynapseWorkspaceManager, "upload_workspace_package", return_value=None):
             with mock.patch.object(SynapseWorkspaceManager, "get_spark_pool", get_spark_pool):
                 with mock.patch.object(SynapseWorkspaceManager, "update_spark_pool", return_value=None):
@@ -256,7 +256,7 @@ def test_upload_new_wheel__with_other_odw_package():
             }
         )
     ]
-    with mock.patch("pipelines.scripts.util.synapse_workspace_manager.SynapseWorkspaceManager"):
+    with mock.patch("odw_common.util.synapse_workspace_manager.SynapseWorkspaceManager"):
         with mock.patch.object(SynapseWorkspaceManager, "upload_workspace_package", return_value=None):
             with mock.patch.object(SynapseWorkspaceManager, "get_spark_pool", get_spark_pool):
                 with mock.patch.object(SynapseWorkspaceManager, "update_spark_pool", return_value=None):
@@ -293,7 +293,7 @@ def test_upload_new_wheel__with_two_other_existing_packages():
             }
         }
     ]
-    with mock.patch("pipelines.scripts.util.synapse_workspace_manager.SynapseWorkspaceManager"):
+    with mock.patch("odw_common.util.synapse_workspace_manager.SynapseWorkspaceManager"):
         with mock.patch.object(ODWPackageDeployer, "get_existing_odw_wheels", return_value = mock_odw_wheels):
             with pytest.raises(ConcurrentWheelUploadException):
                 ODWPackageDeployer().upload_new_wheel(env, wheel_name)
@@ -313,9 +313,9 @@ def test_upload_new_wheel__with_duplicate_existing_package():
             }
         }
     ]
-    with mock.patch("pipelines.scripts.util.synapse_workspace_manager.SynapseWorkspaceManager"):
+    with mock.patch("odw_common.util.synapse_workspace_manager.SynapseWorkspaceManager"):
         with mock.patch.object(ODWPackageDeployer, "get_existing_odw_wheels", return_value=mock_odw_wheels):
-            with mock.patch("pipelines.scripts.util.synapse_workspace_manager.SynapseWorkspaceManager"):
+            with mock.patch("odw_common.util.synapse_workspace_manager.SynapseWorkspaceManager"):
                 with mock.patch.object(SynapseWorkspaceManager, "upload_workspace_package", return_value=None):
                     with mock.patch.object(SynapseWorkspaceManager, "get_spark_pool", return_value=None):
                         with mock.patch.object(SynapseWorkspaceManager, "update_spark_pool", return_value=None):

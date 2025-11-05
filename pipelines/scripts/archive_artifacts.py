@@ -1,6 +1,6 @@
 from pipelines.scripts.synapse_artifact.synapse_artifact_util_factory import SynapseArtifactUtilFactory
 from pipelines.scripts.synapse_artifact.synapse_artifact_util import SynapseArtifactUtil
-from pipelines.scripts.util.util import Util
+from odw_common.util.util import Util
 from typing import Set, Dict, Any
 import json
 import logging
