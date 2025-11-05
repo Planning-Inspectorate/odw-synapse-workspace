@@ -98,8 +98,7 @@
 						"value": "@pipeline().parameters.sbEntities",
 						"type": "Expression"
 					},
-					"isSequential": false,
-					"batchCount": 4,
+					"isSequential": true,
 					"activities": [
 						{
 							"name": "Random wait",
@@ -565,7 +564,7 @@
 							"type": "IfCondition",
 							"dependsOn": [
 								{
-									"activity": "If entity is service user",
+									"activity": "If failOnFirstError",
 									"dependencyConditions": [
 										"Succeeded"
 									]
@@ -776,46 +775,6 @@
 							}
 						},
 						{
-							"name": "If failOnFirstError",
-							"type": "IfCondition",
-							"dependsOn": [
-								{
-									"activity": "If entity is service user",
-									"dependencyConditions": [
-										"Failed"
-									]
-								},
-								{
-									"activity": "If new messages",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"userProperties": [],
-							"typeProperties": {
-								"expression": {
-									"value": "@and(\n  equals(pipeline().parameters.failOnFirstError, true),\n  not(empty(variables('lastErrorMessage')))\n)\n",
-									"type": "Expression"
-								},
-								"ifTrueActivities": [
-									{
-										"name": "Stop on first failure",
-										"type": "Fail",
-										"dependsOn": [],
-										"userProperties": [],
-										"typeProperties": {
-											"message": {
-												"value": "@concat(\n  'Stopping after first failure for entity ',\n  string(item()),\n  '. Error: ',\n  variables('lastErrorMessage')\n)\n",
-												"type": "Expression"
-											},
-											"errorCode": "FAIL_ON_FIRST_ENTITY_ERROR"
-										}
-									}
-								]
-							}
-						},
-						{
 							"name": "Log Start",
 							"type": "ExecutePipeline",
 							"dependsOn": [
@@ -890,27 +849,6 @@
 							}
 						},
 						{
-							"name": "Mark Iteration Complete",
-							"type": "SetVariable",
-							"dependsOn": [
-								{
-									"activity": "If failOnFirstError",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"variableName": "iterationStatus",
-								"value": "Done"
-							}
-						},
-						{
 							"name": "Reset lastErrorMessage",
 							"type": "SetVariable",
 							"dependsOn": [
@@ -929,6 +867,41 @@
 							"typeProperties": {
 								"variableName": "lastErrorMessage",
 								"value": "''"
+							}
+						},
+						{
+							"name": "If failOnFirstError",
+							"type": "IfCondition",
+							"dependsOn": [
+								{
+									"activity": "If entity is service user",
+									"dependencyConditions": [
+										"Succeeded",
+										"Failed"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"expression": {
+									"value": "@and(\n  pipeline().parameters.failOnFirstError,\n  greater(length(trim(variables('lastErrorMessage'))), 0)\n)\n",
+									"type": "Expression"
+								},
+								"ifTrueActivities": [
+									{
+										"name": "Stop on first failure",
+										"type": "Fail",
+										"dependsOn": [],
+										"userProperties": [],
+										"typeProperties": {
+											"message": {
+												"value": "concat(\n  'Stopping after first failure. Error: ',\n  variables('lastErrorMessage')\n)\n",
+												"type": "Expression"
+											},
+											"errorCode": "FAIL_ON_FIRST_ENTITY_ERROR"
+										}
+									}
+								]
 							}
 						}
 					]
@@ -973,7 +946,7 @@
 			},
 			"failOnFirstError": {
 				"type": "bool",
-				"defaultValue": false
+				"defaultValue": true
 			}
 		},
 		"variables": {
@@ -1000,6 +973,10 @@
 			"iterationStatus": {
 				"type": "String",
 				"defaultValue": "''"
+			},
+			"hasFailure": {
+				"type": "Boolean",
+				"defaultValue": true
 			}
 		},
 		"folder": {
