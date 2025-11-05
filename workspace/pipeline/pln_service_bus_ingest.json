@@ -98,7 +98,8 @@
 						"value": "@pipeline().parameters.sbEntities",
 						"type": "Expression"
 					},
-					"isSequential": true,
+					"isSequential": false,
+					"batchCount": 4,
 					"activities": [
 						{
 							"name": "Random wait",
@@ -277,6 +278,27 @@
 												"value": "@json(\n  concat(\n    '{',\n      '\"entity\":\"', string(item()), '\",',\n      '\"status\":\"Failed\",',\n      '\"recordsIngested\":0,',\n      '\"durationSeconds\":0,',\n      '\"manifestPath\":\"\",',\n      '\"error\":\"', replace(variables('lastErrorMessage'),'\"',''''), '\",',\n      '\"runId\":\"', pipeline().RunId, '\"',\n    '}'\n  )\n)\n",
 												"type": "Expression"
 											}
+										}
+									},
+									{
+										"name": "Mark Failure non service user",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "Append Failed non service user",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "hasFailure",
+											"value": true
 										}
 									}
 								],
@@ -555,6 +577,48 @@
 												"type": "Expression"
 											}
 										}
+									},
+									{
+										"name": "Mark Failure Service User",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "Append Failed service user",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "hasFailure",
+											"value": true
+										}
+									},
+									{
+										"name": "Mark Failure appeal service user",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "Append Failed appeal service user",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "hasFailure",
+											"value": true
+										}
 									}
 								]
 							}
@@ -564,7 +628,7 @@
 							"type": "IfCondition",
 							"dependsOn": [
 								{
-									"activity": "If failOnFirstError",
+									"activity": "If entity is service user",
 									"dependencyConditions": [
 										"Succeeded"
 									]
@@ -866,42 +930,7 @@
 							"userProperties": [],
 							"typeProperties": {
 								"variableName": "lastErrorMessage",
-								"value": "''"
-							}
-						},
-						{
-							"name": "If failOnFirstError",
-							"type": "IfCondition",
-							"dependsOn": [
-								{
-									"activity": "If entity is service user",
-									"dependencyConditions": [
-										"Succeeded",
-										"Failed"
-									]
-								}
-							],
-							"userProperties": [],
-							"typeProperties": {
-								"expression": {
-									"value": "@and(\n  pipeline().parameters.failOnFirstError,\n  greater(length(trim(variables('lastErrorMessage'))), 0)\n)\n",
-									"type": "Expression"
-								},
-								"ifTrueActivities": [
-									{
-										"name": "Stop on first failure",
-										"type": "Fail",
-										"dependsOn": [],
-										"userProperties": [],
-										"typeProperties": {
-											"message": {
-												"value": "concat(\n  'Stopping after first failure. Error: ',\n  variables('lastErrorMessage')\n)\n",
-												"type": "Expression"
-											},
-											"errorCode": "FAIL_ON_FIRST_ENTITY_ERROR"
-										}
-									}
-								]
+								"value": "@string('')\n"
 							}
 						}
 					]
@@ -930,6 +959,36 @@
 						"type": "Expression"
 					}
 				}
+			},
+			{
+				"name": "Return result",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Output JSON",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "pipelineReturnValue",
+					"value": [
+						{
+							"key": "result",
+							"value": {
+								"type": "Expression",
+								"content": "@concat(\n  '{',\n  '\"hasFailure\":', string(variables('hasFailure')), ',',\n  '\"results\":', string(variables('serviceBusStatus')),\n  '}'\n)\n"
+							}
+						}
+					],
+					"setSystemVariable": true
+				}
 			}
 		],
 		"parameters": {
@@ -943,10 +1002,6 @@
 			"retryCount": {
 				"type": "int",
 				"defaultValue": 2
-			},
-			"failOnFirstError": {
-				"type": "bool",
-				"defaultValue": true
 			}
 		},
 		"variables": {
@@ -970,13 +1025,9 @@
 				"type": "String",
 				"defaultValue": "''"
 			},
-			"iterationStatus": {
-				"type": "String",
-				"defaultValue": "''"
-			},
 			"hasFailure": {
 				"type": "Boolean",
-				"defaultValue": true
+				"defaultValue": false
 			}
 		},
 		"folder": {
