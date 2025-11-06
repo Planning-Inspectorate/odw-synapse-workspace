@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "62cc289f-dfba-44b8-ae62-19149cb6b9aa"
+				"spark.autotune.trackingId": "4c72cbc0-2da6-472f-994f-e4db60347637"
 			}
 		},
 		"metadata": {
@@ -90,7 +90,7 @@
 					"from delta.tables import DeltaTable\r\n",
 					"from datetime import datetime"
 				],
-				"execution_count": null
+				"execution_count": 3
 			},
 			{
 				"cell_type": "markdown",
@@ -110,7 +110,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 4
 			},
 			{
 				"cell_type": "markdown",
@@ -128,14 +128,14 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"table_name = \"odw_curated_db.dart_api\"\r\n",
+					"table_name = \"odw_curated_db.dart_response\"\r\n",
 					"start_exec_time = datetime.now()\r\n",
 					"insert_count = 0\r\n",
 					"update_count = 0\r\n",
 					"delete_count = 0\r\n",
 					"error_message=''"
 				],
-				"execution_count": null
+				"execution_count": 5
 			},
 			{
 				"cell_type": "markdown",
@@ -315,7 +315,7 @@
 					"    end_exec_time = datetime.now()\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
@@ -330,9 +330,6 @@
 					"    F.when(clean.isNull() | (F.trim(clean) == \"\"), F.lit(\"UNKNOWN\")).otherwise(clean)\r\n",
 					")\r\n",
 					"\r\n",
-					"df = df.withColumn(\"inspectorName\", F.col(\"inspectorName\").cast(\"string\"))\r\n",
-					"df = df.withColumn(\"appellantName\", F.col(\"appellantName\").cast(\"string\"))\r\n",
-					"\r\n",
 					"for c in [\"enforcementNotice\",\"isCorrectAppealType\",\"appellantCostsAppliedFor\",\"lpaCostsAppliedFor\",\"changedDevelopmentDescription\"]:\r\n",
 					"    if c in df.columns:\r\n",
 					"        df = df.withColumn(\r\n",
@@ -342,19 +339,77 @@
 					"             .otherwise(F.lit(None).cast(\"boolean\"))\r\n",
 					"        )\r\n",
 					"\r\n",
+					"if \"neighbouringSiteAddresses\" in df.columns:\r\n",
+					"    df = df.withColumn(\r\n",
+					"        \"neighbouringSiteAddresses\",\r\n",
+					"        F.expr(\"\"\"\r\n",
+					"            transform(\r\n",
+					"                neighbouringSiteAddresses,\r\n",
+					"                x -> struct(\r\n",
+					"                    x.neighbouringSiteAddressLine1 as neighbouringSiteAddressLine1,\r\n",
+					"                    x.neighbouringSiteAddressLine2 as neighbouringSiteAddressLine2,\r\n",
+					"                    x.neighbouringSiteAddressTown as neighbouringSiteAddressTown,\r\n",
+					"                    x.neighbouringSiteAddressCounty as neighbouringSiteAddressCounty,\r\n",
+					"                    x.neighbouringSiteAddressPostcode as neighbouringSiteAddressPostcode,\r\n",
+					"                    NULL as neighbouringSiteAccessDetails,\r\n",
+					"                    NULL as neighbouringSiteSafetyDetails\r\n",
+					"                )\r\n",
+					"            )\r\n",
+					"        \"\"\")\r\n",
+					"    )"
+				],
+				"execution_count": 8
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"spark.table(\"odw_curated_db.dart_response\").printSchema()"
+				],
+				"execution_count": 11
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"# Here we either create a missing column set it to none and to the right type\r\n",
 					"#if the column exists but is the wrong type we cast it based on the curated schema\r\n",
 					"#If it already matches then we leave it untouched\r\n",
-					"t = spark.table(\"odw_curated_db.dart_api\")\r\n",
-					"t_types = {f.name: f.dataType for f in t.schema}\r\n",
-					"for c in t.columns:\r\n",
-					"    if c not in df.columns:\r\n",
-					"        df = df.withColumn(c, F.lit(None).cast(t_types[c]))\r\n",
-					"df = df.select([F.col(c).cast(t_types[c]).alias(c) for c in t.columns]) \\\r\n",
-					"       .dropDuplicates([\"caseReference\",\"applicationReference\"])\r\n",
-					""
+					"# t = spark.table(\"odw_curated_db.dart_api\")\r\n",
+					"# t_types = {f.name: f.dataType for f in t.schema}\r\n",
+					"# for c in t.columns:\r\n",
+					"#     if c not in df.columns:\r\n",
+					"#         df = df.withColumn(c, F.lit(None).cast(t_types[c]))\r\n",
+					"# df = df.select([F.col(c).cast(t_types[c]).alias(c) for c in t.columns]) \\\r\n",
+					"#        .dropDuplicates([\"caseReference\",\"applicationReference\"])"
 				],
-				"execution_count": null
+				"execution_count": 12
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"df.printSchema()"
+				],
+				"execution_count": 14
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"SELECT * FROM odw_curated_db.dart_response WHERE caseReference = '6018663'"
+				],
+				"execution_count": 30
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# spark.sql(\"DROP TABLE IF EXISTS odw_curated_db.dart_response\")"
+				],
+				"execution_count": 32
 			},
 			{
 				"cell_type": "code",
@@ -372,7 +427,7 @@
 					"    end_exec_time = datetime.now()\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 22
 			},
 			{
 				"cell_type": "code",
@@ -389,7 +444,7 @@
 					"#         end_exec_time = datetime.now()\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 23
 			},
 			{
 				"cell_type": "markdown",
@@ -438,7 +493,7 @@
 					"        error_message = f\"Error appending data to the curated layer {table_name} table : {str(e)[:800]}\"\r\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": null
+				"execution_count": 24
 			},
 			{
 				"cell_type": "markdown",
@@ -471,7 +526,7 @@
 					"delta_table.optimize().executeZOrderBy(\"caseReference\")\r\n",
 					"delta_table.optimize()"
 				],
-				"execution_count": null
+				"execution_count": 25
 			},
 			{
 				"cell_type": "markdown",
@@ -521,7 +576,7 @@
 					"    status_code\r\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 26
 			}
 		]
 	}
