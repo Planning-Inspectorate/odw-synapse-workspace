@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Iterable, List, Sequence, Set
 
-from pyspark.sql import DataFrame, functions as F, types as T
+from pyspark.sql import DataFrame, functions as F
 from pyspark.sql.column import Column
 
 
@@ -26,7 +26,7 @@ def mask_keep_first_last_col(col: Column) -> Column:
     return F.when(col.isNull(), None).otherwise(F.regexp_replace(col.cast("string"), r"(?<=.).(?=.$)", "*"))
 
 
-@F.udf(T.StringType())
+@F.udf("string")
 def mask_fullname_udf(v: str | None) -> str | None:
     if v is None:
         return None
@@ -53,7 +53,7 @@ def random_date_from_seed(seed: Column, start: str = "1955-01-01", end: str = "2
     return F.date_add(start_date, offset.cast("int"))
 
 
-@F.udf(T.StringType())
+@F.udf("string")
 def mask_email_udf(email: str | None) -> str | None:
     try:
         if email is None:
@@ -69,7 +69,7 @@ def mask_email_udf(email: str | None) -> str | None:
         return None
 
 
-@F.udf(T.StringType())
+@F.udf("string")
 def generate_random_ni_number_udf(_: str | None) -> str:
     import random as _rand  # local import to keep worker safe
 
