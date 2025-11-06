@@ -1,5 +1,5 @@
 {
-	"name": "py_purview_df_anonymiser",
+	"name": "purview_df_anonymiser",
 	"properties": {
 		"nbformat": 4,
 		"nbformat_minor": 2,
@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ca4868dd-971c-4b4f-8fd5-e09fd4d1e455"
+				"spark.autotune.trackingId": "8f9f5fff-6eeb-43f6-8bb2-7202e78a59b4"
 			}
 		},
 		"metadata": {
@@ -65,10 +65,16 @@
 					"from pyspark.sql import functions as F\n",
 					"from pyspark.sql.functions import regexp_extract, max\n",
 					"from pyspark.sql.types import Row, StructType, StructField, StringType, BooleanType, TimestampType\n",
-					"from pyspark.sql import DataFrame\n",
-					""
+					"from pyspark.sql import DataFrame, SparkSession"
 				],
-				"execution_count": 243
+				"execution_count": 1
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from odw.core.anonymisation import *"
+				],
+				"execution_count": 2
 			},
 			{
 				"cell_type": "markdown",
@@ -90,11 +96,18 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"entity_name = 'service-user'\n",
-					"file_name = 'HorizonContactInformation.csv'\n",
-					"is_servicebus_schema = True "
+					"# %run service-bus/py_sb_raw_to_std"
 				],
-				"execution_count": 251
+				"execution_count": 3
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"entity_name = 'nsip-project'\n",
+					"file_name = 'dart-lpa.csv'\n",
+					"source_folder= 'Horizon' # ServiceBus, Horizon, entraid"
+				],
+				"execution_count": 4
 			},
 			{
 				"cell_type": "markdown",
@@ -112,49 +125,11 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"%run service-bus/py_sb_raw_to_std"
+					"# table_name: str = f\"odw_standardised_db.sb_{entity_name.replace('-', '_')}\"\n",
+					"table_name: str = f\"odw_standardised_db.pins_lpa\"\n",
+					"table_df = spark.table(table_name)"
 				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"@logging_to_appins\n",
-					"def get_max_file_date(df: DataFrame) -> datetime:\n",
-					"    \"\"\"\n",
-					"    Gets the maximum date from a file path field in a DataFrame.\n",
-					"    E.g. if the input_file field contained paths such as this:\n",
-					"    abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/ServiceBus/appeal-has/2024-12-02/appeal-has_2024-12-02T16:54:35.214679+0000.json\n",
-					"    It extracts the date from the string for each row and gets the maximum date.\n",
-					"\n",
-					"    Args:\n",
-					"        df: a spark DataFrame\n",
-					"\n",
-					"    Returns:\n",
-					"        formatted_timestamp: a string of the maximum file date\n",
-					"    \"\"\"\n",
-					"    try:\n",
-					"        date_pattern: str = r'(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}\\+\\d{4})'\n",
-					"        df: DataFrame = df.withColumn(\"file_date\", regexp_extract(df[\"input_file\"], date_pattern, 1))\n",
-					"        df: DataFrame = df.withColumn(\"file_date\", df[\"file_date\"].cast(TimestampType()))\n",
-					"        max_timestamp: list = df.agg(max(\"file_date\")).collect()[0][0]\n",
-					"        formatted_timestamp: str = max_timestamp.strftime(\"%Y-%m-%dT%H:%M:%S.%f\")+\"+0000\"\n",
-					"        return formatted_timestamp\n",
-					"    except Exception as e:\n",
-					"        error_message = f\"Error extracting maximum file date from DataFrame: {str(e)}\"\n",
-					"        logError(error_message)\n",
-					"        raise"
-				],
-				"execution_count": 252
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"table_name: str = f\"odw_standardised_db.sb_{entity_name.replace('-', '_')}\"\n",
-					"table_df = spark.table(table_name)\n",
-					"max_extracted_date = get_max_file_date(df=table_df)"
-				],
-				"execution_count": 253
+				"execution_count": 5
 			},
 			{
 				"cell_type": "markdown",
@@ -174,25 +149,29 @@
 				"source": [
 					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')"
 				],
-				"execution_count": 254
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"if is_servicebus_schema:\n",
-					"    source_path: str = f\"https://{storage_account}odw-raw/ServiceBus/{entity_name}/\"+ \"{Year}-{Month}-{Day}\" + \"/\" + entity_name + \".csv\"\n",
+					"if source_folder == 'ServiceBus':\n",
+					"    source_path: str = f\"https://{storage_account}odw-raw/{source_folder}/{entity_name}/\"+ \"{Year}-{Month}-{Day}\" + \"/\" + entity_name + \".csv\"\n",
+					"elif source_folder == 'Horizon':\n",
+					"    source_path: str = f\"https://{storage_account}odw-raw/{source_folder}/\" + \"{Year}-{Month}-{Day}\" + \"/\" + f\"{file_name}\"\n",
+					"elif source_folder== 'entraid': \n",
+					"    source_path: str = f\"https://{storage_account}odw-raw/{source_folder}/{entity_name}/\"+ \"{Year}-{Month}-{Day}\" + \"/\" + entity_name + \".json\"\n",
 					"else:\n",
-					"    source_folder = 'Horizon'\n",
-					"    source_path: str = f\"https://{storage_account}odw-raw/Horizon/\" + \"{Year}-{Month}-{Day}\" + \"/\" + f\"{file_name}\""
+					"    raise Exception(\"Source Folder not recognised\")"
 				],
-				"execution_count": 255
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"source_path"
+					"source_path\n",
+					"https://pinsstodwdevuks9h80mb.dfs.core.windows.net/odw-raw/Horizon/{Year}-{Month}-{Day}/DaRT_LPA.csv"
 				],
-				"execution_count": 228
+				"execution_count": 20
 			},
 			{
 				"cell_type": "code",
@@ -212,18 +191,18 @@
 					"ASSET_QUALIFIED_NAME = source_path\n",
 					"CLASSIFIED_FIELDS = (\"PotentialID\", \"NI Number\", \"Email Address\", \"First Name\", \"Last Name\", \"Birth Date\", \"Annual Salary\", \"Person's Age\", \"MICROSOFT.PERSONAL.EMAIL\", \"MICROSOFT.PERSONAL.NAME\")"
 				],
-				"execution_count": 262
+				"execution_count": 8
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"VAULT_NAME = spark.sparkContext.environment.get('keyVaultName', 'get')\n",
+					"VAULT_NAME = spark.sparkContext.environment.get('keyVaultName')\n",
 					"if not VAULT_NAME:\n",
-					"    raise ValueError(f\"Cannot determine Key Vault linked service for environment: {env}\")\n",
+					"    raise ValueError(\"Cannot determine Key Vault linked service (keyVaultName) from Spark environment\")\n",
 					"\n",
 					"CLIENT_SECRET = mssparkutils.credentials.getSecret(VAULT_NAME, SECRET_NAME)"
 				],
-				"execution_count": 263
+				"execution_count": 9
 			},
 			{
 				"cell_type": "code",
@@ -245,66 +224,125 @@
 					"HDRS = {\"Authorization\": f\"Bearer {ACCESS_TOKEN}\", \"Content-Type\": \"application/json\"}\n",
 					""
 				],
-				"execution_count": 264
+				"execution_count": 16
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"# HTTP helpers\n",
+					"# # HTTP helpers\n",
 					"\n",
-					"from urllib.parse import quote\n",
+					"# from urllib.parse import quote\n",
 					"\n",
-					"def _get(url, headers=HDRS, timeout=60):\n",
-					"   r = requests.get(url, headers=headers, timeout=timeout)\n",
-					"   if not r.ok:\n",
-					"       raise Exception(f\"HTTP {r.status_code} – {r.text[:800]}\")\n",
-					"   return r.json()\n",
+					"# def _get(url, headers=HDRS, timeout=60):\n",
+					"#    r = requests.get(url, headers=headers, timeout=timeout)\n",
+					"#    if not r.ok:\n",
+					"#        raise Exception(f\"HTTP {r.status_code} – {r.text[:800]}\")\n",
+					"#    return r.json()\n",
 					"\n",
-					"def get_entity_with_refs(guid: str):\n",
-					"   url = (\n",
-					"       f\"{BASE}/entity/guid/{guid}\"\n",
-					"       f\"?minExtInfo=true&ignoreRelationships=false&api-version={API_VERSION}\"\n",
-					"   )\n",
-					"   return _get(url)\n",
+					"# def get_entity_with_refs(guid: str):\n",
+					"#    url = (\n",
+					"#        f\"{BASE}/entity/guid/{guid}\"\n",
+					"#        f\"?minExtInfo=true&ignoreRelationships=false&api-version={API_VERSION}\"\n",
+					"#    )\n",
+					"#    return _get(url)\n",
 					"\n",
-					"def get_entity_classifications(guid: str):\n",
-					"   url = f\"{BASE}/entity/guid/{guid}/classifications?api-version={API_VERSION}\"\n",
-					"   try:\n",
-					"       data = _get(url)\n",
-					"       return data.get(\"list\", []) or []\n",
-					"   except Exception:\n",
-					"       return []\n",
+					"# def get_entity_classifications(guid: str):\n",
+					"#    url = f\"{BASE}/entity/guid/{guid}/classifications?api-version={API_VERSION}\"\n",
+					"#    try:\n",
+					"#        data = _get(url)\n",
+					"#        return data.get(\"list\", []) or []\n",
+					"#    except Exception:\n",
+					"#        return []\n",
 					"\n",
-					"def get_guid_by_unique_attrs(type_name: str, qualified_name: str) -> str:\n",
+					"# def get_guid_by_unique_attrs(type_name: str, qualified_name: str) -> str:\n",
 					"\n",
-					"   qn = quote(qualified_name, safe=\"\")\n",
-					"   url = (f\"{BASE}/entity/uniqueAttribute/type/{quote(type_name, safe='')}\"\n",
-					"          f\"?attr%3AqualifiedName={qn}&api-version={API_VERSION}\")\n",
-					"   data = _get(url)\n",
-					"   # Atlas may return either 'entity' or the flattened attributes + guid\n",
-					"   if \"entity\" in data and \"guid\" in data[\"entity\"]:\n",
-					"       return data[\"entity\"][\"guid\"]\n",
-					"   if \"guid\" in data:\n",
-					"       return data[\"guid\"]\n",
-					"   raise Exception(f\"Could not resolve GUID for {type_name} :: {qualified_name}\")\n",
+					"#    qn = quote(qualified_name, safe=\"\")\n",
+					"#    url = (f\"{BASE}/entity/uniqueAttribute/type/{quote(type_name, safe='')}\"\n",
+					"#           f\"?attr%3AqualifiedName={qn}&api-version={API_VERSION}\")\n",
+					"#    data = _get(url)\n",
+					"#    # Atlas may return either 'entity' or the flattened attributes + guid\n",
+					"#    if \"entity\" in data and \"guid\" in data[\"entity\"]:\n",
+					"#        return data[\"entity\"][\"guid\"]\n",
+					"#    if \"guid\" in data:\n",
+					"#        return data[\"guid\"]\n",
+					"#    raise Exception(f\"Could not resolve GUID for {type_name} :: {qualified_name}\")\n",
 					""
 				],
-				"execution_count": 265
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
 				"source": [
+					"from odw.core.anonymisation import AnonymisationEngine\n",
+					"engine = AnonymisationEngine()\n",
+					"out = engine.apply_from_purview(\n",
+					"    table_df,\n",
+					"    purview_name=PURVIEW_NAME,\n",
+					"    tenant_id=TENANT_ID,\n",
+					"    client_id=CLIENT_ID,\n",
+					"    client_secret=CLIENT_SECRET,\n",
+					"    asset_type_name=ASSET_TYPE_NAME,\n",
+					"    asset_qualified_name=ASSET_QUALIFIED_NAME,\n",
+					")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"from odw.core.anonymisation import AnonymisationEngine, default_strategies\n",
+					"\n",
+					"df_test = spark.createDataFrame([{\"EmployeeID\":\"12345\",\"full_name\":\"John Doe\",\"email\":\"john.doe@example.com\"}])\n",
+					"cols_test = [\n",
+					"    {\"column_name\":\"full_name\",\"classifications\":[\"MICROSOFT.PERSONAL.NAME\"]},\n",
+					"    {\"column_name\":\"email\",\"classifications\":[\"MICROSOFT.PERSONAL.EMAIL\"]},\n",
+					"]\n",
+					"out_test = AnonymisationEngine(strategies=default_strategies()).apply(df_test, cols_test)\n",
+					"out_test.show(truncate=False)"
+				],
+				"execution_count": 17
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from odw.core.anonymisation import fetch_purview_classifications_by_qualified_name\n",
+					"\n",
+					"raw_cols = fetch_purview_classifications_by_qualified_name(\n",
+					"    PURVIEW_NAME, TENANT_ID, CLIENT_ID, CLIENT_SECRET,\n",
+					"    ASSET_TYPE_NAME, ASSET_QUALIFIED_NAME\n",
+					")\n",
+					"print(\"raw_cols count:\", len(raw_cols))\n",
+					"print(raw_cols[:10])"
+				],
+				"execution_count": 18
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"display(table_df)"
+				],
+				"execution_count": 14
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"resource_guid = ''\n",
 					"# Resolve asset GUID from provided inputs\n",
-					"resource_guid = ASSET_GUID\n",
+					"# resource_guid = ASSET_GUID\n",
+					"ASSET_QUALIFIED_NAME = \"https://pinsstodwdevuks9h80mb.dfs.core.windows.net/odw-raw/Horizon/{Year}-{Month}-{Day}/DaRT_LPA.csv\"\n",
 					"if not resource_guid:\n",
 					"    if ASSET_TYPE_NAME and ASSET_QUALIFIED_NAME:\n",
-					"        resource_guid = get_guid_by_unique_attrs(ASSET_TYPE_NAME, ASSET_QUALIFIED_NAME)\n",
+					"        resource_guid = _get_guid_by_unique_attrs(PURVIEW_NAME, ASSET_TYPE_NAME, ASSET_QUALIFIED_NAME, headers=headers)\n",
 					"    else:\n",
 					"        raise Exception(\"Provide ASSET_GUID or (ASSET_TYPE_NAME and ASSET_QUALIFIED_NAME)\")\n",
 					"\n",
-					"entity_data = get_entity_with_refs(resource_guid)"
+					"entity_data = _get_entity_with_refs(resource_guid)"
 				],
-				"execution_count": 266
+				"execution_count": 15
 			},
 			{
 				"cell_type": "code",
@@ -317,7 +355,7 @@
 					"for schema in attached_schema:\n",
 					"    print(f\"- GUID: {schema.get('guid')} | Name: {schema.get('displayText')} | Type: {schema.get('typeName')}\")"
 				],
-				"execution_count": 267
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -342,7 +380,7 @@
 					"\n",
 					"print(json.dumps(classified_cols, indent=2))"
 				],
-				"execution_count": 268
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -356,16 +394,6 @@
 				"source": [
 					"Execute Anonymisation"
 				]
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"filt_classified_cols =  [col for col in classified_cols if any(c in CLASSIFIED_FIELDS for c in col['classifications'])]\n",
-					"cols_to_mask = [c['column_name'] for c in filt_classified_cols]\n",
-					"classification = [c['classifications']for c in filt_classified_cols]\n",
-					"anonym_table_df = apply_anonymisation_rules(table_df, cols_to_mask, classification)"
-				],
-				"execution_count": 284
 			},
 			{
 				"cell_type": "markdown",
@@ -382,96 +410,157 @@
 			},
 			{
 				"cell_type": "code",
+				"source": [
+					"# def _seed_col(df):\n",
+					"#     cols = [c for c in ['Staff Number','PersNo','PersNo.','Personnel Number','Employee ID','EmployeeID'] if c in df.columns]\n",
+					"#     return F.coalesce(*[F.col(c).cast('string') for c in cols]) if cols else F.lit('seed')\n",
+					"\n",
+					"# def mask_keep_first_last_col(col):\n",
+					"#     return F.when(col.isNull(), None).otherwise(F.regexp_replace(col.cast('string'), r'(?<=.).(?=.$)', '*'))\n",
+					"\n",
+					"# @F.udf('string')\n",
+					"# def mask_fullname_udf(v):\n",
+					"#     if v is None:\n",
+					"#         return None\n",
+					"#     parts = [p for p in str(v).split() if p]\n",
+					"#     def m(p):\n",
+					"#         p = str(p)\n",
+					"#         if len(p) <= 2:\n",
+					"#             return p\n",
+					"#         return p[0] + ('*' * (len(p) - 2)) + p[-1]\n",
+					"#     return ' '.join(m(p) for p in parts)\n",
+					"\n",
+					"# def random_int_from_seed(seed, min_value, max_value):\n",
+					"#     return (F.abs(F.hash(seed)) % (max_value - min_value + 1)) + F.lit(min_value)\n",
+					"\n",
+					"# def random_date_from_seed(seed, start='1955-01-01', end='2005-12-31'):\n",
+					"#     start_date = F.to_date(F.lit(start))\n",
+					"#     end_date = F.to_date(F.lit(end))\n",
+					"#     days = F.datediff(end_date, start_date)\n",
+					"#     offset = F.abs(F.hash(seed)) % days\n",
+					"#     return F.date_add(start_date, offset.cast('int'))\n",
+					"\n",
+					"# @F.udf('string')\n",
+					"# def mask_email_with_persno_udf(email, pers_no, is_lm):\n",
+					"#     try:\n",
+					"#         if email is None:\n",
+					"#             return None\n",
+					"#         s = str(email)\n",
+					"#         local = s.split('@')[0]\n",
+					"#         if len(local) <= 2:\n",
+					"#             masked_local = local\n",
+					"#         else:\n",
+					"#             masked_local = local[0] + ('*' * (len(local) - 2)) + local[-1]\n",
+					"#         return f\"{masked_local}@#PINS.com\"\n",
+					"#     except Exception:\n",
+					"#         return None\n",
+					"\n",
+					"# @F.udf('string')\n",
+					"# def generate_random_ni_number_udf(seed_str):\n",
+					"#     letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ'\n",
+					"#     first = _rand.choice(letters)\n",
+					"#     second = _rand.choice(letters)\n",
+					"#     digits = ''.join(str(_rand.randint(0,9)) for _ in range(6))\n",
+					"#     last = _rand.choice('ABCD')\n",
+					"#     return f\"{first}{second}{digits}{last}\"\n",
+					"\n",
+					"# def apply_anonymisation_rules(df, sensitive_cols, classification):\n",
+					"#     seed = _seed_col(df)\n",
+					"#     out = df\n",
+					"#     exists = set(df.columns)\n",
+					"#     staff_col_name = next((c for c in ['Staff Number','PersNo','PersNo.','Personnel Number','Employee ID','EmployeeID'] if c in df.columns), None)\n",
+					"#     staff_col = F.col(staff_col_name) if staff_col_name else seed\n",
+					"#     # Ensure we have iterable of dicts with 'column_name' and 'classifications'\n",
+					"#     if not isinstance(sensitive_cols, list):\n",
+					"#         return out\n",
+					"#     for item in sensitive_cols:\n",
+					"#         if not isinstance(item, dict):\n",
+					"#             continue\n",
+					"#         col = item.get('column_name')\n",
+					"#         if not col or col not in exists:\n",
+					"#             continue\n",
+					"#         classes = set(item.get('classifications', []) or [])\n",
+					"#         # consider only classes in the provided classification allowlist\n",
+					"#         if not any(c in classification for c in classes):\n",
+					"#             continue\n",
+					"#         is_lm = 'line manager' in col.lower()\n",
+					"#         # Precedence-based application\n",
+					"#         if ('NI Number' in classes) or ('PotentialID' in classes) or ('Potential ID' in classes):\n",
+					"#             out = out.withColumn(col, generate_random_ni_number_udf(staff_col.cast('string')))\n",
+					"#             continue\n",
+					"#         if 'MICROSOFT.PERSONAL.EMAIL' in classes or 'Email Address' in classes:\n",
+					"#             out = out.withColumn(col, mask_email_with_persno_udf(F.col(col), staff_col.cast('string'), F.lit(is_lm)))\n",
+					"#             continue\n",
+					"#         if 'MICROSOFT.PERSONAL.NAME' in classes or 'First Name' in classes or 'Last Name' in classes:\n",
+					"#             # If appears to be a full name field, obfuscate each part; otherwise mask after first two\n",
+					"#             if 'name' in col.lower() and 'first' not in col.lower() and 'last' not in col.lower():\n",
+					"#                 out = out.withColumn(col, mask_fullname_udf(F.col(col)))\n",
+					"#             else:\n",
+					"#                 out = out.withColumn(col, mask_keep_first_last_col(F.col(col)))\n",
+					"#             continue\n",
+					"#         if 'Birth Date' in classes or 'Date of Birth' in classes:\n",
+					"#             out = out.withColumn(col, random_date_from_seed(seed))\n",
+					"#             continue\n",
+					"#         if \"Person's Age\" in classes or 'Employee Age' in classes:\n",
+					"#             out = out.withColumn(col, random_int_from_seed(seed, 18, 70).cast('int'))\n",
+					"#             continue\n",
+					"#         if 'Annual Salary' in classes:\n",
+					"#             out = out.withColumn(col, random_int_from_seed(seed, 20000, 100000).cast('int'))\n",
+					"#             continue\n",
+					"#     return out"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
 				"metadata": {
-					"collapsed": false
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
 				},
 				"source": [
-					"# display(anonym_table_df)\n",
-					"display(table_df)"
-				],
-				"execution_count": 285
+					"### Test"
+				]
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"def _seed_col(df):\n",
-					"    cols = [c for c in ['Staff Number','PersNo','PersNo.','Personnel Number','Employee ID','EmployeeID'] if c in df.columns]\n",
-					"    return F.coalesce(*[F.col(c).cast('string') for c in cols]) if cols else F.lit('seed')\n",
-					"\n",
-					"def mask_after_first_two_col(col):\n",
-					"    return F.when(col.isNull(), None).otherwise(F.regexp_replace(col.cast('string'), r'(?<=..).', '*'))\n",
-					"\n",
-					"@F.udf('string')\n",
-					"def mask_fullname_udf(v):\n",
-					"    if v is None:\n",
-					"        return None\n",
-					"    parts = [p for p in str(v).split() if p]\n",
-					"    def m(p): return p if len(p) <= 2 else p[:2] + '*' * (len(p) - 2)\n",
-					"    return ' '.join(m(p) for p in parts)\n",
-					"\n",
-					"def random_int_from_seed(seed, min_value, max_value):\n",
-					"    return (F.abs(F.hash(seed)) % (max_value - min_value + 1)) + F.lit(min_value)\n",
-					"\n",
-					"def random_date_from_seed(seed, start='1955-01-01', end='2005-12-31'):\n",
-					"    start_date = F.to_date(F.lit(start))\n",
-					"    end_date = F.to_date(F.lit(end))\n",
-					"    days = F.datediff(end_date, start_date)\n",
-					"    offset = F.abs(F.hash(seed)) % days\n",
-					"    return F.date_add(start_date, offset.cast('int'))\n",
-					"\n",
-					"@F.udf('string')\n",
-					"def mask_email_with_persno_udf(email, pers_no, is_lm):\n",
-					"    try:\n",
-					"        base_identifier = 'UNKNOWN'\n",
-					"        if pers_no is not None:\n",
-					"            s = str(pers_no).strip()\n",
-					"            if s and s.lower() not in ('', 'none', 'null', 'n/a', 'nan'):\n",
-					"                base_identifier = s\n",
-					"        domain = '#PINS.com'\n",
-					"        return (f\"{base_identifier}_LM@{domain}\" if bool(is_lm) else f\"{base_identifier}@{domain}\")\n",
-					"    except Exception:\n",
-					"        return 'UNKNOWN_LM@#PINS.com' if bool(is_lm) else 'UNKNOWN@#PINS.com'\n",
-					"\n",
-					"@F.udf('string')\n",
-					"def generate_random_ni_number_udf(seed_str):\n",
-					"    letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ'\n",
-					"    first = _rand.choice(letters)\n",
-					"    second = _rand.choice(letters)\n",
-					"    digits = ''.join(str(_rand.randint(0,9)) for _ in range(6))\n",
-					"    last = _rand.choice('ABCD')\n",
-					"    return f\"{first}{second}{digits}{last}\"\n",
-					"\n",
-					"def apply_anonymisation_rules(df, sensitive_cols, classification):\n",
-					"    seed = _seed_col(df)\n",
-					"    col_names = [d['column_name'] for d in sensitive_cols] if (isinstance(sensitive_cols, list) and sensitive_cols and isinstance(sensitive_cols[0], dict) and 'column_name' in sensitive_cols[0]) else (sensitive_cols if isinstance(sensitive_cols, list) else [])\n",
-					"    out = df\n",
-					"    exists = set(df.columns)\n",
-					"    staff_col_name = next((c for c in ['Staff Number','PersNo','PersNo.','Personnel Number','Employee ID','EmployeeID'] if c in df.columns), None)\n",
-					"    staff_col = F.col(staff_col_name) if staff_col_name else seed\n",
-					"    if 'First Name' in classification and 'First Name' in exists:\n",
-					"        out = out.withColumn('First Name', mask_after_first_two_col(F.col('First Name')))\n",
-					"    if 'Last Name' in classification and 'Last Name' in exists:\n",
-					"        out = out.withColumn('Last Name', mask_after_first_two_col(F.col('Last Name')))\n",
-					"    if 'Date of Birth' in classification and 'Date of Birth' in exists:\n",
-					"        out = out.withColumn('Date of Birth', random_date_from_seed(seed))\n",
-					"    if 'Email address' in classification and 'Email address' in exists:\n",
-					"        out = out.withColumn('Email address', mask_email_with_persno_udf(F.col('Email address'), staff_col.cast('string'), F.lit(False)))\n",
-					"    if 'Line Manager Name' in classification and 'Line Manager Name' in exists:\n",
-					"        out = out.withColumn('Line Manager Name', mask_fullname_udf(F.col('Line Manager Name')))\n",
-					"    if 'Line Manager Email address' in classification and 'Line Manager Email address' in exists:\n",
-					"        out = out.withColumn('Line Manager Email address', mask_email_with_persno_udf(F.col('Line Manager Email address'), staff_col.cast('string'), F.lit(True)))\n",
-					"    if 'Annual Salary' in classification and 'Annual Salary' in exists:\n",
-					"        out = out.withColumn('Annual Salary', random_int_from_seed(seed, 20000, 100000).cast('int'))\n",
-					"    if 'Employee Age' in classification and 'Employee Age' in exists:\n",
-					"        out = out.withColumn('Employee Age', random_int_from_seed(seed, 18, 70).cast('int'))\n",
-					"    if 'NI Number' in classification and 'NI Number' in exists:\n",
-					"        out = out.withColumn('NI Number', generate_random_ni_number_udf(staff_col.cast('string')))\n",
-					"    if 'Potential ID' in classification and 'Potential ID' in exists:\n",
-					"        out = out.withColumn('NI Number', generate_random_ni_number_udf(staff_col.cast('string')))\n",
-					"    return out\n",
-					""
+					"anonym_table_df = apply_anonymisation_rules(\n",
+					"    table_df,\n",
+					"    classified_cols,\n",
+					"    CLASSIFIED_FIELDS\n",
+					")"
 				],
-				"execution_count": 282
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"classified_cols"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"display(table_df)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"display(anonym_table_df)"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -502,7 +591,7 @@
 					"\n",
 					""
 				],
-				"execution_count": 241
+				"execution_count": null
 			}
 		]
 	}
