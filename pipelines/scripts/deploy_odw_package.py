@@ -49,15 +49,6 @@ class ODWPackageDeployer():
         # Get existing workspace packages
         existing_wheels = self.get_existing_odw_wheels(synapse_workspace_manager)
         existing_wheel_names = {x["name"] for x in existing_wheels}
-        if len(existing_wheels) > 1:
-            raise ConcurrentWheelUploadException(
-                (
-                    f"There are {len(existing_wheels)} odw wheels already deployed in workspace '{workspace_name}', "
-                    "which indicates another wheel deployment is in progress. Please wait for this concurrent run to complete. "
-                    "If there are no other concurrent runs, then please review the deployed wheels, and remove whichever wheel is not applied "
-                    "manually"
-                )
-            )
         if new_wheel_name in existing_wheel_names:
             # The assumption is that each wheel name contains the commit hash of the newest commit. This hash identifies the wheel version
             # If the new wheel name already exists in synapse, then there is no need to upload again
@@ -109,8 +100,17 @@ class ODWPackageDeployer():
                 )
                 if thread_response
             ]
-        logging.info("Removing old workspace packages")
-        for package in existing_wheel_names:
+        logging.info("Removing odw packages that are not assigned to any pool")
+        all_spark_pools = synapse_workspace_manager.get_all_spark_pools()
+        extra_pools = [x for x in all_spark_pools if x["name"] not in self.TARGET_SPARK_POOLS]
+        odw_package_assignments_to_extra_pools = {
+            package["name"]
+            for pool in extra_pools
+            for package in pool["properties"]["customLibraries"]
+            if "odw" in package["name"]
+        }
+        odw_packages_to_delete = existing_wheel_names.difference(odw_package_assignments_to_extra_pools)
+        for package in odw_packages_to_delete:
             synapse_workspace_manager.remove_workspace_package(package)
 
 
