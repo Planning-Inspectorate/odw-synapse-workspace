@@ -115,7 +115,7 @@ class ODWPackageDeployer():
                 if thread_response
             ]
         logging.info("Removing odw packages that are not assigned to any pool")
-        odw_package_assignments_to_extra_pools = self.get_odw_packages_bound_to_extra_spark_pools()
+        odw_package_assignments_to_extra_pools = self.get_odw_packages_bound_to_extra_spark_pools(synapse_workspace_manager)
         odw_packages_to_delete = existing_wheel_names.difference(odw_package_assignments_to_extra_pools)
         logging.info(
             f"The following packages will be removed: {json.dumps(list(odw_packages_to_delete), indent=4)}"
