@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "aa1204f3-9751-47ad-92b1-7c1419dc5d2a"
+				"spark.autotune.trackingId": "49676238-2008-4eda-b4c2-9a78feb679da"
 			}
 		},
 		"metadata": {
@@ -106,7 +106,7 @@
 					"from datetime import datetime, date\n",
 					"from pyspark.sql import SparkSession"
 				],
-				"execution_count": null
+				"execution_count": 46
 			},
 			{
 				"cell_type": "markdown",
@@ -648,74 +648,63 @@
 			},
 			{
 				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"collapsed": false
-				},
 				"source": [
 					"if not error_message:\n",
 					"    try:\n",
-					"        #Establish aggregated view of regions\n",
-					"        horizon_region = horizon_data.groupBy(\"caseid\",\"IngestionDate\").agg(collect_list(\"region\").alias(\"regions\"))\n",
-					"        horizon_data = horizon_data.join(horizon_region, on=[\"caseid\",\"IngestionDate\"], how=\"inner\").drop(\"region\")\n",
+					"        # Establish aggregated view of regions\n",
+					"        horizon_region = horizon_data.groupBy(\"caseid\", \"IngestionDate\").agg(collect_list(\"region\").alias(\"regions\"))\n",
+					"        horizon_data = horizon_data.join(horizon_region, on=[\"caseid\", \"IngestionDate\"], how=\"inner\").drop(\"region\")\n",
 					"\n",
+					"        # Build nsipOfficerIds\n",
+					"        horizon_officer = horizon_data.groupBy(\"caseid\", \"IngestionDate\").agg(collect_list(\"nsipOfficerIds\").alias(\"nsipOfficerIds\"))\n",
+					"        horizon_data = horizon_data.drop(\"nsipOfficerIds\").join(horizon_officer, on=[\"caseid\", \"IngestionDate\"], how=\"inner\")\n",
 					"\n",
-					"        #Build nsipOfficerIds \n",
-					"        horizon_officer = horizon_data.groupBy(\"caseid\",\"IngestionDate\").agg(collect_list(\"nsipOfficerIds\").alias(\"nsipOfficerIds\"))\n",
+					"        # Build nsipAdministrationOfficerIds\n",
+					"        horizon_Administrationofficer = horizon_data.groupBy(\"caseid\", \"IngestionDate\").agg(collect_list(\"nsipAdministrationOfficerIds\").alias(\"nsipAdministrationOfficerIds\"))\n",
+					"        horizon_data = horizon_data.drop(\"nsipAdministrationOfficerIds\").join(horizon_Administrationofficer, on=[\"caseid\", \"IngestionDate\"], how=\"inner\")\n",
 					"\n",
-					"        horizon_data = horizon_data.drop(\"nsipOfficerIds\")\n",
-					"        horizon_data = horizon_data.join(horizon_officer, on=[\"caseid\",\"IngestionDate\"], how=\"inner\")\n",
+					"        # Build inspectorIds\n",
+					"        horizon_inspectorIds = horizon_data.groupBy(\"caseid\", \"IngestionDate\").agg(collect_list(\"inspectorIds\").alias(\"inspectorIds\"))\n",
+					"        horizon_data = horizon_data.drop(\"inspectorIds\").join(horizon_inspectorIds, on=[\"caseid\", \"IngestionDate\"], how=\"inner\")\n",
 					"\n",
-					"        #Build nsipAdministrationOfficerIds \n",
-					"        horizon_Administrationofficer = horizon_data.groupBy(\"caseid\",\"IngestionDate\").agg(collect_list(\"nsipAdministrationOfficerIds\").alias(\"nsipAdministrationOfficerIds\"))\n",
+					"        # Build operationsManagerIds\n",
+					"        horizon_operationsManagerIds = horizon_data.groupBy(\"caseid\", \"IngestionDate\").agg(collect_list(\"operationsManagerIds\").alias(\"operationsManagerIds\"))\n",
+					"        horizon_data = horizon_data.drop(\"operationsManagerIds\").join(horizon_operationsManagerIds, on=[\"caseid\", \"IngestionDate\"], how=\"inner\")\n",
 					"\n",
-					"        horizon_data = horizon_data.drop(\"nsipAdministrationOfficerIds\")\n",
-					"        horizon_data = horizon_data.join(horizon_Administrationofficer, on=[\"caseid\",\"IngestionDate\"], how=\"inner\")\n",
-					"        #Build inspectorIds\n",
-					"        horizon_inspectorIds = horizon_data.groupBy(\"caseid\",\"IngestionDate\").agg(collect_list(\"inspectorIds\").alias(\"inspectorIds\"))\n",
+					"        # Build legalOfficerIds\n",
+					"        horizon_legalOfficerIds = horizon_data.groupBy(\"caseid\", \"IngestionDate\").agg(collect_list(\"legalOfficerIds\").alias(\"legalOfficerIds\"))\n",
+					"        horizon_data = horizon_data.drop(\"legalOfficerIds\").join(horizon_legalOfficerIds, on=[\"caseid\", \"IngestionDate\"], how=\"inner\")\n",
 					"\n",
-					"        horizon_data = horizon_data.drop(\"inspectorIds\")\n",
-					"        horizon_data = horizon_data.join(horizon_inspectorIds, on=[\"caseid\",\"IngestionDate\"], how=\"inner\")\n",
+					"        # Build operationsLeadIds\n",
+					"        horizon_operationsLeadIds = horizon_data.groupBy(\"caseid\", \"IngestionDate\").agg(collect_list(\"operationsLeadIds\").alias(\"operationsLeadIds\"))\n",
+					"        horizon_data = horizon_data.drop(\"operationsLeadIds\").join(horizon_operationsLeadIds, on=[\"caseid\", \"IngestionDate\"], how=\"inner\")\n",
 					"\n",
-					"        #sort columns into same order as service bus\n",
+					"        # Build meetings\n",
+					"        horizon_meetings = horizon_data.groupBy(\"caseid\", \"IngestionDate\").agg(collect_list(\"meetings\").alias(\"meetings\"))\n",
+					"        horizon_data = horizon_data.drop(\"meetings\").join(horizon_meetings, on=[\"caseid\", \"IngestionDate\"], how=\"inner\")\n",
+					"\n",
+					"        # Build caseManagerIds\n",
+					"        horizon_caseManagerIds = horizon_data.groupBy(\"caseid\", \"IngestionDate\").agg(collect_list(\"caseManagerIds\").alias(\"caseManagerIds\"))\n",
+					"        horizon_data = horizon_data.drop(\"caseManagerIds\").join(horizon_caseManagerIds, on=[\"caseid\", \"IngestionDate\"], how=\"inner\")\n",
+					"\n",
+					"        # Build invoices\n",
+					"        horizon_invoices = horizon_data.groupBy(\"caseid\", \"IngestionDate\").agg(collect_list(\"invoices\").alias(\"invoices\"))\n",
+					"        horizon_data = horizon_data.drop(\"invoices\").join(horizon_invoices, on=[\"caseid\", \"IngestionDate\"], how=\"inner\")\n",
+					"\n",
+					"        # Build leadInspectorIds\n",
+					"        horizon_leadInspectorIds = horizon_data.groupBy(\"caseid\", \"IngestionDate\").agg(collect_list(\"leadInspectorIds\").alias(\"leadInspectorIds\"))\n",
+					"        horizon_data = horizon_data.drop(\"leadInspectorIds\").join(horizon_leadInspectorIds, on=[\"caseid\", \"IngestionDate\"], how=\"inner\")\n",
+					"\n",
+					"        # Build environmentalServicesOfficerIds\n",
+					"        horizon_environmentalServicesOfficerIds = horizon_data.groupBy(\"caseid\", \"IngestionDate\").agg(collect_list(\"environmentalServicesOfficerIds\").alias(\"environmentalServicesOfficerIds\"))\n",
+					"        horizon_data = horizon_data.drop(\"environmentalServicesOfficerIds\").join(horizon_environmentalServicesOfficerIds, on=[\"caseid\", \"IngestionDate\"], how=\"inner\")\n",
+					"\n",
+					"        # Sort columns into same order as service bus\n",
 					"        horizon_data = horizon_data.select(service_bus_data.columns)\n",
 					"\n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error in processing Horizon data set: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"horizon_data.printSchema()"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"# Get column names\n",
-					"service_bus_cols = set(service_bus_data.columns)\n",
-					"horizon_cols = set(horizon_data.columns)\n",
-					"\n",
-					"# Find columns in horizon_data but not in service_bus_data\n",
-					"missing_in_service_bus = horizon_cols - service_bus_cols\n",
-					"\n",
-					"# Find columns in service_bus_data but not in horizon_data\n",
-					"missing_in_horizon = service_bus_cols - horizon_cols\n",
-					"\n",
-					"print(\"Columns missing in service_bus_data:\", missing_in_service_bus)\n",
-					"print(\"Columns missing in horizon_data:\", missing_in_horizon)"
 				],
 				"execution_count": null
 			},
