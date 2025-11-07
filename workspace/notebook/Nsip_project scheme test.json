@@ -1,0 +1,173 @@
+{
+	"name": "Nsip_project scheme test",
+	"properties": {
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "c8e33239-5a4c-4980-9b01-06149a3f494c"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import SparkSession\n",
+					"from notebookutils import mssparkutils"
+				],
+				"execution_count": 38
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"!pip install openpyxl"
+				],
+				"execution_count": 39
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Copy the file from ADLS Gen2 to local file system\n",
+					"storage_account = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"source_path = f\"abfss://odw-config@{storage_account}/NSIP Service Bus and ODW Data Dictionaries.xlsx\"\n",
+					"local_path = \"/tmp/NSIP_Service_Bus_and_ODW_Data_Dictionaries.xlsx\"\n",
+					"\n",
+					"# Copy the file\n",
+					"mssparkutils.fs.cp(source_path, f\"file:{local_path}\", recurse=False)"
+				],
+				"execution_count": 40
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"import pandas as pd\n",
+					"\n",
+					"# Load the sheet\n",
+					"df_standardised = pd.read_excel(local_path, sheet_name=\"Standardised\", engine=\"openpyxl\")\n",
+					"\n",
+					"# Filter for 'Table Name' == 'sb_nsip_project'\n",
+					"filtered_df = df_standardised[df_standardised[\"Table Name\"] == \"sb_nsip_project\"]\n",
+					"\n",
+					"# Extract the values under 'Attribute Name' column\n",
+					"attribute_names = filtered_df[\"Attribute Name\"].dropna().tolist()\n",
+					""
+				],
+				"execution_count": 41
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Convert Pandas column values to a list of expected column names\n",
+					"expected_columns = df_filtered[\"Attribute Name\"].dropna().tolist()\n",
+					"\n",
+					"# Load the Spark table\n",
+					"df = spark.sql(\"SELECT * FROM `odw_standardised_db`.`sb_nsip_project`\")\n",
+					"actual_columns = df.columns\n",
+					"\n",
+					"# Compare: find extra columns in the Spark table\n",
+					"extra_columns = [col for col in actual_columns if col not in expected_columns]\n",
+					"\n",
+					"# Compare: find missing columns in the Spark table\n",
+					"missing_columns = [col for col in expected_columns if col not in actual_columns]\n",
+					"\n",
+					"print(\"Extra columns in the table:\")\n",
+					"print(extra_columns)\n",
+					"\n",
+					"print(\"Missing columns in the table:\")\n",
+					"print(missing_columns)"
+				],
+				"execution_count": 42
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Convert Pandas column values to a list of expected column names\n",
+					"expected_columns = df_filtered[\"Attribute Name\"].dropna().tolist()\n",
+					"\n",
+					"# Load the Spark table\n",
+					"df = spark.sql(\"SELECT * FROM `odw_harmonised_db`.`sb_nsip_project`\")\n",
+					"actual_columns = df.columns\n",
+					"\n",
+					"# Compare: find extra columns in the Spark table\n",
+					"extra_columns = [col for col in actual_columns if col not in expected_columns]\n",
+					"\n",
+					"# Compare: find missing columns in the Spark table\n",
+					"missing_columns = [col for col in expected_columns if col not in actual_columns]\n",
+					"\n",
+					"print(\"Extra columns in the table:\")\n",
+					"print(extra_columns)\n",
+					"\n",
+					"print(\"Missing columns in the table:\")\n",
+					"print(missing_columns)"
+				],
+				"execution_count": 43
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Convert Pandas column values to a list of expected column names\n",
+					"expected_columns = df_filtered[\"Attribute Name\"].dropna().tolist()\n",
+					"\n",
+					"# Load the Spark table\n",
+					"df = spark.sql(\"SELECT * FROM `odw_curated_db`.`nsip_project`\")\n",
+					"actual_columns = df.columns\n",
+					"\n",
+					"# Compare: find extra columns in the Spark table\n",
+					"extra_columns = [col for col in actual_columns if col not in expected_columns]\n",
+					"\n",
+					"# Compare: find missing columns in the Spark table\n",
+					"missing_columns = [col for col in expected_columns if col not in actual_columns]\n",
+					"\n",
+					"print(\"Extra columns in the table:\")\n",
+					"print(extra_columns)\n",
+					"\n",
+					"print(\"Missing columns in the table:\")\n",
+					"print(missing_columns)"
+				],
+				"execution_count": 45
+			}
+		]
+	}
+}
