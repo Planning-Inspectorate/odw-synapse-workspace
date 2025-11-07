@@ -247,4 +247,49 @@ class AnonymisationEngine:
             asset_qualified_name=asset_qualified_name,
             api_version=api_version,
         )
-        return self.apply(df, cols, classification_allowlist=classification_allowlist)
+
+        # Determine which columns will be anonymised (respecting classification_allowlist and strategies)
+        allowlist: Optional[Set[str]] = set(classification_allowlist) if classification_allowlist else self.config.classification_allowlist
+        df_aug = df
+        target_cols: List[str] = []
+        for item in (cols or []):
+            if not isinstance(item, dict):
+                continue
+            col_name = item.get("column_name")
+            if not col_name or col_name not in df.columns:
+                continue
+            classes = set(item.get("classifications") or [])
+            if allowlist is not None:
+                classes = {c for c in classes if c in allowlist}
+            if not classes:
+                continue
+            if any(classes.intersection(strat.classification_names) for strat in self.strategies):
+                target_cols.append(col_name)
+
+        # Preserve originals for change detection
+        for c in target_cols:
+            df_aug = df_aug.withColumn(f"__orig__{c}", F.col(c))
+
+        # Apply anonymisation
+        out = self.apply(df_aug, cols, classification_allowlist=classification_allowlist)
+
+        # Compute how many rows were actually changed across any anonymised column
+        changed_exprs: List[Column] = []
+        for c in target_cols:
+            orig = f"__orig__{c}"
+            if orig in out.columns and c in out.columns:
+                changed_exprs.append(~F.col(c).eqNullSafe(F.col(orig)))
+
+        any_changed: Optional[Column] = None
+        for expr in changed_exprs:
+            any_changed = expr if any_changed is None else (any_changed | expr)
+
+        changed_rows = out.filter(any_changed if any_changed is not None else F.lit(False)).count()
+        print(f"[AnonymisationEngine] apply_from_purview: {changed_rows} rows anonymised across columns: {sorted(set(target_cols))}")
+
+        # Drop helper columns
+        drop_cols = [f"__orig__{c}" for c in target_cols if f"__orig__{c}" in out.columns]
+        if drop_cols:
+            out = out.drop(*drop_cols)
+
+        return out
