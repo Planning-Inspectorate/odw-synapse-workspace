@@ -6,6 +6,7 @@ import argparse
 from typing import List, Dict, Any
 from datetime import datetime
 import logging
+import json
 
 
 logging.basicConfig(level=logging.INFO)
@@ -109,6 +110,9 @@ class ODWPackageDeployer():
             for package in pool["properties"]["customLibraries"]
             if "odw" in package["name"]
         }
+        logging.info(
+            f"The following packages will be removed: {json.dumps(list(odw_package_assignments_to_extra_pools), indent=4)}"
+        )
         odw_packages_to_delete = existing_wheel_names.difference(odw_package_assignments_to_extra_pools)
         for package in odw_packages_to_delete:
             synapse_workspace_manager.remove_workspace_package(package)
