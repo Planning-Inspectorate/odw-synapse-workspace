@@ -43,10 +43,10 @@ class OpenLineageSparkConfigPreProcessor(ArtifactPreprocessor):
     def preprocess(cls):
         artifact_path = "workspace/sparkConfiguration/OpenLineageSparkConfig.json"
         env = os.environ.get("ENV")
-        function_key = os.environ.get("OL_RECEIVER_FUNCTION_KEY", "")
+        function_url = os.environ.get("OL_RECEIVER_FUNCTION_URL", "")
         artifact_json = cls._read_artifact(artifact_path)
         artifact_json["properties"]["configs"] |= {
-            "spark.openlineage.transport.url": function_key,
+            "spark.openlineage.transport.url": function_url,
             "spark.openlineage.namespace": f"pins-synw-odw-{env.lower()}-uks"
         }
         cls._write_artifact(artifact_path, artifact_json)
