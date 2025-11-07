@@ -24,8 +24,7 @@ class ArtifactArchiver():
                 "notebook/timesheets_segment_type_reference_dim.json",
                 "notebook/timesheets_work_segment_dim.json",
                 "notebook/timesheets_work_segment_lock_dim.json",
-                "trigger/tr_backup_daily.json",  # Keep relevant triggers
-                "trigger/tr_daily_7days_1800.json",
+                "trigger/tr_daily_7days_1800.json",  # Keep relevant triggers
                 "trigger/tr_daily_7days_2100.json",
                 "trigger/tr_daily_weekdays_1500.json",
                 "trigger/tr_saphr_daily_800.json",
