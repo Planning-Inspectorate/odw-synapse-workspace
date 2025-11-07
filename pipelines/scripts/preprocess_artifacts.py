@@ -1,5 +1,5 @@
 import json
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Type
 from abc import ABC, abstractmethod
 from dotenv import load_dotenv
 import os
@@ -15,7 +15,7 @@ Script to perform preprocessing on specific workspace artifacts.
 load_dotenv(verbose=True, override=True)
 
 
-class ArtifactPreprocessor():
+class ArtifactPreprocessor(ABC):
     """
     Abstract class to suppor the preprocessing of workspace artifact json
     """
@@ -25,7 +25,7 @@ class ArtifactPreprocessor():
             return json.load(f)
 
     @classmethod
-    def _write_artifact(self, artifact_path: str, artifact_json: Dict[str, Any]):
+    def _write_artifact(cls, artifact_path: str, artifact_json: Dict[str, Any]):
         with open(artifact_path, "w") as f:
             json.dump(artifact_json, f, indent="\t", ensure_ascii=False)
 
@@ -52,7 +52,7 @@ class OpenLineageSparkConfigPreProcessor(ArtifactPreprocessor):
         cls._write_artifact(artifact_path, artifact_json)
 
 
-PRE_PROCESSORS: List[ArtifactPreprocessor] = [
+PRE_PROCESSORS: List[Type[ArtifactPreprocessor]] = [
     OpenLineageSparkConfigPreProcessor
 ]
 
