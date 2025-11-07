@@ -32,6 +32,19 @@ class ODWPackageDeployer():
             key=lambda package: datetime.strptime(package["properties"]["uploadedTimestamp"].replace("+00:00", "")[:-8], "%Y-%m-%dT%H:%M:%S")
         )
 
+    def get_odw_packages_bound_to_extra_spark_pools(self, workspace_manager: SynapseWorkspaceManager):
+        """
+            Return all odw packages in the workspace that are bound to spark pools not defined in TARGET_SPARK_POOLS
+        """
+        all_spark_pools = workspace_manager.get_all_spark_pools()
+        extra_pools = [x for x in all_spark_pools if x["name"] not in self.TARGET_SPARK_POOLS]
+        return {
+            package["name"]
+            for pool in extra_pools
+            for package in pool["properties"]["customLibraries"]
+            if "odw" in package["name"]
+        }
+
     def upload_new_wheel(self, env: str, new_wheel_name: str):
         """
             Upload the new wheel to the target environment
@@ -102,18 +115,11 @@ class ODWPackageDeployer():
                 if thread_response
             ]
         logging.info("Removing odw packages that are not assigned to any pool")
-        all_spark_pools = synapse_workspace_manager.get_all_spark_pools()
-        extra_pools = [x for x in all_spark_pools if x["name"] not in self.TARGET_SPARK_POOLS]
-        odw_package_assignments_to_extra_pools = {
-            package["name"]
-            for pool in extra_pools
-            for package in pool["properties"]["customLibraries"]
-            if "odw" in package["name"]
-        }
-        logging.info(
-            f"The following packages will be removed: {json.dumps(list(odw_package_assignments_to_extra_pools), indent=4)}"
-        )
+        odw_package_assignments_to_extra_pools = self.get_odw_packages_bound_to_extra_spark_pools()
         odw_packages_to_delete = existing_wheel_names.difference(odw_package_assignments_to_extra_pools)
+        logging.info(
+            f"The following packages will be removed: {json.dumps(list(odw_packages_to_delete), indent=4)}"
+        )
         for package in odw_packages_to_delete:
             synapse_workspace_manager.remove_workspace_package(package)
 
