@@ -28,17 +28,8 @@ class ArtifactArchiver():
                 "trigger/tr_daily_7days_1800.json",
                 "trigger/tr_daily_7days_2100.json",
                 "trigger/tr_daily_weekdays_1500.json",
-                "trigger/tr_delta_backup_daily_0800.json",
-                "trigger/tr_delta_backup_daily_0900.json",
-                "trigger/tr_delta_backup_odw_config_0900.json",
-                "trigger/tr_delta_backup_odw_cur_0900.json",
-                "trigger/tr_delta_backup_odw_cur_migr_0900.json",
-                "trigger/tr_delta_backup_odw_hrm_0900.json",
-                "trigger/tr_delta_backup_odw_logging_0900.json",
-                "trigger/tr_delta_backup_odw_std_0900.json",
                 "trigger/tr_saphr_daily_800.json",
                 "trigger/tr_weekly.json",
-                "linkedService/ls_delta_backup.json",  # Keep artifacts related to DR (need to review these at a later date)
                 "notebook/new_rebuild_tables.json",
                 "notebook/py_utils_log_stage.json",
                 "notebook/py_unit_tests_appeal_document.json",  # Keep tests
