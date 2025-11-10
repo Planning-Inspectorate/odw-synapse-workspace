@@ -66,6 +66,8 @@ class ODWPackageDeployer():
         if need_to_upload_to_workspace:
             logging.info("Uploading new workspace package")
             synapse_workspace_manager.upload_workspace_package(f"dist/{new_wheel_name}")
+        else:
+            logging.info(f"The new wheel '{new_wheel_name}' already exists in the workspace - skipping uploading to the workspace")
         # Prepare to update the spark pools to use the new package
         initial_spark_pool_json_map = {spark_pool: synapse_workspace_manager.get_spark_pool(spark_pool) for spark_pool in self.TARGET_SPARK_POOLS}
         # Only apply the update to pools that need to be updated
@@ -105,19 +107,23 @@ class ODWPackageDeployer():
             }
             for spark_pool, spark_pool_json in initial_spark_pool_json_map.items()
         }
-        logging.info("Updating spark pool packages (This is a slow operation, and can take between 20 and 50 minutes)")
-        spark_pool_names_to_update = list(new_spark_pool_json_map.keys())
-        with ThreadPoolExecutor() as tpe:
-            # Update all relevant spark pools in parallel to boost performance
-            [
-                thread_response
-                for thread_response in tpe.map(
-                    synapse_workspace_manager.update_spark_pool,
-                    spark_pool_names_to_update,
-                    [new_spark_pool_json_map[pool] for pool in spark_pool_names_to_update]
-                )
-                if thread_response
-            ]
+        if new_spark_pool_json_map:
+            logging.info("Updating spark pool packages (This is a slow operation, and can take between 20 and 50 minutes)")
+            logging.info(f"The below spark pools will be updated:\n{json.dumps(new_spark_pool_json_map, indent=4)}")
+            spark_pool_names_to_update = list(new_spark_pool_json_map.keys())
+            with ThreadPoolExecutor() as tpe:
+                # Update all relevant spark pools in parallel to boost performance
+                [
+                    thread_response
+                    for thread_response in tpe.map(
+                        synapse_workspace_manager.update_spark_pool,
+                        spark_pool_names_to_update,
+                        [new_spark_pool_json_map[pool] for pool in spark_pool_names_to_update]
+                    )
+                    if thread_response
+                ]
+        else:
+            logging.info(F"The spark pools {self.TARGET_SPARK_POOLS} already have the new odw package bound to them")
         logging.info("Removing odw packages that are not assigned to any pool")
         odw_package_assignments_to_extra_pools = self.get_odw_packages_bound_to_extra_spark_pools(synapse_workspace_manager)
         odw_packages_to_delete = existing_wheel_names.difference(odw_package_assignments_to_extra_pools)
