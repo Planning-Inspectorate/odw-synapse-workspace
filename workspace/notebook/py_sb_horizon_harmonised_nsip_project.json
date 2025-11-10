@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "96094943-0385-4b55-8a02-51758b0245c0"
+				"spark.autotune.trackingId": "f073e1bc-6592-4fa6-966d-d9655971f14f"
 			}
 		},
 		"metadata": {
@@ -104,9 +104,10 @@
 					"from pyspark.sql import Row\n",
 					"from pyspark.sql.functions import *\n",
 					"from datetime import datetime, date\n",
-					"from pyspark.sql import SparkSession"
+					"from pyspark.sql import SparkSession\n",
+					"from pyspark.sql.functions import struct, collect_list"
 				],
-				"execution_count": 150
+				"execution_count": 179
 			},
 			{
 				"cell_type": "markdown",
@@ -145,7 +146,7 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": 151
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -178,7 +179,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 152
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -387,7 +388,7 @@
 					"        horizon_data = spark.sql(f\"\"\"\n",
 					"                        SELECT\n",
 					"                                CAST(NULL AS Long) AS NSIPProjectInfoInternalID\n",
-					"                                ,CAST(Horizon.caseNodeId AS Int) AS caseid\n",
+					"                                ,CAST(Horizon.caseNodeId AS Long) AS caseid\n",
 					"                                ,Horizon.casereference\n",
 					"                                ,Horizon.projectname\n",
 					"                                ,Horizon.projectNameWelsh AS projectNameWelsh\n",
@@ -509,7 +510,7 @@
 					"                                ,CAST(NULL AS String) AS meetings\n",
 					"                                ,CAST(NULL AS String) AS multipartyApplicationCheckDocument\n",
 					"                                ,CAST(NULL AS String) AS newMaturity\n",
-					"                                ,CAST(NULL AS Int) AS numberBand2Inspectors\n",
+					"                                ,CAST(NULL AS double) AS numberBand2Inspectors\n",
 					"                                ,CAST(NULL AS double) AS numberBand3Inspectors\n",
 					"                                ,CAST(NULL AS String) AS programmeDocumentURI\n",
 					"                                ,CAST(NULL AS String) AS publicSectorEqualityDuty\n",
@@ -631,7 +632,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message) "
 				],
-				"execution_count": 154
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -705,9 +706,55 @@
 					"    except Exception as e:\n",
 					"        error_message = f\"Error in processing Horizon data set: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()\n",
-					"        print(error_message)"
+					"        print()"
 				],
-				"execution_count": 155
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"results = service_bus_data.union(horizon_data)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"horizon_data = horizon_data.withColumn(\"meeting_struct\", struct(\"meetingAgenda\", \"planningInspectorateRole\", \"meetingDate\", \"meetingType\"))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"horizon_meetings = horizon_data.groupBy(\"caseid\", \"IngestionDate\").agg(collect_list(\"meeting_struct\").alias(\"meetings\"))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"horizon_data = horizon_data.drop(\"meetingAgenda\", \"planningInspectorateRole\", \"meetingDate\", \"meetingType\") \\\n",
+					"    .join(horizon_meetings, on=[\"caseid\", \"IngestionDate\"], how=\"inner\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql.functions import struct, collect_list\n",
+					"\n",
+					"# Step 1: Create struct\n",
+					"horizon_data = horizon_data.withColumn(\"meeting_struct\", struct(\"meetingAgenda\", \"planningInspectorateRole\", \"meetingDate\", \"meetingType\"))\n",
+					"\n",
+					"# Step 2: Group and collect\n",
+					"horizon_meetings = horizon_data.groupBy(\"caseid\", \"IngestionDate\").agg(collect_list(\"meeting_struct\").alias(\"meetings\"))\n",
+					"\n",
+					"# Step 3: Drop and join\n",
+					"horizon_data = horizon_data.drop(\"meetingAgenda\", \"planningInspectorateRole\", \"meetingDate\", \"meetingType\") \\\n",
+					"    .join(horizon_meetings, on=[\"caseid\", \"IngestionDate\"], how=\"inner\")"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -745,14 +792,14 @@
 					"display(diff_df)\n",
 					""
 				],
-				"execution_count": 156
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"results = service_bus_data.union(horizon_data)"
 				],
-				"execution_count": 157
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -785,53 +832,6 @@
 					"for col in mismatched_columns:\n",
 					"    print(col)\n",
 					"\t"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"from pyspark.sql import SparkSession\n",
-					"from pprint import pprint\n",
-					"\n",
-					"# Assuming SparkSession is already created\n",
-					"# spark = SparkSession.builder.getOrCreate()\n",
-					"\n",
-					"# Get schemas as dictionaries\n",
-					"service_schema = dict(service_bus_data.dtypes)\n",
-					"horizon_schema = dict(horizon_data.dtypes)\n",
-					"\n",
-					"# Find common columns\n",
-					"common_columns = set(service_schema.keys()).intersection(horizon_schema.keys())\n",
-					"\n",
-					"# Identify mismatched types\n",
-					"mismatched_types = {\n",
-					"    col: (service_schema[col], horizon_schema[col])\n",
-					"    for col in common_columns\n",
-					"    if service_schema[col] != horizon_schema[col]\n",
-					"}\n",
-					"\n",
-					"# Display mismatches as a table\n",
-					"print(\"Mismatched Data Types Table:\")\n",
-					"print(\"{:<20} {:<20} {:<20}\".format(\"Column Name\", \"Service Bus Type\", \"Horizon Type\"))\n",
-					"print(\"-\" * 60)\n",
-					"for col, (stype, htype) in mismatched_types.items():\n",
-					"    print(\"{:<20} {:<20} {:<20}\".format(col, stype, htype))"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"service_schema = dict(service_bus_data.dtypes)\n",
-					"horizon_schema = dict(horizon_data.dtypes)\n",
-					"\n",
-					"mismatched_types = {}\n",
-					"for col in common_columns:\n",
-					"    if service_schema[col] != horizon_schema[col]:\n",
-					"        mismatched_types[col] = (service_schema[col], horizon_schema[col])\n",
-					"\n",
-					"print(\"Mismatched column types:\", mismatched_types)"
 				],
 				"execution_count": null
 			},
