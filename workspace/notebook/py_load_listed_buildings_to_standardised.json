@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "73a31698-ed88-48ac-ac3e-6410d41cff20"
+				"spark.autotune.trackingId": "54f7c322-03bf-4f81-bd62-24211e44f494"
 			}
 		},
 		"metadata": {
@@ -164,7 +164,8 @@
 					"start_exec_time = datetime.now()\r\n",
 					"insert_count = 0\r\n",
 					"update_count = 0\r\n",
-					"delete_count = 0"
+					"delete_count = 0\r\n",
+					"storage_acc_name = Util.get_storage_account()"
 				],
 				"execution_count": null
 			},
@@ -196,7 +197,6 @@
 					"collapsed": false
 				},
 				"source": [
-					"storage_acc_name = Util.get_storage_account()\r\n",
 					"target_data_path = f\"abfss://odw-raw@{storage_acc_name}.dfs.core.windows.net/ListedBuildings/{date_folder}/listed_building.json\"\r\n",
 					"try:    \r\n",
 					"    json_schema = StructType([\r\n",
@@ -380,6 +380,7 @@
 					}
 				},
 				"source": [
+					"target_data_path = f\"abfss://odw-raw@{storage_acc_name}.dfs.core.windows.net/ListedBuildings/{date_folder}/listed_building_outline.json\"\r\n",
 					"try:\r\n",
 					"    start_exec_time = datetime.now()\r\n",
 					"    json_schema = StructType([\r\n",
@@ -403,15 +404,15 @@
 					"        StructField(\"typology\", StringType(), True)\r\n",
 					"    ])\r\n",
 					"\r\n",
-					"    storage_acc_name = spark.sparkContext.environment.get('dataLakeAccountName', 'get')\r\n",
-					"    df = spark.read.option(\"multiline\",\"true\").json(f\"abfss://odw-raw@{storage_acc_name}.dfs.core.windows.net/ListedBuildings/{date_folder}/listed_building_outline.json\")\r\n",
+					"    df = spark.read.option(\"multiline\",\"true\").json(target_data_path)\r\n",
 					"    entities_df = df.selectExpr(\"explode(entities) as entity\")\r\n",
 					"    entities = [row.entity.asDict() for row in entities_df.collect()]\r\n",
 					"    final_df = spark.createDataFrame(data=entities, schema=json_schema)\r\n",
 					"\r\n",
 					"except Exception as e:\r\n",
-					"    logError(f\"Error in creating data frame for file {date_folder}/listed_building_outline.json :\\n{e}\")\r\n",
-					"    error_message = f\"Error in creating data frame for file {date_folder}/listed_building_outline.json {str(e)[:800]}\"\r\n",
+					"    base_error_message = f\"Error in creating data frame for file '{target_data_path}'\"\r\n",
+					"    logError(f\"{base_error_message} :\\n{e}\")\r\n",
+					"    error_message = f\"{base_error_message} {str(e)[:800]}\"\r\n",
 					"    \r\n",
 					"    end_exec_time = datetime.now()\r\n",
 					"    duration_seconds = (end_exec_time - start_exec_time).total_seconds()\r\n",
