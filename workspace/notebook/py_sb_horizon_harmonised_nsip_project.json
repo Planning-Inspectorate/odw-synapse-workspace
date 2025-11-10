@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d41e58a6-5c0b-4fa7-92ef-9ff2cab4814f"
+				"spark.autotune.trackingId": "7bbc66cc-d67c-4343-ad78-0935b69df58b"
 			}
 		},
 		"metadata": {
@@ -632,7 +632,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message) "
 				],
-				"execution_count": 29
+				"execution_count": 32
 			},
 			{
 				"cell_type": "markdown",
@@ -708,7 +708,92 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print()"
 				],
-				"execution_count": 30
+				"execution_count": 33
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql.functions import col, from_json\n",
+					"from pyspark.sql.types import ArrayType, StructType, StructField, StringType, DoubleType\n",
+					"\n",
+					"# Define the schema for 'invoices'\n",
+					"invoices_schema = ArrayType(StructType([\n",
+					"    StructField(\"invoiceStage\", StringType(), True),\n",
+					"    StructField(\"invoiceNumber\", StringType(), True),\n",
+					"    StructField(\"amountDue\", DoubleType(), True),\n",
+					"    StructField(\"paymentDueDate\", StringType(), True),\n",
+					"    StructField(\"invoicedDate\", StringType(), True),\n",
+					"    StructField(\"paymentDate\", StringType(), True),\n",
+					"    StructField(\"refundCreditNoteNumber\", StringType(), True),\n",
+					"    StructField(\"refundAmount\", DoubleType(), True),\n",
+					"    StructField(\"refundIssueDate\", StringType(), True)\n",
+					"]))\n",
+					"\n",
+					"# Define the schema for 'meetings'\n",
+					"meetings_schema = ArrayType(StructType([\n",
+					"    StructField(\"meetingAgenda\", StringType(), True),\n",
+					"    StructField(\"planningInspectorateRole\", StringType(), True),\n",
+					"    StructField(\"meetingDate\", StringType(), True),\n",
+					"    StructField(\"meetingType\", StringType(), True)\n",
+					"]))\n",
+					"\n",
+					"# Apply schemas to horizon_data\n",
+					"horizon_data_casted = horizon_data \\\n",
+					"    .withColumn(\"invoices\", from_json(col(\"invoices\").cast(\"string\"), invoices_schema)) \\\n",
+					"    .withColumn(\"meetings\", from_json(col(\"meetings\").cast(\"string\"), meetings_schema))"
+				],
+				"execution_count": 38
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"horizon_data_casted.printSchema()"
+				],
+				"execution_count": 40
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"import pandas as pd\n",
+					"\n",
+					"# Get column name and type pairs for both DataFrames\n",
+					"schema1 = dict(service_bus_data.dtypes)\n",
+					"schema2 = dict(horizon_data.dtypes)\n",
+					"\n",
+					"# Collect all columns from both DataFrames\n",
+					"all_columns = set(schema1.keys()) | set(schema2.keys())\n",
+					"\n",
+					"# Prepare list to collect differences\n",
+					"differences = []\n",
+					"\n",
+					"for col in all_columns:\n",
+					"    type1 = schema1.get(col, \"Missing\")\n",
+					"    type2 = schema2.get(col, \"Missing\")\n",
+					"\n",
+					"    if type1 != type2:\n",
+					"        differences.append({\n",
+					"            \"Column Name\": col,\n",
+					"            \"service_bus_data Type\": type1,\n",
+					"            \"horizon_data Type\": type2\n",
+					"        })\n",
+					"\n",
+					"# Convert to pandas DataFrame for tabular display\n",
+					"diff_df = pd.DataFrame(differences)\n",
+					"\n",
+					"# Show the differences table\n",
+					"display(diff_df)"
+				],
+				"execution_count": 39
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"service_bus_data.printSchema()"
+				],
+				"execution_count": 37
 			},
 			{
 				"cell_type": "code",
