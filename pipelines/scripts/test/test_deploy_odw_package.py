@@ -58,6 +58,11 @@ def test_get_odw_wheels():
 
 
 def test_get_odw_packages_bound_to_extra_spark_pools():
+    """
+        Given i have some spark pools with odw packages bound to them
+        When i call get_odw_packages_bound_to_extra_spark_pools
+        Then only the odw packages not bound to the main pools should be returned
+    """
     mock_spark_pools = [
         {
             "name": "someOtherPoolA",
@@ -98,6 +103,9 @@ def test_get_odw_packages_bound_to_extra_spark_pools():
                 "customLibraries": [
                     {
                         "name": "odwPackageD"
+                    },
+                    {
+                        "name": "odwPackageE"  # This pool should not be returned
                     }
                 ]
             }
