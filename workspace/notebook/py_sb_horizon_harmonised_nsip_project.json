@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "f5dbde76-7100-4859-8e7c-27d73f5bdc1f"
+				"spark.autotune.trackingId": "fd247e84-acc2-4c86-887b-94914bf28518"
 			}
 		},
 		"metadata": {
@@ -106,7 +106,7 @@
 					"from datetime import datetime, date\n",
 					"from pyspark.sql import SparkSession"
 				],
-				"execution_count": 77
+				"execution_count": 139
 			},
 			{
 				"cell_type": "markdown",
@@ -145,7 +145,7 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": 78
+				"execution_count": 140
 			},
 			{
 				"cell_type": "markdown",
@@ -178,7 +178,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 79
+				"execution_count": 141
 			},
 			{
 				"cell_type": "markdown",
@@ -196,7 +196,7 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"if not error_message:\n",
+					"\n",
 					"    try:\n",
 					"        # Get data out of the service bus with additional fields needed for Horizon data\n",
 					"        service_bus_data = spark.sql(f\"\"\"\n",
@@ -364,7 +364,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 80
+				"execution_count": 142
 			},
 			{
 				"cell_type": "markdown",
@@ -383,12 +383,11 @@
 				"cell_type": "code",
 				"source": [
 					"if not error_message:\n",
-					"# Get data out of Horizon and matching the SB schema (with additional fields and ensure data types match)\n",
 					"    try:\n",
 					"        horizon_data = spark.sql(f\"\"\"\n",
 					"                        SELECT\n",
 					"                                CAST(NULL AS Long) AS NSIPProjectInfoInternalID\n",
-					"                                ,try_cast(Horizon.caseNodeId AS BIGINT) AS caseid \n",
+					"                                ,CAST(Horizon.caseNodeId AS Int) AS caseid\n",
 					"                                ,Horizon.casereference\n",
 					"                                ,Horizon.projectname\n",
 					"                                ,Horizon.projectNameWelsh AS projectNameWelsh\n",
@@ -629,9 +628,10 @@
 					"                        \"\"\")\n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error in source Horizon SQL query: {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()   "
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message) "
 				],
-				"execution_count": 81
+				"execution_count": 143
 			},
 			{
 				"cell_type": "markdown",
@@ -704,9 +704,10 @@
 					"\n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error in processing Horizon data set: {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()"
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 145
 			},
 			{
 				"cell_type": "code",
@@ -744,33 +745,14 @@
 					"display(diff_df)\n",
 					""
 				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"from pyspark.sql.functions import lit\n",
-					"\n",
-					"all_columns = list(set(service_bus_data.columns) | set(horizon_data.columns))\n",
-					"\n",
-					"for col in all_columns:\n",
-					"    if col not in service_bus_data.columns:\n",
-					"        service_bus_data = service_bus_data.withColumn(col, lit(None))\n",
-					"    if col not in horizon_data.columns:\n",
-					"        horizon_data = horizon_data.withColumn(col, lit(None))\n",
-					"\n",
-					"service_bus_data = service_bus_data.select(sorted(all_columns))\n",
-					"horizon_data = horizon_data.select(sorted(all_columns))\n",
-					""
-				],
-				"execution_count": null
+				"execution_count": 147
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"results = service_bus_data.union(horizon_data)"
 				],
-				"execution_count": null
+				"execution_count": 148
 			},
 			{
 				"cell_type": "code",
