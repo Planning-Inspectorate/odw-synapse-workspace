@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "97756f4b-2c6e-41dd-93cf-ae677aa9237c"
+				"spark.autotune.trackingId": "f5dbde76-7100-4859-8e7c-27d73f5bdc1f"
 			}
 		},
 		"metadata": {
@@ -106,7 +106,7 @@
 					"from datetime import datetime, date\n",
 					"from pyspark.sql import SparkSession"
 				],
-				"execution_count": 25
+				"execution_count": 77
 			},
 			{
 				"cell_type": "markdown",
@@ -145,7 +145,7 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": 26
+				"execution_count": 78
 			},
 			{
 				"cell_type": "markdown",
@@ -178,7 +178,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 27
+				"execution_count": 79
 			},
 			{
 				"cell_type": "markdown",
@@ -352,7 +352,7 @@
 					"        TRUE AS migrated,\n",
 					"        ODTSourceSystem,\n",
 					"        SourceSystemID,\n",
-					"        IngestionDate,\n",
+					"        CAST(IngestionDate AS Date) IngestionDate ,\n",
 					"        ValidTo,\n",
 					"        '' AS RowID,\n",
 					"        isMaterialChange\n",
@@ -364,7 +364,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 28
+				"execution_count": 80
 			},
 			{
 				"cell_type": "markdown",
@@ -388,7 +388,7 @@
 					"        horizon_data = spark.sql(f\"\"\"\n",
 					"                        SELECT\n",
 					"                                CAST(NULL AS Long) AS NSIPProjectInfoInternalID\n",
-					"                                ,CAST(Horizon.caseNodeId AS Int) AS caseid \n",
+					"                                ,try_cast(Horizon.caseNodeId AS BIGINT) AS caseid \n",
 					"                                ,Horizon.casereference\n",
 					"                                ,Horizon.projectname\n",
 					"                                ,Horizon.projectNameWelsh AS projectNameWelsh\n",
@@ -481,7 +481,7 @@
 					"                                ,HorizonCaseNumber\n",
 					"                                --End Horizon only fields\n",
 					"                                -- Additional columns-2323\n",
-					"                                ,CAST(NULL AS Date) AS inceptionMeetingDate\n",
+					"                                ,CAST(NULL AS string) AS inceptionMeetingDate\n",
 					"                                ,CAST(NULL AS string) AS draftDocumentSubmissionDate\n",
 					"                                ,CAST(NULL AS string) AS programmeDocumentSubmissionDate\n",
 					"                                ,CAST(NULL AS string) AS estimatedScopingSubmissionDate\n",
@@ -629,9 +629,9 @@
 					"                        \"\"\")\n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error in source Horizon SQL query: {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()    "
+					"        end_exec_time = datetime.now()   "
 				],
-				"execution_count": 29
+				"execution_count": 81
 			},
 			{
 				"cell_type": "markdown",
@@ -706,41 +706,7 @@
 					"        error_message = f\"Error in processing Horizon data set: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 30
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"# Get column name and type pairs for both DataFrames\n",
-					"schema1 = dict(service_bus_data.dtypes)\n",
-					"schema2 = dict(horizon_data.dtypes)\n",
-					"\n",
-					"# Collect all columns that appear in either DataFrame\n",
-					"all_columns = set(schema1.keys()) | set(schema2.keys())\n",
-					"\n",
-					"# List to hold differences as tuples: (column, type_in_df1, type_in_df2, status)\n",
-					"differences = []\n",
-					"\n",
-					"for col in all_columns:\n",
-					"    type1 = schema1.get(col, \"Missing\")\n",
-					"    type2 = schema2.get(col, \"Missing\")\n",
-					"\n",
-					"    if type1 == type2:\n",
-					"        # Types match, no difference for this column\n",
-					"        continue\n",
-					"    elif type1 == \"Missing\":\n",
-					"        differences.append((col, None, type2, \"Missing in service_bus_data\"))\n",
-					"    elif type2 == \"Missing\":\n",
-					"        differences.append((col, type1, None, \"Missing in horizon_data\"))\n",
-					"    else:\n",
-					"        differences.append((col, type1, type2, \"Type mismatch\"))\n",
-					"\n",
-					"# Show columns with differences\n",
-					"for col, t1, t2, status in differences:\n",
-					"    print(f\"Column: {col}, service_bus_data type: {t1}, horizon_data type: {t2}, Status: {status}\")\n",
-					""
-				],
-				"execution_count": 31
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -778,7 +744,7 @@
 					"display(diff_df)\n",
 					""
 				],
-				"execution_count": 35
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -797,14 +763,14 @@
 					"horizon_data = horizon_data.select(sorted(all_columns))\n",
 					""
 				],
-				"execution_count": 32
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"results = service_bus_data.union(horizon_data)"
 				],
-				"execution_count": 33
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
