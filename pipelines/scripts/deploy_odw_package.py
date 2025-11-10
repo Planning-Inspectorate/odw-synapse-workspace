@@ -124,7 +124,7 @@ class ODWPackageDeployer():
             logging.info(F"The spark pools {self.TARGET_SPARK_POOLS} already have the new odw package bound to them")
         logging.info("Removing odw packages that are not assigned to any pool")
         odw_package_assignments_to_extra_pools = self.get_odw_packages_bound_to_extra_spark_pools(synapse_workspace_manager)
-        odw_packages_to_delete = existing_wheel_names.difference(odw_package_assignments_to_extra_pools)
+        odw_packages_to_delete = existing_wheel_names.difference(odw_package_assignments_to_extra_pools).difference({new_wheel_name})
         logging.info(
             f"The following packages will be removed: {json.dumps(list(odw_packages_to_delete), indent=4)}"
         )
