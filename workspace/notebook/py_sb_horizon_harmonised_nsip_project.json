@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "7bbc66cc-d67c-4343-ad78-0935b69df58b"
+				"spark.autotune.trackingId": "58595420-2c9d-45df-a747-2d0be78be39c"
 			}
 		},
 		"metadata": {
@@ -107,7 +107,7 @@
 					"from pyspark.sql import SparkSession\n",
 					"from pyspark.sql.functions import struct, collect_list"
 				],
-				"execution_count": 25
+				"execution_count": 86
 			},
 			{
 				"cell_type": "markdown",
@@ -146,7 +146,7 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": 26
+				"execution_count": 87
 			},
 			{
 				"cell_type": "markdown",
@@ -179,7 +179,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 27
+				"execution_count": 88
 			},
 			{
 				"cell_type": "markdown",
@@ -365,7 +365,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 28
+				"execution_count": 89
 			},
 			{
 				"cell_type": "markdown",
@@ -632,7 +632,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message) "
 				],
-				"execution_count": 32
+				"execution_count": 90
 			},
 			{
 				"cell_type": "markdown",
@@ -680,17 +680,9 @@
 					"        horizon_operationsLeadIds = horizon_data.groupBy(\"caseid\", \"IngestionDate\").agg(collect_list(\"operationsLeadIds\").alias(\"operationsLeadIds\"))\n",
 					"        horizon_data = horizon_data.drop(\"operationsLeadIds\").join(horizon_operationsLeadIds, on=[\"caseid\", \"IngestionDate\"], how=\"inner\")\n",
 					"\n",
-					"        # Build meetings\n",
-					"        horizon_meetings = horizon_data.groupBy(\"caseid\", \"IngestionDate\").agg(collect_list(\"meetings\").alias(\"meetings\"))\n",
-					"        horizon_data = horizon_data.drop(\"meetings\").join(horizon_meetings, on=[\"caseid\", \"IngestionDate\"], how=\"inner\")\n",
-					"\n",
 					"        # Build caseManagerIds\n",
 					"        horizon_caseManagerIds = horizon_data.groupBy(\"caseid\", \"IngestionDate\").agg(collect_list(\"caseManagerIds\").alias(\"caseManagerIds\"))\n",
 					"        horizon_data = horizon_data.drop(\"caseManagerIds\").join(horizon_caseManagerIds, on=[\"caseid\", \"IngestionDate\"], how=\"inner\")\n",
-					"\n",
-					"        # Build invoices\n",
-					"        horizon_invoices = horizon_data.groupBy(\"caseid\", \"IngestionDate\").agg(collect_list(\"invoices\").alias(\"invoices\"))\n",
-					"        horizon_data = horizon_data.drop(\"invoices\").join(horizon_invoices, on=[\"caseid\", \"IngestionDate\"], how=\"inner\")\n",
 					"\n",
 					"        # Build leadInspectorIds\n",
 					"        horizon_leadInspectorIds = horizon_data.groupBy(\"caseid\", \"IngestionDate\").agg(collect_list(\"leadInspectorIds\").alias(\"leadInspectorIds\"))\n",
@@ -708,15 +700,15 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print()"
 				],
-				"execution_count": 33
+				"execution_count": 91
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"from pyspark.sql.functions import col, from_json\n",
+					"from pyspark.sql.functions import from_json\n",
 					"from pyspark.sql.types import ArrayType, StructType, StructField, StringType, DoubleType\n",
 					"\n",
-					"# Define the schema for 'invoices'\n",
+					"# Define schemas\n",
 					"invoices_schema = ArrayType(StructType([\n",
 					"    StructField(\"invoiceStage\", StringType(), True),\n",
 					"    StructField(\"invoiceNumber\", StringType(), True),\n",
@@ -729,7 +721,6 @@
 					"    StructField(\"refundIssueDate\", StringType(), True)\n",
 					"]))\n",
 					"\n",
-					"# Define the schema for 'meetings'\n",
 					"meetings_schema = ArrayType(StructType([\n",
 					"    StructField(\"meetingAgenda\", StringType(), True),\n",
 					"    StructField(\"planningInspectorateRole\", StringType(), True),\n",
@@ -737,19 +728,19 @@
 					"    StructField(\"meetingType\", StringType(), True)\n",
 					"]))\n",
 					"\n",
-					"# Apply schemas to horizon_data\n",
+					"# Apply schemas without casting to string\n",
 					"horizon_data_casted = horizon_data \\\n",
-					"    .withColumn(\"invoices\", from_json(col(\"invoices\").cast(\"string\"), invoices_schema)) \\\n",
-					"    .withColumn(\"meetings\", from_json(col(\"meetings\").cast(\"string\"), meetings_schema))"
+					"    .withColumn(\"invoices\", from_json(\"invoices\", invoices_schema)) \\\n",
+					"    .withColumn(\"meetings\", from_json(\"meetings\", meetings_schema))"
 				],
-				"execution_count": 38
+				"execution_count": 92
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"horizon_data_casted.printSchema()"
+					"horizon_data.printSchema()"
 				],
-				"execution_count": 40
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -786,162 +777,12 @@
 					"# Show the differences table\n",
 					"display(diff_df)"
 				],
-				"execution_count": 39
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"service_bus_data.printSchema()"
-				],
-				"execution_count": 37
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"results = service_bus_data.union(horizon_data)"
-				],
-				"execution_count": 31
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"horizon_data = horizon_data.withColumn(\"meeting_struct\", struct(\"meetingAgenda\", \"planningInspectorateRole\", \"meetingDate\", \"meetingType\"))"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"horizon_meetings = horizon_data.groupBy(\"caseid\", \"IngestionDate\").agg(collect_list(\"meeting_struct\").alias(\"meetings\"))"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"horizon_data = horizon_data.drop(\"meetingAgenda\", \"planningInspectorateRole\", \"meetingDate\", \"meetingType\") \\\n",
-					"    .join(horizon_meetings, on=[\"caseid\", \"IngestionDate\"], how=\"inner\")"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"from pyspark.sql.functions import struct, collect_list\n",
-					"\n",
-					"# Step 1: Create struct\n",
-					"horizon_data = horizon_data.withColumn(\"meeting_struct\", struct(\"meetingAgenda\", \"planningInspectorateRole\", \"meetingDate\", \"meetingType\"))\n",
-					"\n",
-					"# Step 2: Group and collect\n",
-					"horizon_meetings = horizon_data.groupBy(\"caseid\", \"IngestionDate\").agg(collect_list(\"meeting_struct\").alias(\"meetings\"))\n",
-					"\n",
-					"# Step 3: Drop and join\n",
-					"horizon_data = horizon_data.drop(\"meetingAgenda\", \"planningInspectorateRole\", \"meetingDate\", \"meetingType\") \\\n",
-					"    .join(horizon_meetings, on=[\"caseid\", \"IngestionDate\"], how=\"inner\")"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"collapsed": false
-				},
-				"source": [
-					"import pandas as pd\n",
-					"\n",
-					"# Get column name and type pairs for both DataFrames\n",
-					"schema1 = dict(service_bus_data.dtypes)\n",
-					"schema2 = dict(horizon_data.dtypes)\n",
-					"\n",
-					"# Collect all columns from both DataFrames\n",
-					"all_columns = set(schema1.keys()) | set(schema2.keys())\n",
-					"\n",
-					"# Prepare list to collect differences\n",
-					"differences = []\n",
-					"\n",
-					"for col in all_columns:\n",
-					"    type1 = schema1.get(col, \"Missing\")\n",
-					"    type2 = schema2.get(col, \"Missing\")\n",
-					"\n",
-					"    if type1 != type2:\n",
-					"        differences.append({\n",
-					"            \"Column Name\": col,\n",
-					"            \"service_bus_data Type\": type1,\n",
-					"            \"horizon_data Type\": type2\n",
-					"        })\n",
-					"\n",
-					"# Convert to pandas DataFrame for tabular display\n",
-					"diff_df = pd.DataFrame(differences)\n",
-					"\n",
-					"# Show the differences table\n",
-					"display(diff_df)\n",
-					""
-				],
 				"execution_count": null
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"results = service_bus_data.union(horizon_data)"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"horizon_data.printSchema()"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"service_bus_data.printSchema()"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"from pyspark.sql.types import ArrayType\n",
-					"\n",
-					"# Get ArrayType columns from both DataFrames\n",
-					"service_array_columns = {field.name for field in service_bus_data.schema.fields if isinstance(field.dataType, ArrayType)}\n",
-					"horizon_array_columns = {field.name for field in horizon_data.schema.fields if isinstance(field.dataType, ArrayType)}\n",
-					"\n",
-					"# Find mismatches (columns present in one but not the other)\n",
-					"mismatched_columns = service_array_columns.symmetric_difference(horizon_array_columns)\n",
-					"\n",
-					"# Print mismatched columns\n",
-					"print(\"Mismatching ArrayType columns between service_bus_data and horizon_data:\")\n",
-					"for col in mismatched_columns:\n",
-					"    print(col)\n",
-					"\t"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"results = service_bus_data.unionByName(horizon_data)"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"# results = service_bus_data.union(horizon_data)"
 				],
 				"execution_count": null
 			},
