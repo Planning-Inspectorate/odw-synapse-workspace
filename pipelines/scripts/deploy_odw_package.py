@@ -1,5 +1,4 @@
 from odw_common.util.synapse_workspace_manager import SynapseWorkspaceManager
-from odw_common.util.exceptions import ConcurrentWheelUploadException
 from concurrent.futures import ThreadPoolExecutor
 from pipelines.scripts.config import CONFIG
 import argparse
@@ -63,15 +62,20 @@ class ODWPackageDeployer():
         # Get existing workspace packages
         existing_wheels = self.get_existing_odw_wheels(synapse_workspace_manager)
         existing_wheel_names = {x["name"] for x in existing_wheels}
-        if new_wheel_name in existing_wheel_names:
-            # The assumption is that each wheel name contains the commit hash of the newest commit. This hash identifies the wheel version
-            # If the new wheel name already exists in synapse, then there is no need to upload again
-            logging.info(f"Cannot upload the wheel '{new_wheel_name}' because it already exists in the workspace, aborting deployment")
-            return
-        logging.info("Uploading new workspace package")
-        synapse_workspace_manager.upload_workspace_package(f"dist/{new_wheel_name}")
+        need_to_upload_to_workspace = new_wheel_name not in existing_wheel_names
+        if need_to_upload_to_workspace:
+            logging.info("Uploading new workspace package")
+            synapse_workspace_manager.upload_workspace_package(f"dist/{new_wheel_name}")
         # Prepare to update the spark pools to use the new package
         initial_spark_pool_json_map = {spark_pool: synapse_workspace_manager.get_spark_pool(spark_pool) for spark_pool in self.TARGET_SPARK_POOLS}
+        # Only apply the update to pools that need to be updated
+        initial_spark_pool_json_map = {
+            k: v
+            for k, v in initial_spark_pool_json_map.items()
+            if new_wheel_name not in {x["name"] for x in v["properties"].get("customLibraries", [])} or len(
+                [x["name"] for x in v["properties"].get("customLibraries", []) if x["name"].startswith("odw")]
+            ) > 1
+        }
         existing_spark_pool_packages = {
             spark_pool: spark_pool_json["properties"]["customLibraries"] if "customLibraries" in spark_pool_json["properties"] else []
             for spark_pool, spark_pool_json in initial_spark_pool_json_map.items()

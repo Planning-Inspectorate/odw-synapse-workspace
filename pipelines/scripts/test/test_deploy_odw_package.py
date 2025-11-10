@@ -127,7 +127,9 @@ def test_get_odw_packages_bound_to_extra_spark_pools():
 
 def test_upload_new_wheel__with_no_existing_package():
     """
-        Test uploading an odw package for the first time
+        Given there are no odw packages in the workspace
+        When i upload a package for the first time
+        Then the package should be uploaded to the workspace, and bound to the spark pools
     """
     env = "mock_env"
     wheel_name = "odw_test_wheel.whl"
@@ -234,7 +236,9 @@ def test_upload_new_wheel__with_no_existing_package():
 
 def test_upload_new_wheel__with_other_odw_package():
     """
-        Test uploading an odw package to a workspace that has an "older" version of the package
+        Given a different odw package exists in the workspace, and the new package does not exist in the workspace yet
+        When i upload a new package
+        Then the old package should be removed from the workspace and pools, and replaced by the new package
     """
     env = "mock_env"
     wheel_name = "odw_test_wheel.whl"
@@ -354,7 +358,9 @@ def test_upload_new_wheel__with_other_odw_package():
 
 def test_upload_new_wheel__with_duplicate_existing_package():
     """
-        Attempting to upload a package which already exists in the workspace should abort the operation to save time
+        Given the new odw package already exists in the workspace
+        When i try to upload a new package
+        The deployment should only skip uploading the package to the workspace
     """
     env = "mock_env"
     wheel_name = "odw_test_wheel.whl"
@@ -366,11 +372,12 @@ def test_upload_new_wheel__with_duplicate_existing_package():
             }
         }
     ]
+    mock_spark_pool = {"name": "some_pool", "properties": {}}
     with mock.patch("odw_common.util.synapse_workspace_manager.SynapseWorkspaceManager"):
         with mock.patch.object(ODWPackageDeployer, "get_existing_odw_wheels", return_value=mock_odw_wheels):
             with mock.patch("odw_common.util.synapse_workspace_manager.SynapseWorkspaceManager"):
                 with mock.patch.object(SynapseWorkspaceManager, "upload_workspace_package", return_value=None):
-                    with mock.patch.object(SynapseWorkspaceManager, "get_spark_pool", return_value=None):
+                    with mock.patch.object(SynapseWorkspaceManager, "get_spark_pool", return_value=mock_spark_pool):
                         with mock.patch.object(SynapseWorkspaceManager, "update_spark_pool", return_value=None):
                             with mock.patch.object(SynapseWorkspaceManager, "remove_workspace_package", return_value=None):
                                 with mock.patch.object(
@@ -380,9 +387,53 @@ def test_upload_new_wheel__with_duplicate_existing_package():
                                 ):
                                     ODWPackageDeployer().upload_new_wheel(env, wheel_name)
                                     assert not SynapseWorkspaceManager.upload_workspace_package.called
-                                    assert not SynapseWorkspaceManager.get_spark_pool.called
+
+
+def test_upload_new_wheel__with_package_already_bound_to_spark_pool():
+    """
+        Given the new odw package already exists in the workspace, and is bound to the [pinssynspodwpr or pinssynspodw34] spark pools
+        When i try to upload a new package
+        The deployment should skip updating the spark pools
+    """
+    
+    env = "mock_env"
+    wheel_name = "odw_test_wheel.whl"
+    mock_odw_wheels = [
+        {
+            "name": "odw_test_wheel.whl",
+            "properties": {
+                "uploadedTimestamp": "2025-08-01T13:58:54.3370407+00:00"
+            }
+        }
+    ]
+    mock_spark_pool = {
+        "properties": {
+            "customLibraries": [
+                {
+                    "name": wheel_name,
+                    "path": f"pins-synw-odw-{env}-uks/libraries/{wheel_name}",
+                    "containerName": "prep",
+                    "uploadedTimestamp": "0005-01-01T00:00:00+00:00",
+                    "type": "whl"
+                }
+            ]
+        }
+    }
+    with mock.patch("odw_common.util.synapse_workspace_manager.SynapseWorkspaceManager"):
+        with mock.patch.object(ODWPackageDeployer, "get_existing_odw_wheels", return_value=mock_odw_wheels):
+            with mock.patch("odw_common.util.synapse_workspace_manager.SynapseWorkspaceManager"):
+                with mock.patch.object(SynapseWorkspaceManager, "upload_workspace_package", return_value=None):
+                    with mock.patch.object(SynapseWorkspaceManager, "get_spark_pool", return_value=mock_spark_pool):
+                        with mock.patch.object(SynapseWorkspaceManager, "update_spark_pool", return_value=None):
+                            with mock.patch.object(SynapseWorkspaceManager, "remove_workspace_package", return_value=None):
+                                with mock.patch.object(
+                                    ODWPackageDeployer,
+                                    "get_odw_packages_bound_to_extra_spark_pools",
+                                    return_value=set()
+                                ):
+                                    ODWPackageDeployer().upload_new_wheel(env, wheel_name)
+                                    assert SynapseWorkspaceManager.get_spark_pool.called
                                     assert not SynapseWorkspaceManager.update_spark_pool.called
-                                    assert not SynapseWorkspaceManager.remove_workspace_package.called
 
 
 def test_upload_new_wheel__with_existing_odw_package_already_bound_to_external_spark_pool():
@@ -515,4 +566,3 @@ def test_upload_new_wheel__with_existing_odw_package_already_bound_to_external_s
                                     any_order=True
                                 )
                                 assert not SynapseWorkspaceManager.remove_workspace_package.called
-
