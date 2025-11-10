@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "70d5aefc-e875-405e-ac9b-99961168b74a"
+				"spark.autotune.trackingId": "2bb908e6-344b-459d-8680-9fb106f01406"
 			}
 		},
 		"metadata": {
@@ -97,7 +97,8 @@
 				},
 				"source": [
 					"from pyspark.sql.types import StructType, StructField, StringType, IntegerType, TimestampType\r\n",
-					"from pyspark.sql.functions import explode, col"
+					"from pyspark.sql.functions import explode, col\r\n",
+					"from odw.core.util.util import Util"
 				],
 				"execution_count": null
 			},
@@ -195,6 +196,8 @@
 					"collapsed": false
 				},
 				"source": [
+					"storage_acc_name = Util.get_storage_account()\r\n",
+					"target_data_path = f\"abfss://odw-raw@{storage_acc_name}.dfs.core.windows.net/ListedBuildings/{date_folder}/listed_building.json\"\r\n",
 					"try:    \r\n",
 					"    json_schema = StructType([\r\n",
 					"        StructField(\"dataset\", StringType(), True),\r\n",
@@ -213,15 +216,15 @@
 					"        StructField(\"listed-building-grade\", StringType(), True)\r\n",
 					"    ])\r\n",
 					"\r\n",
-					"    storage_acc_name = spark.sparkContext.environment.get('dataLakeAccountName', 'get')\r\n",
-					"    df = spark.read.option(\"multiline\",\"true\").json(f\"abfss://odw-raw@{storage_acc_name}.dfs.core.windows.net/ListedBuildings/{date_folder}/listed_building.json\")\r\n",
+					"    df = spark.read.option(\"multiline\",\"true\").json(target_data_path)\r\n",
 					"    entities_df = df.selectExpr(\"explode(entities) as entity\")\r\n",
 					"    entities = [row.entity.asDict() for row in entities_df.collect()]\r\n",
 					"    final_df = spark.createDataFrame(data=entities, schema=json_schema)\r\n",
 					"\r\n",
 					"except Exception as e:\r\n",
-					"    logError(f\"Error in creating data frame for file {date_folder}/listed_building.json :\\n{e}\")\r\n",
-					"    error_message = f\"Error in creating data frame for file {date_folder}/listed_building.json : {str(e)[:800]}\"\r\n",
+					"    base_error_message = f\"Error in creating data frame for file '{storage_acc_name}'\"\r\n",
+					"    logError(f\"{base_error_message} :\\n{e}\")\r\n",
+					"    error_message = f\"{base_error_message} : {str(e)[:800]}\"\r\n",
 					"    \r\n",
 					"    end_exec_time = datetime.now()\r\n",
 					"    duration_seconds = (end_exec_time - start_exec_time).total_seconds()\r\n",
