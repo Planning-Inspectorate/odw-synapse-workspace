@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "17572e91-e619-443b-ad5f-5be83e46c18a"
+				"spark.autotune.trackingId": "9f77e588-30ae-4169-954b-50492cea46ad"
 			}
 		},
 		"metadata": {
@@ -28,7 +28,7 @@
 			"enableDebugMode": false,
 			"kernelspec": {
 				"name": "synapse_pyspark",
-				"display_name": "python"
+				"display_name": "Synapse PySpark"
 			},
 			"language_info": {
 				"name": "python"
@@ -51,6 +51,26 @@
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql.functions import udf, col, lit, when, coalesce, concat, sum, avg, max, min, count\n",
+					"from pyspark.sql.types import DateType, TimestampType, StringType, IntegerType, FloatType, DoubleType, BooleanType, StructType\n",
+					"from pyspark.sql.window import Window\n",
+					"from pyspark.sql.functions import row_number, rank, dense_rank, lag, lead, ntile\n",
+					"from datetime import datetime, timedelta\n",
+					"import pandas as pd\n",
+					"import numpy as np"
+				],
+				"execution_count": 10
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run /utils/py_logging_decorator"
+				],
+				"execution_count": 11
+			},
 			{
 				"cell_type": "code",
 				"source": [
@@ -178,6 +198,14 @@
 					"        # ==========================================\n",
 					"        logInfo(\"Target table does not exist - performing initial load\")\n",
 					"        \n",
+					"        # CRITICAL: Column order must match JSON schema exactly:\n",
+					"        # 1-38: Business columns\n",
+					"        # 39: IngestionDate\n",
+					"        # 40: is_current\n",
+					"        # 41: record_start_date\n",
+					"        # 42: record_end_date\n",
+					"        # 43: RowID\n",
+					"        \n",
 					"        spark.sql(f\"\"\"\n",
 					"            CREATE TABLE IF NOT EXISTS {target_table_path}\n",
 					"            USING DELTA\n",
@@ -222,9 +250,9 @@
 					"                comments,\n",
 					"                Migrated,\n",
 					"                CURRENT_TIMESTAMP() AS IngestionDate,\n",
+					"                1 AS is_current,\n",
 					"                CURRENT_TIMESTAMP() AS record_start_date,\n",
 					"                CAST('9999-12-31 23:59:59' AS TIMESTAMP) AS record_end_date,\n",
-					"                1 AS is_current,\n",
 					"                md5(concat_ws('|',\n",
 					"                    COALESCE(greenCaseType, 'NULL'), COALESCE(CAST(greenCaseId AS STRING), 'NULL'),\n",
 					"                    COALESCE(caseReference, 'NULL'), COALESCE(horizonId, 'NULL'),\n",
@@ -391,6 +419,7 @@
 					"        if result[\"updated_records\"] > 0:\n",
 					"            logInfo(f\"Inserting new versions of {result['updated_records']} changed records\")\n",
 					"            \n",
+					"            # CRITICAL: Column order must match JSON schema exactly\n",
 					"            spark.sql(f\"\"\"\n",
 					"                INSERT INTO {target_table_path}\n",
 					"                SELECT\n",
@@ -433,9 +462,9 @@
 					"                    stg.comments,\n",
 					"                    stg.Migrated,\n",
 					"                    CURRENT_TIMESTAMP() AS IngestionDate,\n",
+					"                    1 AS is_current,\n",
 					"                    CURRENT_TIMESTAMP() AS record_start_date,\n",
 					"                    CAST('9999-12-31 23:59:59' AS TIMESTAMP) AS record_end_date,\n",
-					"                    1 AS is_current,\n",
 					"                    md5(concat_ws('|',\n",
 					"                        COALESCE(stg.greenCaseType, 'NULL'), COALESCE(CAST(stg.greenCaseId AS STRING), 'NULL'),\n",
 					"                        COALESCE(stg.caseReference, 'NULL'), COALESCE(stg.horizonId, 'NULL'),\n",
@@ -472,6 +501,7 @@
 					"            # Get max ID for new records\n",
 					"            max_id = spark.sql(f\"SELECT COALESCE(MAX(casework_specialist_id), 0) as max_id FROM {target_table_path}\").collect()[0]['max_id']\n",
 					"            \n",
+					"            # CRITICAL: Column order must match JSON schema exactly\n",
 					"            spark.sql(f\"\"\"\n",
 					"                INSERT INTO {target_table_path}\n",
 					"                SELECT\n",
@@ -514,9 +544,9 @@
 					"                    stg.comments,\n",
 					"                    stg.Migrated,\n",
 					"                    CURRENT_TIMESTAMP() AS IngestionDate,\n",
+					"                    1 AS is_current,\n",
 					"                    CURRENT_TIMESTAMP() AS record_start_date,\n",
 					"                    CAST('9999-12-31 23:59:59' AS TIMESTAMP) AS record_end_date,\n",
-					"                    1 AS is_current,\n",
 					"                    md5(concat_ws('|',\n",
 					"                        COALESCE(stg.greenCaseType, 'NULL'), COALESCE(CAST(stg.greenCaseId AS STRING), 'NULL'),\n",
 					"                        COALESCE(stg.caseReference, 'NULL'), COALESCE(stg.horizonId, 'NULL'),\n",
@@ -623,7 +653,7 @@
 					"    # Output the result as JSON for ADF to capture\n",
 					"    mssparkutils.notebook.exit(json.dumps(result))"
 				],
-				"execution_count": null
+				"execution_count": 12
 			}
 		]
 	}
