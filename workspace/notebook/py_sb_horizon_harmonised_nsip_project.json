@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "58595420-2c9d-45df-a747-2d0be78be39c"
+				"spark.autotune.trackingId": "a7025c67-4d7e-4b97-8243-766018a7ca17"
 			}
 		},
 		"metadata": {
@@ -705,7 +705,7 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"from pyspark.sql.functions import from_json\n",
+					"from pyspark.sql.functions import col, from_json, regexp_replace\n",
 					"from pyspark.sql.types import ArrayType, StructType, StructField, StringType, DoubleType\n",
 					"\n",
 					"# Define schemas\n",
@@ -728,19 +728,12 @@
 					"    StructField(\"meetingType\", StringType(), True)\n",
 					"]))\n",
 					"\n",
-					"# Apply schemas without casting to string\n",
+					"# Clean and apply schema\n",
 					"horizon_data_casted = horizon_data \\\n",
-					"    .withColumn(\"invoices\", from_json(\"invoices\", invoices_schema)) \\\n",
-					"    .withColumn(\"meetings\", from_json(\"meetings\", meetings_schema))"
+					"    .withColumn(\"invoices\", from_json(regexp_replace(\"invoices\", \"'\", '\"'), invoices_schema)) \\\n",
+					"    .withColumn(\"meetings\", from_json(regexp_replace(\"meetings\", \"'\", '\"'), meetings_schema))"
 				],
-				"execution_count": 92
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"horizon_data.printSchema()"
-				],
-				"execution_count": null
+				"execution_count": 101
 			},
 			{
 				"cell_type": "code",
@@ -750,20 +743,18 @@
 				"source": [
 					"import pandas as pd\n",
 					"\n",
-					"# Get column name and type pairs for both DataFrames\n",
-					"schema1 = dict(service_bus_data.dtypes)\n",
-					"schema2 = dict(horizon_data.dtypes)\n",
+					"# Extract full schema info using simpleString()\n",
+					"schema1 = {field.name: field.dataType.simpleString() for field in service_bus_data.schema.fields}\n",
+					"schema2 = {field.name: field.dataType.simpleString() for field in horizon_data_casted.schema.fields}\n",
 					"\n",
-					"# Collect all columns from both DataFrames\n",
+					"# Collect all columns\n",
 					"all_columns = set(schema1.keys()) | set(schema2.keys())\n",
 					"\n",
-					"# Prepare list to collect differences\n",
+					"# Prepare differences\n",
 					"differences = []\n",
-					"\n",
 					"for col in all_columns:\n",
 					"    type1 = schema1.get(col, \"Missing\")\n",
 					"    type2 = schema2.get(col, \"Missing\")\n",
-					"\n",
 					"    if type1 != type2:\n",
 					"        differences.append({\n",
 					"            \"Column Name\": col,\n",
@@ -771,20 +762,44 @@
 					"            \"horizon_data Type\": type2\n",
 					"        })\n",
 					"\n",
-					"# Convert to pandas DataFrame for tabular display\n",
+					"# Convert to Pandas DataFrame\n",
 					"diff_df = pd.DataFrame(differences)\n",
 					"\n",
-					"# Show the differences table\n",
+					"# Display\n",
 					"display(diff_df)"
 				],
-				"execution_count": null
+				"execution_count": 106
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"results = service_bus_data.union(horizon_data)"
+					"from pyspark.sql.functions import lit\n",
+					"\n",
+					"# Get columns from service_bus_data\n",
+					"service_cols = service_bus_data.columns\n",
+					"\n",
+					"# Add missing columns to horizon_data_casted with null values\n",
+					"for col in service_cols:\n",
+					"    if col not in horizon_data_casted.columns:\n",
+					"        horizon_data_casted = horizon_data_casted.withColumn(col, lit(None))\n",
+					"\n",
+					"# Reorder columns to match service_bus_data\n",
+					"horizon_data_casted = horizon_data_casted.select(service_cols)\n",
+					"\n",
+					"# Now union\n",
+					"final_df = service_bus_data.unionByName(horizon_data_casted)"
 				],
-				"execution_count": null
+				"execution_count": 107
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"display(final_df)"
+				],
+				"execution_count": 108
 			},
 			{
 				"cell_type": "markdown",
@@ -1183,6 +1198,56 @@
 					"                            ,IFNULL(CAST(applicantdescriptionofproject AS String), '.')\n",
 					"                            ,IFNULL(CAST(HorizonCaseNumber AS int), '.')\n",
 					"                            ,IFNULL(CAST(isMaterialChange AS String), '.')\n",
+					"                            ,IFNULL(CAST(inceptionMeetingDate AS STRING), '.') AS inceptionMeetingDate\n",
+					"                            ,IFNULL(CAST(draftDocumentSubmissionDate AS STRING), '.') AS draftDocumentSubmissionDate\n",
+					"                            ,IFNULL(CAST(programmeDocumentSubmissionDate AS STRING), '.') AS programmeDocumentSubmissionDate\n",
+					"                            ,IFNULL(CAST(estimatedScopingSubmissionDate AS STRING), '.') AS estimatedScopingSubmissionDate\n",
+					"                            ,IFNULL(CAST(consultationMilestoneAdequacyDate AS STRING), '.') AS consultationMilestoneAdequacyDate\n",
+					"                            ,IFNULL(CAST(principalAreaDisagreementSummaryStmtSubmittedDate AS STRING), '.') AS principalAreaDisagreementSummaryStmtSubmittedDate\n",
+					"                            ,IFNULL(CAST(policyComplianceDocumentSubmittedDate AS STRING), '.') AS policyComplianceDocumentSubmittedDate\n",
+					"                            ,IFNULL(CAST(designApproachDocumentSubmittedDate AS STRING), '.') AS designApproachDocumentSubmittedDate\n",
+					"                            ,IFNULL(CAST(caAndTpEvidenceSubmittedDate AS STRING), '.') AS caAndTpEvidenceSubmittedDate\n",
+					"                            ,IFNULL(CAST(caseTeamIssuedCommentsDate AS STRING), '.') AS caseTeamIssuedCommentsDate\n",
+					"                            ,IFNULL(CAST(fastTrackAdmissionDocumentSubmittedDate AS STRING), '.') AS fastTrackAdmissionDocumentSubmittedDate\n",
+					"                            ,IFNULL(CAST(matureOutlineControlDocumentSubmittedDate AS STRING), '.') AS matureOutlineControlDocumentSubmittedDate\n",
+					"                            ,IFNULL(CAST(memLastUpdated AS STRING), '.') AS memLastUpdated\n",
+					"                            ,IFNULL(CAST(multipartyApplicationCheckDocumentSubmittedDate AS STRING), '.') AS multipartyApplicationCheckDocumentSubmittedDate\n",
+					"                            ,IFNULL(CAST(programmeDocumentReviewedByEstDate AS STRING), '.') AS programmeDocumentReviewedByEstDate\n",
+					"                            ,IFNULL(CAST(publicSectorEqualityDutySubmittedDate AS STRING), '.') AS publicSectorEqualityDutySubmittedDate\n",
+					"                            ,IFNULL(CAST(statutoryConsultationPeriodEndDate AS STRING), '.') AS statutoryConsultationPeriodEndDate\n",
+					"                            ,IFNULL(CAST(submissionOfDraftDocumentsDate AS STRING), '.') AS submissionOfDraftDocumentsDate\n",
+					"                            ,IFNULL(CAST(updatedProgrammeDocumentReceivedDate AS STRING), '.') AS updatedProgrammeDocumentReceivedDate\n",
+					"                            ,IFNULL(CAST(courtDecisionDate AS STRING), '.') AS courtDecisionDate\n",
+					"                            ,IFNULL(CAST(decisionChallengeSubmissionDate AS STRING), '.') AS decisionChallengeSubmissionDate\n",
+					"                            ,IFNULL(CAST(courtDecisionOutcomeText AS STRING), '.') AS courtDecisionOutcomeText\n",
+					"                            ,IFNULL(CAST(recommendation AS STRING), '.') AS recommendation\n",
+					"                            ,IFNULL(CAST(additionalComments AS STRING), '.') AS additionalComments\n",
+					"                            ,IFNULL(CAST(caAndTpEvidence AS STRING), '.') AS caAndTpEvidence\n",
+					"                            ,IFNULL(CAST(fastTrackAdmissionDocument AS STRING), '.') AS fastTrackAdmissionDocument\n",
+					"                            ,IFNULL(CAST(meetings AS STRING), '.') AS meetings\n",
+					"                            ,IFNULL(CAST(multipartyApplicationCheckDocument AS STRING), '.') AS multipartyApplicationCheckDocument\n",
+					"                            ,IFNULL(CAST(newMaturity AS STRING), '.') AS newMaturity\n",
+					"                            ,IFNULL(CAST(numberBand2Inspectors AS DOUBLE), -1) AS numberBand2Inspectors\n",
+					"                            ,IFNULL(CAST(numberBand3Inspectors AS DOUBLE), -1) AS numberBand3Inspectors\n",
+					"                            ,IFNULL(CAST(programmeDocumentURI AS STRING), '.') AS programmeDocumentURI\n",
+					"                            ,IFNULL(CAST(publicSectorEqualityDuty AS STRING), '.') AS publicSectorEqualityDuty\n",
+					"                            ,IFNULL(CAST(subProjectType AS STRING), '.') AS subProjectType\n",
+					"                            ,IFNULL(CAST(tier AS STRING), '.') AS tier\n",
+					"                            ,IFNULL(CAST(s61SummaryURI AS STRING), '.') AS s61SummaryURI\n",
+					"                            ,IFNULL(CAST(planProcessEvidence AS BOOLEAN), FALSE) AS planProcessEvidence\n",
+					"                            ,IFNULL(CAST(issuesTracker AS STRING), '.') AS issuesTracker\n",
+					"                            ,IFNULL(CAST(essentialFastTrackComponents AS BOOLEAN), FALSE) AS essentialFastTrackComponents\n",
+					"                            ,IFNULL(CAST(principalAreaDisagreementSummaryStmt AS STRING), '.') AS principalAreaDisagreementSummaryStmt\n",
+					"                            ,IFNULL(CAST(policyComplianceDocument AS STRING), '.') AS policyComplianceDocument\n",
+					"                            ,IFNULL(CAST(designApproachDocument AS STRING), '.') AS designApproachDocument\n",
+					"                            ,IFNULL(CAST(matureOutlineControlDocument AS STRING), '.') AS matureOutlineControlDocument\n",
+					"                            ,IFNULL(CAST(invoices AS STRING), '.') AS invoices\n",
+					"                            ,IFNULL(CAST(operationsLeadIds AS STRING), '.') AS operationsLeadIds\n",
+					"                            ,IFNULL(CAST(operationsManagerIds AS STRING), '.') AS operationsManagerIds\n",
+					"                            ,IFNULL(CAST(caseManagerIds AS STRING), '.') AS caseManagerIds\n",
+					"                            ,IFNULL(CAST(leadInspectorIds AS STRING), '.') AS leadInspectorIds\n",
+					"                            ,IFNULL(CAST(environmentalServicesOfficerIds AS STRING), '.') AS environmentalServicesOfficerIds\n",
+					"                            ,IFNULL(CAST(legalOfficerIds AS STRING), '.') AS legalOfficerIds\n",
 					"                    )\n",
 					"                ) AS RowID\n",
 					"                ,isMaterialChange\n",
