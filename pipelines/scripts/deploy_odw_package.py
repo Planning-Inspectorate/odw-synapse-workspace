@@ -49,11 +49,9 @@ class ODWPackageDeployer():
             Upload the new wheel to the target environment
 
             This follows the below process
-            1. If there are already 2 or more ODW packages in the workspace, then abort with an exception (there is likely to be another deployment ongoing)
-            2. If the new wheel already exists in the workspace, abort (it has already been uploaded)
-            3. Upload the new wheel to the Synapse workspace
-            4. Update the two spark pools to use the new ODW package (and to un-link the old ODW package)
-            5. Remove the old ODW packages from the workspace
+            1. If the current odw package version (for the current branch) does not exist in the workspace, then upload it
+            2. Bind the package to each pool in `self.TARGET_SPARK_POOLS` if it is not already bound, and unbind all other odw packages from these pools
+            3. Remove all odw packages from the workspace that are not bound to any pool (including pools outside of `TARGET_SPARK_POOLS`)
         """
         workspace_name = f"pins-synw-odw-{env}-uks"
         subscription = CONFIG["SUBSCRIPTION_ID"]
