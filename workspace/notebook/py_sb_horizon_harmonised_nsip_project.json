@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "95743509-3a2a-46b8-9cbb-8262ff3d9ee3"
+				"spark.autotune.trackingId": "000dd47f-b79e-46e9-9dba-9bbbfec92a28"
 			}
 		},
 		"metadata": {
@@ -107,7 +107,7 @@
 					"from pyspark.sql import SparkSession\n",
 					"from pyspark.sql.functions import struct, collect_list"
 				],
-				"execution_count": 40
+				"execution_count": 60
 			},
 			{
 				"cell_type": "markdown",
@@ -146,7 +146,7 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": null
+				"execution_count": 61
 			},
 			{
 				"cell_type": "markdown",
@@ -179,7 +179,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 62
 			},
 			{
 				"cell_type": "markdown",
@@ -365,7 +365,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 63
 			},
 			{
 				"cell_type": "markdown",
@@ -632,7 +632,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message) "
 				],
-				"execution_count": null
+				"execution_count": 64
 			},
 			{
 				"cell_type": "markdown",
@@ -742,92 +742,14 @@
 					"\n",
 					"# Print schema to verify\n",
 					"horizon_data.printSchema()\n",
-					"\n",
-					"# Show sample data\n",
-					"horizon_data.select(\"invoices\", \"meetings\").show(truncate=False)\n",
-					"\n",
-					"# Optional: Explode arrays to flatten\n",
-					"exploded_invoices = horizon_data.select(explode(\"invoices\").alias(\"invoice\")).select(\"invoice.*\")\n",
-					"exploded_meetings = horizon_data.select(explode(\"meetings\").alias(\"meeting\")).select(\"meeting.*\")\n",
-					"\n",
-					"# Show exploded data\n",
-					"exploded_invoices.show(truncate=False)\n",
-					"exploded_meetings.show(truncate=False)"
+					""
 				],
 				"execution_count": null
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"horizon_data.printSchema()"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"collapsed": false
-				},
-				"source": [
-					"import pandas as pd\n",
-					"\n",
-					"# Get column name and type pairs for both DataFrames\n",
-					"schema1 = dict(service_bus_data.dtypes)\n",
-					"schema2 = dict(horizon_data.dtypes)\n",
-					"\n",
-					"# Collect all columns from both DataFrames\n",
-					"all_columns = set(schema1.keys()) | set(schema2.keys())\n",
-					"\n",
-					"# Prepare list to collect differences\n",
-					"differences = []\n",
-					"\n",
-					"for col in all_columns:\n",
-					"    type1 = schema1.get(col, \"Missing\")\n",
-					"    type2 = schema2.get(col, \"Missing\")\n",
-					"\n",
-					"    if type1 != type2:\n",
-					"        differences.append({\n",
-					"            \"Column Name\": col,\n",
-					"            \"service_bus_data Type\": type1,\n",
-					"            \"horizon_data Type\": type2\n",
-					"        })\n",
-					"\n",
-					"# Convert to pandas DataFrame for tabular display\n",
-					"diff_df = pd.DataFrame(differences)\n",
-					"\n",
-					"# Show the differences table\n",
-					"display(diff_df)"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"from pyspark.sql.functions import lit\n",
-					"\n",
-					"# Get columns from service_bus_data\n",
-					"service_cols = service_bus_data.columns\n",
-					"\n",
-					"# Add missing columns to horizon_data_casted with null values\n",
-					"for col in service_cols:\n",
-					"    if col not in horizon_data_casted.columns:\n",
-					"        horizon_data_casted = horizon_data_casted.withColumn(col, lit(None))\n",
-					"\n",
-					"# Reorder columns to match service_bus_data\n",
-					"horizon_data_casted = horizon_data_casted.select(service_cols)\n",
-					"\n",
-					"# Now union\n",
-					"results = service_bus_data.unionByName(horizon_data_casted)"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"collapsed": false
-				},
-				"source": [
-					"display(final_df)"
+					"results = service_bus_data.unionByName(horizon_data)"
 				],
 				"execution_count": null
 			},
