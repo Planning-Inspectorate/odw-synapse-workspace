@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "9d47e63c-d97d-479a-beb9-c242cb217f18"
+				"spark.autotune.trackingId": "95743509-3a2a-46b8-9cbb-8262ff3d9ee3"
 			}
 		},
 		"metadata": {
@@ -107,7 +107,7 @@
 					"from pyspark.sql import SparkSession\n",
 					"from pyspark.sql.functions import struct, collect_list"
 				],
-				"execution_count": 1
+				"execution_count": 40
 			},
 			{
 				"cell_type": "markdown",
@@ -146,7 +146,7 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": 2
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -179,7 +179,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 3
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -365,7 +365,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 4
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -632,7 +632,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message) "
 				],
-				"execution_count": 5
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -700,40 +700,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print()"
 				],
-				"execution_count": 6
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"from pyspark.sql.functions import col, from_json, regexp_replace\n",
-					"from pyspark.sql.types import ArrayType, StructType, StructField, StringType, DoubleType\n",
-					"\n",
-					"# Define schemas\n",
-					"invoices_schema = ArrayType(StructType([\n",
-					"    StructField(\"invoiceStage\", StringType(), True),\n",
-					"    StructField(\"invoiceNumber\", StringType(), True),\n",
-					"    StructField(\"amountDue\", DoubleType(), True),\n",
-					"    StructField(\"paymentDueDate\", StringType(), True),\n",
-					"    StructField(\"invoicedDate\", StringType(), True),\n",
-					"    StructField(\"paymentDate\", StringType(), True),\n",
-					"    StructField(\"refundCreditNoteNumber\", StringType(), True),\n",
-					"    StructField(\"refundAmount\", DoubleType(), True),\n",
-					"    StructField(\"refundIssueDate\", StringType(), True)\n",
-					"]))\n",
-					"\n",
-					"meetings_schema = ArrayType(StructType([\n",
-					"    StructField(\"meetingAgenda\", StringType(), True),\n",
-					"    StructField(\"planningInspectorateRole\", StringType(), True),\n",
-					"    StructField(\"meetingDate\", StringType(), True),\n",
-					"    StructField(\"meetingType\", StringType(), True)\n",
-					"]))\n",
-					"\n",
-					"# Clean and apply schema\n",
-					"horizon_data_casted = horizon_data \\\n",
-					"    .withColumn(\"invoices\", from_json(regexp_replace(\"invoices\", \"'\", '\"'), invoices_schema)) \\\n",
-					"    .withColumn(\"meetings\", from_json(regexp_replace(\"meetings\", \"'\", '\"'), meetings_schema))"
-				],
-				"execution_count": 7
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -768,33 +735,33 @@
 					"    StructField(\"meetingType\", StringType(), True)\n",
 					"]))\n",
 					"\n",
-					"# Clean and apply schema\n",
-					"horizon_data_casted = horizon_data \\\n",
+					"# Overwrite columns in horizon_data with parsed versions\n",
+					"horizon_data = horizon_data \\\n",
 					"    .withColumn(\"invoices\", from_json(regexp_replace(col(\"invoices\").cast(\"string\"), \"'\", '\"'), invoices_schema)) \\\n",
 					"    .withColumn(\"meetings\", from_json(regexp_replace(col(\"meetings\").cast(\"string\"), \"'\", '\"'), meetings_schema))\n",
 					"\n",
 					"# Print schema to verify\n",
-					"horizon_data_casted.printSchema()\n",
+					"horizon_data.printSchema()\n",
 					"\n",
 					"# Show sample data\n",
-					"horizon_data_casted.select(\"invoices\", \"meetings\").show(truncate=False)\n",
+					"horizon_data.select(\"invoices\", \"meetings\").show(truncate=False)\n",
 					"\n",
 					"# Optional: Explode arrays to flatten\n",
-					"exploded_invoices = horizon_data_casted.select(explode(\"invoices\").alias(\"invoice\")).select(\"invoice.*\")\n",
-					"exploded_meetings = horizon_data_casted.select(explode(\"meetings\").alias(\"meeting\")).select(\"meeting.*\")\n",
+					"exploded_invoices = horizon_data.select(explode(\"invoices\").alias(\"invoice\")).select(\"invoice.*\")\n",
+					"exploded_meetings = horizon_data.select(explode(\"meetings\").alias(\"meeting\")).select(\"meeting.*\")\n",
 					"\n",
 					"# Show exploded data\n",
 					"exploded_invoices.show(truncate=False)\n",
 					"exploded_meetings.show(truncate=False)"
 				],
-				"execution_count": 18
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"horizon_data.printSchema()"
 				],
-				"execution_count": 19
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -831,7 +798,7 @@
 					"# Show the differences table\n",
 					"display(diff_df)"
 				],
-				"execution_count": 16
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -850,9 +817,9 @@
 					"horizon_data_casted = horizon_data_casted.select(service_cols)\n",
 					"\n",
 					"# Now union\n",
-					"final_df = service_bus_data.unionByName(horizon_data_casted)"
+					"results = service_bus_data.unionByName(horizon_data_casted)"
 				],
-				"execution_count": 9
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -862,7 +829,7 @@
 				"source": [
 					"display(final_df)"
 				],
-				"execution_count": 10
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -899,7 +866,7 @@
 					"        error_message = f\"Error in ingesting delta table {spark_table_final}: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 11
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -951,7 +918,7 @@
 					"FROM\n",
 					"    odw_harmonised_db.nsip_project"
 				],
-				"execution_count": 12
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -1334,7 +1301,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 13
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -1371,7 +1338,7 @@
 					"    status_code\n",
 					")"
 				],
-				"execution_count": 14
+				"execution_count": null
 			}
 		]
 	}
