@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "a7025c67-4d7e-4b97-8243-766018a7ca17"
+				"spark.autotune.trackingId": "9d47e63c-d97d-479a-beb9-c242cb217f18"
 			}
 		},
 		"metadata": {
@@ -107,7 +107,7 @@
 					"from pyspark.sql import SparkSession\n",
 					"from pyspark.sql.functions import struct, collect_list"
 				],
-				"execution_count": 86
+				"execution_count": 1
 			},
 			{
 				"cell_type": "markdown",
@@ -146,7 +146,7 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": 87
+				"execution_count": 2
 			},
 			{
 				"cell_type": "markdown",
@@ -179,7 +179,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 88
+				"execution_count": 3
 			},
 			{
 				"cell_type": "markdown",
@@ -365,7 +365,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 89
+				"execution_count": 4
 			},
 			{
 				"cell_type": "markdown",
@@ -632,7 +632,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message) "
 				],
-				"execution_count": 90
+				"execution_count": 5
 			},
 			{
 				"cell_type": "markdown",
@@ -700,7 +700,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print()"
 				],
-				"execution_count": 91
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
@@ -733,7 +733,68 @@
 					"    .withColumn(\"invoices\", from_json(regexp_replace(\"invoices\", \"'\", '\"'), invoices_schema)) \\\n",
 					"    .withColumn(\"meetings\", from_json(regexp_replace(\"meetings\", \"'\", '\"'), meetings_schema))"
 				],
-				"execution_count": 101
+				"execution_count": 7
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import SparkSession\n",
+					"from pyspark.sql.functions import col, from_json, regexp_replace, explode\n",
+					"from pyspark.sql.types import ArrayType, StructType, StructField, StringType, DoubleType\n",
+					"\n",
+					"# Initialize Spark session\n",
+					"spark = SparkSession.builder.appName(\"Parse JSON Columns\").getOrCreate()\n",
+					"\n",
+					"# Sample DataFrame (replace with your actual source)\n",
+					"# horizon_data = spark.read.json(\"your_input_path_or_source\")\n",
+					"\n",
+					"# Define schemas\n",
+					"invoices_schema = ArrayType(StructType([\n",
+					"    StructField(\"invoiceStage\", StringType(), True),\n",
+					"    StructField(\"invoiceNumber\", StringType(), True),\n",
+					"    StructField(\"amountDue\", DoubleType(), True),\n",
+					"    StructField(\"paymentDueDate\", StringType(), True),\n",
+					"    StructField(\"invoicedDate\", StringType(), True),\n",
+					"    StructField(\"paymentDate\", StringType(), True),\n",
+					"    StructField(\"refundCreditNoteNumber\", StringType(), True),\n",
+					"    StructField(\"refundAmount\", DoubleType(), True),\n",
+					"    StructField(\"refundIssueDate\", StringType(), True)\n",
+					"]))\n",
+					"\n",
+					"meetings_schema = ArrayType(StructType([\n",
+					"    StructField(\"meetingAgenda\", StringType(), True),\n",
+					"    StructField(\"planningInspectorateRole\", StringType(), True),\n",
+					"    StructField(\"meetingDate\", StringType(), True),\n",
+					"    StructField(\"meetingType\", StringType(), True)\n",
+					"]))\n",
+					"\n",
+					"# Clean and apply schema\n",
+					"horizon_data_casted = horizon_data \\\n",
+					"    .withColumn(\"invoices\", from_json(regexp_replace(col(\"invoices\").cast(\"string\"), \"'\", '\"'), invoices_schema)) \\\n",
+					"    .withColumn(\"meetings\", from_json(regexp_replace(col(\"meetings\").cast(\"string\"), \"'\", '\"'), meetings_schema))\n",
+					"\n",
+					"# Print schema to verify\n",
+					"horizon_data_casted.printSchema()\n",
+					"\n",
+					"# Show sample data\n",
+					"horizon_data_casted.select(\"invoices\", \"meetings\").show(truncate=False)\n",
+					"\n",
+					"# Optional: Explode arrays to flatten\n",
+					"exploded_invoices = horizon_data_casted.select(explode(\"invoices\").alias(\"invoice\")).select(\"invoice.*\")\n",
+					"exploded_meetings = horizon_data_casted.select(explode(\"meetings\").alias(\"meeting\")).select(\"meeting.*\")\n",
+					"\n",
+					"# Show exploded data\n",
+					"exploded_invoices.show(truncate=False)\n",
+					"exploded_meetings.show(truncate=False)"
+				],
+				"execution_count": 18
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"horizon_data.printSchema()"
+				],
+				"execution_count": 19
 			},
 			{
 				"cell_type": "code",
@@ -743,18 +804,20 @@
 				"source": [
 					"import pandas as pd\n",
 					"\n",
-					"# Extract full schema info using simpleString()\n",
-					"schema1 = {field.name: field.dataType.simpleString() for field in service_bus_data.schema.fields}\n",
-					"schema2 = {field.name: field.dataType.simpleString() for field in horizon_data_casted.schema.fields}\n",
+					"# Get column name and type pairs for both DataFrames\n",
+					"schema1 = dict(service_bus_data.dtypes)\n",
+					"schema2 = dict(horizon_data.dtypes)\n",
 					"\n",
-					"# Collect all columns\n",
+					"# Collect all columns from both DataFrames\n",
 					"all_columns = set(schema1.keys()) | set(schema2.keys())\n",
 					"\n",
-					"# Prepare differences\n",
+					"# Prepare list to collect differences\n",
 					"differences = []\n",
+					"\n",
 					"for col in all_columns:\n",
 					"    type1 = schema1.get(col, \"Missing\")\n",
 					"    type2 = schema2.get(col, \"Missing\")\n",
+					"\n",
 					"    if type1 != type2:\n",
 					"        differences.append({\n",
 					"            \"Column Name\": col,\n",
@@ -762,13 +825,13 @@
 					"            \"horizon_data Type\": type2\n",
 					"        })\n",
 					"\n",
-					"# Convert to Pandas DataFrame\n",
+					"# Convert to pandas DataFrame for tabular display\n",
 					"diff_df = pd.DataFrame(differences)\n",
 					"\n",
-					"# Display\n",
+					"# Show the differences table\n",
 					"display(diff_df)"
 				],
-				"execution_count": 106
+				"execution_count": 16
 			},
 			{
 				"cell_type": "code",
@@ -789,7 +852,7 @@
 					"# Now union\n",
 					"final_df = service_bus_data.unionByName(horizon_data_casted)"
 				],
-				"execution_count": 107
+				"execution_count": 9
 			},
 			{
 				"cell_type": "code",
@@ -799,7 +862,7 @@
 				"source": [
 					"display(final_df)"
 				],
-				"execution_count": 108
+				"execution_count": 10
 			},
 			{
 				"cell_type": "markdown",
@@ -836,7 +899,7 @@
 					"        error_message = f\"Error in ingesting delta table {spark_table_final}: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": null
+				"execution_count": 11
 			},
 			{
 				"cell_type": "markdown",
@@ -888,7 +951,7 @@
 					"FROM\n",
 					"    odw_harmonised_db.nsip_project"
 				],
-				"execution_count": null
+				"execution_count": 12
 			},
 			{
 				"cell_type": "markdown",
@@ -1271,7 +1334,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 13
 			},
 			{
 				"cell_type": "code",
@@ -1308,7 +1371,7 @@
 					"    status_code\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 14
 			}
 		]
 	}
