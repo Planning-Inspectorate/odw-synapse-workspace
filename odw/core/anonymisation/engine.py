@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import json
 from typing import Dict, Iterable, List, Optional, Sequence, Set
 
@@ -13,6 +14,62 @@ from .base import (
     default_strategies,
 )
 from .config import AnonymisationConfig
+
+# --- Defaults and helpers for simplified apply_from_purview API ---
+DEFAULT_PURVIEW_NAME = os.getenv("ODW_PURVIEW_NAME", "pins-pview")
+DEFAULT_TENANT_ID = os.getenv("ODW_TENANT_ID", "5878df98-6f88-48ab-9322-998ce557088d")
+DEFAULT_CLIENT_ID = os.getenv("ODW_CLIENT_ID", "5750ab9b-597c-4b0d-b0f0-f4ef94e91fc0")
+DEFAULT_STORAGE_ACCOUNT_DFS_HOST = os.getenv(
+    "ODW_STORAGE_ACCOUNT_DFS_HOST", "pinsstodwdevuks9h80mb.dfs.core.windows.net/"
+)
+
+
+def _resolve_client_secret() -> str:
+    """Resolve client secret via KeyVault when available, else fall back to Azure Identity sentinel.
+
+    - If env ODW_CLIENT_SECRET is set, use it.
+    - Else try (KeyVaultName, SecretName) from Spark conf 'keyVaultName' and env ODW_PURVIEW_SECRET_NAME.
+    - Else return 'AZURE_IDENTITY' to trigger DefaultAzureCredential.
+    """
+    val = os.getenv("ODW_CLIENT_SECRET")
+    if val:
+        return val
+    try:
+        from notebookutils import mssparkutils  # type: ignore
+        try:
+            # Try Spark conf first
+            from pyspark.sql import SparkSession  # type: ignore
+            sc = SparkSession.builder.getOrCreate().sparkContext
+            vault_name = sc.getConf("keyVaultName", None)
+        except Exception:
+            vault_name = os.getenv("ODW_KEYVAULT_NAME")
+        secret_name = os.getenv("ODW_PURVIEW_SECRET_NAME")
+        if vault_name and secret_name:
+            return mssparkutils.credentials.getSecret(vault_name, secret_name)
+    except Exception:
+        pass
+    return "AZURE_IDENTITY"
+
+
+def _build_asset_qualified_name_from_params(
+    *, storage_host: str, source_folder: str, entity_name: Optional[str], file_name: Optional[str]
+) -> str:
+    host = (storage_host or "").rstrip("/")
+    if source_folder == "ServiceBus":
+        if not entity_name:
+            raise ValueError("entity_name is required for source_folder='ServiceBus'")
+        filename = f"{entity_name}.csv"
+        return f"https://{host}/odw-raw/{source_folder}/{entity_name}/{{Year}}-{{Month}}-{{Day}}/{filename}"
+    if source_folder == "Horizon":
+        if not file_name:
+            raise ValueError("file_name is required for source_folder='Horizon'")
+        return f"https://{host}/odw-raw/{source_folder}/{{Year}}-{{Month}}-{{Day}}/{file_name}"
+    if source_folder == "entraid":
+        if not entity_name:
+            raise ValueError("entity_name is required for source_folder='entraid'")
+        filename = f"{entity_name}.json"
+        return f"https://{host}/odw-raw/{source_folder}/{entity_name}/{{Year}}-{{Month}}-{{Day}}/{filename}"
+    raise ValueError("source_folder must be one of 'ServiceBus', 'Horizon', 'entraid'")
 
 # --- Purview HTTP helpers (mirroring purview_df_anonymiser.py) ---
 
@@ -216,7 +273,7 @@ class AnonymisationEngine:
             if not classes:
                 continue
 
-            context = {"is_lm": ("line manager" in col.lower())}
+            context = {"is_lm": ("line manager" in col.lower()), "classifications": classes}
 
             # Precedence: first strategy whose classification_names intersect applies
             for strat in self.strategies:
@@ -226,7 +283,7 @@ class AnonymisationEngine:
 
         return out
 
-    def apply_from_purview(
+    def _apply_from_purview_explicit(
         self,
         df: DataFrame,
         purview_name: str,
@@ -293,3 +350,58 @@ class AnonymisationEngine:
             out = out.drop(*drop_cols)
 
         return out
+
+    def apply_from_purview(
+        self,
+        df: DataFrame,
+        *args,
+        **kwargs,
+    ) -> DataFrame:
+        """Apply anonymisation using either explicit Purview params (back-compat) or simplified params.
+
+        Back-compat explicit form (existing callers):
+            apply_from_purview(df, purview_name=..., tenant_id=..., client_id=..., client_secret=...,
+                               asset_type_name=..., asset_qualified_name=..., api_version="2023-09-01",
+                               classification_allowlist=None)
+
+        Simplified form (new):
+            apply_from_purview(df, entity_name=..., file_name=..., source_folder=...)
+        """
+        # If explicit parameters are provided, delegate to the explicit implementation
+        explicit_keys = {"purview_name", "tenant_id", "client_id", "client_secret", "asset_type_name", "asset_qualified_name"}
+        if explicit_keys.intersection(kwargs.keys()) or (len(args) >= 6):
+            return self._apply_from_purview_explicit(df, *args, **kwargs)
+
+        # Simplified path
+        entity_name: Optional[str] = kwargs.get("entity_name") if "entity_name" in kwargs else (args[0] if len(args) > 0 else None)
+        file_name: Optional[str] = kwargs.get("file_name") if "file_name" in kwargs else (args[1] if len(args) > 1 else None)
+        source_folder: Optional[str] = kwargs.get("source_folder") if "source_folder" in kwargs else (args[2] if len(args) > 2 else None)
+        if not source_folder:
+            raise ValueError("source_folder is required (one of 'ServiceBus', 'Horizon', 'entraid')")
+
+        # Resolve storage host via mssparkutils notebook.run, with safe fallback
+        try:
+            from notebookutils import mssparkutils  # type: ignore
+            storage_host = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')
+        except Exception:
+            storage_host = DEFAULT_STORAGE_ACCOUNT_DFS_HOST
+
+        asset_qualified_name = _build_asset_qualified_name_from_params(
+            storage_host=storage_host,
+            source_folder=source_folder,
+            entity_name=entity_name,
+            file_name=file_name,
+        )
+        client_secret = _resolve_client_secret()
+
+        return self._apply_from_purview_explicit(
+            df,
+            purview_name=DEFAULT_PURVIEW_NAME,
+            tenant_id=DEFAULT_TENANT_ID,
+            client_id=DEFAULT_CLIENT_ID,
+            client_secret=client_secret,
+            asset_type_name="azure_datalake_gen2_resource_set",
+            asset_qualified_name=asset_qualified_name,
+            api_version=kwargs.get("api_version", "2023-09-01"),
+            classification_allowlist=kwargs.get("classification_allowlist"),
+        )

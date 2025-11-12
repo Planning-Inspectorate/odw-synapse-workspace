@@ -93,8 +93,22 @@ def random_date_from_seed(seed: Column, start: str = "1955-01-01", end: str = "2
 
 
 @F.udf(T.StringType())
+def mask_name_first_only_udf(v: str | None) -> str | None:
+    """Mask single-part name: keep first letter, mask all remaining letters.
+    Example: 'John' -> 'J***'.
+    """
+    if v is None:
+        return None
+    s = str(v)
+    if len(s) <= 1:
+        return s
+    return s[0] + ("*" * (len(s) - 1))
+
+
+@F.udf(T.StringType())
 def mask_email_udf(email: str | None) -> str | None:
-    """Mask email local part keeping first and last character, then replace domain with '@#PINS.com'."""
+    """Mask email local part keeping first and last character, then replace domain with '@PINS.com'.
+    """
     try:
         if email is None:
             return None
@@ -105,6 +119,34 @@ def mask_email_udf(email: str | None) -> str | None:
         else:
             masked_local = local[0] + ("*" * (len(local) - 2)) + local[-1]
         return f"{masked_local}@#PINS.com"
+    except Exception:
+        return None
+
+
+@F.udf(T.StringType())
+def mask_email_preserve_domain_udf(email: str | None) -> str | None:
+    """Mask email local part (keep first and last char) and preserve the original domain (no '#').
+    Example: 'john.doe@pins.com' -> 'j******e@pins.com'.
+    If the value is not a valid email, mask the whole string similarly.
+    """
+    try:
+        if email is None:
+            return None
+        s = str(email)
+        parts = s.split("@", 1)
+        if len(parts) != 2:
+            local = s
+            if len(local) <= 2:
+                masked_local = local
+            else:
+                masked_local = local[0] + ("*" * (len(local) - 2)) + local[-1]
+            return masked_local
+        local, domain = parts[0], parts[1]
+        if len(local) <= 2:
+            masked_local = local
+        else:
+            masked_local = local[0] + ("*" * (len(local) - 2)) + local[-1]
+        return f"{masked_local}@{domain}"
     except Exception:
         return None
 
@@ -145,22 +187,30 @@ class EmailMaskStrategy(Strategy):
     classification_names = {"MICROSOFT.PERSONAL.EMAIL", "Email Address"}
 
     def apply(self, df: DataFrame, column: str, seed: Column, context: dict) -> DataFrame:
-        # If EmployeeID is present, build email as "<EmployeeID>@#PINS.com" per client requirement.
-        if "EmployeeID" in df.columns:
-            return df.withColumn(column, F.concat(F.col("EmployeeID").cast("string"), F.lit("@#PINS.com")))
-        # Fallback to legacy masking when EmployeeID is not available.
-        return df.withColumn(column, mask_email_udf(F.col(column)))
+        # New requirement: mask local part and preserve domain (no '#', no EmployeeID override)
+        return df.withColumn(column, mask_email_preserve_domain_udf(F.col(column)))
 
 
 class NameMaskStrategy(Strategy):
     classification_names = {"MICROSOFT.PERSONAL.NAME", "First Name", "Last Name"}
 
     def apply(self, df: DataFrame, column: str, seed: Column, context: dict) -> DataFrame:
+        # Apply by classification: if value looks like full name (contains whitespace),
+        # keep first letter of first name and last letter of surname; otherwise keep only first letter.
+        classes = set(context.get("classifications") or [])
+        if classes.intersection(self.classification_names):
+            return df.withColumn(
+                column,
+                F.when(
+                    F.regexp_like(F.col(column).cast("string"), r"\s+"),
+                    mask_fullname_initial_lastletter_udf(F.col(column)),
+                ).otherwise(mask_name_first_only_udf(F.col(column))),
+            )
+
+        # Fallback legacy heuristic based on column name
         cname = column.lower()
         if "name" in cname and "first" not in cname and "last" not in cname:
-            # Full-name field: first letter of first name + last letter of last name
             return df.withColumn(column, mask_fullname_initial_lastletter_udf(F.col(column)))
-        # Single-part name fields retain first and last letter
         return df.withColumn(column, mask_keep_first_last_col(F.col(column)))
 
 
