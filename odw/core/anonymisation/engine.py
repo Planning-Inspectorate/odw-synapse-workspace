@@ -20,8 +20,12 @@ DEFAULT_PURVIEW_NAME = os.getenv("ODW_PURVIEW_NAME", "pins-pview")
 DEFAULT_TENANT_ID = os.getenv("ODW_TENANT_ID", "5878df98-6f88-48ab-9322-998ce557088d")
 DEFAULT_CLIENT_ID = os.getenv("ODW_CLIENT_ID", "5750ab9b-597c-4b0d-b0f0-f4ef94e91fc0")
 DEFAULT_STORAGE_ACCOUNT_DFS_HOST = os.getenv(
-    "ODW_STORAGE_ACCOUNT_DFS_HOST", "pinsstodwdevuks9h80mb.dfs.core.windows.net/"
+    "ODW_STORAGE_ACCOUNT_DFS_HOST", ""
 )
+
+
+def _norm_col_name(s: Optional[str]) -> str:
+    return (s or "").strip().lower()
 
 
 def _resolve_client_secret() -> str:
@@ -259,13 +263,16 @@ class AnonymisationEngine:
         allowlist: Optional[Set[str]] = set(classification_allowlist) if classification_allowlist else self.config.classification_allowlist
         out = df
         seed = _seed_col(df)
-        existing_cols = set(df.columns)
+        # Case-insensitive + trimmed mapping from normalised name -> actual df column
+        norm_to_actual = {_norm_col_name(c): c for c in df.columns}
 
         for item in columns_with_classifications or []:
             if not isinstance(item, dict):
                 continue
-            col = item.get("column_name")
-            if not col or col not in existing_cols:
+            col_raw = item.get("column_name")
+            col_norm = _norm_col_name(col_raw)
+            actual_col = norm_to_actual.get(col_norm)
+            if not actual_col:
                 continue
             classes = set(item.get("classifications") or [])
             if allowlist is not None:
@@ -273,12 +280,12 @@ class AnonymisationEngine:
             if not classes:
                 continue
 
-            context = {"is_lm": ("line manager" in col.lower()), "classifications": classes}
+            context = {"is_lm": ("line manager" in actual_col.lower()), "classifications": classes}
 
             # Precedence: first strategy whose classification_names intersect applies
             for strat in self.strategies:
                 if classes.intersection(strat.classification_names):
-                    out = strat.apply(out, col, seed, context)
+                    out = strat.apply(out, actual_col, seed, context)
                     break
 
         return out
@@ -309,11 +316,14 @@ class AnonymisationEngine:
         allowlist: Optional[Set[str]] = set(classification_allowlist) if classification_allowlist else self.config.classification_allowlist
         df_aug = df
         target_cols: List[str] = []
+        norm_to_actual = {_norm_col_name(c): c for c in df.columns}
         for item in (cols or []):
             if not isinstance(item, dict):
                 continue
             col_name = item.get("column_name")
-            if not col_name or col_name not in df.columns:
+            col_norm = _norm_col_name(col_name)
+            actual_col = norm_to_actual.get(col_norm)
+            if not actual_col:
                 continue
             classes = set(item.get("classifications") or [])
             if allowlist is not None:
@@ -321,7 +331,7 @@ class AnonymisationEngine:
             if not classes:
                 continue
             if any(classes.intersection(strat.classification_names) for strat in self.strategies):
-                target_cols.append(col_name)
+                target_cols.append(actual_col)
 
         # Preserve originals for change detection
         for c in target_cols:
@@ -379,12 +389,19 @@ class AnonymisationEngine:
         if not source_folder:
             raise ValueError("source_folder is required (one of 'ServiceBus', 'Horizon', 'entraid')")
 
-        # Resolve storage host via mssparkutils notebook.run, with safe fallback
-        try:
-            from notebookutils import mssparkutils  # type: ignore
-            storage_host = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')
-        except Exception:
-            storage_host = DEFAULT_STORAGE_ACCOUNT_DFS_HOST
+        # Resolve storage host: prefer env var, then mssparkutils; otherwise instruct caller
+        storage_host = os.getenv("ODW_STORAGE_ACCOUNT_DFS_HOST") or ""
+        if not storage_host:
+            try:
+                from notebookutils import mssparkutils  # type: ignore
+                storage_host = mssparkutils.notebook.run('/utils/py_utils_get_storage_account') or ""
+            except Exception:
+                storage_host = ""
+        if not storage_host:
+            raise ValueError(
+                "Could not resolve storage account host. Set ODW_STORAGE_ACCOUNT_DFS_HOST in the notebook "
+                "or provide explicit Purview parameters via the explicit apply_from_purview API."
+            )
 
         asset_qualified_name = _build_asset_qualified_name_from_params(
             storage_host=storage_host,
