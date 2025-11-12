@@ -1,0 +1,1060 @@
+{
+	"name": "pln_horizon_ingest",
+	"properties": {
+		"activities": [
+			{
+				"name": "Guard hzEntities empty",
+				"type": "IfCondition",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(length(pipeline().parameters.hzEntities), 0)\n",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "Log no HZ include filter",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "Warning",
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StartTime": {
+										"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
+									},
+									"EndTime": {
+										"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
+									},
+									"ErrorMessage": "No Horizon Entities to process",
+									"StatusMessage": "NoWork",
+									"AppInsIKey": {
+										"value": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Set empty status json",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Log no HZ include filter",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "horizonStatusJson",
+								"value": "@string(createArray('[]'))"
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Lookup_orchestration_file",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "Guard hzEntities empty",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "JsonSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true,
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "JsonReadSettings"
+						}
+					},
+					"dataset": {
+						"referenceName": "Is_storage_config",
+						"type": "DatasetReference",
+						"parameters": {
+							"folder": "orchestration",
+							"file_name": "orchestration.json"
+						}
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "Filter_Horizon_Table",
+				"type": "Filter",
+				"dependsOn": [
+					{
+						"activity": "Lookup_orchestration_file",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Lookup_orchestration_file').output.value[0].definitions ",
+						"type": "Expression"
+					},
+					"condition": {
+						"value": "@and(\n  contains(item(), 'Horizon_Table_Name'),\n  and(\n    not(empty(item().Horizon_Table_Name)),\n    and(\n      equals(item().Source_Folder, 'Horizon'),\n      and(\n        or(\n          not(contains(item(), 'Load_Enable_status')),\n          equals(item().Load_Enable_status, 'True')\n        ),\n        or(\n          equals(length(pipeline().parameters.hzEntities), 0),\n          contains(pipeline().parameters.hzEntities, item().Horizon_Table_Name)\n        )\n      )\n    )\n  )\n)\n",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "ForEach_horizon_files",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Filter_Horizon_Table",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Filter_Horizon_Table').output.value",
+						"type": "Expression"
+					},
+					"isSequential": false,
+					"batchCount": 4,
+					"activities": [
+						{
+							"name": "Incremental Load",
+							"description": "Checks whether the current file requires incremental loading. If true, triggers the incremental load branch; otherwise, proceeds with full load.",
+							"type": "IfCondition",
+							"dependsOn": [
+								{
+									"activity": "Reset lastErrorMessage",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"expression": {
+									"value": "@equals(item().Incremental, true)\n",
+									"type": "Expression"
+								},
+								"ifFalseActivities": [
+									{
+										"name": "Copy horizon Files",
+										"description": "Copies data from Horizon to odw-raw",
+										"type": "Copy",
+										"dependsOn": [],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"source": {
+												"type": "SqlServerSource",
+												"queryTimeout": "02:00:00",
+												"isolationLevel": "ReadCommitted",
+												"partitionOption": "None"
+											},
+											"sink": {
+												"type": "DelimitedTextSink",
+												"storeSettings": {
+													"type": "AzureBlobFSWriteSettings"
+												},
+												"formatSettings": {
+													"type": "DelimitedTextWriteSettings",
+													"quoteAllText": true,
+													"fileExtension": ".txt"
+												}
+											},
+											"enableStaging": false,
+											"translator": {
+												"type": "TabularTranslator",
+												"typeConversion": true,
+												"typeConversionSettings": {
+													"allowDataTruncation": true,
+													"treatBooleanAsNumber": false
+												}
+											}
+										},
+										"inputs": [
+											{
+												"referenceName": "ds_Horizon_Source_table",
+												"type": "DatasetReference",
+												"parameters": {
+													"table_name": {
+														"value": "@item().Horizon_Table_Name",
+														"type": "Expression"
+													}
+												}
+											}
+										],
+										"outputs": [
+											{
+												"referenceName": "ds_Horizon_odw_raw",
+												"type": "DatasetReference",
+												"parameters": {
+													"FileName": {
+														"value": "@item().Source_Filename_Format",
+														"type": "Expression"
+													}
+												}
+											}
+										]
+									},
+									{
+										"name": "Set rowsCopied",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "Copy horizon Files",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "rowsCopied",
+											"value": "@int(coalesce(activity('Copy horizon Files').output.rowsCopied,'0'))"
+										}
+									},
+									{
+										"name": "lastErrorMessage",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "Copy horizon Files",
+												"dependencyConditions": [
+													"Failed"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "lastErrorMessage",
+											"value": "@string(activity('Copy horizon Files').Error.Message)"
+										}
+									},
+									{
+										"name": "Log failure",
+										"type": "ExecutePipeline",
+										"dependsOn": [
+											{
+												"activity": "lastErrorMessage",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"pipeline": {
+												"referenceName": "pln_log_to_appins",
+												"type": "PipelineReference"
+											},
+											"waitOnCompletion": true,
+											"parameters": {
+												"Stage": "Failure",
+												"PipelineName": {
+													"value": "@pipeline().Pipeline",
+													"type": "Expression"
+												},
+												"PipelineRunID": {
+													"value": "@pipeline().RunId",
+													"type": "Expression"
+												},
+												"StartTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+												"EndTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+												"ErrorMessage": "@replace(\n  replace(\n    replace(variables('lastErrorMessage'), '\"', ''''),\n    '\\r', ' '\n  ),\n  '\\n', ' '\n)\n",
+												"StatusMessage": "@concat(item().Horizon_Table_Name, ' RAW ingest failed')",
+												"AppInsIKey": {
+													"value": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n",
+													"type": "Expression"
+												}
+											}
+										}
+									},
+									{
+										"name": "Append failed",
+										"type": "AppendVariable",
+										"dependsOn": [
+											{
+												"activity": "Log failure",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "horizonStatus",
+											"value": "@json(concat(\n  '{',\n    '\"entity\":\"', string(item().Horizon_Table_Name), '\",',\n    '\"status\":\"Failed\",',\n    '\"recordsIngested\":0,',\n    '\"durationSeconds\":0,',\n    '\"manifestPath\":\"\",',\n    '\"error\":\"', replace(variables('lastErrorMessage'),'\\\"',''''), '\",',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n"
+										}
+									},
+									{
+										"name": "Mark Failure",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "Append failed",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "hasFailure",
+											"value": true
+										}
+									}
+								],
+								"ifTrueActivities": [
+									{
+										"name": "Get LastIngestDate",
+										"description": "Looks up the most recent LastIngestDate from the odw_standardised_db.last_ingest_dates control table for the current Horizon table.",
+										"type": "Lookup",
+										"dependsOn": [],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"source": {
+												"type": "AzureSqlSource",
+												"sqlReaderQuery": {
+													"value": "SELECT LastIngestDate \nFROM dbo.last_ingest_dates \nWHERE TableName = '@{item().Horizon_Table_Name}'\n",
+													"type": "Expression"
+												},
+												"queryTimeout": "02:00:00",
+												"partitionOption": "None"
+											},
+											"dataset": {
+												"referenceName": "ds_sql_odw",
+												"type": "DatasetReference",
+												"parameters": {
+													"table_name": "last_ingest_dates",
+													"db_name": "odw_standardised_db"
+												}
+											},
+											"firstRowOnly": true
+										}
+									},
+									{
+										"name": "Set LastIngestDate",
+										"description": "Stores the LastIngestDate retrieved from the control table into a pipeline variable. This value is used to parameterize the incremental query during the data extraction step.",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "Get LastIngestDate",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "LastIngestDate",
+											"value": {
+												"value": "@coalesce(activity('Get LastIngestDate').output.firstRow.LastIngestDate, '1900-01-01T00:00:00')\n",
+												"type": "Expression"
+											}
+										}
+									},
+									{
+										"name": "Incremental Copy",
+										"description": "Copies new or updated records from the Horizon using the @lastIngestDate parameter to filter records in the source query.",
+										"type": "Copy",
+										"dependsOn": [
+											{
+												"activity": "Set LastIngestDate",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"source": {
+												"type": "SqlServerSource",
+												"sqlReaderQuery": {
+													"value": "@concat(\n  'SELECT * FROM ', \n  item().Horizon_Table_Name, \n  ' WHERE ', \n  item().Incremental_Key, \n  ' > CAST(''', \n  variables('LastIngestDate'), \n  ''' AS DATETIME2)'\n)",
+													"type": "Expression"
+												},
+												"queryTimeout": "02:00:00",
+												"partitionOption": "None"
+											},
+											"sink": {
+												"type": "DelimitedTextSink",
+												"storeSettings": {
+													"type": "AzureBlobFSWriteSettings"
+												},
+												"formatSettings": {
+													"type": "DelimitedTextWriteSettings",
+													"quoteAllText": true,
+													"fileExtension": ".txt"
+												}
+											},
+											"enableStaging": false,
+											"translator": {
+												"type": "TabularTranslator",
+												"typeConversion": true,
+												"typeConversionSettings": {
+													"allowDataTruncation": true,
+													"treatBooleanAsNumber": false
+												}
+											}
+										},
+										"inputs": [
+											{
+												"referenceName": "ds_Horizon_Source_table",
+												"type": "DatasetReference",
+												"parameters": {
+													"table_name": "@item().Horizon_Table_Name"
+												}
+											}
+										],
+										"outputs": [
+											{
+												"referenceName": "ds_Horizon_odw_raw",
+												"type": "DatasetReference",
+												"parameters": {
+													"FileName": "@item().Source_Filename_Format"
+												}
+											}
+										]
+									},
+									{
+										"name": "Update LastIngestDate",
+										"description": "Updates the watermark control table (last_ingest_dates) with the current UTC timestamp for the processed table after a successful load.",
+										"type": "SynapseNotebook",
+										"dependsOn": [
+											{
+												"activity": "Incremental Copy",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"notebook": {
+												"referenceName": "update_last_ingest_date",
+												"type": "NotebookReference"
+											},
+											"parameters": {
+												"input": {
+													"value": {
+														"value": "{\n  \"table_name\": \"@{item().Horizon_Table_Name}\"\n}\n\n",
+														"type": "Expression"
+													},
+													"type": "string"
+												}
+											},
+											"snapshot": true,
+											"conf": {
+												"spark.dynamicAllocation.enabled": null,
+												"spark.dynamicAllocation.minExecutors": null,
+												"spark.dynamicAllocation.maxExecutors": null
+											},
+											"numExecutors": null
+										}
+									},
+									{
+										"name": "Log Incremental Copy failure",
+										"type": "ExecutePipeline",
+										"dependsOn": [
+											{
+												"activity": "Set lastErrorMessage",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureInput": true
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"pipeline": {
+												"referenceName": "pln_log_to_appins",
+												"type": "PipelineReference"
+											},
+											"waitOnCompletion": true,
+											"parameters": {
+												"Stage": "Failure",
+												"PipelineName": {
+													"value": "@pipeline().Pipeline",
+													"type": "Expression"
+												},
+												"PipelineRunID": {
+													"value": "@pipeline().RunId",
+													"type": "Expression"
+												},
+												"StartTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+												"EndTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+												"ErrorMessage": "@replace(\n  replace(\n    replace(variables('lastErrorMessage'), '\"', ''''),\n    '\\r', ' '\n  ),\n  '\\n', ' '\n)\n",
+												"StatusMessage": {
+													"value": "@concat(item(), ' Incremental Copy failed')",
+													"type": "Expression"
+												},
+												"AppInsIKey": {
+													"value": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n",
+													"type": "Expression"
+												}
+											}
+										}
+									},
+									{
+										"name": "Set lastErrorMessage",
+										"description": "",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "Incremental Copy",
+												"dependencyConditions": [
+													"Failed"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "lastErrorMessage",
+											"value": {
+												"value": "@string(\n  replace(\n    replace(\n      replace(coalesce(activity('Incremental Copy')?.Error?.Message, ''), '\"', ''''),\n      '\\r', ' '\n    ),\n    '\\n', ' '\n  )\n)\n",
+												"type": "Expression"
+											}
+										}
+									},
+									{
+										"name": "Set rowsCopied Incremental Copy",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "Update LastIngestDate",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "rowsCopied",
+											"value": "@int(coalesce(activity('Incremental Copy').output.rowsCopied,'0'))"
+										}
+									},
+									{
+										"name": "Append failure",
+										"type": "AppendVariable",
+										"dependsOn": [
+											{
+												"activity": "Log Incremental Copy failure",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "horizonStatus",
+											"value": "@json(concat(\n  '{',\n    '\"entity\":\"', string(item().Horizon_Table_Name), '\",',\n    '\"status\":\"Failed\",',\n    '\"recordsIngested\":0,',\n    '\"durationSeconds\":0,',\n    '\"manifestPath\":\"\",',\n    '\"error\":\"', replace(variables('lastErrorMessage'),'\\\"',''''), '\",',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n"
+										}
+									},
+									{
+										"name": "Mark Failure Incremental Copy",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "Append failure",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "hasFailure",
+											"value": true
+										}
+									}
+								]
+							}
+						},
+						{
+							"name": "Random Wait",
+							"type": "Wait",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"waitTimeInSeconds": {
+									"value": "@rand(1,20)",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Log Start",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Random Wait",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "Start",
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StartTime": {
+										"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
+									},
+									"EndTime": {
+										"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
+									},
+									"StatusMessage": {
+										"value": "@concat(item().Horizon_Table_Name, ' RAW ingest starting')",
+										"type": "Expression"
+									},
+									"AppInsIKey": {
+										"value": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Set loop start",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Log Start",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "loopStartTicks",
+								"value": "@string(ticks(utcNow()))"
+							}
+						},
+						{
+							"name": "Reset lastErrorMessage",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Set loop start",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "lastErrorMessage",
+								"value": "@string('')"
+							}
+						},
+						{
+							"name": "If new rows",
+							"type": "IfCondition",
+							"dependsOn": [
+								{
+									"activity": "Incremental Load",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"expression": {
+									"value": "@greater(variables('rowsCopied'), 0)\n",
+									"type": "Expression"
+								},
+								"ifFalseActivities": [
+									{
+										"name": "Log zero rows",
+										"type": "ExecutePipeline",
+										"dependsOn": [],
+										"policy": {
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"pipeline": {
+												"referenceName": "pln_log_to_appins",
+												"type": "PipelineReference"
+											},
+											"waitOnCompletion": true,
+											"parameters": {
+												"Stage": "Warning",
+												"PipelineName": {
+													"value": "@pipeline().Pipeline",
+													"type": "Expression"
+												},
+												"PipelineRunID": {
+													"value": "@pipeline().RunId",
+													"type": "Expression"
+												},
+												"StartTime": {
+													"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+													"type": "Expression"
+												},
+												"EndTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+												"ErrorMessage": "@concat(item().Horizon_Table_Name, ': Zero rows for full copy')",
+												"StatusMessage": "Warning",
+												"AppInsIKey": {
+													"value": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n",
+													"type": "Expression"
+												}
+											}
+										}
+									},
+									{
+										"name": "Append NoData",
+										"type": "AppendVariable",
+										"dependsOn": [
+											{
+												"activity": "Log zero rows",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "horizonStatus",
+											"value": "@json(concat(\n  '{',\n    '\"entity\":\"', string(item().Horizon_Table_Name), '\",',\n    '\"status\":\"NoData\",',\n    '\"recordsIngested\":0,',\n    '\"durationSeconds\":0,',\n    '\"manifestPath\":\"\",',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n"
+										}
+									}
+								],
+								"ifTrueActivities": [
+									{
+										"name": "Write manifest and update watermarks",
+										"type": "SynapseNotebook",
+										"dependsOn": [],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 2,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"notebook": {
+												"referenceName": "py_hzn_write_manifest_and_watermark",
+												"type": "NotebookReference"
+											},
+											"parameters": {
+												"entity_name": {
+													"value": "@item().Horizon_Table_Name",
+													"type": "string"
+												},
+												"runContextJson": {
+													"value": "@pipeline().parameters.runContextJson",
+													"type": "string"
+												},
+												"recordsIngested": {
+													"value": "@variables('rowsCopied')",
+													"type": "int"
+												}
+											},
+											"snapshot": true,
+											"sparkPool": {
+												"referenceName": "pinssynspodw34",
+												"type": "BigDataPoolReference"
+											},
+											"executorSize": "Small",
+											"driverSize": "Small",
+											"authentication": {
+												"type": "MSI"
+											}
+										}
+									},
+									{
+										"name": "pln_log_to_appins",
+										"type": "ExecutePipeline",
+										"dependsOn": [
+											{
+												"activity": "Write manifest and update watermarks",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"pipeline": {
+												"referenceName": "pln_log_to_appins",
+												"type": "PipelineReference"
+											},
+											"waitOnCompletion": true,
+											"parameters": {
+												"Stage": "Completion",
+												"PipelineName": {
+													"value": "@pipeline().Pipeline",
+													"type": "Expression"
+												},
+												"PipelineRunID": {
+													"value": "@pipeline().RunId",
+													"type": "Expression"
+												},
+												"StartTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+												"EndTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+												"Inserts": "@variables('rowsCopied')",
+												"StatusMessage": "@concat(item().Horizon_Table_Name, ' RAW ingest completed')"
+											}
+										}
+									},
+									{
+										"name": "Append to horizonStatus",
+										"type": "AppendVariable",
+										"dependsOn": [
+											{
+												"activity": "pln_log_to_appins",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "horizonStatus",
+											"value": "@json(concat(\n  '{',\n    '\"entity\":\"', string(item().Horizon_Table_Name), '\",',\n    '\"status\":\"Succeeded\",',\n    '\"recordsIngested\":', string(variables('rowsCopied')), ',',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('loopStartTicks'))), 10000000)), ',',\n    '\"manifestPath\":\"',\n      if(\n        equals(activity('Write manifest and update watermarks').status,'Succeeded'),\n        string(json(activity('Write manifest and update watermarks').output.status.Output.result.exitValue).manifestPath),\n        ''\n      ),\n    '\",',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n"
+										}
+									}
+								]
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Output JSON",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "ForEach_horizon_files",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "horizonStatusJson",
+					"value": "@string(variables('horizonStatus'))\n"
+				}
+			},
+			{
+				"name": "Return result",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Output JSON",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "pipelineReturnValue",
+					"value": [
+						{
+							"key": "result",
+							"value": {
+								"type": "Expression",
+								"content": "@concat(\n  '{',\n  '\"hasFailure\":', toLower(string(variables('hasFailure'))), ',',\n  '\"results\":', string(variables('horizonStatus')),\n  '}'\n)\n"
+							}
+						}
+					],
+					"setSystemVariable": true
+				}
+			}
+		],
+		"parameters": {
+			"runContextJson": {
+				"type": "string"
+			},
+			"hzEntities": {
+				"type": "array",
+				"defaultValue": []
+			},
+			"retryCount": {
+				"type": "int",
+				"defaultValue": 2
+			}
+		},
+		"variables": {
+			"horizonStatus": {
+				"type": "Array",
+				"defaultValue": []
+			},
+			"horizonStatusJson": {
+				"type": "String",
+				"defaultValue": "'[]'"
+			},
+			"lastErrorMessage": {
+				"type": "String",
+				"defaultValue": "''"
+			},
+			"loopStartTicks": {
+				"type": "String"
+			},
+			"rowsCopied": {
+				"type": "Integer",
+				"defaultValue": 0
+			},
+			"hasFailure": {
+				"type": "Boolean",
+				"defaultValue": false
+			},
+			"LastIngestDate": {
+				"type": "String"
+			}
+		},
+		"folder": {
+			"name": "utils/Ingest"
+		},
+		"annotations": []
+	}
+}
