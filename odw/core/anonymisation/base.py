@@ -199,10 +199,11 @@ class NameMaskStrategy(Strategy):
         # keep first letter of first name and last letter of surname; otherwise keep only first letter.
         classes = set(context.get("classifications") or [])
         if classes.intersection(self.classification_names):
+            # Use Column.rlike to avoid Spark SQL parsing the regex as an identifier
             return df.withColumn(
                 column,
                 F.when(
-                    F.regexp_like(F.col(column).cast("string"), r"\s+"),
+                    F.col(column).cast("string").rlike(r"\s+"),
                     mask_fullname_initial_lastletter_udf(F.col(column)),
                 ).otherwise(mask_name_first_only_udf(F.col(column))),
             )
