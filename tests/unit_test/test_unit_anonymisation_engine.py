@@ -26,8 +26,8 @@ def test_engine_applies_email_and_name_masking():
         # Name masking: first letter of first name, last letter of last name
         assert rows[0][0] == "J*** **e"
         assert rows[1][0] == "J*** ****h"
-        # Email masking: local becomes EmployeeID, domain becomes @#PINS.com
-        assert rows[0][1] == "12345@#PINS.com"
-        assert rows[1][1] == "67890@#PINS.com"
+        # Email masking: mask local part and preserve domain
+        assert rows[0][1] == "j******e@example.com"
+        assert rows[1][1] == "j********h@example.com"
     finally:
         spark.stop()

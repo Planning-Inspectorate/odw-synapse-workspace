@@ -67,9 +67,9 @@ def test_engine_apply_from_purview_with_mocked_fetch():
         assert rows[0][0] == "J*** **e"
         assert rows[1][0] == "J*** ****h"
 
-        # Email masking: local becomes EmployeeID, domain becomes @#PINS.com
-        assert rows[0][1] == "E1@#PINS.com"
-        assert rows[1][1] == "E2@#PINS.com"
+        # Email masking: mask local part and preserve domain
+        assert rows[0][1] == "j******e@example.com"
+        assert rows[1][1] == "j********h@example.com"
 
         # Age remapped into anonymised range [18, 70]
         for age in (rows[0][2], rows[1][2]):

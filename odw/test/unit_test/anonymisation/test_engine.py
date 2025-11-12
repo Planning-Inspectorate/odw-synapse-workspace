@@ -61,9 +61,9 @@ def test_apply_from_purview__mocked_fetch_and_spark_df():
         assert rows[0][0] == "J*** **e"
         assert rows[1][0] == "J*** ****h"
 
-        # Email masking: local becomes EmployeeID, domain becomes @#PINS.com
-        assert rows[0][1] == "E1@#PINS.com"
-        assert rows[1][1] == "E2@#PINS.com"
+        # Email masking: mask local part and preserve domain
+        assert rows[0][1] == "j******e@example.com"
+        assert rows[1][1] == "j********h@example.com"
 
         for age in (rows[0][2], rows[1][2]):
             assert 18 <= age <= 70
