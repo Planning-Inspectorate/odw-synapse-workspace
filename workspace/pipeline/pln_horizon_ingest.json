@@ -151,7 +151,7 @@
 				"type": "ForEach",
 				"dependsOn": [
 					{
-						"activity": "Filter_Horizon_Table",
+						"activity": "Check invalid hzEntities",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -949,7 +949,10 @@
 													"type": "int"
 												},
 												"fileNameHint": {
-													"value": "@item().Source_Filename_Format\n",
+													"value": {
+														"value": "@item().Source_Filename_Format\n",
+														"type": "Expression"
+													},
 													"type": "string"
 												},
 												"status": {
@@ -1103,6 +1106,106 @@
 						}
 					],
 					"setSystemVariable": true
+				}
+			},
+			{
+				"name": "Check invalid hzEntities",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Filter_Horizon_Table",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@and(\n  greater(length(pipeline().parameters.hzEntities), 0),\n  greater(\n    length(pipeline().parameters.hzEntities),\n    activity('Filter_Horizon_Table').output.FilteredItemsCount\n  )\n)\n",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "Log invalid hzEntities",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "Failure",
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StartTime": {
+										"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
+									},
+									"EndTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+									"ErrorMessage": {
+										"value": "@concat(\n  'One or more Horizon entities passed in hzEntities do not exist in orchestration.json. hzEntities=',\n  string(pipeline().parameters.hzEntities),\n  ', matchedCount=',\n  string(activity('Filter_Horizon_Table').output.FilteredItemsCount)\n)",
+										"type": "Expression"
+									},
+									"StatusMessage": "Invalid Horizon entity name(s) passed to pln_horizon_ingest",
+									"AppInsIKey": {
+										"value": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Append invalid hzEntities",
+							"type": "AppendVariable",
+							"dependsOn": [
+								{
+									"activity": "Log invalid hzEntities",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "horizonStatus",
+								"value": "@json(concat(\n  '{',\n    '\"entity\":\"', 'hzEntities', '\",',\n    '\"status\":\"Failed\",',\n    '\"recordsIngested\":0,',\n    '\"durationSeconds\":0,',\n    '\"manifestPath\":\"\",',\n    '\"error\":\"', \n      replace(\n        replace(\n          replace(\n            concat(\n              'Invalid or unconfigured Horizon entities: ',\n              string(pipeline().parameters.hzEntities),\n              '. Only ',\n              string(activity('Filter_Horizon_Table').output.FilteredItemsCount),\n              ' matched orchestration.json.'\n            ),\n            '\\\"',''''\n          ),\n          '\\\\r',' '\n        ),\n        '\\\\n',' '\n      ),\n    '\",',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n"
+							}
+						},
+						{
+							"name": "Mark Failure invalid hzEntities",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Append invalid hzEntities",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "hasFailure",
+								"value": true
+							}
+						}
+					]
 				}
 			}
 		],
