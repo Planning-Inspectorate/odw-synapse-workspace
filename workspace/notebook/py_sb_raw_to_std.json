@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "0783f2d2-1f77-4ad6-ac56-dc49f9dba8fa"
+				"spark.autotune.trackingId": "ddad73b9-464d-425c-91fc-b8555df3073d"
 			}
 		},
 		"metadata": {
@@ -76,7 +76,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 68
+				"execution_count": 282
 			},
 			{
 				"cell_type": "code",
@@ -94,7 +94,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 69
+				"execution_count": 283
 			},
 			{
 				"cell_type": "code",
@@ -116,7 +116,7 @@
 					"entity_name='nsip-project'\r\n",
 					"date_folder='2025-11-12'"
 				],
-				"execution_count": 70
+				"execution_count": 284
 			},
 			{
 				"cell_type": "code",
@@ -132,7 +132,7 @@
 					"from pyspark.sql.functions import *\r\n",
 					"import re"
 				],
-				"execution_count": 71
+				"execution_count": 285
 			},
 			{
 				"cell_type": "code",
@@ -143,7 +143,7 @@
 					"delete_count = 0\r\n",
 					"error_message=''"
 				],
-				"execution_count": 72
+				"execution_count": 286
 			},
 			{
 				"cell_type": "code",
@@ -171,7 +171,25 @@
 					"insert_count = 0\r\n",
 					""
 				],
-				"execution_count": 73
+				"execution_count": 321
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"# Full path to the file\r\n",
+					"file_path = \"abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/ServiceBus/nsip-project/2025-11-12/nsip-project_2025-11-12_48_15.723651+0000.json\"\r\n",
+					"\r\n",
+					"# Read the JSON file into a DataFrame\r\n",
+					"df1 = spark.read.json(file_path, schema=spark_schema)\r\n",
+					"\r\n",
+					"# Show the first few rows\r\n",
+					"display(df1)\r\n",
+					"# df.printSchema()"
+				],
+				"execution_count": 320
 			},
 			{
 				"cell_type": "code",
@@ -189,7 +207,7 @@
 				"source": [
 					"%run service-bus/py_spark_df_ingestion_functions"
 				],
-				"execution_count": 74
+				"execution_count": 288
 			},
 			{
 				"cell_type": "markdown",
@@ -209,7 +227,7 @@
 				"source": [
 					"%run utils/py_utils_common_logging_output"
 				],
-				"execution_count": 75
+				"execution_count": 289
 			},
 			{
 				"cell_type": "code",
@@ -246,7 +264,7 @@
 					"        logError(error_message)\r\n",
 					"        raise"
 				],
-				"execution_count": 76
+				"execution_count": 290
 			},
 			{
 				"cell_type": "code",
@@ -289,7 +307,7 @@
 					"        logError(error_message)\r\n",
 					"        raise"
 				],
-				"execution_count": 77
+				"execution_count": 291
 			},
 			{
 				"cell_type": "code",
@@ -332,13 +350,13 @@
 					"    \r\n",
 					"#     return files"
 				],
-				"execution_count": 78
+				"execution_count": 292
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"@logging_to_appins\r\n",
-					"def get_files_in_path(source_path: str) -> list:\r\n",
+					"def get_all_files_recursive(source_path: str) -> list:\r\n",
 					"    \"\"\"\r\n",
 					"    Lists all files directly under the given source path (non-recursive).\r\n",
 					"\r\n",
@@ -358,7 +376,7 @@
 					"\r\n",
 					"    return files"
 				],
-				"execution_count": 79
+				"execution_count": 293
 			},
 			{
 				"cell_type": "code",
@@ -393,9 +411,13 @@
 					"    \"\"\"\r\n",
 					"    try:\r\n",
 					"        df: DataFrame = spark.table(table_name)\r\n",
+					"        source_path=\"abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/ServiceBus/nsip-project/2025-11-12\"\r\n",
 					"        files_in_path: set = set(get_all_files_recursive(source_path))\r\n",
+					"        print(files_in_path)\r\n",
 					"        files_in_table: set = set(df.select(\"input_file\").rdd.flatMap(lambda x: x).collect())\r\n",
 					"        missing_files = list(files_in_path - files_in_table)\r\n",
+					"        missing_files=\"abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/ServiceBus/nsip-project/2025-11-12\"\r\n",
+					"        print(missing_files)\r\n",
 					"        \r\n",
 					"        return missing_files\r\n",
 					"    except Exception as e:\r\n",
@@ -403,7 +425,7 @@
 					"        logError(error_message)\r\n",
 					"        raise"
 				],
-				"execution_count": 80
+				"execution_count": 294
 			},
 			{
 				"cell_type": "code",
@@ -445,7 +467,7 @@
 					"\r\n",
 					"    return filtered_paths"
 				],
-				"execution_count": 81
+				"execution_count": 295
 			},
 			{
 				"cell_type": "code",
@@ -476,7 +498,6 @@
 					"        # Read JSON files from filtered paths\r\n",
 					"        df = spark.read.json(filtered_paths, schema=spark_schema)\r\n",
 					"        display(df)\r\n",
-					"        print()\r\n",
 					"        logInfo(f\"Found {df.count()} new rows.\")\r\n",
 					"        # Adding the standardised columns\r\n",
 					"        df = df.withColumn(\"expected_from\", current_timestamp())\r\n",
@@ -488,14 +509,19 @@
 					"        logError(f'Raw data not found at {source_path}, Exception is {e}')\r\n",
 					"        \r\n",
 					"        # Use the imported format_error_message function\r\n",
-					"        error_message = app_insight_processor.format_error_message(e, max_length=800)\r\n",
+					"        error_message = f\"Raw data not found at {source_path}, Exception is {e}\"\r\n",
 					"        end_exec_time = datetime.now()\r\n",
-					"        # Exit with the JSON result\r\n",
-					"        mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())\r\n",
 					"\r\n",
 					"    return df"
 				],
-				"execution_count": 82
+				"execution_count": 307
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					" df = spark.read.json(filtered_paths, schema=spark_schema)"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -534,7 +560,7 @@
 					"        logError(error_message)\r\n",
 					"        raise"
 				],
-				"execution_count": 83
+				"execution_count": 308
 			},
 			{
 				"cell_type": "code",
@@ -566,7 +592,7 @@
 					"    .saveAsTable(table_name)\r\n",
 					""
 				],
-				"execution_count": 84
+				"execution_count": 309
 			},
 			{
 				"cell_type": "code",
@@ -597,7 +623,7 @@
 					"    \"\"\"\r\n",
 					"    return new_table_row_count == expected_new_count"
 				],
-				"execution_count": 85
+				"execution_count": 310
 			},
 			{
 				"cell_type": "markdown",
@@ -665,7 +691,7 @@
 					"        error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 86
+				"execution_count": 311
 			},
 			{
 				"cell_type": "markdown",
@@ -705,7 +731,6 @@
 					"try:\r\n",
 					"    table_row_count = spark.table(table_name).count()\r\n",
 					"    # logInfo(f\"Row count before append: {table_row_count}\")\r\n",
-					"    display(df)\r\n",
 					"    df = dedupe_dataframe(df=df)\r\n",
 					"    display(df)\r\n",
 					"    rows_to_append = df.count()\r\n",
@@ -721,7 +746,7 @@
 					"    # Exit with the JSON result\r\n",
 					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
 				],
-				"execution_count": 87
+				"execution_count": 312
 			},
 			{
 				"cell_type": "markdown",
@@ -758,7 +783,7 @@
 					"    append_df_to_table(df=df, table_name=table_name)\r\n",
 					"    \r\n",
 					"    end_exec_time = datetime.now()\r\n",
-					"    logInfo(\"Done appending rows to table\")\r\n",
+					"    # logInfo(\"Done appending rows to table\")\r\n",
 					"    new_table_row_count = spark.table(table_name).count()\r\n",
 					"except Exception as e:\r\n",
 					"    logError(f\"Error appending rows:\\n{e}\")\r\n",
@@ -768,7 +793,7 @@
 					"    # Exit with the JSON result\r\n",
 					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
 				],
-				"execution_count": 88
+				"execution_count": 302
 			},
 			{
 				"cell_type": "markdown",
@@ -807,7 +832,7 @@
 					"else:\r\n",
 					"    logInfo(\"Rows appended successfully.\")"
 				],
-				"execution_count": 89
+				"execution_count": 303
 			},
 			{
 				"cell_type": "markdown",
@@ -857,7 +882,7 @@
 					"#     status_code\r\n",
 					"# )"
 				],
-				"execution_count": 90
+				"execution_count": 304
 			}
 		]
 	}
