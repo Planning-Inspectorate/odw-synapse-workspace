@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "8afe58c9-7a38-4724-8442-f000ba6e1787"
+				"spark.autotune.trackingId": "bae1d0a6-05e1-4933-a507-9078596da18d"
 			}
 		},
 		"metadata": {
@@ -76,7 +76,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 178
+				"execution_count": 68
 			},
 			{
 				"cell_type": "code",
@@ -94,7 +94,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 179
+				"execution_count": 69
 			},
 			{
 				"cell_type": "code",
@@ -116,7 +116,7 @@
 					"entity_name='nsip-project'\r\n",
 					"date_folder='2025-11-12'"
 				],
-				"execution_count": 180
+				"execution_count": 70
 			},
 			{
 				"cell_type": "code",
@@ -132,7 +132,7 @@
 					"from pyspark.sql.functions import *\r\n",
 					"import re"
 				],
-				"execution_count": 181
+				"execution_count": 71
 			},
 			{
 				"cell_type": "code",
@@ -143,7 +143,7 @@
 					"delete_count = 0\r\n",
 					"error_message=''"
 				],
-				"execution_count": 182
+				"execution_count": 72
 			},
 			{
 				"cell_type": "code",
@@ -171,7 +171,7 @@
 					"insert_count = 0\r\n",
 					""
 				],
-				"execution_count": 183
+				"execution_count": 73
 			},
 			{
 				"cell_type": "code",
@@ -189,7 +189,7 @@
 				"source": [
 					"%run service-bus/py_spark_df_ingestion_functions"
 				],
-				"execution_count": 184
+				"execution_count": 74
 			},
 			{
 				"cell_type": "markdown",
@@ -209,7 +209,7 @@
 				"source": [
 					"%run utils/py_utils_common_logging_output"
 				],
-				"execution_count": 185
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -246,7 +246,7 @@
 					"        logError(error_message)\r\n",
 					"        raise"
 				],
-				"execution_count": 186
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -289,7 +289,7 @@
 					"        logError(error_message)\r\n",
 					"        raise"
 				],
-				"execution_count": 187
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -305,34 +305,60 @@
 					}
 				},
 				"source": [
+					"# @logging_to_appins\r\n",
+					"# def get_all_files_recursive(source_path: str) -> list:\r\n",
+					"#     \"\"\"\r\n",
+					"#     Lists all files in a given source path.\r\n",
+					"#     Recursively loops through all directories.\r\n",
+					"\r\n",
+					"#     Args:\r\n",
+					"#         source_path: the folder path to start from, \r\n",
+					"#         e.g. abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/ServiceBus/appeal-has/\r\n",
+					"\r\n",
+					"#     Returns:\r\n",
+					"#         files: a list of files in the source path.\r\n",
+					"#     \"\"\"\r\n",
+					"#     files = []\r\n",
+					"#     entries = mssparkutils.fs.ls(source_path)\r\n",
+					"    \r\n",
+					"#     for entry in entries:\r\n",
+					"#         # Check if the entry is a directory\r\n",
+					"#         if entry.isDir:\r\n",
+					"#             # Recursively process the directory\r\n",
+					"#             files.extend(get_all_files_recursive(entry.path))\r\n",
+					"#         else:\r\n",
+					"#             # If it's a file, add to the list\r\n",
+					"#             files.append(entry.path)\r\n",
+					"    \r\n",
+					"#     return files"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"@logging_to_appins\r\n",
-					"def get_all_files_recursive(source_path: str) -> list:\r\n",
+					"def get_files_in_path(source_path: str) -> list:\r\n",
 					"    \"\"\"\r\n",
-					"    Lists all files in a given source path.\r\n",
-					"    Recursively loops through all directories.\r\n",
+					"    Lists all files directly under the given source path (non-recursive).\r\n",
 					"\r\n",
 					"    Args:\r\n",
-					"        source_path: the folder path to start from, \r\n",
+					"        source_path: the folder path to start from,\r\n",
 					"        e.g. abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/ServiceBus/appeal-has/\r\n",
 					"\r\n",
 					"    Returns:\r\n",
-					"        files: a list of files in the source path.\r\n",
+					"        files: a list of file paths in the source path.\r\n",
 					"    \"\"\"\r\n",
 					"    files = []\r\n",
 					"    entries = mssparkutils.fs.ls(source_path)\r\n",
-					"    \r\n",
+					"\r\n",
 					"    for entry in entries:\r\n",
-					"        # Check if the entry is a directory\r\n",
-					"        if entry.isDir:\r\n",
-					"            # Recursively process the directory\r\n",
-					"            files.extend(get_all_files_recursive(entry.path))\r\n",
-					"        else:\r\n",
-					"            # If it's a file, add to the list\r\n",
+					"        if not entry.isDir:  # Only include files\r\n",
 					"            files.append(entry.path)\r\n",
-					"    \r\n",
+					"\r\n",
 					"    return files"
 				],
-				"execution_count": 188
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -377,7 +403,7 @@
 					"        logError(error_message)\r\n",
 					"        raise"
 				],
-				"execution_count": 189
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -419,7 +445,7 @@
 					"\r\n",
 					"    return filtered_paths"
 				],
-				"execution_count": 190
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -450,6 +476,7 @@
 					"        # Read JSON files from filtered paths\r\n",
 					"        df = spark.read.json(filtered_paths, schema=spark_schema)\r\n",
 					"        display(df)\r\n",
+					"        print()\r\n",
 					"        logInfo(f\"Found {df.count()} new rows.\")\r\n",
 					"        # Adding the standardised columns\r\n",
 					"        df = df.withColumn(\"expected_from\", current_timestamp())\r\n",
@@ -463,23 +490,12 @@
 					"        # Use the imported format_error_message function\r\n",
 					"        error_message = app_insight_processor.format_error_message(e, max_length=800)\r\n",
 					"        end_exec_time = datetime.now()\r\n",
-					"        app_insight_logger.add_table_result(\r\n",
-					"            delta_table_name = table_name,\r\n",
-					"            insert_count = insert_count,\r\n",
-					"            update_count = 0, \r\n",
-					"            delete_count = 0, \r\n",
-					"            table_result = \"failed\",\r\n",
-					"            start_exec_time = start_exec_time, \r\n",
-					"            end_exec_time = end_exec_time,\r\n",
-					"            total_exec_time = \"\",\r\n",
-					"            error_message = error_message\r\n",
-					"        )\r\n",
 					"        # Exit with the JSON result\r\n",
 					"        mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())\r\n",
 					"\r\n",
 					"    return df"
 				],
-				"execution_count": 191
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -518,7 +534,7 @@
 					"        logError(error_message)\r\n",
 					"        raise"
 				],
-				"execution_count": 192
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -550,7 +566,7 @@
 					"    .saveAsTable(table_name)\r\n",
 					""
 				],
-				"execution_count": 193
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -581,7 +597,7 @@
 					"    \"\"\"\r\n",
 					"    return new_table_row_count == expected_new_count"
 				],
-				"execution_count": 194
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -629,29 +645,16 @@
 					"        error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
 					"\r\n",
 					"    try:\r\n",
-					"        logInfo(\"Getting the filtered list of paths\")\r\n",
+					"        # logInfo(\"Getting the filtered list of paths\")\r\n",
 					"        # source_path=\"abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/ServiceBus/nsip-project/2025-11-12\"\r\n",
 					"        # filtered_paths = extract_and_filter_paths(get_all_files_recursive(source_path=source_path), max_extracted_date)\r\n",
 					"        filtered_paths=\"abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/ServiceBus/nsip-project/2025-11-12\"\r\n",
 					"        df = read_raw_messages(filtered_paths=filtered_paths)\r\n",
+					"        display(df)\r\n",
 					"    except Exception as e:\r\n",
 					"        logError(f\"Error getting the filtered list of paths:\\n{e}\")\r\n",
 					"        error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
 					"        end_exec_time = datetime.now()\r\n",
-					"        app_insight_logger.add_table_result(\r\n",
-					"            delta_table_name = table_name,\r\n",
-					"            insert_count = insert_count,\r\n",
-					"            update_count = 0, \r\n",
-					"            delete_count = 0, \r\n",
-					"            table_result = \"failed\",\r\n",
-					"            start_exec_time = start_exec_time, \r\n",
-					"            end_exec_time = end_exec_time,\r\n",
-					"            total_exec_time = \"\",\r\n",
-					"            error_message = error_message\r\n",
-					"        )\r\n",
-					"        # Exit with the JSON result\r\n",
-					"        mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())\r\n",
-					"\r\n",
 					"else:\r\n",
 					"    try:\r\n",
 					"        logInfo(\"Getting list of missing files\")\r\n",
@@ -660,22 +663,9 @@
 					"    except Exception as e:\r\n",
 					"        logError(f\"Error getting list of missing files:\\n{e}\")\r\n",
 					"        error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
-					"        end_exec_time = datetime.now()\r\n",
-					"        app_insight_logger.add_table_result(\r\n",
-					"            delta_table_name = table_name,\r\n",
-					"            insert_count = insert_count,\r\n",
-					"            update_count = 0, \r\n",
-					"            delete_count = 0, \r\n",
-					"            table_result = \"failed\",\r\n",
-					"            start_exec_time = start_exec_time, \r\n",
-					"            end_exec_time = end_exec_time,\r\n",
-					"            total_exec_time = \"\",\r\n",
-					"            error_message = error_message\r\n",
-					"        )\r\n",
-					"        # Exit with the JSON result\r\n",
-					"        mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
+					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 195
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -728,21 +718,10 @@
 					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
 					"    \r\n",
 					"    end_exec_time = datetime.now()\r\n",
-					"    app_insight_logger.add_table_result(\r\n",
-					"        delta_table_name = table_name,\r\n",
-					"        insert_count = insert_count,\r\n",
-					"        update_count = 0, \r\n",
-					"        delete_count = 0, \r\n",
-					"        table_result = \"failed\",\r\n",
-					"        start_exec_time = start_exec_time, \r\n",
-					"        end_exec_time = end_exec_time,\r\n",
-					"        total_exec_time = \"\",\r\n",
-					"        error_message = error_message\r\n",
-					"    )\r\n",
 					"    # Exit with the JSON result\r\n",
 					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
 				],
-				"execution_count": 196
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -779,18 +758,6 @@
 					"    append_df_to_table(df=df, table_name=table_name)\r\n",
 					"    \r\n",
 					"    end_exec_time = datetime.now()\r\n",
-					"    app_insight_logger.add_table_result(                    \r\n",
-					"        delta_table_name = table_name, \r\n",
-					"        insert_count = insert_count, \r\n",
-					"        update_count = 0, \r\n",
-					"        delete_count = 0, \r\n",
-					"        table_result = \"success\",\r\n",
-					"        start_exec_time = start_exec_time, \r\n",
-					"        end_exec_time = end_exec_time,\r\n",
-					"        total_exec_time = \"\",\r\n",
-					"        error_message = \"\"\r\n",
-					"    )\r\n",
-					"\r\n",
 					"    logInfo(\"Done appending rows to table\")\r\n",
 					"    new_table_row_count = spark.table(table_name).count()\r\n",
 					"except Exception as e:\r\n",
@@ -798,22 +765,10 @@
 					"    error_message = app_insight_logger.format_error_message(e, max_length=800)\r\n",
 					"    \r\n",
 					"    end_exec_time = datetime.now()\r\n",
-					"    \r\n",
-					"    app_insight_logger.add_table_result(\r\n",
-					"        delta_table_name = table_name,\r\n",
-					"        insert_count = insert_count,\r\n",
-					"        update_count = 0, \r\n",
-					"        delete_count = 0, \r\n",
-					"        table_result = \"failed\",\r\n",
-					"        start_exec_time = start_exec_time, \r\n",
-					"        end_exec_time = end_exec_time,\r\n",
-					"        total_exec_time = \"\",\r\n",
-					"        error_message = error_message\r\n",
-					"    )\r\n",
 					"    # Exit with the JSON result\r\n",
 					"    mssparkutils.notebook.exit(app_insight_logger.generate_processing_results())"
 				],
-				"execution_count": 197
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -849,22 +804,10 @@
 					"\r\n",
 					"    error_msg = f\"Error appending rows: {table_name} . The new row count isn't as expected.\"\r\n",
 					"    end_exec_time = datetime.now()\r\n",
-					"    \r\n",
-					"    app_insight_logger.add_table_result(\r\n",
-					"        delta_table_name = table_name,\r\n",
-					"        insert_count = insert_count,\r\n",
-					"        update_count = 0, \r\n",
-					"        delete_count = 0, \r\n",
-					"        table_result = \"failed\",\r\n",
-					"        start_exec_time = start_exec_time, \r\n",
-					"        end_exec_time = end_exec_time,\r\n",
-					"        total_exec_time = \"\",\r\n",
-					"        error_message = error_msg\r\n",
-					"    )\r\n",
 					"else:\r\n",
 					"    logInfo(\"Rows appended successfully.\")"
 				],
-				"execution_count": 198
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -882,39 +825,39 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"duration_seconds = (end_exec_time - start_exec_time).total_seconds()\r\n",
-					"activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\r\n",
-					"stage = \"Success\" if not error_message else \"Failed\"\r\n",
-					"status_message = (\r\n",
-					"    f\"Successfully loaded data into {table_name} table\"\r\n",
-					"    if not error_message\r\n",
-					"    else f\"Failed to load data from {table_name} table\"\r\n",
-					")\r\n",
-					"status_code = \"200\" if stage == \"Success\" else \"500\"\r\n",
+					"# duration_seconds = (end_exec_time - start_exec_time).total_seconds()\r\n",
+					"# activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\r\n",
+					"# stage = \"Success\" if not error_message else \"Failed\"\r\n",
+					"# status_message = (\r\n",
+					"#     f\"Successfully loaded data into {table_name} table\"\r\n",
+					"#     if not error_message\r\n",
+					"#     else f\"Failed to load data from {table_name} table\"\r\n",
+					"# )\r\n",
+					"# status_code = \"200\" if stage == \"Success\" else \"500\"\r\n",
 					" \r\n",
-					"log_telemetry_and_exit(\r\n",
-					"    stage,\r\n",
-					"    start_exec_time,\r\n",
-					"    end_exec_time,\r\n",
-					"    error_message,\r\n",
-					"    table_name,\r\n",
-					"    insert_count,\r\n",
-					"    update_count,\r\n",
-					"    delete_count,\r\n",
-					"    PipelineName,\r\n",
-					"    PipelineRunID,\r\n",
-					"    PipelineTriggerID,\r\n",
-					"    PipelineTriggerName,\r\n",
-					"    PipelineTriggerType,\r\n",
-					"    PipelineTriggeredbyPipelineName,\r\n",
-					"    PipelineTriggeredbyPipelineRunID,\r\n",
-					"    activity_type,\r\n",
-					"    duration_seconds,\r\n",
-					"    status_message,\r\n",
-					"    status_code\r\n",
-					")"
+					"# log_telemetry_and_exit(\r\n",
+					"#     stage,\r\n",
+					"#     start_exec_time,\r\n",
+					"#     end_exec_time,\r\n",
+					"#     error_message,\r\n",
+					"#     table_name,\r\n",
+					"#     insert_count,\r\n",
+					"#     update_count,\r\n",
+					"#     delete_count,\r\n",
+					"#     PipelineName,\r\n",
+					"#     PipelineRunID,\r\n",
+					"#     PipelineTriggerID,\r\n",
+					"#     PipelineTriggerName,\r\n",
+					"#     PipelineTriggerType,\r\n",
+					"#     PipelineTriggeredbyPipelineName,\r\n",
+					"#     PipelineTriggeredbyPipelineRunID,\r\n",
+					"#     activity_type,\r\n",
+					"#     duration_seconds,\r\n",
+					"#     status_message,\r\n",
+					"#     status_code\r\n",
+					"# )"
 				],
-				"execution_count": 199
+				"execution_count": null
 			}
 		]
 	}
