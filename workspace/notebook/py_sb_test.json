@@ -1,0 +1,634 @@
+{
+	"name": "py_sb_test",
+	"properties": {
+		"folder": {
+			"name": "odw-harmonised/saphr"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "34e325f7-0870-43f0-a3b4-8a56909cd122"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### The purpose of this pyspark notebook is to read service bus data from owb_standarsied_db.sb_appeal_document Delta table and other source tables to owb_harmonised_db.appeal_event Delta table based on existing MiPINS business logic.\n",
+					"\n",
+					"**Description**  \n",
+					"The purpose of this pyspark notebook is to read service bus data from owb_standarsied_db.sb_appeal_document Delta table and other source tables to owb_harmonised_db.appeal_event Delta table based on existing MiPINS business logic.\n",
+					"\n",
+					"**Spark Cluster Configuration** -> Apache Spark Version- 3.4, Python Version \t\t- 3.10, Delta Lake Version \t- 2.4"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql.types import IntegerType, ArrayType, StructType, StructField\n",
+					"from pyspark.sql import Row\n",
+					"from pyspark.sql.functions import *\n",
+					"from datetime import date,datetime"
+				],
+				"execution_count": 1
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise Logging decorator"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise Application Insight Logging functions"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_applicationinsights"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"service_bus_table = \"odw_harmonised_db.sb_appeal_event\"\n",
+					"horizon_table = \"odw_standardised_db.horizon_appeals_event\"\n",
+					"spark_table_final = \"odw_harmonised_db.appeal_event\"\n",
+					"primary_key = \"eventId\"\n",
+					"\n",
+					"start_exec_time = datetime.now()\n",
+					"insert_count = 0\n",
+					"update_count = 0\n",
+					"delete_count = 0\n",
+					"error_message=''"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"        # Get data out of the service bus with additional fields needed for Horizon data\n",
+					"        service_bus_data = spark.sql(f\"\"\"\n",
+					"                        SELECT DISTINCT\n",
+					"                                AppealsEventId\n",
+					"                                ,eventId\n",
+					"                                ,caseReference\n",
+					"                                ,eventType\n",
+					"                                ,eventName\n",
+					"                                ,eventstatus as eventStatus\n",
+					"                                ,isUrgent\n",
+					"                                ,eventPublished\n",
+					"                                ,eventStartDatetime\n",
+					"                                ,eventEndDatetime\n",
+					"                                ,notificationOfSitevisit\n",
+					"                                ,AddressLine1 as addressLine1\n",
+					"                                ,AddressLine2 as addressLine2\n",
+					"                                ,AddressTown as addressTown\n",
+					"                                ,AddressCounty as addressCounty\n",
+					"                                ,AddressPostcode as addressPostcode\n",
+					"                                ,Migrated\n",
+					"                                ,ODTSourceSystem\n",
+					"                                ,SourceSystemID \n",
+					"                                ,IngestionDate\n",
+					"                                ,ValidTo\n",
+					"                                ,RowID\n",
+					"                                ,IsActive\n",
+					"                        FROM {service_bus_table} AS Service_Bus\n",
+					"                        \"\"\")\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error in source Service Bus SQL query {service_bus_table}: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"service_bus_data.printSchema()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"        try:\n",
+					"        # Get data out of Horizon and matching the SB schema (with additional fields and ensure data types match)\n",
+					"                horizon_data = spark.sql(f\"\"\"\n",
+					"                                SELECT DISTINCT \n",
+					"                                        CAST(NULL AS LONG) as AppealsEventId\n",
+					"                                        ,CONCAT(casenumber, '-',eventId) AS eventId\n",
+					"                                        ,caseReference\n",
+					"                                        ,eventType\n",
+					"                                        ,eventName\n",
+					"                                        ,eventStatus\n",
+					"                                        ,CAST(NULL AS BOOLEAN) as isUrgent\n",
+					"                                        ,CAST(NULL AS BOOLEAN) as eventPublished\n",
+					"                                        ,CAST(NULL AS String) as eventStartDatetime\n",
+					"                                        ,CAST(NULL AS String)  as eventEndDatetime\n",
+					"                                        ,notificationOfSitevisit\n",
+					"                                        ,eventaddressline1 as addressLine1\n",
+					"                                        ,eventaddressline2 as addressLine2\n",
+					"                                        ,eventaddresstown as addressTown\n",
+					"                                        ,eventaddresscounty as addressCounty\n",
+					"                                        ,eventaddresspostcode as addressPostcode\n",
+					"                                        ,0 AS Migrated\n",
+					"                                        ,'Horizon' AS ODTSourceSystem\n",
+					"                                        ,9 AS SourceSystemID -- ID for appeals in odw_harmonised_db.main_sourcesystem_fact\n",
+					"                                        ,ingested_datetime AS IngestionDate\n",
+					"                                        ,CAST(NULL AS String) AS ValidTo\n",
+					"                                        ,'' as RowID\n",
+					"                                        ,'Y' as IsActive\n",
+					"                                FROM {horizon_table} AS Horizon\n",
+					"                                WHERE ingested_datetime = (SELECT MAX(ingested_datetime) FROM {horizon_table}) \"\"\")\n",
+					"        except Exception as e:\n",
+					"                error_message = f\"Error in source Horizon SQL query {horizon_table}: {str(e)[:800]}\"\n",
+					"                end_exec_time = datetime.now()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"horizon_data.printSchema()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#sort columns into same order as service bus\n",
+					"horizon_data = horizon_data.select(service_bus_data.columns)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"results = service_bus_data.union(horizon_data)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Prepare data for intermediate appeal_event processing"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"        results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error in ingesting delta table {spark_table_final}: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"\n",
+					"Now need to sort internal ids, IsActive flags, and valid_to dates"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"spark.sql(f\"\"\"\n",
+					"    CREATE OR REPLACE TEMPORARY VIEW vw_appeal_event_calculations_base AS\n",
+					"    SELECT  \n",
+					"        row_number() OVER(PARTITION BY {primary_key} ORDER BY IngestionDate DESC) AS ReverseOrderProcessed\n",
+					"        ,row_number() OVER(ORDER BY IngestionDate asc, {primary_key} asc) AS AppealsEventId\n",
+					"        ,{primary_key}\n",
+					"        ,IngestionDate\n",
+					"        ,ValidTo\n",
+					"        ,'0' AS Migrated\n",
+					"        ,CASE row_number() OVER(PARTITION BY {primary_key} ORDER BY IngestionDate DESC)\n",
+					"            WHEN 1 THEN\n",
+					"                'Y'\n",
+					"            ELSE\n",
+					"                'N'\n",
+					"            END AS IsActive                \n",
+					"    FROM\n",
+					"    {spark_table_final}\n",
+					"        \"\"\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"df_calcs = spark.sql(f\"\"\"\n",
+					"                        SELECT\n",
+					"                            CurrentRow.AppealsEventId \n",
+					"                            ,CurrentRow.{primary_key}  \n",
+					"                            ,CurrentRow.IngestionDate\n",
+					"                            ,NextRow.IngestionDate AS ValidTo \n",
+					"                            ,CASE\n",
+					"                                WHEN raw.{primary_key}  IS NOT NULL THEN \n",
+					"                                    \"1\"\n",
+					"                                ELSE \n",
+					"                                    \"0\"\n",
+					"                            END AS Migrated\n",
+					"                            ,CurrentRow.IsActive\n",
+					"                        FROM\n",
+					"                            vw_appeal_event_calculations_base AS CurrentRow\n",
+					"                            LEFT OUTER JOIN vw_appeal_event_calculations_base AS NextRow\n",
+					"                                ON CurrentRow.{primary_key}  = NextRow.{primary_key} \n",
+					"                                AND CurrentRow.ReverseOrderProcessed - 1 = NextRow.ReverseOrderProcessed\n",
+					"                            LEFT OUTER JOIN (SELECT DISTINCT eventId FROM  odw_harmonised_db.sb_appeal_event) AS Raw\n",
+					"                                ON CurrentRow.{primary_key}  = Raw.{primary_key}  \n",
+					"                            ORDER BY currentRow.ReverseOrderProcessed\n",
+					"                    \"\"\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"df_calcs = df_calcs.withColumnRenamed(primary_key, f\"temp_{primary_key}\").withColumnRenamed(\"IngestionDate\", \"temp_IngestionDate\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"        results = spark.sql(f\"\"\"\n",
+					"                            SELECT DISTINCT \n",
+					"                                AppealsEventId\n",
+					"                                ,{primary_key}\n",
+					"                                ,caseReference\n",
+					"                                ,eventType\n",
+					"                                ,eventName\n",
+					"                                ,eventStatus\n",
+					"                                ,isUrgent\n",
+					"                                ,eventPublished\n",
+					"                                ,eventStartDatetime\n",
+					"                                ,eventEndDatetime\n",
+					"                                ,notificationOfSitevisit\n",
+					"                                ,addressLine1\n",
+					"                                ,addressLine2\n",
+					"                                ,addressTown\n",
+					"                                ,addressCounty\n",
+					"                                ,addressPostcode \n",
+					"                                ,Migrated\n",
+					"                                ,ODTSourceSystem\n",
+					"                                ,SourceSystemID -- ID for appeals in odw_harmonised_db.main_sourcesystem_fact\n",
+					"                                ,IngestionDate\n",
+					"                                ,ValidTo\n",
+					"                                ,MD5(CONCAT(\n",
+					"                                            IFNULL(CAST(AppealsEventId AS bigint), '.')\n",
+					"                                            ,IFNULL(CAST(eventId AS string), '.')\n",
+					"                                            ,IFNULL(CAST(caseReference AS String), '.')\n",
+					"                                            ,IFNULL(CAST(eventType AS String), '.')\n",
+					"                                            ,IFNULL(CAST(eventName AS String), '.')\n",
+					"                                            ,IFNULL(CAST(eventStatus AS String), '.')\n",
+					"                                            ,IFNULL(CAST(isUrgent AS STRING), '.')\n",
+					"                                            ,IFNULL(CAST(eventPublished AS STRING), '.')\n",
+					"                                            ,IFNULL(CAST(eventStartDatetime AS String), '.')\n",
+					"                                            ,IFNULL(CAST(eventEndDatetime AS String), '.')\n",
+					"                                            ,IFNULL(CAST(notificationOfSitevisit AS String), '.')\n",
+					"                                            ,IFNULL(CAST(addressLine1 AS String), '.')\n",
+					"                                            ,IFNULL(CAST(addressLine2 AS String), '.')\n",
+					"                                            ,IFNULL(CAST(addressTown AS String), '.')\n",
+					"                                            ,IFNULL(CAST(addressCounty AS String), '.')\n",
+					"                                            ,IFNULL(CAST(addressPostcode AS String), '.')\n",
+					"                                            ,IFNULL(CAST(Migrated AS String), '.')\n",
+					"                                            ,IFNULL(CAST(ODTSourceSystem AS String), '.')\n",
+					"                                            ,IFNULL(CAST(IngestionDate AS String), '.')\n",
+					"                                            ,IFNULL(CAST(ValidTo AS String), '.')\n",
+					"                                            ,IFNULL(CAST(IsActive AS String), '.')\n",
+					"                                    )\n",
+					"                                ) AS RowID\n",
+					"                                ,IsActive\n",
+					"            FROM \n",
+					"                {spark_table_final}\"\"\")\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error in preparing results dataframe for {spark_table_final}: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"columns = results.columns\n",
+					"\n",
+					"results = results.drop(\"AppealsEventId\", \"ValidTo\",\"Migrated\", \"IsActive\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"final_df = results.join(df_calcs, (df_calcs[f\"temp_{primary_key}\"] == results[primary_key]) & (df_calcs[\"temp_IngestionDate\"] == results[\"IngestionDate\"])).select(columns).distinct()\n",
+					"final_df = final_df.drop_duplicates()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Ingest final data set to delta table appeal_event"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"        \n",
+					"        insert_count = final_df.count()\n",
+					"        final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\n",
+					"        end_exec_time = datetime.now()\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error in ingesting delta table in the final step {spark_table_final}: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
+					"activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
+					"stage = \"Success\" if not error_message else \"Failed\"\n",
+					"status_message = (\n",
+					"    f\"Successfully loaded data into {spark_table_final} table\"\n",
+					"    if not error_message\n",
+					"    else f\"Failed to load data from {spark_table_final} table\"\n",
+					")\n",
+					"status_code = \"200\" if stage == \"Success\" else \"500\"\n",
+					" \n",
+					"log_telemetry_and_exit(\n",
+					"    stage,\n",
+					"    start_exec_time,\n",
+					"    end_exec_time,\n",
+					"    error_message,\n",
+					"    spark_table_final,\n",
+					"    insert_count,\n",
+					"    update_count,\n",
+					"    delete_count,\n",
+					"    PipelineName,\n",
+					"    PipelineRunID,\n",
+					"    PipelineTriggerID,\n",
+					"    PipelineTriggerName,\n",
+					"    PipelineTriggerType,\n",
+					"    PipelineTriggeredbyPipelineName,\n",
+					"    PipelineTriggeredbyPipelineRunID,\n",
+					"    activity_type,\n",
+					"    duration_seconds,\n",
+					"    status_message,\n",
+					"    status_code\n",
+					")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
