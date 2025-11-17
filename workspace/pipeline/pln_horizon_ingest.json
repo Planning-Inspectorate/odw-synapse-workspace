@@ -1154,9 +1154,12 @@
 										"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
 										"type": "Expression"
 									},
-									"EndTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+									"EndTime": {
+										"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
+									},
 									"ErrorMessage": {
-										"value": "@concat(\n  'One or more Horizon entities passed in hzEntities do not exist in orchestration.json. hzEntities=',\n  string(pipeline().parameters.hzEntities),\n  ', matchedCount=',\n  string(activity('Filter_Horizon_Table').output.FilteredItemsCount)\n)",
+										"value": "@concat(\n  'Invalid or mis-spelled Horizon entity/ies passed to pln_horizon_ingest. Requested: ',\n  join(pipeline().parameters.hzEntities, ', ')\n)\n",
 										"type": "Expression"
 									},
 									"StatusMessage": "Invalid Horizon entity name(s) passed to pln_horizon_ingest",
@@ -1181,7 +1184,10 @@
 							"userProperties": [],
 							"typeProperties": {
 								"variableName": "horizonStatus",
-								"value": "@json(concat(\n  '{',\n    '\"entity\":\"', 'hzEntities', '\",',\n    '\"status\":\"Failed\",',\n    '\"recordsIngested\":0,',\n    '\"durationSeconds\":0,',\n    '\"manifestPath\":\"\",',\n    '\"error\":\"', \n      replace(\n        replace(\n          replace(\n            concat(\n              'Invalid or unconfigured Horizon entities: ',\n              string(pipeline().parameters.hzEntities),\n              '. Only ',\n              string(activity('Filter_Horizon_Table').output.FilteredItemsCount),\n              ' matched orchestration.json.'\n            ),\n            '\\\"',''''\n          ),\n          '\\\\r',' '\n        ),\n        '\\\\n',' '\n      ),\n    '\",',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n"
+								"value": {
+									"value": "@json(concat(\n  '{',\n    '\"entity\":\"InvalidHzEntities\",',\n    '\"status\":\"Failed\",',\n    '\"recordsIngested\":0,',\n    '\"durationSeconds\":0,',\n    '\"manifestPath\":\"\",',\n    '\"error\":\"',\n      replace(\n        concat(\n          'Invalid/mis-spelled Horizon entity/ies passed to pln_horizon_ingest: ',\n          join(pipeline().parameters.hzEntities, ', ')\n        ),\n        '\"',\n        ''''\n      ),\n    '\",',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n",
+									"type": "Expression"
+								}
 							}
 						},
 						{
