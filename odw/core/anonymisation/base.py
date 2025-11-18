@@ -184,7 +184,7 @@ class NINumberStrategy(Strategy):
 
 
 class EmailMaskStrategy(Strategy):
-    classification_names = {"MICROSOFT.PERSONAL.EMAIL", "Email Address"}
+    classification_names = {"MICROSOFT.PERSONAL.EMAIL", "Email Address", "Email Address Column Name"}
 
     def apply(self, df: DataFrame, column: str, seed: Column, context: dict) -> DataFrame:
         # New requirement: mask local part and preserve domain (no '#', no EmployeeID override)
@@ -192,7 +192,7 @@ class EmailMaskStrategy(Strategy):
 
 
 class NameMaskStrategy(Strategy):
-    classification_names = {"MICROSOFT.PERSONAL.NAME", "First Name", "Last Name"}
+    classification_names = {"MICROSOFT.PERSONAL.NAME", "First Name", "Last Name", "Names Column Name"}
 
     def apply(self, df: DataFrame, column: str, seed: Column, context: dict) -> DataFrame:
         # Apply by classification: if value looks like full name (contains whitespace),
