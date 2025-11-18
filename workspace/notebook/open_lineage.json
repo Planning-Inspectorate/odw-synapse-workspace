@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "127bbe05-cdbf-4049-ba22-7015d6176c42"
+				"spark.autotune.trackingId": "b9a89066-c023-4d77-9d62-9b9f0804ace7"
 			}
 		},
 		"metadata": {
@@ -54,7 +54,51 @@
 			{
 				"cell_type": "code",
 				"source": [
-					""
+					"from pyspark.sql import SparkSession\n",
+					"from datetime import datetime\n",
+					"\n",
+					"print(\"OpenLineage Integration Test Starting...\")\n",
+					"\n",
+					"# Initialize Spark\n",
+					"spark = SparkSession.builder \\\n",
+					"    .appName(\"openlineage_integration_test\") \\\n",
+					"    .getOrCreate()\n",
+					"\n",
+					"# Define test paths\n",
+					"timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')\n",
+					"input_path = \"abfss://data@pinsstodwdevuksl92q7c.dfs.core.windows.net/raw/test_ol/input.parquet\"\n",
+					"output_path = f\"abfss://data@pinsstodwdevuksl92q7c.dfs.core.windows.net/processed/test_ol/output_{timestamp}.parquet\"\n",
+					"\n",
+					"# Create test data\n",
+					"print(\" Creating test data...\")\n",
+					"data = [\n",
+					"    (1, \"Alice\", \"Engineering\", 75000),\n",
+					"    (2, \"Bob\", \"Sales\", 65000),\n",
+					"    (3, \"Charlie\", \"Engineering\", 80000),\n",
+					"    (4, \"Diana\", \"Marketing\", 70000),\n",
+					"    (5, \"Eve\", \"Engineering\", 85000)\n",
+					"]\n",
+					"columns = [\"id\", \"name\", \"department\", \"salary\"]\n",
+					"\n",
+					"df = spark.createDataFrame(data, columns)\n",
+					"\n",
+					"# Perform transformation\n",
+					"print(\" Performing transformations...\")\n",
+					"df_filtered = df.filter(df.department == \"Engineering\") \\\n",
+					"                .select(\"id\", \"name\", \"salary\") \\\n",
+					"                .withColumn(\"salary_gbp\", df.salary * 0.79)  # Example transformation\n",
+					"\n",
+					"# Show sample\n",
+					"print(\"📋 Sample output:\")\n",
+					"df_filtered.show()\n",
+					"\n",
+					"# Write output (triggers OpenLineage events)\n",
+					"print(f\" Writing output to: {output_path}\")\n",
+					"df_filtered.write.mode(\"overwrite\").parquet(output_path)\n",
+					"\n",
+					"print(\" Test completed successfully!\")\n",
+					"print(f\" OpenLineage events should have been sent to: https://pins-oljsonreceiver-odw-dev-uks.azurewebsites.net\")\n",
+					"print(f\" Check Purview for lineage: search for 'openlineage_integration_test'\")"
 				],
 				"execution_count": null
 			}
