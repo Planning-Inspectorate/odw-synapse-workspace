@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "e16eed70-d2a1-438d-b1e8-feb386ee0dd1"
+				"spark.autotune.trackingId": "03525955-d879-415e-875f-acca1ec9da53"
 			}
 		},
 		"metadata": {
@@ -67,14 +67,14 @@
 					"from pyspark.sql.types import Row, StructType, StructField, StringType, BooleanType, TimestampType\n",
 					"from pyspark.sql import DataFrame, SparkSession"
 				],
-				"execution_count": 57
+				"execution_count": 118
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"from odw.core.anonymisation import *"
 				],
-				"execution_count": null
+				"execution_count": 102
 			},
 			{
 				"cell_type": "markdown",
@@ -98,16 +98,16 @@
 				"source": [
 					"# %run service-bus/py_sb_raw_to_std"
 				],
-				"execution_count": 87
+				"execution_count": 103
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"entity_name = 'nsip-project'\n",
 					"file_name = 'InspectorCases.csv'\n",
-					"source_folder= 'Horizon' # ServiceBus, Horizon, entraid"
+					"source_folder= 'ServiceBus' # ServiceBus, Horizon, entraid"
 				],
-				"execution_count": 160
+				"execution_count": 119
 			},
 			{
 				"cell_type": "markdown",
@@ -126,10 +126,10 @@
 				"cell_type": "code",
 				"source": [
 					"# table_name: str = f\"odw_standardised_db.sb_{entity_name.replace('-', '_')}\"\n",
-					"table_name: str = f\"odw_standardised_db.horizon_inspector_cases\"\n",
+					"table_name: str = f\"odw_standardised_db.sb_service_user\"\n",
 					"table_df = spark.table(table_name)"
 				],
-				"execution_count": 161
+				"execution_count": 130
 			},
 			{
 				"cell_type": "markdown",
@@ -157,13 +157,13 @@
 					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
 					"os.environ[\"ODW_STORAGE_ACCOUNT_DFS_HOST\"] = storage_account"
 				],
-				"execution_count": 162
+				"execution_count": 131
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"if source_folder == 'ServiceBus':\n",
-					"    source_path: str = f\"https://{storage_account}odw-raw/{source_folder}/{entity_name}/\"+ \"{Year}-{Month}-{Day}\" + \"/\" + entity_name + \".csv\"\n",
+					"    source_path: str = f\"https://{storage_account}odw-raw/{source_folder}/{entity_name}/\"+ \"{Year}-{Month}-{Day}\" + \"/\" + entity_name + \"_{Year}-{Month}-{Day}T{Hour}:{N}:{N}.{N}+{N}:{N}.json\"\n",
 					"elif source_folder == 'Horizon':\n",
 					"    source_path: str = f\"https://{storage_account}odw-raw/{source_folder}/\" + \"{Year}-{Month}-{Day}\" + \"/\" + f\"{file_name}\"\n",
 					"elif source_folder== 'entraid': \n",
@@ -171,38 +171,38 @@
 					"else:\n",
 					"    raise Exception(\"Source Folder not recognised\")"
 				],
-				"execution_count": 163
+				"execution_count": 132
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"# # Old Config\n",
+					"# Old Config\n",
 					"\n",
-					"# TENANT_ID       = \"5878df98-6f88-48ab-9322-998ce557088d\"\n",
-					"# CLIENT_ID       = \"5750ab9b-597c-4b0d-b0f0-f4ef94e91fc0\"\n",
-					"# SECRET_NAME     = \"application-insights-reader\"\n",
-					"# PURVIEW_NAME    = \"pins-pview\"\n",
-					"# API_VERSION     = \"2023-09-01\"\n",
+					"TENANT_ID       = \"5878df98-6f88-48ab-9322-998ce557088d\"\n",
+					"CLIENT_ID       = \"5750ab9b-597c-4b0d-b0f0-f4ef94e91fc0\"\n",
+					"SECRET_NAME     = \"application-insights-reader\"\n",
+					"PURVIEW_NAME    = \"pins-pview\"\n",
+					"API_VERSION     = \"2023-09-01\"\n",
 					"\n",
-					"# ASSET_GUID              = \"\" \n",
-					"# ASSET_TYPE_NAME         = \"azure_datalake_gen2_resource_set\"\n",
-					"# ASSET_QUALIFIED_NAME    = \"https://pinsstodwprodukson83nw.dfs.core.windows.net/odw-raw/Horizon/{Year}-{Month}-{Day}/NSIPData.csv\"\n",
-					"# # ASSET_QUALIFIED_NAME    = \"https://pinsstodwdevuks9h80mb.dfs.core.windows.net/odw-raw/ServiceBus/nsip-document/{Year}-{Month}-{Day}/nsip-document.csv\"\n",
-					"# ASSET_QUALIFIED_NAME = source_path\n",
-					"# CLASSIFIED_FIELDS = (\"PotentialID\", \"NI Number\", \"Email Address\", \"First Name\", \"Last Name\", \"Birth Date\", \"Annual Salary\", \"Person's Age\", \"MICROSOFT.PERSONAL.EMAIL\", \"MICROSOFT.PERSONAL.NAME\", \"All Full Names\")"
+					"ASSET_GUID              = \"\" \n",
+					"ASSET_TYPE_NAME         = \"azure_datalake_gen2_resource_set\"\n",
+					"ASSET_QUALIFIED_NAME    = \"https://pinsstodwprodukson83nw.dfs.core.windows.net/odw-raw/Horizon/{Year}-{Month}-{Day}/NSIPData.csv\"\n",
+					"# ASSET_QUALIFIED_NAME    = \"https://pinsstodwdevuks9h80mb.dfs.core.windows.net/odw-raw/ServiceBus/nsip-document/{Year}-{Month}-{Day}/nsip-document.csv\"\n",
+					"ASSET_QUALIFIED_NAME = source_path\n",
+					"CLASSIFIED_FIELDS = (\"PotentialID\", \"NI Number\", \"Email Address\", \"Email Address Column Name\", \"First Name\", \"Last Name\", \"Birth Date\", \"Annual Salary\", \"Person's Age\", \"MICROSOFT.PERSONAL.EMAIL\", \"MICROSOFT.PERSONAL.NAME\", \"All Full Names\")"
 				],
-				"execution_count": 178
+				"execution_count": 133
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"# VAULT_NAME = spark.sparkContext.environment.get('keyVaultName')\n",
-					"# if not VAULT_NAME:\n",
-					"#     raise ValueError(\"Cannot determine Key Vault linked service (keyVaultName) from Spark environment\")\n",
+					"VAULT_NAME = spark.sparkContext.environment.get('keyVaultName')\n",
+					"if not VAULT_NAME:\n",
+					"    raise ValueError(\"Cannot determine Key Vault linked service (keyVaultName) from Spark environment\")\n",
 					"\n",
-					"# CLIENT_SECRET = mssparkutils.credentials.getSecret(VAULT_NAME, SECRET_NAME)"
+					"CLIENT_SECRET = mssparkutils.credentials.getSecret(VAULT_NAME, SECRET_NAME)"
 				],
-				"execution_count": 165
+				"execution_count": 134
 			},
 			{
 				"cell_type": "code",
@@ -224,7 +224,7 @@
 					"# HDRS = {\"Authorization\": f\"Bearer {ACCESS_TOKEN}\", \"Content-Type\": \"application/json\"}\n",
 					""
 				],
-				"execution_count": 166
+				"execution_count": 135
 			},
 			{
 				"cell_type": "code",
@@ -268,7 +268,7 @@
 					"#    raise Exception(f\"Could not resolve GUID for {type_name} :: {qualified_name}\")\n",
 					""
 				],
-				"execution_count": 167
+				"execution_count": 136
 			},
 			{
 				"cell_type": "code",
@@ -282,7 +282,7 @@
 					"    source_folder=source_folder,\n",
 					")"
 				],
-				"execution_count": 179
+				"execution_count": 137
 			},
 			{
 				"cell_type": "code",
@@ -292,12 +292,11 @@
 				"source": [
 					"display(out)"
 				],
-				"execution_count": 169
+				"execution_count": 138
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"\n",
 					"from odw.core.anonymisation import fetch_purview_classifications_by_qualified_name\n",
 					"\n",
 					"raw_cols = fetch_purview_classifications_by_qualified_name(\n",
@@ -307,7 +306,7 @@
 					"print(\"raw_cols count:\", len(raw_cols))\n",
 					"print(raw_cols[:10])"
 				],
-				"execution_count": 180
+				"execution_count": 143
 			},
 			{
 				"cell_type": "code",
@@ -320,7 +319,7 @@
 					"resource_guid = _get_guid_by_unique_attrs(PURVIEW_NAME, ASSET_TYPE_NAME, ASSET_QUALIFIED_NAME, headers=headers)\n",
 					"entity_data = _get_entity_with_refs(PURVIEW_NAME, resource_guid, headers=headers)"
 				],
-				"execution_count": 181
+				"execution_count": 140
 			},
 			{
 				"cell_type": "code",
@@ -331,14 +330,14 @@
 					"    # Optional: \"Accept\": \"application/json\"\n",
 					"}"
 				],
-				"execution_count": null
+				"execution_count": 141
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"entity_data"
 				],
-				"execution_count": 191
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -348,9 +347,16 @@
 					"relationship_guid = relationship_attributes.get(\"guid\")\n",
 					"attached_schema = relationship_attributes.get(\"attachedSchema\", [])\n",
 					"schema_guid = entity.get(\"guid\")\n",
-					"schema_guid = '2a717e82-89c2-498d-9c04-0b3dcd5748ff'"
+					"# schema_guid = '2a717e82-89c2-498d-9c04-0b3dcd5748ff'"
 				],
-				"execution_count": 205
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"schema_guid"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -374,7 +380,7 @@
 					"\n",
 					"print(json.dumps(classified_cols, indent=2))"
 				],
-				"execution_count": 207
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -512,7 +518,7 @@
 					"    CLASSIFIED_FIELDS\n",
 					")"
 				],
-				"execution_count": 177
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
