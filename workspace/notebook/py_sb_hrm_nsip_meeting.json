@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ee18ee47-e3cb-4b78-9fc1-62533698a55b"
+				"spark.autotune.trackingId": "9dd14dfc-c296-4a17-8b0b-c25f73e6011c"
 			}
 		},
 		"metadata": {
@@ -58,7 +58,7 @@
 					}
 				},
 				"source": [
-					"#### The purpose of this notebook is to create sb_nsip_meeting table derived from sb_nsip_project in harmonised layer "
+					"#### The purpose of this notebook is to create sb_nsip_meeting harmonised table derived from sb_nsip_project, the data will be in SCD2 as it inherits the data from odw_harmonised_db.sb_nsip_project"
 				]
 			},
 			{
@@ -111,7 +111,7 @@
 					"insert_count = 0\n",
 					"update_count = 0\n",
 					"delete_count = 0\n",
-					"error_message='1'"
+					"error_message=''"
 				],
 				"execution_count": null
 			},
@@ -137,30 +137,6 @@
 				"execution_count": null
 			},
 			{
-				"cell_type": "code",
-				"source": [
-					"df = spark.sql(f\"\"\"SELECT\n",
-					"            --NSIPMeetingID,\n",
-					"            --meetingID,\n",
-					"            NSIPProjectInfoInternalID,\n",
-					"            caseId,\n",
-					"            caseReference,\n",
-					"            --meetingAgenda,\n",
-					"            --planningInspectorateRole,\n",
-					"            --meetingDate,\n",
-					"            --meetingType,\n",
-					"            Migrated,\n",
-					"            ODTSourceSystem,\n",
-					"            SourceSystemID,\n",
-					"            IngestionDate,\n",
-					"            ValidTo,\n",
-					"            RowID,\n",
-					"            IsActive\n",
-					"        FROM {source_table_name} \"\"\")"
-				],
-				"execution_count": null
-			},
-			{
 				"cell_type": "markdown",
 				"metadata": {
 					"nteract": {
@@ -178,59 +154,78 @@
 				"source": [
 					"if not error_message:\n",
 					"    try:\n",
+					"        print(\"creating the dataframe for df_hrm_nsip_project..\")\n",
+					"        df_hrm_nsip_project = spark.sql(\n",
+					"            f\"\"\"\n",
+					"            SELECT\n",
+					"                NSIPProjectInfoInternalID,\n",
+					"                caseId,\n",
+					"                caseReference,\n",
+					"                Migrated,\n",
+					"                ODTSourceSystem,\n",
+					"                SourceSystemID,\n",
+					"                IngestionDate,\n",
+					"                ValidTo,\n",
+					"                RowID,\n",
+					"                IsActive\n",
+					"                --NSIPMeetingID,\n",
+					"                --meetingID,\n",
+					"                --meetingAgenda,\n",
+					"                --planningInspectorateRole,\n",
+					"                --meetingDate,\n",
+					"                --meetingType\n",
+					"            FROM {source_table_name} \"\"\"\n",
+					"            )\n",
+					"        # FORCE Spark to validate/execute the SQL here\n",
+					"        df_hrm_nsip_project.limit(1).collect()\n",
 					"\n",
-					"        df_hrm_nsip_project = spark.sql(f\"\"\"SELECT\n",
-					"            NSIPMeetingID,\n",
-					"            meetingID,\n",
-					"            NSIPProjectInfoInternalID,\n",
-					"            caseId,\n",
-					"            caseReference,\n",
-					"            meetingAgenda,\n",
-					"            planningInspectorateRole,\n",
-					"            meetingDate,\n",
-					"            meetingType,\n",
-					"            Migrated,\n",
-					"            ODTSourceSystem,\n",
-					"            SourceSystemID,\n",
-					"            IngestionDate,\n",
-					"            ValidTo,\n",
-					"            RowID,\n",
-					"            IsActive\n",
-					"        FROM {source_table_name}\n",
-					"        \"\"\")\n",
+					"        print(\"dataframe successfully created \")\n",
+					"\n",
 					"    except Exception as e:\n",
-					"        error_message = f\"Error in source sb_nsip_project SQL query {source_table_name}: {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()"
+					"        error_message = (\n",
+					"            f\"Error in source sb_nsip_project SQL query {source_table_name}': {str(e)[:800]}\"\n",
+					"        )\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)\n",
+					""
 				],
 				"execution_count": null
 			},
 			{
-				"cell_type": "code",
+				"cell_type": "markdown",
 				"metadata": {
-					"collapsed": false
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
 				},
 				"source": [
-					"display(df)"
-				],
-				"execution_count": null
+					"##### write the data into sb_msip_meeting harmonised table"
+				]
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"df.write.format(\"parquet\").mode(\"overwrite\").option(\"overwriteSchema\", \"true\").saveAsTable(f\"{final_table_name}\")"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"PipelineName='test'\n",
-					"PipelineRunID='test'\n",
-					"PipelineTriggerID='test'\n",
-					"PipelineTriggerName='test'\n",
-					"PipelineTriggerType='test'\n",
-					"PipelineTriggeredbyPipelineName='test'\n",
-					"PipelineTriggeredbyPipelineRunID='test'"
+					"# Make sure the DataFrame exists and no previous error happened\n",
+					"if not error_message:\n",
+					"    try:\n",
+					"        print(\"writing dataframe data... \")\n",
+					"        df_hrm_nsip_project.write \\\n",
+					"            .format(\"delta\") \\\n",
+					"            .mode(\"overwrite\") \\\n",
+					"            .option(\"overwriteSchema\", \"true\") \\\n",
+					"            .saveAsTable(final_table_name)\n",
+					"\n",
+					"        print(f\"data successfully written in {final_table_name}\")\n",
+					"    except Exception as e:\n",
+					"        error_message = (\n",
+					"            f\"Error writing to table {final_table_name}: {str(e)[:800]}\"\n",
+					"        )\n",
+					"        end_exec_time = datetime.now()\n",
+					"else:\n",
+					"    print(\"Cannot write because df_hrm_nsip_project was not created.\")\n",
+					""
 				],
 				"execution_count": null
 			},
@@ -266,6 +261,7 @@
 					"    else f\"Failed to load data from {final_table_name} table\"\n",
 					")\n",
 					"status_code = \"200\" if stage == \"Success\" else \"500\"\n",
+					"print(status_code, stage)\n",
 					" \n",
 					""
 				],
