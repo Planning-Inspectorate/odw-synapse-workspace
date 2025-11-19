@@ -21,7 +21,7 @@
 							"type": "AzureFileStorageReadSettings",
 							"recursive": true,
 							"wildcardFolderPath": {
-								"value": "@concat(pipeline().parameters.Folder_Path,'/',if( contains(toLower(pipeline().DataFactory), 'dev'), 'dev', if( contains(toLower(pipeline().DataFactory), 'test'), 'test', 'prod' ) ),'/',pipeline().parameters.FileLoad_Type)",
+								"value": "@concat(pipeline().parameters.Folder_Path,'/',if( contains(toLower(pipeline().DataFactory), 'dev'), 'dev', if( contains(toLower(pipeline().DataFactory), 'test'), 'test', 'prod' ) ))",
 								"type": "Expression"
 							},
 							"wildcardFileName": "*.csv",
@@ -29,6 +29,17 @@
 						},
 						"formatSettings": {
 							"type": "BinaryReadSettings"
+						}
+					},
+					"sink": {
+						"type": "DelimitedTextSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "DelimitedTextWriteSettings",
+							"quoteAllText": true,
+							"fileExtension": ".txt"
 						}
 					},
 					"enableStaging": false
@@ -41,21 +52,60 @@
 							"ds_Folder_Path": {
 								"value": "@pipeline().parameters.Folder_Path",
 								"type": "Expression"
-							},
-							"ds_Env_Type": {
-								"value": "@pipeline().parameters.FileLoad_Type",
+							}
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "ds_storage_odw",
+						"type": "DatasetReference",
+						"parameters": {
+							"folder": {
+								"value": "@pipeline().parameters.Folder_Path",
 								"type": "Expression"
 							}
 						}
 					}
 				]
+			},
+			{
+				"name": "Delete_Copied_csv_files",
+				"type": "Delete",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataset": {
+						"referenceName": "ds_odwdatalab_source",
+						"type": "DatasetReference",
+						"parameters": {
+							"ds_Folder_Path": {
+								"value": "@pipeline().parameters.Folder_Path",
+								"type": "Expression"
+							}
+						}
+					},
+					"enableLogging": false,
+					"storeSettings": {
+						"type": "AzureFileStorageReadSettings",
+						"recursive": true,
+						"wildcardFileName": {
+							"value": "*.csv",
+							"type": "Expression"
+						},
+						"enablePartitionDiscovery": false
+					}
+				}
 			}
 		],
 		"parameters": {
-			"FileLoad_Type": {
-				"type": "string",
-				"defaultValue": "Daily"
-			},
 			"Folder_Path": {
 				"type": "string",
 				"defaultValue": "ODW/Green_specialist_Case"
