@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "36311518-9e6f-4fdf-9832-0f22c84a12d8"
+				"spark.autotune.trackingId": "f616eebe-3513-485e-ad0d-268b5acab93d"
 			}
 		},
 		"metadata": {
@@ -134,27 +134,44 @@
 					"# Extract the values under 'Attribute Name' column\n",
 					"attribute_names = filtered_df[\"Attribute Name\"].dropna().tolist()"
 				],
-				"execution_count": 37
+				"execution_count": 66
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"# Convert expected columns from Pandas DataFrame to lowercase set\n",
-					"expected_columns = set(filtered_df[\"Attribute Name\"].dropna().str.lower())\n",
+					"# Expected and actual columns\n",
+					"expected_columns_cs = filtered_df[\"Attribute Name\"].dropna().tolist()\n",
+					"actual_columns_cs = df.columns\n",
 					"\n",
-					"# Load Spark table and convert column names to lowercase set\n",
-					"df = spark.sql(\"SELECT * FROM `odw_harmonised_db`.`sb_nsip_project`\")\n",
-					"actual_columns = set(col.lower() for col in df.columns)\n",
+					"# Case-insensitive sets\n",
+					"expected_lower_set = {col.lower() for col in expected_columns_cs}\n",
+					"actual_lower_set = {col.lower() for col in actual_columns_cs}\n",
 					"\n",
-					"# Find extra and missing columns (case-insensitive)\n",
-					"extra_columns = actual_columns - expected_columns\n",
-					"missing_columns = expected_columns - actual_columns\n",
+					"# Missing columns (case-insensitive)\n",
+					"missing_columns = [col for col in expected_columns_cs if col.lower() not in actual_lower_set]\n",
 					"\n",
-					"# Print results\n",
-					"print(\"Extra columns in the table:\", list(extra_columns))\n",
-					"print(\"Missing columns in the table:\", list(missing_columns))"
+					"# Extra columns (case-insensitive)\n",
+					"extra_columns = [col for col in actual_columns_cs if col.lower() not in expected_lower_set]\n",
+					"\n",
+					"# Case mismatch columns (present in both sets but different case)\n",
+					"case_mismatch = [\n",
+					"    (exp, act)\n",
+					"    for exp in expected_columns_cs\n",
+					"    for act in actual_columns_cs\n",
+					"    if exp.lower() == act.lower() and exp != act\n",
+					"]\n",
+					"\n",
+					"print(\"Extra columns in the table:\")\n",
+					"print(extra_columns)\n",
+					"\n",
+					"print(\"\\nMissing columns in the table:\")\n",
+					"print(missing_columns)\n",
+					"\n",
+					"print(\"\\nColumns with case mismatch:\")\n",
+					"print(case_mismatch)\n",
+					""
 				],
-				"execution_count": 52
+				"execution_count": 67
 			},
 			{
 				"cell_type": "code",
