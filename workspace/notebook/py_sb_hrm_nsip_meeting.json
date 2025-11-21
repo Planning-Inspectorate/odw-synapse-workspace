@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "aa8dafce-c179-4d65-a3f1-aa460487234b"
+				"spark.autotune.trackingId": "d06c49f5-c1b1-4c02-adfc-690f79f119a8"
 			}
 		},
 		"metadata": {
@@ -42,7 +42,8 @@
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 28
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -82,16 +83,19 @@
 				"cell_type": "code",
 				"source": [
 					"import builtins\n",
-					"from datetime import date,datetime"
+					"from datetime import date,datetime\n",
+					"from pyspark.sql.types import *\n",
+					"from pyspark.sql.functions import from_json, explode\n",
+					""
 				],
-				"execution_count": null
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 6
 			},
 			{
 				"cell_type": "markdown",
@@ -117,7 +121,7 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": null
+				"execution_count": 7
 			},
 			{
 				"cell_type": "markdown",
@@ -138,7 +142,86 @@
 					"source_table_name = 'odw_harmonised_db.sb_nsip_project'\n",
 					"final_table_name = 'odw_harmonised_db.nsip_meeting'"
 				],
-				"execution_count": null
+				"execution_count": 8
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql.types import *\n",
+					"\n",
+					"meetings_schema = ArrayType(\n",
+					"    StructType([\n",
+					"        StructField(\"meetingAgenda\", StringType()),\n",
+					"        StructField(\"planningInspectorateRole\", StringType()),\n",
+					"        StructField(\"meetingDate\", StringType()),\n",
+					"        StructField(\"meetingType\", StringType())\n",
+					"    ])\n",
+					")\n",
+					""
+				],
+				"execution_count": 9
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql.functions import explode\n",
+					"\n",
+					"df_parsed = spark.table(source_table_name) \\\n",
+					"    .withColumn(\"meeting\", explode(\"meetings\")) \\\n",
+					"    .select(\n",
+					"        \"NSIPProjectInfoInternalID\",\n",
+					"        \"caseId\",\n",
+					"        \"caseReference\",\n",
+					"        \"meeting.meetingId\",\n",
+					"        \"meeting.meetingAgenda\",\n",
+					"        \"meeting.planningInspectorateRole\",\n",
+					"        \"meeting.meetingDate\",\n",
+					"        \"meeting.meetingType\",\n",
+					"        \"Migrated\",\n",
+					"        \"ODTSourceSystem\",\n",
+					"        \"SourceSystemID\",\n",
+					"        \"IngestionDate\",\n",
+					"        \"ValidTo\",\n",
+					"        \"RowID\",\n",
+					"        \"IsActive\"\n",
+					"    )\n",
+					""
+				],
+				"execution_count": 11
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"display(df_parsed)"
+				],
+				"execution_count": 12
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"df_exploded = df_parsed.withColumn(\"meeting\", explode(\"meetings_parsed\"))"
+				],
+				"execution_count": 27
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"df = spark.sql(f\"\"\"SELECT  \n",
+					"    p.NSIPProjectInfoInternalID,\n",
+					"    p.caseId,\n",
+					"    p.caseReference,\n",
+					"    p.meetings,\n",
+					"    JSON_VALUE(m.value, '$.meetingAgenda') AS meetingAgenda,\n",
+					"    JSON_VALUE(m.value, '$.planningInspectorateRole') AS planningInspectorateRole,\n",
+					"    JSON_VALUE(m.value, '$.meetingDate') AS meetingDate,\n",
+					"    JSON_VALUE(m.value, '$.meetingType') AS meetingType\n",
+					"FROM FROM {source_table_name} as p\n",
+					"CROSS APPLY OPENJSON(p.meetings) \"\"\")"
+				],
+				"execution_count": 14
 			},
 			{
 				"cell_type": "markdown",
