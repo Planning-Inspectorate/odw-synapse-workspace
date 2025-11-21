@@ -26,20 +26,6 @@ def mask_keep_first_last_col(col: Column) -> Column:
     return F.when(col.isNull(), None).otherwise(F.regexp_replace(col.cast("string"), r"(?<=.).(?=.$)", "*"))
 
 
-@F.udf(T.StringType())
-def mask_fullname_udf(v: str | None) -> str | None:
-    """Legacy full-name mask: keep first/last of each part (kept for backward compatibility)."""
-    if v is None:
-        return None
-    parts = [p for p in str(v).split() if p]
-
-    def m(p: str) -> str:
-        p = str(p)
-        if len(p) <= 2:
-            return p
-        return p[0] + ("*" * (len(p) - 2)) + p[-1]
-
-    return " ".join(m(p) for p in parts)
 
 
 @F.udf(T.StringType())
@@ -105,22 +91,6 @@ def mask_name_first_only_udf(v: str | None) -> str | None:
     return s[0] + ("*" * (len(s) - 1))
 
 
-@F.udf(T.StringType())
-def mask_email_udf(email: str | None) -> str | None:
-    """Mask email local part keeping first and last character, then replace domain with '@PINS.com'.
-    """
-    try:
-        if email is None:
-            return None
-        s = str(email)
-        local = s.split("@")[0]
-        if len(local) <= 2:
-            masked_local = local
-        else:
-            masked_local = local[0] + ("*" * (len(local) - 2)) + local[-1]
-        return f"{masked_local}@#PINS.com"
-    except Exception:
-        return None
 
 
 @F.udf(T.StringType())

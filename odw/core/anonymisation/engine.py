@@ -230,12 +230,62 @@ def fetch_purview_classifications_by_qualified_name(
     """Resolve the asset by type and qualified-name, then return a list of column classifications.
 
     Returns a list of dicts: { column_name, classifications, column_guid, column_type }
+
+    Strategy:
+    1) Resolve GUID for (type, qualifiedName) and read entity with refs;
+       attempt to extract columns directly (covers most assets).
+    2) Fallback: follow attachedSchema -> fetch schema entity -> iterate its
+       referred entities, fetch each with refs, and try extraction again. This
+       handles cases where the actual column entities are one hop deeper.
     """
     token = _get_access_token(tenant_id, client_id, client_secret)
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-    guid = _get_guid_by_unique_attrs(purview_name, asset_type_name, asset_qualified_name, api_version, headers)
+
+    guid = _get_guid_by_unique_attrs(
+        purview_name, asset_type_name, asset_qualified_name, api_version, headers
+    )
     entity = _get_entity_with_refs(purview_name, guid, api_version, headers)
-    return _extract_classified_columns(entity, purview_name=purview_name, headers=headers, api_version=api_version)
+
+    # Primary extraction attempt
+    cols = _extract_classified_columns(
+        entity, purview_name=purview_name, headers=headers, api_version=api_version
+    )
+    if cols:
+        return cols
+
+    # Fallback: attached schema -> its referred entities -> extract from each
+    try:
+        rel_attrs = (entity.get("entity", {}) or {}).get("relationshipAttributes", {}) or {}
+        attached_schema = rel_attrs.get("attachedSchema", []) or []
+        schema_guid = attached_schema[0].get("guid") if attached_schema else None
+    except Exception:
+        schema_guid = None
+
+    if schema_guid:
+        try:
+            schema_ent = _get_entity_with_refs(purview_name, schema_guid, api_version, headers)
+        except Exception:
+            schema_ent = None
+
+        if schema_ent:
+            ref_ents = (schema_ent.get("referredEntities", {}) or {})
+            for ref in ref_ents.values():
+                ref_guid = (ref or {}).get("guid")
+                if not ref_guid:
+                    continue
+                try:
+                    deep_ent = _get_entity_with_refs(purview_name, ref_guid, api_version, headers)
+                    deep_cols = _extract_classified_columns(
+                        deep_ent, purview_name=purview_name, headers=headers, api_version=api_version
+                    )
+                    if deep_cols:
+                        return deep_cols
+                except Exception:
+                    # Ignore and try the next referred entity
+                    continue
+
+    # Nothing found
+    return []
 
 
 # --- Engine ---
