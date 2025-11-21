@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import json
+import re
 from typing import Dict, Iterable, List, Optional, Sequence, Set
 
 import requests
@@ -25,7 +26,16 @@ DEFAULT_STORAGE_ACCOUNT_DFS_HOST = os.getenv(
 
 
 def _norm_col_name(s: Optional[str]) -> str:
-    return (s or "").strip().lower()
+    """Normalise a column name for matching across different naming styles.
+
+    - trim + lowercase
+    - drop non-alphanumeric characters (so first_name == firstName == firstname)
+    - fix common typos (adress -> address)
+    """
+    raw = (s or "").strip().lower()
+    cleaned = re.sub(r"[^a-z0-9]", "", raw)
+    cleaned = cleaned.replace("adress", "address")
+    return cleaned
 
 
 def _resolve_client_secret() -> str:
