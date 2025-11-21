@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "31eb96cd-eaf9-4b84-a9d9-30efc0d788fe"
+				"spark.autotune.trackingId": "82f62bbb-c017-40e2-b7f2-850b83a9fd51"
 			}
 		},
 		"metadata": {
@@ -200,12 +200,11 @@
 					"\n",
 					"ASSET_GUID              = \"\" \n",
 					"ASSET_TYPE_NAME         = \"azure_datalake_gen2_resource_set\"\n",
-					"ASSET_QUALIFIED_NAME    = \"https://pinsstodwprodukson83nw.dfs.core.windows.net/odw-raw/Horizon/{Year}-{Month}-{Day}/NSIPData.csv\"\n",
 					"# ASSET_QUALIFIED_NAME    = \"https://pinsstodwdevuks9h80mb.dfs.core.windows.net/odw-raw/ServiceBus/nsip-document/{Year}-{Month}-{Day}/nsip-document.csv\"\n",
 					"ASSET_QUALIFIED_NAME = source_path\n",
 					"CLASSIFIED_FIELDS = (\"PotentialID\", \"NI Number\", \"Email Address\", \"Email Address Column Name\", \"First Name\", \"Last Name\", \"Birth Date\", \"Annual Salary\", \"Person's Age\", \"MICROSOFT.PERSONAL.EMAIL\", \"MICROSOFT.PERSONAL.NAME\", \"All Full Names\")"
 				],
-				"execution_count": 40
+				"execution_count": 61
 			},
 			{
 				"cell_type": "code",
@@ -221,72 +220,6 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"# # AUTH\n",
-					"# token_url = f\"https://login.microsoftonline.com/{TENANT_ID}/oauth2/v2.0/token\"\n",
-					"# data = {\n",
-					"#    \"grant_type\": \"client_credentials\",\n",
-					"#    \"client_id\": CLIENT_ID,\n",
-					"#    \"client_secret\": CLIENT_SECRET,\n",
-					"#    \"scope\": \"https://purview.azure.net/.default\"\n",
-					"# }\n",
-					"# resp = requests.post(token_url, data=data, timeout=60)\n",
-					"# if not resp.ok:\n",
-					"#    raise Exception(f\"Token request failed [{resp.status_code}]: {resp.text}\")\n",
-					"# ACCESS_TOKEN = resp.json()[\"access_token\"]\n",
-					"\n",
-					"# BASE = f\"https://{PURVIEW_NAME}.catalog.purview.azure.com/api/atlas/v2\"\n",
-					"# HDRS = {\"Authorization\": f\"Bearer {ACCESS_TOKEN}\", \"Content-Type\": \"application/json\"}\n",
-					""
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"# # HTTP helpers\n",
-					"\n",
-					"# from urllib.parse import quote\n",
-					"\n",
-					"# def _get(url, headers=HDRS, timeout=60):\n",
-					"#    r = requests.get(url, headers=headers, timeout=timeout)\n",
-					"#    if not r.ok:\n",
-					"#        raise Exception(f\"HTTP {r.status_code} – {r.text[:800]}\")\n",
-					"#    return r.json()\n",
-					"\n",
-					"# def get_entity_with_refs(guid: str):\n",
-					"#    url = (\n",
-					"#        f\"{BASE}/entity/guid/{guid}\"\n",
-					"#        f\"?minExtInfo=true&ignoreRelationships=false&api-version={API_VERSION}\"\n",
-					"#    )\n",
-					"#    return _get(url)\n",
-					"\n",
-					"# def get_entity_classifications(guid: str):\n",
-					"#    url = f\"{BASE}/entity/guid/{guid}/classifications?api-version={API_VERSION}\"\n",
-					"#    try:\n",
-					"#        data = _get(url)\n",
-					"#        return data.get(\"list\", []) or []\n",
-					"#    except Exception:\n",
-					"#        return []\n",
-					"\n",
-					"# def get_guid_by_unique_attrs(type_name: str, qualified_name: str) -> str:\n",
-					"\n",
-					"#    qn = quote(qualified_name, safe=\"\")\n",
-					"#    url = (f\"{BASE}/entity/uniqueAttribute/type/{quote(type_name, safe='')}\"\n",
-					"#           f\"?attr%3AqualifiedName={qn}&api-version={API_VERSION}\")\n",
-					"#    data = _get(url)\n",
-					"#    # Atlas may return either 'entity' or the flattened attributes + guid\n",
-					"#    if \"entity\" in data and \"guid\" in data[\"entity\"]:\n",
-					"#        return data[\"entity\"][\"guid\"]\n",
-					"#    if \"guid\" in data:\n",
-					"#        return data[\"guid\"]\n",
-					"#    raise Exception(f\"Could not resolve GUID for {type_name} :: {qualified_name}\")\n",
-					""
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
 					"from odw.core.anonymisation import AnonymisationEngine\n",
 					"engine = AnonymisationEngine()\n",
 					"out = engine.apply_from_purview(\n",
@@ -296,7 +229,7 @@
 					"    source_folder=source_folder,\n",
 					")"
 				],
-				"execution_count": 35
+				"execution_count": 62
 			},
 			{
 				"cell_type": "code",
@@ -315,12 +248,12 @@
 					"\n",
 					"raw_cols = fetch_purview_classifications_by_qualified_name(\n",
 					"    PURVIEW_NAME, TENANT_ID, CLIENT_ID, CLIENT_SECRET,\n",
-					"    ASSET_TYPE_NAME, ASSET_QUALIFIED_NAME\n",
+					"    ASSET_TYPE_NAME, ASSET_QUALIFIED_NAME, API_VERSION\n",
 					")\n",
 					"print(\"raw_cols count:\", len(raw_cols))\n",
 					"print(raw_cols[:10])"
 				],
-				"execution_count": 42
+				"execution_count": 65
 			},
 			{
 				"cell_type": "code",
@@ -333,50 +266,23 @@
 					"resource_guid = _get_guid_by_unique_attrs(PURVIEW_NAME, ASSET_TYPE_NAME, ASSET_QUALIFIED_NAME, headers=headers)\n",
 					"entity_data = _get_entity_with_refs(PURVIEW_NAME, resource_guid, headers=headers)"
 				],
-				"execution_count": 43
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"headers = {\n",
-					"    \"Authorization\": f\"Bearer {ACCESS_TOKEN}\",\n",
-					"    \"Content-Type\": \"application/json\"\n",
-					"    # Optional: \"Accept\": \"application/json\"\n",
-					"}"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"entity_data"
-				],
-				"execution_count": 44
+				"execution_count": 67
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"entity = entity_data.get(\"entity\", {})\n",
 					"relationship_attributes = entity.get(\"relationshipAttributes\", {})\n",
-					"relationship_guid = relationship_attributes.get(\"guid\")\n",
+					"# relationship_guid = relationship_attributes.get(\"guid\")\n",
 					"attached_schema = relationship_attributes.get(\"attachedSchema\", [])\n",
-					"schema_guid = attached_schema[0].get(\"guid\")"
+					"schema_guid = attached_schema[0].get(\"guid\")\n",
+					""
 				],
-				"execution_count": 54
+				"execution_count": 87
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"schema_entity"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"if not schema_guid:\n",
-					"    raise ValueError(\"No attached schema found.\")\n",
-					"\n",
 					"schema_entity = _get_entity_with_refs(PURVIEW_NAME, schema_guid, headers = headers)\n",
 					"columns = schema_entity.get(\"referredEntities\", {})\n",
 					"\n",
@@ -393,7 +299,7 @@
 					"\n",
 					"print(json.dumps(classified_cols, indent=2))"
 				],
-				"execution_count": 52
+				"execution_count": 84
 			},
 			{
 				"cell_type": "code",
