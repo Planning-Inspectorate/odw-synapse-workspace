@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "761cdb30-1341-4a9f-879b-ca85deb90c04"
+				"spark.autotune.trackingId": "49eab886-6af1-4e16-a09b-4519e4eb478e"
 			}
 		},
 		"metadata": {
@@ -101,13 +101,6 @@
 					"source_folder= 'ServiceBus' # ServiceBus, Horizon, entraid"
 				],
 				"execution_count": 89
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					""
-				],
-				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -246,53 +239,19 @@
 					"print(\"raw_cols count:\", len(raw_cols))\n",
 					"print(raw_cols[:10])"
 				],
-				"execution_count": 65
+				"execution_count": 93
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"from odw.core.anonymisation.engine import _get_access_token, _get_guid_by_unique_attrs, _get_entity_with_refs\n",
+					"from odw.core.anonymisation.engine import _get_entity_with_refs, _extract_classified_columns\n",
 					"\n",
-					"token = _get_access_token(TENANT_ID, CLIENT_ID, CLIENT_SECRET)\n",
-					"headers = {\"Authorization\": f\"Bearer {token}\", \"Content-Type\": \"application/json\"}\n",
-					"\n",
-					"resource_guid = _get_guid_by_unique_attrs(PURVIEW_NAME, ASSET_TYPE_NAME, ASSET_QUALIFIED_NAME, headers=headers)\n",
-					"entity_data = _get_entity_with_refs(PURVIEW_NAME, resource_guid, headers=headers)"
+					"ent = _get_entity_with_refs(PURVIEW_NAME, guid, headers=headers)\n",
+					"cols = _extract_classified_columns(ent, purview_name=PURVIEW_NAME, headers=headers)\n",
+					"print(\"Found\", len(cols), \"classified columns\")\n",
+					"print(cols[:5])"
 				],
-				"execution_count": 67
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"entity = entity_data.get(\"entity\", {})\n",
-					"relationship_attributes = entity.get(\"relationshipAttributes\", {})\n",
-					"# relationship_guid = relationship_attributes.get(\"guid\")\n",
-					"attached_schema = relationship_attributes.get(\"attachedSchema\", [])\n",
-					"schema_guid = attached_schema[0].get(\"guid\")\n",
-					""
-				],
-				"execution_count": 87
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"schema_entity = _get_entity_with_refs(PURVIEW_NAME, schema_guid, headers = headers)\n",
-					"columns = schema_entity.get(\"referredEntities\", {})\n",
-					"\n",
-					"classified_cols = []\n",
-					"for guid, col in columns.items():\n",
-					"    classifications = col.get(\"classifications\", [])\n",
-					"    if classifications:  # Filter only those with classification\n",
-					"        classified_cols.append({\n",
-					"            \"column_guid\": guid,\n",
-					"            \"column_name\": col[\"attributes\"].get(\"name\"),\n",
-					"            \"column_type\": col.get(\"typeName\"),\n",
-					"            \"classifications\": [c[\"typeName\"] for c in classifications],\n",
-					"        })\n",
-					"\n",
-					"print(json.dumps(classified_cols, indent=2))"
-				],
-				"execution_count": 84
+				"execution_count": 119
 			},
 			{
 				"cell_type": "code",
