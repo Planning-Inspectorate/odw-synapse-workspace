@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5b1f3b75-0bc3-4216-9a93-fb1dadcfc029"
+				"spark.autotune.trackingId": "195dc21f-cc16-42a8-b2cd-0bcb25d21666"
 			}
 		},
 		"metadata": {
@@ -166,27 +166,28 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"from pyspark.sql.functions import explode\n",
+					"from pyspark.sql.functions import explode, col\n",
 					"\n",
-					"df_parsed = spark.table(source_table_name) \\\n",
-					"    .withColumn(\"invoices\", explode(\"invoices\")) \\\n",
+					"df_parsed = (\n",
+					"    spark.table(source_table_name)\n",
+					"    .withColumn(\"invoice\", explode(col(\"invoices\")))  # rename exploded column for clarity\n",
 					"    .select(\n",
-					"       \"NSIPProjectInfoInternalID\",\n",
-					"       \"caseId\",\n",
-					"       \"caseReference\",\n",
-					"       \"invoiceStage\",\n",
-					"       \"invoiceNumber\",\n",
-					"\"amountDue\",\n",
-					"\"paymentDueDate\",\n",
-					"\"invoicedDate\",\n",
-					"\"paymentDate\",\n",
-					"\"refundCreditNoteNumber\",\n",
-					"\"refundAmount\",\n",
-					"\"refundIssueDate\"\n",
+					"        \"NSIPProjectInfoInternalID\",\n",
+					"        \"caseId\",\n",
+					"        \"caseReference\",\n",
+					"        col(\"invoice.invoiceStage\").alias(\"invoiceStage\"),\n",
+					"        col(\"invoice.invoiceNumber\").alias(\"invoiceNumber\"),\n",
+					"        col(\"invoice.amountDue\").alias(\"amountDue\"),\n",
+					"        col(\"invoice.paymentDueDate\").alias(\"paymentDueDate\"),\n",
+					"        col(\"invoice.invoicedDate\").alias(\"invoicedDate\"),\n",
+					"        col(\"invoice.paymentDate\").alias(\"paymentDate\"),\n",
+					"        col(\"invoice.refundCreditNoteNumber\").alias(\"refundCreditNoteNumber\"),\n",
+					"        col(\"invoice.refundAmount\").alias(\"refundAmount\"),\n",
+					"        col(\"invoice.refundIssueDate\").alias(\"refundIssueDate\")\n",
 					"    )\n",
-					""
+					")"
 				],
-				"execution_count": 8
+				"execution_count": 11
 			},
 			{
 				"cell_type": "code",
@@ -196,7 +197,7 @@
 				"source": [
 					"display(df_parsed)"
 				],
-				"execution_count": null
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
