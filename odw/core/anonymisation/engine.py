@@ -68,12 +68,26 @@ def _resolve_client_secret() -> str:
 def _build_asset_qualified_name_from_params(
     *, storage_host: str, source_folder: str, entity_name: Optional[str], file_name: Optional[str]
 ) -> str:
+    """Build the Purview qualified name for ADLS Gen2 resource sets.
+
+    Notes:
+    - ServiceBus assets are JSON files with a timestamp in the filename. The pattern must
+      include literal Purview placeholders (e.g. {Year}, {Month}, {Day}, {Hour}, {N}).
+    - Horizon assets use a provided file name under a dated folder.
+    - entraid assets are JSON files named after the entity under a dated folder.
+    """
     host = (storage_host or "").rstrip("/")
     if source_folder == "ServiceBus":
         if not entity_name:
             raise ValueError("entity_name is required for source_folder='ServiceBus'")
-        filename = f"{entity_name}.csv"
-        return f"https://{host}/odw-raw/{source_folder}/{entity_name}/{{Year}}-{{Month}}-{{Day}}/{filename}"
+        # Example:
+        # https://<host>/odw-raw/ServiceBus/<entity>/{Year}-{Month}-{Day}/
+        #   <entity>_{Year}-{Month}-{Day}T{Hour}:{N}:{N}.{N}+{N}:{N}.json
+        return (
+            f"https://{host}/odw-raw/{source_folder}/{entity_name}/"
+            f"{{Year}}-{{Month}}-{{Day}}/"
+            f"{entity_name}_{{Year}}-{{Month}}-{{Day}}T{{Hour}}:{{N}}:{{N}}.{{N}}+{{N}}:{{N}}.json"
+        )
     if source_folder == "Horizon":
         if not file_name:
             raise ValueError("file_name is required for source_folder='Horizon'")
@@ -81,8 +95,7 @@ def _build_asset_qualified_name_from_params(
     if source_folder == "entraid":
         if not entity_name:
             raise ValueError("entity_name is required for source_folder='entraid'")
-        filename = f"{entity_name}.json"
-        return f"https://{host}/odw-raw/{source_folder}/{entity_name}/{{Year}}-{{Month}}-{{Day}}/{filename}"
+        return f"https://{host}/odw-raw/{source_folder}/{entity_name}/{{Year}}-{{Month}}-{{Day}}/{entity_name}.json"
     raise ValueError("source_folder must be one of 'ServiceBus', 'Horizon', 'entraid'")
 
 # --- Purview HTTP helpers (mirroring purview_df_anonymiser.py) ---
