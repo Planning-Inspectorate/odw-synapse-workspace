@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d4e00eb8-ee98-479f-9ade-f15f0a44a030"
+				"spark.autotune.trackingId": "1b363850-7438-44ee-b7be-55e957e863b3"
 			}
 		},
 		"metadata": {
@@ -62,7 +62,7 @@
 					"PipelineTriggeredbyPipelineName = None\n",
 					"PipelineTriggeredbyPipelineRunID = None"
 				],
-				"execution_count": 95
+				"execution_count": 185
 			},
 			{
 				"cell_type": "code",
@@ -72,21 +72,21 @@
 					"from delta.tables import DeltaTable\n",
 					"from datetime import datetime"
 				],
-				"execution_count": 96
+				"execution_count": 186
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 97
+				"execution_count": 187
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 98
+				"execution_count": 188
 			},
 			{
 				"cell_type": "code",
@@ -107,7 +107,7 @@
 					"duplicates_removed = 0\n",
 					"table_exists = False"
 				],
-				"execution_count": 100
+				"execution_count": 189
 			},
 			{
 				"cell_type": "code",
@@ -122,7 +122,7 @@
 					"        error_message = f\"Error in setting time parser policy: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 101
+				"execution_count": 190
 			},
 			{
 				"cell_type": "code",
@@ -146,7 +146,7 @@
 					"        error_message = f\"Error checking target table: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 102
+				"execution_count": 191
 			},
 			{
 				"cell_type": "code",
@@ -197,7 +197,7 @@
 					"                week6Date,\n",
 					"                week8Date,\n",
 					"                week9Date,\n",
-					"                eventtype,\n",
+					"                eventType,\n",
 					"                eventDate,\n",
 					"                eventTime,\n",
 					"                inspectorName,\n",
@@ -234,7 +234,7 @@
 					"                    COALESCE(CAST(week6Date AS STRING), '.'),\n",
 					"                    COALESCE(CAST(week8Date AS STRING), '.'),\n",
 					"                    COALESCE(CAST(week9Date AS STRING), '.'),\n",
-					"                    COALESCE(eventtype, '.'),\n",
+					"                    COALESCE(eventType, '.'),\n",
 					"                    COALESCE(CAST(eventDate AS STRING), '.'),\n",
 					"                    COALESCE(eventTime, '.'),\n",
 					"                    COALESCE(inspectorName, '.'),\n",
@@ -243,7 +243,8 @@
 					"                    COALESCE(CAST(decisionDate AS STRING), '.'),\n",
 					"                    COALESCE(CAST(withdrawnOrTurnedAwayDate AS STRING), '.'),\n",
 					"                    COALESCE(comments, '.')\n",
-					"                )) as data_hash\n",
+					"                )) as data_hash,\n",
+					"                active\n",
 					"            FROM (\n",
 					"                SELECT *, ROW_NUMBER() OVER (\n",
 					"                    PARTITION BY greenCaseId \n",
@@ -261,7 +262,7 @@
 					"        error_message = f\"Error preparing source: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 103
+				"execution_count": 192
 			},
 			{
 				"cell_type": "code",
@@ -315,7 +316,7 @@
 					"        error_message = f\"Error in change analysis: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 104
+				"execution_count": 193
 			},
 			{
 				"cell_type": "code",
@@ -347,7 +348,7 @@
 					"        error_message = f\"Error closing records: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 105
+				"execution_count": 194
 			},
 			{
 				"cell_type": "code",
@@ -402,7 +403,8 @@
 					"                is_current,\n",
 					"                record_start_date,\n",
 					"                record_end_date,\n",
-					"                RowID\n",
+					"                RowID,\n",
+					"                active\n",
 					"            )\n",
 					"            SELECT\n",
 					"                CASE \n",
@@ -434,7 +436,7 @@
 					"                stg.week6Date,\n",
 					"                stg.week8Date,\n",
 					"                stg.week9Date,\n",
-					"                stg.eventtype,\n",
+					"                stg.eventType,\n",
 					"                stg.eventDate,\n",
 					"                stg.eventTime,\n",
 					"                stg.inspectorName,\n",
@@ -448,7 +450,8 @@
 					"                1 AS is_current,\n",
 					"                CURRENT_TIMESTAMP() AS record_start_date,\n",
 					"                CAST('9999-12-31 23:59:59' AS TIMESTAMP) AS record_end_date,\n",
-					"                stg.data_hash AS RowID\n",
+					"                stg.data_hash AS RowID,\n",
+					"                active\n",
 					"            FROM stg_casework_specialist stg\n",
 					"            INNER JOIN change_analysis ca \n",
 					"                ON stg.greenCaseId = ca.greenCaseId \n",
@@ -462,7 +465,7 @@
 					"        error_message = f\"Error inserting records: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 106
+				"execution_count": 195
 			},
 			{
 				"cell_type": "code",
@@ -501,7 +504,7 @@
 					"\n",
 					""
 				],
-				"execution_count": 107
+				"execution_count": 196
 			}
 		]
 	}
