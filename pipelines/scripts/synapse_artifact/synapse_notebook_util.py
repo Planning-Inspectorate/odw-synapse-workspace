@@ -116,19 +116,14 @@ class SynapseNotebookUtil(SynapseArtifactUtil):
             if cell["cell_type"] != "code":
                 # If the cell is not a code cell, then it can be dropped to simplify processing
                 return ""
-            # Normalise the cell source into a single text block, fixing any accidental literal "\n" sequences
-            # that sometimes appear in exported Synapse notebooks
-            raw = "".join(cell.get("source", []))
-            # Convert Windows newlines and literal backslash-ns to real newlines
-            raw = raw.replace("\r\n", "\n").replace("\\n", "\n")
-            # If there are no non-whitespace lines in the cell, then skip further processing
-            first_meaningful_line = next((line for line in raw.splitlines() if line.strip()), None)
+            # If there are no non-whitespace lines in the cell, the just return an empty string and skip the rest of the processing
+            first_meaningful_line = next((line for line in cell["source"] if line.strip()), None)
             if not first_meaningful_line:
                 return ""
             is_magic_cell = first_meaningful_line.lstrip().startswith("%")
             if is_magic_cell:
                 # Merge magic cells into one line to simplify processing
-                cleaned_cells = [line.strip() for line in raw.splitlines() if line.strip()]
+                cleaned_cells = [line.strip() for line in cell["source"] if line.strip()]
                 cleaned_cell_line = " ".join(cleaned_cells).lstrip()
                 # %run is a special magic command that can be converted to a real python command, which is important for detecting dependencies
                 # Only 1 magic command can exist in a cell - this is assumed to be true
@@ -143,9 +138,9 @@ class SynapseNotebookUtil(SynapseArtifactUtil):
                     return cleaned_line
                 else:
                     # Comment out all other magic commands, since their operation is not important in the grant scheme of things
-                    return f"# {cleaned_cell_line}"
-            # Return normalised python code for non-magic cells
-            return "\n".join([line.rstrip() for line in raw.splitlines()])
+                    return f"# {cleaned_cell_line}"   
+            # Combine all lines into a single string, separated by the newline character
+            return "\n".join([line.rstrip() for line in cell["source"]])
 
         cell_code = [
             _process_cell(cell)
