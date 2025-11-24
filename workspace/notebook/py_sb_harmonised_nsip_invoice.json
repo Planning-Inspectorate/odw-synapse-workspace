@@ -18,7 +18,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "19c21ec1-ece0-4d54-8536-96d5f2838139"
+				"spark.autotune.trackingId": "3b948f6f-6fba-4295-ad9e-b04c22d9bc35"
 			}
 		},
 		"metadata": {
@@ -103,7 +103,7 @@
 					"from datetime import datetime, date\n",
 					""
 				],
-				"execution_count": 1
+				"execution_count": 11
 			},
 			{
 				"cell_type": "code",
@@ -150,7 +150,7 @@
 				"source": [
 					"service_bus_table = \"odw_harmonised_db.sb_nsip_project\"\n",
 					"spark_table_final = \"odw_harmonised_db.nsip_invoice\"\n",
-					"incremental_key=\n",
+					"incremental_key=\"NSIPInvoiceID\"\n",
 					"\n",
 					"start_exec_time = datetime.now()\n",
 					"insert_count = 0\n",
@@ -158,7 +158,7 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": 2
+				"execution_count": 12
 			},
 			{
 				"cell_type": "markdown",
@@ -178,7 +178,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 3
+				"execution_count": 13
 			},
 			{
 				"cell_type": "markdown",
@@ -235,7 +235,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        "
 				],
-				"execution_count": 4
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
@@ -319,7 +319,47 @@
 					"        end_exec_time = datetime.now()\n",
 					"        "
 				],
-				"execution_count": 6
+				"execution_count": 15
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"display(results)"
+				],
+				"execution_count": 16
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    @logging_to_appins\n",
+					"    def insert_rows_in_df(source_df: DataFrame, target_df: DataFrame, incremental_key: str) -> DataFrame:\n",
+					"        try:\n",
+					"            # appending the incremental key\n",
+					"            max_id: int = target_df.count()\n",
+					"\n",
+					"            w: Window = Window.orderBy(lit(1))\n",
+					"            source_df: DataFrame = source_df.withColumn(incremental_key, (max_id + row_number().over(w)).cast(LongType()))\n",
+					"\n",
+					"        except Exception as e:\n",
+					"            error_message = f\"Error in creating source data frame : {str(e)[:800]}\"\n",
+					"            end_exec_time = datetime.now()  \n",
+					"        return target_df.union(source_df)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if create_df.count() > 0:\n",
+					"    target_df = insert_rows_in_df(create_df, target_df, hrm_incremental_key)\n",
+					"\n",
+					"logInfo(f\"New rows: {create_df.count()}\\nTarget dataframe: {target_df.count()}\")"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
