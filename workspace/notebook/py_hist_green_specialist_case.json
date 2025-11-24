@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "aebdc8d0-dbcb-4b29-89da-2d054a859d37"
+				"spark.autotune.trackingId": "d4e00eb8-ee98-479f-9ade-f15f0a44a030"
 			}
 		},
 		"metadata": {
@@ -62,7 +62,7 @@
 					"PipelineTriggeredbyPipelineName = None\n",
 					"PipelineTriggeredbyPipelineRunID = None"
 				],
-				"execution_count": 35
+				"execution_count": 95
 			},
 			{
 				"cell_type": "code",
@@ -72,21 +72,21 @@
 					"from delta.tables import DeltaTable\n",
 					"from datetime import datetime"
 				],
-				"execution_count": 36
+				"execution_count": 96
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 37
+				"execution_count": 97
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 38
+				"execution_count": 98
 			},
 			{
 				"cell_type": "code",
@@ -107,7 +107,7 @@
 					"duplicates_removed = 0\n",
 					"table_exists = False"
 				],
-				"execution_count": 39
+				"execution_count": 100
 			},
 			{
 				"cell_type": "code",
@@ -122,7 +122,7 @@
 					"        error_message = f\"Error in setting time parser policy: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": null
+				"execution_count": 101
 			},
 			{
 				"cell_type": "code",
@@ -139,14 +139,14 @@
 					"            if row_count == 0:\n",
 					"                logInfo(\"Table is empty - first run will treat all records as NEW\")\n",
 					"        else:\n",
-					"            error_message = f\"Target table {spark_table_final} \n",
+					"            error_message = f\"Target table {spark_table_final} does not exist - please create via schema notebook\"\n",
 					"            end_exec_time = datetime.now()\n",
 					"            \n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error checking target table: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": null
+				"execution_count": 102
 			},
 			{
 				"cell_type": "code",
@@ -197,7 +197,7 @@
 					"                week6Date,\n",
 					"                week8Date,\n",
 					"                week9Date,\n",
-					"                eventType,\n",
+					"                eventtype,\n",
 					"                eventDate,\n",
 					"                eventTime,\n",
 					"                inspectorName,\n",
@@ -234,7 +234,7 @@
 					"                    COALESCE(CAST(week6Date AS STRING), '.'),\n",
 					"                    COALESCE(CAST(week8Date AS STRING), '.'),\n",
 					"                    COALESCE(CAST(week9Date AS STRING), '.'),\n",
-					"                    COALESCE(eventType, '.'),\n",
+					"                    COALESCE(eventtype, '.'),\n",
 					"                    COALESCE(CAST(eventDate AS STRING), '.'),\n",
 					"                    COALESCE(eventTime, '.'),\n",
 					"                    COALESCE(inspectorName, '.'),\n",
@@ -261,7 +261,7 @@
 					"        error_message = f\"Error preparing source: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 42
+				"execution_count": 103
 			},
 			{
 				"cell_type": "code",
@@ -315,7 +315,7 @@
 					"        error_message = f\"Error in change analysis: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 47
+				"execution_count": 104
 			},
 			{
 				"cell_type": "code",
@@ -347,7 +347,7 @@
 					"        error_message = f\"Error closing records: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 48
+				"execution_count": 105
 			},
 			{
 				"cell_type": "code",
@@ -361,7 +361,49 @@
 					"        \n",
 					"        # Insert new versions of changed records + completely new records\n",
 					"        spark.sql(f\"\"\"\n",
-					"            INSERT INTO {spark_table_final}\n",
+					"            INSERT INTO {spark_table_final} (\n",
+					"                casework_specialist_id,\n",
+					"                greenCaseType,\n",
+					"                greenCaseId,\n",
+					"                caseReference,\n",
+					"                horizonId,\n",
+					"                linkedGreenCaseId,\n",
+					"                caseOfficerName,\n",
+					"                caseOfficerEmail,\n",
+					"                appealType,\n",
+					"                procedure,\n",
+					"                processingState,\n",
+					"                pinsLpaCode,\n",
+					"                pinsLpaName,\n",
+					"                appellantName,\n",
+					"                agentName,\n",
+					"                siteAddressDescription,\n",
+					"                sitePostcode,\n",
+					"                otherPartyName,\n",
+					"                receiptDate,\n",
+					"                validDate,\n",
+					"                startDate,\n",
+					"                lpaQuestionnaireDue,\n",
+					"                lpaQuestionnaireReceived,\n",
+					"                week6Date,\n",
+					"                week8Date,\n",
+					"                week9Date,\n",
+					"                eventtype,\n",
+					"                eventDate,\n",
+					"                eventTime,\n",
+					"                inspectorName,\n",
+					"                inspectorStaffNumber,\n",
+					"                decision,\n",
+					"                decisionDate,\n",
+					"                withdrawnOrTurnedAwayDate,\n",
+					"                comments,\n",
+					"                Migrated,\n",
+					"                IngestionDate,\n",
+					"                is_current,\n",
+					"                record_start_date,\n",
+					"                record_end_date,\n",
+					"                RowID\n",
+					"            )\n",
 					"            SELECT\n",
 					"                CASE \n",
 					"                    WHEN ca.change_type = 'CHANGED' THEN ca.casework_specialist_id\n",
@@ -392,7 +434,7 @@
 					"                stg.week6Date,\n",
 					"                stg.week8Date,\n",
 					"                stg.week9Date,\n",
-					"                stg.eventType,\n",
+					"                stg.eventtype,\n",
 					"                stg.eventDate,\n",
 					"                stg.eventTime,\n",
 					"                stg.inspectorName,\n",
@@ -420,7 +462,7 @@
 					"        error_message = f\"Error inserting records: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": null
+				"execution_count": 106
 			},
 			{
 				"cell_type": "code",
@@ -459,7 +501,7 @@
 					"\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 107
 			}
 		]
 	}
