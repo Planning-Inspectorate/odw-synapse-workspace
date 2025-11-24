@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import json
 import re
+import logging
 from typing import Dict, Iterable, List, Optional, Sequence, Set
 
 import requests
@@ -15,6 +16,60 @@ from .base import (
     default_strategies,
 )
 from .config import AnonymisationConfig
+
+# Prefer core util logging if available; fallback to module logger
+logger = logging.getLogger(__name__)
+try:
+    from odw.core.util.logging_util import LoggingUtil  # type: ignore
+    _HAS_LOGGING_UTIL = True
+except Exception:
+    LoggingUtil = None  # type: ignore
+    _HAS_LOGGING_UTIL = False
+
+
+def _log_event(event: str, level: int = logging.INFO, **fields) -> None:
+    """PII-safe structured logging helper using core util when available.
+
+    - Formats a single-line JSON payload prefixed to identify the component.
+    - Filters None values and converts sets to sorted lists.
+    - Avoid logging raw data values (PII).
+    """
+    try:
+        payload: Dict[str, object] = {"event": event}
+        if fields:
+            norm: Dict[str, object] = {}
+            for k, v in fields.items():
+                if v is None:
+                    continue
+                if isinstance(v, set):
+                    norm[k] = sorted(v)  # type: ignore[assignment]
+                else:
+                    norm[k] = v
+            payload.update(norm)
+        message = f"[AnonymisationEngine] {json.dumps(payload, sort_keys=True)}"
+        if _HAS_LOGGING_UTIL:
+            try:
+                # Only use LoggingUtil if it has already been initialised elsewhere to avoid
+                # side effects in unit tests and environments without notebookutils.
+                if getattr(LoggingUtil, "_INSTANCE", None) is not None:
+                    if level >= logging.ERROR:
+                        LoggingUtil().log_error(message)
+                    else:
+                        LoggingUtil().log_info(message)
+                    return
+            except Exception:
+                # Fallback to std logging if util cannot be used
+                pass
+        logger.log(level, message)
+    except Exception:
+        # Last-resort fallback to avoid raising from logging
+        try:
+            if _HAS_LOGGING_UTIL and getattr(LoggingUtil, "_INSTANCE", None) is not None:
+                LoggingUtil().log_info(f"[AnonymisationEngine] {event}")
+            else:
+                logger.log(level, f"[AnonymisationEngine] {event}")
+        except Exception:
+            logger.log(level, f"[AnonymisationEngine] {event}")
 
 # --- Defaults and helpers for simplified apply_from_purview API ---
 DEFAULT_PURVIEW_NAME = os.getenv("ODW_PURVIEW_NAME", "pins-pview")
@@ -318,9 +373,12 @@ class AnonymisationEngine:
         self,
         strategies: Optional[Sequence[Strategy]] = None,
         config: Optional[AnonymisationConfig] = None,
+        run_id: Optional[str] = None,
     ) -> None:
         self.strategies: List[Strategy] = list(strategies or default_strategies())
         self.config = config or AnonymisationConfig()
+        # Correlation ID for auditing; can be provided by caller or read from env
+        self.run_id: Optional[str] = run_id or os.getenv("ODW_RUN_ID")
 
     def apply(
         self,
@@ -338,6 +396,16 @@ class AnonymisationEngine:
         seed = _seed_col(df)
         # Case-insensitive + trimmed mapping from normalised name -> actual df column
         norm_to_actual = {_norm_col_name(c): c for c in df.columns}
+
+        _log_event(
+            "apply.start",
+            run_id=self.run_id,
+            df_columns=len(df.columns),
+            provided_classifications=len(list(columns_with_classifications or [])),
+            classification_allowlist=list(allowlist) if allowlist else None,
+        )
+
+        applied_info: List[dict] = []
 
         for item in columns_with_classifications or []:
             if not isinstance(item, dict):
@@ -359,7 +427,20 @@ class AnonymisationEngine:
             for strat in self.strategies:
                 if classes.intersection(strat.classification_names):
                     out = strat.apply(out, actual_col, seed, context)
+                    applied_info.append({
+                        "column": actual_col,
+                        "strategy": type(strat).__name__,
+                        "classifications": list(classes),
+                    })
                     break
+
+        _log_event(
+            "apply.summary",
+            run_id=self.run_id,
+            applied_count=len(applied_info),
+            columns=[i["column"] for i in applied_info],
+            strategies=sorted({i["strategy"] for i in applied_info}),
+        )
 
         return out
 
@@ -375,6 +456,14 @@ class AnonymisationEngine:
         api_version: str = "2023-09-01",
         classification_allowlist: Optional[Iterable[str]] = None,
     ) -> DataFrame:
+        _log_event(
+            "purview.resolve.start",
+            purview_name=purview_name,
+            asset_type_name=asset_type_name,
+            asset_qualified_name=asset_qualified_name,
+            api_version=api_version,
+            run_id=self.run_id,
+        )
         cols = fetch_purview_classifications_by_qualified_name(
             purview_name=purview_name,
             tenant_id=tenant_id,
@@ -383,6 +472,11 @@ class AnonymisationEngine:
             asset_type_name=asset_type_name,
             asset_qualified_name=asset_qualified_name,
             api_version=api_version,
+        )
+        _log_event(
+            "purview.resolve.done",
+            classifications_found=len(cols or []),
+            run_id=self.run_id,
         )
 
         # Determine which columns will be anonymised (respecting classification_allowlist and strategies)
@@ -406,6 +500,14 @@ class AnonymisationEngine:
             if any(classes.intersection(strat.classification_names) for strat in self.strategies):
                 target_cols.append(actual_col)
 
+        _log_event(
+            "apply_from_purview.columns_selected",
+            selected=len(target_cols),
+            columns=sorted(set(target_cols)),
+            classification_allowlist=list(allowlist) if allowlist else None,
+            run_id=self.run_id,
+        )
+
         # Preserve originals for change detection
         for c in target_cols:
             df_aug = df_aug.withColumn(f"__orig__{c}", F.col(c))
@@ -425,7 +527,12 @@ class AnonymisationEngine:
             any_changed = expr if any_changed is None else (any_changed | expr)
 
         changed_rows = out.filter(any_changed if any_changed is not None else F.lit(False)).count()
-        print(f"[AnonymisationEngine] apply_from_purview: {changed_rows} rows anonymised across columns: {sorted(set(target_cols))}")
+        _log_event(
+            "apply_from_purview.summary",
+            changed_rows=changed_rows,
+            columns=sorted(set(target_cols)),
+            run_id=self.run_id,
+        )
 
         # Drop helper columns
         drop_cols = [f"__orig__{c}" for c in target_cols if f"__orig__{c}" in out.columns]
