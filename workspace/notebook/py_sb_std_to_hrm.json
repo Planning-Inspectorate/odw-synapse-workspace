@@ -229,7 +229,7 @@
 				"source": [
 					"if not error_message:\r\n",
 					"    try:\r\n",
-					"        LoggingUtil.log_info(\"Reading orchestration config\")\r\n",
+					"        LoggingUtil().log_info(\"Reading orchestration config\")\r\n",
 					"        spark: SparkSession = SparkSession.builder.getOrCreate()\r\n",
 					"        storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\r\n",
 					"        harmonised_container: str = f\"abfss://odw-harmonised@{storage_account}lib/\"\r\n",
@@ -238,8 +238,8 @@
 					"        definitions: list = json.loads(df.toJSON().first())['definitions']\r\n",
 					"        definition: dict = next((d for d in definitions if entity_name == d['Source_Filename_Start']), None)\r\n",
 					"        if not definition:\r\n",
-					"            LoggingUtil.log_error(f\"Failed to read definition for {entity_name}\")\r\n",
-					"        LoggingUtil.log_info(\"Done reading orchestration config\")\r\n",
+					"            LoggingUtil().log_error(f\"Failed to read definition for {entity_name}\")\r\n",
+					"        LoggingUtil().log_info(\"Done reading orchestration config\")\r\n",
 					"        \r\n",
 					"    except Exception as e:\r\n",
 					"        error_message = f\"Failed to read definition for {entity_name} {str(e)[:800]}\"\r\n",
@@ -447,7 +447,7 @@
 					"            latest_ingestion = spark.sql(f\"SELECT * FROM {std_db}.{std_table} WHERE message_id not in (SELECT DISTINCT message_id FROM {hrm_db}.{hrm_table} where message_id IS NOT NULL) ORDER BY message_enqueued_time_utc\")\r\n",
 					"\r\n",
 					"            if latest_ingestion.count() == 0:\r\n",
-					"                LoggingUtil.log_error(f\"Standardised data not available for {entity_name}\")\r\n",
+					"                LoggingUtil().log_error(f\"Standardised data not available for {entity_name}\")\r\n",
 					"                # Return defaults instead of exiting - let the calling code decide what to do\r\n",
 					"                return (latest_ingestion, create_df, update_df, delete_df, target_df)\r\n",
 					"\r\n",
@@ -489,16 +489,16 @@
 				},
 				"source": [
 					"if not error_message:\r\n",
-					"    LoggingUtil.log_info(\"Reading ingested data\")\r\n",
+					"    LoggingUtil().log_info(\"Reading ingested data\")\r\n",
 					"    latest_ingestion, create_df, update_df, delete_df, target_df = (\r\n",
 					"        get_latest_ingested_data()\r\n",
 					"        )\r\n",
-					"    LoggingUtil.log_info(\"Read ingested data successfully\")\r\n",
+					"    LoggingUtil().log_info(\"Read ingested data successfully\")\r\n",
 					"\r\n",
 					"    try:\r\n",
 					"        # Check if there is valid data available\r\n",
 					"        if latest_ingestion is None or latest_ingestion.count() == 0:\r\n",
-					"            LoggingUtil.log_error(\"No data available for processing. Exiting notebook.\")\r\n",
+					"            LoggingUtil().log_error(\"No data available for processing. Exiting notebook.\")\r\n",
 					"    except Exception as e:\r\n",
 					"        error_message = \"No data available for processing. Exiting notebook.\"\r\n",
 					"        end_exec_time = datetime.now()"
@@ -553,9 +553,9 @@
 					}
 				},
 				"source": [
-					"LoggingUtil.log_info(\"Comparing and merging schemas\")\r\n",
+					"LoggingUtil().log_info(\"Comparing and merging schemas\")\r\n",
 					"compare_and_merge_schema(latest_ingestion, f\"{hrm_db}.{hrm_table}\")\r\n",
-					"LoggingUtil.log_info(\"Compared and merged schemas\")"
+					"LoggingUtil().log_info(\"Compared and merged schemas\")"
 				],
 				"execution_count": null
 			},
@@ -644,7 +644,7 @@
 					}
 				},
 				"source": [
-					"LoggingUtil.log_info(\"Dropping dupes\")\r\n",
+					"LoggingUtil().log_info(\"Dropping dupes\")\r\n",
 					"if create_df.count() > 0:\r\n",
 					"    create_df = create_df.dropDuplicates().orderBy(\"IngestionDate\")\r\n",
 					"\r\n",
@@ -657,7 +657,7 @@
 					"if target_df.count() > 0:\r\n",
 					"    target_df = target_df.dropDuplicates().orderBy(\"IngestionDate\")\r\n",
 					"    \r\n",
-					"LoggingUtil.log_info(\"Finished dropping dupes\")"
+					"LoggingUtil().log_info(\"Finished dropping dupes\")"
 				],
 				"execution_count": null
 			},
@@ -733,7 +733,7 @@
 					"if create_df.count() > 0:\r\n",
 					"    target_df = insert_rows_in_df(create_df, target_df, hrm_incremental_key)\r\n",
 					"\r\n",
-					"LoggingUtil.log_info(f\"New rows: {create_df.count()}\\nTarget dataframe: {target_df.count()}\")"
+					"LoggingUtil().log_info(f\"New rows: {create_df.count()}\\nTarget dataframe: {target_df.count()}\")"
 				],
 				"execution_count": null
 			},
@@ -768,7 +768,7 @@
 					"if not error_message:\r\n",
 					"    if update_df.count() > 0:    \r\n",
 					"        try:        \r\n",
-					"            LoggingUtil.log_info(\"Handling updated rows\")\r\n",
+					"            LoggingUtil().log_info(\"Handling updated rows\")\r\n",
 					"            update_df = update_df.dropDuplicates().orderBy(\"IngestionDate\")\r\n",
 					"\r\n",
 					"            #Assume we have multiple updates for the same record to be applied in a single load. We need to deal with that to make sure we're handling it correctly\r\n",
@@ -804,13 +804,13 @@
 					"            reasign = reasign.withColumn(\"IsActive\", lit('N').cast(\"string\")).select(target_df_new.columns)\r\n",
 					"            target_df = target_df_new.union(reasign)\r\n",
 					"\r\n",
-					"            LoggingUtil.log_info(\"Done handling updated rows\")\r\n",
+					"            LoggingUtil().log_info(\"Done handling updated rows\")\r\n",
 					"        except Exception as e:\r\n",
 					"            error_message = f\"Error in data frames processing steps: {str(e)[:800]}\"\r\n",
 					"            end_exec_time = datetime.now()\r\n",
 					"        \r\n",
 					"\r\n",
-					"    LoggingUtil.log_info(f\"Updated rows: {update_df.count()}\\nTarget dataframe: {target_df.count()}\")"
+					"    LoggingUtil().log_info(f\"Updated rows: {update_df.count()}\\nTarget dataframe: {target_df.count()}\")"
 				],
 				"execution_count": null
 			},
@@ -842,9 +842,9 @@
 				},
 				"source": [
 					"if delete_df.count() > 0:\r\n",
-					"    LoggingUtil.log_info(\"Handling deleted rows\")\r\n",
+					"    LoggingUtil().log_info(\"Handling deleted rows\")\r\n",
 					"else:\r\n",
-					"    LoggingUtil.log_info(\"No deleted messages\")"
+					"    LoggingUtil().log_info(\"No deleted messages\")"
 				],
 				"execution_count": null
 			},
@@ -1001,8 +1001,8 @@
 				"source": [
 					"if delete_df.count() > 0:\r\n",
 					"    target_df = insert_rows_in_df(delete_df, target_df, hrm_incremental_key)\r\n",
-					"    LoggingUtil.log_info(f\"Deleted rows: {delete_df.count()}\\nTarget dataframe: {target_df.count()}\")\r\n",
-					"    LoggingUtil.log_info(\"Done handling deleted rows\")"
+					"    LoggingUtil().log_info(f\"Deleted rows: {delete_df.count()}\\nTarget dataframe: {target_df.count()}\")\r\n",
+					"    LoggingUtil().log_info(\"Done handling deleted rows\")"
 				],
 				"execution_count": null
 			},
@@ -1069,7 +1069,7 @@
 				"source": [
 					"if not error_message:\r\n",
 					"    try:\r\n",
-					"        LoggingUtil.log_info(\"Applying new dataframe to table\")\r\n",
+					"        LoggingUtil().log_info(\"Applying new dataframe to table\")\r\n",
 					"        apply_df_to_table(\r\n",
 					"            target_df, \r\n",
 					"            hrm_db, \r\n",
@@ -1078,7 +1078,7 @@
 					"        \r\n",
 					"        end_exec_time = datetime.now()\r\n",
 					"\r\n",
-					"        LoggingUtil.log_info(\"Done applying new dataframe to table\")\r\n",
+					"        LoggingUtil().log_info(\"Done applying new dataframe to table\")\r\n",
 					"\r\n",
 					"    except Exception as e:\r\n",
 					"        error_message = f\"Error appending data to the harmonised layer table : {str(e)[:800]}\"\r\n",
