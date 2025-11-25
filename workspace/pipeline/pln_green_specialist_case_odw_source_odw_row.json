@@ -3,16 +3,11 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "Copyfiles_odw_source_odw_raw",
+				"name": "Copyfiles_odw_source to odw_raw",
 				"type": "Copy",
-				"dependsOn": [
-					{
-						"activity": "Copy xlsx and Create Csv",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
+				"dependsOn": [],
 				"policy": {
 					"timeout": "0.12:00:00",
 					"retry": 0,
@@ -67,11 +62,11 @@
 				]
 			},
 			{
-				"name": "Delete_Copied_csv_files",
+				"name": "Delete_Copied_xlsx_files",
 				"type": "Delete",
 				"dependsOn": [
 					{
-						"activity": "Copyfiles_odw_source_odw_raw",
+						"activity": "CopyCSVfile_odw_source to odw_raw",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -109,127 +104,7 @@
 				}
 			},
 			{
-				"name": "Until1",
-				"type": "Until",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
-				"dependsOn": [],
-				"userProperties": [],
-				"typeProperties": {
-					"expression": {
-						"value": "@variables('IsError')",
-						"type": "Expression"
-					},
-					"activities": [
-						{
-							"name": "Copy data1",
-							"type": "Copy",
-							"dependsOn": [],
-							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"source": {
-									"type": "ExcelSource",
-									"storeSettings": {
-										"type": "AzureFileStorageReadSettings",
-										"recursive": true,
-										"enablePartitionDiscovery": false
-									}
-								},
-								"sink": {
-									"type": "DelimitedTextSink",
-									"storeSettings": {
-										"type": "AzureFileStorageWriteSettings"
-									},
-									"formatSettings": {
-										"type": "DelimitedTextWriteSettings",
-										"quoteAllText": true,
-										"fileExtension": ".txt"
-									}
-								},
-								"enableStaging": false,
-								"translator": {
-									"type": "TabularTranslator",
-									"typeConversion": true,
-									"typeConversionSettings": {
-										"allowDataTruncation": true,
-										"treatBooleanAsNumber": false
-									}
-								}
-							},
-							"inputs": [
-								{
-									"referenceName": "GreenSpecialistCaseExcelFiles",
-									"type": "DatasetReference",
-									"parameters": {
-										"sheetindex": {
-											"value": "@pipeline().parameters.Folder_Path",
-											"type": "Expression"
-										}
-									}
-								}
-							],
-							"outputs": [
-								{
-									"referenceName": "GreenSpecialistCaseSINKCsv",
-									"type": "DatasetReference",
-									"parameters": {
-										"Filename": {
-											"value": "Green_Specialist_Case@{variables('counter')}.csv",
-											"type": "Expression"
-										}
-									}
-								}
-							]
-						},
-						{
-							"name": "Set Counter",
-							"type": "SetVariable",
-							"state": "Inactive",
-							"onInactiveMarkAs": "Succeeded",
-							"dependsOn": [],
-							"policy": {
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"variableName": "counter",
-								"value": {
-									"value": "@variables('tempCounter')",
-									"type": "Expression"
-								}
-							}
-						},
-						{
-							"name": "Set IsError",
-							"type": "SetVariable",
-							"dependsOn": [],
-							"policy": {
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"variableName": "IsError",
-								"value": {
-									"value": "@bool(1)",
-									"type": "Expression"
-								}
-							}
-						}
-					],
-					"timeout": "0.12:00:00"
-				}
-			},
-			{
-				"name": "Copy xlsx and Create Csv",
+				"name": "Copy and Convert xlsx and Create Csv",
 				"type": "Copy",
 				"dependsOn": [],
 				"policy": {
@@ -292,6 +167,109 @@
 								"type": "Expression"
 							}
 						}
+					}
+				]
+			},
+			{
+				"name": "Delete_Copied_csv_files",
+				"type": "Delete",
+				"dependsOn": [
+					{
+						"activity": "Delete_Copied_xlsx_files",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataset": {
+						"referenceName": "GreenSpecialistCaseExcelFiles",
+						"type": "DatasetReference",
+						"parameters": {
+							"sheetindex": "@pipeline().parameters.Folder_Path"
+						}
+					},
+					"enableLogging": false,
+					"storeSettings": {
+						"type": "AzureFileStorageReadSettings",
+						"recursive": true,
+						"wildcardFileName": {
+							"value": "*.csv",
+							"type": "Expression"
+						},
+						"enablePartitionDiscovery": false
+					}
+				}
+			},
+			{
+				"name": "CopyCSVfile_odw_source to odw_raw",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "Copy and Convert xlsx and Create Csv",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "BinarySource",
+						"storeSettings": {
+							"type": "AzureFileStorageReadSettings",
+							"recursive": true,
+							"wildcardFolderPath": {
+								"value": "@pipeline().parameters.Folder_Path",
+								"type": "Expression"
+							},
+							"wildcardFileName": "*.csv",
+							"deleteFilesAfterCompletion": false
+						},
+						"formatSettings": {
+							"type": "BinaryReadSettings"
+						}
+					},
+					"sink": {
+						"type": "BinarySink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings",
+							"copyBehavior": "PreserveHierarchy"
+						}
+					},
+					"enableStaging": false
+				},
+				"inputs": [
+					{
+						"referenceName": "ds_odwdatalab_source_greenspecialistcase",
+						"type": "DatasetReference",
+						"parameters": {
+							"ds_Folder_Path": {
+								"value": "@pipeline().parameters.Folder_Path",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "ds_odwraw_GreenSpecialistCase",
+						"type": "DatasetReference"
 					}
 				]
 			}
