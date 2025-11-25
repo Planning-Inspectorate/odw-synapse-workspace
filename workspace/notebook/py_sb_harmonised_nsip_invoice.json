@@ -18,7 +18,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "3b948f6f-6fba-4295-ad9e-b04c22d9bc35"
+				"spark.autotune.trackingId": "b785b884-7ae2-4b91-8323-be4fb32d5990"
 			}
 		},
 		"metadata": {
@@ -101,25 +101,13 @@
 					"from pyspark.sql import Row\n",
 					"from pyspark.sql.functions import *\n",
 					"from datetime import datetime, date\n",
+					"from pyspark.sql import functions as F\n",
+					"from pyspark.sql.window import Window\n",
+					"from datetime import datetime\n",
+					"from delta.tables import DeltaTable\n",
 					""
 				],
-				"execution_count": 11
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"from pyspark.sql import SparkSession\n",
-					"from notebookutils import mssparkutils\n",
-					"import json\n",
-					"from datetime import datetime, date\n",
-					"import pprint\n",
-					"from pyspark.sql import DataFrame\n",
-					"from pyspark.sql.types import *\n",
-					"from pyspark.sql.functions import col, when, lit, row_number, desc\n",
-					"from pyspark.sql.window import Window\n",
-					"from pyspark.sql.types import LongType"
-				],
-				"execution_count": 10
+				"execution_count": 32
 			},
 			{
 				"cell_type": "markdown",
@@ -133,32 +121,6 @@
 				"source": [
 					"##### Define required delta tables and variables"
 				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"service_bus_table = \"odw_harmonised_db.sb_nsip_project\"\n",
-					"spark_table_final = \"odw_harmonised_db.nsip_invoice\"\n",
-					"incremental_key=\"NSIPInvoiceID\"\n",
-					"\n",
-					"start_exec_time = datetime.now()\n",
-					"insert_count = 0\n",
-					"update_count = 0\n",
-					"delete_count = 0\n",
-					"error_message=''"
-				],
-				"execution_count": 12
 			},
 			{
 				"cell_type": "markdown",
@@ -178,198 +140,109 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 13
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"##### Get source data from Service Bus with nested meeting array"
-				]
+				"execution_count": 42
 			},
 			{
 				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"collapsed": false
-				},
 				"source": [
+					"from pyspark.sql import functions as F\n",
+					"from pyspark.sql.window import Window\n",
+					"from datetime import datetime\n",
+					"from delta.tables import DeltaTable\n",
+					"\n",
+					"# Configurable variables\n",
+					"service_bus_table = \"odw_harmonised_db.sb_nsip_project\"\n",
+					"spark_table_final = \"odw_harmonised_db.nsip_invoice\"\n",
+					"incremental_key = \"NSIPInvoiceID\"\n",
+					"\n",
 					"if not error_message:\n",
 					"    try:\n",
-					"        # Get data from service bus table with meetings array\n",
+					"        # Step 1: Get max ValidTo from existing table (not service bus)\n",
+					"        existing_df = spark.table(spark_table_final)\n",
+					"        max_valid_to = existing_df.agg(F.max(\"ValidTo\")).collect()[0][0]\n",
+					"\n",
+					"        # Step 2: Get new data from service bus table\n",
 					"        service_bus_data = spark.sql(f\"\"\"\n",
 					"            SELECT \n",
-					"                NSIPProjectInfoInternalID\n",
-					"                ,caseId\n",
-					"                ,caseReference\n",
-					"                ,invoices\n",
-					"                ,Migrated\n",
-					"                ,ODTSourceSystem\n",
-					"                ,SourceSystemID\n",
-					"                ,IngestionDate\n",
-					"                ,ValidTo\n",
-					"                ,RowID\n",
-					"                ,'' as IsActive\n",
-					"            FROM \n",
-					"                {service_bus_table}\n",
-					"            WHERE \n",
-					"                meetings IS NOT NULL \n",
+					"                NSIPProjectInfoInternalID,\n",
+					"                caseId,\n",
+					"                caseReference,\n",
+					"                invoices,\n",
+					"                ODTSourceSystem,\n",
+					"                SourceSystemID,\n",
+					"                IngestionDate\n",
+					"            FROM {service_bus_table}\n",
+					"            WHERE invoices IS NOT NULL\n",
 					"        \"\"\")\n",
-					"        \n",
-					"    except Exception as e:\n",
-					"        error_message = f\"Error in source Service Bus SQL query : {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()\n",
-					"        "
-				],
-				"execution_count": 14
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"collapsed": false
-				},
-				"source": [
-					"display(service_bus_data)"
-				],
-				"execution_count": 5
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"##### Explode meetings array and extract meeting fields"
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"if not error_message:\n",
-					"    try:\n",
-					"        # Explode the meetings array and extract fields\n",
-					"        service_bus_exploded = service_bus_data.select(\n",
-					"            col(\"NSIPProjectInfoInternalID\"),\n",
-					"            col(\"caseId\"),\n",
-					"            col(\"caseReference\"),\n",
-					"            explode(col(\"invoices\")).alias(\"invoice\"),\n",
-					"            col(\"Migrated\"),\n",
-					"            col(\"ODTSourceSystem\"),\n",
-					"            col(\"SourceSystemID\"),\n",
-					"            col(\"IngestionDate\"),\n",
-					"            col(\"ValidTo\"),\n",
-					"            col(\"RowID\"),\n",
-					"            col(\"IsActive\")\n",
+					"\n",
+					"        # Step 3: Explode invoices array\n",
+					"        exploded_df = service_bus_data.select(\n",
+					"            F.col(\"NSIPProjectInfoInternalID\"),\n",
+					"            F.col(\"caseId\"),\n",
+					"            F.col(\"caseReference\"),\n",
+					"            F.explode(F.col(\"invoices\")).alias(\"invoice\"),\n",
+					"            F.col(\"ODTSourceSystem\"),\n",
+					"            F.col(\"SourceSystemID\"),\n",
+					"            F.col(\"IngestionDate\")\n",
 					"        )\n",
-					"        \n",
-					"        # Extract meeting fields from the exploded struct\n",
-					"        results = service_bus_exploded.select(\n",
-					"            col(\"NSIPProjectInfoInternalID\"),\n",
-					"            col(\"caseId\"),\n",
-					"            col(\"caseReference\"),\n",
-					"            col(\"invoice.invoiceStage\").alias(\"invoiceStage\"),\n",
-					"            col(\"invoice.invoiceNumber\").alias(\"invoiceNumber\"),\n",
-					"            col(\"invoice.amountDue\").alias(\"amountDue\"),\n",
-					"            col(\"invoice.paymentDueDate\").alias(\"paymentDueDate\"),\n",
-					"            col(\"invoice.invoicedDate\").alias(\"invoicedDate\"),\n",
-					"            col(\"invoice.paymentDate\").alias(\"paymentDate\"),\n",
-					"            col(\"invoice.refundCreditNoteNumber\").alias(\"refundCreditNoteNumber\"),\n",
-					"            col(\"invoice.refundAmount\").alias(\"refundAmount\"),\n",
-					"            col(\"invoice.refundIssueDate\").alias(\"refundIssueDate\"),\n",
-					"            col(\"Migrated\"),\n",
-					"            col(\"ODTSourceSystem\"),\n",
-					"            col(\"SourceSystemID\"),\n",
-					"            col(\"IngestionDate\"),\n",
-					"            col(\"ValidTo\"),\n",
-					"            lit(\"\").alias(\"RowID\"),\n",
-					"            col(\"IsActive\")\n",
+					"\n",
+					"        # Step 4: Extract invoice fields\n",
+					"        new_data = exploded_df.select(\n",
+					"            F.col(\"NSIPProjectInfoInternalID\"),\n",
+					"            F.col(\"caseId\"),\n",
+					"            F.col(\"caseReference\"),\n",
+					"            F.col(\"invoice.invoiceStage\").alias(\"invoiceStage\"),\n",
+					"            F.col(\"invoice.invoiceNumber\").alias(\"invoiceNumber\"),\n",
+					"            F.col(\"invoice.amountDue\").alias(\"amountDue\"),\n",
+					"            F.col(\"invoice.paymentDueDate\").alias(\"paymentDueDate\"),\n",
+					"            F.col(\"invoice.invoicedDate\").alias(\"invoicedDate\"),\n",
+					"            F.col(\"invoice.paymentDate\").alias(\"paymentDate\"),\n",
+					"            F.col(\"invoice.refundCreditNoteNumber\").alias(\"refundCreditNoteNumber\"),\n",
+					"            F.col(\"invoice.refundAmount\").alias(\"refundAmount\"),\n",
+					"            F.col(\"invoice.refundIssueDate\").alias(\"refundIssueDate\"),\n",
+					"            F.col(\"ODTSourceSystem\"),\n",
+					"            F.col(\"SourceSystemID\"),\n",
+					"            F.col(\"IngestionDate\")\n",
 					"        )\n",
-					"        \n",
+					"\n",
+					"        # Step 5: Filter only records newer than max ValidTo\n",
+					"        if max_valid_to:\n",
+					"            new_data = new_data.filter(F.col(\"IngestionDate\") > F.lit(max_valid_to))\n",
+					"\n",
+					"        # Step 6: Add surrogate key dynamically\n",
+					"        new_data = new_data.withColumn(incremental_key, F.monotonically_increasing_id())\n",
+					"\n",
+					"        # Step 7: Add ValidTo as NULL for new records\n",
+					"        new_data = new_data.withColumn(\"ValidTo\", F.lit(None).cast(\"timestamp\"))\n",
+					"\n",
+					"        # Step 8: Determine IsActive flag\n",
+					"        window_spec = Window.partitionBy(\"caseId\", \"invoiceNumber\").orderBy(F.col(\"IngestionDate\").desc())\n",
+					"        new_data = new_data.withColumn(\"RowID\", F.row_number().over(window_spec))\n",
+					"        new_data = new_data.withColumn(\"IsActive\", F.when(F.col(\"RowID\") == 1, F.lit(\"Y\")).otherwise(F.lit(\"N\")))\n",
+					"\n",
+					"        # Drop helper column\n",
+					"        new_data = new_data.drop(\"RowID\")\n",
+					"\n",
+					"        # Step 9: Append to Delta table with schema evolution and partitioning\n",
+					"        new_data.write.format(\"delta\") \\\n",
+					"            .mode(\"append\") \\\n",
+					"            .option(\"overwriteSchema\", \"true\") \\\n",
+					"            .partitionBy(\"IsActive\") \\\n",
+					"            .saveAsTable(spark_table_final)\n",
+					"\n",
+					"        # Step 10: Update ValidTo for inactive records\n",
+					"        target_table = DeltaTable.forName(spark, spark_table_final)\n",
+					"        target_table.update(\n",
+					"            condition=\"IsActive = 'N' AND ValidTo IS NULL\",\n",
+					"            set={\"ValidTo\": \"current_timestamp()\"}\n",
+					"        )\n",
+					"\n",
 					"    except Exception as e:\n",
-					"        error_message = f\"Error in exploding meetings array: {str(e)[:800]}\"\n",
+					"        error_message = f\"Error in processing invoices: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()\n",
-					"        "
+					"        print(error_message)"
 				],
-				"execution_count": 15
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"collapsed": false
-				},
-				"source": [
-					"display(results)"
-				],
-				"execution_count": 16
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"if not error_message:\n",
-					"    @logging_to_appins\n",
-					"    def insert_rows_in_df(source_df: DataFrame, target_df: DataFrame, incremental_key: str) -> DataFrame:\n",
-					"        try:\n",
-					"            # appending the incremental key\n",
-					"            max_id: int = target_df.count()\n",
-					"\n",
-					"            w: Window = Window.orderBy(lit(1))\n",
-					"            source_df: DataFrame = source_df.withColumn(incremental_key, (max_id + row_number().over(w)).cast(LongType()))\n",
-					"\n",
-					"        except Exception as e:\n",
-					"            error_message = f\"Error in creating source data frame : {str(e)[:800]}\"\n",
-					"            end_exec_time = datetime.now()  \n",
-					"        return target_df.union(source_df)"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"if create_df.count() > 0:\n",
-					"    target_df = insert_rows_in_df(create_df, target_df, hrm_incremental_key)\n",
-					"\n",
-					"logInfo(f\"New rows: {create_df.count()}\\nTarget dataframe: {target_df.count()}\")"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"collapsed": false
-				},
-				"source": [
-					"display(results)"
-				],
-				"execution_count": 7
+				"execution_count": 43
 			},
 			{
 				"cell_type": "markdown",
@@ -399,12 +272,12 @@
 					"collapsed": false
 				},
 				"source": [
-					"if not error_message:\n",
-					"    try: \n",
-					"        results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\n",
-					"    except Exception as e:\n",
-					"        error_message = f\"Error in ingesting delta table {spark_table_final}: {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()"
+					"# if not error_message:\n",
+					"#     try: \n",
+					"#         results.write.format(\"delta\").mode(\"delta\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\n",
+					"#     except Exception as e:\n",
+					"#         error_message = f\"Error in ingesting delta table {spark_table_final}: {str(e)[:800]}\"\n",
+					"#         end_exec_time = datetime.now()"
 				],
 				"execution_count": null
 			},
@@ -433,46 +306,40 @@
 							"deleting": false
 						}
 					},
-					"microsoft": {
-						"language": "sparksql"
-					},
 					"collapsed": false
 				},
 				"source": [
-					"%%sql\n",
-					"CREATE OR REPLACE TEMPORARY VIEW vw_nsip_meeting_calculations_base\n",
-					"AS\n",
-					"SELECT \n",
-					"    row_number() OVER(PARTITION BY caseId, NSIPMeetingID ORDER BY IngestionDate DESC) AS ReverseOrderProcessed\n",
-					"    ,row_number() OVER(ORDER BY IngestionDate ASC, caseId ASC, NSIPMeetingID ASC) AS NSIPMeetingInternalID\n",
-					"    ,caseId\n",
-					"    ,NSIPMeetingID\n",
-					"    ,IngestionDate\n",
-					"    ,ValidTo\n",
-					"    ,'0' AS migrated\n",
-					"    ,CASE row_number() OVER(PARTITION BY caseId, NSIPMeetingID ORDER BY IngestionDate DESC)\n",
-					"        WHEN 1 THEN\n",
-					"            'Y'\n",
-					"        ELSE\n",
-					"            'N'\n",
-					"    END AS IsActive \n",
-					"FROM\n",
-					"    odw_harmonised_db.nsip_meeting"
+					"# -- %%sql\n",
+					"# -- CREATE OR REPLACE TEMPORARY VIEW vw_nsip_meeting_calculations_base\n",
+					"# -- AS\n",
+					"# -- SELECT \n",
+					"# --     row_number() OVER(PARTITION BY caseId, NSIPMeetingID ORDER BY IngestionDate DESC) AS ReverseOrderProcessed\n",
+					"# --     ,row_number() OVER(ORDER BY IngestionDate ASC, caseId ASC, NSIPMeetingID ASC) AS NSIPMeetingInternalID\n",
+					"# --     ,caseId\n",
+					"# --     ,NSIPMeetingID\n",
+					"# --     ,IngestionDate\n",
+					"# --     ,ValidTo\n",
+					"# --     ,'0' AS migrated\n",
+					"# --     ,CASE row_number() OVER(PARTITION BY caseId, NSIPMeetingID ORDER BY IngestionDate DESC)\n",
+					"# --         WHEN 1 THEN\n",
+					"# --             'Y'\n",
+					"# --         ELSE\n",
+					"# --             'N'\n",
+					"# --     END AS IsActive \n",
+					"# -- FROM\n",
+					"# --     odw_harmonised_db.nsip_meeting"
 				],
 				"execution_count": null
 			},
 			{
 				"cell_type": "code",
 				"metadata": {
-					"microsoft": {
-						"language": "sparksql"
-					},
 					"collapsed": false
 				},
 				"source": [
-					"%%sql\n",
+					"# -- %%sql\n",
 					"\n",
-					"select * from vw_nsip_meeting_calculations_base"
+					"# -- select * from vw_nsip_meeting_calculations_base"
 				],
 				"execution_count": null
 			},
@@ -504,91 +371,91 @@
 					"collapsed": false
 				},
 				"source": [
-					"if not error_message:\n",
-					"    try:\n",
+					"# if not error_message:\n",
+					"#     try:\n",
 					"\n",
-					"        df_calcs = spark.sql(\"\"\"\n",
-					"            SELECT\n",
-					"                CurrentRow.NSIPMeetingInternalID\n",
-					"                ,CurrentRow.caseId\n",
-					"                ,CurrentRow.NSIPMeetingID\n",
-					"                ,CurrentRow.IngestionDate\n",
-					"                ,COALESCE(CurrentRow.ValidTo, NextRow.IngestionDate) AS ValidTo\n",
-					"                ,CASE\n",
-					"                    WHEN raw.caseId IS NOT NULL THEN \n",
-					"                        \\\"1\\\"\n",
-					"                    ELSE \n",
-					"                        \\\"0\\\"\n",
-					"                END AS migrated\n",
-					"                ,CurrentRow.IsActive\n",
-					"            FROM\n",
-					"                vw_nsip_meeting_calculations_base AS CurrentRow\n",
-					"            LEFT OUTER JOIN vw_nsip_meeting_calculations_base AS NextRow\n",
-					"                ON CurrentRow.caseId = NextRow.caseId\n",
-					"                AND CurrentRow.NSIPMeetingID = NextRow.NSIPMeetingID\n",
-					"                AND CurrentRow.ReverseOrderProcessed - 1 = NextRow.ReverseOrderProcessed\n",
-					"            LEFT OUTER JOIN (SELECT DISTINCT caseId FROM odw_harmonised_db.sb_nsip_project) AS Raw\n",
-					"                ON CurrentRow.caseId = Raw.caseId \"\"\")\n",
+					"#         df_calcs = spark.sql(\"\"\"\n",
+					"#             SELECT\n",
+					"#                 CurrentRow.NSIPMeetingInternalID\n",
+					"#                 ,CurrentRow.caseId\n",
+					"#                 ,CurrentRow.NSIPMeetingID\n",
+					"#                 ,CurrentRow.IngestionDate\n",
+					"#                 ,COALESCE(CurrentRow.ValidTo, NextRow.IngestionDate) AS ValidTo\n",
+					"#                 ,CASE\n",
+					"#                     WHEN raw.caseId IS NOT NULL THEN \n",
+					"#                         \\\"1\\\"\n",
+					"#                     ELSE \n",
+					"#                         \\\"0\\\"\n",
+					"#                 END AS migrated\n",
+					"#                 ,CurrentRow.IsActive\n",
+					"#             FROM\n",
+					"#                 vw_nsip_meeting_calculations_base AS CurrentRow\n",
+					"#             LEFT OUTER JOIN vw_nsip_meeting_calculations_base AS NextRow\n",
+					"#                 ON CurrentRow.caseId = NextRow.caseId\n",
+					"#                 AND CurrentRow.NSIPMeetingID = NextRow.NSIPMeetingID\n",
+					"#                 AND CurrentRow.ReverseOrderProcessed - 1 = NextRow.ReverseOrderProcessed\n",
+					"#             LEFT OUTER JOIN (SELECT DISTINCT caseId FROM odw_harmonised_db.sb_nsip_project) AS Raw\n",
+					"#                 ON CurrentRow.caseId = Raw.caseId \"\"\")\n",
 					"\n",
-					"        df_calcs = df_calcs.withColumnRenamed(\"caseId\", \"temp_caseId\") \\\n",
-					"                           .withColumnRenamed(\"NSIPMeetingID\", \"temp_NSIPMeetingID\") \\\n",
-					"                           .withColumnRenamed(\"IngestionDate\", \"temp_IngestionDate\")\n",
+					"#         df_calcs = df_calcs.withColumnRenamed(\"caseId\", \"temp_caseId\") \\\n",
+					"#                            .withColumnRenamed(\"NSIPMeetingID\", \"temp_NSIPMeetingID\") \\\n",
+					"#                            .withColumnRenamed(\"IngestionDate\", \"temp_IngestionDate\")\n",
 					"\n",
-					"        results = spark.sql(f\"\"\"\n",
-					"            SELECT \n",
-					"                NSIPProjectInfoInternalID\n",
-					"                ,NSIPMeetingID\n",
-					"                ,CAST(caseId AS Integer) AS caseId\n",
-					"                ,caseReference\n",
-					"                ,meetingAgenda\n",
-					"                ,planningInspectorateRole\n",
-					"                ,meetingDate\n",
-					"                ,meetingType\n",
-					"                ,migrated\n",
-					"                ,ODTSourceSystem\n",
-					"                ,SourceSystemID\n",
-					"                ,IngestionDate\n",
-					"                ,ValidTo\n",
-					"                ,MD5(\n",
-					"                    COALESCE(\n",
-					"                        IFNULL(CAST(NSIPProjectInfoInternalID AS String), '.')\n",
-					"                        ,IFNULL(CAST(NSIPMeetingID AS String), '.')\n",
-					"                        ,IFNULL(CAST(caseId AS String), '.')\n",
-					"                        ,IFNULL(CAST(caseReference AS String), '.')\n",
-					"                        ,IFNULL(CAST(meetingAgenda AS String), '.')\n",
-					"                        ,IFNULL(CAST(planningInspectorateRole AS String), '.')\n",
-					"                        ,IFNULL(CAST(meetingDate AS String), '.')\n",
-					"                        ,IFNULL(CAST(meetingType AS String), '.')\n",
-					"                        ,IFNULL(CAST(migrated AS String), '.')\n",
-					"                        ,IFNULL(CAST(ODTSourceSystem AS String), '.')\n",
-					"                        ,IFNULL(CAST(SourceSystemID AS String), '.')\n",
-					"                        ,IFNULL(CAST(IngestionDate AS String), '.')\n",
-					"                        ,IFNULL(CAST(ValidTo AS String), '.')\n",
-					"                        ,IFNULL(CAST(IsActive AS String), '.')\n",
-					"                    )\n",
-					"                ) AS RowID\n",
-					"                ,IsActive\n",
-					"            FROM \n",
-					"                {spark_table_final}\"\"\")\n",
+					"#         results = spark.sql(f\"\"\"\n",
+					"#             SELECT \n",
+					"#                 NSIPProjectInfoInternalID\n",
+					"#                 ,NSIPMeetingID\n",
+					"#                 ,CAST(caseId AS Integer) AS caseId\n",
+					"#                 ,caseReference\n",
+					"#                 ,meetingAgenda\n",
+					"#                 ,planningInspectorateRole\n",
+					"#                 ,meetingDate\n",
+					"#                 ,meetingType\n",
+					"#                 ,migrated\n",
+					"#                 ,ODTSourceSystem\n",
+					"#                 ,SourceSystemID\n",
+					"#                 ,IngestionDate\n",
+					"#                 ,ValidTo\n",
+					"#                 ,MD5(\n",
+					"#                     COALESCE(\n",
+					"#                         IFNULL(CAST(NSIPProjectInfoInternalID AS String), '.')\n",
+					"#                         ,IFNULL(CAST(NSIPMeetingID AS String), '.')\n",
+					"#                         ,IFNULL(CAST(caseId AS String), '.')\n",
+					"#                         ,IFNULL(CAST(caseReference AS String), '.')\n",
+					"#                         ,IFNULL(CAST(meetingAgenda AS String), '.')\n",
+					"#                         ,IFNULL(CAST(planningInspectorateRole AS String), '.')\n",
+					"#                         ,IFNULL(CAST(meetingDate AS String), '.')\n",
+					"#                         ,IFNULL(CAST(meetingType AS String), '.')\n",
+					"#                         ,IFNULL(CAST(migrated AS String), '.')\n",
+					"#                         ,IFNULL(CAST(ODTSourceSystem AS String), '.')\n",
+					"#                         ,IFNULL(CAST(SourceSystemID AS String), '.')\n",
+					"#                         ,IFNULL(CAST(IngestionDate AS String), '.')\n",
+					"#                         ,IFNULL(CAST(ValidTo AS String), '.')\n",
+					"#                         ,IFNULL(CAST(IsActive AS String), '.')\n",
+					"#                     )\n",
+					"#                 ) AS RowID\n",
+					"#                 ,IsActive\n",
+					"#             FROM \n",
+					"#                 {spark_table_final}\"\"\")\n",
 					"\n",
-					"        columns = results.columns\n",
+					"#         columns = results.columns\n",
 					"\n",
-					"        results = results.drop(\"ValidTo\", \"migrated\", \"IsActive\")\n",
+					"#         results = results.drop(\"ValidTo\", \"migrated\", \"IsActive\")\n",
 					"\n",
-					"        final_df = results.join(df_calcs, \n",
-					"                                (df_calcs[\"temp_caseId\"] == results[\"caseId\"]) & \n",
-					"                                (df_calcs[\"temp_NSIPMeetingID\"] == results[\"NSIPMeetingID\"]) & \n",
-					"                                (df_calcs[\"temp_IngestionDate\"] == results[\"IngestionDate\"])).select(columns)\n",
-					"        final_df = final_df.drop_duplicates()\n",
-					"        insert_count = final_df.count()\n",
-					"        final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\n",
+					"#         final_df = results.join(df_calcs, \n",
+					"#                                 (df_calcs[\"temp_caseId\"] == results[\"caseId\"]) & \n",
+					"#                                 (df_calcs[\"temp_NSIPMeetingID\"] == results[\"NSIPMeetingID\"]) & \n",
+					"#                                 (df_calcs[\"temp_IngestionDate\"] == results[\"IngestionDate\"])).select(columns)\n",
+					"#         final_df = final_df.drop_duplicates()\n",
+					"#         insert_count = final_df.count()\n",
+					"#         final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\n",
 					"        \n",
-					"        end_exec_time = datetime.now()\n",
+					"#         end_exec_time = datetime.now()\n",
 					"        \n",
 					"\n",
-					"    except Exception as e:\n",
-					"        error_message = f\"Error in ingesting delta table in the final step {spark_table_final}: {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()"
+					"#     except Exception as e:\n",
+					"#         error_message = f\"Error in ingesting delta table in the final step {spark_table_final}: {str(e)[:800]}\"\n",
+					"#         end_exec_time = datetime.now()"
 				],
 				"execution_count": null
 			},
@@ -610,37 +477,37 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
-					"activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
-					"stage = \"Success\" if not error_message else \"Failed\"\n",
-					"status_message = (\n",
-					"    f\"Successfully loaded data into {spark_table_final} table\"\n",
-					"    if not error_message\n",
-					"    else f\"Failed to load data from {spark_table_final} table\"\n",
-					")\n",
-					"status_code = \"200\" if stage == \"Success\" else \"500\"\n",
+					"# duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
+					"# activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
+					"# stage = \"Success\" if not error_message else \"Failed\"\n",
+					"# status_message = (\n",
+					"#     f\"Successfully loaded data into {spark_table_final} table\"\n",
+					"#     if not error_message\n",
+					"#     else f\"Failed to load data from {spark_table_final} table\"\n",
+					"# )\n",
+					"# status_code = \"200\" if stage == \"Success\" else \"500\"\n",
 					" \n",
-					"log_telemetry_and_exit(\n",
-					"    stage,\n",
-					"    start_exec_time,\n",
-					"    end_exec_time,\n",
-					"    error_message,\n",
-					"    spark_table_final,\n",
-					"    insert_count,\n",
-					"    update_count,\n",
-					"    delete_count,\n",
-					"    PipelineName,\n",
-					"    PipelineRunID,\n",
-					"    PipelineTriggerID,\n",
-					"    PipelineTriggerName,\n",
-					"    PipelineTriggerType,\n",
-					"    PipelineTriggeredbyPipelineName,\n",
-					"    PipelineTriggeredbyPipelineRunID,\n",
-					"    activity_type,\n",
-					"    duration_seconds,\n",
-					"    status_message,\n",
-					"    status_code\n",
-					")"
+					"# log_telemetry_and_exit(\n",
+					"#     stage,\n",
+					"#     start_exec_time,\n",
+					"#     end_exec_time,\n",
+					"#     error_message,\n",
+					"#     spark_table_final,\n",
+					"#     insert_count,\n",
+					"#     update_count,\n",
+					"#     delete_count,\n",
+					"#     PipelineName,\n",
+					"#     PipelineRunID,\n",
+					"#     PipelineTriggerID,\n",
+					"#     PipelineTriggerName,\n",
+					"#     PipelineTriggerType,\n",
+					"#     PipelineTriggeredbyPipelineName,\n",
+					"#     PipelineTriggeredbyPipelineRunID,\n",
+					"#     activity_type,\n",
+					"#     duration_seconds,\n",
+					"#     status_message,\n",
+					"#     status_code\n",
+					"# )"
 				],
 				"execution_count": null
 			}
