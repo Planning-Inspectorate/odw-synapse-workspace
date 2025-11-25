@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5a53a4ec-5575-4148-89c6-733e4da61405"
+				"spark.autotune.trackingId": "a6735b05-5a86-4284-99f5-cecbe8f4a08a"
 			}
 		},
 		"metadata": {
@@ -53,6 +53,13 @@
 		"cells": [
 			{
 				"cell_type": "code",
+				"source": [
+					"spark.sql(\"DROP TABLE IF EXISTS odw_harmonised_db.nsip_invoice\")"
+				],
+				"execution_count": 87
+			},
+			{
+				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
 						"source_hidden": false,
@@ -67,7 +74,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": null
+				"execution_count": 88
 			},
 			{
 				"cell_type": "code",
@@ -91,7 +98,7 @@
 					"from notebookutils import mssparkutils\n",
 					"import pyspark.sql.utils"
 				],
-				"execution_count": null
+				"execution_count": 89
 			},
 			{
 				"cell_type": "markdown",
@@ -123,11 +130,12 @@
 					]
 				},
 				"source": [
-					"db_name: str = ''\n",
-					"entity_name: str = ''\n",
-					"is_servicebus_schema: bool = True"
+					"db_name: str = 'odw_harmonised_db'\n",
+					"entity_name: str = 'nsip-invoice'\n",
+					"is_servicebus_schema: bool = True\n",
+					"is_derived_table_status: bool =True"
 				],
-				"execution_count": null
+				"execution_count": 90
 			},
 			{
 				"cell_type": "code",
@@ -143,17 +151,40 @@
 					}
 				},
 				"source": [
+					"# table_name_replace: str = entity_name.replace(\"-\", \"_\")\n",
+					"# if db_name in (\"odw_curated_db\", \"odw_curated_migration_db\") or not is_servicebus_schema:\n",
+					"# \ttable_name: str = table_name_replace\n",
+					"# else:\n",
+					"#     table_name: str = f\"sb_{table_name_replace}\"\n",
+					"\n",
+					"# full_table_name: str = f\"{db_name}.{table_name}\"\n",
+					"# storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"# path_to_orchestration_file: str = \"abfss://odw-config@\"+storage_account+\"orchestration/orchestration_invoice.json\""
+				],
+				"execution_count": 91
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"table_name_replace: str = entity_name.replace(\"-\", \"_\")\n",
+					"\n",
+					"# Apply conditions for table name\n",
 					"if db_name in (\"odw_curated_db\", \"odw_curated_migration_db\") or not is_servicebus_schema:\n",
-					"\ttable_name: str = table_name_replace\n",
+					"    table_name: str = table_name_replace\n",
+					"elif db_name == \"odw_harmonised_db\" and is_derived_table_status:\n",
+					"    # Do NOT add 'sb_' prefix for harmonised derived tables\n",
+					"    table_name: str = table_name_replace\n",
 					"else:\n",
 					"    table_name: str = f\"sb_{table_name_replace}\"\n",
 					"\n",
+					"# Full table name\n",
 					"full_table_name: str = f\"{db_name}.{table_name}\"\n",
+					"\n",
+					"# Storage account and orchestration file path\n",
 					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
-					"path_to_orchestration_file: str = \"abfss://odw-config@\"+storage_account+\"orchestration/orchestration.json\""
+					"path_to_orchestration_file: str = f\"abfss://odw-config@{storage_account}/orchestration/orchestration_invoice.json\""
 				],
-				"execution_count": null
+				"execution_count": 92
 			},
 			{
 				"cell_type": "code",
@@ -176,7 +207,7 @@
 					"    table_names: list = [row['tableName'] for row in tables_df.collect()]\n",
 					"    return table_name in table_names"
 				],
-				"execution_count": null
+				"execution_count": 93
 			},
 			{
 				"cell_type": "code",
@@ -198,7 +229,7 @@
 					"else:\n",
 					"    logInfo(f\"{db_name}.{table_name} Table does not already exist\")"
 				],
-				"execution_count": null
+				"execution_count": 94
 			},
 			{
 				"cell_type": "code",
@@ -222,7 +253,7 @@
 					"    definition: dict = next((d for d in definitions if entity_name == d['Source_Filename_Start']), None)\n",
 					"    return definition['Harmonised_Incremental_Key'] if definition and 'Harmonised_Incremental_Key' in definition else None"
 				],
-				"execution_count": null
+				"execution_count": 95
 			},
 			{
 				"cell_type": "code",
@@ -267,16 +298,16 @@
 					"\n",
 					"    return spark_schema"
 				],
-				"execution_count": null
+				"execution_count": 96
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
-					"metadata_path: str = \"abfss://odw-config@\"+storage_account+\"existing-tables-metadata.json\"\n",
+					"metadata_path: str = \"abfss://odw-config@\"+storage_account+\"existing-tables-metadata_invoice.json\"\n",
 					"df  = spark.read.json(metadata_path, multiLine=True)"
 				],
-				"execution_count": null
+				"execution_count": 97
 			},
 			{
 				"cell_type": "code",
@@ -291,7 +322,7 @@
 					"# Select the relevant fields\n",
 					"df_exploded = standardised_df.union(harmonised_df).union(curated_df).union(logging_df).union(config_df).selectExpr(\"metadata.*\")"
 				],
-				"execution_count": null
+				"execution_count": 98
 			},
 			{
 				"cell_type": "code",
@@ -302,9 +333,12 @@
 					"    Extracts table_location and table_type given a database and table name.\n",
 					"    Replaces the hardcoded storage account in table_location with the correct one.\n",
 					"    \"\"\"\n",
+					"    print(db_name)\n",
+					"    print(table_name)\n",
 					"    filtered_df = df_exploded.filter(\n",
 					"        (col(\"database_name\") == db_name) & (col(\"table_name\") == table_name)\n",
 					"    ).select(\"table_location\", \"table_type\", \"table_format\")\n",
+					"    print(filtered_df)\n",
 					"\n",
 					"    if filtered_df.isEmpty():\n",
 					"        raise ValueError(f\"The dataframe is invalid or empty, get_table_metadata failed for '{entity_name}' in database '{db_name}'.\")\n",
@@ -328,7 +362,7 @@
 					"        return None, None, None\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 99
 			},
 			{
 				"cell_type": "code",
@@ -349,7 +383,7 @@
 					"    spark_dataframe: DataFrame = spark.createDataFrame([], schema=create_spark_schema(db_name, entity_name))\n",
 					"    return spark_dataframe"
 				],
-				"execution_count": null
+				"execution_count": 100
 			},
 			{
 				"cell_type": "code",
@@ -394,7 +428,7 @@
 					"    except Exception as e: \n",
 					"        logError(f\"Unexpected error creating table {table_full_name}: {str(e)}\")"
 				],
-				"execution_count": null
+				"execution_count": 101
 			},
 			{
 				"cell_type": "code",
@@ -419,7 +453,7 @@
 					"    if db_name == 'odw_curated_db':\n",
 					"        return 'odw-curated'"
 				],
-				"execution_count": null
+				"execution_count": 102
 			},
 			{
 				"cell_type": "code",
@@ -435,7 +469,7 @@
 					"    mssparkutils.fs.rm(table_loc, True)\n",
 					"    create_spark_table(db_name, table_name, spark_dataframe)"
 				],
-				"execution_count": null
+				"execution_count": 103
 			},
 			{
 				"cell_type": "code",
@@ -454,7 +488,7 @@
 					"tableExists:bool = test_table_exists(db_name, table_name)\n",
 					"logInfo(f\"{db_name}.{table_name} exists = {tableExists}\")"
 				],
-				"execution_count": null
+				"execution_count": 104
 			}
 		]
 	}
