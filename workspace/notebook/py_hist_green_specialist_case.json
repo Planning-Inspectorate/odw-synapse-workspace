@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "e0023002-ca29-4fb6-973f-b1f83eb4c455"
+				"spark.autotune.trackingId": "7a7c771e-ce24-410d-8bc3-67250e80a632"
 			}
 		},
 		"metadata": {
@@ -62,7 +62,7 @@
 					"PipelineTriggeredbyPipelineName = None\n",
 					"PipelineTriggeredbyPipelineRunID = None"
 				],
-				"execution_count": 37
+				"execution_count": 67
 			},
 			{
 				"cell_type": "code",
@@ -72,21 +72,21 @@
 					"from delta.tables import DeltaTable\n",
 					"from datetime import datetime"
 				],
-				"execution_count": 38
+				"execution_count": 68
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 39
+				"execution_count": 69
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 40
+				"execution_count": 70
 			},
 			{
 				"cell_type": "code",
@@ -103,11 +103,9 @@
 					"# SCD metrics\n",
 					"new_records = 0\n",
 					"changed_records = 0\n",
-					"unchanged_records = 0\n",
-					"duplicates_removed = 0\n",
-					"table_exists = False"
+					"unchanged_records = 0"
 				],
-				"execution_count": 41
+				"execution_count": 71
 			},
 			{
 				"cell_type": "code",
@@ -122,31 +120,7 @@
 					"        error_message = f\"Error in setting time parser policy: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 42
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"if not error_message:\n",
-					"    try:\n",
-					"        # Check if target table exists\n",
-					"        table_exists = spark.catalog.tableExists(spark_table_final)\n",
-					"        \n",
-					"        if table_exists:\n",
-					"            row_count = spark.sql(f\"SELECT COUNT(*) FROM {spark_table_final}\").collect()[0][0]\n",
-					"            logInfo(f\"Target table {spark_table_final} exists with {row_count} records\")\n",
-					"            \n",
-					"            if row_count == 0:\n",
-					"                logInfo(\"Table is empty - first run will treat all records as NEW\")\n",
-					"        else:\n",
-					"            error_message = f\"Target table {spark_table_final} does not exist - please create via schema notebook\"\n",
-					"            end_exec_time = datetime.now()\n",
-					"            \n",
-					"    except Exception as e:\n",
-					"        error_message = f\"Error checking target table: {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()"
-				],
-				"execution_count": 43
+				"execution_count": 72
 			},
 			{
 				"cell_type": "code",
@@ -155,20 +129,8 @@
 					"    try:\n",
 					"        logInfo(f\"Reading source data from {source_table}\")\n",
 					"        \n",
-					"        # Check duplicates\n",
-					"        dup_count = spark.sql(f\"\"\"\n",
-					"            SELECT COUNT(*) as cnt FROM (\n",
-					"                SELECT greenCaseId FROM {source_table}\n",
-					"                --WHERE active = 'Y'\n",
-					"                GROUP BY greenCaseId HAVING COUNT(*) > 1\n",
-					"            )\n",
-					"        \"\"\").collect()[0]['cnt']\n",
-					"        \n",
-					"        if dup_count > 0:\n",
-					"            logInfo(f\"Found {dup_count} duplicates - applying deduplication\")\n",
-					"            duplicates_removed = dup_count\n",
-					"        \n",
 					"        # Create staging view with deduplication and hash calculation\n",
+					"        # Filter only active records (active = 'Y')\n",
 					"        spark.sql(f\"\"\"\n",
 					"            CREATE OR REPLACE TEMP VIEW stg_casework_specialist AS\n",
 					"            SELECT\n",
@@ -198,7 +160,7 @@
 					"                week6Date,\n",
 					"                week8Date,\n",
 					"                week9Date,\n",
-					"                eventtype,\n",
+					"                eventType,\n",
 					"                eventDate,\n",
 					"                eventTime,\n",
 					"                inspectorName,\n",
@@ -209,7 +171,7 @@
 					"                comments,\n",
 					"                active,\n",
 					"                'N' as Migrated,\n",
-					"                -- Data hash for change detection (includes active status)\n",
+					"                -- Data hash for change detection\n",
 					"                md5(concat_ws('|',\n",
 					"                    COALESCE(greenCaseType, '.'),\n",
 					"                    COALESCE(CAST(greenCaseId AS STRING), '.'),\n",
@@ -236,7 +198,7 @@
 					"                    COALESCE(CAST(week6Date AS STRING), '.'),\n",
 					"                    COALESCE(CAST(week8Date AS STRING), '.'),\n",
 					"                    COALESCE(CAST(week9Date AS STRING), '.'),\n",
-					"                    COALESCE(eventtype, '.'),\n",
+					"                    COALESCE(eventType, '.'),\n",
 					"                    COALESCE(CAST(eventDate AS STRING), '.'),\n",
 					"                    COALESCE(eventTime, '.'),\n",
 					"                    COALESCE(inspectorName, '.'),\n",
@@ -253,24 +215,24 @@
 					"                    ORDER BY receiptDate DESC NULLS LAST\n",
 					"                ) as rn\n",
 					"                FROM {source_table}\n",
-					"                --WHERE active = 'Y'\n",
+					"                --- WHERE active = 'Y'\n",
 					"            ) dedup \n",
 					"            WHERE rn = 1\n",
 					"        \"\"\")\n",
 					"        \n",
 					"        src_count = spark.sql(\"SELECT COUNT(*) FROM stg_casework_specialist\").collect()[0][0]\n",
-					"        logInfo(f\"Source loaded: {src_count} active records (after deduplication)\")\n",
+					"        logInfo(f\"Source loaded: {src_count} active records\")\n",
 					"        \n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error preparing source: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 44
+				"execution_count": 73
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"if not error_message and table_exists:\n",
+					"if not error_message:\n",
 					"    try:\n",
 					"        logInfo(\"Performing change analysis\")\n",
 					"        \n",
@@ -319,12 +281,12 @@
 					"        error_message = f\"Error in change analysis: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 45
+				"execution_count": 74
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"if not error_message and table_exists and (changed_records > 0 or delete_count > 0):\n",
+					"if not error_message and (changed_records > 0 or delete_count > 0):\n",
 					"    try:\n",
 					"        update_count = changed_records + delete_count\n",
 					"        logInfo(f\"Closing {update_count} records (changed: {changed_records}, deleted: {delete_count})\")\n",
@@ -363,12 +325,12 @@
 					"        error_message = f\"Error closing records: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 46
+				"execution_count": 75
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"if not error_message and table_exists and (new_records > 0 or changed_records > 0):\n",
+					"if not error_message and (new_records > 0 or changed_records > 0):\n",
 					"    try:\n",
 					"        logInfo(f\"Inserting {new_records + changed_records} records (new: {new_records}, changed: {changed_records})\")\n",
 					"        \n",
@@ -404,7 +366,7 @@
 					"                week6Date,\n",
 					"                week8Date,\n",
 					"                week9Date,\n",
-					"                eventtype,\n",
+					"                eventType,\n",
 					"                eventDate,\n",
 					"                eventTime,\n",
 					"                inspectorName,\n",
@@ -451,7 +413,7 @@
 					"                stg.week6Date,\n",
 					"                stg.week8Date,\n",
 					"                stg.week9Date,\n",
-					"                stg.eventtype,\n",
+					"                stg.eventType,\n",
 					"                stg.eventDate,\n",
 					"                stg.eventTime,\n",
 					"                stg.inspectorName,\n",
@@ -480,16 +442,33 @@
 					"        error_message = f\"Error inserting records: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 47
+				"execution_count": 76
 			},
 			{
 				"cell_type": "code",
 				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"        # Final statistics\n",
+					"        total = spark.sql(f\"SELECT COUNT(*) FROM {spark_table_final}\").collect()[0][0]\n",
+					"        active = spark.sql(f\"SELECT COUNT(*) FROM {spark_table_final} WHERE is_current = 1\").collect()[0][0]\n",
+					"        hist = spark.sql(f\"SELECT COUNT(*) FROM {spark_table_final} WHERE is_current = 0\").collect()[0][0]\n",
+					"        \n",
+					"        logInfo(f\"SCD Type 2 completed - Total: {total}, Active: {active}, Historical: {hist}\")\n",
+					"        logInfo(f\"Changes - New: {new_records}, Changed: {changed_records}, Deleted: {delete_count}, Unchanged: {unchanged_records}\")\n",
+					"        \n",
+					"        end_exec_time = datetime.now()\n",
+					"        \n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error in final stats: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"\n",
+					"# Telemetry\n",
 					"duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
 					"activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
 					"stage = \"Success\" if not error_message else \"Failed\"\n",
 					"status_message = (\n",
-					"    f\"SCD Type 2 complete for {spark_table_final} (New: {new_records}, Changed: {changed_records}, Deleted: {delete_count})\"\n",
+					"    f\"SCD Type 2 complete (New: {new_records}, Changed: {changed_records}, Deleted: {delete_count})\"\n",
 					"    if not error_message \n",
 					"    else f\"SCD Type 2 failed for {spark_table_final}\"\n",
 					")\n",
@@ -515,11 +494,9 @@
 					"    duration_seconds,\n",
 					"    status_message,\n",
 					"    status_code\n",
-					")\n",
-					"\n",
-					""
+					")"
 				],
-				"execution_count": 48
+				"execution_count": 77
 			}
 		]
 	}
