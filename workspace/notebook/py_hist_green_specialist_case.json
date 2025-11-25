@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "9f58635d-1cba-4840-88d4-b2b5efce5495"
+				"spark.autotune.trackingId": "f640212f-41a8-4826-8d82-4241d92c8f71"
 			}
 		},
 		"metadata": {
@@ -62,7 +62,7 @@
 					"PipelineTriggeredbyPipelineName = None\n",
 					"PipelineTriggeredbyPipelineRunID = None"
 				],
-				"execution_count": 185
+				"execution_count": 25
 			},
 			{
 				"cell_type": "code",
@@ -72,21 +72,21 @@
 					"from delta.tables import DeltaTable\n",
 					"from datetime import datetime"
 				],
-				"execution_count": 186
+				"execution_count": 26
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 187
+				"execution_count": 27
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 188
+				"execution_count": 28
 			},
 			{
 				"cell_type": "code",
@@ -107,7 +107,7 @@
 					"duplicates_removed = 0\n",
 					"table_exists = False"
 				],
-				"execution_count": 189
+				"execution_count": 29
 			},
 			{
 				"cell_type": "code",
@@ -122,7 +122,7 @@
 					"        error_message = f\"Error in setting time parser policy: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 190
+				"execution_count": 30
 			},
 			{
 				"cell_type": "code",
@@ -146,7 +146,7 @@
 					"        error_message = f\"Error checking target table: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 191
+				"execution_count": 31
 			},
 			{
 				"cell_type": "code",
@@ -265,7 +265,7 @@
 					"        error_message = f\"Error preparing source: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 192
+				"execution_count": 32
 			},
 			{
 				"cell_type": "code",
@@ -319,7 +319,7 @@
 					"        error_message = f\"Error in change analysis: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 193
+				"execution_count": 33
 			},
 			{
 				"cell_type": "code",
@@ -329,20 +329,32 @@
 					"        update_count = changed_records + delete_count\n",
 					"        logInfo(f\"Closing {update_count} records (changed: {changed_records}, deleted: {delete_count})\")\n",
 					"        \n",
-					"        spark.sql(f\"\"\"\n",
-					"            UPDATE {spark_table_final}\n",
-					"            SET record_end_date = CURRENT_TIMESTAMP(), \n",
-					"                is_current = 0\n",
-					"            WHERE is_current = 1 \n",
-					"            AND greenCaseId IN (\n",
+					"        # Create temp view with records to close\n",
+					"        spark.sql(\"\"\"\n",
+					"            CREATE OR REPLACE TEMP VIEW records_to_close AS\n",
+					"            SELECT DISTINCT greenCaseId\n",
+					"            FROM (\n",
 					"                -- Changed records\n",
 					"                SELECT greenCaseId FROM change_analysis WHERE change_type = 'CHANGED'\n",
 					"                UNION\n",
 					"                -- Deleted records (in target but not in source)\n",
-					"                SELECT tgt.greenCaseId FROM current_active tgt\n",
+					"                SELECT tgt.greenCaseId \n",
+					"                FROM current_active tgt\n",
 					"                LEFT JOIN stg_casework_specialist src ON tgt.greenCaseId = src.greenCaseId\n",
 					"                WHERE src.greenCaseId IS NULL\n",
 					"            )\n",
+					"        \"\"\")\n",
+					"        \n",
+					"        # Use MERGE to close records (Delta Lake compatible)\n",
+					"        spark.sql(f\"\"\"\n",
+					"            MERGE INTO {spark_table_final} AS target\n",
+					"            USING records_to_close AS source\n",
+					"            ON target.greenCaseId = source.greenCaseId \n",
+					"               AND target.is_current = 1\n",
+					"            WHEN MATCHED THEN\n",
+					"                UPDATE SET \n",
+					"                    record_end_date = CURRENT_TIMESTAMP(),\n",
+					"                    is_current = 0\n",
 					"        \"\"\")\n",
 					"        \n",
 					"        logInfo(f\"Successfully closed {update_count} records\")\n",
@@ -351,7 +363,7 @@
 					"        error_message = f\"Error closing records: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 194
+				"execution_count": 34
 			},
 			{
 				"cell_type": "code",
@@ -468,7 +480,7 @@
 					"        error_message = f\"Error inserting records: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 195
+				"execution_count": 35
 			},
 			{
 				"cell_type": "code",
@@ -507,7 +519,7 @@
 					"\n",
 					""
 				],
-				"execution_count": 196
+				"execution_count": 36
 			}
 		]
 	}
