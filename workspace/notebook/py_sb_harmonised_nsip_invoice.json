@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "40594af4-365a-4abc-9195-a3341bb18c54"
+				"spark.autotune.trackingId": "a64097e0-d83e-416f-9209-b7f37ad8c3c0"
 			}
 		},
 		"metadata": {
@@ -105,7 +105,7 @@
 					"from datetime import datetime\n",
 					"from delta.tables import DeltaTable"
 				],
-				"execution_count": 71
+				"execution_count": 102
 			},
 			{
 				"cell_type": "code",
@@ -120,7 +120,7 @@
 					"df = spark.sql(\"SELECT * FROM `odw_harmonised_db`.`nsip_invoice`\")\n",
 					"display(df)"
 				],
-				"execution_count": 101
+				"execution_count": 120
 			},
 			{
 				"cell_type": "markdown",
@@ -153,7 +153,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 87
+				"execution_count": 104
 			},
 			{
 				"cell_type": "code",
@@ -163,7 +163,7 @@
 					"spark_table_final = \"odw_harmonised_db.nsip_invoice\"\n",
 					"incremental_key = \"NSIPInvoiceID\""
 				],
-				"execution_count": 88
+				"execution_count": 105
 			},
 			{
 				"cell_type": "code",
@@ -213,21 +213,22 @@
 					"    print(f\"Error during schema check/update: {str(e)}\")\n",
 					""
 				],
-				"execution_count": 89
+				"execution_count": 106
 			},
 			{
 				"cell_type": "code",
 				"metadata": {
 					"microsoft": {
 						"language": "python"
-					}
+					},
+					"collapsed": false
 				},
 				"source": [
 					"%%pyspark\n",
 					"df = spark.sql(\"SELECT * FROM `odw_harmonised_db`.`nsip_invoice`\")\n",
 					"display(df)"
 				],
-				"execution_count": null
+				"execution_count": 107
 			},
 			{
 				"cell_type": "code",
@@ -281,7 +282,7 @@
 					"    print(f\"⚠️ Error during schema check/update: {str(e)}\")\n",
 					""
 				],
-				"execution_count": 99
+				"execution_count": 108
 			},
 			{
 				"cell_type": "code",
@@ -302,7 +303,7 @@
 					"    max_IngestionDate_to = datetime(1900, 1, 1)  # fallback default\n",
 					""
 				],
-				"execution_count": 90
+				"execution_count": 109
 			},
 			{
 				"cell_type": "code",
@@ -321,7 +322,7 @@
 					"            WHERE invoices IS NOT NULL\n",
 					"        \"\"\")"
 				],
-				"execution_count": 91
+				"execution_count": 110
 			},
 			{
 				"cell_type": "code",
@@ -363,7 +364,7 @@
 					"    print(f\"⚠️ Error during explode/extract: {str(e)}\")\n",
 					""
 				],
-				"execution_count": 92
+				"execution_count": 111
 			},
 			{
 				"cell_type": "code",
@@ -376,27 +377,26 @@
 					"    if max_IngestionDate_to:\n",
 					"        new_data = new_data.filter(F.col(\"IngestionDate\") > F.lit(max_IngestionDate_to))\n",
 					"    else:\n",
-					"        # If max_IngestionDate_to is None, use a default baseline date\n",
 					"        default_date = datetime(1900, 1, 1)\n",
 					"        new_data = new_data.filter(F.col(\"IngestionDate\") > F.lit(default_date))\n",
 					"\n",
 					"    # Drop old IngestionDate column\n",
 					"    new_data = new_data.drop(\"IngestionDate\")\n",
 					"\n",
-					"    # Add new IngestionDate column with current timestamp\n",
-					"    new_data = new_data.withColumn(\"IngestionDate\", F.current_timestamp())\n",
+					"    # Add new IngestionDate column as string\n",
+					"    new_data = new_data.withColumn(\"IngestionDate\", F.date_format(F.current_timestamp(), \"yyyy-MM-dd HH:mm:ss\"))\n",
 					"\n",
-					"    # Step 6: Add surrogate key dynamically (example using monotonically_increasing_id)\n",
+					"    # Add surrogate key dynamically\n",
 					"    new_data = new_data.withColumn(incremental_key, F.monotonically_increasing_id())\n",
-					"    display(new_data)\n",
 					"\n",
+					"    display(new_data)\n",
 					"    print(\"✅ Filtering and column updates completed successfully.\")\n",
 					"\n",
 					"except Exception as e:\n",
 					"    print(f\"⚠️ Error during filtering and column updates: {str(e)}\")\n",
 					""
 				],
-				"execution_count": 93
+				"execution_count": 117
 			},
 			{
 				"cell_type": "code",
@@ -428,21 +428,21 @@
 					"    print(f\"⚠️ Error during processing: {str(e)}\")\n",
 					""
 				],
-				"execution_count": 94
+				"execution_count": 118
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"new_data.printSchema()"
 				],
-				"execution_count": 95
+				"execution_count": 114
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"spark.table(spark_table_final).printSchema()"
 				],
-				"execution_count": 100
+				"execution_count": 115
 			},
 			{
 				"cell_type": "code",
@@ -452,14 +452,14 @@
 					"            .option(\"overwriteSchema\", \"true\") \\\n",
 					"            .saveAsTable(spark_table_final)"
 				],
-				"execution_count": 97
+				"execution_count": 119
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"target_table = DeltaTable.forName(spark, spark_table_final)"
 				],
-				"execution_count": 83
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -487,7 +487,7 @@
 					"print(\"✅ Data appended and IsActive/ValidTo updated successfully.\")\n",
 					""
 				],
-				"execution_count": 98
+				"execution_count": null
 			}
 		]
 	}
