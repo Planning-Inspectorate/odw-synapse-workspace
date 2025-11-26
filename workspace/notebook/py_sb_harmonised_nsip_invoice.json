@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "6812a156-d5c0-4022-8c21-8f6eb969d5d2"
+				"spark.autotune.trackingId": "25ad0e06-636b-4aab-b8a9-7dd8a02cd113"
 			}
 		},
 		"metadata": {
@@ -105,7 +105,7 @@
 					"from datetime import datetime\n",
 					"from delta.tables import DeltaTable"
 				],
-				"execution_count": 17
+				"execution_count": 39
 			},
 			{
 				"cell_type": "markdown",
@@ -138,7 +138,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 18
+				"execution_count": 40
 			},
 			{
 				"cell_type": "code",
@@ -148,7 +148,50 @@
 					"spark_table_final = \"odw_harmonised_db.nsip_invoice\"\n",
 					"incremental_key = \"NSIPInvoiceID\""
 				],
-				"execution_count": 19
+				"execution_count": 41
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"\n",
+					"try:\n",
+					"    # Check if table exists\n",
+					"    if spark.catalog.tableExists(spark_table_final):\n",
+					"        print(f\"Table {spark_table_final} exists.\")\n",
+					"\n",
+					"        # Load table schema\n",
+					"        existing_df = spark.table(spark_table_final)\n",
+					"        existing_cols = existing_df.columns\n",
+					"\n",
+					"        # Check for NSIPProjectInfoInternalID\n",
+					"        if \"NSIPProjectInfoInternalID\" not in existing_cols:\n",
+					"            print(\"Column NSIPProjectInfoInternalID not found. Adding as LongType...\")\n",
+					"            spark.sql(f\"ALTER TABLE {spark_table_final} ADD COLUMNS (NSIPProjectInfoInternalID BIGINT)\")\n",
+					"        else:\n",
+					"            print(\"Column NSIPProjectInfoInternalID exists.\")\n",
+					"\n",
+					"        # Check for message_id and drop if exists\n",
+					"        if \"message_id\" in existing_cols:\n",
+					"            print(\"Column message_id found. Dropping...\")\n",
+					"            spark.sql(f\"ALTER TABLE {spark_table_final} DROP COLUMN message_id\")\n",
+					"        else:\n",
+					"            print(\"Column message_id does not exist.\")\n",
+					"\n",
+					"        # ✅ Reorder columns in DataFrame so NSIPProjectInfoInternalID is second\n",
+					"        df_cols = new_data.columns\n",
+					"        if \"NSIPProjectInfoInternalID\" in df_cols:\n",
+					"            reordered_cols = [df_cols[0], \"NSIPProjectInfoInternalID\"] + [c for c in df_cols if c not in [df_cols[0], \"NSIPProjectInfoInternalID\"]]\n",
+					"            new_data = new_data.select(reordered_cols)\n",
+					"            print(\"✅ Reordered columns so NSIPProjectInfoInternalID is second.\")\n",
+					"\n",
+					"    else:\n",
+					"        print(f\"Table {spark_table_final} does not exist. Please create it first.\")\n",
+					"\n",
+					"except Exception as e:\n",
+					"    print(f\"Error during schema check/update: {str(e)}\")\n",
+					""
+				],
+				"execution_count": 42
 			},
 			{
 				"cell_type": "code",
@@ -169,7 +212,7 @@
 					"    max_IngestionDate_to = datetime(1900, 1, 1)  # fallback default\n",
 					""
 				],
-				"execution_count": 20
+				"execution_count": 43
 			},
 			{
 				"cell_type": "code",
@@ -188,7 +231,7 @@
 					"            WHERE invoices IS NOT NULL\n",
 					"        \"\"\")"
 				],
-				"execution_count": 21
+				"execution_count": 44
 			},
 			{
 				"cell_type": "code",
@@ -230,7 +273,7 @@
 					"    print(f\"⚠️ Error during explode/extract: {str(e)}\")\n",
 					""
 				],
-				"execution_count": 22
+				"execution_count": 45
 			},
 			{
 				"cell_type": "code",
@@ -263,7 +306,7 @@
 					"    print(f\"⚠️ Error during filtering and column updates: {str(e)}\")\n",
 					""
 				],
-				"execution_count": 23
+				"execution_count": 46
 			},
 			{
 				"cell_type": "code",
@@ -271,6 +314,11 @@
 					"collapsed": false
 				},
 				"source": [
+					"\n",
+					"from pyspark.sql import functions as F\n",
+					"from pyspark.sql.window import Window\n",
+					"from datetime import datetime\n",
+					"\n",
 					"try:\n",
 					"    # Step 1: Get max ID from existing table\n",
 					"    existing_df = spark.table(spark_table_final)\n",
@@ -288,13 +336,18 @@
 					"    # Step 3: Drop old IngestionDate column\n",
 					"    new_data = new_data.drop(\"IngestionDate\")\n",
 					"\n",
-					"    # Step 4: Add new IngestionDate column with current timestamp\n",
-					"    new_data = new_data.withColumn(\"IngestionDate\", F.current_timestamp())\n",
+					"    # Step 4: Add new IngestionDate column with current timestamp (as string)\n",
+					"    new_data = new_data.withColumn(\"IngestionDate\", F.current_timestamp().cast(\"string\"))\n",
+					"\n",
+					"    # ✅ Add extra columns as null values\n",
+					"    new_data = new_data.withColumn(\"ValidTo\", F.lit(None).cast(\"string\")) \\\n",
+					"                       .withColumn(\"RowID\", F.lit(None).cast(\"string\")) \\\n",
+					"                       .withColumn(\"IsActive\", F.lit(None).cast(\"string\"))\n",
 					"\n",
 					"    # Step 5: Add surrogate key starting from max_id_row + 1\n",
 					"    new_data = new_data.withColumn(\n",
 					"        incremental_key,\n",
-					"        F.row_number().over(Window.orderBy(F.monotonically_increasing_id())) + max_id_row\n",
+					"        (F.row_number().over(Window.orderBy(F.monotonically_increasing_id())) + max_id_row).cast(\"long\")\n",
 					"    )\n",
 					"\n",
 					"    # Step 6: Reorder columns so incremental_key is first\n",
@@ -303,13 +356,27 @@
 					"    new_data = new_data.select(reordered_cols)\n",
 					"\n",
 					"    display(new_data)\n",
-					"    print(\"✅ Surrogate key added and moved to first column successfully.\")\n",
+					"    print(\"✅ Columns added and reordered successfully.\")\n",
 					"\n",
 					"except Exception as e:\n",
-					"    print(f\"⚠️ Error during surrogate key assignment: {str(e)}\")\n",
+					"    print(f\"⚠️ Error during processing: {str(e)}\")\n",
 					""
 				],
-				"execution_count": 26
+				"execution_count": 47
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"new_data.printSchema()"
+				],
+				"execution_count": 48
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"spark.table(spark_table_final).printSchema()"
+				],
+				"execution_count": 49
 			},
 			{
 				"cell_type": "code",
@@ -317,17 +384,16 @@
 					"    new_data.write.format(\"delta\") \\\n",
 					"            .mode(\"append\") \\\n",
 					"            .option(\"overwriteSchema\", \"true\") \\\n",
-					"            .partitionBy(\"IsActive\") \\\n",
 					"            .saveAsTable(spark_table_final)"
 				],
-				"execution_count": 25
+				"execution_count": 55
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"target_table = DeltaTable.forName(spark, spark_table_final)"
 				],
-				"execution_count": null
+				"execution_count": 51
 			},
 			{
 				"cell_type": "code",
@@ -355,14 +421,15 @@
 					"print(\"✅ Data appended and IsActive/ValidTo updated successfully.\")\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 52
 			},
 			{
 				"cell_type": "code",
 				"metadata": {
 					"microsoft": {
 						"language": "sparksql"
-					}
+					},
+					"collapsed": false
 				},
 				"source": [
 					"%%sql\n",
@@ -385,7 +452,7 @@
 					"FROM\n",
 					"    odw_harmonised_db.nsip_invoice"
 				],
-				"execution_count": null
+				"execution_count": 53
 			},
 			{
 				"cell_type": "code",
@@ -429,7 +496,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 54
 			},
 			{
 				"cell_type": "markdown",
