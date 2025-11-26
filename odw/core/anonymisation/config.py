@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional, Set
 
+import yaml
 
 @dataclass
 class AnonymisationConfig:
@@ -35,8 +36,4 @@ def _load_yaml_file(path: str) -> dict:
 
 
 def _yaml_safe_load(stream) -> dict:
-    try:
-        import yaml  # type: ignore
-    except Exception as ex:
-        raise ImportError("PyYAML is required to load YAML config. Install 'pyyaml'.") from ex
     return yaml.safe_load(stream)

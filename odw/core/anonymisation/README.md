@@ -16,6 +16,32 @@ Core modules:
 - `config.py` — `AnonymisationConfig` and YAML loader
 - `__init__.py` — public API re-exports
 
+### Module reference
+
+- base.py
+  - Types: `Strategy` (interface), concrete strategies `NINumberStrategy`, `EmailMaskStrategy`, `NameMaskStrategy`, `BirthDateStrategy`, `AgeStrategy`, `SalaryStrategy`
+  - Helpers: `_seed_col(df)`, `mask_keep_first_last_col(col)`, `random_int_from_seed(seed, min, max)`, `random_date_from_seed(seed, start, end)`
+  - Factory: `default_strategies()` returns the built-in strategy list in precedence order
+  - Backward-compat UDF aliases: `mask_fullname_initial_lastletter_udf`, `mask_name_first_only_udf`, `mask_email_preserve_domain_udf`, `generate_random_ni_number_udf`
+
+- engine.py
+  - Class: `AnonymisationEngine(strategies=None, config=None, run_id=None)`
+    - `apply(df, columns_with_classifications, classification_allowlist=None) -> DataFrame`
+    - `apply_from_purview(...) -> DataFrame` supports:
+      - Explicit form: `purview_name, tenant_id, client_id, client_secret, asset_type_name, asset_qualified_name, api_version?, classification_allowlist?`
+      - Simplified form: `source_folder` in {`ServiceBus`, `Horizon`, `entraid`} plus `entity_name` or `file_name` (builds a Purview ADLS Gen2 resource-set qualified name)
+  - Purview helpers: `fetch_purview_classifications_by_qualified_name(...)` resolves entity and extracts column classifications
+  - Matching: column names are normalised (trim/lower/remove non-alnum, fix common typos) before matching
+  - Observability: emits structured, PII-safe logs: `apply.start`, `apply.summary`, `purview.resolve.*`, `apply_from_purview.columns_selected`, `apply_from_purview.summary`
+  - Credentials & defaults:
+    - Client secret resolution via env/KeyVault (see “Credentials and defaults” below)
+    - Storage host resolution for simplified mode via env/`mssparkutils` (see “Credentials and defaults”)
+    - `run_id` can be supplied or read from `ODW_RUN_ID` for correlation
+
+- config.py
+  - Dataclass: `AnonymisationConfig(classification_allowlist: Optional[Set[str]])`
+  - Loader: `load_config(path=None, text=None) -> AnonymisationConfig` (YAML keys: `classification_allowlist`)
+
 ## Core concepts
 
 ### Strategies
@@ -24,6 +50,7 @@ A strategy encapsulates how to anonymise one column when certain classifications
 - Interface: `Strategy.apply(df, column, seed, context) -> DataFrame`
 - Trigger: `Strategy.classification_names` — set of Purview classification type names
 - Precedence: the first strategy (by order in the `strategies` list) whose `classification_names` intersects the column’s classifications is applied
+- Context passed to `apply`: `context["classifications"]` is the set of matched classification names; `context["is_lm"]` is `True` when the target column name contains "line manager" (available for custom strategies)
 
 Default strategies and their behaviour:
 
@@ -48,9 +75,9 @@ Default strategies and their behaviour:
   - Determinism: deterministic given the input value
 
 - Birth date (`BirthDateStrategy`)
-  - Triggers: `{"Birth Date", "Date of Birth"}`
-  - Transform: replace with a pseudo-random date in the inclusive range `1955-01-01` to `2005-12-31` derived from the seed column
-  - Determinism: deterministic per row when a seed column is present
+- Triggers: `{"Birth Date", "Date of Birth"}`
+- Transform: replace with a pseudo-random date between `1955-01-01` (inclusive) and `2005-12-31` (exclusive) derived from the seed column
+- Determinism: deterministic per row when a seed column is present
 
 - Age (`AgeStrategy`)
   - Triggers: `{"Person's Age", "Employee Age"}`
@@ -120,9 +147,19 @@ Change detection and summary:
 - Logs: `purview.resolve.start`, `purview.resolve.done`, `apply_from_purview.columns_selected`, `apply_from_purview.summary`
 
 Credentials and defaults:
-- Access token acquisition prefers client credentials; if no secret is configured, falls back to Azure Identity (Default → Azure CLI)
-- Client secret resolution tries `ODW_CLIENT_SECRET` or KeyVault (via `notebookutils`) before falling back to Azure Identity
-- Environment defaults exist for Purview name, tenant, client ID, and storage host; pass explicit values to override
+- Access token acquisition prefers client credentials; if no secret is configured, falls back to Azure Identity (`DefaultAzureCredential`).
+- Client secret resolution:
+  - Use `ODW_CLIENT_SECRET` if set
+  - Else try Key Vault via `notebookutils.mssparkutils` using Spark conf `keyVaultName` (or `ODW_KEYVAULT_NAME`) and `ODW_PURVIEW_SECRET_NAME`
+  - Else use the sentinel `AZURE_IDENTITY` to trigger `DefaultAzureCredential`
+- Storage account host resolution (simplified mode):
+  - Use `ODW_STORAGE_ACCOUNT_DFS_HOST` if set
+  - Else try `mssparkutils.notebook.run("/utils/py_utils_get_storage_account")`
+  - If unresolved, an error is raised instructing to use the explicit API
+- Default environment variables used by the engine:
+  - `ODW_PURVIEW_NAME`, `ODW_TENANT_ID`, `ODW_CLIENT_ID`, `ODW_STORAGE_ACCOUNT_DFS_HOST`
+  - `ODW_CLIENT_SECRET`, `ODW_PURVIEW_SECRET_NAME`, `ODW_KEYVAULT_NAME`
+  - `ODW_RUN_ID` (optional correlation/run ID included in logs)
 
 ## Public API
 Re-exported from `odw.core.anonymisation`:

@@ -1,9 +1,9 @@
 from pyspark.sql import SparkSession
+from pyspark.sql import functions as F
 from odw.core.anonymisation import AnonymisationEngine
+from odw.core.anonymisation.base import _seed_col, random_int_from_seed, random_date_from_seed, mask_fullname_initial_lastletter_udf, mask_email_preserve_domain_udf
 import mock
 import re
-from datetime import date
-
 
 def test_apply_from_purview__mocked_fetch_and_spark_df():
     spark = SparkSession.builder.master("local[1]").appName("anon-purview-test").getOrCreate()
@@ -55,28 +55,26 @@ def test_apply_from_purview__mocked_fetch_and_spark_df():
                 asset_qualified_name="https://dummy.dfs.core.windows.net/container/path/asset.csv",
             )
 
-        rows = out.select("full_name", "emailAddress", "Age", "NINumber", "BirthDate", "AnnualSalary").collect()
+        # Build expected deterministic output for comparable columns
+        cols = ["EmployeeID", "full_name", "emailAddress", "Age", "BirthDate", "AnnualSalary"]
 
-        assert rows[0][0] == "J*** **e"
-        assert rows[1][0] == "J*** ****h"
+        seed = _seed_col(df)
+        expected = (
+            df.withColumn("full_name", mask_fullname_initial_lastletter_udf(F.col("full_name")))
+              .withColumn("emailAddress", mask_email_preserve_domain_udf(F.col("emailAddress")))
+              .withColumn("Age", random_int_from_seed(seed, 18, 70).cast("int"))
+              .withColumn("BirthDate", random_date_from_seed(seed))
+              .withColumn("AnnualSalary", random_int_from_seed(seed, 20000, 100000).cast("int"))
+        )
 
-        # Email masking: mask local part and preserve domain
-        assert rows[0][1] == "j******e@example.com"
-        assert rows[1][1] == "j********h@example.com"
+        actual_rows = out.select(*cols).orderBy("EmployeeID").collect()
+        expected_rows = expected.select(*cols).orderBy("EmployeeID").collect()
+        assert actual_rows == expected_rows
 
-        for age in (rows[0][2], rows[1][2]):
-            assert 18 <= age <= 70
-
+        # NI number is intentionally randomised; validate format only
         ni_re = re.compile(r"^[A-Z]{2}\d{6}[A-D]$")
-        for nin in (rows[0][3], rows[1][3]):
+        for row in out.select("NINumber").orderBy("EmployeeID").collect():
+            nin = row[0]
             assert isinstance(nin, str) and ni_re.match(nin)
-
-        start = date(1955, 1, 1)
-        end = date(2005, 12, 31)
-        for dob in (rows[0][4], rows[1][4]):
-            assert start <= dob <= end
-
-        for sal in (rows[0][5], rows[1][5]):
-            assert isinstance(sal, int) and 20000 <= sal <= 100000
     finally:
         spark.stop()

@@ -26,42 +26,6 @@ def mask_keep_first_last_col(col: Column) -> Column:
     return F.when(col.isNull(), None).otherwise(F.regexp_replace(col.cast("string"), r"(?<=.).(?=.$)", "*"))
 
 
-@F.udf(T.StringType())
-def mask_fullname_initial_lastletter_udf(v: str | None) -> str | None:
-    """Mask full name keeping only:
-    - first letter of the first name
-    - last letter of the last name
-    All other letters are replaced by '*'.
-    Example: "John Doe" -> "J*** **e".
-    """
-    if v is None:
-        return None
-    tokens = [t for t in str(v).split() if t]
-    if not tokens:
-        return None
-    if len(tokens) == 1:
-        t = tokens[0]
-        if len(t) == 1:
-            return t
-        return t[0] + ("*" * max(0, len(t) - 2)) + t[-1]
-
-    first = tokens[0]
-    last = tokens[-1]
-    middle = tokens[1:-1] if len(tokens) > 2 else []
-
-    def mask_first(t: str) -> str:
-        return t[0] + ("*" * (len(t) - 1)) if len(t) >= 1 else ""
-
-    def mask_middle(t: str) -> str:
-        return "*" * len(t)
-
-    def mask_last(t: str) -> str:
-        return ("*" * (len(t) - 1)) + t[-1] if len(t) >= 1 else ""
-
-    out = [mask_first(first)]
-    out.extend(mask_middle(m) for m in middle)
-    out.append(mask_last(last))
-    return " ".join(out)
 
 
 def random_int_from_seed(seed: Column, min_value: int, max_value: int) -> Column:
@@ -76,57 +40,10 @@ def random_date_from_seed(seed: Column, start: str = "1955-01-01", end: str = "2
     return F.date_add(start_date, offset.cast("int"))
 
 
-@F.udf(T.StringType())
-def mask_name_first_only_udf(v: str | None) -> str | None:
-    """Mask single-part name: keep first letter, mask all remaining letters.
-    Example: 'John' -> 'J***'.
-    """
-    if v is None:
-        return None
-    s = str(v)
-    if len(s) <= 1:
-        return s
-    return s[0] + ("*" * (len(s) - 1))
 
 
-@F.udf(T.StringType())
-def mask_email_preserve_domain_udf(email: str | None) -> str | None:
-    """Mask email local part (keep first and last char) and preserve the original domain (no '#').
-    Example: 'john.doe@pins.com' -> 'j******e@pins.com'.
-    If the value is not a valid email, mask the whole string similarly.
-    """
-    try:
-        if email is None:
-            return None
-        s = str(email)
-        parts = s.split("@", 1)
-        if len(parts) != 2:
-            local = s
-            if len(local) <= 2:
-                masked_local = local
-            else:
-                masked_local = local[0] + ("*" * (len(local) - 2)) + local[-1]
-            return masked_local
-        local, domain = parts[0], parts[1]
-        if len(local) <= 2:
-            masked_local = local
-        else:
-            masked_local = local[0] + ("*" * (len(local) - 2)) + local[-1]
-        return f"{masked_local}@{domain}"
-    except Exception:
-        return None
 
 
-@F.udf(T.StringType())
-def generate_random_ni_number_udf(_: str | None) -> str:
-    import random as _rand  # local import to keep worker safe
-
-    letters = "ABCDEFGHJKLMNPQRSTUVWXYZ"
-    first = _rand.choice(letters)
-    second = _rand.choice(letters)
-    digits = "".join(str(_rand.randint(0, 9)) for _ in range(6))
-    last = _rand.choice("ABCD")
-    return f"{first}{second}{digits}{last}"
 
 
 class Strategy(ABC):
@@ -145,20 +62,112 @@ class Strategy(ABC):
 class NINumberStrategy(Strategy):
     classification_names = {"NI Number", "PotentialID", "Potential ID"}
 
+    def _generate_random_ni_number(_: str | None) -> str:
+        import random as _rand  # local import to keep worker safe
+        letters = "ABCDEFGHJKLMNPQRSTUVWXYZ"
+        first = _rand.choice(letters)
+        second = _rand.choice(letters)
+        digits = "".join(str(_rand.randint(0, 9)) for _ in range(6))
+        last = _rand.choice("ABCD")
+        return f"{first}{second}{digits}{last}"
+
+    _generate_random_ni_number_udf = F.udf(_generate_random_ni_number, T.StringType())
+    _generate_random_ni_number = staticmethod(_generate_random_ni_number)
+
     def apply(self, df: DataFrame, column: str, seed: Column, context: dict) -> DataFrame:
-        return df.withColumn(column, generate_random_ni_number_udf(F.col(column).cast("string")))
+        return df.withColumn(column, NINumberStrategy._generate_random_ni_number_udf(F.col(column).cast("string")))
 
 
 class EmailMaskStrategy(Strategy):
     classification_names = {"MICROSOFT.PERSONAL.EMAIL", "Email Address", "Email Address Column Name"}
 
+    def _mask_email_preserve_domain(email: str | None) -> str | None:
+        """Mask email local part (keep first and last char) and preserve the original domain (no '#').
+        If not a valid email, mask the whole string similarly.
+        """
+        try:
+            if email is None:
+                return None
+            s = str(email)
+            parts = s.split("@", 1)
+            if len(parts) != 2:
+                local = s
+                if len(local) <= 2:
+                    masked_local = local
+                else:
+                    masked_local = local[0] + ("*" * (len(local) - 2)) + local[-1]
+                return masked_local
+            local, domain = parts[0], parts[1]
+            if len(local) <= 2:
+                masked_local = local
+            else:
+                masked_local = local[0] + ("*" * (len(local) - 2)) + local[-1]
+            return f"{masked_local}@{domain}"
+        except Exception:
+            return None
+
+    _mask_email_preserve_domain_udf = F.udf(_mask_email_preserve_domain, T.StringType())
+    _mask_email_preserve_domain = staticmethod(_mask_email_preserve_domain)
+
     def apply(self, df: DataFrame, column: str, seed: Column, context: dict) -> DataFrame:
-        # New requirement: mask local part and preserve domain (no '#', no EmployeeID override)
-        return df.withColumn(column, mask_email_preserve_domain_udf(F.col(column)))
+        # Mask local part and preserve domain (no '#', no EmployeeID override)
+        return df.withColumn(column, EmailMaskStrategy._mask_email_preserve_domain_udf(F.col(column)))
 
 
 class NameMaskStrategy(Strategy):
     classification_names = {"MICROSOFT.PERSONAL.NAME", "First Name", "Last Name", "Names Column Name"}
+
+    def _mask_fullname_initial_lastletter(v: str | None) -> str | None:
+        """Mask full name keeping only:
+        - first letter of the first name
+        - last letter of the last name
+        All other letters are replaced by '*'.
+        Example: "John Doe" -> "J*** **e".
+        """
+        if v is None:
+            return None
+        tokens = [t for t in str(v).split() if t]
+        if not tokens:
+            return None
+        if len(tokens) == 1:
+            t = tokens[0]
+            if len(t) == 1:
+                return t
+            return t[0] + ("*" * max(0, len(t) - 2)) + t[-1]
+
+        first = tokens[0]
+        last = tokens[-1]
+        middle = tokens[1:-1] if len(tokens) > 2 else []
+
+        def mask_first(t: str) -> str:
+            return t[0] + ("*" * (len(t) - 1)) if len(t) >= 1 else ""
+
+        def mask_middle(t: str) -> str:
+            return "*" * len(t)
+
+        def mask_last(t: str) -> str:
+            return ("*" * (len(t) - 1)) + t[-1] if len(t) >= 1 else ""
+
+        out = [mask_first(first)]
+        out.extend(mask_middle(m) for m in middle)
+        out.append(mask_last(last))
+        return " ".join(out)
+
+    def _mask_name_first_only(v: str | None) -> str | None:
+        """Mask single-part name: keep first letter, mask all remaining letters.
+        Example: 'John' -> 'J***'.
+        """
+        if v is None:
+            return None
+        s = str(v)
+        if len(s) <= 1:
+            return s
+        return s[0] + ("*" * (len(s) - 1))
+
+    _mask_fullname_initial_lastletter_udf = F.udf(_mask_fullname_initial_lastletter, T.StringType())
+    _mask_name_first_only_udf = F.udf(_mask_name_first_only, T.StringType())
+    _mask_fullname_initial_lastletter = staticmethod(_mask_fullname_initial_lastletter)
+    _mask_name_first_only = staticmethod(_mask_name_first_only)
 
     def apply(self, df: DataFrame, column: str, seed: Column, context: dict) -> DataFrame:
         # Apply by classification: if value looks like full name (contains whitespace),
@@ -170,14 +179,14 @@ class NameMaskStrategy(Strategy):
                 column,
                 F.when(
                     F.col(column).cast("string").rlike(r"\s+"),
-                    mask_fullname_initial_lastletter_udf(F.col(column)),
-                ).otherwise(mask_name_first_only_udf(F.col(column))),
+                    NameMaskStrategy._mask_fullname_initial_lastletter_udf(F.col(column)),
+                ).otherwise(NameMaskStrategy._mask_name_first_only_udf(F.col(column))),
             )
 
         # Fallback legacy heuristic based on column name
         cname = column.lower()
         if "name" in cname and "first" not in cname and "last" not in cname:
-            return df.withColumn(column, mask_fullname_initial_lastletter_udf(F.col(column)))
+            return df.withColumn(column, NameMaskStrategy._mask_fullname_initial_lastletter_udf(F.col(column)))
         return df.withColumn(column, mask_keep_first_last_col(F.col(column)))
 
 
@@ -211,3 +220,9 @@ def default_strategies() -> List[Strategy]:
         AgeStrategy(),
         SalaryStrategy(),
     ]
+
+# Backward-compatible module-level UDF aliases (moved into classes above)
+mask_fullname_initial_lastletter_udf = NameMaskStrategy._mask_fullname_initial_lastletter_udf
+mask_name_first_only_udf = NameMaskStrategy._mask_name_first_only_udf
+mask_email_preserve_domain_udf = EmailMaskStrategy._mask_email_preserve_domain_udf
+generate_random_ni_number_udf = NINumberStrategy._generate_random_ni_number_udf

@@ -9,6 +9,7 @@ from typing import Dict, Iterable, List, Optional, Sequence, Set
 import requests
 from pyspark.sql import DataFrame, functions as F
 from pyspark.sql.column import Column
+from azure.identity import DefaultAzureCredential  # type: ignore
 
 from .base import (
     Strategy,
@@ -28,7 +29,7 @@ except Exception:
     _HAS_LOGGING_UTIL = False
 
 
-def _log_event(event: str, level: int = logging.INFO, **fields) -> None:
+def _log_event(event: str, level: int = logging.INFO, **fields):
     """PII-safe structured logging helper using core util when available.
 
     - Formats a single-line JSON payload prefixed to identify the component.
@@ -172,21 +173,10 @@ def _get_access_token(tenant_id: str, client_id: str, client_secret: str) -> str
     """Acquire an access token for Purview.
 
     Prefers client-credential flow when client_secret is provided. If client_secret is blank
-    or equals one of {AZURE_IDENTITY, USE_AZURE_IDENTITY, DEFAULT}, fallback to Azure Identity
-    (DefaultAzureCredential -> AzureCliCredential).
+    or equals one of {AZURE_IDENTITY, USE_AZURE_IDENTITY, DEFAULT}, use DefaultAzureCredential.
     """
     if not client_secret or str(client_secret).strip().upper() in {"AZURE_IDENTITY", "USE_AZURE_IDENTITY", "DEFAULT"}:
-        try:
-            from azure.identity import DefaultAzureCredential  # type: ignore
-
-            return DefaultAzureCredential(exclude_interactive_browser_credential=True).get_token("https://purview.azure.net/.default").token
-        except Exception:
-            try:
-                from azure.identity import AzureCliCredential  # type: ignore
-
-                return AzureCliCredential().get_token("https://purview.azure.net/.default").token
-            except Exception as ex:
-                raise Exception("Failed to acquire token via Azure Identity (Default/Azure CLI)") from ex
+        return DefaultAzureCredential(exclude_interactive_browser_credential=True).get_token("https://purview.azure.net/.default").token
 
     token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
     data = {
@@ -369,7 +359,7 @@ class AnonymisationEngine:
         strategies: Optional[Sequence[Strategy]] = None,
         config: Optional[AnonymisationConfig] = None,
         run_id: Optional[str] = None,
-    ) -> None:
+    ):
         self.strategies: List[Strategy] = list(strategies or default_strategies())
         self.config = config or AnonymisationConfig()
         # Correlation ID for auditing; can be provided by caller or read from env
@@ -566,13 +556,12 @@ class AnonymisationEngine:
         if not source_folder:
             raise ValueError("source_folder is required (one of 'ServiceBus', 'Horizon', 'entraid')")
 
-        # Resolve storage host: prefer env var, then mssparkutils; otherwise instruct caller
+        # Resolve storage host:
         storage_host = os.getenv("ODW_STORAGE_ACCOUNT_DFS_HOST") or ""
         if not storage_host:
             try:
-                from notebookutils import mssparkutils  # type: ignore
-
-                storage_host = mssparkutils.notebook.run("/utils/py_utils_get_storage_account") or ""
+                from odw.core.util.util import Util  # type: ignore
+                storage_host = Util.get_storage_account() or ""
             except Exception:
                 storage_host = ""
         if not storage_host:
