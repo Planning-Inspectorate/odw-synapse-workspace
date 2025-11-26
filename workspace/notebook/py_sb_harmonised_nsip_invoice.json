@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "001885ec-a198-43a4-aac3-ba6bfea4b6cd"
+				"spark.autotune.trackingId": "98b87938-c4fe-4c76-95e3-019630c92d0b"
 			}
 		},
 		"metadata": {
@@ -247,6 +247,7 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"if not error_message:\n",
 					"try:\n",
 					"    # Step 1: Get max IngestionDate from existing table\n",
 					"    existing_df = spark.table(spark_table_final)\n",
@@ -259,8 +260,8 @@
 					"    print(f\"✅ Max IngestionDate from existing table: {max_IngestionDate_to}\")\n",
 					"\n",
 					"except Exception as e:\n",
-					"    print(f\"⚠️ Error while fetching max IngestionDate: {str(e)}\")\n",
-					"    max_IngestionDate_to = datetime(1900, 1, 1)  # fallback default\n",
+					"        error_message = f\"Error while fetching max IngestionDate {str(e)[:800]}\"\n",
+					"        max_IngestionDate_to = datetime(1900, 1, 1)  # fallback default\n",
 					""
 				],
 				"execution_count": 28
@@ -287,6 +288,7 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"if not error_message:\n",
 					"try:\n",
 					"    # Step 3: Explode invoices array\n",
 					"    exploded_df = service_bus_data.select(\n",
@@ -321,7 +323,8 @@
 					"    print(\"✅ Explode and extract completed successfully.\")\n",
 					"\n",
 					"except Exception as e:\n",
-					"    print(f\"⚠️ Error during explode/extract: {str(e)}\")\n",
+					"    error_message = f\"Error during explode/extract {str(e)[:800]}\"\n",
+					"    print(error_message)\n",
 					""
 				],
 				"execution_count": 30
@@ -329,7 +332,7 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"\n",
+					"if not error_message:\n",
 					"try:\n",
 					"    # Step 1: Get max ID from existing table\n",
 					"    existing_df = spark.table(spark_table_final)\n",
@@ -372,7 +375,8 @@
 					"    print(\"✅ Columns added and reordered successfully.\")\n",
 					"\n",
 					"except Exception as e:\n",
-					"    print(f\"⚠️ Error during processing: {str(e)}\")\n",
+					"    error_message=f\"Error during processing: {str(e)[:800]}\"\n",
+					"    print(error_message)\n",
 					""
 				],
 				"execution_count": null
@@ -380,44 +384,54 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"if not error_message:\n",
+					"try:\n",
 					"    new_data.write.format(\"delta\") \\\n",
-					"            .mode(\"append\") \\\n",
-					"            .option(\"overwriteSchema\", \"true\") \\\n",
-					"            .saveAsTable(spark_table_final)"
+					"        .mode(\"append\") \\\n",
+					"        .option(\"overwriteSchema\", \"true\") \\\n",
+					"        .saveAsTable(spark_table_final)\n",
+					"\n",
+					"    print(f\"✅ Data successfully written to Delta table: {spark_table_final}\")\n",
+					"\n",
+					"except Exception as e:\n",
+					"    error_message = f\"Error during Delta write: {str(e)[:800]}\"\n",
+					"    print(error_message)\n",
+					""
 				],
 				"execution_count": 35
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"target_table = DeltaTable.forName(spark, spark_table_final)"
-				],
-				"execution_count": 36
-			},
-			{
-				"cell_type": "code",
-				"source": [
+					"if not error_message:\n",
+					"try:\n",
+					"    # Load Delta table\n",
+					"    target_table = DeltaTable.forName(spark, spark_table_final)\n",
 					"\n",
-					"df = spark.table(spark_table_final)\n",
+					"    # Step 1: Read existing data\n",
+					"    df = spark.table(spark_table_final)\n",
 					"\n",
-					"# Window to determine latest record\n",
-					"window_spec = Window.partitionBy(\"caseId\", \"invoiceNumber\").orderBy(F.col(\"IngestionDate\").desc())\n",
-					"df = df.withColumn(\"RowID\", F.row_number().over(window_spec))\n",
-					"df = df.withColumn(\"NewIsActive\", F.when(F.col(\"RowID\") == 1, F.lit(\"Y\")).otherwise(F.lit(\"N\")))\n",
+					"    # Step 2: Window to determine latest record\n",
+					"    window_spec = Window.partitionBy(\"caseId\", \"invoiceNumber\").orderBy(F.col(\"IngestionDate\").desc())\n",
+					"    df = df.withColumn(\"RowID\", F.row_number().over(window_spec))\n",
+					"    df = df.withColumn(\"NewIsActive\", F.when(F.col(\"RowID\") == 1, F.lit(\"Y\")).otherwise(F.lit(\"N\")))\n",
 					"\n",
-					"# Step 4: Merge updates back into Delta table\n",
-					"# Use MERGE for atomic update of IsActive and ValidTo\n",
-					"target_table.alias(\"t\").merge(\n",
-					"    df.alias(\"s\"),\n",
-					"    \"t.caseId = s.caseId AND t.invoiceNumber = s.invoiceNumber AND t.IngestionDate = s.IngestionDate\"\n",
-					").whenMatchedUpdate(\n",
-					"    set={\n",
-					"        \"IsActive\": \"s.NewIsActive\",\n",
-					"        \"ValidTo\": \"CASE WHEN s.NewIsActive = 'N' THEN current_timestamp() ELSE t.ValidTo END\"\n",
-					"    }\n",
-					")\n",
+					"    # Step 3: Merge updates back into Delta table\n",
+					"    target_table.alias(\"t\").merge(\n",
+					"        df.alias(\"s\"),\n",
+					"        \"t.caseId = s.caseId AND t.invoiceNumber = s.invoiceNumber AND t.IngestionDate = s.IngestionDate\"\n",
+					"    ).whenMatchedUpdate(\n",
+					"        set={\n",
+					"            \"IsActive\": \"s.NewIsActive\",\n",
+					"            \"ValidTo\": \"CASE WHEN s.NewIsActive = 'N' THEN current_timestamp() ELSE t.ValidTo END\"\n",
+					"        }\n",
+					"    )\n",
 					"\n",
-					"print(\"✅ Data appended and IsActive/ValidTo updated successfully.\")\n",
+					"    print(\"✅ IsActive and ValidTo updated successfully.\")\n",
+					"\n",
+					"except Exception as e:\n",
+					"    error_message = f\"⚠️ Error during MERGE operation: {str(e)[:800]}\"\n",
+					"    print(error_message)\n",
 					""
 				],
 				"execution_count": 37
