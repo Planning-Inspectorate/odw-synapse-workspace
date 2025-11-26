@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ffa67324-8b16-46de-9650-826694da670a"
+				"spark.autotune.trackingId": "6812a156-d5c0-4022-8c21-8f6eb969d5d2"
 			}
 		},
 		"metadata": {
@@ -105,7 +105,7 @@
 					"from datetime import datetime\n",
 					"from delta.tables import DeltaTable"
 				],
-				"execution_count": 1
+				"execution_count": 17
 			},
 			{
 				"cell_type": "markdown",
@@ -138,7 +138,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 18
 			},
 			{
 				"cell_type": "code",
@@ -148,16 +148,28 @@
 					"spark_table_final = \"odw_harmonised_db.nsip_invoice\"\n",
 					"incremental_key = \"NSIPInvoiceID\""
 				],
-				"execution_count": null
+				"execution_count": 19
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"      # Step 1: Get max ValidTo from existing table (not service bus)\n",
-					"        existing_df = spark.table(spark_table_final)\n",
-					"        max_IngestionDate_to = existing_df.agg(F.max(\"IngestionDate\")).collect()[0][0]"
+					"try:\n",
+					"    # Step 1: Get max IngestionDate from existing table\n",
+					"    existing_df = spark.table(spark_table_final)\n",
+					"    max_IngestionDate_to = existing_df.agg(F.max(\"IngestionDate\")).collect()[0][0]\n",
+					"\n",
+					"    if max_IngestionDate_to is None:\n",
+					"        # Set default date if no records exist\n",
+					"        max_IngestionDate_to = datetime(1900, 1, 1)  # or any baseline date you prefer\n",
+					"\n",
+					"    print(f\"✅ Max IngestionDate from existing table: {max_IngestionDate_to}\")\n",
+					"\n",
+					"except Exception as e:\n",
+					"    print(f\"⚠️ Error while fetching max IngestionDate: {str(e)}\")\n",
+					"    max_IngestionDate_to = datetime(1900, 1, 1)  # fallback default\n",
+					""
 				],
-				"execution_count": null
+				"execution_count": 20
 			},
 			{
 				"cell_type": "code",
@@ -176,61 +188,128 @@
 					"            WHERE invoices IS NOT NULL\n",
 					"        \"\"\")"
 				],
-				"execution_count": null
+				"execution_count": 21
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"       # Step 3: Explode invoices array\n",
-					"        exploded_df = service_bus_data.select(\n",
-					"            F.col(\"NSIPProjectInfoInternalID\"),\n",
-					"            F.col(\"caseId\"),\n",
-					"            F.col(\"caseReference\"),\n",
-					"            F.explode(F.col(\"invoices\")).alias(\"invoice\"),\n",
-					"            F.col(\"ODTSourceSystem\"),\n",
-					"            F.col(\"SourceSystemID\"),\n",
-					"            F.col(\"IngestionDate\")\n",
-					"        )\n",
+					"try:\n",
+					"    # Step 3: Explode invoices array\n",
+					"    exploded_df = service_bus_data.select(\n",
+					"        F.col(\"NSIPProjectInfoInternalID\"),\n",
+					"        F.col(\"caseId\"),\n",
+					"        F.col(\"caseReference\"),\n",
+					"        F.explode(F.col(\"invoices\")).alias(\"invoice\"),\n",
+					"        F.col(\"ODTSourceSystem\"),\n",
+					"        F.col(\"SourceSystemID\"),\n",
+					"        F.col(\"IngestionDate\")\n",
+					"    )\n",
 					"\n",
-					"        # Step 4: Extract invoice fields\n",
-					"        new_data = exploded_df.select(\n",
-					"            F.col(\"NSIPProjectInfoInternalID\"),\n",
-					"            F.col(\"caseId\"),\n",
-					"            F.col(\"caseReference\"),\n",
-					"            F.col(\"invoice.invoiceStage\").alias(\"invoiceStage\"),\n",
-					"            F.col(\"invoice.invoiceNumber\").alias(\"invoiceNumber\"),\n",
-					"            F.col(\"invoice.amountDue\").alias(\"amountDue\"),\n",
-					"            F.col(\"invoice.paymentDueDate\").alias(\"paymentDueDate\"),\n",
-					"            F.col(\"invoice.invoicedDate\").alias(\"invoicedDate\"),\n",
-					"            F.col(\"invoice.paymentDate\").alias(\"paymentDate\"),\n",
-					"            F.col(\"invoice.refundCreditNoteNumber\").alias(\"refundCreditNoteNumber\"),\n",
-					"            F.col(\"invoice.refundAmount\").alias(\"refundAmount\"),\n",
-					"            F.col(\"invoice.refundIssueDate\").alias(\"refundIssueDate\"),\n",
-					"            F.col(\"ODTSourceSystem\"),\n",
-					"            F.col(\"SourceSystemID\"),\n",
-					"            F.col(\"IngestionDate\")\n",
-					"        )"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
+					"    # Step 4: Extract invoice fields\n",
+					"    new_data = exploded_df.select(\n",
+					"        F.col(\"NSIPProjectInfoInternalID\"),\n",
+					"        F.col(\"caseId\"),\n",
+					"        F.col(\"caseReference\"),\n",
+					"        F.col(\"invoice.invoiceStage\").alias(\"invoiceStage\"),\n",
+					"        F.col(\"invoice.invoiceNumber\").alias(\"invoiceNumber\"),\n",
+					"        F.col(\"invoice.amountDue\").alias(\"amountDue\"),\n",
+					"        F.col(\"invoice.paymentDueDate\").alias(\"paymentDueDate\"),\n",
+					"        F.col(\"invoice.invoicedDate\").alias(\"invoicedDate\"),\n",
+					"        F.col(\"invoice.paymentDate\").alias(\"paymentDate\"),\n",
+					"        F.col(\"invoice.refundCreditNoteNumber\").alias(\"refundCreditNoteNumber\"),\n",
+					"        F.col(\"invoice.refundAmount\").alias(\"refundAmount\"),\n",
+					"        F.col(\"invoice.refundIssueDate\").alias(\"refundIssueDate\"),\n",
+					"        F.col(\"ODTSourceSystem\"),\n",
+					"        F.col(\"SourceSystemID\"),\n",
+					"        F.col(\"IngestionDate\")\n",
+					"    )\n",
 					"\n",
-					"# Step 5: Filter only records newer than max ValidTo\n",
-					"if max_IngestionDate_to:\n",
-					"    new_data = new_data.filter(F.col(\"IngestionDate\") > F.lit(max_IngestionDate_to))\n",
+					"    print(\"✅ Explode and extract completed successfully.\")\n",
 					"\n",
-					"# Drop old IngestionDate column\n",
-					"new_data = new_data.drop(\"IngestionDate\")\n",
-					"\n",
-					"# Add new IngestionDate column with current timestamp\n",
-					"new_data = new_data.withColumn(\"IngestionDate\", F.current_timestamp())\n",
-					"\n",
-					"# Step 6: Add surrogate key dynamically\n",
+					"except Exception as e:\n",
+					"    print(f\"⚠️ Error during explode/extract: {str(e)}\")\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 22
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"try:\n",
+					"    # Step 5: Filter only records newer than max ValidTo\n",
+					"    if max_IngestionDate_to:\n",
+					"        new_data = new_data.filter(F.col(\"IngestionDate\") > F.lit(max_IngestionDate_to))\n",
+					"    else:\n",
+					"        # If max_IngestionDate_to is None, use a default baseline date\n",
+					"        default_date = datetime(1900, 1, 1)\n",
+					"        new_data = new_data.filter(F.col(\"IngestionDate\") > F.lit(default_date))\n",
+					"\n",
+					"    # Drop old IngestionDate column\n",
+					"    new_data = new_data.drop(\"IngestionDate\")\n",
+					"\n",
+					"    # Add new IngestionDate column with current timestamp\n",
+					"    new_data = new_data.withColumn(\"IngestionDate\", F.current_timestamp())\n",
+					"\n",
+					"    # Step 6: Add surrogate key dynamically (example using monotonically_increasing_id)\n",
+					"    new_data = new_data.withColumn(incremental_key, F.monotonically_increasing_id())\n",
+					"    display(new_data)\n",
+					"\n",
+					"    print(\"✅ Filtering and column updates completed successfully.\")\n",
+					"\n",
+					"except Exception as e:\n",
+					"    print(f\"⚠️ Error during filtering and column updates: {str(e)}\")\n",
+					""
+				],
+				"execution_count": 23
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"try:\n",
+					"    # Step 1: Get max ID from existing table\n",
+					"    existing_df = spark.table(spark_table_final)\n",
+					"    max_id_row = existing_df.agg(F.max(F.col(incremental_key))).collect()[0][0]\n",
+					"    if max_id_row is None:\n",
+					"        max_id_row = 0  # Default if table is empty\n",
+					"\n",
+					"    # Step 2: Filter only records newer than max IngestionDate\n",
+					"    if max_IngestionDate_to:\n",
+					"        new_data = new_data.filter(F.col(\"IngestionDate\") > F.lit(max_IngestionDate_to))\n",
+					"    else:\n",
+					"        default_date = datetime(1900, 1, 1)\n",
+					"        new_data = new_data.filter(F.col(\"IngestionDate\") > F.lit(default_date))\n",
+					"\n",
+					"    # Step 3: Drop old IngestionDate column\n",
+					"    new_data = new_data.drop(\"IngestionDate\")\n",
+					"\n",
+					"    # Step 4: Add new IngestionDate column with current timestamp\n",
+					"    new_data = new_data.withColumn(\"IngestionDate\", F.current_timestamp())\n",
+					"\n",
+					"    # Step 5: Add surrogate key starting from max_id_row + 1\n",
+					"    new_data = new_data.withColumn(\n",
+					"        incremental_key,\n",
+					"        F.row_number().over(Window.orderBy(F.monotonically_increasing_id())) + max_id_row\n",
+					"    )\n",
+					"\n",
+					"    # Step 6: Reorder columns so incremental_key is first\n",
+					"    cols = new_data.columns\n",
+					"    reordered_cols = [incremental_key] + [c for c in cols if c != incremental_key]\n",
+					"    new_data = new_data.select(reordered_cols)\n",
+					"\n",
+					"    display(new_data)\n",
+					"    print(\"✅ Surrogate key added and moved to first column successfully.\")\n",
+					"\n",
+					"except Exception as e:\n",
+					"    print(f\"⚠️ Error during surrogate key assignment: {str(e)}\")\n",
+					""
+				],
+				"execution_count": 26
 			},
 			{
 				"cell_type": "code",
@@ -240,6 +319,41 @@
 					"            .option(\"overwriteSchema\", \"true\") \\\n",
 					"            .partitionBy(\"IsActive\") \\\n",
 					"            .saveAsTable(spark_table_final)"
+				],
+				"execution_count": 25
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"target_table = DeltaTable.forName(spark, spark_table_final)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"\n",
+					"df = spark.table(spark_table_final)\n",
+					"\n",
+					"# Window to determine latest record\n",
+					"window_spec = Window.partitionBy(\"caseId\", \"invoiceNumber\").orderBy(F.col(\"IngestionDate\").desc())\n",
+					"df = df.withColumn(\"RowID\", F.row_number().over(window_spec))\n",
+					"df = df.withColumn(\"NewIsActive\", F.when(F.col(\"RowID\") == 1, F.lit(\"Y\")).otherwise(F.lit(\"N\")))\n",
+					"\n",
+					"# Step 4: Merge updates back into Delta table\n",
+					"# Use MERGE for atomic update of IsActive and ValidTo\n",
+					"target_table.alias(\"t\").merge(\n",
+					"    df.alias(\"s\"),\n",
+					"    \"t.caseId = s.caseId AND t.invoiceNumber = s.invoiceNumber AND t.IngestionDate = s.IngestionDate\"\n",
+					").whenMatchedUpdate(\n",
+					"    set={\n",
+					"        \"IsActive\": \"s.NewIsActive\",\n",
+					"        \"ValidTo\": \"CASE WHEN s.NewIsActive = 'N' THEN current_timestamp() ELSE t.ValidTo END\"\n",
+					"    }\n",
+					")\n",
+					"\n",
+					"print(\"✅ Data appended and IsActive/ValidTo updated successfully.\")\n",
+					""
 				],
 				"execution_count": null
 			},
