@@ -86,7 +86,7 @@
 					}
 				},
 				"source": [
-					"%run utils/py_logging_decorator"
+					"from odw.core.util.logging_util import LoggingUtil"
 				],
 				"execution_count": null
 			},
@@ -140,7 +140,7 @@
 					}
 				},
 				"source": [
-					"@logging_to_appins\n",
+					"@LoggingUtil.logging_to_appins\n",
 					"def validate_parameters(storage_acc, raw_container, raw_source_folder, raw_name, standardised_container, standardised_source_folder, standardised_name, linked_service, sheet_name=0, header_row=0):\n",
 					"    \n",
 					"    ''' \n",
@@ -209,7 +209,7 @@
 					}
 				},
 				"source": [
-					"@logging_to_appins\n",
+					"@LoggingUtil.logging_to_appins\n",
 					"def _cleanse_headers(df):\n",
 					"    '''\n",
 					"    NOT A PURE FUNCTION\n",
@@ -232,7 +232,7 @@
 					"\n",
 					"    return df \n",
 					"\n",
-					"@logging_to_appins\n",
+					"@LoggingUtil.logging_to_appins\n",
 					"def _change_types(df):\n",
 					"    '''\n",
 					"    NOT A PURE FUNCTION\n",
@@ -248,7 +248,7 @@
 					"        \n",
 					"    return df.astype(str, errors='ignore')\n",
 					"\n",
-					"@logging_to_appins\n",
+					"@LoggingUtil.logging_to_appins\n",
 					"def ingest_excel_to_parquet(storage_acc, raw_container, raw_source_folder, raw_name, standardised_container, standardised_source_folder, standardised_name, linked_service, sheet_name=0, header=0):\n",
 					"\n",
 					"    '''\n",
@@ -283,9 +283,9 @@
 					"    df = _change_types(df)\n",
 					"\n",
 					"    ### writing output\n",
-					"    logInfo(f\"Writing to {targetpath}\")\n",
+					"    LoggingUtil().log_info(f\"Writing to {targetpath}\")\n",
 					"    df.to_parquet(targetpath)\n",
-					"    logInfo(f\"Written to {targetpath}\")\n",
+					"    LoggingUtil().log_info(f\"Written to {targetpath}\")\n",
 					""
 				],
 				"execution_count": null
@@ -304,7 +304,7 @@
 					}
 				},
 				"source": [
-					"@logging_to_appins\n",
+					"@LoggingUtil.logging_to_appins\n",
 					"def enable_delta_on_parquet(standardised_container, standardised_source_folder):\n",
 					"    '''\n",
 					"    Take a standard parquet file and enable delta lake capabiltiies on the file\n",
@@ -324,9 +324,9 @@
 					"    ### converting parquet to delta table\n",
 					"    from delta.tables import DeltaTable\n",
 					"    if not DeltaTable.isDeltaTable(spark,target_delta_folder):\n",
-					"        logInfo(f\"Converting to {target_delta_folder}\")\n",
+					"        LoggingUtil().log_info(f\"Converting to {target_delta_folder}\")\n",
 					"        deltaTable = DeltaTable.convertToDelta(spark, f\"parquet.`{target_delta_folder}`\") \n",
-					"        logInfo(f\"Converted to {target_delta_folder}\")"
+					"        LoggingUtil().log_info(f\"Converted to {target_delta_folder}\")"
 				],
 				"execution_count": null
 			},
@@ -344,7 +344,7 @@
 					}
 				},
 				"source": [
-					"@logging_to_appins\n",
+					"@LoggingUtil.logging_to_appins\n",
 					"def lakedb_table_sparksql(db_name,delta_lake_table_name,standardised_container, standardised_source_folder):\n",
 					"    '''\n",
 					"    Make delta parquet file available in lake database\n",
@@ -362,10 +362,10 @@
 					"    ### outstanding\n",
 					"\n",
 					"    ### make delta table available to be queried in spark sql\n",
-					"    logInfo(f\"Creating delta table {db_name}.{delta_lake_table_name}\")\n",
+					"    LoggingUtil().log_info(f\"Creating delta table {db_name}.{delta_lake_table_name}\")\n",
 					"    spark.sql(f\"drop table if exists {db_name}.{delta_lake_table_name};\")\n",
 					"    spark.sql(f\"CREATE TABLE {db_name}.{delta_lake_table_name} USING DELTA LOCATION '{target_delta_folder}'\")\n",
-					"    logInfo(f\"Created delta table {db_name}.{delta_lake_table_name}\")"
+					"    LoggingUtil().log_info(f\"Created delta table {db_name}.{delta_lake_table_name}\")"
 				],
 				"execution_count": null
 			},
@@ -383,7 +383,7 @@
 					}
 				},
 				"source": [
-					"@logging_to_appins\n",
+					"@LoggingUtil.logging_to_appins\n",
 					"def ingest_adhoc(storage_account, \n",
 					"                    definition,\n",
 					"                    folder_path, \n",
@@ -457,7 +457,7 @@
 					"    ### mount the data lake storage in Synapse to the Synapse File Mount API \n",
 					"    mount_storage(path=folder_path)\n",
 					"\n",
-					"    logInfo(f\"Reading {filename}\")\n",
+					"    LoggingUtil().log_info(f\"Reading {filename}\")\n",
 					"\n",
 					"    ### open .csv and .xlsx files using pandas                                 \n",
 					"    if \".xlsx\" in filename.lower():\n",
@@ -475,7 +475,7 @@
 					"        if isMultilineJSON == False:\n",
 					"            df = spark.read.json(f\"{folder_path}/{filename}\")\n",
 					"        else:\n",
-					"            logInfo(\"Reading multiline JSON\")\n",
+					"            LoggingUtil().log_info(\"Reading multiline JSON\")\n",
 					"            df = spark.read.option(\"multiline\", \"true\").json(f\"{folder_path}/{filename}\")\n",
 					"\n",
 					"            #we need to pull the data from a specific data attribute\n",
@@ -496,7 +496,7 @@
 					"    try:\n",
 					"        unmount_storage()\n",
 					"    except Exception as e:\n",
-					"        logInfo('Unable to unmount storage')\n",
+					"        LoggingUtil().log_info('Unable to unmount storage')\n",
 					"\n",
 					"    ### add date columns included with every standardised table\n",
 					"    sparkDF = sparkDF.withColumn(\"ingested_datetime\",current_timestamp())\n",
@@ -535,9 +535,9 @@
 					"            sparkDF = sparkDF.withColumn(field.name, col(field.name).cast(table_field.dataType))\n",
 					"\n",
 					"    ### writing the dataframe to the existing standardised table\n",
-					"    logInfo(f\"Writing data to odw_standardised_db.{standardised_table_name}\")\n",
+					"    LoggingUtil().log_info(f\"Writing data to odw_standardised_db.{standardised_table_name}\")\n",
 					"    sparkDF.write.option(\"mergeSchema\", \"true\").format(\"delta\").mode(\"append\").saveAsTable(f\"odw_standardised_db.{standardised_table_name}\")\n",
-					"    logInfo(f\"Written data to odw_standardised_db.{standardised_table_name}\")\n",
+					"    LoggingUtil().log_info(f\"Written data to odw_standardised_db.{standardised_table_name}\")\n",
 					"\n",
 					"    standardised_table_df_new = spark.read.format(\"delta\").load(standardised_table_location)\n",
 					"    rows_new = standardised_table_df.filter((standardised_table_df.expected_from == expected_from) &  (standardised_table_df.expected_to == expected_to)).count()\n",
@@ -553,7 +553,7 @@
 					"            ingestion_log_df = spark.read.format(\"delta\").load(ingestion_log_table_location)\n",
 					"            table_exists = True\n",
 					"        except Exception as e:\n",
-					"            logInfo(f\"Ingestion log table not found at {ingestion_log_table_location}. Creating a new one.\")\n",
+					"            LoggingUtil().log_info(f\"Ingestion log table not found at {ingestion_log_table_location}. Creating a new one.\")\n",
 					"            table_exists = False\n",
 					"\n",
 					"        ### Extract a single row with the logging columns\n",
@@ -574,21 +574,21 @@
 					"        if not table_exists:\n",
 					"            # Create the table\n",
 					"            new_log_entry.write.format(\"delta\").option(\"path\", ingestion_log_table_location).saveAsTable(f\"logging.{logging_table_name}\")\n",
-					"            logInfo(f\"Updating ingestion logging table {logging_table_name} with first entry.\")\n",
+					"            LoggingUtil().log_info(f\"Updating ingestion logging table {logging_table_name} with first entry.\")\n",
 					"        else:\n",
 					"            # Appending log entry to existing table - using the catalog directly\n",
 					"            new_log_entry.write.format(\"delta\").mode(\"append\").saveAsTable(f\"logging.{logging_table_name}\")\n",
-					"            logInfo(\"Appended to existing ingestion logging table with new entry\")\n",
+					"            LoggingUtil().log_info(\"Appended to existing ingestion logging table with new entry\")\n",
 					"    \n",
 					"    except Exception as e:\n",
-					"        logInfo('Logging to tables_logs failed')\n",
+					"        LoggingUtil().log_info('Logging to tables_logs failed')\n",
 					"\n",
 					"    ### Test correct number of rows have written\n",
 					"    if rows_raw <= rows_new:\n",
 					"        #count up the rows which match the dates, we should at LEAST have those, multiple runs on the same day will lead to the counts not matching however\n",
-					"        logInfo('All rows have successfully been written')\n",
+					"        LoggingUtil().log_info('All rows have successfully been written')\n",
 					"    else:\n",
-					"        logError(f\"All rows have NOT been successfully written. Expected {rows_raw} but {rows_new} written\")\n",
+					"        LoggingUtil().log_error(f\"All rows have NOT been successfully written. Expected {rows_raw} but {rows_new} written\")\n",
 					"        ingestion_failure = True\n",
 					"    return (ingestion_failure, rows_raw)\n",
 					""
@@ -609,7 +609,7 @@
 					}
 				},
 				"source": [
-					"@logging_to_appins\n",
+					"@LoggingUtil.logging_to_appins\n",
 					"def log_ingestion_metrics(storage_account, process_name):\n",
 					"    from pyspark.sql import SparkSession\n",
 					"    from notebookutils import mssparkutils\n",
@@ -638,7 +638,7 @@
 					"    try:\n",
 					"        ingestion_log_df = spark.read.format(\"delta\").load(ingestion_log_table_location)\n",
 					"    except Exception as e:\n",
-					"        logInfo(f\"Ingestion log table not found at {ingestion_log_table_location}. Exiting.\")\n",
+					"        LoggingUtil().log_info(f\"Ingestion log table not found at {ingestion_log_table_location}. Exiting.\")\n",
 					"        return\n",
 					"\n",
 					"    # Calculate metrics for each file_ID\n",
@@ -667,7 +667,7 @@
 					"\n",
 					"    # Write metrics to the metrics table\n",
 					"    metrics_df.write.format(\"delta\").mode(\"append\").saveAsTable(f\"logging.{metrics_table_name}\")\n",
-					"    logInfo(f\"Metrics table {metrics_table_name} updated successfully.\")\n",
+					"    LoggingUtil().log_info(f\"Metrics table {metrics_table_name} updated successfully.\")\n",
 					""
 				],
 				"execution_count": null
