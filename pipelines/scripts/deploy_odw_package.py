@@ -40,7 +40,7 @@ class ODWPackageDeployer():
         return {
             package["name"]
             for pool in extra_pools
-            for package in pool["properties"]["customLibraries"]
+            for package in pool["properties"].get("customLibraries", [])
             if "odw" in package["name"]
         }
 
