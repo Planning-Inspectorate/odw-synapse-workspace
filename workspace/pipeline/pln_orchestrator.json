@@ -9,7 +9,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"expression": {
-						"value": "@and(\n  equals(pipeline().parameters.runInit, false),\n  not(equals(pipeline().parameters.previousRunSummaryJson, ''))\n)\n",
+						"value": "@and(\n  equals(pipeline().parameters.runInit, false),\n  not(equals(pipeline().parameters.previousRunSummaryPath, ''))\n)\n",
 						"type": "Expression"
 					},
 					"ifFalseActivities": [
@@ -28,10 +28,22 @@
 								},
 								"waitOnCompletion": true,
 								"parameters": {
-									"sbEntitiesFilter": "@pipeline().parameters.sbEntitiesFilter",
-									"hzEntitiesFilter": "@pipeline().parameters.hzEntitiesFilter",
-									"includeServiceBus": "@pipeline().parameters.runIngestSB",
-									"includeHorizon": "@pipeline().parameters.runIngestHZ"
+									"sbEntitiesFilter": {
+										"value": "@pipeline().parameters.sbEntitiesFilter",
+										"type": "Expression"
+									},
+									"hzEntitiesFilter": {
+										"value": "@pipeline().parameters.hzEntitiesFilter",
+										"type": "Expression"
+									},
+									"includeServiceBus": {
+										"value": "@pipeline().parameters.runIngestSB",
+										"type": "Expression"
+									},
+									"includeHorizon": {
+										"value": "@pipeline().parameters.runIngestHZ",
+										"type": "Expression"
+									}
 								}
 							}
 						},
@@ -53,7 +65,10 @@
 							"userProperties": [],
 							"typeProperties": {
 								"variableName": "runContextJson",
-								"value": "@activity('A_Init').output.pipelineReturnValue.runContextJson"
+								"value": {
+									"value": "@activity('A_Init').output.pipelineReturnValue.runContextJson",
+									"type": "Expression"
+								}
 							}
 						},
 						{
@@ -74,9 +89,10 @@
 							"userProperties": [],
 							"typeProperties": {
 								"variableName": "sbEntities",
-								"value": [
-									"@activity('A_Init').output.pipelineReturnValue.sbEntities"
-								]
+								"value": {
+									"value": "@activity('A_Init').output.pipelineReturnValue.sbEntities\n",
+									"type": "Expression"
+								}
 							}
 						},
 						{
@@ -97,9 +113,10 @@
 							"userProperties": [],
 							"typeProperties": {
 								"variableName": "hzEntities",
-								"value": [
-									"@activity('A_Init').output.pipelineReturnValue.hzEntities"
-								]
+								"value": {
+									"value": "@activity('A_Init').output.pipelineReturnValue.hzEntities\n",
+									"type": "Expression"
+								}
 							}
 						}
 					],
@@ -107,7 +124,14 @@
 						{
 							"name": "Set_Context_From_Summary",
 							"type": "SetVariable",
-							"dependsOn": [],
+							"dependsOn": [
+								{
+									"activity": "Lookup_Previous_Run_Summary",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
 							"policy": {
 								"secureOutput": false,
 								"secureInput": false
@@ -115,7 +139,10 @@
 							"userProperties": [],
 							"typeProperties": {
 								"variableName": "runContextJson",
-								"value": "@string(\n  json(pipeline().parameters.previousRunSummaryJson).runContextJson\n)\n"
+								"value": {
+									"value": "@string(activity('Lookup_Previous_Run_Summary').output.runContextJson)\n",
+									"type": "Expression"
+								}
 							}
 						},
 						{
@@ -136,9 +163,10 @@
 							"userProperties": [],
 							"typeProperties": {
 								"variableName": "sbEntities",
-								"value": [
-									"@json(pipeline().parameters.previousRunSummaryJson).sbEntities\n"
-								]
+								"value": {
+									"value": "@activity('Lookup_Previous_Run_Summary').output.sbEntities\n",
+									"type": "Expression"
+								}
 							}
 						},
 						{
@@ -159,9 +187,50 @@
 							"userProperties": [],
 							"typeProperties": {
 								"variableName": "hzEntities",
-								"value": [
-									"@json(pipeline().parameters.previousRunSummaryJson).hzEntities\n"
-								]
+								"value": {
+									"value": "@activity('Lookup_Previous_Run_Summary').output.hzEntities\n",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Lookup_Previous_Run_Summary",
+							"type": "Lookup",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "JsonSource",
+									"storeSettings": {
+										"type": "AzureBlobFSReadSettings",
+										"recursive": true,
+										"enablePartitionDiscovery": false
+									},
+									"formatSettings": {
+										"type": "JsonReadSettings"
+									}
+								},
+								"dataset": {
+									"referenceName": "ds_orchestrator_manifest_json",
+									"type": "DatasetReference",
+									"parameters": {
+										"folderPath": {
+											"value": "@substring(\n  pipeline().parameters.previousRunSummaryPath,\n  0,\n  lastIndexOf(pipeline().parameters.previousRunSummaryPath, '/')\n)\n",
+											"type": "Expression"
+										},
+										"fileName": {
+											"value": "@substring(\n  pipeline().parameters.previousRunSummaryPath,\n  add(lastIndexOf(pipeline().parameters.previousRunSummaryPath, '/'), 1),\n  sub(\n    length(pipeline().parameters.previousRunSummaryPath),\n    add(lastIndexOf(pipeline().parameters.previousRunSummaryPath, '/'), 1)\n  )\n)\n",
+											"type": "Expression"
+										}
+									}
+								}
 							}
 						}
 					]
@@ -200,8 +269,14 @@
 								},
 								"waitOnCompletion": true,
 								"parameters": {
-									"runContextJson": "@variables('runContextJson')",
-									"sbEntities": "@variables('sbEntities')"
+									"runContextJson": {
+										"value": "@variables('runContextJson')",
+										"type": "Expression"
+									},
+									"sbEntities": {
+										"value": "@variables('sbEntities')",
+										"type": "Expression"
+									}
 								}
 							}
 						},
@@ -223,7 +298,10 @@
 							"userProperties": [],
 							"typeProperties": {
 								"variableName": "sbResultJson",
-								"value": "@activity('A_SB_Ingest').output.pipelineReturnValue.result\n"
+								"value": {
+									"value": "@activity('A_SB_Ingest').output.pipelineReturnValue.result\n",
+									"type": "Expression"
+								}
 							}
 						}
 					]
@@ -262,8 +340,14 @@
 								},
 								"waitOnCompletion": true,
 								"parameters": {
-									"runContextJson": "@variables('runContextJson')",
-									"hzEntities": "@variables('hzEntities')"
+									"runContextJson": {
+										"value": "@variables('runContextJson')",
+										"type": "Expression"
+									},
+									"hzEntities": {
+										"value": "@variables('hzEntities')",
+										"type": "Expression"
+									}
 								}
 							}
 						},
@@ -285,7 +369,10 @@
 							"userProperties": [],
 							"typeProperties": {
 								"variableName": "hzResultJson",
-								"value": "@activity('A_HZ_Ingest').output.pipelineReturnValue.result\n"
+								"value": {
+									"value": "@activity('A_HZ_Ingest').output.pipelineReturnValue.result\n",
+									"type": "Expression"
+								}
 							}
 						}
 					]
@@ -315,7 +402,10 @@
 				"userProperties": [],
 				"typeProperties": {
 					"variableName": "runSummaryJson",
-					"value": "@concat(\n  '{',\n    '\"orchestrator\":\"pln_orchestrator\",',\n    '\"runId\":\"', pipeline().RunId, '\",',\n    '\"runContextJson\":', variables('runContextJson'), ',',\n    '\"sbEntities\":', string(variables('sbEntities')), ',',\n    '\"hzEntities\":', string(variables('hzEntities')), ',',\n    '\"sbResult\":', variables('sbResultJson'), ',',\n    '\"hzResult\":', variables('hzResultJson'),\n  '}'\n)\n"
+					"value": {
+						"value": "@concat(\n  '{',\n    '\"orchestrator\":\"pln_orchestrator\",',\n    '\"runId\":\"', pipeline().RunId, '\",',\n    '\"runContextJson\":', variables('runContextJson'), ',',\n    '\"sbEntities\":', string(variables('sbEntities')), ',',\n    '\"hzEntities\":', string(variables('hzEntities')), ',',\n    '\"sbResult\":', variables('sbResultJson'), ',',\n    '\"hzResult\":', variables('hzResultJson'),\n  '}'\n)\n",
+						"type": "Expression"
+					}
 				}
 			},
 			{
@@ -323,7 +413,7 @@
 				"type": "SetVariable",
 				"dependsOn": [
 					{
-						"activity": "Build_RunSummary",
+						"activity": "Write_Orchestrator_Manifest",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -343,9 +433,94 @@
 								"type": "Expression",
 								"content": "@variables('runSummaryJson')\n"
 							}
+						},
+						{
+							"key": "manifestPath",
+							"value": {
+								"type": "Expression",
+								"content": "@variables('manifestPath')"
+							}
 						}
 					],
 					"setSystemVariable": true
+				}
+			},
+			{
+				"name": "Build_Manifest_Path",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Build_RunSummary",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "manifestPath",
+					"value": {
+						"value": "@concat(\n  'Orchestrator_Manifests/pln_orchestrator/runs/ingest_date=',\n  json(variables('runContextJson')).ingestDate,\n  '/run_id=',\n  json(variables('runContextJson')).runId,\n  '/manifest.json'\n)\n",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Write_Orchestrator_Manifest",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Build_Manifest_Path",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "nb_write_orchestrator_manifest",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"runSummaryJson": {
+							"value": "@variables('runSummaryJson')",
+							"type": "string"
+						},
+						"runContextJson": {
+							"value": "@variables('runContextJson')",
+							"type": "string"
+						},
+						"manifestPath": {
+							"value": "@variables('manifestPath')",
+							"type": "string"
+						},
+						"status": {
+							"value": "'Succeeded'",
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"sparkPool": {
+						"referenceName": "pinssynspodw34",
+						"type": "BigDataPoolReference"
+					},
+					"executorSize": "Small",
+					"driverSize": "Small",
+					"authentication": {
+						"type": "MSI"
+					}
 				}
 			}
 		],
@@ -370,8 +545,9 @@
 				"type": "array",
 				"defaultValue": []
 			},
-			"previousRunSummaryJson": {
-				"type": "string"
+			"previousRunSummaryPath": {
+				"type": "string",
+				"defaultValue": "''"
 			}
 		},
 		"variables": {
@@ -393,6 +569,9 @@
 				"defaultValue": "null"
 			},
 			"runSummaryJson": {
+				"type": "String"
+			},
+			"manifestPath": {
 				"type": "String"
 			}
 		},
