@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ce731dd8-1d50-4288-9ad4-4702e965feb2"
+				"spark.autotune.trackingId": "74f686b8-9933-4834-864e-91e3c6acf634"
 			}
 		},
 		"metadata": {
@@ -78,7 +78,7 @@
 					"PipelineTriggeredbyPipelineName = None\n",
 					"PipelineTriggeredbyPipelineRunID = None"
 				],
-				"execution_count": 1
+				"execution_count": 11
 			},
 			{
 				"cell_type": "code",
@@ -91,21 +91,21 @@
 					"import pandas as pd\n",
 					"import numpy as np"
 				],
-				"execution_count": 2
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 3
+				"execution_count": 13
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 4
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
@@ -121,7 +121,7 @@
 					"error_message=''\n",
 					"storage_account = ''"
 				],
-				"execution_count": 5
+				"execution_count": 15
 			},
 			{
 				"cell_type": "code",
@@ -143,7 +143,7 @@
 					"        error_message = f\"Error in getting storage account configuration: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 6
+				"execution_count": 16
 			},
 			{
 				"cell_type": "code",
@@ -202,7 +202,7 @@
 					"        error_message = f\"Error in creating view {view_name}: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 7
+				"execution_count": 17
 			},
 			{
 				"cell_type": "code",
@@ -214,19 +214,24 @@
 					"        spark.sql(f\"DROP TABLE IF EXISTS {spark_table_final}\")\n",
 					"        logInfo(\"Table dropped or did not exist\")\n",
 					"        \n",
-					"        # Delete the storage location to ensure clean state\n",
-					"        logInfo(f\"Cleaning up storage location: {delta_table_path}\")\n",
+					"        # Check if storage location exists before attempting cleanup\n",
+					"        logInfo(f\"Checking storage location: {delta_table_path}\")\n",
 					"        try:\n",
-					"            mssparkutils.fs.rm(delta_table_path, recurse=True)\n",
-					"            logInfo(\"Storage location cleaned successfully\")\n",
+					"            if mssparkutils.fs.exists(delta_table_path):\n",
+					"                logInfo(\"Storage location exists, cleaning up...\")\n",
+					"                mssparkutils.fs.rm(delta_table_path, recurse=True)\n",
+					"                logInfo(\"Storage location cleaned successfully\")\n",
+					"            else:\n",
+					"                logInfo(\"Storage location does not exist, no cleanup needed\")\n",
 					"        except Exception as cleanup_error:\n",
-					"            logInfo(f\"Storage location cleanup: {str(cleanup_error)} (location may not exist, proceeding)\")\n",
+					"            # Handle edge cases where exists() might behave unexpectedly\n",
+					"            logInfo(f\"Storage location cleanup skipped: {str(cleanup_error)[:200]}\")\n",
 					"        \n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error in dropping table {spark_table_final}: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 8
+				"execution_count": 18
 			},
 			{
 				"cell_type": "code",
@@ -253,7 +258,7 @@
 					"        error_message = f\"Error in creating table {spark_table_final}: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 9
+				"execution_count": 19
 			},
 			{
 				"cell_type": "code",
@@ -290,7 +295,7 @@
 					"    status_code\n",
 					")"
 				],
-				"execution_count": 10
+				"execution_count": 20
 			}
 		]
 	}
