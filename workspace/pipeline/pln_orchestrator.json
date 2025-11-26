@@ -1,0 +1,404 @@
+{
+	"name": "pln_orchestrator",
+	"properties": {
+		"activities": [
+			{
+				"name": "If_UsePreviousSummary",
+				"type": "IfCondition",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@and(\n  equals(pipeline().parameters.runInit, false),\n  not(equals(pipeline().parameters.previousRunSummaryJson, ''))\n)\n",
+						"type": "Expression"
+					},
+					"ifFalseActivities": [
+						{
+							"name": "A_Init",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_vault_and_env_init",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"sbEntitiesFilter": "@pipeline().parameters.sbEntitiesFilter",
+									"hzEntitiesFilter": "@pipeline().parameters.hzEntitiesFilter",
+									"includeServiceBus": "@pipeline().parameters.runIngestSB",
+									"includeHorizon": "@pipeline().parameters.runIngestHZ"
+								}
+							}
+						},
+						{
+							"name": "Set_RunContext_From_Init",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "A_Init",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "runContextJson",
+								"value": "@activity('A_Init').output.pipelineReturnValue.runContextJson"
+							}
+						},
+						{
+							"name": "Set_SbEntities_From_Init",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Set_RunContext_From_Init",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "sbEntities",
+								"value": [
+									"@activity('A_Init').output.pipelineReturnValue.sbEntities"
+								]
+							}
+						},
+						{
+							"name": "Set_HzEntities_From_Init",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Set_SbEntities_From_Init",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "hzEntities",
+								"value": [
+									"@activity('A_Init').output.pipelineReturnValue.hzEntities"
+								]
+							}
+						}
+					],
+					"ifTrueActivities": [
+						{
+							"name": "Set_Context_From_Summary",
+							"type": "SetVariable",
+							"dependsOn": [],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "runContextJson",
+								"value": "@string(\n  json(pipeline().parameters.previousRunSummaryJson).runContextJson\n)\n"
+							}
+						},
+						{
+							"name": "Set_SB_Entities",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Set_Context_From_Summary",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "sbEntities",
+								"value": [
+									"@json(pipeline().parameters.previousRunSummaryJson).sbEntities\n"
+								]
+							}
+						},
+						{
+							"name": "Set_HZ_Entities",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Set_SB_Entities",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "hzEntities",
+								"value": [
+									"@json(pipeline().parameters.previousRunSummaryJson).hzEntities\n"
+								]
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "If_RunSB_Ingest",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "If_UsePreviousSummary",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@pipeline().parameters.runIngestSB\n",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "A_SB_Ingest",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_service_bus_ingest",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"runContextJson": "@variables('runContextJson')",
+									"sbEntities": "@variables('sbEntities')"
+								}
+							}
+						},
+						{
+							"name": "Set_sbResult_From_SB",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "A_SB_Ingest",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "sbResultJson",
+								"value": "@activity('A_SB_Ingest').output.pipelineReturnValue.result\n"
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "If_RunHZ_Ingest",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "If_UsePreviousSummary",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@pipeline().parameters.runIngestHZ\n",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "A_HZ_Ingest",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_horizon_ingest",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"runContextJson": "@variables('runContextJson')",
+									"hzEntities": "@variables('hzEntities')"
+								}
+							}
+						},
+						{
+							"name": "Set_hzResult_From_HZ",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "A_HZ_Ingest",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "hzResultJson",
+								"value": "@activity('A_HZ_Ingest').output.pipelineReturnValue.result\n"
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Build_RunSummary",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "If_RunSB_Ingest",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "If_RunHZ_Ingest",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "runSummaryJson",
+					"value": "@concat(\n  '{',\n    '\"orchestrator\":\"pln_orchestrator\",',\n    '\"runId\":\"', pipeline().RunId, '\",',\n    '\"runContextJson\":', variables('runContextJson'), ',',\n    '\"sbEntities\":', string(variables('sbEntities')), ',',\n    '\"hzEntities\":', string(variables('hzEntities')), ',',\n    '\"sbResult\":', variables('sbResultJson'), ',',\n    '\"hzResult\":', variables('hzResultJson'),\n  '}'\n)\n"
+				}
+			},
+			{
+				"name": "Return_RunSummary",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Build_RunSummary",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "pipelineReturnValue",
+					"value": [
+						{
+							"key": "runSummaryJson",
+							"value": {
+								"type": "Expression",
+								"content": "@variables('runSummaryJson')\n"
+							}
+						}
+					],
+					"setSystemVariable": true
+				}
+			}
+		],
+		"parameters": {
+			"runInit": {
+				"type": "bool",
+				"defaultValue": true
+			},
+			"runIngestSB": {
+				"type": "bool",
+				"defaultValue": true
+			},
+			"runIngestHZ": {
+				"type": "bool",
+				"defaultValue": true
+			},
+			"sbEntitiesFilter": {
+				"type": "array",
+				"defaultValue": []
+			},
+			"hzEntitiesFilter": {
+				"type": "array",
+				"defaultValue": []
+			},
+			"previousRunSummaryJson": {
+				"type": "string"
+			}
+		},
+		"variables": {
+			"runContextJson": {
+				"type": "String"
+			},
+			"sbEntities": {
+				"type": "Array"
+			},
+			"hzEntities": {
+				"type": "Array"
+			},
+			"sbResultJson": {
+				"type": "String",
+				"defaultValue": "null"
+			},
+			"hzResultJson": {
+				"type": "String",
+				"defaultValue": "null"
+			},
+			"runSummaryJson": {
+				"type": "String"
+			}
+		},
+		"folder": {
+			"name": "utils/Master"
+		},
+		"annotations": []
+	}
+}
