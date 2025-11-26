@@ -5,14 +5,9 @@
 			{
 				"name": "Delete_Copied_xlsx_files",
 				"type": "Delete",
-				"dependsOn": [
-					{
-						"activity": "CopyCSVfile_odw_source to odw_raw",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
+				"dependsOn": [],
 				"policy": {
 					"timeout": "0.12:00:00",
 					"retry": 0,
@@ -47,6 +42,8 @@
 			{
 				"name": "Copy and Convert xlsx and Create Csv",
 				"type": "Copy",
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [],
 				"policy": {
 					"timeout": "0.12:00:00",
@@ -114,6 +111,8 @@
 			{
 				"name": "Delete_Copied_csv_files",
 				"type": "Delete",
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "Delete_Copied_xlsx_files",
@@ -153,6 +152,8 @@
 			{
 				"name": "CopyCSVfile_odw_source to odw_raw",
 				"type": "Copy",
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "Copy and Convert xlsx and Create Csv",
@@ -213,24 +214,64 @@
 						"type": "DatasetReference"
 					}
 				]
+			},
+			{
+				"name": "Copy xlsx to odw-raw",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "ExcelSource",
+						"storeSettings": {
+							"type": "AzureFileStorageReadSettings",
+							"recursive": true,
+							"enablePartitionDiscovery": false
+						}
+					},
+					"sink": {
+						"type": "BinarySink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings",
+							"copyBehavior": {
+								"value": "Green_Specialist_Case.xlsx",
+								"type": "Expression"
+							}
+						}
+					},
+					"enableStaging": false
+				},
+				"inputs": [
+					{
+						"referenceName": "GreenSpecialistCaseExcelFiles",
+						"type": "DatasetReference",
+						"parameters": {
+							"sheetindex": {
+								"value": "@pipeline().parameters.Folder_Path",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "greenspecialistcase_odwrawXLSX",
+						"type": "DatasetReference"
+					}
+				]
 			}
 		],
 		"parameters": {
 			"Folder_Path": {
 				"type": "string",
 				"defaultValue": "ODW/Green_Specialist_Case/dev"
-			}
-		},
-		"variables": {
-			"counter": {
-				"type": "String",
-				"defaultValue": "0"
-			},
-			"IsError": {
-				"type": "Boolean"
-			},
-			"tempCounter": {
-				"type": "String"
 			}
 		},
 		"folder": {
