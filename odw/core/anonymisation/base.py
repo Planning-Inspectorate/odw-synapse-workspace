@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Iterable, List, Sequence, Set
+from typing import List, Sequence, Set
 
 from pyspark.sql import DataFrame, functions as F, types as T
 from pyspark.sql.column import Column

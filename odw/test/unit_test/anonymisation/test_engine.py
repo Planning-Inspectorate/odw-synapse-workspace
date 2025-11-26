@@ -1,4 +1,3 @@
-from odw.test.util.mock.import_mock_notebook_utils import notebookutils
 from pyspark.sql import SparkSession
 from odw.core.anonymisation import AnonymisationEngine
 import mock
