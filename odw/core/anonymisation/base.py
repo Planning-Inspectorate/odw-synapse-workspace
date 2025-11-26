@@ -26,8 +26,6 @@ def mask_keep_first_last_col(col: Column) -> Column:
     return F.when(col.isNull(), None).otherwise(F.regexp_replace(col.cast("string"), r"(?<=.).(?=.$)", "*"))
 
 
-
-
 @F.udf(T.StringType())
 def mask_fullname_initial_lastletter_udf(v: str | None) -> str | None:
     """Mask full name keeping only:
@@ -89,8 +87,6 @@ def mask_name_first_only_udf(v: str | None) -> str | None:
     if len(s) <= 1:
         return s
     return s[0] + ("*" * (len(s) - 1))
-
-
 
 
 @F.udf(T.StringType())

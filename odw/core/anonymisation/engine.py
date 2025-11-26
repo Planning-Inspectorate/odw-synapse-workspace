@@ -21,6 +21,7 @@ from .config import AnonymisationConfig
 logger = logging.getLogger(__name__)
 try:
     from odw.core.util.logging_util import LoggingUtil  # type: ignore
+
     _HAS_LOGGING_UTIL = True
 except Exception:
     LoggingUtil = None  # type: ignore
@@ -71,13 +72,12 @@ def _log_event(event: str, level: int = logging.INFO, **fields) -> None:
         except Exception:
             logger.log(level, f"[AnonymisationEngine] {event}")
 
+
 # --- Defaults and helpers for simplified apply_from_purview API ---
 DEFAULT_PURVIEW_NAME = os.getenv("ODW_PURVIEW_NAME", "pins-pview")
 DEFAULT_TENANT_ID = os.getenv("ODW_TENANT_ID", "5878df98-6f88-48ab-9322-998ce557088d")
 DEFAULT_CLIENT_ID = os.getenv("ODW_CLIENT_ID", "5750ab9b-597c-4b0d-b0f0-f4ef94e91fc0")
-DEFAULT_STORAGE_ACCOUNT_DFS_HOST = os.getenv(
-    "ODW_STORAGE_ACCOUNT_DFS_HOST", ""
-)
+DEFAULT_STORAGE_ACCOUNT_DFS_HOST = os.getenv("ODW_STORAGE_ACCOUNT_DFS_HOST", "")
 
 
 def _norm_col_name(s: Optional[str]) -> str:
@@ -105,9 +105,11 @@ def _resolve_client_secret() -> str:
         return val
     try:
         from notebookutils import mssparkutils  # type: ignore
+
         try:
             # Try Spark conf first
             from pyspark.sql import SparkSession  # type: ignore
+
             sc = SparkSession.builder.getOrCreate().sparkContext
             vault_name = sc.getConf("keyVaultName", None)
         except Exception:
@@ -120,9 +122,7 @@ def _resolve_client_secret() -> str:
     return "AZURE_IDENTITY"
 
 
-def _build_asset_qualified_name_from_params(
-    *, storage_host: str, source_folder: str, entity_name: Optional[str], file_name: Optional[str]
-) -> str:
+def _build_asset_qualified_name_from_params(*, storage_host: str, source_folder: str, entity_name: Optional[str], file_name: Optional[str]) -> str:
     """Build the Purview qualified name for ADLS Gen2 resource sets.
 
     Notes:
@@ -153,7 +153,9 @@ def _build_asset_qualified_name_from_params(
         return f"https://{host}/odw-raw/{source_folder}/{entity_name}/{{Year}}-{{Month}}-{{Day}}/{entity_name}.json"
     raise ValueError("source_folder must be one of 'ServiceBus', 'Horizon', 'entraid'")
 
+
 # --- Purview HTTP helpers (mirroring purview_df_anonymiser.py) ---
+
 
 def _purview_base_url(purview_name: str) -> str:
     return f"https://{purview_name}.catalog.purview.azure.com/api/atlas/v2"
@@ -176,12 +178,12 @@ def _get_access_token(tenant_id: str, client_id: str, client_secret: str) -> str
     if not client_secret or str(client_secret).strip().upper() in {"AZURE_IDENTITY", "USE_AZURE_IDENTITY", "DEFAULT"}:
         try:
             from azure.identity import DefaultAzureCredential  # type: ignore
-            return DefaultAzureCredential(exclude_interactive_browser_credential=True).get_token(
-                "https://purview.azure.net/.default"
-            ).token
+
+            return DefaultAzureCredential(exclude_interactive_browser_credential=True).get_token("https://purview.azure.net/.default").token
         except Exception:
             try:
                 from azure.identity import AzureCliCredential  # type: ignore
+
                 return AzureCliCredential().get_token("https://purview.azure.net/.default").token
             except Exception as ex:
                 raise Exception("Failed to acquire token via Azure Identity (Default/Azure CLI)") from ex
@@ -217,9 +219,7 @@ def _get_guid_by_unique_attrs(
     raise Exception(f"Could not resolve GUID for {type_name} :: {qualified_name}")
 
 
-def _get_entity_with_refs(
-    purview_name: str, guid: str, api_version: str = "2023-09-01", headers: Optional[Dict[str, str]] = None
-) -> dict:
+def _get_entity_with_refs(purview_name: str, guid: str, api_version: str = "2023-09-01", headers: Optional[Dict[str, str]] = None) -> dict:
     url = f"{_purview_base_url(purview_name)}/entity/guid/{guid}?minExtInfo=true&ignoreRelationships=false&api-version={api_version}"
     return _http_get(url, headers=headers or {})
 
@@ -319,15 +319,11 @@ def fetch_purview_classifications_by_qualified_name(
     token = _get_access_token(tenant_id, client_id, client_secret)
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
-    guid = _get_guid_by_unique_attrs(
-        purview_name, asset_type_name, asset_qualified_name, api_version, headers
-    )
+    guid = _get_guid_by_unique_attrs(purview_name, asset_type_name, asset_qualified_name, api_version, headers)
     entity = _get_entity_with_refs(purview_name, guid, api_version, headers)
 
     # Primary extraction attempt
-    cols = _extract_classified_columns(
-        entity, purview_name=purview_name, headers=headers, api_version=api_version
-    )
+    cols = _extract_classified_columns(entity, purview_name=purview_name, headers=headers, api_version=api_version)
     if cols:
         return cols
 
@@ -346,16 +342,14 @@ def fetch_purview_classifications_by_qualified_name(
             schema_ent = None
 
         if schema_ent:
-            ref_ents = (schema_ent.get("referredEntities", {}) or {})
+            ref_ents = schema_ent.get("referredEntities", {}) or {}
             for ref in ref_ents.values():
                 ref_guid = (ref or {}).get("guid")
                 if not ref_guid:
                     continue
                 try:
                     deep_ent = _get_entity_with_refs(purview_name, ref_guid, api_version, headers)
-                    deep_cols = _extract_classified_columns(
-                        deep_ent, purview_name=purview_name, headers=headers, api_version=api_version
-                    )
+                    deep_cols = _extract_classified_columns(deep_ent, purview_name=purview_name, headers=headers, api_version=api_version)
                     if deep_cols:
                         return deep_cols
                 except Exception:
@@ -367,6 +361,7 @@ def fetch_purview_classifications_by_qualified_name(
 
 
 # --- Engine ---
+
 
 class AnonymisationEngine:
     def __init__(
@@ -427,11 +422,13 @@ class AnonymisationEngine:
             for strat in self.strategies:
                 if classes.intersection(strat.classification_names):
                     out = strat.apply(out, actual_col, seed, context)
-                    applied_info.append({
-                        "column": actual_col,
-                        "strategy": type(strat).__name__,
-                        "classifications": list(classes),
-                    })
+                    applied_info.append(
+                        {
+                            "column": actual_col,
+                            "strategy": type(strat).__name__,
+                            "classifications": list(classes),
+                        }
+                    )
                     break
 
         _log_event(
@@ -484,7 +481,7 @@ class AnonymisationEngine:
         df_aug = df
         target_cols: List[str] = []
         norm_to_actual = {_norm_col_name(c): c for c in df.columns}
-        for item in (cols or []):
+        for item in cols or []:
             if not isinstance(item, dict):
                 continue
             col_name = item.get("column_name")
@@ -574,7 +571,8 @@ class AnonymisationEngine:
         if not storage_host:
             try:
                 from notebookutils import mssparkutils  # type: ignore
-                storage_host = mssparkutils.notebook.run('/utils/py_utils_get_storage_account') or ""
+
+                storage_host = mssparkutils.notebook.run("/utils/py_utils_get_storage_account") or ""
             except Exception:
                 storage_host = ""
         if not storage_host:
