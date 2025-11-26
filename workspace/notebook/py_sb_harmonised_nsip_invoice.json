@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "12979e7a-bd24-4274-b13d-51a2c524cbc3"
+				"spark.autotune.trackingId": "fa5fdc0b-1dc8-4f99-8fb8-1b7133600844"
 			}
 		},
 		"metadata": {
@@ -108,6 +108,21 @@
 				"execution_count": 71
 			},
 			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "python"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%pyspark\n",
+					"df = spark.sql(\"SELECT * FROM `odw_harmonised_db`.`nsip_invoice`\")\n",
+					"display(df)"
+				],
+				"execution_count": 101
+			},
+			{
 				"cell_type": "markdown",
 				"metadata": {
 					"nteract": {
@@ -138,7 +153,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 72
+				"execution_count": 87
 			},
 			{
 				"cell_type": "code",
@@ -148,7 +163,7 @@
 					"spark_table_final = \"odw_harmonised_db.nsip_invoice\"\n",
 					"incremental_key = \"NSIPInvoiceID\""
 				],
-				"execution_count": 73
+				"execution_count": 88
 			},
 			{
 				"cell_type": "code",
@@ -198,7 +213,75 @@
 					"    print(f\"Error during schema check/update: {str(e)}\")\n",
 					""
 				],
-				"execution_count": 74
+				"execution_count": 89
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "python"
+					}
+				},
+				"source": [
+					"%%pyspark\n",
+					"df = spark.sql(\"SELECT * FROM `odw_harmonised_db`.`nsip_invoice`\")\n",
+					"display(df)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"\n",
+					"try:\n",
+					"    # Check if table exists\n",
+					"    if spark.catalog.tableExists(spark_table_final):\n",
+					"        print(f\"Table {spark_table_final} exists.\")\n",
+					"\n",
+					"        # Load table schema\n",
+					"        existing_df = spark.table(spark_table_final)\n",
+					"        existing_cols = existing_df.columns\n",
+					"\n",
+					"        # Enable Column Mapping if not enabled\n",
+					"        spark.sql(f\"\"\"\n",
+					"            ALTER TABLE {spark_table_final} SET TBLPROPERTIES (\n",
+					"                'delta.columnMapping.mode' = 'name',\n",
+					"                'delta.minReaderVersion' = '2',\n",
+					"                'delta.minWriterVersion' = '5'\n",
+					"            )\n",
+					"        \"\"\")\n",
+					"        print(\"✅ Column Mapping enabled.\")\n",
+					"\n",
+					"        # Drop message_id if exists\n",
+					"        if \"message_id\" in existing_cols:\n",
+					"            print(\"⚠️ Column message_id found. Dropping permanently...\")\n",
+					"            spark.sql(f\"ALTER TABLE {spark_table_final} DROP COLUMN message_id\")\n",
+					"            print(\"✅ Column message_id dropped successfully.\")\n",
+					"        else:\n",
+					"            print(\"✅ Column message_id does not exist.\")\n",
+					"\n",
+					"        # Check for NSIPProjectInfoInternalID\n",
+					"        if \"NSIPProjectInfoInternalID\" not in existing_cols:\n",
+					"            print(\"⚠️ Column NSIPProjectInfoInternalID not found. Adding as LongType...\")\n",
+					"            spark.sql(f\"ALTER TABLE {spark_table_final} ADD COLUMNS (NSIPProjectInfoInternalID BIGINT)\")\n",
+					"        else:\n",
+					"            print(\"✅ Column NSIPProjectInfoInternalID exists.\")\n",
+					"\n",
+					"        # ✅ Reorder columns in DataFrame so NSIPProjectInfoInternalID is second\n",
+					"        df_cols = new_data.columns\n",
+					"        if \"NSIPProjectInfoInternalID\" in df_cols:\n",
+					"            reordered_cols = [df_cols[0], \"NSIPProjectInfoInternalID\"] + [c for c in df_cols if c not in [df_cols[0], \"NSIPProjectInfoInternalID\"]]\n",
+					"            new_data = new_data.select(reordered_cols)\n",
+					"            print(\"✅ Reordered columns so NSIPProjectInfoInternalID is second.\")\n",
+					"\n",
+					"    else:\n",
+					"        print(f\"❌ Table {spark_table_final} does not exist. Please create it first.\")\n",
+					"\n",
+					"except Exception as e:\n",
+					"    print(f\"⚠️ Error during schema check/update: {str(e)}\")\n",
+					""
+				],
+				"execution_count": 99
 			},
 			{
 				"cell_type": "code",
@@ -219,7 +302,7 @@
 					"    max_IngestionDate_to = datetime(1900, 1, 1)  # fallback default\n",
 					""
 				],
-				"execution_count": 75
+				"execution_count": 90
 			},
 			{
 				"cell_type": "code",
@@ -238,7 +321,7 @@
 					"            WHERE invoices IS NOT NULL\n",
 					"        \"\"\")"
 				],
-				"execution_count": null
+				"execution_count": 91
 			},
 			{
 				"cell_type": "code",
@@ -280,7 +363,7 @@
 					"    print(f\"⚠️ Error during explode/extract: {str(e)}\")\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 92
 			},
 			{
 				"cell_type": "code",
@@ -313,7 +396,7 @@
 					"    print(f\"⚠️ Error during filtering and column updates: {str(e)}\")\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 93
 			},
 			{
 				"cell_type": "code",
@@ -369,21 +452,21 @@
 					"    print(f\"⚠️ Error during processing: {str(e)}\")\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 94
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"new_data.printSchema()"
 				],
-				"execution_count": null
+				"execution_count": 95
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"spark.table(spark_table_final).printSchema()"
 				],
-				"execution_count": null
+				"execution_count": 100
 			},
 			{
 				"cell_type": "code",
@@ -393,14 +476,14 @@
 					"            .option(\"overwriteSchema\", \"true\") \\\n",
 					"            .saveAsTable(spark_table_final)"
 				],
-				"execution_count": null
+				"execution_count": 97
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"target_table = DeltaTable.forName(spark, spark_table_final)"
 				],
-				"execution_count": null
+				"execution_count": 83
 			},
 			{
 				"cell_type": "code",
@@ -428,7 +511,7 @@
 					"print(\"✅ Data appended and IsActive/ValidTo updated successfully.\")\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 98
 			}
 		]
 	}
