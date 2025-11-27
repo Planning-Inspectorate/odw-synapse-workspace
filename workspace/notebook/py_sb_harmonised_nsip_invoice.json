@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "2f228583-5d51-4d8f-8fdb-99ccd7422d7a"
+				"spark.autotune.trackingId": "e29206d8-a79a-489f-944f-a18870d6cc7c"
 			}
 		},
 		"metadata": {
@@ -103,9 +103,10 @@
 					"from pyspark.sql import functions as F\n",
 					"from pyspark.sql.window import Window\n",
 					"from datetime import datetime\n",
-					"from delta.tables import DeltaTable"
+					"from delta.tables import DeltaTable\n",
+					"from notebookutils import mssparkutils"
 				],
-				"execution_count": 108
+				"execution_count": 123
 			},
 			{
 				"cell_type": "markdown",
@@ -138,7 +139,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 109
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -154,6 +155,15 @@
 					"error_message=''"
 				],
 				"execution_count": 110
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"metadata_path: str = \"abfss://odw-config@\"+storage_account+\"existing-tables-metadata_invoice.json\"\n",
+					"df  = spark.read.json(metadata_path, multiLine=True)"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -200,6 +210,87 @@
 					""
 				],
 				"execution_count": 112
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"\n",
+					"from pyspark.sql import SparkSession\n",
+					"from pyspark.sql.types import *\n",
+					"from datetime import datetime\n",
+					"\n",
+					"# Initialize Spark session\n",
+					"spark = SparkSession.builder.appName(\"SyncDeltaWithSQLServer\").getOrCreate()\n",
+					"\n",
+					"# Configurations\n",
+					"jdbc_url = \"jdbc:sqlserver://<server>;databaseName=odw_harmonised_db\"\n",
+					"jdbc_user = \"<username>\"\n",
+					"jdbc_password = \"<password>\"\n",
+					"sql_table = \"dbo.nsip_invoice\"\n",
+					"spark_table_final = \"odw_harmonised_db.nsip_invoice\"  # Delta table name\n",
+					"\n",
+					"try:\n",
+					"    start_exec_time = datetime.now()\n",
+					"    print(f\"Starting sync at {start_exec_time}\")\n",
+					"\n",
+					"    # Step 1: Read SQL Server table schema and data\n",
+					"    query = f\"(SELECT * FROM {sql_table}) AS src\"\n",
+					"    sql_df = (\n",
+					"        spark.read.format(\"jdbc\")\n",
+					"        .option(\"url\", jdbc_url)\n",
+					"        .option(\"query\", query)\n",
+					"        .option(\"user\", jdbc_user)\n",
+					"        .option(\"password\", jdbc_password)\n",
+					"        .load()\n",
+					"    )\n",
+					"    sql_cols = sql_df.columns\n",
+					"    print(f\"SQL Server columns: {sql_cols}\")\n",
+					"\n",
+					"    # Step 2: Check if Delta table exists\n",
+					"    if spark.catalog.tableExists(spark_table_final):\n",
+					"        print(f\"Delta table {spark_table_final} exists.\")\n",
+					"        delta_df = spark.table(spark_table_final)\n",
+					"        delta_cols = delta_df.columns\n",
+					"        print(f\"Delta table columns: {delta_cols}\")\n",
+					"\n",
+					"        # Step 3: Find missing columns in Delta\n",
+					"        missing_cols = [col for col in sql_cols if col not in delta_cols]\n",
+					"        extra_cols = [col for col in delta_cols if col not in sql_cols]\n",
+					"\n",
+					"        # Add missing columns\n",
+					"        for col in missing_cols:\n",
+					"            col_type = [f.dataType.simpleString() for f in sql_df.schema.fields if f.name == col][0]\n",
+					"            print(f\"Adding missing column: {col} ({col_type})\")\n",
+					"            spark.sql(f\"ALTER TABLE {spark_table_final} ADD COLUMNS ({col} {col_type.upper()})\")\n",
+					"\n",
+					"        # Drop extra columns (like message_id)\n",
+					"        if extra_cols:\n",
+					"            print(f\"Dropping extra columns: {extra_cols}\")\n",
+					"            spark.sql(f\"\"\"\n",
+					"                ALTER TABLE {spark_table_final} SET TBLPROPERTIES (\n",
+					"                    'delta.columnMapping.mode' = 'name',\n",
+					"                    'delta.minReaderVersion' = '2',\n",
+					"                    'delta.minWriterVersion' = '5'\n",
+					"                )\n",
+					"            \"\"\")\n",
+					"            for col in extra_cols:\n",
+					"                spark.sql(f\"ALTER TABLE {spark_table_final} DROP COLUMN {col}\")\n",
+					"\n",
+					"        print(\"Schema sync completed.\")\n",
+					"    else:\n",
+					"        print(f\"Delta table {spark_table_final} does not exist. Creating...\")\n",
+					"        sql_df.write.format(\"delta\").mode(\"overwrite\").saveAsTable(spark_table_final)\n",
+					"        print(f\"Delta table {spark_table_final} created successfully.\")\n",
+					"\n",
+					"    end_exec_time = datetime.now()\n",
+					"    print(f\"Sync completed at {end_exec_time}\")\n",
+					"\n",
+					"except Exception as e:\n",
+					"    error_message = f\"Error during sync: {str(e)[:800]}\"\n",
+					"    print(error_message)\n",
+					""
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
