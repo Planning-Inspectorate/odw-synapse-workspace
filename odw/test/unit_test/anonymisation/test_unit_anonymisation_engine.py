@@ -1,10 +1,10 @@
 import pytest
-
-pyspark = pytest.importorskip("pyspark", reason="PySpark not installed; skipping anonymisation engine tests")
-from pyspark.sql import SparkSession
-
 from odw.core.anonymisation import AnonymisationEngine, default_strategies
 
+try:
+    from pyspark.sql import SparkSession
+except ModuleNotFoundError:
+    pytest.skip("PySpark not installed; skipping anonymisation engine tests", allow_module_level=True)
 
 def test_engine_applies_email_and_name_masking():
     spark = SparkSession.builder.master("local[1]").appName("anon-test").getOrCreate()

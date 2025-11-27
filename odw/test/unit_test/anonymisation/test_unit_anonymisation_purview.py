@@ -1,13 +1,13 @@
 import pytest
-
-pyspark = pytest.importorskip("pyspark", reason="PySpark not installed; skipping anonymisation Purview tests")
-from pyspark.sql import SparkSession
 import mock
 import re
 from datetime import date
-
 from odw.core.anonymisation import AnonymisationEngine
 
+try:
+    from pyspark.sql import SparkSession
+except ModuleNotFoundError:
+    pytest.skip("PySpark not installed; skipping anonymisation Purview tests", allow_module_level=True)
 
 def test_engine_apply_from_purview_with_mocked_fetch():
     spark = SparkSession.builder.master("local[1]").appName("anon-purview-test").getOrCreate()
