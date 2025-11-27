@@ -5,6 +5,7 @@ from typing import Optional, Set
 
 import yaml
 
+
 @dataclass
 class AnonymisationConfig:
     """Configuration loaded from YAML for anonymisation behaviour."""

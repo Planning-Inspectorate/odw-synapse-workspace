@@ -26,8 +26,6 @@ def mask_keep_first_last_col(col: Column) -> Column:
     return F.when(col.isNull(), None).otherwise(F.regexp_replace(col.cast("string"), r"(?<=.).(?=.$)", "*"))
 
 
-
-
 def random_int_from_seed(seed: Column, min_value: int, max_value: int) -> Column:
     return (F.abs(F.hash(seed)) % (max_value - min_value + 1)) + F.lit(min_value)
 
@@ -38,12 +36,6 @@ def random_date_from_seed(seed: Column, start: str = "1955-01-01", end: str = "2
     days = F.datediff(end_date, start_date)
     offset = F.abs(F.hash(seed)) % days
     return F.date_add(start_date, offset.cast("int"))
-
-
-
-
-
-
 
 
 class Strategy(ABC):
@@ -64,6 +56,7 @@ class NINumberStrategy(Strategy):
 
     def _generate_random_ni_number(_: str | None) -> str:
         import random as _rand  # local import to keep worker safe
+
         letters = "ABCDEFGHJKLMNPQRSTUVWXYZ"
         first = _rand.choice(letters)
         second = _rand.choice(letters)
@@ -220,6 +213,7 @@ def default_strategies() -> List[Strategy]:
         AgeStrategy(),
         SalaryStrategy(),
     ]
+
 
 # Backward-compatible module-level UDF aliases (moved into classes above)
 mask_fullname_initial_lastletter_udf = NameMaskStrategy._mask_fullname_initial_lastletter_udf

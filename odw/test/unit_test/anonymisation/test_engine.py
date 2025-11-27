@@ -1,9 +1,16 @@
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from odw.core.anonymisation import AnonymisationEngine
-from odw.core.anonymisation.base import _seed_col, random_int_from_seed, random_date_from_seed, mask_fullname_initial_lastletter_udf, mask_email_preserve_domain_udf
+from odw.core.anonymisation.base import (
+    _seed_col,
+    random_int_from_seed,
+    random_date_from_seed,
+    mask_fullname_initial_lastletter_udf,
+    mask_email_preserve_domain_udf,
+)
 import mock
 import re
+
 
 def test_apply_from_purview__mocked_fetch_and_spark_df():
     spark = SparkSession.builder.master("local[1]").appName("anon-purview-test").getOrCreate()
@@ -61,10 +68,10 @@ def test_apply_from_purview__mocked_fetch_and_spark_df():
         seed = _seed_col(df)
         expected = (
             df.withColumn("full_name", mask_fullname_initial_lastletter_udf(F.col("full_name")))
-              .withColumn("emailAddress", mask_email_preserve_domain_udf(F.col("emailAddress")))
-              .withColumn("Age", random_int_from_seed(seed, 18, 70).cast("int"))
-              .withColumn("BirthDate", random_date_from_seed(seed))
-              .withColumn("AnnualSalary", random_int_from_seed(seed, 20000, 100000).cast("int"))
+            .withColumn("emailAddress", mask_email_preserve_domain_udf(F.col("emailAddress")))
+            .withColumn("Age", random_int_from_seed(seed, 18, 70).cast("int"))
+            .withColumn("BirthDate", random_date_from_seed(seed))
+            .withColumn("AnnualSalary", random_int_from_seed(seed, 20000, 100000).cast("int"))
         )
 
         actual_rows = out.select(*cols).orderBy("EmployeeID").collect()

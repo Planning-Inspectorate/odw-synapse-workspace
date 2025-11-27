@@ -561,6 +561,7 @@ class AnonymisationEngine:
         if not storage_host:
             try:
                 from odw.core.util.util import Util  # type: ignore
+
                 storage_host = Util.get_storage_account() or ""
             except Exception:
                 storage_host = ""
