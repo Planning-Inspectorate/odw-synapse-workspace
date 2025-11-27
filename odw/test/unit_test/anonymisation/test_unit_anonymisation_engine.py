@@ -1,8 +1,7 @@
 import pytest
-import mock
 
 pyspark = pytest.importorskip("pyspark", reason="PySpark not installed; skipping anonymisation engine tests")
-from pyspark.sql import SparkSession, functions as F
+from pyspark.sql import SparkSession
 
 from odw.core.anonymisation import AnonymisationEngine, default_strategies
 
