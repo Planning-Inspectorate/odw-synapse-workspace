@@ -6,6 +6,7 @@ try:
 except ModuleNotFoundError:
     pytest.skip("PySpark not installed; skipping anonymisation engine tests", allow_module_level=True)
 
+
 def test_engine_applies_email_and_name_masking():
     spark = SparkSession.builder.master("local[1]").appName("anon-test").getOrCreate()
     try:

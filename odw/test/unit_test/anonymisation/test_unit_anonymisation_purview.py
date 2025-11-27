@@ -9,6 +9,7 @@ try:
 except ModuleNotFoundError:
     pytest.skip("PySpark not installed; skipping anonymisation Purview tests", allow_module_level=True)
 
+
 def test_engine_apply_from_purview_with_mocked_fetch():
     spark = SparkSession.builder.master("local[1]").appName("anon-purview-test").getOrCreate()
     try:
