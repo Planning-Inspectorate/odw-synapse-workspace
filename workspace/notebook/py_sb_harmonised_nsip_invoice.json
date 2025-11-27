@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "e29206d8-a79a-489f-944f-a18870d6cc7c"
+				"spark.autotune.trackingId": "78de4c2b-cc1a-4b5b-beb5-bef2b7d7c6c5"
 			}
 		},
 		"metadata": {
@@ -104,9 +104,10 @@
 					"from pyspark.sql.window import Window\n",
 					"from datetime import datetime\n",
 					"from delta.tables import DeltaTable\n",
-					"from notebookutils import mssparkutils"
+					"from notebookutils import mssparkutils\n",
+					"from pyspark.sql.functions import explode, col"
 				],
-				"execution_count": 123
+				"execution_count": 128
 			},
 			{
 				"cell_type": "markdown",
@@ -139,13 +140,15 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 124
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"# Configurable variables\n",
 					"service_bus_table = \"odw_harmonised_db.sb_nsip_project\"\n",
+					"db_name=\"odw_harmonised_db\"\n",
+					"table_name=\"nsip_invoice\"\n",
 					"spark_table_final = \"odw_harmonised_db.nsip_invoice\"\n",
 					"incremental_key = \"NSIPInvoiceID\"\n",
 					"start_exec_time = datetime.now()\n",
@@ -154,16 +157,72 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": 110
+				"execution_count": 130
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
 					"metadata_path: str = \"abfss://odw-config@\"+storage_account+\"existing-tables-metadata_invoice.json\"\n",
-					"df  = spark.read.json(metadata_path, multiLine=True)"
+					"df  = spark.read.json(metadata_path, multiLine=True)\n",
+					"harmonised_df = df.select(explode(col(\"harmonised_metadata\")).alias(\"metadata\"))\n",
+					"print(harmonised_df)\n",
+					"    print(db_name)\n",
+					"    print(table_name)\n",
+					"    filtered_df = df_exploded.filter(\n",
+					"        (col(\"database_name\") == db_name) & (col(\"table_name\") == table_name)\n",
+					"    ).select(\"table_location\", \"table_type\", \"table_format\")\n",
+					"    print(filtered_df)"
 				],
-				"execution_count": null
+				"execution_count": 131
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"\n",
+					"from pyspark.sql.functions import explode, col\n",
+					"\n",
+					"# Get storage account name\n",
+					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"\n",
+					"# Build metadata path\n",
+					"metadata_path: str = f\"abfss://odw-config@{storage_account}/existing-tables-metadata_invoice.json\"\n",
+					"print(metadata_path)\n",
+					"\n",
+					"# Read JSON file\n",
+					"df = spark.read.json(metadata_path, multiLine=True)\n",
+					"\n",
+					"# Explode harmonised_metadata\n",
+					"harmonised_df = df.select(explode(col(\"harmonised_metadata\")).alias(\"metadata\"))\n",
+					"\n",
+					"# Show exploded data\n",
+					"# harmonised_df.show(truncate=False)\n",
+					"\n",
+					"# Example: filter by db_name and table_name\n",
+					"db_name = \"odw_harmonised_db\"\n",
+					"table_name = \"nsip_invoice\"\n",
+					"\n",
+					"# Flatten metadata for filtering\n",
+					"df_exploded = harmonised_df.select(\n",
+					"    col(\"metadata.database_name\").alias(\"database_name\"),\n",
+					"    col(\"metadata.table_name\").alias(\"table_name\"),\n",
+					"    col(\"metadata.table_location\").alias(\"table_location\"),\n",
+					"    col(\"metadata.table_type\").alias(\"table_type\"),\n",
+					"    col(\"metadata.table_format\").alias(\"table_format\")\n",
+					")\n",
+					"print(df_exploded)\n",
+					"\n",
+					"# Filter for specific table\n",
+					"filtered_df = df_exploded.filter(\n",
+					"    (col(\"database_name\") == db_name) & (col(\"table_name\") == table_name)\n",
+					").select(\"table_location\", \"table_type\", \"table_format\")\n",
+					"print(filtered_df)\n",
+					"\n",
+					"# Show filtered result\n",
+					"filtered_df.show(truncate=False)\n",
+					""
+				],
+				"execution_count": 140
 			},
 			{
 				"cell_type": "code",
@@ -209,7 +268,7 @@
 					"    print(error_message)\n",
 					""
 				],
-				"execution_count": 112
+				"execution_count": 141
 			},
 			{
 				"cell_type": "code",
