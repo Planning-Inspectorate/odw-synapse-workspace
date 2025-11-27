@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "30447a03-670d-49d6-97f2-c8e95a64a1ea"
+				"spark.autotune.trackingId": "13676488-b09e-421e-a7d6-a5d18e16c601"
 			}
 		},
 		"metadata": {
@@ -105,7 +105,7 @@
 					"from datetime import datetime\n",
 					"from delta.tables import DeltaTable"
 				],
-				"execution_count": 57
+				"execution_count": 21
 			},
 			{
 				"cell_type": "code",
@@ -120,7 +120,7 @@
 					"df = spark.sql(\"SELECT * FROM `odw_harmonised_db`.`nsip_invoice`\")\n",
 					"display(df)"
 				],
-				"execution_count": 58
+				"execution_count": 22
 			},
 			{
 				"cell_type": "markdown",
@@ -153,7 +153,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 23
 			},
 			{
 				"cell_type": "code",
@@ -168,7 +168,7 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": null
+				"execution_count": 24
 			},
 			{
 				"cell_type": "code",
@@ -228,7 +228,7 @@
 					"    print(error_message)\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 25
 			},
 			{
 				"cell_type": "code",
@@ -243,7 +243,7 @@
 					"df = spark.sql(\"SELECT * FROM `odw_harmonised_db`.`nsip_invoice`\")\n",
 					"display(df)"
 				],
-				"execution_count": null
+				"execution_count": 26
 			},
 			{
 				"cell_type": "code",
@@ -267,7 +267,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 27
 			},
 			{
 				"cell_type": "code",
@@ -296,7 +296,7 @@
 					"        print(error_message)\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 28
 			},
 			{
 				"cell_type": "code",
@@ -342,7 +342,7 @@
 					"        print(error_message)\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 29
 			},
 			{
 				"cell_type": "code",
@@ -350,7 +350,6 @@
 					"collapsed": false
 				},
 				"source": [
-					"\n",
 					"if not error_message:\n",
 					"    try:\n",
 					"        # Step 1: Get max ID from existing table\n",
@@ -373,9 +372,11 @@
 					"        new_data = new_data.withColumn(\"IngestionDate\", F.date_format(F.current_timestamp(), \"yyyy-MM-dd HH:mm:ss\"))\n",
 					"\n",
 					"        # Step 5: Add extra columns\n",
-					"        new_data = new_data.withColumn(\"ValidTo\", F.lit(None).cast(\"string\")) \\\n",
-					"                           .withColumn(\"RowID\", F.lit(None).cast(\"string\")) \\\n",
-					"                           .withColumn(\"IsActive\", F.lit(\"Y\").cast(\"string\"))  # Default IsActive = 'Y'\n",
+					"        new_data = (\n",
+					"            new_data.withColumn(\"ValidTo\", F.lit(None).cast(\"string\"))\n",
+					"                    .withColumn(\"RowID\", F.lit(None).cast(\"string\"))\n",
+					"                    .withColumn(\"IsActive\", F.lit(\"Y\").cast(\"string\"))  # Default IsActive = 'Y'\n",
+					"        )\n",
 					"\n",
 					"        # Step 6: Add surrogate key starting from max_id_row + 1\n",
 					"        window_spec = Window.orderBy(F.monotonically_increasing_id())\n",
@@ -395,11 +396,12 @@
 					"\n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error during processing: {str(e)[:800]}\"\n",
-					"         end_exec_time = datetime.now()\n",
-					"         print(end_exec_time)\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(f\"❌ Error occurred at: {end_exec_time}\")\n",
+					"        print(error_message)\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 30
 			},
 			{
 				"cell_type": "code",
@@ -420,7 +422,7 @@
 					"        print(error_message)\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 31
 			},
 			{
 				"cell_type": "code",
@@ -436,8 +438,48 @@
 					"\n",
 					"        # Step 2: Window to determine latest record\n",
 					"        window_spec = Window.partitionBy(\"caseId\", \"invoiceNumber\").orderBy(F.col(\"IngestionDate\").desc())\n",
-					"        df = df.withColumn(\"RowID\", F.row_number().over(window_spec))\n",
-					"        df = df.withColumn(\"NewIsActive\", F.when(F.col(\"RowID\") == 1, F.lit(\"Y\")).otherwise(F.lit(\"N\")))\n",
+					"\n",
+					"        # Add NewIsActive column\n",
+					"        df = df.withColumn(\n",
+					"            \"NewIsActive\",\n",
+					"            F.when(F.col(\"RowID\") == 1, F.lit(\"Y\")).otherwise(F.lit(\"N\"))\n",
+					"        )\n",
+					"\n",
+					"        # Add Migrated column\n",
+					"        df = df.withColumn(\n",
+					"            \"Migrated\",\n",
+					"            F.when(F.col(\"caseId\").isNotNull() & F.col(\"invoiceNumber\").isNotNull(), F.lit(1)).otherwise(F.lit(0))\n",
+					"        )\n",
+					"\n",
+					"        # Add RowID column using MD5 hash\n",
+					"        df = df.withColumn(\n",
+					"            \"RowID\",\n",
+					"            F.md5(\n",
+					"                F.concat_ws(\n",
+					"                    \"\",\n",
+					"                    F.coalesce(F.col(\"NSIPInvoiceID\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"NSIPProjectInfoInternalID\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"caseId\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"caseReference\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"invoiceStage\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"invoiceNumber\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"amountDue\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"paymentDueDate\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"invoicedDate\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"paymentDate\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"refundCreditNoteNumber\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"refundAmount\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"refundIssueDate\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"Migrated\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"ODTSourceSystem\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"SourceSystemID\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"IngestionDate\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"ValidTo\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"RowID\").cast(\"string\"), F.lit(\".\")),  # If existing RowID is needed\n",
+					"                    F.coalesce(F.col(\"IsActive\").cast(\"string\"), F.lit(\".\"))\n",
+					"                )\n",
+					"            )\n",
+					"        )\n",
 					"\n",
 					"        # Step 3: Merge updates back into Delta table\n",
 					"        target_table.alias(\"t\").merge(\n",
@@ -458,44 +500,103 @@
 					"        print(error_message)\n",
 					""
 				],
+				"execution_count": 32
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					""
+				],
 				"execution_count": null
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
-					"activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
-					"stage = \"Success\" if not error_message else \"Failed\"\n",
-					"status_message = (\n",
-					"    f\"Successfully loaded data into {spark_table_final} table\"\n",
-					"    if not error_message\n",
-					"    else f\"Failed to load data from {spark_table_final} table\"\n",
-					")\n",
-					"status_code = \"200\" if stage == \"Success\" else \"500\"\n",
-					" \n",
-					"log_telemetry_and_exit(\n",
-					"    stage,\n",
-					"    start_exec_time,\n",
-					"    end_exec_time,\n",
-					"    error_message,\n",
-					"    spark_table_final,\n",
-					"    insert_count,\n",
-					"    update_count,\n",
-					"    delete_count,\n",
-					"    PipelineName,\n",
-					"    PipelineRunID,\n",
-					"    PipelineTriggerID,\n",
-					"    PipelineTriggerName,\n",
-					"    PipelineTriggerType,\n",
-					"    PipelineTriggeredbyPipelineName,\n",
-					"    PipelineTriggeredbyPipelineRunID,\n",
-					"    activity_type,\n",
-					"    duration_seconds,\n",
-					"    status_message,\n",
-					"    status_code\n",
-					")"
+					"# spark.sql(f\"\"\"\n",
+					"#     CREATE OR REPLACE TEMPORARY VIEW vw_invoice_calculations_base AS\n",
+					"#     SELECT  \n",
+					"#         row_number() OVER(PARTITION BY {incremental_key} ORDER BY IngestionDate DESC) AS ReverseOrderProcessed\n",
+					"#         ,row_number() OVER(ORDER BY IngestionDate asc, {incremental_key} asc) AS NSIPProjectInfoInternalID\n",
+					"#         ,{incremental_key}\n",
+					"#         ,IngestionDate\n",
+					"#         ,ValidTo\n",
+					"#         ,'0' AS Migrated\n",
+					"#         ,CASE row_number() OVER(PARTITION BY {incremental_key} ORDER BY IngestionDate DESC)\n",
+					"#             WHEN 1 THEN\n",
+					"#                 'Y'\n",
+					"#             ELSE\n",
+					"#                 'N'\n",
+					"#             END AS IsActive                \n",
+					"#     FROM\n",
+					"#     {spark_table_final}\n",
+					"#         \"\"\")"
 				],
-				"execution_count": null
+				"execution_count": 33
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# df_calcs = spark.sql(f\"\"\"\n",
+					"#                         SELECT\n",
+					"#                             CurrentRow.NSIPInvoiceID \n",
+					"#                             ,CurrentRow.{incremental_key}  \n",
+					"#                             ,CurrentRow.IngestionDate\n",
+					"#                             ,NextRow.IngestionDate AS ValidTo \n",
+					"#                             ,CASE\n",
+					"#                                 WHEN raw.{incremental_key}  IS NOT NULL THEN \n",
+					"#                                     \"1\"\n",
+					"#                                 ELSE \n",
+					"#                                     \"0\"\n",
+					"#                             END AS Migrated\n",
+					"#                             ,CurrentRow.IsActive\n",
+					"#                         FROM\n",
+					"#                             vw_invoice_calculations_base AS CurrentRow\n",
+					"#                             LEFT OUTER JOIN vw_invoice_calculations_base AS NextRow\n",
+					"#                                 ON CurrentRow.{incremental_key}  = NextRow.{incremental_key} \n",
+					"#                                 AND CurrentRow.ReverseOrderProcessed - 1 = NextRow.ReverseOrderProcessed\n",
+					"#                             #  LEFT OUTER JOIN (SELECT DISTINCT eventId FROM  odw_harmonised_db.sb_invoice) AS Raw\n",
+					"#                             #     ON CurrentRow.{primary_key}  = Raw.{primary_key}  \n",
+					"#                             ORDER BY currentRow.ReverseOrderProcessed\n",
+					"#                     \"\"\")"
+				],
+				"execution_count": 34
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
+					"# activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
+					"# stage = \"Success\" if not error_message else \"Failed\"\n",
+					"# status_message = (\n",
+					"#     f\"Successfully loaded data into {spark_table_final} table\"\n",
+					"#     if not error_message\n",
+					"#     else f\"Failed to load data from {spark_table_final} table\"\n",
+					"# )\n",
+					"# status_code = \"200\" if stage == \"Success\" else \"500\"\n",
+					" \n",
+					"# log_telemetry_and_exit(\n",
+					"#     stage,\n",
+					"#     start_exec_time,\n",
+					"#     end_exec_time,\n",
+					"#     error_message,\n",
+					"#     spark_table_final,\n",
+					"#     insert_count,\n",
+					"#     update_count,\n",
+					"#     delete_count,\n",
+					"#     PipelineName,\n",
+					"#     PipelineRunID,\n",
+					"#     PipelineTriggerID,\n",
+					"#     PipelineTriggerName,\n",
+					"#     PipelineTriggerType,\n",
+					"#     PipelineTriggeredbyPipelineName,\n",
+					"#     PipelineTriggeredbyPipelineRunID,\n",
+					"#     activity_type,\n",
+					"#     duration_seconds,\n",
+					"#     status_message,\n",
+					"#     status_code\n",
+					"# )"
+				],
+				"execution_count": 35
 			}
 		]
 	}
