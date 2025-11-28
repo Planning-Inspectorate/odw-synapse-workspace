@@ -21,6 +21,10 @@ class ParquetFileParser(DataFileParser):
     data_bytes = ParquetFileParser(spark).to_bytes(dataframe)
     ```
     """
+    @classmethod
+    def get_name(cls) -> str:
+        return "parquet"
+
     def from_bytes(self, byte_stream: BytesIO) -> DataFrame:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".parquet") as temp_file:
             temp_file.write(byte_stream.getbuffer())

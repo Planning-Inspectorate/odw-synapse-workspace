@@ -1,23 +1,28 @@
 from abc import ABC, abstractmethod
-from io import BytesIO
+from pyspark.sql import DataFrame
 
 
 class DataIO(ABC):
     """
     Abstract class to manage IO for data to/from storage
     """
+    @classmethod
     @abstractmethod
-    def read(self, **kwargs) -> BytesIO:
+    def get_name(cls) -> str:
+        pass
+
+    @abstractmethod
+    def read(self, **kwargs) -> DataFrame:
         """
-        Read from the given storage location, and return the data as a byte stream
+        Read from the given storage location, and return the data as a pyspark DataFrame
         
-        :return BytesIO: A data as a byte stream
+        :return DataFrame: The data
         """
     
     @abstractmethod
-    def write(self, data_bytes: BytesIO, **kwargs):
+    def write(self, data: DataFrame, **kwargs):
         """
-        Write the data bytes stream to the given storage location
+        Write the given data to the given storage location
         
-        :param BytesIO data_bytes: The data to write
+        :param DataFrame data: The data to write
         """
