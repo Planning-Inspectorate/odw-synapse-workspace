@@ -10,6 +10,11 @@ class DataFileParser(ABC):
     def __init__(self, spark: SparkSession):
         self.spark = spark
 
+    @classmethod
+    @abstractmethod
+    def get_name(cls) -> str:
+        pass
+
     @abstractmethod
     def from_bytes(self, byte_stream: BytesIO) -> DataFrame:
         """
