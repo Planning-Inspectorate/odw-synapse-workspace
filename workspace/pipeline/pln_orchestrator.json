@@ -537,6 +537,37 @@
 						"type": "MSI"
 					}
 				}
+			},
+			{
+				"name": "If_HasFailures",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Return_RunSummary",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@or(\n  and(\n    not(equals(variables('sbResultJson'), 'null')),\n    json(variables('sbResultJson')).hasFailure\n  ),\n  and(\n    not(equals(variables('hzResultJson'), 'null')),\n    json(variables('hzResultJson')).hasFailure\n  )\n)\n",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "Fail_If_HasFailures",
+							"type": "Fail",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"message": "One or more SB/HZ entities failed ingestion. Check entity-level manifests and orchestrator manifest for details",
+								"errorCode": "ORCH_INGEST_FAILURE"
+							}
+						}
+					]
+				}
 			}
 		],
 		"parameters": {
