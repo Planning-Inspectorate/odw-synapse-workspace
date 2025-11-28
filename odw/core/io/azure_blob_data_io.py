@@ -20,7 +20,9 @@ class AzureBlobDataIO(DataIO):
     data_frame = AzureBlobDataIO().read(
         storage_name="mystorageaccount",
         container_name="mycontainer",
-        blob_path="path/to/my/file.someformat"
+        blob_path="path/to/my/file.someformat",
+        spark=spark,
+        parser_type="parquet"
     )
     ```
     ## Writing
@@ -30,7 +32,9 @@ class AzureBlobDataIO(DataIO):
         data_frame,
         storage_name="mystorageaccount",
         container_name="mycontainer",
-        blob_path="path/to/my/file.someformat"
+        blob_path="path/to/my/file.someformat",
+        spark=spark,
+        parser_type="parquet"
     )
     ```
     """
@@ -41,6 +45,8 @@ class AzureBlobDataIO(DataIO):
         :param str storage_name: The name of the storage account to read from
         :param str container_name: The container to read from
         :param str blob_path: The path to the blob (in the container) to read
+        :param SparkSession spark: The spark session
+        :param str parser_type: The DataFileParser type to use
         
         :return DataFrame: The data
         """
@@ -80,6 +86,8 @@ class AzureBlobDataIO(DataIO):
         :param str storage_name: The name of the storage account to write to
         :param str container_name: The container to write to
         :param str blob_path: The path to the blob (in the container) to write
+        :param SparkSession spark: The spark session
+        :param str parser_type: The DataFileParser type to use
         """
         spark = kwargs.get("spark", None)
         storage_name = kwargs.get("storage_name", None)

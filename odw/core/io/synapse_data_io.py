@@ -1,8 +1,8 @@
-from odw.core.io.azure_blob_data_io import ADLSDataIO
+from odw.core.io.data_io import DataIO
 from pyspark.sql import DataFrame
 
 
-class SynapseDataIO(ADLSDataIO):
+class SynapseDataIO(DataIO):
     """
     Manages data io to/from a storage location that is linked to Synapse
     """
@@ -13,6 +13,7 @@ class SynapseDataIO(ADLSDataIO):
         :param str storage_name: The name of the storage account to read from
         :param str container_name: The container to read from
         :param str blob_path: The path to the blob (in the container) to read
+        :param SparkSession spark: The spark session
         
         :return DataFrame: The data 
         """
@@ -26,5 +27,6 @@ class SynapseDataIO(ADLSDataIO):
         :param str storage_name: The name of the storage account to write to
         :param str container_name: The container to write to
         :param str blob_path: The path to the blob (in the container) to write
+        :param SparkSession spark: The spark session
         """
         pass
