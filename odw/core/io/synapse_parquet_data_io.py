@@ -16,7 +16,8 @@ class SynapseParquetDataIO(SynapseDataIO):
     data_frame = ADLSDataIO().read(
         storage_name="mystorageaccount",
         container_name="mycontainer",
-        blob_path="path/to/my/file.someformat"
+        blob_path="path/to/my/file.someformat",
+        spark=spark
     )
     ```
     ## Writing
@@ -26,7 +27,8 @@ class SynapseParquetDataIO(SynapseDataIO):
         data_frame,
         storage_name="mystorageaccount",
         container_name="mycontainer",
-        blob_path="path/to/my/file.someformat"
+        blob_path="path/to/my/file.someformat",
+        spark=spark
     )
     ```
     """
@@ -37,6 +39,7 @@ class SynapseParquetDataIO(SynapseDataIO):
         :param str storage_name: The name of the storage account to read from
         :param str container_name: The container to read from
         :param str blob_path: The path to the blob (in the container) to read
+        :param SparkSession spark: The spark session
         
         :return DataFrame: The data 
         """
@@ -50,5 +53,6 @@ class SynapseParquetDataIO(SynapseDataIO):
         :param str storage_name: The name of the storage account to write to
         :param str container_name: The container to write to
         :param str blob_path: The path to the blob (in the container) to write
+        :param SparkSession spark: The spark session
         """
         pass

@@ -1,13 +1,15 @@
 from odw.core.io.data_io import DataIO
 from odw.core.exceptions import DuplicateDataIONameException, DataIONameNotFoundException
 from odw.core.io.synapse_data_io import SynapseDataIO
+from odw.core.io.azure_blob_data_io import AzureBlobDataIO
 from typing import Set, Dict, Type
 import json
 
 
 class DataIOFactory():
     DATA_IO_CLASSES = {
-        SynapseDataIO
+        SynapseDataIO,
+        AzureBlobDataIO
     }
 
     @classmethod

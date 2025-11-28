@@ -1,12 +1,13 @@
 from odw.core.io.parser.data_file_parser import DataFileParser
 from odw.core.exceptions import DuplicateDataFileParserNameException, DataFileParserNameNotFoundException
+from odw.core.io.parser.parquet_file_parser import ParquetFileParser
 from typing import Dict, Set, Type
 import json
 
 
 class DataFileParserFactory():
     PARSERS: Set[DataFileParser] = {
-
+        ParquetFileParser
     }
 
     @classmethod
@@ -33,10 +34,10 @@ class DataFileParserFactory():
         }
 
     @classmethod
-    def get(cls, parser_map: str) -> Type[DataFileParser]:
+    def get(cls, parser_type: str) -> Type[DataFileParser]:
         parser_map = cls._validate_parser_classes()
-        if parser_map not in parser_map:
+        if parser_type not in parser_map:
             raise DataFileParserNameNotFoundException(
-                f"No DataFileParser class could be found for DataFileParser name '{parser_map}'"
+                f"No DataFileParser class could be found for DataFileParser name '{parser_type}'"
             )
-        return parser_map[parser_map]
+        return parser_map[parser_type]
