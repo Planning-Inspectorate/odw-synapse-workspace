@@ -66,6 +66,8 @@ class NINumberStrategy(Strategy):
 
     _generate_random_ni_number_udf = F.udf(_generate_random_ni_number, T.StringType())
     _generate_random_ni_number = staticmethod(_generate_random_ni_number)
+    # Public alias for cleaner imports
+    generate_random_ni_number_udf = _generate_random_ni_number_udf
 
     def apply(self, df: DataFrame, column: str, seed: Column, context: dict) -> DataFrame:
         return df.withColumn(column, NINumberStrategy._generate_random_ni_number_udf(F.col(column).cast("string")))
@@ -101,6 +103,8 @@ class EmailMaskStrategy(Strategy):
 
     _mask_email_preserve_domain_udf = F.udf(_mask_email_preserve_domain, T.StringType())
     _mask_email_preserve_domain = staticmethod(_mask_email_preserve_domain)
+    # Public alias for cleaner imports
+    mask_email_preserve_domain_udf = _mask_email_preserve_domain_udf
 
     def apply(self, df: DataFrame, column: str, seed: Column, context: dict) -> DataFrame:
         # Mask local part and preserve domain (no '#', no EmployeeID override)
@@ -161,6 +165,9 @@ class NameMaskStrategy(Strategy):
     _mask_name_first_only_udf = F.udf(_mask_name_first_only, T.StringType())
     _mask_fullname_initial_lastletter = staticmethod(_mask_fullname_initial_lastletter)
     _mask_name_first_only = staticmethod(_mask_name_first_only)
+    # Public aliases
+    mask_fullname_initial_lastletter_udf = _mask_fullname_initial_lastletter_udf
+    mask_name_first_only_udf = _mask_name_first_only_udf
 
     def apply(self, df: DataFrame, column: str, seed: Column, context: dict) -> DataFrame:
         # Apply by classification: if value looks like full name (contains whitespace),

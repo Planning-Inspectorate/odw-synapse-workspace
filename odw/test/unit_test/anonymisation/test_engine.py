@@ -5,8 +5,8 @@ from odw.core.anonymisation.base import (
     _seed_col,
     random_int_from_seed,
     random_date_from_seed,
-    mask_fullname_initial_lastletter_udf,
-    mask_email_preserve_domain_udf,
+    NameMaskStrategy,
+    EmailMaskStrategy,
 )
 import mock
 import re
@@ -67,8 +67,8 @@ def test_apply_from_purview__mocked_fetch_and_spark_df():
 
         seed = _seed_col(df)
         expected = (
-            df.withColumn("full_name", mask_fullname_initial_lastletter_udf(F.col("full_name")))
-            .withColumn("emailAddress", mask_email_preserve_domain_udf(F.col("emailAddress")))
+            df.withColumn("full_name", NameMaskStrategy.mask_fullname_initial_lastletter_udf(F.col("full_name")))
+            .withColumn("emailAddress", EmailMaskStrategy.mask_email_preserve_domain_udf(F.col("emailAddress")))
             .withColumn("Age", random_int_from_seed(seed, 18, 70).cast("int"))
             .withColumn("BirthDate", random_date_from_seed(seed))
             .withColumn("AnnualSalary", random_int_from_seed(seed, 20000, 100000).cast("int"))
