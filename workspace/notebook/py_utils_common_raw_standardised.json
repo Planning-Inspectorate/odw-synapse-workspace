@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "a2a23b6d-f5b4-4c4b-9743-cf1cb4825237"
+				"spark.autotune.trackingId": "63382893-3781-4dc0-8360-4f416d48b073"
 			}
 		},
 		"metadata": {
@@ -98,7 +98,7 @@
 					"Param_FileFolder_Path = 'Casework_Local_Plan'\r\n",
 					"Param_Json_SchemaFolder_Name = ''"
 				],
-				"execution_count": 121
+				"execution_count": 133
 			},
 			{
 				"cell_type": "markdown",
@@ -143,7 +143,7 @@
 					"warnings.filterwarnings(\"ignore\", message=\"iteritems is deprecated\")\r\n",
 					""
 				],
-				"execution_count": 122
+				"execution_count": 134
 			},
 			{
 				"cell_type": "markdown",
@@ -176,7 +176,7 @@
 					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\r\n",
 					"#print(storage_account)"
 				],
-				"execution_count": 123
+				"execution_count": 135
 			},
 			{
 				"cell_type": "markdown",
@@ -196,7 +196,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 124
+				"execution_count": 136
 			},
 			{
 				"cell_type": "markdown",
@@ -245,7 +245,7 @@
 					"\r\n",
 					""
 				],
-				"execution_count": 125
+				"execution_count": 137
 			},
 			{
 				"cell_type": "code",
@@ -254,7 +254,7 @@
 					"df_orch = spark.read.option(\"multiline\", \"true\").json(json_schema_file_path)\r\n",
 					"definitions = json.loads(df_orch.toJSON().first())[\"definitions\"]"
 				],
-				"execution_count": 126
+				"execution_count": 138
 			},
 			{
 				"cell_type": "markdown",
@@ -278,7 +278,7 @@
 					"    folders = sorted([f for f in folders if re.match(r\"\\d{4}-\\d{2}-\\d{2}\", f)], reverse=True)\r\n",
 					"    return folders[0] if folders else None"
 				],
-				"execution_count": 127
+				"execution_count": 139
 			},
 			{
 				"cell_type": "markdown",
@@ -623,10 +623,10 @@
 					"def clean_column_names(df):\r\n",
 					"\r\n",
 					"    # Additional code added to manage Unmanaged data file to Drop columns matching: c#### OR Unnamed \r\n",
-					"    #df = df.select([c for c in df.columns if c.strip() and not re.match(r'^(c\\d+|Unnamed.*)$', c, re.IGNORECASE)]).dropna(how='all')\r\n",
+					"    df = df.select([c for c in df.columns if c.strip() and not re.match(r'^(_c\\d+|Unnamed.*)$', c, re.IGNORECASE)]).dropna(how='all')\r\n",
 					"\r\n",
 					"    # Drop columns starting with 'Unnamed' and rows with all nulls\r\n",
-					"    df = df.select([c for c in df.columns if not c.startswith('Unnamed')]).dropna(how='all')\r\n",
+					"    #df = df.select([c for c in df.columns if not c.startswith('Unnamed')]).dropna(how='all')\r\n",
 					"\r\n",
 					"    cols = [re.sub(r\"[^a-zA-Z0-9_]+\", \"\", c).strip('_') for c in df.columns]\r\n",
 					"    deduped = []\r\n",
@@ -684,7 +684,7 @@
 					"    raise TypeError(f\"Object of type {obj.__class__.__name__} is not JSON serializable\")\r\n",
 					""
 				],
-				"execution_count": 128
+				"execution_count": 140
 			},
 			{
 				"cell_type": "markdown",
@@ -1078,7 +1078,7 @@
 					"            processing_results.append(result_entry)\r\n",
 					""
 				],
-				"execution_count": 129
+				"execution_count": 141
 			},
 			{
 				"cell_type": "markdown",
@@ -1099,7 +1099,7 @@
 					"# --- Run the main process ---\r\n",
 					"process_definitions(Param_File_Load_Type)"
 				],
-				"execution_count": 130
+				"execution_count": 142
 			},
 			{
 				"cell_type": "code",
@@ -1119,7 +1119,7 @@
 					"\r\n",
 					""
 				],
-				"execution_count": 131
+				"execution_count": 143
 			},
 			{
 				"cell_type": "code",
@@ -1127,7 +1127,7 @@
 					"# Exit with the JSON result for pipeline consumption\r\n",
 					"mssparkutils.notebook.exit(result_json_str)"
 				],
-				"execution_count": 132
+				"execution_count": 144
 			},
 			{
 				"cell_type": "markdown",
@@ -1180,6 +1180,43 @@
 					""
 				],
 				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"editable": false,
+					"run_control": {
+						"frozen": true
+					}
+				},
+				"source": [
+					"# Read CSV from ADLS Gen2\r\n",
+					"df = spark.read.format(\"csv\") \\\r\n",
+					".option(\"header\", \"true\") \\\r\n",
+					".option(\"inferSchema\", \"true\") \\\r\n",
+					".load(\"abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/Casework_Local_Plan/2025-12-01/Local_Plans_20251105.csv\")\r\n",
+					"\r\n",
+					"print(f\"Original: {df.count()} rows, {len(df.columns)} columns\")\r\n",
+					"\r\n",
+					"# Clean: Drop unnamed columns and rows with all nulls\r\n",
+					"df_cleaned = df.select([c for c in df.columns if not c.startswith('Unnamed')]).dropna(how='all')\r\n",
+					"\r\n",
+					"print(f\"Cleaned: {df_cleaned.count()} rows, {len(df_cleaned.columns)} columns\")\r\n",
+					"print(f\"Dropped {len(df.columns) - len(df_cleaned.columns)} unnamed columns\")\r\n",
+					"\r\n",
+					"# Show sample\r\n",
+					"df_cleaned.show(5)\r\n",
+					"\r\n",
+					"# Save cleaned data\r\n",
+					"#df_cleaned.write.format(\"delta\") \\\r\n",
+					"#.mode(\"overwrite\") \\\r\n",
+					"#.save(\"abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/path/cleaned/\")\r\n",
+					"\r\n",
+					"#print(\" Cleaning completed successfully!\")\r\n",
+					"\r\n",
+					"#abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/Casework_Local_Plan/2025-12-01/Local_Plans_20251105.csv"
+				],
+				"execution_count": 146
 			}
 		]
 	}
