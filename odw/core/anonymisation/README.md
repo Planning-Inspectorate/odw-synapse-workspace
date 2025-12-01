@@ -19,8 +19,8 @@ Core modules:
 ### Module reference
 
 - base.py
-  - Types: `Strategy` (interface), concrete strategies `NINumberStrategy`, `EmailMaskStrategy`, `NameMaskStrategy`, `BirthDateStrategy`, `AgeStrategy`, `SalaryStrategy`
-  - Helpers on Strategy: `Strategy.seed_col(df)`, `Strategy.mask_keep_first_last(col)`, `Strategy.random_int_from_seed(seed, min, max)`, `Strategy.random_date_from_seed(seed, start, end)`
+  - Types: `BaseStrategy` (interface), concrete strategies `NINumberStrategy`, `EmailMaskStrategy`, `NameMaskStrategy`, `BirthDateStrategy`, `AgeStrategy`, `SalaryStrategy`
+  - Helpers on BaseStrategy: `BaseStrategy.seed_col(df)`, `BaseStrategy.mask_keep_first_last(col)`, `BaseStrategy.random_int_from_seed(seed, min, max)`, `BaseStrategy.random_date_from_seed(seed, start, end)`
   - Factory: `default_strategies()` returns the built-in strategy list in precedence order
   - Public class-level UDFs on strategies — `NameMaskStrategy.mask_fullname_initial_lastletter_udf`, `NameMaskStrategy.mask_name_first_only_udf`, `EmailMaskStrategy.mask_email_preserve_domain_udf`, `NINumberStrategy.generate_random_ni_number_udf`
 
@@ -47,8 +47,8 @@ Core modules:
 ### Strategies
 A strategy encapsulates how to anonymise one column when certain classifications are present.
 
-- Interface: `Strategy.apply(df, column, seed, context) -> DataFrame`
-- Trigger: `Strategy.classification_names` — set of Purview classification type names
+- Interface: `BaseStrategy.apply(df, column, seed, context) -> DataFrame`
+- Trigger: `BaseStrategy.classification_names` — set of Purview classification type names
 - Precedence: the first strategy (by order in the `strategies` list) whose `classification_names` intersects the column’s classifications is applied
 - Context passed to `apply`: `context["classifications"]` is the set of matched classification names; `context["is_lm"]` is `True` when the target column name contains "line manager" (available for custom strategies)
 
@@ -163,7 +163,7 @@ Credentials and defaults:
 
 ## Public API
 Re-exported from `odw.core.anonymisation`:
-- `Strategy`, `default_strategies()`
+- `BaseStrategy`, `default_strategies()`
 - `AnonymisationEngine`, `fetch_purview_classifications_by_qualified_name`
 - `AnonymisationConfig`, `load_config`
 
@@ -231,7 +231,7 @@ out = engine.apply(df, cols, classification_allowlist=None)  # engine will use c
 - Logs include counts, selected columns, strategies used, and a correlation/run ID when provided
 
 ## Extension points
-- Add a new strategy by subclassing `Strategy` and providing a `classification_names` set and an `apply` method
+- Add a new strategy by subclassing `BaseStrategy` and providing a `classification_names` set and an `apply` method
 - Provide custom strategies to the engine (`AnonymisationEngine(strategies=[...])`) to override or extend behaviour
 - Update the classification allowlist in config to scope which classes are acted upon
 
