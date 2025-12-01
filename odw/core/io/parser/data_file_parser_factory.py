@@ -1,18 +1,18 @@
 from odw.core.io.parser.data_file_parser import DataFileParser
 from odw.core.exceptions import DuplicateDataFileParserNameException, DataFileParserNameNotFoundException
 from odw.core.io.parser.parquet_file_parser import ParquetFileParser
-from typing import Dict, Set, Type
+from typing import Dict, Set, Type, List
 import json
 
 
 class DataFileParserFactory():
-    PARSERS: Set[DataFileParser] = {
+    PARSERS: Set[Type[DataFileParser]] = {
         ParquetFileParser
     }
 
     @classmethod
     def _validate_parser_classes(cls):
-        name_map: Dict[str, Set[Type[DataFileParser]]] = dict()
+        name_map: Dict[str, List[Type[DataFileParser]]] = dict()
         for parser_class in cls.PARSERS:
             type_name = parser_class.get_name()
             if type_name in name_map:

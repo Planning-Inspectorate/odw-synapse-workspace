@@ -1,17 +1,17 @@
 from odw.core.etl.etl_process import ETLProcess
 from odw.core.exceptions import DuplicateETLProcessNameException, ETLProcessNameNotFoundException
-from typing import Dict, Set, Type
+from typing import Dict, List, Set, Type
 import json
 
 
 class ETLProcessFactory():
-    ETL_PROCESSES: Set[ETLProcess] = {
+    ETL_PROCESSES: Set[Type[ETLProcess]] = {
 
     }
 
     @classmethod
     def _validate_etl_process_classes(cls):
-        name_map: Dict[str, Set[Type[ETLProcess]]] = dict()
+        name_map: Dict[str, List[Type[ETLProcess]]] = dict()
         for etl_process_class in cls.ETL_PROCESSES:
             type_name = etl_process_class.get_name()
             if type_name in name_map:

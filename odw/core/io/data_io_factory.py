@@ -1,20 +1,21 @@
 from odw.core.io.data_io import DataIO
 from odw.core.exceptions import DuplicateDataIONameException, DataIONameNotFoundException
+from odw.core.io.data_io import DataIO
 from odw.core.io.synapse_data_io import SynapseDataIO
 from odw.core.io.azure_blob_data_io import AzureBlobDataIO
-from typing import Set, Dict, Type
+from typing import Set, List, Dict, Type
 import json
 
 
 class DataIOFactory():
-    DATA_IO_CLASSES = {
+    DATA_IO_CLASSES: Set[Type[DataIO]] = {
         SynapseDataIO,
         AzureBlobDataIO
     }
 
     @classmethod
     def _validate_data_io_classes(cls):
-        name_map: Dict[str, Set[Type[DataIO]]] = dict()
+        name_map: Dict[str, List[Type[DataIO]]] = dict()
         for data_io_class in cls.DATA_IO_CLASSES:
             type_name = data_io_class.get_name()
             if type_name in name_map:
