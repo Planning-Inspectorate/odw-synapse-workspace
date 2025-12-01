@@ -17,28 +17,12 @@ STAFF_SEED_COL_CANDIDATES: Sequence[str] = (
 )
 
 
-def _seed_col(df: DataFrame) -> Column:
-    cols = [c for c in STAFF_SEED_COL_CANDIDATES if c in df.columns]
-    return F.coalesce(*[F.col(c).cast("string") for c in cols]) if cols else F.lit("seed")
 
 
-def mask_keep_first_last_col(col: Column) -> Column:
-    return F.when(col.isNull(), None).otherwise(F.regexp_replace(col.cast("string"), r"(?<=.).(?=.$)", "*"))
 
 
-def random_int_from_seed(seed: Column, min_value: int, max_value: int) -> Column:
-    return (F.abs(F.hash(seed)) % (max_value - min_value + 1)) + F.lit(min_value)
 
-
-def random_date_from_seed(seed: Column, start: str = "1955-01-01", end: str = "2005-12-31") -> Column:
-    start_date = F.to_date(F.lit(start))
-    end_date = F.to_date(F.lit(end))
-    days = F.datediff(end_date, start_date)
-    offset = F.abs(F.hash(seed)) % days
-    return F.date_add(start_date, offset.cast("int"))
-
-
-class Strategy(ABC):
+class BaseStrategy(ABC):
     """Interface for anonymisation strategies applied to a single column."""
 
     @property
@@ -50,11 +34,32 @@ class Strategy(ABC):
     def apply(self, df: DataFrame, column: str, seed: Column, context: dict) -> DataFrame:
         """Return a new DataFrame with the transformation applied to the given column."""
 
+    @staticmethod
+    def seed_col(df: DataFrame) -> Column:
+        cols = [c for c in STAFF_SEED_COL_CANDIDATES if c in df.columns]
+        return F.coalesce(*[F.col(c).cast("string") for c in cols]) if cols else F.lit("seed")
 
-class NINumberStrategy(Strategy):
+    @staticmethod
+    def mask_keep_first_last(col: Column) -> Column:
+        return F.when(col.isNull(), None).otherwise(F.regexp_replace(col.cast("string"), r"(?<=.).(?=.$)", "*"))
+
+    @staticmethod
+    def random_int_from_seed(seed: Column, min_value: int, max_value: int) -> Column:
+        return (F.abs(F.hash(seed)) % (max_value - min_value + 1)) + F.lit(min_value)
+
+    @staticmethod
+    def random_date_from_seed(seed: Column, start: str = "1955-01-01", end: str = "2005-12-31") -> Column:
+        start_date = F.to_date(F.lit(start))
+        end_date = F.to_date(F.lit(end))
+        days = F.datediff(end_date, start_date)
+        offset = F.abs(F.hash(seed)) % days
+        return F.date_add(start_date, offset.cast("int"))
+
+
+class NINumberStrategy(BaseStrategy):
     classification_names = {"NI Number", "PotentialID", "Potential ID"}
 
-    def _generate_random_ni_number(_: str | None) -> str:
+    def generate_random_ni_number(_: str | None) -> str:
         import random as _rand  # local import to keep worker safe
 
         letters = "ABCDEFGHJKLMNPQRSTUVWXYZ"
@@ -64,16 +69,14 @@ class NINumberStrategy(Strategy):
         last = _rand.choice("ABCD")
         return f"{first}{second}{digits}{last}"
 
-    _generate_random_ni_number_udf = F.udf(_generate_random_ni_number, T.StringType())
-    _generate_random_ni_number = staticmethod(_generate_random_ni_number)
-    # Public alias for cleaner imports
-    generate_random_ni_number_udf = _generate_random_ni_number_udf
+    # Public UDF
+    generate_random_ni_number_udf = F.udf(generate_random_ni_number, T.StringType())
 
     def apply(self, df: DataFrame, column: str, seed: Column, context: dict) -> DataFrame:
-        return df.withColumn(column, NINumberStrategy._generate_random_ni_number_udf(F.col(column).cast("string")))
+        return df.withColumn(column, NINumberStrategy.generate_random_ni_number_udf(F.col(column).cast("string")))
 
 
-class EmailMaskStrategy(Strategy):
+class EmailMaskStrategy(BaseStrategy):
     classification_names = {"MICROSOFT.PERSONAL.EMAIL", "Email Address", "Email Address Column Name"}
 
     def _mask_email_preserve_domain(email: str | None) -> str | None:
@@ -101,17 +104,15 @@ class EmailMaskStrategy(Strategy):
         except Exception:
             return None
 
-    _mask_email_preserve_domain_udf = F.udf(_mask_email_preserve_domain, T.StringType())
-    _mask_email_preserve_domain = staticmethod(_mask_email_preserve_domain)
-    # Public alias for cleaner imports
-    mask_email_preserve_domain_udf = _mask_email_preserve_domain_udf
+    # UDF (public)
+    mask_email_preserve_domain_udf = F.udf(_mask_email_preserve_domain, T.StringType())
 
     def apply(self, df: DataFrame, column: str, seed: Column, context: dict) -> DataFrame:
         # Mask local part and preserve domain (no '#', no EmployeeID override)
-        return df.withColumn(column, EmailMaskStrategy._mask_email_preserve_domain_udf(F.col(column)))
+        return df.withColumn(column, EmailMaskStrategy.mask_email_preserve_domain_udf(F.col(column)))
 
 
-class NameMaskStrategy(Strategy):
+class NameMaskStrategy(BaseStrategy):
     classification_names = {"MICROSOFT.PERSONAL.NAME", "First Name", "Last Name", "Names Column Name"}
 
     def _mask_fullname_initial_lastletter(v: str | None) -> str | None:
@@ -161,13 +162,17 @@ class NameMaskStrategy(Strategy):
             return s
         return s[0] + ("*" * (len(s) - 1))
 
-    _mask_fullname_initial_lastletter_udf = F.udf(_mask_fullname_initial_lastletter, T.StringType())
-    _mask_name_first_only_udf = F.udf(_mask_name_first_only, T.StringType())
-    _mask_fullname_initial_lastletter = staticmethod(_mask_fullname_initial_lastletter)
-    _mask_name_first_only = staticmethod(_mask_name_first_only)
-    # Public aliases
-    mask_fullname_initial_lastletter_udf = _mask_fullname_initial_lastletter_udf
-    mask_name_first_only_udf = _mask_name_first_only_udf
+    # UDFs (public)
+    mask_fullname_initial_lastletter_udf = F.udf(_mask_fullname_initial_lastletter, T.StringType())
+    mask_name_first_only_udf = F.udf(_mask_name_first_only, T.StringType())
+
+    # Backward-compat private aliases
+    _mask_fullname_initial_lastletter_udf = mask_fullname_initial_lastletter_udf
+    _mask_name_first_only_udf = mask_name_first_only_udf
+
+    @staticmethod
+    def mask_keep_first_last_col_expr(col: Column) -> Column:
+        return BaseStrategy.mask_keep_first_last(col)
 
     def apply(self, df: DataFrame, column: str, seed: Column, context: dict) -> DataFrame:
         # Apply by classification: if value looks like full name (contains whitespace),
@@ -179,39 +184,39 @@ class NameMaskStrategy(Strategy):
                 column,
                 F.when(
                     F.col(column).cast("string").rlike(r"\s+"),
-                    NameMaskStrategy._mask_fullname_initial_lastletter_udf(F.col(column)),
-                ).otherwise(NameMaskStrategy._mask_name_first_only_udf(F.col(column))),
+                    NameMaskStrategy.mask_fullname_initial_lastletter_udf(F.col(column)),
+                ).otherwise(NameMaskStrategy.mask_name_first_only_udf(F.col(column))),
             )
 
         # Fallback legacy heuristic based on column name
         cname = column.lower()
         if "name" in cname and "first" not in cname and "last" not in cname:
-            return df.withColumn(column, NameMaskStrategy._mask_fullname_initial_lastletter_udf(F.col(column)))
-        return df.withColumn(column, mask_keep_first_last_col(F.col(column)))
+            return df.withColumn(column, NameMaskStrategy.mask_fullname_initial_lastletter_udf(F.col(column)))
+        return df.withColumn(column, NameMaskStrategy.mask_keep_first_last_col_expr(F.col(column)))
 
 
-class BirthDateStrategy(Strategy):
+class BirthDateStrategy(BaseStrategy):
     classification_names = {"Birth Date", "Date of Birth"}
 
     def apply(self, df: DataFrame, column: str, seed: Column, context: dict) -> DataFrame:
-        return df.withColumn(column, random_date_from_seed(seed))
+        return df.withColumn(column, BaseStrategy.random_date_from_seed(seed))
 
 
-class AgeStrategy(Strategy):
+class AgeStrategy(BaseStrategy):
     classification_names = {"Person's Age", "Employee Age"}
 
     def apply(self, df: DataFrame, column: str, seed: Column, context: dict) -> DataFrame:
-        return df.withColumn(column, random_int_from_seed(seed, 18, 70).cast("int"))
+        return df.withColumn(column, BaseStrategy.random_int_from_seed(seed, 18, 70).cast("int"))
 
 
-class SalaryStrategy(Strategy):
+class SalaryStrategy(BaseStrategy):
     classification_names = {"Annual Salary"}
 
     def apply(self, df: DataFrame, column: str, seed: Column, context: dict) -> DataFrame:
-        return df.withColumn(column, random_int_from_seed(seed, 20000, 100000).cast("int"))
+        return df.withColumn(column, BaseStrategy.random_int_from_seed(seed, 20000, 100000).cast("int"))
 
 
-def default_strategies() -> List[Strategy]:
+def default_strategies() -> List[BaseStrategy]:
     return [
         NINumberStrategy(),
         EmailMaskStrategy(),
@@ -222,8 +227,3 @@ def default_strategies() -> List[Strategy]:
     ]
 
 
-# Backward-compatible module-level UDF aliases (moved into classes above)
-mask_fullname_initial_lastletter_udf = NameMaskStrategy._mask_fullname_initial_lastletter_udf
-mask_name_first_only_udf = NameMaskStrategy._mask_name_first_only_udf
-mask_email_preserve_domain_udf = EmailMaskStrategy._mask_email_preserve_domain_udf
-generate_random_ni_number_udf = NINumberStrategy._generate_random_ni_number_udf

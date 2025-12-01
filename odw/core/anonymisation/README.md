@@ -20,10 +20,9 @@ Core modules:
 
 - base.py
   - Types: `Strategy` (interface), concrete strategies `NINumberStrategy`, `EmailMaskStrategy`, `NameMaskStrategy`, `BirthDateStrategy`, `AgeStrategy`, `SalaryStrategy`
-  - Helpers: `_seed_col(df)`, `mask_keep_first_last_col(col)`, `random_int_from_seed(seed, min, max)`, `random_date_from_seed(seed, start, end)`
+  - Helpers on Strategy: `Strategy.seed_col(df)`, `Strategy.mask_keep_first_last(col)`, `Strategy.random_int_from_seed(seed, min, max)`, `Strategy.random_date_from_seed(seed, start, end)`
   - Factory: `default_strategies()` returns the built-in strategy list in precedence order
-  - Class-level UDFs on strategies — `NameMaskStrategy.mask_fullname_initial_lastletter_udf`, `NameMaskStrategy.mask_name_first_only_udf`, `EmailMaskStrategy.mask_email_preserve_domain_udf`, `NINumberStrategy.generate_random_ni_number_udf`
-  - Backward-compat module-level aliases (still available): `mask_fullname_initial_lastletter_udf`, `mask_name_first_only_udf`, `mask_email_preserve_domain_udf`, `generate_random_ni_number_udf`
+  - Public class-level UDFs on strategies — `NameMaskStrategy.mask_fullname_initial_lastletter_udf`, `NameMaskStrategy.mask_name_first_only_udf`, `EmailMaskStrategy.mask_email_preserve_domain_udf`, `NINumberStrategy.generate_random_ni_number_udf`
 
 - engine.py
   - Class: `AnonymisationEngine(strategies=None, config=None, run_id=None)`

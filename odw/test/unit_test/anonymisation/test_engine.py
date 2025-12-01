@@ -2,9 +2,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from odw.core.anonymisation import AnonymisationEngine
 from odw.core.anonymisation.base import (
-    _seed_col,
-    random_int_from_seed,
-    random_date_from_seed,
+    BaseStrategy,
     NameMaskStrategy,
     EmailMaskStrategy,
 )
@@ -65,13 +63,13 @@ def test_apply_from_purview__mocked_fetch_and_spark_df():
         # Build expected deterministic output for comparable columns
         cols = ["EmployeeID", "full_name", "emailAddress", "Age", "BirthDate", "AnnualSalary"]
 
-        seed = _seed_col(df)
+        seed = BaseStrategy.seed_col(df)
         expected = (
             df.withColumn("full_name", NameMaskStrategy.mask_fullname_initial_lastletter_udf(F.col("full_name")))
             .withColumn("emailAddress", EmailMaskStrategy.mask_email_preserve_domain_udf(F.col("emailAddress")))
-            .withColumn("Age", random_int_from_seed(seed, 18, 70).cast("int"))
-            .withColumn("BirthDate", random_date_from_seed(seed))
-            .withColumn("AnnualSalary", random_int_from_seed(seed, 20000, 100000).cast("int"))
+            .withColumn("Age", BaseStrategy.random_int_from_seed(seed, 18, 70).cast("int"))
+            .withColumn("BirthDate", BaseStrategy.random_date_from_seed(seed))
+            .withColumn("AnnualSalary", BaseStrategy.random_int_from_seed(seed, 20000, 100000).cast("int"))
         )
 
         actual_rows = out.select(*cols).orderBy("EmployeeID").collect()

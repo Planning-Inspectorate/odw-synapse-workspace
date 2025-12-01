@@ -12,8 +12,7 @@ from pyspark.sql.column import Column
 from azure.identity import DefaultAzureCredential  # type: ignore
 
 from .base import (
-    Strategy,
-    _seed_col,
+    BaseStrategy,
     default_strategies,
 )
 from .config import AnonymisationConfig
@@ -356,11 +355,11 @@ def fetch_purview_classifications_by_qualified_name(
 class AnonymisationEngine:
     def __init__(
         self,
-        strategies: Optional[Sequence[Strategy]] = None,
+        strategies: Optional[Sequence[BaseStrategy]] = None,
         config: Optional[AnonymisationConfig] = None,
         run_id: Optional[str] = None,
     ):
-        self.strategies: List[Strategy] = list(strategies or default_strategies())
+        self.strategies: List[BaseStrategy] = list(strategies or default_strategies())
         self.config = config or AnonymisationConfig()
         # Correlation ID for auditing; can be provided by caller or read from env
         self.run_id: Optional[str] = run_id or os.getenv("ODW_RUN_ID")
@@ -378,7 +377,7 @@ class AnonymisationEngine:
         """
         allowlist: Optional[Set[str]] = set(classification_allowlist) if classification_allowlist else self.config.classification_allowlist
         out = df
-        seed = _seed_col(df)
+        seed = BaseStrategy.seed_col(df)
         # Case-insensitive + trimmed mapping from normalised name -> actual df column
         norm_to_actual = {_norm_col_name(c): c for c in df.columns}
 
