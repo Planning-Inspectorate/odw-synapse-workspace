@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "662abb7e-e194-4ad1-8961-a6ab58bf4647"
+				"spark.autotune.trackingId": "6498ee7a-dd22-4f38-a64d-e61803134005"
 			}
 		},
 		"metadata": {
@@ -62,7 +62,7 @@
 					"PipelineTriggeredbyPipelineName = None\n",
 					"PipelineTriggeredbyPipelineRunID = None"
 				],
-				"execution_count": 108
+				"execution_count": 140
 			},
 			{
 				"cell_type": "code",
@@ -72,21 +72,21 @@
 					"from delta.tables import DeltaTable\n",
 					"from datetime import datetime"
 				],
-				"execution_count": 109
+				"execution_count": 141
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 110
+				"execution_count": 142
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 111
+				"execution_count": 143
 			},
 			{
 				"cell_type": "code",
@@ -105,7 +105,7 @@
 					"changed_records = 0\n",
 					"unchanged_records = 0"
 				],
-				"execution_count": 112
+				"execution_count": 144
 			},
 			{
 				"cell_type": "code",
@@ -120,7 +120,7 @@
 					"        error_message = f\"Error in setting time parser policy: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 113
+				"execution_count": 145
 			},
 			{
 				"cell_type": "code",
@@ -130,11 +130,9 @@
 					"        logInfo(f\"Reading source data from {source_table}\")\n",
 					"        \n",
 					"        # Create staging view with deduplication and hash calculation\n",
-					"        # Filter only active records (active = 'Y')\n",
 					"        spark.sql(f\"\"\"\n",
 					"            CREATE OR REPLACE TEMP VIEW stg_casework_specialist AS\n",
 					"            SELECT\n",
-					"                casework_specialist_id,\n",
 					"                greenCaseType,\n",
 					"                greenCaseId,\n",
 					"                caseReference,\n",
@@ -171,7 +169,6 @@
 					"                comments,\n",
 					"                active,\n",
 					"                'N' as Migrated,\n",
-					"                -- Data hash for change detection\n",
 					"                md5(concat_ws('|',\n",
 					"                    COALESCE(greenCaseType, '.'),\n",
 					"                    COALESCE(CAST(greenCaseId AS STRING), '.'),\n",
@@ -215,19 +212,37 @@
 					"                    ORDER BY receiptDate DESC NULLS LAST\n",
 					"                ) as rn\n",
 					"                FROM {source_table}\n",
-					"                --- WHERE active = 'Y'\n",
 					"            ) dedup \n",
 					"            WHERE rn = 1\n",
 					"        \"\"\")\n",
 					"        \n",
 					"        src_count = spark.sql(\"SELECT COUNT(*) FROM stg_casework_specialist\").collect()[0][0]\n",
-					"        logInfo(f\"Source loaded: {src_count} active records\")\n",
+					"        logInfo(f\"Source loaded: {src_count} records after deduplication\")\n",
 					"        \n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error preparing source: {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()"
+					"        end_exec_time = datetime.now()\n",
+					""
 				],
-				"execution_count": 114
+				"execution_count": 146
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"        target_exists = spark.sql(f\"\"\"\n",
+					"            SELECT COUNT(*) as cnt FROM {spark_table_final} WHERE is_current = 1\n",
+					"        \"\"\").collect()[0][0]\n",
+					"        \n",
+					"        logInfo(f\"Target table has {target_exists} current records\")\n",
+					"        \n",
+					"    except Exception as e:\n",
+					"        # Table might not exist or be empty - this is fine for initial load\n",
+					"        target_exists = 0\n",
+					"        logInfo(\"Target table is empty or does not exist - performing initial load\")"
+				],
+				"execution_count": 147
 			},
 			{
 				"cell_type": "code",
@@ -236,52 +251,81 @@
 					"    try:\n",
 					"        logInfo(\"Performing change analysis\")\n",
 					"        \n",
-					"        # Get current active records from target\n",
-					"        spark.sql(f\"\"\"\n",
-					"            CREATE OR REPLACE TEMP VIEW current_active AS\n",
-					"            SELECT casework_specialist_id, greenCaseId, RowID as data_hash\n",
-					"            FROM {spark_table_final} \n",
-					"            WHERE is_current = 1\n",
-					"        \"\"\")\n",
-					"        \n",
-					"        # Analyze changes: NEW, CHANGED, UNCHANGED\n",
-					"        spark.sql(\"\"\"\n",
-					"            CREATE OR REPLACE TEMP VIEW change_analysis AS\n",
-					"            SELECT \n",
-					"                src.greenCaseId, \n",
-					"                tgt.casework_specialist_id,\n",
-					"                CASE \n",
-					"                    WHEN tgt.greenCaseId IS NULL THEN 'NEW'\n",
-					"                    WHEN src.data_hash != tgt.data_hash THEN 'CHANGED'\n",
-					"                    ELSE 'UNCHANGED'\n",
-					"                END as change_type\n",
-					"            FROM stg_casework_specialist src\n",
-					"            LEFT JOIN current_active tgt ON src.greenCaseId = tgt.greenCaseId\n",
-					"        \"\"\")\n",
-					"        \n",
-					"        # Count changes by type\n",
-					"        for row in spark.sql(\"SELECT change_type, COUNT(*) as cnt FROM change_analysis GROUP BY change_type\").collect():\n",
-					"            if row['change_type'] == 'NEW': \n",
-					"                new_records = row['cnt']\n",
-					"            elif row['change_type'] == 'CHANGED': \n",
-					"                changed_records = row['cnt']\n",
-					"            elif row['change_type'] == 'UNCHANGED': \n",
-					"                unchanged_records = row['cnt']\n",
-					"        \n",
-					"        # Count deletions (records in target but not in source)\n",
-					"        delete_count = spark.sql(\"\"\"\n",
-					"            SELECT COUNT(*) FROM current_active tgt\n",
-					"            LEFT JOIN stg_casework_specialist src ON tgt.greenCaseId = src.greenCaseId\n",
-					"            WHERE src.greenCaseId IS NULL\n",
-					"        \"\"\").collect()[0][0]\n",
-					"        \n",
-					"        logInfo(f\"Change analysis - New: {new_records}, Changed: {changed_records}, Unchanged: {unchanged_records}, Deleted: {delete_count}\")\n",
+					"        if target_exists > 0:\n",
+					"            # Get current active records from target\n",
+					"            spark.sql(f\"\"\"\n",
+					"                CREATE OR REPLACE TEMP VIEW current_active AS\n",
+					"                SELECT casework_specialist_id, greenCaseId, RowID as data_hash\n",
+					"                FROM {spark_table_final} \n",
+					"                WHERE is_current = 1\n",
+					"            \"\"\")\n",
+					"            \n",
+					"            # Analyze changes: NEW, CHANGED, UNCHANGED\n",
+					"            # Using explicit column references to avoid ambiguity\n",
+					"            spark.sql(\"\"\"\n",
+					"                CREATE OR REPLACE TEMP VIEW change_analysis AS\n",
+					"                SELECT \n",
+					"                    src.greenCaseId as greenCaseId, \n",
+					"                    tgt.casework_specialist_id as casework_specialist_id,\n",
+					"                    src.data_hash as src_hash,\n",
+					"                    tgt.data_hash as tgt_hash,\n",
+					"                    CASE \n",
+					"                        WHEN tgt.greenCaseId IS NULL THEN 'NEW'\n",
+					"                        WHEN src.data_hash != tgt.data_hash THEN 'CHANGED'\n",
+					"                        ELSE 'UNCHANGED'\n",
+					"                    END as change_type\n",
+					"                FROM stg_casework_specialist src\n",
+					"                LEFT JOIN current_active tgt ON src.greenCaseId = tgt.greenCaseId\n",
+					"            \"\"\")\n",
+					"            \n",
+					"            # Count changes by type\n",
+					"            change_counts = spark.sql(\"\"\"\n",
+					"                SELECT change_type, COUNT(*) as cnt \n",
+					"                FROM change_analysis \n",
+					"                GROUP BY change_type\n",
+					"            \"\"\").collect()\n",
+					"            \n",
+					"            for row in change_counts:\n",
+					"                if row['change_type'] == 'NEW': \n",
+					"                    new_records = row['cnt']\n",
+					"                elif row['change_type'] == 'CHANGED': \n",
+					"                    changed_records = row['cnt']\n",
+					"                elif row['change_type'] == 'UNCHANGED': \n",
+					"                    unchanged_records = row['cnt']\n",
+					"            \n",
+					"            # Count deletions (records in target but not in source)\n",
+					"            delete_count = spark.sql(\"\"\"\n",
+					"                SELECT COUNT(*) FROM current_active tgt\n",
+					"                WHERE NOT EXISTS (\n",
+					"                    SELECT 1 FROM stg_casework_specialist src \n",
+					"                    WHERE src.greenCaseId = tgt.greenCaseId\n",
+					"                )\n",
+					"            \"\"\").collect()[0][0]\n",
+					"            \n",
+					"            logInfo(f\"Change analysis - New: {new_records}, Changed: {changed_records}, Unchanged: {unchanged_records}, Deleted: {delete_count}\")\n",
+					"            \n",
+					"        else:\n",
+					"            # Initial load - all records are NEW\n",
+					"            new_records = src_count\n",
+					"            logInfo(f\"Initial load - All {new_records} records are NEW\")\n",
+					"            \n",
+					"            # Create empty change_analysis view for consistency\n",
+					"            spark.sql(\"\"\"\n",
+					"                CREATE OR REPLACE TEMP VIEW change_analysis AS\n",
+					"                SELECT \n",
+					"                    greenCaseId,\n",
+					"                    CAST(NULL AS BIGINT) as casework_specialist_id,\n",
+					"                    data_hash as src_hash,\n",
+					"                    CAST(NULL AS STRING) as tgt_hash,\n",
+					"                    'NEW' as change_type\n",
+					"                FROM stg_casework_specialist\n",
+					"            \"\"\")\n",
 					"        \n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error in change analysis: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 115
+				"execution_count": 148
 			},
 			{
 				"cell_type": "code",
@@ -291,21 +335,27 @@
 					"        update_count = changed_records + delete_count\n",
 					"        logInfo(f\"Closing {update_count} records (changed: {changed_records}, deleted: {delete_count})\")\n",
 					"        \n",
-					"        # Create temp view with records to close\n",
+					"        # Create temp view with ONLY the records that need to be closed\n",
+					"         \n",
 					"        spark.sql(\"\"\"\n",
 					"            CREATE OR REPLACE TEMP VIEW records_to_close AS\n",
-					"            SELECT DISTINCT greenCaseId\n",
-					"            FROM (\n",
-					"                -- Changed records\n",
-					"                SELECT greenCaseId FROM change_analysis WHERE change_type = 'CHANGED'\n",
-					"                UNION\n",
-					"                -- Deleted records (in target but not in source)\n",
-					"                SELECT tgt.greenCaseId \n",
-					"                FROM current_active tgt\n",
-					"                LEFT JOIN stg_casework_specialist src ON tgt.greenCaseId = src.greenCaseId\n",
-					"                WHERE src.greenCaseId IS NULL\n",
+					"            SELECT greenCaseId FROM change_analysis WHERE change_type = 'CHANGED'\n",
+					"            UNION\n",
+					"            SELECT tgt.greenCaseId \n",
+					"            FROM current_active tgt\n",
+					"            WHERE NOT EXISTS (\n",
+					"                SELECT 1 FROM stg_casework_specialist src \n",
+					"                WHERE src.greenCaseId = tgt.greenCaseId\n",
 					"            )\n",
 					"        \"\"\")\n",
+					"        \n",
+					"        # Verify count before closing\n",
+					"        close_count = spark.sql(\"SELECT COUNT(*) FROM records_to_close\").collect()[0][0]\n",
+					"        logInfo(f\"Verified {close_count} records to close\")\n",
+					"        \n",
+					"        # Safety check - don't close more than expected\n",
+					"        if close_count != update_count:\n",
+					"            logInfo(f\"WARNING: Expected {update_count} but found {close_count} records to close\")\n",
 					"        \n",
 					"        # Use MERGE to close records (Delta Lake compatible)\n",
 					"        spark.sql(f\"\"\"\n",
@@ -315,17 +365,17 @@
 					"               AND target.is_current = 1\n",
 					"            WHEN MATCHED THEN\n",
 					"                UPDATE SET \n",
-					"                    record_end_date = CURRENT_TIMESTAMP()-1,\n",
+					"                    record_end_date = CURRENT_TIMESTAMP(),\n",
 					"                    is_current = 0\n",
 					"        \"\"\")\n",
 					"        \n",
-					"        logInfo(f\"Successfully closed {update_count} records\")\n",
+					"        logInfo(f\"Successfully closed {close_count} records\")\n",
 					"        \n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error closing records: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 116
+				"execution_count": 149
 			},
 			{
 				"cell_type": "code",
@@ -442,7 +492,7 @@
 					"        error_message = f\"Error inserting records: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 117
+				"execution_count": 150
 			},
 			{
 				"cell_type": "code",
@@ -496,7 +546,43 @@
 					"    status_code\n",
 					")"
 				],
-				"execution_count": 118
+				"execution_count": 151
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"UPDATE odw_harmonised_db.hist_green_specialist_case t\n",
+					"SET is_current = 1\n",
+					"WHERE record_end_date = '9999-12-31 23:59:59'\n",
+					"  AND is_current = 0;"
+				],
+				"execution_count": 152
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"SELECT greenCaseId, COUNT(*) as versions, \n",
+					"       MAX(is_current) as has_current_version\n",
+					"FROM odw_harmonised_db.hist_green_specialist_case\n",
+					"GROUP BY greenCaseId\n",
+					"HAVING MAX(is_current) = 0"
+				],
+				"execution_count": 153
 			}
 		]
 	}
