@@ -1,0 +1,36 @@
+from pyspark.sql import DataFrame
+import json
+
+
+def assert_dataframes_equal(expected: DataFrame, actual: DataFrame):
+    """
+    Check that the two dataframes match. Raises an assertion error if there is a mismatch
+    """
+    schema_mismatch = set(expected.schema).symmetric_difference(set(actual.schema))
+    exception_message = ""
+    if schema_mismatch:
+        expected_schema = json.dumps(json.loads(expected.schema.json()), indent=4)
+        actual_schema = json.dumps(json.loads(actual.schema.json()), indent=4)
+        exception_message = (
+            "Schema mismatch between expected and actual dataframes\n"
+            "Expected dataframe schema\n"
+            f"{expected_schema}"
+            "\nActual dataframe schema\n"
+            f"{actual_schema}"
+        )
+    assert not schema_mismatch, exception_message
+    rows_to_show = 20
+    in_expected_but_not_actual = expected.exceptAll(actual)
+    in_actual_but_not_expected = actual.exceptAll(expected)
+    data_mismatch = not(in_expected_but_not_actual.isEmpty() and in_actual_but_not_expected.isEmpty())
+    if data_mismatch:
+        missing_data_sample = in_expected_but_not_actual._jdf.showString(rows_to_show, 20, False)
+        unexpected_data_sample = in_actual_but_not_expected._jdf.showString(rows_to_show, 20, False)
+        exception_message = (
+            "Data mismatch between expected and actual dataframe\n"
+            "In expected dataframe but not the actual dataframe\n"
+            f"{missing_data_sample}"
+            "\nIn actual dataframe but not the expected dataframe\n"
+            f"{unexpected_data_sample}"
+        )
+    assert not data_mismatch, exception_message
