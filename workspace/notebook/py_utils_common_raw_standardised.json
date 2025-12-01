@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "b8e53bb3-3c78-4605-b386-78b7077ca2e7"
+				"spark.autotune.trackingId": "d979b6fd-2117-4e47-bef4-4b8e36e7fe4a"
 			}
 		},
 		"metadata": {
@@ -95,10 +95,10 @@
 				"source": [
 					"#Define Input Parameters to get values from the pipleline\r\n",
 					"Param_File_Load_Type = ''\r\n",
-					"Param_FileFolder_Path = 'Green_Specialist_Case'\r\n",
+					"Param_FileFolder_Path = 'Casework_Local_Plan'\r\n",
 					"Param_Json_SchemaFolder_Name = ''"
 				],
-				"execution_count": null
+				"execution_count": 61
 			},
 			{
 				"cell_type": "markdown",
@@ -143,7 +143,7 @@
 					"warnings.filterwarnings(\"ignore\", message=\"iteritems is deprecated\")\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 62
 			},
 			{
 				"cell_type": "markdown",
@@ -176,7 +176,7 @@
 					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\r\n",
 					"#print(storage_account)"
 				],
-				"execution_count": null
+				"execution_count": 63
 			},
 			{
 				"cell_type": "markdown",
@@ -196,7 +196,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": null
+				"execution_count": 64
 			},
 			{
 				"cell_type": "markdown",
@@ -245,7 +245,7 @@
 					"\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 65
 			},
 			{
 				"cell_type": "code",
@@ -254,7 +254,7 @@
 					"df_orch = spark.read.option(\"multiline\", \"true\").json(json_schema_file_path)\r\n",
 					"definitions = json.loads(df_orch.toJSON().first())[\"definitions\"]"
 				],
-				"execution_count": null
+				"execution_count": 66
 			},
 			{
 				"cell_type": "markdown",
@@ -278,7 +278,7 @@
 					"    folders = sorted([f for f in folders if re.match(r\"\\d{4}-\\d{2}-\\d{2}\", f)], reverse=True)\r\n",
 					"    return folders[0] if folders else None"
 				],
-				"execution_count": null
+				"execution_count": 67
 			},
 			{
 				"cell_type": "markdown",
@@ -623,6 +623,10 @@
 					"def clean_column_names(df):\r\n",
 					"    cols = [re.sub(r\"[^a-zA-Z0-9_]+\", \"\", c).strip('_') for c in df.columns]\r\n",
 					"    deduped = []\r\n",
+					"    \r\n",
+					"    # Add this line to clean un named columns and having null records.\r\n",
+					"    df = df.select([c for c in df.columns if c.strip() and not c.startswith(('Unnamed', '_c'))]).dropna(how='all')  \r\n",
+					"\r\n",
 					"    for i, c in enumerate(cols):\r\n",
 					"        count = cols[:i].count(c)\r\n",
 					"        deduped.append(f\"{c}{count + 1}\" if count else c)\r\n",
@@ -674,7 +678,7 @@
 					"    raise TypeError(f\"Object of type {obj.__class__.__name__} is not JSON serializable\")\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 68
 			},
 			{
 				"cell_type": "markdown",
@@ -1068,7 +1072,7 @@
 					"            processing_results.append(result_entry)\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 69
 			},
 			{
 				"cell_type": "markdown",
@@ -1089,7 +1093,7 @@
 					"# --- Run the main process ---\r\n",
 					"process_definitions(Param_File_Load_Type)"
 				],
-				"execution_count": null
+				"execution_count": 70
 			},
 			{
 				"cell_type": "code",
@@ -1109,7 +1113,7 @@
 					"\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 71
 			},
 			{
 				"cell_type": "code",
@@ -1117,7 +1121,7 @@
 					"# Exit with the JSON result for pipeline consumption\r\n",
 					"mssparkutils.notebook.exit(result_json_str)"
 				],
-				"execution_count": null
+				"execution_count": 72
 			},
 			{
 				"cell_type": "markdown",
