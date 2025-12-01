@@ -64,10 +64,10 @@
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
-						"activity": "ForEach_Harmonised_NoteBook",
+						"activity": "Hrm_NoteBook_errorMessage",
 						"dependencyConditions": [
-							"Skipped",
-							"Completed"
+							"Completed",
+							"Skipped"
 						]
 					}
 				],
@@ -99,7 +99,7 @@
 							"type": "Expression"
 						},
 						"ErrorMessage": {
-							"value": "@replace(\n    concat(\n        activity('Record horizon to odw data loading')?.Error?.message, '|',\n        activity('Lookup_orchestration_file')?.Error?.message, '|',\n        activity('Filter_Horizon_Table')?.Error?.message, '|',\n        activity('Horizon Raw to Std')?.Error?.message, '|',\n        activity('Filter_Harmonised_NoteBook')?.Error?.message, '|',\n        variables('H_NoteBook_errorMessage')\n    ),\n    '|',\n    ''\n)\n",
+							"value": "@replace(\n    concat(\n        activity('Record horizon to odw data loading')?.Error?.message, '|',\n        activity('Lookup_orchestration_file')?.Error?.message, '|',\n        activity('Filter_Horizon_Table')?.Error?.message, '|',\n        activity('Horizon Raw to Std')?.Error?.message, '|',\n        activity('Filter_Harmonised_NoteBook')?.Error?.message, '|',\n         variables('ForEach_Harmonised_NoteBook_error')\n    ),\n    '|',\n    ''\n)",
 							"type": "Expression"
 						},
 						"StatusMessage": {
@@ -170,7 +170,7 @@
 						"type": "DatasetReference",
 						"parameters": {
 							"folder": "orchestration",
-							"file_name": "orchestration.json"
+							"file_name": "orchestration_HorizonTest.json"
 						}
 					},
 					"firstRowOnly": false
@@ -179,6 +179,8 @@
 			{
 				"name": "ForEach_horizon_files",
 				"type": "ForEach",
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "Filter_Horizon_Table",
@@ -805,6 +807,8 @@
 			{
 				"name": "Filter_Horizon_Table",
 				"type": "Filter",
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "Lookup_orchestration_file",
@@ -829,6 +833,8 @@
 				"name": "Horizon Raw to Std",
 				"description": "Ingests the raw data into the standardised table",
 				"type": "SynapseNotebook",
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "ForEach_horizon_files",
@@ -946,7 +952,7 @@
 							"typeProperties": {
 								"notebook": {
 									"referenceName": {
-										"value": "@item().Harmonised_NoteBook",
+										"value": "pins_inspectors",
 										"type": "Expression"
 									},
 									"type": "NotebookReference"
@@ -1015,6 +1021,8 @@
 							"name": "Harmonised_NoteBook errorMessage",
 							"description": "",
 							"type": "SetVariable",
+							"state": "Inactive",
+							"onInactiveMarkAs": "Succeeded",
 							"dependsOn": [
 								{
 									"activity": "Harmonised_NoteBook",
@@ -1032,6 +1040,26 @@
 								"variableName": "H_NoteBook_errorMessage",
 								"value": {
 									"value": "@activity('Harmonised_NoteBook')?.Error?.Message",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Harmonised_NoteBook_ErrorMessage_Array",
+							"type": "AppendVariable",
+							"dependsOn": [
+								{
+									"activity": "Harmonised_NoteBook",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "Hrm_NoteBook_errorMessage",
+								"value": {
+									"value": "@activity('Harmonised_NoteBook').Error?.message",
 									"type": "Expression"
 								}
 							}
@@ -1073,9 +1101,8 @@
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
-						"activity": "ForEach_Harmonised_NoteBook",
+						"activity": "Hrm_NoteBook_errorMessage",
 						"dependencyConditions": [
-							"Skipped",
 							"Completed"
 						]
 					}
@@ -1156,7 +1183,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"expression": {
-						"value": "@if(\n    equals(\n        trim(\n            concat(\n                activity('Record horizon to odw data loading')?.Error?.message,\n                activity('Lookup_orchestration_file')?.Error?.message,\n                activity('Filter_Horizon_Table')?.Error?.message,\n                activity('Horizon Raw to Std')?.Error?.message,\n                activity('Filter_Harmonised_NoteBook')?.Error?.message,\n                variables('H_NoteBook_errorMessage')\n            )\n        ),\n        ''\n    ),\n        true,\n        false\n)\n",
+						"value": "@if(\n    equals(\n        trim(\n            concat(\n                activity('Record horizon to odw data loading')?.Error?.message,\n                activity('Lookup_orchestration_file')?.Error?.message,\n                activity('Filter_Horizon_Table')?.Error?.message,\n                activity('Horizon Raw to Std')?.Error?.message,\n                activity('Filter_Harmonised_NoteBook')?.Error?.message,\n                variables('ForEach_Harmonised_NoteBook_error')\n            )\n        ),\n        ''\n    ),\n        false,\n        true\n)\n",
 						"type": "Expression"
 					},
 					"ifTrueActivities": [
@@ -1176,6 +1203,8 @@
 			{
 				"name": "Hzn_standardized_s78_tables",
 				"type": "SynapseNotebook",
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "Horizon Raw to Std",
@@ -1260,6 +1289,8 @@
 			{
 				"name": "Hzn_standardised_has_tables",
 				"type": "SynapseNotebook",
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "Horizon Raw to Std",
@@ -1283,31 +1314,52 @@
 					},
 					"parameters": {
 						"PipelineName": {
-							"value": "@pipeline().Pipeline",
+							"value": {
+								"value": "@pipeline().Pipeline",
+								"type": "Expression"
+							},
 							"type": "string"
 						},
 						"PipelineRunID": {
-							"value": "@pipeline().RunId",
+							"value": {
+								"value": "@pipeline().RunId",
+								"type": "Expression"
+							},
 							"type": "string"
 						},
 						"PipelineTriggerID": {
-							"value": "@pipeline().TriggerId",
+							"value": {
+								"value": "@pipeline().TriggerId",
+								"type": "Expression"
+							},
 							"type": "string"
 						},
 						"PipelineTriggerName": {
-							"value": "@pipeline().TriggerName",
+							"value": {
+								"value": "@pipeline().TriggerName",
+								"type": "Expression"
+							},
 							"type": "string"
 						},
 						"PipelineTriggerType": {
-							"value": "@pipeline().TriggerType",
+							"value": {
+								"value": "@pipeline().TriggerType",
+								"type": "Expression"
+							},
 							"type": "string"
 						},
 						"PipelineTriggeredbyPipelineName": {
-							"value": "@pipeline()?.TriggeredByPipelineName",
+							"value": {
+								"value": "@pipeline()?.TriggeredByPipelineName",
+								"type": "Expression"
+							},
 							"type": "string"
 						},
 						"PipelineTriggeredbyPipelineRunID": {
-							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"value": {
+								"value": "@pipeline()?.TriggeredByPipelineRunId",
+								"type": "Expression"
+							},
 							"type": "string"
 						}
 					},
@@ -1318,6 +1370,30 @@
 						"spark.dynamicAllocation.maxExecutors": null
 					},
 					"numExecutors": null
+				}
+			},
+			{
+				"name": "Hrm_NoteBook_errorMessage",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "ForEach_Harmonised_NoteBook",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "ForEach_Harmonised_NoteBook_error",
+					"value": {
+						"value": "@join(variables('Hrm_NoteBook_errorMessage'), '|')\n\n",
+						"type": "Expression"
+					}
 				}
 			}
 		],
@@ -1373,6 +1449,12 @@
 				"type": "Array"
 			},
 			"LastIngestDate": {
+				"type": "String"
+			},
+			"Hrm_NoteBook_errorMessage": {
+				"type": "Array"
+			},
+			"ForEach_Harmonised_NoteBook_error": {
 				"type": "String"
 			}
 		},
