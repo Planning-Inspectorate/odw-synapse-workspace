@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "63382893-3781-4dc0-8360-4f416d48b073"
+				"spark.autotune.trackingId": "06fe085e-93a0-4ecc-9a34-af05aa80eaec"
 			}
 		},
 		"metadata": {
@@ -98,7 +98,7 @@
 					"Param_FileFolder_Path = 'Casework_Local_Plan'\r\n",
 					"Param_Json_SchemaFolder_Name = ''"
 				],
-				"execution_count": 133
+				"execution_count": 159
 			},
 			{
 				"cell_type": "markdown",
@@ -143,7 +143,7 @@
 					"warnings.filterwarnings(\"ignore\", message=\"iteritems is deprecated\")\r\n",
 					""
 				],
-				"execution_count": 134
+				"execution_count": 160
 			},
 			{
 				"cell_type": "markdown",
@@ -176,7 +176,7 @@
 					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\r\n",
 					"#print(storage_account)"
 				],
-				"execution_count": 135
+				"execution_count": 161
 			},
 			{
 				"cell_type": "markdown",
@@ -196,7 +196,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 136
+				"execution_count": 162
 			},
 			{
 				"cell_type": "markdown",
@@ -245,7 +245,7 @@
 					"\r\n",
 					""
 				],
-				"execution_count": 137
+				"execution_count": 163
 			},
 			{
 				"cell_type": "code",
@@ -254,7 +254,7 @@
 					"df_orch = spark.read.option(\"multiline\", \"true\").json(json_schema_file_path)\r\n",
 					"definitions = json.loads(df_orch.toJSON().first())[\"definitions\"]"
 				],
-				"execution_count": 138
+				"execution_count": 164
 			},
 			{
 				"cell_type": "markdown",
@@ -278,7 +278,7 @@
 					"    folders = sorted([f for f in folders if re.match(r\"\\d{4}-\\d{2}-\\d{2}\", f)], reverse=True)\r\n",
 					"    return folders[0] if folders else None"
 				],
-				"execution_count": 139
+				"execution_count": 165
 			},
 			{
 				"cell_type": "markdown",
@@ -625,13 +625,17 @@
 					"    # Additional code added to manage Unmanaged data file to Drop columns matching: c#### OR Unnamed \r\n",
 					"    df = df.select([c for c in df.columns if c.strip() and not re.match(r'^(_c\\d+|Unnamed.*)$', c, re.IGNORECASE)]).dropna(how='all')\r\n",
 					"\r\n",
-					"    # Drop columns starting with 'Unnamed' and rows with all nulls\r\n",
-					"    #df = df.select([c for c in df.columns if not c.startswith('Unnamed')]).dropna(how='all')\r\n",
+					"    # Clean ALL line break types (\\n, \\r, \\r\\n)\r\n",
+					"    string_cols = [f.name for f in df.schema.fields if isinstance(f.dataType, StringType)]\r\n",
+					"\r\n",
+					"    for col_name in string_cols:\r\n",
+					"        df = df.withColumn(\r\n",
+					"            col_name,\r\n",
+					"            regexp_replace(col(col_name), \"[\\r\\n]+\", \" \")\r\n",
+					"        )\r\n",
 					"\r\n",
 					"    cols = [re.sub(r\"[^a-zA-Z0-9_]+\", \"\", c).strip('_') for c in df.columns]\r\n",
-					"    deduped = []\r\n",
-					"    \r\n",
-					"\r\n",
+					"    deduped = []    \r\n",
 					"\r\n",
 					"    for i, c in enumerate(cols):\r\n",
 					"        count = cols[:i].count(c)\r\n",
@@ -684,7 +688,7 @@
 					"    raise TypeError(f\"Object of type {obj.__class__.__name__} is not JSON serializable\")\r\n",
 					""
 				],
-				"execution_count": 140
+				"execution_count": 166
 			},
 			{
 				"cell_type": "markdown",
@@ -1078,7 +1082,7 @@
 					"            processing_results.append(result_entry)\r\n",
 					""
 				],
-				"execution_count": 141
+				"execution_count": 167
 			},
 			{
 				"cell_type": "markdown",
@@ -1099,7 +1103,7 @@
 					"# --- Run the main process ---\r\n",
 					"process_definitions(Param_File_Load_Type)"
 				],
-				"execution_count": 142
+				"execution_count": 168
 			},
 			{
 				"cell_type": "code",
@@ -1119,7 +1123,7 @@
 					"\r\n",
 					""
 				],
-				"execution_count": 143
+				"execution_count": 169
 			},
 			{
 				"cell_type": "code",
@@ -1127,7 +1131,7 @@
 					"# Exit with the JSON result for pipeline consumption\r\n",
 					"mssparkutils.notebook.exit(result_json_str)"
 				],
-				"execution_count": 144
+				"execution_count": 170
 			},
 			{
 				"cell_type": "markdown",
