@@ -6,6 +6,19 @@ class SynapseDataIO(DataIO):
     """
     Manages data io to/from a storage location that is linked to Synapse
     """
+    def _format_to_adls_path(self, storage_name: str, container_name: str, blob_path: str) -> str:
+        """
+        Return a datalake path from the given arguments.
+
+        **Note this function exists so that the filepath can be mocked during testing**
+        
+        :param str storage_name: The name of the storage account
+        :param str container_name: The storage container the blob exists in
+        :param str blob_path: The path to the blob in the container
+        :return str: A string with the format `abfss://{container_name}@{storage_name}.dfs.core.windows.net/{blob_path}`
+        """
+        return f"abfss://{container_name}@{storage_name}.dfs.core.windows.net/{blob_path}"
+
     def read(self, **kwargs) -> DataFrame:
         """
         Read from the given storage location, and return the data as a pyspark DataFrame
