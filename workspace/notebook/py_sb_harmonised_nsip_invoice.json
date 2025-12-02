@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "f88e0cf2-b9f3-4c85-bef7-6ba7bcb1c72f"
+				"spark.autotune.trackingId": "75bb6fde-c4f9-4d7d-9702-946d40fd8ea2"
 			}
 		},
 		"metadata": {
@@ -149,7 +149,7 @@
 					"service_bus_table = \"odw_harmonised_db.sb_nsip_project\"\n",
 					"db_name=\"odw_harmonised_db\"\n",
 					"table_name=\"nsip_invoice\"\n",
-					"spark_table_final = \"odw_harmonised_db.nsip_invoice\"\n",
+					"spark_table_final = f\"{db_name}.{table_name}\"\n",
 					"incremental_key = \"NSIPInvoiceID\"\n",
 					"start_exec_time = datetime.now()\n",
 					"insert_count = 0\n",
@@ -158,30 +158,6 @@
 					"error_message=''"
 				],
 				"execution_count": 4
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"\n",
-					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
-					"metadata_path: str = f\"abfss://odw-config@{storage_account}/existing-tables-metadata_invoice.json\"\n",
-					"\n",
-					"# Read JSON metadata\n",
-					"df = spark.read.json(metadata_path, multiLine=True)\n",
-					"\n",
-					"# Explode harmonised metadata\n",
-					"harmonised_df = df.select(explode(col(\"harmonised_metadata\")).alias(\"metadata\"))\n",
-					"print(harmonised_df)\n",
-					"# Filter based on db_name and table_name\n",
-					"filtered_df = harmonised_df.filter(\n",
-					"    (col(\"metadata.database_name\") == db_name) &\n",
-					"    (col(\"metadata.table_name\") == table_name)\n",
-					").select(\"metadata.table_location\", \"metadata.table_type\", \"metadata.table_format\")\n",
-					"\n",
-					"print(filtered_df.show(truncate=False))\n",
-					""
-				],
-				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
