@@ -23,7 +23,7 @@ class Util():
         self.workspace_name = workspace_name
         self.local_workspace = "my_local_workspace"
         self.target_env = target_env
-
+    
     def remove_unmodified_files(self):
         SynapseWorkspaceUtil().download_workspace(self.workspace_name, self.local_workspace)
         modified_files = self._get_modified_files(self.local_workspace)

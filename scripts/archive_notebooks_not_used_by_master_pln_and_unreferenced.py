@@ -94,7 +94,7 @@ def extract_referenced_notebooks(notebook_path, notebook_dir, processed_files=No
                 # Clean up the notebook name (remove unwanted characters like quotes)
                 cleaned_name = notebook_name.replace('\\', '').replace('"', '').replace("'", '')
                 normalized_path = os.path.normpath(os.path.join(notebook_dir, cleaned_name))
-
+                
                 if not normalized_path.endswith('.json'):
                     normalized_path += '.json'
 
@@ -125,9 +125,9 @@ def recursively_extract_all_referenced_notebooks(notebooks, notebook_dir):
     for notebook in notebooks:
         if not notebook.endswith('.json'):
             notebook += '.json'
-
+        
         notebook_path = os.path.join(notebook_dir, notebook)
-
+        
         # Extract referenced notebooks
         referenced_notebooks = extract_referenced_notebooks(notebook_path, notebook_dir)
         all_referenced_notebooks.update(referenced_notebooks)
@@ -179,7 +179,7 @@ def archive_notebook(notebook_name, notebook_dir):
         print(f"Notebook '{notebook_name}' is already archived.")
     else:
         print(f"Notebook '{notebook_name}' does not have a valid folder field.")
-
+    
     return False
 
 
@@ -373,7 +373,7 @@ def main():
     #         print(f"- {notebook}")
     # else:
     #     print("No notebooks found in the specified pipelines.")
-
+    
     referenced_notebooks = recursively_extract_all_referenced_notebooks(notebooks, notebook_dir)
     referenced_notebooks = [notebook.replace("workspace/notebook/", "") for notebook in referenced_notebooks]
 
@@ -381,19 +381,19 @@ def main():
     # print("All referenced notebooks:")
     # for notebook in sorted(final_list_of_needed_notebooks):
     #     print(f"- {notebook}")
-
+    
     # Extracts all notebook names from the directory.
     total_notebooks = extract_notebook_names_from_directory(notebook_dir)
     # print("All notebooks in the workspace/notebook directory:")
     # for notebook in sorted(total_notebooks):
     #     print(f"- {notebook}")
-
+    
     not_needed_notebooks = list(set(total_notebooks) - set(final_list_of_needed_notebooks))
     # print("Notebooks that are not needed:")
     # for notebook in sorted(not_needed_notebooks):
     #     print(f"- {notebook}")
-
-    # Remove any notebooks that are in the utils folder from the not_needed_notebooks,
+    
+    # Remove any notebooks that are in the utils folder from the not_needed_notebooks, 
     # as there were notebooks (from final_list_of_needed_notebooks) that used the entire folder
     filtered_not_needed_notebooks = []
 
@@ -403,7 +403,7 @@ def main():
             # Open and parse the notebook JSON file
             with open(notebook_path, 'r', encoding='utf-8') as f:
                 notebook_data = json.load(f)
-
+        
             # Check if the folder name starts with 'utils'
             folder_name = notebook_data.get("properties", {}).get("folder", {}).get("name", "")
             if not folder_name.startswith("utils"):
@@ -416,7 +416,7 @@ def main():
     print("Filtered list of notebooks that are not needed:")
     for notebook in sorted(not_needed_notebooks):
         print(f"- {notebook}")
-
+    
     # Archive not needed notebooks
     if not_needed_notebooks:
         print("\nArchiving notebooks...")

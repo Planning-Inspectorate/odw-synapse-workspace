@@ -49,7 +49,7 @@ class SynapseUtil:
         blob_service_client = BlobServiceClient(f"https://{target_storage_account_name}.blob.core.windows.net", credential=AzureCliCredential())
         container_client = blob_service_client.get_container_client(container=target_container)
         container_client.upload_blob(name=target_blob_name, data=data)
-
+    
     @classmethod
     def delete_blob(cls, target_storage_account_name: str, target_container: str, target_blob_name: str):
         """

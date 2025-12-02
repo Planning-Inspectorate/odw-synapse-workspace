@@ -40,16 +40,16 @@ def read_paginated_data_post(url, data, headers):
         response = requests.post(url, json=data, headers=headers)
         response_json = response.json()
         response_data.extend(response_json.get('value', []))
-
+        
         tokenData = response_json.get('continuationToken')
         if tokenData is not None:
             continuationToken = tokenData
             data['continuationToken'] = tokenData
-
+        
         if tokenData is None:
             continuationToken = None
             break
-
+        
     return response_data
 
 def get_pipeline_runs():
@@ -66,7 +66,7 @@ def get_pipeline_runs():
         ]
     }
     runs = read_paginated_data_post(runs_url, data=data, headers=headers)
-
+    
     pipeline_runs = {}
 
     if runs:
@@ -84,7 +84,7 @@ def get_notebooks():
     #print(f"Reading from {notebooks_url}")
     headers = {'Authorization': f'Bearer {token}'}
     notebooks = read_paginated_data(notebooks_url, headers=headers)
-
+    
     if notebooks:
         return [notebook['name'] for notebook in notebooks]
     else:
@@ -122,10 +122,10 @@ def findNode(node, name, maxLevel=-1, mustHaveChilden=False) -> Node:
 #└── Node('/pins-synw-odw-dev-uks/pln_hr_ingestion_initial/pln_hr_ingestion_harmonised_and_measures/py_harmonised_and_hr_measures_monthly', itemSource='DUPLICATE', itemType='NOTEBOOK')
 ###############
 def duplicate_node(node : Node, new_parent: Node):
-
+    
     # Create a new node with the same name and properties
     new_node = Node(node.name, parent=new_parent, itemType=node.__dict__.get('itemType', ''), lastRunTime=node.__dict__.get('lastRunTime', ''))
-
+    
     #node.parent = new_parent
     #node.__dict__['itemType'] = 'DUPLICATE'
     # Recursively duplicate children
@@ -134,7 +134,7 @@ def duplicate_node(node : Node, new_parent: Node):
     return new_node
 
 def rebuildTree(root: Node):
-    #go through the tree. We need to go through each PIPLINE leaf node and find the corresponding node with all of the children and glue it on
+    #go through the tree. We need to go through each PIPLINE leaf node and find the corresponding node with all of the children and glue it on 
     #find all leaf nodes where the parents is not root
     for leafNode in list(PreOrderIter(root, filter_=lambda node: (node.is_leaf and node.__dict__.get('itemType', '') == 'PIPELINE'))):
         foundNode = findNode(root, str(leafNode.name), mustHaveChilden=True)
@@ -154,7 +154,7 @@ def get_pipeline_references():
     pipelines_url = f'{base_url}pipelines?api-version=2020-12-01'
     headers = {'Authorization': f'Bearer {token}'}
     pipelines = read_paginated_data(pipelines_url, headers=headers)
-
+    
     print("Reading pipelines and notebooks")
     if pipelines:
 
@@ -164,11 +164,11 @@ def get_pipeline_references():
             pipeline_name = pipeline['name']
             pipeline_definition_url = f'{base_url}pipelines/{pipeline_name}?api-version=2021-06-01'
             pipeline_def_response = requests.get(pipeline_definition_url, headers=headers)
-
+            
             if pipeline_def_response.status_code == 200:
                 pipeline_definition = pipeline_def_response.json()
                 level1Node = None
-
+                
                 foundNode = findNode(root, pipeline_name, 1)
                 if foundNode is None:
                     #this pipeline doesn't already exist
@@ -196,7 +196,7 @@ def get_pipeline_references():
 
                     notebook_jsonpath_expr = parse('$..notebook.referenceName')
                     notebook_matches = notebook_jsonpath_expr.find(pipeline_definition)
-
+                    
                     #get a list of the notebooks and add them to the tree
                     for notebook in notebook_matches:
                         if "@concat" not in str(notebook.value):

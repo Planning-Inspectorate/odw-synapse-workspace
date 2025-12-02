@@ -37,6 +37,6 @@ class SynapseCredentialUtil(SynapseArtifactUtil):
         return [
             r"^properties.typeProperties$"
         ]
-
+    
     def get_env_attributes_to_replace(self) -> List[str]:
         return []

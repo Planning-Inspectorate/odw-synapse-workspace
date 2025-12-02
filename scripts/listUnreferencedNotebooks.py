@@ -54,16 +54,16 @@ def read_paginated_data_post(url, data, headers):
         response = requests.post(url, json=data, headers=headers)
         response_json = response.json()
         response_data.extend(response_json.get('value', []))
-
+        
         tokenData = response_json.get('continuationToken')
         if tokenData is not None:
             continuationToken = tokenData
             data['continuationToken'] = tokenData
-
+        
         if tokenData is None:
             continuationToken = None
             break
-
+        
     return response_data
 
 
@@ -81,7 +81,7 @@ def get_pipline_runs():
         ]
     }
     runs = read_paginated_data_post(runs_url, data=data, headers=headers)
-
+    
     pipeline_runs = {}
 
     if runs:
@@ -99,7 +99,7 @@ def get_notebooks():
     #print(f"Reading from {notebooks_url}")
     headers = {'Authorization': f'Bearer {token}'}
     notebooks = read_paginated_data(notebooks_url, headers=headers)
-
+    
     if notebooks:
         return [notebook['name'] for notebook in notebooks]
     else:
@@ -113,14 +113,14 @@ def get_pipeline_references(pipeline_runs):
     pipelines_url = f'{base_url}pipelines?api-version=2020-12-01'
     headers = {'Authorization': f'Bearer {token}'}
     pipelines = read_paginated_data(pipelines_url, headers=headers)
-
+    
     print("Reading pipelines and notebooks")
     if pipelines:
         for pipeline in pipelines:
             pipeline_name = pipeline['name']
             pipeline_definition_url = f'{base_url}pipelines/{pipeline_name}?api-version=2021-06-01'
             pipeline_def_response = requests.get(pipeline_definition_url, headers=headers)
-
+            
             if pipeline_def_response.status_code == 200:
                 pipeline_definition = pipeline_def_response.json()
                 #print(pipeline_definition)
@@ -150,7 +150,7 @@ def get_pipeline_references(pipeline_runs):
         pipeline_list = sorted(pipeline_list)
 
         #sort the list of subpipelines
-        subpipeline_list = sorted(pipeline_subreferences)
+        subpipeline_list = sorted(pipeline_subreferences)  
 
         global total_pipelines
         total_pipelines = len(pipeline_list)
@@ -161,7 +161,7 @@ def get_pipeline_references(pipeline_runs):
                 print(f"{pipeline}: {pipeline_runs[pipeline]}")
             else:
                 print(f"{pipeline}: NONE")
-        print('**************** END OF LIST OF PIPELINES *******************')
+        print('**************** END OF LIST OF PIPELINES *******************')  
 
         print('**************** LIST OF PIPELINES CALLED BY OTHER PIPELINES *******************')
         for subpipeline in subpipeline_list:
@@ -169,11 +169,11 @@ def get_pipeline_references(pipeline_runs):
                 print(f"{subpipeline}: {pipeline_runs[subpipeline]}")
             else:
                 print(f"{subpipeline}: NONE")
-        print('**************** LIST OF PIPELINES CALLED BY OTHER PIPELINES *******************')
+        print('**************** LIST OF PIPELINES CALLED BY OTHER PIPELINES *******************')  
 
     else:
         raise Exception(f"Error retrieving pipelines")
-
+    
     return pipeline_references
 
 # Main logic to find unreferenced notebooks
@@ -191,7 +191,7 @@ def find_unreferenced_notebooks(pipeline_runs):
     notebooks = get_notebooks()
     global total_notebooks
     total_notebooks = len(notebooks)
-
+    
     # Find notebooks that are not referenced by any pipeline
     unreferenced_notebooks = set(notebooks) - referenced_notebooks
     return sorted(unreferenced_notebooks)
@@ -202,7 +202,7 @@ def grep_files(pattern, pattern2, root_dir):
     regex = re.compile(pattern)
     regex2 = re.compile(pattern2)
     notebooks = set()
-
+    
     # Walk through the directory
     for subdir, _, files in os.walk(root_dir):
         for file in files:
@@ -249,12 +249,12 @@ source_notebooks2 = grep_files(pattern, pattern2, root_dir)
 print("*********** LIST OF NOTEBOOKS FROM RUN SOURCECODE***********")
 for source_notebook in sorted(source_notebooks):
     print(source_notebook)
-print("*********** END OF LIST OF NOTEBOOKS FROM RUN SOURCECODE ***********")
+print("*********** END OF LIST OF NOTEBOOKS FROM RUN SOURCECODE ***********")    
 
 print("*********** LIST OF NOTEBOOKS FROM RUN SOURCECODE2***********")
 for source_notebook in sorted(source_notebooks2):
     print(source_notebook)
-print("*********** END OF LIST OF NOTEBOOKS FROM RUN SOURCECODE2 ***********")
+print("*********** END OF LIST OF NOTEBOOKS FROM RUN SOURCECODE2 ***********")    
 
 #combine the two sets
 all_source = source_notebooks.union(source_notebooks2)

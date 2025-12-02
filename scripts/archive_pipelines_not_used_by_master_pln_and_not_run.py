@@ -99,7 +99,7 @@ def archive_pipeline(pipeline_name, pipeline_dir):
 
 def main():
     # Extract pipeline dependencies from the master pipeline & write to file
-    pipeline_dir = "workspace/pipeline"
+    pipeline_dir = "workspace/pipeline" 
     master_pipeline_file = os.path.join(pipeline_dir, "pln_master.json")
     all_pipelines = extract_pipelines(master_pipeline_file, pipeline_dir)
 
@@ -109,15 +109,15 @@ def main():
     with open(output_file, 'w') as f:
         for pipeline in sorted(set(all_pipelines)):
             f.write(f"{pipeline}\n")
-
+    
     print(f"Pipeline dependencies written to {output_file}")
-
+   
     # Put list of pipelines that are not run, which is retrieved from hierarchy.txt file/output of buildHierarchyOfPipelines.py script
     not_run_pipelines = {
         "pln_1",
         "pln_2",
     }
-
+    
     # Ensure the pipeline directory and dependencies file exist
     if not os.path.exists(pipeline_dir):
         print(f"Error: Pipeline directory '{pipeline_dir}' does not exist.")

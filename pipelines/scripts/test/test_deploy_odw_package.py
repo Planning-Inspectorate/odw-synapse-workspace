@@ -395,7 +395,7 @@ def test_upload_new_wheel__with_package_already_bound_to_spark_pool():
         When i try to upload a new package
         The deployment should skip updating the spark pools
     """
-
+    
     env = "mock_env"
     wheel_name = "odw_test_wheel.whl"
     mock_odw_wheels = [

@@ -68,7 +68,7 @@ class SynapseNotebookUtil(SynapseArtifactUtil):
             r"properties.bigDataPool",
             r"properties.metadata.a365ComputeOptions"
         ]
-
+    
     def compare(self, artifact_a, artifact_b):
         def _add_missing_attributes(artifact: Dict[str, Any]) -> Dict[str, Any]:
             # Set default values for optional properties. This is the only artifact where this is required
@@ -138,7 +138,7 @@ class SynapseNotebookUtil(SynapseArtifactUtil):
                     return cleaned_line
                 else:
                     # Comment out all other magic commands, since their operation is not important in the grant scheme of things
-                    return f"# {cleaned_cell_line}"
+                    return f"# {cleaned_cell_line}"   
             # Combine all lines into a single string, separated by the newline character
             return "\n".join([line.rstrip() for line in cell["source"]])
 
@@ -216,7 +216,7 @@ class SynapseNotebookUtil(SynapseArtifactUtil):
                     function_json["func"].get("value", dict()).get("attr") == "notebook" and True
                 )
                 or (
-                    function_json["func"]["attr"] == "getFullConnectionString" and
+                    function_json["func"]["attr"] == "getFullConnectionString" and 
                     function_json["func"].get("value", dict()).get("attr") == "credentials"
                 )
             )

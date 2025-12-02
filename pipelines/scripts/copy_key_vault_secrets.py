@@ -15,13 +15,13 @@ class KeyVaultManager():
     def __init__(self, vault_name: str):
         credential = AzureCliCredential()
         self.client = SecretClient(vault_url=f"https://{vault_name}.vault.azure.net", credential=credential)
-
+    
     def create_secret(self, secret_name: str, secret_value: str):
         return self.client.set_secret(secret_name, secret_value)
 
     def get_secret(self, secret_name: str):
         return self.client.get_secret(secret_name)
-
+    
     def get_secrets(self) -> Set[str]:
         return {x.name for x in self.client.list_properties_of_secrets()}
 

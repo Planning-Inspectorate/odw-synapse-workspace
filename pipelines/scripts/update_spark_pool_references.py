@@ -23,7 +23,7 @@ class SparkPoolReferenceUpdater():
         self._spark_pool_cache = dict()
         self._old_pool_name = old_pool_name
         self._new_pool_name = new_pool_name
-
+    
     def update_all_spark_pool_references(self):
         """
             Update all references to the old spark pool with the new spark pool
@@ -95,7 +95,7 @@ class SparkPoolReferenceUpdater():
         if is_notebook:
             return self._update_spark_pool_references_in_notebook(artifact)
         return self._update_spark_pool_references_in_pipeline(artifact)
-
+    
     def _update_spark_pool_references_in_notebook(self, notebook: Dict[str, Any]) -> Dict[str, Any]:
         """
             Update references to spark pools in the given synape notebook json

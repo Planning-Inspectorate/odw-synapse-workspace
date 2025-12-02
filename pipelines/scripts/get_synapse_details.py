@@ -151,7 +151,7 @@ if __name__ == "__main__":
     service_bus = get_resource("Service Bus", service_bus_resource_group, f"pins-sb-odw-{env}")
     synapse_workspace = get_resource("Synapse Workspace", data_lake_resource_group, f"pins-synw-odw-{env}")
     service_bus_primary_connection_string = get_service_bus_connection_string(service_bus_resource_group, service_bus["name"])
-
+    
     # Save variables to Azure Pipeline
     variables = {
         "data_lake_account_id": main_datalake["id"],

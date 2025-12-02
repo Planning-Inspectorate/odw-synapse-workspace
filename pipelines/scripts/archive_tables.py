@@ -277,7 +277,7 @@ class TableArchiveUtil():
         """
         Return all tables referred to by notebooks
 
-        :param notebook_call_map: A dictionary of the form <pipeline_name: [notebook_call] (i.e. the output of
+        :param notebook_call_map: A dictionary of the form <pipeline_name: [notebook_call] (i.e. the output of 
         `get_relevant_notebook_calls_for_pipeline`)
         :return: A list of the form [{entity_name: "", entity_name: ""}] (i.e. the list of input params for the
         `py_create_spark_schema` notebook)

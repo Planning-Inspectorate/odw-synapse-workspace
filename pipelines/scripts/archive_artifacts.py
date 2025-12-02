@@ -183,7 +183,7 @@ class ArtifactArchiver():
         if artifact_path not in self.ALL_ARTIFACTS:
             raise ValueError(f"No artifact json could be found for '{artifact_path}'")
         return self.ALL_ARTIFACTS.get(artifact_path)
-
+    
     def get_artifact_dependencies(self, artifacts: Set[str]) -> Set[str]:
         artifact_dependencies = set()
         artifacts_to_explore = set().union(artifacts)
@@ -241,7 +241,7 @@ class ArtifactArchiver():
             for artifact in self.ALL_ARTIFACT_NAMES
             if not (artifact in dependencies or artifact in self.ROOT_ARTIFACTS)
         }
-
+    
     def get_artifacts_that_cannot_be_archived(self, artifacts_to_archive: Set[str]) -> Set[str]:
         """
             Filter out the given artifacts to archive by returning only the artifacts that can be archived.
@@ -252,7 +252,7 @@ class ArtifactArchiver():
         return {
             artifact
             for artifact in artifacts_to_archive
-            if not self.is_artifact_archiveable(artifact)
+            if not self.is_artifact_archiveable(artifact) 
         }
 
     def get_already_archived_artifacts(self, artifacts_to_archive: Set[str]):
@@ -281,7 +281,7 @@ class ArtifactArchiver():
         """
         artifact_type = artifact.split("/")[1]
         return SynapseArtifactUtilFactory.get(artifact_type).can_be_archived()
-
+    
     def archive_artifacts(self, artifacts_to_archive: Set[str]):
         """
             Archive the given artifacts
@@ -294,7 +294,7 @@ class ArtifactArchiver():
             artifact_json = self.get_artifact(artifact)
             artifact_json = artifact_util_instances[artifact.split("/")[1]].archive(artifact_json)
             self._write_artifact(artifact, artifact_json)
-
+    
     def _write_artifact(self, artifact_name: str, artifact_json: Dict[str, Any]):
         with open(artifact_name, "w") as f:
             json.dump(artifact_json, f, indent="\t", ensure_ascii=False)
