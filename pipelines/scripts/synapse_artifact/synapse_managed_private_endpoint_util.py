@@ -37,7 +37,7 @@ class SynapseManagedPrivateEndpointUtil(SynapseArtifactUtil):
     def download_live_workspace(self, local_folder: str):
         """
             Download all artifacts to a local folder
-            
+
             :param local_folder: Where to store
         """
         virtual_networks = [

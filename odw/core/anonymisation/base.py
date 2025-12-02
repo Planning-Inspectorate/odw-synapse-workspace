@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from typing import List, Sequence, Set
+import random as _rand
 
 from pyspark.sql import DataFrame, functions as F, types as T
 from pyspark.sql.column import Column
@@ -15,11 +16,6 @@ STAFF_SEED_COL_CANDIDATES: Sequence[str] = (
     "Employee ID",
     "EmployeeID",
 )
-
-
-
-
-
 
 
 class BaseStrategy(ABC):
@@ -36,15 +32,24 @@ class BaseStrategy(ABC):
 
     @staticmethod
     def seed_col(df: DataFrame) -> Column:
+        """Return a deterministic seed column.
+        Picks the first available identifier in STAFF_SEED_COL_CANDIDATES; falls back to the literal 'seed' if none exist.
+        """
         cols = [c for c in STAFF_SEED_COL_CANDIDATES if c in df.columns]
         return F.coalesce(*[F.col(c).cast("string") for c in cols]) if cols else F.lit("seed")
 
     @staticmethod
     def mask_keep_first_last(col: Column) -> Column:
+        """Mask a string, keeping only the first and last character.
+        Nulls are preserved; intermediate characters are replaced with '*'.
+        """
         return F.when(col.isNull(), None).otherwise(F.regexp_replace(col.cast("string"), r"(?<=.).(?=.$)", "*"))
 
     @staticmethod
     def random_int_from_seed(seed: Column, min_value: int, max_value: int) -> Column:
+        """Deterministically generate an integer in [min_value, max_value].
+        The value is derived from the hash of the provided seed column.
+        """
         return (F.abs(F.hash(seed)) % (max_value - min_value + 1)) + F.lit(min_value)
 
     @staticmethod
@@ -60,8 +65,6 @@ class NINumberStrategy(BaseStrategy):
     classification_names = {"NI Number", "PotentialID", "Potential ID"}
 
     def generate_random_ni_number(_: str | None) -> str:
-        import random as _rand  # local import to keep worker safe
-
         letters = "ABCDEFGHJKLMNPQRSTUVWXYZ"
         first = _rand.choice(letters)
         second = _rand.choice(letters)
@@ -225,5 +228,3 @@ def default_strategies() -> List[BaseStrategy]:
         AgeStrategy(),
         SalaryStrategy(),
     ]
-
-

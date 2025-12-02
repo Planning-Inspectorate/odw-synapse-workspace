@@ -14,7 +14,7 @@ class TestingUtility():
         for subfolder in [x for x in subfolders_and_files if not os.path.isfile(f"{directory}/{x}")]:
             files = files.union(cls.get_all_files_under_directory(f"{directory}/{subfolder}"))
         return files
-    
+
     @classmethod
     def compare_directories(cls, directory_a: str, directory_b: str) -> bool:
         """

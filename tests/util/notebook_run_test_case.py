@@ -33,7 +33,7 @@ class NotebookRunTestCase(SynapseTestCase):
         if notebook_parameters:
             run_parameters["parameters"] = notebook_parameters
         response: requests.Response = requests.put(run_notebook_url, headers=headers, data=json.dumps(run_parameters))
-        if response.status_code >= 200 and response.status_code < 400 : 
+        if response.status_code >= 200 and response.status_code < 400 :
             return notebook_run_id
         raise NotebookRunException(f"Failed to run notebook {notebook_name}. RunID: '{notebook_run_id}'. Error is {response.text}...\n")
 
@@ -49,7 +49,7 @@ class NotebookRunTestCase(SynapseTestCase):
             logging.info(f"Waiting for the notebook run id '{notebook_run_id}' exist state to be one of {notebook_run_end_states}")
             headers = {"Authorization": f"Bearer {self.SYNAPSE_ACCESS_TOKEN}", "Content-Type": "application/json"}
             response = requests.get(run_notebook_url, headers=headers)
-            if response.status_code >= 200 and response.status_code < 400: 
+            if response.status_code >= 200 and response.status_code < 400:
                 notebook_run_json = response.json()
                 notebook_run_status = notebook_run_json["result"]["runStatus"]
                 if notebook_run_status in notebook_run_end_states:

@@ -155,7 +155,7 @@ class SynapseArtifactUtil(ABC):
     def download_live_workspace(self, local_folder: str):
         """
             Download all artifacts to a local folder
-            
+
             :param local_folder: Where to store
         """
         artifacts = self.get_all()
@@ -362,7 +362,7 @@ class SynapseArtifactUtil(ABC):
             else:
                 dict_keys[new_level] = None
         return dict_keys
-    
+
     def clean_attributes(
         self,
         attributes: Set[str],
@@ -521,14 +521,14 @@ class SynapseArtifactUtil(ABC):
             for attribute, attribute_type in reference_attributes.items()
             if reference_type_values[attribute_type] not in reference_types_to_ignore
         }
-    
+
     @classmethod
     def can_be_archived(cls) -> bool:
         """
             Return True if the artifact kind can be archived, false otherwise. An artifact can be archived if it has a 'folder' property
         """
         return False
-    
+
     @classmethod
     def archive(cls, artifact: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -536,7 +536,7 @@ class SynapseArtifactUtil(ABC):
             the current folder property with 'archive/'
         """
         return artifact
-    
+
     @classmethod
     def is_archived(cls, artifact: Dict[str, Any]) -> bool:
         """

@@ -22,7 +22,7 @@ class PipelineRunTestCase(SynapseTestCase):
         run_pipeline_url = f'{self.SYNAPSE_ENDPOINT}/pipelines/{pipeline_name}/createRun?api-version=2020-12-01'
         headers = {"Authorization": f"Bearer {self.SYNAPSE_ACCESS_TOKEN}", "Content-Type": "application/json"}
         response = requests.post(run_pipeline_url, headers=headers,data=json.dumps(pipeline_parameters))
-        if response.status_code >= 200 and response.status_code < 400 : 
+        if response.status_code >= 200 and response.status_code < 400 :
             return response.json()['runId']
         raise PipelineRunException(f"Failed to run pipeline {pipeline_name}. Error is {response.status_code}...\n")
 

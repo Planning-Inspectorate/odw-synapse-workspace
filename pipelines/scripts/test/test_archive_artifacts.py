@@ -26,7 +26,7 @@ def test__artifact_archiver__init():
             "workspace/linkedService/ls_artifact.json": "h"
         }
         return json_map[path]
-    
+
     def _mock_is_archived(artifact: str) -> bool:
         archive_map = {
             "a": True,
@@ -120,7 +120,7 @@ def test__artifact_archiver__get_artifact_dependencies():
             "workspace/pipeline/artifact_l.json": {"name": "l"}
         }
         return artifact_json_map[artifact_name]
-    
+
     def _mock_get_dependencies(artifact: Dict[str, Any]):
         artifact_name = artifact["name"]
         dependency_map = {
@@ -167,7 +167,7 @@ def test__artifact_archiver__get_artifact_dependencies():
                     with mock.patch.object(SynapseArtifactUtil, "dependent_artifacts", _mock_get_dependencies):
                         archiver = ArtifactArchiver()
                         dependencies = archiver.get_artifact_dependencies(artifacts)
-                        assert expected_dependencies == dependencies    
+                        assert expected_dependencies == dependencies
 
 
 def test__artifact_archiver__get_root_dependencies():
@@ -314,7 +314,7 @@ def test_artifact_archiver__get_artifacts_to_delete():
             "workspace/pipeline/artifact_h.json": {"name": "h"}
         }
         return artifact_json_map[artifact_name]
-    
+
     artifacts_that_cannot_be_archived = {
         "workspace/pipeline/artifact_c.json"
     }
@@ -438,7 +438,7 @@ def test_artifact_archiver__main():
             "workspace/linkedService/ls_artifact_b.json": {"name": "h"}
         }
         return artifact_map[artifact]
-    
+
     def _mock_is_archived(artifact: str):
         already_archived_artifacts = [
             {"name": "d"}

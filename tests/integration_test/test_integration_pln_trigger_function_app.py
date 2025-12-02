@@ -7,7 +7,7 @@ class TestIntegrationPlnTriggerFunctionApp(PipelineRunTestCase):
     @pytest.mark.parametrize(
         "function_name",
         [
-            "folder",         
+            "folder",
             # "nsipdocument",
             # "nsipexamtimetable",
             # "nsipproject",
