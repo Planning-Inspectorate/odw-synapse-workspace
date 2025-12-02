@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d1ee4adb-c454-46dd-a192-3e4706cfc216"
+				"spark.autotune.trackingId": "63f02738-872b-4ebc-8227-b55a88cd43b9"
 			}
 		},
 		"metadata": {
@@ -214,13 +214,18 @@
 					"        spark.sql(f\"DROP TABLE IF EXISTS {spark_table_final}\")\n",
 					"        logInfo(\"Table dropped or did not exist\")\n",
 					"        \n",
-					"        # Delete the storage location to ensure clean state\n",
-					"        logInfo(f\"Cleaning up storage location: {delta_table_path}\")\n",
+					"        # Check if storage location exists before attempting cleanup\n",
+					"        logInfo(f\"Checking storage location: {delta_table_path}\")\n",
 					"        try:\n",
-					"            mssparkutils.fs.rm(delta_table_path, recurse=True)\n",
-					"            logInfo(\"Storage location cleaned successfully\")\n",
+					"            if mssparkutils.fs.exists(delta_table_path):\n",
+					"                logInfo(\"Storage location exists, cleaning up...\")\n",
+					"                mssparkutils.fs.rm(delta_table_path, recurse=True)\n",
+					"                logInfo(\"Storage location cleaned successfully\")\n",
+					"            else:\n",
+					"                logInfo(\"Storage location does not exist, no cleanup needed\")\n",
 					"        except Exception as cleanup_error:\n",
-					"            logInfo(f\"Storage location cleanup: {str(cleanup_error)} (location may not exist, proceeding)\")\n",
+					"            # Handle edge cases where exists() might behave unexpectedly\n",
+					"            logInfo(f\"Storage location cleanup skipped: {str(cleanup_error)[:200]}\")\n",
 					"        \n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error in dropping table {spark_table_final}: {str(e)[:800]}\"\n",
