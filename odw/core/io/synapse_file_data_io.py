@@ -39,7 +39,8 @@ class SynapseFileDataIO(SynapseDataIO):
         """
         Read from the given storage location, and return the data as a pyspark DataFrame
 
-        :param str storage_name: The name of the storage account to read from
+        :param str storage_name: The name of the storage account to read from. Expects either storage_name or storage_endpoint but not both
+        :param str storage_endpoint: The endpoint of the storage account to read from. Expects either storage_name or storage_endpoint but not both
         :param str container_name: The container to read from
         :param str blob_path: The path to the blob (in the container) to read
         :param str file_format: The file format to read
@@ -49,20 +50,26 @@ class SynapseFileDataIO(SynapseDataIO):
         """
         spark: SparkSession = kwargs.get("spark", None)
         storage_name = kwargs.get("storage_name", None)
+        storage_endpoint = kwargs.get("storage_endpoint", None)
         container_name = kwargs.get("container_name", None)
         blob_path = kwargs.get("blob_path", None)
         file_format = kwargs.get("file_format", None)
         if not spark:
             raise ValueError(f"SynapseFileDataIO.read requires a spark to be provided, but was missing")
-        if not storage_name:
-            raise ValueError(f"SynapseFileDataIO.read requires a storage_name to be provided, but was missing")
+        if not (storage_name or storage_endpoint):
+            raise ValueError(f"SynapseFileDataIO.read expected one of 'storage_name' or 'storage_endpoint' to be provided")
+        if storage_name and storage_endpoint:
+            raise ValueError(f"SynapseFileDataIO.read expected only one of 'storage_name' or 'storage_endpoint' to be provided, not both")
         if not container_name:
             raise ValueError(f"SynapseFileDataIO.read requires a container_name to be provided, but was missing")
         if not blob_path:
             raise ValueError(f"SynapseFileDataIO.read requires a blob_path to be provided, but was missing")
         if not file_format:
             raise ValueError(f"SynapseFileDataIO.read requires a file_format to be provided, but was missing")
-        data_path = self._format_to_adls_path(storage_name, container_name, blob_path)
+        if storage_name:
+            data_path = self._format_to_adls_path(container_name, blob_path, storage_name=storage_name)
+        else:
+            data_path = self._format_to_adls_path(storage_name, container_name, blob_path, storage_endpoint=storage_endpoint)
         return spark.read.format(file_format).load(data_path)
 
     def write(self, data: DataFrame, **kwargs):
@@ -70,19 +77,23 @@ class SynapseFileDataIO(SynapseDataIO):
         Write the data to the given storage location
         
         :param DataFrame data: The data to write
-        :param str storage_name: The name of the storage account to write to
+        :param str storage_name: The name of the storage account to write to. Expects either storage_name or storage_endpoint but not both
+        :param str storage_endpoint: The endpoint of the storage account to write to. Expects either storage_name or storage_endpoint but not both
         :param str container_name: The container to write to
         :param str blob_path: The path to the blob (in the container) to write
         :param str file_format: The file format to write
         :param str write_mode: The pyspark write mode
         """
         storage_name = kwargs.get("storage_name", None)
+        storage_endpoint = kwargs.get("storage_endpoint", None)
         container_name = kwargs.get("container_name", None)
         blob_path = kwargs.get("blob_path", None)
         file_format = kwargs.get("file_format", None)
         write_mode = kwargs.get("write_mode", None)
-        if not storage_name:
-            raise ValueError(f"SynapseFileDataIO.write requires a storage_name to be provided, but was missing")
+        if not (storage_name or storage_endpoint):
+            raise ValueError(f"SynapseFileDataIO.write expected one of 'storage_name' or 'storage_endpoint' to be provided")
+        if storage_name and storage_endpoint:
+            raise ValueError(f"SynapseFileDataIO.write expected only one of 'storage_name' or 'storage_endpoint' to be provided, not both")
         if not container_name:
             raise ValueError(f"SynapseFileDataIO.write requires a container_name to be provided, but was missing")
         if not blob_path:
@@ -91,5 +102,8 @@ class SynapseFileDataIO(SynapseDataIO):
             raise ValueError(f"SynapseDeltaDataIO.write requires a file_format to be provided, but was missing")
         if not write_mode:
             raise ValueError(f"SynapseDeltaDataIO.write requires a write_mode to be provided, but was missing")
-        data_path = self._format_to_adls_path(storage_name, container_name, blob_path)
+        if storage_name:
+            data_path = self._format_to_adls_path(container_name, blob_path, storage_name=storage_name)
+        else:
+            data_path = self._format_to_adls_path(storage_name, container_name, blob_path, storage_endpoint=storage_endpoint)
         data.write.format(file_format).mode(write_mode).save(data_path)
