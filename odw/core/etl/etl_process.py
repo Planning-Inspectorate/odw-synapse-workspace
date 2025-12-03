@@ -1,6 +1,7 @@
 from odw.core.io.data_io_factory import DataIOFactory
 from abc import ABC, abstractmethod
 from pyspark.sql import DataFrame, SparkSession
+from odw.core.etl.etl_result import ETLResult
 from typing import List, Dict, Any
 
 
@@ -35,9 +36,9 @@ class ETLProcess(ABC):
         return data_map
 
     @abstractmethod
-    def process(self, **kwargs):
+    def process(self, **kwargs) -> ETLResult:
         pass
 
     def run(self, data_to_read: List[Dict[str, Any]]):
         source_data_map = self.load_data(data_to_read)
-        self.process(source_data=source_data_map)
+        return self.process(source_data=source_data_map)
