@@ -3,6 +3,7 @@ from odw.core.util.util import Util
 from odw.core.util.azure_blob_util import AzureBlobUtil
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.table_util import TableUtil
+from odw.core.etl.etl_result import ETLResult, ETLResultFactory
 from pyspark.sql import SparkSession, DataFrame
 from datetime import datetime, timedelta, date
 from typing import Dict, List, Any
@@ -10,7 +11,7 @@ import json
 
 
 class StandardisationProcess(TransformationProcess):
-    def process(self, **kwargs):
+    def process(self, **kwargs) -> ETLResult:
         start_exec_time = datetime.now()
         # Initialise input parameters
         source_data: Dict[str, DataFrame] = kwargs.get("source_data", None)
@@ -75,6 +76,7 @@ class StandardisationProcess(TransformationProcess):
                     LoggingUtil().log_info(f"Deleting existing table if exists odw_standardised_db.{definition['Standardised_Table_Name']}")
                     TableUtil().delete_table(db_name="odw_standardised_db", table_name=definition["Standardised_Table_Name"])
                 LoggingUtil().log_info(f"Ingesting {file_name}")
+                # Todo need to refactor the ingest_adhoc function
                 (ingestion_failure, row_count) = ingest_adhoc(storage_account, definition, source_path, file_name, expected_from, expected_to, process_name, is_multiLine, data_attribute)
                 insert_count = row_count
                 end_exec_time = datetime.now()
@@ -86,9 +88,8 @@ class StandardisationProcess(TransformationProcess):
                     if not ingestion_failure
                     else f"Failed to load data from {definition['Standardised_Table_Name']} table"
                 )
-                status_code = "200" 
-                error_message = ""
                 LoggingUtil().log_info(f"StandardisationProcess Ingested {row_count} rows")
+                # Todo need to handle the logging/error handling, but this should be done in the parent notebook
 
     def load_data(self, data_to_read: List[Dict[str, Any]]) -> Dict[str, DataFrame]:
         data_map = super().load_data(data_to_read)
