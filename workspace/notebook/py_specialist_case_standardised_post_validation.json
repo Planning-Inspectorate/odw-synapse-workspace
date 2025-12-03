@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5e2c3fd9-a6db-4d98-a016-20e2ab397d08"
+				"spark.autotune.trackingId": "c9a26a64-a36e-4602-9c8a-47edd78fe325"
 			}
 		},
 		"metadata": {
@@ -222,9 +222,48 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"#spark.sql(f\"DROP TABLE IF EXISTS odw_harmonised_db.load_sap_hr_weekly\")"
+					"\n",
+					"\n",
+					"\n",
+					"import json\n",
+					"\n",
+					"# Initialize processing results\n",
+					"processing_results = {\n",
+					"    \"logic_app_url\": \"\"\n",
+					"}\n",
+					"\n",
+					"# Key Vault configuration\n",
+					"secret_name = \"logic-app-specialist-case-dev\"\n",
+					"kv_linked_service = \"ls_kv\"\n",
+					"\n",
+					"# Retrieve Logic App URL from Key Vault\n",
+					"try:\n",
+					"    akv_name = spark.sparkContext.environment.get('keyVaultName', 'get')\n",
+					"    logic_app_url = mssparkutils.credentials.getSecret(akv_name, secret_name, kv_linked_service)\n",
+					"    \n",
+					"    # Clean the URL (remove extra whitespace, quotes, etc.)\n",
+					"    logic_app_url = logic_app_url.strip().strip('\"').strip(\"'\")\n",
+					"    \n",
+					"    # Store in results\n",
+					"    processing_results[\"logic_app_url\"] = logic_app_url\n",
+					"    \n",
+					"    print(f\"Retrieved Logic App URL from Key Vault\")\n",
+					"    print(f\"URL Preview: {logic_app_url[:50]}...\")  # Show first 50 chars for debugging\n",
+					"    \n",
+					"except Exception as e:\n",
+					"    print(f\"Error retrieving secret: {str(e)}\")\n",
+					"    processing_results[\"logic_app_url\"] = \"\"\n",
+					"    processing_results[\"error\"] = str(e)\n",
+					"\n",
+					"# Convert to JSON string\n",
+					"result_json_str = json.dumps(processing_results)\n",
+					"\n",
+					"print(f\"\\nReturning: {result_json_str}\")\n",
+					"\n",
+					"# Exit with the JSON result\n",
+					"mssparkutils.notebook.exit(result_json_str)"
 				],
-				"execution_count": null
+				"execution_count": 15
 			}
 		]
 	}
