@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "1b97eff8-dfa3-47fe-9a58-c04e051caa96"
+				"spark.autotune.trackingId": "440999a3-c26e-46c4-99a7-b8a6760f2b9c"
 			}
 		},
 		"metadata": {
@@ -28,7 +28,7 @@
 			"enableDebugMode": false,
 			"kernelspec": {
 				"name": "synapse_pyspark",
-				"display_name": "python"
+				"display_name": "Synapse PySpark"
 			},
 			"language_info": {
 				"name": "python"
@@ -100,35 +100,20 @@
 				"metadata": {
 					"microsoft": {
 						"language": "sparksql"
-					}
+					},
+					"collapsed": false
 				},
 				"source": [
 					"%%sql\n",
-					"-- Create the table directly in odw_meta_db\n",
 					"CREATE TABLE IF NOT EXISTS odw_meta_db.config_curated_to_mipins\n",
 					"(\n",
-					"    -- Short code for the entity (unique)\n",
 					"    entity_code              STRING,\n",
-					"\n",
-					"    -- Where to read from (curated side)\n",
 					"    source_table_name        STRING,\n",
-					"\n",
-					"    -- Where to write to (MiPINS side)\n",
 					"    target_table_name        STRING,\n",
-					"\n",
-					"    -- Value used in [Audit].[usp_addETLLog].Source\n",
 					"    log_source               STRING,\n",
-					"\n",
-					"    -- Prefix for Description in logs\n",
 					"    log_description_prefix   STRING,\n",
-					"\n",
-					"    -- Optional: passed to [Live].[upd_dim_source_system].source_system\n",
 					"    source_system_for_dim    STRING,\n",
-					"\n",
-					"    -- Whether to call [Live].[upd_dim_source_system]\n",
 					"    enable_dim_source_update BOOLEAN,\n",
-					"\n",
-					"    -- Optional: control ordering and activation\n",
 					"    execution_order          INT,\n",
 					"    is_active                BOOLEAN\n",
 					")\n",
@@ -141,11 +126,25 @@
 				"metadata": {
 					"microsoft": {
 						"language": "sparksql"
-					}
+					},
+					"collapsed": false
 				},
 				"source": [
 					"%%sql\n",
-					"TRUNCATE TABLE odw_meta_db.config_curated_to_mipins; -- So we don't create duplicate in case of re-run\n",
+					"DELETE FROM odw_meta_db.config_curated_to_mipins;"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
 					"\n",
 					"INSERT INTO odw_meta_db.config_curated_to_mipins (\n",
 					"    entity_code,\n",
@@ -161,22 +160,22 @@
 					"VALUES\n",
 					"-- 1. pln_copy_appeal_s78_curated_mipins\n",
 					"(\n",
-					"  'appeal_s78',                                     -- entity_code\n",
-					"  'odw_curated_db.appeals_s78_curated_mipins',      -- source_table_name (from curated table list)\n",
-					"  'odw.appeals_s78_curated_mipins',                 -- target_table_name (preCopyScript)\n",
-					"  'appeal_s78',                                     -- log_source\n",
-					"  'appeal_s78_curated_mipins',                      -- log_description_prefix\n",
-					"  'Back Office-s78',                                -- source_system_for_dim\n",
-					"  true,                                             -- enable_dim_source_update\n",
-					"  10,                                               -- execution_order\n",
-					"  true                                              -- is_active\n",
+					"  'appeal_s78',\n",
+					"  'appeals_s78_curated_mipins',\n",
+					"  'appeals_s78_curated_mipins',\n",
+					"  'appeal_s78',\n",
+					"  'appeal_s78_curated_mipins',\n",
+					"  'Back Office-s78',\n",
+					"  true,\n",
+					"  10,\n",
+					"  true\n",
 					"),\n",
 					"\n",
 					"-- 2. pln_copy_appeal_has_curated_mipins\n",
 					"(\n",
 					"  'appeal_has',\n",
-					"  'odw_curated_db.appeals_has_curated_mipins',\n",
-					"  'odw.appeals_has_curated_mipins',\n",
+					"  'appeals_has_curated_mipins',\n",
+					"  'appeals_has_curated_mipins',\n",
 					"  'appeal_has',\n",
 					"  'appeal_has_curated_mipins',\n",
 					"  'BackOffice',\n",
@@ -188,12 +187,12 @@
 					"-- 3. pln_copy_appeal_event_curated_mipins\n",
 					"(\n",
 					"  'appeal_event',\n",
-					"  'odw_curated_db.appeal_event_curated_mipins',\n",
-					"  'odw.appeal_event_curated_mipins',\n",
+					"  'appeal_event_curated_mipins',\n",
+					"  'appeal_event_curated_mipins',\n",
 					"  'appeal_event',\n",
 					"  'appeal_event_curated_mipins',\n",
 					"  NULL,\n",
-					"  false,                                            -- no dim_source_system SP\n",
+					"  false,\n",
 					"  30,\n",
 					"  true\n",
 					"),\n",
@@ -201,8 +200,8 @@
 					"-- 4. pln_copy_appeal_event_estimate_curated_mipins\n",
 					"(\n",
 					"  'appeal_event_estimate',\n",
-					"  'odw_curated_db.appeal_event_estimate_curated_mipins',\n",
-					"  'odw.appeal_event_estimate_curated_mipins',\n",
+					"  'appeal_event_estimate_curated_mipins',\n",
+					"  'appeal_event_estimate_curated_mipins',\n",
 					"  'appeal_event_estimate',\n",
 					"  'appeal_event_estimate_curated_mipins',\n",
 					"  NULL,\n",
@@ -214,8 +213,8 @@
 					"-- 5. pln_copy_appeal_service_user_curated_mipins\n",
 					"(\n",
 					"  'service_user',\n",
-					"  'odw_curated_db.appeal_service_user_curated_mipins',\n",
-					"  'odw.appeal_service_user_curated_mipins',\n",
+					"  'appeal_service_user_curated_mipins',\n",
+					"  'appeal_service_user_curated_mipins',\n",
 					"  'service_user',\n",
 					"  'service_user_curated_mipins',\n",
 					"  NULL,\n",
@@ -227,8 +226,8 @@
 					"-- 6. pln_copy_entraid_curated_mipins\n",
 					"(\n",
 					"  'entraid',\n",
-					"  'odw_curated_db.entraid_curated_mipins',\n",
-					"  'odw.Entraid_curated',\n",
+					"  'entraid_curated_mipins',\n",
+					"  'Entraid_curated',\n",
 					"  'EntraID',\n",
 					"  'EntraID_curated_mipins',\n",
 					"  NULL,\n",
@@ -240,15 +239,16 @@
 					"-- 7. pln_copy_nsip_project_to_mipins\n",
 					"(\n",
 					"  'nsip_project',\n",
-					"  'odw_curated_db.nsip_project',\n",
-					"  'odw.nsip_project_curated_mipins',\n",
+					"  'nsip_project',\n",
+					"  'nsip_project_curated_mipins',\n",
 					"  'NSIP Project',\n",
 					"  'NSIP_curated_mipins',\n",
 					"  'NSIP Project',\n",
 					"  true,\n",
 					"  70,\n",
 					"  true\n",
-					");"
+					");\n",
+					""
 				],
 				"execution_count": null
 			}
