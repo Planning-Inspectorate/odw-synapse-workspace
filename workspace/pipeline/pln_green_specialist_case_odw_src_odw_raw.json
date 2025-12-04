@@ -62,7 +62,7 @@
 				"type": "Copy",
 				"dependsOn": [
 					{
-						"activity": "Copy xlsx to odw-raw green_specialist_case",
+						"activity": "If recent file folder exist",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -118,6 +118,58 @@
 						"type": "DatasetReference"
 					}
 				]
+			},
+			{
+				"name": "Get xlsx File folder",
+				"type": "GetMetadata",
+				"dependsOn": [
+					{
+						"activity": "Copy xlsx to odw-raw green_specialist_case",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataset": {
+						"referenceName": "ds_odw_raw_get_recent_green_specialist_case_file",
+						"type": "DatasetReference"
+					},
+					"fieldList": [
+						"exists"
+					],
+					"storeSettings": {
+						"type": "AzureBlobFSReadSettings",
+						"enablePartitionDiscovery": false
+					}
+				}
+			},
+			{
+				"name": "If recent file folder exist",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Get xlsx File folder",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(activity('Get xlsx File folder').output.exists,true)\n\n",
+						"type": "Expression"
+					}
+				}
 			}
 		],
 		"parameters": {
