@@ -22,7 +22,8 @@ def load_config(path: Optional[str] = None, text: Optional[str] = None) -> Anony
     if not path and not text:
         return AnonymisationConfig()
 
-    data = _yaml_safe_load(text) if text else _load_yaml_file(path) or {}
+    raw_data = _yaml_safe_load(text) if text else _load_yaml_file(path)
+    data = raw_data or {}
 
     allowlist = data.get("classification_allowlist")
     if allowlist is not None:
