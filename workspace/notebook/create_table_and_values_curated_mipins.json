@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "3ecab047-e0a1-450b-ae29-3a0d347db322"
+				"spark.autotune.trackingId": "1b97eff8-dfa3-47fe-9a58-c04e051caa96"
 			}
 		},
 		"metadata": {
@@ -51,6 +51,50 @@
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Configure Curated > MiPINS Metadata Table\n",
+					"- This notebook creates and populates the **odw_meta_db.config_curated_to_mipins** table\n",
+					"- The table acts as the single source of truth for all Curated → MiPINS copy operations\n",
+					"- This notebook supports the migration from multiple duplicated pipelines to a single reusable metadata-driven pipeline controlled centrally through this configuration table\n",
+					"\n",
+					"### Purpose\n",
+					"Synapse currently contains several pipelines that copy curated data into the MiPINS database: \n",
+					"- `pln_copy_appeal_s78_curated_mipins`\n",
+					"- `pln_copy_appeal_has_curated_mipins`\n",
+					"- `pln_copy_appeal_event_curated_mipins`\n",
+					"- `pln_copy_appeal_event_estimate_curated_mipins`\n",
+					"- `pln_copy_appeal_service_user_curated_mipins`\n",
+					"- `pln_copy_entraid_curated_mipins`\n",
+					"- `pln_copy_nsip_project_to_mipins`\n",
+					"\n",
+					"These pipelines all follow the same pattern, with the only differences being:\n",
+					"- Source curated table\n",
+					"- Target MiPINS table\n",
+					"- Logging prefixes\n",
+					"- Whether the pipeline updates `dim_source_system`\n",
+					"- Ordering / activation\n",
+					"- This notebook centralises all that configuration into a metadata table so a single generic pipeline can process every entity dynamically.\n",
+					"\n",
+					"### What this notebook does\n",
+					"\n",
+					"#### Cell 1 - Create Metadata Table\n",
+					"Creates the `odw_meta_db.config_curated_to_mipins` table if it does not already exist\n",
+					"\n",
+					"#### Cell 2 - Seed Configuration Values\n",
+					"Clear the table and inserts metadata for all existing Curated → MiPINS pipelines.\n",
+					"- Each row corresponds 1 to 1 with a current pipeline and defines all the params required by the upcoming generic pipeline (`pln_copy_curated_to_mipins_generic`)\n",
+					""
+				]
+			},
 			{
 				"cell_type": "code",
 				"metadata": {
@@ -101,19 +145,7 @@
 				},
 				"source": [
 					"%%sql\n",
-					"SELECT * FROM odw_meta_db.config_curated_to_mipins LIMIT 10;"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"microsoft": {
-						"language": "sparksql"
-					}
-				},
-				"source": [
-					"%%sql\n",
+					"TRUNCATE TABLE odw_meta_db.config_curated_to_mipins; -- So we don't create duplicate in case of re-run\n",
 					"\n",
 					"INSERT INTO odw_meta_db.config_curated_to_mipins (\n",
 					"    entity_code,\n",
