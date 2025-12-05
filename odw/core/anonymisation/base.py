@@ -33,10 +33,20 @@ class BaseStrategy(ABC):
     @staticmethod
     def seed_col(df: DataFrame) -> Column:
         """Return a deterministic seed column.
-        Picks the first available identifier in STAFF_SEED_COL_CANDIDATES; falls back to the literal 'seed' if none exist.
+        Picks the first available identifier in STAFF_SEED_COL_CANDIDATES; if none exist, derive a per-row hash from all columns.
         """
         cols = [c for c in STAFF_SEED_COL_CANDIDATES if c in df.columns]
-        return F.coalesce(*[F.col(c).cast("string") for c in cols]) if cols else F.lit("seed")
+        if cols:
+            return F.coalesce(*[F.col(c).cast("string") for c in cols])
+        # Fallback: deterministic per-row hash using all columns (string-cast, null-safe)
+        if not df.columns:
+            # Extremely defensive: empty schema; maintain previous behavior
+            return F.lit("seed")
+        concatenated = F.concat_ws(
+            "|",
+            *[F.coalesce(F.col(c).cast("string"), F.lit("<NULL>")) for c in sorted(df.columns)],
+        )
+        return F.sha2(concatenated, 256)
 
     @staticmethod
     def mask_keep_first_last(col: Column) -> Column:
@@ -62,7 +72,7 @@ class BaseStrategy(ABC):
 
 
 class NINumberStrategy(BaseStrategy):
-    classification_names = {"NI Number", "PotentialID", "Potential ID"}
+    classification_names = {"NI Number"}
 
     def generate_random_ni_number(_: str | None) -> str:
         letters = "ABCDEFGHJKLMNPQRSTUVWXYZ"
