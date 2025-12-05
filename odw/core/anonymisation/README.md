@@ -55,7 +55,7 @@ A strategy encapsulates how to anonymise one column when certain classifications
 Default strategies and their behaviour:
 
 - NI number (`NINumberStrategy`)
-  - Triggers: `{"NI Number", "PotentialID", "Potential ID"}`
+  - Triggers: `{"NI Number"}`
   - Transform: generate a random NI number in the format `AA000000A` (two letters, six digits, final letter A–D)
   - Determinism: non-deterministic per row and per run (uses Python RNG)
 
@@ -75,9 +75,9 @@ Default strategies and their behaviour:
   - Determinism: deterministic given the input value
 
 - Birth date (`BirthDateStrategy`)
-- Triggers: `{"Birth Date", "Date of Birth"}`
-- Transform: replace with a pseudo-random date between `1955-01-01` (inclusive) and `2005-12-31` (exclusive) derived from the seed column
-- Determinism: deterministic per row when a seed column is present
+  - Triggers: `{"Birth Date", "Date of Birth"}`
+  - Transform: replace with a pseudo-random date between `1955-01-01` (inclusive) and `2005-12-31` (exclusive) derived from the seed column
+  - Determinism: deterministic per row when a seed column is present
 
 - Age (`AgeStrategy`)
   - Triggers: `{"Person's Age", "Employee Age"}`
@@ -243,6 +243,5 @@ out = engine.apply(df, cols, classification_allowlist=None)  # engine will use c
 
 ## Tests
 Unit tests cover masking behaviour, Purview integration (mocked), logging, and output ranges for seeded transforms. See:
-- `tests/unit_test/test_unit_anonymisation_engine.py`
-- `tests/unit_test/test_unit_anonymisation_purview.py`
+- `odw/test/unit_test/anonymisation/test_unit_anonymisation_purview.py`
 - `odw/test/unit_test/anonymisation/test_engine.py`

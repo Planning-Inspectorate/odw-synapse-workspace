@@ -91,11 +91,11 @@ def main():
         for m in masked:
             print(" -", m)
 
-        # Validate masking behaviour for non-null values
-        ok = all((m is None) or str(m).endswith("#@pins.com") for m in masked)
+        # Validate masking behaviour: mask local part and preserve domain
+        expected = ["j******e@example.com", "a@b.com", None]
+        ok = masked == expected
         if not ok:
-            raise SystemExit("emailAddress masking FAILED (expected domain to be '#@pins.com')")
-
+            raise SystemExit("emailAddress masking FAILED (expected to preserve domain and mask local part)")
         print("OK: emailAddress masked as expected")
     finally:
         spark.stop()
