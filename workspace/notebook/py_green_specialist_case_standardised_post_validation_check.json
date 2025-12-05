@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "3ce1c36e-a250-4660-903b-7220c072cc87"
+				"spark.autotune.trackingId": "b86c4be0-4867-493b-991a-9af481e57a93"
 			}
 		},
 		"metadata": {
@@ -403,19 +403,124 @@
 			{
 				"cell_type": "code",
 				"source": [
-					""
+					"print(\"STEP 6: Saving rejection CSV...\")\n",
+					"\n",
+					"if df_all_rejections and total_rejected_rows > 0:\n",
+					"    # Generate output path\n",
+					"    timestamp = datetime.now().strftime(\"%Y%m%d_%H%M%S\")\n",
+					"    today = datetime.now().strftime(\"%Y-%m-%d\")\n",
+					"    output_folder = f\"{OUTPUT_PATH}/{today}/rejected\"\n",
+					"    \n",
+					"    print(f\"   Output: {output_folder}\")\n",
+					"    \n",
+					"    # Ensure correct column order\n",
+					"    df_output = df_all_rejections.select(\n",
+					"        \"FullReference\",\n",
+					"        \"GreenCaseType\", \n",
+					"        \"Column_name\",\n",
+					"        \"Cause_of_Validation_Failure\",\n",
+					"        \"Column_Value\"\n",
+					"    )\n",
+					"    \n",
+					"    # Show sample\n",
+					"    print(\"\\n   Sample rejection records:\")\n",
+					"    df_output.show(5, truncate=False)\n",
+					"    \n",
+					"    # Write to CSV\n",
+					"    df_output.coalesce(1).write \\\n",
+					"        .mode(\"overwrite\") \\\n",
+					"        .option(\"header\", \"true\") \\\n",
+					"        .option(\"encoding\", \"UTF-8\") \\\n",
+					"        .option(\"quote\", '\"') \\\n",
+					"        .option(\"escape\", '\"') \\\n",
+					"        .csv(output_folder)\n",
+					"    \n",
+					"    print(f\"   ✅ Saved {total_rejected_rows:,} rejection rows to CSV\")\n",
+					"    final_output_path = output_folder\n",
+					"else:\n",
+					"    print(\"   ℹ️  No rejections - nothing to save\")\n",
+					"    final_output_path = None\n",
+					"\n",
+					"print()"
 				],
 				"execution_count": null
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Generate a summary"
+				]
+			},
+			{
 				"cell_type": "code",
 				"source": [
-					"# Generate and display the final results\n",
-					"final_results = generate_processing_results()\n",
+					"# Count unique rejected records (one record may have multiple errors)\n",
+					"if df_all_rejections:\n",
+					"    unique_rejected_records = df_all_rejections.select(\"FullReference\", \"GreenCaseType\") \\\n",
+					"        .distinct().count()\n",
+					"else:\n",
+					"    unique_rejected_records = 0\n",
 					"\n",
-					"# Convert to JSON string\n",
-					"result_json_str = json.dumps(final_results, indent=2, default=datetime_handler)\n",
-					""
+					"rejection_rate = round((unique_rejected_records / total_records * 100), 2) if total_records > 0 else 0\n",
+					"\n",
+					"summary = {\n",
+					"    \"validation_timestamp\": datetime.now().isoformat(),\n",
+					"    \"table_name\": \"green_specialist_case\",\n",
+					"    \"total_records\": total_records,\n",
+					"    \"unique_rejected_records\": unique_rejected_records,\n",
+					"    \"total_rejection_rows\": total_rejected_rows,\n",
+					"    \"total_passed\": total_records - unique_rejected_records,\n",
+					"    \"rejection_rate_percent\": rejection_rate,\n",
+					"    \"rejection_file_path\": final_output_path,\n",
+					"    \"validation_breakdown\": {\n",
+					"        \"duplicates\": duplicates_count,\n",
+					"        \"null_active\": null_active_count,\n",
+					"        \"date_errors\": total_date_errors\n",
+					"    },\n",
+					"    \"validation_status\": \"FAILED\" if total_rejected_rows > 0 else \"PASSED\"\n",
+					"}\n",
+					"\n",
+					"print()\n",
+					"print(\"=\" * 80)\n",
+					"print(\"VALIDATION SUMMARY\")\n",
+					"print(\"=\" * 80)\n",
+					"print(f\"Total Records:              {summary['total_records']:,}\")\n",
+					"print(f\"Unique Rejected Records:    {summary['unique_rejected_records']:,}\")\n",
+					"print(f\"Total Rejection Rows:       {summary['total_rejection_rows']:,}\")\n",
+					"print(f\"Passed:                     {summary['total_passed']:,}\")\n",
+					"print(f\"Rejection Rate:             {summary['rejection_rate_percent']}%\")\n",
+					"print()\n",
+					"print(\"Error Breakdown:\")\n",
+					"print(f\"  - Duplicates:             {summary['validation_breakdown']['duplicates']:,}\")\n",
+					"print(f\"  - NULL Active:            {summary['validation_breakdown']['null_active']:,}\")\n",
+					"print(f\"  - Date Errors:            {summary['validation_breakdown']['date_errors']:,}\")\n",
+					"print()\n",
+					"print(f\"Status: {summary['validation_status']}\")\n",
+					"\n",
+					"if final_output_path:\n",
+					"    print()\n",
+					"    print(f\"Rejection file: {final_output_path}\")\n",
+					"\n",
+					"print()\n",
+					"print(\"=\" * 80)\n",
+					"print(\"VALIDATION COMPLETE\")\n",
+					"print(\"=\" * 80)\n",
+					"print(f\"End: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\")\n",
+					"print()\n",
+					"\n",
+					"# Convert to JSON\n",
+					"result_json = json.dumps(summary, indent=2)\n",
+					"\n",
+					"print(\"JSON OUTPUT:\")\n",
+					"print(result_json)\n",
+					"print()"
 				],
 				"execution_count": null
 			},
@@ -423,7 +528,7 @@
 				"cell_type": "code",
 				"source": [
 					"# Exit with the JSON result\n",
-					"mssparkutils.notebook.exit(result_json_str)"
+					"mssparkutils.notebook.exit(result_json)"
 				],
 				"execution_count": null
 			},
