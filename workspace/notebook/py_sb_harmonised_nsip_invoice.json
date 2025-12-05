@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "1343cf36-849f-463b-86f2-6e4e7a17763a"
+				"spark.autotune.trackingId": "fcb46820-ca6c-4b76-9c3f-8e464c77c554"
 			}
 		},
 		"metadata": {
@@ -107,7 +107,7 @@
 					"from notebookutils import mssparkutils\n",
 					"from pyspark.sql.functions import explode, col"
 				],
-				"execution_count": 1
+				"execution_count": 31
 			},
 			{
 				"cell_type": "code",
@@ -121,7 +121,7 @@
 					"PipelineTriggeredbyPipelineName = \"pln_master\"\n",
 					"PipelineTriggeredbyPipelineRunID = \"da49079b-5027-4bd7-8ebf-024141f4396e\""
 				],
-				"execution_count": null
+				"execution_count": 32
 			},
 			{
 				"cell_type": "markdown",
@@ -141,7 +141,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 2
+				"execution_count": 33
 			},
 			{
 				"cell_type": "markdown",
@@ -169,9 +169,10 @@
 					"insert_count = 0\n",
 					"update_count = 0\n",
 					"delete_count = 0\n",
-					"error_message=''"
+					"error_message=''\n",
+					"end_exec_time = ''"
 				],
-				"execution_count": 3
+				"execution_count": 34
 			},
 			{
 				"cell_type": "markdown",
@@ -228,7 +229,7 @@
 					"        print(error_message)\n",
 					""
 				],
-				"execution_count": 4
+				"execution_count": 35
 			},
 			{
 				"cell_type": "markdown",
@@ -291,7 +292,7 @@
 					"        print(error_message)\n",
 					""
 				],
-				"execution_count": 5
+				"execution_count": 36
 			},
 			{
 				"cell_type": "markdown",
@@ -328,7 +329,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 6
+				"execution_count": 37
 			},
 			{
 				"cell_type": "markdown",
@@ -370,7 +371,7 @@
 					"        print(error_message)\n",
 					""
 				],
-				"execution_count": 7
+				"execution_count": 38
 			},
 			{
 				"cell_type": "markdown",
@@ -429,7 +430,7 @@
 					"        print(error_message)\n",
 					""
 				],
-				"execution_count": 8
+				"execution_count": 39
 			},
 			{
 				"cell_type": "markdown",
@@ -468,8 +469,11 @@
 					"        # Step 3: Drop old IngestionDate column\n",
 					"        new_data = new_data.drop(\"IngestionDate\")\n",
 					"\n",
-					"        # Step 4: Add new IngestionDate column with current timestamp (formatted) \n",
-					"        new_data = new_data.withColumn(\"IngestionDate\",F.concat(F.date_format(F.current_timestamp(), \"yyyy-MM-dd'T'HH:mm:ss.SSSSSS\"),F.lit(\"+0000\")))\n",
+					"        # Step 4: Add new IngestionDate column with current timestamp (formatted)\n",
+					"        new_data = new_data.withColumn(\n",
+					"            \"IngestionDate\",\n",
+					"            F.concat(F.date_format(F.current_timestamp(), \"yyyy-MM-dd'T'HH:mm:ss.SSSSSS\"), F.lit(\"+0000\"))\n",
+					"        )\n",
 					"\n",
 					"        # Step 5: Add extra columns\n",
 					"        new_data = (\n",
@@ -492,7 +496,10 @@
 					"\n",
 					"        # Display final DataFrame\n",
 					"        display(new_data)\n",
-					"        print(\"Columns added and reordered successfully.\")\n",
+					"\n",
+					"        # ✅ Get count of records inserted\n",
+					"        insert_count = new_data.count()\n",
+					"        print(f\"Columns added and reordered successfully. Inserted rows: {insert_count}\")\n",
 					"\n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error during processing: {str(e)[:800]}\"\n",
@@ -501,7 +508,7 @@
 					"        print(error_message)\n",
 					""
 				],
-				"execution_count": 9
+				"execution_count": 40
 			},
 			{
 				"cell_type": "markdown",
@@ -528,7 +535,7 @@
 					"    print(f\"Failed to append data: {str(e)[:800]}\")\n",
 					""
 				],
-				"execution_count": 10
+				"execution_count": 41
 			},
 			{
 				"cell_type": "markdown",
@@ -627,7 +634,7 @@
 					"    print(error_message)\n",
 					""
 				],
-				"execution_count": 11
+				"execution_count": 42
 			},
 			{
 				"cell_type": "code",
@@ -637,44 +644,44 @@
 				"source": [
 					" display(spark.table(spark_table_final))"
 				],
-				"execution_count": null
+				"execution_count": 43
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"# duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
-					"# activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
-					"# stage = \"Success\" if not error_message else \"Failed\"\n",
-					"# status_message = (\n",
-					"#     f\"Successfully loaded data into {spark_table_final} table\"\n",
-					"#     if not error_message\n",
-					"#     else f\"Failed to load data from {spark_table_final} table\"\n",
-					"# )\n",
-					"# status_code = \"200\" if stage == \"Success\" else \"500\"\n",
+					"duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
+					"activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
+					"stage = \"Success\" if not error_message else \"Failed\"\n",
+					"status_message = (\n",
+					"    f\"Successfully loaded data into {spark_table_final} table\"\n",
+					"    if not error_message\n",
+					"    else f\"Failed to load data from {spark_table_final} table\"\n",
+					")\n",
+					"status_code = \"200\" if stage == \"Success\" else \"500\"\n",
 					" \n",
-					"# log_telemetry_and_exit(\n",
-					"#     stage,\n",
-					"#     start_exec_time,\n",
-					"#     end_exec_time,\n",
-					"#     error_message,\n",
-					"#     spark_table_final,\n",
-					"#     insert_count,\n",
-					"#     update_count,\n",
-					"#     delete_count,\n",
-					"#     PipelineName,\n",
-					"#     PipelineRunID,\n",
-					"#     PipelineTriggerID,\n",
-					"#     PipelineTriggerName,\n",
-					"#     PipelineTriggerType,\n",
-					"#     PipelineTriggeredbyPipelineName,\n",
-					"#     PipelineTriggeredbyPipelineRunID,\n",
-					"#     activity_type,\n",
-					"#     duration_seconds,\n",
-					"#     status_message,\n",
-					"#     status_code\n",
-					"# )"
+					"log_telemetry_and_exit(\n",
+					"    stage,\n",
+					"    start_exec_time,\n",
+					"    end_exec_time,\n",
+					"    error_message,\n",
+					"    spark_table_final,\n",
+					"    insert_count,\n",
+					"    update_count,\n",
+					"    delete_count,\n",
+					"    PipelineName,\n",
+					"    PipelineRunID,\n",
+					"    PipelineTriggerID,\n",
+					"    PipelineTriggerName,\n",
+					"    PipelineTriggerType,\n",
+					"    PipelineTriggeredbyPipelineName,\n",
+					"    PipelineTriggeredbyPipelineRunID,\n",
+					"    activity_type,\n",
+					"    duration_seconds,\n",
+					"    status_message,\n",
+					"    status_code\n",
+					")"
 				],
-				"execution_count": null
+				"execution_count": 44
 			}
 		]
 	}
