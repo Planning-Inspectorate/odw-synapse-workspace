@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d5a83c4f-23d6-4989-beca-8c76c85b3050"
+				"spark.autotune.trackingId": "892926a4-ae77-4be7-b579-7ce87127f6f8"
 			}
 		},
 		"metadata": {
@@ -114,7 +114,7 @@
 					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
 					"print(storage_account)"
 				],
-				"execution_count": 15
+				"execution_count": 31
 			},
 			{
 				"cell_type": "markdown",
@@ -134,7 +134,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 16
+				"execution_count": 32
 			},
 			{
 				"cell_type": "markdown",
@@ -159,7 +159,7 @@
 					"csv_file_path = f\"abfss://odw-raw@{storage_account}Green_Specialist_Case\"\n",
 					""
 				],
-				"execution_count": 25
+				"execution_count": 33
 			},
 			{
 				"cell_type": "markdown",
@@ -245,7 +245,7 @@
 					"validate_date_udf = udf(check_date_format_columns, StringType())\n",
 					""
 				],
-				"execution_count": 18
+				"execution_count": 34
 			},
 			{
 				"cell_type": "markdown",
@@ -344,7 +344,7 @@
 					"\n",
 					""
 				],
-				"execution_count": 19
+				"execution_count": 35
 			},
 			{
 				"cell_type": "markdown",
@@ -391,7 +391,7 @@
 					"print()\n",
 					""
 				],
-				"execution_count": 20
+				"execution_count": 36
 			},
 			{
 				"cell_type": "markdown",
@@ -432,48 +432,45 @@
 					"    df_output.show(5, truncate=False)\n",
 					"    \n",
 					"    # Write to CSV\n",
-					"    df_output.coalesce(1).write \\\n",
-					"        .mode(\"overwrite\") \\\n",
-					"        .option(\"header\", \"true\") \\\n",
-					"        .option(\"encoding\", \"UTF-8\") \\\n",
-					"        .option(\"quote\", '\"') \\\n",
-					"        .option(\"escape\", '\"') \\\n",
-					"        .csv(f\"{output_folder_path}/rejected_grean_specialist_{get_latest_folder(csv_file_path)}.csv\")\n",
+					"    #df_output.coalesce(1).write \\\n",
+					"    #    .mode(\"overwrite\") \\\n",
+					"    #    .option(\"header\", \"true\") \\\n",
+					"    #    .option(\"encoding\", \"UTF-8\") \\\n",
+					"    #    .option(\"quote\", '\"') \\\n",
+					"    #    .option(\"escape\", '\"') \\\n",
+					"    #    .csv(f\"{output_folder_path}/rejected_grean_specialist_{get_latest_folder(csv_file_path)}.csv\")\n",
 					"    \n",
-					"    print(f\"Saved {total_rejected_rows:,} rejection rows to CSV\")\n",
-					"    final_output_path = output_folder_path\n",
+					"   # print(f\"Saved {total_rejected_rows:,} rejection rows to CSV\")\n",
+					"   # final_output_path = output_folder_path\n",
 					"else:\n",
 					"    print(\"No rejections - nothing to save\")\n",
 					"    final_output_path = None\n",
 					"\n",
 					"print()"
 				],
-				"execution_count": 28
+				"execution_count": 37
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"# Base configuration\n",
 					"current_date = datetime.now().strftime(\"%Y-%m-%d\")\n",
-					"timestamp = datetime.now().strftime(\"%Y%m%d_%H%M%S\")\n",
+					"timestamp = datetime.now().strftime(\"%Y%m%d_%H%M\")\n",
 					"\n",
-					"# ✅ CHANGE THIS TO YOUR DESIRED FILENAME\n",
-					"custom_filename = f\"rejected_green_specialist_{timestamp}.csv\"\n",
+					"csv_filename = f\"rejected_green_case_records_{timestamp}.csv\"\n",
 					"\n",
 					"# Build paths\n",
-					"output_folder = f\"{csv_file_path}/{current_date}/rejected\"\n",
-					"temp_folder = f\"{output_folder}/_temp_{timestamp}\"\n",
-					"final_file_path = f\"{output_folder}/{custom_filename}\"\n",
 					"\n",
-					"# ============================================================================\n",
-					"# WRITE AND RENAME CSV\n",
-					"# ============================================================================\n",
+					"temp_folder = f\"{output_folder_path}/_temp_{timestamp}\"\n",
+					"final_file_path = f\"{output_folder_path}/{csv_filename}\"\n",
+					"\n",
+					"# write and rename CSV file into a _temp folder\n",
 					"\n",
 					"print(f\"Writing CSV...\")\n",
-					"print(f\"Filename: {custom_filename}\")\n",
+					"print(f\"Filename: {csv_filename}\")\n",
 					"print(f\"Location: {output_folder}\")\n",
 					"\n",
-					"# Step 1: Write to temp\n",
+					"# Write to temp\n",
 					"df_output.coalesce(1).write \\\n",
 					"    .mode(\"overwrite\") \\\n",
 					"    .option(\"header\", \"true\") \\\n",
@@ -482,30 +479,30 @@
 					"    .option(\"escape\", '\"') \\\n",
 					"    .csv(temp_folder)\n",
 					"\n",
-					"# Step 2: Find CSV file\n",
+					"# Locate CSV file\n",
 					"files = mssparkutils.fs.ls(temp_folder)\n",
 					"csv_files = [f.path for f in files if f.path.endswith('.csv') and not f.name.startswith('_')]\n",
 					"\n",
 					"if csv_files:\n",
 					"    source_csv = csv_files[0]\n",
 					"    \n",
-					"    # Step 3: Move with your custom filename\n",
+					"    # Move the file to csv filename\n",
 					"    mssparkutils.fs.mv(source_csv, final_file_path)\n",
 					"    \n",
-					"    # Step 4: Cleanup temp\n",
+					"    # Cleanup _temp folder\n",
 					"    mssparkutils.fs.rm(temp_folder, recurse=True)\n",
 					"    \n",
-					"    print(f\"✅ CSV created: {final_file_path}\")\n",
+					"    print(f\"created: {final_file_path}\")\n",
 					"    \n",
 					"    result_path = final_file_path\n",
 					"else:\n",
-					"    print(\"❌ No CSV file generated\")\n",
+					"    print(\"No csv file generated\")\n",
 					"    result_path = None\n",
 					"\n",
 					"# Use result_path in your JSON output\n",
 					"print(f\"\\nFinal file: {result_path}\")"
 				],
-				"execution_count": null
+				"execution_count": 39
 			},
 			{
 				"cell_type": "markdown",
