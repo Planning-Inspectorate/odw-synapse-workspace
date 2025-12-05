@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "c6d5b134-2b74-41da-8cf0-000f56210bb9"
+				"spark.autotune.trackingId": "33053f3f-456d-4e11-adba-db94bb0555b7"
 			}
 		},
 		"metadata": {
@@ -46,7 +46,7 @@
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 28,
-				"automaticScaleJobs": false				
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -607,11 +607,12 @@
 					"def read_file(file_path):\r\n",
 					"    try:\r\n",
 					"        if file_path.endswith(\".csv\"):\r\n",
-					"            return spark.read.option(\"header\", True).csv(file_path)\r\n",
+					"            return spark.read.option(\"header\", True).option(\"multiLine\", \"true\").csv(file_path)\r\n",
 					"\t\t\t\r\n",
 					"        elif file_path.endswith(\".xlsx\"):\r\n",
 					"            return spark.read.format(\"com.crealytics.spark.excel\") \\\r\n",
 					"                             .option(\"header\", \"true\") \\\r\n",
+					"                             .option(\"multiLine\", \"true\")\\\r\n",
 					"                             .option(\"inferSchema\", \"true\") \\\r\n",
 					"                             .load(file_path)        \r\n",
 					"        else:\r\n",
@@ -621,6 +622,19 @@
 					"        return None\r\n",
 					"\r\n",
 					"def clean_column_names(df):\r\n",
+					"    \r\n",
+					"    # Additional code added to manage Unmanaged data file to Drop columns matching: c#### OR Unnamed \r\n",
+					"    df = df.select([c for c in df.columns if c.strip() and not re.match(r'^(_c\\d+|Unnamed.*)$', c, re.IGNORECASE)]).dropna(how='all')\r\n",
+					"\r\n",
+					"    # Clean ALL line break types (\\n, \\r, \\r\\n)\r\n",
+					"    string_cols = [f.name for f in df.schema.fields if isinstance(f.dataType, StringType)]\r\n",
+					"\r\n",
+					"    for col_name in string_cols:\r\n",
+					"        df = df.withColumn(\r\n",
+					"            col_name,\r\n",
+					"            regexp_replace(col(col_name), \"[\\r\\n]+\", \" \")\r\n",
+					"        )\r\n",
+					"\r\n",
 					"    cols = [re.sub(r\"[^a-zA-Z0-9_]+\", \"\", c).strip('_') for c in df.columns]\r\n",
 					"    deduped = []\r\n",
 					"    for i, c in enumerate(cols):\r\n",
@@ -1167,6 +1181,7 @@
 					"#spark.sql(f\"DROP TABLE IF EXISTS odw_harmonised_db.load_sap_pins_email_weekly\")\r\n",
 					"#spark.sql(f\"DROP TABLE IF EXISTS odw_standardised_db.work_schedules\")\r\n",
 					"#spark.sql(f\"DROP TABLE IF EXISTS odw_standardised_db.inspector_addresses_monthly\")\r\n",
+					"#spark.sql(f\"DROP TABLE IF EXISTS odw_standardised_db.casework_local_plan\")\r\n",
 					""
 				],
 				"execution_count": null
