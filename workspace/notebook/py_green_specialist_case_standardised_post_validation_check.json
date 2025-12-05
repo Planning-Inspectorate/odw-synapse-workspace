@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "dac06f60-7f3b-4ca3-8511-935b83655cf2"
+				"spark.autotune.trackingId": "80e85fbc-e710-4f1b-940d-b7d441e452dc"
 			}
 		},
 		"metadata": {
@@ -257,7 +257,7 @@
 					"# Post Validation Checks processing\n",
 					"\n",
 					"#Read Source delta table\n",
-					"df = spark.sql(f\"SELECT * FROM {source_delta_table}\")\n",
+					"src_df = spark.sql(f\"SELECT * FROM {source_delta_table}\")\n",
 					"\n",
 					"total_records = df.count()\n",
 					"\n",
@@ -284,6 +284,19 @@
 					"\n",
 					"duplicates_count = df_duplicates.count()\n",
 					"print(f\" Found {duplicates_count} duplicate records\")\n",
+					"\n",
+					"# Check ACTIVE column having Null Values\n",
+					"df_null_active_records = src_df.filter(col(\"Active\").isNull()).select(\n",
+					"    col(\"FullReference\"),\n",
+					"    col(\"GreenCaseType\"),\n",
+					"    lit(\"Active\").alias(\"Column_name\"),\n",
+					"    lit(\"NULL value found\").alias(\"Cause_of_Validation_Failure\"),\n",
+					"    lit(\"NULL\").alias(\"Column_Value\")\n",
+					")\n",
+					"\n",
+					"null_active_count = df_null_active_records.count()\n",
+					"print(f\"   Found {null_active_count:,} NULL Active records\")\n",
+					"print()\n",
 					""
 				],
 				"execution_count": null
