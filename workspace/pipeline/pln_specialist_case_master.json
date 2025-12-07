@@ -71,6 +71,49 @@
 						"type": "Expression"
 					}
 				}
+			},
+			{
+				"name": "If validation success",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Notebook Post Check Validation",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(json(activity('Notebook Post Check Validation').output.status.output.result.exitValue).validation_summary.total_rejection_rows,'Failed')",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "Execute Post Validation Notification",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_specialist_case_post_validation_email_notification",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Rejected_File_Path": {
+										"value": "@activity('Notebook Post Check Validation').output.status.output.result.exitValue",
+										"type": "Expression"
+									}
+								}
+							}
+						}
+					]
+				}
 			}
 		],
 		"variables": {
