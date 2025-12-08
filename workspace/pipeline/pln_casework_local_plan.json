@@ -52,10 +52,8 @@
 				]
 			},
 			{
-				"name": "Get xlas File recent folder",
+				"name": "Get xlsx File recent folder",
 				"type": "GetMetadata",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "Copy xlsx to odw-raw casework_local_plan",
@@ -92,11 +90,9 @@
 			{
 				"name": "If recent file folder exsist",
 				"type": "IfCondition",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
-						"activity": "Get xlas File recent folder",
+						"activity": "Get xlsx File recent folder",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -104,6 +100,21 @@
 				],
 				"userProperties": [],
 				"typeProperties": {
+					"expression": {
+						"value": "@equals(activity('Get xlsx File recent folder').output.exists,true)",
+						"type": "Expression"
+					},
+					"ifFalseActivities": [
+						{
+							"name": "Wait1",
+							"type": "Wait",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"waitTimeInSeconds": 1
+							}
+						}
+					],
 					"ifTrueActivities": [
 						{
 							"name": "Copy xlsx to casework_local_plan csv file",
@@ -126,11 +137,36 @@
 										"enablePartitionDiscovery": false
 									}
 								},
-								"enableStaging": false
+								"sink": {
+									"type": "DelimitedTextSink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings"
+									},
+									"formatSettings": {
+										"type": "DelimitedTextWriteSettings",
+										"quoteAllText": true,
+										"fileExtension": ".txt"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
 							},
 							"inputs": [
 								{
 									"referenceName": "ds_odw_raw_casework_local_plan_archive_src",
+									"type": "DatasetReference"
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "ds_odw_raw_casework_local_plan_dest",
 									"type": "DatasetReference"
 								}
 							]
