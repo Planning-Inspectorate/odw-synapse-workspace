@@ -256,6 +256,12 @@
 				"type": "Copy",
 				"dependsOn": [
 					{
+						"activity": "Lookup-LogStart_copy1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
 						"activity": "Copy data_green_specialist_case_HighHedges",
 						"dependencyConditions": [
 							"Succeeded"
@@ -504,6 +510,12 @@
 				"name": "Copy_unmanaged_data_odw_mipins_tpo",
 				"type": "Copy",
 				"dependsOn": [
+					{
+						"activity": "Lookup-LogStart_copy1_copy1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
 					{
 						"activity": "Copy data Unmanaged_Hedgrow",
 						"dependencyConditions": [
@@ -809,7 +821,7 @@
 				"type": "SetVariable",
 				"dependsOn": [
 					{
-						"activity": "Copy_unmanaged_data_odw_mipins_tpo",
+						"activity": "Copy data_green_specialist_case_HighHedges",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -922,6 +934,466 @@
 				"dependsOn": [
 					{
 						"activity": "Record_Count",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.02:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[Audit].[usp_addETLLog]",
+					"storedProcedureParameters": {
+						"Description": {
+							"value": "appeal_event_curated_mipins_pipeline_completed",
+							"type": "String"
+						},
+						"ErrorMessage": {
+							"value": null,
+							"type": "String"
+						},
+						"LogType": {
+							"value": "2",
+							"type": "String"
+						},
+						"Param1Value": {
+							"value": null,
+							"type": "String"
+						},
+						"RowCount": {
+							"value": {
+								"value": "@variables('RowCount_event')",
+								"type": "Expression"
+							},
+							"type": "Int32"
+						},
+						"RunId": {
+							"value": {
+								"value": "@activity('Lookup-LogStart').output.firstRow.RunId",
+								"type": "Expression"
+							},
+							"type": "Int32"
+						},
+						"Source": {
+							"value": "appeal_event",
+							"type": "String"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "ls_sql_mipins",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "Lookup-LogStart_copy1",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.02:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderStoredProcedureName": "[Audit].[usp_addETLLog]",
+						"storedProcedureParameters": {
+							"Description": {
+								"type": "String",
+								"value": "appeal_event_curated_mipins_pipeline_started"
+							},
+							"ErrorMessage": {
+								"type": "String",
+								"value": null
+							},
+							"LogType": {
+								"type": "String",
+								"value": "1"
+							},
+							"Param1Value": {
+								"type": "String",
+								"value": null
+							},
+							"RowCount": {
+								"type": "Int32",
+								"value": null
+							},
+							"RunId": {
+								"type": "Int32",
+								"value": null
+							},
+							"Source": {
+								"type": "String",
+								"value": "appeal_event"
+							}
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "Lookup_LogStart",
+						"type": "DatasetReference"
+					}
+				}
+			},
+			{
+				"name": "Record_Count_copy1",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Copy data Unmanaged_Hedgrow",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "RowCount_event",
+					"value": {
+						"value": "@activity('Copy data Unmanaged_Hedgrow').output.rowscopied\n",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Error_copy1",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Record_Count_copy1",
+						"dependencyConditions": [
+							"Failed",
+							"Skipped"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "Error_event",
+					"value": {
+						"value": "@replace(concat(activity('Lookup-LogStart').Error?.message,'|',\nactivity('Copy data Unmanaged_Hedgrow')?.Error?.message),'|','')",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Sp_log_failed_copy1",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "Error_copy1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.02:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[Audit].[usp_addETLLog]",
+					"storedProcedureParameters": {
+						"Description": {
+							"value": "appeal_event_curated_mipins_pipeline_failed",
+							"type": "String"
+						},
+						"ErrorMessage": {
+							"value": {
+								"value": "@variables('Error_event')",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"LogType": {
+							"value": "2",
+							"type": "String"
+						},
+						"Param1Value": {
+							"value": null,
+							"type": "String"
+						},
+						"RowCount": {
+							"value": null,
+							"type": "Int32"
+						},
+						"RunId": {
+							"value": {
+								"value": "@activity('Lookup-LogStart').output.firstRow.RunId",
+								"type": "Expression"
+							},
+							"type": "Int32"
+						},
+						"Source": {
+							"value": "appeal_event",
+							"type": "String"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "ls_sql_mipins",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "Sp_log_success_copy1",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "Record_Count_copy1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.02:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[Audit].[usp_addETLLog]",
+					"storedProcedureParameters": {
+						"Description": {
+							"value": "appeal_event_curated_mipins_pipeline_completed",
+							"type": "String"
+						},
+						"ErrorMessage": {
+							"value": null,
+							"type": "String"
+						},
+						"LogType": {
+							"value": "2",
+							"type": "String"
+						},
+						"Param1Value": {
+							"value": null,
+							"type": "String"
+						},
+						"RowCount": {
+							"value": {
+								"value": "@variables('RowCount_event')",
+								"type": "Expression"
+							},
+							"type": "Int32"
+						},
+						"RunId": {
+							"value": {
+								"value": "@activity('Lookup-LogStart').output.firstRow.RunId",
+								"type": "Expression"
+							},
+							"type": "Int32"
+						},
+						"Source": {
+							"value": "appeal_event",
+							"type": "String"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "ls_sql_mipins",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "Lookup-LogStart_copy1_copy1",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.02:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderStoredProcedureName": "[Audit].[usp_addETLLog]",
+						"storedProcedureParameters": {
+							"Description": {
+								"type": "String",
+								"value": "appeal_event_curated_mipins_pipeline_started"
+							},
+							"ErrorMessage": {
+								"type": "String",
+								"value": null
+							},
+							"LogType": {
+								"type": "String",
+								"value": "1"
+							},
+							"Param1Value": {
+								"type": "String",
+								"value": null
+							},
+							"RowCount": {
+								"type": "Int32",
+								"value": null
+							},
+							"RunId": {
+								"type": "Int32",
+								"value": null
+							},
+							"Source": {
+								"type": "String",
+								"value": "appeal_event"
+							}
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "Lookup_LogStart",
+						"type": "DatasetReference"
+					}
+				}
+			},
+			{
+				"name": "Record_Count_copy1_copy1",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Copy_unmanaged_data_odw_mipins_tpo",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "RowCount_event",
+					"value": {
+						"value": "@activity('Copy data Unmanaged_Hedgrow').output.rowscopied\n",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Error_copy1_copy1",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Record_Count_copy1_copy1",
+						"dependencyConditions": [
+							"Failed",
+							"Skipped"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "Error_event",
+					"value": {
+						"value": "@replace(concat(activity('Lookup-LogStart').Error?.message,'|',\nactivity('Copy data Unmanaged_Hedgrow')?.Error?.message),'|','')",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Sp_log_failed_copy1_copy1",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "Error_copy1_copy1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.02:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[Audit].[usp_addETLLog]",
+					"storedProcedureParameters": {
+						"Description": {
+							"value": "appeal_event_curated_mipins_pipeline_failed",
+							"type": "String"
+						},
+						"ErrorMessage": {
+							"value": {
+								"value": "@variables('Error_event')",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"LogType": {
+							"value": "2",
+							"type": "String"
+						},
+						"Param1Value": {
+							"value": null,
+							"type": "String"
+						},
+						"RowCount": {
+							"value": null,
+							"type": "Int32"
+						},
+						"RunId": {
+							"value": {
+								"value": "@activity('Lookup-LogStart').output.firstRow.RunId",
+								"type": "Expression"
+							},
+							"type": "Int32"
+						},
+						"Source": {
+							"value": "appeal_event",
+							"type": "String"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "ls_sql_mipins",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "Sp_log_success_copy1_copy1",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "Record_Count_copy1_copy1",
 						"dependencyConditions": [
 							"Succeeded"
 						]
