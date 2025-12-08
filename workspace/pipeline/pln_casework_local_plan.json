@@ -26,14 +26,79 @@
 							"type": "BinaryReadSettings"
 						}
 					},
+					"sink": {
+						"type": "BinarySink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						}
+					},
 					"enableStaging": false
 				},
 				"inputs": [
 					{
 						"referenceName": "ds_odwdatalab_casework_local_plan",
+						"type": "DatasetReference",
+						"parameters": {
+							"ds_Folder_Path": "@pipeline().parameters.Folder_Path",
+							"ds_Env_Type": "@if( contains(toLower(pipeline().DataFactory), 'dev'), 'dev', if( contains(toLower(pipeline().DataFactory), 'test'), 'test', 'prod' ) )"
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "ds_odw_raw_casework_local_plan_destination",
 						"type": "DatasetReference"
 					}
 				]
+			},
+			{
+				"name": "Get xlas File recent folder",
+				"type": "GetMetadata",
+				"dependsOn": [
+					{
+						"activity": "Copy xlsx to odw-raw casework_local_plan",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataset": {
+						"referenceName": "ds_odw_raw_get_recent_casework_local_plan_folder",
+						"type": "DatasetReference"
+					},
+					"fieldList": [
+						"exists"
+					],
+					"storeSettings": {
+						"type": "AzureBlobFSReadSettings",
+						"enablePartitionDiscovery": false
+					},
+					"formatSettings": {
+						"type": "BinaryReadSettings"
+					}
+				}
+			},
+			{
+				"name": "If recent file folder exsist",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Get xlas File recent folder",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": []
 			}
 		],
 		"parameters": {
