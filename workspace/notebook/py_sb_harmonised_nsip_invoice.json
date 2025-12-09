@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d3ddee95-221b-4a20-925c-9c02fe37a5b1"
+				"spark.autotune.trackingId": "496af819-a562-4e32-97e1-aaf6e0c681e2"
 			}
 		},
 		"metadata": {
@@ -108,7 +108,7 @@
 					"from pyspark.sql.functions import explode, col\n",
 					"import json"
 				],
-				"execution_count": null
+				"execution_count": 21
 			},
 			{
 				"cell_type": "markdown",
@@ -138,7 +138,7 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": null
+				"execution_count": 22
 			},
 			{
 				"cell_type": "markdown",
@@ -191,7 +191,7 @@
 					"    end_exec_time = datetime.now()\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 23
 			},
 			{
 				"cell_type": "markdown",
@@ -254,7 +254,7 @@
 					"        print(error_message)\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 24
 			},
 			{
 				"cell_type": "markdown",
@@ -291,7 +291,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 25
 			},
 			{
 				"cell_type": "markdown",
@@ -333,7 +333,7 @@
 					"        print(error_message)\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 26
 			},
 			{
 				"cell_type": "markdown",
@@ -392,7 +392,7 @@
 					"        print(error_message)\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 27
 			},
 			{
 				"cell_type": "markdown",
@@ -470,7 +470,7 @@
 					"        print(error_message)\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 28
 			},
 			{
 				"cell_type": "markdown",
@@ -489,15 +489,19 @@
 				"cell_type": "code",
 				"source": [
 					"\n",
-					"# Append processed DataFrame to an existing Delta table\n",
-					"try:\n",
-					"    new_data.write.format(\"delta\").mode(\"append\").saveAsTable(spark_table_final)\n",
-					"    print(f\"Data appended successfully to {spark_table_final}.\")\n",
-					"except Exception as e:\n",
-					"    print(f\"Failed to append data: {str(e)[:800]}\")\n",
+					"if not error_message:\n",
+					"    # Append processed DataFrame to an existing Delta table\n",
+					"    try:\n",
+					"        new_data.write.format(\"delta\").mode(\"append\").saveAsTable(spark_table_final)\n",
+					"        print(f\"Data appended successfully to {spark_table_final}.\")\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Failed to append data: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(f\"Error occurred at: {end_exec_time}\")\n",
+					"        print(error_message)\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 30
 			},
 			{
 				"cell_type": "markdown",
@@ -514,90 +518,93 @@
 			},
 			{
 				"cell_type": "code",
-				"metadata": {
-					"collapsed": false
-				},
 				"source": [
-					"try:\n",
-					"    # Load Delta table\n",
-					"    target_table = DeltaTable.forName(spark, spark_table_final)\n",
+					"if not error_message:\n",
+					"    try:\n",
+					"        # Load Delta table\n",
+					"        target_table = DeltaTable.forName(spark, spark_table_final)\n",
 					"\n",
-					"    # Step 1: Read existing data\n",
-					"    df = spark.table(spark_table_final)\n",
+					"        # Step 1: Read existing data\n",
+					"        df = spark.table(spark_table_final)\n",
 					"\n",
-					"    # Step 2: Window to determine latest record based on NSIPProjectInfoInternalID\n",
-					"    window_spec = Window.partitionBy(\"caseId\", \"invoiceNumber\").orderBy(F.col(\"NSIPProjectInfoInternalID\").desc())\n",
+					"        # Step 2: Window to determine latest record based on NSIPProjectInfoInternalID\n",
+					"        window_spec = Window.partitionBy(\"caseId\", \"invoiceNumber\").orderBy(F.col(\"NSIPProjectInfoInternalID\").desc())\n",
 					"\n",
-					"    # Add row number\n",
-					"    df = df.withColumn(\"row_num\", F.row_number().over(window_spec))\n",
+					"        # Add row number\n",
+					"        df = df.withColumn(\"row_num\", F.row_number().over(window_spec))\n",
 					"\n",
-					"    # Add Migrated column\n",
-					"    df = df.withColumn(\n",
-					"        \"Migrated\",\n",
-					"        F.when(F.col(\"caseId\").isNotNull() & F.col(\"invoiceNumber\").isNotNull(), F.lit(1)).otherwise(F.lit(0))\n",
-					"    )\n",
+					"        # Add Migrated column\n",
+					"        df = df.withColumn(\n",
+					"            \"Migrated\",\n",
+					"            F.when(F.col(\"caseId\").isNotNull() & F.col(\"invoiceNumber\").isNotNull(), F.lit(1)).otherwise(F.lit(0))\n",
+					"        )\n",
 					"\n",
-					"    # Add NewIsActive column (latest record = 'Y', others = 'N')\n",
-					"    df = df.withColumn(\"NewIsActive\", F.when(F.col(\"row_num\") == 1, F.lit(\"Y\")).otherwise(F.lit(\"N\")))\n",
+					"        # Add NewIsActive column (latest record = 'Y', others = 'N')\n",
+					"        df = df.withColumn(\"NewIsActive\", F.when(F.col(\"row_num\") == 1, F.lit(\"Y\")).otherwise(F.lit(\"N\")))\n",
 					"\n",
-					"    # Add RowID column using MD5 hash\n",
-					"    df = df.withColumn(\n",
-					"        \"RowID\",\n",
-					"        F.md5(\n",
-					"            F.concat_ws(\n",
-					"                \"\",\n",
-					"                F.coalesce(F.col(\"NSIPInvoiceID\").cast(\"string\"), F.lit(\".\")),\n",
-					"                F.coalesce(F.col(\"NSIPProjectInfoInternalID\").cast(\"string\"), F.lit(\".\")),\n",
-					"                F.coalesce(F.col(\"caseId\").cast(\"string\"), F.lit(\".\")),\n",
-					"                F.coalesce(F.col(\"caseReference\").cast(\"string\"), F.lit(\".\")),\n",
-					"                F.coalesce(F.col(\"invoiceStage\").cast(\"string\"), F.lit(\".\")),\n",
-					"                F.coalesce(F.col(\"invoiceNumber\").cast(\"string\"), F.lit(\".\")),\n",
-					"                F.coalesce(F.col(\"amountDue\").cast(\"string\"), F.lit(\".\")),\n",
-					"                F.coalesce(F.col(\"paymentDueDate\").cast(\"string\"), F.lit(\".\")),\n",
-					"                F.coalesce(F.col(\"invoicedDate\").cast(\"string\"), F.lit(\".\")),\n",
-					"                F.coalesce(F.col(\"paymentDate\").cast(\"string\"), F.lit(\".\")),\n",
-					"                F.coalesce(F.col(\"refundCreditNoteNumber\").cast(\"string\"), F.lit(\".\")),\n",
-					"                F.coalesce(F.col(\"refundAmount\").cast(\"string\"), F.lit(\".\")),\n",
-					"                F.coalesce(F.col(\"refundIssueDate\").cast(\"string\"), F.lit(\".\")),\n",
-					"                F.coalesce(F.col(\"Migrated\").cast(\"string\"), F.lit(\".\")),\n",
-					"                F.coalesce(F.col(\"ODTSourceSystem\").cast(\"string\"), F.lit(\".\")),\n",
-					"                F.coalesce(F.col(\"SourceSystemID\").cast(\"string\"), F.lit(\".\")),\n",
-					"                F.coalesce(F.col(\"IngestionDate\").cast(\"string\"), F.lit(\".\")),\n",
-					"                F.coalesce(F.col(\"ValidTo\").cast(\"string\"), F.lit(\".\")),\n",
-					"                F.coalesce(F.col(\"NewIsActive\").cast(\"string\"), F.lit(\".\"))\n",
+					"        # Add RowID column using MD5 hash\n",
+					"        df = df.withColumn(\n",
+					"            \"RowID\",\n",
+					"            F.md5(\n",
+					"                F.concat_ws(\n",
+					"                    \"\",\n",
+					"                    F.coalesce(F.col(\"NSIPInvoiceID\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"NSIPProjectInfoInternalID\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"caseId\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"caseReference\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"invoiceStage\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"invoiceNumber\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"amountDue\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"paymentDueDate\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"invoicedDate\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"paymentDate\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"refundCreditNoteNumber\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"refundAmount\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"refundIssueDate\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"Migrated\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"ODTSourceSystem\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"SourceSystemID\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"IngestionDate\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"ValidTo\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"NewIsActive\").cast(\"string\"), F.lit(\".\"))\n",
+					"                )\n",
 					"            )\n",
 					"        )\n",
-					"    )\n",
 					"\n",
-					"    # Keep only latest record per group for MERGE (row_num == 1)\n",
-					"    # display(df)\n",
-					"    # latest_df = df.filter(F.col(\"row_num\") == 1)\n",
+					"        # Step 3: Merge updates back into Delta table\n",
+					"        metrics = (\n",
+					"            target_table.alias(\"t\")\n",
+					"            .merge(\n",
+					"                df.alias(\"s\"),\n",
+					"                \"\"\"\n",
+					"                t.caseId = s.caseId AND\n",
+					"                t.invoiceNumber = s.invoiceNumber AND\n",
+					"                t.IngestionDate = s.IngestionDate AND\n",
+					"                t.NSIPProjectInfoInternalID = s.NSIPProjectInfoInternalID\n",
+					"                \"\"\"\n",
+					"            )\n",
+					"            .whenMatchedUpdate(\n",
+					"                set={\n",
+					"                    \"IsActive\": \"s.NewIsActive\",\n",
+					"                    \"ValidTo\": F.expr(\"CASE WHEN s.NewIsActive = 'N' THEN current_timestamp() ELSE t.ValidTo END\"),\n",
+					"                    \"Migrated\": \"s.Migrated\",\n",
+					"                    \"RowID\": \"s.RowID\"\n",
+					"                }\n",
+					"            )\n",
+					"            .execute()\n",
+					"        )\n",
+					"        update_count = int(metrics.get(\"numTargetRowsUpdated\", 0))\n",
 					"\n",
-					"    # display(latest_df)\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(f\"MERGE completed successfully. Updates: {update_count}. Latest record IsActive='Y', older ones='N'.\")\n",
 					"\n",
-					"    # Step 3: Merge updates back into Delta table\n",
-					"    target_table.alias(\"t\").merge(\n",
-					"        df.alias(\"s\"),\n",
-					"        \"t.caseId = s.caseId AND t.invoiceNumber = s.invoiceNumber AND t.IngestionDate = s.IngestionDate And t.NSIPProjectInfoInternalID=s.NSIPProjectInfoInternalID \" \n",
-					"    ).whenMatchedUpdate(\n",
-					"        set={\n",
-					"            \"IsActive\": \"s.NewIsActive\",\n",
-					"            \"ValidTo\": F.expr(\"CASE WHEN s.NewIsActive = 'N' THEN current_timestamp() ELSE t.ValidTo END\"),\n",
-					"            \"Migrated\": \"s.Migrated\",\n",
-					"            \"RowID\": \"s.RowID\"\n",
-					"        }\n",
-					"    ).execute()\n",
-					"    end_exec_time = datetime.now()\n",
-					"\n",
-					"    print(\"MERGE completed successfully. Latest record IsActive='Y', older ones='N'.\")\n",
-					"\n",
-					"except Exception as e:\n",
-					"    error_message = f\"Error during MERGE operation: {str(e)[:800]}\"\n",
-					"    end_exec_time = datetime.now()\n",
-					"    print(error_message)\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error during MERGE operation: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 32
 			},
 			{
 				"cell_type": "code",
