@@ -19,7 +19,13 @@
 						"referenceName": "py_green_specialist_case_standardised_post_validation_check",
 						"type": "NotebookReference"
 					},
-					"snapshot": true
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
 				}
 			},
 			{
@@ -69,7 +75,14 @@
 						{
 							"name": "Execute Post Validation Notification",
 							"type": "ExecutePipeline",
-							"dependsOn": [],
+							"dependsOn": [
+								{
+									"activity": "Prepare HTML Body",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
 							"policy": {
 								"secureInput": false
 							},
@@ -87,6 +100,47 @@
 									}
 								}
 							}
+						},
+						{
+							"name": "Prepare HTML Body",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Json Output Validation Summary",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "Json_HTML_body",
+								"value": {
+									"value": "@concat('<html><body style=\\\"font-family: Arial, sans-serif;\\\"><p><strong>Green Case data processing halted.</strong></p><p>Total Rejection Rows: ', string(json(variables('Json_Validation_Output')).total_rejection_rows), '<br>Unique Rejected Records: ', string(json(variables('Json_Validation_Output')).unique_rejected_records), '<br>Status: ', json(variables('Json_Validation_Output')).validation_status, '</p><p><strong>Error Breakdown:</strong><br>- Duplicates: ', string(json(variables('Json_Validation_Output')).duplicates), '<br>- NULL Active: ', string(json(variables('Json_Validation_Output')).null_active), '<br>- Date Errors: ', string(json(variables('Json_Validation_Output')).date_errors), '</p><p><strong>Rejection File:</strong><br>', json(variables('Json_Validation_Output')).rejection_file_name, '</p><p><strong>Please review and correct the data issues.</strong></p></body></html>')",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Json Output Validation Summary",
+							"type": "SetVariable",
+							"dependsOn": [],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "Json_Validation_Output",
+								"value": {
+									"value": "@string(json(activity('Notebook Post Check Validation').output.status.output.result.exitValue).validation_summary)",
+									"type": "Expression"
+								}
+							}
 						}
 					]
 				}
@@ -97,6 +151,9 @@
 				"type": "String"
 			},
 			"Json_Validation_Output": {
+				"type": "String"
+			},
+			"Json_HTML_body": {
 				"type": "String"
 			}
 		},
