@@ -1,0 +1,169 @@
+{
+	"name": "pln_casework_local_plan_post_validation_check",
+	"properties": {
+		"activities": [
+			{
+				"name": "Notebook Post Check Validation",
+				"type": "SynapseNotebook",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_green_specialist_case_standardised_post_validation_check",
+						"type": "NotebookReference"
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Set Json Logging Output",
+				"type": "SetVariable",
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
+				"dependsOn": [
+					{
+						"activity": "Notebook Post Check Validation",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "Json_Logging_Output",
+					"value": {
+						"value": "@activity('Notebook Post Check Validation').output.status.output.result.exitValue.logging_info",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "If validation success",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Notebook Post Check Validation",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(json(activity('Notebook Post Check Validation').output.status.output.result.exitValue).validation_summary.validation_status,'Failed')",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "Execute Post Validation Notification",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Prepare HTML Body",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_specialist_case_post_validation_email_notification",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Json_Output": {
+										"value": "@string(json(activity('Notebook Post Check Validation').output.status.output.result.exitValue).validation_summary)",
+										"type": "Expression"
+									},
+									"Json_HTML_Body": {
+										"value": "@variables('Json_HTML_body')",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Prepare HTML Body",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Json Output Validation Summary",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "Json_HTML_body",
+								"value": {
+									"value": "@concat('<html><body style=\\\"font-family: Arial, sans-serif;\\\"><p><strong>Green Case data processing halted.</strong></p><p>Total Rejection Rows: ', string(json(variables('Json_Validation_Output')).total_rejection_rows), '<br>Unique Rejected Records: ', string(json(variables('Json_Validation_Output')).unique_rejected_records), '<br>Status: ', json(variables('Json_Validation_Output')).validation_status, '</p><p><strong>Error Breakdown:</strong><br>- Duplicates: ', string(json(variables('Json_Validation_Output')).duplicates), '<br>- NULL Active: ', string(json(variables('Json_Validation_Output')).null_active), '<br>- Date Errors: ', string(json(variables('Json_Validation_Output')).date_errors), '</p><p><strong>Rejection File:</strong><br>', json(variables('Json_Validation_Output')).rejection_file_name, '</p><p><strong>Please review and correct the data issues.</strong></p></body></html>')",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Json Output Validation Summary",
+							"type": "SetVariable",
+							"dependsOn": [],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "Json_Validation_Output",
+								"value": {
+									"value": "@string(json(activity('Notebook Post Check Validation').output.status.output.result.exitValue).validation_summary)",
+									"type": "Expression"
+								}
+							}
+						}
+					]
+				}
+			}
+		],
+		"variables": {
+			"Json_Logging_Output": {
+				"type": "String"
+			},
+			"Json_Validation_Output": {
+				"type": "String"
+			},
+			"Json_HTML_body": {
+				"type": "String"
+			}
+		},
+		"folder": {
+			"name": "green_specialist_case/layers/1 - standardised"
+		},
+		"annotations": []
+	}
+}
