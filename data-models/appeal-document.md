@@ -1,7 +1,7 @@
 #### ODW Data Model
 
 ##### entity: appeal-document
-
+ 
 Data model for appeal-document entity showing data flow from source to curated.
 
 ```mermaid
