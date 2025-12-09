@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "97dd6ed5-1c5b-4543-b819-cf752b0cb8ac"
+				"spark.autotune.trackingId": "a1f68b71-c824-49b6-95b8-7ee2fc1d0391"
 			}
 		},
 		"metadata": {
@@ -95,7 +95,7 @@
 					"from pyspark.sql.functions import col\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 16
 			},
 			{
 				"cell_type": "code",
@@ -104,7 +104,7 @@
 					"\n",
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": null
+				"execution_count": 17
 			},
 			{
 				"cell_type": "markdown",
@@ -204,7 +204,7 @@
 					"    logInfo(f\"Target table empty or error getting watermark: {e}\")\n",
 					"    safe_start_date = datetime(1900, 1, 1).date()"
 				],
-				"execution_count": null
+				"execution_count": 18
 			},
 			{
 				"cell_type": "markdown",
@@ -233,19 +233,16 @@
 					"    CREATE OR REPLACE TEMPORARY VIEW incremental_source AS\n",
 					"    SELECT * FROM odw_standardised_db.hr_absence_monthly\n",
 					"    WHERE \n",
-					"        StaffNumber IS NOT NULL \n",
-					"        AND StartDate IS NOT NULL \n",
-					"        AND EndDate IS NOT NULL\n",
-					"        AND (\n",
-					"            -- Include records with recent start dates (new absences)\n",
-					"            TO_DATE(StartDate,'dd/MM/yyyy') >= DATE('{safe_start_date}')\n",
-					"            OR \n",
-					"            -- Include records with recent end dates (recently ended absences)\n",
-					"            TO_DATE(EndDate,'dd/MM/yyyy') >= DATE('{safe_start_date}')\n",
-					"            OR\n",
-					"            -- Include records with NULL AbsType (always process these as they may be corrected data)\n",
-					"            AbsType IS NULL\n",
-					"        )\n",
+					"    StaffNumber IS NOT NULL \n",
+					"    AND StartDate IS NOT NULL \n",
+					"    AND EndDate IS NOT NULL\n",
+					"    AND (\n",
+					"        -- Use ingestion date for incremental logic (when record was loaded to standardised)\n",
+					"        CAST(ingested_datetime AS DATE) >= DATE('{safe_start_date}')\n",
+					"        OR\n",
+					"        -- Always include NULL AbsType records \n",
+					"        AbsType IS NULL\n",
+					"    )\n",
 					"    \"\"\")\n",
 					"    \n",
 					"    incremental_source_count = spark.sql(\"SELECT COUNT(*) as count FROM incremental_source\").collect()[0]['count']\n",
@@ -385,7 +382,7 @@
 					"    \n",
 					"    raise e"
 				],
-				"execution_count": null
+				"execution_count": 19
 			},
 			{
 				"cell_type": "markdown",
@@ -581,6 +578,338 @@
 					"    logInfo(\"Flushing logs\")\n",
 					"    flushLogging()\n",
 					"    mssparkutils.notebook.exit(json.dumps(result))"
+				],
+				"execution_count": 20
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"\n",
+					"select *  FROM odw_standardised_db.hr_absence_monthly \n",
+					"where AbsType='APPROVED - 2025-09-25 17:16:15.0000000 - 087ca62a236f47e1b1614b99fa69f1ae'"
+				],
+				"execution_count": 6
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"\n",
+					"select *  FROM odw_harmonised_db.sap_hr_absence_all \n",
+					"where AbsType='APPROVED - 2025-09-25 17:16:15.0000000 - 087ca62a236f47e1b1614b99fa69f1ae'"
+				],
+				"execution_count": 8
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"-- Find APPROVED records in harmonised that DON'T exist in standardised\n",
+					"WITH HarmonisedApproved AS (\n",
+					"    SELECT \n",
+					"        StaffNumber,\n",
+					"        StartDate,\n",
+					"        EndDate,\n",
+					"        AbsType,\n",
+					"        RowID\n",
+					"    FROM odw_harmonised_db.sap_hr_absence_all \n",
+					"    WHERE EndDate BETWEEN '2025-10-01' AND '2025-10-31' \n",
+					"    AND AttendanceorAbsenceType = 'Sickness'\n",
+					"    AND AbsType LIKE '%APPROV%'\n",
+					"),\n",
+					"StandardisedApproved AS (\n",
+					"    SELECT \n",
+					"        StaffNumber,\n",
+					"        TO_DATE(StartDate, 'dd/MM/yyyy') as StartDate,\n",
+					"        TO_DATE(EndDate, 'dd/MM/yyyy') as EndDate,\n",
+					"        AbsType,\n",
+					"        MD5(CONCAT_WS('|',\n",
+					"            StaffNumber,            \n",
+					"            COALESCE(AbsType, 'NULL_ABSTYPE'),                \n",
+					"            COALESCE(SicknessGroup, ''),          \n",
+					"            TO_DATE(StartDate,'dd/MM/yyyy'),              \n",
+					"            TO_DATE(EndDate,'dd/MM/yyyy'),                \n",
+					"            AttendanceorAbsenceType,\n",
+					"            REPLACE(Days, ',', ''),                   \n",
+					"            REPLACE(Hrs, ',', ''),                    \n",
+					"            Caldays,                \n",
+					"            WorkScheduleRule,       \n",
+					"            REPLACE(Wkhrs, ',', ''),                  \n",
+					"            REPLACE(HrsDay, ',', ''),                 \n",
+					"            REPLACE(WkDys, ',', '')\n",
+					"        )) AS RowID\n",
+					"    FROM odw_standardised_db.hr_absence_monthly \n",
+					"    WHERE TO_DATE(EndDate, 'dd/MM/yyyy') BETWEEN '2025-10-01' AND '2025-10-31' \n",
+					"    AND AttendanceorAbsenceType = 'Sickness'\n",
+					"    AND AbsType LIKE '%APPROV%'\n",
+					")\n",
+					"SELECT \n",
+					"    h.StaffNumber,\n",
+					"    h.StartDate,\n",
+					"    h.EndDate,\n",
+					"    h.AbsType,\n",
+					"    h.RowID,\n",
+					"    'IN HARMONISED BUT NOT IN STANDARDISED' as status\n",
+					"FROM HarmonisedApproved h\n",
+					"LEFT JOIN StandardisedApproved s ON h.RowID = s.RowID\n",
+					"WHERE s.RowID IS NULL\n",
+					"ORDER BY h.StartDate;"
+				],
+				"execution_count": 21
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"-- Find ALL records in harmonised that don't match APPROVED pattern\n",
+					"SELECT \n",
+					"    StaffNumber,\n",
+					"    StartDate,\n",
+					"    EndDate,\n",
+					"    AbsType,\n",
+					"    CASE \n",
+					"        WHEN AbsType IS NULL OR TRIM(AbsType) = '' THEN 'NULL_ABSTYPE'\n",
+					"        WHEN AbsType LIKE '%-%' THEN UPPER(TRIM(SPLIT(AbsType, '-')[0]))\n",
+					"        ELSE 'UNKNOWN'\n",
+					"    END AS ApprovalStatus\n",
+					"FROM odw_harmonised_db.sap_hr_absence_all \n",
+					"WHERE EndDate BETWEEN '2025-10-01' AND '2025-10-31' \n",
+					"AND AttendanceorAbsenceType = 'Sickness'\n",
+					"AND (\n",
+					"    AbsType IS NULL \n",
+					"    OR TRIM(AbsType) = ''\n",
+					"    OR NOT (AbsType LIKE '%APPROV%')\n",
+					")\n",
+					"ORDER BY ApprovalStatus, StartDate;"
+				],
+				"execution_count": 22
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"select *  FROM odw_harmonised_db.sap_hr_absence_all "
+				],
+				"execution_count": 23
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"UPDATE odw_harmonised_db.sap_hr_absence_all \n",
+					"SET IsActive = 'N', \n",
+					"    ValidTo = CURRENT_TIMESTAMP()\n",
+					"WHERE RowID IN (\n",
+					"    '1727407a04c2d122d4c5d4588f8',  -- 50410555, 2025-04-25 to 2025-10-22\n",
+					"    'eb3d50ce7f0624aea35ce0202e8',  -- 50410602, 2025-09-25 to 2025-10-05\n",
+					"    'df1b76321a4759ffb983744da3e0', -- 00500728, 2025-09-29 to 2025-10-17\n",
+					"    'b9ea894e691d98a564aa89cea29',  -- 00500397, 2025-09-29 to 2025-10-29\n",
+					"    '0e8a5a02a129962bcd44291102f'   -- 50421635, 2025-09-30 to 2025-10-13\n",
+					")\n",
+					"AND IsActive = 'Y';"
+				],
+				"execution_count": 24
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"-- Get full RowIDs for orphaned records\n",
+					"WITH HarmonisedApproved AS (\n",
+					"    SELECT RowID, StaffNumber, StartDate, EndDate\n",
+					"    FROM odw_harmonised_db.sap_hr_absence_all \n",
+					"    WHERE EndDate BETWEEN '2025-10-01' AND '2025-10-31' \n",
+					"    AND AttendanceorAbsenceType = 'Sickness'\n",
+					"    AND AbsType LIKE '%APPROV%'\n",
+					"),\n",
+					"StandardisedApproved AS (\n",
+					"    SELECT \n",
+					"        MD5(CONCAT_WS('|',\n",
+					"            StaffNumber,            \n",
+					"            COALESCE(AbsType, 'NULL_ABSTYPE'),                \n",
+					"            COALESCE(SicknessGroup, ''),          \n",
+					"            TO_DATE(StartDate,'dd/MM/yyyy'),              \n",
+					"            TO_DATE(EndDate,'dd/MM/yyyy'),                \n",
+					"            AttendanceorAbsenceType,\n",
+					"            REPLACE(Days, ',', ''),                   \n",
+					"            REPLACE(Hrs, ',', ''),                    \n",
+					"            Caldays,                \n",
+					"            WorkScheduleRule,       \n",
+					"            REPLACE(Wkhrs, ',', ''),                  \n",
+					"            REPLACE(HrsDay, ',', ''),                 \n",
+					"            REPLACE(WkDys, ',', '')\n",
+					"        )) AS RowID\n",
+					"    FROM odw_standardised_db.hr_absence_monthly \n",
+					"    WHERE TO_DATE(EndDate, 'dd/MM/yyyy') BETWEEN '2025-10-01' AND '2025-10-31' \n",
+					"    AND AttendanceorAbsenceType = 'Sickness'\n",
+					"    AND AbsType LIKE '%APPROV%'\n",
+					")\n",
+					"SELECT h.RowID\n",
+					"FROM HarmonisedApproved h\n",
+					"LEFT JOIN StandardisedApproved s ON h.RowID = s.RowID\n",
+					"WHERE s.RowID IS NULL;"
+				],
+				"execution_count": 26
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"-- Find records in harmonised that are NOT APPROVED\n",
+					"SELECT \n",
+					"    StaffNumber,\n",
+					"    StartDate,\n",
+					"    EndDate,\n",
+					"    AbsType,\n",
+					"    CASE \n",
+					"        WHEN AbsType IS NULL OR TRIM(AbsType) = '' THEN 'NULL_ABSTYPE'\n",
+					"        WHEN AbsType LIKE '%-%' THEN UPPER(TRIM(SPLIT(AbsType, '-')[0]))\n",
+					"        ELSE 'UNKNOWN'\n",
+					"    END AS ApprovalStatus\n",
+					"FROM odw_harmonised_db.sap_hr_absence_all \n",
+					"WHERE EndDate BETWEEN '2025-10-01' AND '2025-10-31' \n",
+					"AND AttendanceorAbsenceType = 'Sickness'\n",
+					"AND NOT (AbsType LIKE '%APPROV%')\n",
+					"ORDER BY StartDate;"
+				],
+				"execution_count": 28
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"-- Count by ApprovalStatus in harmonised\n",
+					"SELECT \n",
+					"    CASE \n",
+					"        WHEN AbsType IS NULL OR TRIM(AbsType) = '' THEN 'NULL_ABSTYPE'\n",
+					"        WHEN AbsType LIKE '%-%' THEN UPPER(TRIM(SPLIT(AbsType, '-')[0]))\n",
+					"        ELSE 'UNKNOWN'\n",
+					"    END AS ApprovalStatus,\n",
+					"    COUNT(*) as cnt\n",
+					"FROM odw_harmonised_db.sap_hr_absence_all \n",
+					"WHERE EndDate BETWEEN '2025-10-01' AND '2025-10-31' \n",
+					"AND AttendanceorAbsenceType = 'Sickness'\n",
+					"GROUP BY \n",
+					"    CASE \n",
+					"        WHEN AbsType IS NULL OR TRIM(AbsType) = '' THEN 'NULL_ABSTYPE'\n",
+					"        WHEN AbsType LIKE '%-%' THEN UPPER(TRIM(SPLIT(AbsType, '-')[0]))\n",
+					"        ELSE 'UNKNOWN'\n",
+					"    END\n",
+					"ORDER BY cnt DESC;"
+				],
+				"execution_count": 30
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"SELECT COUNT(*) as standardised_count\n",
+					"FROM odw_standardised_db.hr_absence_monthly\n",
+					"WHERE TO_DATE(EndDate, 'dd/MM/yyyy') BETWEEN '2025-10-01' AND '2025-10-31'\n",
+					"AND AttendanceorAbsenceType = 'Sickness';"
+				],
+				"execution_count": 31
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"SELECT count(*),left(AbsType,9)\n",
+					"FROM odw_standardised_db.hr_absence_monthly\n",
+					"WHERE TO_DATE(EndDate, 'dd/MM/yyyy') BETWEEN '2025-10-01' AND '2025-10-31'\n",
+					"AND AttendanceorAbsenceType = 'Sickness'\n",
+					"    group by left(AbsType,9)"
+				],
+				"execution_count": 37
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					}
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					""
 				],
 				"execution_count": null
 			}
