@@ -30,7 +30,7 @@ class SchemaUtil():
             return "string"
         elif isinstance(column["type"], list):
             column["type"] = column["type"][0]
-            return self.get_type(column)
+            return self._get_type(column)
         elif column["type"] == "integer":
             return "long"
         else:
@@ -47,7 +47,7 @@ class SchemaUtil():
                     "metadata": {},
                     "name": key,
                     # type doesn't exist for all fields, hence adding this check
-                    "type": self.get_type(value),
+                    "type": self._get_type(value),
                     "nullable": "type" not in value or "null" in value.get("type", [])
                 }
             )
@@ -108,10 +108,26 @@ class SchemaUtil():
     def get_schema_for_entity(self, entity_name: str):
         """
         Download the schema for the given entity from the data-model repository, and format it for ODW ETL processes
+
+        :return Json: A json object with the below structure
+        ```
+        {
+            "fields": [
+                {
+                    "metadata": {},
+                    "name": "colName",  # The name of the column
+                    "type": "string",  # The datatype of the column
+                    "nullable": True  # The nullability of the column
+                },
+                ...
+            ]
+        }
+        ```
         """
+        # Need to see if we can instead return the schema as a model object from data-model
         url: str = f"https://raw.githubusercontent.com/Planning-Inspectorate/data-model/main/schemas/{entity_name}.schema.json"
         LoggingUtil().log_info(f"Reading schema from {url}")
-        schema: dict = self.get_schema_from_url(url)
+        schema: dict = self._get_schema_from_url(url)
 
         if not schema:
             raise Exception(f"No schema defined at '{url}' for entity '{entity_name}'")
