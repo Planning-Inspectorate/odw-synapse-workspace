@@ -76,6 +76,7 @@ class SynapseTableDataIO(SynapseDataIO):
         :param str blob_path: The path to the blob (in the container) to write the underlying data to
         :param str file_format: The underlying file format of the table to write
         :param str write_mode: The pyspark write mode for writing the underlying data
+        :param list[tuple[str, str]] write_options: Additional spark options when writing the data
         """
         database_name = kwargs.get("database_name", None)
         table_name = kwargs.get("table_name", None)
@@ -85,6 +86,7 @@ class SynapseTableDataIO(SynapseDataIO):
         blob_path = kwargs.get("blob_path", None)
         file_format = kwargs.get("file_format", None)
         write_mode = kwargs.get("write_mode", None)
+        write_options = kwargs.get("write_options", [])
         if not database_name:
             raise ValueError(f"SynapseTableDataIO.write requires a database_name to be provided, but was missing")
         if not table_name:
@@ -106,4 +108,8 @@ class SynapseTableDataIO(SynapseDataIO):
             data_path = self._format_to_adls_path(container_name, blob_path, storage_name=storage_name)
         else:
             data_path = self._format_to_adls_path(storage_name, container_name, blob_path, storage_endpoint=storage_endpoint)
-        data.write.format(file_format).mode(write_mode).option("path", data_path).saveAsTable(table_path)
+        write_options = set([("path", data_path)] + write_options)
+        writer = data.write.format(file_format).mode(write_mode)
+        for option_name, option_value in write_options:
+            writer.option(option_name, option_value)
+        writer.saveAsTable(table_path)
