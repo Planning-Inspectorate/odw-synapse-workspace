@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "69d03f2d-8669-4085-9f7a-1af124e3b950"
+				"spark.autotune.trackingId": "c347952f-489b-4636-a43a-79ddf813610b"
 			}
 		},
 		"metadata": {
@@ -85,6 +85,21 @@
 				]
 			},
 			{
+				"cell_type": "code",
+				"source": [
+					"# This cell is generated from runtime parameters. Learn more: https://go.microsoft.com/fwlink/?linkid=2161015\n",
+					"PipelineName = \"service-bus\"\n",
+					"PipelineRunID = \"4ac7ccd4-00e3-4d84-bc3d-d21f54869da9\"\n",
+					"PipelineTriggerID = \"4271f97a-4e34-4991-8d64-e1e87ab58f19\"\n",
+					"PipelineTriggerName = \"4271f97a-4e34-4991-8d64-e1e87ab58f19\"\n",
+					"PipelineTriggerType = \"PipelineActivity\"\n",
+					"PipelineTriggeredbyPipelineName = \"service-bus\"\n",
+					"PipelineTriggeredbyPipelineRunID = \"72e8e766-4452-432b-a08c-d8e74459d3a6\"\n",
+					""
+				],
+				"execution_count": 1
+			},
+			{
 				"cell_type": "markdown",
 				"metadata": {
 					"nteract": {
@@ -98,7 +113,14 @@
 				]
 			},
 			{
-				"cell_type": "code",
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
 				"source": [
 					"from pyspark.sql import functions as F\n",
 					"from pyspark.sql.window import Window\n",
@@ -108,15 +130,14 @@
 					"from pyspark.sql.functions import explode, col\n",
 					"import time\n",
 					"import json"
-				],
-				"execution_count": 40
+				]
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 35
+				"execution_count": 3
 			},
 			{
 				"cell_type": "markdown",
@@ -147,7 +168,7 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": 39
+				"execution_count": 4
 			},
 			{
 				"cell_type": "markdown",
@@ -161,6 +182,13 @@
 				"source": [
 					"##### Read and Filter Harmonised Metadata for Delta Table Path"
 				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					""
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -200,7 +228,7 @@
 					"    end_exec_time = datetime.now()\n",
 					""
 				],
-				"execution_count": 23
+				"execution_count": 5
 			},
 			{
 				"cell_type": "markdown",
@@ -219,30 +247,34 @@
 				"cell_type": "code",
 				"source": [
 					"if not error_message:\n",
-					"try:\n",
-					"    if spark.catalog.tableExists(spark_table_final):\n",
-					"        print(f\"Delta table {spark_table_final} already exists.\")\n",
-					"    else:\n",
-					"        print(f\"Delta table {spark_table_final} does not exist. create_table_from_schema.\")\n",
-					"        result = dbutils.notebook.run(\n",
-					"            \"service-bus/create_table_from_schema\",\n",
-					"            arguments={\"db_name\": db_name, \"entity_name\": entity_name}\n",
-					"        )\n",
-					"        print(f\"create_table_from_schema notebook result: {result}\")\n",
-					"\n",
-					"        # Re-check existence after create_table_from_schema\n",
-					"        if not spark.catalog.tableExists(spark_table_final):\n",
-					"            raise RuntimeError(\n",
-					"                f\"create_table_from_schema completed but table still missing: {spark_table_final}\"\n",
+					"    try:\n",
+					"        if spark.catalog.tableExists(spark_table_final):\n",
+					"            print(f\"Delta table {spark_table_final} already exists.\")\n",
+					"        else:\n",
+					"            print(f\"Delta table {spark_table_final} does not exist. create_table_from_schema.\")\n",
+					"            result = dbutils.notebook.run(\n",
+					"                \"service-bus/create_table_from_schema\",\n",
+					"                arguments={\"db_name\": db_name, \"entity_name\": entity_name}\n",
 					"            )\n",
-					"        print(f\"Delta table {spark_table_final} now exists after provisioning.\")\n",
+					"            print(f\"create_table_from_schema notebook result: {result}\")\n",
 					"\n",
-					" except Exception as e:\n",
+					"            # Re-check existence after create_table_from_schema\n",
+					"            if not spark.catalog.tableExists(spark_table_final):\n",
+					"                raise RuntimeError(\n",
+					"                    f\"create_table_from_schema completed but table still missing: {spark_table_final}\"\n",
+					"                )\n",
+					"            print(f\"Delta table {spark_table_final} now exists after provisioning.\")\n",
+					"\n",
+					"        # --- Continue with your schema changes here, if needed ---\n",
+					"        # e.g. spark.sql(f\"ALTER TABLE delta.`{delta_table_path}` ADD COLUMN ...\")\n",
+					"\n",
+					"    except Exception as e:\n",
 					"        error_message = f\"Error during schema check/update: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()\n",
-					"        print(error_message) "
+					"        print(error_message)\n",
+					""
 				],
-				"execution_count": null
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
@@ -292,7 +324,7 @@
 					"        print(error_message)\n",
 					""
 				],
-				"execution_count": 24
+				"execution_count": 8
 			},
 			{
 				"cell_type": "markdown",
@@ -329,7 +361,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 25
+				"execution_count": 9
 			},
 			{
 				"cell_type": "markdown",
@@ -371,7 +403,7 @@
 					"        print(error_message)\n",
 					""
 				],
-				"execution_count": 26
+				"execution_count": 10
 			},
 			{
 				"cell_type": "markdown",
@@ -430,7 +462,7 @@
 					"        print(error_message)\n",
 					""
 				],
-				"execution_count": 27
+				"execution_count": 11
 			},
 			{
 				"cell_type": "markdown",
@@ -501,7 +533,7 @@
 					"        print(error_message)\n",
 					""
 				],
-				"execution_count": 28
+				"execution_count": 12
 			},
 			{
 				"cell_type": "markdown",
@@ -535,7 +567,7 @@
 					"        print(error_message)\n",
 					""
 				],
-				"execution_count": 33
+				"execution_count": 13
 			},
 			{
 				"cell_type": "markdown",
@@ -638,7 +670,7 @@
 					"        print(error_message)\n",
 					""
 				],
-				"execution_count": 32
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
@@ -675,7 +707,7 @@
 					"    status_code\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 15
 			}
 		]
 	}
