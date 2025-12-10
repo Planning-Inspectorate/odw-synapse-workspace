@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "14b1b3f6-b703-433e-96f3-f537be53c1e7"
+				"spark.autotune.trackingId": "22066851-6f5b-447b-bed8-e312e4f08894"
 			}
 		},
 		"metadata": {
@@ -82,7 +82,7 @@
 					"import os\n",
 					"import re\n",
 					"from notebookutils import mssparkutils\n",
-					"from pyspark.sql.functions import col, expr, when, lit, udf, concat_ws, explode, array, struct\n",
+					"from pyspark.sql.functions import col, expr, when, lit, udf, concat_ws, explode, array, struct, regexp_replace\n",
 					"from pyspark.sql.types import *\n",
 					"from pyspark.sql import SparkSession\n",
 					"spark = SparkSession.builder.getOrCreate()\n",
@@ -92,7 +92,7 @@
 					"warnings.filterwarnings(\"ignore\", message=\"iteritems is deprecated\")\n",
 					""
 				],
-				"execution_count": 1
+				"execution_count": 42
 			},
 			{
 				"cell_type": "markdown",
@@ -114,7 +114,7 @@
 					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
 					"print(storage_account)"
 				],
-				"execution_count": 2
+				"execution_count": 43
 			},
 			{
 				"cell_type": "markdown",
@@ -134,7 +134,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 3
+				"execution_count": 44
 			},
 			{
 				"cell_type": "markdown",
@@ -162,9 +162,14 @@
 					"current_date = datetime.now().strftime(\"%Y-%m-%d\")\n",
 					"timestamp = datetime.now().strftime(\"%Y%m%d_%H%M\")\n",
 					"csv_filename = f\"rejected_green_case_records_{timestamp}.csv\"\n",
+					"\n",
+					"storage_name = storage_account.replace(\".dfs.core.windows.net/\", \"\")\n",
+					"\n",
+					"\n",
+					"start_time = datetime.now()\n",
 					""
 				],
-				"execution_count": 6
+				"execution_count": 45
 			},
 			{
 				"cell_type": "markdown",
@@ -182,16 +187,6 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"# Initialize json processing results\n",
-					"processing_results = {\n",
-					"    \"processing_summary\":{\n",
-					"    \"total_tables_processed\": 0,\n",
-					"    \"successful_overwrites\": 0,\n",
-					"    \"failed_overwrites\": 0\n",
-					"    },\n",
-					"    \"update_table_details\": []\n",
-					"}\n",
-					"\n",
 					"# Get latest folder\n",
 					"def get_latest_folder(path):\n",
 					"    folders = [f.name for f in mssparkutils.fs.ls(path) if f.isDir]\n",
@@ -246,11 +241,34 @@
 					"    \n",
 					"    return None\n",
 					"\n",
+					"def time_diff_seconds(start, end):\n",
+					"    try:\n",
+					"        if not start or not end:\n",
+					"            return 0\n",
+					"\n",
+					"        # Parse strings into datetime objects if needed\n",
+					"        if isinstance(start, str):\n",
+					"            start = datetime.strptime(start, \"%Y-%m-%d %H:%M:%S.%f\")\n",
+					"        if isinstance(end, str):\n",
+					"            end = datetime.strptime(end, \"%Y-%m-%d %H:%M:%S.%f\")\n",
+					"\n",
+					"        diff_seconds = int((end - start).total_seconds())\n",
+					"        return diff_seconds if diff_seconds > 0 else 0\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        return 0\n",
+					"\n",
+					"#This funtion handles datetime object and covert into string\n",
+					"def datetime_handler(obj):\n",
+					"    if isinstance(obj, datetime):\n",
+					"        return obj.isoformat()\n",
+					"    raise TypeError(f\"Object of type {obj.__class__.__name__} is not JSON serializable\")\n",
+					"    \n",
 					"# Register UDF\n",
 					"validate_date_udf = udf(check_date_format_columns, StringType())\n",
 					""
 				],
-				"execution_count": 7
+				"execution_count": 46
 			},
 			{
 				"cell_type": "markdown",
@@ -349,7 +367,7 @@
 					"\n",
 					""
 				],
-				"execution_count": 8
+				"execution_count": 47
 			},
 			{
 				"cell_type": "markdown",
@@ -393,10 +411,9 @@
 					"    total_rejected_rows = 0\n",
 					"\n",
 					"print(f\"   Total rejection rows: {total_rejected_rows:,}\")\n",
-					"print()\n",
 					""
 				],
-				"execution_count": 9
+				"execution_count": 48
 			},
 			{
 				"cell_type": "markdown",
@@ -476,61 +493,12 @@
 					"        result_path = None\n",
 					"    # Use result_path in your JSON output\n",
 					"    print(f\"\\nFinal file: {result_path}\")\n",
+					"    \n",
 					"else:\n",
 					"    print(\"No rejections - nothing to save\")    \n",
 					""
 				],
-				"execution_count": 12
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"editable": false,
-					"run_control": {
-						"frozen": true
-					}
-				},
-				"source": [
-					"\n",
-					"# write and rename CSV file into a _temp folder\n",
-					"\n",
-					"print(f\"Writing CSV...\")\n",
-					"print(f\"Filename: {csv_filename}\")\n",
-					"print(f\"Location: {output_folder}\")\n",
-					"\n",
-					"# Write to temp\n",
-					"df_output.coalesce(1).write \\\n",
-					"    .mode(\"overwrite\") \\\n",
-					"    .option(\"header\", \"true\") \\\n",
-					"    .option(\"encoding\", \"UTF-8\") \\\n",
-					"    .option(\"quote\", '\"') \\\n",
-					"    .option(\"escape\", '\"') \\\n",
-					"    .csv(temp_folder)\n",
-					"\n",
-					"# Locate CSV file\n",
-					"files = mssparkutils.fs.ls(temp_folder)\n",
-					"csv_files = [f.path for f in files if f.path.endswith('.csv') and not f.name.startswith('_')]\n",
-					"\n",
-					"if csv_files:\n",
-					"    source_csv = csv_files[0]\n",
-					"    \n",
-					"    # Move the file to csv filename\n",
-					"    mssparkutils.fs.mv(source_csv, final_file_path)\n",
-					"    \n",
-					"    # Cleanup _temp folder\n",
-					"    mssparkutils.fs.rm(temp_folder, recurse=True)\n",
-					"    \n",
-					"    print(f\"created: {final_file_path}\")\n",
-					"    \n",
-					"    result_path = final_file_path\n",
-					"else:\n",
-					"    print(\"No csv file generated\")\n",
-					"    result_path = None\n",
-					"\n",
-					"# Use result_path in your JSON output\n",
-					"print(f\"\\nFinal file: {result_path}\")"
-				],
-				"execution_count": 47
+				"execution_count": 49
 			},
 			{
 				"cell_type": "markdown",
@@ -555,39 +523,58 @@
 					"else:\n",
 					"    unique_rejected_records = 0\n",
 					"\n",
-					"summary = {\n",
-					"    \"validation_timestamp\": datetime.now().isoformat(),\n",
-					"    \"table_name\": source_delta_table,\n",
-					"    \"unique_rejected_records\": unique_rejected_records,\n",
-					"    \"total_rejection_rows\": total_rejected_rows,\n",
-					"    \"rejection_file_name\": csv_filename,\n",
-					"    \"rejection_file_path\": result_path,\n",
-					"    \"duplicates\": duplicates_count,\n",
-					"    \"null_active\": null_active_count,\n",
-					"    \"date_errors\": total_date_errors,\n",
-					"    \"validation_status\": \"Failed\" if total_rejected_rows > 0 else \"Passed\"\n",
+					"result_path = result_path.replace(f\"@{storage_account}\", \"/\").replace(\"abfss://\", \"/\")\n",
+					"\n",
+					"print(f\"\\nFinal file: {result_path}\")\n",
+					"\n",
+					"json_output = {\n",
+					"    \"logging_info\": {\n",
+					"        \"start_time\": str(start_time),\n",
+					"        \"end_time\": str(datetime.now()),\n",
+					"        \"total_exec_time\": str(time_diff_seconds(start_time,datetime.now())),\n",
+					"        \"table_name\": source_delta_table\n",
+					"    },\n",
+					"    \"validation_summary\": {\n",
+					"        \"unique_rejected_records\": unique_rejected_records,\n",
+					"        \"total_rejection_rows\": total_rejected_rows,\n",
+					"        \"storage_name\": storage_name,\n",
+					"        \"rejection_file_name\": csv_filename,\n",
+					"        \"rejection_file_path\": result_path,\n",
+					"        \"duplicates\": duplicates_count,\n",
+					"        \"null_active\": null_active_count,\n",
+					"        \"date_errors\": total_date_errors,\n",
+					"        \"validation_status\": \"Failed\" if total_rejected_rows > 0 else \"Passed\"\n",
+					"    }\n",
 					"}\n",
 					"\n",
-					"print(f\"Unique Rejected Records:    {summary['unique_rejected_records']:,}\")\n",
-					"print(f\"Total Rejection Rows:       {summary['total_rejection_rows']:,}\")\n",
-					"print(f\"Duplicates: {summary['duplicates']:,}\")\n",
-					"print(f\"NULL Active: {summary['null_active']:,}\")\n",
-					"print(f\"Date Errors: {summary['date_errors']:,}\")\n",
-					"print(f\"Status: {summary['validation_status']}\")\n",
+					"\n",
+					"print(f\"start_time:    {json_output['logging_info']['start_time']:}\")\n",
+					"print(f\"end_time:    {json_output['logging_info']['end_time']:}\")\n",
+					"print(f\"total_exec_time:    {json_output['logging_info']['total_exec_time']:}\")\n",
+					"print(f\"table_name:    {json_output['logging_info']['table_name']:}\")\n",
+					"\n",
+					"print(f\"Unique Rejected Records:    {json_output['validation_summary']['unique_rejected_records']:,}\")\n",
+					"print(f\"Total Rejection Rows:       {json_output['validation_summary']['total_rejection_rows']:,}\")\n",
+					"print(f\"Duplicates: {json_output['validation_summary']['duplicates']:,}\")\n",
+					"print(f\"NULL Active: {json_output['validation_summary']['null_active']:,}\")\n",
+					"print(f\"Date Errors: {json_output['validation_summary']['date_errors']:,}\")\n",
+					"print(f\"Status: {json_output['validation_summary']['validation_status']}\")\n",
 					"\n",
 					"if result_path:\n",
-					"    print(f\"File Path: {summary['rejection_file_path']}\")\n",
-					"    print(f\"CSV File Name: {summary['rejection_file_name']}\")\n",
+					"    print(f\"File Path: {json_output['validation_summary']['rejection_file_path']}\")\n",
+					"    print(f\"CSV File Name: {json_output['validation_summary']['rejection_file_name']}\")\n",
 					"\n",
 					"\n",
 					"# Convert to JSON\n",
-					"result_json = json.dumps(summary, indent=2)\n",
+					"result_json = json.dumps(json_output, indent=2, default=datetime_handler)\n",
+					"# Convert to JSON string\n",
+					"#result_json_str = json.dumps(json_result, indent=2, default=datetime_handler)\n",
 					"\n",
 					"print(\"JSON OUTPUT:\")\n",
 					"print(result_json)\n",
 					"print()"
 				],
-				"execution_count": 17
+				"execution_count": 55
 			},
 			{
 				"cell_type": "code",
@@ -595,14 +582,7 @@
 					"# Exit with the JSON result\n",
 					"mssparkutils.notebook.exit(result_json)"
 				],
-				"execution_count": 18
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"#spark.sql(f\"DROP TABLE IF EXISTS odw_harmonised_db.load_sap_hr_weekly\")"
-				],
-				"execution_count": null
+				"execution_count": 51
 			}
 		]
 	}
