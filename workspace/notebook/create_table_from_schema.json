@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5a53a4ec-5575-4148-89c6-733e4da61405"
+				"spark.autotune.trackingId": "9bb30278-f364-4998-aa86-b810fce949ba"
 			}
 		},
 		"metadata": {
@@ -50,32 +50,45 @@
 			},
 			"sessionKeepAliveTimeout": 30
 		},
-			"cells": [
-				{
-					"cell_type": "code",
-					"metadata": {
-						"jupyter": {
-							"source_hidden": false,
-							"outputs_hidden": true
-						},
-						"nteract": {
-							"transient": {
-								"deleting": false
-							}
-						}
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"PipelineName = \"ManualTest\"\n",
+					"PipelineRunID = \"manual-run\"\n",
+					"PipelineTriggerID = \"manual-trigger-id\"\n",
+					"PipelineTriggerName = \"manual-trigger\"\n",
+					"PipelineTriggerType = \"Manual\"\n",
+					"PipelineTriggeredbyPipelineName = \"\"\n",
+					"PipelineTriggeredbyPipelineRunID = \"\""
+				],
+				"execution_count": 23
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": true
 					},
-					"source": [
-						"%run utils/py_logging_decorator"
-					],
-					"execution_count": null
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
 				},
-				{
-					"cell_type": "code",
-					"source": [
-						"%run utils/py_applicationinsights"
-					],
-					"execution_count": null
-				},
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": 1
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_applicationinsights"
+				],
+				"execution_count": 3
+			},
 			{
 				"cell_type": "code",
 				"metadata": {
@@ -98,7 +111,7 @@
 					"from notebookutils import mssparkutils\n",
 					"import pyspark.sql.utils"
 				],
-				"execution_count": null
+				"execution_count": 4
 			},
 			{
 				"cell_type": "markdown",
@@ -130,11 +143,11 @@
 					]
 				},
 				"source": [
-					"db_name: str = ''\n",
-					"entity_name: str = ''\n",
+					"db_name: str = 'odw_curated_db'\n",
+					"entity_name: str = 'appeal-has'\n",
 					"is_servicebus_schema: bool = True"
 				],
-				"execution_count": null
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
@@ -146,7 +159,7 @@
 					"delete_count = 0\n",
 					"error_message = ''"
 				],
-				"execution_count": null
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
@@ -172,7 +185,7 @@
 					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
 					"path_to_orchestration_file: str = \"abfss://odw-config@\"+storage_account+\"orchestration/orchestration.json\""
 				],
-				"execution_count": null
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
@@ -195,7 +208,7 @@
 					"    table_names: list = [row['tableName'] for row in tables_df.collect()]\n",
 					"    return table_name in table_names"
 				],
-				"execution_count": null
+				"execution_count": 8
 			},
 			{
 				"cell_type": "code",
@@ -263,7 +276,7 @@
 					"else:\n",
 					"    logInfo(f\"{db_name}.{table_name} Table does not already exist\")"
 				],
-				"execution_count": null
+				"execution_count": 9
 			},
 			{
 				"cell_type": "code",
@@ -287,7 +300,7 @@
 					"    definition: dict = next((d for d in definitions if entity_name == d['Source_Filename_Start']), None)\n",
 					"    return definition['Harmonised_Incremental_Key'] if definition and 'Harmonised_Incremental_Key' in definition else None"
 				],
-				"execution_count": null
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
@@ -332,19 +345,24 @@
 					"\n",
 					"    return spark_schema"
 				],
-				"execution_count": null
+				"execution_count": 13
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"try:\n",
 					"    storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
-					"    metadata_path: str = \"abfss://odw-config@\"+storage_account+\"existing-tables-metadata.json\"\n",
+					"    metadata_path: str = \"abfss://odw-config@\"+storage_account+\"test-existing-tables-metadata.json\"\n",
+					"    # Spark reads are lazy; ensure the path exists and force a small action\n",
+					"    if not mssparkutils.fs.exists(metadata_path):\n",
+					"        raise FileNotFoundError(f\"Metadata file not found at {metadata_path}\")\n",
 					"    df  = spark.read.json(metadata_path, multiLine=True)\n",
+					"    _ = df.limit(1).count()\n",
 					"except Exception as e:\n",
-					"    error_message = f\"Failed to load existing tables metadata: {str(e)[:800]}\""
+					"    error_message = f\"Failed to load existing tables metadata: {str(e)[:800]}\"\n",
+					"    end_exec_time = datetime.now()"
 				],
-				"execution_count": null
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
@@ -361,7 +379,7 @@
 					"    df_exploded = standardised_df.union(harmonised_df).union(curated_df).union(logging_df).union(config_df).selectExpr(\"metadata.*\")\n",
 					"    df_exploded.cache()"
 				],
-				"execution_count": null
+				"execution_count": 15
 			},
 			{
 				"cell_type": "code",
@@ -398,7 +416,7 @@
 					"        return None, None, None\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 16
 			},
 			{
 				"cell_type": "code",
@@ -419,7 +437,7 @@
 					"    spark_dataframe: DataFrame = spark.createDataFrame([], schema=create_spark_schema(db_name, entity_name))\n",
 					"    return spark_dataframe"
 				],
-				"execution_count": null
+				"execution_count": 17
 			},
 			{
 				"cell_type": "code",
@@ -464,7 +482,7 @@
 					"    except Exception as e: \n",
 					"        logError(f\"Unexpected error creating table {table_full_name}: {str(e)}\")"
 				],
-				"execution_count": null
+				"execution_count": 18
 			},
 			{
 				"cell_type": "code",
@@ -489,7 +507,7 @@
 					"    if db_name == 'odw_curated_db':\n",
 					"        return 'odw-curated'"
 				],
-				"execution_count": null
+				"execution_count": 19
 			},
 			{
 				"cell_type": "code",
@@ -510,7 +528,7 @@
 					"    finally:\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": null
+				"execution_count": 20
 			},
 			{
 				"cell_type": "code",
@@ -529,13 +547,14 @@
 					"tableExists:bool = test_table_exists(db_name, table_name)\n",
 					"logInfo(f\"{db_name}.{table_name} exists = {tableExists}\")"
 				],
-				"execution_count": null
+				"execution_count": 21
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"# Final telemetry\n",
-					"if not error_message:\n",
+					"# Ensure end_exec_time exists even on early/metadata failures\n",
+					"if 'end_exec_time' not in globals():\n",
 					"    end_exec_time = datetime.now()\n",
 					"\n",
 					"duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
@@ -570,7 +589,7 @@
 					"    status_code\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 22
 			}
 		]
 	}
