@@ -4,15 +4,86 @@ from odw.core.util.azure_blob_util import AzureBlobUtil
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.table_util import TableUtil
 from odw.core.etl.etl_result import ETLResult, ETLResultFactory
+from odw.core.etl.util.schema_util import SchemaUtil
 from pyspark.sql import SparkSession, DataFrame
+from pyspark.sql.types import StructType
+import pyspark.sql.functions as F
 from datetime import datetime, timedelta, date
 from typing import Dict, List, Any
 import json
+import re
+from copy import deepcopy
 
 
 class StandardisationProcess(TransformationProcess):
+    @classmethod
+    def get_name(cls):
+        return "Standardisation Process"
+
+    def standardise(
+        self,
+        data: DataFrame,
+        schema: Dict[str, Any],
+        expected_from: datetime,
+        expected_to: datetime,
+        process_name: str,
+        definition: Dict[str, Any]
+    ):
+        """
+        This replicates the functionality of the `ingest_adhoc` function from `py_1_raw_to_standardised_hr_functions`
+        """
+        df = data.select([col for col in data.columns if not col.startswith("Unnamed")])
+        col_value_map = {
+            "ingested_datetime": F.current_timestamp(),
+            "ingested_by_process_name": F.lit(process_name),
+            "expected_from": F.lit(expected_from),
+            "expected_to": F.lit(expected_to),
+            "input_file": F.input_file_name(),
+            "modified_datetime": F.current_timestamp(),
+            "modified_by_process_name": F.lit(process_name),
+            "entity_name": F.lit(definition["Source_Filename_Start"]),
+            "file_ID": F.sha2(F.concat(F.lit(F.input_file_name()), F.current_timestamp().cast("string")), 256)
+        }
+        for col_name, col_value in col_value_map.items():
+            df = df.withColumn(col_name, col_value)
+
+        ### change any array field to string
+        standardised_table_schema = deepcopy(schema)
+        for field in standardised_table_schema['fields']:
+            if field["type"] == "array":
+                field["type"] = "string"
+        standardised_table_schema = StructType.fromJson(standardised_table_schema)
+
+        ### remove characters that Delta can't allow in headers and add numbers to repeated column headers
+        cols_orig = df.schema.names
+        cols=[re.sub('[^0-9a-zA-Z]+', '_', i).lower() for i in cols_orig]
+        cols=[colm.rstrip('_') for colm in cols]
+        newlist = []
+        for i, v in enumerate(cols):
+            totalcount = cols.count(v)
+            count = cols[:i].count(v)
+            newlist.append(v + str(count + 1) if totalcount > 1 else v)
+        df = df.toDF(*newlist)
+        
+        ### Cast any column in df with type mismatch
+        for field in df.schema:
+            table_field = next((f for f in standardised_table_schema if f.name.lower() == field.name.lower()), None)
+            if table_field is not None and field.dataType != table_field.dataType:
+                df = df.withColumn(field.name, F.col(field.name).cast(table_field.dataType))
+        return df
+
     def process(self, **kwargs) -> ETLResult:
+        # Initialise variables
+        spark = SparkSession.builder.getOrCreate()
+        insert_count = 0
+        process_name = "py_raw_to_std"
+        if date_folder_input == '':
+            date_folder = datetime.now().date()
+        else:
+            date_folder = datetime.strptime(date_folder_input, "%Y-%m-%d")
         start_exec_time = datetime.now()
+        storage_account = Util.get_storage_account()
+
         # Initialise input parameters
         source_data: Dict[str, DataFrame] = kwargs.get("source_data", None)
         if not source_data:
@@ -27,69 +98,36 @@ class StandardisationProcess(TransformationProcess):
         data_attribute: str = kwargs.get("data_attribute", None)
         # Initialise source data
         orchestration_file: Dict[str, Any] = kwargs.get("orchestration_file", None)
-        
-        # Initialise variables
-        spark = SparkSession.builder.getOrCreate()
-        insert_count = 0
-        update_count = 0
-        delete_count = 0
         process_name = "py_raw_to_std"
-        if date_folder_input == '':
-            date_folder = datetime.now().date()
-        else:
-            date_folder = datetime.strptime(date_folder_input, "%Y-%m-%d")
-        storage_account = Util.get_storage_account()
-        raw_container = "abfss://odw-raw@" + storage_account
-        source_folder_path = source_folder if not source_frequency_folder else f"{source_folder}/{source_frequency_folder}"
-        source_path = f"{raw_container}{source_folder_path}/{date_folder.strftime('%Y-%m-%d')}"
 
-        definitions: List[Dict[str, Any]] = orchestration_file.get("definitions", None)
-        if not definition:
-            print("LOG ERROR HERE")
+        definitions: List[Dict[str, Any]] = orchestration_file.pop("definitions", None)
+        if not definitions:
+            raise ValueError("definitions is missing")
 
-        files_to_process = AzureBlobUtil(storage_endpoint=storage_account).list_blobs("odw-raw", source_folder_path)
-        for file_name in files_to_process:
-            # ignore json raw files if source is service bus
-            if source_folder == "ServiceBus" and file_name.endswith(".json"):
-                continue
-
-            # ignore files other than specified file 
-            if specific_file != "" and not file_name.startswith(specific_file + "."):
-                continue
-
+        output_data = {}
+        for file, data in source_data.items():
+            expected_from = date_folder - timedelta(days=1)
+            expected_from = datetime.combine(expected_from, datetime.min.time())
+            expected_to = expected_from + timedelta(days=definition["Expected_Within_Weekdays"])
             definition = next(
                 (
                     d
                     for d in definitions
                     if (specific_file == "" or d["Source_Filename_Start"] == specific_file) and
                        (not source_frequency_folder or d["Source_Frequency_Folder"] == source_frequency_folder) and
-                       file_name.startswith(d["Source_Filename_Start"]
+                       file.startswith(d["Source_Filename_Start"]
                     )
                 ),
                 None
             )
-            if definition:
-                expected_from = date_folder - timedelta(days=1)
-                expected_from = datetime.combine(expected_from, datetime.min.time())
-                expected_to = expected_from + timedelta(days=definition["Expected_Within_Weekdays"])
-                if delete_existing_table:
-                    LoggingUtil().log_info(f"Deleting existing table if exists odw_standardised_db.{definition['Standardised_Table_Name']}")
-                    TableUtil().delete_table(db_name="odw_standardised_db", table_name=definition["Standardised_Table_Name"])
-                LoggingUtil().log_info(f"Ingesting {file_name}")
-                # Todo need to refactor the ingest_adhoc function
-                (ingestion_failure, row_count) = ingest_adhoc(storage_account, definition, source_path, file_name, expected_from, expected_to, process_name, is_multiLine, data_attribute)
-                insert_count = row_count
-                end_exec_time = datetime.now()
-                duration_seconds = (end_exec_time - start_exec_time).total_seconds()
-                activity_type = f"{self.get_name()} ETLProcess"
-                ingestion_outcome = "Success" if not ingestion_failure else "Failed"
-                status_message = (
-                    f"Successfully loaded data into {definition['Standardised_Table_Name']} table"
-                    if not ingestion_failure
-                    else f"Failed to load data from {definition['Standardised_Table_Name']} table"
-                )
-                LoggingUtil().log_info(f"StandardisationProcess Ingested {row_count} rows")
-                # Todo need to handle the logging/error handling, but this should be done in the parent notebook
+            if "Standardised_Table_Definition" in definition:
+                standardised_table_loc = "abfss://odw-config@"+storage_account + definition["Standardised_Table_Definition"]
+                standardised_table_schema = json.loads(spark.read.text(standardised_table_loc, wholetext=True).first().value)
+            else:
+                standardised_table_schema = SchemaUtil(db_name="odw_standardised_db").get_schema_for_entity(definition["Source_Frequency_Folder"])
+            df = self.standardise(data, standardised_table_schema, expected_from, expected_to, process_name, definition)
+            output_data[file] = df
+        return output_data
 
     def load_data(self, data_to_read: List[Dict[str, Any]]) -> Dict[str, DataFrame]:
         data_map = super().load_data(data_to_read)
