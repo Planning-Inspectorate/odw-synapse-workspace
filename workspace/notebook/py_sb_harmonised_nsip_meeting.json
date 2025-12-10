@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "7d88f793-904a-472f-a707-966d30eea85e"
+				"spark.autotune.trackingId": "69135a34-8ae5-451e-80ec-ec7276e915b8"
 			}
 		},
 		"metadata": {
@@ -84,14 +84,8 @@
 					"from pyspark.sql.window import Window\n",
 					"from pyspark.sql import Row\n",
 					"from pyspark.sql.functions import *\n",
-					"from datetime import datetime, date"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"%run utils/py_logging_decorator"
+					"from datetime import datetime, date\n",
+					"from pyspark.sql import DataFrame"
 				],
 				"execution_count": null
 			},
@@ -156,6 +150,40 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"def align_source_to_target_schema(source_df: DataFrame, target_df: DataFrame) -> DataFrame:\n",
+					"    \"\"\"\n",
+					"    Keep all source columns:\n",
+					"    - Columns in both source and target: Cast to target datatype\n",
+					"    - Columns only in source (not in target): Keep with original datatype\n",
+					"    - Columns only in target (not in source): Ignored\n",
+					"    \"\"\"\n",
+					"    target_schema = {field.name: field.dataType for field in target_df.schema.fields}\n",
+					"    \n",
+					"    # Iterate through ALL source columns\n",
+					"    aligned_columns = []\n",
+					"    for col_name in source_df.columns:\n",
+					"        if col_name in target_schema:\n",
+					"            # Column exists in target - cast to target datatype\n",
+					"            aligned_columns.append(\n",
+					"                col(col_name).cast(target_schema[col_name]).alias(col_name)\n",
+					"            )\n",
+					"        else:\n",
+					"            # Column NOT in target - keep original datatype\n",
+					"            aligned_columns.append(col(col_name))\n",
+					"    \n",
+					"    return source_df.select(aligned_columns)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"#Read target table for alignment\n",
+					"target_df = spark.table(spark_table_final)\n",
+					"\n",
 					"#Flatten nested meeting columns and prepare bronze data\n",
 					"service_bus_exploded = service_bus_exploded.select(\n",
 					"    \"NSIPProjectInfoInternalID\",\n",
@@ -171,6 +199,10 @@
 					"    \"SourceSystemID\",\n",
 					"    \"IngestionDate\"\n",
 					")\n",
+					"\n",
+					"service_bus_exploded = align_source_to_target_schema(service_bus_exploded,target_df)\n",
+					"\n",
+					"\n",
 					"# Create business key and row hash\n",
 					"# Use ALL columns that uniquely identify a record\n",
 					"business_key_cols = [\"NSIPProjectInfoInternalID\", \"caseId\", \"meetingId\"]\n",
