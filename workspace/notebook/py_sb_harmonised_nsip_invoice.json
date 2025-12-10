@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "c347952f-489b-4636-a43a-79ddf813610b"
+				"spark.autotune.trackingId": "fdda34ff-14c9-47f0-a88e-f8a9185d54e6"
 			}
 		},
 		"metadata": {
@@ -85,21 +85,6 @@
 				]
 			},
 			{
-				"cell_type": "code",
-				"source": [
-					"# This cell is generated from runtime parameters. Learn more: https://go.microsoft.com/fwlink/?linkid=2161015\n",
-					"PipelineName = \"service-bus\"\n",
-					"PipelineRunID = \"4ac7ccd4-00e3-4d84-bc3d-d21f54869da9\"\n",
-					"PipelineTriggerID = \"4271f97a-4e34-4991-8d64-e1e87ab58f19\"\n",
-					"PipelineTriggerName = \"4271f97a-4e34-4991-8d64-e1e87ab58f19\"\n",
-					"PipelineTriggerType = \"PipelineActivity\"\n",
-					"PipelineTriggeredbyPipelineName = \"service-bus\"\n",
-					"PipelineTriggeredbyPipelineRunID = \"72e8e766-4452-432b-a08c-d8e74459d3a6\"\n",
-					""
-				],
-				"execution_count": 1
-			},
-			{
 				"cell_type": "markdown",
 				"metadata": {
 					"nteract": {
@@ -111,6 +96,16 @@
 				"source": [
 					"#### Import required libraries"
 				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"from datetime import datetime, date\n",
+					"from pyspark.sql.types import *\n",
+					"import json"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -137,7 +132,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 3
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -168,7 +163,7 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": 4
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -186,49 +181,51 @@
 			{
 				"cell_type": "code",
 				"source": [
-					""
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
+					"\n",
 					"try:\n",
-					"    # Get storage account name\n",
-					"    storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
-					"    metadata_path: str = f\"abfss://odw-config@{storage_account}/existing-tables-metadata.json\"\n",
+					"    # 1) Get storage account + read the JSON\n",
+					"    storage_account = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"    metadata_path = f\"abfss://odw-config@{storage_account}/existing-tables-metadata.json\"\n",
+					"    file_content = mssparkutils.fs.head(metadata_path, 1024 * 1024)  # up to 1MB\n",
+					"    metadata_root = json.loads(file_content)\n",
 					"\n",
-					"    # Read file content using mssparkutils\n",
-					"    file_content = mssparkutils.fs.head(metadata_path, 1024 * 1024)  # Read up to 1MB (adjust if needed)\n",
+					"    # 2) Find the 'harmonised_metadata' array in the root list\n",
+					"    harmonised_metadata = []\n",
+					"    if isinstance(metadata_root, list):\n",
+					"        for block in metadata_root:\n",
+					"            if isinstance(block, dict) and \"harmonised_metadata\" in block:\n",
+					"                harmonised_metadata = block.get(\"harmonised_metadata\", [])\n",
+					"                break\n",
+					"    else:\n",
+					"        # Fallback if the root isn’t a list\n",
+					"        harmonised_metadata = metadata_root.get(\"harmonised_metadata\", [])\n",
 					"\n",
-					"    # Parse JSON\n",
-					"    metadata = json.loads(file_content)\n",
+					"    print(f\"harmonised_metadata entries: {len(harmonised_metadata)}\")\n",
 					"\n",
-					"    # If metadata is a list, take the first element (or iterate)\n",
-					"    if isinstance(metadata, list):\n",
-					"        metadata = metadata[0]  # Assuming only one root object\n",
+					"    # 3) Normalise names (strip) and filter\n",
+					"    target_db = db_name.strip()\n",
+					"    target_table = table_name.strip()\n",
 					"\n",
-					"    # Extract harmonised metadata\n",
-					"    harmonised_metadata = metadata.get(\"harmonised_metadata\", [])\n",
-					"\n",
-					"    # Filter for matching db_name and table_name\n",
 					"    filtered = [\n",
 					"        item for item in harmonised_metadata\n",
-					"        if item.get(\"database_name\") == db_name and item.get(\"table_name\") == table_name\n",
+					"        if item.get(\"database_name\", \"\").strip() == target_db\n",
+					"        and item.get(\"table_name\", \"\").strip() == target_table\n",
 					"    ]\n",
 					"\n",
+					"    # 4) Use the match\n",
 					"    if filtered:\n",
 					"        delta_table_path = filtered[0].get(\"table_location\")\n",
-					"        print(f\"Delta table path: {delta_table_path}\")\n",
+					"        print(f\"Delta table path for {target_db}.{target_table}: {delta_table_path}\")\n",
 					"    else:\n",
-					"        raise ValueError(f\"No metadata found for {db_name}.{table_name}\")\n",
+					"        raise ValueError(f\"No metadata found for {target_db}.{target_table}\")\n",
 					"\n",
 					"except Exception as e:\n",
 					"    error_message = f\"Error while reading metadata: {str(e)[:800]}\"\n",
 					"    end_exec_time = datetime.now()\n",
+					"    print(error_message)\n",
 					""
 				],
-				"execution_count": 5
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -252,7 +249,7 @@
 					"            print(f\"Delta table {spark_table_final} already exists.\")\n",
 					"        else:\n",
 					"            print(f\"Delta table {spark_table_final} does not exist. create_table_from_schema.\")\n",
-					"            result = dbutils.notebook.run(\n",
+					"            result = mssparkutils.notebook.run(\n",
 					"                \"service-bus/create_table_from_schema\",\n",
 					"                arguments={\"db_name\": db_name, \"entity_name\": entity_name}\n",
 					"            )\n",
@@ -274,7 +271,7 @@
 					"        print(error_message)\n",
 					""
 				],
-				"execution_count": 7
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -324,7 +321,7 @@
 					"        print(error_message)\n",
 					""
 				],
-				"execution_count": 8
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -361,7 +358,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 9
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -403,7 +400,7 @@
 					"        print(error_message)\n",
 					""
 				],
-				"execution_count": 10
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -462,7 +459,7 @@
 					"        print(error_message)\n",
 					""
 				],
-				"execution_count": 11
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -533,7 +530,7 @@
 					"        print(error_message)\n",
 					""
 				],
-				"execution_count": 12
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -567,7 +564,7 @@
 					"        print(error_message)\n",
 					""
 				],
-				"execution_count": 13
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -659,10 +656,10 @@
 					"            )\n",
 					"            .execute()\n",
 					"        )\n",
-					"        update_count = int(metrics.get(\"numTargetRowsUpdated\", 0))\n",
+					"\n",
 					"\n",
 					"        end_exec_time = datetime.now()\n",
-					"        print(f\"MERGE completed successfully. Updates: {update_count}. Latest record IsActive='Y', older ones='N'.\")\n",
+					"        print(f\"MERGE completed successfully. Updates: {update_count}\")\n",
 					"\n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error during MERGE operation: {str(e)[:800]}\"\n",
@@ -670,7 +667,36 @@
 					"        print(error_message)\n",
 					""
 				],
-				"execution_count": 14
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"        # ... your MERGE logic here ...\n",
+					"        \n",
+					"        # after MERGE succeeds, derive update count via ValidTo = today\n",
+					"        today = date.today()\n",
+					"        rowsInactivatedTodayCount = (\n",
+					"            spark.table(spark_table_final)\n",
+					"             .filter(F.to_date(\"ValidTo\") == F.lit(today))\n",
+					"             .count()\n",
+					"        )\n",
+					"        \n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(\n",
+					"            f\"MERGE completed successfully. \"\n",
+					"            f\"Rows inactivated today: {rowsInactivatedTodayCount}.\"\n",
+					"        )\n",
+					"        \n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error during MERGE operation: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)\n",
+					""
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -707,7 +733,7 @@
 					"    status_code\n",
 					")"
 				],
-				"execution_count": 15
+				"execution_count": null
 			}
 		]
 	}
