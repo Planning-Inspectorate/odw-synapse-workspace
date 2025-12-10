@@ -1,0 +1,495 @@
+{
+	"name": "py_purview_df_anonymiser",
+	"properties": {
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "c290233e-bb0b-448b-8821-cf5a977c3b7f"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"source": [
+					"# py_purview_apiInteracts with Azure Purview to resolve assets, retrieve classifications and apply anonymisation rules to Spark DataFrames.Sections: Imports, Parameters, Preview, Purview lookup, Anonymisation, Display."
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"import os\n",
+					"import json\n",
+					"import requests\n",
+					"import random as _rand\n",
+					"from notebookutils import mssparkutils\n",
+					"from pyspark.sql import functions as F\n",
+					"from pyspark.sql.functions import regexp_extract, max\n",
+					"from pyspark.sql.types import Row, StructType, StructField, StringType, BooleanType, TimestampType\n",
+					"from pyspark.sql import DataFrame, SparkSession"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from odw.core.anonymisation import *"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from odw.core.util.logging_util import LoggingUtil"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Parameters\n",
+					"\n",
+					"- entity_name: Service Bus entity name (e.g. 'service-user').\n",
+					"- file_name: Source filename when not using Service Bus schema.\n",
+					"- is_servicebus_schema: Set True when reading from Service Bus paths."
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"entity_name = 'service-user'\n",
+					"file_name = 'AppealsAdditionalData.csv'\n",
+					"source_folder= 'ServiceBus' # ServiceBus, Horizon, entraid"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Test import of a Dataframe"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# table_name: str = f\"odw_standardised_db.sb_{entity_name.replace('-', '_')}\"\n",
+					"table_name: str = f\"odw_standardised_db.sb_service_user\"\n",
+					"table_df = spark.table(table_name)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Load Info from Purview"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"VAULT_NAME = spark.sparkContext.environment.get('keyVaultName')\n",
+					"if not VAULT_NAME:\n",
+					"    raise ValueError(\"Cannot determine Key Vault linked service (keyVaultName) from Spark environment\")\n",
+					"SECRET_NAME     = \"application-insights-reader\"\n",
+					"\n",
+					"os.environ[\"ODW_CLIENT_SECRET\"] = mssparkutils.credentials.getSecret(VAULT_NAME, SECRET_NAME)\n",
+					"\n",
+					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"os.environ[\"ODW_STORAGE_ACCOUNT_DFS_HOST\"] = storage_account"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if source_folder == 'ServiceBus':\n",
+					"    source_path: str = f\"https://{storage_account}odw-raw/{source_folder}/{entity_name}/\"+ \"{Year}-{Month}-{Day}\" + \"/\" + entity_name + \"_{Year}-{Month}-{Day}T{Hour}:{N}:{N}.{N}+{N}:{N}.json\"\n",
+					"elif source_folder == 'Horizon':\n",
+					"    source_path: str = f\"https://{storage_account}odw-raw/{source_folder}/\" + \"{Year}-{Month}-{Day}\" + \"/\" + f\"{file_name}\"\n",
+					"elif source_folder== 'entraid': \n",
+					"    source_path: str = f\"https://{storage_account}odw-raw/{source_folder}/{entity_name}/\"+ \"{Year}-{Month}-{Day}\" + \"/\" + entity_name + \".json\"\n",
+					"else:\n",
+					"    raise Exception(\"Source Folder not recognised\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"source_path"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Old Config\n",
+					"\n",
+					"TENANT_ID       = \"5878df98-6f88-48ab-9322-998ce557088d\"\n",
+					"CLIENT_ID       = \"5750ab9b-597c-4b0d-b0f0-f4ef94e91fc0\"\n",
+					"SECRET_NAME     = \"application-insights-reader\"\n",
+					"PURVIEW_NAME    = \"pins-pview\"\n",
+					"API_VERSION     = \"2023-09-01\"\n",
+					"\n",
+					"ASSET_GUID              = \"\" \n",
+					"ASSET_TYPE_NAME         = \"azure_datalake_gen2_resource_set\"\n",
+					"# ASSET_QUALIFIED_NAME    = \"https://pinsstodwdevuks9h80mb.dfs.core.windows.net/odw-raw/ServiceBus/nsip-document/{Year}-{Month}-{Day}/nsip-document.csv\"\n",
+					"ASSET_QUALIFIED_NAME = source_path\n",
+					"CLASSIFIED_FIELDS = (\"PotentialID\", \"NI Number\", \"Email Address\", \"Email Address Column Name\", \"First Name\", \"Last Name\", \"Birth Date\", \"Annual Salary\", \"Person's Age\", \"MICROSOFT.PERSONAL.EMAIL\", \"MICROSOFT.PERSONAL.NAME\", \"All Full Names\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"VAULT_NAME = spark.sparkContext.environment.get('keyVaultName')\n",
+					"if not VAULT_NAME:\n",
+					"    raise ValueError(\"Cannot determine Key Vault linked service (keyVaultName) from Spark environment\")\n",
+					"\n",
+					"CLIENT_SECRET = mssparkutils.credentials.getSecret(VAULT_NAME, SECRET_NAME)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from odw.core.anonymisation import AnonymisationEngine\n",
+					"engine = AnonymisationEngine()\n",
+					"out = engine.apply_from_purview(\n",
+					"    table_df,\n",
+					"    entity_name=entity_name,\n",
+					"    file_name=file_name,\n",
+					"    source_folder=source_folder,\n",
+					")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"display(out)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from odw.core.anonymisation import fetch_purview_classifications_by_qualified_name\n",
+					"\n",
+					"raw_cols = fetch_purview_classifications_by_qualified_name(\n",
+					"    PURVIEW_NAME, TENANT_ID, CLIENT_ID, CLIENT_SECRET,\n",
+					"    ASSET_TYPE_NAME, ASSET_QUALIFIED_NAME, API_VERSION\n",
+					")\n",
+					"print(\"raw_cols count:\", len(raw_cols))\n",
+					"print(raw_cols[:10])"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from odw.core.anonymisation.engine import _get_entity_with_refs, _extract_classified_columns\n",
+					"\n",
+					"ent = _get_entity_with_refs(PURVIEW_NAME, guid, headers=headers)\n",
+					"cols = _extract_classified_columns(ent, purview_name=PURVIEW_NAME, headers=headers)\n",
+					"print(\"Found\", len(cols), \"classified columns\")\n",
+					"print(cols[:5])"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# def extract_cols(entity_with_refs: dict):\n",
+					"#     rel_attrs = (entity_with_refs.get(\"entity\", {}) or {}).get(\"relationshipAttributes\", {}) or {}\n",
+					"#     attached_schema = rel_attrs.get(\"attachedSchema\", []) or []\n",
+					"#     schema_guid = attached_schema[0][\"guid\"] if attached_schema else None\n",
+					"#     cols = entity_with_refs.get(\"referredEntities\", {}) or {}\n",
+					"#     out = []\n",
+					"#     for guid, col in cols.items():\n",
+					"#         classes = col.get(\"classifications\", []) or []\n",
+					"#         if classes:\n",
+					"#             out.append({\n",
+					"#                 \"column_guid\": guid,\n",
+					"#                 \"column_name\": (col.get(\"attributes\", {}) or {}).get(\"name\"),\n",
+					"#                 \"column_type\": col.get(\"typeName\"),\n",
+					"#                 \"classifications\": [c.get(\"typeName\") for c in classes],\n",
+					"#             })\n",
+					"#     return out\n",
+					"\n",
+					"# cols = extract_cols(ent)\n",
+					"# print(\"classified columns:\", len(cols)); print(cols[:10])"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Execute Anonymisation"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Anonymisation Rules"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+"# Use Anonymise.seed_col(df) to derive a deterministic seed from standard staff columns.\n",
+"\n",
+"# Use Anonymise.mask_keep_first_last(F.col(col)) to mask strings keeping first/last characters.\n",
+"\n",
+"# @F.udf('string')\n",
+"# def mask_fullname_udf(v):\n",
+"#     if v is None:\n",
+"#         return None\n",
+"#     parts = [p for p in str(v).split() if p]\n",
+"#     def m(p):\n",
+"#         p = str(p)\n",
+"#         if len(p) <= 2:\n",
+"#             return p\n",
+"#         return p[0] + ('*' * (len(p) - 2)) + p[-1]\n",
+"#     return ' '.join(m(p) for p in parts)\n",
+"\n",
+"# Use Anonymise.random_int_from_seed(seed, min_value, max_value).\n",
+"\n",
+"# Use Anonymise.random_date_from_seed(seed, start='1955-01-01', end='2005-12-31').\n",
+					"\n",
+					"# @F.udf('string')\n",
+					"# def mask_email_with_persno_udf(email, pers_no, is_lm):\n",
+					"#     try:\n",
+					"#         if email is None:\n",
+					"#             return None\n",
+					"#         s = str(email)\n",
+					"#         local = s.split('@')[0]\n",
+					"#         if len(local) <= 2:\n",
+					"#             masked_local = local\n",
+					"#         else:\n",
+					"#             masked_local = local[0] + ('*' * (len(local) - 2)) + local[-1]\n",
+					"#         return f\"{masked_local}@#PINS.com\"\n",
+					"#     except Exception:\n",
+					"#         return None\n",
+					"\n",
+					"@F.udf('string')\n",
+					"def generate_random_ni_number_udf(seed_str):\n",
+					"    import hashlib\n",
+					"    s = 'seed' if seed_str is None else str(seed_str)\n",
+					"    h = hashlib.sha256(s.encode('utf-8')).digest()\n",
+					"    letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ'\n",
+					"    first = letters[h[0] % len(letters)]\n",
+					"    second = letters[h[1] % len(letters)]\n",
+					"    digits = ''.join(str(h[i] % 10) for i in range(2, 8))\n",
+					"    last = 'ABCD'[h[8] % 4]\n",
+					"    return f\"{first}{second}{digits}{last}\"\n",
+					"\n",
+"def apply_anonymisation_rules(df, sensitive_cols, classification):\n",
+"    seed = Anonymise.seed_col(df)\n",
+"    out = df\n",
+					"    exists = set(df.columns)\n",
+					"    staff_col_name = next((c for c in ['Staff Number','PersNo','PersNo.','Personnel Number','Employee ID','EmployeeID'] if c in df.columns), None)\n",
+					"    staff_col = F.col(staff_col_name) if staff_col_name else seed\n",
+					"    # Ensure we have iterable of dicts with 'column_name' and 'classifications'\n",
+					"    if not isinstance(sensitive_cols, list):\n",
+					"        return out\n",
+					"    for item in sensitive_cols:\n",
+					"        if not isinstance(item, dict):\n",
+					"            continue\n",
+					"        col = item.get('column_name')\n",
+					"        if not col or col not in exists:\n",
+					"            continue\n",
+					"        classes = set(item.get('classifications', []) or [])\n",
+					"        # consider only classes in the provided classification allowlist\n",
+					"        if not any(c in classification for c in classes):\n",
+					"            continue\n",
+					"        is_lm = 'line manager' in col.lower()\n",
+					"        # Precedence-based application\n",
+					"        if ('NI Number' in classes):\n",
+					"            out = out.withColumn(col, generate_random_ni_number_udf(staff_col.cast('string')))\n",
+					"            continue\n",
+					"        if 'MICROSOFT.PERSONAL.EMAIL' in classes or 'Email Address' in classes:\n",
+					"            out = out.withColumn(col, mask_email_with_persno_udf(F.col(col), staff_col.cast('string'), F.lit(is_lm)))\n",
+					"            continue\n",
+					"        if 'MICROSOFT.PERSONAL.NAME' in classes or 'First Name' in classes or 'Last Name' in classes:\n",
+					"            # If appears to be a full name field, obfuscate each part; otherwise mask after first two\n",
+					"            if 'name' in col.lower() and 'first' not in col.lower() and 'last' not in col.lower():\n",
+					"                out = out.withColumn(col, mask_fullname_udf(F.col(col)))\n",
+					"            else:\n",
+"                out = out.withColumn(col, Anonymise.mask_keep_first_last(F.col(col)))\n",
+					"            continue\n",
+					"        if 'Birth Date' in classes or 'Date of Birth' in classes:\n",
+"            out = out.withColumn(col, Anonymise.random_date_from_seed(seed))\n",
+					"            continue\n",
+					"        if \"Person's Age\" in classes or 'Employee Age' in classes:\n",
+"            out = out.withColumn(col, Anonymise.random_int_from_seed(seed, 18, 70).cast('int'))\n",
+					"            continue\n",
+					"        if 'Annual Salary' in classes:\n",
+"            out = out.withColumn(col, Anonymise.random_int_from_seed(seed, 20000, 100000).cast('int'))\n",
+					"            continue\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Test"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"anonym_table_df = apply_anonymisation_rules(\n",
+					"    table_df,\n",
+					"    classified_cols,\n",
+					"    CLASSIFIED_FIELDS\n",
+					")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"classified_cols"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"display(table_df)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"display(anonym_table_df)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"# #DF\n",
+					"\n",
+					"# schema = StructType([\n",
+					"#    StructField(\"asset_guid\",           StringType(), True),\n",
+					"#    StructField(\"asset_name\",           StringType(), True),\n",
+					"#    StructField(\"asset_fqn\",            StringType(), True),\n",
+					"#    StructField(\"asset_type\",           StringType(), True),\n",
+					"#    StructField(\"column_guid\",          StringType(), True),\n",
+					"#    StructField(\"column_name\",          StringType(), True),\n",
+					"#    StructField(\"column_entity_type\",   StringType(), True),\n",
+					"#    StructField(\"column_data_type\",     StringType(), True),\n",
+					"#    StructField(\"classification_name\",  StringType(), True),\n",
+					"#    StructField(\"classification_state\", StringType(), True),\n",
+					"#    StructField(\"propagate\",            BooleanType(), True),\n",
+					"# ])\n",
+					"\n",
+					"# df = spark.createDataFrame(rows, schema) if rows else spark.createDataFrame([], schema)\n",
+					"# df.createOrReplaceTempView(\"columns_with_classification\")\n",
+					"\n",
+					"# display(df.orderBy(\"column_name\"))\n",
+					"\n",
+					""
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
