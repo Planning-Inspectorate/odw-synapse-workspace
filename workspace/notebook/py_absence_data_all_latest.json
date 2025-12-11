@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "4b1de527-0e29-4538-a356-1b231eb5b80e"
+				"spark.autotune.trackingId": "decef5b4-9023-4b2a-87af-9577639efe48"
 			}
 		},
 		"metadata": {
@@ -741,8 +741,6 @@
 				"source": [
 					"%%sql\n",
 					"\n",
-					"\n",
-					"\n",
 					"-- Count: How many APPROVED records in Harmonised have been CANCELLED in Source?\n",
 					"\n",
 					"WITH CancelledInSource AS (\n",
@@ -775,7 +773,7 @@
 					"\n",
 					"WHERE h.IsActive = 'Y';"
 				],
-				"execution_count": null
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
@@ -786,8 +784,6 @@
 				},
 				"source": [
 					"%%sql\n",
-					"\n",
-					"\n",
 					"\n",
 					"-- DELETE APPROVED records from Harmonised where Source shows CANCELLED\n",
 					"\n",
@@ -858,10 +854,10 @@
 					"EndDate,\n",
 					"IsActive\n",
 					"FROM odw_harmonised_db.sap_hr_absence_all\n",
-					"WHERE StaffNumber = '50410555'\n",
-					"AND StartDate = '2025-04-25';"
+					"WHERE StaffNumber = '50410602'\n",
+					""
 				],
-				"execution_count": null
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
@@ -1178,6 +1174,305 @@
 					"ORDER BY EndDate DESC;"
 				],
 				"execution_count": 45
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Q1"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"-- Find APPROVED records in Harmonised that don't exist in Source\n",
+					"-- These are the records to DELETE\n",
+					"\n",
+					"WITH HarmonisedRecords AS (\n",
+					"    SELECT\n",
+					"        StaffNumber,\n",
+					"        AbsType,\n",
+					"        StartDate,\n",
+					"        EndDate,\n",
+					"        Days,\n",
+					"        REVERSE(SPLIT(REVERSE(AbsType), '-')[0]) AS RecordUUID\n",
+					"    FROM odw_harmonised_db.sap_hr_absence_all\n",
+					"    WHERE EndDate BETWEEN '2025-10-01' AND '2025-10-31'\n",
+					"    AND AttendanceorAbsenceType = 'Sickness'\n",
+					"    AND AbsType LIKE '%APPROV%'\n",
+					"),\n",
+					"SourceRecords AS (\n",
+					"    SELECT\n",
+					"        StaffNumber,\n",
+					"        AbsType,\n",
+					"        TO_DATE(StartDate, 'dd/MM/yyyy') AS StartDate,\n",
+					"        TO_DATE(EndDate, 'dd/MM/yyyy') AS EndDate,\n",
+					"        Days,\n",
+					"        REVERSE(SPLIT(REVERSE(AbsType), '-')[0]) AS RecordUUID\n",
+					"    FROM odw_standardised_db.hr_absence_monthly\n",
+					"    WHERE CAST(TO_DATE(EndDate,'dd/MM/yyyy') AS DATE) BETWEEN '2025-10-01' AND '2025-10-31'\n",
+					"    AND AttendanceorAbsenceType = 'Sickness'\n",
+					"    AND AbsType LIKE '%APPROV%'\n",
+					")\n",
+					"SELECT\n",
+					"    h.StaffNumber,\n",
+					"    h.AbsType,\n",
+					"    h.StartDate,\n",
+					"    h.EndDate,\n",
+					"    h.Days,\n",
+					"    h.RecordUUID,\n",
+					"    'IN HARMONISED BUT NOT IN SOURCE - DELETE' AS Action\n",
+					"FROM HarmonisedRecords h\n",
+					"LEFT JOIN SourceRecords s ON h.RecordUUID = s.RecordUUID\n",
+					"WHERE s.RecordUUID IS NULL\n",
+					"ORDER BY h.StaffNumber, h.StartDate;"
+				],
+				"execution_count": 10
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Q2"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"-- Count orphaned records\n",
+					"WITH HarmonisedUUIDs AS (\n",
+					"    SELECT DISTINCT REVERSE(SPLIT(REVERSE(AbsType), '-')[0]) AS RecordUUID\n",
+					"    FROM odw_harmonised_db.sap_hr_absence_all\n",
+					"    WHERE EndDate BETWEEN '2025-10-01' AND '2025-10-31'\n",
+					"    AND AttendanceorAbsenceType = 'Sickness'\n",
+					"    AND AbsType LIKE '%APPROV%'\n",
+					"),\n",
+					"SourceUUIDs AS (\n",
+					"    SELECT DISTINCT REVERSE(SPLIT(REVERSE(AbsType), '-')[0]) AS RecordUUID\n",
+					"    FROM odw_standardised_db.hr_absence_monthly\n",
+					"    WHERE CAST(TO_DATE(EndDate,'dd/MM/yyyy') AS DATE) BETWEEN '2025-10-01' AND '2025-10-31'\n",
+					"    AND AttendanceorAbsenceType = 'Sickness'\n",
+					"    AND AbsType LIKE '%APPROV%'\n",
+					")\n",
+					"SELECT\n",
+					"    COUNT(*) AS orphaned_records_to_delete,\n",
+					"    'Records in Harmonised but NOT in Source (should be deleted)' AS description\n",
+					"FROM HarmonisedUUIDs h\n",
+					"LEFT JOIN SourceUUIDs s ON h.RecordUUID = s.RecordUUID\n",
+					"WHERE s.RecordUUID IS NULL;"
+				],
+				"execution_count": 12
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Q3"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"-- Find UUIDs with multiple records in Harmonised (sickness extensions not cleaned up)\n",
+					"SELECT\n",
+					"    REVERSE(SPLIT(REVERSE(AbsType), '-')[0]) AS RecordUUID,\n",
+					"    COUNT(*) AS version_count,\n",
+					"    COLLECT_LIST(CONCAT(StaffNumber, ': ', StartDate, ' to ', EndDate, ' (', Days, ' days)')) AS versions\n",
+					"FROM odw_harmonised_db.sap_hr_absence_all\n",
+					"WHERE EndDate BETWEEN '2025-10-01' AND '2025-10-31'\n",
+					"AND AttendanceorAbsenceType = 'Sickness'\n",
+					"AND AbsType LIKE '%APPROV%'\n",
+					"GROUP BY REVERSE(SPLIT(REVERSE(AbsType), '-')[0])\n",
+					"HAVING COUNT(*) > 1\n",
+					"ORDER BY version_count DESC;"
+				],
+				"execution_count": 13
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Q4"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"MERGE INTO odw_harmonised_db.sap_hr_absence_all AS target\n",
+					"USING (\n",
+					"    -- UUIDs in Source (APPROVED only)\n",
+					"    SELECT DISTINCT REVERSE(SPLIT(REVERSE(AbsType), '-')[0]) AS RecordUUID\n",
+					"    FROM odw_standardised_db.hr_absence_monthly\n",
+					"    WHERE CAST(TO_DATE(EndDate,'dd/MM/yyyy') AS DATE) BETWEEN '2025-10-01' AND '2025-10-31'\n",
+					"    AND AttendanceorAbsenceType = 'Sickness'\n",
+					"    AND AbsType LIKE '%APPROV%'\n",
+					") AS source\n",
+					"ON REVERSE(SPLIT(REVERSE(target.AbsType), '-')[0]) = source.RecordUUID\n",
+					"WHEN NOT MATCHED BY SOURCE \n",
+					"    AND target.EndDate BETWEEN '2025-10-01' AND '2025-10-31'\n",
+					"    AND target.AttendanceorAbsenceType = 'Sickness'\n",
+					"    AND target.AbsType LIKE '%APPROV%'\n",
+					"THEN DELETE;\n",
+					""
+				],
+				"execution_count": 17
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Q5"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"MERGE INTO odw_harmonised_db.sap_hr_absence_all AS target\n",
+					"USING (\n",
+					"    SELECT\n",
+					"        RowID,\n",
+					"        REVERSE(SPLIT(REVERSE(AbsType), '-')[0]) AS RecordUUID,\n",
+					"        COALESCE(\n",
+					"            TRY_CAST(\n",
+					"                REGEXP_EXTRACT(AbsType, '^[A-Z_]+-([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2})', 1)\n",
+					"                AS TIMESTAMP\n",
+					"            ),\n",
+					"            TIMESTAMP('1900-01-01')\n",
+					"        ) AS LastModifiedDate,\n",
+					"        ROW_NUMBER() OVER (\n",
+					"            PARTITION BY REVERSE(SPLIT(REVERSE(AbsType), '-')[0])\n",
+					"            ORDER BY COALESCE(\n",
+					"                TRY_CAST(\n",
+					"                    REGEXP_EXTRACT(AbsType, '^[A-Z_]+-([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2})', 1)\n",
+					"                    AS TIMESTAMP\n",
+					"                ),\n",
+					"                TIMESTAMP('1900-01-01')\n",
+					"            ) DESC\n",
+					"        ) AS rn\n",
+					"    FROM odw_harmonised_db.sap_hr_absence_all\n",
+					"    WHERE EndDate BETWEEN '2025-10-01' AND '2025-10-31'\n",
+					"    AND AttendanceorAbsenceType = 'Sickness'\n",
+					") AS source\n",
+					"ON target.RowID = source.RowID\n",
+					"WHEN MATCHED AND source.rn > 1 THEN DELETE;\n",
+					""
+				],
+				"execution_count": 19
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Q6"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"-- Verify counts match after cleanup\n",
+					"SELECT\n",
+					"    'Standardised' AS Layer,\n",
+					"    COUNT(*) AS RecordCount\n",
+					"FROM odw_standardised_db.hr_absence_monthly\n",
+					"WHERE CAST(TO_DATE(EndDate,'dd/MM/yyyy') AS DATE) BETWEEN '2025-10-01' AND '2025-10-31'\n",
+					"AND AttendanceorAbsenceType = 'Sickness'\n",
+					"AND AbsType LIKE '%APPROV%'\n",
+					"\n",
+					"UNION ALL\n",
+					"\n",
+					"SELECT\n",
+					"    'Harmonised' AS Layer,\n",
+					"    COUNT(*) AS RecordCount\n",
+					"FROM odw_harmonised_db.sap_hr_absence_all\n",
+					"WHERE EndDate BETWEEN '2025-10-01' AND '2025-10-31'\n",
+					"AND AttendanceorAbsenceType = 'Sickness'\n",
+					"AND AbsType LIKE '%APPROV%';"
+				],
+				"execution_count": 21
 			}
 		]
 	}
