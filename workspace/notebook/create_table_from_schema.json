@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5a53a4ec-5575-4148-89c6-733e4da61405"
+				"spark.autotune.trackingId": "e2dd6dd5-62cc-48a5-ad90-894ffe809610"
 			}
 		},
 		"metadata": {
@@ -125,31 +125,29 @@
 				"source": [
 					"db_name: str = ''\n",
 					"entity_name: str = ''\n",
-					"is_servicebus_schema: bool = True"
+					"is_servicebus_schema: bool = True\n",
+					"is_derived_table_status: bool =True"
 				],
 				"execution_count": null
 			},
 			{
 				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
 				"source": [
 					"table_name_replace: str = entity_name.replace(\"-\", \"_\")\n",
+					"\n",
+					"# Apply conditions for table name\n",
 					"if db_name in (\"odw_curated_db\", \"odw_curated_migration_db\") or not is_servicebus_schema:\n",
-					"\ttable_name: str = table_name_replace\n",
+					"    table_name: str = table_name_replace\n",
+					"elif db_name == \"odw_harmonised_db\" and is_derived_table_status:\n",
+					"    # Do NOT add 'sb_' prefix for harmonised derived tables\n",
+					"    table_name: str = table_name_replace\n",
 					"else:\n",
 					"    table_name: str = f\"sb_{table_name_replace}\"\n",
 					"\n",
+					"# Full table name\n",
 					"full_table_name: str = f\"{db_name}.{table_name}\"\n",
+					"\n",
+					"# Storage account and orchestration file path\n",
 					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
 					"path_to_orchestration_file: str = \"abfss://odw-config@\"+storage_account+\"orchestration/orchestration.json\""
 				],
