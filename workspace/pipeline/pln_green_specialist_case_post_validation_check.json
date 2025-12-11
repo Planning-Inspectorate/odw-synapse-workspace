@@ -130,7 +130,14 @@
 						{
 							"name": "Json Output Validation Summary",
 							"type": "SetVariable",
-							"dependsOn": [],
+							"dependsOn": [
+								{
+									"activity": "Set start time",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
 							"policy": {
 								"secureOutput": false,
 								"secureInput": false
@@ -206,7 +213,24 @@
 							}
 						},
 						{
-							"name": "Record completed Sap HR Harmonised data_copy2",
+							"name": "Fail Green Specialist Case pipeline",
+							"type": "Fail",
+							"dependsOn": [
+								{
+									"activity": "Execute Post Validation Notification",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"message": "Post Validation Checks succeeded. Further processing halted.",
+								"errorCode": "99"
+							}
+						},
+						{
+							"name": "Record failed Green Case Post Validation Checks",
 							"type": "ExecutePipeline",
 							"dependsOn": [
 								{
@@ -227,7 +251,7 @@
 								},
 								"waitOnCompletion": true,
 								"parameters": {
-									"Stage": "Completion",
+									"Stage": "Fail",
 									"PipelineName": {
 										"value": "@pipeline().Pipeline",
 										"type": "Expression"
@@ -237,14 +261,15 @@
 										"type": "Expression"
 									},
 									"StartTime": {
-										"value": "@variables('standardised_start_time')",
+										"value": "@item().start_exec_time",
 										"type": "Expression"
 									},
 									"EndTime": {
-										"value": "@utcNow()",
+										"value": "@item().end_exec_time",
 										"type": "Expression"
 									},
-									"StatusMessage": "SAP HR Standardised Monthly data loaded",
+									"ErrorMessage": "Green Specialist Case Post validation checks succeeded. Further processing halted.",
+									"StatusMessage": "Green Specialist Case Post validation checks succeeded.",
 									"PipelineTriggerID": {
 										"value": "@pipeline().TriggerId",
 										"type": "Expression"
@@ -267,10 +292,10 @@
 									},
 									"ActivityType": "Pipeline",
 									"DurationSeconds": {
-										"value": "@concat(\n  formatDateTime(\n    addToTime('1900-01-01T00:00:00.000Z', \n    div(sub(ticks(utcNow()), ticks(variables('standardised_start_time'))), 10000000), \n    'Second'), \n    'HH:mm:ss'\n  ),\n  '.',\n  string(div(mod(sub(ticks(utcNow()), ticks(variables('standardised_start_time'))), 10000000), 10000))\n)",
+										"value": "@item().total_exec_time",
 										"type": "Expression"
 									},
-									"StatusCode": "200",
+									"StatusCode": "400",
 									"AppInsIKey": {
 										"value": "@pipeline().parameters.apps_insights_ikey",
 										"type": "Expression"
@@ -279,21 +304,14 @@
 							}
 						},
 						{
-							"name": "Fail Green Specialist Case pipeline",
-							"type": "Fail",
-							"dependsOn": [
-								{
-									"activity": "Execute Post Validation Notification",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"userProperties": [],
-							"typeProperties": {
-								"message": "Post Validation Checks succeeded. Further processing halted.",
-								"errorCode": "99"
-							}
+							"name": "Set start time",
+							"type": "SetVariable",
+							"dependsOn": [],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": []
 						}
 					]
 				}
