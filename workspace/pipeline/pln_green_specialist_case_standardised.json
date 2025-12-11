@@ -3,11 +3,11 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "Send Sap HR Harmonised failed",
+				"name": "Send Green Specialist Case failed",
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
-						"activity": "If Standardised Transformation Failed",
+						"activity": "pln_green_specialist_case_post_validation_check",
 						"dependencyConditions": [
 							"Failed"
 						]
@@ -44,7 +44,7 @@
 							"value": "@pipeline().Pipeline",
 							"type": "Expression"
 						},
-						"activityMessage": "Sap HR Standardised Layer data load failed",
+						"activityMessage": "Green Specialist Case Standardised Layer data load failed.",
 						"activityDuration": {
 							"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
 							"type": "Expression"
@@ -58,8 +58,8 @@
 							"value": "@pipeline().parameters.failed_image",
 							"type": "Expression"
 						},
-						"Message_title": "SAP HR Standardised Master Monthly pipeline failed",
-						"Message_subtitle": "Sap HR Standardised Monthly feed failed"
+						"Message_title": "Green Specialist Case Standardised Layer pipeline failed",
+						"Message_subtitle": "Green Specialist Case Standardised failed"
 					}
 				}
 			},
@@ -125,7 +125,7 @@
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
-						"activity": "If Standardised Transformation Failed",
+						"activity": "pln_green_specialist_case_post_validation_check",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -552,298 +552,6 @@
 							}
 						}
 					]
-				}
-			},
-			{
-				"name": "ForEachUpdateTable",
-				"type": "ForEach",
-				"dependsOn": [
-					{
-						"activity": "Set json update variable",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"userProperties": [],
-				"typeProperties": {
-					"items": {
-						"value": "@variables('raw_json_update')",
-						"type": "Expression"
-					},
-					"activities": [
-						{
-							"name": "Switch_update_table_status",
-							"type": "Switch",
-							"dependsOn": [],
-							"userProperties": [],
-							"typeProperties": {
-								"on": {
-									"value": "@item().table_result",
-									"type": "Expression"
-								},
-								"cases": [
-									{
-										"value": "success",
-										"activities": [
-											{
-												"name": "Record completed Sap HR transformation data",
-												"type": "ExecutePipeline",
-												"dependsOn": [],
-												"policy": {
-													"secureInput": false
-												},
-												"userProperties": [],
-												"typeProperties": {
-													"pipeline": {
-														"referenceName": "pln_log_to_appins",
-														"type": "PipelineReference"
-													},
-													"waitOnCompletion": true,
-													"parameters": {
-														"Stage": "Completion",
-														"PipelineName": {
-															"value": "@pipeline().Pipeline",
-															"type": "Expression"
-														},
-														"PipelineRunID": {
-															"value": "@pipeline().RunId",
-															"type": "Expression"
-														},
-														"StartTime": {
-															"value": "@item().start_update_exec_time",
-															"type": "Expression"
-														},
-														"EndTime": {
-															"value": "@item().end_update_exec_time",
-															"type": "Expression"
-														},
-														"Updates": {
-															"value": "@item().update_count",
-															"type": "Expression"
-														},
-														"StatusMessage": {
-															"value": "@concat('SAP HR Monthly standardised post transformation for table: ',item().delta_table_name)",
-															"type": "Expression"
-														},
-														"PipelineTriggerID": {
-															"value": "@pipeline().TriggerId",
-															"type": "Expression"
-														},
-														"PipelineTriggerName": {
-															"value": "@pipeline().TriggerName",
-															"type": "Expression"
-														},
-														"PipelineTriggerType": {
-															"value": "@pipeline().TriggerType",
-															"type": "Expression"
-														},
-														"PipelineTriggeredbyPipelineName": {
-															"value": "@pipeline()?.TriggeredByPipelineName",
-															"type": "Expression"
-														},
-														"PipelineTriggeredbyPipelineRunID": {
-															"value": "@pipeline()?.TriggeredByPipelineRunId",
-															"type": "Expression"
-														},
-														"ActivityType": "Pipeline",
-														"DurationSeconds": {
-															"value": "@item().total_update_exec_time",
-															"type": "Expression"
-														},
-														"StatusCode": "200",
-														"AppInsIKey": {
-															"value": "@pipeline().parameters.apps_insights_ikey",
-															"type": "Expression"
-														}
-													}
-												}
-											}
-										]
-									},
-									{
-										"value": "failed",
-										"activities": [
-											{
-												"name": "Record failed Sap HR transformation data",
-												"type": "ExecutePipeline",
-												"dependsOn": [],
-												"policy": {
-													"secureInput": false
-												},
-												"userProperties": [],
-												"typeProperties": {
-													"pipeline": {
-														"referenceName": "pln_log_to_appins",
-														"type": "PipelineReference"
-													},
-													"waitOnCompletion": true,
-													"parameters": {
-														"Stage": "Fail",
-														"PipelineName": {
-															"value": "@pipeline().Pipeline",
-															"type": "Expression"
-														},
-														"PipelineRunID": {
-															"value": "@pipeline().RunId",
-															"type": "Expression"
-														},
-														"StartTime": {
-															"value": "@item().start_update_exec_time",
-															"type": "Expression"
-														},
-														"EndTime": {
-															"value": "@item().end_update_exec_time",
-															"type": "Expression"
-														},
-														"ErrorMessage": {
-															"value": "@concat(item().error_message,' for updating table : ',item().delta_table_name)",
-															"type": "Expression"
-														},
-														"StatusMessage": {
-															"value": "@concat('Post standardised transformation failed:',item().delta_table_name)",
-															"type": "Expression"
-														},
-														"PipelineTriggerID": {
-															"value": "@pipeline().TriggerId",
-															"type": "Expression"
-														},
-														"PipelineTriggerName": {
-															"value": "@pipeline().TriggerName",
-															"type": "Expression"
-														},
-														"PipelineTriggerType": {
-															"value": "@pipeline().TriggerType",
-															"type": "Expression"
-														},
-														"PipelineTriggeredbyPipelineName": {
-															"value": "@pipeline()?.TriggeredByPipelineName",
-															"type": "Expression"
-														},
-														"PipelineTriggeredbyPipelineRunID": {
-															"value": "@pipeline()?.TriggeredByPipelineRunId",
-															"type": "Expression"
-														},
-														"ActivityType": "Pipeline",
-														"DurationSeconds": {
-															"value": "@item().total_update_exec_time",
-															"type": "Expression"
-														},
-														"StatusCode": "400",
-														"AppInsIKey": {
-															"value": "@pipeline().parameters.apps_insights_ikey",
-															"type": "Expression"
-														}
-													}
-												}
-											},
-											{
-												"name": "Set Error Update Flag",
-												"type": "SetVariable",
-												"dependsOn": [
-													{
-														"activity": "Record failed Sap HR transformation data",
-														"dependencyConditions": [
-															"Succeeded"
-														]
-													}
-												],
-												"policy": {
-													"secureOutput": false,
-													"secureInput": false
-												},
-												"userProperties": [],
-												"typeProperties": {
-													"variableName": "error_flag",
-													"value": {
-														"value": "@item().table_result",
-														"type": "Expression"
-													}
-												}
-											}
-										]
-									}
-								],
-								"defaultActivities": [
-									{
-										"name": "Dummy_update",
-										"type": "Wait",
-										"dependsOn": [],
-										"userProperties": [],
-										"typeProperties": {
-											"waitTimeInSeconds": 1
-										}
-									}
-								]
-							}
-						}
-					]
-				}
-			},
-			{
-				"name": "If Standardised Transformation Failed",
-				"type": "IfCondition",
-				"dependsOn": [
-					{
-						"activity": "ForEachUpdateTable",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"userProperties": [],
-				"typeProperties": {
-					"expression": {
-						"value": "@equals(toLower(trim(variables('error_flag'))), 'failed')",
-						"type": "Expression"
-					},
-					"ifFalseActivities": [
-						{
-							"name": "WaitUpdateProceed",
-							"type": "Wait",
-							"dependsOn": [],
-							"userProperties": [],
-							"typeProperties": {
-								"waitTimeInSeconds": 1
-							}
-						}
-					],
-					"ifTrueActivities": [
-						{
-							"name": "FailSapHr_Transformation_Load",
-							"type": "Fail",
-							"dependsOn": [],
-							"userProperties": [],
-							"typeProperties": {
-								"message": "Standardised Notebook failed. One of the csv file couldn't be loaded successfully. Please App Insight Log for further details",
-								"errorCode": "99"
-							}
-						}
-					]
-				}
-			},
-			{
-				"name": "Set json update variable",
-				"type": "SetVariable",
-				"dependsOn": [
-					{
-						"activity": "pln_green_specialist_case_post_validation_check",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"variableName": "raw_json_update",
-					"value": {
-						"value": "@json(activity('nb_green_specialist_case_odw_raw_odw_std').output.status.output.result.exitValue).update_table_details",
-						"type": "Expression"
-					}
 				}
 			},
 			{
