@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ade226ea-0a16-484a-b6c9-6fdc17a284df"
+				"spark.autotune.trackingId": "d9f7cec1-2617-40b1-b94c-e9648e8f5331"
 			}
 		},
 		"metadata": {
@@ -59,7 +59,8 @@
 					"from odw.core.io.data_io_factory import DataIOFactory\n",
 					"from odw.core.io.parser.data_file_parser_factory import DataFileParserFactory\n",
 					"from pyspark.sql import SparkSession\n",
-					"from typing import Dict, Any"
+					"from typing import Dict, Any\n",
+					"import json"
 				],
 				"execution_count": null
 			},
@@ -137,19 +138,32 @@
 				"source": [
 					"source_metadata = input_arguments.pop(\"source_data\")\n",
 					"source_data_map = dict()\n",
+					"data_read_error_map = dict()\n",
 					"for data_name, metadata in source_metadata.items():\n",
-					"    storage_kind = metadata.get(\"storage_kind\", None)\n",
-					"    data_format = metadata.get(\"data_format\", None)\n",
-					"    if not storage_kind:\n",
-					"        raise ValueError(f\"Expected a storage_kind parameter to be passed, but this was missing\")\n",
-					"    if not data_format:\n",
-					"        raise ValueError(f\"Expected a data_format parameter to be passed, but this was missing\")\n",
-					"    data_io_inst = DataIOFactory.get(storage_kind)()\n",
-					"    data_bytes = data_io_inst.read(**metadata)\n",
-					"    parser_inst = DataFileParserFactory.get(data_format)(spark)\n",
-					"    data = parser_inst.from_bytes(data_bytes)\n",
-					"    source_data_map[data_name] = data\n",
-					""
+					"    try:\n",
+					"        storage_kind = metadata.get(\"storage_kind\", None)\n",
+					"        data_format = metadata.get(\"data_format\", None)\n",
+					"        if not storage_kind:\n",
+					"            raise ValueError(f\"Expected a storage_kind parameter to be passed, but this was missing\")\n",
+					"        if not data_format:\n",
+					"            raise ValueError(f\"Expected a data_format parameter to be passed, but this was missing\")\n",
+					"        data_io_inst = DataIOFactory.get(storage_kind)()\n",
+					"        data_bytes = data_io_inst.read(**metadata)\n",
+					"        parser_inst = DataFileParserFactory.get(data_format)(spark)\n",
+					"        data = parser_inst.from_bytes(data_bytes)\n",
+					"        source_data_map[data_name] = data\n",
+					"    except Exception as e:\n",
+					"        data_read_error_map[data_name] = e"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if data_read_errors:\n",
+					"    raise RuntimeError(\n",
+					"        f\"Failed to read the following source data: {json.dumps(data_read_error_map, indent=4)}\"\n",
+					"    )"
 				],
 				"execution_count": null
 			},
@@ -215,16 +229,30 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"data_write_errors = dict()\n",
 					"for result_name, result_metadata in etl_results.items():\n",
-					"    result_data = result_metadata.get(\"data\")\n",
-					"    destination_kind = metadata.get(\"storage_kind\", None)\n",
-					"    destination_data_format = metadata.get(\"data_format\", None)\n",
-					"    if not storage_kind:\n",
-					"        raise ValueError(f\"Expected a storage_kind parameter to be returned by {etl_process_class}.process, but this was missing\")\n",
-					"    if not data_format:\n",
-					"        raise ValueError(f\"Expected a data_format parameter to be returned by {etl_process_class}.process, but this was missing\")\n",
-					"    data_io_inst = DataIOFactory.get(storage_kind)()\n",
-					"    data_io_inst.write(data=result_data, **metadata)"
+					"    try:\n",
+					"        result_data = result_metadata.get(\"data\")\n",
+					"        destination_kind = metadata.get(\"storage_kind\", None)\n",
+					"        destination_data_format = metadata.get(\"data_format\", None)\n",
+					"        if not storage_kind:\n",
+					"            raise ValueError(f\"Expected a storage_kind parameter to be returned by {etl_process_class}.process, but this was missing\")\n",
+					"        if not data_format:\n",
+					"            raise ValueError(f\"Expected a data_format parameter to be returned by {etl_process_class}.process, but this was missing\")\n",
+					"        data_io_inst = DataIOFactory.get(storage_kind)()\n",
+					"        data_io_inst.write(data=result_data, **metadata)\n",
+					"    except Exception as e:\n",
+					"        data_write_errors[result_name] = e"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if data_write_errors:\n",
+					"    raise RuntimeError(\n",
+					"        f\"Failed to write the following result data: {json.dumps(data_write_errors, indent=4)}\"\n",
+					"    )"
 				],
 				"execution_count": null
 			},
