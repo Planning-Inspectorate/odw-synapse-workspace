@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "e7291df9-510c-4ade-b04b-35c8b7b31a61"
+				"spark.autotune.trackingId": "3e2cd1d7-92ae-4275-8c8f-ff4d8e61dd7a"
 			}
 		},
 		"metadata": {
@@ -67,23 +67,24 @@
 					"\n",
 					"from pyspark.sql.window import Window\n",
 					"from delta.tables import DeltaTable\n",
-					"from datetime import datetime"
+					"from datetime import datetime\n",
+					"from pyspark.sql import functions as F"
 				],
-				"execution_count": null
+				"execution_count": 25
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": null
+				"execution_count": 26
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 27
 			},
 			{
 				"cell_type": "code",
@@ -102,7 +103,7 @@
 					"changed_records = 0\n",
 					"unchanged_records = 0"
 				],
-				"execution_count": null
+				"execution_count": 28
 			},
 			{
 				"cell_type": "code",
@@ -117,112 +118,58 @@
 					"        error_message = f\"Error in setting time parser policy: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": null
+				"execution_count": 29
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"\n",
-					"\n",
 					"if not error_message:\n",
 					"    try:\n",
+					"        \n",
+					"        \n",
+					"        \n",
 					"        logInfo(f\"Reading source data from {source_table}\")\n",
 					"        \n",
-					"        # Create staging view with deduplication and hash calculation\n",
-					"        spark.sql(f\"\"\"\n",
-					"            CREATE OR REPLACE TEMP VIEW stg_casework_specialist AS\n",
-					"            SELECT\n",
-					"                greenCaseType,\n",
-					"                greenCaseId,\n",
-					"                caseReference,\n",
-					"                horizonId,\n",
-					"                linkedGreenCaseId,\n",
-					"                caseOfficerName,\n",
-					"                caseOfficerEmail,\n",
-					"                appealType,\n",
-					"                procedure,\n",
-					"                processingState,\n",
-					"                pinsLpaCode,\n",
-					"                pinsLpaName,\n",
-					"                appellantName,\n",
-					"                agentName,\n",
-					"                siteAddressDescription,\n",
-					"                sitePostcode,\n",
-					"                otherPartyName,\n",
-					"                receiptDate,\n",
-					"                validDate,\n",
-					"                startDate,\n",
-					"                lpaQuestionnaireDue,\n",
-					"                lpaQuestionnaireReceived,\n",
-					"                week6Date,\n",
-					"                week8Date,\n",
-					"                week9Date,\n",
-					"                eventType,\n",
-					"                eventDate,\n",
-					"                eventTime,\n",
-					"                inspectorName,\n",
-					"                inspectorStaffNumber,\n",
-					"                decision,\n",
-					"                decisionDate,\n",
-					"                withdrawnOrTurnedAwayDate,\n",
-					"                comments,\n",
-					"                active,\n",
-					"                'N' as Migrated,\n",
-					"                md5(concat_ws('|',\n",
-					"                    COALESCE(greenCaseType, '.'),\n",
-					"                    COALESCE(CAST(greenCaseId AS STRING), '.'),\n",
-					"                    COALESCE(caseReference, '.'),\n",
-					"                    COALESCE(horizonId, '.'),\n",
-					"                    COALESCE(CAST(linkedGreenCaseId AS STRING), '.'),\n",
-					"                    COALESCE(caseOfficerName, '.'),\n",
-					"                    COALESCE(caseOfficerEmail, '.'),\n",
-					"                    COALESCE(appealType, '.'),\n",
-					"                    COALESCE(procedure, '.'),\n",
-					"                    COALESCE(processingState, '.'),\n",
-					"                    COALESCE(pinsLpaCode, '.'),\n",
-					"                    COALESCE(pinsLpaName, '.'),\n",
-					"                    COALESCE(appellantName, '.'),\n",
-					"                    COALESCE(agentName, '.'),\n",
-					"                    COALESCE(siteAddressDescription, '.'),\n",
-					"                    COALESCE(sitePostcode, '.'),\n",
-					"                    COALESCE(otherPartyName, '.'),\n",
-					"                    COALESCE(CAST(receiptDate AS STRING), '.'),\n",
-					"                    COALESCE(CAST(validDate AS STRING), '.'),\n",
-					"                    COALESCE(CAST(startDate AS STRING), '.'),\n",
-					"                    COALESCE(CAST(lpaQuestionnaireDue AS STRING), '.'),\n",
-					"                    COALESCE(CAST(lpaQuestionnaireReceived AS STRING), '.'),\n",
-					"                    COALESCE(CAST(week6Date AS STRING), '.'),\n",
-					"                    COALESCE(CAST(week8Date AS STRING), '.'),\n",
-					"                    COALESCE(CAST(week9Date AS STRING), '.'),\n",
-					"                    COALESCE(eventType, '.'),\n",
-					"                    COALESCE(CAST(eventDate AS STRING), '.'),\n",
-					"                    COALESCE(eventTime, '.'),\n",
-					"                    COALESCE(inspectorName, '.'),\n",
-					"                    COALESCE(inspectorStaffNumber, '.'),\n",
-					"                    COALESCE(decision, '.'),\n",
-					"                    COALESCE(CAST(decisionDate AS STRING), '.'),\n",
-					"                    COALESCE(CAST(withdrawnOrTurnedAwayDate AS STRING), '.'),\n",
-					"                    COALESCE(comments, '.'),\n",
-					"                    COALESCE(active, '.')\n",
-					"                )) as data_hash\n",
-					"            FROM (\n",
-					"                SELECT *, ROW_NUMBER() OVER (\n",
-					"                    PARTITION BY greenCaseId \n",
-					"                    ORDER BY receiptDate DESC NULLS LAST\n",
-					"                ) as rn\n",
-					"                FROM {source_table}\n",
-					"            ) dedup \n",
-					"            WHERE rn = 1\n",
-					"        \"\"\")\n",
+					"        # Define columns for hash calculation\n",
+					"        hash_cols = [\n",
+					"            'greenCaseType', 'greenCaseId', 'caseReference', 'horizonId',\n",
+					"            'linkedGreenCaseId', 'caseOfficerName', 'caseOfficerEmail',\n",
+					"            'appealType', 'procedure', 'processingState', 'pinsLpaCode',\n",
+					"            'pinsLpaName', 'appellantName', 'agentName', 'siteAddressDescription',\n",
+					"            'sitePostcode', 'otherPartyName', 'receiptDate', 'validDate',\n",
+					"            'startDate', 'lpaQuestionnaireDue', 'lpaQuestionnaireReceived',\n",
+					"            'week6Date', 'week8Date', 'week9Date', 'eventType', 'eventDate',\n",
+					"            'eventTime', 'inspectorName', 'inspectorStaffNumber', 'decision',\n",
+					"            'decisionDate', 'withdrawnOrTurnedAwayDate', 'comments', 'active'\n",
+					"        ]\n",
 					"        \n",
-					"        src_count = spark.sql(\"SELECT COUNT(*) FROM stg_casework_specialist\").collect()[0][0]\n",
+					"        # Create window spec for deduplication\n",
+					"        window_spec = Window.partitionBy('greenCaseId').orderBy(\n",
+					"            F.col('receiptDate').desc_nulls_last()\n",
+					"        )\n",
+					"        \n",
+					"        # Read, deduplicate, and calculate hash\n",
+					"        stg_df = (\n",
+					"            spark.table(source_table)\n",
+					"            .withColumn('rn', F.row_number().over(window_spec))\n",
+					"            .filter(F.col('rn') == 1)\n",
+					"            .withColumn('Migrated', F.lit('N'))\n",
+					"            .withColumn('data_hash', \n",
+					"                F.md5(F.concat_ws('|', *[F.coalesce(F.col(c).cast('string'), F.lit('.')) for c in hash_cols]))\n",
+					"            )\n",
+					"            .drop('rn')\n",
+					"        )\n",
+					"        \n",
+					"        stg_df.createOrReplaceTempView('stg_casework_specialist')\n",
+					"        src_count = stg_df.count()\n",
 					"        logInfo(f\"Source loaded: {src_count} records after deduplication\")\n",
 					"        \n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error preparing source: {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()"
+					"        end_exec_time = datetime.now()\n",
+					""
 				],
-				"execution_count": null
+				"execution_count": 30
 			},
 			{
 				"cell_type": "code",
@@ -241,7 +188,7 @@
 					"        target_exists = 0\n",
 					"        logInfo(\"Target table is empty or does not exist - performing initial load\")"
 				],
-				"execution_count": null
+				"execution_count": 31
 			},
 			{
 				"cell_type": "code",
@@ -316,7 +263,7 @@
 					"        error_message = f\"Error in change analysis: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": null
+				"execution_count": 32
 			},
 			{
 				"cell_type": "code",
@@ -362,7 +309,7 @@
 					"        error_message = f\"Error closing records: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": null
+				"execution_count": 33
 			},
 			{
 				"cell_type": "code",
@@ -483,7 +430,7 @@
 					"        error_message = f\"Error inserting records: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": null
+				"execution_count": 34
 			},
 			{
 				"cell_type": "code",
@@ -541,7 +488,7 @@
 					"    status_code\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 35
 			}
 		]
 	}
