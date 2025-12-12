@@ -3,7 +3,7 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "Record loading SAPHR Tables",
+				"name": "Record loading Green Specialist Case",
 				"type": "ExecutePipeline",
 				"dependsOn": [],
 				"policy": {
@@ -30,7 +30,7 @@
 							"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
 							"type": "Expression"
 						},
-						"StatusMessage": "Loading SAP HR",
+						"StatusMessage": "Loading Green Specialist Case",
 						"PipelineTriggerID": {
 							"value": "@pipeline().TriggerId",
 							"type": "Expression"
@@ -64,7 +64,7 @@
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
-						"activity": "Record loading SAPHR Tables",
+						"activity": "Record loading Green Specialist Case",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -149,59 +149,50 @@
 					],
 					"ifTrueActivities": [
 						{
-							"name": "Copy xlsx to green case specialist csv file",
-							"type": "Copy",
+							"name": "pln_green_specialist_case_standardised",
+							"type": "ExecutePipeline",
 							"dependsOn": [],
 							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
 								"secureInput": false
 							},
 							"userProperties": [],
 							"typeProperties": {
-								"source": {
-									"type": "ExcelSource",
-									"storeSettings": {
-										"type": "AzureBlobFSReadSettings",
-										"recursive": true,
-										"enablePartitionDiscovery": false
-									}
+								"pipeline": {
+									"referenceName": "pln_green_specialist_case_standardised",
+									"type": "PipelineReference"
 								},
-								"sink": {
-									"type": "DelimitedTextSink",
-									"storeSettings": {
-										"type": "AzureBlobFSWriteSettings"
-									},
-									"formatSettings": {
-										"type": "DelimitedTextWriteSettings",
-										"quoteAllText": true,
-										"fileExtension": ".csv"
-									}
-								},
-								"enableStaging": false,
-								"translator": {
-									"type": "TabularTranslator",
-									"typeConversion": true,
-									"typeConversionSettings": {
-										"allowDataTruncation": true,
-										"treatBooleanAsNumber": false
-									}
-								}
-							},
-							"inputs": [
-								{
-									"referenceName": "ds_odw_raw_green_case_specialist_archive_src",
-									"type": "DatasetReference"
-								}
-							],
-							"outputs": [
-								{
-									"referenceName": "ds_odw_raw_green_specialist_case_dest",
-									"type": "DatasetReference"
-								}
-							]
+								"waitOnCompletion": true
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "If Post Validation succeeds",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "If recent file folder exist",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(activity('pln_green_specialist_case_standardised').output.pipelineReturnValue.Post_Val_check,'Y')",
+						"type": "Expression"
+					},
+					"ifFalseActivities": [
+						{
+							"name": "EndProcess",
+							"type": "Wait",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"waitTimeInSeconds": 1
+							}
 						}
 					]
 				}
