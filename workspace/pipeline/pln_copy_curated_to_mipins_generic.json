@@ -45,6 +45,7 @@
 						"value": "@activity('Filter_Entities').output.value\n",
 						"type": "Expression"
 					},
+					"isSequential": false,
 					"batchCount": 4,
 					"activities": [
 						{
@@ -79,7 +80,10 @@
 							"userProperties": [],
 							"typeProperties": {
 								"variableName": "Error",
-								"value": "@string('')\n"
+								"value": {
+									"value": "@string('')\n",
+									"type": "Expression"
+								}
 							}
 						},
 						{
@@ -87,7 +91,7 @@
 							"type": "Lookup",
 							"dependsOn": [
 								{
-									"activity": "Reset_Error",
+									"activity": "Log_Start_AppIns",
 									"dependencyConditions": [
 										"Succeeded"
 									]
@@ -490,7 +494,7 @@
 									]
 								},
 								{
-									"activity": "SP_log_success",
+									"activity": "Log_Completion_AppIns",
 									"dependencyConditions": [
 										"Succeeded",
 										"Skipped"
@@ -503,6 +507,201 @@
 								"value": {
 									"value": "@json(\n  concat(\n    '{',\n      '\"entity_code\":\"', string(item().entity_code), '\",',\n      '\"source_table\":\"', string(item().source_table_name), '\",',\n      '\"target_table\":\"', string(item().target_table_name), '\",',\n      '\"status\":\"',\n        if(\n          equals(variables('Error'), ''),\n          'Succeeded',\n          'Failed'\n        ),\n      '\",',\n      '\"rowsCopied\":', string(coalesce(variables('RowCount'), 0)), ',',\n      '\"error\":\"',\n        replace(\n          coalesce(variables('Error'), ''),\n          '\"',\n          ''''\n        ),\n      '\"',\n    '}'\n  )\n)\n",
 									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Set_Loop_Start",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Reset_Error",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "loopStartTicks",
+								"value": {
+									"value": "@string(ticks(utcNow()))\n",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Reset_lastErrorMessage",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Set_Loop_Start",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "lastErrorMessage",
+								"value": "@string('')\n"
+							}
+						},
+						{
+							"name": "Log_Start_AppIns",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Reset_lastErrorMessage",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "Start",
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StartTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+									"EndTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+									"StatusMessage": {
+										"value": "@concat(item().entity_code, ' curated->mipins starting')\n",
+										"type": "Expression"
+									},
+									"AppInsIKey": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n"
+								}
+							}
+						},
+						{
+							"name": "Set_lastErrorMessage",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "If_Update_DimSourceSystem",
+									"dependencyConditions": [
+										"Failed"
+									]
+								},
+								{
+									"activity": "Copy_Curated_To_MiPINS",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "lastErrorMessage",
+								"value": "@string(\n  replace(\n    replace(\n      replace(\n        coalesce(activity('Copy_Curated_To_MiPINS')?.Error?.Message, activity('If_Update_DimSourceSystem')?.Error?.Message, ''),\n        '\\\"',''''\n      ),\n      '\\r',' '\n    ),\n    '\\n',' '\n  )\n)\n"
+							}
+						},
+						{
+							"name": "Log_Failure_AppIns",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Set_lastErrorMessage",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "Failure",
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StartTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+									"EndTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+									"ErrorMessage": "@variables('lastErrorMessage')\n",
+									"StatusMessage": {
+										"value": "@concat(item().entity_code, ' curated->mipins failed')\n",
+										"type": "Expression"
+									},
+									"AppInsIKey": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n"
+								}
+							}
+						},
+						{
+							"name": "Log_Completion_AppIns",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "SP_log_success",
+									"dependencyConditions": [
+										"Skipped",
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "Completion",
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StartTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+									"EndTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+									"Inserts": "@variables('RowCount')",
+									"StatusMessage": "@concat(item().entity_code, ' curated->mipins completed')\n",
+									"AppInsIKey": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n"
 								}
 							}
 						}
@@ -527,7 +726,10 @@
 				"userProperties": [],
 				"typeProperties": {
 					"variableName": "copyCuratedStatusJson",
-					"value": "@string(variables('results'))\n"
+					"value": {
+						"value": "@string(variables('results'))\n",
+						"type": "Expression"
+					}
 				}
 			},
 			{
@@ -655,7 +857,10 @@
 							"userProperties": [],
 							"typeProperties": {
 								"variableName": "results",
-								"value": "@json(\n  concat(\n    '{',\n      '\"entity_code\":\"InvalidEntityCodes\",',\n      '\"source_table\":\"\",',\n      '\"target_table\":\"\",',\n      '\"status\":\"Failed\",',\n      '\"rowsCopied\":0,',\n      '\"error\":\"',\n        replace(\n          concat(\n            'Invalid/misspelled entity/ies passed to pln_copy_curated_to_mipins_generic: ',\n            join(activity('Filter_Invalid_Entities').output.value, ', ')\n          ),\n          '\"',\n          ''''\n        ),\n      '\"',\n    '}'\n  )\n)\n"
+								"value": {
+									"value": "@json(\n  concat(\n    '{',\n      '\"entity_code\":\"InvalidEntityCodes\",',\n      '\"source_table\":\"\",',\n      '\"target_table\":\"\",',\n      '\"status\":\"Failed\",',\n      '\"rowsCopied\":0,',\n      '\"error\":\"',\n        replace(\n          concat(\n            'Invalid/misspelled entity/ies passed to pln_copy_curated_to_mipins_generic: ',\n            join(activity('Filter_Invalid_Entities').output.value, ', ')\n          ),\n          '\"',\n          ''''\n        ),\n      '\"',\n    '}'\n  )\n)\n",
+									"type": "Expression"
+								}
 							}
 						},
 						{
@@ -687,6 +892,9 @@
 			"p_EntityCodes": {
 				"type": "array",
 				"defaultValue": []
+			},
+			"runContextJson": {
+				"type": "string"
 			}
 		},
 		"variables": {
@@ -705,6 +913,12 @@
 				"defaultValue": []
 			},
 			"copyCuratedStatusJson": {
+				"type": "String"
+			},
+			"loopStartTicks": {
+				"type": "String"
+			},
+			"lastErrorMessage": {
 				"type": "String"
 			}
 		},
