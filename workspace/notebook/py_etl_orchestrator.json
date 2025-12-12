@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "73afed29-c387-4f20-af45-bc6c301b440c"
+				"spark.autotune.trackingId": "ade226ea-0a16-484a-b6c9-6fdc17a284df"
 			}
 		},
 		"metadata": {
@@ -57,6 +57,7 @@
 				"source": [
 					"from odw.core.etl.etl_process_factory import ETLProcessFactory\n",
 					"from odw.core.io.data_io_factory import DataIOFactory\n",
+					"from odw.core.io.parser.data_file_parser_factory import DataFileParserFactory\n",
 					"from pyspark.sql import SparkSession\n",
 					"from typing import Dict, Any"
 				],
@@ -86,7 +87,8 @@
 					"input_arguments: Dict[str, Any] = {\n",
 					"    \"source_data\": {\n",
 					"        \"someblob\": {\n",
-					"            \"storage_name\": \"\",\n",
+					"            \"storage_kind\": \"ADLSG2-File\",\n",
+					"            \"storage_name\": \"pinsstodwdevuks9h80mb\",\n",
 					"            \"container_name\": \"odw-raw\",\n",
 					"            \"blob_path\": \"\",\n",
 					"            \"file_format\": \"json\"\n",
@@ -133,8 +135,9 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"source_data = dict()\n",
-					"for data_name, metadata in source_data.items():\n",
+					"source_metadata = input_arguments.pop(\"source_data\")\n",
+					"source_data_map = dict()\n",
+					"for data_name, metadata in source_metadata.items():\n",
 					"    storage_kind = metadata.get(\"storage_kind\", None)\n",
 					"    data_format = metadata.get(\"data_format\", None)\n",
 					"    if not storage_kind:\n",
@@ -142,8 +145,10 @@
 					"    if not data_format:\n",
 					"        raise ValueError(f\"Expected a data_format parameter to be passed, but this was missing\")\n",
 					"    data_io_inst = DataIOFactory.get(storage_kind)()\n",
-					"    data = data_io_inst.read(**metadata)\n",
-					"    source_data[data_name] = data\n",
+					"    data_bytes = data_io_inst.read(**metadata)\n",
+					"    parser_inst = DataFileParserFactory.get(data_format)(spark)\n",
+					"    data = parser_inst.from_bytes(data_bytes)\n",
+					"    source_data_map[data_name] = data\n",
 					""
 				],
 				"execution_count": null
@@ -222,6 +227,19 @@
 					"    data_io_inst.write(data=result_data, **metadata)"
 				],
 				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Write logging data"
+				]
 			}
 		]
 	}
