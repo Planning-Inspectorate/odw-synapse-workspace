@@ -33,10 +33,10 @@ class ETLProcessFactory():
         }
 
     @classmethod
-    def get(cls, etl_process_map: str) -> Type[ETLProcess]:
+    def get(cls, etl_process_name: str) -> Type[ETLProcess]:
         etl_process_map = cls._validate_etl_process_classes()
-        if etl_process_map not in etl_process_map:
+        if etl_process_name not in etl_process_map:
             raise ETLProcessNameNotFoundException(
-                f"No ETLProcess class could be found for ETLProcess name '{etl_process_map}'"
+                f"No ETLProcess class could be found for ETLProcess name '{etl_process_name}'"
             )
-        return etl_process_map[etl_process_map]
+        return etl_process_map[etl_process_name]
