@@ -60,617 +60,7 @@
 				}
 			},
 			{
-				"name": "Get_SapHr_Monthly_Files",
-				"type": "GetMetadata",
-				"dependsOn": [
-					{
-						"activity": "ExecuteSapHrMonthlyFileExtract",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"dataset": {
-						"referenceName": "Ds_odw_saphr_get_latest_files",
-						"type": "DatasetReference",
-						"parameters": {
-							"Get_Load_Frequency": "MONTHLY"
-						}
-					},
-					"fieldList": [
-						"exists"
-					],
-					"storeSettings": {
-						"type": "AzureBlobFSReadSettings",
-						"recursive": true,
-						"enablePartitionDiscovery": false
-					},
-					"formatSettings": {
-						"type": "DelimitedTextReadSettings"
-					}
-				}
-			},
-			{
-				"name": "If_SapHr_Monthly_Files_Exists",
-				"type": "IfCondition",
-				"dependsOn": [
-					{
-						"activity": "Get_SapHr_Monthly_Files",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"userProperties": [],
-				"typeProperties": {
-					"expression": {
-						"value": "@equals(activity('Get_SapHr_Monthly_Files').output.exists,true)",
-						"type": "Expression"
-					},
-					"ifFalseActivities": [
-						{
-							"name": "Get_SapHr_Weekly_Files_Exists",
-							"type": "GetMetadata",
-							"dependsOn": [],
-							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"dataset": {
-									"referenceName": "Ds_odw_saphr_get_latest_files",
-									"type": "DatasetReference",
-									"parameters": {
-										"Get_Load_Frequency": "WEEKLY"
-									}
-								},
-								"fieldList": [
-									"exists"
-								],
-								"storeSettings": {
-									"type": "AzureBlobFSReadSettings",
-									"recursive": true,
-									"enablePartitionDiscovery": false
-								},
-								"formatSettings": {
-									"type": "DelimitedTextReadSettings"
-								}
-							}
-						},
-						{
-							"name": "Weekly_Folder_Exists",
-							"type": "SetVariable",
-							"dependsOn": [
-								{
-									"activity": "Get_SapHr_Weekly_Files_Exists",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"variableName": "Weekly_Folder_Exists",
-								"value": {
-									"value": "@activity('Get_SapHr_Weekly_Files_Exists').output.exists",
-									"type": "Expression"
-								}
-							}
-						},
-						{
-							"name": "Send SAPHR Monthly Load failed_copy1",
-							"type": "ExecutePipeline",
-							"dependsOn": [
-								{
-									"activity": "Weekly_Folder_Exists",
-									"dependencyConditions": [
-										"Failed"
-									]
-								}
-							],
-							"policy": {
-								"secureInput": true
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_utl_Send_Teams_Message",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true,
-								"parameters": {
-									"dataFactorySubscription": {
-										"value": "@pipeline().parameters.subscription_id",
-										"type": "Expression"
-									},
-									"dataFactoryResourceGroup": {
-										"value": "@pipeline().parameters.resource_group",
-										"type": "Expression"
-									},
-									"pipelineRunId": {
-										"value": "@pipeline().RunId",
-										"type": "Expression"
-									},
-									"teamsWebhookUrl": {
-										"value": "@pipeline().parameters.webhook_url",
-										"type": "Expression"
-									},
-									"activityName": {
-										"value": "@pipeline().Pipeline",
-										"type": "Expression"
-									},
-									"activityMessage": "SAPHR data load failed",
-									"activityDuration": {
-										"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
-										"type": "Expression"
-									},
-									"activityStatus": "Failed",
-									"Colour": {
-										"value": "@pipeline().parameters.failed_colour",
-										"type": "Expression"
-									},
-									"Image": {
-										"value": "@pipeline().parameters.failed_image",
-										"type": "Expression"
-									},
-									"Message_title": "ODW - SAP HR Monthly load failed",
-									"Message_subtitle": "SAP HR Monthly feed failed"
-								}
-							}
-						},
-						{
-							"name": "Record completed SAP HR Monthly Load_copy1",
-							"type": "ExecutePipeline",
-							"dependsOn": [
-								{
-									"activity": "Weekly_Folder_Exists",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_log_to_appins",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true,
-								"parameters": {
-									"Stage": "Completion",
-									"PipelineName": {
-										"value": "@pipeline().Pipeline",
-										"type": "Expression"
-									},
-									"PipelineRunID": {
-										"value": "@pipeline().RunId",
-										"type": "Expression"
-									},
-									"StatusMessage": "No Monthly files exists, Completed SAP HR Load",
-									"PipelineTriggerID": {
-										"value": "@pipeline().TriggerId",
-										"type": "Expression"
-									},
-									"PipelineTriggerName": {
-										"value": "@pipeline().TriggerName",
-										"type": "Expression"
-									},
-									"PipelineTriggerType": {
-										"value": "@pipeline().TriggerType",
-										"type": "Expression"
-									},
-									"PipelineTriggeredbyPipelineName": {
-										"value": "@pipeline()?.TriggeredByPipelineName",
-										"type": "Expression"
-									},
-									"PipelineTriggeredbyPipelineRunID": {
-										"value": "@pipeline()?.TriggeredByPipelineRunId",
-										"type": "Expression"
-									},
-									"ActivityType": "Pipeline",
-									"AppInsIKey": {
-										"value": "@pipeline().parameters.apps_insights_ikey",
-										"type": "Expression"
-									}
-								}
-							}
-						},
-						{
-							"name": "Send Completed to Monthly SAP HR data",
-							"type": "ExecutePipeline",
-							"dependsOn": [
-								{
-									"activity": "Weekly_Folder_Exists",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"secureInput": true
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_utl_Send_Teams_Message",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true,
-								"parameters": {
-									"dataFactorySubscription": {
-										"value": "@pipeline().parameters.subscription_id",
-										"type": "Expression"
-									},
-									"dataFactoryResourceGroup": {
-										"value": "@pipeline().parameters.resource_group",
-										"type": "Expression"
-									},
-									"pipelineRunId": {
-										"value": "@pipeline().RunId",
-										"type": "Expression"
-									},
-									"teamsWebhookUrl": {
-										"value": "@pipeline().parameters.webhook_url",
-										"type": "Expression"
-									},
-									"activityName": {
-										"value": "@pipeline().Pipeline",
-										"type": "Expression"
-									},
-									"activityMessage": "Completed SAP HR data, No Monthly Files exist",
-									"activityDuration": {
-										"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
-										"type": "Expression"
-									},
-									"activityStatus": "Completed",
-									"Colour": {
-										"value": "@pipeline().parameters.completed_colour",
-										"type": "Expression"
-									},
-									"Image": {
-										"value": "@pipeline().parameters.completed_image",
-										"type": "Expression"
-									},
-									"Message_title": "ODW - SAP HR Master pipeline completed, Recent Monthly files do not exist.",
-									"Message_subtitle": "ODW has completed to load data from SAP HR successfully, Recent Monthly files do not exist."
-								}
-							}
-						}
-					],
-					"ifTrueActivities": [
-						{
-							"name": "pln_saphr_odw_standardised_Monthly",
-							"type": "ExecutePipeline",
-							"dependsOn": [
-								{
-									"activity": "Record loading SAP HR",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_saphr_standardised_monthly_main",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true
-							}
-						},
-						{
-							"name": "pln_saphr_harmonised_master",
-							"type": "ExecutePipeline",
-							"dependsOn": [
-								{
-									"activity": "pln_saphr_odw_standardised_Monthly",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_saphr_harmonised_main_monthly",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true
-							}
-						},
-						{
-							"name": "pln_saphr_curated_master",
-							"type": "ExecutePipeline",
-							"dependsOn": [
-								{
-									"activity": "pln_saphr_harmonised_master",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_saphr_curated_main",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true
-							}
-						},
-						{
-							"name": "Send SAPHR Monthly Load failed",
-							"type": "ExecutePipeline",
-							"dependsOn": [
-								{
-									"activity": "pln_saphr_curated_master",
-									"dependencyConditions": [
-										"Failed"
-									]
-								}
-							],
-							"policy": {
-								"secureInput": true
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_utl_Send_Teams_Message",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true,
-								"parameters": {
-									"dataFactorySubscription": {
-										"value": "@pipeline().parameters.subscription_id",
-										"type": "Expression"
-									},
-									"dataFactoryResourceGroup": {
-										"value": "@pipeline().parameters.resource_group",
-										"type": "Expression"
-									},
-									"pipelineRunId": {
-										"value": "@pipeline().RunId",
-										"type": "Expression"
-									},
-									"teamsWebhookUrl": {
-										"value": "@pipeline().parameters.webhook_url",
-										"type": "Expression"
-									},
-									"activityName": {
-										"value": "@pipeline().Pipeline",
-										"type": "Expression"
-									},
-									"activityMessage": "SAPHR Monthly data load failed",
-									"activityDuration": {
-										"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
-										"type": "Expression"
-									},
-									"activityStatus": "Failed",
-									"Colour": {
-										"value": "@pipeline().parameters.failed_colour",
-										"type": "Expression"
-									},
-									"Image": {
-										"value": "@pipeline().parameters.failed_image",
-										"type": "Expression"
-									},
-									"Message_title": "ODW - SAP HR Monthly load failed",
-									"Message_subtitle": "SAP HR Monthly feed failed"
-								}
-							}
-						},
-						{
-							"name": "Record completed SAP HR Monthly Load",
-							"type": "ExecutePipeline",
-							"dependsOn": [
-								{
-									"activity": "pln_saphr_curated_master",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_log_to_appins",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true,
-								"parameters": {
-									"Stage": "Completion",
-									"PipelineName": {
-										"value": "@pipeline().Pipeline",
-										"type": "Expression"
-									},
-									"PipelineRunID": {
-										"value": "@pipeline().RunId",
-										"type": "Expression"
-									},
-									"StatusMessage": "Completed SAP HR Monthly Load",
-									"PipelineTriggerID": {
-										"value": "@pipeline().TriggerId",
-										"type": "Expression"
-									},
-									"PipelineTriggerName": {
-										"value": "@pipeline().TriggerName",
-										"type": "Expression"
-									},
-									"PipelineTriggerType": {
-										"value": "@pipeline().TriggerType",
-										"type": "Expression"
-									},
-									"PipelineTriggeredbyPipelineName": {
-										"value": "@pipeline()?.TriggeredByPipelineName",
-										"type": "Expression"
-									},
-									"PipelineTriggeredbyPipelineRunID": {
-										"value": "@pipeline()?.TriggeredByPipelineRunId",
-										"type": "Expression"
-									},
-									"ActivityType": "Pipeline",
-									"AppInsIKey": {
-										"value": "@pipeline().parameters.apps_insights_ikey",
-										"type": "Expression"
-									}
-								}
-							}
-						},
-						{
-							"name": "Record loading SAP HR",
-							"type": "ExecutePipeline",
-							"dependsOn": [],
-							"policy": {
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_log_to_appins",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true,
-								"parameters": {
-									"Stage": "OnProgress",
-									"PipelineName": {
-										"value": "@pipeline().Pipeline",
-										"type": "Expression"
-									},
-									"PipelineRunID": {
-										"value": "@pipeline().RunId",
-										"type": "Expression"
-									},
-									"StartTime": {
-										"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
-										"type": "Expression"
-									},
-									"StatusMessage": "Loading SAP HR Monthly",
-									"PipelineTriggerID": {
-										"value": "@pipeline().TriggerId",
-										"type": "Expression"
-									},
-									"PipelineTriggerName": {
-										"value": "@pipeline().TriggerName",
-										"type": "Expression"
-									},
-									"PipelineTriggerType": {
-										"value": "@pipeline().TriggerType",
-										"type": "Expression"
-									},
-									"PipelineTriggeredbyPipelineName": {
-										"value": "@pipeline()?.TriggeredByPipelineName",
-										"type": "Expression"
-									},
-									"PipelineTriggeredbyPipelineRunID": {
-										"value": "@pipeline()?.TriggeredByPipelineRunId",
-										"type": "Expression"
-									},
-									"ActivityType": "Pipeline",
-									"AppInsIKey": {
-										"value": "@pipeline().parameters.apps_insights_ikey",
-										"type": "Expression"
-									}
-								}
-							}
-						},
-						{
-							"name": "Send Completed to SAP HR data",
-							"type": "ExecutePipeline",
-							"dependsOn": [
-								{
-									"activity": "pln_saphr_curated_master",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"secureInput": true
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_utl_Send_Teams_Message",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true,
-								"parameters": {
-									"dataFactorySubscription": {
-										"value": "@pipeline().parameters.subscription_id",
-										"type": "Expression"
-									},
-									"dataFactoryResourceGroup": {
-										"value": "@pipeline().parameters.resource_group",
-										"type": "Expression"
-									},
-									"pipelineRunId": {
-										"value": "@pipeline().RunId",
-										"type": "Expression"
-									},
-									"teamsWebhookUrl": {
-										"value": "@pipeline().parameters.webhook_url",
-										"type": "Expression"
-									},
-									"activityName": {
-										"value": "@pipeline().Pipeline",
-										"type": "Expression"
-									},
-									"activityMessage": "Completed SAP HR Monthly load data",
-									"activityDuration": {
-										"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
-										"type": "Expression"
-									},
-									"activityStatus": "Completed",
-									"Colour": {
-										"value": "@pipeline().parameters.completed_colour",
-										"type": "Expression"
-									},
-									"Image": {
-										"value": "@pipeline().parameters.completed_image",
-										"type": "Expression"
-									},
-									"Message_title": "ODW - SAP HR Monthly pipeline completed",
-									"Message_subtitle": "ODW has completed to load data from SAP HR Monthly load successfully."
-								}
-							}
-						}
-					]
-				}
-			},
-			{
-				"name": "ExecuteSapHrWeeklyFileExtract",
+				"name": "ExecuteGreenSpecialistCaseFileExtract",
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
@@ -686,47 +76,55 @@
 				"userProperties": [],
 				"typeProperties": {
 					"pipeline": {
-						"referenceName": "pln_saphr_odw_source_odw_raw",
+						"referenceName": "pln_green_specialist_case_odw_src_odw_raw",
 						"type": "PipelineReference"
 					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"FileLoad_Type": "WEEKLY"
-					}
+					"waitOnCompletion": true
 				}
 			},
 			{
-				"name": "ExecuteSapHrMonthlyFileExtract",
-				"type": "ExecutePipeline",
+				"name": "Get recent folder",
+				"type": "GetMetadata",
 				"dependsOn": [
 					{
-						"activity": "ExecuteSapHrWeeklyFileExtract",
+						"activity": "ExecuteGreenSpecialistCaseFileExtract",
 						"dependencyConditions": [
 							"Succeeded"
 						]
 					}
 				],
 				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
 					"secureInput": false
 				},
 				"userProperties": [],
 				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_saphr_odw_source_odw_raw",
-						"type": "PipelineReference"
+					"dataset": {
+						"referenceName": "ds_odw_raw_get_recent_green_specialist_case_folder",
+						"type": "DatasetReference"
 					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"FileLoad_Type": "MONTHLY"
+					"fieldList": [
+						"exists"
+					],
+					"storeSettings": {
+						"type": "AzureBlobFSReadSettings",
+						"recursive": true,
+						"enablePartitionDiscovery": false
+					},
+					"formatSettings": {
+						"type": "BinaryReadSettings"
 					}
 				}
 			},
 			{
-				"name": "If_SapHr_Weekly_Files_Exists",
+				"name": "If recent file folder exist",
 				"type": "IfCondition",
 				"dependsOn": [
 					{
-						"activity": "If_SapHr_Monthly_Files_Exists",
+						"activity": "Get recent folder",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -735,510 +133,75 @@
 				"userProperties": [],
 				"typeProperties": {
 					"expression": {
-						"value": "@equals(variables('Weekly_Folder_Exists'),true)",
+						"value": "@equals(activity('Get recent folder').output.exists,true)\n",
 						"type": "Expression"
 					},
 					"ifFalseActivities": [
 						{
-							"name": "Placeholder",
+							"name": "Dummy",
 							"type": "Wait",
 							"dependsOn": [],
 							"userProperties": [],
 							"typeProperties": {
 								"waitTimeInSeconds": 1
 							}
-						},
-						{
-							"name": "Send SAPHR Weekly Load failed",
-							"type": "ExecutePipeline",
-							"dependsOn": [
-								{
-									"activity": "Placeholder",
-									"dependencyConditions": [
-										"Failed"
-									]
-								}
-							],
-							"policy": {
-								"secureInput": true
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_utl_Send_Teams_Message",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true,
-								"parameters": {
-									"dataFactorySubscription": {
-										"value": "@pipeline().parameters.subscription_id",
-										"type": "Expression"
-									},
-									"dataFactoryResourceGroup": {
-										"value": "@pipeline().parameters.resource_group",
-										"type": "Expression"
-									},
-									"pipelineRunId": {
-										"value": "@pipeline().RunId",
-										"type": "Expression"
-									},
-									"teamsWebhookUrl": {
-										"value": "@pipeline().parameters.webhook_url",
-										"type": "Expression"
-									},
-									"activityName": {
-										"value": "@pipeline().Pipeline",
-										"type": "Expression"
-									},
-									"activityMessage": "SAPHR data load failed",
-									"activityDuration": {
-										"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
-										"type": "Expression"
-									},
-									"activityStatus": "Failed",
-									"Colour": {
-										"value": "@pipeline().parameters.failed_colour",
-										"type": "Expression"
-									},
-									"Image": {
-										"value": "@pipeline().parameters.failed_image",
-										"type": "Expression"
-									},
-									"Message_title": "ODW - SAP HR Weekly load failed",
-									"Message_subtitle": "SAP HR Weekly feed failed"
-								}
-							}
-						},
-						{
-							"name": "Record completed SAP HR Monthly Load_copy1_copy1",
-							"type": "ExecutePipeline",
-							"dependsOn": [
-								{
-									"activity": "Placeholder",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_log_to_appins",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true,
-								"parameters": {
-									"Stage": "Completion",
-									"PipelineName": {
-										"value": "@pipeline().Pipeline",
-										"type": "Expression"
-									},
-									"PipelineRunID": {
-										"value": "@pipeline().RunId",
-										"type": "Expression"
-									},
-									"StatusMessage": "No Weekly files exists, Completed SAP HR Load",
-									"PipelineTriggerID": {
-										"value": "@pipeline().TriggerId",
-										"type": "Expression"
-									},
-									"PipelineTriggerName": {
-										"value": "@pipeline().TriggerName",
-										"type": "Expression"
-									},
-									"PipelineTriggerType": {
-										"value": "@pipeline().TriggerType",
-										"type": "Expression"
-									},
-									"PipelineTriggeredbyPipelineName": {
-										"value": "@pipeline()?.TriggeredByPipelineName",
-										"type": "Expression"
-									},
-									"PipelineTriggeredbyPipelineRunID": {
-										"value": "@pipeline()?.TriggeredByPipelineRunId",
-										"type": "Expression"
-									},
-									"ActivityType": "Pipeline",
-									"AppInsIKey": {
-										"value": "@pipeline().parameters.apps_insights_ikey",
-										"type": "Expression"
-									}
-								}
-							}
-						},
-						{
-							"name": "Send Completed to Weekly SAP HR data_copy2",
-							"type": "ExecutePipeline",
-							"dependsOn": [
-								{
-									"activity": "Placeholder",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"secureInput": true
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_utl_Send_Teams_Message",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true,
-								"parameters": {
-									"dataFactorySubscription": {
-										"value": "@pipeline().parameters.subscription_id",
-										"type": "Expression"
-									},
-									"dataFactoryResourceGroup": {
-										"value": "@pipeline().parameters.resource_group",
-										"type": "Expression"
-									},
-									"pipelineRunId": {
-										"value": "@pipeline().RunId",
-										"type": "Expression"
-									},
-									"teamsWebhookUrl": {
-										"value": "@pipeline().parameters.webhook_url",
-										"type": "Expression"
-									},
-									"activityName": {
-										"value": "@pipeline().Pipeline",
-										"type": "Expression"
-									},
-									"activityMessage": "Completed SAP HR Weekly load data, No Weekly files found",
-									"activityDuration": {
-										"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
-										"type": "Expression"
-									},
-									"activityStatus": "Completed",
-									"Colour": {
-										"value": "@pipeline().parameters.completed_colour",
-										"type": "Expression"
-									},
-									"Image": {
-										"value": "@pipeline().parameters.completed_image",
-										"type": "Expression"
-									},
-									"Message_title": "ODW - SAP HR Weekly pipeline completed, No recent Weekly files found.",
-									"Message_subtitle": "ODW has completed to load data from SAP HR Weekly successfully, No Weekly files found."
-								}
-							}
 						}
 					],
 					"ifTrueActivities": [
 						{
-							"name": "pln_saphr_odw_standardised_Weekly",
-							"type": "ExecutePipeline",
-							"dependsOn": [
-								{
-									"activity": "Record loading SAP HR Weekly",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_saphr_standardised_weekly_main",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true
-							}
-						},
-						{
-							"name": "pln_saphr_harmonised_master_weekly",
-							"type": "ExecutePipeline",
-							"dependsOn": [
-								{
-									"activity": "pln_saphr_odw_standardised_Weekly",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_saphr_harmonised_main_weekly",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true
-							}
-						},
-						{
-							"name": "pln_saphr_curated_master_weekly",
-							"type": "ExecutePipeline",
-							"dependsOn": [
-								{
-									"activity": "pln_saphr_harmonised_master_weekly",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_saphr_curated_main",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true
-							}
-						},
-						{
-							"name": "Send SAPHR Monthly Weekly Load failed",
-							"type": "ExecutePipeline",
-							"dependsOn": [
-								{
-									"activity": "pln_saphr_curated_master_weekly",
-									"dependencyConditions": [
-										"Failed"
-									]
-								}
-							],
-							"policy": {
-								"secureInput": true
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_utl_Send_Teams_Message",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true,
-								"parameters": {
-									"dataFactorySubscription": {
-										"value": "@pipeline().parameters.subscription_id",
-										"type": "Expression"
-									},
-									"dataFactoryResourceGroup": {
-										"value": "@pipeline().parameters.resource_group",
-										"type": "Expression"
-									},
-									"pipelineRunId": {
-										"value": "@pipeline().RunId",
-										"type": "Expression"
-									},
-									"teamsWebhookUrl": {
-										"value": "@pipeline().parameters.webhook_url",
-										"type": "Expression"
-									},
-									"activityName": {
-										"value": "@pipeline().Pipeline",
-										"type": "Expression"
-									},
-									"activityMessage": "SAP HR Weekly load failed",
-									"activityDuration": {
-										"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
-										"type": "Expression"
-									},
-									"activityStatus": "Failed",
-									"Colour": {
-										"value": "@pipeline().parameters.failed_colour",
-										"type": "Expression"
-									},
-									"Image": {
-										"value": "@pipeline().parameters.failed_image",
-										"type": "Expression"
-									},
-									"Message_title": "ODW - SAP HR Weekly load failed",
-									"Message_subtitle": "SAP HR Weekly feed failed"
-								}
-							}
-						},
-						{
-							"name": "Record completed SAP HR Weekly Load",
-							"type": "ExecutePipeline",
-							"dependsOn": [
-								{
-									"activity": "pln_saphr_curated_master_weekly",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_log_to_appins",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true,
-								"parameters": {
-									"Stage": "Completion",
-									"PipelineName": {
-										"value": "@pipeline().Pipeline",
-										"type": "Expression"
-									},
-									"PipelineRunID": {
-										"value": "@pipeline().RunId",
-										"type": "Expression"
-									},
-									"StatusMessage": "Completed SAP HR Weekly Load",
-									"PipelineTriggerID": {
-										"value": "@pipeline().TriggerId",
-										"type": "Expression"
-									},
-									"PipelineTriggerName": {
-										"value": "@pipeline().TriggerName",
-										"type": "Expression"
-									},
-									"PipelineTriggerType": {
-										"value": "@pipeline().TriggerType",
-										"type": "Expression"
-									},
-									"PipelineTriggeredbyPipelineName": {
-										"value": "@pipeline()?.TriggeredByPipelineName",
-										"type": "Expression"
-									},
-									"PipelineTriggeredbyPipelineRunID": {
-										"value": "@pipeline()?.TriggeredByPipelineRunId",
-										"type": "Expression"
-									},
-									"ActivityType": "Pipeline",
-									"AppInsIKey": {
-										"value": "@pipeline().parameters.apps_insights_ikey",
-										"type": "Expression"
-									}
-								}
-							}
-						},
-						{
-							"name": "Record loading SAP HR Weekly",
-							"type": "ExecutePipeline",
+							"name": "Copy xlsx to green case specialist csv file",
+							"type": "Copy",
 							"dependsOn": [],
 							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
 								"secureInput": false
 							},
 							"userProperties": [],
 							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_log_to_appins",
-									"type": "PipelineReference"
+								"source": {
+									"type": "ExcelSource",
+									"storeSettings": {
+										"type": "AzureBlobFSReadSettings",
+										"recursive": true,
+										"enablePartitionDiscovery": false
+									}
 								},
-								"waitOnCompletion": true,
-								"parameters": {
-									"Stage": "OnProgress",
-									"PipelineName": {
-										"value": "@pipeline().Pipeline",
-										"type": "Expression"
+								"sink": {
+									"type": "DelimitedTextSink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings"
 									},
-									"PipelineRunID": {
-										"value": "@pipeline().RunId",
-										"type": "Expression"
-									},
-									"StartTime": {
-										"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
-										"type": "Expression"
-									},
-									"StatusMessage": "Loading SAP HR Weekly",
-									"PipelineTriggerID": {
-										"value": "@pipeline().TriggerId",
-										"type": "Expression"
-									},
-									"PipelineTriggerName": {
-										"value": "@pipeline().TriggerName",
-										"type": "Expression"
-									},
-									"PipelineTriggerType": {
-										"value": "@pipeline().TriggerType",
-										"type": "Expression"
-									},
-									"PipelineTriggeredbyPipelineName": {
-										"value": "@pipeline()?.TriggeredByPipelineName",
-										"type": "Expression"
-									},
-									"PipelineTriggeredbyPipelineRunID": {
-										"value": "@pipeline()?.TriggeredByPipelineRunId",
-										"type": "Expression"
-									},
-									"ActivityType": "Pipeline",
-									"AppInsIKey": {
-										"value": "@pipeline().parameters.apps_insights_ikey",
-										"type": "Expression"
+									"formatSettings": {
+										"type": "DelimitedTextWriteSettings",
+										"quoteAllText": true,
+										"fileExtension": ".csv"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
 									}
 								}
-							}
-						},
-						{
-							"name": "Send Completed to Monthly SAP HR data_copy1",
-							"type": "ExecutePipeline",
-							"dependsOn": [
+							},
+							"inputs": [
 								{
-									"activity": "pln_saphr_curated_master_weekly",
-									"dependencyConditions": [
-										"Succeeded"
-									]
+									"referenceName": "ds_odw_raw_green_case_specialist_archive_src",
+									"type": "DatasetReference"
 								}
 							],
-							"policy": {
-								"secureInput": true
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_utl_Send_Teams_Message",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true,
-								"parameters": {
-									"dataFactorySubscription": {
-										"value": "@pipeline().parameters.subscription_id",
-										"type": "Expression"
-									},
-									"dataFactoryResourceGroup": {
-										"value": "@pipeline().parameters.resource_group",
-										"type": "Expression"
-									},
-									"pipelineRunId": {
-										"value": "@pipeline().RunId",
-										"type": "Expression"
-									},
-									"teamsWebhookUrl": {
-										"value": "@pipeline().parameters.webhook_url",
-										"type": "Expression"
-									},
-									"activityName": {
-										"value": "@pipeline().Pipeline",
-										"type": "Expression"
-									},
-									"activityMessage": "Completed SAP HR Weekly load data",
-									"activityDuration": {
-										"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
-										"type": "Expression"
-									},
-									"activityStatus": "Completed",
-									"Colour": {
-										"value": "@pipeline().parameters.completed_colour",
-										"type": "Expression"
-									},
-									"Image": {
-										"value": "@pipeline().parameters.completed_image",
-										"type": "Expression"
-									},
-									"Message_title": "ODW - SAP HR Weekly pipeline completed",
-									"Message_subtitle": "ODW has completed Weekly load data from SAP HR successfully."
+							"outputs": [
+								{
+									"referenceName": "ds_odw_raw_green_specialist_case_dest",
+									"type": "DatasetReference"
 								}
-							}
+							]
 						}
 					]
 				}
