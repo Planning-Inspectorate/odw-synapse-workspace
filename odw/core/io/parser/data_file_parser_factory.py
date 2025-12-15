@@ -1,13 +1,17 @@
 from odw.core.io.parser.data_file_parser import DataFileParser
 from odw.core.exceptions import DuplicateDataFileParserNameException, DataFileParserNameNotFoundException
 from odw.core.io.parser.parquet_file_parser import ParquetFileParser
+from odw.core.io.parser.json_file_parser import JsonFileParser
+from odw.core.io.parser.csv_file_parser import CSVFileParser
 from typing import Dict, Set, Type, List
 import json
 
 
 class DataFileParserFactory():
     PARSERS: Set[Type[DataFileParser]] = {
-        ParquetFileParser
+        ParquetFileParser,
+        JsonFileParser,
+        CSVFileParser
     }
 
     @classmethod
