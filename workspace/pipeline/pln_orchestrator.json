@@ -535,7 +535,26 @@
 			{
 				"name": "If_HasFailures",
 				"type": "IfCondition",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "ForEach_SB_Results",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "ForEach_HZ_Results",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "ForEach_MiPINS_Results",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"userProperties": [],
 				"typeProperties": {
 					"expression": {
@@ -556,7 +575,10 @@
 							],
 							"userProperties": [],
 							"typeProperties": {
-								"message": "@variables('failureMessage')",
+								"message": {
+									"value": "@variables('failureMessage')",
+									"type": "Expression"
+								},
 								"errorCode": "ORCH_INGEST_FAILURE"
 							}
 						},
@@ -572,7 +594,7 @@
 							"typeProperties": {
 								"variableName": "failureMessage",
 								"value": {
-									"value": "@concat(\n  'One or more stages failed. ',\n  if(\n    greater(length(variables('sbFailedEntities')), 0),\n    concat('SB failed: ', join(variables('sbFailedEntities'), ', '), '. '),\n    ''\n  ),\n  if(\n    greater(length(variables('hzFailedEntities')), 0),\n    concat('HZ failed: ', join(variables('hzFailedEntities'), ', '), '. '),\n    ''\n  ),\n  if(\n    greater(length(variables('mipinsFailedEntities')), 0),\n    concat('MiPINS failed: ', join(variables('mipinsFailedEntities'), ', '), '. '),\n    ''\n  ),\n  'Check orchestrator and entity manifests for details.'\n)\n",
+									"value": "@concat(\n  'One or more stages failed. ',\n  if(\n    greater(length(variables('sbFailedEntities')), 0),\n    concat(\n      'SB failed entities: ', join(variables('sbFailedEntities'), ', '),\n      '. Errors: ', join(variables('sbFailedErrors'), ' | '),\n      '. '\n    ),\n    ''\n  ),\n  if(\n    greater(length(variables('hzFailedEntities')), 0),\n    concat(\n      'HZ failed entities: ', join(variables('hzFailedEntities'), ', '),\n      '. Errors: ', join(variables('hzFailedErrors'), ' | '),\n      '. '\n    ),\n    ''\n  ),\n  if(\n    greater(length(variables('mipinsFailedEntities')), 0),\n    concat(\n      'MiPINS failed entities: ', join(variables('mipinsFailedEntities'), ', '),\n      '. Errors: ', join(variables('mipinsFailedErrors'), ' | '),\n      '. '\n    ),\n    ''\n  ),\n  'Check orchestrator + entity manifests for details.'\n)\n",
 									"type": "Expression"
 								}
 							}
@@ -619,8 +641,14 @@
 								},
 								"waitOnCompletion": true,
 								"parameters": {
-									"p_EntityCodes": "@pipeline().parameters.mipinsEntitiesFilter\n",
-									"runContextJson": "@variables('runContextJson')\n"
+									"p_EntityCodes": {
+										"value": "@pipeline().parameters.mipinsEntitiesFilter\n",
+										"type": "Expression"
+									},
+									"runContextJson": {
+										"value": "@variables('runContextJson')\n",
+										"type": "Expression"
+									}
 								}
 							}
 						},
@@ -642,7 +670,10 @@
 							"userProperties": [],
 							"typeProperties": {
 								"variableName": "mipinsResultJson",
-								"value": "@activity('A_MiPINS_Copy').output.pipelineReturnValue.result\n"
+								"value": {
+									"value": "@activity('A_MiPINS_Copy').output.pipelineReturnValue.result\n",
+									"type": "Expression"
+								}
 							}
 						}
 					]
@@ -720,14 +751,205 @@
 			{
 				"name": "ForEach_SB_Results",
 				"type": "ForEach",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "Init_SB_FailedEntities",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"userProperties": [],
 				"typeProperties": {
 					"items": {
 						"value": "@if(\n  equals(variables('sbResultJson'), 'null'),\n  json('[]'),\n  json(variables('sbResultJson')).results\n)\n",
 						"type": "Expression"
 					},
-					"batchCount": 4
+					"batchCount": 4,
+					"activities": [
+						{
+							"name": "If_SB_Item_Failed",
+							"type": "IfCondition",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"expression": {
+									"value": "@equals(item().status,'Failed')\n",
+									"type": "Expression"
+								},
+								"ifTrueActivities": [
+									{
+										"name": "Append SB failed entity",
+										"type": "AppendVariable",
+										"dependsOn": [],
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "sbFailedEntities",
+											"value": {
+												"value": "@item().entity_code\n",
+												"type": "Expression"
+											}
+										}
+									},
+									{
+										"name": "Append SB failed error",
+										"type": "AppendVariable",
+										"dependsOn": [
+											{
+												"activity": "Append SB failed entity",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "sbFailedErrors",
+											"value": {
+												"value": "@concat(item().entity_code, ': ', coalesce(item().error, ''))\n",
+												"type": "Expression"
+											}
+										}
+									}
+								]
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "ForEach_HZ_Results",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Init_HZ_FailedEntities",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@if(\n  equals(variables('hzResultJson'), 'null'),\n  json('[]'),\n  json(variables('hzResultJson')).results\n)\n",
+						"type": "Expression"
+					},
+					"batchCount": 4,
+					"activities": [
+						{
+							"name": "If_HZ_Item_Failed",
+							"type": "IfCondition",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"expression": {
+									"value": "@equals(item().status,'Failed')\n",
+									"type": "Expression"
+								},
+								"ifTrueActivities": [
+									{
+										"name": "Append HZ failed entity",
+										"type": "AppendVariable",
+										"dependsOn": [],
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "hzFailedEntities",
+											"value": {
+												"value": "@item().entity_code",
+												"type": "Expression"
+											}
+										}
+									},
+									{
+										"name": "Append HZ failed error",
+										"type": "AppendVariable",
+										"dependsOn": [
+											{
+												"activity": "Append HZ failed entity",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "hzFailedErrors",
+											"value": {
+												"value": "@concat(item().entity_code, ': ', coalesce(item().error, ''))",
+												"type": "Expression"
+											}
+										}
+									}
+								]
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "ForEach_MiPINS_Results",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Init_MiPINS_FailedEntities",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@if(\n  equals(variables('mipinsResultJson'), 'null'),\n  json('[]'),\n  json(variables('mipinsResultJson')).results\n)\n",
+						"type": "Expression"
+					},
+					"batchCount": 4,
+					"activities": [
+						{
+							"name": "If_MiPINS_Item_Failed",
+							"type": "IfCondition",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"expression": {
+									"value": "@equals(item().status,'Failed')\n",
+									"type": "Expression"
+								},
+								"ifTrueActivities": [
+									{
+										"name": "Append MiPINS failed entity",
+										"type": "AppendVariable",
+										"dependsOn": [],
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "mipinsFailedEntities",
+											"value": "@item().entity_code\n"
+										}
+									},
+									{
+										"name": "Append MiPINS failed error",
+										"type": "AppendVariable",
+										"dependsOn": [
+											{
+												"activity": "Append MiPINS failed entity",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "mipinsFailedErrors",
+											"value": {
+												"value": "@concat(item().entity_code, ': ', coalesce(item().error, ''))\n",
+												"type": "Expression"
+											}
+										}
+									}
+								]
+							}
+						}
+					]
 				}
 			}
 		],
