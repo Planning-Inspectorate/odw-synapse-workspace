@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ea21668d-b37a-438d-8d3b-4f4858ad2cca"
+				"spark.autotune.trackingId": "9d2756ba-45ad-4239-a931-5446ca41eb79"
 			}
 		},
 		"metadata": {
@@ -65,7 +65,87 @@
 					"storage_account = \"pinsstodwdevuks9h80mb\"          # <- change if different\n",
 					"container = \"horizon-migration-poc\""
 				],
-				"execution_count": null
+				"execution_count": 4
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"input_file = \"horizon-files/Horizon_CaseReference.csv\"\n",
+					"output_folder = \"horizon-files-transformed/case-reference\""
+				],
+				"execution_count": 5
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"input_path = f\"abfss://{container}@{storage_account}.dfs.core.windows.net/{input_file}\"\n",
+					"output_path = f\"abfss://{container}@{storage_account}.dfs.core.windows.net/{output_folder}/\"\n",
+					""
+				],
+				"execution_count": 6
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"\n",
+					"print(\"INPUT :\", input_path)\n",
+					"print(\"OUTPUT:\", output_path)"
+				],
+				"execution_count": 7
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"df = (\n",
+					"    spark.read\n",
+					"    .option(\"header\", \"true\")\n",
+					"    .option(\"inferSchema\", \"true\")   # ok for quick start; for prod you may want explicit schema\n",
+					"    .csv(input_path)\n",
+					")"
+				],
+				"execution_count": 9
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"print(\"Row count:\", df.count())\n",
+					"df.printSchema()"
+				],
+				"execution_count": 10
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"cols_to_drop = [\n",
+					"    \"ChangeTypeStartedAt\",\n",
+					"    \"ChangeTypeStartedBy\",\n",
+					"    \"CaseLockedAt\",\n",
+					"    \"CaseLockedBy\",\n",
+					"    \"CaseLockedFor\"\n",
+					"]"
+				],
+				"execution_count": 11
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"\n",
+					"df_out = df.drop(*cols_to_drop)"
+				],
+				"execution_count": 12
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"(\n",
+					"    df_out.write\n",
+					"    .mode(\"overwrite\")\n",
+					"    .parquet(output_path)\n",
+					")\n",
+					"\n",
+					"print(\"✅ Written parquet to:\", output_path)"
+				],
+				"execution_count": 13
 			}
 		]
 	}
