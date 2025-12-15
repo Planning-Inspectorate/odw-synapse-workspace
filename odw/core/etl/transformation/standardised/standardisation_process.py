@@ -18,7 +18,7 @@ from copy import deepcopy
 class StandardisationProcess(TransformationProcess):
     @classmethod
     def get_name(cls):
-        return "Standardisation Process"
+        return "Standardisation"
 
     def standardise(
         self,
