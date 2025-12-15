@@ -74,7 +74,7 @@ class SynapseFileDataIO(SynapseDataIO):
         else:
             data_path = self._format_to_adls_path(storage_name, container_name, blob_path, storage_endpoint=storage_endpoint)
         reader = spark.read.format(file_format)
-        for option_name, option_value in read_options:
+        for option_name, option_value in read_options.items():
             reader.option(option_name, option_value)
         return reader.load(data_path)
 
@@ -116,6 +116,6 @@ class SynapseFileDataIO(SynapseDataIO):
         else:
             data_path = self._format_to_adls_path(storage_name, container_name, blob_path, storage_endpoint=storage_endpoint)
         writer = data.write.format(file_format).mode(write_mode)
-        for option_name, option_value in write_options:
+        for option_name, option_value in write_options.items():
             writer.option(option_name, option_value)
         writer.save(data_path)
