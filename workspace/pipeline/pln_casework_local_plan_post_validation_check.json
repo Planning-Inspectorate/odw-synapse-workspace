@@ -16,7 +16,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"notebook": {
-						"referenceName": "py_casework_local_plan_standardised_post_validation_check",
+						"referenceName": "py_green_specialist_case_standardised_post_validation_check",
 						"type": "NotebookReference"
 					},
 					"snapshot": true,
@@ -31,8 +31,6 @@
 			{
 				"name": "Set Json Logging Output",
 				"type": "SetVariable",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "Notebook Post Check Validation",
@@ -49,7 +47,7 @@
 				"typeProperties": {
 					"variableName": "Json_Logging_Output",
 					"value": {
-						"value": "@activity('Notebook Post Check Validation').output.status.output.result.exitValue.logging_info",
+						"value": "@string(json(activity('Notebook Post Check Validation').output.status.output.result.exitValue).logging_info)",
 						"type": "Expression"
 					}
 				}
@@ -59,7 +57,7 @@
 				"type": "IfCondition",
 				"dependsOn": [
 					{
-						"activity": "Notebook Post Check Validation",
+						"activity": "Set variable1",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -73,12 +71,26 @@
 					},
 					"ifFalseActivities": [
 						{
-							"name": "WaitSuccessProcess",
-							"type": "Wait",
+							"name": "Set Post Val Continue Processing",
+							"type": "SetVariable",
 							"dependsOn": [],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
 							"userProperties": [],
 							"typeProperties": {
-								"waitTimeInSeconds": 1
+								"variableName": "pipelineReturnValue",
+								"value": [
+									{
+										"key": "Post_Val_Check",
+										"value": {
+											"type": "String",
+											"content": "Y"
+										}
+									}
+								],
+								"setSystemVariable": true
 							}
 						}
 					],
@@ -135,7 +147,7 @@
 							"typeProperties": {
 								"variableName": "Json_HTML_body",
 								"value": {
-									"value": "@concat('<html><body style=\\\"font-family: Arial, sans-serif;\\\"><p><strong>Local Plan data processing halted.</strong></p><p>Total Rejection Rows: ', string(json(variables('Json_Validation_Output')).total_rejection_rows), '<br>Unique Rejected Records: ', string(json(variables('Json_Validation_Output')).unique_rejected_records), '<br>Status: ', json(variables('Json_Validation_Output')).validation_status, '</p><p><strong>Error Breakdown:</strong><br>- Duplicates: ', string(json(variables('Json_Validation_Output')).ldfno_duplicates), '<br>- LDFNo Invalid No. : ', string(json(variables('Json_Validation_Output')).ldfno_format_errors), '<br>- Date Errors: ', string(json(variables('Json_Validation_Output')).date_errors), '</p><p><strong>Rejection File:</strong><br>', json(variables('Json_Validation_Output')).rejection_file_name, '</p><p><strong>Please review and correct the data issues.</strong></p></body></html>')",
+									"value": "@concat('<html><body style=\\\"font-family: Arial, sans-serif;\\\"><p><strong>Green Case data processing halted.</strong></p><p>Total Rejection Rows: ', string(json(variables('Json_Validation_Output')).total_rejection_rows), '<br>Unique Rejected Records: ', string(json(variables('Json_Validation_Output')).unique_rejected_records), '<br>Status: ', json(variables('Json_Validation_Output')).validation_status, '</p><p><strong>Error Breakdown:</strong><br>- Duplicates: ', string(json(variables('Json_Validation_Output')).duplicates), '<br>- NULL Active: ', string(json(variables('Json_Validation_Output')).null_active), '<br>- Date Errors: ', string(json(variables('Json_Validation_Output')).date_errors), '</p><p><strong>Rejection File:</strong><br>', json(variables('Json_Validation_Output')).rejection_file_name, '</p><p><strong>Please review and correct the data issues.</strong></p></body></html>')",
 									"type": "Expression"
 								}
 							}
@@ -143,7 +155,14 @@
 						{
 							"name": "Json Output Validation Summary",
 							"type": "SetVariable",
-							"dependsOn": [],
+							"dependsOn": [
+								{
+									"activity": "Set PostVal start time",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
 							"policy": {
 								"secureOutput": false,
 								"secureInput": false
@@ -156,11 +175,450 @@
 									"type": "Expression"
 								}
 							}
+						},
+						{
+							"name": "Send Green Case failed message",
+							"type": "ExecutePipeline",
+							"state": "Inactive",
+							"onInactiveMarkAs": "Succeeded",
+							"dependsOn": [
+								{
+									"activity": "Execute Post Validation Notification",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": true
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_utl_Send_Teams_Message",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"dataFactorySubscription": {
+										"value": "@pipeline().parameters.subscription_id",
+										"type": "Expression"
+									},
+									"dataFactoryResourceGroup": {
+										"value": "@pipeline().parameters.resource_group",
+										"type": "Expression"
+									},
+									"pipelineRunId": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"teamsWebhookUrl": {
+										"value": "@pipeline().parameters.webhook_url",
+										"type": "Expression"
+									},
+									"activityName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"activityMessage": "Green Specialist Post Validation Checks succeeded. Green Specialist Case spreadsheet needs to be fixed first.",
+									"activityDuration": {
+										"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
+										"type": "Expression"
+									},
+									"activityStatus": "Failed",
+									"Colour": {
+										"value": "@pipeline().parameters.failed_colour",
+										"type": "Expression"
+									},
+									"Image": {
+										"value": "@pipeline().parameters.failed_image",
+										"type": "Expression"
+									},
+									"Message_title": "Green Specialist Case Post Validation Checks succeeded. ",
+									"Message_subtitle": "Green Specialist Post Validation Checks succeeded. Green Specialist Case spreadsheet needs to be fixed first."
+								}
+							}
+						},
+						{
+							"name": "Record failed Green Case Post Validation Checks",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Execute Post Validation Notification",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "Fail",
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StartTime": {
+										"value": "@variables('Start Time')",
+										"type": "Expression"
+									},
+									"EndTime": {
+										"value": "utcNow()",
+										"type": "Expression"
+									},
+									"ErrorMessage": "Green Specialist Case Post validation checks succeeded. Further processing halted.",
+									"StatusMessage": "Green Specialist Case Post validation checks succeeded.",
+									"PipelineTriggerID": {
+										"value": "@pipeline().TriggerId",
+										"type": "Expression"
+									},
+									"PipelineTriggerName": {
+										"value": "@pipeline().TriggerName",
+										"type": "Expression"
+									},
+									"PipelineTriggerType": {
+										"value": "@pipeline().TriggerType",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": "@pipeline()?.TriggeredByPipelineName",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": "@pipeline()?.TriggeredByPipelineRunId",
+										"type": "Expression"
+									},
+									"ActivityType": "Pipeline",
+									"DurationSeconds": {
+										"value": "@concat(\n  formatDateTime(\n    addToTime('1900-01-01T00:00:00.000Z', \n    div(sub(ticks(utcNow()), ticks(variables('Start Time'))), 10000000), \n    'Second'), \n    'HH:mm:ss'\n  ),\n  '.',\n  string(div(mod(sub(ticks(utcNow()), ticks(variables('Start Time'))), 10000000), 10000))\n)",
+										"type": "Expression"
+									},
+									"StatusCode": "400",
+									"AppInsIKey": {
+										"value": "@pipeline().parameters.apps_insights_ikey",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Set PostVal start time",
+							"type": "SetVariable",
+							"dependsOn": [],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "Start Time",
+								"value": {
+									"value": "@utcNow()",
+									"type": "Expression"
+								}
+							}
 						}
 					]
 				}
+			},
+			{
+				"name": "Send Green Case Check Validation failed",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "If validation success",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_utl_Send_Teams_Message",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"dataFactorySubscription": {
+							"value": "@pipeline().parameters.subscription_id",
+							"type": "Expression"
+						},
+						"dataFactoryResourceGroup": {
+							"value": "@pipeline().parameters.resource_group",
+							"type": "Expression"
+						},
+						"pipelineRunId": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"teamsWebhookUrl": {
+							"value": "@pipeline().parameters.webhook_url",
+							"type": "Expression"
+						},
+						"activityName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"activityMessage": "Green Specialist Case Post Validation Check pipeline failed.",
+						"activityDuration": {
+							"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
+							"type": "Expression"
+						},
+						"activityStatus": "Failed",
+						"Colour": {
+							"value": "@pipeline().parameters.failed_colour",
+							"type": "Expression"
+						},
+						"Image": {
+							"value": "@pipeline().parameters.failed_image",
+							"type": "Expression"
+						},
+						"Message_title": "Green Specialist Case Post Validation Check pipeline failed.",
+						"Message_subtitle": "Green Specialist Case Post Validation Check Sending Email Notification pipeline failed."
+					}
+				}
+			},
+			{
+				"name": "Record completed Sap HR Harmonised data",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Set Json Logging Output",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Completion",
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@string(json(activity('Notebook Post Check Validation').output.status.output.result.exitValue).logging_info.start_time)",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@string(json(activity('Notebook Post Check Validation').output.status.output.result.exitValue).logging_info.end_time)",
+							"type": "Expression"
+						},
+						"StatusMessage": "Green Specialist Case Post Validation checks Notebook completed.",
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"PipelineExecutionTimeInSec": {
+							"value": "@string(json(activity('Notebook Post Check Validation').output.status.output.result.exitValue).logging_info.total_exec_time)",
+							"type": "Expression"
+						},
+						"ActivityType": "Pipeline",
+						"DurationSeconds": {
+							"value": "@string(json(activity('Notebook Post Check Validation').output.status.output.result.exitValue).logging_info.total_exec_time)",
+							"type": "Expression"
+						},
+						"StatusCode": "200",
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Record completed Sap HR Harmonised data_copy1",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "If validation success",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Completion",
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@pipeline().TriggerTime",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@utcNow()",
+							"type": "Expression"
+						},
+						"StatusMessage": "Green Case Post Validation Checks completed",
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"ActivityType": "Pipeline",
+						"DurationSeconds": {
+							"value": "@concat(\n  formatDateTime(\n    addToTime('1900-01-01T00:00:00.000Z', \n    div(sub(ticks(utcNow()), ticks(pipeline().TriggerTime)), 10000000), \n    'Second'), \n    'HH:mm:ss'\n  ),\n  '.',\n  string(div(mod(sub(ticks(utcNow()), ticks(pipeline().TriggerTime)), 10000000), 10000))\n)",
+							"type": "Expression"
+						},
+						"StatusCode": "200",
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Set variable1",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Notebook Post Check Validation",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "pipelineReturnValue",
+					"value": [
+						{
+							"key": "Post_Val_Check",
+							"value": {
+								"type": "String",
+								"content": "N"
+							}
+						}
+					],
+					"setSystemVariable": true
+				}
 			}
 		],
+		"parameters": {
+			"webhook_url": {
+				"type": "string"
+			},
+			"subscription_id": {
+				"type": "string"
+			},
+			"resource_group": {
+				"type": "string"
+			},
+			"starting_colour": {
+				"type": "string"
+			},
+			"on_progress_colour": {
+				"type": "string"
+			},
+			"failed_colour": {
+				"type": "string"
+			},
+			"start_time": {
+				"type": "string"
+			},
+			"starting_image": {
+				"type": "string"
+			},
+			"progress_image": {
+				"type": "string"
+			},
+			"warning_image": {
+				"type": "string"
+			},
+			"failed_image": {
+				"type": "string"
+			},
+			"warning_colour": {
+				"type": "string"
+			},
+			"horizon_feed": {
+				"type": "array"
+			},
+			"apps_insights_ikey": {
+				"type": "string"
+			}
+		},
 		"variables": {
 			"Json_Logging_Output": {
 				"type": "String"
@@ -170,10 +628,13 @@
 			},
 			"Json_HTML_body": {
 				"type": "String"
+			},
+			"Start Time": {
+				"type": "String"
 			}
 		},
 		"folder": {
-			"name": "casework_local_plan/layers/1-standardised"
+			"name": "green_specialist_case/layers/1-standardised"
 		},
 		"annotations": []
 	}
