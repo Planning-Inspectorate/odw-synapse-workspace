@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "95def997-97c7-4092-95e8-a9ded83f77ee"
+				"spark.autotune.trackingId": "ada38960-3d7c-4b05-b359-1fdff1a959fe"
 			}
 		},
 		"metadata": {
@@ -213,10 +213,39 @@
 				"source": [
 					"if not error_message:\n",
 					"    try:\n",
+					"        # Drop the table if it exists\n",
+					"        logInfo(f\"Dropping table {spark_table_final} if it exists\")\n",
+					"        spark.sql(f\"DROP TABLE IF EXISTS {spark_table_final}\")\n",
+					"        logInfo(\"Table dropped or did not exist\")\n",
+					"        \n",
+					"        # Check if storage location exists before attempting cleanup\n",
+					"        logInfo(f\"Checking storage location: {delta_table_path}\")\n",
+					"        try:\n",
+					"            if mssparkutils.fs.exists(delta_table_path):\n",
+					"                logInfo(\"Storage location exists, cleaning up...\")\n",
+					"                mssparkutils.fs.rm(delta_table_path, recurse=True)\n",
+					"                logInfo(\"Storage location cleaned successfully\")\n",
+					"            else:\n",
+					"                logInfo(\"Storage location does not exist, no cleanup needed\")\n",
+					"        except Exception as cleanup_error:\n",
+					"            # Handle edge cases where exists() might behave unexpectedly\n",
+					"            logInfo(f\"Storage location cleanup skipped: {str(cleanup_error)[:200]}\")\n",
+					"        \n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error in dropping table {spark_table_final}: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
 					"        # Create table from view with specified location\n",
-					"        logInfo(f\"Creating or replacing table {spark_table_final}\")\n",
+					"        logInfo(f\"Creating table {spark_table_final} from view with specified location\")\n",
 					"        spark.sql(f\"\"\"\n",
-					"        CREATE OR REPLACE TABLE {spark_table_final}\n",
+					"        CREATE TABLE {spark_table_final}\n",
 					"        USING delta\n",
 					"        LOCATION '{delta_table_path}'\n",
 					"        AS SELECT * FROM {view_name}\n",
