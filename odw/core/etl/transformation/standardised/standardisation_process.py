@@ -76,8 +76,10 @@ class StandardisationProcess(TransformationProcess):
         # Initialise input parameters
         source_data: Dict[str, DataFrame] = kwargs.get("source_data", None)
         if not source_data:
-            raise ValueError(f"StandardisationProcess.process requires a source_data dictoinary to be provided, but was missing")
-        orchestration_file: str = source_data.get("orchestration_file", None)
+            raise ValueError(f"StandardisationProcess.process requires a source_data dictionary to be provided, but was missing")
+        orchestration_file: Dict[str, Any] = kwargs.get("orchestration_file", None)
+        if not orchestration_file:
+            raise ValueError(f"StandardisationProcess.process requires a orchestration_file json to be provided, but was missing")
         date_folder_input: str = kwargs.get("date_folder", None)
         source_frequency_folder: str = kwargs.get("source_frequency_folder")
         specific_file: str = kwargs.get("specific_file", None) # if not provided, it will ingest all files in the date_folder
