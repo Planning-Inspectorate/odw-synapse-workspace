@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "59e0f85f-5028-43fc-b7c6-03a6246b8546"
+				"spark.autotune.trackingId": "91ca7b92-0294-4551-9921-c299b93ddbc0"
 			}
 		},
 		"metadata": {
@@ -59,7 +59,7 @@
 					"from odw.core.io.data_io_factory import DataIOFactory\n",
 					"from odw.core.io.parser.data_file_parser_factory import DataFileParserFactory\n",
 					"from pyspark.sql import SparkSession\n",
-					"from typing import Dict, Any\n",
+					"from typing import Dict, Any, Union\n",
 					"import json"
 				],
 				"execution_count": null
@@ -85,7 +85,8 @@
 					]
 				},
 				"source": [
-					"input_arguments: Dict[str, Any] = {\n",
+					"input_arguments: Union[Dict[str, Any], str] = {\n",
+					"    \"entity_stage_name\": \"Standardisation\",\n",
 					"    \"source_data\": {\n",
 					"        \"someblob\": {\n",
 					"            \"storage_kind\": \"ADLSG2-File\",\n",
@@ -96,6 +97,14 @@
 					"        }\n",
 					"    }\n",
 					"}"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if isinstance(input_arguments, str):\n",
+					"    input_arguments = json.loads(input_arguments)"
 				],
 				"execution_count": null
 			},
@@ -116,7 +125,9 @@
 				"cell_type": "code",
 				"source": [
 					"if \"source_data\" not in input_arguments:\n",
-					"    raise ValueError(\"py_etl_ochestrator expects a 'source_data' property to be supplied, but this was missing\")"
+					"    raise ValueError(\"py_etl_ochestrator expects a 'source_data' property to be supplied, but this was missing\")\n",
+					"if \"entity_stage_name\" not in input_arguments:\n",
+					"    raise ValueError(\"py_etl_ochestrator expects a 'entity_stage_name' property to be supplied, but this was missing\")"
 				],
 				"execution_count": null
 			},
@@ -148,9 +159,9 @@
 					"        if not file_format:\n",
 					"            raise ValueError(f\"Expected a file_format parameter to be passed, but this was missing\")\n",
 					"        data_io_inst = DataIOFactory.get(storage_kind)()\n",
-					"        data_bytes = data_io_inst.read(spark=spark, **metadata)\n",
-					"        parser_inst = DataFileParserFactory.get(file_format)(spark)\n",
-					"        data = parser_inst.from_bytes(data_bytes)\n",
+					"        data = data_io_inst.read(spark=spark, **metadata)\n",
+					"        # parser_inst = DataFileParserFactory.get(file_format)(spark)\n",
+					"        # data = parser_inst.from_bytes(data_bytes)\n",
 					"        source_data_map[data_name] = data\n",
 					"    except Exception as e:\n",
 					"        data_read_error_map[data_name] = e"
@@ -184,6 +195,7 @@
 				"cell_type": "code",
 				"source": [
 					"spark = SparkSession.builder.getOrCreate()\n",
+					"entity_stage_name = input_arguments.get(\"entity_stage_name\")\n",
 					"etl_process_class = ETLProcessFactory.get(entity_stage_name)\n",
 					"etl_process_instance = etl_process_class(spark)"
 				],
@@ -206,7 +218,7 @@
 				"cell_type": "code",
 				"source": [
 					"etl_results = etl_process_instance.process(\n",
-					"    source_data=source_data,\n",
+					"    source_data=source_data_map,\n",
 					"    **input_arguments,\n",
 					"    spark=spark\n",
 					")"

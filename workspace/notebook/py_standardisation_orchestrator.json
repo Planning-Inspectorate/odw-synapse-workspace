@@ -1,0 +1,160 @@
+{
+	"name": "py_standardisation_orchestrator",
+	"properties": {
+		"folder": {
+			"name": "refactor/20_standardise"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "hbtPool",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "52af9a5c-beff-4ef4-b0e0-f8f57dd62e9a"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": true,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/hbtPool",
+				"name": "hbtPool",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/hbtPool",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.5",
+				"nodeCount": 10,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"from odw.core.util.util import Util\n",
+					"from typing import Dict, Any\n",
+					"from datetime import datetime"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"tags": [
+						"parameters"
+					]
+				},
+				"source": [
+					"input_arguments: Dict[str, Any] = {\n",
+					"    \"source_folder\": \"AIEDocumentData\",\n",
+					"    \"date_folder\": \"2024-03-08\"\n",
+					"}"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not (\"source_folder\" in input_arguments or \"source_frequency_folder\" in input_arguments):\n",
+					"    raise ValueError(\"py_standardisation_ochestrator expects a 'source_folder' or a 'source_frequency_folder' property to be supplied, but this was missing\")\n",
+					"if \"source_folder\" in input_arguments and \"source_frequency_folder\" in input_arguments:\n",
+					"    raise ValueError(\"py_standardisation_ochestrator expects one of 'source_folder' or 'source_frequency_folder' property to be supplied, but not both\")\n",
+					"if \"date_folder\" not in input_arguments:\n",
+					"    raise ValueError(\"py_standardisation_ochestrator expects a 'date_folder' property to be supplied, but this was missing\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"source_folder = input_arguments.get(\"source_folder\", None)\n",
+					"source_frequency_folder = input_arguments.get(\"source_frequency_folder\", None)\n",
+					"date_folder = input_arguments.get(\"date_folder\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"storage_account = Util.get_storage_account()\n",
+					"storage_account_name = storage_account.split(\".\")[0]\n",
+					"raw_container = \"odw-raw\"\n",
+					"\n",
+					"if date_folder == \"\":\n",
+					"    date_folder = datetime.now().date()\n",
+					"else:\n",
+					"    date_folder = datetime.strptime(date_folder, \"%Y-%m-%d\")\n",
+					"\n",
+					"date_folder_str = date_folder.strftime(\"%Y-%m-%d\")\n",
+					"source_folder_path = source_folder if not source_frequency_folder else f\"{source_folder}/{source_frequency_folder}\"\n",
+					"source_path = f\"abfss://{raw_container}@{storage_account}{source_folder_path}/{date_folder_str}\"\n",
+					"files = mssparkutils.fs.ls(source_path)\n",
+					"\n",
+					"\n",
+					"source_data = {\n",
+					"    file.name: {\n",
+					"        \"storage_kind\": \"ADLSG2-File\",\n",
+					"        \"storage_name\": storage_account_name,\n",
+					"        \"container_name\": raw_container,\n",
+					"        \"blob_path\": f\"{source_folder_path}/{date_folder_str}/{file.name}\",\n",
+					"        \"file_format\": file.name.split(\".\")[-1]\n",
+					"    }\n",
+					"    for file in files\n",
+					"}"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"cleaned_notebook_params = input_arguments | {\n",
+					"    \"entity_stage_name\": \"Standardisation\",\n",
+					"    \"source_data\": source_data\n",
+					"}"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"print(json.dumps(cleaned_notebook_params, indent=4))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"mssparkutils.notebook.run(\n",
+					"    \"refactor/py_etl_orchestrator\",\n",
+					"    600,\n",
+					"    {\"input_arguments\": json.dumps(cleaned_notebook_params)}\n",
+					")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
