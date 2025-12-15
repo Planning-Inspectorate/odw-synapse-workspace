@@ -54,6 +54,7 @@ class SynapseFileDataIO(SynapseDataIO):
         container_name = kwargs.get("container_name", None)
         blob_path = kwargs.get("blob_path", None)
         file_format = kwargs.get("file_format", None)
+        read_options = kwargs.get("read_options", dict())
         if not spark:
             raise ValueError(f"SynapseFileDataIO.read requires a spark to be provided, but was missing")
         if not (storage_name or storage_endpoint):
@@ -66,11 +67,16 @@ class SynapseFileDataIO(SynapseDataIO):
             raise ValueError(f"SynapseFileDataIO.read requires a blob_path to be provided, but was missing")
         if not file_format:
             raise ValueError(f"SynapseFileDataIO.read requires a file_format to be provided, but was missing")
+        if not isinstance(read_options, dict):
+            raise ValueError(f"SynapseFileDataIO.read requires the read_options to be a list of strings, but was a {type(read_options)}")
         if storage_name:
             data_path = self._format_to_adls_path(container_name, blob_path, storage_name=storage_name)
         else:
             data_path = self._format_to_adls_path(storage_name, container_name, blob_path, storage_endpoint=storage_endpoint)
-        return spark.read.format(file_format).load(data_path)
+        reader = spark.read.format(file_format)
+        for option_name, option_value in read_options:
+            reader.option(option_name, option_value)
+        return reader.load(data_path)
 
     def write(self, data: DataFrame, **kwargs):
         """
@@ -90,6 +96,7 @@ class SynapseFileDataIO(SynapseDataIO):
         blob_path = kwargs.get("blob_path", None)
         file_format = kwargs.get("file_format", None)
         write_mode = kwargs.get("write_mode", None)
+        write_options = kwargs.get("write_options", dict())
         if not (storage_name or storage_endpoint):
             raise ValueError(f"SynapseFileDataIO.write expected one of 'storage_name' or 'storage_endpoint' to be provided")
         if storage_name and storage_endpoint:
@@ -102,8 +109,13 @@ class SynapseFileDataIO(SynapseDataIO):
             raise ValueError(f"SynapseDeltaDataIO.write requires a file_format to be provided, but was missing")
         if not write_mode:
             raise ValueError(f"SynapseDeltaDataIO.write requires a write_mode to be provided, but was missing")
+        if not isinstance(write_options, dict):
+            raise ValueError(f"SynapseFileDataIO.write requires the write_options to be a list of strings, but was a {type(write_options)}")
         if storage_name:
             data_path = self._format_to_adls_path(container_name, blob_path, storage_name=storage_name)
         else:
             data_path = self._format_to_adls_path(storage_name, container_name, blob_path, storage_endpoint=storage_endpoint)
-        data.write.format(file_format).mode(write_mode).save(data_path)
+        writer = data.write.format(file_format).mode(write_mode)
+        for option_name, option_value in write_options:
+            writer.option(option_name, option_value)
+        writer.save(data_path)
