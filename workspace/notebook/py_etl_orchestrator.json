@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d9f7cec1-2617-40b1-b94c-e9648e8f5331"
+				"spark.autotune.trackingId": "59e0f85f-5028-43fc-b7c6-03a6246b8546"
 			}
 		},
 		"metadata": {
@@ -29,7 +29,7 @@
 			"enableDebugMode": true,
 			"kernelspec": {
 				"name": "synapse_pyspark",
-				"display_name": "python"
+				"display_name": "Synapse PySpark"
 			},
 			"language_info": {
 				"name": "python"
@@ -90,8 +90,8 @@
 					"        \"someblob\": {\n",
 					"            \"storage_kind\": \"ADLSG2-File\",\n",
 					"            \"storage_name\": \"pinsstodwdevuks9h80mb\",\n",
-					"            \"container_name\": \"odw-raw\",\n",
-					"            \"blob_path\": \"\",\n",
+					"            \"container_name\": \"odw-config\",\n",
+					"            \"blob_path\": \"orchestration/orchestration.json\",\n",
 					"            \"file_format\": \"json\"\n",
 					"        }\n",
 					"    }\n",
@@ -142,14 +142,14 @@
 					"for data_name, metadata in source_metadata.items():\n",
 					"    try:\n",
 					"        storage_kind = metadata.get(\"storage_kind\", None)\n",
-					"        data_format = metadata.get(\"data_format\", None)\n",
+					"        file_format = metadata.get(\"file_format\", None)\n",
 					"        if not storage_kind:\n",
 					"            raise ValueError(f\"Expected a storage_kind parameter to be passed, but this was missing\")\n",
-					"        if not data_format:\n",
-					"            raise ValueError(f\"Expected a data_format parameter to be passed, but this was missing\")\n",
+					"        if not file_format:\n",
+					"            raise ValueError(f\"Expected a file_format parameter to be passed, but this was missing\")\n",
 					"        data_io_inst = DataIOFactory.get(storage_kind)()\n",
-					"        data_bytes = data_io_inst.read(**metadata)\n",
-					"        parser_inst = DataFileParserFactory.get(data_format)(spark)\n",
+					"        data_bytes = data_io_inst.read(spark=spark, **metadata)\n",
+					"        parser_inst = DataFileParserFactory.get(file_format)(spark)\n",
 					"        data = parser_inst.from_bytes(data_bytes)\n",
 					"        source_data_map[data_name] = data\n",
 					"    except Exception as e:\n",
@@ -160,9 +160,9 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"if data_read_errors:\n",
+					"if data_read_error_map:\n",
 					"    raise RuntimeError(\n",
-					"        f\"Failed to read the following source data: {json.dumps(data_read_error_map, indent=4)}\"\n",
+					"        f\"Failed to read the following source data: {json.dumps(data_read_error_map, indent=4, default=str)}\"\n",
 					"    )"
 				],
 				"execution_count": null
