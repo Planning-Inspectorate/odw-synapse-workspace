@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "340d2611-e6d8-464b-bba0-17bf8fac769a"
+				"spark.autotune.trackingId": "63d32ef8-9401-4a44-9c69-bbdfffa0065d"
 			}
 		},
 		"metadata": {
@@ -90,7 +90,7 @@
 					"warnings.filterwarnings(\"ignore\", message=\"iteritems is deprecated\")\n",
 					""
 				],
-				"execution_count": 2
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -112,7 +112,7 @@
 					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
 					"print(storage_account)"
 				],
-				"execution_count": 3
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -132,7 +132,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 4
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -164,9 +164,11 @@
 					"storage_name = storage_account.replace(\".dfs.core.windows.net/\", \"\")\n",
 					"start_time = datetime.now()\n",
 					"truncated_error = \"\"\n",
+					"result_path = \"\"\n",
+					"blob_path = \"\"\n",
 					""
 				],
-				"execution_count": 5
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -274,47 +276,6 @@
 					"    \n",
 					"    return None\n",
 					"\n",
-					"#def check_date_format_columns(date_value):\n",
-					"#    \"\"\"Returns error description or None if valid\"\"\"\n",
-					"#    if not date_value or str(date_value).strip() == \"\":\n",
-					"#        return None\n",
-					"#    \n",
-					"#    date_str = str(date_value).strip()\n",
-					"#    \n",
-					"    # Check Random numbers\n",
-					"#    if re.match(r'^\\d{9,}$', date_str):\n",
-					"#        return \"Random digits found in date format\"\n",
-					"    \n",
-					"    # Check Text format\n",
-					"#    if re.search(r'[a-zA-Z]', date_str):\n",
-					"#        return \"Text found in date format\"\n",
-					"    \n",
-					"    # Check Invalid format\n",
-					"#    match = re.match(r'^(\\d{1,2})/(\\d{1,2})/(\\d{4})$', date_str)\n",
-					"#    if not match:\n",
-					"#        return \"Invalid date format (expected DD/MM/YYYY)\"\n",
-					"    \n",
-					"#    day, month, year = match.groups()\n",
-					"#    day, month = int(day), int(month)\n",
-					"    \n",
-					"    # Check Invalid month\n",
-					"#    if month < 1 or month > 12:\n",
-					"#        return f\"Invalid month value ({month})\"\n",
-					"    \n",
-					"    # Check Invalid days\n",
-					"#    if day < 1 or day > 31:\n",
-					"#        return f\"Invalid day value ({day})\"\n",
-					"    \n",
-					"    # Check Ambiguous dates\n",
-					"    #if day == month and 1 <= day <= 12:\n",
-					"    #    return f\"Ambiguous date format (could be DD/MM or MM/DD)\"\n",
-					"    \n",
-					"    # Check American format\n",
-					"#    if day <= 12 and month > 12:\n",
-					"#        return \"American date format detected (MM/DD/YYYY instead of DD/MM/YYYY)\"\n",
-					"    \n",
-					"#    return None\n",
-					"\n",
 					"def time_diff_seconds(start, end):\n",
 					"    try:\n",
 					"        if not start or not end:\n",
@@ -342,7 +303,7 @@
 					"validate_date_udf = udf(check_date_format_columns, StringType())\n",
 					""
 				],
-				"execution_count": 8
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -439,7 +400,7 @@
 					"\n",
 					""
 				],
-				"execution_count": 9
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -466,7 +427,7 @@
 					"    rejection_dfs.append(df_duplicates)\n",
 					"\n",
 					"if null_active_count > 0:\n",
-					"    rejection_dfs.append(df_null_active)\n",
+					"    rejection_dfs.append(df_null_active_records)\n",
 					"\n",
 					"if date_error_dfs:\n",
 					"    rejection_dfs.extend(date_error_dfs)\n",
@@ -485,7 +446,7 @@
 					"logInfo(f\"   Total rejection rows: {total_rejected_rows:,}\")\n",
 					""
 				],
-				"execution_count": 10
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -560,6 +521,8 @@
 					"            logInfo(f\"created: {final_file_path}\")\n",
 					"            \n",
 					"            result_path = final_file_path\n",
+					"\n",
+					"            result_path = result_path.replace(f\"@{storage_account}\", \"/\").replace(\"abfss://\", \"/\")\n",
 					"        else:\n",
 					"            print(\"No csv file generated\")\n",
 					"            result_path = None\n",
@@ -568,6 +531,7 @@
 					"        \n",
 					"    else:\n",
 					"        logInfo(\"No rejections - nothing to save\")    \n",
+					"        result_path = None\n",
 					"\n",
 					"except Exception as e:\n",
 					"    # Capture error information and limit to 300 characters\n",
@@ -580,7 +544,7 @@
 					"    logException(e)\n",
 					""
 				],
-				"execution_count": 11
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -607,9 +571,15 @@
 					"    else:\n",
 					"        unique_rejected_records = 0\n",
 					"\n",
-					"    result_path = result_path.replace(f\"@{storage_account}\", \"/\").replace(\"abfss://\", \"/\")\n",
-					"\n",
-					"    print(f\"\\nFinal file: {result_path}\")\n",
+					"    # Use empty string if variables not set\n",
+					"    rejection_file_path = result_path if result_path else \"\"\n",
+					"    rejection_file_name = csv_filename if csv_filename else \"\"\n",
+					"    rejection_file_path_blob = blob_path if blob_path else \"\"\n",
+					"   \n",
+					"    if rejection_file_path:\n",
+					"        print(f\"\\nFinal file: {rejection_file_path}\")\n",
+					"    else:\n",
+					"        print(\"\\nNo rejection file created - validation passed\")\n",
 					"\n",
 					"    json_output = {\n",
 					"        \"logging_info\": {\n",
@@ -668,7 +638,7 @@
 					"    logException(e)\n",
 					""
 				],
-				"execution_count": 12
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
