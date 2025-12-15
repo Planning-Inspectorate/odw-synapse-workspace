@@ -73,29 +73,24 @@ class StandardisationProcess(TransformationProcess):
         return df
 
     def process(self, **kwargs) -> ETLResult:
-        # Initialise variables
-        spark = SparkSession.builder.getOrCreate()
-        insert_count = 0
-        process_name = "py_raw_to_std"
-        if date_folder_input == '':
-            date_folder = datetime.now().date()
-        else:
-            date_folder = datetime.strptime(date_folder_input, "%Y-%m-%d")
-        start_exec_time = datetime.now()
-        storage_account = Util.get_storage_account()
-
         # Initialise input parameters
         source_data: Dict[str, DataFrame] = kwargs.get("source_data", None)
         if not source_data:
             raise ValueError(f"StandardisationProcess.process requires a source_data dictoinary to be provided, but was missing")
         orchestration_file: str = source_data.get("orchestration_file", None)
         date_folder_input: str = kwargs.get("orchestration_file", None)
-        source_folder: str = kwargs.get("source_folder", None)
         source_frequency_folder: str = kwargs.get("source_frequency_folder")
         specific_file: str = kwargs.get("specific_file", None) # if not provided, it will ingest all files in the date_folder
-        is_multiLine: bool = kwargs.get("is_multiLine", True)
-        delete_existing_table: bool = kwargs.get("delete_existing_table", False)
-        data_attribute: str = kwargs.get("data_attribute", None)
+        if date_folder_input == '':
+            date_folder = datetime.now().date()
+        else:
+            date_folder = datetime.strptime(date_folder_input, "%Y-%m-%d")
+        # Initialise variables
+        spark = SparkSession.builder.getOrCreate()
+        insert_count = 0
+        process_name = "py_raw_to_std"
+        start_exec_time = datetime.now()
+        storage_account = Util.get_storage_account()
         # Initialise source data
         orchestration_file: Dict[str, Any] = kwargs.get("orchestration_file", None)
         process_name = "py_raw_to_std"
