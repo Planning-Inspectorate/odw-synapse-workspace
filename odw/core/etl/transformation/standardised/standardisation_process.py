@@ -78,23 +78,20 @@ class StandardisationProcess(TransformationProcess):
         if not source_data:
             raise ValueError(f"StandardisationProcess.process requires a source_data dictionary to be provided, but was missing")
         orchestration_file: Dict[str, Any] = kwargs.get("orchestration_file", None)
+        orchestration_file = deepcopy(orchestration_file)
         if not orchestration_file:
             raise ValueError(f"StandardisationProcess.process requires a orchestration_file json to be provided, but was missing")
         date_folder_input: str = kwargs.get("date_folder", None)
         source_frequency_folder: str = kwargs.get("source_frequency_folder")
         specific_file: str = kwargs.get("specific_file", None) # if not provided, it will ingest all files in the date_folder
+        # Initialise variables
         if date_folder_input == '':
             date_folder = datetime.now().date()
         else:
             date_folder = datetime.strptime(date_folder_input, "%Y-%m-%d")
-        # Initialise variables
         spark = SparkSession.builder.getOrCreate()
-        insert_count = 0
         process_name = "py_raw_to_std"
-        start_exec_time = datetime.now()
-        storage_account = Util.get_storage_account()
         # Initialise source data
-        process_name = "py_raw_to_std"
 
         definitions: List[Dict[str, Any]] = orchestration_file.pop("definitions", None)
         if not definitions:
@@ -117,7 +114,7 @@ class StandardisationProcess(TransformationProcess):
             expected_from = datetime.combine(expected_from, datetime.min.time())
             expected_to = expected_from + timedelta(days=definition["Expected_Within_Weekdays"])
             if "Standardised_Table_Definition" in definition:
-                standardised_table_loc = "abfss://odw-config@"+storage_account + definition["Standardised_Table_Definition"]
+                standardised_table_loc = Util.get_path_to_file(f"odw-config/{definition['Standardised_Table_Definition']}")
                 standardised_table_schema = json.loads(spark.read.text(standardised_table_loc, wholetext=True).first().value)
             else:
                 standardised_table_schema = SchemaUtil(db_name="odw_standardised_db").get_schema_for_entity(definition["Source_Frequency_Folder"])
