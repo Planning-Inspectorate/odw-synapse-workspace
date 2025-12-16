@@ -102,9 +102,6 @@ class StandardisationProcess(TransformationProcess):
 
         output_data = {}
         for file, data in source_data.items():
-            expected_from = date_folder - timedelta(days=1)
-            expected_from = datetime.combine(expected_from, datetime.min.time())
-            expected_to = expected_from + timedelta(days=definition["Expected_Within_Weekdays"])
             definition = next(
                 (
                     d
@@ -116,6 +113,9 @@ class StandardisationProcess(TransformationProcess):
                 ),
                 None
             )
+            expected_from = date_folder - timedelta(days=1)
+            expected_from = datetime.combine(expected_from, datetime.min.time())
+            expected_to = expected_from + timedelta(days=definition["Expected_Within_Weekdays"])
             if "Standardised_Table_Definition" in definition:
                 standardised_table_loc = "abfss://odw-config@"+storage_account + definition["Standardised_Table_Definition"]
                 standardised_table_schema = json.loads(spark.read.text(standardised_table_loc, wholetext=True).first().value)
