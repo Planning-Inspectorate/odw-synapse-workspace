@@ -334,67 +334,6 @@
 				}
 			},
 			{
-				"name": "Send Green Case Check Validation failed",
-				"type": "ExecutePipeline",
-				"dependsOn": [
-					{
-						"activity": "If validation success",
-						"dependencyConditions": [
-							"Failed"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": true
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_utl_Send_Teams_Message",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"dataFactorySubscription": {
-							"value": "@pipeline().parameters.subscription_id",
-							"type": "Expression"
-						},
-						"dataFactoryResourceGroup": {
-							"value": "@pipeline().parameters.resource_group",
-							"type": "Expression"
-						},
-						"pipelineRunId": {
-							"value": "@pipeline().RunId",
-							"type": "Expression"
-						},
-						"teamsWebhookUrl": {
-							"value": "@pipeline().parameters.webhook_url",
-							"type": "Expression"
-						},
-						"activityName": {
-							"value": "@pipeline().Pipeline",
-							"type": "Expression"
-						},
-						"activityMessage": "Green Specialist Case Post Validation Check pipeline failed.",
-						"activityDuration": {
-							"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
-							"type": "Expression"
-						},
-						"activityStatus": "Failed",
-						"Colour": {
-							"value": "@pipeline().parameters.failed_colour",
-							"type": "Expression"
-						},
-						"Image": {
-							"value": "@pipeline().parameters.failed_image",
-							"type": "Expression"
-						},
-						"Message_title": "Green Specialist Case Post Validation Check pipeline failed.",
-						"Message_subtitle": "Green Specialist Case Post Validation Check Sending Email Notification pipeline failed."
-					}
-				}
-			},
-			{
 				"name": "Record completed Green Specialist Case data",
 				"type": "ExecutePipeline",
 				"dependsOn": [
@@ -572,6 +511,79 @@
 						}
 					],
 					"setSystemVariable": true
+				}
+			},
+			{
+				"name": "Record failed Green Specialist Case Standardised",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "If validation success",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Fail",
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@pipeline().TriggerTime",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@utcNow()",
+							"type": "Expression"
+						},
+						"StatusMessage": "Green Case Post Validation Checks failed",
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"ActivityType": "Pipeline",
+						"DurationSeconds": {
+							"value": "@concat(\n  formatDateTime(\n    addToTime('1900-01-01T00:00:00.000Z', \n    div(sub(ticks(utcNow()), ticks(pipeline().TriggerTime)), 10000000), \n    'Second'), \n    'HH:mm:ss'\n  ),\n  '.',\n  string(div(mod(sub(ticks(utcNow()), ticks(pipeline().TriggerTime)), 10000000), 10000))\n)",
+							"type": "Expression"
+						},
+						"StatusCode": "400",
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
+					}
 				}
 			}
 		],
