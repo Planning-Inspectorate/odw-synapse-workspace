@@ -1,11 +1,15 @@
 from odw.test.util.mock.import_mock_notebook_utils import notebookutils
 from odw.core.etl.transformation.standardised.standardisation_process import StandardisationProcess
+from odw.core.util.util import Util
+from odw.test.util.util import generate_local_path
 from pyspark.sql import SparkSession
 from datetime import datetime, timedelta
 import pyspark.sql.functions as F
 import pyspark.sql.types as T
 import mock
 from odw.test.util.assertion import assert_dataframes_equal
+import json
+from copy import deepcopy
 
 
 def test_standardise():
@@ -101,3 +105,122 @@ def test_standardise():
             with mock.patch.object(F, "sha2", return_value=F.lit(mock_hash)):
                 actual_output = StandardisationProcess(spark=spark).standardise(df, schema, expected_from, expected_to, process_name, definition)
                 assert_dataframes_equal(expected_output, actual_output)
+
+
+def test_process__with():
+    spark = SparkSession.builder.getOrCreate()
+
+    orchestration_file = {
+        "definitions": [
+            {
+                "Source_ID": 116,
+                "Source_Folder": "test_standardisation_process",
+                "Source_Frequency_Folder": "",
+                "Source_Filename_Format": "test_standardisation_process.csv",
+                "Source_Filename_Start": "test_standardisation_process",
+                "Expected_Within_Weekdays": 1,
+                "Standardised_Path": "test_standardisation_process",
+                "Standardised_Table_Name": "aie_document_data",
+                "Standardised_Table_Definition": "standardised_table_definitions/test_standardisation_process.json"
+            }
+        ]
+    }
+
+    process_arguments = {
+        "source_data": {
+            "test_standardisation_process1": spark.createDataFrame(
+                [
+                    (1, "a", 11),
+                    (2, "b", 22),
+                    (3, "c", 33),
+                    (4, "d", 44),
+                    (5, "e", 55)
+                ],
+                ["col A", "col B", "col C"]
+            ),
+            "test_standardisation_process2": spark.createDataFrame(
+                [
+                    (2, "f", 11),
+                    (4, "g", 22),
+                    (6, "h", 33),
+                    (8, "i", 44),
+                    (10, "j", 55)
+                ],
+                ["col A", "col B", "col C"]
+            )
+        },
+        "orchestration_file": orchestration_file,
+        "date_folder": "2025-01-01",
+        "source_frequency_folder": "",
+        "specific_file": ""
+    }
+    standardise_side_effects = [
+        spark.createDataFrame(
+            [
+                (1, "a", 11),
+                (2, "b", 22),
+                (3, "c", 33),
+                (4, "d", 44),
+                (5, "e", 55)
+            ],
+            ["col A", "col B", "col C"]
+        ),
+        spark.createDataFrame(
+            [
+                (2, "f", 11),
+                (4, "g", 22),
+                (6, "h", 33),
+                (8, "i", 44),
+                (10, "j", 55)
+            ],
+            ["col A", "col B", "col C"]
+        )
+    ]
+    expected_output = {
+        "test_standardisation_process1": standardise_side_effects[0],
+        "test_standardisation_process2": standardise_side_effects[1]
+    }
+    call_params = []
+    side_effect_index = 0
+    def mock_standardise(
+        inst,
+        data,
+        schema,
+        expected_from,
+        expected_to,
+        process_name,
+        definition
+    ):
+        nonlocal side_effect_index
+        call_params.append((data, deepcopy(schema), expected_from, expected_to, process_name, deepcopy(definition)))
+        return_value =  standardise_side_effects[side_effect_index]
+        side_effect_index += 1
+        return return_value
+    
+    expected_calls = [
+        (
+            standardise_side_effects[0],
+            json.load(open(generate_local_path(f"odw-config/standardised_table_definitions/test_standardisation_process.json"))),
+            datetime.strptime("2025-01-01", "%Y-%m-%d") - timedelta(days=1),
+            datetime.strptime("2025-01-01", "%Y-%m-%d"),
+            "py_raw_to_std",
+            orchestration_file["definitions"][0]
+        ),
+        (
+            standardise_side_effects[1],
+            json.load(open(generate_local_path(f"odw-config/standardised_table_definitions/test_standardisation_process.json"))),
+            datetime.strptime("2025-01-01", "%Y-%m-%d") - timedelta(days=1),
+            datetime.strptime("2025-01-01", "%Y-%m-%d"),
+            "py_raw_to_std",
+            orchestration_file["definitions"][0]
+        )
+    ]
+
+    with mock.patch.object(Util, "get_path_to_file", generate_local_path):
+        with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net/"):
+            with mock.patch.object(StandardisationProcess, "standardise", mock_standardise):
+                actual_output = StandardisationProcess(spark).process(
+                    **process_arguments
+                )
+                assert expected_output == actual_output
+                assert str(expected_calls) == str(call_params)
