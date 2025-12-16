@@ -1,0 +1,181 @@
+{
+	"name": "pln_trigger_function_app_v1",
+	"properties": {
+		"activities": [
+			{
+				"name": "Trigger Function",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "Get Function Secret",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 2,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "GET",
+					"url": {
+						"value": "@activity('Get Function Secret').output.value",
+						"type": "Expression"
+					},
+					"connectVia": {
+						"referenceName": "PinsIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"authentication": {
+						"type": "MSI",
+						"resource": "https://vault.azure.net"
+					}
+				}
+			},
+			{
+				"name": "New Messages",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Trigger Function",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "pipelineReturnValue",
+					"value": [
+						{
+							"key": "Messages",
+							"value": {
+								"type": "Expression",
+								"content": "@activity('Trigger Function').output.count"
+							}
+						}
+					],
+					"setSystemVariable": true
+				}
+			},
+			{
+				"name": "No New Messages",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Trigger Function",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "pipelineReturnValue",
+					"value": [
+						{
+							"key": "Messages",
+							"value": {
+								"type": "Int",
+								"content": 0
+							}
+						}
+					],
+					"setSystemVariable": true
+				}
+			},
+			{
+				"name": "Set Secret Name",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": true,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "secret_name",
+					"value": {
+						"value": "@concat('function-url-', replace(pipeline().parameters.function_name, '-', ''))",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Get Function Secret",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "Set Secret Name",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 2,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": true,
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "GET",
+					"url": {
+						"value": "@concat(pipeline().parameters.Key_Vault_Url, variables('secret_name'), '?api-version=', pipeline().parameters.api_version)",
+						"type": "Expression"
+					},
+					"connectVia": {
+						"referenceName": "PinsIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"authentication": {
+						"type": "MSI",
+						"resource": "https://vault.azure.net"
+					}
+				}
+			}
+		],
+		"parameters": {
+			"function_name": {
+				"type": "string"
+			},
+			"api_version": {
+				"type": "string",
+				"defaultValue": "7.4"
+			},
+			"Key_Vault_Url": {
+				"type": "string"
+			}
+		},
+		"variables": {
+			"secret_name": {
+				"type": "String"
+			},
+			"Key_Vault_Url": {
+				"type": "String"
+			},
+			"function_secret": {
+				"type": "String"
+			}
+		},
+		"folder": {
+			"name": "utils"
+		},
+		"annotations": []
+	}
+}
