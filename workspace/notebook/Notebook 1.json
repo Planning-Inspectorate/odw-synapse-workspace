@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "a5fbe41d-e0ac-4e8c-a3a1-288052adeb96"
+				"spark.autotune.trackingId": "a70e540f-6523-4202-984d-1b6275b3cfba"
 			}
 		},
 		"metadata": {
@@ -57,7 +57,7 @@
 					"from pyspark.sql import functions as F\n",
 					""
 				],
-				"execution_count": 30
+				"execution_count": 1
 			},
 			{
 				"cell_type": "code",
@@ -65,7 +65,7 @@
 					"storage_account = \"pinsstodwdevuks9h80mb\"          # <- change if different\n",
 					"container = \"horizon-migration-poc\""
 				],
-				"execution_count": 31
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
@@ -73,7 +73,7 @@
 					"input_file = \"horizon-files/Horizon_CaseReference.csv\"\n",
 					"output_folder = \"horizon-files-transformed/case-reference\""
 				],
-				"execution_count": 32
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
@@ -82,7 +82,7 @@
 					"output_path = f\"abfss://{container}@{storage_account}.dfs.core.windows.net/{output_folder}/\"\n",
 					""
 				],
-				"execution_count": 33
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -91,7 +91,7 @@
 					"print(\"INPUT :\", input_path)\n",
 					"print(\"OUTPUT:\", output_path)"
 				],
-				"execution_count": 34
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
@@ -103,7 +103,7 @@
 					"    .csv(input_path)\n",
 					")"
 				],
-				"execution_count": 35
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
@@ -111,7 +111,7 @@
 					"print(\"Row count:\", df.count())\n",
 					"df.printSchema()"
 				],
-				"execution_count": 36
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
@@ -124,7 +124,7 @@
 					"    \"CaseLockedFor\"\n",
 					"]"
 				],
-				"execution_count": 37
+				"execution_count": 8
 			},
 			{
 				"cell_type": "code",
@@ -132,14 +132,14 @@
 					"\n",
 					"df_out = df.drop(*cols_to_drop)"
 				],
-				"execution_count": 38
+				"execution_count": 9
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"case_prefixes = [\"COM/\", \"ENV/\", \"MCA/\", \"PUR/\", \"ROW/\", \"HS2/\"]"
 				],
-				"execution_count": 39
+				"execution_count": 10
 			},
 			{
 				"cell_type": "code",
@@ -154,7 +154,7 @@
 					"    F.col(\"CaseReference\").startswith(case_prefixes[5])\n",
 					")"
 				],
-				"execution_count": 40
+				"execution_count": 11
 			},
 			{
 				"cell_type": "code",
@@ -163,7 +163,215 @@
 					"print(\"Filtered row count:\", df_filtered.count())\n",
 					""
 				],
-				"execution_count": 41
+				"execution_count": 12
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"from pyspark.sql import types as T"
+				],
+				"execution_count": 13
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"storage_account = \"pinsstodwdevuks9h80mb\"          # e.g. pinsstodwdevuks9h80mb\n",
+					"container = \"horizon-migration-poc\"\n",
+					"input_file = \"horizon-files/LLAttrData.csv\"   "
+				],
+				"execution_count": 14
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"llattr_path = f\"abfss://{container}@{storage_account}.dfs.core.windows.net/{input_file}\"\n",
+					""
+				],
+				"execution_count": 15
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"df_ll = (\n",
+					"    spark.read\n",
+					"    .option(\"header\", True)\n",
+					"    .option(\"multiLine\", True)\n",
+					"    .option(\"escape\", \"\\\"\")\n",
+					"    .option(\"quote\", \"\\\"\")\n",
+					"    .csv(llattr_path)\n",
+					")"
+				],
+				"execution_count": 16
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"int_cols = [\"ID\",\"VerNum\",\"DefID\",\"DefVerN\",\"AttrID\",\"AttrType\",\"CustomID\",\"EntryNum\",\"ParentKeyID\",\"KeyID\",\"ValInt\"]\n",
+					"for c in int_cols:\n",
+					"    if c in df_ll.columns:\n",
+					"        df_ll = df_ll.withColumn(c, F.col(c).cast(\"int\"))\n",
+					"\n",
+					"if \"ValReal\" in df_ll.columns:\n",
+					"    df_ll = df_ll.withColumn(\"ValReal\", F.col(\"ValReal\").cast(\"decimal(28,14)\"))\n",
+					"\n",
+					"if \"ValDate\" in df_ll.columns:\n",
+					"    df_ll = df_ll.withColumn(\"ValDate\", F.to_timestamp(\"ValDate\"))"
+				],
+				"execution_count": 17
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"DEF_ID = 95498\n",
+					"df_caseattrs_raw = df_ll.filter(F.col(\"DefID\") == F.lit(DEF_ID))\n",
+					"\n",
+					"display(df_caseattrs_raw.limit(10))\n",
+					"print(\"Rows for DefID=95498:\", df_caseattrs_raw.count())"
+				],
+				"execution_count": 18
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"df_caseattrs_val = (\n",
+					"    df_caseattrs_raw\n",
+					"    .withColumn(\n",
+					"        \"AttrValue\",\n",
+					"        F.coalesce(\n",
+					"            F.col(\"ValStr\"),\n",
+					"            F.col(\"ValLong\"),\n",
+					"            F.when(F.col(\"ValDate\").isNotNull(), F.date_format(\"ValDate\", \"yyyy-MM-dd HH:mm:ss\")),\n",
+					"            F.col(\"ValInt\").cast(\"string\"),\n",
+					"            F.col(\"ValReal\").cast(\"string\")\n",
+					"        )\n",
+					"    )\n",
+					"    .select(\"ParentKeyID\", \"KeyID\", \"AttrID\", \"AttrValue\", \"AttrType\", \"EntryNum\")\n",
+					")\n",
+					"\n",
+					"display(df_caseattrs_val.limit(20))\n",
+					""
+				],
+				"execution_count": 19
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"# Mapping (extend this over time)\n",
+					"ATTR_MAP = {\n",
+					"    2: \"CaseType\",\n",
+					"    3: \"Procedure_LPA\",\n",
+					"    4: \"Procedure_Appellant\",\n",
+					"    5: \"Procedure\",\n",
+					"    7: \"Jurisdiction\",\n",
+					"    9: \"DevelopmentType\",\n",
+					"    17: \"DevelopmentAllegationDescription\",\n",
+					"    40: \"BespokeIndicator\",\n",
+					"    45: \"CostsAppliedForIndicator\",\n",
+					"    46: \"DecisionIssue\",\n",
+					"    47: \"CaseworkReason\",\n",
+					"    51: \"LinkedStatus\",\n",
+					"    52: \"CasePublishFlag\",\n",
+					"    53: \"AppellantFormTypeSubmitted\",\n",
+					"    54: \"Level\",\n",
+					"    55: \"ProcessingState\",\n",
+					"    60: \"Specialism\",\n",
+					"    68: \"RedeterminedIndicator\",\n",
+					"    69: \"OtherRelatedAppeals\",\n",
+					"    70: \"NationalPlanningCaseworkReference\",\n",
+					"    71: \"SourceIndicator\",\n",
+					"    72: \"PortalURL\",\n",
+					"    73: \"EnglandWalesIndicator\",\n",
+					"    74: \"Decision\",\n",
+					"    75: \"GroundA_DPALapsedIndicator\",\n",
+					"    76: \"LPACode\",\n",
+					"    77: \"LPAName\",\n",
+					"    78: \"SpecialCircumstances\",\n",
+					"    79: \"DecisionBranch\",\n",
+					"    80: \"AppointedBy\",\n",
+					"    81: \"CaseworkMarker\",\n",
+					"    82: \"ImportantInformation\",\n",
+					"    83: \"FileLocation\",\n",
+					"    84: \"AppellantReasonsWRNotSufficient\",\n",
+					"    85: \"CaseProcess\",\n",
+					"    87: \"Regulation\",\n",
+					"    88: \"Regulator\",\n",
+					"    89: \"Act\",\n",
+					"    90: \"Section\",\n",
+					"    91: \"ApplicationSubtype\",\n",
+					"    92: \"DecisionClearForDespatch\",\n",
+					"    93: \"OMAStance\",\n",
+					"    94: \"NFA\",\n",
+					"    95: \"DECC_REF\",\n",
+					"    96: \"Sch6Notice\",\n",
+					"    97: \"SLADateMet\",\n",
+					"    98: \"TargetDateMet\",\n",
+					"    99: \"EPRType\",\n",
+					"    100: \"AppealAgainst\",\n",
+					"    101: \"Validity\",\n",
+					"    102: \"StandardPriority\",\n",
+					"    104: \"Band\"\n",
+					"}\n",
+					"\n",
+					"# 1) ParentKeyID -> CaseNodeId using AttrID=1 (\"ID\")\n",
+					"df_case_id = (\n",
+					"    df_caseattrs_val\n",
+					"    .filter(F.col(\"AttrID\") == 1)\n",
+					"    .select(\n",
+					"        F.col(\"ParentKeyID\"),\n",
+					"        F.col(\"AttrValue\").cast(\"int\").alias(\"CaseNodeId\")\n",
+					"    )\n",
+					"    .dropna(subset=[\"CaseNodeId\"])\n",
+					"    .dropDuplicates([\"ParentKeyID\"])\n",
+					")\n",
+					"\n",
+					"# 2) Keep only AttrIDs you care about (you can widen this gradually)\n",
+					"wanted_attr_ids = list(ATTR_MAP.keys())\n",
+					"\n",
+					"df_attrs_filtered = (\n",
+					"    df_caseattrs_val\n",
+					"    .filter(F.col(\"AttrID\").isin(wanted_attr_ids))\n",
+					"    .join(df_case_id, on=\"ParentKeyID\", how=\"inner\")\n",
+					"    .select(\"CaseNodeId\", \"AttrID\", \"AttrValue\")\n",
+					")\n",
+					"\n",
+					"# 3) Pivot to wide\n",
+					"df_case_attrs_wide = (\n",
+					"    df_attrs_filtered\n",
+					"    .groupBy(\"CaseNodeId\")\n",
+					"    .pivot(\"AttrID\", wanted_attr_ids)\n",
+					"    .agg(F.first(\"AttrValue\"))\n",
+					")\n",
+					"\n",
+					"# 4) Rename pivoted columns to friendly names\n",
+					"for attr_id, col_name in ATTR_MAP.items():\n",
+					"    if str(attr_id) in df_case_attrs_wide.columns:\n",
+					"        df_case_attrs_wide = df_case_attrs_wide.withColumnRenamed(str(attr_id), col_name)\n",
+					"\n",
+					"display(df_case_attrs_wide.limit(50))\n",
+					"print(\"Distinct cases with attributes:\", df_case_attrs_wide.count())\n",
+					""
+				],
+				"execution_count": 20
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"df_ll.groupBy(\"DefID\").count().orderBy(F.desc(\"count\")).show(50, truncate=False)\n",
+					"\n",
+					"print(\"Rows where DefID=95498:\", df_ll.filter(F.col(\"DefID\")==95498).count())\n",
+					""
+				],
+				"execution_count": 21
 			}
 		]
 	}
