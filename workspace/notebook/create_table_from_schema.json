@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "1d19374c-e3a9-4e0a-bec4-a09d4cb884b9"
+				"spark.autotune.trackingId": "0ff433bb-ae81-4a86-8918-464284e710f8"
 			}
 		},
 		"metadata": {
@@ -194,53 +194,6 @@
 					"    tables_df: DataFrame = spark.sql(\"SHOW TABLES\")\n",
 					"    table_names: list = [row['tableName'] for row in tables_df.collect()]\n",
 					"    return table_name in table_names"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"# Ensure pipeline variables exist when not passed as parameters\n",
-					"import uuid\n",
-					"\n",
-					"def _value(var_name: str, ctx_key: str, required: bool = True, default=None):\n",
-					"    \"\"\"\n",
-					"    Reads a value from globals() (manual run override) or from mssparkutils.runtime.context.\n",
-					"    If required is True and still empty, raises; otherwise returns provided default.\n",
-					"    \"\"\"\n",
-					"    existing = globals().get(var_name, None)\n",
-					"    if existing not in (None, ''):\n",
-					"        return existing\n",
-					"    try:\n",
-					"        val = mssparkutils.runtime.context.get(ctx_key, '')\n",
-					"    except Exception as e:\n",
-					"        if required:\n",
-					"            raise RuntimeError(f\"Failed to read runtime context '{ctx_key}': {e}\")\n",
-					"        val = ''\n",
-					"    if (val is None or val == ''):\n",
-					"        if required:\n",
-					"            raise ValueError(f\"Missing required runtime context '{ctx_key}'. Set global '{var_name}' or pass it via pipeline.\")\n",
-					"        if callable(default):\n",
-					"            return default()\n",
-					"        return default if default is not None else ''\n",
-					"    return val\n",
-					"\n",
-					"# Treat runtime-required values strictly only when running inside a pipeline\n",
-					"IS_PIPELINE = bool(mssparkutils.runtime.context.get('isForPipeline', False))\n",
-					"\n",
-					"PipelineName = _value(\n",
-					"    'PipelineName', 'pipelineName', required=IS_PIPELINE,\n",
-					"    default=lambda: mssparkutils.runtime.context.get('currentNotebookName', 'ManualRun')\n",
-					")\n",
-					"PipelineRunID = _value(\n",
-					"    'PipelineRunID', 'pipelinejobid', required=IS_PIPELINE,\n",
-					"    default=lambda: str(uuid.uuid4())\n",
-					")\n",
-					"PipelineTriggerID = _value('PipelineTriggerID', 'TriggerId', required=IS_PIPELINE, default='')\n",
-					"PipelineTriggerName = _value('PipelineTriggerName', 'TriggerName', required=IS_PIPELINE, default='Manual')\n",
-					"PipelineTriggerType = _value('PipelineTriggerType', 'TriggerType', required=IS_PIPELINE, default='Manual')\n",
-					"PipelineTriggeredbyPipelineName = _value('PipelineTriggeredbyPipelineName', 'TriggeredByPipelineName', required=False, default='')\n",
-					"PipelineTriggeredbyPipelineRunID = _value('PipelineTriggeredbyPipelineRunID', 'TriggeredByPipelineRunId', required=False, default='')\n"
 				],
 				"execution_count": null
 			},
