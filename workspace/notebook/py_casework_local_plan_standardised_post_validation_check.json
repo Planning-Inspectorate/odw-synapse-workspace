@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5c69e8d3-62cb-4349-a447-6fbc8cd4118f"
+				"spark.autotune.trackingId": "2f61fd05-7c11-4ad2-a354-eec735e7feae"
 			}
 		},
 		"metadata": {
@@ -91,7 +91,7 @@
 					"warnings.filterwarnings(\"ignore\", message=\"iteritems is deprecated\")\n",
 					""
 				],
-				"execution_count": 1
+				"execution_count": 21
 			},
 			{
 				"cell_type": "markdown",
@@ -113,7 +113,7 @@
 					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
 					"print(storage_account)"
 				],
-				"execution_count": 2
+				"execution_count": 22
 			},
 			{
 				"cell_type": "markdown",
@@ -133,7 +133,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 3
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -171,7 +171,7 @@
 					"result_path = \"\"\n",
 					"blob_path = \"\""
 				],
-				"execution_count": 4
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -210,12 +210,12 @@
 					"    \"AdoptionDate\"\n",
 					"]\n",
 					"\n",
+					"\n",
 					"def check_date_format_columns(date_value):\n",
-					"    \n",
 					"    #Returns error description or None if valid Supported formats:\n",
-					"    #1. dd-MMM-YY (e.g., 09-Dec-25)\n",
-					"    #2. yyyy-MM-dd (e.g., 2024-12-09)\n",
-					"    \n",
+					"    # 1. dd/MM/yyyy (e.g., 09/12/2024, 15/03/2024) - British format\n",
+					"    # 2. yyyy-MM-dd (e.g., 2024-12-09) - ISO format\n",
+					"\n",
 					"    if not date_value or str(date_value).strip() == \"\":\n",
 					"        return None\n",
 					"    \n",
@@ -225,9 +225,9 @@
 					"    if re.match(r'^\\d{9,}$', date_str):\n",
 					"        return \"Random digits found in date format\"\n",
 					"    \n",
-					"    # Valid month abbreviations (case insensitive)\n",
-					"    valid_months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', \n",
-					"                    'jul', 'aug', 'sep', 'oct', 'nov', 'dec']\n",
+					"    # Check for text in date (shouldn't have letters)\n",
+					"    if re.search(r'[a-zA-Z]', date_str):\n",
+					"        return \"Text found in date format\"\n",
 					"    \n",
 					"    # Initialize variables\n",
 					"    day = None\n",
@@ -235,22 +235,16 @@
 					"    year = None\n",
 					"    format_matched = None\n",
 					"    \n",
-					"    # Try Format 1: dd-MMM-YY\n",
-					"    match_abbr = re.match(r'^(\\d{1,2})-([a-zA-Z]{3})-(\\d{2})$', date_str)\n",
-					"    if match_abbr:\n",
-					"        day_str, month_str, year_str = match_abbr.groups()\n",
+					"    # Try Format 1: dd/MM/yyyy (British format with forward slash)\n",
+					"    match_british = re.match(r'^(\\d{1,2})/(\\d{1,2})/(\\d{4})$', date_str)\n",
+					"    if match_british:\n",
+					"        day_str, month_str, year_str = match_british.groups()\n",
 					"        day = int(day_str)\n",
-					"        month_abbr = month_str.lower()\n",
-					"        \n",
-					"        # Check if month abbreviation is valid\n",
-					"        if month_abbr not in valid_months:\n",
-					"            return f\"Invalid month abbreviation ({month_str})\"\n",
-					"        \n",
-					"        month_num = valid_months.index(month_abbr) + 1\n",
+					"        month_num = int(month_str)\n",
 					"        year = int(year_str)\n",
-					"        format_matched = \"dd-MMM-YY\"\n",
+					"        format_matched = \"dd/MM/yyyy\"\n",
 					"    \n",
-					"    # Try Format 2: yyyy-MM-dd (e.g., 2024-12-09) if first format didn't match\n",
+					"    # Try Format 2: yyyy-MM-dd (ISO format with hyphen)\n",
 					"    if not format_matched:\n",
 					"        match_iso = re.match(r'^(\\d{4})-(\\d{2})-(\\d{2})$', date_str)\n",
 					"        if match_iso:\n",
@@ -262,45 +256,35 @@
 					"    \n",
 					"    # If neither format matched, return error\n",
 					"    if not format_matched:\n",
-					"        return \"Invalid date format (expected dd-MMM-yy)\"\n",
+					"        return \"Invalid date format (expected dd/MM/yyyy or yyyy-MM-dd, e.g., 09/12/2024 or 2024-12-09)\"\n",
 					"    \n",
-					"    # Validate month range (common for both formats)\n",
+					"    # Validate month range\n",
 					"    if month_num < 1 or month_num > 12:\n",
 					"        return f\"Invalid month value ({month_num})\"\n",
 					"    \n",
-					"    # Validate day range (common for both formats)\n",
+					"    # Validate day range (basic)\n",
 					"    if day < 1 or day > 31:\n",
 					"        return f\"Invalid day value ({day})\"\n",
 					"    \n",
-					"    # Additional validation: Check if day is valid for the specific month\n",
-					"    if month_num in [4, 6, 9, 11] and day > 30:\n",
-					"        if format_matched == \"dd-MMM-YY\":\n",
-					"            month_name = valid_months[month_num - 1].capitalize()\n",
-					"            return f\"Invalid day ({day}) for month {month_name}\"\n",
-					"        else:\n",
-					"            return f\"Invalid day ({day}) for month {month_num:02d}\"\n",
-					"    elif month_num == 2 and day > 29:\n",
-					"        return f\"Invalid day ({day}) for February\"\n",
+					"    # Detect American format (MM/DD/yyyy) - only for dd/MM/yyyy format\n",
+					"    # This helps identify if user accidentally used MM/DD instead of DD/MM\n",
+					"    if format_matched == \"dd/MM/yyyy\" and day <= 12 and month_num > 12:\n",
+					"        return \"American date format detected (MM/DD/yyyy instead of DD/MM/yyyy)\"\n",
 					"    \n",
-					"    # Validate actual date existence using datetime (catches leap year issues)\n",
+					"    # Validate actual date existence using datetime (catches Feb 31, Apr 31, etc.)\n",
 					"    try:\n",
-					"        # For 2-digit years, assume 2000\n",
-					"        full_year = year if format_matched == \"yyyy-MM-dd\" else 2000 + year\n",
-					"        datetime.strptime(f\"{full_year}-{month_num:02d}-{day:02d}\", '%Y-%m-%d')\n",
+					"        datetime.strptime(f\"{year}-{month_num:02d}-{day:02d}\", '%Y-%m-%d')\n",
 					"    except ValueError:\n",
-					"        if format_matched == \"dd-MMM-YY\":\n",
-					"            month_name = valid_months[month_num - 1].capitalize()\n",
-					"            return f\"Invalid date ({day}-{month_name}-{year}) - day doesn't exist in this month\"\n",
+					"        # Format error message based on input format\n",
+					"        if format_matched == \"dd/MM/yyyy\":\n",
+					"            return f\"Invalid date ({day}/{month_num}/{year}) - day doesn't exist in this month\"\n",
 					"        else:\n",
 					"            return f\"Invalid date ({year}-{month_num:02d}-{day:02d}) - day doesn't exist in this month\"\n",
 					"    \n",
-					"    # Optional: Year range validation for yyyy-MM-dd format\n",
-					"    if format_matched == \"yyyy-MM-dd\":\n",
-					"        current_year = datetime.now().year\n",
-					"        if year < 1900 or year > current_year + 10:\n",
-					"            return f\"Invalid year ({year}) - outside reasonable range (1900-{current_year + 10})\"\n",
-					"    \n",
-					"    return None\n",
+					"    # Year range validation (for both formats)\n",
+					"    current_year = datetime.now().year\n",
+					"    if year < 1900 or year > current_year + 10:\n",
+					"        return f\"Invalid year ({year}) - outside reasonable range (1900-{current_year + 10})\"\n",
 					"\n",
 					"def check_ldfno_format(ldfno_value):\n",
 					"    \"\"\"Validates LDFNo field - can only have numbers or 'NA' as Free Text OR NULL values\n",
@@ -354,7 +338,7 @@
 					"validate_ldfno_udf = udf(check_ldfno_format, StringType())\n",
 					""
 				],
-				"execution_count": 5
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -468,7 +452,7 @@
 					"    logException(e)\n",
 					"    "
 				],
-				"execution_count": 6
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -514,7 +498,7 @@
 					"logInfo(f\"   Total rejection rows: {total_rejected_rows:,}\")\n",
 					""
 				],
-				"execution_count": 7
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -608,7 +592,7 @@
 					"    logException(e)\n",
 					""
 				],
-				"execution_count": 8
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -696,7 +680,7 @@
 					"    logError(error_msg)\n",
 					"    logException(e)"
 				],
-				"execution_count": 9
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -704,7 +688,7 @@
 					"# Exit with the JSON result\n",
 					"mssparkutils.notebook.exit(result_json)"
 				],
-				"execution_count": 10
+				"execution_count": null
 			}
 		]
 	}
