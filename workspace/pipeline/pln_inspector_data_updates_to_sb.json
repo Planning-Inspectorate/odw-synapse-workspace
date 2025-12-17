@@ -1,0 +1,73 @@
+{
+  "name": "pln_inspector_data_updates_to_sb",
+  "properties": {
+    "description": "Detect Inspector curated deltas, publish to Azure Service Bus, then update watermark.",
+    "activities": [
+      {
+        "name": "Detect Inspector deltas",
+        "type": "SynapseNotebook",
+        "dependsOn": [],
+        "policy": {"timeout": "0.12:00:00", "retry": 0, "retryIntervalInSeconds": 30, "secureOutput": false, "secureInput": false},
+        "typeProperties": {
+          "notebook": {"referenceName": "py_inspector_delta_to_sb", "type": "NotebookReference"},
+          "parameters": {
+            "db_name": {"value": "odw_curated_db", "type": "string"},
+            "table_name": {"value": "inspector", "type": "string"},
+            "primary_key": {"value": "source_id", "type": "string"},
+            "enable_validation": {"value": {"value": "@pipeline().parameters.enable_validation", "type": "Expression"}, "type": "bool"},
+            "enable_sessions": {"value": {"value": "@pipeline().parameters.enable_sessions", "type": "Expression"}, "type": "bool"}
+          }
+        }
+      },
+      {
+        "name": "If changes and publish enabled",
+        "type": "IfCondition",
+        "dependsOn": [ {"activity": "Detect Inspector deltas", "dependencyConditions": ["Succeeded"]} ],
+        "typeProperties": {
+          "expression": {
+            "type": "Expression",
+            "value": "@and(greater(int(json(activity('Detect Inspector deltas').output.status.output.result.exitValue).counts), 0), pipeline().parameters.enable_publish)"
+          },
+          "ifTrueActivities": [
+            {
+              "name": "Publish messages",
+              "type": "ExecutePipeline",
+              "dependsOn": [],
+              "policy": {"secureInput": false},
+              "typeProperties": {
+                "pipeline": {"referenceName": "pln_publish_to_sb", "type": "PipelineReference"},
+                "waitOnCompletion": true,
+                "parameters": {
+                  "service_bus_name": {"value": {"value": "@pipeline().parameters.service_bus_name", "type": "Expression"}},
+                  "topic_name": {"value": {"value": "@pipeline().parameters.topic_name", "type": "Expression"}},
+                  "messages": {"value": {"value": "@json(activity('Detect Inspector deltas').output.status.output.result.exitValue).messages_text", "type": "Expression"}}
+                }
+              }
+            },
+            {
+              "name": "Update watermark",
+              "type": "SynapseNotebook",
+              "dependsOn": [ {"activity": "Publish messages", "dependencyConditions": ["Succeeded"]} ],
+              "policy": {"timeout": "0.12:00:00", "retry": 0, "retryIntervalInSeconds": 30, "secureOutput": false, "secureInput": false},
+              "typeProperties": {
+                "notebook": {"referenceName": "py_update_inspector_watermark", "type": "NotebookReference"},
+                "parameters": {
+                  "new_version": {"value": {"value": "@int(json(activity('Detect Inspector deltas').output.status.output.result.exitValue).latestVersion)", "type": "Expression"}, "type": "int"}
+                }
+              }
+            }
+          ],
+          "ifFalseActivities": []
+        }
+      }
+    ],
+    "parameters": {
+      "service_bus_name": {"type": "string"},
+      "topic_name": {"type": "string"},
+      "enable_publish": {"type": "bool", "defaultValue": true},
+      "enable_validation": {"type": "bool", "defaultValue": false},
+      "enable_sessions": {"type": "bool", "defaultValue": false}
+    },
+    "annotations": []
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "name": "py_update_inspector_watermark",
+  "properties": {
+    "folder": {"name": "publish"},
+    "nbformat": 4,
+    "nbformat_minor": 2,
+    "bigDataPool": {"referenceName": "pinssynspodw34", "type": "BigDataPoolReference"},
+    "sessionProperties": {
+      "driverMemory": "28g",
+      "driverCores": 4,
+      "executorMemory": "28g",
+      "executorCores": 4,
+      "numExecutors": 2,
+      "conf": {
+        "spark.dynamicAllocation.enabled": "false",
+        "spark.dynamicAllocation.minExecutors": "2",
+        "spark.dynamicAllocation.maxExecutors": "2",
+        "spark.autotune.trackingId": "6b7a9e56-8a4f-4849-90a3-f4e3a0e3438b"
+      }
+    },
+    "metadata": {
+      "saveOutput": true,
+      "enableDebugMode": false,
+      "kernelspec": {"name": "synapse_pyspark", "display_name": "Synapse PySpark"},
+      "language_info": {"name": "python"},
+      "a365ComputeOptions": {
+        "id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+        "name": "pinssynspodw34",
+        "type": "Spark",
+        "endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+        "auth": {"type": "AAD", "authResource": "https://dev.azuresynapse.net"},
+        "sparkVersion": "3.4",
+        "nodeCount": 3,
+        "cores": 4,
+        "memory": 28,
+        "automaticScaleJobs": false
+      },
+      "sessionKeepAliveTimeout": 30
+    },
+    "cells": [
+      {"cell_type": "code", "metadata": {"tags":["parameters"]}, "source": [
+        "new_version = 0\n",
+        "source_name = 'inspector-curated-version'\n"
+      ], "execution_count": null},
+      {"cell_type": "code", "source": [
+        "from notebookutils import mssparkutils\n",
+        "storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+        "config_container = f'abfss://odw-config@{storage_account}'\n",
+        "path = config_container + '/odw-audit-tables/pipeline-runs'\n"
+      ], "execution_count": null},
+      {"cell_type": "code", "metadata": {"microsoft":{"language":"sparksql"}}, "source": [
+        "%%sql\n",
+        "create database if not exists odw_config_db;\n"
+      ], "execution_count": null},
+      {"cell_type": "code", "source": [
+        "spark.sql(f\"CREATE TABLE IF NOT EXISTS odw_config_db.pipeline_runs (sourceName STRING, LastRun STRING) USING DELTA LOCATION '{path}'\")\n",
+        "spark.sql(f\"MERGE INTO odw_config_db.pipeline_runs t USING (select '{source_name}' as sourceName, cast({int(new_version)} as string) as LastRun) s ON t.sourceName = s.sourceName WHEN MATCHED THEN UPDATE SET LastRun = s.LastRun WHEN NOT MATCHED THEN INSERT (sourceName, LastRun) VALUES (s.sourceName, s.LastRun)\")\n",
+        "mssparkutils.notebook.exit('OK')\n"
+      ], "execution_count": null}
+    ]
+  }
+}
