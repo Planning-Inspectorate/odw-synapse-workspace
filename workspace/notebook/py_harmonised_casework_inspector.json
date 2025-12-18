@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "68cca299-34bd-460f-8446-bd9ae0151349"
+				"spark.autotune.trackingId": "f84e5610-9192-4534-aca0-ef975a6beaf1"
 			}
 		},
 		"metadata": {
@@ -25,7 +25,7 @@
 			"enableDebugMode": true,
 			"kernelspec": {
 				"name": "synapse_pyspark",
-				"display_name": "python"
+				"display_name": "Synapse PySpark"
 			},
 			"language_info": {
 				"name": "python"
@@ -56,7 +56,7 @@
 					"from pyspark.sql.functions import *\n",
 					"from datetime import date,datetime"
 				],
-				"execution_count": null
+				"execution_count": 1
 			},
 			{
 				"cell_type": "markdown",
@@ -76,7 +76,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": null
+				"execution_count": 2
 			},
 			{
 				"cell_type": "markdown",
@@ -96,7 +96,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 3
 			},
 			{
 				"cell_type": "markdown",
@@ -110,6 +110,108 @@
 				"source": [
 					"Initialise Variables"
 				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"entraid_table = \"odw_harmonised_db.entraid\"\n",
+					"inspector_specialisms_table = \"odw_harmonised_db.sap_hr_inspector_specialisms\"\n",
+					"inspector_address_table = \"odw_harmonised_db.sap_hr_inspector_address\"\n",
+					"hist_sap_hr_table  = \"odw_harmonised_db.load_vw_sap_hr_email\"\n",
+					"\n",
+					"primary_key = \"entraId\"\n",
+					"spark_table_final = \"odw_harmonised_db.casework_ispector\"\n",
+					"\n",
+					"start_exec_time = datetime.now()\n",
+					"insert_count = 0\n",
+					"update_count = 0\n",
+					"delete_count = 0\n",
+					"error_message=''"
+				],
+				"execution_count": 65
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"        #Get data out of the SAP HR Inspector Specialism table\n",
+					"        inspector_specialisms_df = spark.sql(f\"\"\"\n",
+					"                        SELECT DISTINCT\n",
+					"                            StaffNumber AS sapId,\n",
+					"                            Firstname AS firstName,\n",
+					"                            Lastname AS lastName,\n",
+					"                            QualificationName AS qualification,\n",
+					"                            ValidFrom AS validFrom,\n",
+					"                            isActive AS isActive\n",
+					"                        FROM  {inspector_specialisms_table}\n",
+					"                        \"\"\")\n",
+					"        inspector_specialisms_df.createOrReplaceTempView(\"inspector_specialisms_df\")\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error in source SQL query {inspector_specialism_table}: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()  "
+				],
+				"execution_count": 79
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"inspector_specialisms_df.printSchema()"
+				],
+				"execution_count": 67
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"        inspector_entraid_df = spark.sql(f\"\"\"\n",
+					"                            SELECT\n",
+					"                            insp.*,\n",
+					"                            eid.id AS entraId\n",
+					"                            from inspector_specialisms_df insp\n",
+					"                            LEFT JOIN {entraid_table} eid\n",
+					"                            ON eid.employeeId = is.sapId\n",
+					"                            \"\"\")\n",
+					"        inspector_entraid_df.createOrReplaceTempView(\"inspector_entraid_df\")\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error in source SQL query {entraid_table}: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()"
+				],
+				"execution_count": 81
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"#  inspector_entraid_df.printSchema()\n",
+					"# display(inspector_entraid_df).limit(10)"
+				],
+				"execution_count": 82
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"#Need a CONCAT to generate the address as it's on separete column in the table\n",
+					"\n",
+					"if not error_message:\n",
+					"    try:\n",
+					"        insp_eid_addr = spark.sql(f\"\"\"\n",
+					"                            SELECT\n",
+					"                            insp_eid.*,\n",
+					"                            eid.id AS entraId\n",
+					"                            from inspector_entraid_df insp_eid\n",
+					"                            LEFT JOIN {inspector_address_table} addr\n",
+					"                            ON addr.StaffNumber = is.sapId\n",
+					"                            \"\"\")\n",
+					"        inspector_entraid_df.createOrReplaceTempView(\"inspector_entraid_df\")\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error in source SQL query {inspector_address_table}: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()"
+				],
+				"execution_count": null
 			}
 		]
 	}
