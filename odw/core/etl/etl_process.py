@@ -1,8 +1,10 @@
 from odw.core.io.data_io_factory import DataIOFactory
+from odw.core.util.logging_util import LoggingUtil
 from abc import ABC, abstractmethod
 from pyspark.sql import DataFrame, SparkSession
 from odw.core.etl.etl_result import ETLResult
 from typing import List, Dict, Any
+from notebookutils import mssparkutils
 
 
 class ETLProcess(ABC):
@@ -17,6 +19,19 @@ class ETLProcess(ABC):
         
         :return str: A unique name for the process
         """
+
+    @classmethod
+    @LoggingUtil.logging_to_appins
+    def get_all_files_in_directory(cls, source_path: str):
+        files_to_explore = set(mssparkutils.fs.ls(source_path))
+        found_files = set()
+        while files_to_explore:
+            next_item = files_to_explore.pop()
+            if next_item.isDir:
+                files_to_explore |= set(mssparkutils.fs.ls(next_item.path))
+            else:
+                found_files.add(next_item.path)
+        return found_files
 
     def load_data(self, data_to_read: List[Dict[str, Any]]) -> Dict[str, DataFrame]:
         data_map = dict()
