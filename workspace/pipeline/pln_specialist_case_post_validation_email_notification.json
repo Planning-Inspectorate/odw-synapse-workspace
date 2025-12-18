@@ -1,0 +1,117 @@
+{
+	"name": "pln_specialist_case_post_validation_email_notification",
+	"properties": {
+		"activities": [
+			{
+				"name": "Notify Post Validation email",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "Get Logic App URL",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.00:10:00",
+					"retry": 3,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "POST",
+					"headers": {
+						"Content-Type": "application/json"
+					},
+					"url": {
+						"value": "@activity('Get Logic App URL').output.value",
+						"type": "Expression"
+					},
+					"connectVia": {
+						"referenceName": "AutoResolveIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"body": {
+						"value": "{\n  \"subject\": \"@{if( contains(toLower(json(pipeline().parameters.Json_Output).rejection_file_name), 'green_case'),'Green Case','Local Plan')} post validation checks succeeded-@{if( contains(toLower(pipeline().DataFactory), 'dev'), 'DEV Environment. Please Ignore', if( contains(toLower(pipeline().DataFactory), 'test'), 'TEST Environment', 'PROD Environment' ) )}\",\n  \"bodyHtml\": \"@{pipeline().parameters.Json_HTML_Body}\",\n  \"storageAccountName\":\"@{json(pipeline().parameters.Json_Output).storage_name}\",\n  \"storagePath\":\"@{json(pipeline().parameters.Json_Output).rejection_file_path}\",\n  \"fileName\": \"@{json(pipeline().parameters.Json_Output).rejection_file_name}\"\n}",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Set key vault URL",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "Key_Vault_Url_Logic_App",
+					"value": {
+						"value": "@if(\n    equals(\n        pipeline().DataFactory,\n        'pins-synw-odw-dev-uks'\n    ),\n    'https://pinskvsynwodwdevuks.vault.azure.net/secrets/',\n    if(\n        equals(\n            pipeline().DataFactory,\n            'pins-synw-odw-test-uks'\n        ),\n        'https://pinskvsynwodwtestuks.vault.azure.net/secrets/',\n        if(\n            equals(\n                pipeline().DataFactory,\n                'pins-synw-odw-build-uks'\n            ),\n            'https://pinskvsynwodwbuilduks.vault.azure.net/secrets/',\n            'https://pinskvsynwodwproduks.vault.azure.net/secrets/'\n        )\n    )\n)",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Get Logic App URL",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "Set key vault URL",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": true,
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "GET",
+					"url": {
+						"value": "@concat(variables('Key_Vault_Url_Logic_App'),'logic-app-specialist-case-',if( contains(toLower(pipeline().DataFactory), 'dev'), 'dev', if( contains(toLower(pipeline().DataFactory), 'test'), 'test', 'prod' ) ),'?api-version=7.4')",
+						"type": "Expression"
+					},
+					"connectVia": {
+						"referenceName": "AutoResolveIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"authentication": {
+						"type": "MSI",
+						"resource": "https://vault.azure.net"
+					}
+				}
+			}
+		],
+		"parameters": {
+			"Json_Output": {
+				"type": "string"
+			},
+			"Json_HTML_Body": {
+				"type": "string"
+			}
+		},
+		"variables": {
+			"var_logic_app_url": {
+				"type": "String"
+			},
+			"Key_Vault_Url_Logic_App": {
+				"type": "String"
+			}
+		},
+		"folder": {
+			"name": "utils"
+		},
+		"annotations": []
+	}
+}
