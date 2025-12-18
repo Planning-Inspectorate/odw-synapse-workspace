@@ -1,9 +1,21 @@
 from pydantic import BaseModel
 from abc import ABC, abstractmethod
 from typing import Type, ClassVar
+from datetime import datetime
 
 
 class ETLResult(BaseModel, ABC):
+    class ETLResultMetadata(BaseModel):
+        start_execution_time: datetime
+        end_execution_time: datetime
+        error_message: str = None
+        table_name: str
+        insert_count: int
+        update_count: int
+        delete_count: int
+        activity_type: str
+        duration_seconds: str
+        status_code: str
     """
     Holds the details of the executionn of an ETLProcess, for use in logging
     """
@@ -11,6 +23,11 @@ class ETLResult(BaseModel, ABC):
     @abstractmethod
     def outcome(self) -> str:
         """The outcome of the ETL process"""
+    @property
+    @abstractmethod
+    def status_code(self) -> int:
+        """The status code of the ETL process"""
+    metadata: ETLResultMetadata
 
 
 class ETLSuccessResult(ETLResult):
@@ -18,6 +35,7 @@ class ETLSuccessResult(ETLResult):
     For successful ETLProcesses
     """
     outcome: ClassVar[str] = "Succeeded"
+    status_code: 200
 
 
 class ETLFailResult(ETLResult):
@@ -25,6 +43,7 @@ class ETLFailResult(ETLResult):
     For unsuccessful ETLProcesses
     """
     outcome: ClassVar[str] = "Failed"
+    status_code: 500
 
 
 class ETLResultFactory():
