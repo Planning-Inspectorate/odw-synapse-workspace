@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "3828ec88-41c8-45b6-8bcc-f20169bd7ba4"
+				"spark.autotune.trackingId": "7f0e36d5-a911-4afb-87f1-04530bc48f03"
 			}
 		},
 		"metadata": {
@@ -59,7 +59,7 @@
 					"from pyspark.sql.functions import *\n",
 					"from datetime import date,datetime"
 				],
-				"execution_count": 160
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -121,7 +121,7 @@
 					"inspector_specialisms_table = \"odw_harmonised_db.sap_hr_inspector_specialisms\"\n",
 					"inspector_address_table = \"odw_harmonised_db.sap_hr_inspector_address\"\n",
 					"live_dim_table  = \"odw_harmonised_db.live_dim_inspector\"\n",
-					"hist_sap_hr_table = \"odw_harmonised_db.live_dim_inspector\"\n",
+					"hist_sap_hr_table = \"odw_harmonised_db.hist_sap_hr\"\n",
 					"\n",
 					"primary_key = \"entraId\"\n",
 					"table_name = \"odw_harmonised_db.casework_inspector\"\n",
@@ -146,7 +146,12 @@
 					"                            Firstname AS firstName,\n",
 					"                            Lastname AS lastName,\n",
 					"                            ValidFrom AS validFrom,\n",
-					"                            isActive AS isActive\n",
+					"                            isActive AS isActive,\n",
+					"                            named_struct(\n",
+					"                                'name', QualificationName\n",
+					"                                'proficiency', Proficien\n",
+					"                                'validFrom', ValidFrom\n",
+					"                            ) as specialism\n",
 					"                        FROM  {inspector_specialisms_table}\n",
 					"                        \"\"\")\n",
 					"        inspector_specialisms_df.createOrReplaceTempView(\"inspector_specialisms_df\")\n",
@@ -154,7 +159,22 @@
 					"        error_message = f\"Error in source SQL query {inspector_specialism_table}: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()  "
 				],
-				"execution_count": 164
+				"execution_count": 181
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"                            named_struct(\n",
+					"                                'addressLine1', addr.StreetandHouseNumber,\n",
+					"                                'addressLine2', addr.`2ndAddressLine`,\n",
+					"                                'townCity',     addr.City,\n",
+					"                                'county',       addr.District,\n",
+					"                                'postcode',     addr.PostalCode\n",
+					"                            ) AS address\n",
+					"                            from inspector_entraid_df insp_eid\n",
+					"                            LEFT JOIN {inspector_address_table} addr"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
