@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "4378a5c1-e30c-4d86-ad82-d3111df1d8c7"
+				"spark.autotune.trackingId": "2ab5ed9f-361c-4916-a878-b54a4f5f0fc3"
 			}
 		},
 		"metadata": {
@@ -59,7 +59,7 @@
 					"from pyspark.sql.functions import *\n",
 					"from datetime import date,datetime"
 				],
-				"execution_count": 182
+				"execution_count": 210
 			},
 			{
 				"cell_type": "markdown",
@@ -79,7 +79,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 183
+				"execution_count": 211
 			},
 			{
 				"cell_type": "markdown",
@@ -99,7 +99,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 184
+				"execution_count": 212
 			},
 			{
 				"cell_type": "markdown",
@@ -132,7 +132,7 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": 185
+				"execution_count": 213
 			},
 			{
 				"cell_type": "code",
@@ -145,7 +145,6 @@
 					"                            is.StaffNumber AS sapId,\n",
 					"                            is.Firstname AS firstName,\n",
 					"                            is.Lastname AS lastName,\n",
-					"                            is.ValidFrom AS validFrom,\n",
 					"                            is.isActive AS isActive,\n",
 					"                            named_struct(\n",
 					"                                'name', is.QualificationName,\n",
@@ -159,14 +158,14 @@
 					"        error_message = f\"Error in source SQL query {inspector_specialism_table}: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()  "
 				],
-				"execution_count": 188
+				"execution_count": 214
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"inspector_specialisms_df.printSchema()"
 				],
-				"execution_count": 189
+				"execution_count": 215
 			},
 			{
 				"cell_type": "markdown",
@@ -184,6 +183,51 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"entraid_table"
+				],
+				"execution_count": 229
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"-- select count(*) from odw_harmonised_db.entraid where len(employeeID) < 8 and len(employeeID) >5\n",
+					"select\n",
+					"count(employeeId) distinct,\n",
+					"count(employeeId) as tot_rows,\n",
+					"count(id) distinct\n",
+					"from odw_harmonised_db.entraid\n",
+					"-- where isActive = 'N'\n",
+					""
+				],
+				"execution_count": 255
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"select count(staffnumber) DISTINCT,\n",
+					"count(staffnumber)\n",
+					"from odw_harmonised_db.sap_hr_inspector_specialisms\n",
+					"where isActive = 'Y'"
+				],
+				"execution_count": 254
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"if not error_message:\n",
 					"    try:\n",
 					"        inspector_entraid_df = spark.sql(f\"\"\"\n",
@@ -192,7 +236,15 @@
 					"                            eid.id AS entraId,\n",
 					"                            eid.isActive\n",
 					"                            from inspector_specialisms_df insp\n",
-					"                            LEFT JOIN {entraid_table} eid\n",
+					"                            LEFT JOIN (\n",
+					"                                SELECT\n",
+					"                                eid.id,\n",
+					"                                eid.isActive,\n",
+					"                                CASE\n",
+					"                                    WHEN LEN(eid.employeeId) < 8 THEN CONCAT('00', employeeId)\n",
+					"                                    ELSE employeeId\n",
+					"                                END AS employeeId\n",
+					"                                FROM {entraid_table} eid ) eid\n",
 					"                            ON eid.employeeId = insp.sapId\n",
 					"                            \"\"\")\n",
 					"        inspector_entraid_df.createOrReplaceTempView(\"inspector_entraid_df\")\n",
@@ -200,7 +252,7 @@
 					"        error_message = f\"Error in source SQL query {entraid_table}: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 190
+				"execution_count": 264
 			},
 			{
 				"cell_type": "code",
@@ -211,7 +263,7 @@
 					"inspector_entraid_df.printSchema()\n",
 					"# display(inspector_entraid_df).limit(10)"
 				],
-				"execution_count": 191
+				"execution_count": 257
 			},
 			{
 				"cell_type": "markdown",
@@ -252,14 +304,14 @@
 					"        error_message = f\"Error in source SQL query {inspector_address_table}: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 192
+				"execution_count": 218
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"insp_eid_addr_df.printSchema()"
 				],
-				"execution_count": 193
+				"execution_count": 219
 			},
 			{
 				"cell_type": "markdown",
@@ -294,14 +346,14 @@
 					"        error_message = f\"Error in source SQL query {live_dim_table}: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 205
+				"execution_count": 220
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"insp_eid_addr_email_df.printSchema()"
 				],
-				"execution_count": 206
+				"execution_count": 221
 			},
 			{
 				"cell_type": "markdown",
@@ -321,7 +373,7 @@
 				"source": [
 					"error_message = ''"
 				],
-				"execution_count": 173
+				"execution_count": 222
 			},
 			{
 				"cell_type": "code",
@@ -331,9 +383,12 @@
 					"        insp_eid_addr_email_hr_df = spark.sql(f\"\"\"\n",
 					"                            SELECT\n",
 					"                            ieae.*,\n",
-					"                            hshr.NameofManagerOM AS inspectorManager,\n",
+					"                            hshr.Position1 as postName,\n",
 					"                            hshr.FTE AS fte,\n",
-					"                            hshr.OrganizationalUnit AS organisationName,\n",
+					"                            hshr.PersonnelArea AS unit,\n",
+					"                            hshr.PersonnelSubArea AS service,\n",
+					"                            hshr.OrganizationalUnit AS group,\n",
+					"                            hshr.NameofManagerOM AS inspectorManager,\n",
 					"                            hshr.Position1 AS title,\n",
 					"                            hshr.SourceSystemID AS sourceSystem\n",
 					"                            from insp_eid_addr_email_df ieae\n",
@@ -345,21 +400,24 @@
 					"        error_message = f\"Error in source SQL query {sap_email_table}: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 174
+				"execution_count": 223
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"insp_eid_addr_email_hr_df.printSchema()"
 				],
-				"execution_count": 175
+				"execution_count": 224
 			},
 			{
 				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
 				"source": [
-					"error_message"
+					"display(insp_eid_addr_email_hr_df)"
 				],
-				"execution_count": 176
+				"execution_count": 228
 			},
 			{
 				"cell_type": "code",
@@ -369,7 +427,7 @@
 					"# - assumptions on the address concat\n",
 					"# - qualification, postName, title, salutation, grade, unit, service, group, specialism?"
 				],
-				"execution_count": 177
+				"execution_count": 226
 			},
 			{
 				"cell_type": "markdown",
@@ -419,7 +477,7 @@
 					"    status_code\n",
 					")"
 				],
-				"execution_count": 180
+				"execution_count": 227
 			}
 		]
 	}
