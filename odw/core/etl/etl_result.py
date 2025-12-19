@@ -8,7 +8,7 @@ class ETLResult(BaseModel, ABC):
     class ETLResultMetadata(BaseModel):
         start_execution_time: datetime
         end_execution_time: datetime
-        error_message: str = None
+        exception: Exception = None
         table_name: str
         insert_count: int
         update_count: int
@@ -27,7 +27,6 @@ class ETLResult(BaseModel, ABC):
     @abstractmethod
     def status_code(self) -> int:
         """The status code of the ETL process"""
-    metadata: ETLResultMetadata
 
 
 class ETLSuccessResult(ETLResult):
@@ -36,6 +35,7 @@ class ETLSuccessResult(ETLResult):
     """
     outcome: ClassVar[str] = "Succeeded"
     status_code: 200
+    metadata: ETLResult.ETLResultMetadata
 
 
 class ETLFailResult(ETLResult):
@@ -44,6 +44,7 @@ class ETLFailResult(ETLResult):
     """
     outcome: ClassVar[str] = "Failed"
     status_code: 500
+    exception: Exception
 
 
 class ETLResultFactory():

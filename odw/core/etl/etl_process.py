@@ -2,8 +2,8 @@ from odw.core.io.data_io_factory import DataIOFactory
 from odw.core.util.logging_util import LoggingUtil
 from abc import ABC, abstractmethod
 from pyspark.sql import DataFrame, SparkSession
-from odw.core.etl.etl_result import ETLResult
-from typing import List, Dict, Any
+from odw.core.etl.etl_result import ETLResult, ETLFailResult
+from typing import List, Dict, Any, Tuple
 from notebookutils import mssparkutils
 
 
@@ -51,9 +51,12 @@ class ETLProcess(ABC):
         return data_map
 
     @abstractmethod
-    def process(self, **kwargs) -> ETLResult:
+    def process(self, **kwargs) -> Tuple[Dict[str, DataFrame], ETLResult]:
         pass
 
     def run(self, data_to_read: List[Dict[str, Any]]):
-        source_data_map = self.load_data(data_to_read)
+        try:
+            source_data_map = self.load_data(data_to_read)
+        except Exception as e:
+            return None, ETLFailResult(exception=e)
         return self.process(source_data=source_data_map)
