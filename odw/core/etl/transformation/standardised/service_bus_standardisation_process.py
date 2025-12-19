@@ -163,7 +163,7 @@ class ServiceBusStandardisationProcess(StandardisationProcess):
             metadata=ETLResult.ETLResultMetadata(
                 start_execution_time=start_exec_time,
                 end_execution_time=end_exec_time,
-                error_message="",
+                exception=None,
                 table_name=table_name,
                 insert_count=insert_count,
                 update_count=0,
