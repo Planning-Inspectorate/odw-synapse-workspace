@@ -3,65 +3,6 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "Get recent folder",
-				"type": "GetMetadata",
-				"dependsOn": [
-					{
-						"activity": "ExecuteGreenSpecialistCaseFileExtract",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"dataset": {
-						"referenceName": "ds_green_case_specialsit_pr",
-						"type": "DatasetReference"
-					},
-					"fieldList": [
-						"exists"
-					],
-					"storeSettings": {
-						"type": "AzureBlobFSReadSettings",
-						"enablePartitionDiscovery": false
-					},
-					"formatSettings": {
-						"type": "BinaryReadSettings"
-					}
-				}
-			},
-			{
-				"name": "ExecuteGreenSpecialistCaseFileExtract",
-				"type": "ExecutePipeline",
-				"dependsOn": [
-					{
-						"activity": "Record loading Green Specialist Case",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_green_specialist_case_odw_src_odw_raw",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true
-				}
-			},
-			{
 				"name": "Record loading Green Specialist Case",
 				"type": "ExecutePipeline",
 				"dependsOn": [],
@@ -116,6 +57,29 @@
 							"type": "Expression"
 						}
 					}
+				}
+			},
+			{
+				"name": "ExecuteGreenSpecialistCaseFileExtract",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Record loading Green Specialist Case",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_green_specialist_case_odw_src_odw_raw",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
 				}
 			},
 			{
@@ -196,7 +160,43 @@
 				}
 			},
 			{
-				"name": "If Post Validation succeeds",
+				"name": "Get recent folder",
+				"type": "GetMetadata",
+				"dependsOn": [
+					{
+						"activity": "ExecuteGreenSpecialistCaseFileExtract",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataset": {
+						"referenceName": "ds_green_case_specialsit_pr",
+						"type": "DatasetReference"
+					},
+					"fieldList": [
+						"exists"
+					],
+					"storeSettings": {
+						"type": "AzureBlobFSReadSettings",
+						"enablePartitionDiscovery": false
+					},
+					"formatSettings": {
+						"type": "BinaryReadSettings"
+					}
+				}
+			},
+			{
+				"name": "If Post Validation succeeds1",
 				"type": "IfCondition",
 				"dependsOn": [
 					{
@@ -209,12 +209,12 @@
 				"userProperties": [],
 				"typeProperties": {
 					"expression": {
-						"value": "@equals(variables('Post_Val_Return'),'Y')\n\n",
+						"value": "@equals(variables('Post_Val_Return'),'Y')\n",
 						"type": "Expression"
 					},
 					"ifFalseActivities": [
 						{
-							"name": "EndProcess",
+							"name": "EndProcess_copy1",
 							"type": "Wait",
 							"dependsOn": [],
 							"userProperties": [],
@@ -225,7 +225,7 @@
 					],
 					"ifTrueActivities": [
 						{
-							"name": "pln_green_specialist_case_harmonised",
+							"name": "pln_green_specialist_case_harmonised_copy1",
 							"type": "ExecutePipeline",
 							"dependsOn": [],
 							"policy": {
@@ -235,52 +235,6 @@
 							"typeProperties": {
 								"pipeline": {
 									"referenceName": "pln_green_specialist_case_harmonised",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true
-							}
-						},
-						{
-							"name": "pln_green_specialist_case_curated",
-							"type": "ExecutePipeline",
-							"dependsOn": [
-								{
-									"activity": "pln_green_specialist_case_harmonised",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_green_specialist_case_curated_main",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true
-							}
-						},
-						{
-							"name": "pln_copy_green_specialist_cases_mipins",
-							"type": "ExecutePipeline",
-							"dependsOn": [
-								{
-									"activity": "pln_green_specialist_case_curated",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_copy_green_specialist_cases_mipins",
 									"type": "PipelineReference"
 								},
 								"waitOnCompletion": true
