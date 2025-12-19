@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "7c5b5dab-76e4-4da3-83ae-c175b1b991e2"
+				"spark.autotune.trackingId": "a1188ae7-5887-4f52-9918-0a58bdefc35c"
 			}
 		},
 		"metadata": {
@@ -164,8 +164,8 @@
 					"hist_sap_hr_table = \"odw_harmonised_db.hist_sap_hr\"\n",
 					"\n",
 					"# Target table\n",
-					"primary_key = \"entraId\"\n",
-					"table_name = \"odw_harmonised_db.casework_inspector\"\n",
+					"primary_key = \"sapId\"\n",
+					"table_name = \"odw_harmonised_db.pins_inspector\"\n",
 					"\n",
 					"# Initialise variables for Logging and Tracking\n",
 					"start_exec_time = datetime.now()\n",
@@ -206,8 +206,8 @@
 					"  - Uses ROW_NUMBER partitioned by PersNo, ordered by ingestionDate DESC\n",
 					"\n",
 					"- **Final SELECT**\n",
-					"  - Chains all joins together in a single optimized query\n",
-					"  - Starts with live_dim_inspector (active inspectors only)\n",
+					"  - Chains all joins together in a single query\n",
+					"  - Starts with live_dim_inspector (ACTIVE inspectors only)\n",
 					"  - LEFT JOINs specialisms, entraid, address, and HR data\n",
 					"  - Creates structured fields for specialism and address\n",
 					"  - Maps all relevant HR fields (FTE, unit, service, group, manager, title)\n",
@@ -215,7 +215,8 @@
 					"#### Final Output\n",
 					"- Unified inspector dataset with entraId as primary key\n",
 					"- Includes personal info, specialisms, address, and organizational data\n",
-					"- All joins are LEFT to preserve inspectors even if enrichment data is missing"
+					"- All joins are LEFT to preserve inspectors even if enrichment data is missing\n",
+					""
 				]
 			},
 			{
@@ -224,7 +225,7 @@
 					"if not error_message:\n",
 					"    try:\n",
 					"        # Single optimized SQL query that performs all joins and transformations\n",
-					"        final_inspector_df = spark.sql(f\"\"\"\n",
+					"        final_df = spark.sql(f\"\"\"\n",
 					"            WITH\n",
 					"            -- Deduplicate specialisms: keep most recent record per StaffNumber\n",
 					"            insp_spec_dedup AS (\n",
@@ -307,8 +308,6 @@
 					"            WHERE di.active_status NOT IN ('NON-ACTIVE')\n",
 					"        \"\"\")\n",
 					"        \n",
-					"        final_inspector_df.createOrReplaceTempView(\"final_inspector_df\")\n",
-					"        \n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error building inspector dataset: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
@@ -325,17 +324,26 @@
 					}
 				},
 				"source": [
-					"#### Data Quality Check"
+					"#### Write Harmonised Inspector table"
 				]
 			},
 			{
 				"cell_type": "code",
-				"metadata": {
-					"collapsed": false
-				},
 				"source": [
 					"if not error_message:\n",
-					"    display(final_inspector_df)"
+					"    try:\n",
+					"        logInfo(f\"Writing to {table_name}\")\n",
+					"        insert_count = final_df.count()\n",
+					"\n",
+					"        # Create/overwrite Harmonised Inspector table\n",
+					"        final_df.write.mode(\"overwrite\").saveAsTable(table_name)\n",
+					"        logInfo(f\"Written to {table_name}\")\n",
+					"\n",
+					"        end_exec_time = datetime.now()\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = logError(f\"Error writing data to the harmonised table:\\n{e}\")\n",
+					"        end_exec_time = datetime.now()"
 				],
 				"execution_count": null
 			},
