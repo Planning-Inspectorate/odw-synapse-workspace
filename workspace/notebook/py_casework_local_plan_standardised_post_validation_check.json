@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "34608c40-415b-4b7e-8afb-11c22f959142"
+				"spark.autotune.trackingId": "227069af-2b9e-4d02-96f3-a046901f3e80"
 			}
 		},
 		"metadata": {
@@ -89,7 +89,7 @@
 					"warnings.filterwarnings(\"ignore\", message=\"iteritems is deprecated\")\n",
 					""
 				],
-				"execution_count": 29
+				"execution_count": 33
 			},
 			{
 				"cell_type": "markdown",
@@ -111,7 +111,7 @@
 					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
 					"print(storage_account)"
 				],
-				"execution_count": 20
+				"execution_count": 34
 			},
 			{
 				"cell_type": "markdown",
@@ -131,7 +131,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 21
+				"execution_count": 35
 			},
 			{
 				"cell_type": "markdown",
@@ -168,7 +168,7 @@
 					"result_path = \"\"\n",
 					"blob_path = \"\""
 				],
-				"execution_count": 22
+				"execution_count": 36
 			},
 			{
 				"cell_type": "markdown",
@@ -330,7 +330,7 @@
 					"    raise TypeError(f\"Object of type {obj.__class__.__name__} is not JSON serializable\")\n",
 					"    "
 				],
-				"execution_count": 23
+				"execution_count": 37
 			},
 			{
 				"cell_type": "markdown",
@@ -389,36 +389,37 @@
 					"    # Apply LDFNo validation check\n",
 					"    #df_ldfno_check = src_df.withColumn(\"ldfno_error_msg\", check_ldfno_format(col(\"LDFNo\")))\n",
 					"\n",
-					"    # Filter errors and create rejection records\n",
+					"   # Filter errors and create rejection records\n",
 					"    df_ldfno_format_errors = spark.sql(f\"\"\"\n",
-					"        SELECT \n",
+					"        SELECT\n",
 					"            HZRef,\n",
 					"            'LDFNo' as Column_name,\n",
 					"            CASE\n",
 					"                -- NULL or empty is valid\n",
-					"                WHEN LDFNo IS NULL OR TRIM(LDFNo) = '' THEN NULL\n",
+					"                WHEN LDFNo IS NULL OR TRIM(CAST(LDFNo AS STRING)) = '' THEN NULL\n",
 					"                \n",
 					"                -- 'NA' (case insensitive) is valid\n",
-					"                WHEN UPPER(TRIM(LDFNo)) = 'NA' THEN NULL\n",
+					"                WHEN UPPER(TRIM(CAST(LDFNo AS STRING))) = 'NA' THEN NULL\n",
 					"                \n",
+					"                -- Cast to string and trim BEFORE regex checks\n",
 					"                -- Check for concatenated numbers with separators\n",
-					"                WHEN LDFNo REGEXP '\\\\d+\\\\s*[&/,\\\\s]\\\\s*\\\\d+' \n",
+					"                WHEN TRIM(CAST(LDFNo AS STRING)) REGEXP '\\\\d+\\\\s*[&/,\\\\s]\\\\s*\\\\d+'\n",
 					"                    THEN 'LDFNo contains concatenated numbers with separator (&, /, comma, or space)'\n",
 					"                \n",
-					"                -- Only numbers is valid\n",
-					"                WHEN LDFNo REGEXP '^\\\\d+$' THEN NULL\n",
+					"                -- Cast to string and trim - Only numbers is valid\n",
+					"                WHEN TRIM(CAST(LDFNo AS STRING)) REGEXP '^\\\\d+$' THEN NULL\n",
 					"                \n",
 					"                -- Everything else is invalid\n",
 					"                ELSE 'LDFNo must contain only numbers or NA'\n",
 					"            END as Cause_of_Validation_Failure,\n",
 					"            CAST(LDFNo AS STRING) as Column_Value\n",
 					"        FROM {source_delta_table}\n",
-					"        WHERE \n",
+					"        WHERE\n",
 					"            -- Only get rows with errors\n",
 					"            CASE\n",
-					"                WHEN LDFNo IS NULL OR TRIM(LDFNo) = '' THEN NULL\n",
-					"                WHEN UPPER(TRIM(LDFNo)) = 'NA' THEN NULL\n",
-					"                WHEN LDFNo REGEXP '^\\\\d+$' THEN NULL\n",
+					"                WHEN LDFNo IS NULL OR TRIM(CAST(LDFNo AS STRING)) = '' THEN NULL\n",
+					"                WHEN UPPER(TRIM(CAST(LDFNo AS STRING))) = 'NA' THEN NULL\n",
+					"                WHEN TRIM(CAST(LDFNo AS STRING)) REGEXP '^\\\\d+$' THEN NULL\n",
 					"                ELSE 'error'\n",
 					"            END IS NOT NULL\n",
 					"    \"\"\")\n",
@@ -500,7 +501,7 @@
 					"    logException(e)\n",
 					"    "
 				],
-				"execution_count": 25
+				"execution_count": 38
 			},
 			{
 				"cell_type": "markdown",
@@ -546,7 +547,7 @@
 					"logInfo(f\"   Total rejection rows: {total_rejected_rows:,}\")\n",
 					""
 				],
-				"execution_count": 26
+				"execution_count": 39
 			},
 			{
 				"cell_type": "markdown",
@@ -639,7 +640,7 @@
 					"    logException(e)\n",
 					""
 				],
-				"execution_count": 30
+				"execution_count": 40
 			},
 			{
 				"cell_type": "markdown",
@@ -728,7 +729,7 @@
 					"    logError(error_msg)\n",
 					"    logException(e)"
 				],
-				"execution_count": 31
+				"execution_count": 41
 			},
 			{
 				"cell_type": "code",
@@ -736,7 +737,7 @@
 					"# Exit with the JSON result\n",
 					"mssparkutils.notebook.exit(result_json)"
 				],
-				"execution_count": null
+				"execution_count": 42
 			}
 		]
 	}
