@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "9a169a68-2774-4c75-b581-d4c30e807efa"
+				"spark.autotune.trackingId": "b76835ef-2eda-4ad2-a6b9-a53de26c83df"
 			}
 		},
 		"metadata": {
@@ -67,7 +67,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": null
+				"execution_count": 1
 			},
 			{
 				"cell_type": "code",
@@ -200,51 +200,87 @@
 					"                    WHERE\n",
 					"                        expected_from = (SELECT MAX(expected_from) FROM {horizon_table})\n",
 					"                \"\"\")\n",
-					"        # Initial write to create temp table structure\n",
+					"except Exception as e:\n",
+					"    error_message = f\"Error in source Horizon SQL query: {str(e)[:800]}\"\n",
+					"    end_exec_time = datetime.now()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"    # Initial write to create temp table structure\n",
 					"    logInfo(f\"Initial write to {spark_table_final}\")\n",
 					"    results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\n",
-					"    \n",
-					"    # Create calculations view for internal IDs and IsActive flags\n",
-					"    logInfo(\"Creating calculations for internal IDs and IsActive flags\")\n",
-					"    spark.sql(f\"\"\"\n",
-					"        CREATE OR REPLACE TEMPORARY VIEW vw_aie_document_data_calculations_base\n",
-					"            AS\n",
-					"            SELECT  \n",
-					"                row_number() OVER(PARTITION BY {primary_key} ORDER BY IngestionDate DESC) AS ReverseOrderProcessed\n",
-					"                ,row_number() OVER(ORDER BY IngestionDate asc, {primary_key} asc) AS AIEDocumentDataID\n",
-					"                ,{primary_key}\n",
-					"                ,IngestionDate\n",
-					"                ,ValidTo\n",
-					"                ,'0' AS Migrated\n",
-					"                ,CASE row_number() OVER(PARTITION BY {primary_key} ORDER BY IngestionDate DESC)\n",
-					"                    WHEN 1 THEN\n",
-					"                        'Y'\n",
-					"                    ELSE\n",
-					"                        'N'\n",
-					"                END AS IsActive                \n",
-					"            FROM\n",
-					"                {spark_table_final}\n",
-					"        \"\"\")\n",
-					"    \n",
-					"    # Get calculated values for internal IDs\n",
-					"    df_calcs = spark.sql(f\"\"\"\n",
-					"                            SELECT\n",
-					"                                CurrentRow.AIEDocumentDataID\n",
-					"                                ,CurrentRow.{primary_key} \n",
-					"                                ,CurrentRow.IngestionDate\n",
-					"                                ,COALESCE(NULLIF(CurrentRow.ValidTo,''), NextRow.IngestionDate) AS ValidTo\n",
-					"                                ,\"0\" AS Migrated\n",
-					"                                ,CurrentRow.IsActive\n",
-					"                            FROM\n",
-					"                                vw_aie_document_data_calculations_base AS CurrentRow\n",
-					"                                LEFT OUTER JOIN vw_aie_document_data_calculations_base AS NextRow\n",
-					"                                    ON CurrentRow.{primary_key} = NextRow.{primary_key}\n",
-					"                                    AND CurrentRow.ReverseOrderProcessed - 1 = NextRow.ReverseOrderProcessed\n",
-					"                                ORDER BY currentRow.ReverseOrderProcessed\n",
-					"                        \"\"\")\n",
-					"    \n",
-					"    df_calcs = df_calcs.withColumnRenamed(primary_key, f\"temp_{primary_key}\").withColumnRenamed(\"IngestionDate\", \"temp_IngestionDate\")\n",
-					"    \n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error in initial write to {spark_table_final}: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Create calculations view for internal IDs and IsActive flags\n",
+					"logInfo(\"Creating calculations for internal IDs and IsActive flags\")\n",
+					"spark.sql(f\"\"\"\n",
+					"    CREATE OR REPLACE TEMPORARY VIEW vw_aie_document_data_calculations_base\n",
+					"        AS\n",
+					"        SELECT  \n",
+					"            row_number() OVER(PARTITION BY {primary_key} ORDER BY IngestionDate DESC) AS ReverseOrderProcessed\n",
+					"            ,row_number() OVER(ORDER BY IngestionDate asc, {primary_key} asc) AS AIEDocumentDataID\n",
+					"            ,{primary_key}\n",
+					"            ,IngestionDate\n",
+					"            ,ValidTo\n",
+					"            ,'0' AS Migrated\n",
+					"            ,CASE row_number() OVER(PARTITION BY {primary_key} ORDER BY IngestionDate DESC)\n",
+					"                WHEN 1 THEN\n",
+					"                    'Y'\n",
+					"                ELSE\n",
+					"                    'N'\n",
+					"            END AS IsActive                \n",
+					"        FROM\n",
+					"            {spark_table_final}\n",
+					"    \"\"\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Get calculated values for internal IDs\n",
+					"df_calcs = spark.sql(f\"\"\"\n",
+					"    SELECT\n",
+					"        CurrentRow.AIEDocumentDataID\n",
+					"        ,CurrentRow.{primary_key} \n",
+					"        ,CurrentRow.IngestionDate\n",
+					"        ,COALESCE(NULLIF(CurrentRow.ValidTo,''), NextRow.IngestionDate) AS ValidTo\n",
+					"        ,\"0\" AS Migrated\n",
+					"        ,CurrentRow.IsActive\n",
+					"    FROM\n",
+					"        vw_aie_document_data_calculations_base AS CurrentRow\n",
+					"        LEFT OUTER JOIN vw_aie_document_data_calculations_base AS NextRow\n",
+					"            ON CurrentRow.{primary_key} = NextRow.{primary_key}\n",
+					"            AND CurrentRow.ReverseOrderProcessed - 1 = NextRow.ReverseOrderProcessed\n",
+					"        ORDER BY currentRow.ReverseOrderProcessed\n",
+					"\"\"\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"df_calcs = df_calcs.withColumnRenamed(primary_key, f\"temp_{primary_key}\").withColumnRenamed(\"IngestionDate\", \"temp_IngestionDate\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message\n",
+					"    try:\n",
 					"    # Get final result set with all data and RowID\n",
 					"    results_final = spark.sql(f\"\"\"\n",
 					"                        SELECT DISTINCT \n",
@@ -329,25 +365,82 @@
 					"                        FROM \n",
 					"                            {spark_table_final}\n",
 					"                    \"\"\")\n",
-					"    \n",
-					"    # Prepare columns and join with calculations\n",
-					"    columns = results_final.columns\n",
-					"    results_clean = results_final.drop(\"AIEDocumentDataID\", \"ValidTo\", \"Migrated\", \"IsActive\")\n",
-					"    \n",
-					"    # Final merge and deduplication\n",
-					"    logInfo(f\"Merging and de-duplicating data\")\n",
-					"    final_df = results_clean.join(df_calcs, (df_calcs[f\"temp_{primary_key}\"] == results_clean[primary_key]) & (df_calcs[\"temp_IngestionDate\"] == results_clean[\"IngestionDate\"])).select(columns)\n",
-					"    final_df = final_df.drop(primary_key).drop_duplicates()\n",
-					"    \n",
+					"    except as Exception e:\n",
+					"        error_message = f\"Error in preparing final dataframe for {spark_table_final}: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"###### Prepare columns and join with calculations"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"columns = results_final.columns\n",
+					"results_clean = results_final.drop(\"AIEDocumentDataID\", \"ValidTo\", \"Migrated\", \"IsActive\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"###### Final merge and deduplication"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"logInfo(f\"Merging and de-duplicating data\")\n",
+					"final_df = results_clean.join(df_calcs, (df_calcs[f\"temp_{primary_key}\"] == results_clean[primary_key]) & (df_calcs[\"temp_IngestionDate\"] == results_clean[\"IngestionDate\"])).select(columns)\n",
+					"final_df = final_df.drop(primary_key).drop_duplicates()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Ingest new records to delta table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
 					"    # Get record counts\n",
 					"    insert_count = final_df.count()\n",
-					"    \n",
-					"    # Final write\n",
 					"    logInfo(f\"Writing final data to {spark_table_final}\")\n",
 					"    final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\n",
-					"    \n",
 					"    end_exec_time = datetime.now()\n",
-					"    logInfo(f\"Successfully processed {spark_table_final} with {insert_count} records\")"
+					"    logInfo(f\"Successfully processed {spark_table_final} with {insert_count} records\")\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error in final merge and write to {spark_table_final}: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()"
 				],
 				"execution_count": null
 			},
