@@ -3,23 +3,7 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "ExecuteGreenSpecialistCaseFileExtract",
-				"type": "ExecutePipeline",
-				"dependsOn": [],
-				"policy": {
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_green_specialist_case_odw_src_odw_raw",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true
-				}
-			},
-			{
-				"name": "Get recent folder",
+				"name": "Get Metadata1",
 				"type": "GetMetadata",
 				"dependsOn": [
 					{
@@ -39,7 +23,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"dataset": {
-						"referenceName": "ds_odw_raw_get_recent_green_specialist_case_folder",
+						"referenceName": "ds_green_case_specialsit_pr",
 						"type": "DatasetReference"
 					},
 					"fieldList": [
@@ -47,7 +31,6 @@
 					],
 					"storeSettings": {
 						"type": "AzureBlobFSReadSettings",
-						"recursive": true,
 						"enablePartitionDiscovery": false
 					},
 					"formatSettings": {
@@ -56,174 +39,19 @@
 				}
 			},
 			{
-				"name": "If recent file folder exist",
-				"type": "IfCondition",
-				"dependsOn": [
-					{
-						"activity": "Get recent folder",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
+				"name": "ExecuteGreenSpecialistCaseFileExtract",
+				"type": "ExecutePipeline",
+				"dependsOn": [],
+				"policy": {
+					"secureInput": false
+				},
 				"userProperties": [],
 				"typeProperties": {
-					"expression": {
-						"value": "@equals(activity('Get recent folder').output.exists,true)\n",
-						"type": "Expression"
+					"pipeline": {
+						"referenceName": "pln_green_specialist_case_odw_src_odw_raw",
+						"type": "PipelineReference"
 					},
-					"ifFalseActivities": [
-						{
-							"name": "Validation Ouput",
-							"type": "SetVariable",
-							"dependsOn": [],
-							"policy": {
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"variableName": "Post_Val_Return",
-								"value": "N"
-							}
-						}
-					],
-					"ifTrueActivities": [
-						{
-							"name": "pln_green_specialist_case_standardised",
-							"type": "ExecutePipeline",
-							"dependsOn": [],
-							"policy": {
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_green_specialist_case_standardised",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true
-							}
-						},
-						{
-							"name": "Return Val Variable",
-							"type": "SetVariable",
-							"dependsOn": [
-								{
-									"activity": "pln_green_specialist_case_standardised",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"variableName": "Post_Val_Return",
-								"value": {
-									"value": "@activity('pln_green_specialist_case_standardised').output.pipelineReturnValue.Post_Val_Check\n",
-									"type": "Expression"
-								}
-							}
-						}
-					]
-				}
-			},
-			{
-				"name": "If Post Validation succeeds",
-				"type": "IfCondition",
-				"dependsOn": [
-					{
-						"activity": "If recent file folder exist",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"userProperties": [],
-				"typeProperties": {
-					"expression": {
-						"value": "@equals(variables('Post_Val_Return'),'Y')\n\n",
-						"type": "Expression"
-					},
-					"ifFalseActivities": [
-						{
-							"name": "EndProcess",
-							"type": "Wait",
-							"dependsOn": [],
-							"userProperties": [],
-							"typeProperties": {
-								"waitTimeInSeconds": 1
-							}
-						}
-					],
-					"ifTrueActivities": [
-						{
-							"name": "pln_green_specialist_case_harmonised",
-							"type": "ExecutePipeline",
-							"dependsOn": [],
-							"policy": {
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_green_specialist_case_harmonised",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true
-							}
-						},
-						{
-							"name": "pln_green_specialist_case_curated",
-							"type": "ExecutePipeline",
-							"dependsOn": [
-								{
-									"activity": "pln_green_specialist_case_harmonised",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_green_specialist_case_curated_main",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true
-							}
-						},
-						{
-							"name": "pln_copy_green_specialist_cases_mipins",
-							"type": "ExecutePipeline",
-							"dependsOn": [
-								{
-									"activity": "pln_green_specialist_case_curated",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_copy_green_specialist_cases_mipins",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true
-							}
-						}
-					]
+					"waitOnCompletion": true
 				}
 			}
 		],
