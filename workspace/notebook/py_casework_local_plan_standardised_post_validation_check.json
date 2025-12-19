@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "227069af-2b9e-4d02-96f3-a046901f3e80"
+				"spark.autotune.trackingId": "19f9d36f-2281-41d3-a480-273fab8302af"
 			}
 		},
 		"metadata": {
@@ -401,13 +401,12 @@
 					"                -- 'NA' (case insensitive) is valid\n",
 					"                WHEN UPPER(TRIM(CAST(LDFNo AS STRING))) = 'NA' THEN NULL\n",
 					"                \n",
-					"                -- Cast to string and trim BEFORE regex checks\n",
-					"                -- Check for concatenated numbers with separators\n",
-					"                WHEN TRIM(CAST(LDFNo AS STRING)) REGEXP '\\\\d+\\\\s*[&/,\\\\s]\\\\s*\\\\d+'\n",
-					"                    THEN 'LDFNo contains concatenated numbers with separator (&, /, comma, or space)'\n",
+					"                -- Check if it's ONLY NUMBERS first (valid case)\n",
+					"                WHEN TRIM(CAST(LDFNo AS STRING)) REGEXP '^[0-9]+$' THEN NULL\n",
 					"                \n",
-					"                -- Cast to string and trim - Only numbers is valid\n",
-					"                WHEN TRIM(CAST(LDFNo AS STRING)) REGEXP '^\\\\d+$' THEN NULL\n",
+					"                -- Check for concatenated numbers with separators (invalid case)\n",
+					"                WHEN TRIM(CAST(LDFNo AS STRING)) REGEXP '[0-9]+\\\\s*[&/,]\\\\s*[0-9]+'\n",
+					"                    THEN 'LDFNo contains concatenated numbers with separator (&, /, comma, or space)'\n",
 					"                \n",
 					"                -- Everything else is invalid\n",
 					"                ELSE 'LDFNo must contain only numbers or NA'\n",
@@ -419,7 +418,7 @@
 					"            CASE\n",
 					"                WHEN LDFNo IS NULL OR TRIM(CAST(LDFNo AS STRING)) = '' THEN NULL\n",
 					"                WHEN UPPER(TRIM(CAST(LDFNo AS STRING))) = 'NA' THEN NULL\n",
-					"                WHEN TRIM(CAST(LDFNo AS STRING)) REGEXP '^\\\\d+$' THEN NULL\n",
+					"                WHEN TRIM(CAST(LDFNo AS STRING)) REGEXP '^[0-9]+$' THEN NULL\n",
 					"                ELSE 'error'\n",
 					"            END IS NOT NULL\n",
 					"    \"\"\")\n",
@@ -501,7 +500,7 @@
 					"    logException(e)\n",
 					"    "
 				],
-				"execution_count": 38
+				"execution_count": 43
 			},
 			{
 				"cell_type": "markdown",
