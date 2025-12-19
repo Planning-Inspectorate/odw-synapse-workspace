@@ -198,6 +198,8 @@
 			{
 				"name": "If Post Validation succeeds",
 				"type": "IfCondition",
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "If recent file folder exist",
@@ -299,6 +301,93 @@
 							"userProperties": [],
 							"typeProperties": {
 								"waitTimeInSeconds": 1
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "If Condition1",
+				"type": "IfCondition",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(variables('Post_Val_Return'),'Y')\n",
+						"type": "Expression"
+					},
+					"ifFalseActivities": [
+						{
+							"name": "EndProcess_copy1",
+							"type": "Wait",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"waitTimeInSeconds": 1
+							}
+						}
+					],
+					"ifTrueActivities": [
+						{
+							"name": "pln_green_specialist_case_harmonised_copy1",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_green_specialist_case_harmonised",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true
+							}
+						},
+						{
+							"name": "pln_green_specialist_case_curated_copy1",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "pln_green_specialist_case_harmonised_copy1",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_green_specialist_case_curated_main",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true
+							}
+						},
+						{
+							"name": "pln_copy_green_specialist_cases_mipins_copy1",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "pln_green_specialist_case_curated_copy1",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_copy_green_specialist_cases_mipins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true
 							}
 						}
 					]
