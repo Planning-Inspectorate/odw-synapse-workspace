@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "e0a83acb-811b-4483-852a-617e908fb35a"
+				"spark.autotune.trackingId": "cd42be44-977d-4e9c-8d70-bbf3d382cc1e"
 			}
 		},
 		"metadata": {
@@ -83,7 +83,7 @@
 					"from datetime import datetime\r\n",
 					"from pyspark.sql import DataFrame"
 				],
-				"execution_count": null
+				"execution_count": 11
 			},
 			{
 				"cell_type": "markdown",
@@ -103,14 +103,14 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": null
+				"execution_count": 13
 			},
 			{
 				"cell_type": "code",
@@ -138,7 +138,7 @@
 					"delete_count = 0\r\n",
 					"error_message=''"
 				],
-				"execution_count": null
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
@@ -161,7 +161,7 @@
 					"    df_filtered = df.filter(F.col(\"expected_from\") == max_date)\r\n",
 					"    return df_filtered"
 				],
-				"execution_count": null
+				"execution_count": 15
 			},
 			{
 				"cell_type": "code",
@@ -189,6 +189,9 @@
 					"    vw_AddAdditionalData_df = get_spark_df(\"odw_standardised_db.vw_addadditionaldata\")\r\n",
 					"    vw_AdditionalFields_df = get_spark_df(\"odw_standardised_db.vw_additionalfields\")\r\n",
 					"    horizon_advert_attributes_df = get_spark_df(\"odw_standardised_db.horizon_advert_attributes\")\r\n",
+					"    horizon_appeal_grounds_df = get_spark_df(\"odw_standardised_db.horizon_appeal_grounds\")\r\n",
+					"    horizon_notice_dates_df   = get_spark_df(\"odw_standardised_db.horizon_notice_dates\")\r\n",
+					"\r\n",
 					"\r\n",
 					"    # New columns (red ones) from the spreadsheet\r\n",
 					"    Horizon_vw_curr_TypeOfLevel_df        = get_spark_df(\"odw_standardised_db.TypeOfLevel\")\r\n",
@@ -206,7 +209,7 @@
 					"    error_message = logError(f\"Error in data frame creation :\\n{e}\")\r\n",
 					"    end_exec_time = datetime.now() "
 				],
-				"execution_count": null
+				"execution_count": 16
 			},
 			{
 				"cell_type": "code",
@@ -224,6 +227,8 @@
 					"    vw_AddAdditionalData_df.createOrReplaceTempView(\"aad_old\")\r\n",
 					"    vw_AdditionalFields_df.createOrReplaceTempView(\"af\")\r\n",
 					"    horizon_advert_attributes_df.createOrReplaceTempView(\"haa\")\r\n",
+					"    horizon_appeal_grounds_df.createOrReplaceTempView(\"hag\")\r\n",
+					"    horizon_notice_dates_df.createOrReplaceTempView(\"hnd\")\r\n",
 					"    TypeOfProcedure_df.createOrReplaceTempView(\"tp\")\r\n",
 					"    Horizon_vw_curr_TypeOfLevel_df.createOrReplaceTempView(\"ctl\")\r\n",
 					"    Horizon_vw_BIS_SpecialistCaseDates_df.createOrReplaceTempView(\"scd\")\r\n",
@@ -234,6 +239,8 @@
 					"    Horizon_vw_BIS_CaseInfo_df.createOrReplaceTempView(\"ci\")\r\n",
 					"    Horizon_vw_BIS_CaseDates_df.createOrReplaceTempView(\"cdh\")\r\n",
 					"    Horizon_vw_BIS_AppealsAdditionalData_df.createOrReplaceTempView(\"aad\")\r\n",
+					"\r\n",
+					"\r\n",
 					"\r\n",
 					"register_views()\r\n",
 					"\r\n",
@@ -322,6 +329,33 @@
 					"    FROM haa x\r\n",
 					"  ) t WHERE rn = 1\r\n",
 					"),\r\n",
+					"hnd_1row AS (\r\n",
+					"  SELECT * FROM (\r\n",
+					"    SELECT n.*,\r\n",
+					"           ROW_NUMBER() OVER (\r\n",
+					"             PARTITION BY n.casenodeid\r\n",
+					"             ORDER BY n.expected_from DESC,\r\n",
+					"                      n.setrownumber DESC,\r\n",
+					"                      n.ingested_datetime DESC,\r\n",
+					"                      n.file_id DESC\r\n",
+					"           ) rn\r\n",
+					"    FROM hnd n\r\n",
+					"  ) t WHERE rn = 1\r\n",
+					"),\r\n",
+					"hag_agg AS (\r\n",
+					"  SELECT\r\n",
+					"    g.casenodeid,\r\n",
+					"    sort_array(\r\n",
+					"      collect_list(\r\n",
+					"        named_struct(\r\n",
+					"          'appealGroundLetter', g.appealgroundletter,\r\n",
+					"          'groundForAppealStartDate', g.groundforappealstartdate\r\n",
+					"        )\r\n",
+					"      )\r\n",
+					"    ) AS enforcementAppealGroundsDetails\r\n",
+					"  FROM hag g\r\n",
+					"  GROUP BY g.casenodeid\r\n",
+					"),\r\n",
 					"base AS (\r\n",
 					"  SELECT\r\n",
 					"    h.*,\r\n",
@@ -349,7 +383,11 @@
 					"    aad_old_1row.sitegridreferencenorthing,\r\n",
 					"    aad_old_1row.sitewithinsssi,\r\n",
 					"    af_1row.importantinformation,\r\n",
-					"    aad_old_1row.level AS level_code\r\n",
+					"    aad_old_1row.level AS level_code,\r\n",
+					"    hnd_1row.issuedate     AS issueDateOfEnforcementNotice,\r\n",
+					"    hnd_1row.effectivedate AS effectiveDateOfEnforcementNotice,\r\n",
+					"    hag_agg.enforcementAppealGroundsDetails\r\n",
+					"\r\n",
 					"  FROM h_1row h\r\n",
 					"  LEFT JOIN cs_agg        ON h.caseuniqueid = cs_agg.casereference\r\n",
 					"  LEFT JOIN cd_1row       ON h.casenodeid   = cd_1row.casenodeid\r\n",
@@ -357,6 +395,9 @@
 					"  LEFT JOIN css_1row      ON h.casenodeid   = css_1row.casenodeid\r\n",
 					"  LEFT JOIN aad_old_1row  ON h.caseuniqueid = aad_old_1row.appealrefnumber\r\n",
 					"  LEFT JOIN af_1row       ON h.caseuniqueid = af_1row.appealrefnumber\r\n",
+					"  LEFT JOIN hnd_1row      ON h.casenodeid = hnd_1row.casenodeid\r\n",
+					"  LEFT JOIN hag_agg       ON h.casenodeid = hag_agg.casenodeid\r\n",
+					"\r\n",
 					"),\r\n",
 					"\r\n",
 					"-- Dedup each Horizon (red) source to one row per key using deterministic ordering\r\n",
@@ -546,7 +587,30 @@
 					"\r\n",
 					"# print(\"final_df rows:\", final_df.count())"
 				],
-				"execution_count": null
+				"execution_count": 20
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"\r\n",
+					"filtered_df = final_df.select(\r\n",
+					"    \"caseNodeId\",\r\n",
+					"    \"issueDateOfEnforcementNotice\",\r\n",
+					"    \"effectiveDateOfEnforcementNotice\",\r\n",
+					"    \"enforcementAppealGroundsDetails\"\r\n",
+					").where(\r\n",
+					"    F.col(\"issueDateOfEnforcementNotice\").isNotNull() |\r\n",
+					"    F.col(\"effectiveDateOfEnforcementNotice\").isNotNull() |\r\n",
+					"    (F.size(\"enforcementAppealGroundsDetails\") > 0)\r\n",
+					")\r\n",
+					"\r\n",
+					"display(filtered_df)\r\n",
+					""
+				],
+				"execution_count": 22
 			},
 			{
 				"cell_type": "code",
