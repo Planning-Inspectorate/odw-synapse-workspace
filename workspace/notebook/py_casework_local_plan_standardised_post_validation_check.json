@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "29ff2782-b6ec-4503-a1d5-27ec24d94d09"
+				"spark.autotune.trackingId": "34608c40-415b-4b7e-8afb-11c22f959142"
 			}
 		},
 		"metadata": {
@@ -76,18 +76,20 @@
 				"source": [
 					"#import all libraries and initialise Spark Session\n",
 					"import json\n",
-					"from datetime import datetime, timedelta, date\n",
+					"import re\n",
 					"import pyspark.sql.functions as F \n",
+					"from datetime import datetime, timedelta, date\n",
 					"from notebookutils import mssparkutils\n",
 					"from pyspark.sql.functions import col, expr, when, lit, concat_ws, explode, array, struct\n",
 					"from pyspark.sql.types import *\n",
+					"\n",
 					"\n",
 					"#ignore FutureWarning messages \n",
 					"import warnings\n",
 					"warnings.filterwarnings(\"ignore\", message=\"iteritems is deprecated\")\n",
 					""
 				],
-				"execution_count": 1
+				"execution_count": 29
 			},
 			{
 				"cell_type": "markdown",
@@ -109,7 +111,7 @@
 					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
 					"print(storage_account)"
 				],
-				"execution_count": 2
+				"execution_count": 20
 			},
 			{
 				"cell_type": "markdown",
@@ -129,7 +131,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 3
+				"execution_count": 21
 			},
 			{
 				"cell_type": "markdown",
@@ -166,7 +168,7 @@
 					"result_path = \"\"\n",
 					"blob_path = \"\""
 				],
-				"execution_count": 4
+				"execution_count": 22
 			},
 			{
 				"cell_type": "markdown",
@@ -328,7 +330,7 @@
 					"    raise TypeError(f\"Object of type {obj.__class__.__name__} is not JSON serializable\")\n",
 					"    "
 				],
-				"execution_count": 5
+				"execution_count": 23
 			},
 			{
 				"cell_type": "markdown",
@@ -385,7 +387,7 @@
 					"    # Check LDFNo format validation (numbers or NA only, no concatenated numbers)\n",
 					"\n",
 					"    # Apply LDFNo validation check\n",
-					"    df_ldfno_check = src_df.withColumn(\"ldfno_error_msg\", check_ldfno_format(col(\"LDFNo\")))\n",
+					"    #df_ldfno_check = src_df.withColumn(\"ldfno_error_msg\", check_ldfno_format(col(\"LDFNo\")))\n",
 					"\n",
 					"    # Filter errors and create rejection records\n",
 					"    df_ldfno_format_errors = spark.sql(f\"\"\"\n",
@@ -434,8 +436,7 @@
 					"    for date_col in DATE_COLUMNS:\n",
 					"        if date_col not in src_df.columns:\n",
 					"            logInfo(f\" Column '{date_col}' not found - skip records\")\n",
-					"            continue\n",
-					"                \n",
+					"            continue                \n",
 					"        # Apply date validation check using Native SQL\n",
 					"        df_date_errors = spark.sql(f\"\"\"\n",
 					"            SELECT \n",
@@ -453,24 +454,12 @@
 					"                    WHEN {date_col} REGEXP '[a-zA-Z]' \n",
 					"                        THEN 'Text found in date format'\n",
 					"                    \n",
-					"                    -- Try to parse as dd/MM/yyyy or yyyy-MM-dd\n",
-					"                    WHEN to_date({date_col}, 'dd/MM/yyyy') IS NULL \n",
-					"                         AND to_date({date_col}, 'yyyy-MM-dd') IS NULL\n",
+					"                    -- If not in dd/MM/yyyy or yyyy-MM-dd format, reject\n",
+					"                    WHEN NOT ({date_col} REGEXP '^[0-9]{{1,2}}/[0-9]{{1,2}}/[0-9]{{4}}$'\n",
+					"                            OR {date_col} REGEXP '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}$')\n",
 					"                        THEN 'Invalid date format (expected dd/MM/yyyy or yyyy-MM-dd)'\n",
 					"                    \n",
-					"                    -- Check year range for dd/MM/yyyy\n",
-					"                    WHEN to_date({date_col}, 'dd/MM/yyyy') IS NOT NULL\n",
-					"                         AND (year(to_date({date_col}, 'dd/MM/yyyy')) < 1900 \n",
-					"                              OR year(to_date({date_col}, 'dd/MM/yyyy')) > year(current_date()) + 10)\n",
-					"                        THEN 'Invalid year - outside reasonable range (1900-2035)'\n",
-					"                    \n",
-					"                    -- Check year range for yyyy-MM-dd\n",
-					"                    WHEN to_date({date_col}, 'yyyy-MM-dd') IS NOT NULL\n",
-					"                         AND (year(to_date({date_col}, 'yyyy-MM-dd')) < 1900 \n",
-					"                              OR year(to_date({date_col}, 'yyyy-MM-dd')) > year(current_date()) + 10)\n",
-					"                        THEN 'Invalid year - outside reasonable range (1900-2035)'\n",
-					"                    \n",
-					"                    -- Valid date\n",
+					"                    -- Valid date format\n",
 					"                    ELSE NULL\n",
 					"                END as Cause_of_Validation_Failure,\n",
 					"                CAST({date_col} AS STRING) as Column_Value\n",
@@ -481,17 +470,11 @@
 					"                    WHEN {date_col} IS NULL OR TRIM({date_col}) = '' THEN NULL\n",
 					"                    WHEN {date_col} REGEXP '^[0-9]{{9,}}$' THEN 'error'\n",
 					"                    WHEN {date_col} REGEXP '[a-zA-Z]' THEN 'error'\n",
-					"                    WHEN to_date({date_col}, 'dd/MM/yyyy') IS NULL \n",
-					"                         AND to_date({date_col}, 'yyyy-MM-dd') IS NULL THEN 'error'\n",
-					"                    WHEN to_date({date_col}, 'dd/MM/yyyy') IS NOT NULL\n",
-					"                         AND (year(to_date({date_col}, 'dd/MM/yyyy')) < 1900 \n",
-					"                              OR year(to_date({date_col}, 'dd/MM/yyyy')) > year(current_date()) + 10) THEN 'error'\n",
-					"                    WHEN to_date({date_col}, 'yyyy-MM-dd') IS NOT NULL\n",
-					"                         AND (year(to_date({date_col}, 'yyyy-MM-dd')) < 1900 \n",
-					"                              OR year(to_date({date_col}, 'yyyy-MM-dd')) > year(current_date()) + 10) THEN 'error'\n",
+					"                    WHEN NOT ({date_col} REGEXP '^[0-9]{{1,2}}/[0-9]{{1,2}}/[0-9]{{4}}$'\n",
+					"                            OR {date_col} REGEXP '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}$') THEN 'error'\n",
 					"                    ELSE NULL\n",
 					"                END IS NOT NULL\n",
-					"        \"\"\")\n",
+					"            \"\"\")\n",
 					"        \n",
 					"        error_count = df_date_errors.count()\n",
 					"        \n",
@@ -517,7 +500,7 @@
 					"    logException(e)\n",
 					"    "
 				],
-				"execution_count": 8
+				"execution_count": 25
 			},
 			{
 				"cell_type": "markdown",
@@ -563,7 +546,7 @@
 					"logInfo(f\"   Total rejection rows: {total_rejected_rows:,}\")\n",
 					""
 				],
-				"execution_count": 7
+				"execution_count": 26
 			},
 			{
 				"cell_type": "markdown",
@@ -656,7 +639,7 @@
 					"    logException(e)\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 30
 			},
 			{
 				"cell_type": "markdown",
@@ -745,7 +728,7 @@
 					"    logError(error_msg)\n",
 					"    logException(e)"
 				],
-				"execution_count": null
+				"execution_count": 31
 			},
 			{
 				"cell_type": "code",
