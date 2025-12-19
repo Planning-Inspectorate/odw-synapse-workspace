@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "6a06f684-825b-42c1-8b80-38f4232db29a"
+				"spark.autotune.trackingId": "8bbc6481-a48d-4ac0-b4dc-5bf5d5957624"
 			}
 		},
 		"metadata": {
@@ -59,7 +59,7 @@
 					"from pyspark.sql.functions import *\n",
 					"from datetime import date,datetime"
 				],
-				"execution_count": 1
+				"execution_count": 55
 			},
 			{
 				"cell_type": "markdown",
@@ -79,7 +79,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 2
+				"execution_count": 56
 			},
 			{
 				"cell_type": "markdown",
@@ -99,7 +99,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 3
+				"execution_count": 57
 			},
 			{
 				"cell_type": "markdown",
@@ -131,7 +131,7 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": 4
+				"execution_count": 68
 			},
 			{
 				"cell_type": "code",
@@ -154,14 +154,14 @@
 					"        error_message = f\"Error in source SQL query {inspector_specialism_table}: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()  "
 				],
-				"execution_count": 5
+				"execution_count": 59
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"inspector_specialisms_df.printSchema()"
 				],
-				"execution_count": 16
+				"execution_count": 60
 			},
 			{
 				"cell_type": "markdown",
@@ -187,41 +187,14 @@
 					"                            eid.id AS entraId\n",
 					"                            from inspector_specialisms_df insp\n",
 					"                            LEFT JOIN {entraid_table} eid\n",
-					"                            ON eid.employeeId = is.sapId\n",
+					"                            ON eid.employeeId = insp.sapId\n",
 					"                            \"\"\")\n",
 					"        inspector_entraid_df.createOrReplaceTempView(\"inspector_entraid_df\")\n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error in source SQL query {entraid_table}: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 17
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"entraid_table"
-				],
-				"execution_count": 21
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"microsoft": {
-						"language": "sparksql"
-					}
-				},
-				"source": [
-					"%%sql\n",
-					"Select TOP * from odw_harmonised_db.entraid\n",
-					"LIMIT 10\n",
-					"                            -- SELECT\n",
-					"                            -- insp.*,\n",
-					"                            -- eid.id AS entraId\n",
-					"                            -- from inspector_specialisms_df insp\n",
-					"                            -- LEFT JOIN {entraid_table} eid\n",
-					"                            -- ON eid.employeeId = is.sapId"
-				],
-				"execution_count": 23
+				"execution_count": 71
 			},
 			{
 				"cell_type": "code",
@@ -232,7 +205,7 @@
 					"inspector_entraid_df.printSchema()\n",
 					"# display(inspector_entraid_df).limit(10)"
 				],
-				"execution_count": 19
+				"execution_count": 72
 			},
 			{
 				"cell_type": "markdown",
@@ -258,7 +231,7 @@
 					"                            SELECT\n",
 					"                            insp_eid.*,\n",
 					"                            named_struct(\n",
-					"                                'addressLine1', addr.StreetHouseNumber,\n",
+					"                                'addressLine1', addr.StreetandHouseNumber,\n",
 					"                                'addressLine2', addr.`2ndAddressLine`,\n",
 					"                                'townCity',     addr.City,\n",
 					"                                'county',       addr.District,\n",
@@ -266,46 +239,21 @@
 					"                            ) AS address\n",
 					"                            from inspector_entraid_df insp_eid\n",
 					"                            JOIN {inspector_address_table} addr\n",
-					"                            ON addr.StaffNumber = is.sapId\n",
+					"                            ON addr.StaffNumber = insp_eid.sapId\n",
 					"                            \"\"\")\n",
 					"        insp_eid_addr_df.createOrReplaceTempView(\"insp_eid_addr_df\")\n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error in source SQL query {inspector_address_table}: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 11
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"microsoft": {
-						"language": "sparksql"
-					}
-				},
-				"source": [
-					"%%sql\n",
-					"\n",
-					"                            SELECT\n",
-					"                            insp_eid.*,\n",
-					"                            named_struct(\n",
-					"                                'addressLine1', addr.StreetHouseNumber,\n",
-					"                                'addressLine2', addr.`2ndAddressLine`,\n",
-					"                                'townCity',     addr.City,\n",
-					"                                'county',       addr.District,\n",
-					"                                'postcode',     addr.PostalCode\n",
-					"                            ) AS address\n",
-					"                            from inspector_entraid_df insp_eid\n",
-					"                            JOIN odw_harmonised_db.sap_hr_inspector_address addr\n",
-					"                            ON addr.StaffNumber = is.sapId"
-				],
-				"execution_count": 15
+				"execution_count": 98
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"insp_eid_addr_df.printSchema()"
 				],
-				"execution_count": 12
+				"execution_count": 99
 			},
 			{
 				"cell_type": "code",
@@ -315,7 +263,7 @@
 					"# -assumptions on the address concat\n",
 					"# - postName, title, salutation, grade, unit, service, group, specialism?"
 				],
-				"execution_count": 10
+				"execution_count": null
 			}
 		]
 	}
