@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "84de95c8-e870-476d-b790-d8c91bd00a18"
+				"spark.autotune.trackingId": "4378a5c1-e30c-4d86-ad82-d3111df1d8c7"
 			}
 		},
 		"metadata": {
@@ -189,7 +189,8 @@
 					"        inspector_entraid_df = spark.sql(f\"\"\"\n",
 					"                            SELECT\n",
 					"                            insp.*,\n",
-					"                            eid.id AS entraId\n",
+					"                            eid.id AS entraId,\n",
+					"                            eid.isActive\n",
 					"                            from inspector_specialisms_df insp\n",
 					"                            LEFT JOIN {entraid_table} eid\n",
 					"                            ON eid.employeeId = insp.sapId\n",
@@ -199,7 +200,7 @@
 					"        error_message = f\"Error in source SQL query {entraid_table}: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 166
+				"execution_count": 190
 			},
 			{
 				"cell_type": "code",
@@ -210,7 +211,7 @@
 					"inspector_entraid_df.printSchema()\n",
 					"# display(inspector_entraid_df).limit(10)"
 				],
-				"execution_count": 167
+				"execution_count": 191
 			},
 			{
 				"cell_type": "markdown",
@@ -251,14 +252,14 @@
 					"        error_message = f\"Error in source SQL query {inspector_address_table}: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 168
+				"execution_count": 192
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"insp_eid_addr_df.printSchema()"
 				],
-				"execution_count": 169
+				"execution_count": 193
 			},
 			{
 				"cell_type": "markdown",
@@ -270,15 +271,8 @@
 					}
 				},
 				"source": [
-					"#####  JOIN load_vw_sap_hr_email"
+					"#####  JOIN live_dim_table"
 				]
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"error_message = ''"
-				],
-				"execution_count": 170
 			},
 			{
 				"cell_type": "code",
@@ -288,24 +282,26 @@
 					"        insp_eid_addr_email_df = spark.sql(f\"\"\"\n",
 					"                            SELECT\n",
 					"                            iea.*,\n",
-					"                            se.email_address as emailAddress\n",
+					"                            ldt.pins_email_address AS emailAddress,\n",
+					"                            ldt.date_in AS validFrom,\n",
+					"                            grade \n",
 					"                            from insp_eid_addr_df iea\n",
-					"                            LEFT JOIN {sap_email_table} se\n",
-					"                            ON se.PersNo = iea.sapId\n",
+					"                            LEFT JOIN {live_dim_table} ldt\n",
+					"                            ON ldt.pins_staff_number = iea.sapId\n",
 					"                            \"\"\")\n",
 					"        insp_eid_addr_email_df.createOrReplaceTempView(\"insp_eid_addr_email_df\")\n",
 					"    except Exception as e:\n",
-					"        error_message = f\"Error in source SQL query {sap_email_table}: {str(e)[:800]}\"\n",
+					"        error_message = f\"Error in source SQL query {live_dim_table}: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 171
+				"execution_count": 205
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"insp_eid_addr_email_df.printSchema()"
 				],
-				"execution_count": 172
+				"execution_count": 206
 			},
 			{
 				"cell_type": "markdown",
