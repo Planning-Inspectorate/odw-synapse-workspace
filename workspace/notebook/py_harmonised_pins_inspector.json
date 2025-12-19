@@ -52,12 +52,51 @@
 		},
 		"cells": [
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Purpose\n",
+					"The purpose of this PySpark Notebook is to create a harmonised view of Inspector data: **odw_harmonised_db.casework_inspector**\n",
+					"\n",
+					"### Description\n",
+					"##### This Notebook:\n",
+					"- Reads from multiple harmonised Delta table sources (entraid, SAP HR, inspector specialisms, address data).\n",
+					"- Joins and enriches inspector data with specialisms, address, and HR information.\n",
+					"- Creates a unified inspector dataset suitable for Casework integration.\n",
+					"- Logs audit information to Application Insights by creating a JSON dump at notebook exit.\n",
+					"\n",
+					"**Spark Cluster Configuration**\n",
+					"- Apache Spark Version: 3.4\n",
+					"- Python Version: 3.10\n",
+					"- Delta Lake Version: 2.4"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Imports"
+				]
+			},
+			{
 				"cell_type": "code",
 				"source": [
 					"from pyspark.sql.types import IntegerType, ArrayType, StructType, StructField\n",
 					"from pyspark.sql import Row\n",
 					"from pyspark.sql.functions import *\n",
-					"from datetime import date,datetime"
+					"from datetime import date, datetime"
 				],
 				"execution_count": null
 			},
@@ -111,48 +150,29 @@
 					}
 				},
 				"source": [
-					"#####  Initialise Variables"
+					"#### Configuration & Run variables"
 				]
 			},
 			{
 				"cell_type": "code",
 				"source": [
+					"# Source table references\n",
 					"entraid_table = \"odw_harmonised_db.entraid\"\n",
 					"inspector_specialisms_table = \"odw_harmonised_db.sap_hr_inspector_specialisms\"\n",
 					"inspector_address_table = \"odw_harmonised_db.sap_hr_inspector_address\"\n",
-					"live_dim_table  = \"odw_harmonised_db.live_dim_inspector\"\n",
+					"live_dim_table = \"odw_harmonised_db.live_dim_inspector\"\n",
 					"hist_sap_hr_table = \"odw_harmonised_db.hist_sap_hr\"\n",
 					"\n",
+					"# Target table\n",
 					"primary_key = \"entraId\"\n",
 					"table_name = \"odw_harmonised_db.casework_inspector\"\n",
 					"\n",
+					"# Initialise variables for Logging and Tracking\n",
 					"start_exec_time = datetime.now()\n",
 					"insert_count = 0\n",
 					"update_count = 0\n",
 					"delete_count = 0\n",
-					"error_message=''"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"if not error_message:\n",
-					"    try:\n",
-					"        dim_inspector_df = spark.sql(f\"\"\"\n",
-					"                            SELECT\n",
-					"                            pins_staff_number AS sapId,\n",
-					"                            pins_email_address AS emailAddress,\n",
-					"                            date_in AS validFrom,\n",
-					"                            grade,\n",
-					"                            isActive\n",
-					"                            from {live_dim_table}\n",
-					"                            WHERE active_status NOT IN ('NON-ACTIVE')\n",
-					"                            \"\"\")\n",
-					"        dim_inspector_df.createOrReplaceTempView(\"dim_inspector_df\")\n",
-					"    except Exception as e:\n",
-					"        error_message = f\"Error in source SQL query {live_dim_table}: {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()"
+					"error_message = ''"
 				],
 				"execution_count": null
 			},
@@ -166,189 +186,132 @@
 					}
 				},
 				"source": [
-					"######  Prepare the specialism DF"
-				]
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"if not error_message:\n",
-					"    try:\n",
-					"        #Get data out of the SAP HR Inspector Specialism table\n",
-					"        inspector_specialisms_df = spark.sql(f\"\"\"\n",
-					"            WITH ranked AS (\n",
-					"                SELECT\n",
-					"                    is.StaffNumber,\n",
-					"                    is.Firstname,\n",
-					"                    is.Lastname,\n",
-					"                    is.QualificationName,\n",
-					"                    is.Proficien,\n",
-					"                    is.ValidFrom,\n",
-					"                    ROW_NUMBER() OVER (PARTITION BY is.StaffNumber ORDER BY is.LastUpdated DESC) AS rn\n",
-					"                FROM {inspector_specialisms_table} is\n",
-					"            )\n",
-					"            SELECT\n",
-					"                StaffNumber AS sapId,\n",
-					"                Firstname AS firstName,\n",
-					"                Lastname AS lastName,\n",
-					"                named_struct(\n",
-					"                    'name', QualificationName,\n",
-					"                    'proficiency', Proficien,\n",
-					"                    'validFrom', ValidFrom\n",
-					"                ) as specialism\n",
-					"            FROM ranked\n",
-					"            WHERE rn = 1\n",
-					"        \"\"\")\n",
-					"        inspector_specialisms_df.createOrReplaceTempView(\"inspector_specialisms_df\")\n",
-					"    except Exception as e:\n",
-					"        error_message = f\"Error in source SQL query {inspector_specialism_table}: {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()  "
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"######  Join liv_dim_inspector and specialism"
-				]
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"if not error_message:\n",
-					"    try:\n",
-					"        dim_insp_spec_df = spark.sql(f\"\"\"\n",
-					"                            SELECT\n",
-					"                            di.*,\n",
-					"                            insp.firstName,\n",
-					"                            insp.lastName,\n",
-					"                            insp.specialism\n",
-					"                            FROM dim_inspector_df as di\n",
-					"                            LEFT JOIN inspector_specialisms_df insp\n",
-					"                            ON di.sapId = insp.sapId\n",
-					"                            \"\"\")\n",
-					"        dim_insp_spec_df.createOrReplaceTempView(\"dim_insp_spec_df\")\n",
-					"    except Exception as e:\n",
-					"        error_message = f\"Error in SQL JOIN query with {inspector_specialisms_table} and {live_dim_table}: {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"#####  JOIN entraid"
-				]
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"if not error_message:\n",
-					"    try:\n",
-					"        inspector_entraid_df = spark.sql(f\"\"\"\n",
-					"                            SELECT\n",
-					"                            insp.*,\n",
-					"                            eid.id AS entraId\n",
-					"                            FROM dim_insp_spec_df insp\n",
-					"                            LEFT JOIN (\n",
-					"                                SELECT\n",
-					"                                eid.id,\n",
-					"                                CASE\n",
-					"                                    WHEN LEN(eid.employeeId) < 8 THEN CONCAT('00', employeeId) --pad old SAP IDs shorter than 8  \n",
-					"                                    ELSE employeeId\n",
-					"                                END AS employeeId \n",
-					"                                FROM {entraid_table} eid\n",
-					"                                WHERE eid.isActive = 'Y'\n",
-					"                                ) eid\n",
-					"                            ON eid.employeeId = insp.sapId\n",
-					"                            \"\"\")\n",
-					"        inspector_entraid_df.createOrReplaceTempView(\"inspector_entraid_df\")\n",
-					"    except Exception as e:\n",
-					"        error_message = f\"Error in source SQL query {entraid_table}: {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"#####  JOIN sap_hr_inspector_address"
-				]
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"#Need a STRUCT field to generate address, as it's on separated cofield lumns in the source table\n",
+					"### SQL Assembly (joins, enrichment, deduplication)\n",
 					"\n",
+					"**Purpose:**\n",
+					"Build a unified inspector dataset by joining multiple source tables and enriching with specialisms, address, and HR data.\n",
+					"\n",
+					"#### What this does\n",
+					"\n",
+					"- **`insp_spec_dedup`**\n",
+					"  - Deduplicates inspector specialisms, keeping the most recent record per StaffNumber\n",
+					"  - Creates a specialism struct with qualification name, proficiency, and validity date\n",
+					"\n",
+					"- **`entraid_padded`**\n",
+					"  - Pads old SAP IDs (shorter than 8 characters) with '00' prefix for consistency\n",
+					"  - Filters for active users only\n",
+					"\n",
+					"- **`hr_latest`**\n",
+					"  - Extracts the most recent HR record per person from hist_sap_hr\n",
+					"  - Uses ROW_NUMBER partitioned by PersNo, ordered by ingestionDate DESC\n",
+					"\n",
+					"- **Final SELECT**\n",
+					"  - Chains all joins together in a single optimized query\n",
+					"  - Starts with live_dim_inspector (active inspectors only)\n",
+					"  - LEFT JOINs specialisms, entraid, address, and HR data\n",
+					"  - Creates structured fields for specialism and address\n",
+					"  - Maps all relevant HR fields (FTE, unit, service, group, manager, title)\n",
+					"\n",
+					"#### Final Output\n",
+					"- Unified inspector dataset with entraId as primary key\n",
+					"- Includes personal info, specialisms, address, and organizational data\n",
+					"- All joins are LEFT to preserve inspectors even if enrichment data is missing"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"if not error_message:\n",
 					"    try:\n",
-					"        insp_eid_addr_df = spark.sql(f\"\"\"\n",
-					"                            SELECT\n",
-					"                            insp_eid.*,\n",
-					"                            named_struct(\n",
-					"                                'addressLine1', addr.StreetandHouseNumber,\n",
-					"                                'addressLine2', addr.`2ndAddressLine`,\n",
-					"                                'townCity',     addr.City,\n",
-					"                                'county',       addr.District,\n",
-					"                                'postcode',     addr.PostalCode\n",
-					"                            ) AS address\n",
-					"                            from inspector_entraid_df insp_eid\n",
-					"                            LEFT JOIN {inspector_address_table} addr\n",
-					"                            ON addr.StaffNumber = insp_eid.sapId\n",
-					"                            \"\"\")\n",
-					"        insp_eid_addr_df.createOrReplaceTempView(\"insp_eid_addr_df\")\n",
+					"        # Single optimized SQL query that performs all joins and transformations\n",
+					"        final_inspector_df = spark.sql(f\"\"\"\n",
+					"            WITH\n",
+					"            -- Deduplicate specialisms: keep most recent record per StaffNumber\n",
+					"            insp_spec_dedup AS (\n",
+					"                SELECT\n",
+					"                    StaffNumber AS sapId,\n",
+					"                    Firstname AS firstName,\n",
+					"                    Lastname AS lastName,\n",
+					"                    named_struct(\n",
+					"                        'name', QualificationName,\n",
+					"                        'proficiency', Proficien,\n",
+					"                        'validFrom', ValidFrom\n",
+					"                    ) AS specialism\n",
+					"                FROM (\n",
+					"                    SELECT *,\n",
+					"                        ROW_NUMBER() OVER (PARTITION BY StaffNumber ORDER BY LastUpdated DESC) AS rn\n",
+					"                    FROM {inspector_specialisms_table}\n",
+					"                ) ranked\n",
+					"                WHERE rn = 1\n",
+					"            ),\n",
+					"            -- Prepare EntraID: pad old SAP IDs shorter than 8 chars with '00' prefix\n",
+					"            entraid_padded AS (\n",
+					"                SELECT\n",
+					"                    id,\n",
+					"                    CASE\n",
+					"                        WHEN LEN(employeeId) < 8 THEN CONCAT('00', employeeId)\n",
+					"                        ELSE employeeId\n",
+					"                    END AS employeeId\n",
+					"                FROM {entraid_table}\n",
+					"                WHERE isActive = 'Y'\n",
+					"            ),\n",
+					"            -- Extract latest HR record per person\n",
+					"            hr_latest AS (\n",
+					"                SELECT\n",
+					"                    PersNo,\n",
+					"                    Position1,\n",
+					"                    FTE,\n",
+					"                    PersonnelArea,\n",
+					"                    PersonnelSubArea,\n",
+					"                    OrganizationalUnit,\n",
+					"                    NameofManagerOM,\n",
+					"                    SourceSystemID\n",
+					"                FROM (\n",
+					"                    SELECT *,\n",
+					"                        ROW_NUMBER() OVER (PARTITION BY PersNo ORDER BY ingestionDate DESC) AS rn\n",
+					"                    FROM {hist_sap_hr_table}\n",
+					"                ) ranked\n",
+					"                WHERE rn = 1\n",
+					"            )\n",
+					"            -- Build final unified inspector dataset with all enrichments\n",
+					"            SELECT\n",
+					"                eid.id AS entraId,\n",
+					"                di.pins_staff_number AS sapId,\n",
+					"                di.pins_email_address AS emailAddress,\n",
+					"                ispec.firstName,\n",
+					"                ispec.lastName,\n",
+					"                di.date_in AS validFrom,\n",
+					"                di.grade,\n",
+					"                di.isActive,\n",
+					"                ispec.specialism,\n",
+					"                named_struct(\n",
+					"                    'addressLine1', addr.StreetandHouseNumber,\n",
+					"                    'addressLine2', addr.`2ndAddressLine`,\n",
+					"                    'townCity', addr.City,\n",
+					"                    'county', addr.District,\n",
+					"                    'postcode', addr.PostalCode\n",
+					"                ) AS address,\n",
+					"                hr.Position1 AS postName,\n",
+					"                hr.FTE AS fte,\n",
+					"                hr.PersonnelArea AS unit,\n",
+					"                hr.PersonnelSubArea AS service,\n",
+					"                hr.OrganizationalUnit AS `group`,\n",
+					"                hr.NameofManagerOM AS inspectorManager,\n",
+					"                hr.Position1 AS title,\n",
+					"                hr.SourceSystemID AS sourceSystem\n",
+					"            FROM {live_dim_table} di\n",
+					"            LEFT JOIN insp_spec_dedup ispec ON di.pins_staff_number = ispec.sapId\n",
+					"            LEFT JOIN entraid_padded eid ON eid.employeeId = di.pins_staff_number\n",
+					"            LEFT JOIN {inspector_address_table} addr ON addr.StaffNumber = di.pins_staff_number\n",
+					"            LEFT JOIN hr_latest hr ON hr.PersNo = di.pins_staff_number\n",
+					"            WHERE di.active_status NOT IN ('NON-ACTIVE')\n",
+					"        \"\"\")\n",
+					"        \n",
+					"        final_inspector_df.createOrReplaceTempView(\"final_inspector_df\")\n",
+					"        \n",
 					"    except Exception as e:\n",
-					"        error_message = f\"Error in source SQL query {inspector_address_table}: {str(e)[:800]}\"\n",
+					"        error_message = f\"Error building inspector dataset: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"insp_eid_addr_df.printSchema()"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
-				},
-				"source": [
-					"%%sql\n",
-					"select count(sapId) distinct from insp_eid_addr_df"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"insp_eid_addr_email_df.printSchema()"
 				],
 				"execution_count": null
 			},
@@ -362,40 +325,8 @@
 					}
 				},
 				"source": [
-					"#####  JOIN hist_sap_hr"
+					"#### Data Quality Check"
 				]
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"if not error_message:\n",
-					"    try:\n",
-					"        insp_eid_addr_email_hr_df = spark.sql(f\"\"\"\n",
-					"                            SELECT\n",
-					"                            ieae.*,\n",
-					"                            hshr.Position1 as postName,\n",
-					"                            hshr.FTE AS fte,\n",
-					"                            hshr.PersonnelArea AS unit,\n",
-					"                            hshr.PersonnelSubArea AS service,\n",
-					"                            hshr.OrganizationalUnit AS group,\n",
-					"                            hshr.NameofManagerOM AS inspectorManager,\n",
-					"                            hshr.Position1 AS title,\n",
-					"                            hshr.SourceSystemID AS sourceSystem\n",
-					"                            from insp_eid_addr_df ieae\n",
-					"                            LEFT JOIN (\n",
-					"                                SELECT *,\n",
-					"                                    ROW_NUMBER() OVER (PARTITION BY PersNo ORDER BY ingestionDate DESC) AS rn\n",
-					"                                FROM {hist_sap_hr_table}\n",
-					"                            ) hshr\n",
-					"                            ON hshr.PersNo = ieae.sapId \n",
-					"                            AND hshr.rn = 1  -- Get only the latest record per PersNo\n",
-					"                            \"\"\")\n",
-					"        insp_eid_addr_email_hr_df.createOrReplaceTempView(\"insp_eid_addr_email_hr_df\")\n",
-					"    except Exception as e:\n",
-					"        error_message = f\"Error in source SQL query {sap_email_table}: {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()"
-				],
-				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -403,17 +334,8 @@
 					"collapsed": false
 				},
 				"source": [
-					"display(insp_eid_addr_email_hr_df)"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"#Questions for Harriet:\n",
-					"# - where ist the isActive and ValidFrom coming from?\n",
-					"# - assumptions on the address concat\n",
-					"# - qualification, postName, title, salutation, grade, unit, service, group, specialism?"
+					"if not error_message:\n",
+					"    display(final_inspector_df)"
 				],
 				"execution_count": null
 			},
