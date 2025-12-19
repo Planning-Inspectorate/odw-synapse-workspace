@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "8bbc6481-a48d-4ac0-b4dc-5bf5d5957624"
+				"spark.autotune.trackingId": "c2b3387a-dbde-4ec3-9b62-8085c9bf95ac"
 			}
 		},
 		"metadata": {
@@ -59,7 +59,7 @@
 					"from pyspark.sql.functions import *\n",
 					"from datetime import date,datetime"
 				],
-				"execution_count": 55
+				"execution_count": 160
 			},
 			{
 				"cell_type": "markdown",
@@ -71,7 +71,7 @@
 					}
 				},
 				"source": [
-					"Initialise Logging Decorator"
+					"#####  Initialise Logging Decorator"
 				]
 			},
 			{
@@ -79,7 +79,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 56
+				"execution_count": 161
 			},
 			{
 				"cell_type": "markdown",
@@ -91,7 +91,7 @@
 					}
 				},
 				"source": [
-					"Initialise Application Insight Logging functions"
+					"#####  Initialise Application Insight Logging functions"
 				]
 			},
 			{
@@ -99,7 +99,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 57
+				"execution_count": 162
 			},
 			{
 				"cell_type": "markdown",
@@ -111,7 +111,7 @@
 					}
 				},
 				"source": [
-					"Initialise Variables"
+					"#####  Initialise Variables"
 				]
 			},
 			{
@@ -120,10 +120,11 @@
 					"entraid_table = \"odw_harmonised_db.entraid\"\n",
 					"inspector_specialisms_table = \"odw_harmonised_db.sap_hr_inspector_specialisms\"\n",
 					"inspector_address_table = \"odw_harmonised_db.sap_hr_inspector_address\"\n",
-					"hist_sap_hr_table  = \"odw_harmonised_db.load_vw_sap_hr_email\"\n",
+					"sap_email_table  = \"odw_harmonised_db.load_vw_sap_hr_email\"\n",
+					"hist_sap_hr_table = \"odw_harmonised_db.hist_sap_hr\"\n",
 					"\n",
 					"primary_key = \"entraId\"\n",
-					"spark_table_final = \"odw_harmonised_db.casework_ispector\"\n",
+					"table_name = \"odw_harmonised_db.casework_inspector\"\n",
 					"\n",
 					"start_exec_time = datetime.now()\n",
 					"insert_count = 0\n",
@@ -131,7 +132,7 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": 68
+				"execution_count": 179
 			},
 			{
 				"cell_type": "code",
@@ -154,14 +155,14 @@
 					"        error_message = f\"Error in source SQL query {inspector_specialism_table}: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()  "
 				],
-				"execution_count": 59
+				"execution_count": 164
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"inspector_specialisms_df.printSchema()"
 				],
-				"execution_count": 60
+				"execution_count": 165
 			},
 			{
 				"cell_type": "markdown",
@@ -173,7 +174,7 @@
 					}
 				},
 				"source": [
-					"JOIN entraid"
+					"#####  JOIN entraid"
 				]
 			},
 			{
@@ -194,7 +195,7 @@
 					"        error_message = f\"Error in source SQL query {entraid_table}: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 71
+				"execution_count": 166
 			},
 			{
 				"cell_type": "code",
@@ -205,7 +206,7 @@
 					"inspector_entraid_df.printSchema()\n",
 					"# display(inspector_entraid_df).limit(10)"
 				],
-				"execution_count": 72
+				"execution_count": 167
 			},
 			{
 				"cell_type": "markdown",
@@ -217,13 +218,13 @@
 					}
 				},
 				"source": [
-					"JOIN sap_hr_inspector_address"
+					"#####  JOIN sap_hr_inspector_address"
 				]
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"#Need a CONCAT to generate the address as it's on separated columns in the table\n",
+					"#Need a STRUCT field to generate address, as it's on separated cofield lumns in the source table\n",
 					"\n",
 					"if not error_message:\n",
 					"    try:\n",
@@ -238,7 +239,7 @@
 					"                                'postcode',     addr.PostalCode\n",
 					"                            ) AS address\n",
 					"                            from inspector_entraid_df insp_eid\n",
-					"                            JOIN {inspector_address_table} addr\n",
+					"                            LEFT JOIN {inspector_address_table} addr\n",
 					"                            ON addr.StaffNumber = insp_eid.sapId\n",
 					"                            \"\"\")\n",
 					"        insp_eid_addr_df.createOrReplaceTempView(\"insp_eid_addr_df\")\n",
@@ -246,24 +247,179 @@
 					"        error_message = f\"Error in source SQL query {inspector_address_table}: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 98
+				"execution_count": 168
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"insp_eid_addr_df.printSchema()"
 				],
-				"execution_count": 99
+				"execution_count": 169
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#####  JOIN load_vw_sap_hr_email"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"error_message = ''"
+				],
+				"execution_count": 170
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"        insp_eid_addr_email_df = spark.sql(f\"\"\"\n",
+					"                            SELECT\n",
+					"                            iea.*,\n",
+					"                            se.email_address as emailAddress\n",
+					"                            from insp_eid_addr_df iea\n",
+					"                            LEFT JOIN {sap_email_table} se\n",
+					"                            ON se.PersNo = iea.sapId\n",
+					"                            \"\"\")\n",
+					"        insp_eid_addr_email_df.createOrReplaceTempView(\"insp_eid_addr_email_df\")\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error in source SQL query {sap_email_table}: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()"
+				],
+				"execution_count": 171
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"insp_eid_addr_email_df.printSchema()"
+				],
+				"execution_count": 172
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#####  JOIN hist_sap_hr"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"error_message = ''"
+				],
+				"execution_count": 173
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"        insp_eid_addr_email_hr_df = spark.sql(f\"\"\"\n",
+					"                            SELECT\n",
+					"                            ieae.*,\n",
+					"                            hshr.NameofManagerOM AS inspectorManager,\n",
+					"                            hshr.FTE AS fte,\n",
+					"                            hshr.OrganizationalUnit AS organisationName,\n",
+					"                            hshr.Position1 AS title,\n",
+					"                            hshr.SourceSystemID AS sourceSystem\n",
+					"                            from insp_eid_addr_email_df ieae\n",
+					"                            LEFT JOIN {hist_sap_hr_table} hshr\n",
+					"                            ON hshr.PersNo = ieae.sapId\n",
+					"                            \"\"\")\n",
+					"        insp_eid_addr_email_hr_df.createOrReplaceTempView(\"insp_eid_addr_email_hr_df\")\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error in source SQL query {sap_email_table}: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()"
+				],
+				"execution_count": 174
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"insp_eid_addr_email_hr_df.printSchema()"
+				],
+				"execution_count": 175
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"error_message"
+				],
+				"execution_count": 176
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"#Questions for Harriet:\n",
 					"# - where ist the isActive and ValidFrom coming from?\n",
-					"# -assumptions on the address concat\n",
-					"# - postName, title, salutation, grade, unit, service, group, specialism?"
+					"# - assumptions on the address concat\n",
+					"# - qualification, postName, title, salutation, grade, unit, service, group, specialism?"
 				],
-				"execution_count": null
+				"execution_count": 177
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#####  Logging Execution Metadata to Azure Application Insights"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
+					"activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
+					"stage = \"Success\" if not error_message else \"Failed\"\n",
+					"status_message = (\n",
+					"    f\"Successfully loaded data into {table_name} table\"\n",
+					"    if not error_message\n",
+					"    else f\"Failed to load data from {table_name} table\"\n",
+					")\n",
+					"status_code = \"200\" if stage == \"Success\" else \"500\"\n",
+					"\n",
+					"log_telemetry_and_exit(\n",
+					"    stage,\n",
+					"    start_exec_time,\n",
+					"    end_exec_time,\n",
+					"    error_message,\n",
+					"    table_name,\n",
+					"    insert_count,\n",
+					"    update_count,\n",
+					"    delete_count,\n",
+					"    PipelineName,\n",
+					"    PipelineRunID,\n",
+					"    PipelineTriggerID,\n",
+					"    PipelineTriggerName,\n",
+					"    PipelineTriggerType,\n",
+					"    PipelineTriggeredbyPipelineName,\n",
+					"    PipelineTriggeredbyPipelineRunID,\n",
+					"    activity_type,\n",
+					"    duration_seconds,\n",
+					"    status_message,\n",
+					"    status_code\n",
+					")"
+				],
+				"execution_count": 180
 			}
 		]
 	}
