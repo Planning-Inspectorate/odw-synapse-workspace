@@ -3,7 +3,7 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "setharmonisedstarttime",
+				"name": "SetCuratedStartTime",
 				"type": "SetVariable",
 				"dependsOn": [],
 				"policy": {
@@ -12,7 +12,7 @@
 				},
 				"userProperties": [],
 				"typeProperties": {
-					"variableName": "harmonisedstarttime",
+					"variableName": "CuratedStartTime",
 					"value": {
 						"value": "@utcNow()",
 						"type": "Expression"
@@ -84,7 +84,7 @@
 				"type": "SynapseNotebook",
 				"dependsOn": [
 					{
-						"activity": "setharmonisedstarttime",
+						"activity": "SetCuratedStartTime",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -453,7 +453,7 @@
 							"type": "Expression"
 						},
 						"StartTime": {
-							"value": "@variables('harmonisedstarttime')",
+							"value": "@variables('CuratedStartTime')",
 							"type": "Expression"
 						},
 						"EndTime": {
@@ -487,7 +487,7 @@
 						},
 						"ActivityType": "Pipeline",
 						"DurationSeconds": {
-							"value": "@div(sub(ticks(utcNow()), ticks(variables('harmonisedstarttime'))), 10000000)",
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('CuratedStartTime'))), 10000000)",
 							"type": "Expression"
 						},
 						"StatusCode": "200",
@@ -495,67 +495,6 @@
 							"value": "@pipeline().parameters.apps_insights_ikey",
 							"type": "Expression"
 						}
-					}
-				}
-			},
-			{
-				"name": "Send  hist Green Specialis Case  Curated failed",
-				"type": "ExecutePipeline",
-				"dependsOn": [
-					{
-						"activity": "py_vw_hist_green_specialist_case",
-						"dependencyConditions": [
-							"Failed"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": true
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_utl_Send_Teams_Message",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"dataFactorySubscription": {
-							"value": "@pipeline().parameters.subscription_id",
-							"type": "Expression"
-						},
-						"dataFactoryResourceGroup": {
-							"value": "@pipeline().parameters.resource_group",
-							"type": "Expression"
-						},
-						"pipelineRunId": {
-							"value": "@pipeline().RunId",
-							"type": "Expression"
-						},
-						"teamsWebhookUrl": {
-							"value": "@pipeline().parameters.webhook_url",
-							"type": "Expression"
-						},
-						"activityName": {
-							"value": "@pipeline().Pipeline",
-							"type": "Expression"
-						},
-						"activityMessage": "Hist Green Specialist Case Curated Layer data load failed",
-						"activityDuration": {
-							"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
-							"type": "Expression"
-						},
-						"activityStatus": "Failed",
-						"Colour": {
-							"value": "@pipeline().parameters.failed_colour",
-							"type": "Expression"
-						},
-						"Image": {
-							"value": "@pipeline().parameters.failed_image",
-							"type": "Expression"
-						},
-						"Message_title": "Green Specialist Case Harmonised Master pipeline failed",
-						"Message_subtitle": "Green Specialist Case Harmonised feed failed"
 					}
 				}
 			},
@@ -594,7 +533,7 @@
 							"type": "Expression"
 						},
 						"StartTime": {
-							"value": "@variables('harmonisedstarttime')",
+							"value": "@variables('CuratedStartTime')",
 							"type": "Expression"
 						},
 						"EndTime": {
@@ -602,7 +541,7 @@
 							"type": "Expression"
 						},
 						"ErrorMessage": {
-							"value": "@activity('py_vw_hist_green_specialist_case').Error.Message",
+							"value": "@substring(activity('py_vw_hist_green_specialist_case').error.message, 0, 2000)",
 							"type": "Expression"
 						},
 						"StatusMessage": {
@@ -754,7 +693,7 @@
 							"type": "Expression"
 						},
 						"StartTime": {
-							"value": "@variables('harmonisedstarttime')",
+							"value": "@variables('CuratedStartTime')",
 							"type": "Expression"
 						},
 						"EndTime": {
@@ -788,7 +727,7 @@
 						},
 						"ActivityType": "Pipeline",
 						"DurationSeconds": {
-							"value": "@div(sub(ticks(utcNow()), ticks(variables('harmonisedstarttime'))), 10000000)",
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('CuratedStartTime'))), 10000000)",
 							"type": "Expression"
 						},
 						"StatusCode": "200",
@@ -800,7 +739,7 @@
 				}
 			},
 			{
-				"name": "Send Green Specialist Case Curated fail",
+				"name": "Record completed Green Specialist_Case_Curated",
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
@@ -811,52 +750,70 @@
 					}
 				],
 				"policy": {
-					"secureInput": true
+					"secureInput": false
 				},
 				"userProperties": [],
 				"typeProperties": {
 					"pipeline": {
-						"referenceName": "pln_utl_Send_Teams_Message",
+						"referenceName": "pln_log_to_appins",
 						"type": "PipelineReference"
 					},
 					"waitOnCompletion": true,
 					"parameters": {
-						"dataFactorySubscription": {
-							"value": "@pipeline().parameters.subscription_id",
+						"Stage": {
+							"value": "Fail\n",
 							"type": "Expression"
 						},
-						"dataFactoryResourceGroup": {
-							"value": "@pipeline().parameters.resource_group",
-							"type": "Expression"
-						},
-						"pipelineRunId": {
-							"value": "@pipeline().RunId",
-							"type": "Expression"
-						},
-						"teamsWebhookUrl": {
-							"value": "@pipeline().parameters.webhook_url",
-							"type": "Expression"
-						},
-						"activityName": {
+						"PipelineName": {
 							"value": "@pipeline().Pipeline",
 							"type": "Expression"
 						},
-						"activityMessage": "Green Specialist Curated Layer data load failed",
-						"activityDuration": {
-							"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
 							"type": "Expression"
 						},
-						"activityStatus": "Failed",
-						"Colour": {
-							"value": "@pipeline().parameters.failed_colour",
+						"StartTime": {
+							"value": "@variables('CuratedStartTime')",
 							"type": "Expression"
 						},
-						"Image": {
-							"value": "@pipeline().parameters.failed_image",
+						"EndTime": {
+							"value": "@utcNow()",
 							"type": "Expression"
 						},
-						"Message_title": "Green Specialist Case Curated Master pipeline failed",
-						"Message_subtitle": "Green Specialist Case Curated feed failed"
+						"ErrorMessage": {
+							"value": "@substring(activity('py_vw_green_specialist_case').error.message, 0, 2000)\n\n",
+							"type": "Expression"
+						},
+						"StatusMessage": {
+							"value": "@concat(activity('py_vw_green_specialist_case').output,  'Curated Layer Failed')\n ",
+							"type": "Expression"
+						},
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"ActivityType": "Pipeline",
+						"StatusCode": "400",
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
 					}
 				}
 			},
@@ -892,7 +849,7 @@
 							"type": "Expression"
 						},
 						"StartTime": {
-							"value": "@variables('harmonisedstarttime')",
+							"value": "@variables('CuratedStartTime')",
 							"type": "Expression"
 						},
 						"EndTime": {
@@ -926,150 +883,10 @@
 						},
 						"ActivityType": "Pipeline",
 						"DurationSeconds": {
-							"value": "@div(sub(ticks(utcNow()), ticks(variables('harmonisedstarttime'))), 10000000)",
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('CuratedStartTime'))), 10000000)",
 							"type": "Expression"
 						},
 						"StatusCode": "200",
-						"AppInsIKey": {
-							"value": "@pipeline().parameters.apps_insights_ikey",
-							"type": "Expression"
-						}
-					}
-				}
-			},
-			{
-				"name": "Send Green Specialist Case Hedgerow Curated fail",
-				"type": "ExecutePipeline",
-				"dependsOn": [
-					{
-						"activity": "py_vw_green_specialist_case_Hedgerow",
-						"dependencyConditions": [
-							"Failed"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": true
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_utl_Send_Teams_Message",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"dataFactorySubscription": {
-							"value": "@pipeline().parameters.subscription_id",
-							"type": "Expression"
-						},
-						"dataFactoryResourceGroup": {
-							"value": "@pipeline().parameters.resource_group",
-							"type": "Expression"
-						},
-						"pipelineRunId": {
-							"value": "@pipeline().RunId",
-							"type": "Expression"
-						},
-						"teamsWebhookUrl": {
-							"value": "@pipeline().parameters.webhook_url",
-							"type": "Expression"
-						},
-						"activityName": {
-							"value": "@pipeline().Pipeline",
-							"type": "Expression"
-						},
-						"activityMessage": "Green Specialist Case Hedgerow Curated Layer data load failed",
-						"activityDuration": {
-							"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
-							"type": "Expression"
-						},
-						"activityStatus": "Failed",
-						"Colour": {
-							"value": "@pipeline().parameters.failed_colour",
-							"type": "Expression"
-						},
-						"Image": {
-							"value": "@pipeline().parameters.failed_image",
-							"type": "Expression"
-						},
-						"Message_title": "Green Specialist Case Harmonised Master pipeline failed",
-						"Message_subtitle": "Green Specialist Case Harmonised feed failed"
-					}
-				}
-			},
-			{
-				"name": "Record completed Green Specialist Case Hedgerow Curated",
-				"type": "ExecutePipeline",
-				"dependsOn": [
-					{
-						"activity": "py_vw_green_specialist_case_Hedgerow",
-						"dependencyConditions": [
-							"Failed"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_log_to_appins",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"Stage": {
-							"value": "Fail",
-							"type": "Expression"
-						},
-						"PipelineName": {
-							"value": "@pipeline().Pipeline",
-							"type": "Expression"
-						},
-						"PipelineRunID": {
-							"value": "@pipeline().RunId",
-							"type": "Expression"
-						},
-						"StartTime": {
-							"value": "@variables('harmonisedstarttime')",
-							"type": "Expression"
-						},
-						"EndTime": {
-							"value": "@utcNow()",
-							"type": "Expression"
-						},
-						"ErrorMessage": {
-							"value": "@activity('py_vw_green_specialist_case_Hedgerow').Error.Message",
-							"type": "Expression"
-						},
-						"StatusMessage": {
-							"value": "@activity('py_vw_green_specialist_case_Hedgerow').output\r\n@concat(activity('').output,'Curated Layer Failed')\r\n\r\n",
-							"type": "Expression"
-						},
-						"PipelineTriggerID": {
-							"value": "@pipeline().TriggerId",
-							"type": "Expression"
-						},
-						"PipelineTriggerName": {
-							"value": "@pipeline().TriggerName",
-							"type": "Expression"
-						},
-						"PipelineTriggerType": {
-							"value": "@pipeline().TriggerType",
-							"type": "Expression"
-						},
-						"PipelineTriggeredbyPipelineName": {
-							"value": "@pipeline()?.TriggeredByPipelineName",
-							"type": "Expression"
-						},
-						"PipelineTriggeredbyPipelineRunID": {
-							"value": "@pipeline()?.TriggeredByPipelineRunId",
-							"type": "Expression"
-						},
-						"ActivityType": "Pipeline",
-						"StatusCode": "400",
 						"AppInsIKey": {
 							"value": "@pipeline().parameters.apps_insights_ikey",
 							"type": "Expression"
@@ -1109,7 +926,7 @@
 							"type": "Expression"
 						},
 						"StartTime": {
-							"value": "@variables('harmonisedstarttime')",
+							"value": "@variables('CuratedStartTime')",
 							"type": "Expression"
 						},
 						"EndTime": {
@@ -1143,7 +960,7 @@
 						},
 						"ActivityType": "Pipeline",
 						"DurationSeconds": {
-							"value": "@div(sub(ticks(utcNow()), ticks(variables('harmonisedstarttime'))), 10000000)",
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('CuratedStartTime'))), 10000000)",
 							"type": "Expression"
 						},
 						"StatusCode": "200",
@@ -1151,67 +968,6 @@
 							"value": "@pipeline().parameters.apps_insights_ikey",
 							"type": "Expression"
 						}
-					}
-				}
-			},
-			{
-				"name": "Send Green Specialist Case Hedgerow Curated failed",
-				"type": "ExecutePipeline",
-				"dependsOn": [
-					{
-						"activity": "py_vw_green_specialist_case_HighHedges",
-						"dependencyConditions": [
-							"Failed"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": true
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_utl_Send_Teams_Message",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"dataFactorySubscription": {
-							"value": "@pipeline().parameters.subscription_id",
-							"type": "Expression"
-						},
-						"dataFactoryResourceGroup": {
-							"value": "@pipeline().parameters.resource_group",
-							"type": "Expression"
-						},
-						"pipelineRunId": {
-							"value": "@pipeline().RunId",
-							"type": "Expression"
-						},
-						"teamsWebhookUrl": {
-							"value": "@pipeline().parameters.webhook_url",
-							"type": "Expression"
-						},
-						"activityName": {
-							"value": "@pipeline().Pipeline",
-							"type": "Expression"
-						},
-						"activityMessage": "Green Specialist Case HH Curated Layer data load failed",
-						"activityDuration": {
-							"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
-							"type": "Expression"
-						},
-						"activityStatus": "Failed",
-						"Colour": {
-							"value": "@pipeline().parameters.failed_colour",
-							"type": "Expression"
-						},
-						"Image": {
-							"value": "@pipeline().parameters.failed_image",
-							"type": "Expression"
-						},
-						"Message_title": "Green Specialist Case Harmonised Master pipeline failed",
-						"Message_subtitle": "Green Specialist Case Harmonised feed failed"
 					}
 				}
 			},
@@ -1250,7 +1006,7 @@
 							"type": "Expression"
 						},
 						"StartTime": {
-							"value": "@variables('harmonisedstarttime')",
+							"value": "@variables('CuratedStartTime')",
 							"type": "Expression"
 						},
 						"EndTime": {
@@ -1258,7 +1014,7 @@
 							"type": "Expression"
 						},
 						"ErrorMessage": {
-							"value": "@activity('py_vw_green_specialist_case_HighHedges').Error.Message\n",
+							"value": "@substring(activity('py_vw_green_specialist_case_HighHedges').error.message, 0, 2000)",
 							"type": "Expression"
 						},
 						"StatusMessage": {
@@ -1326,7 +1082,7 @@
 							"type": "Expression"
 						},
 						"StartTime": {
-							"value": "@variables('harmonisedstarttime')",
+							"value": "@variables('CuratedStartTime')",
 							"type": "Expression"
 						},
 						"EndTime": {
@@ -1360,7 +1116,7 @@
 						},
 						"ActivityType": "Pipeline",
 						"DurationSeconds": {
-							"value": "@div(sub(ticks(utcNow()), ticks(variables('harmonisedstarttime'))), 10000000)",
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('CuratedStartTime'))), 10000000)",
 							"type": "Expression"
 						},
 						"StatusCode": "200",
@@ -1368,67 +1124,6 @@
 							"value": "@pipeline().parameters.apps_insights_ikey",
 							"type": "Expression"
 						}
-					}
-				}
-			},
-			{
-				"name": "Send Green Specialist Case_TPO_Curated failled",
-				"type": "ExecutePipeline",
-				"dependsOn": [
-					{
-						"activity": "py_vw_green_specialist_case_TPO",
-						"dependencyConditions": [
-							"Failed"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": true
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_utl_Send_Teams_Message",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"dataFactorySubscription": {
-							"value": "@pipeline().parameters.subscription_id",
-							"type": "Expression"
-						},
-						"dataFactoryResourceGroup": {
-							"value": "@pipeline().parameters.resource_group",
-							"type": "Expression"
-						},
-						"pipelineRunId": {
-							"value": "@pipeline().RunId",
-							"type": "Expression"
-						},
-						"teamsWebhookUrl": {
-							"value": "@pipeline().parameters.webhook_url",
-							"type": "Expression"
-						},
-						"activityName": {
-							"value": "@pipeline().Pipeline",
-							"type": "Expression"
-						},
-						"activityMessage": "Green Specialist Case TPO Curated Layer data load failed",
-						"activityDuration": {
-							"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
-							"type": "Expression"
-						},
-						"activityStatus": "Failed",
-						"Colour": {
-							"value": "@pipeline().parameters.failed_colour",
-							"type": "Expression"
-						},
-						"Image": {
-							"value": "@pipeline().parameters.failed_image",
-							"type": "Expression"
-						},
-						"Message_title": "Green Specialist Case Harmonised Master pipeline failed",
-						"Message_subtitle": "Green Specialist Case Harmonised feed failed"
 					}
 				}
 			},
@@ -1467,7 +1162,7 @@
 							"type": "Expression"
 						},
 						"StartTime": {
-							"value": "@variables('harmonisedstarttime')",
+							"value": "@variables('CuratedStartTime')",
 							"type": "Expression"
 						},
 						"EndTime": {
@@ -1475,11 +1170,90 @@
 							"type": "Expression"
 						},
 						"ErrorMessage": {
-							"value": "@activity('py_vw_green_specialist_case_TPO').Error.Message\r\n",
+							"value": "@substring(activity('py_vw_green_specialist_case_TPO').error.message, 0, 2000)",
 							"type": "Expression"
 						},
 						"StatusMessage": {
 							"value": "@concat(activity('py_vw_green_specialist_case_TPO').output,'Curated Layer Failed')",
+							"type": "Expression"
+						},
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"ActivityType": "Pipeline",
+						"StatusCode": "400",
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Record completed Green Specialist_Case_Curated_copy1",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "py_vw_green_specialist_case_Hedgerow",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": {
+							"value": "Fail\n",
+							"type": "Expression"
+						},
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@variables('CuratedStartTime')",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@utcNow()",
+							"type": "Expression"
+						},
+						"ErrorMessage": {
+							"value": "@substring(activity('py_vw_green_specialist_case_Hedgerow').error.message, 0, 2000)\n\n",
+							"type": "Expression"
+						},
+						"StatusMessage": {
+							"value": "@concat(activity('py_vw_green_specialist_case').output,  'Curated Layer Failed')\n ",
 							"type": "Expression"
 						},
 						"PipelineTriggerID": {
@@ -1604,7 +1378,7 @@
 			"error_message": {
 				"type": "String"
 			},
-			"harmonisedstarttime": {
+			"CuratedStartTime": {
 				"type": "String"
 			}
 		},
