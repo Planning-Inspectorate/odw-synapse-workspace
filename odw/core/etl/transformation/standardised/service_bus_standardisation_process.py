@@ -15,6 +15,7 @@ class ServiceBusStandardisationProcess(StandardisationProcess):
     """
     ETL process for standardising the raw data from the Service Bus
     """
+
     @LoggingUtil.logging_to_appins
     def get_max_file_date(self, df: DataFrame) -> datetime:
         """
@@ -29,13 +30,13 @@ class ServiceBusStandardisationProcess(StandardisationProcess):
         try:
             date_pattern = r"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}\+\d{4})"
             df = df.withColumn("file_date", F.regexp_extract(df["input_file"], date_pattern, 1).cast(TimestampType()))
-            max_timestamp: datetime = df.agg(max("file_date")).collect()[0][0]
+            max_timestamp: datetime = df.agg(F.max("file_date")).collect()[0][0]
             return max_timestamp
         except Exception as e:
             error_message = f"Error extracting maximum file date from DataFrame: {str(e)}"
             LoggingUtil().log_error(error_message)
             raise
-    
+
     @LoggingUtil.logging_to_appins
     def get_missing_files(self, df: DataFrame, source_path: str) -> list:
         """
@@ -57,7 +58,7 @@ class ServiceBusStandardisationProcess(StandardisationProcess):
             error_message = f"Error getting missing files from source path '{source_path}': {str(e)}"
             LoggingUtil().log_error(error_message)
             raise
-    
+
     @LoggingUtil.logging_to_appins
     def extract_and_filter_paths(self, files: list, filter_date: datetime):
         """
@@ -67,18 +68,17 @@ class ServiceBusStandardisationProcess(StandardisationProcess):
         :param datetime filter_date: The date to filter on
         :return: A list of file paths greater than the given date
         """
+
         def inner_condition(file: str):
+            print(type(file))
             timestamp_pattern = re.compile(r"(\d{4}-\d{2}-\d{2}T\d{2}[:_]\d{2}[:_]\d{2}[.\d]*[+-]\d{4})")
             match = timestamp_pattern.search(file)
             return match and datetime.strptime(match.group(1).replace("_", ":"), "%Y-%m-%dT%H:%M:%S.%f%z") > filter_date
-        return [
-            file
-            for file in files
-            if inner_condition(file)
-        ]
+
+        return [file for file in files if inner_condition(file)]
 
     @LoggingUtil.logging_to_appins
-    def read_raw_messages(self, filtered_paths: list[str], spark_schema: StructType) -> DataFrame:
+    def read_raw_messages(self, filtered_paths: list[str], spark_schema: StructType = None) -> DataFrame:
         """
         Ingests data from service bus messages stored as json files in the raw layer
 
@@ -89,14 +89,13 @@ class ServiceBusStandardisationProcess(StandardisationProcess):
         df = self.spark.read.json(filtered_paths, schema=spark_schema)
         LoggingUtil().log_info(f"Found {df.count()} new rows.")
         # Adding the standardised columns
-        return df.withColumn("expected_from", F.current_timestamp()).withColumn(
-            "expected_to", F.expr("current_timestamp() + INTERVAL 1 DAY")
-        ).withColumn(
-            "ingested_datetime", F.to_timestamp(df.message_enqueued_time_utc)
-        ).withColumn(
-            "input_file", F.input_file_name()
+        return (
+            df.withColumn("expected_from", F.current_timestamp())
+            .withColumn("expected_to", F.expr("current_timestamp() + INTERVAL 1 DAY"))
+            .withColumn("ingested_datetime", F.to_timestamp(df.message_enqueued_time_utc))
+            .withColumn("input_file", F.input_file_name())
         )
-    
+
     @LoggingUtil.logging_to_appins
     def remove_data_duplicates(self, df: DataFrame) -> DataFrame:
         """
@@ -107,7 +106,7 @@ class ServiceBusStandardisationProcess(StandardisationProcess):
         """
         # removing duplicates while ignoring the ingestion dates columns
         columns_to_ignore = {"expected_to", "expected_from", "ingested_datetime"}
-        df: DataFrame = df.dropDuplicates(subset=[c for c in df.columns if c not in columns_to_ignore])
+        df = df.dropDuplicates(subset=[c for c in df.columns if c not in columns_to_ignore])
         return df
 
     def process(self, **kwargs) -> ETLResult:
@@ -116,7 +115,9 @@ class ServiceBusStandardisationProcess(StandardisationProcess):
         if not source_data:
             raise ValueError(f"ServiceBusStandardisationProcess.process requires a source_data dictionary to be provided, but was missing")
         if len(source_data) != 1:
-            raise ValueError(f"ServiceBusStandardisationProcess.process source_data parameter must be a dictionary with 1 element, but had {len(source_data)}")
+            raise ValueError(
+                f"ServiceBusStandardisationProcess.process source_data parameter must be a dictionary with 1 element, but had {len(source_data)}"
+            )
         entity_name: str = kwargs.get("entity_name", None)
         if not entity_name:
             raise ValueError(f"ServiceBusStandardisationProcess.process requires a entity_name dictionary to be provided, but was missing")
@@ -155,20 +156,17 @@ class ServiceBusStandardisationProcess(StandardisationProcess):
                 "blob_path": "table_name",
                 "file_format": "delta",
                 "write_mode": "append",
-                "write_options": [
-                    ("mergeSchema", "true")
-                ]
+                "write_options": [("mergeSchema", "true")],
             }
         }, ETLSuccessResult(
             metadata=ETLResult.ETLResultMetadata(
                 start_execution_time=start_exec_time,
                 end_execution_time=end_exec_time,
-                exception=None,
                 table_name=table_name,
                 insert_count=insert_count,
                 update_count=0,
                 delete_count=0,
                 activity_type=self.__class__.__name__,
-                duration_seconds=(end_exec_time - start_exec_time).total_seconds()
+                duration_seconds=(end_exec_time - start_exec_time).total_seconds(),
             )
         )

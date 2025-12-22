@@ -20,9 +20,13 @@ def assert_dataframes_equal(expected: DataFrame, actual: DataFrame):
         )
     assert not schema_mismatch, exception_message
     rows_to_show = 20
+    # There seems to be a bug that occasionally appears in spark 3.4 that causes a crash when using exceptAll
+    # The workaround is to cache before running that command
+    expected.cache()
+    actual.cache()
     in_expected_but_not_actual = expected.exceptAll(actual)
     in_actual_but_not_expected = actual.exceptAll(expected)
-    data_mismatch = not(in_expected_but_not_actual.isEmpty() and in_actual_but_not_expected.isEmpty())
+    data_mismatch = not (in_expected_but_not_actual.isEmpty() and in_actual_but_not_expected.isEmpty())
     if data_mismatch:
         missing_data_sample = in_expected_but_not_actual._jdf.showString(rows_to_show, 20, False)
         unexpected_data_sample = in_actual_but_not_expected._jdf.showString(rows_to_show, 20, False)
