@@ -1,0 +1,1468 @@
+{
+	"name": "pln_casework_local_plan_master",
+	"properties": {
+		"activities": [
+			{
+				"name": "Send starting teams notification",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Set subscription",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Set resource group",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Set webhook",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Set AppIns iKey",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_utl_Send_Teams_Message",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"dataFactorySubscription": {
+							"value": "@variables('subscription_id')",
+							"type": "Expression"
+						},
+						"dataFactoryResourceGroup": {
+							"value": "@variables('resource_group')",
+							"type": "Expression"
+						},
+						"pipelineRunId": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"teamsWebhookUrl": {
+							"value": "@variables('webhook_url')",
+							"type": "Expression"
+						},
+						"activityName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"activityMessage": "Starting Specialist Cases (Green Case and Local Plans) master pipeline run",
+						"activityDuration": "0H:00M:00s",
+						"activityStatus": "Starting",
+						"Colour": {
+							"value": "@variables('starting_colour')",
+							"type": "Expression"
+						},
+						"Image": {
+							"value": "@variables('starting_image')",
+							"type": "Expression"
+						},
+						"Message_title": "ODW - Specialist Cases (Green Case and Local Plans) Master pipeline starting",
+						"Message_subtitle": "The Specialist Cases (Green Case and Local Plans) master pipeline for loading data to ODW is starting with the following parameters:"
+					}
+				}
+			},
+			{
+				"name": "Set start time",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Set key vault URL",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "start_time",
+					"value": {
+						"value": "@utcnow()",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Set subscription",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Get subscription",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": true,
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "subscription_id",
+					"value": {
+						"value": "@activity('Get subscription').output.value",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Set resource group",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Get resource group",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": true,
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "resource_group",
+					"value": {
+						"value": "@activity('Get resource group').output.value",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Set webhook",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Get Webhook",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": true,
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "webhook_url",
+					"value": {
+						"value": "@activity('Get Webhook').output.value",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Get subscription",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "Set start time",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": true,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "GET",
+					"url": {
+						"value": "@concat(variables('Key_Vault_Url'), 'SubscriptionId',variables('Key_Vault_API'))",
+						"type": "Expression"
+					},
+					"connectVia": {
+						"referenceName": "AutoResolveIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"authentication": {
+						"type": "MSI",
+						"resource": "https://vault.azure.net"
+					}
+				}
+			},
+			{
+				"name": "Get Webhook",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "Set start time",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": true,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "GET",
+					"url": {
+						"value": "@concat(variables('Key_Vault_Url'), 'TeamsWebhook',variables('Key_Vault_API'))",
+						"type": "Expression"
+					},
+					"connectVia": {
+						"referenceName": "AutoResolveIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"authentication": {
+						"type": "MSI",
+						"resource": "https://vault.azure.net"
+					}
+				}
+			},
+			{
+				"name": "Get resource group",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "Set start time",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": true,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "GET",
+					"url": {
+						"value": "@concat(variables('Key_Vault_Url'), 'DBResourceGroup',variables('Key_Vault_API'))",
+						"type": "Expression"
+					},
+					"connectVia": {
+						"referenceName": "AutoResolveIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"authentication": {
+						"type": "MSI",
+						"resource": "https://vault.azure.net"
+					}
+				}
+			},
+			{
+				"name": "Set key vault URL",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "Key_Vault_Url",
+					"value": {
+						"value": "@if(\n    equals(\n        pipeline().DataFactory,\n        'pins-synw-odw-dev-uks'\n    ),\n    'https://pinskvsynwodwdevuks.vault.azure.net/secrets/',\n    if(\n        equals(\n            pipeline().DataFactory,\n            'pins-synw-odw-test-uks'\n        ),\n        'https://pinskvsynwodwtestuks.vault.azure.net/secrets/',\n        if(\n            equals(\n                pipeline().DataFactory,\n                'pins-synw-odw-build-uks'\n            ),\n            'https://pinskvsynwodwbuilduks.vault.azure.net/secrets/',\n            'https://pinskvsynwodwproduks.vault.azure.net/secrets/'\n        )\n    )\n)",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Record pipeline starting",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Set AppIns iKey",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Start",
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+							"type": "Expression"
+						},
+						"StatusMessage": "Overall Status",
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"ActivityType": "Pipeline",
+						"AppInsCustomEventName": "ODW_Specialist_Case_Master_Pipeline_Logs",
+						"AppInsIKey": {
+							"value": "@variables('apps_insights_ikey')",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Get AppIns iKey",
+				"description": "Get the application insights ikey for logging",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "Set start time",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": true,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "GET",
+					"url": {
+						"value": "@concat(variables('Key_Vault_Url'), 'application-insights-connection-string',variables('Key_Vault_API'))",
+						"type": "Expression"
+					},
+					"connectVia": {
+						"referenceName": "AutoResolveIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"authentication": {
+						"type": "MSI",
+						"resource": "https://vault.azure.net"
+					}
+				}
+			},
+			{
+				"name": "Set AppIns iKey",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Get AppIns iKey",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": true,
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "apps_insights_ikey",
+					"value": {
+						"value": "@split(split(activity('Get AppIns iKey').output.value, ';')[0], '=')[1]",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Record loading Green Specialist Case data",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Record pipeline starting",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "OnProgress",
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+							"type": "Expression"
+						},
+						"StatusMessage": "Progressing to load Green Specialist Case data",
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"ActivityType": "Pipeline",
+						"AppInsIKey": {
+							"value": "@variables('apps_insights_ikey')",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "pln_green_specialist_case_main",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Record loading Green Specialist Case data",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Send Specialist Cases Green Case and Local Plans",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_green_specialist_case_main",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"webhook_url": {
+							"value": "@variables('webhook_url')",
+							"type": "Expression"
+						},
+						"subscription_id": {
+							"value": "@variables('subscription_id')",
+							"type": "Expression"
+						},
+						"resource_group": {
+							"value": "@variables('subscription_id')",
+							"type": "Expression"
+						},
+						"starting_colour": {
+							"value": "@variables('starting_colour')",
+							"type": "Expression"
+						},
+						"on_progress_colour": {
+							"value": "@variables('on_progress_colour')",
+							"type": "Expression"
+						},
+						"failed_colour": {
+							"value": "@variables('failed_colour')",
+							"type": "Expression"
+						},
+						"start_time": {
+							"value": "@variables('start_time')",
+							"type": "Expression"
+						},
+						"starting_image": {
+							"value": "@variables('starting_image')",
+							"type": "Expression"
+						},
+						"progress_image": {
+							"value": "@variables('progress_image')",
+							"type": "Expression"
+						},
+						"warning_image": {
+							"value": "@variables('warning_image')",
+							"type": "Expression"
+						},
+						"failed_image": {
+							"value": "@variables('failed_image')",
+							"type": "Expression"
+						},
+						"warning_colour": {
+							"value": "@variables('warning_colour')",
+							"type": "Expression"
+						},
+						"horizon_feed": {
+							"value": "@variables('horizon_feed')",
+							"type": "Expression"
+						},
+						"apps_insights_ikey": {
+							"value": "@variables('apps_insights_ikey')",
+							"type": "Expression"
+						},
+						"completed_colour": {
+							"value": "@variables('completed_colour')",
+							"type": "Expression"
+						},
+						"completed_image": {
+							"value": "@variables('completed_image')",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Record Green Specialist Case",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "pln_green_specialist_case_main",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Fail",
+						"PipelineName": {
+							"value": "@activity('pln_green_specialist_case_main').output.pipelineName",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@activity('pln_green_specialist_case_main').output.pipelineRunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@activity('pln_green_specialist_case_main').ExecutionStartTime",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@activity('pln_green_specialist_case_main').ExecutionEndTime",
+							"type": "Expression"
+						},
+						"ErrorMessage": {
+							"value": "@activity('pln_green_specialist_case_main').Error.message",
+							"type": "Expression"
+						},
+						"StatusMessage": {
+							"value": "@activity('pln_green_specialist_case_main').Status",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@activity('pln_green_specialist_case_main').PipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@activity('pln_green_specialist_case_main').PipelineRunId",
+							"type": "Expression"
+						},
+						"PipelineExecutionTimeInSec": {
+							"value": "@activity('pln_green_specialist_case_main').Duration",
+							"type": "Expression"
+						},
+						"ActivityType": {
+							"value": "@activity('pln_green_specialist_case_main').ActivityType",
+							"type": "Expression"
+						},
+						"DurationSeconds": {
+							"value": "@activity('pln_green_specialist_case_main').Duration",
+							"type": "Expression"
+						},
+						"AppInsCustomEventName": "ODW_Green_Specialist_Case_Master_Pipeline_Logs",
+						"StatusCode": {
+							"value": "@activity('pln_green_specialist_case_main').StatusCode",
+							"type": "Expression"
+						},
+						"AppInsIKey": {
+							"value": "@variables('apps_insights_ikey')",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Send Green Specialist Case failed",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "pln_green_specialist_case_main",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_utl_Send_Teams_Message",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"dataFactorySubscription": {
+							"value": "@variables('subscription_id')",
+							"type": "Expression"
+						},
+						"dataFactoryResourceGroup": {
+							"value": "@variables('resource_group')",
+							"type": "Expression"
+						},
+						"pipelineRunId": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"teamsWebhookUrl": {
+							"value": "@variables('webhook_url')",
+							"type": "Expression"
+						},
+						"activityName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"activityMessage": "Green Specialist Case data failed",
+						"activityDuration": {
+							"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(variables('start_time'),'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(variables('start_time'),'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
+							"type": "Expression"
+						},
+						"activityStatus": "Failed",
+						"Colour": {
+							"value": "@variables('failed_colour')",
+							"type": "Expression"
+						},
+						"Image": {
+							"value": "@variables('failed_image')",
+							"type": "Expression"
+						},
+						"Message_title": "ODW - Green Specialist Case Master pipeline failed",
+						"Message_subtitle": "ODW failed to load data from Green Specialist Case"
+					}
+				}
+			},
+			{
+				"name": "Record Green Specialist Case pipeline completed",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "pln_green_specialist_case_main",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Completion",
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StatusMessage": "Overall Status",
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"ActivityType": "Pipeline",
+						"AppInsIKey": {
+							"value": "@variables('apps_insights_ikey')",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Send Completed to Green Specialist Case data",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "pln_green_specialist_case_main",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_utl_Send_Teams_Message",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"dataFactorySubscription": {
+							"value": "@variables('subscription_id')",
+							"type": "Expression"
+						},
+						"dataFactoryResourceGroup": {
+							"value": "@variables('resource_group')",
+							"type": "Expression"
+						},
+						"pipelineRunId": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"teamsWebhookUrl": {
+							"value": "@variables('webhook_url')",
+							"type": "Expression"
+						},
+						"activityName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"activityMessage": "Completed Green Specialist Case data",
+						"activityDuration": {
+							"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(variables('start_time'),'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(variables('start_time'),'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
+							"type": "Expression"
+						},
+						"activityStatus": "Completed",
+						"Colour": {
+							"value": "@variables('completed_colour')",
+							"type": "Expression"
+						},
+						"Image": {
+							"value": "@variables('completed_image')",
+							"type": "Expression"
+						},
+						"Message_title": "ODW - Green Specialist Case Master pipeline completed",
+						"Message_subtitle": "ODW has completed to load data from Green Specialist Case successfully"
+					}
+				}
+			},
+			{
+				"name": "Send Specialist Cases Green Case and Local Plans",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Send starting teams notification",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_utl_Send_Teams_Message",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"dataFactorySubscription": {
+							"value": "@variables('subscription_id')",
+							"type": "Expression"
+						},
+						"dataFactoryResourceGroup": {
+							"value": "@variables('resource_group')",
+							"type": "Expression"
+						},
+						"pipelineRunId": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"teamsWebhookUrl": {
+							"value": "@variables('webhook_url')",
+							"type": "Expression"
+						},
+						"activityName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"activityMessage": "Progressing Green Specialist Case data load",
+						"activityDuration": "0H:00M:00s",
+						"activityStatus": "On Progress",
+						"Colour": {
+							"value": "@variables('on_progress_colour')",
+							"type": "Expression"
+						},
+						"Image": {
+							"value": "@variables('progress_image')",
+							"type": "Expression"
+						},
+						"Message_title": "ODW - Green Specialist Case data load progressing",
+						"Message_subtitle": "The Green Specialist Case loading data to ODW is progressing"
+					}
+				}
+			},
+			{
+				"name": "Record loading Casework Local Plans data",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Record pipeline starting",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "OnProgress",
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+							"type": "Expression"
+						},
+						"StatusMessage": "Progressing to load Casework Local Plans data",
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"ActivityType": "Pipeline",
+						"AppInsIKey": {
+							"value": "@variables('apps_insights_ikey')",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Send Casework Local Plans",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Send starting teams notification",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_utl_Send_Teams_Message",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"dataFactorySubscription": {
+							"value": "@variables('subscription_id')",
+							"type": "Expression"
+						},
+						"dataFactoryResourceGroup": {
+							"value": "@variables('resource_group')",
+							"type": "Expression"
+						},
+						"pipelineRunId": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"teamsWebhookUrl": {
+							"value": "@variables('webhook_url')",
+							"type": "Expression"
+						},
+						"activityName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"activityMessage": "Progressing Casework Local Plans data load",
+						"activityDuration": "0H:00M:00s",
+						"activityStatus": "On Progress",
+						"Colour": {
+							"value": "@variables('on_progress_colour')",
+							"type": "Expression"
+						},
+						"Image": {
+							"value": "@variables('progress_image')",
+							"type": "Expression"
+						},
+						"Message_title": "ODW - Casework Local Plans data load progressing",
+						"Message_subtitle": "The Casework Local Plans loading data to ODW is progressing"
+					}
+				}
+			},
+			{
+				"name": "pln_casework_local_plan_main",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Send Casework Local Plans",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Record loading Casework Local Plans data",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_casework_local_plan_main",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"webhook_url": {
+							"value": "@variables('webhook_url')",
+							"type": "Expression"
+						},
+						"subscription_id": {
+							"value": "@variables('subscription_id')",
+							"type": "Expression"
+						},
+						"resource_group": {
+							"value": "@variables('subscription_id')",
+							"type": "Expression"
+						},
+						"starting_colour": {
+							"value": "@variables('starting_colour')",
+							"type": "Expression"
+						},
+						"on_progress_colour": {
+							"value": "@variables('on_progress_colour')",
+							"type": "Expression"
+						},
+						"failed_colour": {
+							"value": "@variables('failed_colour')",
+							"type": "Expression"
+						},
+						"start_time": {
+							"value": "@variables('start_time')",
+							"type": "Expression"
+						},
+						"starting_image": {
+							"value": "@variables('starting_image')",
+							"type": "Expression"
+						},
+						"progress_image": {
+							"value": "@variables('progress_image')",
+							"type": "Expression"
+						},
+						"warning_image": {
+							"value": "@variables('warning_image')",
+							"type": "Expression"
+						},
+						"failed_image": {
+							"value": "@variables('failed_image')",
+							"type": "Expression"
+						},
+						"warning_colour": {
+							"value": "@variables('warning_colour')",
+							"type": "Expression"
+						},
+						"horizon_feed": {
+							"value": "@variables('horizon_feed')",
+							"type": "Expression"
+						},
+						"apps_insights_ikey": {
+							"value": "@variables('apps_insights_ikey')",
+							"type": "Expression"
+						},
+						"completed_colour": {
+							"value": "@variables('completed_colour')",
+							"type": "Expression"
+						},
+						"completed_image": {
+							"value": "@variables('completed_image')",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Record completed Casework Local Plans",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "pln_casework_local_plan_main",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Fail",
+						"PipelineName": {
+							"value": "@activity('pln_casework_local_plan_main').output.pipelineName\n",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@activity('pln_casework_local_plan_main').output.pipelineRunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@activity('pln_casework_local_plan_main').ExecutionStartTime",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@activity('pln_casework_local_plan_main').ExecutionEndTime",
+							"type": "Expression"
+						},
+						"ErrorMessage": {
+							"value": "@activity('pln_casework_local_plan_main').Error.message",
+							"type": "Expression"
+						},
+						"StatusMessage": {
+							"value": "@activity('pln_casework_local_plan_main').Status",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@activity('pln_casework_local_plan_main').PipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@activity('pln_casework_local_plan_main').PipelineRunId",
+							"type": "Expression"
+						},
+						"PipelineExecutionTimeInSec": {
+							"value": "@activity('pln_casework_local_plan_main').Duration",
+							"type": "Expression"
+						},
+						"ActivityType": {
+							"value": "@activity('pln_casework_local_plan_main').ActivityType",
+							"type": "Expression"
+						},
+						"DurationSeconds": {
+							"value": "@activity('pln_casework_local_plan_main').Duration",
+							"type": "Expression"
+						},
+						"AppInsCustomEventName": "ODW_Local_Plan_Master_Pipeline_Logs",
+						"StatusCode": {
+							"value": "@activity('pln_casework_local_plan_main').StatusCode",
+							"type": "Expression"
+						},
+						"AppInsIKey": {
+							"value": "@variables('apps_insights_ikey')",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Send Casework Local Plan failed",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "pln_casework_local_plan_main",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_utl_Send_Teams_Message",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"dataFactorySubscription": {
+							"value": "@variables('subscription_id')",
+							"type": "Expression"
+						},
+						"dataFactoryResourceGroup": {
+							"value": "@variables('resource_group')",
+							"type": "Expression"
+						},
+						"pipelineRunId": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"teamsWebhookUrl": {
+							"value": "@variables('webhook_url')",
+							"type": "Expression"
+						},
+						"activityName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"activityMessage": "Casework Local Plan data failed",
+						"activityDuration": {
+							"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(variables('start_time'),'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(variables('start_time'),'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
+							"type": "Expression"
+						},
+						"activityStatus": "Failed",
+						"Colour": {
+							"value": "@variables('failed_colour')",
+							"type": "Expression"
+						},
+						"Image": {
+							"value": "@variables('failed_image')",
+							"type": "Expression"
+						},
+						"Message_title": "ODW - Casework Local Plan Master pipeline failed",
+						"Message_subtitle": "ODW failed to load data from Casework Local Plan"
+					}
+				}
+			},
+			{
+				"name": "Record Casework Local Plans pipeline completed",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "pln_casework_local_plan_main",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Completion",
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StatusMessage": "Overall Status",
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"ActivityType": "Pipeline",
+						"AppInsIKey": {
+							"value": "@variables('apps_insights_ikey')",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Send Completed to Casework Local Plans data",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "pln_casework_local_plan_main",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_utl_Send_Teams_Message",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"dataFactorySubscription": {
+							"value": "@variables('subscription_id')",
+							"type": "Expression"
+						},
+						"dataFactoryResourceGroup": {
+							"value": "@variables('resource_group')",
+							"type": "Expression"
+						},
+						"pipelineRunId": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"teamsWebhookUrl": {
+							"value": "@variables('webhook_url')",
+							"type": "Expression"
+						},
+						"activityName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"activityMessage": "Completed Casework Local Plans data",
+						"activityDuration": {
+							"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(variables('start_time'),'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(variables('start_time'),'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
+							"type": "Expression"
+						},
+						"activityStatus": "Completed",
+						"Colour": {
+							"value": "@variables('completed_colour')",
+							"type": "Expression"
+						},
+						"Image": {
+							"value": "@variables('completed_image')",
+							"type": "Expression"
+						},
+						"Message_title": "ODW - Casework Local Plans Master pipeline completed",
+						"Message_subtitle": "ODW has completed to load data from Casework Local Plans successfully"
+					}
+				}
+			}
+		],
+		"variables": {
+			"webhook_url": {
+				"type": "String"
+			},
+			"subscription_id": {
+				"type": "String"
+			},
+			"resource_group": {
+				"type": "String"
+			},
+			"starting_colour": {
+				"type": "String",
+				"defaultValue": "accent"
+			},
+			"on_progress_colour": {
+				"type": "String",
+				"defaultValue": "light"
+			},
+			"failed_colour": {
+				"type": "String",
+				"defaultValue": "attention"
+			},
+			"start_time": {
+				"type": "String"
+			},
+			"starting_image": {
+				"type": "String",
+				"defaultValue": "https://tse1.mm.bing.net/th?q=Go+Green+Light+PNG&w=120&h=120&c=1&rs=1&qlt=90&cb=1&dpr=1.5&pid=InlineBlock&mkt=en-GB&cc=GB&setlang=en&adlt=strict&t=1&mw=247"
+			},
+			"progress_image": {
+				"type": "String",
+				"defaultValue": "https://tse2.mm.bing.net/th/id/OIP.1-FXYnONJTX2Hxzqf3wERAAAAA?w=192&h=190&c=7&r=0&o=5&dpr=1.5&pid=1.7"
+			},
+			"warning_image": {
+				"type": "String",
+				"defaultValue": "https://tse2.mm.bing.net/th/id/OIP.FCX8ixVm5MGoziIpTpdTJwHaMc?w=115&h=184&c=7&r=0&o=5&dpr=1.5&pid=1.7"
+			},
+			"failed_image": {
+				"type": "String",
+				"defaultValue": "https://tse4.mm.bing.net/th/id/OIP.QvdayQCDbhZL5DsXkaBObwAAAA?w=160&h=180&c=7&r=0&o=5&dpr=1.5&pid=1.7"
+			},
+			"warning_colour": {
+				"type": "String",
+				"defaultValue": "warning"
+			},
+			"completed_colour": {
+				"type": "String",
+				"defaultValue": "good"
+			},
+			"completed_image": {
+				"type": "String",
+				"defaultValue": "https://tse3.mm.bing.net/th/id/OIP.YbfIXY-IWYnBkzHvhrXiXAHaHa?w=177&h=180&c=7&r=0&o=5&dpr=1.5&pid=1.7"
+			},
+			"Key_Vault_Url": {
+				"type": "String"
+			},
+			"Key_Vault_API": {
+				"type": "String",
+				"defaultValue": "?api-version=7.0"
+			},
+			"service_bus_feed": {
+				"type": "Array"
+			},
+			"horizon_feed": {
+				"type": "Array"
+			},
+			"apps_insights_ikey": {
+				"type": "String"
+			},
+			"raw_json": {
+				"type": "String"
+			},
+			"table_name": {
+				"type": "String"
+			},
+			"csv_file_name": {
+				"type": "String"
+			},
+			"standardised_start_time": {
+				"type": "String"
+			}
+		},
+		"folder": {
+			"name": "utils/Master"
+		},
+		"annotations": []
+	}
+}
