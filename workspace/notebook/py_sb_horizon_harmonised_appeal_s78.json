@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "9dfb3c97-affe-4fc1-b43d-616397b7a992"
+				"spark.autotune.trackingId": "578425e8-4a8c-4e99-8c0a-f48c3f5a2f90"
 			}
 		},
 		"metadata": {
@@ -96,7 +96,7 @@
 					"from datetime import date,datetime\r\n",
 					"import builtins"
 				],
-				"execution_count": null
+				"execution_count": 67
 			},
 			{
 				"cell_type": "markdown",
@@ -116,7 +116,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 68
 			},
 			{
 				"cell_type": "markdown",
@@ -167,7 +167,7 @@
 					"resolver_table = \"odw_harmonised_db.GroupResolver\"\r\n",
 					"other_hrm_table = \"odw_harmonised_db.appeal_has\" "
 				],
-				"execution_count": null
+				"execution_count": 69
 			},
 			{
 				"cell_type": "markdown",
@@ -345,6 +345,38 @@
 					"                                ,isSiteInAreaOfSpecialControlAdverts\r\n",
 					"                                ,advertDetails\r\n",
 					"                                ,padsSapId\r\n",
+					"                                ,ownerOccupancyStatus\r\n",
+					"                                ,occupancyConditionsMet\r\n",
+					"                                ,enforcementAppealGroundsDetails\r\n",
+					"                                ,applicationMadeAndFeePaid\r\n",
+					"                                ,noticeRelatesToBuildingEngineeringMiningOther\r\n",
+					"                                ,changeOfUseRefuseOrWaste\r\n",
+					"                                ,changeOfUseMineralExtraction\r\n",
+					"                                ,changeOfUseMineralStorage\r\n",
+					"                                ,relatesToErectionOfBuildingOrBuildings\r\n",
+					"                                ,relatesToBuildingWithAgriculturalPurpose\r\n",
+					"                                ,relatesToBuildingSingleDwellingHouse\r\n",
+					"                                ,previousPlanningPermissionGranted\r\n",
+					"                                ,issueDateOfEnforcementNotice\r\n",
+					"                                ,effectiveDateOfEnforcementNotice\r\n",
+					"                                ,didAppellantAppealLpaDecision\r\n",
+					"                                ,dateLpaDecisionDue\r\n",
+					"                                ,dateLpaDecisionReceived\r\n",
+					"                                ,areaOfAllegedBreachInSquareMetres\r\n",
+					"                                ,doesAllegedBreachCreateFloorSpace\r\n",
+					"                                ,floorSpaceCreatedByBreachInSquareMetres\r\n",
+					"                                ,applicationPartOrWholeDevelopment\r\n",
+					"                                ,hasPcnBeenServed\r\n",
+					"                                ,isSiteWithin67MOfTrunkRd\r\n",
+					"                                ,affectedTrunkRoadName\r\n",
+					"                                ,isSiteOnCrownLand\r\n",
+					"                                ,stopNoticeExists\r\n",
+					"                                ,isSiteWithin400MOfMineralInterest\r\n",
+					"                                ,isSiteWithin250MOfLandfill\r\n",
+					"                                ,hasDevelopmentInvolvedWasteImportation\r\n",
+					"                                ,isSiteSubjectToArticle4Direction\r\n",
+					"                                ,article4AffectedDevelopmentRights\r\n",
+					"                                ,pcnRestrictedDevelopmentRights\r\n",
 					"                                ,Migrated\r\n",
 					"                                ,ODTSourceSystem\r\n",
 					"                                ,IngestionDate\r\n",
@@ -361,7 +393,39 @@
 					"        error_message = f\"Error in source Service Bus SQL query {service_bus_table}: {str(e)[:800]}\"\r\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": null
+				"execution_count": 70
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"required = [\r\n",
+					"  \"ownerOccupancyStatus\",\"occupancyConditionsMet\",\"enforcementAppealGroundsDetails\",\r\n",
+					"  \"issueDateOfEnforcementNotice\",\"effectiveDateOfEnforcementNotice\",\r\n",
+					"  \"applicationMadeAndFeePaid\",\"noticeRelatesToBuildingEngineeringMiningOther\",\r\n",
+					"  \"changeOfUseRefuseOrWaste\",\"changeOfUseMineralExtraction\",\"changeOfUseMineralStorage\",\r\n",
+					"  \"relatesToErectionOfBuildingOrBuildings\",\"relatesToBuildingWithAgriculturalPurpose\",\"relatesToBuildingSingleDwellingHouse\",\r\n",
+					"  \"previousPlanningPermissionGranted\",\"didAppellantAppealLpaDecision\",\"dateLpaDecisionDue\",\"dateLpaDecisionReceived\",\r\n",
+					"  \"areaOfAllegedBreachInSquareMetres\",\"doesAllegedBreachCreateFloorSpace\",\"floorSpaceCreatedByBreachInSquareMetres\",\r\n",
+					"  \"applicationPartOrWholeDevelopment\",\"hasPcnBeenServed\",\"isSiteWithin67MOfTrunkRd\",\"affectedTrunkRoadName\",\r\n",
+					"  \"isSiteOnCrownLand\",\"stopNoticeExists\",\"isSiteWithin400MOfMineralInterest\",\"isSiteWithin250MOfLandfill\",\r\n",
+					"  \"hasDevelopmentInvolvedWasteImportation\",\"isSiteSubjectToArticle4Direction\",\"article4AffectedDevelopmentRights\",\r\n",
+					"  \"pcnRestrictedDevelopmentRights\"\r\n",
+					"]\r\n",
+					"\r\n",
+					"missing = [c for c in required if c not in service_bus_data.columns]\r\n",
+					"print(\"Missing from SB SELECT:\", missing)\r\n",
+					""
+				],
+				"execution_count": 71
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"sb_df = spark.table(\"odw_harmonised_db.sb_appeal_s78\")\r\n",
+					"sb_df.select(\"enforcementAppealGroundsDetails\").printSchema()\r\n",
+					""
+				],
+				"execution_count": 102
 			},
 			{
 				"cell_type": "markdown",
@@ -485,7 +549,7 @@
 					"stg_df = stg_df.filter(F.col(\"caseReference\").isNotNull())\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 73
 			},
 			{
 				"cell_type": "markdown",
@@ -518,7 +582,7 @@
 					"              .groupBy(\"ODTSourceSystem\").count()\r\n",
 					"    )"
 				],
-				"execution_count": null
+				"execution_count": 74
 			},
 			{
 				"cell_type": "markdown",
@@ -549,7 +613,7 @@
 					"print(f\"Stage written: {stg_tbl}, rows = {stg_df.count():,}\")\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 75
 			},
 			{
 				"cell_type": "markdown",
@@ -793,7 +857,17 @@
 					"end_exec_time = datetime.now()\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 76
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"final_cols = set(spark.table(\"odw_harmonised_db.appeal_s78\").columns)\r\n",
+					"missing_final = [c for c in required if c not in final_cols]\r\n",
+					"print(\"Missing from harmonised table:\", missing_final)\r\n",
+					""
+				],
+				"execution_count": 77
 			},
 			{
 				"cell_type": "markdown",
@@ -879,7 +953,7 @@
 					"# )\r\n",
 					"# SELECT COUNT(*) AS collisions FROM z;"
 				],
-				"execution_count": null
+				"execution_count": 83
 			},
 			{
 				"cell_type": "code",
@@ -941,7 +1015,7 @@
 					"# ORDER BY f.caseReference, f.IngestionDate;\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 84
 			},
 			{
 				"cell_type": "code",
@@ -985,7 +1059,7 @@
 					"    status_code\r\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 85
 			}
 		]
 	}
