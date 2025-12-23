@@ -57,7 +57,7 @@
 				"type": "IfCondition",
 				"dependsOn": [
 					{
-						"activity": "Set variable1",
+						"activity": "Set Output Return variable",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -484,7 +484,7 @@
 				}
 			},
 			{
-				"name": "Set variable1",
+				"name": "Set Output Return variable",
 				"type": "SetVariable",
 				"dependsOn": [
 					{
@@ -576,6 +576,87 @@
 						"ActivityType": "Pipeline",
 						"DurationSeconds": {
 							"value": "@concat(\n  formatDateTime(\n    addToTime('1900-01-01T00:00:00.000Z', \n    div(sub(ticks(utcNow()), ticks(pipeline().TriggerTime)), 10000000), \n    'Second'), \n    'HH:mm:ss'\n  ),\n  '.',\n  string(div(mod(sub(ticks(utcNow()), ticks(pipeline().TriggerTime)), 10000000), 10000))\n)",
+							"type": "Expression"
+						},
+						"StatusCode": "400",
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Record Failed Green Specialist Case Post Valid",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Notebook Post Check Validation",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Fail",
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@string(json(activity('Notebook Post Check Validation').output.status.output.result.exitValue).logging_info.start_time)",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@string(json(activity('Notebook Post Check Validation').output.status.output.result.exitValue).logging_info.end_time)",
+							"type": "Expression"
+						},
+						"ErrorMessage": {
+							"value": "@string(json(activity('Notebook Post Check Validation').output.status.output.result.exitValue).logging_info.error_message)",
+							"type": "Expression"
+						},
+						"StatusMessage": "Green Specialist Case Post Validation checks Notebook failed.",
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"PipelineExecutionTimeInSec": {
+							"value": "@string(json(activity('Notebook Post Check Validation').output.status.output.result.exitValue).logging_info.total_exec_time)",
+							"type": "Expression"
+						},
+						"ActivityType": "Notebook",
+						"DurationSeconds": {
+							"value": "@string(json(activity('Notebook Post Check Validation').output.status.output.result.exitValue).logging_info.total_exec_time)",
 							"type": "Expression"
 						},
 						"StatusCode": "400",
