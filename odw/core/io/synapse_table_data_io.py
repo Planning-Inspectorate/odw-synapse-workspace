@@ -107,7 +107,7 @@ class SynapseTableDataIO(SynapseDataIO):
         if storage_name:
             data_path = self._format_to_adls_path(container_name, blob_path, storage_name=storage_name)
         else:
-            data_path = self._format_to_adls_path(storage_name, container_name, blob_path, storage_endpoint=storage_endpoint)
+            data_path = self._format_to_adls_path(container_name, blob_path, storage_endpoint=storage_endpoint)
         write_options = set([("path", data_path)] + write_options)
         writer = data.write.format(file_format).mode(write_mode)
         for option_name, option_value in write_options:

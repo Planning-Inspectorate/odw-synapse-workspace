@@ -8,14 +8,13 @@ class ETLResult(BaseModel, ABC):
     class ETLResultMetadata(BaseModel):
         start_execution_time: datetime
         end_execution_time: datetime
-        exception: Exception = None
+        exception: str = None
         table_name: str
         insert_count: int
         update_count: int
         delete_count: int
         activity_type: str
-        duration_seconds: str
-        status_code: str
+        duration_seconds: float
     """
     Holds the details of the executionn of an ETLProcess, for use in logging
     """
@@ -34,7 +33,7 @@ class ETLSuccessResult(ETLResult):
     For successful ETLProcesses
     """
     outcome: ClassVar[str] = "Succeeded"
-    status_code: 200
+    status_code: ClassVar[int] = 200
     metadata: ETLResult.ETLResultMetadata
 
 
@@ -43,8 +42,8 @@ class ETLFailResult(ETLResult):
     For unsuccessful ETLProcesses
     """
     outcome: ClassVar[str] = "Failed"
-    status_code: 500
-    exception: Exception
+    status_code: ClassVar[int] = 500
+    exception: str
 
 
 class ETLResultFactory():
