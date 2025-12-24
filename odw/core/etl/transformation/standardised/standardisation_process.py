@@ -122,7 +122,10 @@ class StandardisationProcess(TransformationProcess):
             output_data[file] = df
         return output_data
 
-    def load_data(self, data_to_read: List[Dict[str, Any]]) -> Dict[str, DataFrame]:
+    def load_data(self, **kwargs) -> Dict[str, DataFrame]:
+        data_to_read: List[Dict[str, Any]] = kwargs.get("data_to_read", None)
+        if not data_to_read:
+            raise ValueError(f"StandardisationProcess expected a data_to_read parameter to be passed, but this was missing")
         data_map = super().load_data(data_to_read)
         # Fetch the contents of the orchestration file
         storage_account = Util.get_storage_account()

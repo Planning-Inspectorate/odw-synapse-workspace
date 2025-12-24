@@ -62,3 +62,10 @@ Some of the key resources used in the deployment are:
 | ADLS Storage Account | Hierarchical namespace enabled Storage Account to act as a data lake |
 | Key Vault | Secrets storage for connection strings, password, etc for connected services |
 | Log Analytics | Activity and metric diagnostic log storage with querying capabilities using KQL |
+
+
+# Running the ODW package locally
+1. Install `delta-spark` 2.4.0
+   1. `python3 -m pip install delta-spark==2.4.0`
+   2. This will create a `spark-warehouse` folder when you run the any ETL code in the ODW package. This replicates the data lake in Synapse.
+   3. You will need to mock file-path operations to point to the local file system, since code running in synapse auto-formats to adls

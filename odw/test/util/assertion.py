@@ -1,3 +1,4 @@
+from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from pyspark.sql import DataFrame
 import json
 
@@ -38,3 +39,10 @@ def assert_dataframes_equal(expected: DataFrame, actual: DataFrame):
             f"{unexpected_data_sample}"
         )
     assert not data_mismatch, exception_message
+
+
+def assert_etl_result_successful(etl_result: ETLResult):
+    if isinstance(etl_result, ETLSuccessResult):
+        return
+    exception = etl_result.exception
+    assert False,  f"ETL result was not ETLSuccessResult. The below exception was raised\n{exception}"

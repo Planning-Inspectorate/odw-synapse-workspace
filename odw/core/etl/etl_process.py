@@ -5,6 +5,7 @@ from pyspark.sql import DataFrame, SparkSession
 from odw.core.etl.etl_result import ETLResult, ETLFailResult
 from typing import List, Dict, Any, Tuple
 from notebookutils import mssparkutils
+import traceback
 
 
 class ETLProcess(ABC):
@@ -33,18 +34,21 @@ class ETLProcess(ABC):
                 found_files.add(next_item.path)
         return found_files
 
-    def load_data(self, data_to_read: List[Dict[str, Any]]) -> Dict[str, DataFrame]:
+    def load_data(self, **kwargs) -> Dict[str, DataFrame]:
+        data_to_read: List[Dict[str, Any]] = kwargs.get("data_to_read", None)
+        if not data_to_read:
+            raise ValueError(f"ETLProcess expected a data_to_read parameter to be passed, but this was missing")
         data_map = dict()
         for metadata in data_to_read:
             data_name = metadata.get("data_name", None)
             storage_kind = metadata.get("storage_kind", None)
             data_format = metadata.get("data_format", None)
             if not data_name:
-                raise ValueError(f"ETLProcess expected a data_name parameter to be passed, but this was missing")
+                raise ValueError(f"ETLProcess data_to_read expected a data_name parameter to be passed, but this was missing")
             if not storage_kind:
-                raise ValueError(f"ETLProcess expected a storage_kind parameter to be passed, but this was missing")
+                raise ValueError(f"ETLProcess data_to_read expected a storage_kind parameter to be passed, but this was missing")
             if not data_format:
-                raise ValueError(f"ETLProcess expected a data_format parameter to be passed, but this was missing")
+                raise ValueError(f"ETLProcess data_to_read expected a data_format parameter to be passed, but this was missing")
             data_io_inst = DataIOFactory.get(storage_kind)()
             data = data_io_inst.read(**metadata)
             data_map[data_name] = data
@@ -54,9 +58,22 @@ class ETLProcess(ABC):
     def process(self, **kwargs) -> Tuple[Dict[str, DataFrame], ETLResult]:
         pass
 
-    def run(self, data_to_read: List[Dict[str, Any]]):
+    def write_data(self, data_to_write: Dict[str, Any]):
+        for table_name, table_metadata in data_to_write.items():
+            storage_kind = table_metadata.get("storage_kind", None)
+            file_format = table_metadata.get("file_format", None)
+            if not storage_kind:
+                raise ValueError(f"ETLProcess expected a storage_kind parameter to be passed, but this was missing")
+            if not file_format:
+                raise ValueError(f"ETLProcess expected a file_format parameter to be passed, but this was missing")
+            data_io_inst = DataIOFactory.get(storage_kind)()
+            data_io_inst.write(**table_metadata)
+
+    def run(self, **kwargs):
         try:
-            source_data_map = self.load_data(data_to_read)
-        except Exception as e:
-            return None, ETLFailResult(exception=e)
-        return self.process(source_data=source_data_map)
+            source_data_map = self.load_data(**kwargs)
+        except Exception:
+            return ETLFailResult(exception=traceback.format_exc())
+        data_to_write, etl_result = self.process(source_data=source_data_map, **kwargs)
+        self.write_data(data_to_write)
+        return etl_result

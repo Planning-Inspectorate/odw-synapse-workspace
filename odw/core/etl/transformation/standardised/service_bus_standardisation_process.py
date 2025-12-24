@@ -2,10 +2,12 @@ from odw.core.etl.transformation.standardised.standardisation_process import Sta
 from odw.core.util.util import Util
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
+from odw.core.io.synapse_table_data_io import SynapseTableDataIO
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType
 import pyspark.sql.functions as F
 from pyspark.sql.types import TimestampType
+from pyspark.sql import SparkSession
 from datetime import datetime
 from typing import Dict
 import re
@@ -108,52 +110,70 @@ class ServiceBusStandardisationProcess(StandardisationProcess):
         columns_to_ignore = {"expected_to", "expected_from", "ingested_datetime"}
         df = df.dropDuplicates(subset=[c for c in df.columns if c not in columns_to_ignore])
         return df
+    
+    def load_data(self, **kwargs):
+        entity_name: str = kwargs.get("entity_name", None)
+        if not entity_name:
+            raise ValueError(f"ServiceBusStandardisationProcess.process requires a entity_name to be provided, but was missing")
+        use_max_date_filter = kwargs.get("use_max_date_filter", False)
+        database_name = "odw_standardised_db"
+        table_name = f"sb_{entity_name.replace('-', '_')}"
+        source_path = Util.get_path_to_file(f"odw-raw/ServiceBus/{entity_name}")
+
+        table_df = SynapseTableDataIO().read(
+            spark=SparkSession.builder.getOrCreate(),
+            database_name=database_name,
+            table_name=table_name,
+            file_format="delta"
+        )
+
+        max_extracted_date = self.get_max_file_date(table_df)
+        missing_files = self.get_missing_files(table_df, source_path)
+        filtered_paths = []
+        if use_max_date_filter:
+            filtered_paths = self.extract_and_filter_paths(self.get_all_files_in_directory(source_path=source_path), max_extracted_date)
+        new_raw_messages = self.read_raw_messages(missing_files + filtered_paths)
+        return {
+            f"{database_name}.{table_name}": table_df,
+            "raw_messages": new_raw_messages
+        }
 
     def process(self, **kwargs) -> ETLResult:
         start_exec_time = datetime.now()
         source_data: Dict[str, DataFrame] = kwargs.get("source_data", None)
         if not source_data:
             raise ValueError(f"ServiceBusStandardisationProcess.process requires a source_data dictionary to be provided, but was missing")
-        if len(source_data) != 1:
-            raise ValueError(
-                f"ServiceBusStandardisationProcess.process source_data parameter must be a dictionary with 1 element, but had {len(source_data)}"
-            )
         entity_name: str = kwargs.get("entity_name", None)
         if not entity_name:
-            raise ValueError(f"ServiceBusStandardisationProcess.process requires a entity_name dictionary to be provided, but was missing")
-        date_folder_input: str = kwargs.get("date_folder", None)
-        if not date_folder_input:
-            raise ValueError(f"ServiceBusStandardisationProcess.process requires a date_folder dictionary to be provided, but was missing")
-        use_max_date_filter = kwargs.get("use_max_date_filter", False)
+            raise ValueError(f"ServiceBusStandardisationProcess.process requires a entity_name to be provided, but was missing")
         database_name = "odw_standardised_db"
         table_name = f"sb_{entity_name.replace('-', '_')}"
         table_path: str = f"{database_name}.{table_name}"
-        source_path = Util.get_path_to_file(f"odw-raw/ServiceBus/{entity_name}")
-        insert_count = 0
 
-        table_df = list(source_data.values())[0]
+        table_df = source_data.pop(table_path, None)
+        if not table_df:
+            raise ValueError(f"ServiceBusStandardisationProcess.process requires a source_data dataframe to be provided, but was missing")
 
-        max_extracted_date = self.get_max_file_date(table_df)
-        missing_files = self.get_missing_files(table_path, source_path)
-        filtered_paths = []
-        if use_max_date_filter:
-            filtered_paths = self.extract_and_filter_paths(self.get_all_files_in_directory(source_path=source_path), max_extracted_date)
-        df = self.read_raw_messages(missing_files + filtered_paths)
+        new_raw_messages = source_data.pop("raw_messages", None)
+        if not new_raw_messages:
+            # todo check
+            raise ValueError()
         table_row_count = table_df.count()
-        df = self.remove_data_duplicates(df)
-        insert_count = df.count()
+        new_raw_messages = self.remove_data_duplicates(new_raw_messages)
+        insert_count = new_raw_messages.count()
         LoggingUtil().log_info(f"Rows to append: {insert_count}")
         expected_new_count = table_row_count + insert_count
         LoggingUtil().log_info(f"Expected new count: {expected_new_count}")
         end_exec_time = datetime.now()
         return {
             table_path: {
-                "data": df,
+                "data": new_raw_messages,
+                "storage_kind": "ADLSG2-Table",
                 "database_name": database_name,
                 "table_name": table_name,
                 "storage_endpoint": Util.get_storage_account(),
                 "container_name": "odw-standardised",
-                "blob_path": "table_name",
+                "blob_path": table_name,
                 "file_format": "delta",
                 "write_mode": "append",
                 "write_options": [("mergeSchema", "true")],
