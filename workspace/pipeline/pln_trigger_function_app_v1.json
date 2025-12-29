@@ -38,7 +38,7 @@
 				}
 			},
 			{
-				"name": "New Messages",
+				"name": "NewMessages",
 				"type": "SetVariable",
 				"dependsOn": [
 					{
@@ -100,7 +100,14 @@
 			{
 				"name": "Set Secret Name",
 				"type": "SetVariable",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "Record Trigger Function to App Insights",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"secureOutput": true,
 					"secureInput": false
@@ -164,7 +171,6 @@
 					},
 					"waitOnCompletion": true,
 					"parameters": {
-						"Stage": "Tigger Function App Started",
 						"PipelineName": {
 							"value": "@pipeline().Pipeline",
 							"type": "Expression"
@@ -207,7 +213,14 @@
 			{
 				"name": "Record function app completed",
 				"type": "ExecutePipeline",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "NewMessages",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"secureInput": false
 				},
@@ -219,6 +232,10 @@
 					},
 					"waitOnCompletion": true,
 					"parameters": {
+						"Stage": {
+							"value": "@if(\n    equals(\n        trim(\n            concat(\n                activity('Record Trigger Function to App Insights')?.Error?.message,\n                activity('Get Function Secret')?.Error?.message,\n                activity('Trigger Function')?.Error?.message\n            )\n        ),\n        ''\n    ),    \n    'Successfully',\n    'Failed'\n\n)",
+							"type": "Expression"
+						},
 						"PipelineName": {
 							"value": "@pipeline().Pipeline",
 							"type": "Expression"
@@ -229,6 +246,14 @@
 						},
 						"EndTime": {
 							"value": "@utcNow()",
+							"type": "Expression"
+						},
+						"ErrorMessage": {
+							"value": "@replace(\n    concat(\n        coalesce(activity('Record Trigger Function to App Insights')?.Error?.message, ''), '|',\n        coalesce(activity('Get Function Secret')?.Error?.message, ''), '|',\n        coalesce(activity('Trigger Function')?.Error?.message, ''), '|'\n    ),\n    '|',\n    ''\n)",
+							"type": "Expression"
+						},
+						"StatusMessage": {
+							"value": "@if(\n    equals(\n        trim(\n            concat(\n                coalesce(activity('Record Trigger Function to App Insights')?.Error?.message, ''),\n                coalesce(activity('Get Function Secret')?.Error?.message, ''),\n                coalesce(activity('Trigger Function')?.Error?.message, '')\n            )\n        ),\n        ''\n    ),\n    'Trigger Function App Successfully Completed',\n    'Trigger Function App Failed'\n   \n)",
 							"type": "Expression"
 						},
 						"PipelineTriggerID": {
