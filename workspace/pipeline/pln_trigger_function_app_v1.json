@@ -282,6 +282,110 @@
 						}
 					}
 				}
+			},
+			{
+				"name": "IfConditionNewMessages",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Record function app completed",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@if(\n    equals(\n        trim(\n            concat(\n                activity('Record Trigger Function to App Insights')?.Error?.message,\n                activity('Get Function Secret')?.Error?.message,\n                activity('Trigger Function')?.Error?.message\n            )\n        ),\n        ''\n    ),\n        false,\n        true\n)",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "pln_trigger_function_app Fail",
+							"type": "Fail",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"message": "failing the pipeline as previous activities are failed.",
+								"errorCode": "400"
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Trigger Function App Teams Message",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "NewMessages",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_utl_Send_Teams_Message",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"dataFactorySubscription": {
+							"value": "@pipeline().parameters.subscription_id",
+							"type": "Expression"
+						},
+						"dataFactoryResourceGroup": {
+							"value": "@pipeline().parameters.resource_group",
+							"type": "Expression"
+						},
+						"pipelineRunId": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"teamsWebhookUrl": {
+							"value": "@pipeline().parameters.webhook_url",
+							"type": "Expression"
+						},
+						"activityName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"activityMessage": {
+							"value": "@if(\n    equals(\n        trim(\n            concat(\n                activity('Record Trigger Function to App Insights')?.Error?.message,\n                activity('Get Function Secret')?.Error?.message,\n                activity('Trigger Function')?.Error?.message\n            )\n        ),\n        ''\n    ),\n    'Failed',\n    'Successfully '\n)",
+							"type": "Expression"
+						},
+						"activityDuration": {
+							"value": "@concat(\n    string(div(div(sub(\n        ticks(formatDateTime(utcNow(), 'yyyy-MM-dd HH:mm:sss')),\n        ticks(formatDateTime(if(equals(pipeline().parameters.start_time, null), utcNow(), pipeline().parameters.start_time), 'yyyy-MM-dd HH:mm:sss'))\n    ), 600000000), 60)), 'H:', \n    string(mod(div(sub(\n        ticks(formatDateTime(utcNow(), 'yyyy-MM-dd HH:mm:sss')),\n        ticks(formatDateTime(if(equals(pipeline().parameters.start_time, null), utcNow(), pipeline().parameters.start_time), 'yyyy-MM-dd HH:mm:sss'))\n    ), 600000000), 60)), 'M:00s'\n)",
+							"type": "Expression"
+						},
+						"activityStatus": {
+							"value": "@if(\n    equals(\n        trim(\n            concat(\n                activity('Record Trigger Function to App Insights')?.Error?.message,\n                activity('Get Function Secret')?.Error?.message,\n                activity('Trigger Function')?.Error?.message\n            )\n        ),\n        ''\n    ),\n   'Failed',\n    'Successfully'\n)",
+							"type": "Expression"
+						},
+						"Colour": {
+							"value": "@pipeline().parameters.failed_colour",
+							"type": "Expression"
+						},
+						"Image": {
+							"value": "@pipeline().parameters.failed_image",
+							"type": "Expression"
+						},
+						"Message_title": {
+							"value": "@if(\n    equals(\n        trim(\n            concat(\n                coalesce(activity('Record Trigger Function to App Insights')?.Error?.message, ''),\n                coalesce(activity('Get Function Secret')?.Error?.message, ''),\n                coalesce(activity('Trigger Function')?.Error?.message, '')\n            )\n        ),\n        ''\n    ),\n    'Trigger Function App Failed',\n    'Trigger Function App Successfully Completed'\n)",
+							"type": "Expression"
+						},
+						"Message_subtitle": {
+							"value": "@if(\n    equals(\n        trim(\n            concat(\n                coalesce(activity('Record Trigger Function to App Insights')?.Error?.message, ''),\n                coalesce(activity('Get Function Secret')?.Error?.message, ''),\n                coalesce(activity('Trigger Function')?.Error?.message, '')\n            )\n        ),\n        ''\n    ),\n    'Function App Failed',\n    'Function App Completed'\n)",
+							"type": "Expression"
+						}
+					}
+				}
 			}
 		],
 		"parameters": {
@@ -296,6 +400,24 @@
 				"type": "string"
 			},
 			"apps_insights_ikey": {
+				"type": "string"
+			},
+			"subscription_id": {
+				"type": "string"
+			},
+			"webhook_url": {
+				"type": "string"
+			},
+			"resource_group": {
+				"type": "string"
+			},
+			"failed_colour": {
+				"type": "string"
+			},
+			"failed_image": {
+				"type": "string"
+			},
+			"start_time": {
 				"type": "string"
 			}
 		},
