@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5a53a4ec-5575-4148-89c6-733e4da61405"
+				"spark.autotune.trackingId": "856afe70-7d41-4ffa-8e07-a51e3043dd7c"
 			}
 		},
 		"metadata": {
@@ -66,6 +66,13 @@
 				},
 				"source": [
 					"%run utils/py_logging_decorator"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_applicationinsights"
 				],
 				"execution_count": null
 			},
@@ -126,6 +133,18 @@
 					"db_name: str = ''\n",
 					"entity_name: str = ''\n",
 					"is_servicebus_schema: bool = True"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from datetime import datetime\n",
+					"start_exec_time = datetime.now()\n",
+					"insert_count = 0\n",
+					"update_count = 0\n",
+					"delete_count = 0\n",
+					"error_message = ''"
 				],
 				"execution_count": null
 			},
@@ -193,7 +212,34 @@
 				},
 				"source": [
 					"if test_table_exists(db_name, table_name):\n",
-					"    logInfo(f\"{db_name}.{table_name} Table already exists, exiting\")\n",
+					"    logInfo(f\"{db_name}.{table_name} Table already exists, skipping creation\")\n",
+					"    end_exec_time = datetime.now()\n",
+					"    duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
+					"    activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
+					"    stage = \"Success\"\n",
+					"    status_message = f\"Table {db_name}.{table_name} already exists\"\n",
+					"    status_code = \"200\"\n",
+					"    log_telemetry_and_exit(\n",
+					"        stage,\n",
+					"        start_exec_time,\n",
+					"        end_exec_time,\n",
+					"        error_message,\n",
+					"        f\"{db_name}.{table_name}\",\n",
+					"        insert_count,\n",
+					"        update_count,\n",
+					"        delete_count,\n",
+					"        PipelineName,\n",
+					"        PipelineRunID,\n",
+					"        PipelineTriggerID,\n",
+					"        PipelineTriggerName,\n",
+					"        PipelineTriggerType,\n",
+					"        PipelineTriggeredbyPipelineName,\n",
+					"        PipelineTriggeredbyPipelineRunID,\n",
+					"        activity_type,\n",
+					"        duration_seconds,\n",
+					"        status_message,\n",
+					"        status_code\n",
+					"    )\n",
 					"    mssparkutils.notebook.exit('')\n",
 					"else:\n",
 					"    logInfo(f\"{db_name}.{table_name} Table does not already exist\")"
@@ -248,6 +294,7 @@
 					"        raise ValueError(f\"Missing incremental key for entity '{entity_name}' in database '{db_name}'. Schema creation aborted.\")\n",
 					"\n",
 					"    schema = mssparkutils.notebook.run(\"/py_create_spark_schema\", 600, {\"db_name\": db_name, \"entity_name\": entity_name, \"incremental_key\": incremental_key, \"is_servicebus_schema\": is_servicebus_schema})\n",
+					"    \n",
 					"    try: \n",
 					"        logInfo(f\"Parsing JSON schema for entity '{entity_name}'...\")\n",
 					"        schema_dict = json.loads(schema)\n",
@@ -272,24 +319,34 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
-					"metadata_path: str = \"abfss://odw-config@\"+storage_account+\"existing-tables-metadata.json\"\n",
-					"df  = spark.read.json(metadata_path, multiLine=True)"
+					"try:\n",
+					"    storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"    metadata_path: str = \"abfss://odw-config@\"+storage_account+\"existing-tables-metadata.json\"\n",
+					"    # Spark reads are lazy; ensure the path exists and force a small action\n",
+					"    if not mssparkutils.fs.exists(metadata_path):\n",
+					"        raise FileNotFoundError(f\"Metadata file not found at {metadata_path}\")\n",
+					"    df  = spark.read.json(metadata_path, multiLine=True)\n",
+					"    _ = df.limit(1).count()\n",
+					"except Exception as e:\n",
+					"    error_message = f\"Failed to load existing tables metadata: {str(e)[:800]}\"\n",
+					"    end_exec_time = datetime.now()"
 				],
 				"execution_count": null
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"# Explode each metadata category separately (as they are nested lists)\n",
-					"standardised_df = df.select(explode(col(\"standardised_metadata\")).alias(\"metadata\"))\n",
-					"harmonised_df = df.select(explode(col(\"harmonised_metadata\")).alias(\"metadata\"))\n",
-					"curated_df = df.select(explode(col(\"curated_metadata\")).alias(\"metadata\"))\n",
-					"logging_df = df.select(explode(col(\"logging_metadata\")).alias(\"metadata\"))\n",
-					"config_df = df.select(explode(col(\"config_metadata\")).alias(\"metadata\"))\n",
+					"if not error_message:\n",
+					"    # Explode each metadata category separately (as they are nested lists)\n",
+					"    standardised_df = df.select(explode(col(\"standardised_metadata\")).alias(\"metadata\"))\n",
+					"    harmonised_df = df.select(explode(col(\"harmonised_metadata\")).alias(\"metadata\"))\n",
+					"    curated_df = df.select(explode(col(\"curated_metadata\")).alias(\"metadata\"))\n",
+					"    logging_df = df.select(explode(col(\"logging_metadata\")).alias(\"metadata\"))\n",
+					"    config_df = df.select(explode(col(\"config_metadata\")).alias(\"metadata\"))\n",
 					"\n",
-					"# Select the relevant fields\n",
-					"df_exploded = standardised_df.union(harmonised_df).union(curated_df).union(logging_df).union(config_df).selectExpr(\"metadata.*\")"
+					"    # Select the relevant fields\n",
+					"    df_exploded = standardised_df.union(harmonised_df).union(curated_df).union(logging_df).union(config_df).selectExpr(\"metadata.*\")\n",
+					"    df_exploded.cache()"
 				],
 				"execution_count": null
 			},
@@ -319,7 +376,7 @@
 					"        if \"abfss://\" in original_location and \"@\" in original_location:\n",
 					"            container = original_location.split(\"abfss://\")[1].split(\"@\")[0]\n",
 					"            path = original_location.split(\"@\")[1].split(\"/\", 1)[1]\n",
-					"            corrected_location = f\"abfss://{container}@{storage_account}/{path}\"\n",
+					"            corrected_location = f\"abfss://{container}@{storage_account}{path}\"\n",
 					"        else:\n",
 					"            corrected_location = original_location\n",
 					"\n",
@@ -424,16 +481,21 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"spark_dataframe = create_spark_dataframe()\n",
-					"\n",
-					"try:\n",
-					"    logInfo(f\"Creating spark table {table_name}\")\n",
-					"    create_spark_table(db_name, table_name, spark_dataframe)\n",
-					"except pyspark.sql.utils.AnalysisException as e:\n",
-					"    table_loc = f\"abfss://{get_container_name(db_name)}@{storage_account}{table_name}\"\n",
-					"    logError(f\"Unable to create table because the location ({table_loc}) is not empty. Emptying the location and retrying\")\n",
-					"    mssparkutils.fs.rm(table_loc, True)\n",
-					"    create_spark_table(db_name, table_name, spark_dataframe)"
+					"sdf = None\n",
+					"if not error_message:\n",
+					"    try:\n",
+					"        logInfo(f\"Creating spark table {table_name}\")\n",
+					"        sdf = create_spark_dataframe()\n",
+					"        create_spark_table(db_name, table_name, sdf)\n",
+					"    except pyspark.sql.utils.AnalysisException as e:\n",
+					"        table_loc = f\"abfss://{get_container_name(db_name)}@{storage_account}{table_name}\"\n",
+					"        logError(f\"Unable to create table because the location ({table_loc}) is not empty. Emptying the location and retrying\")\n",
+					"        mssparkutils.fs.rm(table_loc, True)\n",
+					"        create_spark_table(db_name, table_name, sdf)\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Unexpected error creating table {db_name}.{table_name}: {str(e)[:800]}\"\n",
+					"    finally:\n",
+					"        end_exec_time = datetime.now()"
 				],
 				"execution_count": null
 			},
@@ -453,6 +515,48 @@
 				"source": [
 					"tableExists:bool = test_table_exists(db_name, table_name)\n",
 					"logInfo(f\"{db_name}.{table_name} exists = {tableExists}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Final telemetry\n",
+					"# Ensure end_exec_time exists even on early/metadata failures\n",
+					"if 'end_exec_time' not in globals():\n",
+					"    end_exec_time = datetime.now()\n",
+					"\n",
+					"duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
+					"activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
+					"stage = \"Success\" if not error_message else \"Failed\"\n",
+					"status_message = (\n",
+					"    f\"Successfully created table {db_name}.{table_name}\"\n",
+					"    if not error_message\n",
+					"    else f\"Failed to create table {db_name}.{table_name}\"\n",
+					")\n",
+					"status_code = \"200\" if stage == \"Success\" else \"500\"\n",
+					"\n",
+					"log_telemetry_and_exit(\n",
+					"    stage,\n",
+					"    start_exec_time,\n",
+					"    end_exec_time,\n",
+					"    error_message,\n",
+					"    f\"{db_name}.{table_name}\",\n",
+					"    insert_count,\n",
+					"    update_count,\n",
+					"    delete_count,\n",
+					"    PipelineName,\n",
+					"    PipelineRunID,\n",
+					"    PipelineTriggerID,\n",
+					"    PipelineTriggerName,\n",
+					"    PipelineTriggerType,\n",
+					"    PipelineTriggeredbyPipelineName,\n",
+					"    PipelineTriggeredbyPipelineRunID,\n",
+					"    activity_type,\n",
+					"    duration_seconds,\n",
+					"    status_message,\n",
+					"    status_code\n",
+					")"
 				],
 				"execution_count": null
 			}
