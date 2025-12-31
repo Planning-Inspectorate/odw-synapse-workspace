@@ -1,0 +1,743 @@
+{
+	"name": "py_sb_harmonised_nsip_invoice",
+	"properties": {
+		"description": "Process service bus data for nsip_invoice table from sb_nsip_project ",
+		"folder": {
+			"name": "odw-harmonised"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "9b8feb77-4325-43ad-a648-7555ab20b06a"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### The purpose of this pyspark notebook is to read service bus data from odw_harmonised_db.sb_nsip_project Delta table and process nested Invoice data to odw_harmonised_db.nsip_Invoice Delta table.\n",
+					"\n",
+					"**Description** \n",
+					"The purpose of this pyspark notebook is to read service bus data with nested Invoice arrays from odw_harmonised_db.sb_nsip_project Delta table and explode/transform them into odw_harmonised_db.nsip_Invoice Delta table based on the existing MiPINS business logic.\n",
+					"\n",
+					"**Spark Cluster Configuration** -> Apache Spark Version- 3.4, Python Version - 3.10, Delta Lake Version - 2.4\n",
+					""
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## update all exceptions with appropriate comments"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Import required libraries"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"from pyspark.sql.window import Window\n",
+					"from datetime import datetime,date\n",
+					"from delta.tables import DeltaTable\n",
+					"from notebookutils import mssparkutils\n",
+					"from pyspark.sql.functions import explode, col\n",
+					"import json"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"from pyspark.sql.window import Window\n",
+					"from datetime import datetime\n",
+					"from delta.tables import DeltaTable\n",
+					"from notebookutils import mssparkutils\n",
+					"from pyspark.sql.functions import explode, col\n",
+					"import time\n",
+					"import json"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_applicationinsights"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Configurable Variables for Service Bus and Spark Table Processing"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Configurable variables\n",
+					"service_bus_table = \"odw_harmonised_db.sb_nsip_project\"\n",
+					"db_name=\"odw_harmonised_db\"\n",
+					"entity_name=\"nsip-invoice\"\n",
+					"table_name=\"sb_nsip_invoice\"\n",
+					"spark_table_final = f\"{db_name}.{table_name}\"\n",
+					"incremental_key = \"NSIPInvoiceID\"\n",
+					"start_exec_time = datetime.now()\n",
+					"insert_count = 0\n",
+					"update_count = 0\n",
+					"delete_count = 0\n",
+					"error_message=''"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Read and Filter Harmonised Metadata for Delta Table Path"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"\n",
+					"try:\n",
+					"    # 1) Get storage account + read the JSON\n",
+					"    storage_account = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"    metadata_path = f\"abfss://odw-config@{storage_account}/existing-tables-metadata.json\"\n",
+					"    file_content = mssparkutils.fs.head(metadata_path, 1024 * 1024)  # up to 1MB\n",
+					"    metadata_root = json.loads(file_content)\n",
+					"\n",
+					"    # 2) Find the 'harmonised_metadata' array in the root list\n",
+					"    harmonised_metadata = []\n",
+					"    if isinstance(metadata_root, list):\n",
+					"        for block in metadata_root:\n",
+					"            if isinstance(block, dict) and \"harmonised_metadata\" in block:\n",
+					"                harmonised_metadata = block.get(\"harmonised_metadata\", [])\n",
+					"                break\n",
+					"    else:\n",
+					"        # Fallback if the root isn’t a list\n",
+					"        harmonised_metadata = metadata_root.get(\"harmonised_metadata\", [])\n",
+					"\n",
+					"    print(f\"harmonised_metadata entries: {len(harmonised_metadata)}\")\n",
+					"\n",
+					"    # 3) Normalise names (strip) and filter\n",
+					"    target_db = db_name.strip()\n",
+					"    target_table = table_name.strip()\n",
+					"\n",
+					"    filtered = [\n",
+					"        item for item in harmonised_metadata\n",
+					"        if item.get(\"database_name\", \"\").strip() == target_db\n",
+					"        and item.get(\"table_name\", \"\").strip() == target_table\n",
+					"    ]\n",
+					"\n",
+					"    # 4) Use the match\n",
+					"    if filtered:\n",
+					"        delta_table_path = filtered[0].get(\"table_location\")\n",
+					"        print(f\"Delta table path for {target_db}.{target_table}: {delta_table_path}\")\n",
+					"    else:\n",
+					"        raise ValueError(f\"No metadata found for {target_db}.{target_table}\")\n",
+					"\n",
+					"except Exception as e:\n",
+					"    error_message = f\"Error while reading metadata: {str(e)[:800]}\"\n",
+					"    end_exec_time = datetime.now()\n",
+					"    print(error_message)\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Delta Table Schema Validation and Update Logic"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"        if spark.catalog.tableExists(spark_table_final):\n",
+					"            print(f\"Delta table {spark_table_final} already exists.\")\n",
+					"        else:\n",
+					"            print(f\"Delta table {spark_table_final} does not exist. create_table_from_schema.\")\n",
+					"            result = mssparkutils.notebook.run(\n",
+					"                \"service-bus/create_table_from_schema\",\n",
+					"                arguments={\"db_name\": db_name, \"entity_name\": entity_name}\n",
+					"            )\n",
+					"            print(f\"create_table_from_schema notebook result: {result}\")\n",
+					"\n",
+					"            # Re-check existence after create_table_from_schema\n",
+					"            if not spark.catalog.tableExists(spark_table_final):\n",
+					"                raise RuntimeError(\n",
+					"                    f\"create_table_from_schema completed but table still missing: {spark_table_final}\"\n",
+					"                )\n",
+					"            print(f\"Delta table {spark_table_final} now exists after provisioning.\")\n",
+					"\n",
+					"        # --- Continue with your schema changes here, if needed ---\n",
+					"        # e.g. spark.sql(f\"ALTER TABLE delta.`{delta_table_path}` ADD COLUMN ...\")\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error during schema check/update: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"\n",
+					"if not error_message:  # Only execute if there was no previous error\n",
+					"    try:\n",
+					"        # Check if Delta table exists\n",
+					"        if spark.catalog.tableExists(spark_table_final):\n",
+					"            print(f\"Delta table {spark_table_final} exists at path {delta_table_path}.\")\n",
+					"\n",
+					"            # Load table schema\n",
+					"            existing_df = spark.read.format(\"delta\").load(delta_table_path)\n",
+					"            existing_cols = existing_df.columns\n",
+					"\n",
+					"            # Check for NSIPProjectInfoInternalID\n",
+					"            if \"NSIPProjectInfoInternalID\" not in existing_cols:\n",
+					"                print(\"Column NSIPProjectInfoInternalID not found. Adding as LongType...\")\n",
+					"                spark.sql(f\"\"\"\n",
+					"                    ALTER TABLE delta.`{delta_table_path}`\n",
+					"                    ADD COLUMN NSIPProjectInfoInternalID BIGINT\n",
+					"                \"\"\")\n",
+					"            else:\n",
+					"                print(\"Column NSIPProjectInfoInternalID exists.\")\n",
+					"\n",
+					"            # Check for message_id and drop if exists\n",
+					"            if \"message_id\" in existing_cols:\n",
+					"                print(\"Column message_id found. Dropping...\")\n",
+					"                # Enable Column Mapping before dropping\n",
+					"                spark.sql(f\"\"\"\n",
+					"                    ALTER TABLE delta.`{delta_table_path}` SET TBLPROPERTIES (\n",
+					"                        'delta.columnMapping.mode' = 'name',\n",
+					"                        'delta.minReaderVersion' = '2',\n",
+					"                        'delta.minWriterVersion' = '5'\n",
+					"                    )\n",
+					"                \"\"\")\n",
+					"                spark.sql(f\"ALTER TABLE delta.`{delta_table_path}` DROP COLUMN message_id\")\n",
+					"                print(\"Column message_id dropped successfully.\")\n",
+					"            else:\n",
+					"                print(\"Column message_id does not exist.\")\n",
+					"        else:\n",
+					"            print(f\"Delta table {spark_table_final} does not exist. Please create it first.\")\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error during schema check/update: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Fetch Maximum IngestionDate from Existing Delta Table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"\n",
+					"if not error_message:  # Only execute if there was no previous error\n",
+					"    try:\n",
+					"        # Step 1: Get max IngestionDate from existing table\n",
+					"        existing_df = spark.table(spark_table_final)\n",
+					"        max_IngestionDate_to = existing_df.agg(F.max(\"IngestionDate\")).collect()[0][0]\n",
+					"\n",
+					"        if max_IngestionDate_to is None:\n",
+					"            # Set default date if no records exist\n",
+					"            max_IngestionDate_to = datetime(1900, 1, 1)  # or any baseline date you prefer\n",
+					"\n",
+					"        print(f\"Max IngestionDate from existing table: {max_IngestionDate_to}\")\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error while fetching max IngestionDate: {str(e)[:800]}\"\n",
+					"        max_IngestionDate_to = datetime(1900, 1, 1)  # fallback default\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Retrieve Maximum IngestionDate with Fallback Handling"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"\n",
+					"if not error_message:\n",
+					"    try:\n",
+					"        # Step 2: Get new data from service bus table\n",
+					"        service_bus_data = spark.sql(f\"\"\"\n",
+					"            SELECT \n",
+					"                NSIPProjectInfoInternalID,\n",
+					"                caseId,\n",
+					"                caseReference,\n",
+					"                invoices,\n",
+					"                ODTSourceSystem,\n",
+					"                SourceSystemID,\n",
+					"                IngestionDate\n",
+					"            FROM {service_bus_table}\n",
+					"            WHERE invoices IS NOT NULL\n",
+					"        \"\"\")\n",
+					"\n",
+					"        print(\" Service bus data loaded successfully.\")\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error while loading service bus data: {str(e)[:800]}\"\n",
+					"        print(error_message)\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Explode Invoices Array and Extract Invoice Fields"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"\n",
+					"if not error_message:  # Only run if no previous error\n",
+					"    try:\n",
+					"        # Step 3: Explode invoices array\n",
+					"        exploded_df = service_bus_data.select(\n",
+					"            F.col(\"NSIPProjectInfoInternalID\"),\n",
+					"            F.col(\"caseId\"),\n",
+					"            F.col(\"caseReference\"),\n",
+					"            F.explode(F.col(\"invoices\")).alias(\"invoice\"),\n",
+					"            F.col(\"ODTSourceSystem\"),\n",
+					"            F.col(\"SourceSystemID\"),\n",
+					"            F.col(\"IngestionDate\")\n",
+					"        )\n",
+					"\n",
+					"        # Step 4: Extract invoice fields\n",
+					"        new_data = exploded_df.select(\n",
+					"            F.col(\"NSIPProjectInfoInternalID\"),\n",
+					"            F.col(\"caseId\"),\n",
+					"            F.col(\"caseReference\"),\n",
+					"            F.col(\"invoice.invoiceStage\").alias(\"invoiceStage\"),\n",
+					"            F.col(\"invoice.invoiceNumber\").alias(\"invoiceNumber\"),\n",
+					"            F.col(\"invoice.amountDue\").alias(\"amountDue\"),\n",
+					"            F.col(\"invoice.paymentDueDate\").alias(\"paymentDueDate\"),\n",
+					"            F.col(\"invoice.invoicedDate\").alias(\"invoicedDate\"),\n",
+					"            F.col(\"invoice.paymentDate\").alias(\"paymentDate\"),\n",
+					"            F.col(\"invoice.refundCreditNoteNumber\").alias(\"refundCreditNoteNumber\"),\n",
+					"            F.col(\"invoice.refundAmount\").alias(\"refundAmount\"),\n",
+					"            F.col(\"invoice.refundIssueDate\").alias(\"refundIssueDate\"),\n",
+					"            F.col(\"ODTSourceSystem\"),\n",
+					"            F.col(\"SourceSystemID\"),\n",
+					"            F.col(\"IngestionDate\")\n",
+					"        )\n",
+					"\n",
+					"        print(\"Explode and extract completed successfully.\")\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error during explode/extract: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Filter New Records, Add Metadata Columns, and Generate Surrogate Keys"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"        # Step 1: Get max ID from existing table\n",
+					"        existing_df = spark.table(spark_table_final)\n",
+					"        max_id_row = existing_df.agg(F.max(F.col(incremental_key))).collect()[0][0]\n",
+					"        if max_id_row is None:\n",
+					"            max_id_row = 0  # Default if table is empty\n",
+					"\n",
+					"        # Step 2: Filter only records newer than max IngestionDate\n",
+					"        if max_IngestionDate_to:\n",
+					"            new_data = new_data.filter(F.col(\"IngestionDate\") > F.lit(max_IngestionDate_to))\n",
+					"        else:\n",
+					"            default_date = datetime(1900, 1, 1)\n",
+					"            new_data = new_data.filter(F.col(\"IngestionDate\") > F.lit(default_date))\n",
+					"\n",
+					"        # Step 3: Drop old IngestionDate column\n",
+					"        new_data = new_data.drop(\"IngestionDate\")\n",
+					"\n",
+					"        # Step 4: Add new IngestionDate column with current timestamp (formatted)\n",
+					"        new_data = new_data.withColumn(\n",
+					"            \"IngestionDate\",\n",
+					"            F.concat(F.date_format(F.current_timestamp(), \"yyyy-MM-dd'T'HH:mm:ss.SSSSSS\"), F.lit(\"+0000\"))\n",
+					"        )\n",
+					"\n",
+					"        # Step 5: Add extra columns\n",
+					"        new_data = (\n",
+					"            new_data.withColumn(\"ValidTo\", F.lit(None).cast(\"string\"))\n",
+					"                    .withColumn(\"RowID\", F.lit(None).cast(\"string\"))\n",
+					"                    .withColumn(\"IsActive\", F.lit(\"Y\").cast(\"string\"))  # Default IsActive = 'Y'\n",
+					"        )\n",
+					"\n",
+					"        # Step 6: Add surrogate key starting from max_id_row + 1\n",
+					"        window_spec = Window.orderBy(F.monotonically_increasing_id())\n",
+					"        new_data = new_data.withColumn(\n",
+					"            incremental_key,\n",
+					"            (F.row_number().over(window_spec) + F.lit(max_id_row)).cast(\"long\")\n",
+					"        )\n",
+					"\n",
+					"        # Step 7: Reorder columns so incremental_key is first\n",
+					"        cols = new_data.columns\n",
+					"        reordered_cols = [incremental_key] + [c for c in cols if c != incremental_key]\n",
+					"        new_data = new_data.select(reordered_cols)\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error during processing: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(f\"Error occurred at: {end_exec_time}\")\n",
+					"        print(error_message)\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Append Processed DataFrame to Delta Table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"\n",
+					"if not error_message:\n",
+					"    # Append processed DataFrame to an existing Delta table\n",
+					"    try:\n",
+					"        new_data.write.format(\"delta\").mode(\"append\").saveAsTable(spark_table_final)\n",
+					"        print(f\"Data appended successfully to {spark_table_final}.\")\n",
+					"                # Get count of records inserted\n",
+					"        insert_count = new_data.count()\n",
+					"        print(f\"Columns added and reordered successfully. Inserted rows: {insert_count}\")\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Failed to append data: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(f\"Error occurred at: {end_exec_time}\")\n",
+					"        print(error_message)\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Update Delta Table with MERGE: Maintain Latest Records and Add Derived Columns"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"        # Load Delta table\n",
+					"        target_table = DeltaTable.forName(spark, spark_table_final)\n",
+					"\n",
+					"        # Step 1: Read existing data\n",
+					"        df = spark.table(spark_table_final)\n",
+					"\n",
+					"        # Step 2: Window to determine latest record based on NSIPProjectInfoInternalID\n",
+					"        window_spec = Window.partitionBy(\"caseId\", \"invoiceNumber\").orderBy(F.col(\"NSIPProjectInfoInternalID\").desc())\n",
+					"\n",
+					"        # Add row number\n",
+					"        df = df.withColumn(\"row_num\", F.row_number().over(window_spec))\n",
+					"\n",
+					"        # Add Migrated column\n",
+					"        df = df.withColumn(\n",
+					"            \"Migrated\",\n",
+					"            F.when(F.col(\"caseId\").isNotNull() & F.col(\"invoiceNumber\").isNotNull(), F.lit(1)).otherwise(F.lit(0))\n",
+					"        )\n",
+					"\n",
+					"        # Add NewIsActive column (latest record = 'Y', others = 'N')\n",
+					"        df = df.withColumn(\"NewIsActive\", F.when(F.col(\"row_num\") == 1, F.lit(\"Y\")).otherwise(F.lit(\"N\")))\n",
+					"\n",
+					"        # Add RowID column using MD5 hash\n",
+					"        df = df.withColumn(\n",
+					"            \"RowID\",\n",
+					"            F.md5(\n",
+					"                F.concat_ws(\n",
+					"                    \"\",\n",
+					"                    F.coalesce(F.col(\"NSIPInvoiceID\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"NSIPProjectInfoInternalID\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"caseId\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"caseReference\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"invoiceStage\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"invoiceNumber\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"amountDue\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"paymentDueDate\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"invoicedDate\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"paymentDate\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"refundCreditNoteNumber\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"refundAmount\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"refundIssueDate\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"Migrated\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"ODTSourceSystem\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"SourceSystemID\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"IngestionDate\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"ValidTo\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"NewIsActive\").cast(\"string\"), F.lit(\".\"))\n",
+					"                )\n",
+					"            )\n",
+					"        )\n",
+					"\n",
+					"        # Step 3: Merge updates back into Delta table\n",
+					"        metrics = (\n",
+					"            target_table.alias(\"t\")\n",
+					"            .merge(\n",
+					"                df.alias(\"s\"),\n",
+					"                \"\"\"\n",
+					"                t.caseId = s.caseId AND\n",
+					"                t.invoiceNumber = s.invoiceNumber AND\n",
+					"                t.IngestionDate = s.IngestionDate AND\n",
+					"                t.NSIPProjectInfoInternalID = s.NSIPProjectInfoInternalID\n",
+					"                \"\"\"\n",
+					"            )\n",
+					"            .whenMatchedUpdate(\n",
+					"                set={\n",
+					"                    \"IsActive\": \"s.NewIsActive\",\n",
+					"                    \"ValidTo\": F.expr(\"CASE WHEN s.NewIsActive = 'N' THEN current_timestamp() ELSE t.ValidTo END\"),\n",
+					"                    \"Migrated\": \"s.Migrated\",\n",
+					"                    \"RowID\": \"s.RowID\"\n",
+					"                }\n",
+					"            )\n",
+					"            .execute()\n",
+					"        )\n",
+					"\n",
+					"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(f\"MERGE completed successfully. Updates: {update_count}\")\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error during MERGE operation: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"        # ... your MERGE logic here ...\n",
+					"        \n",
+					"        # after MERGE succeeds, derive update count via ValidTo = today\n",
+					"        today = date.today()\n",
+					"        rowsInactivatedTodayCount = (\n",
+					"            spark.table(spark_table_final)\n",
+					"             .filter(F.to_date(\"ValidTo\") == F.lit(today))\n",
+					"             .count()\n",
+					"        )\n",
+					"        \n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(\n",
+					"            f\"MERGE completed successfully. \"\n",
+					"            f\"Rows inactivated today: {rowsInactivatedTodayCount}.\"\n",
+					"        )\n",
+					"        \n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error during MERGE operation: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
+					"activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
+					"stage = \"Success\" if not error_message else \"Failed\"\n",
+					"status_message = (\n",
+					"    f\"Successfully loaded data into {spark_table_final} table\"\n",
+					"    if not error_message\n",
+					"    else f\"Failed to load data from {spark_table_final} table\"\n",
+					")\n",
+					"status_code = \"200\" if stage == \"Success\" else \"500\"\n",
+					" \n",
+					"log_telemetry_and_exit(\n",
+					"    stage,\n",
+					"    start_exec_time,\n",
+					"    end_exec_time,\n",
+					"    error_message,\n",
+					"    spark_table_final,\n",
+					"    insert_count,\n",
+					"    update_count,\n",
+					"    delete_count,\n",
+					"    PipelineName,\n",
+					"    PipelineRunID,\n",
+					"    PipelineTriggerID,\n",
+					"    PipelineTriggerName,\n",
+					"    PipelineTriggerType,\n",
+					"    PipelineTriggeredbyPipelineName,\n",
+					"    PipelineTriggeredbyPipelineRunID,\n",
+					"    activity_type,\n",
+					"    duration_seconds,\n",
+					"    status_message,\n",
+					"    status_code\n",
+					")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
