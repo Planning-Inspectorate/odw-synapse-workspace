@@ -1838,6 +1838,124 @@
 					},
 					"numExecutors": null
 				}
+			},
+			{
+				"name": "Track Delta Changes Inspector",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "pins-inspector",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_get_delta_table_changes",
+						"type": "NotebookReference"
+					},
+					"snapshot": true
+				}
+			},
+			{
+				"name": "If Changes found_copy1",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Track Delta Changes Inspector",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(activity('Track Delta Changes Inspector').output.status.Output.result.exitValue, 'true')",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "Read Delta Changes JSON_copy1",
+							"type": "Lookup",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.1:00:00",
+								"retry": 3,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "JsonSource",
+									"storeSettings": {
+										"type": "AzureBlobFSReadSettings",
+										"recursive": true,
+										"enablePartitionDiscovery": false
+									},
+									"formatSettings": {
+										"type": "JsonReadSettings"
+									}
+								},
+								"dataset": {
+									"referenceName": "ds_delta_changes_json",
+									"type": "DatasetReference",
+									"parameters": {
+										"fileSystem": "odw-curated",
+										"folderPath": "listed_building/curated_to_sb",
+										"fileName": "sb_message.json"
+									}
+								},
+								"firstRowOnly": false
+							}
+						},
+						{
+							"name": "Publish to Appeal Service Bus_copy1",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Read Delta Changes JSON_copy1",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_publish_to_sb",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"service_bus_name": {
+										"value": "@if(equals(pipeline().DataFactory, 'pins-synw-odw-prod-uks'), 'pins-sb-appeals-bo-prod', if(equals(pipeline().DataFactory, 'pins-synw-odw-test-uks'), 'pins-sb-appeals-bo-test', 'pins-sb-appeals-bo-dev'))",
+										"type": "Expression"
+									},
+									"messages": {
+										"value": "@string(activity('Read Delta Changes JSON').output.value)",
+										"type": "Expression"
+									},
+									"topic_name": "listed-building"
+								}
+							}
+						}
+					]
+				}
 			}
 		],
 		"folder": {
