@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from abc import ABC, abstractmethod
 from typing import Type, ClassVar
 from datetime import datetime
@@ -10,56 +10,58 @@ class ETLResult(BaseModel, ABC):
         end_execution_time: datetime
         exception: str = None
         table_name: str
-        insert_count: int
-        update_count: int
-        delete_count: int
+        insert_count: int = Field(default_factory=0)
+        update_count: int = Field(default_factory=0)
+        delete_count: int = Field(default_factory=0)
         activity_type: str
         duration_seconds: float
+
     """
     Holds the details of the executionn of an ETLProcess, for use in logging
     """
+
     @property
     @abstractmethod
     def outcome(self) -> str:
         """The outcome of the ETL process"""
+
     @property
     @abstractmethod
     def status_code(self) -> int:
         """The status code of the ETL process"""
+
+    metadata: ETLResultMetadata
 
 
 class ETLSuccessResult(ETLResult):
     """
     For successful ETLProcesses
     """
+
     outcome: ClassVar[str] = "Succeeded"
     status_code: ClassVar[int] = 200
-    metadata: ETLResult.ETLResultMetadata
 
 
 class ETLFailResult(ETLResult):
     """
     For unsuccessful ETLProcesses
     """
+
     outcome: ClassVar[str] = "Failed"
     status_code: ClassVar[int] = 500
     exception: str
 
 
-class ETLResultFactory():
+class ETLResultFactory:
     """
     Automatically generate an ETLResult class from an outcome string
     """
+
     ETLFailResult.outcome
+
     @classmethod
     def get(cls, result_outcome: str) -> Type[ETLResult]:
-        result_map = {
-            result_class.outcome: result_class
-            for result_class in (
-                ETLSuccessResult,
-                ETLFailResult
-            )
-        }
+        result_map = {result_class.outcome: result_class for result_class in (ETLSuccessResult, ETLFailResult)}
         if result_outcome not in result_map:
             raise ValueError(f"No ETLResult could be found for outcome '{result_outcome}'")
         return result_map[result_outcome]
