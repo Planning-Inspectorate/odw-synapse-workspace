@@ -17,6 +17,9 @@ class ServiceBusStandardisationProcess(StandardisationProcess):
     """
     ETL process for standardising the raw data from the Service Bus
     """
+    @classmethod
+    def get_name(cls):
+        return "Service Bus Standardisation"
 
     @LoggingUtil.logging_to_appins
     def get_max_file_date(self, df: DataFrame) -> datetime:

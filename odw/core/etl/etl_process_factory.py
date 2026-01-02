@@ -1,13 +1,15 @@
 from odw.core.etl.etl_process import ETLProcess
 from odw.core.exceptions import DuplicateETLProcessNameException, ETLProcessNameNotFoundException
 from odw.core.etl.transformation.standardised.standardisation_process import StandardisationProcess
+from odw.core.etl.transformation.standardised.service_bus_standardisation_process import ServiceBusStandardisationProcess
 from typing import Dict, List, Set, Type
 import json
 
 
 class ETLProcessFactory():
     ETL_PROCESSES: Set[Type[ETLProcess]] = {
-        StandardisationProcess
+        StandardisationProcess,
+        ServiceBusStandardisationProcess
     }
 
     @classmethod
