@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "29444c8e-5826-4798-ad45-b526fbf3c66a"
+				"spark.autotune.trackingId": "e5070bc6-855b-40d6-9e58-eb00c516c60d"
 			}
 		},
 		"metadata": {
@@ -103,14 +103,14 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": null
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
@@ -139,7 +139,7 @@
 					"error_message='None'\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -161,7 +161,7 @@
 					"\r\n",
 					"    return df_filtered, load_error_message, load_end_exec_time"
 				],
-				"execution_count": null
+				"execution_count": 5
 			},
 			{
 				"cell_type": "markdown",
@@ -228,7 +228,7 @@
 					"        print(f\"Failed loading '{Source_table_name}': {error_message}\")\r\n",
 					"        break"
 				],
-				"execution_count": null
+				"execution_count": 6
 			},
 			{
 				"cell_type": "markdown",
@@ -240,20 +240,47 @@
 					}
 				},
 				"source": [
-					"try:\r\n",
-					"    # Define all tables as Dataframes\r\n",
-					"    hzn_cases_s78_df = get_spark_df(\"odw_standardised_db.horizoncases_s78\")\r\n",
-					"    cases_specialism_df = get_spark_df(\"odw_standardised_db.cases_specialisms\")\r\n",
-					"    vw_case_dates_df = get_spark_df(\"odw_standardised_db.vw_case_dates\")\r\n",
-					"    CaseDocumentDatesDates_df = get_spark_df(\"odw_standardised_db.casedocumentdatesdates\")\r\n",
-					"    CaseSiteStrings_df = get_spark_df(\"odw_standardised_db.casesitestrings\")\r\n",
-					"    TypeOfProcedure_df = get_spark_df(\"odw_standardised_db.typeofprocedure\")\r\n",
-					"    Horizon_TypeOfReasonForCase_df = get_spark_df(\"odw_standardised_db.horizon_typeofreasonforcase\")\r\n",
-					"    vw_AddAdditionalData_df = get_spark_df(\"odw_standardised_db.vw_addadditionaldata\")\r\n",
-					"    vw_AdditionalFields_df = get_spark_df(\"odw_standardised_db.vw_additionalfields\")\r\n",
-					"    horizon_advert_attributes_df = get_spark_df(\"odw_standardised_db.horizon_advert_attributes\")\r\n",
-					"    horizon_appeal_grounds_df = get_spark_df(\"odw_standardised_db.horizon_appeal_grounds\")\r\n",
-					"    horizon_notice_dates_df   = get_spark_df(\"odw_standardised_db.horizon_notice_dates\")\r\n",
+					"#### Registering Spark Temporary Views from Loaded DataFrames"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# List of (dict_key_in_loaded_dfs, temp_view_name)\r\n",
+					"views_to_register = [\r\n",
+					"    (\"hzn_cases_s78_df\", \"h\"),\r\n",
+					"    (\"cases_specialism_df\", \"cs\"),\r\n",
+					"    (\"vw_case_dates_df\", \"cd\"),\r\n",
+					"    (\"CaseDocumentDatesDates_df\", \"cdd\"),\r\n",
+					"    (\"CaseSiteStrings_df\", \"css\"),\r\n",
+					"    (\"vw_AddAdditionalData_df\", \"aad_old\"),\r\n",
+					"    (\"vw_AdditionalFields_df\", \"af\"),\r\n",
+					"    (\"horizon_advert_attributes_df\", \"haa\"),\r\n",
+					"    (\"TypeOfProcedure_df\", \"tp\"),\r\n",
+					"    (\"Horizon_vw_curr_TypeOfLevel_df\", \"ctl\"),\r\n",
+					"    (\"Horizon_vw_BIS_SpecialistCaseDates_df\", \"scd\"),\r\n",
+					"    (\"Horizon_vw_BIS_PlanningAppStrings_df\", \"pas\"),\r\n",
+					"    (\"Horizon_vw_BIS_PlanningAppDates_df\", \"pad\"),\r\n",
+					"    (\"Horizon_vw_BIS_LeadCase_df\", \"lc\"),\r\n",
+					"    (\"Horizon_vw_BIS_CaseStrings_df\", \"cs2\"),\r\n",
+					"    (\"Horizon_vw_BIS_CaseInfo_df\", \"ci\"),\r\n",
+					"    (\"Horizon_vw_BIS_CaseDates_df\", \"cdh\"),\r\n",
+					"    (\"Horizon_vw_BIS_AppealsAdditionalData_df\", \"aad\"),\r\n",
+					"    (\"horizon_appeal_grounds_df\",\"hag\"),\r\n",
+					"    (\"horizon_notice_dates_df\",\"hnd\")\r\n",
+					"]\r\n",
+					"\r\n",
+					"# --- Registration block ---\r\n",
+					"if not error_message:\r\n",
+					"    try:\r\n",
+					"        # Register all temp views\r\n",
+					"        for var_name, view_name in views_to_register:\r\n",
+					"            df = loaded_dfs.get(var_name)\r\n",
+					"\r\n",
+					"            if df is None:\r\n",
+					"                raise ValueError(\r\n",
+					"                    f\"DataFrame '{var_name}' not found in loaded_dfs; cannot create view '{view_name}'.\"\r\n",
+					"                )\r\n",
 					"\r\n",
 					"            if not hasattr(df, \"createOrReplaceTempView\"):\r\n",
 					"                raise TypeError(\r\n",
@@ -268,38 +295,14 @@
 					"        error_message = f\"Error registering temp views: {str(e)}\"\r\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": null
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"# 1) Register temp views\r\n",
-					"def register_views():\r\n",
-					"    hzn_cases_s78_df.createOrReplaceTempView(\"h\")\r\n",
-					"    cases_specialism_df.createOrReplaceTempView(\"cs\")\r\n",
-					"    vw_case_dates_df.createOrReplaceTempView(\"cd\")\r\n",
-					"    CaseDocumentDatesDates_df.createOrReplaceTempView(\"cdd\")\r\n",
-					"    CaseSiteStrings_df.createOrReplaceTempView(\"css\")\r\n",
-					"    vw_AddAdditionalData_df.createOrReplaceTempView(\"aad_old\")\r\n",
-					"    vw_AdditionalFields_df.createOrReplaceTempView(\"af\")\r\n",
-					"    horizon_advert_attributes_df.createOrReplaceTempView(\"haa\")\r\n",
-					"    horizon_appeal_grounds_df.createOrReplaceTempView(\"hag\")\r\n",
-					"    horizon_notice_dates_df.createOrReplaceTempView(\"hnd\")\r\n",
-					"    TypeOfProcedure_df.createOrReplaceTempView(\"tp\")\r\n",
-					"    Horizon_vw_curr_TypeOfLevel_df.createOrReplaceTempView(\"ctl\")\r\n",
-					"    Horizon_vw_BIS_SpecialistCaseDates_df.createOrReplaceTempView(\"scd\")\r\n",
-					"    Horizon_vw_BIS_PlanningAppStrings_df.createOrReplaceTempView(\"pas\")\r\n",
-					"    Horizon_vw_BIS_PlanningAppDates_df.createOrReplaceTempView(\"pad\")\r\n",
-					"    Horizon_vw_BIS_LeadCase_df.createOrReplaceTempView(\"lc\")\r\n",
-					"    Horizon_vw_BIS_CaseStrings_df.createOrReplaceTempView(\"cs2\")\r\n",
-					"    Horizon_vw_BIS_CaseInfo_df.createOrReplaceTempView(\"ci\")\r\n",
-					"    Horizon_vw_BIS_CaseDates_df.createOrReplaceTempView(\"cdh\")\r\n",
-					"    Horizon_vw_BIS_AppealsAdditionalData_df.createOrReplaceTempView(\"aad\")\r\n",
-					"\r\n",
-					"register_views()\r\n",
-					"\r\n",
-					"# 2) Keep old flow, add new fields, and dedup each red source to 1 row per key\r\n",
-					"sql_text = \"\"\"\r\n",
+					"if not error_message:\r\n",
+					"    try:\r\n",
+					"        sql_text = \"\"\"\r\n",
 					"WITH\r\n",
 					"-- collapse multiple specialisms per case into one comma separated string\r\n",
 					"cs_agg AS (\r\n",
@@ -441,7 +444,7 @@
 					"    hnd_1row.issuedate     AS issueDateOfEnforcementNotice,\r\n",
 					"    hnd_1row.effectivedate AS effectiveDateOfEnforcementNotice,\r\n",
 					"    hag_agg.enforcementAppealGroundsDetails\r\n",
-					"\r\n",
+					" \r\n",
 					"  FROM h_1row h\r\n",
 					"  LEFT JOIN cs_agg        ON h.caseuniqueid = cs_agg.casereference\r\n",
 					"  LEFT JOIN cd_1row       ON h.casenodeid   = cd_1row.casenodeid\r\n",
@@ -451,7 +454,7 @@
 					"  LEFT JOIN af_1row       ON h.caseuniqueid = af_1row.appealrefnumber\r\n",
 					"  LEFT JOIN hnd_1row      ON h.casenodeid = hnd_1row.casenodeid\r\n",
 					"  LEFT JOIN hag_agg       ON h.casenodeid = hag_agg.casenodeid\r\n",
-					"\r\n",
+					" \r\n",
 					"),\r\n",
 					" \r\n",
 					"-- Dedup each Horizon (red) source to one row per key using deterministic ordering\r\n",
@@ -646,7 +649,7 @@
 					"        end_exec_time = datetime.now()\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 8
 			},
 			{
 				"cell_type": "code",
@@ -662,7 +665,7 @@
 					"        end_exec_time = datetime.now()\r\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 10
 			},
 			{
 				"cell_type": "code",
@@ -681,7 +684,7 @@
 					"        print(error_message)\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 11
 			},
 			{
 				"cell_type": "markdown",
