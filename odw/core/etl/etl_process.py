@@ -36,6 +36,12 @@ class ETLProcess(ABC):
         return found_files
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
+        """
+        Load source data using the given kwargs
+
+        :param List[Dict[str, Any]] data_to_read: Data to read. List of entries that can each be fed into a relevant DataIO class
+        :return Dict[str, DataFrame]: A dictionary of table names mapped to the underlying data
+        """
         data_to_read: List[Dict[str, Any]] = kwargs.get("data_to_read", None)
         if not data_to_read:
             raise ValueError(f"ETLProcess expected a data_to_read parameter to be passed, but this was missing")
@@ -57,9 +63,18 @@ class ETLProcess(ABC):
 
     @abstractmethod
     def process(self, **kwargs) -> Tuple[Dict[str, DataFrame], ETLResult]:
+        """
+        Perform transformations on the given input data
+        """
         pass
 
     def write_data(self, data_to_write: Dict[str, Any]):
+        """
+        Write the given dictionary of tables
+        
+        :param Dict[str, Any] data_to_write: A dictionary of the form <table_name, table_metadata>
+                                             which can be fed into a relevant DataIO class
+        """
         for table_name, table_metadata in data_to_write.items():
             storage_kind = table_metadata.get("storage_kind", None)
             file_format = table_metadata.get("file_format", None)
@@ -70,7 +85,22 @@ class ETLProcess(ABC):
             data_io_inst = DataIOFactory.get(storage_kind)()
             data_io_inst.write(**table_metadata)
 
-    def run(self, **kwargs):
+    def run(self, **kwargs) -> ETLResult:
+        """
+        Run the full ETL process with the given arguments
+
+        Steps
+        1. Load source data
+        2. Perform transformations on the loaded data
+        3. Write the transformed data
+
+        If there is an exception detected at any point in the process, an ETLFailResult is
+        returned containing the error trace. Otherwise an ETLSuccessResult is returned
+
+        :param kwargs: Any arguments as specified in the concrete implementation classes
+        :returns: An ETLResult. Exceptions are caught internally and are returned in the `metadata.exception` property of an ETLFailResult
+        
+        """
         etl_start_time = datetime.now()
 
         def generate_failure_result(start_time: datetime, exception: str, table_name=None):
