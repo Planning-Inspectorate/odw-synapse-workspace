@@ -1,0 +1,728 @@
+{
+	"name": "pln_casework_local_plan_standardised",
+	"properties": {
+		"activities": [
+			{
+				"name": "Record loading  Casework Local Plan Standardised data",
+				"type": "ExecutePipeline",
+				"dependsOn": [],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "OnProgress",
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@formatDateTime(utcNow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+							"type": "Expression"
+						},
+						"StatusMessage": "Loading  Casework Local Plan Standardised Layer data",
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"ActivityType": "Pipeline",
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Completed Casework Local Plan Standardised Layer",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Set Post Val Retrun Output",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Completion",
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@variables('standardised_start_time')",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@utcNow()",
+							"type": "Expression"
+						},
+						"StatusMessage": " Casework Local Plan Standardised Layer data loaded",
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"ActivityType": "Pipeline",
+						"DurationSeconds": {
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('standardised_start_time'))), 10000000)",
+							"type": "Expression"
+						},
+						"StatusCode": "200",
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "ForEachTable",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "set_json variable",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@variables('raw_json')",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "Switch_table_status",
+							"type": "Switch",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"on": {
+									"value": "@item().table_result",
+									"type": "Expression"
+								},
+								"cases": [
+									{
+										"value": "success",
+										"activities": [
+											{
+												"name": "Record completed  Casework Local Plan Standardised",
+												"type": "ExecutePipeline",
+												"dependsOn": [],
+												"policy": {
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"pipeline": {
+														"referenceName": "pln_log_to_appins",
+														"type": "PipelineReference"
+													},
+													"waitOnCompletion": true,
+													"parameters": {
+														"Stage": "Completion",
+														"PipelineName": {
+															"value": "@pipeline().Pipeline",
+															"type": "Expression"
+														},
+														"PipelineRunID": {
+															"value": "@pipeline().RunId",
+															"type": "Expression"
+														},
+														"StartTime": {
+															"value": "@item().start_exec_time",
+															"type": "Expression"
+														},
+														"EndTime": {
+															"value": "@item().end_exec_time",
+															"type": "Expression"
+														},
+														"Inserts": {
+															"value": "@item().record_count",
+															"type": "Expression"
+														},
+														"StatusMessage": {
+															"value": "@concat(' Casework Local Plan Standardised data loaded for file: ',item().csv_file_name)",
+															"type": "Expression"
+														},
+														"PipelineTriggerID": {
+															"value": "@pipeline().TriggerId",
+															"type": "Expression"
+														},
+														"PipelineTriggerName": {
+															"value": "@pipeline().TriggerName",
+															"type": "Expression"
+														},
+														"PipelineTriggerType": {
+															"value": "@pipeline().TriggerType",
+															"type": "Expression"
+														},
+														"PipelineTriggeredbyPipelineName": {
+															"value": "@pipeline()?.TriggeredByPipelineName",
+															"type": "Expression"
+														},
+														"PipelineTriggeredbyPipelineRunID": {
+															"value": "@pipeline()?.TriggeredByPipelineRunId",
+															"type": "Expression"
+														},
+														"ActivityType": "Notebook",
+														"DurationSeconds": {
+															"value": "@item().total_exec_time",
+															"type": "Expression"
+														},
+														"StatusCode": "200",
+														"AppInsIKey": {
+															"value": "@pipeline().parameters.apps_insights_ikey",
+															"type": "Expression"
+														}
+													}
+												}
+											}
+										]
+									},
+									{
+										"value": "failed",
+										"activities": [
+											{
+												"name": "Record failed  Casework Local Plan Standardised",
+												"type": "ExecutePipeline",
+												"dependsOn": [],
+												"policy": {
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"pipeline": {
+														"referenceName": "pln_log_to_appins",
+														"type": "PipelineReference"
+													},
+													"waitOnCompletion": true,
+													"parameters": {
+														"Stage": "Fail",
+														"PipelineName": {
+															"value": "@pipeline().Pipeline",
+															"type": "Expression"
+														},
+														"PipelineRunID": {
+															"value": "@pipeline().RunId",
+															"type": "Expression"
+														},
+														"StartTime": {
+															"value": "@item().start_exec_time",
+															"type": "Expression"
+														},
+														"EndTime": {
+															"value": "@item().end_exec_time",
+															"type": "Expression"
+														},
+														"Inserts": {
+															"value": "@item().record_count",
+															"type": "Expression"
+														},
+														"ErrorMessage": {
+															"value": "@concat(item().error_message,' for loading file : ',item().csv_file_name)",
+															"type": "Expression"
+														},
+														"StatusMessage": {
+															"value": "@concat('raw to standardised failed:',item().csv_file_name)",
+															"type": "Expression"
+														},
+														"PipelineTriggerID": {
+															"value": "@pipeline().TriggerId",
+															"type": "Expression"
+														},
+														"PipelineTriggerName": {
+															"value": "@pipeline().TriggerName",
+															"type": "Expression"
+														},
+														"PipelineTriggerType": {
+															"value": "@pipeline().TriggerType",
+															"type": "Expression"
+														},
+														"PipelineTriggeredbyPipelineName": {
+															"value": "@pipeline()?.TriggeredByPipelineName",
+															"type": "Expression"
+														},
+														"PipelineTriggeredbyPipelineRunID": {
+															"value": "@pipeline()?.TriggeredByPipelineRunId",
+															"type": "Expression"
+														},
+														"ActivityType": "Notebook",
+														"DurationSeconds": {
+															"value": "@item().total_exec_time",
+															"type": "Expression"
+														},
+														"StatusCode": "400",
+														"AppInsIKey": {
+															"value": "@pipeline().parameters.apps_insights_ikey",
+															"type": "Expression"
+														}
+													}
+												}
+											},
+											{
+												"name": "Set Error Flag",
+												"type": "SetVariable",
+												"dependsOn": [
+													{
+														"activity": "Record failed  Casework Local Plan Standardised",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"policy": {
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"variableName": "error_flag",
+													"value": {
+														"value": "@item().table_result",
+														"type": "Expression"
+													}
+												}
+											}
+										]
+									}
+								],
+								"defaultActivities": [
+									{
+										"name": "Dummy",
+										"type": "Wait",
+										"dependsOn": [],
+										"userProperties": [],
+										"typeProperties": {
+											"waitTimeInSeconds": 1
+										}
+									}
+								]
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "nb_casework_local_plan_odw_raw_odw_std",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Set_start_time",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Record loading  Casework Local Plan Standardised data",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_utils_common_raw_standardised",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"Param_FileFolder_Path": {
+							"value": {
+								"value": "Casework_Local_Plan",
+								"type": "Expression"
+							},
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "set_json variable",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "nb_casework_local_plan_odw_raw_odw_std",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "raw_json",
+					"value": {
+						"value": "@json(activity('nb_casework_local_plan_odw_raw_odw_std').output.status.output.result.exitValue).table_details",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Set_start_time",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "standardised_start_time",
+					"value": {
+						"value": "@utcNow()",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "If Standardised Failed",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "ForEachTable",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(toLower(trim(variables('error_flag'))), 'failed')",
+						"type": "Expression"
+					},
+					"ifFalseActivities": [
+						{
+							"name": "WaitProceed",
+							"type": "Wait",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"waitTimeInSeconds": 1
+							}
+						}
+					],
+					"ifTrueActivities": [
+						{
+							"name": "Fail Casework Local Plan_Load",
+							"type": "Fail",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"message": "Standardised Notebook failed. One of the csv file couldn't be loaded successfully. Please App Insight Log for further details",
+								"errorCode": "99"
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "pln_casework_local_plan_post_validation_check",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "If Standardised Failed",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_casework_local_plan_post_validation_check",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
+				}
+			},
+			{
+				"name": "Set Post Val Retrun Output",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "pln_casework_local_plan_post_validation_check",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "pipelineReturnValue",
+					"value": [
+						{
+							"key": "Post_Check_Return_Val",
+							"value": {
+								"type": "Expression",
+								"content": "@activity('pln_casework_local_plan_post_validation_check').output.pipelineReturnValue.Post_Val_Check"
+							}
+						}
+					],
+					"setSystemVariable": true
+				}
+			},
+			{
+				"name": "Record Failed Casework Local Plan Standardised Layer",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "pln_casework_local_plan_post_validation_check",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Fail",
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@variables('standardised_start_time')",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@utcNow()",
+							"type": "Expression"
+						},
+						"ErrorMessage": {
+							"value": "@substring(activity('pln_casework_local_plan_post_validation_check').error.message,0,2000)\n",
+							"type": "Expression"
+						},
+						"StatusMessage": " Casework Local Plan Standardised Layer data load failed.",
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"ActivityType": "Pipeline",
+						"DurationSeconds": {
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('standardised_start_time'))), 10000000)",
+							"type": "Expression"
+						},
+						"StatusCode": "400",
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
+					}
+				}
+			}
+		],
+		"parameters": {
+			"webhook_url": {
+				"type": "string"
+			},
+			"subscription_id": {
+				"type": "string"
+			},
+			"resource_group": {
+				"type": "string"
+			},
+			"starting_colour": {
+				"type": "string"
+			},
+			"on_progress_colour": {
+				"type": "string"
+			},
+			"failed_colour": {
+				"type": "string"
+			},
+			"start_time": {
+				"type": "string"
+			},
+			"starting_image": {
+				"type": "string"
+			},
+			"progress_image": {
+				"type": "string"
+			},
+			"warning_image": {
+				"type": "string"
+			},
+			"failed_image": {
+				"type": "string"
+			},
+			"warning_colour": {
+				"type": "string"
+			},
+			"horizon_feed": {
+				"type": "array"
+			},
+			"apps_insights_ikey": {
+				"type": "string"
+			}
+		},
+		"variables": {
+			"execution_logs": {
+				"type": "String"
+			},
+			"errorMsg": {
+				"type": "String"
+			},
+			"wait1": {
+				"type": "Integer",
+				"defaultValue": 1
+			},
+			"wait2": {
+				"type": "Integer",
+				"defaultValue": 2
+			},
+			"wait3": {
+				"type": "Integer",
+				"defaultValue": 3
+			},
+			"wait4": {
+				"type": "Integer",
+				"defaultValue": 4
+			},
+			"wait5": {
+				"type": "Integer",
+				"defaultValue": 5
+			},
+			"wait6": {
+				"type": "Integer",
+				"defaultValue": 6
+			},
+			"wait7": {
+				"type": "Integer",
+				"defaultValue": 7
+			},
+			"wait8": {
+				"type": "Integer",
+				"defaultValue": 8
+			},
+			"raw_json": {
+				"type": "Array"
+			},
+			"standardised_start_time": {
+				"type": "String"
+			},
+			"error_flag": {
+				"type": "String"
+			},
+			"raw_json_update": {
+				"type": "Array"
+			}
+		},
+		"folder": {
+			"name": "casework_local_plan/layers/1-standardised"
+		},
+		"annotations": []
+	}
+}

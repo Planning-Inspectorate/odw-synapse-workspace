@@ -1,0 +1,653 @@
+{
+	"name": "py_green_specialist_case_standardised_post_validation_check",
+	"properties": {
+		"folder": {
+			"name": "odw-standardised/green_specialist_case"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "2857c5da-b6df-4d2f-8660-3697ad65e7bc"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### The purpose of this pyspark notebook is to read Delta tables from owb_standarsied_db Delta table path and does all data quality checks.\n",
+					"\n",
+					"**Author** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Created Date** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Description**  \n",
+					"Rohit Shukla &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;04-Dec-2025 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The functionality of this notebook is to do data quality checks on odw-standardised/green_specialist_case Delta Table after successful ingestion of the Delta table.\n",
+					"\n",
+					"**Spark Cluster Configuration** -> Apache Spark Version- 3.4, Python Version \t\t- 3.10, Delta Lake Version \t- 2.4\n",
+					"\n",
+					""
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"#import all libraries and initialise Spark Session\n",
+					"import json\n",
+					"import traceback\n",
+					"from datetime import datetime, timedelta, date\n",
+					"import pyspark.sql.functions as F \n",
+					"import os\n",
+					"import re\n",
+					"from notebookutils import mssparkutils\n",
+					"from pyspark.sql.functions import col, expr, when, lit, udf, concat_ws, explode, array, struct, regexp_replace\n",
+					"from pyspark.sql.types import *\n",
+					"from delta.tables import DeltaTable\n",
+					"#ignore FutureWarning messages \n",
+					"import warnings\n",
+					"warnings.filterwarnings(\"ignore\", message=\"iteritems is deprecated\")\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Get Storage account"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"#Get Storage account name\n",
+					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"print(storage_account)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Enable message logging"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Define all storage paths"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Define delta table names, database name and table/file paths\n",
+					"source_database_name = \"odw_standardised_db\"\n",
+					"\n",
+					"source_delta_table = f\"{source_database_name}.green_specialist_case\"\n",
+					"csv_file_path = f\"abfss://odw-raw@{storage_account}Green_Specialist_Case\"\n",
+					"\n",
+					"# Date and csv file configuration\n",
+					"current_date = datetime.now().strftime(\"%Y-%m-%d\")\n",
+					"timestamp = datetime.now().strftime(\"%Y%m%d_%H%M\")\n",
+					"csv_filename = f\"rejected_green_case_records_{timestamp}.csv\"\n",
+					"\n",
+					"storage_name = storage_account.replace(\".dfs.core.windows.net\", \"\").replace(\"/\", \"\")\n",
+					"print(storage_name)\n",
+					"\n",
+					"\n",
+					"start_time = datetime.now()\n",
+					"truncated_error = \"\"\n",
+					"result_path = \"\"\n",
+					"blob_path = \"\"\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Define Process Delta table update function"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Get latest folder\n",
+					"def get_latest_folder(path):\n",
+					"    folders = [f.name for f in mssparkutils.fs.ls(path) if f.isDir]\n",
+					"    folders = sorted([f for f in folders if re.match(r\"\\d{4}-\\d{2}-\\d{2}\", f)], reverse=True)\n",
+					"    return folders[0] if folders else None\n",
+					"\n",
+					"# Date columns to validate\n",
+					"DATE_COLUMNS = [\n",
+					"    \"ReceiptDate\", \"ValidDate\", \"StartDate\", \"QuDate\", \"QuRecDate\",\n",
+					"    \"6Weeks\", \"8Weeks\", \"9Weeks\", \"EventDate\", \"DecisionDate\",\n",
+					"    \"DateWithdrawnorTurnedAway\"\n",
+					"]\n",
+					"\n",
+					"def time_diff_seconds(start, end):\n",
+					"    try:\n",
+					"        if not start or not end:\n",
+					"            return 0\n",
+					"\n",
+					"        # Parse strings into datetime objects if needed\n",
+					"        if isinstance(start, str):\n",
+					"            start = datetime.strptime(start, \"%Y-%m-%d %H:%M:%S.%f\")\n",
+					"        if isinstance(end, str):\n",
+					"            end = datetime.strptime(end, \"%Y-%m-%d %H:%M:%S.%f\")\n",
+					"\n",
+					"        diff_seconds = int((end - start).total_seconds())\n",
+					"        return diff_seconds if diff_seconds > 0 else 0\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        return 0\n",
+					"\n",
+					"#This funtion handles datetime object and covert into string\n",
+					"def datetime_handler(obj):\n",
+					"    if isinstance(obj, datetime):\n",
+					"        return obj.isoformat()\n",
+					"    raise TypeError(f\"Object of type {obj.__class__.__name__} is not JSON serializable\")\n",
+					"    "
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Main Execution for delta table updates"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Post Validation Checks processing\n",
+					"\n",
+					"try:\n",
+					"\n",
+					"    #Read Source delta table\n",
+					"    src_df = spark.sql(f\"SELECT * FROM {source_delta_table}\")\n",
+					"\n",
+					"    total_records = src_df.count()\n",
+					"\n",
+					"    logInfo(f\"Total loaded {total_records:,} records\")\n",
+					"\n",
+					"\n",
+					"    # Find Duplicate records if there are any\n",
+					"\n",
+					"    df_with_duplicates = spark.sql(f\"\"\"\n",
+					"        SELECT \n",
+					"            *,\n",
+					"            COUNT(*) OVER (PARTITION BY FullReference, GreenCaseType) as dup_rec_count\n",
+					"        FROM {source_delta_table}\n",
+					"    \"\"\")\n",
+					"\n",
+					"    # Get duplicate records with validation info\n",
+					"    df_duplicates = df_with_duplicates.filter(\"dup_rec_count > 1\").select(\n",
+					"        col(\"FullReference\"),\n",
+					"        col(\"GreenCaseType\"),\n",
+					"        lit(\"FullReference+GreenCaseType\").alias(\"Column_name\"),\n",
+					"        lit(\"Duplicate record found\").alias(\"Cause_of_Validation_Failure\"),\n",
+					"        concat_ws(\" + \", col(\"FullReference\"), col(\"GreenCaseType\")).alias(\"Column_Value\")\n",
+					"    )\n",
+					"\n",
+					"    duplicates_count = df_duplicates.count()\n",
+					"    logInfo(f\" Found {duplicates_count} duplicate records\")\n",
+					"\n",
+					"    # Check ACTIVE column having Null Values\n",
+					"    df_null_active_records = src_df.filter(col(\"Active\").isNull()).select(\n",
+					"        col(\"FullReference\"),\n",
+					"        col(\"GreenCaseType\"),\n",
+					"        lit(\"Active\").alias(\"Column_name\"),\n",
+					"        lit(\"NULL value found\").alias(\"Cause_of_Validation_Failure\"),\n",
+					"        lit(\"NULL\").alias(\"Column_Value\")\n",
+					"    )\n",
+					"\n",
+					"    null_active_count = df_null_active_records.count()\n",
+					"    logInfo(f\" Found {null_active_count} NULL Active records\")\n",
+					"\n",
+					"    # Check Green Case Id column having Null Values\n",
+					"    df_null_greencaseid_records = src_df.filter(col(\"GreenCaseID\").isNull()).select(\n",
+					"        col(\"FullReference\"),\n",
+					"        col(\"GreenCaseType\"),\n",
+					"        lit(\"GreenCaseID\").alias(\"Column_name\"),\n",
+					"        lit(\"NULL value found\").alias(\"Cause_of_Validation_Failure\"),\n",
+					"        lit(\"NULL\").alias(\"Column_Value\")\n",
+					"    )\n",
+					"\n",
+					"    null_greencaseid_count = df_null_greencaseid_records.count()\n",
+					"    logInfo(f\" Found {null_greencaseid_count} NULL GreenCaseID records\")\n",
+					"\n",
+					"\n",
+					"    # List down to collect all date errors\n",
+					"    date_error_dfs = []\n",
+					"    total_date_errors = 0\n",
+					"\n",
+					"    for date_col in DATE_COLUMNS:\n",
+					"        if date_col not in src_df.columns:\n",
+					"            logInfo(f\" Column '{date_col}' not found - skip records\")\n",
+					"            continue    \n",
+					"        \n",
+					"        # Apply date validation check using Native SQL\n",
+					"        df_date_errors = spark.sql(f\"\"\"\n",
+					"            SELECT \n",
+					"                'FullReference',\n",
+					"                'GreenCaseType',\n",
+					"                '{date_col}' as Column_name,\n",
+					"                CASE\n",
+					"                    -- NULL or empty is valid\n",
+					"                    WHEN {date_col} IS NULL OR TRIM({date_col}) = '' THEN NULL\n",
+					"                    \n",
+					"                    -- Check for random digits (9+ consecutive digits)\n",
+					"                    WHEN {date_col} REGEXP '^[0-9]{{9,}}$' \n",
+					"                        THEN 'Random digits found in date format'\n",
+					"                    \n",
+					"                    -- Check for text/letters\n",
+					"                    WHEN {date_col} REGEXP '[a-zA-Z]' \n",
+					"                        THEN 'Text found in date format'\n",
+					"                    \n",
+					"                    -- Check dd/MM/yyyy pattern, then validate date exists\n",
+					"                    WHEN {date_col} REGEXP '^[0-9]{{1,2}}/[0-9]{{1,2}}/[0-9]{{4}}$'\n",
+					"                        AND to_date({date_col}, 'dd/MM/yyyy') IS NULL\n",
+					"                        THEN 'Invalid date (dd/MM/yyyy format but date doesn\\\\'t exist)'\n",
+					"                    \n",
+					"                    -- Check yyyy-MM-dd pattern, then validate date exists\n",
+					"                    WHEN {date_col} REGEXP '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}$'\n",
+					"                        AND to_date({date_col}, 'yyyy-MM-dd') IS NULL\n",
+					"                        THEN 'Invalid date (yyyy-MM-dd format but date doesn\\\\'t exist)'\n",
+					"                    \n",
+					"                    -- If neither format pattern matches\n",
+					"                    WHEN NOT ({date_col} REGEXP '^[0-9]{{1,2}}/[0-9]{{1,2}}/[0-9]{{4}}$'\n",
+					"                            OR {date_col} REGEXP '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}$')\n",
+					"                        THEN 'Invalid date format (expected dd/MM/yyyy or yyyy-MM-dd)'\n",
+					"                    \n",
+					"                    -- Optional: Check year range\n",
+					"                    WHEN {date_col} REGEXP '^[0-9]{{1,2}}/[0-9]{{1,2}}/[0-9]{{4}}$'\n",
+					"                        AND to_date({date_col}, 'dd/MM/yyyy') IS NOT NULL\n",
+					"                        AND (year(to_date({date_col}, 'dd/MM/yyyy')) < 1900 \n",
+					"                            OR year(to_date({date_col}, 'dd/MM/yyyy')) > year(current_date()) + 10)\n",
+					"                        THEN 'Invalid year - outside reasonable range'\n",
+					"                    \n",
+					"                    -- Valid date\n",
+					"                    ELSE NULL\n",
+					"                END as Cause_of_Validation_Failure,\n",
+					"                CAST({date_col} AS STRING) as Column_Value\n",
+					"            FROM {source_delta_table}\n",
+					"            WHERE \n",
+					"                CASE\n",
+					"                    WHEN {date_col} IS NULL OR TRIM({date_col}) = '' THEN NULL\n",
+					"                    WHEN {date_col} REGEXP '^[0-9]{{9,}}$' THEN 'error'\n",
+					"                    WHEN {date_col} REGEXP '[a-zA-Z]' THEN 'error'\n",
+					"                    -- Check format + existence\n",
+					"                    WHEN {date_col} REGEXP '^[0-9]{{1,2}}/[0-9]{{1,2}}/[0-9]{{4}}$'\n",
+					"                        AND to_date({date_col}, 'dd/MM/yyyy') IS NULL THEN 'error'\n",
+					"                    WHEN {date_col} REGEXP '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}$'\n",
+					"                        AND to_date({date_col}, 'yyyy-MM-dd') IS NULL THEN 'error'\n",
+					"                    WHEN NOT ({date_col} REGEXP '^[0-9]{{1,2}}/[0-9]{{1,2}}/[0-9]{{4}}$'\n",
+					"                            OR {date_col} REGEXP '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}$') THEN 'error'\n",
+					"                    ELSE NULL\n",
+					"                END IS NOT NULL\n",
+					"        \"\"\")\n",
+					"\n",
+					"        error_count = df_date_errors.count()\n",
+					"        \n",
+					"        if error_count > 0:\n",
+					"            logInfo(f\"{error_count} date related errors found\")\n",
+					"            \n",
+					"            date_error_dfs.append(df_date_errors)\n",
+					"            total_date_errors += error_count\n",
+					"        else:\n",
+					"            logInfo(\"No date error found\")\n",
+					"\n",
+					"    logInfo(f\"Total date errors: {total_date_errors:,}\")\n",
+					"\n",
+					"except Exception as e:\n",
+					"    # Capture error information and limit to 300 characters\n",
+					"    error_msg = f\"Error in Post Validation Checks SQL queries: {str(e)}\"\n",
+					"    \n",
+					"    # Truncate error message if it exceeds 300 characters\n",
+					"    truncated_error = (error_msg[:297] + '...') if len(error_msg) > 300 else error_msg\n",
+					"\n",
+					"    logError(error_msg)\n",
+					"    logException(e)\n",
+					"\n",
+					"\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Process all rejected records"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Compile all rejected records\n",
+					"\n",
+					"# Combine all rejection into a DataFrames\n",
+					"rejection_dfs = []\n",
+					"\n",
+					"if duplicates_count > 0:\n",
+					"    rejection_dfs.append(df_duplicates)\n",
+					"\n",
+					"if null_active_count > 0:\n",
+					"    rejection_dfs.append(df_null_active_records)\n",
+					"\n",
+					"if null_greencaseid_count > 0:\n",
+					"    rejection_dfs.append(df_null_greencaseid_records)\n",
+					"\n",
+					"if date_error_dfs:\n",
+					"    rejection_dfs.extend(date_error_dfs)\n",
+					"\n",
+					"# Union all rejections\n",
+					"if rejection_dfs:\n",
+					"    df_all_rejections = rejection_dfs[0]\n",
+					"    for i in range(1, len(rejection_dfs)):\n",
+					"        df_all_rejections = df_all_rejections.union(rejection_dfs[i])\n",
+					"    \n",
+					"    total_rejected_rows = df_all_rejections.count()\n",
+					"else:\n",
+					"    df_all_rejections = None\n",
+					"    total_rejected_rows = 0\n",
+					"\n",
+					"logInfo(f\"   Total rejection rows: {total_rejected_rows:,}\")\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Save all rejected records output into a csv file"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"editable": true,
+					"run_control": {
+						"frozen": false
+					}
+				},
+				"source": [
+					"# Save the output into a csv file\n",
+					"\n",
+					"try:\n",
+					"    if df_all_rejections and total_rejected_rows > 0:\n",
+					"\n",
+					"        # Build file/folder paths\n",
+					"        output_folder_path = f\"{csv_file_path}/{get_latest_folder(csv_file_path)}/rejected\"\n",
+					"        temp_folder = f\"{output_folder_path}/_temp_{timestamp}\"\n",
+					"        final_file_path = f\"{output_folder_path}/{csv_filename}\"\n",
+					"\n",
+					"        print(f\"   Output: {output_folder_path}\")\n",
+					"        \n",
+					"        # Ensure correct column order\n",
+					"        df_output = df_all_rejections.select(\n",
+					"            \"FullReference\",\n",
+					"            \"GreenCaseType\", \n",
+					"            \"Column_name\",\n",
+					"            \"Cause_of_Validation_Failure\",\n",
+					"            \"Column_Value\"\n",
+					"        )\n",
+					"        \n",
+					"    # write and rename CSV file into a _temp folder\n",
+					"\n",
+					"        logInfo(f\"Filename: {csv_filename}\")\n",
+					"        logInfo(f\"Location: {output_folder_path}\")\n",
+					"\n",
+					"        # Write to temp\n",
+					"        df_output.coalesce(1).write \\\n",
+					"            .mode(\"overwrite\") \\\n",
+					"            .option(\"header\", \"true\") \\\n",
+					"            .option(\"encoding\", \"UTF-8\") \\\n",
+					"            .option(\"quote\", '\"') \\\n",
+					"            .option(\"escape\", '\"') \\\n",
+					"            .csv(temp_folder)\n",
+					"\n",
+					"        # Locate CSV file\n",
+					"        files = mssparkutils.fs.ls(temp_folder)\n",
+					"        csv_files = [f.path for f in files if f.path.endswith('.csv') and not f.name.startswith('_')]\n",
+					"\n",
+					"        if csv_files:\n",
+					"            source_csv = csv_files[0]\n",
+					"            \n",
+					"            # Move the file to csv filename\n",
+					"            mssparkutils.fs.mv(source_csv, final_file_path)\n",
+					"            \n",
+					"            # Cleanup _temp folder\n",
+					"            mssparkutils.fs.rm(temp_folder, recurse=True)\n",
+					"            \n",
+					"            logInfo(f\"created: {final_file_path}\")\n",
+					"            \n",
+					"            result_path = final_file_path\n",
+					"\n",
+					"            result_path = result_path.replace(f\"@{storage_account}\", \"/\").replace(\"abfss://\", \"/\")\n",
+					"        else:\n",
+					"            print(\"No csv file generated\")\n",
+					"            result_path = None\n",
+					"        # Use result_path in your JSON output\n",
+					"        logInfo(f\"\\nFinal file: {result_path}\")\n",
+					"        \n",
+					"    else:\n",
+					"        logInfo(\"No rejections - nothing to save\")    \n",
+					"        result_path = None\n",
+					"\n",
+					"except Exception as e:\n",
+					"    # Capture error information and limit to 300 characters\n",
+					"    error_msg = f\"Error in Post Validation Check csv file processing: {str(e)}\"\n",
+					"    \n",
+					"    # Truncate error message if it exceeds 300 characters\n",
+					"    truncated_error = (error_msg[:297] + '...') if len(error_msg) > 300 else error_msg\n",
+					"\n",
+					"    logError(error_msg)\n",
+					"    logException(e)\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Generate a summary"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"\n",
+					"try:\n",
+					"    # Count unique rejected records (one record may have multiple errors)\n",
+					"    if df_all_rejections:\n",
+					"        unique_rejected_records = df_all_rejections.select(\"FullReference\", \"GreenCaseType\") \\\n",
+					"            .distinct().count()\n",
+					"    else:\n",
+					"        unique_rejected_records = 0\n",
+					"\n",
+					"    # Use empty string if variables not set\n",
+					"    rejection_file_path = result_path if result_path else \"\"\n",
+					"    rejection_file_name = csv_filename if csv_filename else \"\"\n",
+					"    rejection_file_path_blob = blob_path if blob_path else \"\"\n",
+					"   \n",
+					"    if rejection_file_path:\n",
+					"        print(f\"\\nFinal file: {rejection_file_path}\")\n",
+					"    else:\n",
+					"        print(\"\\nNo rejection file created - validation passed\")\n",
+					"\n",
+					"    json_output = {\n",
+					"        \"logging_info\": {\n",
+					"            \"start_time\": str(start_time),\n",
+					"            \"end_time\": str(datetime.now()),\n",
+					"            \"total_exec_time\": str(time_diff_seconds(start_time,datetime.now())),\n",
+					"            \"table_name\": source_delta_table,\n",
+					"            \"error_message\": truncated_error if truncated_error else \"\"\n",
+					"        },\n",
+					"        \"validation_summary\": {\n",
+					"            \"unique_rejected_records\": unique_rejected_records,\n",
+					"            \"total_rejection_rows\": total_rejected_rows,\n",
+					"            \"storage_name\": storage_name,\n",
+					"            \"rejection_file_name\": csv_filename,\n",
+					"            \"rejection_file_path\": result_path,\n",
+					"            \"duplicates\": duplicates_count,\n",
+					"            \"null_active\": null_active_count,\n",
+					"            \"date_errors\": total_date_errors,\n",
+					"            \"validation_status\": \"Failed\" if total_rejected_rows > 0 else \"Passed\"\n",
+					"        }\n",
+					"    }\n",
+					"\n",
+					"\n",
+					"    print(f\"start_time:    {json_output['logging_info']['start_time']:}\")\n",
+					"    print(f\"end_time:    {json_output['logging_info']['end_time']:}\")\n",
+					"    print(f\"total_exec_time:    {json_output['logging_info']['total_exec_time']:}\")\n",
+					"    print(f\"table_name:    {json_output['logging_info']['table_name']:}\")\n",
+					"\n",
+					"    print(f\"Unique Rejected Records:    {json_output['validation_summary']['unique_rejected_records']:,}\")\n",
+					"    print(f\"Total Rejection Rows:       {json_output['validation_summary']['total_rejection_rows']:,}\")\n",
+					"    print(f\"Duplicates: {json_output['validation_summary']['duplicates']:,}\")\n",
+					"    print(f\"NULL Active: {json_output['validation_summary']['null_active']:,}\")\n",
+					"    print(f\"Date Errors: {json_output['validation_summary']['date_errors']:,}\")\n",
+					"    print(f\"Status: {json_output['validation_summary']['validation_status']}\")\n",
+					"\n",
+					"    if result_path:\n",
+					"        print(f\"File Path: {json_output['validation_summary']['rejection_file_path']}\")\n",
+					"        print(f\"CSV File Name: {json_output['validation_summary']['rejection_file_name']}\")\n",
+					"\n",
+					"\n",
+					"    # Convert to JSON\n",
+					"    result_json = json.dumps(json_output, indent=2, default=datetime_handler)\n",
+					"    # Convert to JSON string\n",
+					"    #result_json_str = json.dumps(json_result, indent=2, default=datetime_handler)\n",
+					"\n",
+					"    print(result_json)\n",
+					"\n",
+					"except Exception as e:\n",
+					"    # Capture error information and limit to 300 characters\n",
+					"    error_msg = f\"Error in Generating summary: {str(e)}\"\n",
+					"    \n",
+					"    # Truncate error message if it exceeds 300 characters\n",
+					"    truncated_error = (error_msg[:297] + '...') if len(error_msg) > 300 else error_msg\n",
+					"\n",
+					"    logError(error_msg)\n",
+					"    logException(e)\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Exit with the JSON result\n",
+					"mssparkutils.notebook.exit(result_json)"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}

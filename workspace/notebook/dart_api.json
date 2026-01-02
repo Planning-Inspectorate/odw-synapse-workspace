@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5d1609ea-1be3-4ef4-b628-84b0b21bc539"
+				"spark.autotune.trackingId": "d304d4c1-21c5-48ec-80ec-2de39b06af22"
 			}
 		},
 		"metadata": {
@@ -355,7 +355,12 @@
 					"\r\n",
 					"#if the column exists but is the wrong type we cast it based on the curated schema\r\n",
 					"# select([F.col(c).cast(t_types[c]).alias(c) for c in t.columns]) \\\r\n",
-					"df = df.dropDuplicates([\"caseReference\",\"applicationReference\"])"
+					"df = df.dropDuplicates([\"caseReference\",\"applicationReference\"])\r\n",
+					"\r\n",
+					"# Physically cluster by caseReference at write time to enable Parquet stats-based pruning.\r\n",
+					"# This avoids a post-write OPTIMIZE/Z-ORDER full-table scan.\r\n",
+					"spark.conf.set(\"spark.sql.shuffle.partitions\", \"128\")\r\n",
+					"df = df.repartitionByRange(\"caseReference\", \"applicationReference\").sortWithinPartitions(\"caseReference\")"
 				],
 				"execution_count": null
 			},
@@ -406,11 +411,13 @@
 				"source": [
 					"if not error_message:\r\n",
 					"    try:\r\n",
+					"        from pyspark import StorageLevel\r\n",
+					"        df = df.persist(StorageLevel.MEMORY_AND_DISK)\r\n",
 					"        insert_count = df.count()\r\n",
 					"        print(insert_count)\r\n",
 					"\r\n",
 					"        df.write.mode(\"overwrite\") \\\r\n",
-					"            .partitionBy(\"applicationReference\") \\\r\n",
+					"            .partitionBy(\"caseReference\", \"applicationReference\") \\\r\n",
 					"            .option(\"overwriteSchema\", \"true\") \\\r\n",
 					"            .format(\"delta\") \\\r\n",
 					"            .saveAsTable(table_name)\r\n",
@@ -421,40 +428,12 @@
 					"\r\n",
 					"    except Exception as e:\r\n",
 					"        error_message = f\"Error appending data to the curated layer {table_name} table : {str(e)[:800]}\"\r\n",
-					"        end_exec_time = datetime.now()"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"Optimise by adding `ZOrderBy` for the column `caseReference`. This column has too many values for partitioning to be useful but is one of the columns used in the query filters by users. This ensures the minimum number of files are read when querying for a `caseReference`."
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"delta_table = DeltaTable.forName(spark, table_name)\r\n",
-					"delta_table.optimize().executeZOrderBy(\"caseReference\")\r\n",
-					"delta_table.optimize()"
+					"        end_exec_time = datetime.now()\r\n",
+					"    finally:\r\n",
+					"        try:\r\n",
+					"            df.unpersist()\r\n",
+					"        except Exception:\r\n",
+					"            pass"
 				],
 				"execution_count": null
 			},

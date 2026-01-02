@@ -1,0 +1,190 @@
+{
+	"name": "pln_casework_local_plan_odw_src_odw_raw",
+	"properties": {
+		"activities": [
+			{
+				"name": "Copy xlsx to odw-raw casework_local_plan",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "BinarySource",
+						"storeSettings": {
+							"type": "AzureFileStorageReadSettings",
+							"recursive": false,
+							"deleteFilesAfterCompletion": true
+						},
+						"formatSettings": {
+							"type": "BinaryReadSettings"
+						}
+					},
+					"sink": {
+						"type": "BinarySink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						}
+					},
+					"enableStaging": false
+				},
+				"inputs": [
+					{
+						"referenceName": "ds_odwdatalab_casework_local_plan",
+						"type": "DatasetReference",
+						"parameters": {
+							"ds_Folder_Path": "@pipeline().parameters.Folder_Path",
+							"ds_Env_Type": "@if( contains(toLower(pipeline().DataFactory), 'dev'), 'dev', if( contains(toLower(pipeline().DataFactory), 'test'), 'test', 'prod' ) )"
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "ds_odw_raw_casework_local_plan_destination",
+						"type": "DatasetReference"
+					}
+				]
+			},
+			{
+				"name": "Get xlsx File recent folder",
+				"type": "GetMetadata",
+				"dependsOn": [
+					{
+						"activity": "Copy xlsx to odw-raw casework_local_plan",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataset": {
+						"referenceName": "ds_odw_raw_get_recent_casework_local_plan_folder",
+						"type": "DatasetReference"
+					},
+					"fieldList": [
+						"exists"
+					],
+					"storeSettings": {
+						"type": "AzureBlobFSReadSettings",
+						"recursive": true,
+						"enablePartitionDiscovery": false
+					},
+					"formatSettings": {
+						"type": "BinaryReadSettings"
+					}
+				}
+			},
+			{
+				"name": "If recent file folder exsist",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Get xlsx File recent folder",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(activity('Get xlsx File recent folder').output.exists,true)",
+						"type": "Expression"
+					},
+					"ifFalseActivities": [
+						{
+							"name": "Wait1",
+							"type": "Wait",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"waitTimeInSeconds": 1
+							}
+						}
+					],
+					"ifTrueActivities": [
+						{
+							"name": "Copy xlsx to casework_local_plan csv file",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "ExcelSource",
+									"storeSettings": {
+										"type": "AzureBlobFSReadSettings",
+										"recursive": false,
+										"enablePartitionDiscovery": false
+									}
+								},
+								"sink": {
+									"type": "DelimitedTextSink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings"
+									},
+									"formatSettings": {
+										"type": "DelimitedTextWriteSettings",
+										"quoteAllText": true,
+										"fileExtension": ".txt"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "ds_odw_raw_casework_local_plan_archive_src",
+									"type": "DatasetReference"
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "ds_odw_raw_casework_local_plan_dest",
+									"type": "DatasetReference"
+								}
+							]
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"Folder_Path": {
+				"type": "string",
+				"defaultValue": "ODW/Casework_Local_Plan"
+			}
+		},
+		"folder": {
+			"name": "casework_local_plan/layers/0-raw"
+		},
+		"annotations": []
+	}
+}
