@@ -1,0 +1,179 @@
+{
+	"name": "rename-pins-inspector",
+	"properties": {
+		"description": "Post-deployment script to rename pins_inspector table to horizon_pins_inspector before creating the new harmonised casework_inspector table",
+		"folder": {
+			"name": "Releases/26.0.0"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "00000000-0000-0000-0000-000000000000"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 32,
+				"automaticScaleJobs": true
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### THEODW-2619: Rename pins_inspector table\n",
+					"\n",
+					"**Purpose:**\n",
+					"Rename the existing `pins_inspector` table to `horizon_pins_inspector` to preserve the old data while making way for the new harmonised casework inspector table.\n",
+					"\n",
+					"**Action:**\n",
+					"- Check if `odw_harmonised_db.pins_inspector` exists\n",
+					"- If it exists, rename it to `odw_harmonised_db.horizon_pins_inspector` using ALTER TABLE\n",
+					"- If `horizon_pins_inspector` already exists, skip the operation"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql import DataFrame\n",
+					"from notebookutils import mssparkutils"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def test_table_exists(db_name: str, table_name: str) -> bool:\n",
+					"    \"\"\"Check if a table exists in the specified database.\"\"\"\n",
+					"    spark.sql(f\"USE {db_name}\")\n",
+					"    tables_df: DataFrame = spark.sql(\"SHOW TABLES\")\n",
+					"    table_names: list = [row['tableName'] for row in tables_df.collect()]\n",
+					"    return table_name in table_names"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Configuration\n",
+					"db_name = \"odw_harmonised_db\"\n",
+					"old_table_name = \"pins_inspector\"\n",
+					"new_table_name = \"horizon_pins_inspector\"\n",
+					"\n",
+					"print(f\"Checking if table {db_name}.{old_table_name} exists...\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Check if the old table exists\n",
+					"if test_table_exists(db_name, old_table_name):\n",
+					"    print(f\"Table {db_name}.{old_table_name} exists.\")\n",
+					"    \n",
+					"    # Check if the new table already exists\n",
+					"    if test_table_exists(db_name, new_table_name):\n",
+					"        print(f\"Table {db_name}.{new_table_name} already exists. Skipping rename operation.\")\n",
+					"    else:\n",
+					"        print(f\"Renaming {db_name}.{old_table_name} to {db_name}.{new_table_name}...\")\n",
+					"        spark.sql(f\"ALTER TABLE {db_name}.{old_table_name} RENAME TO {db_name}.{new_table_name}\")\n",
+					"        print(f\"Successfully renamed table to {db_name}.{new_table_name}\")\n",
+					"        \n",
+					"        # Verify the rename was successful\n",
+					"        if test_table_exists(db_name, new_table_name):\n",
+					"            print(f\"Verification: {db_name}.{new_table_name} exists.\")\n",
+					"        else:\n",
+					"            print(f\"ERROR: Failed to verify existence of {db_name}.{new_table_name}\")\n",
+					"else:\n",
+					"    print(f\"Table {db_name}.{old_table_name} does not exist. No action needed.\")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
