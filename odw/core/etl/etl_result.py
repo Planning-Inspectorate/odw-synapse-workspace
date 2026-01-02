@@ -49,7 +49,6 @@ class ETLFailResult(ETLResult):
 
     outcome: ClassVar[str] = "Failed"
     status_code: ClassVar[int] = 500
-    exception: str
 
 
 class ETLResultFactory:
