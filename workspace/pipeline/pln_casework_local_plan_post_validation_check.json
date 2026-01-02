@@ -177,10 +177,8 @@
 							}
 						},
 						{
-							"name": "Send Casework Local Plan failed message",
+							"name": "Record failed Casework Local Plan Post Validation",
 							"type": "ExecutePipeline",
-							"state": "Inactive",
-							"onInactiveMarkAs": "Succeeded",
 							"dependsOn": [
 								{
 									"activity": "Execute Post Validation Notification",
@@ -190,63 +188,92 @@
 								}
 							],
 							"policy": {
-								"secureInput": true
+								"secureInput": false
 							},
 							"userProperties": [],
 							"typeProperties": {
 								"pipeline": {
-									"referenceName": "pln_utl_Send_Teams_Message",
+									"referenceName": "pln_log_to_appins",
 									"type": "PipelineReference"
 								},
 								"waitOnCompletion": true,
 								"parameters": {
-									"dataFactorySubscription": {
-										"value": "@pipeline().parameters.subscription_id",
-										"type": "Expression"
-									},
-									"dataFactoryResourceGroup": {
-										"value": "@pipeline().parameters.resource_group",
-										"type": "Expression"
-									},
-									"pipelineRunId": {
-										"value": "@pipeline().RunId",
-										"type": "Expression"
-									},
-									"teamsWebhookUrl": {
-										"value": "@pipeline().parameters.webhook_url",
-										"type": "Expression"
-									},
-									"activityName": {
+									"Stage": "Completion",
+									"PipelineName": {
 										"value": "@pipeline().Pipeline",
 										"type": "Expression"
 									},
-									"activityMessage": "Casework Local Plan Post Validation Checks succeeded. Casework Local Plan spreadsheet needs to be fixed first.",
-									"activityDuration": {
-										"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
 										"type": "Expression"
 									},
-									"activityStatus": "Failed",
-									"Colour": {
-										"value": "@pipeline().parameters.failed_colour",
+									"StartTime": {
+										"value": "@variables('Start Time')",
 										"type": "Expression"
 									},
-									"Image": {
-										"value": "@pipeline().parameters.failed_image",
+									"EndTime": {
+										"value": "@utcNow()",
 										"type": "Expression"
 									},
-									"Message_title": "Casework Local Plan Post Validation Checks succeeded. ",
-									"Message_subtitle": "Casework Local Plan Post Validation Checks succeeded. Casework Local Plan spreadsheet needs to be fixed first."
+									"StatusMessage": "Casework Local Plan Post Validation Email notification sent successfully.",
+									"PipelineTriggerID": {
+										"value": "@pipeline().TriggerId",
+										"type": "Expression"
+									},
+									"PipelineTriggerName": {
+										"value": "@pipeline().TriggerName",
+										"type": "Expression"
+									},
+									"PipelineTriggerType": {
+										"value": "@pipeline().TriggerType",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": "@pipeline()?.TriggeredByPipelineName",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": "@pipeline()?.TriggeredByPipelineRunId",
+										"type": "Expression"
+									},
+									"ActivityType": "Pipeline",
+									"DurationSeconds": {
+										"value": "@div(sub(ticks(utcNow()), ticks(variables('Start Time'))), 10000000)",
+										"type": "Expression"
+									},
+									"StatusCode": "200",
+									"AppInsIKey": {
+										"value": "@pipeline().parameters.apps_insights_ikey",
+										"type": "Expression"
+									}
 								}
 							}
 						},
 						{
-							"name": "Record failed Casework Local Plan Post Validation",
+							"name": "Set PostVal start time",
+							"type": "SetVariable",
+							"dependsOn": [],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "Start Time",
+								"value": {
+									"value": "@utcNow()",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Record failed Caseqork Local Plan Post Validation",
 							"type": "ExecutePipeline",
 							"dependsOn": [
 								{
 									"activity": "Execute Post Validation Notification",
 									"dependencyConditions": [
-										"Succeeded"
+										"Failed"
 									]
 								}
 							],
@@ -275,11 +302,14 @@
 										"type": "Expression"
 									},
 									"EndTime": {
-										"value": "utcNow()",
+										"value": "@utcNow()",
 										"type": "Expression"
 									},
-									"ErrorMessage": "Casework Local Plan Post validation checks succeeded. Further processing halted.",
-									"StatusMessage": "Casework Local Plan Post validation checks succeeded.",
+									"ErrorMessage": {
+										"value": "@substring(activity('Execute Post Validation Notification').error.message,0,2000)\n",
+										"type": "Expression"
+									},
+									"StatusMessage": "Green Specialist Case Post Validation Email notification failed.",
 									"PipelineTriggerID": {
 										"value": "@pipeline().TriggerId",
 										"type": "Expression"
@@ -302,7 +332,7 @@
 									},
 									"ActivityType": "Pipeline",
 									"DurationSeconds": {
-										"value": "@concat(\n  formatDateTime(\n    addToTime('1900-01-01T00:00:00.000Z', \n    div(sub(ticks(utcNow()), ticks(variables('Start Time'))), 10000000), \n    'Second'), \n    'HH:mm:ss'\n  ),\n  '.',\n  string(div(mod(sub(ticks(utcNow()), ticks(variables('Start Time'))), 10000000), 10000))\n)",
+										"value": "@div(sub(ticks(utcNow()), ticks(variables('Start Time'))), 10000000)",
 										"type": "Expression"
 									},
 									"StatusCode": "400",
@@ -312,90 +342,12 @@
 									}
 								}
 							}
-						},
-						{
-							"name": "Set PostVal start time",
-							"type": "SetVariable",
-							"dependsOn": [],
-							"policy": {
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"variableName": "Start Time",
-								"value": {
-									"value": "@utcNow()",
-									"type": "Expression"
-								}
-							}
 						}
 					]
 				}
 			},
 			{
-				"name": "Send Green Case Check Validation failed",
-				"type": "ExecutePipeline",
-				"dependsOn": [
-					{
-						"activity": "If validation success",
-						"dependencyConditions": [
-							"Failed"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": true
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_utl_Send_Teams_Message",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"dataFactorySubscription": {
-							"value": "@pipeline().parameters.subscription_id",
-							"type": "Expression"
-						},
-						"dataFactoryResourceGroup": {
-							"value": "@pipeline().parameters.resource_group",
-							"type": "Expression"
-						},
-						"pipelineRunId": {
-							"value": "@pipeline().RunId",
-							"type": "Expression"
-						},
-						"teamsWebhookUrl": {
-							"value": "@pipeline().parameters.webhook_url",
-							"type": "Expression"
-						},
-						"activityName": {
-							"value": "@pipeline().Pipeline",
-							"type": "Expression"
-						},
-						"activityMessage": "Green Specialist Case Post Validation Check pipeline failed.",
-						"activityDuration": {
-							"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
-							"type": "Expression"
-						},
-						"activityStatus": "Failed",
-						"Colour": {
-							"value": "@pipeline().parameters.failed_colour",
-							"type": "Expression"
-						},
-						"Image": {
-							"value": "@pipeline().parameters.failed_image",
-							"type": "Expression"
-						},
-						"Message_title": "Green Specialist Case Post Validation Check pipeline failed.",
-						"Message_subtitle": "Green Specialist Case Post Validation Check Sending Email Notification pipeline failed."
-					}
-				}
-			},
-			{
-				"name": "Record completed Sap HR Harmonised data",
+				"name": "Record Completed Casework Local Plan Post Valid",
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
@@ -433,7 +385,7 @@
 							"value": "@string(json(activity('Notebook Post Check Validation').output.status.output.result.exitValue).logging_info.end_time)",
 							"type": "Expression"
 						},
-						"StatusMessage": "Green Specialist Case Post Validation checks Notebook completed.",
+						"StatusMessage": "Casework Local Plan Post Validation checks Notebook completed.",
 						"PipelineTriggerID": {
 							"value": "@pipeline().TriggerId",
 							"type": "Expression"
@@ -458,7 +410,7 @@
 							"value": "@string(json(activity('Notebook Post Check Validation').output.status.output.result.exitValue).logging_info.total_exec_time)",
 							"type": "Expression"
 						},
-						"ActivityType": "Pipeline",
+						"ActivityType": "Notebook",
 						"DurationSeconds": {
 							"value": "@string(json(activity('Notebook Post Check Validation').output.status.output.result.exitValue).logging_info.total_exec_time)",
 							"type": "Expression"
@@ -472,7 +424,7 @@
 				}
 			},
 			{
-				"name": "Record completed Sap HR Harmonised data_copy1",
+				"name": "Record completed Local Plan Post Validation",
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
@@ -510,7 +462,7 @@
 							"value": "@utcNow()",
 							"type": "Expression"
 						},
-						"StatusMessage": "Green Case Post Validation Checks completed",
+						"StatusMessage": "Casework Local Plan Post Validation Checks completed",
 						"PipelineTriggerID": {
 							"value": "@pipeline().TriggerId",
 							"type": "Expression"
@@ -533,7 +485,7 @@
 						},
 						"ActivityType": "Pipeline",
 						"DurationSeconds": {
-							"value": "@concat(\n  formatDateTime(\n    addToTime('1900-01-01T00:00:00.000Z', \n    div(sub(ticks(utcNow()), ticks(pipeline().TriggerTime)), 10000000), \n    'Second'), \n    'HH:mm:ss'\n  ),\n  '.',\n  string(div(mod(sub(ticks(utcNow()), ticks(pipeline().TriggerTime)), 10000000), 10000))\n)",
+							"value": "@div(sub(ticks(utcNow()), ticks(pipeline().TriggerTime)), 10000000)",
 							"type": "Expression"
 						},
 						"StatusCode": "200",
@@ -572,6 +524,164 @@
 						}
 					],
 					"setSystemVariable": true
+				}
+			},
+			{
+				"name": "Record Failed Casework Local Plan Post Valid",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Notebook Post Check Validation",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Fail",
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@string(json(activity('Notebook Post Check Validation').output.status.output.result.exitValue).logging_info.start_time)",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@string(json(activity('Notebook Post Check Validation').output.status.output.result.exitValue).logging_info.end_time)",
+							"type": "Expression"
+						},
+						"ErrorMessage": {
+							"value": "@string(json(activity('Notebook Post Check Validation').output.status.output.result.exitValue).logging_info.error_message)",
+							"type": "Expression"
+						},
+						"StatusMessage": "Casework Local Plan Post Validation checks Notebook failed.",
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"PipelineExecutionTimeInSec": {
+							"value": "@string(json(activity('Notebook Post Check Validation').output.status.output.result.exitValue).logging_info.total_exec_time)",
+							"type": "Expression"
+						},
+						"ActivityType": "Notebook",
+						"DurationSeconds": {
+							"value": "@string(json(activity('Notebook Post Check Validation').output.status.output.result.exitValue).logging_info.total_exec_time)",
+							"type": "Expression"
+						},
+						"StatusCode": "400",
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Record Failed Local Plan Post Validation",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "If validation success",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Fail",
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@pipeline().TriggerTime",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@utcNow()",
+							"type": "Expression"
+						},
+						"ErrorMessage": {
+							"value": "@substring(activity('Execute Post Validation Notification').error.message,0,2000)",
+							"type": "Expression"
+						},
+						"StatusMessage": "Casework Local Plan Post Validation Checks Failed",
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"ActivityType": "Pipeline",
+						"DurationSeconds": {
+							"value": "@div(sub(ticks(utcNow()), ticks(pipeline().TriggerTime)), 10000000)",
+							"type": "Expression"
+						},
+						"StatusCode": "400",
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
+					}
 				}
 			}
 		],
@@ -616,6 +726,12 @@
 				"type": "array"
 			},
 			"apps_insights_ikey": {
+				"type": "string"
+			},
+			"completed_colour": {
+				"type": "string"
+			},
+			"completed_image": {
 				"type": "string"
 			}
 		},
