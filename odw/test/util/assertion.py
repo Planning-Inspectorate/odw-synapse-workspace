@@ -37,12 +37,18 @@ def assert_dataframes_equal(expected: DataFrame, actual: DataFrame):
             f"{missing_data_sample}"
             "\nIn actual dataframe but not the expected dataframe\n"
             f"{unexpected_data_sample}"
+            "\nExpected dataframe\n"
+            f"{expected._jdf.showString(rows_to_show, 20, False)}"
+            "\Actual dataframe\n"
+            f"{actual._jdf.showString(rows_to_show, 20, False)}"
         )
     assert not data_mismatch, exception_message
 
 
 def assert_etl_result_successful(etl_result: ETLResult):
+    if etl_result is None:
+        assert False, f"ETL result is expected to be an instance of ETLResult but was None"
     if isinstance(etl_result, ETLSuccessResult):
         return
-    exception = etl_result.exception
-    assert False,  f"ETL result was not ETLSuccessResult. The below exception was raised\n{exception}"
+    exception = etl_result.metadata.exception
+    assert False, f"ETL result was not ETLSuccessResult. The below exception was raised\n{exception}"
