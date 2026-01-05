@@ -9,6 +9,7 @@ class ETLResult(BaseModel, ABC):
         start_execution_time: datetime
         end_execution_time: datetime
         exception: Optional[str] = None
+        exception_trace: Optional[str] = None
         table_name: Optional[str] = None
         insert_count: int = Field(default_factory=0)
         update_count: int = Field(default_factory=0)

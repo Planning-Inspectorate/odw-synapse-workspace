@@ -103,13 +103,14 @@ class ETLProcess(ABC):
         """
         etl_start_time = datetime.now()
 
-        def generate_failure_result(start_time: datetime, exception: str, table_name=None):
+        def generate_failure_result(start_time: datetime, exception: str, exception_trace = None, table_name=None):
             end_time = datetime.now()
             return ETLFailResult(
                 metadata=ETLResult.ETLResultMetadata(
                     start_execution_time=start_time,
                     end_execution_time=end_time,
                     exception=exception,
+                    exception_trace=exception_trace,
                     table_name=table_name,
                     activity_type=self.__class__.__name__,
                     duration_seconds=(end_time - start_time).total_seconds(),
@@ -122,12 +123,12 @@ class ETLProcess(ABC):
         try:
             source_data_map = self.load_data(**kwargs)
             data_to_write, etl_result = self.process(source_data=source_data_map, **kwargs)
-        except Exception:
-            return generate_failure_result(etl_start_time, traceback.format_exc())
+        except Exception as e:
+            return generate_failure_result(etl_start_time, str(e), traceback.format_exc())
         if isinstance(etl_result, ETLFailResult):
             return etl_result
         try:
             self.write_data(data_to_write)
             return etl_result
-        except Exception:
-            return generate_failure_result(etl_start_time, traceback.format_exc(), table_name=", ".join(data_to_write.keys()))
+        except Exception as e:
+            return generate_failure_result(etl_start_time, str(e), traceback.format_exc(), table_name=", ".join(data_to_write.keys()))
