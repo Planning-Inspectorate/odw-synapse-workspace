@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from abc import ABC, abstractmethod
-from typing import Type, ClassVar
+from typing import Type, ClassVar, Optional
 from datetime import datetime
 
 
@@ -8,8 +8,8 @@ class ETLResult(BaseModel, ABC):
     class ETLResultMetadata(BaseModel):
         start_execution_time: datetime
         end_execution_time: datetime
-        exception: str = None
-        table_name: str = None
+        exception: Optional[str] = None
+        table_name: Optional[str] = None
         insert_count: int = Field(default_factory=0)
         update_count: int = Field(default_factory=0)
         delete_count: int = Field(default_factory=0)
