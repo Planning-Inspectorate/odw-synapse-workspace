@@ -23,4 +23,4 @@ class Util:
         container_name = path_split[0]
         blob_path = path_split[1]
         storage_account = cls.get_storage_account()
-        return f"abfss://{container_name}/{storage_account}{blob_path}"
+        return f"abfss://{container_name}@{storage_account}{blob_path}"
