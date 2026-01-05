@@ -113,6 +113,9 @@ class ETLProcess(ABC):
                     table_name=table_name,
                     activity_type=self.__class__.__name__,
                     duration_seconds=(end_time - start_time).total_seconds(),
+                    insert_count=0,
+                    update_count=0,
+                    delete_count=0
                 )
             )
 
