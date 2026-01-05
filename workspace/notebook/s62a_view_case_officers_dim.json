@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "4b765a74-d62a-4716-afc6-6ffe78a045db"
+				"spark.autotune.trackingId": "0188b19f-6aec-4eef-a7c6-45f32d9eef7e"
 			}
 		},
 		"metadata": {
@@ -54,6 +54,19 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"PipelineName = \"pln_horizon_to_odw\"\n",
+					"PipelineRunID = \"f96480d7-8e9d-406d-9e34-974f84b14cbb\"\n",
+					"PipelineTriggerID = \"af25d427-f06a-4ef9-85fb-79363a14090b\"\n",
+					"PipelineTriggerName = \"af25d427-f06a-4ef9-85fb-79363a14090b\"\n",
+					"PipelineTriggerType = \"PipelineActivity\"\n",
+					"PipelineTriggeredbyPipelineName = \"pln_all_horizon_data\"\n",
+					"PipelineTriggeredbyPipelineRunID = \"3334ecfd-6fba-41ee-971e-5ab3f9eda134\""
+				],
+				"execution_count": 6
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"import asyncio\n",
 					"import nest_asyncio\n",
 					"import tracemalloc\n",
@@ -70,7 +83,7 @@
 					"from datetime import datetime\n",
 					"from notebookutils import mssparkutils"
 				],
-				"execution_count": null
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
@@ -88,7 +101,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": null
+				"execution_count": 8
 			},
 			{
 				"cell_type": "markdown",
@@ -107,6 +120,20 @@
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_applicationinsights"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"start_exec_time = datetime.now()\n",
+					"error_message = None\n",
+					"def run_step(step_name: str, fn):\n",
+					"    try:\n",
+					"        return fn()\n",
+					"    except Exception as e:\n",
+					"        _fail_and_log(step_name, e)\n",
+					""
 				],
 				"execution_count": null
 			},
@@ -164,8 +191,8 @@
 				},
 				"source": [
 					"# Process s62a_view_case_officers_dim data with App Insights logging\n",
-					"if not error_message:\n",
-					" try:\n",
+					"def step_table_check_and_create():\n",
+					" \n",
 					"    logInfo('Starting s62a_view_case_officers_dim processing')\n",
 					"    \n",
 					"    db_name: str = 'odw_harmonised_db'\n",
@@ -184,9 +211,7 @@
 					"        mssparkutils.notebook.run('/py_odw_harmonised_table_creation',300,{'specific_table': table_name } )\n",
 					"        logInfo(f'Table {db_name}.{table_name} created')\n",
 					"        \n",
-					" except Exception as e:\n",
-					"    error_message=f'Error in table existence check: {str(e)}'\n",
-					"    logError(error_message)\n",
+					"run_step(\"Table existence check + create\", step_table_check_and_create)\n",
 					"    "
 				],
 				"execution_count": null
@@ -213,8 +238,8 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"if not error_message:\n",
-					"    try:\n",
+					"def step_create_view_s62a_view_case_officers_dim_new():\n",
+					"   \n",
 					"        spark.sql(\"\"\"\n",
 					"            CREATE OR REPLACE TEMPORARY VIEW s62a_view_case_officers_dim_new AS\n",
 					"            SELECT DISTINCT\n",
@@ -271,11 +296,8 @@
 					"                FROM odw_standardised_db.horizon_s62a_view_case_officers\n",
 					"            );\n",
 					"        \"\"\")\n",
-					"        print(\"Temporary view 's62a_view_case_officers_dim_new' created successfully.\")\n",
-					"    except Exception as e:\n",
-					"        error_message = f\"Error creating temporary view 's62a_view_case_officers_dim_new': {str(e)}\"\n",
-					"        logError(error_message)\n",
-					"        "
+					"        logInfo(\"Temporary view 's62a_view_case_officers_dim_new' created successfully.\")\n",
+					"   run_step(\"create temporary view :s62a_view_case_officers_dim_new\", step_create_view_s62a_view_case_officers_dim_new) "
 				],
 				"execution_count": null
 			},
@@ -298,8 +320,7 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"if not error_message:\n",
-					"    try:\n",
+					"def step_create_view_s62a_view_cases_dim_changed_rows():\n",
 					"        spark.sql(\"\"\"\n",
 					"            CREATE OR REPLACE TEMPORARY VIEW s62a_view_case_officers_dim_changed_rows AS\n",
 					"            SELECT \n",
@@ -347,9 +368,7 @@
 					"            ) AND IsActive = 'Y';\n",
 					"        \"\"\")\n",
 					"        print(\" Temporary view 's62a_view_case_officers_dim_changed_rows' created successfully.\")\n",
-					"    except Exception as e:\n",
-					"        error_message = f\" Error creating temporary view 's62a_view_case_officers_dim_changed_rows': {str(e)}\"\n",
-					"        logError(error_message)\n",
+					"  \n",
 					"        \n",
 					""
 				],
