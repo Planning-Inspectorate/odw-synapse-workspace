@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "49c5750c-9602-4d48-aaae-e01eeddf8cd1"
+				"spark.autotune.trackingId": "d6b1789e-1969-4e92-98c7-9e6992378e49"
 			}
 		},
 		"metadata": {
@@ -54,6 +54,19 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"PipelineName = \"pln_horizon_to_odw\"\n",
+					"PipelineRunID = \"f96480d7-8e9d-406d-9e34-974f84b14cbb\"\n",
+					"PipelineTriggerID = \"af25d427-f06a-4ef9-85fb-79363a14090b\"\n",
+					"PipelineTriggerName = \"af25d427-f06a-4ef9-85fb-79363a14090b\"\n",
+					"PipelineTriggerType = \"PipelineActivity\"\n",
+					"PipelineTriggeredbyPipelineName = \"pln_all_horizon_data\"\n",
+					"PipelineTriggeredbyPipelineRunID = \"3334ecfd-6fba-41ee-971e-5ab3f9eda134\""
+				],
+				"execution_count": 21
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"import asyncio\n",
 					"import nest_asyncio\n",
 					"import tracemalloc\n",
@@ -70,7 +83,7 @@
 					"from datetime import datetime\n",
 					"from notebookutils import mssparkutils"
 				],
-				"execution_count": null
+				"execution_count": 22
 			},
 			{
 				"cell_type": "code",
@@ -88,7 +101,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": null
+				"execution_count": 23
 			},
 			{
 				"cell_type": "markdown",
@@ -108,7 +121,20 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 24
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"start_exec_time = datetime.now()\n",
+					"error_message = None\n",
+					"def run_step(step_name: str, fn):\n",
+					"    try:\n",
+					"        return fn()\n",
+					"    except Exception as e:\n",
+					"        _fail_and_log(step_name, e)"
+				],
+				"execution_count": 25
 			},
 			{
 				"cell_type": "code",
@@ -135,7 +161,7 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": null
+				"execution_count": 26
 			},
 			{
 				"cell_type": "markdown",
@@ -165,10 +191,7 @@
 				},
 				"source": [
 					"# Process s62a_view_case_basic_data_dim data with App Insights \n",
-					"\n",
-					"if not error_message:\n",
-					"\n",
-					" try:\n",
+					"def step_table_check_and_create():\n",
 					"    logInfo('Starting s62a_view_case_basic_data_dim processing')\n",
 					"    \n",
 					"    db_name: str = 'odw_harmonised_db'\n",
@@ -186,13 +209,9 @@
 					"        logInfo(f'Table {db_name}.{table_name} does not exist, creating table first.')\n",
 					"        mssparkutils.notebook.run('/py_odw_harmonised_table_creation',300,{'specific_table': table_name } )\n",
 					"        logInfo(f'Table {db_name}.{table_name} created')\n",
-					"        \n",
-					" except Exception as e:\n",
-					"    error_message=f'Error in table existence check: {str(e)}'\n",
-					"    logError(error_message)\n",
-					"    "
+					"run_step(\"Table existence check + create\", step_table_check_and_create)"
 				],
-				"execution_count": null
+				"execution_count": 27
 			},
 			{
 				"cell_type": "markdown",
@@ -216,8 +235,7 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"if not error_message:\n",
-					"    try:\n",
+					"def step_create_view_s62a_view_case_basic_data_dim_new():\n",
 					"        sql_query = \"\"\"\n",
 					"        CREATE OR REPLACE TEMPORARY VIEW s62a_view_case_basic_data_dim_new\n",
 					"             AS\n",
@@ -279,14 +297,11 @@
 					"        \"\"\"\n",
 					"        \n",
 					"        spark.sql(sql_query)\n",
-					"        print(\"Temporary view 's62a_view_case_basic_data_dim_new' created successfully\")\n",
-					"        \n",
-					"    except Exception as e:\n",
-					"        error_message = f\"Error creating temporary view: {str(e)}\"\n",
-					"        logError(error_message)\n",
+					"logInfo(\"Temporary view 's62a_view_case_basic_data_dim_new' created successfully\")\n",
+					"run_step(\"create temporary view :s62a_view_case_basic_data_dim_new\", step_create_view_s62a_view_case_basic_data_dim_new)\n",
 					"        "
 				],
-				"execution_count": null
+				"execution_count": 28
 			},
 			{
 				"cell_type": "markdown",
@@ -307,8 +322,7 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"if not error_message:\n",
-					"    try:\n",
+					"def step_create_view_s62a_view_case_basic_data_dim_changed_rows():\n",
 					"        sql_query = \"\"\" \n",
 					"        -- Create new and updated dataset\n",
 					"\n",
@@ -364,21 +378,15 @@
 					"        \"\"\"\n",
 					"        \n",
 					"        spark.sql(sql_query)\n",
-					"        print(\"Temporary view 's62a_view_case_basic_data_dim_changed_rows' created successfully.\")\n",
-					"\n",
-					"    except Exception as e:\n",
-					"        error_message = f\" Error creating temporary view 's62a_view_case_basic_data_dim_changed_rows': {str(e)}\"\n",
-					"        logError(error_message)\n",
-					"        \n",
-					""
+					"logInfo(\"Temporary view 's62a_view_case_basic_data_dim_changed_rows' created successfully.\")\n",
+					"run_step(\" Create temp view:s62a_view_case_basic_data_dim_changed_rows\",step_create_view_s62a_view_case_basic_data_dim_changed_rows)"
 				],
-				"execution_count": null
+				"execution_count": 29
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"if not error_message:\n",
-					"    try:\n",
+					"def step_create_loading_month_and_changed_rows_final():\n",
 					"        spark.sql(\"\"\"\n",
 					"            CREATE OR REPLACE TEMPORARY VIEW Loading_month AS\n",
 					"            SELECT DISTINCT\n",
@@ -412,14 +420,10 @@
 					"            FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive;\n",
 					"        \"\"\")\n",
 					"\n",
-					"        print(\"Temporary views 'Loading_month' and 's62a_view_case_basic_data_dim_changed_rows_final' created successfully.\")\n",
-					"\n",
-					"    except Exception as e:\n",
-					"        error_message = f\"Error creating temporary views: {str(e)}\"\n",
-					"        logError(error_message)\n",
-					"        "
+					"logInfo(\"Temporary views 'Loading_month' and 's62a_view_case_basic_data_dim_changed_rows_final' created successfully.\")\n",
+					"run_step(\"Create temp views:Loading_month+s62a_view_case_basic_data_dim_changed_rows_final\",step_create_loading_month_and_changed_rows_final)"
 				],
-				"execution_count": null
+				"execution_count": 30
 			},
 			{
 				"cell_type": "markdown",
@@ -440,43 +444,38 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"if not error_message:\n",
-					"    try:\n",
-					"        update_count = spark.sql(\"\"\"\n",
-					"            SELECT COUNT(*) AS update_count\n",
-					"            FROM odw_harmonised_db.s62a_view_case_basic_data_dim AS Target\n",
-					"            JOIN s62a_view_case_basic_data_dim_changed_rows_final AS Source\n",
-					"                ON Source.CaseDataID = Target.CaseDataID\n",
-					"            WHERE Target.IsActive = 'Y'\n",
-					"        \"\"\").collect()[0][\"update_count\"]\n",
-					"        print(update_count)\n",
-					"    except Exception as e:\n",
-					"        error_message = f\"Error calculating update_count: {str(e)}\"\n",
-					"        logError(error_message)\n",
-					"        \n",
 					"\n",
-					"    try:\n",
-					"        insert_count = spark.sql(\"\"\"\n",
-					"            SELECT COUNT(*) AS insert_count\n",
-					"            FROM s62a_view_case_basic_data_dim_changed_rows_final AS Source\n",
-					"            LEFT JOIN odw_harmonised_db.s62a_view_case_basic_data_dim AS Target\n",
-					"                ON Source.CaseDataID = Target.CaseDataID AND Target.IsActive = 'Y'\n",
-					"            WHERE Target.CaseDataID IS NULL\n",
-					"        \"\"\").collect()[0][\"insert_count\"]\n",
-					"        print(insert_count)\n",
-					"    except Exception as e:\n",
-					"        error_message = f\"Error calculating insert_count: {str(e)}\"\n",
-					"        logError(error_message)\n",
-					"        \n",
-					""
+					"def step_calculate_update_and_insert_counts():\n",
+					"    # Calculate update_count: Source rows that match active Target records\n",
+					"    update_count = spark.sql(\"\"\"\n",
+					"        SELECT COUNT(*) AS update_count\n",
+					"        FROM odw_harmonised_db.s62a_view_case_basic_data_dim AS Target\n",
+					"        JOIN s62a_view_case_basic_data_dim_changed_rows_final AS Source\n",
+					"            ON Source.CaseDataID = Target.CaseDataID\n",
+					"        WHERE Target.IsActive = 'Y'\n",
+					"    \"\"\").collect()[0][\"update_count\"]\n",
+					"    print(f\"Update count: {update_count}\")\n",
+					"    logInfo(f\"Update count calculated successfully: {update_count}\")\n",
+					"\n",
+					"    # Calculate insert_count: Source rows that do not match an active Target record\n",
+					"    insert_count = spark.sql(\"\"\"\n",
+					"        SELECT COUNT(*) AS insert_count\n",
+					"        FROM s62a_view_case_basic_data_dim_changed_rows_final AS Source\n",
+					"        LEFT JOIN odw_harmonised_db.s62a_view_case_basic_data_dim AS Target\n",
+					"            ON Source.CaseDataID = Target.CaseDataID AND Target.IsActive = 'Y'\n",
+					"        WHERE Target.CaseDataID IS NULL\n",
+					"    \"\"\").collect()[0][\"insert_count\"]\n",
+					"    print(f\"Insert count: {insert_count}\")\n",
+					"    logInfo(f\"Insert count calculated successfully: {insert_count}\")\n",
+					"\n",
+					"run_step(\"Calculate update_count and insert_count\", step_calculate_update_and_insert_counts)"
 				],
-				"execution_count": null
+				"execution_count": 31
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"if not error_message:\n",
-					"    try:\n",
+					"def step_merge_s62a_view_case_basic_data_dim():\n",
 					"        sql_query = \"\"\"\n",
 					"        MERGE INTO odw_harmonised_db.s62a_view_case_basic_data_dim AS Target\n",
 					"        USING s62a_view_case_basic_data_dim_changed_rows_final AS Source\n",
@@ -525,14 +524,10 @@
 					"        \"\"\"\n",
 					"\n",
 					"        spark.sql(sql_query)\n",
-					"        print(\"MERGE operation completed successfully.\")\n",
-					"\n",
-					"    except Exception as e:\n",
-					"        error_message = f\" Error during MERGE operation: {str(e)}\"\n",
-					"        logError(error_message)\n",
-					"        "
+					"logInfo(\"MERGE operation on s62a_view_case_basic_data_dim completed successfully.\")\n",
+					"run_step(\"Merge into s62a_view_case_basic_data_dim\",step_merge_s62a_view_case_basic_data_dim)"
 				],
-				"execution_count": null
+				"execution_count": 32
 			},
 			{
 				"cell_type": "markdown",
@@ -553,8 +548,7 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"if not error_message:\n",
-					"    try:\n",
+					"def step_insert_overwrite_fix_ids():\n",
 					"        sql_query = \"\"\"\n",
 					"        INSERT OVERWRITE odw_harmonised_db.s62a_view_case_basic_data_dim\n",
 					"        SELECT \n",
@@ -578,15 +572,10 @@
 					"        \"\"\"\n",
 					"\n",
 					"        spark.sql(sql_query)\n",
-					"        print(\"INSERT OVERWRITE operation completed successfully.\")\n",
-					"\n",
-					"    except Exception as e:\n",
-					"        error_message = f\"Error during INSERT OVERWRITE operation: {str(e)}\"\n",
-					"        logError(error_message)\n",
-					"        \n",
-					""
+					"logInfo(\"INSERT OVERWRITE operation on s62a_view_case_basic_data_dim completed successfully.\")\n",
+					"run_step(\"Insert overwrite fix IDs on s62a_view_case_basic_data_dim\",step_insert_overwrite_fix_ids)"
 				],
-				"execution_count": null
+				"execution_count": 33
 			},
 			{
 				"cell_type": "markdown",
@@ -604,46 +593,66 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"end_exec_time = datetime.now()"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
-					"activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
-					"stage = \"Success\" if not error_message else \"Failed\"\n",
-					"status_message = (\n",
-					"    f\"Successfully loaded data into {target_table} table\"\n",
-					"    if not error_message\n",
-					"    else f\"Failed to load data from {target_table} table\"\n",
-					")\n",
-					"status_code = \"200\" if stage == \"Success\" else \"500\"\n",
+					"def _log_telemetry(stage: str, error_msg: str = None, step_name: str = None):\n",
+					"    end_exec_time = datetime.now()\n",
+					"    duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
+					"    activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
+					"\n",
+					"    if stage == \"Success\":\n",
+					"        status_message = f\"Successfully loaded data into {target_table} table\"\n",
+					"        status_code = \"200\"\n",
+					"        final_error_msg = None\n",
+					"    else:\n",
+					"        status_message = f\"Failed to load data into {target_table} table\"\n",
+					"        if step_name:\n",
+					"            status_message = f\"Failed at step [{step_name}]: {status_message}\"\n",
+					"        status_code = \"500\"\n",
+					"        final_error_msg = error_msg\n",
+					"    try:\n",
+					"        log_telemetry_and_exit(\n",
+					"            stage,\n",
+					"            start_exec_time,\n",
+					"            end_exec_time,\n",
+					"            final_error_msg,\n",
+					"            target_table,\n",
+					"            insert_count,\n",
+					"            update_count,\n",
+					"            delete_count,\n",
+					"            PipelineName,\n",
+					"            PipelineRunID,\n",
+					"            PipelineTriggerID,\n",
+					"            PipelineTriggerName,\n",
+					"            PipelineTriggerType,\n",
+					"            PipelineTriggeredbyPipelineName,\n",
+					"            PipelineTriggeredbyPipelineRunID,\n",
+					"            activity_type,\n",
+					"            duration_seconds,\n",
+					"            status_message,\n",
+					"            status_code\n",
+					"        )\n",
+					"    except Exception as te:\n",
+					"        print(f\"Telemetry logging failed: {te}\")\n",
 					" \n",
-					"log_telemetry_and_exit(\n",
-					"    stage,\n",
-					"    start_exec_time,\n",
-					"    end_exec_time,\n",
-					"    error_message,\n",
-					"    target_table,\n",
-					"    insert_count,\n",
-					"    update_count,\n",
-					"    delete_count,\n",
-					"    PipelineName,\n",
-					"    PipelineRunID,\n",
-					"    PipelineTriggerID,\n",
-					"    PipelineTriggerName,\n",
-					"    PipelineTriggerType,\n",
-					"    PipelineTriggeredbyPipelineName,\n",
-					"    PipelineTriggeredbyPipelineRunID,\n",
-					"    activity_type,\n",
-					"    duration_seconds,\n",
-					"    status_message,\n",
-					"    status_code\n",
-					")"
+					" \n",
+					"def _fail_and_log(step_name: str, e: Exception):\n",
+					"    global error_message\n",
+					"    error_message = f\"[{step_name}]{type(e).__name__}:{str(e)}\"[:800]\n",
+					"    logError(error_message)\n",
+					"\n",
+					"    _log_telemetry(\"Failed\", error_message, step_name)\n",
+					"    raise e\n",
+					" \n",
+					" \n",
+					"def run_step(step_name: str, fn):\n",
+					"    try:\n",
+					"        return fn()\n",
+					"    except Exception as e:\n",
+					"        _fail_and_log(step_name, e)\n",
+					" \n",
+					"if not error_message:\n",
+					"    _log_telemetry(\"Success\")"
 				],
-				"execution_count": null
+				"execution_count": 34
 			}
 		]
 	}
