@@ -36,12 +36,18 @@ def generate_etl_success_result(start_time: datetime = datetime.now(), end_time:
     )
 
 
-def generate_etl_fail_result(exception: str, start_time: datetime = datetime.now(), end_time: datetime = datetime.now(), table_name: str = None):
+def generate_etl_fail_result(
+    exception: str,
+    start_time: datetime = datetime.now(),
+    end_time: datetime = datetime.now(),
+    table_name: str = None
+):
     return ETLFailResult(
         metadata=ETLResult.ETLResultMetadata(
             start_execution_time=start_time,
             end_execution_time=end_time,
             exception=exception,
+            exception_trace=exception,
             table_name=table_name,
             insert_count=0,
             update_count=0,
@@ -55,8 +61,8 @@ def generate_etl_fail_result(exception: str, start_time: datetime = datetime.now
 def compare_etl_results(expected: ETLResult, actual: ETLResult):
     actual_result_json = json.loads(actual.model_dump_json())
     expected_result_json = json.loads(expected.model_dump_json())
-    actual_error_message = actual_result_json["metadata"].pop("exception", None)
-    expected_error_message = expected_result_json["metadata"].pop("exception", None)
+    actual_error_message = actual_result_json["metadata"].pop("exception_trace", None)
+    expected_error_message = expected_result_json["metadata"].pop("exception_trace", None)
     metadata_fields_to_ignore = ("start_execution_time", "end_execution_time", "duration_seconds")
     for field in metadata_fields_to_ignore:
         actual_result_json["metadata"].pop(field)
