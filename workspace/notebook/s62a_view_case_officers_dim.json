@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "2df7abfd-9595-4231-bebb-1240cf88de16"
+				"spark.autotune.trackingId": "fd104178-68ff-4a0b-bb24-4856fd0dc9ef"
 			}
 		},
 		"metadata": {
@@ -62,7 +62,7 @@
 					"PipelineTriggeredbyPipelineName = \"pln_all_horizon_data\"\n",
 					"PipelineTriggeredbyPipelineRunID = \"3334ecfd-6fba-41ee-971e-5ab3f9eda134\""
 				],
-				"execution_count": 48
+				"execution_count": 63
 			},
 			{
 				"cell_type": "code",
@@ -83,7 +83,7 @@
 					"from datetime import datetime\n",
 					"from notebookutils import mssparkutils"
 				],
-				"execution_count": 49
+				"execution_count": 64
 			},
 			{
 				"cell_type": "code",
@@ -101,7 +101,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 50
+				"execution_count": 65
 			},
 			{
 				"cell_type": "markdown",
@@ -121,7 +121,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 51
+				"execution_count": 66
 			},
 			{
 				"cell_type": "code",
@@ -135,7 +135,7 @@
 					"        _fail_and_log(step_name, e)\n",
 					""
 				],
-				"execution_count": 52
+				"execution_count": 67
 			},
 			{
 				"cell_type": "code",
@@ -161,7 +161,7 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": 53
+				"execution_count": 68
 			},
 			{
 				"cell_type": "markdown",
@@ -214,7 +214,7 @@
 					"run_step(\"Table existence check + create\", step_table_check_and_create)\n",
 					"    "
 				],
-				"execution_count": 54
+				"execution_count": 69
 			},
 			{
 				"cell_type": "markdown",
@@ -304,7 +304,7 @@
 					")\n",
 					""
 				],
-				"execution_count": 55
+				"execution_count": 70
 			},
 			{
 				"cell_type": "markdown",
@@ -375,7 +375,7 @@
 					"        logInfo(\" Temporary view 's62a_view_case_officers_dim_changed_rows' created successfully.\")\n",
 					"run_step(\" Create temp view:s62a_view_case_officers_dim_changed_rows\",step_create_view_s62a_view_case_officers_dim_changed_rows)"
 				],
-				"execution_count": 56
+				"execution_count": 71
 			},
 			{
 				"cell_type": "code",
@@ -420,7 +420,7 @@
 					"        \n",
 					""
 				],
-				"execution_count": 57
+				"execution_count": 72
 			},
 			{
 				"cell_type": "markdown",
@@ -446,41 +446,31 @@
 					"    global update_count, insert_count\n",
 					"\n",
 					"    # Calculate update_count: Source rows that match active Target records\n",
-					"    try:\n",
-					"        update_count = spark.sql(\"\"\"\n",
-					"            SELECT COUNT(*) AS update_count\n",
-					"            FROM odw_harmonised_db.s62a_view_case_officers_dim AS Target\n",
-					"            JOIN s62a_view_case_officers_dim_changed_rows_final AS Source\n",
-					"                ON Source.CaseDataID = Target.CaseDataID\n",
-					"            WHERE Target.IsActive = 'Y'\n",
-					"        \"\"\").collect()[0][\"update_count\"]\n",
-					"        print(f\"Update count: {update_count}\")\n",
-					"        logInfo(f\"Update count calculated successfully: {update_count}\")\n",
-					"    except Exception as e:\n",
-					"        error_message = f\"Error calculating update_count: {str(e)}\"\n",
-					"        logError(error_message)\n",
-					"        update_count = 0  # safe default\n",
+					"    update_count = spark.sql(\"\"\"\n",
+					"        SELECT COUNT(*) AS update_count\n",
+					"        FROM odw_harmonised_db.s62a_view_case_officers_dim AS Target\n",
+					"        JOIN s62a_view_case_officers_dim_changed_rows_final AS Source\n",
+					"            ON Source.CaseDataID = Target.CaseDataID\n",
+					"        WHERE Target.IsActive = 'Y'\n",
+					"    \"\"\").collect()[0][\"update_count\"]\n",
+					"    print(f\"Update count: {update_count}\")\n",
+					"    logInfo(f\"Update count calculated successfully: {update_count}\")\n",
 					"\n",
 					"    # Calculate insert_count: Source rows that don't match an active Target record\n",
-					"    try:\n",
-					"        insert_count = spark.sql(\"\"\"\n",
-					"            SELECT COUNT(*) AS insert_count\n",
-					"            FROM s62a_view_case_officers_dim_changed_rows_final AS Source\n",
-					"            LEFT JOIN odw_harmonised_db.s62a_view_case_officers_dim AS Target\n",
-					"                ON Source.CaseDataID = Target.CaseDataID AND Target.IsActive = 'Y'\n",
-					"            WHERE Target.CaseDataID IS NULL\n",
-					"        \"\"\").collect()[0][\"insert_count\"]\n",
-					"        print(f\"Insert count: {insert_count}\")\n",
-					"        logInfo(f\"Insert count calculated successfully: {insert_count}\")\n",
-					"    except Exception as e:\n",
-					"        error_message = f\"Error calculating insert_count: {str(e)}\"\n",
-					"        logError(error_message)\n",
-					"        insert_count = 0  # safe default\n",
+					"    insert_count = spark.sql(\"\"\"\n",
+					"        SELECT COUNT(*) AS insert_count\n",
+					"        FROM s62a_view_case_officers_dim_changed_rows_final AS Source\n",
+					"        LEFT JOIN odw_harmonised_db.s62a_view_case_officers_dim AS Target\n",
+					"            ON Source.CaseDataID = Target.CaseDataID AND Target.IsActive = 'Y'\n",
+					"        WHERE Target.CaseDataID IS NULL\n",
+					"    \"\"\").collect()[0][\"insert_count\"]\n",
+					"    print(f\"Insert count: {insert_count}\")\n",
+					"    logInfo(f\"Insert count calculated successfully: {insert_count}\")\n",
 					"\n",
 					"run_step(\"Calculate update_count and insert_count\", step_calculate_update_and_insert_counts)\n",
 					""
 				],
-				"execution_count": 59
+				"execution_count": 73
 			},
 			{
 				"cell_type": "code",
@@ -535,7 +525,7 @@
 					"        \n",
 					""
 				],
-				"execution_count": 60
+				"execution_count": 74
 			},
 			{
 				"cell_type": "markdown",
@@ -582,7 +572,7 @@
 					"        \n",
 					""
 				],
-				"execution_count": 61
+				"execution_count": 75
 			},
 			{
 				"cell_type": "markdown",
@@ -659,7 +649,7 @@
 					"if not error_message:\n",
 					"    _log_telemetry(\"Success\")"
 				],
-				"execution_count": 62
+				"execution_count": 76
 			}
 		]
 	}
