@@ -1,0 +1,645 @@
+{
+	"name": "s62a_view_case_officers_dim",
+	"properties": {
+		"folder": {
+			"name": "archive/odw-harmonised/s62a_casework"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "f8685ab1-0bed-4a95-8623-255de50affb9"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": true,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"PipelineName = \"pln_horizon_to_odw\"\n",
+					"PipelineRunID = \"f96480d7-8e9d-406d-9e34-974f84b14cbb\"\n",
+					"PipelineTriggerID = \"af25d427-f06a-4ef9-85fb-79363a14090b\"\n",
+					"PipelineTriggerName = \"af25d427-f06a-4ef9-85fb-79363a14090b\"\n",
+					"PipelineTriggerType = \"PipelineActivity\"\n",
+					"PipelineTriggeredbyPipelineName = \"pln_all_horizon_data\"\n",
+					"PipelineTriggeredbyPipelineRunID = \"3334ecfd-6fba-41ee-971e-5ab3f9eda134\""
+				],
+				"execution_count": 5
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"import asyncio\n",
+					"import nest_asyncio\n",
+					"import tracemalloc\n",
+					"import sys\n",
+					"tracemalloc.start()\n",
+					"from pyspark.sql import SparkSession\n",
+					"from notebookutils import mssparkutils\n",
+					"import json\n",
+					"import calendar\n",
+					"from datetime import datetime, timedelta, date\n",
+					"from pyspark.sql.functions import col, lit, input_file_name, current_timestamp, sha2, concat,max as spark_max\n",
+					"from pyspark.sql.types import StringType, DateType, TimestampType, IntegerType, FloatType, StructType, StructField\n",
+					"from delta import DeltaTable\n",
+					"from datetime import datetime\n",
+					"from notebookutils import mssparkutils"
+				],
+				"execution_count": 6
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": 7
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialize Application Insight Logging functions"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_applicationinsights"
+				],
+				"execution_count": 8
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"start_exec_time = datetime.now()\n",
+					"error_message = None\n",
+					"def run_step(step_name: str, fn):\n",
+					"    try:\n",
+					"        return fn()\n",
+					"    except Exception as e:\n",
+					"        _fail_and_log(step_name, e)\n",
+					""
+				],
+				"execution_count": 9
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Define variables\n",
+					"target_table ='s62a_view_case_officers_dim'\n",
+					"\n",
+					"# Initialize tracking variables\n",
+					"start_exec_time = datetime.now()\n",
+					"insert_count = 0\n",
+					"update_count = 0\n",
+					"delete_count = 0\n",
+					"error_message=''"
+				],
+				"execution_count": 10
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"The below cell is creating the table if it does not exist"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Process s62a_view_case_officers_dim data with App Insights logging\n",
+					"def step_table_check_and_create():\n",
+					" \n",
+					"    logInfo('Starting s62a_view_case_officers_dim processing')\n",
+					"    \n",
+					"    db_name: str = 'odw_harmonised_db'\n",
+					"    table_name: str = 's62a_view_case_officers_dim'\n",
+					"    \n",
+					"    def test_table_exists(db_name: str, table_name: str) -> bool:\n",
+					"        spark.sql(f\"USE {db_name}\")\n",
+					"        tables_df = spark.sql(\"SHOW TABLES\")\n",
+					"        table_names = [row['tableName'] for row in tables_df.collect()]\n",
+					"        return table_name in table_names\n",
+					"    \n",
+					"    if test_table_exists(db_name, table_name):\n",
+					"        logInfo(f'Table {db_name}.{table_name} exists in harmonised, updating the harmonised layer')\n",
+					"    else:\n",
+					"        logInfo(f'Table {db_name}.{table_name} does not exist, creating table first.')\n",
+					"        mssparkutils.notebook.run('/py_odw_harmonised_table_creation',300,{'specific_table': table_name } )\n",
+					"        logInfo(f'Table {db_name}.{table_name} created')\n",
+					"        \n",
+					"run_step(\"Table existence check + create\", step_table_check_and_create)"
+				],
+				"execution_count": 11
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Check for new, updated or deleted data\n",
+					"- This script checks for new, updated or deleted data by checking the source data (horizon tables) against the target (odw_harmonised_db.casework tables)\n",
+					"- **New Data:** where an main Reference in the source does not exist in the target, then NewData flag is set to 'Y'\n",
+					"- **Updated data:** Comparison occurs on Reference Fields in source and in target where the row hash is different i.e. there is a change in one of the columns. NewData flag is set to 'Y'\n",
+					"- **Deleted data:** where an Reference info in the target exists but the same identifyers don't exist in the source. DeletedData flag is set to 'Y'\n",
+					"\n",
+					"## View s62a_view_case_officers_dim_new is created"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def step_create_view_s62a_view_case_officers_dim_new():\n",
+					"    spark.sql(\"\"\"\n",
+					"        CREATE OR REPLACE TEMPORARY VIEW s62a_view_case_officers_dim_new AS\n",
+					"        SELECT DISTINCT\n",
+					"            CASE\n",
+					"                WHEN T1.CaseDataID IS NULL THEN T2.S62AViewCaseOfficersId\n",
+					"                ELSE NULL\n",
+					"            END AS S62AViewCaseOfficersId,\n",
+					"            T1.CaseDataID AS CaseDataID,\n",
+					"            T1.CaseLeader AS CaseLeader,\n",
+					"            T1.CaseAdministrator AS CaseAdministrator,\n",
+					"            T1.LegalOfficer AS LegalOfficer,\n",
+					"            T1.EIAOfficer AS EIAOfficer,\n",
+					"            T1.CaseOfficer AS CaseOfficer,\n",
+					"            T1.AppointedPerson AS AppointedPerson,\n",
+					"            '0' AS Migrated,\n",
+					"            'Casework' AS ODTSourceSystem,\n",
+					"            T3.SourceSystemID AS SourceSystemID,\n",
+					"            to_timestamp(T1.expected_from) AS IngestionDate,\n",
+					"            NULL AS ValidTo,\n",
+					"            md5(concat(\n",
+					"                IFNULL(T1.CaseDataID, '.'),\n",
+					"                IFNULL(T1.CaseLeader, '.'),\n",
+					"                IFNULL(T1.CaseAdministrator, '.'),\n",
+					"                IFNULL(T1.LegalOfficer, '.'),\n",
+					"                IFNULL(T1.EIAOfficer, '.'),\n",
+					"                IFNULL(T1.CaseOfficer, '.'),\n",
+					"                IFNULL(T1.AppointedPerson, '.')\n",
+					"            )) AS RowID,\n",
+					"            'Y' AS IsActive,\n",
+					"            T2.IsActive AS HistoricIsActive\n",
+					"        FROM odw_standardised_db.horizon_s62a_view_case_officers T1\n",
+					"        LEFT JOIN odw_harmonised_db.main_sourcesystem_fact T3 \n",
+					"            ON 'Casework' = T3.Description AND T3.IsActive = 'Y'\n",
+					"        FULL JOIN odw_harmonised_db.s62a_view_case_officers_dim T2 \n",
+					"            ON T1.CaseDataID = T2.CaseDataID AND T2.IsActive = 'Y'\n",
+					"        WHERE (\n",
+					"            CASE\n",
+					"                WHEN T1.CaseDataID = T2.CaseDataID AND md5(concat(\n",
+					"                    IFNULL(T1.CaseDataID, '.'),\n",
+					"                    IFNULL(T1.CaseLeader, '.'),\n",
+					"                    IFNULL(T1.CaseAdministrator, '.'),\n",
+					"                    IFNULL(T1.LegalOfficer, '.'),\n",
+					"                    IFNULL(T1.EIAOfficer, '.'),\n",
+					"                    IFNULL(T1.CaseOfficer, '.'),\n",
+					"                    IFNULL(T1.AppointedPerson, '.')\n",
+					"                )) <> T2.RowID THEN 'Y'\n",
+					"                WHEN T2.CaseDataID IS NULL THEN 'Y'\n",
+					"                ELSE 'N'\n",
+					"            END = 'Y'\n",
+					"        )\n",
+					"        AND T1.CaseDataID IS NOT NULL\n",
+					"        AND T1.expected_from = (\n",
+					"            SELECT MAX(expected_from) \n",
+					"            FROM odw_standardised_db.horizon_s62a_view_case_officers\n",
+					"        );\n",
+					"    \"\"\")\n",
+					"    logInfo(\"Temporary view 's62a_view_case_officers_dim_new' created successfully.\")\n",
+					"\n",
+					"run_step(\n",
+					"    \"create temporary view :s62a_view_case_officers_dim_new\",\n",
+					"    step_create_view_s62a_view_case_officers_dim_new\n",
+					")"
+				],
+				"execution_count": 12
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Dataset is created that contains changed data and corresponding target data\n",
+					"- This script combines data that has been updated, Deleted or is new, with corresponding target data\n",
+					"- View **s62a_view_case_officers_dim_new** is unioned to the target data filter to only those rows where changes have been detected\n",
+					"## View s62a_view_case_officers_dim_changed_rows is created"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def step_create_view_s62a_view_case_officers_dim_changed_rows():\n",
+					"        spark.sql(\"\"\"\n",
+					"            CREATE OR REPLACE TEMPORARY VIEW s62a_view_case_officers_dim_changed_rows AS\n",
+					"            SELECT \n",
+					"                S62AViewCaseOfficersId,\n",
+					"                CaseDataID,\n",
+					"                CaseLeader,\n",
+					"                CaseAdministrator,\n",
+					"                LegalOfficer,\n",
+					"                EIAOfficer,\n",
+					"                CaseOfficer,\n",
+					"                AppointedPerson,\n",
+					"                Migrated,\n",
+					"                ODTSourceSystem,\n",
+					"                SourceSystemID,\n",
+					"                IngestionDate,\n",
+					"                ValidTo,\n",
+					"                RowID,\n",
+					"                IsActive\n",
+					"            FROM s62a_view_case_officers_dim_new \n",
+					"            WHERE HistoricIsActive = 'Y' OR HistoricIsActive IS NULL\n",
+					"\n",
+					"            UNION ALL\n",
+					"\n",
+					"            SELECT\n",
+					"                S62AViewCaseOfficersId,\n",
+					"                CaseDataID,\n",
+					"                CaseLeader,\n",
+					"                CaseAdministrator,\n",
+					"                LegalOfficer,\n",
+					"                EIAOfficer,\n",
+					"                CaseOfficer,\n",
+					"                AppointedPerson,\n",
+					"                Migrated,\n",
+					"                ODTSourceSystem,\n",
+					"                SourceSystemID,\n",
+					"                IngestionDate,\n",
+					"                ValidTo,\n",
+					"                RowID,\n",
+					"                IsActive\n",
+					"            FROM odw_harmonised_db.s62a_view_case_officers_dim\n",
+					"            WHERE CaseDataID IN (\n",
+					"                SELECT CaseDataID \n",
+					"                FROM s62a_view_case_officers_dim_new \n",
+					"                WHERE CaseDataID IS NULL\n",
+					"            ) AND IsActive = 'Y';\n",
+					"        \"\"\")\n",
+					"        logInfo(\" Temporary view 's62a_view_case_officers_dim_changed_rows' created successfully.\")\n",
+					"run_step(\" Create temp view:s62a_view_case_officers_dim_changed_rows\",step_create_view_s62a_view_case_officers_dim_changed_rows)"
+				],
+				"execution_count": 13
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def step_create_loading_month_and_changed_rows_final():\n",
+					"        # Create Loading_month view\n",
+					"        spark.sql(\"\"\"\n",
+					"            CREATE OR REPLACE TEMPORARY VIEW Loading_month AS\n",
+					"            SELECT DISTINCT\n",
+					"                IngestionDate AS IngestionDate,\n",
+					"                to_timestamp(date_sub(IngestionDate,1)) AS ClosingDate,\n",
+					"                'Y' AS IsActive\n",
+					"            FROM s62a_view_case_officers_dim_new;\n",
+					"        \"\"\")\n",
+					"\n",
+					"        # Create s62a_view_case_officers_dim_changed_rows_final view\n",
+					"        spark.sql(\"\"\"\n",
+					"            CREATE OR REPLACE TEMPORARY VIEW s62a_view_case_officers_dim_changed_rows_final AS\n",
+					"            SELECT \n",
+					"                S62AViewCaseOfficersId,\n",
+					"                CaseDataID,\n",
+					"                CaseLeader,\n",
+					"                CaseAdministrator,\n",
+					"                LegalOfficer,\n",
+					"                EIAOfficer,\n",
+					"                CaseOfficer,\n",
+					"                AppointedPerson,\n",
+					"                Migrated,\n",
+					"                ODTSourceSystem,\n",
+					"                T1.SourceSystemID,\n",
+					"                T1.IngestionDate,\n",
+					"                T1.ValidTo,\n",
+					"                T1.RowID,\n",
+					"                T1.IsActive,\n",
+					"                T2.ClosingDate\n",
+					"            FROM s62a_view_case_officers_dim_changed_rows T1\n",
+					"            FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive;\n",
+					"        \"\"\")\n",
+					"\n",
+					"        logInfo(\"Temporary views 'Loading_month' and 's62a_view_case_officers_dim_changed_rows_final' created successfully.\")\n",
+					"run_step(\"Create temp views:Loading_month+s62a_view_case_officers_dim_changed_rows_final\",step_create_loading_month_and_changed_rows_final)"
+				],
+				"execution_count": 14
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# View s62a_view_case_officers_dim_changed_rows is used in a merge (Upsert) statement into the target table\n",
+					"- **WHEN MATCHED** ON the surrogate Key (i.e. Employees62a_view_case_officers_dim), EndDate is set to today -1 day and the IsActive flag is set to 'N'\n",
+					"- **WHEN NOT MATCHED** ON the surrogate Key, insert rows\n",
+					"## Table odw_harmonised_db.s62a_view_case_officers_dim is updated"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def step_calculate_update_and_insert_counts():\n",
+					"    global update_count, insert_count\n",
+					"\n",
+					"    # Calculate update_count: Source rows that match active Target records\n",
+					"    update_count = spark.sql(\"\"\"\n",
+					"        SELECT COUNT(*) AS update_count\n",
+					"        FROM odw_harmonised_db.s62a_view_case_officers_dim AS Target\n",
+					"        JOIN s62a_view_case_officers_dim_changed_rows_final AS Source\n",
+					"            ON Source.CaseDataID = Target.CaseDataID\n",
+					"        WHERE Target.IsActive = 'Y'\n",
+					"    \"\"\").collect()[0][\"update_count\"]\n",
+					"    print(f\"Update count: {update_count}\")\n",
+					"    logInfo(f\"Update count calculated successfully: {update_count}\")\n",
+					"\n",
+					"    # Calculate insert_count: Source rows that don't match an active Target record\n",
+					"    insert_count = spark.sql(\"\"\"\n",
+					"        SELECT COUNT(*) AS insert_count\n",
+					"        FROM s62a_view_case_officers_dim_changed_rows_final AS Source\n",
+					"        LEFT JOIN odw_harmonised_db.s62a_view_case_officers_dim AS Target\n",
+					"            ON Source.CaseDataID = Target.CaseDataID AND Target.IsActive = 'Y'\n",
+					"        WHERE Target.CaseDataID IS NULL\n",
+					"    \"\"\").collect()[0][\"insert_count\"]\n",
+					"    print(f\"Insert count: {insert_count}\")\n",
+					"    logInfo(f\"Insert count calculated successfully: {insert_count}\")\n",
+					"\n",
+					"run_step(\"Calculate update_count and insert_count\", step_calculate_update_and_insert_counts)"
+				],
+				"execution_count": 15
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def step_merge_s62a_view_case_officers_dim():\n",
+					"        spark.sql(\"\"\"\n",
+					"            MERGE INTO odw_harmonised_db.s62a_view_case_officers_dim AS Target\n",
+					"            USING s62a_view_case_officers_dim_changed_rows_final AS Source\n",
+					"            ON Source.CaseDataID = Target.CaseDataID AND Target.IsActive = 'Y'\n",
+					"\n",
+					"            WHEN MATCHED THEN \n",
+					"                UPDATE SET\n",
+					"                    Target.ValidTo = to_timestamp(ClosingDate),\n",
+					"                    Target.IsActive = 'N'\n",
+					"\n",
+					"            WHEN NOT MATCHED THEN \n",
+					"                INSERT (\n",
+					"                    S62AViewCaseOfficersId,\n",
+					"                    CaseDataID,\n",
+					"                    CaseLeader,\n",
+					"                    CaseAdministrator,\n",
+					"                    LegalOfficer,\n",
+					"                    EIAOfficer,\n",
+					"                    CaseOfficer,\n",
+					"                    AppointedPerson,\n",
+					"                    Migrated,\n",
+					"                    ODTSourceSystem,\n",
+					"                    SourceSystemID,\n",
+					"                    IngestionDate,\n",
+					"                    ValidTo,\n",
+					"                    RowID,\n",
+					"                    IsActive)\n",
+					"                VALUES (\n",
+					"                    Source.S62AViewCaseOfficersId,\n",
+					"                    Source.CaseDataID,\n",
+					"                    Source.CaseLeader,\n",
+					"                    Source.CaseAdministrator,\n",
+					"                    Source.LegalOfficer,\n",
+					"                    Source.EIAOfficer,\n",
+					"                    Source.CaseOfficer,\n",
+					"                    Source.AppointedPerson,\n",
+					"                    Source.Migrated,\n",
+					"                    Source.ODTSourceSystem,\n",
+					"                    Source.SourceSystemID,\n",
+					"                    Source.IngestionDate,\n",
+					"                    Source.ValidTo,\n",
+					"                    Source.RowID,\n",
+					"                    Source.IsActive);\n",
+					"        \"\"\")\n",
+					"        print(\" MERGE operation on 's62a_view_case_officers_dim' completed successfully.\")\n",
+					"run_step(\"Merge into s62a_view_case_officers_dim\",step_merge_s62a_view_case_officers_dim)"
+				],
+				"execution_count": 16
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Fix the IDs\n",
+					"- No auto-increment feature is available in delta tables, therefore we need to create new IDs for the inserted rows\n",
+					"- This is done by select the target data and using INSERT OVERWRITE to re-insert the data is a new Row Number\n",
+					"## Table odw_harmonised_db.s62a_view_case_officers_dim is updated"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def step_insert_overwrite_fix_ids():\n",
+					"        spark.sql(\"\"\"\n",
+					"            INSERT OVERWRITE odw_harmonised_db.s62a_view_case_officers_dim\n",
+					"            SELECT \n",
+					"                ROW_NUMBER() OVER (ORDER BY S62AViewCaseOfficersId NULLS LAST) AS S62AViewCaseOfficersId,\n",
+					"                CaseDataID,\n",
+					"                CaseLeader,\n",
+					"                CaseAdministrator,\n",
+					"                LegalOfficer,\n",
+					"                EIAOfficer,\n",
+					"                CaseOfficer,\n",
+					"                AppointedPerson,\n",
+					"                Migrated,\n",
+					"                ODTSourceSystem,\n",
+					"                SourceSystemID,\n",
+					"                IngestionDate,\n",
+					"                ValidTo,\n",
+					"                RowID,\n",
+					"                IsActive\n",
+					"            FROM odw_harmonised_db.s62a_view_case_officers_dim;\n",
+					"        \"\"\")\n",
+					"logInfo(\"INSERT OVERWRITE on 's62a_view_case_officers_dim' completed successfully.\")\n",
+					"run_step(\"Insert overwrite fix IDs on s62a_view_case_officers_dim\",step_insert_overwrite_fix_ids)"
+				],
+				"execution_count": 17
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Processing summary cell"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def _log_telemetry(stage: str, error_msg: str = None, step_name: str = None):\n",
+					"    end_exec_time = datetime.now()\n",
+					"    duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
+					"    activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
+					"\n",
+					"    if stage == \"Success\":\n",
+					"        status_message = f\"Successfully loaded data into {target_table} table\"\n",
+					"        status_code = \"200\"\n",
+					"        final_error_msg = None\n",
+					"    else:\n",
+					"        status_message = f\"Failed to load data into {target_table} table\"\n",
+					"        if step_name:\n",
+					"            status_message = f\"Failed at step [{step_name}]: {status_message}\"\n",
+					"        status_code = \"500\"\n",
+					"        final_error_msg = error_msg\n",
+					"    try:\n",
+					"        log_telemetry_and_exit(\n",
+					"            stage,\n",
+					"            start_exec_time,\n",
+					"            end_exec_time,\n",
+					"            final_error_msg,\n",
+					"            target_table,\n",
+					"            insert_count,\n",
+					"            update_count,\n",
+					"            delete_count,\n",
+					"            PipelineName,\n",
+					"            PipelineRunID,\n",
+					"            PipelineTriggerID,\n",
+					"            PipelineTriggerName,\n",
+					"            PipelineTriggerType,\n",
+					"            PipelineTriggeredbyPipelineName,\n",
+					"            PipelineTriggeredbyPipelineRunID,\n",
+					"            activity_type,\n",
+					"            duration_seconds,\n",
+					"            status_message,\n",
+					"            status_code\n",
+					"        )\n",
+					"    except Exception as te:\n",
+					"        print(f\"Telemetry logging failed: {te}\")\n",
+					" \n",
+					" \n",
+					"def _fail_and_log(step_name: str, e: Exception):\n",
+					"    global error_message\n",
+					"    error_message = f\"[{step_name}]{type(e).__name__}:{str(e)}\"[:800]\n",
+					"    logError(error_message)\n",
+					"\n",
+					"    _log_telemetry(\"Failed\", error_message, step_name)\n",
+					"    raise e\n",
+					" \n",
+					" \n",
+					"def run_step(step_name: str, fn):\n",
+					"    try:\n",
+					"        return fn()\n",
+					"    except Exception as e:\n",
+					"        _fail_and_log(step_name, e)\n",
+					" \n",
+					"if not error_message:\n",
+					"    _log_telemetry(\"Success\")"
+				],
+				"execution_count": 18
+			}
+		]
+	}
+}
