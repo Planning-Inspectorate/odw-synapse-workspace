@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d246b3d5-c162-486e-9bb1-0031953f87d7"
+				"spark.autotune.trackingId": "c9453ec1-5f62-452f-91dc-9cfd21ef8dbd"
 			}
 		},
 		"metadata": {
@@ -126,39 +126,16 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"params = {\n",
 					"  \"PipelineName\"                        : PipelineName,\n",
 					"  \"PipelineRunID\"                       : PipelineRunID,\n",
 					"  \"PipelineTriggerID\"                   : PipelineTriggerID,\n",
 					"  \"PipelineTriggerName\"                 : PipelineTriggerName,\n",
 					"  \"PipelineTriggerType\"                 : PipelineTriggerType,\n",
 					"  \"PipelineTriggeredbyPipelineName\"     : PipelineTriggeredbyPipelineName,\n",
-					"  \"PipelineTriggeredbyPipelineRunID\"    : PipelineTriggeredbyPipelineRunID,"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"# params = {\n",
-					"#   \"PipelineName\"                        : PipelineName,\n",
-					"#   \"PipelineRunID\"                       : PipelineRunID,\n",
-					"#   \"PipelineTriggerID\"                   : PipelineTriggerID,\n",
-					"#   \"PipelineTriggerName\"                 : PipelineTriggerName,\n",
-					"#   \"PipelineTriggerType\"                 : PipelineTriggerType,\n",
-					"#   \"PipelineTriggeredbyPipelineName\"     : PipelineTriggeredbyPipelineName,\n",
-					"#   \"PipelineTriggeredbyPipelineRunID\"    : PipelineTriggeredbyPipelineRunID,\n",
-					"#   \"db_name\"                             : \"odw_harmonised_db\", \n",
-					"#   \"entity_name\"                         : \"nsip-meeting\"\n",
-					"# }\n",
-					"\n",
-					"pipeline_metadata = {\n",
-					"    \"PipelineName\": \"test_pipeline_nsip_meeting\",\n",
-					"    \"PipelineRunID\": \"test-run-9f3a2c1b\",\n",
-					"    \"PipelineTriggerID\": \"test-trigger-4d8e\",\n",
-					"    \"PipelineTriggerName\": \"test_manual_trigger\",\n",
-					"    \"PipelineTriggerType\": \"Manual\",\n",
-					"    \"PipelineTriggeredbyPipelineName\": \"test_parent_pipeline\",\n",
-					"    \"PipelineTriggeredbyPipelineRunID\": \"test-parent-run-a72c9\"\n",
+					"  \"PipelineTriggeredbyPipelineRunID\"    : PipelineTriggeredbyPipelineRunID,\n",
+					"  \"db_name\"                             : \"odw_curated_db\", \n",
+					"  \"entity_name\"                         : \"nsip-meeting\"\n",
 					"}\n",
 					""
 				],
@@ -240,9 +217,29 @@
 				},
 				"source": [
 					"\n",
+					"from datetime import datetime\n",
+					"\n",
 					"try:\n",
 					"    df_nsip_meeting = spark.sql(\"\"\"\n",
-					"        SELECT DISTINCT \n",
+					"        WITH deduped AS (\n",
+					"            SELECT\n",
+					"                caseId,\n",
+					"                caseReference,\n",
+					"                meetingAgenda,\n",
+					"                planningInspectorateRole,\n",
+					"                meetingId,\n",
+					"                meetingDate,\n",
+					"                meetingType,\n",
+					"                IsActive,\n",
+					"                ROW_NUMBER() OVER (\n",
+					"                    PARTITION BY meetingId\n",
+					"                    ORDER BY meetingDate DESC\n",
+					"                ) AS rn\n",
+					"            FROM odw_harmonised_db.sb_nsip_meeting\n",
+					"            WHERE IsActive = 'Y'\n",
+					"              AND meetingId IS NOT NULL\n",
+					"        )\n",
+					"        SELECT\n",
 					"            caseId,\n",
 					"            caseReference,\n",
 					"            meetingAgenda,\n",
@@ -251,12 +248,23 @@
 					"            meetingDate,\n",
 					"            meetingType,\n",
 					"            IsActive\n",
-					"        FROM odw_harmonised_db.sb_nsip_meeting\n",
-					"        WHERE IsActive = 'Y' and meetingId is not null\n",
+					"        FROM deduped\n",
+					"        WHERE rn = 1\n",
 					"    \"\"\")\n",
 					"except Exception as e:\n",
 					"    error_message = f\"Error in SQL query for table odw_harmonised_db.sb_nsip_meeting : {str(e)[:800]}\"\n",
-					"    end_exec_time = datetime.now()"
+					"    end_exec_time = datetime.now()\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"display(df_nsip_meeting)"
 				],
 				"execution_count": null
 			},
