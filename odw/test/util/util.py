@@ -1,0 +1,26 @@
+import os
+
+
+def generate_local_path(path: str):
+    return os.path.join("spark-warehouse", path)
+
+
+def get_all_files_in_directory(inst, source_path: str):
+    directory_contents = os.listdir(source_path)
+    files = [os.path.join(source_path, x) for x in directory_contents if os.path.isfile(os.path.join(source_path, x))]
+    folders = [os.path.join(source_path, x) for x in directory_contents if os.path.isdir(os.path.join(source_path, x))]
+    while folders:
+        subfolder = folders.pop()
+        subfolder_contents = os.listdir(subfolder)
+        new_files = [os.path.join(subfolder, x) for x in subfolder_contents if os.path.isfile(os.path.join(subfolder, x))]
+        files += new_files
+        new_folders = [os.path.join(subfolder, x) for x in subfolder_contents if os.path.isdir(os.path.join(subfolder, x))]
+        folders += new_folders
+    return files
+
+
+def format_to_adls_path(inst, container_name: str, blob_path: str, storage_name: str = None, storage_endpoint: str = None) -> str:
+    print("container_name: ", container_name)
+    print("blob_path: ", blob_path)
+    # This gets written to the 'spark-warehouse/' folder
+    return os.path.join(container_name, blob_path)
