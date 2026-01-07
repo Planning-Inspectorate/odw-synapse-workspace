@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "599785f0-780d-457b-bb50-e0e4b0ccf8b4"
+				"spark.autotune.trackingId": "909306e6-0f38-4245-9c5c-e15772bfb902"
 			}
 		},
 		"metadata": {
@@ -102,7 +102,7 @@
 					"import warnings\n",
 					"warnings.filterwarnings(\"ignore\", message=\"iteritems is deprecated\")"
 				],
-				"execution_count": null
+				"execution_count": 130
 			},
 			{
 				"cell_type": "markdown",
@@ -124,7 +124,7 @@
 					"storage_account = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
 					"print(f\"Storage Account: {storage_account}\")"
 				],
-				"execution_count": null
+				"execution_count": 131
 			},
 			{
 				"cell_type": "markdown",
@@ -144,7 +144,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": null
+				"execution_count": 132
 			},
 			{
 				"cell_type": "markdown",
@@ -191,7 +191,7 @@
 					"logInfo(f\"Harmonised Table Path: {harmonised_table_path}\")\n",
 					"logInfo(f\"Curated Table Path: {curated_table_path}\")"
 				],
-				"execution_count": 127
+				"execution_count": 133
 			},
 			{
 				"cell_type": "markdown",
@@ -219,7 +219,7 @@
 					"spark.sql(\"Delete From odw_harmonised_db.load_green_specialist_case\")\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 134
 			},
 			{
 				"cell_type": "markdown",
@@ -283,7 +283,7 @@
 					"    StructField(\"active\", StringType(), True)\n",
 					"])"
 				],
-				"execution_count": null
+				"execution_count": 135
 			},
 			{
 				"cell_type": "markdown",
@@ -369,7 +369,7 @@
 					"source_count = spark.sql(\"SELECT COUNT(*) as cnt FROM source_hist_green_specialist_case_csv\").collect()[0]['cnt']\n",
 					"logInfo(f\"Successfully read CSV file. Total records: {source_count}\")"
 				],
-				"execution_count": null
+				"execution_count": 136
 			},
 			{
 				"cell_type": "markdown",
@@ -489,7 +489,7 @@
 					"cleaned_count = spark.sql(\"SELECT COUNT(*) as cnt FROM vw_harmonised_hist_specialist_case\").collect()[0]['cnt']\n",
 					"logInfo(f\"Data type conversions completed. Records: {cleaned_count}\")"
 				],
-				"execution_count": null
+				"execution_count": 137
 			},
 			{
 				"cell_type": "markdown",
@@ -604,7 +604,7 @@
 					"harmonised_count = spark.sql(\"SELECT COUNT(*) as cnt FROM vw_harmonised_hist_specialist_case\").collect()[0]['cnt']\n",
 					"logInfo(f\"Harmonised view created with {harmonised_count} records\")"
 				],
-				"execution_count": null
+				"execution_count": 138
 			},
 			{
 				"cell_type": "markdown",
@@ -674,7 +674,7 @@
 					"    result[\"harmonised_record_count\"] = -1\n",
 					"    raise e"
 				],
-				"execution_count": null
+				"execution_count": 139
 			},
 			{
 				"cell_type": "markdown",
@@ -754,7 +754,7 @@
 					"    logException(e)\n",
 					"    raise e"
 				],
-				"execution_count": null
+				"execution_count": 140
 			},
 			{
 				"cell_type": "markdown",
@@ -855,7 +855,7 @@
 					"    flushLogging()\n",
 					"        "
 				],
-				"execution_count": 129
+				"execution_count": 141
 			},
 			{
 				"cell_type": "code",
@@ -867,6 +867,62 @@
 					"    \n",
 					"# Output the result as JSON for ADF to capture\n",
 					"mssparkutils.notebook.exit(json.dumps(result))"
+				],
+				"execution_count": 142
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Record into Apps Insight for logging and tracking"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# STEP 6: Final Statistics and Telemetry\n",
+					"\n",
+					"\n",
+					"if not error_message:\n",
+					"\n",
+					"    # Telemetry\n",
+					"    duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
+					"    activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
+					"    stage = \"Success\" if not error_message else \"Failed\"\n",
+					"    status_message = (\n",
+					"        f\"SCD Type 2 complete (New: {new_records}, Changed: {changed_records}, Deleted: {delete_count})\"\n",
+					"        if not error_message \n",
+					"        else f\"SCD Type 2 failed for {spark_table_final}\"\n",
+					"    )\n",
+					"    status_code = \"200\" if stage == \"Success\" else \"500\"\n",
+					"\n",
+					"    log_telemetry_and_exit(\n",
+					"        stage,\n",
+					"        start_exec_time,\n",
+					"        end_exec_time,\n",
+					"        error_message,\n",
+					"        spark_table_final,\n",
+					"        insert_count,\n",
+					"        update_count,\n",
+					"        delete_count,\n",
+					"        PipelineName,\n",
+					"        PipelineRunID,\n",
+					"        PipelineTriggerID,\n",
+					"        PipelineTriggerName,\n",
+					"        PipelineTriggerType,\n",
+					"        PipelineTriggeredbyPipelineName,\n",
+					"        PipelineTriggeredbyPipelineRunID,\n",
+					"        activity_type,\n",
+					"        duration_seconds,\n",
+					"        status_message,\n",
+					"        status_code\n",
+					"    )"
 				],
 				"execution_count": null
 			}
