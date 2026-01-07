@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "12277664-af7e-4b52-9efd-9d7bcf85118b"
+				"spark.autotune.trackingId": "facb4a15-2f3f-4608-aa2e-c4aeb9819a0e"
 			}
 		},
 		"metadata": {
@@ -98,14 +98,12 @@
 					"from datetime import datetime, date\n",
 					"from notebookutils import mssparkutils\n",
 					"from pyspark.sql.types import *\n",
-					"from pyspark.sql import SparkSession\n",
-					"spark = SparkSession.builder.getOrCreate()\n",
 					"\n",
 					"# Ignore FutureWarning messages \n",
 					"import warnings\n",
 					"warnings.filterwarnings(\"ignore\", message=\"iteritems is deprecated\")"
 				],
-				"execution_count": null
+				"execution_count": 1
 			},
 			{
 				"cell_type": "markdown",
@@ -172,14 +170,21 @@
 					"# Target table names\n",
 					"harmonised_table = f\"{harmonised_database}.hist_green_specialist_case\"\n",
 					"curated_table = f\"{curated_database}.pbi_hist_green_specialist_case\"\n",
+					"source_csv_path = f\"abfss://odw-raw@{storage_account}StaticTables/\"\n",
 					"\n",
 					"# Delta table paths\n",
 					"harmonised_table_path = f\"abfss://odw-harmonised@{storage_account}green_specialist_case/hist_green_specialist_case\"\n",
 					"curated_table_path = f\"abfss://odw-curated@{storage_account}green_specialist_case/pbi_hist_green_specialist_case\"\n",
 					"\n",
+					"# Get latest folder\n",
+					"def get_latest_folder(path):\n",
+					"    folders = [f.name for f in mssparkutils.fs.ls(path) if f.isDir]\n",
+					"    folders = sorted([f for f in folders if re.match(r\"\\d{4}-\\d{2}-\\d{2}\", f)], reverse=True)\n",
+					"    return folders[0] if folders else None\n",
+					"\n",
 					"# Source CSV file location (using current date)\n",
 					"current_date_str = date.today().strftime(\"%Y-%m-%d\")\n",
-					"source_csv_path = f\"abfss://odw-raw@{storage_account}StaticTables/{current_date_str}/odw_harmonised_db_hist_green_specialist_case.csv\"\n",
+					"source_csv_path = f\"{source_csv_path}{get_latest_folder(source_csv_path)}/odw_harmonised_db_hist_green_specialist_case.csv\"\n",
 					"\n",
 					"logInfo(f\"Source CSV Path: {source_csv_path}\")\n",
 					"logInfo(f\"Harmonised Table Path: {harmonised_table_path}\")\n",
