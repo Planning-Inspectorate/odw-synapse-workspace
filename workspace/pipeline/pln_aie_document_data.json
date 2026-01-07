@@ -95,7 +95,14 @@
 			{
 				"name": "Src to Raw",
 				"type": "ExecutePipeline",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "Record horizon AIE document data",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"secureInput": false
 				},
@@ -190,6 +197,78 @@
 						"spark.dynamicAllocation.maxExecutors": null
 					},
 					"numExecutors": null
+				}
+			},
+			{
+				"name": "Record horizon AIE document data",
+				"type": "ExecutePipeline",
+				"dependsOn": [],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Pipeline load started",
+						"PipelineName": "@pipeline().Pipeline",
+						"PipelineRunID": "@pipeline().RunId",
+						"StartTime": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+						"StatusMessage": "Starting pipeline execution",
+						"PipelineTriggerID": "@pipeline().TriggerId",
+						"PipelineTriggerName": "@pipeline().TriggerName",
+						"PipelineTriggerType": "@pipeline().TriggerType",
+						"PipelineTriggeredbyPipelineName": "@pipeline()?.TriggeredByPipelineName",
+						"PipelineTriggeredbyPipelineRunID": "@pipeline()?.TriggeredByPipelineRunId",
+						"AppInsIKey": "@pipeline().parameters.apps_insights_ikey"
+					}
+				}
+			},
+			{
+				"name": "Record AIE Document Data Completed",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Std to Hrm",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": {
+							"value": "@if(or(equals(activity('Std to Hrm')?.Error?.Message, ''),equals(activity('Std to Hrm')?.Error?.Message, null)),'Successfully','Failed')",
+							"type": "Expression"
+						},
+						"PipelineName": "@pipeline().Pipeline",
+						"PipelineRunID": "@pipeline().RunId",
+						"EndTime": "@utcNow()",
+						"ErrorMessage": {
+							"value": "@{if(or(equals(activity('Std to Hrm')?.Error?.Message, ''), equals(activity('Std to Hrm')?.Error?.Message, null)), ' ', activity('Std to Hrm')?.Error?.Message)}",
+							"type": "Expression"
+						},
+						"StatusMessage": "Starting pipeline execution",
+						"PipelineTriggerID": "@pipeline().TriggerId",
+						"PipelineTriggerName": "@pipeline().TriggerName",
+						"PipelineTriggerType": "@pipeline().TriggerType",
+						"PipelineTriggeredbyPipelineName": "@pipeline()?.TriggeredByPipelineName",
+						"PipelineTriggeredbyPipelineRunID": "@pipeline()?.TriggeredByPipelineRunId",
+						"AppInsIKey": "@pipeline().parameters.apps_insights_ikey"
+					}
 				}
 			}
 		],
