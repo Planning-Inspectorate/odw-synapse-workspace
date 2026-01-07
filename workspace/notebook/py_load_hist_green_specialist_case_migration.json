@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "7775853f-462c-4511-9477-8391e0878f80"
+				"spark.autotune.trackingId": "24758e32-ab1e-46ba-944e-bc535a060c94"
 			}
 		},
 		"metadata": {
@@ -692,14 +692,12 @@
 					"        CREATE OR REPLACE TEMPORARY VIEW curated_hist_specialist_view AS\n",
 					"        SELECT\n",
 					"            -- All columns from harmonised\n",
-					"            *,\n",
-					"            -- Additional Power BI load timestamp\n",
-					"            CURRENT_TIMESTAMP() as pbi_load_date\n",
+					"            *\n",
 					"        FROM {harmonised_table}\n",
 					"    \"\"\")\n",
 					"    \n",
-					"    curated_count_preview = spark.sql(\"SELECT COUNT(*) as cnt FROM curated_view\").collect()[0]['cnt']\n",
-					"    logInfo(f\"Curated view created with {curated_count_preview} records (active and current only)\")\n",
+					"    curated_row_count = spark.sql(\"SELECT COUNT(*) as cnt FROM curated_hist_specialist_view\").collect()[0]['cnt']\n",
+					"    logInfo(f\"Curated view created with {curated_row_count} records (active and current only)\")\n",
 					"    \n",
 					"except Exception as e:\n",
 					"    error_msg = f\"Error creating curated view: {str(e)}\"\n",
@@ -707,7 +705,7 @@
 					"    logException(e)\n",
 					"    raise e"
 				],
-				"execution_count": null
+				"execution_count": 73
 			},
 			{
 				"cell_type": "markdown",
@@ -733,14 +731,14 @@
 					"        CREATE TABLE IF NOT EXISTS {curated_table}\n",
 					"        USING DELTA\n",
 					"        LOCATION '{curated_table_path}'\n",
-					"        AS SELECT * FROM curated_hist_specialist_view WHERE 1=0\n",
+					"        AS SELECT * FROM {harmonised_table} WHERE 1=0\n",
 					"    \"\"\")\n",
 					"    \n",
 					"    # Insert data into curated table using INSERT OVERWRITE\n",
 					"    logInfo(f\"Inserting data into curated layer: {curated_table}\")\n",
 					"    \n",
 					"    spark.sql(f\"\"\"\n",
-					"        INSERT OVERWRITE TABLE {curated_table}\n",
+					"        INSERT INTO {curated_table}\n",
 					"        SELECT * FROM curated_hist_specialist_view\n",
 					"    \"\"\")\n",
 					"    \n",
@@ -813,16 +811,7 @@
 					"    # Output the result as JSON for ADF to capture\n",
 					"    mssparkutils.notebook.exit(json.dumps(result))"
 				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"# Uncomment below lines to drop tables if needed for testing\n",
-					"# spark.sql(f\"DROP TABLE IF EXISTS {harmonised_table}\")\n",
-					"# spark.sql(f\"DROP TABLE IF EXISTS {curated_table}\")"
-				],
-				"execution_count": null
+				"execution_count": 74
 			}
 		]
 	}
