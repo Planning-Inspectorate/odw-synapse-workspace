@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "1db7e99a-04de-49e9-abfc-599ca8a5bf0e"
+				"spark.autotune.trackingId": "3890a286-104e-4108-b830-4e0c669e4a57"
 			}
 		},
 		"metadata": {
@@ -119,6 +119,7 @@
 				"source": [
 					"from datetime import datetime\n",
 					"from notebookutils import mssparkutils\n",
+					"import json\n",
 					"\n",
 					"# Define variables\n",
 					"target_table = \"odw_harmonised_db.entraid\"\n",
@@ -146,6 +147,53 @@
 				"source": [
 					""
 				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Load current raw file\n",
+					"This contains a snapshot of only the valid entra ids"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run /utils/py_mount_storage"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"raw_entraid_snapshot = datetime.now().strftime(\"%Y-%m-%d\")\n",
+					"storage_account = mssparkutils.notebook.run(\"/utils/py_utils_get_storage_account\")\n",
+					"base_file_path = f\"abfss://odw-raw@{storage_account}entraid/\"\n",
+					"folder_names = sorted([folder.name for folder in mssparkutils.fs.ls(base_file_path)], reverse=True)\n",
+					"if not folder_names:\n",
+					"    raise RuntimeError(f\"No folders could be found under '{base_file_path}'. Expected to see folders with the form YYYY-mm-dd\")\n",
+					"snapshot_folder = folder_names[0]\n",
+					"current_entraid_file = f\"{base_file_path}{snapshot_folder}/entraid.json\"\n",
+					"\n",
+					"mount_storage(path=f\"{base_file_path}{snapshot_folder}/\", mount_point=f\"/{snapshot_folder}\")\n",
+					"with open(current_entraid_file, \"r\") as f:\n",
+					"    entraids = json.load(f)\n",
+					"#entraids = json.loads(spark.read.option(\"multiline\",\"true\").json(current_entraid_file).toJSON())\n",
+					"print(entraids)\n",
+					"#print(json.dumps(entraids, indent=4))\n",
+					"#df = spark.read.json(f\"{base_file_path}{snapshot_folder}/entraid.json\", multiLine=True)\n",
+					"#display(df)"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
