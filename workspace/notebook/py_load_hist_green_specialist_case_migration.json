@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "72dc5186-9615-4da6-9695-0ff722162cca"
+				"spark.autotune.trackingId": "f9e963b5-bb24-426c-999e-487f9ad1d226"
 			}
 		},
 		"metadata": {
@@ -102,7 +102,7 @@
 					"import warnings\n",
 					"warnings.filterwarnings(\"ignore\", message=\"iteritems is deprecated\")"
 				],
-				"execution_count": 76
+				"execution_count": 93
 			},
 			{
 				"cell_type": "markdown",
@@ -369,7 +369,7 @@
 					"logInfo(\"Applying data type conversions using Spark SQL...\")\n",
 					"\n",
 					"spark.sql(\"\"\"\n",
-					"    CREATE OR REPLACE TEMPORARY VIEW vw_source_hist_specialist_case AS\n",
+					"    CREATE OR REPLACE TEMPORARY VIEW vw_harmonised_hist_specialist_case AS\n",
 					"    SELECT\n",
 					"        -- Convert integer columns and handle empty strings as NULL\n",
 					"        CAST(NULLIF(casework_specialist_id, '') AS INT) as casework_specialist_id,\n",
@@ -461,10 +461,10 @@
 					"    FROM source_hist_green_specialist_case_csv\n",
 					"\"\"\")\n",
 					"\n",
-					"cleaned_count = spark.sql(\"SELECT COUNT(*) as cnt FROM vw_source_hist_specialist_case\").collect()[0]['cnt']\n",
+					"cleaned_count = spark.sql(\"SELECT COUNT(*) as cnt FROM vw_harmonised_hist_specialist_case\").collect()[0]['cnt']\n",
 					"logInfo(f\"Data type conversions completed. Records: {cleaned_count}\")"
 				],
-				"execution_count": 83
+				"execution_count": 85
 			},
 			{
 				"cell_type": "markdown",
@@ -579,7 +579,7 @@
 					"harmonised_count = spark.sql(\"SELECT COUNT(*) as cnt FROM vw_harmonised_hist_specialist_case\").collect()[0]['cnt']\n",
 					"logInfo(f\"Harmonised view created with {harmonised_count} records\")"
 				],
-				"execution_count": null
+				"execution_count": 86
 			},
 			{
 				"cell_type": "markdown",
@@ -657,7 +657,7 @@
 					"    result[\"harmonised_record_count\"] = -1\n",
 					"    raise e"
 				],
-				"execution_count": null
+				"execution_count": 87
 			},
 			{
 				"cell_type": "markdown",
@@ -680,14 +680,14 @@
 					"    logInfo(\"Creating curated view for Power BI consumption...\")\n",
 					"    \n",
 					"    spark.sql(f\"\"\"\n",
-					"        CREATE OR REPLACE TEMPORARY VIEW curated_hist_specialist_view AS\n",
+					"        CREATE OR REPLACE TEMPORARY VIEW vw_curated_hist_specialist_case AS\n",
 					"        SELECT\n",
 					"            -- All columns from harmonised\n",
 					"            *\n",
 					"        FROM {harmonised_table}\n",
 					"    \"\"\")\n",
 					"    \n",
-					"    curated_row_count = spark.sql(\"SELECT COUNT(*) as cnt FROM curated_hist_specialist_view\").collect()[0]['cnt']\n",
+					"    curated_row_count = spark.sql(\"SELECT COUNT(*) as cnt FROM vw_curated_hist_specialist_case\").collect()[0]['cnt']\n",
 					"    logInfo(f\"Curated view created with {curated_row_count} records (active and current only)\")\n",
 					"    \n",
 					"except Exception as e:\n",
@@ -696,7 +696,7 @@
 					"    logException(e)\n",
 					"    raise e"
 				],
-				"execution_count": null
+				"execution_count": 90
 			},
 			{
 				"cell_type": "markdown",
@@ -730,7 +730,7 @@
 					"    \n",
 					"    spark.sql(f\"\"\"\n",
 					"        INSERT INTO {curated_table}\n",
-					"        SELECT * FROM curated_hist_specialist_view\n",
+					"        SELECT * FROM vw_curated_hist_specialist_case\n",
 					"    \"\"\")\n",
 					"    \n",
 					"    # Verify curated data\n",
@@ -794,21 +794,20 @@
 					"    flushLogging()\n",
 					"        "
 				],
-				"execution_count": null
+				"execution_count": 91
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"# Clean up temporary views\n",
-					"spark.sql(\"DROP VIEW IF EXISTS source_csv_raw\")\n",
-					"spark.sql(\"DROP VIEW IF EXISTS source_csv_cleaned\")\n",
-					"spark.sql(\"DROP VIEW IF EXISTS harmonised_view\")\n",
-					"spark.sql(\"DROP VIEW IF EXISTS curated_view\")\n",
+					"spark.sql(\"DROP VIEW IF EXISTS vw_source_hist_specialist_case\")\n",
+					"spark.sql(\"DROP VIEW IF EXISTS vw_harmonised_hist_specialist_case\")\n",
+					"spark.sql(\"DROP VIEW IF EXISTS vw_curated_hist_specialist_case\")\n",
 					"    \n",
 					"    # Output the result as JSON for ADF to capture\n",
 					"    mssparkutils.notebook.exit(json.dumps(result))"
 				],
-				"execution_count": null
+				"execution_count": 92
 			}
 		]
 	}
