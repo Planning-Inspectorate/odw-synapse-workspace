@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "2f20cd31-30b6-4808-bd73-6557c0163483"
+				"spark.autotune.trackingId": "599785f0-780d-457b-bb50-e0e4b0ccf8b4"
 			}
 		},
 		"metadata": {
@@ -191,7 +191,7 @@
 					"logInfo(f\"Harmonised Table Path: {harmonised_table_path}\")\n",
 					"logInfo(f\"Curated Table Path: {curated_table_path}\")"
 				],
-				"execution_count": null
+				"execution_count": 127
 			},
 			{
 				"cell_type": "markdown",
@@ -773,16 +773,9 @@
 				"cell_type": "code",
 				"source": [
 					"try:\n",
-					"    # Create curated table if it doesn't exist\n",
+					"    # Create curated table\n",
 					"    logInfo(f\"Creating or replacing table: {curated_table}\")\n",
 					"    \n",
-					"    #spark.sql(f\"\"\"\n",
-					"    #    CREATE TABLE IF NOT EXISTS {curated_table}\n",
-					"    #    USING DELTA\n",
-					"    #    LOCATION '{curated_table_path}'\n",
-					"    #    AS SELECT * FROM {harmonised_table} WHERE 1=0\n",
-					"    #\"\"\")\n",
-					"\n",
 					"    spark.sql(f\"\"\"\n",
 					"    CREATE OR REPLACE TABLE {curated_table}\n",
 					"    USING delta\n",
@@ -790,25 +783,21 @@
 					"    AS SELECT * FROM {harmonised_table}\n",
 					"    \"\"\")\n",
 					"\n",
+					"    # Create curated view\n",
+					"    logInfo(f\"Creating or replacing view: {curated_view}\")\n",
+					"\n",
 					"    spark.sql(f\"\"\"\n",
 					"    CREATE OR REPLACE VIEW {curated_view}\n",
-					"    USING delta\n",
-					"    LOCATION '{curated_view_path}'\n",
 					"    AS SELECT * FROM {curated_table}\n",
 					"    \"\"\")\n",
-					"\n",
-					"    # Insert data into curated table using INSERT OVERWRITE\n",
-					"    #logInfo(f\"Inserting data into curated layer: {curated_table}\")\n",
-					"    \n",
-					"    #spark.sql(f\"\"\"\n",
-					"    #    INSERT INTO {curated_table}\n",
-					"    #    SELECT * FROM vw_curated_hist_specialist_case\n",
-					"    #\"\"\")\n",
 					"    \n",
 					"    # Verify curated data\n",
 					"    curated_count = spark.sql(f\"SELECT COUNT(*) as count FROM {curated_table}\").collect()[0]['count']\n",
 					"    result[\"curated_record_count\"] = curated_count\n",
 					"    logInfo(f\"Successfully loaded {curated_count} records into {curated_table}\")\n",
+					"\n",
+					"    curated_view_count = spark.sql(f\"SELECT COUNT(*) as count FROM {curated_view}\").collect()[0]['count']\n",
+					"    logInfo(f\"Successfully loaded {curated_view_count} records into {curated_view}\")\n",
 					"    \n",
 					"    # Data quality check for curated layer\n",
 					"    null_rowid_count_curated = spark.sql(f\"\"\"\n",
@@ -866,7 +855,7 @@
 					"    flushLogging()\n",
 					"        "
 				],
-				"execution_count": null
+				"execution_count": 129
 			},
 			{
 				"cell_type": "code",
