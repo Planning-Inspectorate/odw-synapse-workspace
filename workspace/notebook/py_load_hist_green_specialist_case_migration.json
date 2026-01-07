@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "21469357-18b2-4dc3-b59f-f7f51d54500d"
+				"spark.autotune.trackingId": "5ebf5cb2-ce98-451c-a329-ceaca208a94b"
 			}
 		},
 		"metadata": {
@@ -330,7 +330,7 @@
 					"logInfo(\"Applying data type conversions using Spark SQL...\")\n",
 					"\n",
 					"spark.sql(\"\"\"\n",
-					"    CREATE OR REPLACE TEMPORARY VIEW source_csv_cleaned AS\n",
+					"    CREATE OR REPLACE TEMPORARY VIEW vw_source_hist_specialist_case AS\n",
 					"    SELECT\n",
 					"        -- Convert integer columns and handle empty strings as NULL\n",
 					"        CAST(NULLIF(casework_specialist_id, '') AS INT) as casework_specialist_id,\n",
@@ -425,7 +425,7 @@
 					"cleaned_count = spark.sql(\"SELECT COUNT(*) as cnt FROM source_csv_cleaned\").collect()[0]['cnt']\n",
 					"logInfo(f\"Data type conversions completed. Records: {cleaned_count}\")"
 				],
-				"execution_count": 26
+				"execution_count": 29
 			},
 			{
 				"cell_type": "markdown",
@@ -447,7 +447,7 @@
 					"logInfo(\"Creating harmonised view with metadata columns...\")\n",
 					"\n",
 					"spark.sql(\"\"\"\n",
-					"    CREATE OR REPLACE TEMPORARY VIEW harmonised_view AS\n",
+					"    CREATE OR REPLACE TEMPORARY VIEW vw_harmonised_hist_specialist_case AS\n",
 					"    SELECT\n",
 					"        -- All business columns\n",
 					"        casework_specialist_id,\n",
@@ -536,13 +536,13 @@
 					"            )\n",
 					"        ) as RowID\n",
 					"        \n",
-					"    FROM vw_hist_specialist_case_csv\n",
+					"    FROM vw_source_hist_specialist_case\n",
 					"\"\"\")\n",
 					"\n",
-					"harmonised_count = spark.sql(\"SELECT COUNT(*) as cnt FROM harmonised_view\").collect()[0]['cnt']\n",
+					"harmonised_count = spark.sql(\"SELECT COUNT(*) as cnt FROM vw_harmonised_hist_specialist_case\").collect()[0]['cnt']\n",
 					"logInfo(f\"Harmonised view created with {harmonised_count} records\")"
 				],
-				"execution_count": null
+				"execution_count": 31
 			},
 			{
 				"cell_type": "markdown",
@@ -574,7 +574,7 @@
 					"    \n",
 					"    spark.sql(f\"\"\"\n",
 					"        INSERT OVERWRITE TABLE {harmonised_table}\n",
-					"        SELECT * FROM harmonised_view\n",
+					"        SELECT * FROM vw_harmonised_hist_specialist_case\n",
 					"    \"\"\")\n",
 					"    \n",
 					"    # Verify harmonised data\n",
