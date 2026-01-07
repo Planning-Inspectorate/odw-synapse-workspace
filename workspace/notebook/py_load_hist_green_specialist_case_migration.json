@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "e3f2fdda-ee33-4ccf-b88f-420f8da28b99"
+				"spark.autotune.trackingId": "87413f55-1a1a-40c5-b031-41da989a9e99"
 			}
 		},
 		"metadata": {
@@ -97,6 +97,7 @@
 					"import json\n",
 					"import re\n",
 					"from datetime import datetime, date\n",
+					"from pyspark.sql.functions import regexp_replace,lit, current_timestamp, trim,col\n",
 					"\n",
 					"from notebookutils import mssparkutils\n",
 					"from pyspark.sql.types import *\n",
@@ -105,7 +106,7 @@
 					"import warnings\n",
 					"warnings.filterwarnings(\"ignore\", message=\"iteritems is deprecated\")"
 				],
-				"execution_count": 6
+				"execution_count": 23
 			},
 			{
 				"cell_type": "markdown",
@@ -127,7 +128,7 @@
 					"storage_account = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
 					"print(f\"Storage Account: {storage_account}\")"
 				],
-				"execution_count": 3
+				"execution_count": 13
 			},
 			{
 				"cell_type": "markdown",
@@ -147,7 +148,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 4
+				"execution_count": 14
 			},
 			{
 				"cell_type": "markdown",
@@ -186,13 +187,13 @@
 					"\n",
 					"# Source CSV file location (using current date)\n",
 					"current_date_str = date.today().strftime(\"%Y-%m-%d\")\n",
-					"source_csv_path = f\"{source_csv_path}{get_latest_folder(source_csv_path)}/odw_harmonised_db_hist_green_specialist_case.csv\"\n",
+					"source_csv_path = f\"{source_csv_path}{get_latest_folder(source_csv_path)}/hist_green_specialist_case_migration.csv\"\n",
 					"\n",
 					"logInfo(f\"Source CSV Path: {source_csv_path}\")\n",
 					"logInfo(f\"Harmonised Table Path: {harmonised_table_path}\")\n",
 					"logInfo(f\"Curated Table Path: {curated_table_path}\")"
 				],
-				"execution_count": 7
+				"execution_count": 15
 			},
 			{
 				"cell_type": "markdown",
@@ -256,7 +257,7 @@
 					"    StructField(\"active\", StringType(), True)\n",
 					"])"
 				],
-				"execution_count": null
+				"execution_count": 16
 			},
 			{
 				"cell_type": "markdown",
@@ -287,13 +288,27 @@
 					"    .schema(csv_schema) \\\n",
 					"    .load(source_csv_path)\n",
 					"\n",
+					"# Clean BOM characters using DataFrame API (more reliable for special characters)\n",
+					"logInfo(\"Removing BOM characters and trimming string columns...\")\n",
+					"\n",
+					"#df_trimmed = spark.table(\"source_csv_raw\")\n",
+					"\n",
+					"# Remove BOM (\\ufeff) and trim all columns\n",
+					"for column_name in df_source.columns:\n",
+					"    df_trimmed = df_source.withColumn(\n",
+					"        column_name,\n",
+					"        trim(regexp_replace(col(column_name), \"^\\\\ufeff\", \"\"))\n",
+					"    )\n",
+					"\n",
+					"logInfo(\"BOM characters removed and columns trimmed successfully\")\n",
+					"\n",
 					"# Create temporary view for SQL operations\n",
 					"df_source.createOrReplaceTempView(\"source_hist_green_specialist_case_csv\")\n",
 					"\n",
 					"source_count = spark.sql(\"SELECT COUNT(*) as cnt FROM source_hist_green_specialist_case_csv\").collect()[0]['cnt']\n",
 					"logInfo(f\"Successfully read CSV file. Total records: {source_count}\")"
 				],
-				"execution_count": null
+				"execution_count": 24
 			},
 			{
 				"cell_type": "markdown",
@@ -335,8 +350,7 @@
 					"        TRIM(REGEXP_REPLACE(agentName, '^\\\\ufeff', '')) as agentName,\n",
 					"        TRIM(REGEXP_REPLACE(siteAddressDescription, '^\\\\ufeff', '')) as siteAddressDescription,\n",
 					"        TRIM(REGEXP_REPLACE(sitePostcode, '^\\\\ufeff', '')) as sitePostcode,\n",
-					"        TRIM(REGEXP_REPLACE(otherPartyName, '^\\\\ufeff', '')) as otherPartyName,\n",
-					"        \n",
+					"        TRIM(REGEXP_REPLACE(otherPartyName, '^\\\\ufeff', '')) as otherPartyName,        \n",
 					"        -- Convert date columns and handle empty strings and convert to DATE\n",
 					"        CASE \n",
 					"            WHEN TRIM(receiptDate) IS NULL OR TRIM(receiptDate) = '' THEN NULL\n",
@@ -409,7 +423,7 @@
 					"source_count = spark.sql(\"SELECT COUNT(*) as cnt FROM vw_hist_specialist_case_csv\").collect()[0]['cnt']\n",
 					"logInfo(f\"Data cleaning completed. Records after cleaning: {source_count}\")"
 				],
-				"execution_count": null
+				"execution_count": 19
 			},
 			{
 				"cell_type": "markdown",
