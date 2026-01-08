@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ebe9551c-041b-481b-9b08-ac9426e57d9d"
+				"spark.autotune.trackingId": "03614c28-5dcd-4495-a942-d6b6319345f7"
 			}
 		},
 		"metadata": {
@@ -96,7 +96,7 @@
 					"from datetime import date,datetime\r\n",
 					"import builtins"
 				],
-				"execution_count": null
+				"execution_count": 1
 			},
 			{
 				"cell_type": "markdown",
@@ -129,7 +129,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 2
 			},
 			{
 				"cell_type": "markdown",
@@ -180,7 +180,7 @@
 					"resolver_table = \"odw_harmonised_db.GroupResolver\"\r\n",
 					"other_hrm_table = \"odw_harmonised_db.appeal_s78\" "
 				],
-				"execution_count": null
+				"execution_count": 3
 			},
 			{
 				"cell_type": "markdown",
@@ -334,7 +334,7 @@
 					"        error_message = f\"Error in source Service Bus SQL query {service_bus_table}: {str(e)[:800]}\"\r\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": null
+				"execution_count": 4
 			},
 			{
 				"cell_type": "markdown",
@@ -466,7 +466,7 @@
 					"# Here we enforce non null key\r\n",
 					"stg_df = stg_df.filter(F.col(\"caseReference\").isNotNull())"
 				],
-				"execution_count": null
+				"execution_count": 5
 			},
 			{
 				"cell_type": "markdown",
@@ -500,7 +500,7 @@
 					"    )\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 6
 			},
 			{
 				"cell_type": "markdown",
@@ -530,7 +530,7 @@
 					"\r\n",
 					"print(f\"Stage written: {stg_tbl}, rows = {stg_df.count():,}\")"
 				],
-				"execution_count": null
+				"execution_count": 7
 			},
 			{
 				"cell_type": "markdown",
@@ -690,34 +690,34 @@
 					"scd2_final = scd2.select(*[F.col(c) for c in final_cols])\r\n",
 					"\r\n",
 					"# if S78 is active, HAS must be inactive\r\n",
-					"s78_active = (\r\n",
+					"s78ActiveTs = (\r\n",
 					"    spark.table(\"odw_harmonised_db.appeal_s78\")\r\n",
 					"         .filter(F.trim(F.upper(F.col(\"IsActive\"))) == F.lit(\"Y\"))\r\n",
-					"         .select(\"caseReference\", F.col(\"IngestionDate\").alias(\"otherTs\"))\r\n",
+					"         .select(\"caseReference\", F.col(\"IngestionDate\").alias(\"s78ActiveTs\"))\r\n",
 					"         .distinct()\r\n",
 					")\r\n",
 					"\r\n",
 					"# only demote HAS if S78 is active AND S78 is newer\r\n",
 					"scd2_final = (\r\n",
 					"    scd2_final\r\n",
-					"    .join(s78_active, [\"caseReference\"], \"left\")\r\n",
+					"    .join(s78ActiveTs, [\"caseReference\"], \"left\")\r\n",
 					"    .withColumn(\r\n",
 					"        \"ValidTo\",\r\n",
 					"        F.when(\r\n",
-					"            (F.col(\"otherTs\").isNotNull())\r\n",
-					"            & (F.col(\"otherTs\") > F.col(\"IngestionDate\"))\r\n",
+					"            (F.col(\"s78ActiveTs\").isNotNull())\r\n",
+					"            & (F.col(\"s78ActiveTs\") > F.col(\"IngestionDate\"))\r\n",
 					"            & (F.col(\"ValidTo\").isNull()),\r\n",
-					"            F.col(\"otherTs\").cast(\"timestamp\")\r\n",
+					"            F.col(\"s78ActiveTs\")\r\n",
 					"        ).otherwise(F.col(\"ValidTo\"))\r\n",
 					"    )\r\n",
 					"    .withColumn(\r\n",
 					"        \"IsActive\",\r\n",
 					"        F.when(\r\n",
-					"            (F.col(\"otherTs\").isNotNull()) & (F.col(\"otherTs\") > F.col(\"IngestionDate\")),\r\n",
+					"            (F.col(\"s78ActiveTs\").isNotNull()) & (F.col(\"s78ActiveTs\") > F.col(\"IngestionDate\")),\r\n",
 					"            F.lit(\"N\")\r\n",
 					"        ).otherwise(F.col(\"IsActive\"))\r\n",
 					"    )\r\n",
-					"    .drop(\"otherTs\")\r\n",
+					"    .drop(\"s78ActiveTs\")\r\n",
 					")\r\n",
 					"\r\n",
 					"# ACTIVE rows only, use IngestionDate\r\n",
@@ -746,21 +746,25 @@
 					"  VALUES (s.caseReference, s.currentGroup, s.asOfTimestamp);\r\n",
 					"\"\"\")\r\n",
 					"\r\n",
-					"# Deactivate S78 only when HAS is as-new or newer\r\n",
-					"has_active_ts = active_df.withColumn(\"thisTs\", F.col(\"lastChangeTs\")).select(\"caseReference\", \"thisTs\")\r\n",
+					"# Deactivate S78 only when HAS is as-new or newer than the current S78 active timestamp\r\n",
+					"hasActiveTs = (\r\n",
+					"    active_df\r\n",
+					"    .select(\"caseReference\", F.col(\"lastChangeTs\").alias(\"hasActiveTs\"))\r\n",
+					"    .distinct()\r\n",
+					")\r\n",
 					"\r\n",
-					"s78_active_ts = (\r\n",
+					"s78ActiveTs = (\r\n",
 					"    spark.table(\"odw_harmonised_db.appeal_s78\")\r\n",
 					"         .filter(F.trim(F.upper(F.col(\"IsActive\"))) == F.lit(\"Y\"))\r\n",
-					"         .select(\"caseReference\", F.col(\"IngestionDate\").alias(\"otherTs\"))\r\n",
+					"         .select(\"caseReference\", F.col(\"IngestionDate\").alias(\"s78ActiveTs\"))\r\n",
 					"         .distinct()\r\n",
 					")\r\n",
 					"\r\n",
 					"to_deactivate = (\r\n",
-					"    has_active_ts.join(s78_active_ts, \"caseReference\", \"left\")\r\n",
-					"                 .filter((F.col(\"otherTs\").isNull()) | (F.col(\"thisTs\") >= F.col(\"otherTs\")))\r\n",
-					"                 .select(\"caseReference\", \"thisTs\")\r\n",
-					"                 .distinct()\r\n",
+					"    hasActiveTs.join(s78ActiveTs, \"caseReference\", \"left\")\r\n",
+					"               .filter((F.col(\"s78ActiveTs\").isNull()) | (F.col(\"hasActiveTs\") >= F.col(\"s78ActiveTs\")))\r\n",
+					"               .select(\"caseReference\", \"hasActiveTs\")\r\n",
+					"               .distinct()\r\n",
 					")\r\n",
 					"to_deactivate.createOrReplaceTempView(\"case_refs_deactivate\")\r\n",
 					"\r\n",
@@ -772,7 +776,7 @@
 					"WHEN MATCHED THEN UPDATE SET\r\n",
 					"  t.IsActive = 'N',\r\n",
 					"  t.ValidTo  = CASE\r\n",
-					"                 WHEN t.ValidTo IS NULL THEN s.thisTs\r\n",
+					"                 WHEN t.ValidTo IS NULL THEN s.hasActiveTs\r\n",
 					"                 ELSE t.ValidTo\r\n",
 					"               END;\r\n",
 					"\"\"\")\r\n",
@@ -790,7 +794,7 @@
 					"end_exec_time = datetime.now()\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 8
 			},
 			{
 				"cell_type": "markdown",
@@ -873,7 +877,7 @@
 					"# )\r\n",
 					"# SELECT COUNT(*) AS collisions FROM z;"
 				],
-				"execution_count": null
+				"execution_count": 9
 			},
 			{
 				"cell_type": "code",
@@ -934,7 +938,7 @@
 					"# JOIN keys k USING (caseReference)\r\n",
 					"# ORDER BY f.caseReference, f.IngestionDate;"
 				],
-				"execution_count": null
+				"execution_count": 10
 			},
 			{
 				"cell_type": "code",
@@ -978,7 +982,7 @@
 					"    status_code\r\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 11
 			}
 		]
 	}
