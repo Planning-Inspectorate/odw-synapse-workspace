@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "1db7e99a-04de-49e9-abfc-599ca8a5bf0e"
+				"spark.autotune.trackingId": "daf43c4c-5549-4828-b415-ffa8a982fa4f"
 			}
 		},
 		"metadata": {
@@ -119,6 +119,9 @@
 				"source": [
 					"from datetime import datetime\n",
 					"from notebookutils import mssparkutils\n",
+					"import pyspark.sql.functions as F\n",
+					"import pyspark.sql.types as T\n",
+					"import json\n",
 					"\n",
 					"# Define variables\n",
 					"target_table = \"odw_harmonised_db.entraid\"\n",
@@ -144,8 +147,63 @@
 					}
 				},
 				"source": [
-					""
+					"# Load current raw file\n",
+					"This contains a snapshot of only the valid entra ids, and should not contain duplicates"
 				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"raw_entraid_snapshot = datetime.now().strftime(\"%Y-%m-%d\")\n",
+					"storage_account = spark.sparkContext.environment.get(\"dataLakeAccountName\", \"get\")\n",
+					"base_file_path = f\"abfss://odw-raw@{storage_account}.dfs.core.windows.net\"\n",
+					"folder_names = sorted([folder.name for folder in mssparkutils.fs.ls(f\"{base_file_path}/entraid/\")], reverse=True)\n",
+					"if not folder_names:\n",
+					"    raise RuntimeError(f\"No folders could be found under '{base_file_path}'. Expected to see folders with the form YYYY-mm-dd\")\n",
+					"snapshot_folder = folder_names[0]\n",
+					"current_entraid_file = f\"entraid/{snapshot_folder}/entraid.json\""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"raw_entraids = spark.read.option(\"multiline\",\"true\").json(f\"{base_file_path}/{current_entraid_file}\").select(\"value\")\n",
+					"required_cols = [\"givenName\", \"surname\", \"userPrincipalName\", \"id\", \"employeeId\"]\n",
+					"raw_entraids = raw_entraids.withColumn(\"json\", F.explode(\"value\"))\n",
+					"for col in required_cols:\n",
+					"    raw_entraids = raw_entraids.withColumn(col, F.col(\"json\")[col])\n",
+					"raw_entraids = raw_entraids.select(required_cols)\n",
+					"raw_entraids.createOrReplaceTempView(\"raw_entraids\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"display(raw_entraids.filter(F.col(\"id\") == \"93b73a3b-fb60-4c05-be23-77ab233841f2\"))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"select * from raw_entraids"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -179,7 +237,7 @@
 					"-- Build entraid_new table\n",
 					"-- Gets modified or deleted from source rows\n",
 					"\n",
-					"CREATE OR REPLACE TEMPORARY VIEW entraid_new \n",
+					"CREATE OR REPLACE TEMPORARY VIEW entraid_new_candidates \n",
 					"\n",
 					"     AS\n",
 					"\n",
@@ -250,6 +308,59 @@
 							"deleting": false
 						}
 					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"\n",
+					"SELECT * from entraid_new_candidates"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"If there are any duplicates, then these are removed by only selecting the candidates that are in the raw data file.\n",
+					"The raw entraid data is the source of truth and does not have duplicates"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"CREATE OR REPLACE TEMPORARY VIEW entraid_new\n",
+					"\n",
+					"     AS\n",
+					"\n",
+					"SELECT\n",
+					"    candidates.*\n",
+					"FROM\n",
+					"entraid_new_candidates as candidates\n",
+					"INNER JOIN raw_entraids\n",
+					"ON candidates.id = raw_entraids.id AND candidates.employeeId = raw_entraids.employeeId AND candidates.givenName = raw_entraids.givenName AND candidates.userPrincipalName = raw_entraids.userPrincipalName\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
 					"microsoft": {
 						"language": "sparksql"
 					},
