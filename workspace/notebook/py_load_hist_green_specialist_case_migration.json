@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "02f2197b-acb7-4662-a0fe-12d7f2fe2844"
+				"spark.autotune.trackingId": "11cd0b3a-41e0-4106-a0f5-7adb13081d58"
 			}
 		},
 		"metadata": {
@@ -102,7 +102,7 @@
 					"import warnings\n",
 					"warnings.filterwarnings(\"ignore\", message=\"iteritems is deprecated\")"
 				],
-				"execution_count": 36
+				"execution_count": 37
 			},
 			{
 				"cell_type": "markdown",
@@ -124,7 +124,7 @@
 					"storage_account = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
 					"print(f\"Storage Account: {storage_account}\")"
 				],
-				"execution_count": 23
+				"execution_count": 38
 			},
 			{
 				"cell_type": "markdown",
@@ -144,7 +144,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 24
+				"execution_count": 39
 			},
 			{
 				"cell_type": "markdown",
@@ -164,7 +164,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 25
+				"execution_count": 40
 			},
 			{
 				"cell_type": "markdown",
@@ -188,7 +188,14 @@
 					"insert_count = 0\n",
 					"update_count = 0\n",
 					"delete_count = 0\n",
-					"error_message=''\n",
+					"error_message = ''\n",
+					"PipelineName = ''\n",
+					"PipelineRunID = ''\n",
+					"PipelineTriggerID = ''\n",
+					"PipelineTriggerName = ''\n",
+					"PipelineTriggerType = ''\n",
+					"PipelineTriggeredbyPipelineName = ''\n",
+					"PipelineTriggeredbyPipelineRunID = ''\n",
 					"\n",
 					"# Define database names, table names, and file paths\n",
 					"harmonised_database = \"odw_harmonised_db\"\n",
@@ -219,7 +226,7 @@
 					"logInfo(f\"Harmonised Table Path: {harmonised_table_path}\")\n",
 					"logInfo(f\"Curated Table Path: {curated_table_path}\")"
 				],
-				"execution_count": 26
+				"execution_count": 57
 			},
 			{
 				"cell_type": "markdown",
@@ -275,7 +282,7 @@
 					"        end_exec_time = datetime.now()\n",
 					""
 				],
-				"execution_count": 27
+				"execution_count": 42
 			},
 			{
 				"cell_type": "markdown",
@@ -339,7 +346,7 @@
 					"    StructField(\"active\", StringType(), True)\n",
 					"])"
 				],
-				"execution_count": 28
+				"execution_count": 43
 			},
 			{
 				"cell_type": "markdown",
@@ -430,7 +437,7 @@
 					"        error_message = f\"Error in creating csv file dataframe/temprary view : {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 29
+				"execution_count": 44
 			},
 			{
 				"cell_type": "markdown",
@@ -556,7 +563,7 @@
 					"        error_message = f\"Error in creating vw_harmonised_hist_specialist_case : {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 30
+				"execution_count": 45
 			},
 			{
 				"cell_type": "markdown",
@@ -677,7 +684,7 @@
 					"        error_message = f\"Error inserting records in {harmonised_table} : {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 31
+				"execution_count": 46
 			},
 			{
 				"cell_type": "markdown",
@@ -735,7 +742,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        raise e"
 				],
-				"execution_count": 32
+				"execution_count": 47
 			},
 			{
 				"cell_type": "markdown",
@@ -817,7 +824,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        raise e"
 				],
-				"execution_count": 33
+				"execution_count": 48
 			},
 			{
 				"cell_type": "markdown",
@@ -888,7 +895,7 @@
 					"        \n",
 					"        # Final success message\n",
 					"        logInfo(\"hist_green_specialist_case data processing completed successfully\")\n",
-					"        logInfo(f\"Summary: {harmonised_record_count} records in harmonised, {curated_record_count} records in curated\")\n",
+					"        logInfo(f\"Summary: {harmonised_count} records in harmonised, {curated_count} records in curated\")\n",
 					"        \n",
 					"        # Show distribution summary\n",
 					"        logInfo(\"Distribution by greenCaseType:\")\n",
@@ -916,7 +923,7 @@
 					"        flushLogging()\n",
 					"        "
 				],
-				"execution_count": 34
+				"execution_count": 50
 			},
 			{
 				"cell_type": "code",
@@ -928,7 +935,7 @@
 					"\n",
 					"end_exec_time = datetime.now()"
 				],
-				"execution_count": null
+				"execution_count": 51
 			},
 			{
 				"cell_type": "markdown",
@@ -946,14 +953,14 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"if source_count == new_records:\n",
-					"    status_message = f\"Migration successful, Record counts between hist_green_specialist_case_migration.csv (Source csv file count: {source_count} and odw_curated_db.pbi_hist_green_specialist_case record count: {new_records} matched\"\n",
-					"else\n",
-					"    error_message = f\"Migration unsuccessful, Record counts between hist_green_specialist_case_migration.csv (Source csv file count: {source_count} and odw_curated_db.pbi_hist_green_specialist_case record count: {new_records} didn't match\"\n",
+					"if source_count == curated_count:\n",
+					"    status_message = f\"Migration successful, Record counts between hist_green_specialist_case_migration.csv (Source csv file count: {source_count} and odw_curated_db.pbi_hist_green_specialist_case record count: {curated_count} matched\"\n",
+					"else:\n",
+					"    error_message = f\"Migration unsuccessful, Record counts between hist_green_specialist_case_migration.csv (Source csv file count: {source_count} and odw_curated_db.pbi_hist_green_specialist_case record count: {curated_count} didn't match\"\n",
 					"\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 55
 			},
 			{
 				"cell_type": "markdown",
@@ -977,7 +984,7 @@
 					"activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
 					"stage = \"Success\" if not error_message else \"Failed\"\n",
 					"status_message = (\n",
-					"    f\"Ingested migrated records into odw_harmonised_db.hist_green_specialist_case (Source csv file count: {source_count}, odw_curated_db.pbi_hist_green_specialist_case: {new_records})\"\n",
+					"    f\"Ingested migrated records into odw_harmonised_db.hist_green_specialist_case (Source csv file count: {source_count}, odw_curated_db.pbi_hist_green_specialist_case: {curated_count})\"\n",
 					"    if not error_message \n",
 					"    else f\"Migration failed for {harmonised_table}\"\n",
 					")\n",
@@ -1005,7 +1012,7 @@
 					"    status_code\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 59
 			}
 		]
 	}
