@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "9fa669ca-082e-4947-8c5d-b58213744912"
+				"spark.autotune.trackingId": "40bb173f-808f-451d-ac71-3d178286c3b1"
 			}
 		},
 		"metadata": {
@@ -74,9 +74,22 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"PipelineName = \"pln_horizon_to_odw\"\r\n",
+					"PipelineRunID = \"f96480d7-8e9d-406d-9e34-974f84b14cbb\"\r\n",
+					"PipelineTriggerID = \"af25d427-f06a-4ef9-85fb-79363a14090b\"\r\n",
+					"PipelineTriggerName = \"af25d427-f06a-4ef9-85fb-79363a14090b\"\r\n",
+					"PipelineTriggerType = \"PipelineActivity\"\r\n",
+					"PipelineTriggeredbyPipelineName = \"pln_all_horizon_data\"\r\n",
+					"PipelineTriggeredbyPipelineRunID = \"3334ecfd-6fba-41ee-971e-5ab3f9eda134\""
+				],
+				"execution_count": 24
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 25
 			},
 			{
 				"cell_type": "code",
@@ -94,14 +107,14 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": null
+				"execution_count": 26
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run service-bus/py_spark_df_ingestion_functions"
 				],
-				"execution_count": null
+				"execution_count": 27
 			},
 			{
 				"cell_type": "code",
@@ -123,7 +136,7 @@
 					"entity_name='appeal-has'\r\n",
 					"date_folder=''"
 				],
-				"execution_count": null
+				"execution_count": 28
 			},
 			{
 				"cell_type": "code",
@@ -139,18 +152,30 @@
 					"from pyspark.sql.functions import *\r\n",
 					"import re"
 				],
-				"execution_count": null
+				"execution_count": 29
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"start_exec_time = (datetime.now())\r\n",
+					"start_exec_time = datetime.now()\r\n",
+					"error_message = None\r\n",
+					"def run_step(step_name: str, fn):\r\n",
+					"    try:\r\n",
+					"        return fn()\r\n",
+					"    except Exception as e:\r\n",
+					"        _fail_and_log(step_name, e)"
+				],
+				"execution_count": 30
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"insert_count = 0\r\n",
 					"update_count = 0\r\n",
 					"delete_count = 0\r\n",
 					"error_message= None"
 				],
-				"execution_count": null
+				"execution_count": 31
 			},
 			{
 				"cell_type": "code",
@@ -175,7 +200,7 @@
 					"spark_schema = StructType.fromJson(json.loads(schema)) if schema != '' else ''\r\n",
 					"start_exec_time = datetime.now()"
 				],
-				"execution_count": null
+				"execution_count": 32
 			},
 			{
 				"cell_type": "code",
@@ -203,15 +228,22 @@
 					"    Returns:\r\n",
 					"        max_value: the maximum value from the table column\r\n",
 					"    \"\"\"\r\n",
-					"    try:\r\n",
-					"        df = spark.table(table_name)\r\n",
-					"        max_value = df.agg(max(column_name)).collect()[0][0]\r\n",
-					"        return max_value\r\n",
-					"    except Exception as e:\r\n",
-					"        error_message = f\"Error getting max value from column '{column_name}' in table '{table_name}': {str(e)}\"\r\n",
-					"        logError(error_message)    "
+					"    df = spark.table(table_name)\r\n",
+					"    max_value = df.agg(max(column_name)).collect()[0][0]\r\n",
+					"    return max_value\r\n",
+					"def step_get_max_value_from_column():\r\n",
+					"    return get_max_value_from_column(\r\n",
+					"        table_name=table_name,\r\n",
+					"        column_name='ingested_datetime'\r\n",
+					"    )\r\n",
+					"\r\n",
+					"\r\n",
+					"max_ingested_datetime = run_step(\r\n",
+					"    \"Get max ingested_datetime from target table\",\r\n",
+					"    step_get_max_value_from_column\r\n",
+					")"
 				],
-				"execution_count": null
+				"execution_count": 33
 			},
 			{
 				"cell_type": "code",
@@ -242,18 +274,18 @@
 					"    Returns:\r\n",
 					"        formatted_timestamp: a string of the maximum file date\r\n",
 					"    \"\"\"\r\n",
-					"    try:\r\n",
-					"        date_pattern: str = r'(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}\\+\\d{4})'\r\n",
-					"        df: DataFrame = df.withColumn(\"file_date\", regexp_extract(df[\"input_file\"], date_pattern, 1))\r\n",
-					"        df: DataFrame = df.withColumn(\"file_date\", df[\"file_date\"].cast(TimestampType()))\r\n",
-					"        max_timestamp: list = df.agg(max(\"file_date\")).collect()[0][0]\r\n",
-					"        formatted_timestamp: str = max_timestamp.strftime(\"%Y-%m-%dT%H:%M:%S.%f\")+\"+0000\"\r\n",
-					"        return formatted_timestamp\r\n",
-					"    except Exception as e:\r\n",
-					"        error_message = f\"Error extracting maximum file date from DataFrame: {str(e)}\"\r\n",
-					"        logError(error_message)"
+					"    date_pattern: str = r'(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}\\+\\d{4})'\r\n",
+					"    df: DataFrame = df.withColumn(\"file_date\", regexp_extract(df[\"input_file\"], date_pattern, 1))\r\n",
+					"    df: DataFrame = df.withColumn(\"file_date\", df[\"file_date\"].cast(TimestampType()))\r\n",
+					"    max_timestamp: list = df.agg(max(\"file_date\")).collect()[0][0]\r\n",
+					"    formatted_timestamp: str = max_timestamp.strftime(\"%Y-%m-%dT%H:%M:%S.%f\")+\"+0000\"\r\n",
+					"    return formatted_timestamp\r\n",
+					"def step_get_max_file_date(df:DataFrame):\r\n",
+					"    return get_max_file_date(df)\r\n",
+					"max_file_datetime=run_step(\"Get max file date from input_file paths\",lambda:step_get_max_file_date)\r\n",
+					""
 				],
-				"execution_count": null
+				"execution_count": 34
 			},
 			{
 				"cell_type": "code",
@@ -274,34 +306,45 @@
 					"    \"\"\"\r\n",
 					"    Lists all files in a given source path.\r\n",
 					"    Recursively loops through all directories.\r\n",
-					" \r\n",
+					"\r\n",
 					"    Args:\r\n",
-					"        source_path: the folder path to start from, \r\n",
-					"        e.g. abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/ServiceBus/appeal-has/\r\n",
-					" \r\n",
+					"        source_path: the folder path to start from,\r\n",
+					"        e.g. abfss://odw-raw@.../ServiceBus/appeal-has/\r\n",
+					"\r\n",
 					"    Returns:\r\n",
 					"        files: a list of files in the source path.\r\n",
 					"    \"\"\"\r\n",
 					"    files = []\r\n",
-					"    error_message = None\r\n",
+					"    logInfo(f\"Listing files from {source_path}\")\r\n",
+					"\r\n",
 					"    try:\r\n",
-					"        logInfo(f\"Listing files from {source_path}\")\r\n",
 					"        entries = mssparkutils.fs.ls(source_path)\r\n",
+					"\r\n",
 					"        for entry in entries:\r\n",
-					"            # Check if the entry is a directory\r\n",
 					"            if entry.isDir:\r\n",
 					"                # Recursively process the directory\r\n",
 					"                files.extend(get_all_files_recursive(entry.path))\r\n",
 					"            else:\r\n",
-					"                # If it's a file, add to the list\r\n",
+					"                # Add file to the list\r\n",
 					"                files.append(entry.path)\r\n",
+					"\r\n",
 					"        logInfo(f\"Found {len(files)} file(s) in {source_path}\")\r\n",
+					"\r\n",
 					"    except Exception as e:\r\n",
-					"        error_message = f\"Error in listing files from {source_path}: {str(e)[:800]}\"\r\n",
-					"        end_exec_time = datetime.now()\r\n",
-					"    return files"
+					"        logError(f\"Error listing files in {source_path}: {e}\")\r\n",
+					"        raise\r\n",
+					"\r\n",
+					"    return files\r\n",
+					"\r\n",
+					"\r\n",
+					"def step_list_all_files():\r\n",
+					"    return get_all_files_recursive(source_path)\r\n",
+					"\r\n",
+					"\r\n",
+					"all_files = run_step(\"List all files recursively from source path\", step_list_all_files)\r\n",
+					""
 				],
-				"execution_count": null
+				"execution_count": 35
 			},
 			{
 				"cell_type": "code",
@@ -334,18 +377,17 @@
 					"    Returns:\r\n",
 					"        missing_files: a list of missing files not yet loaded to the table.\r\n",
 					"    \"\"\"\r\n",
-					"    try:\r\n",
-					"        df: DataFrame = spark.table(table_name)\r\n",
-					"        files_in_path: set = set(get_all_files_recursive(source_path))\r\n",
-					"        files_in_table: set = set(df.select(\"input_file\").rdd.flatMap(lambda x: x).collect())\r\n",
-					"        missing_files = list(files_in_path - files_in_table)\r\n",
+					"    df: DataFrame = spark.table(table_name)\r\n",
+					"    files_in_path: set = set(get_all_files_recursive(source_path))\r\n",
+					"    files_in_table: set = set(df.select(\"input_file\").rdd.flatMap(lambda x: x).collect())\r\n",
+					"    missing_files = list(files_in_path - files_in_table)\r\n",
 					"        \r\n",
-					"        return missing_files\r\n",
-					"    except Exception as e:\r\n",
-					"        error_message = f\"Error getting missing files for table '{table_name}' from source path '{source_path}': {str(e)}\"\r\n",
-					"        logError(error_message)"
+					"    return missing_files\r\n",
+					"def step_get_missing_files():\r\n",
+					"    return get_missing_files(table_name=table_name,source_path=source_path)\r\n",
+					"missing_files=run_step(\"Get list of missing files(source_table\",step_get_missing_files)"
 				],
-				"execution_count": null
+				"execution_count": 36
 			},
 			{
 				"cell_type": "code",
@@ -376,29 +418,31 @@
 					"    filtered_paths: list = []\r\n",
 					"    error_message = None\r\n",
 					"   \r\n",
-					"    try:\r\n",
-					"        logInfo(f\"Filtering {len(files)} files with date greater than {filter_date}\")\r\n",
+					"\r\n",
+					"    logInfo(f\"Filtering {len(files)} files with date greater than {filter_date}\")\r\n",
 					"       \r\n",
-					"        timestamp_pattern: str = re.compile(r\"(\\d{4}-\\d{2}-\\d{2}T\\d{2}[:_]\\d{2}[:_]\\d{2}[.\\d]*[+-]\\d{4})\")\r\n",
-					"        filter_datetime: datetime = datetime.strptime(filter_date, \"%Y-%m-%dT%H:%M:%S.%f%z\")\r\n",
+					"    timestamp_pattern: str = re.compile(r\"(\\d{4}-\\d{2}-\\d{2}T\\d{2}[:_]\\d{2}[:_]\\d{2}[.\\d]*[+-]\\d{4})\")\r\n",
+					"    filter_datetime: datetime = datetime.strptime(filter_date, \"%Y-%m-%dT%H:%M:%S.%f%z\")\r\n",
 					" \r\n",
-					"        for file in files:\r\n",
-					"            match = timestamp_pattern.search(file)\r\n",
-					"            if match:\r\n",
-					"                timestamp_str = match.group(1).replace('_', ':')\r\n",
-					"                file_datetime = datetime.strptime(timestamp_str, \"%Y-%m-%dT%H:%M:%S.%f%z\")\r\n",
-					"                if file_datetime > filter_datetime:\r\n",
-					"                    filtered_paths.append(file)\r\n",
+					"    for file in files:\r\n",
+					"        match = timestamp_pattern.search(file)\r\n",
+					"        if match:\r\n",
+					"            timestamp_str = match.group(1).replace('_', ':')\r\n",
+					"            file_datetime = datetime.strptime(timestamp_str, \"%Y-%m-%dT%H:%M:%S.%f%z\")\r\n",
+					"            if file_datetime > filter_datetime:\r\n",
+					"                filtered_paths.append(file)\r\n",
 					"       \r\n",
-					"        logInfo(f\"Filtered to {len(filtered_paths)} file(s) with date greater than {filter_date}\")\r\n",
+					"    logInfo(f\"Filtered to {len(filtered_paths)} file(s) with date greater than {filter_date}\")\r\n",
 					" \r\n",
-					"    except Exception as e:\r\n",
-					"        error_message = f\"Error in filtering file paths with date {filter_date}: {str(e)[:800]}\"\r\n",
-					"        end_exec_time = datetime.now()\r\n",
-					" \r\n",
-					"    return filtered_paths"
+					"    return filtered_paths\r\n",
+					"def step_extract_and_filter_paths():\r\n",
+					"    return extract_and_filter_paths(all_files,max_file_datetime)\r\n",
+					"filter_date_str=max_ingested_datetime.strftime(\"%Y-%m-%dT%H:%M:%S.%f\")+\"+0000\"\r\n",
+					"filtered_paths=run_step(\"Extract + filter file paths by timestamp\",\r\n",
+					"                        lambda:extract_and_filter_paths(all_files,filter_date_str))\r\n",
+					""
 				],
-				"execution_count": null
+				"execution_count": 37
 			},
 			{
 				"cell_type": "code",
@@ -417,7 +461,7 @@
 					"@logging_to_appins\r\n",
 					"def read_raw_messages(filtered_paths: list[str]) -> DataFrame:\r\n",
 					"    \"\"\"\r\n",
-					"    Ingests data from service bus messages stored as json files in the raw layer\r\n",
+					"    Ingests data from service bus messages stored as json files in the raw layer.\r\n",
 					"\r\n",
 					"    Args:\r\n",
 					"        filtered_paths: a list of file paths to ingest\r\n",
@@ -425,23 +469,35 @@
 					"    Returns:\r\n",
 					"        A DataFrame of service bus messages with additional columns needed for the standardised table\r\n",
 					"    \"\"\"\r\n",
-					"    try:\r\n",
-					"        # Read JSON files from filtered paths\r\n",
-					"        df = spark.read.option(\"multiline\", \"true\").json(filtered_paths, schema=spark_schema)\r\n",
-					"        logInfo(f\"Found {df.count()} new rows.\")\r\n",
-					"        # Adding the standardised columns\r\n",
-					"        df = df.withColumn(\"expected_from\", current_timestamp())\r\n",
-					"        df = df.withColumn(\"expected_to\", expr(\"current_timestamp() + INTERVAL 1 DAY\"))\r\n",
-					"        df = df.withColumn(\"ingested_datetime\", to_timestamp(df.message_enqueued_time_utc))\r\n",
-					"        df = df.withColumn(\"input_file\", input_file_name())\r\n",
+					"    # Read JSON files from filtered paths\r\n",
+					"    df = (\r\n",
+					"        spark.read\r\n",
+					"        .option(\"multiline\", \"true\")\r\n",
+					"        .json(filtered_paths, schema=spark_schema)\r\n",
+					"    )\r\n",
 					"\r\n",
-					"    except Exception as e:\r\n",
-					"        logError(f'Raw data not found at {source_path}, Exception is {e}')\r\n",
-					"        \r\n",
-					"        # Use the imported format_error_message function\r\n",
-					"    return df"
+					"    logInfo(f\"Found {df.count()} new rows.\")\r\n",
+					"\r\n",
+					"    # Adding the standardised columns\r\n",
+					"    df = df.withColumn(\"expected_from\", current_timestamp())\r\n",
+					"    df = df.withColumn(\"expected_to\", expr(\"current_timestamp() + INTERVAL 1 DAY\"))\r\n",
+					"    df = df.withColumn(\"ingested_datetime\", to_timestamp(df.message_enqueued_time_utc))\r\n",
+					"    df = df.withColumn(\"input_file\", input_file_name())\r\n",
+					"\r\n",
+					"    return df\r\n",
+					"\r\n",
+					"\r\n",
+					"def step_read_raw_messages():\r\n",
+					"    return read_raw_messages(filtered_paths)\r\n",
+					"\r\n",
+					"\r\n",
+					"raw_df = run_step(\r\n",
+					"    \"Read raw service bus messages\",\r\n",
+					"    step_read_raw_messages\r\n",
+					")\r\n",
+					""
 				],
-				"execution_count": null
+				"execution_count": 38
 			},
 			{
 				"cell_type": "code",
@@ -468,18 +524,56 @@
 					"    Returns:\r\n",
 					"        a deduped DataFrame\r\n",
 					"    \"\"\"\r\n",
-					"    try:\r\n",
-					"        # removing duplicates while ignoring the ingestion dates columns\r\n",
-					"        columns_to_ignore: list = ['expected_to', 'expected_from', 'ingested_datetime']\r\n",
-					"        columns_to_consider: list = [c for c in df.columns if c not in columns_to_ignore]\r\n",
-					"        df: DataFrame = df.dropDuplicates(subset=columns_to_consider)\r\n",
-					"        \r\n",
+					"    # Handle empty or missing DataFrame\r\n",
+					"    if df is None or df.rdd.isEmpty():\r\n",
+					"        logInfo(\"No rows found. Skipping dedupe step\")\r\n",
 					"        return df\r\n",
-					"    except Exception as e:\r\n",
-					"        error_message = f\"Error during DataFrame deduplication: {str(e)}\"\r\n",
-					"        logError(error_message)"
+					"    # removing duplicates while ignoring the ingestion dates columns\r\n",
+					"    columns_to_ignore: list = ['expected_to', 'expected_from', 'ingested_datetime']\r\n",
+					"    columns_to_consider: list = [c for c in df.columns if c not in columns_to_ignore]\r\n",
+					"    if not columns_to_consider:\r\n",
+					"        logWarning(\"No columns available for dedupe. Returning DataFrame unchanged\")\r\n",
+					"        return df\r\n",
+					"\r\n",
+					"    return df.dropDuplicates(subset=columns_to_consider)\r\n",
+					"raw_df = run_step(\"Dedupe dataframe\", lambda: dedupe_dataframe(raw_df))   "
 				],
-				"execution_count": null
+				"execution_count": 39
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"@logging_to_appins\r\n",
+					"def append_df_to_table(df: DataFrame, table_name: str) -> None:\r\n",
+					"    \"\"\"\r\n",
+					"    Appends the new rows to the target table.\r\n",
+					"\r\n",
+					"    Args:\r\n",
+					"        df: DataFrame of new rows\r\n",
+					"        table_name: name of the target table\r\n",
+					"    \"\"\"\r\n",
+					"    logInfo(f\"Appending data to table {table_name}\")\r\n",
+					"\r\n",
+					"    (\r\n",
+					"        df.write\r\n",
+					"        .mode(\"append\")\r\n",
+					"        .format(\"delta\")\r\n",
+					"        .option(\"mergeSchema\", \"true\")\r\n",
+					"        .saveAsTable(table_name)\r\n",
+					"    )\r\n",
+					"\r\n",
+					"    logInfo(f\"Successfully appended data to table {table_name}\")\r\n",
+					"def step_append():\r\n",
+					"    logInfo(\"Starting append step...\")\r\n",
+					"    append_df_to_table(df, table_name)\r\n",
+					"    logInfo(\"Append step finished.\")\r\n",
+					"run_step(\r\n",
+					"    f\"Append data to table {table_name}\",\r\n",
+					"    step_append\r\n",
+					")\r\n",
+					""
+				],
+				"execution_count": 40
 			},
 			{
 				"cell_type": "code",
@@ -492,6 +586,10 @@
 						"transient": {
 							"deleting": false
 						}
+					},
+					"editable": false,
+					"run_control": {
+						"frozen": true
 					}
 				},
 				"source": [
@@ -505,7 +603,6 @@
 					"        table_name: name of the target table\r\n",
 					"    \"\"\"\r\n",
 					"    error_message = None\r\n",
-					"    try:\r\n",
 					"        logInfo(f\"Appending data to table {table_name}\")\r\n",
 					"        df \\\r\n",
 					"        .write \\\r\n",
@@ -522,6 +619,49 @@
 			},
 			{
 				"cell_type": "code",
+				"source": [
+					"@logging_to_appins\r\n",
+					"def test_rows_appended(new_table_row_count: int, expected_row_count: int) -> bool:\r\n",
+					"    \"\"\"\r\n",
+					"    Test if the new row count matches the expected row count.\r\n",
+					"    If True then rows have been appended successfully.\r\n",
+					"\r\n",
+					"    Args:\r\n",
+					"        new_table_row_count: count of rows after the append operation\r\n",
+					"        expected_row_count: count of rows we expect after the append operation\r\n",
+					"\r\n",
+					"    Returns:\r\n",
+					"        True if the counts match\r\n",
+					"    \"\"\"\r\n",
+					"    logInfo(\r\n",
+					"        f\"Testing row counts - New: {new_table_row_count}, Expected: {expected_row_count}\"\r\n",
+					"    )\r\n",
+					"\r\n",
+					"    result = new_table_row_count == expected_row_count\r\n",
+					"\r\n",
+					"    if result:\r\n",
+					"        logInfo(f\"Row count test passed: {new_table_row_count} == {expected_row_count}\")\r\n",
+					"    else:\r\n",
+					"        logWarning(\r\n",
+					"            f\"Row count test failed: {new_table_row_count} != {expected_row_count}\"\r\n",
+					"        )\r\n",
+					"\r\n",
+					"    return result\r\n",
+					"def step_test_rows_appended():\r\n",
+					"    logInfo(\"Starting row count validation step...\")\r\n",
+					"    result = test_rows_appended(new_table_row_count, expected_row_count)\r\n",
+					"    logInfo(\"Row count validation step finished.\")\r\n",
+					"    return result\r\n",
+					"rows_valid = run_step(\r\n",
+					"    \"Validate appended row count\",\r\n",
+					"    step_test_rows_appended\r\n",
+					")\r\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
 						"source_hidden": false,
@@ -531,6 +671,10 @@
 						"transient": {
 							"deleting": false
 						}
+					},
+					"editable": false,
+					"run_control": {
+						"frozen": true
 					}
 				},
 				"source": [
@@ -590,6 +734,69 @@
 				"source": [
 					"USE_MAX_DATE_FILTER = False\r\n",
 					"\r\n",
+					"\r\n",
+					"def step_get_max_file_date():\r\n",
+					"    logInfo(\"Getting the maximum file date\")\r\n",
+					"    table_df = spark.table(table_name)\r\n",
+					"    return get_max_file_date(df=table_df)\r\n",
+					"\r\n",
+					"\r\n",
+					"def step_get_filtered_paths(max_extracted_date):\r\n",
+					"    logInfo(\"Getting the filtered list of paths\")\r\n",
+					"    all_paths = get_all_files_recursive(source_path=source_path)\r\n",
+					"    return extract_and_filter_paths(all_paths, max_extracted_date)\r\n",
+					"\r\n",
+					"\r\n",
+					"def step_get_missing_files():\r\n",
+					"    logInfo(\"Getting list of missing files\")\r\n",
+					"    return get_missing_files(table_name, source_path)\r\n",
+					"\r\n",
+					"\r\n",
+					"def step_read_raw_messages_from_paths(paths):\r\n",
+					"    return read_raw_messages(filtered_paths=paths)\r\n",
+					"if USE_MAX_DATE_FILTER:\r\n",
+					"\r\n",
+					"    max_extracted_date = run_step(\r\n",
+					"        \"Get maximum file date\",\r\n",
+					"        step_get_max_file_date\r\n",
+					"    )\r\n",
+					"\r\n",
+					"    filtered_paths = run_step(\r\n",
+					"        \"Get filtered list of paths\",\r\n",
+					"        lambda: step_get_filtered_paths(max_extracted_date)\r\n",
+					"    )\r\n",
+					"\r\n",
+					"    df = run_step(\r\n",
+					"        \"Read raw messages from filtered paths\",\r\n",
+					"        lambda: step_read_raw_messages_from_paths(filtered_paths)\r\n",
+					"    )\r\n",
+					"\r\n",
+					"else:\r\n",
+					"\r\n",
+					"    missing_files = run_step(\r\n",
+					"        \"Get missing files\",\r\n",
+					"        step_get_missing_files\r\n",
+					"    )\r\n",
+					"\r\n",
+					"    df = run_step(\r\n",
+					"        \"Read raw messages from missing files\",\r\n",
+					"        lambda: step_read_raw_messages_from_paths(missing_files)\r\n",
+					"    )\r\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"editable": false,
+					"run_control": {
+						"frozen": true
+					}
+				},
+				"source": [
+					"USE_MAX_DATE_FILTER = False\r\n",
+					"\r\n",
 					"if USE_MAX_DATE_FILTER:\r\n",
 					"    try:\r\n",
 					"        logInfo(\"Getting the maximum file date\")\r\n",
@@ -643,6 +850,34 @@
 			},
 			{
 				"cell_type": "code",
+				"source": [
+					"def calculate_expected_new_count(df, table_name):\r\n",
+					"    logInfo(\"Calculating expected new row count\")\r\n",
+					"\r\n",
+					"    table_row_count = spark.table(table_name).count()\r\n",
+					"    logInfo(f\"Row count before append: {table_row_count}\")\r\n",
+					"\r\n",
+					"    df = dedupe_dataframe(df=df)\r\n",
+					"\r\n",
+					"    rows_to_append = df.count()\r\n",
+					"    logInfo(f\"Rows to append: {rows_to_append}\")\r\n",
+					"\r\n",
+					"    expected_new_count = table_row_count + rows_to_append\r\n",
+					"    logInfo(f\"Expected new count: {expected_new_count}\")\r\n",
+					"\r\n",
+					"    return expected_new_count, df\r\n",
+					"def step_calculate_expected_new_count():\r\n",
+					"    return calculate_expected_new_count(df, table_name)\r\n",
+					"expected_new_count, df = run_step(\r\n",
+					"    \"Calculate expected new row count\",\r\n",
+					"    step_calculate_expected_new_count\r\n",
+					")\r\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
 						"source_hidden": false,
@@ -652,6 +887,10 @@
 						"transient": {
 							"deleting": false
 						}
+					},
+					"editable": false,
+					"run_control": {
+						"frozen": true
 					}
 				},
 				"source": [
