@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5367e228-3f5d-4f8f-87d2-cf0ab7feca02"
+				"spark.autotune.trackingId": "6fc7803d-7c28-4357-8bf1-2a08f32b938a"
 			}
 		},
 		"metadata": {
@@ -110,7 +110,7 @@
 					"    }\n",
 					"}"
 				],
-				"execution_count": 58
+				"execution_count": 98
 			},
 			{
 				"cell_type": "markdown",
@@ -136,7 +136,7 @@
 					"import pandas as pd\n",
 					"import os"
 				],
-				"execution_count": 59
+				"execution_count": 99
 			},
 			{
 				"cell_type": "markdown",
@@ -181,7 +181,7 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": 60
+				"execution_count": 100
 			},
 			{
 				"cell_type": "markdown",
@@ -212,7 +212,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 61
+				"execution_count": 101
 			},
 			{
 				"cell_type": "markdown",
@@ -232,7 +232,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 62
+				"execution_count": 102
 			},
 			{
 				"cell_type": "markdown",
@@ -261,7 +261,7 @@
 					"delete_count = 0\n",
 					"error_message =''"
 				],
-				"execution_count": 63
+				"execution_count": 103
 			},
 			{
 				"cell_type": "code",
@@ -279,7 +279,7 @@
 				"source": [
 					"%run \"1-odw-raw-to-standardised/Fileshare/SAP_HR/py_1_raw_to_standardised_hr_functions\""
 				],
-				"execution_count": 64
+				"execution_count": 104
 			},
 			{
 				"cell_type": "markdown",
@@ -329,6 +329,8 @@
 					"PipelineTriggeredbyPipelineRunID = g(\"PipelineTriggeredbyPipelineRunID\", \"\")\n",
 					"\n",
 					"# ==================== ingest_adhoc with error capture ====================\n",
+					"\n",
+					"\n",
 					"def ingest_adhoc(storage_account, definition, source_path, source_file_name,\n",
 					"                 expected_from, expected_to, process_name, isMultiLine, dataAttribute):\n",
 					"    try:\n",
@@ -352,12 +354,25 @@
 					"            logError(msg)\n",
 					"            return True, 0, msg\n",
 					"\n",
+					"        # ✅ Normalize schema: cast problematic columns before writing\n",
+					"        # Cast known columns to string to avoid Delta merge conflicts\n",
+					"        for col_name in [\"version\", \"size\"]:\n",
+					"            if col_name in df_raw.columns:\n",
+					"                df_raw = df_raw.withColumn(col_name, df_raw[col_name].cast(\"string\"))\n",
+					"\n",
+					"        # (Optional) Dynamic approach: cast ALL columns to string if schema varies a lot\n",
+					"        # from pyspark.sql.functions import col\n",
+					"        # for c in df_raw.columns:\n",
+					"        #     df_raw = df_raw.withColumn(c, col(c).cast(\"string\"))\n",
+					"\n",
 					"        row_count = df_raw.count()\n",
 					"        logInfo(f\"[{process_name}] Read {row_count} rows from {source_file_name}\")\n",
 					"\n",
 					"        target_table = f\"odw_standardised_db.{definition['Standardised_Table_Name']}\"\n",
 					"        logInfo(f\"[{process_name}] Writing to {target_table}\")\n",
-					"        df_raw.write.mode(\"append\").saveAsTable(target_table)\n",
+					"\n",
+					"        # ✅ Write as Delta and allow schema evolution for new columns\n",
+					"        df_raw.write.format(\"delta\").option(\"mergeSchema\", \"true\").mode(\"append\").saveAsTable(target_table)\n",
 					"\n",
 					"        logInfo(f\"[{process_name}] Successfully wrote {row_count} rows to {target_table}\")\n",
 					"        return False, row_count, \"\"\n",
@@ -366,6 +381,8 @@
 					"        logError(error_message)\n",
 					"        logException(e)\n",
 					"        return True, 0, error_message\n",
+					"\n",
+					"\n",
 					"\n",
 					"# ==================== Resolve date_folder ====================\n",
 					"if 'date_folder' not in globals():\n",
@@ -534,7 +551,7 @@
 					"        mssparkutils.notebook.exit(\"0\")\n",
 					""
 				],
-				"execution_count": 65
+				"execution_count": 105
 			}
 		]
 	}
