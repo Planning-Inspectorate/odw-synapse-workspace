@@ -1,0 +1,1026 @@
+{
+	"name": "py_load_hist_green_specialist_case_migration",
+	"properties": {
+		"folder": {
+			"name": "Releases/26.0.0"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "3712236c-a0e7-4545-bbca-465142f27af1"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### The purpose of this pyspark notebook is to read CSV file from odw-raw StaticTables and load data into odw_harmonised_db and odw_curated_db layer.\n",
+					"\n",
+					"**Author** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Created Date** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Description**  \n",
+					"Rohit Shukla &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;07-Jan-2025 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The functionality of this notebook is to ingest CSV file into the following Delta Tables using Spark SQL:\n",
+					"- odw_harmonised_db.hist_green_specialist_case\n",
+					"- odw_curated_db.pbi_hist_green_specialist_case\n",
+					"\n",
+					"**Spark Cluster Configuration** -> Apache Spark Version- 3.4, Python Version - 3.10, Delta Lake Version - 2.4\n",
+					"\n",
+					""
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Import all python libraries"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Import libraries \n",
+					"import json\n",
+					"import sys\n",
+					"import re\n",
+					"from datetime import datetime, date\n",
+					"from pyspark.sql.functions import regexp_replace,lit, current_timestamp, trim,col,coalesce, to_date, when\n",
+					"\n",
+					"from notebookutils import mssparkutils\n",
+					"from pyspark.sql.types import *\n",
+					"\n",
+					"# Ignore FutureWarning messages \n",
+					"import warnings\n",
+					"warnings.filterwarnings(\"ignore\", message=\"iteritems is deprecated\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Get storage account"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Get Storage account name\n",
+					"storage_account = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"print(f\"Storage Account: {storage_account}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Enable message logging"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Enable Apps Insight Logging"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_applicationinsights"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Define all storage paths and file locations"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"#Initialise all Apps Insight variables\n",
+					"start_exec_time = datetime.now()\n",
+					"end_exec_time = datetime.now()\n",
+					"insert_count = 0\n",
+					"update_count = 0\n",
+					"delete_count = 0\n",
+					"error_message = ''\n",
+					"\n",
+					"# Define database names, table names, and file paths\n",
+					"harmonised_database = \"odw_harmonised_db\"\n",
+					"curated_database = \"odw_curated_db\"\n",
+					"\n",
+					"# Target table names\n",
+					"harmonised_table = f\"{harmonised_database}.hist_green_specialist_case\"\n",
+					"curated_table = f\"{curated_database}.pbi_hist_green_specialist_case\"\n",
+					"curated_view = f\"{curated_database}.vw_hist_green_specialist_case\"\n",
+					"source_csv_path = f\"abfss://odw-raw@{storage_account}StaticTables/\"\n",
+					"\n",
+					"# Delta table,view paths\n",
+					"harmonised_table_path = f\"abfss://odw-harmonised@{storage_account}green_specialist_case/hist_green_specialist_case\"\n",
+					"curated_table_path = f\"abfss://odw-curated@{storage_account}green_specialist_case/pbi_hist_green_specialist_case\"\n",
+					"curated_view_path = f\"abfss://odw-curated@{storage_account}green_specialist_case/vw_hist_green_specialist_case\"\n",
+					"\n",
+					"# Get latest folder\n",
+					"def get_latest_folder(path):\n",
+					"    folders = [f.name for f in mssparkutils.fs.ls(path) if f.isDir]\n",
+					"    folders = sorted([f for f in folders if re.match(r\"\\d{4}-\\d{2}-\\d{2}\", f)], reverse=True)\n",
+					"    return folders[0] if folders else None\n",
+					"\n",
+					"# Source CSV file location (using current date)\n",
+					"current_date_str = date.today().strftime(\"%Y-%m-%d\")\n",
+					"source_csv_path = f\"{source_csv_path}{get_latest_folder(source_csv_path)}/hist_green_specialist_case_migration.csv\"\n",
+					"\n",
+					"logInfo(f\"Source CSV Path: {source_csv_path}\")\n",
+					"logInfo(f\"Harmonised Table Path: {harmonised_table_path}\")\n",
+					"logInfo(f\"Curated Table Path: {curated_table_path}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Clean up all green specialist case and casework local plan tables\n",
+					""
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"\n",
+					"        # List of tables to clear\n",
+					"        tables_to_clear = [\n",
+					"            \"odw_harmonised_db.load_casework_local_plan\",\n",
+					"            \"odw_curated_db.pbi_casework_local_plan\",\n",
+					"            \"odw_curated_db.pbi_green_specialist_case\",\n",
+					"            \"odw_curated_db.pbi_green_specialist_case_tpo\",\n",
+					"            \"odw_harmonised_db.hist_green_specialist_case\",\n",
+					"            \"odw_harmonised_db.load_green_specialist_case\"\n",
+					"        ]\n",
+					"\n",
+					"        logInfo(\"Clearing Delta tables for the readiness\")\n",
+					"\n",
+					"        for table in tables_to_clear:\n",
+					"            try:\n",
+					"                # Check count before deleting\n",
+					"                count_before = spark.sql(f\"SELECT COUNT(*) as cnt FROM {table}\").collect()[0]['cnt']\n",
+					"                \n",
+					"                # DELETE FROM is the correct way for Delta tables in Synapse\n",
+					"                spark.sql(f\"DELETE FROM {table}\")\n",
+					"                \n",
+					"                logInfo(f\"Deleted {count_before:,} rows from: {table}\")\n",
+					"                \n",
+					"            except Exception as e:\n",
+					"                logInfo(f\"{table} table doesn't exist\")\n",
+					"                # Continue to next table\n",
+					"                continue\n",
+					"\n",
+					"        logInfo(\"Table cleardown completed\")\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error in deleting data from {table}: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Define the schema for the CSV file"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Define explicit schema for CSV reading to ensure correct data types\n",
+					"csv_schema = StructType([\n",
+					"    StructField(\"casework_specialist_id\", StringType(), True),\n",
+					"    StructField(\"greenCaseType\", StringType(), True),\n",
+					"    StructField(\"greenCaseId\", StringType(), True),\n",
+					"    StructField(\"caseReference\", StringType(), True),\n",
+					"    StructField(\"horizonId\", StringType(), True),\n",
+					"    StructField(\"linkedGreenCaseId\", StringType(), True),\n",
+					"    StructField(\"caseOfficerName\", StringType(), True),\n",
+					"    StructField(\"caseOfficerEmail\", StringType(), True),\n",
+					"    StructField(\"appealType\", StringType(), True),\n",
+					"    StructField(\"procedure\", StringType(), True),\n",
+					"    StructField(\"processingState\", StringType(), True),\n",
+					"    StructField(\"pinsLpaCode\", StringType(), True),\n",
+					"    StructField(\"pinsLpaName\", StringType(), True),\n",
+					"    StructField(\"appellantName\", StringType(), True),\n",
+					"    StructField(\"agentName\", StringType(), True),\n",
+					"    StructField(\"siteAddressDescription\", StringType(), True),\n",
+					"    StructField(\"sitePostcode\", StringType(), True),\n",
+					"    StructField(\"otherPartyName\", StringType(), True),\n",
+					"    StructField(\"receiptDate\", StringType(), True),\n",
+					"    StructField(\"validDate\", StringType(), True),\n",
+					"    StructField(\"startDate\", StringType(), True),\n",
+					"    StructField(\"lpaQuestionnaireDue\", StringType(), True),\n",
+					"    StructField(\"lpaQuestionnaireReceived\", StringType(), True),\n",
+					"    StructField(\"week6Date\", StringType(), True),\n",
+					"    StructField(\"week8Date\", StringType(), True),\n",
+					"    StructField(\"week9Date\", StringType(), True),\n",
+					"    StructField(\"eventType\", StringType(), True),\n",
+					"    StructField(\"eventDate\", StringType(), True),\n",
+					"    StructField(\"eventTime\", StringType(), True),\n",
+					"    StructField(\"inspectorName\", StringType(), True),\n",
+					"    StructField(\"inspectorStaffNumber\", StringType(), True),\n",
+					"    StructField(\"decision\", StringType(), True),\n",
+					"    StructField(\"decisionDate\", StringType(), True),\n",
+					"    StructField(\"withdrawnOrTurnedAwayDate\", StringType(), True),\n",
+					"    StructField(\"comments\", StringType(), True),\n",
+					"    StructField(\"Migrated\", StringType(), True),\n",
+					"    StructField(\"IngestionDate\", StringType(), True),\n",
+					"    StructField(\"is_current\", StringType(), True),\n",
+					"    StructField(\"record_start_date\", StringType(), True),\n",
+					"    StructField(\"record_end_date\", StringType(), True),\n",
+					"    StructField(\"RowID\", StringType(), True),\n",
+					"    StructField(\"active\", StringType(), True)\n",
+					"])"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Read CSV file and create temporary view"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"\n",
+					"        # Read CSV file with explicit schema and register as temporary view\n",
+					"        logInfo(\"Reading CSV file from source location...\")\n",
+					"\n",
+					"        df_source = spark.read \\\n",
+					"            .format(\"csv\") \\\n",
+					"            .option(\"header\", \"true\") \\\n",
+					"            .option(\"inferSchema\", \"false\") \\\n",
+					"            .option(\"encoding\", \"UTF-8\") \\\n",
+					"            .option(\"multiLine\", \"true\") \\\n",
+					"            .option(\"escape\", \"\\\"\") \\\n",
+					"            .schema(csv_schema) \\\n",
+					"            .load(source_csv_path)\n",
+					"\n",
+					"        # Clean special characters (BOM)\n",
+					"        logInfo(\"Removing BOM characters and trimming string columns...\")\n",
+					"\n",
+					"        # Remove BOM (\\ufeff) and trim all columns\n",
+					"        for column_name in df_source.columns:\n",
+					"            df_trimmed = df_source.withColumn(\n",
+					"                column_name,\n",
+					"                trim(regexp_replace(col(column_name), \"^\\\\ufeff\", \"\"))\n",
+					"            )\n",
+					"\n",
+					"        logInfo(\"BOM characters removed and columns cleaned successfully\")\n",
+					"\n",
+					"        # Date columns that need conversion\n",
+					"        date_columns = [\n",
+					"            \"receiptDate\", \"validDate\", \"startDate\", \"lpaQuestionnaireDue\",\n",
+					"            \"lpaQuestionnaireReceived\", \"week6Date\", \"week8Date\", \"week9Date\",\n",
+					"            \"eventDate\", \"decisionDate\", \"withdrawnOrTurnedAwayDate\",\"record_start_date\",\n",
+					"            \"record_end_date\"\n",
+					"        ]\n",
+					"\n",
+					"        # Convert date columns with multiple format handling\n",
+					"        logInfo(\"Converting date columns with various format handling\")\n",
+					"\n",
+					"        for date_col in date_columns:\n",
+					"            df_source = df_source.withColumn(\n",
+					"                date_col,\n",
+					"                when(\n",
+					"                    (col(date_col).isNotNull()) & (col(date_col) != \"\"),\n",
+					"                    coalesce(\n",
+					"                        # Try format 1: yyyy-MM-dd'T'HH:mm:ss.SSSSSSS (ISO with T and 7 decimals)\n",
+					"                        to_date(col(date_col), \"yyyy-MM-dd'T'HH:mm:ss.SSSSSSS\"),\n",
+					"                        # Try format 2: yyyy-MM-dd HH:mm:ss.SSSSSSS (space with 7 decimals)\n",
+					"                        to_date(col(date_col), \"yyyy-MM-dd HH:mm:ss.SSSSSSS\"),\n",
+					"                        # Try format 3: yyyy-MM-dd HH:mm:ss.SSS (space with 3 decimals)\n",
+					"                        to_date(col(date_col), \"yyyy-MM-dd HH:mm:ss.SSS\"),\n",
+					"                        # Try format 4: yyyy-MM-dd'T'HH:mm:ss.SSS (ISO with T and 3 decimals)\n",
+					"                        to_date(col(date_col), \"yyyy-MM-dd'T'HH:mm:ss.SSS\"),\n",
+					"                        # Try format 5: yyyy-MM-dd (just date)\n",
+					"                        to_date(col(date_col), \"yyyy-MM-dd\")\n",
+					"                    )\n",
+					"                ).otherwise(None)\n",
+					"            )\n",
+					"\n",
+					"        logInfo(\"Date conversion completed with multiple format support\")\n",
+					"\n",
+					"        # Create temporary view for SQL operations\n",
+					"        df_source.createOrReplaceTempView(\"source_hist_green_specialist_case_csv\")\n",
+					"\n",
+					"        source_count = spark.sql(\"SELECT COUNT(*) as cnt FROM source_hist_green_specialist_case_csv\").collect()[0]['cnt']\n",
+					"        logInfo(f\"Successfully read CSV file. Total records: {source_count}\")\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error in creating csv file dataframe/temprary view : {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Clean data and apply transformations using Spark SQL"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"        # Use Spark SQL to transform data types and handle dates\n",
+					"        logInfo(\"Applying data type conversions\")\n",
+					"\n",
+					"        spark.sql(\"\"\"\n",
+					"            CREATE OR REPLACE TEMPORARY VIEW vw_harmonised_hist_specialist_case AS\n",
+					"            SELECT\n",
+					"                -- Convert integer columns and handle empty strings as NULL\n",
+					"                CAST(NULLIF(casework_specialist_id, '') AS INT) as casework_specialist_id,\n",
+					"                \n",
+					"                -- String columns - convert empty strings to NULL\n",
+					"                NULLIF(greenCaseType, '') as greenCaseType,\n",
+					"                NULLIF(greenCaseId, '') as greenCaseId,\n",
+					"                NULLIF(caseReference, '') as caseReference,\n",
+					"                NULLIF(horizonId, '') as horizonId,\n",
+					"                NULLIF(linkedGreenCaseId, '') as linkedGreenCaseId,\n",
+					"                NULLIF(caseOfficerName, '') as caseOfficerName,\n",
+					"                NULLIF(caseOfficerEmail, '') as caseOfficerEmail,\n",
+					"                NULLIF(appealType, '') as appealType,\n",
+					"                NULLIF(procedure, '') as procedure,\n",
+					"                NULLIF(processingState, '') as processingState,\n",
+					"                NULLIF(pinsLpaCode, '') as pinsLpaCode,\n",
+					"                NULLIF(pinsLpaName, '') as pinsLpaName,\n",
+					"                NULLIF(appellantName, '') as appellantName,\n",
+					"                NULLIF(agentName, '') as agentName,\n",
+					"                NULLIF(siteAddressDescription, '') as siteAddressDescription,\n",
+					"                NULLIF(sitePostcode, '') as sitePostcode,\n",
+					"                NULLIF(otherPartyName, '') as otherPartyName,\n",
+					"                -- Date columns - convert from ISO timestamp format\n",
+					"                CASE \n",
+					"                    WHEN receiptDate IS NULL OR receiptDate = '' THEN NULL\n",
+					"                    ELSE TO_TIMESTAMP(receiptDate, 'yyyy-MM-dd')\n",
+					"                END as receiptDate,\n",
+					"                \n",
+					"                CASE \n",
+					"                    WHEN validDate IS NULL OR validDate = '' THEN NULL\n",
+					"                    ELSE TO_TIMESTAMP(validDate, 'yyyy-MM-dd')\n",
+					"                END as validDate,\n",
+					"                \n",
+					"                CASE \n",
+					"                    WHEN startDate IS NULL OR startDate = '' THEN NULL\n",
+					"                    ELSE TO_TIMESTAMP(startDate, 'yyyy-MM-dd')\n",
+					"                END as startDate,\n",
+					"                \n",
+					"                CASE \n",
+					"                    WHEN lpaQuestionnaireDue IS NULL OR lpaQuestionnaireDue = '' THEN NULL\n",
+					"                    ELSE TO_TIMESTAMP(lpaQuestionnaireDue, 'yyyy-MM-dd')\n",
+					"                END as lpaQuestionnaireDue,\n",
+					"                \n",
+					"                CASE \n",
+					"                    WHEN lpaQuestionnaireReceived IS NULL OR lpaQuestionnaireReceived = '' THEN NULL\n",
+					"                    ELSE TO_TIMESTAMP(lpaQuestionnaireReceived, 'yyyy-MM-dd')\n",
+					"                END as lpaQuestionnaireReceived,\n",
+					"                \n",
+					"                CASE \n",
+					"                    WHEN week6Date IS NULL OR week6Date = '' THEN NULL\n",
+					"                    ELSE TO_TIMESTAMP(week6Date, 'yyyy-MM-dd')\n",
+					"                END as week6Date,\n",
+					"                \n",
+					"                CASE \n",
+					"                    WHEN week8Date IS NULL OR week8Date = '' THEN NULL\n",
+					"                    ELSE TO_TIMESTAMP(week8Date, 'yyyy-MM-dd')\n",
+					"                END as week8Date,\n",
+					"                \n",
+					"                CASE \n",
+					"                    WHEN week9Date IS NULL OR week9Date = '' THEN NULL\n",
+					"                    ELSE TO_TIMESTAMP(week9Date, 'yyyy-MM-dd')\n",
+					"                END as week9Date,\n",
+					"                \n",
+					"                NULLIF(eventType, '') as eventType,\n",
+					"                \n",
+					"                CASE \n",
+					"                    WHEN eventDate IS NULL OR eventDate = '' THEN NULL\n",
+					"                    ELSE TO_TIMESTAMP(eventDate, 'yyyy-MM-dd')\n",
+					"                END as eventDate,\n",
+					"\n",
+					"                CASE \n",
+					"                    WHEN record_start_date IS NULL OR record_start_date = '' THEN NULL\n",
+					"                    ELSE TO_TIMESTAMP(record_start_date, 'yyyy-MM-dd')\n",
+					"                END as record_start_date,\n",
+					"\n",
+					"                CASE \n",
+					"                    WHEN record_end_date IS NULL OR week6Date = '' THEN NULL\n",
+					"                    ELSE TO_TIMESTAMP(record_end_date, 'yyyy-MM-dd')\n",
+					"                END as record_end_date,\n",
+					"                \n",
+					"                NULLIF(eventTime, '') as eventTime,\n",
+					"                NULLIF(inspectorName, '') as inspectorName,\n",
+					"                NULLIF(inspectorStaffNumber, '') as inspectorStaffNumber,\n",
+					"                NULLIF(decision, '') as decision,\n",
+					"                \n",
+					"                CASE \n",
+					"                    WHEN decisionDate IS NULL OR decisionDate = '' THEN NULL\n",
+					"                    ELSE TO_TIMESTAMP(decisionDate, 'yyyy-MM-dd')\n",
+					"                END as decisionDate,\n",
+					"                \n",
+					"                CASE \n",
+					"                    WHEN withdrawnOrTurnedAwayDate IS NULL OR withdrawnOrTurnedAwayDate = '' THEN NULL\n",
+					"                    ELSE TO_TIMESTAMP(withdrawnOrTurnedAwayDate, 'yyyy-MM-dd')\n",
+					"                END as withdrawnOrTurnedAwayDate,\n",
+					"                \n",
+					"                NULLIF(comments, '') as comments,\n",
+					"                NULLIF(Migrated, '') as Migrated\n",
+					"                \n",
+					"            FROM source_hist_green_specialist_case_csv\n",
+					"        \"\"\")\n",
+					"\n",
+					"        cleaned_count = spark.sql(\"SELECT COUNT(*) as cnt FROM vw_harmonised_hist_specialist_case\").collect()[0]['cnt']\n",
+					"        logInfo(f\"Data type conversions completed. Records: {cleaned_count}\")\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error in creating vw_harmonised_hist_specialist_case : {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Create harmonised view with metadata columns and RowID using Spark SQL"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"        # Create harmonised view with all metadata columns using Spark SQL\n",
+					"        logInfo(\"Creating harmonised view with metadata columns...\")\n",
+					"\n",
+					"        spark.sql(f\"\"\"\n",
+					"            INSERT INTO {harmonised_table}\n",
+					"            SELECT\n",
+					"                -- All business columns\n",
+					"                casework_specialist_id,\n",
+					"                greenCaseType,\n",
+					"                greenCaseId,\n",
+					"                caseReference,\n",
+					"                horizonId,\n",
+					"                linkedGreenCaseId,\n",
+					"                caseOfficerName,\n",
+					"                caseOfficerEmail,\n",
+					"                appealType,\n",
+					"                procedure,\n",
+					"                processingState,\n",
+					"                pinsLpaCode,\n",
+					"                pinsLpaName,\n",
+					"                appellantName,\n",
+					"                agentName,\n",
+					"                siteAddressDescription,\n",
+					"                sitePostcode,\n",
+					"                otherPartyName,\n",
+					"                receiptDate,\n",
+					"                validDate,\n",
+					"                startDate,\n",
+					"                lpaQuestionnaireDue,\n",
+					"                lpaQuestionnaireReceived,\n",
+					"                week6Date,\n",
+					"                week8Date,\n",
+					"                week9Date,\n",
+					"                eventType,\n",
+					"                eventDate,\n",
+					"                eventTime,\n",
+					"                inspectorName,\n",
+					"                inspectorStaffNumber,\n",
+					"                decision,\n",
+					"                decisionDate,\n",
+					"                withdrawnOrTurnedAwayDate,\n",
+					"                comments,\n",
+					"                Migrated,        \n",
+					"                -- Metadata columns\n",
+					"                CURRENT_TIMESTAMP() as IngestionDate,\n",
+					"                1 as is_current,\n",
+					"                record_start_date,\n",
+					"                record_end_date,\n",
+					"                'Y' as active,\n",
+					"                \n",
+					"                -- Calculate RowID using MD5 hash of all business columns\n",
+					"                MD5(\n",
+					"                    CONCAT(\n",
+					"                        COALESCE(CAST(casework_specialist_id AS STRING), ''),\n",
+					"                        COALESCE(greenCaseType, ''),\n",
+					"                        COALESCE(greenCaseId, ''),\n",
+					"                        COALESCE(caseReference, ''),\n",
+					"                        COALESCE(horizonId, ''),\n",
+					"                        COALESCE(linkedGreenCaseId, ''),\n",
+					"                        COALESCE(caseOfficerName, ''),\n",
+					"                        COALESCE(caseOfficerEmail, ''),\n",
+					"                        COALESCE(appealType, ''),\n",
+					"                        COALESCE(procedure, ''),\n",
+					"                        COALESCE(processingState, ''),\n",
+					"                        COALESCE(pinsLpaCode, ''),\n",
+					"                        COALESCE(pinsLpaName, ''),\n",
+					"                        COALESCE(appellantName, ''),\n",
+					"                        COALESCE(agentName, ''),\n",
+					"                        COALESCE(siteAddressDescription, ''),\n",
+					"                        COALESCE(sitePostcode, ''),\n",
+					"                        COALESCE(otherPartyName, ''),\n",
+					"                        COALESCE(CAST(receiptDate AS STRING), ''),\n",
+					"                        COALESCE(CAST(validDate AS STRING), ''),\n",
+					"                        COALESCE(CAST(startDate AS STRING), ''),\n",
+					"                        COALESCE(CAST(lpaQuestionnaireDue AS STRING), ''),\n",
+					"                        COALESCE(CAST(lpaQuestionnaireReceived AS STRING), ''),\n",
+					"                        COALESCE(CAST(week6Date AS STRING), ''),\n",
+					"                        COALESCE(CAST(week8Date AS STRING), ''),\n",
+					"                        COALESCE(CAST(week9Date AS STRING), ''),\n",
+					"                        COALESCE(eventType, ''),\n",
+					"                        COALESCE(CAST(eventDate AS STRING), ''),\n",
+					"                        COALESCE(eventTime, ''),\n",
+					"                        COALESCE(inspectorName, ''),\n",
+					"                        COALESCE(inspectorStaffNumber, ''),\n",
+					"                        COALESCE(decision, ''),\n",
+					"                        COALESCE(CAST(decisionDate AS STRING), ''),\n",
+					"                        COALESCE(CAST(withdrawnOrTurnedAwayDate AS STRING), ''),\n",
+					"                        COALESCE(CAST(record_start_date AS STRING), ''),\n",
+					"                        COALESCE(CAST(record_end_date AS STRING), ''),\n",
+					"                        COALESCE(comments, '')\n",
+					"                    )\n",
+					"                ) as RowID\n",
+					"                \n",
+					"            FROM vw_harmonised_hist_specialist_case\n",
+					"        \"\"\")\n",
+					"\n",
+					"        harmonised_count = spark.sql(\"SELECT COUNT(*) as cnt FROM vw_harmonised_hist_specialist_case\").collect()[0]['cnt']\n",
+					"        logInfo(f\"Harmonised view created with {harmonised_count} records\")\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error inserting records in {harmonised_table} : {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Write count verification for the harmonised layer Delta table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"        # Verify harmonised data\n",
+					"        harmonised_count = spark.sql(f\"SELECT COUNT(*) as count FROM {harmonised_table}\").collect()[0]['count']\n",
+					"        logInfo(f\"Successfully loaded {harmonised_count} records into {harmonised_table}\")\n",
+					"        \n",
+					"        # Data quality check for harmonised layer\n",
+					"        null_rowid_count = spark.sql(f\"\"\"\n",
+					"            SELECT COUNT(*) as count \n",
+					"            FROM {harmonised_table} \n",
+					"            WHERE RowID IS NULL\n",
+					"        \"\"\").collect()[0]['count']\n",
+					"        \n",
+					"        if null_rowid_count > 0:\n",
+					"            logError(f\"Data quality issue in harmonised layer: {null_rowid_count} rows have NULL RowID values\")\n",
+					"        else:\n",
+					"            logInfo(\"Harmonised layer data quality check passed: No NULL RowID values\")\n",
+					"        \n",
+					"        # Additional data quality checks\n",
+					"        duplicate_rowid_count = spark.sql(f\"\"\"\n",
+					"            SELECT COUNT(*) as count\n",
+					"            FROM (\n",
+					"                SELECT RowID, COUNT(*) as cnt\n",
+					"                FROM {harmonised_table}\n",
+					"                GROUP BY RowID\n",
+					"                HAVING COUNT(*) > 1\n",
+					"            )\n",
+					"        \"\"\").collect()[0]['count']\n",
+					"        \n",
+					"        if duplicate_rowid_count > 0:\n",
+					"            logError(f\"Data quality issue: {duplicate_rowid_count} duplicate RowID values found\")\n",
+					"        \n",
+					"    except Exception as e:\n",
+					"        error_msg = f\"Error writing to harmonised layer: {str(e)}\"\n",
+					"        logError(error_msg)\n",
+					"        logException(e)\n",
+					"        truncated_error = (error_msg[:297] + '...') if len(error_msg) > 800 else error_msg\n",
+					"        end_exec_time = datetime.now()\n",
+					"        raise e"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Create curated view (Power BI optimized) using Spark SQL"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"        # Create curated view with filters for active and current records\n",
+					"        logInfo(\"Creating curated view for Power BI consumption...\")\n",
+					"        \n",
+					"        spark.sql(f\"\"\"\n",
+					"            CREATE OR REPLACE TEMPORARY VIEW vw_curated_hist_specialist_case AS\n",
+					"            SELECT\n",
+					"                -- All columns from harmonised\n",
+					"                casework_specialist_id,\n",
+					"                greenCaseType,\n",
+					"                greenCaseId,\n",
+					"                caseReference,\n",
+					"                horizonId,\n",
+					"                linkedGreenCaseId,\n",
+					"                caseOfficerName,\n",
+					"                caseOfficerEmail,\n",
+					"                appealType,\n",
+					"                procedure,\n",
+					"                processingState,\n",
+					"                pinsLpaCode,\n",
+					"                pinsLpaName,\n",
+					"                appellantName,\n",
+					"                agentName,\n",
+					"                siteAddressDescription,\n",
+					"                sitePostcode,\n",
+					"                otherPartyName,\n",
+					"                receiptDate,\n",
+					"                validDate,\n",
+					"                startDate,\n",
+					"                lpaQuestionnaireDue,\n",
+					"                lpaQuestionnaireReceived,\n",
+					"                week6Date,\n",
+					"                week8Date,\n",
+					"                week9Date,\n",
+					"                eventType,\n",
+					"                eventDate,\n",
+					"                eventTime,\n",
+					"                inspectorName,\n",
+					"                inspectorStaffNumber,\n",
+					"                decision,\n",
+					"                decisionDate,\n",
+					"                withdrawnOrTurnedAwayDate,\n",
+					"                comments,\n",
+					"                Migrated,\n",
+					"                IngestionDate,\n",
+					"                is_current,\n",
+					"                record_start_date,\n",
+					"                record_end_date,\n",
+					"                RowID,\n",
+					"                active\n",
+					"            FROM {harmonised_table}\n",
+					"        \"\"\")\n",
+					"        \n",
+					"        curated_row_count = spark.sql(\"SELECT COUNT(*) as cnt FROM vw_curated_hist_specialist_case\").collect()[0]['cnt']\n",
+					"        logInfo(f\"Curated view created with {curated_row_count} records.\")\n",
+					"    \n",
+					"    except Exception as e:\n",
+					"        error_msg = f\"Error creating curated view vw_curated_hist_specialist_case: {str(e)}\"\n",
+					"        logError(error_msg)\n",
+					"        logException(e)\n",
+					"        end_exec_time = datetime.now()\n",
+					"        raise e"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Write data to curated layer Delta table and View using Create or Replace"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"        # Create curated table\n",
+					"        logInfo(f\"Creating or replacing table: {curated_table}\")\n",
+					"        \n",
+					"        spark.sql(f\"\"\"\n",
+					"        CREATE OR REPLACE TABLE {curated_table}\n",
+					"        USING delta\n",
+					"        LOCATION '{curated_table_path}'\n",
+					"        AS SELECT * FROM {harmonised_table}\n",
+					"        \"\"\")\n",
+					"\n",
+					"        # Create curated view\n",
+					"        logInfo(f\"Creating or replacing view: {curated_view}\")\n",
+					"\n",
+					"        spark.sql(f\"\"\"\n",
+					"        CREATE OR REPLACE VIEW {curated_view}\n",
+					"        AS SELECT * FROM {curated_table}\n",
+					"        \"\"\")\n",
+					"        \n",
+					"        # Verify curated data\n",
+					"        curated_count = spark.sql(f\"SELECT COUNT(*) as count FROM {curated_table}\").collect()[0]['count']\n",
+					"        logInfo(f\"Successfully loaded {curated_count} records into {curated_table}\")\n",
+					"\n",
+					"        curated_view_count = spark.sql(f\"SELECT COUNT(*) as count FROM {curated_view}\").collect()[0]['count']\n",
+					"        logInfo(f\"Successfully loaded {curated_view_count} records into {curated_view}\")\n",
+					"        \n",
+					"        # Data quality check for curated layer\n",
+					"        null_rowid_count_curated = spark.sql(f\"\"\"\n",
+					"            SELECT COUNT(*) as count \n",
+					"            FROM {curated_table} \n",
+					"            WHERE RowID IS NULL\n",
+					"        \"\"\").collect()[0]['count']\n",
+					"        \n",
+					"        if null_rowid_count_curated > 0:\n",
+					"            logError(f\"Data quality issue in curated layer: {null_rowid_count_curated} rows have NULL RowID values\")\n",
+					"            \n",
+					"        else:\n",
+					"            logInfo(\"Curated layer data quality check passed: No NULL RowID values\")\n",
+					"        \n",
+					"        # Verify filtering logic worked correctly\n",
+					"        invalid_records = spark.sql(f\"\"\"\n",
+					"            SELECT COUNT(*) as count \n",
+					"            FROM {curated_table}\n",
+					"            --WHERE active != 'Y' OR is_current != 1\n",
+					"        \"\"\").collect()[0]['count']\n",
+					"        \n",
+					"        if invalid_records > 0:\n",
+					"            logError(f\"Data quality issue: {invalid_records} records in curated layer don't meet filter criteria\")\n",
+					"            \n",
+					"        \n",
+					"        # Final success message\n",
+					"        logInfo(\"hist_green_specialist_case data processing completed successfully\")\n",
+					"        logInfo(f\"Summary: {harmonised_count} records in harmonised, {curated_count} records in curated\")\n",
+					"        \n",
+					"        # Show distribution summary\n",
+					"        logInfo(\"Distribution by greenCaseType:\")\n",
+					"        distribution = spark.sql(f\"\"\"\n",
+					"            SELECT \n",
+					"                greenCaseType,\n",
+					"                COUNT(*) as record_count\n",
+					"            FROM {harmonised_table}\n",
+					"            GROUP BY greenCaseType\n",
+					"            ORDER BY record_count DESC\n",
+					"        \"\"\")\n",
+					"        distribution.show()\n",
+					"        \n",
+					"    except Exception as e:\n",
+					"        error_msg = f\"Error writing to curated layer: {str(e)}\"\n",
+					"        logError(error_msg)\n",
+					"        logException(e)\n",
+					"        error_message = (error_msg[:297] + '...') if len(error_msg) > 300 else error_msg\n",
+					"        end_exec_time = datetime.now()\n",
+					"        raise e\n",
+					"\n",
+					"    finally:\n",
+					"        # Always flush logs regardless of success or failure\n",
+					"        logInfo(\"Flushing logs\")\n",
+					"        flushLogging()\n",
+					"        "
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Clean up temporary views\n",
+					"spark.sql(\"DROP VIEW IF EXISTS vw_source_hist_specialist_case\")\n",
+					"spark.sql(\"DROP VIEW IF EXISTS vw_harmonised_hist_specialist_case\")\n",
+					"spark.sql(\"DROP VIEW IF EXISTS vw_curated_hist_specialist_case\")\n",
+					"\n",
+					"end_exec_time = datetime.now()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Record migration status weather it is failed or successful"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if source_count == curated_count:\n",
+					"    status_message = f\"Migration successful, Record counts between hist_green_specialist_case_migration.csv (Source csv file count: {source_count} and odw_curated_db.pbi_hist_green_specialist_case record count: {curated_count} matched\"\n",
+					"else:\n",
+					"    error_message = f\"Migration unsuccessful, Record counts between hist_green_specialist_case_migration.csv (Source csv file count: {source_count} and odw_curated_db.pbi_hist_green_specialist_case record count: {curated_count} didn't match\"\n",
+					"\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Record into Apps Insight for logging and tracking"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# STEP 6: Final Statistics and Telemetry\n",
+					"\n",
+					"duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
+					"activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
+					"stage = \"Success\" if not error_message else \"Failed\"\n",
+					"status_message = (\n",
+					"    f\"Ingested migrated records into odw_harmonised_db.hist_green_specialist_case (Source csv file count: {source_count}, odw_curated_db.pbi_hist_green_specialist_case: {curated_count})\"\n",
+					"    if not error_message \n",
+					"    else f\"Migration failed for {harmonised_table}\"\n",
+					")\n",
+					"status_code = \"200\" if stage == \"Success\" else \"400\"\n",
+					"\n",
+					"log_telemetry_and_exit(\n",
+					"    stage,\n",
+					"    start_exec_time,\n",
+					"    end_exec_time,\n",
+					"    error_message,\n",
+					"    harmonised_table,\n",
+					"    curated_count,\n",
+					"    update_count,\n",
+					"    delete_count,\n",
+					"    PipelineName,\n",
+					"    PipelineRunID,\n",
+					"    PipelineTriggerID,\n",
+					"    PipelineTriggerName,\n",
+					"    PipelineTriggerType,\n",
+					"    PipelineTriggeredbyPipelineName,\n",
+					"    PipelineTriggeredbyPipelineRunID,\n",
+					"    activity_type,\n",
+					"    duration_seconds,\n",
+					"    status_message,\n",
+					"    status_code\n",
+					")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
