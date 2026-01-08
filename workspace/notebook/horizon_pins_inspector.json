@@ -129,12 +129,12 @@
 				},
 				"source": [
 					"# Check for new, updated or deleted data\n",
-					"- This script checks for new, updated or deleted data by checking the source data (horizon tables) against the target (odw_harmonised_db.horizon_pins_inspectors tables)\n",
+					"- This script checks for new, updated or deleted data by checking the source data (horizon tables) against the target (odw_harmonised_db.horizon_pins_inspector tables)\n",
 					"- **New Data:** where an main Reference in the source does not exist in the target, then NewData flag is set to 'Y'\n",
 					"- **Updated data:** Comparison occurs on Reference Fields in source and in target where the row hash is different i.e. there is a change in one of the columns. NewData flag is set to 'Y'\n",
 					"- **Deleted data:** where an Reference info in the target exists but the same identifyers don't exist in the source. DeletedData flag is set to 'Y'\n",
 					"\n",
-					"## View horizon_pins_inspectors is created"
+					"## View horizon_pins_inspector is created"
 				]
 			},
 			{
@@ -147,10 +147,10 @@
 				},
 				"source": [
 					"%%sql\n",
-					"-- Build horizon_pins_inspectors_new table\n",
+					"-- Build horizon_pins_inspector_new table\n",
 					"-- Gets modified or deleted from source rows\n",
 					"\n",
-					"CREATE OR REPLACE TEMPORARY VIEW horizon_pins_inspectors_new \n",
+					"CREATE OR REPLACE TEMPORARY VIEW horizon_pins_inspector_new \n",
 					"\n",
 					"     AS\n",
 					"\n",
@@ -231,8 +231,8 @@
 				"source": [
 					"# Dataset is created that contains changed data and corresponding target data\n",
 					"- This script combines data that has been updated, Deleted or is new, with corresponding target data\n",
-					"- View **horizon_pins_inspectors_new** is unioned to the target data filter to only those rows where changes have been detected\n",
-					"## View horizon_pins_inspectors_changed_rows is created"
+					"- View **horizon_pins_inspector_new** is unioned to the target data filter to only those rows where changes have been detected\n",
+					"## View horizon_pins_inspector_changed_rows is created"
 				]
 			},
 			{
@@ -256,7 +256,7 @@
 					"%%sql\n",
 					"-- Create new and updated dataset\n",
 					"\n",
-					"CREATE OR REPLACE TEMPORARY VIEW horizon_pins_inspectors_changed_rows\n",
+					"CREATE OR REPLACE TEMPORARY VIEW horizon_pins_inspector_changed_rows\n",
 					"    AS\n",
 					"-- gets updated, deleted and new rows \n",
 					"Select \n",
@@ -277,7 +277,7 @@
 					"    RowID,\n",
 					"    IsActive\n",
 					"\n",
-					"From horizon_pins_inspectors_new WHERE HistoricIsActive = 'Y' or HistoricIsActive IS NULL\n",
+					"From horizon_pins_inspector_new WHERE HistoricIsActive = 'Y' or HistoricIsActive IS NULL\n",
 					"\n",
 					"    UNION ALL\n",
 					"\n",
@@ -301,7 +301,7 @@
 					"    IsActive\n",
 					"    \n",
 					"FROM odw_harmonised_db.horizon_pins_inspector\n",
-					"WHERE horizonId IN (SELECT horizonId FROM horizon_pins_inspectors_new WHERE horizonId IS NOT NULL) AND IsActive = 'Y'; "
+					"WHERE horizonId IN (SELECT horizonId FROM horizon_pins_inspector_new WHERE horizonId IS NOT NULL) AND IsActive = 'Y'; "
 				],
 				"execution_count": null
 			},
@@ -334,9 +334,9 @@
 					"    to_timestamp(date_sub(IngestionDate,1)) AS ClosingDate,\n",
 					"    'Y' AS IsActive\n",
 					"\n",
-					"FROM horizon_pins_inspectors_new;\n",
+					"FROM horizon_pins_inspector_new;\n",
 					"\n",
-					"CREATE OR REPLACE TEMPORARY VIEW horizon_pins_inspectors_changed_rows_final\n",
+					"CREATE OR REPLACE TEMPORARY VIEW horizon_pins_inspector_changed_rows_final\n",
 					"    AS\n",
 					"SELECT \n",
 					"    -- inspectorsId,\n",
@@ -356,7 +356,7 @@
 					"    T1.RowID,\n",
 					"    T1.IsActive,\n",
 					"    T2.ClosingDate\n",
-					"FROM horizon_pins_inspectors_changed_rows T1\n",
+					"FROM horizon_pins_inspector_changed_rows T1\n",
 					"FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive"
 				],
 				"execution_count": null
@@ -371,10 +371,10 @@
 					}
 				},
 				"source": [
-					"# View horizon_pins_inspectors_changed_rows is used in a merge (Upsert) statement into the target table\n",
+					"# View horizon_pins_inspector_changed_rows is used in a merge (Upsert) statement into the target table\n",
 					"- **WHEN MATCHED** ON the surrogate Key, EndDate is set to today -1 day and the IsActive flag is set to 'N'\n",
 					"- **WHEN NOT MATCHED** ON the surrogate Key, insert rows\n",
-					"## Table odw_harmonised_db.horizon_pins_inspectors is updated"
+					"## Table odw_harmonised_db.horizon_pins_inspector is updated"
 				]
 			},
 			{
@@ -399,7 +399,7 @@
 					"\n",
 					"-- merge into dim table\n",
 					"MERGE INTO odw_harmonised_db.horizon_pins_inspector AS Target\n",
-					"USING horizon_pins_inspectors_changed_rows_final AS Source\n",
+					"USING horizon_pins_inspector_changed_rows_final AS Source\n",
 					"\n",
 					"ON Source.horizonId = Target.horizonId AND Target.IsActive = 'Y'\n",
 					"\n",
@@ -465,7 +465,7 @@
 					"# Fix the IDs\n",
 					"- No auto-increment feature is available in delta tables, therefore we need to create new IDs for the inserted rows\n",
 					"- This is done by select the target data and using INSERT OVERWRITE to re-insert the data is a new Row Number\n",
-					"## Table odw_harmonised_db.horizon_pins_inspectors is updated"
+					"## Table odw_harmonised_db.horizon_pins_inspector is updated"
 				]
 			},
 			{
@@ -487,7 +487,7 @@
 				},
 				"source": [
 					"%%sql\n",
-					"-- Insert new horizon_pins_inspectors\n",
+					"-- Insert new horizon_pins_inspector\n",
 					"\n",
 					"INSERT OVERWRITE odw_harmonised_db.horizon_pins_inspector\n",
 					"\n",
