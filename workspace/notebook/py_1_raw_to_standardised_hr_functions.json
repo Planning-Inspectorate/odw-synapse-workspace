@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "581f5806-3c1c-4894-a580-d458a4251af5"
+				"spark.autotune.trackingId": "37c0e680-5de1-41ab-8f4e-1a3ef3762bd4"
 			}
 		},
 		"metadata": {
@@ -46,8 +46,8 @@
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -70,7 +70,7 @@
 					"import warnings\n",
 					"warnings.filterwarnings(\"ignore\", message=\"iteritems is deprecated\")"
 				],
-				"execution_count": null
+				"execution_count": 36
 			},
 			{
 				"cell_type": "code",
@@ -88,7 +88,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": null
+				"execution_count": 37
 			},
 			{
 				"cell_type": "code",
@@ -106,7 +106,7 @@
 				"source": [
 					"%run  /0-odw-source-to-raw/Fileshare/SAP_HR/py_0_source_to_raw_hr_functions"
 				],
-				"execution_count": null
+				"execution_count": 38
 			},
 			{
 				"cell_type": "code",
@@ -124,7 +124,7 @@
 				"source": [
 					"%run /utils/py_mount_storage"
 				],
-				"execution_count": null
+				"execution_count": 39
 			},
 			{
 				"cell_type": "code",
@@ -193,7 +193,7 @@
 					"        raise TypeError(\"Header row should be an integer value\")\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 40
 			},
 			{
 				"cell_type": "code",
@@ -288,7 +288,7 @@
 					"    logInfo(f\"Written to {targetpath}\")\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 41
 			},
 			{
 				"cell_type": "code",
@@ -328,7 +328,7 @@
 					"        deltaTable = DeltaTable.convertToDelta(spark, f\"parquet.`{target_delta_folder}`\") \n",
 					"        logInfo(f\"Converted to {target_delta_folder}\")"
 				],
-				"execution_count": null
+				"execution_count": 42
 			},
 			{
 				"cell_type": "code",
@@ -367,7 +367,7 @@
 					"    spark.sql(f\"CREATE TABLE {db_name}.{delta_lake_table_name} USING DELTA LOCATION '{target_delta_folder}'\")\n",
 					"    logInfo(f\"Created delta table {db_name}.{delta_lake_table_name}\")"
 				],
-				"execution_count": null
+				"execution_count": 43
 			},
 			{
 				"cell_type": "code",
@@ -385,14 +385,26 @@
 				"source": [
 					"@logging_to_appins\n",
 					"def ingest_adhoc(storage_account, \n",
-					"                    definition,\n",
-					"                    folder_path, \n",
-					"                    filename, \n",
-					"                    expected_from, \n",
-					"                    expected_to,\n",
-					"                    process_name, \n",
-					"                    isMultilineJSON=False, \n",
-					"                    dataAttribute=None):\n",
+					"                 definition,\n",
+					"                 folder_path, \n",
+					"                 filename, \n",
+					"                 expected_from, \n",
+					"                 expected_to,\n",
+					"                 process_name, \n",
+					"                 isMultilineJSON=False,\n",
+					"                 error_message=None, \n",
+					"                 dataAttribute=None):\n",
+					"    \"\"\"\n",
+					"    Returns:\n",
+					"        dict: {\n",
+					"          \"process_name\": str,\n",
+					"          \"standardised_table_name\": str,\n",
+					"          \"ingestion_failure\": bool,\n",
+					"          \"error_message\": Optional[str],\n",
+					"          \"rows_written\": Optional[int],\n",
+					"          \"source_file_path\": Optional[str],\n",
+					"        }\n",
+					"    \"\"\"\n",
 					"\n",
 					"    from pyspark.sql import SparkSession\n",
 					"    from notebookutils import mssparkutils\n",
@@ -405,11 +417,13 @@
 					"    import pyspark.sql.types as types\n",
 					"\n",
 					"    ingestion_failure: bool = False\n",
+					"    rows_written: int | None = None\n",
+					"    source_file_path: str | None = None\n",
 					"\n",
 					"    spark = SparkSession.builder.getOrCreate()\n",
 					"    spark.conf.set(\"spark.databricks.delta.schema.autoMerge.enabled\", \"true\")\n",
 					"\n",
-					"    standardised_container = \"abfss://odw-standardised@\"+storage_account\n",
+					"    standardised_container = \"abfss://odw-standardised@\" + storage_account\n",
 					"    standardised_path = definition['Standardised_Path'] + \"/\"\n",
 					"    standardised_table_name = definition['Standardised_Table_Name']\n",
 					"    source_filename_start = definition['Source_Filename_Start']\n",
@@ -418,14 +432,66 @@
 					"    logging_table_name = 'tables_logs'\n",
 					"    ingestion_log_table_location = logging_container + logging_table_name\n",
 					"\n",
-					"    if 'Standardised_Table_Definition' in definition:\n",
-					"        standardised_table_loc = \"abfss://odw-config@\"+storage_account + definition['Standardised_Table_Definition']\n",
-					"        standardised_table_def_json = spark.read.text(standardised_table_loc, wholetext=True).first().value\n",
-					"    else:\n",
-					"        standardised_table_def_json = mssparkutils.notebook.run('/py_get_schema_from_url', 30, {'db_name': 'odw_standardised_db', 'entity_name': definition['Source_Frequency_Folder']})\n",
-					" \n",
-					"    if not any([table.name.lower() == standardised_table_name.lower() for table in spark.catalog.listTables('odw_standardised_db')]):\n",
-					"        create_table_from_schema(standardised_table_def_json, \"odw_standardised_db\", standardised_table_name,standardised_container , standardised_path+standardised_table_name)   \n",
+					"    try:\n",
+					"        # --- Resolve schema definition ---\n",
+					"        if 'Standardised_Table_Definition' in definition:\n",
+					"            standardised_table_loc = \"abfss://odw-config@\" + storage_account + definition['Standardised_Table_Definition']\n",
+					"            standardised_table_def_json = spark.read.text(standardised_table_loc, wholetext=True).first().value\n",
+					"        else:\n",
+					"            standardised_table_def_json = mssparkutils.notebook.run(\n",
+					"                '/py_get_schema_from_url', \n",
+					"                30, \n",
+					"                {'db_name': 'odw_standardised_db', 'entity_name': definition['Source_Frequency_Folder']}\n",
+					"            )\n",
+					"\n",
+					"        # --- Ensure table exists ---\n",
+					"        if not any([table.name.lower() == standardised_table_name.lower() \n",
+					"                    for table in spark.catalog.listTables('odw_standardised_db')]):\n",
+					"            create_table_from_schema(\n",
+					"                standardised_table_def_json,\n",
+					"                \"odw_standardised_db\",\n",
+					"                standardised_table_name,\n",
+					"                standardised_container,\n",
+					"                standardised_path + standardised_table_name\n",
+					"            )\n",
+					"\n",
+					"        # --- Compute source path / read files (example pattern) ---\n",
+					"        # Adjust the path pattern as per your conventions\n",
+					"        source_file_path = f\"abfss://odw-raw@{storage_account}/{folder_path}/{filename}\"\n",
+					"        df = spark.read.format(\"json\").option(\"multiLine\", isMultilineJSON).load(source_file_path)\n",
+					"\n",
+					"        # --- Transformations, add metadata columns etc. ---\n",
+					"        df = (df\n",
+					"              .withColumn(\"source_file\", input_file_name())\n",
+					"              .withColumn(\"ingested_at_utc\", current_timestamp()))\n",
+					"\n",
+					"        # --- Write to standardised table / delta path ---\n",
+					"        target_path = f\"{standardised_container}/{standardised_path}{standardised_table_name}\"\n",
+					"        (df.write\n",
+					"            .format(\"delta\")\n",
+					"            .mode(\"append\")\n",
+					"            .save(target_path))\n",
+					"\n",
+					"        rows_written = df.count()\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        # Capture error message for telemetry\n",
+					"        ingestion_failure = True\n",
+					"        error_message = str(e)\n",
+					"        # Optional immediate console log for debugging (non-telemetry)\n",
+					"        print(f\"[ingest_adhoc] Failure: {error_message}\")\n",
+					"\n",
+					"    # Do NOT call log_telemetry_and_exit() here.\n",
+					"    # Just return a status payload that the final notebook cell will consume.\n",
+					"    return {\n",
+					"        \"process_name\": process_name,\n",
+					"        \"standardised_table_name\": standardised_table_name,\n",
+					"        \"ingestion_failure\": ingestion_failure,\n",
+					"        \"error_message\": error_message,\n",
+					"        \"rows_written\": rows_written,\n",
+					"        \"source_file_path\": source_file_path,\n",
+					"    }\n",
+					"\n",
 					"\n",
 					"    #Check that we're dealing with delta already. If not we will convert the table first\n",
 					"    table_metadata = spark.sql(f\"DESCRIBE EXTENDED odw_standardised_db.{standardised_table_name}\")\n",
@@ -593,7 +659,7 @@
 					"    return (ingestion_failure, rows_raw)\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 44
 			},
 			{
 				"cell_type": "code",
@@ -668,6 +734,13 @@
 					"    # Write metrics to the metrics table\n",
 					"    metrics_df.write.format(\"delta\").mode(\"append\").saveAsTable(f\"logging.{metrics_table_name}\")\n",
 					"    logInfo(f\"Metrics table {metrics_table_name} updated successfully.\")\n",
+					""
+				],
+				"execution_count": 45
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					""
 				],
 				"execution_count": null
