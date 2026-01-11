@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "e8ee00aa-19b7-4cdf-b10c-43bebb72024e"
+				"spark.autotune.trackingId": "01661eca-55a4-4bb1-a5b0-052488e161b4"
 			}
 		},
 		"metadata": {
@@ -432,7 +432,7 @@
 					"        error_message = f\"Error in creating csv file dataframe/temprary view : {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 70
+				"execution_count": 81
 			},
 			{
 				"cell_type": "markdown",
@@ -555,7 +555,9 @@
 					"                END as withdrawnOrTurnedAwayDate,\n",
 					"                \n",
 					"                COALESCE(comments, '') as comments,\n",
-					"                COALESCE(Migrated, '') as Migrated\n",
+					"                COALESCE(Migrated, '') as Migrated,\n",
+					"                COALESCE(is_current, '') as is_current,\n",
+					"                COALESCE(active, '') as active\n",
 					"                \n",
 					"            FROM source_hist_green_specialist_case_csv\n",
 					"        \"\"\")\n",
@@ -573,7 +575,7 @@
 					"else:\n",
 					"    print(f\"Skipped - error_message was already set: {error_message}\")"
 				],
-				"execution_count": 72
+				"execution_count": 82
 			},
 			{
 				"cell_type": "markdown",
@@ -598,6 +600,50 @@
 					"\n",
 					"        spark.sql(f\"\"\"\n",
 					"            INSERT INTO {harmonised_table}\n",
+					"            (\n",
+					"                casework_specialist_id,\n",
+					"                greenCaseType,\n",
+					"                greenCaseId,\n",
+					"                caseReference,\n",
+					"                horizonId,\n",
+					"                linkedGreenCaseId,\n",
+					"                caseOfficerName,\n",
+					"                caseOfficerEmail,\n",
+					"                appealType,\n",
+					"                procedure,\n",
+					"                processingState,\n",
+					"                pinsLpaCode,\n",
+					"                pinsLpaName,\n",
+					"                appellantName,\n",
+					"                agentName,\n",
+					"                siteAddressDescription,\n",
+					"                sitePostcode,\n",
+					"                otherPartyName,\n",
+					"                receiptDate,\n",
+					"                validDate,\n",
+					"                startDate,\n",
+					"                lpaQuestionnaireDue,\n",
+					"                lpaQuestionnaireReceived,\n",
+					"                week6Date,\n",
+					"                week8Date,\n",
+					"                week9Date,\n",
+					"                eventType,\n",
+					"                eventDate,\n",
+					"                eventTime,\n",
+					"                inspectorName,\n",
+					"                inspectorStaffNumber,\n",
+					"                decision,\n",
+					"                decisionDate,\n",
+					"                withdrawnOrTurnedAwayDate,\n",
+					"                comments,\n",
+					"                Migrated,\n",
+					"                IngestionDate,\n",
+					"                is_current,\n",
+					"                record_start_date,\n",
+					"                record_end_date,\n",
+					"                RowID,\n",
+					"                active\n",
+					"            )\n",
 					"            SELECT\n",
 					"                -- All business columns\n",
 					"                casework_specialist_id,\n",
@@ -638,7 +684,7 @@
 					"                Migrated,        \n",
 					"                -- Metadata columns\n",
 					"                CURRENT_TIMESTAMP() as IngestionDate,\n",
-					"                is_current,\n",
+					"                CAST(is_current AS string),\n",
 					"                record_start_date,\n",
 					"                record_end_date,\n",
 					"                -- Calculate RowID using MD5 hash of all business columns\n",
@@ -692,9 +738,12 @@
 					"\n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error inserting records in {harmonised_table} : {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()"
+					"        end_exec_time = datetime.now()\n",
+					"else:\n",
+					"    logInfo(f\"Harmonised view NOT CREATED\")\n",
+					"    logInfo(f\"Harmonised view NOT CREATED {error_message}\")"
 				],
-				"execution_count": 28
+				"execution_count": 83
 			},
 			{
 				"cell_type": "markdown",
