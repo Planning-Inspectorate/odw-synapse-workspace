@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "40bb173f-808f-451d-ac71-3d178286c3b1"
+				"spark.autotune.trackingId": "e062e13b-71c2-4999-9b34-9ebdafa656fd"
 			}
 		},
 		"metadata": {
@@ -82,14 +82,14 @@
 					"PipelineTriggeredbyPipelineName = \"pln_all_horizon_data\"\r\n",
 					"PipelineTriggeredbyPipelineRunID = \"3334ecfd-6fba-41ee-971e-5ab3f9eda134\""
 				],
-				"execution_count": 24
+				"execution_count": 1
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 25
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
@@ -107,14 +107,14 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 26
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run service-bus/py_spark_df_ingestion_functions"
 				],
-				"execution_count": 27
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -136,7 +136,7 @@
 					"entity_name='appeal-has'\r\n",
 					"date_folder=''"
 				],
-				"execution_count": 28
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
@@ -152,7 +152,7 @@
 					"from pyspark.sql.functions import *\r\n",
 					"import re"
 				],
-				"execution_count": 29
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
@@ -165,7 +165,7 @@
 					"    except Exception as e:\r\n",
 					"        _fail_and_log(step_name, e)"
 				],
-				"execution_count": 30
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
@@ -175,7 +175,7 @@
 					"delete_count = 0\r\n",
 					"error_message= None"
 				],
-				"execution_count": 31
+				"execution_count": 8
 			},
 			{
 				"cell_type": "code",
@@ -200,7 +200,7 @@
 					"spark_schema = StructType.fromJson(json.loads(schema)) if schema != '' else ''\r\n",
 					"start_exec_time = datetime.now()"
 				],
-				"execution_count": 32
+				"execution_count": 9
 			},
 			{
 				"cell_type": "code",
@@ -243,7 +243,7 @@
 					"    step_get_max_value_from_column\r\n",
 					")"
 				],
-				"execution_count": 33
+				"execution_count": 10
 			},
 			{
 				"cell_type": "code",
@@ -285,7 +285,7 @@
 					"max_file_datetime=run_step(\"Get max file date from input_file paths\",lambda:step_get_max_file_date)\r\n",
 					""
 				],
-				"execution_count": 34
+				"execution_count": 11
 			},
 			{
 				"cell_type": "code",
@@ -344,7 +344,7 @@
 					"all_files = run_step(\"List all files recursively from source path\", step_list_all_files)\r\n",
 					""
 				],
-				"execution_count": 35
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
@@ -387,7 +387,7 @@
 					"    return get_missing_files(table_name=table_name,source_path=source_path)\r\n",
 					"missing_files=run_step(\"Get list of missing files(source_table\",step_get_missing_files)"
 				],
-				"execution_count": 36
+				"execution_count": 13
 			},
 			{
 				"cell_type": "code",
@@ -442,7 +442,7 @@
 					"                        lambda:extract_and_filter_paths(all_files,filter_date_str))\r\n",
 					""
 				],
-				"execution_count": 37
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
@@ -497,7 +497,7 @@
 					")\r\n",
 					""
 				],
-				"execution_count": 38
+				"execution_count": 15
 			},
 			{
 				"cell_type": "code",
@@ -538,7 +538,7 @@
 					"    return df.dropDuplicates(subset=columns_to_consider)\r\n",
 					"raw_df = run_step(\"Dedupe dataframe\", lambda: dedupe_dataframe(raw_df))   "
 				],
-				"execution_count": 39
+				"execution_count": 16
 			},
 			{
 				"cell_type": "code",
@@ -569,11 +569,11 @@
 					"    logInfo(\"Append step finished.\")\r\n",
 					"run_step(\r\n",
 					"    f\"Append data to table {table_name}\",\r\n",
-					"    step_append\r\n",
+					"    lambda:append_df_to_table(final_df,table_name)\r\n",
 					")\r\n",
 					""
 				],
-				"execution_count": 40
+				"execution_count": 27
 			},
 			{
 				"cell_type": "code",
@@ -1008,6 +1008,68 @@
 			},
 			{
 				"cell_type": "code",
+				"source": [
+					"def _log_telemetry(stage: str, error_msg: str = None, step_name: str = None):\r\n",
+					"    end_exec_time = datetime.now()\r\n",
+					"    duration_seconds = (end_exec_time - start_exec_time).total_seconds()\r\n",
+					"    activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\r\n",
+					"\r\n",
+					"    if stage == \"Success\":\r\n",
+					"        status_message = f\"Successfully loaded data into {target_table} table\"\r\n",
+					"        status_code = \"200\"\r\n",
+					"        final_error_msg = None\r\n",
+					"    else:\r\n",
+					"        status_message = f\"Failed to load data into {target_table} table\"\r\n",
+					"        if step_name:\r\n",
+					"            status_message = f\"Failed at step [{step_name}]: {status_message}\"\r\n",
+					"        status_code = \"500\"\r\n",
+					"        final_error_msg = error_msg\r\n",
+					"    try:\r\n",
+					"        log_telemetry_and_exit(\r\n",
+					"            stage,\r\n",
+					"            start_exec_time,\r\n",
+					"            end_exec_time,\r\n",
+					"            final_error_msg,\r\n",
+					"            target_table,\r\n",
+					"            insert_count,\r\n",
+					"            update_count,\r\n",
+					"            delete_count,\r\n",
+					"            PipelineName,\r\n",
+					"            PipelineRunID,\r\n",
+					"            PipelineTriggerID,\r\n",
+					"            PipelineTriggerName,\r\n",
+					"            PipelineTriggerType,\r\n",
+					"            PipelineTriggeredbyPipelineName,\r\n",
+					"            PipelineTriggeredbyPipelineRunID,\r\n",
+					"            activity_type,\r\n",
+					"            duration_seconds,\r\n",
+					"            status_message,\r\n",
+					"            status_code\r\n",
+					"        )\r\n",
+					"    except Exception as te:\r\n",
+					"        print(f\"Telemetry logging failed: {te}\")\r\n",
+					" \r\n",
+					" \r\n",
+					"def _fail_and_log(step_name: str, e: Exception):\r\n",
+					"    global error_message\r\n",
+					"    error_message = f\"[{step_name}]{type(e).__name__}:{str(e)}\"[:800]\r\n",
+					"    logError(error_message)\r\n",
+					"\r\n",
+					"    _log_telemetry(\"Failed\", error_message, step_name)\r\n",
+					"    raise e \r\n",
+					"if not error_message:\r\n",
+					"    _log_telemetry(\"Success\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"editable": false,
+					"run_control": {
+						"frozen": true
+					}
+				},
 				"source": [
 					"duration_seconds = (end_exec_time - start_exec_time).total_seconds()\r\n",
 					"activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\r\n",
