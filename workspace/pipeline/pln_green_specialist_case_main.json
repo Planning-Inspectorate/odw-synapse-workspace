@@ -222,67 +222,6 @@
 							"typeProperties": {
 								"waitTimeInSeconds": 1
 							}
-						},
-						{
-							"name": "Send Completed post validation checks",
-							"type": "ExecutePipeline",
-							"dependsOn": [
-								{
-									"activity": "EndProcess",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"secureInput": true
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_utl_Send_Teams_Message",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true,
-								"parameters": {
-									"dataFactorySubscription": {
-										"value": "@pipeline().parameters.subscription_id",
-										"type": "Expression"
-									},
-									"dataFactoryResourceGroup": {
-										"value": "@pipeline().parameters.resource_group",
-										"type": "Expression"
-									},
-									"pipelineRunId": {
-										"value": "@pipeline().RunId",
-										"type": "Expression"
-									},
-									"teamsWebhookUrl": {
-										"value": "@pipeline().parameters.webhook_url",
-										"type": "Expression"
-									},
-									"activityName": {
-										"value": "@pipeline().Pipeline",
-										"type": "Expression"
-									},
-									"activityMessage": "Green Specialist Case Post Validation Checks found issues.",
-									"activityDuration": {
-										"value": "@div(sub(ticks(utcNow()), ticks(pipeline().TriggerTime)), 10000000)",
-										"type": "Expression"
-									},
-									"activityStatus": "Completed",
-									"Colour": {
-										"value": "@pipeline().parameters.completed_colour",
-										"type": "Expression"
-									},
-									"Image": {
-										"value": "@pipeline().parameters.completed_image",
-										"type": "Expression"
-									},
-									"Message_title": "Unmanaged data - Green Specialist Case Post Validation checks completed with data quality issues.",
-									"Message_subtitle": "Green Specialist Case Post Validation Checks found issues in the spreadsheet. Please check your email for further details."
-								}
-							}
 						}
 					],
 					"ifTrueActivities": [
@@ -346,6 +285,178 @@
 									"type": "PipelineReference"
 								},
 								"waitOnCompletion": true
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "If File folder not found",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "If Post Validation succeeds",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@and(equals(activity('Get recent folder').output.exists, false), equals(variables('Post_Val_Return'), 'N'))",
+						"type": "Expression"
+					},
+					"ifFalseActivities": [
+						{
+							"name": "DoNothing",
+							"type": "Wait",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"waitTimeInSeconds": 1
+							}
+						}
+					],
+					"ifTrueActivities": [
+						{
+							"name": "Send Completed when file not found",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": true
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_utl_Send_Teams_Message",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"dataFactorySubscription": {
+										"value": "@pipeline().parameters.subscription_id",
+										"type": "Expression"
+									},
+									"dataFactoryResourceGroup": {
+										"value": "@pipeline().parameters.resource_group",
+										"type": "Expression"
+									},
+									"pipelineRunId": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"teamsWebhookUrl": {
+										"value": "@pipeline().parameters.webhook_url",
+										"type": "Expression"
+									},
+									"activityName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"activityMessage": "Green Specialist Case file not found.",
+									"activityDuration": {
+										"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().TriggerTime,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().TriggerTime,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
+										"type": "Expression"
+									},
+									"activityStatus": "Completed",
+									"Colour": {
+										"value": "@pipeline().parameters.completed_colour",
+										"type": "Expression"
+									},
+									"Image": {
+										"value": "@pipeline().parameters.completed_image",
+										"type": "Expression"
+									},
+									"Message_title": "Unmanaged data - Green Specialist Case file not found.",
+									"Message_subtitle": "Green Specialist Case file couldn't be found for today. Please check if Green Specialist Case spreadsheet exists in the source folder."
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "If data quality issue found",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "If File folder not found",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@and(equals(activity('Get recent folder').output.exists, true), equals(variables('Post_Val_Return'), 'N'))",
+						"type": "Expression"
+					},
+					"ifFalseActivities": [
+						{
+							"name": "StopPorcess",
+							"type": "Wait",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"waitTimeInSeconds": 1
+							}
+						}
+					],
+					"ifTrueActivities": [
+						{
+							"name": "Send Completed post validation checks",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": true
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_utl_Send_Teams_Message",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"dataFactorySubscription": {
+										"value": "@pipeline().parameters.subscription_id",
+										"type": "Expression"
+									},
+									"dataFactoryResourceGroup": {
+										"value": "@pipeline().parameters.resource_group",
+										"type": "Expression"
+									},
+									"pipelineRunId": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"teamsWebhookUrl": {
+										"value": "@pipeline().parameters.webhook_url",
+										"type": "Expression"
+									},
+									"activityName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"activityMessage": "Green Specialist Case Post Validation Checks found issues.",
+									"activityDuration": {
+										"value": "@div(sub(ticks(utcNow()), ticks(pipeline().TriggerTime)), 10000000)",
+										"type": "Expression"
+									},
+									"activityStatus": "Completed",
+									"Colour": {
+										"value": "@pipeline().parameters.completed_colour",
+										"type": "Expression"
+									},
+									"Image": {
+										"value": "@pipeline().parameters.completed_image",
+										"type": "Expression"
+									},
+									"Message_title": "Unmanaged data - Green Specialist Case Post Validation checks completed with data quality issues.",
+									"Message_subtitle": "Green Specialist Case Post Validation Checks found issues in the spreadsheet. Please check your email for further details."
+								}
 							}
 						}
 					]
