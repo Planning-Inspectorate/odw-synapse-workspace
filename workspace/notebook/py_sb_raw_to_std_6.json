@@ -1,0 +1,875 @@
+{
+	"name": "py_sb_raw_to_std_6",
+	"properties": {
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "79c314c8-723a-42fc-a131-4f0ed49b5dc0"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### The purpose of this pyspark notebook is to read json format files for service bus and appends into single owb_standarsied_db Delta tables.\r\n",
+					"\r\n",
+					"**Description**  \r\n",
+					"The functionality of this notebook is to ingest odw-standardised/ServiceBus Delta Tables after successful reading of json formatted data.The addtitional functionality has been added to log the audit information to Application Insight by creating a Json dump at notebook exist&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\r\n",
+					"\r\n",
+					"**Spark Cluster Configuration** -> Apache Spark Version- 3.4, Python Version \t\t- 3.10, Delta Lake Version \t- 2.4\r\n",
+					"\r\n",
+					""
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"PipelineName = \"pln_horizon_to_odw\"\r\n",
+					"PipelineRunID = \"f96480d7-8e9d-406d-9e34-974f84b14cbb\"\r\n",
+					"PipelineTriggerID = \"af25d427-f06a-4ef9-85fb-79363a14090b\"\r\n",
+					"PipelineTriggerName = \"af25d427-f06a-4ef9-85fb-79363a14090b\"\r\n",
+					"PipelineTriggerType = \"PipelineActivity\"\r\n",
+					"PipelineTriggeredbyPipelineName = \"pln_all_horizon_data\"\r\n",
+					"PipelineTriggeredbyPipelineRunID = \"3334ecfd-6fba-41ee-971e-5ab3f9eda134\""
+				],
+				"execution_count": 26
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_applicationinsights"
+				],
+				"execution_count": 27
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": 28
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run service-bus/py_spark_df_ingestion_functions"
+				],
+				"execution_count": 29
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"tags": [
+						"parameters"
+					]
+				},
+				"source": [
+					"entity_name='appeal-has'\r\n",
+					"date_folder=''"
+				],
+				"execution_count": 30
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"import json\r\n",
+					"import traceback\r\n",
+					"from pyspark.sql import SparkSession\r\n",
+					"from notebookutils import mssparkutils\r\n",
+					"from datetime import datetime, date\r\n",
+					"from pyspark.sql.functions import current_timestamp, expr, to_timestamp, lit, input_file_name\r\n",
+					"from pyspark.sql import DataFrame\r\n",
+					"from pyspark.sql.types import StructType,TimestampType\r\n",
+					"from pyspark.sql.functions import *\r\n",
+					"import re"
+				],
+				"execution_count": 31
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"error_message = None\r\n",
+					"def run_step(step_name: str, fn):\r\n",
+					"    try:\r\n",
+					"        return fn()\r\n",
+					"    except Exception as e:\r\n",
+					"        _fail_and_log(step_name, e)"
+				],
+				"execution_count": 32
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"insert_count = 0\r\n",
+					"update_count = 0\r\n",
+					"delete_count = 0\r\n",
+					"error_message= None"
+				],
+				"execution_count": 33
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"spark: SparkSession = SparkSession.builder.getOrCreate()\r\n",
+					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\r\n",
+					"target_table: str = f\"odw_standardised_db.sb_{entity_name.replace('-', '_')}\"\r\n",
+					"date_folder = datetime.now().date().strftime('%Y-%m-%d') if date_folder == '' else date_folder\r\n",
+					"source_path: str = f\"abfss://odw-raw@{storage_account}ServiceBus/{entity_name}/\"\r\n",
+					"schema = mssparkutils.notebook.run(\"/py_create_spark_schema\", 30, {\"db_name\": 'odw_standardised_db', \"entity_name\": entity_name})\r\n",
+					"spark_schema = StructType.fromJson(json.loads(schema)) if schema != '' else ''\r\n",
+					"start_exec_time = datetime.now()"
+				],
+				"execution_count": 34
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"@logging_to_appins\r\n",
+					"def get_max_value_from_column(target_table: str, column_name: str) -> datetime:\r\n",
+					"    \"\"\"\r\n",
+					"    Gets the maximum value from a given table column\r\n",
+					"\r\n",
+					"    Args:\r\n",
+					"        target_table: the name of the table, e.g. sb_appeal_has\r\n",
+					"        column_name: the name of the table column, e.g. ingested_datetime\r\n",
+					"\r\n",
+					"    Returns:\r\n",
+					"        max_value: the maximum value from the table column\r\n",
+					"    \"\"\"\r\n",
+					"    df = spark.table(target_table)\r\n",
+					"    max_value = df.agg(max(column_name)).collect()[0][0]\r\n",
+					"    return max_value\r\n",
+					"def step_get_max_value_from_column():\r\n",
+					"    return get_max_value_from_column(\r\n",
+					"        target_table=target_table,\r\n",
+					"        column_name='ingested_datetime'\r\n",
+					"    )\r\n",
+					"\r\n",
+					"\r\n",
+					"max_ingested_datetime = run_step(\r\n",
+					"    \"Get max ingested_datetime from target table\",\r\n",
+					"    step_get_max_value_from_column\r\n",
+					")"
+				],
+				"execution_count": 35
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"@logging_to_appins\r\n",
+					"def get_max_file_date(df: DataFrame) -> datetime:\r\n",
+					"    \"\"\"\r\n",
+					"    Gets the maximum date from a file path field in a DataFrame.\r\n",
+					"    E.g. if the input_file field contained paths such as this:\r\n",
+					"    abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/ServiceBus/appeal-has/2024-12-02/appeal-has_2024-12-02T16:54:35.214679+0000.json\r\n",
+					"    It extracts the date from the string for each row and gets the maximum date.\r\n",
+					"\r\n",
+					"    Args:\r\n",
+					"        df: a spark DataFrame\r\n",
+					"\r\n",
+					"    Returns:\r\n",
+					"        formatted_timestamp: a string of the maximum file date\r\n",
+					"    \"\"\"\r\n",
+					"    date_pattern: str = r'(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}\\+\\d{4})'\r\n",
+					"    df: DataFrame = df.withColumn(\"file_date\", regexp_extract(df[\"input_file\"], date_pattern, 1))\r\n",
+					"    df: DataFrame = df.withColumn(\"file_date\", df[\"file_date\"].cast(TimestampType()))\r\n",
+					"    max_timestamp: list = df.agg(max(\"file_date\")).collect()[0][0]\r\n",
+					"    formatted_timestamp: str = max_timestamp.strftime(\"%Y-%m-%dT%H:%M:%S.%f\")+\"+0000\"\r\n",
+					"    return formatted_timestamp\r\n",
+					"def step_get_max_file_date(df:DataFrame):\r\n",
+					"    return get_max_file_date(df)\r\n",
+					"max_file_datetime=run_step(\"Get max file date from input_file paths\",lambda:step_get_max_file_date)\r\n",
+					""
+				],
+				"execution_count": 36
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"@logging_to_appins\r\n",
+					"def get_all_files_recursive(source_path: str) -> list:\r\n",
+					"    \"\"\"\r\n",
+					"    Lists all files in a given source path.\r\n",
+					"    Recursively loops through all directories.\r\n",
+					"\r\n",
+					"    Args:\r\n",
+					"        source_path: the folder path to start from,\r\n",
+					"        e.g. abfss://odw-raw@.../ServiceBus/appeal-has/\r\n",
+					"\r\n",
+					"    Returns:\r\n",
+					"        files: a list of files in the source path.\r\n",
+					"    \"\"\"\r\n",
+					"    files = []\r\n",
+					"    logInfo(f\"Listing files from {source_path}\")\r\n",
+					"\r\n",
+					"    try:\r\n",
+					"        entries = mssparkutils.fs.ls(source_path)\r\n",
+					"\r\n",
+					"        for entry in entries:\r\n",
+					"            if entry.isDir:\r\n",
+					"                # Recursively process the directory\r\n",
+					"                files.extend(get_all_files_recursive(entry.path))\r\n",
+					"            else:\r\n",
+					"                # Add file to the list\r\n",
+					"                files.append(entry.path)\r\n",
+					"\r\n",
+					"        logInfo(f\"Found {len(files)} file(s) in {source_path}\")\r\n",
+					"\r\n",
+					"    except Exception as e:\r\n",
+					"        logError(f\"Error listing files in {source_path}: {e}\")\r\n",
+					"        raise\r\n",
+					"\r\n",
+					"    return files\r\n",
+					"\r\n",
+					"\r\n",
+					"def step_list_all_files():\r\n",
+					"    return get_all_files_recursive(source_path)\r\n",
+					"\r\n",
+					"\r\n",
+					"all_files = run_step(\"List all files recursively from source path\", step_list_all_files)\r\n",
+					""
+				],
+				"execution_count": 37
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"@logging_to_appins\r\n",
+					"def get_missing_files(target_table: str, source_path: str) -> list:\r\n",
+					"    \"\"\"\r\n",
+					"    Gets the difference between the files in the source path and the files in the table.\r\n",
+					"    Converts the table column \"filename\" into a set.\r\n",
+					"    Creates a set containing all the files int he source path.\r\n",
+					"    Compares the two sets to give the missing files not yet loaded to the table.\r\n",
+					"\r\n",
+					"    Args:\r\n",
+					"        target_table: the name of the table, e.g. sb_appeal_has\r\n",
+					"        source_path: the folder path to start from, \r\n",
+					"        e.g. abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/ServiceBus/appeal-has/\r\n",
+					"\r\n",
+					"    Returns:\r\n",
+					"        missing_files: a list of missing files not yet loaded to the table.\r\n",
+					"    \"\"\"\r\n",
+					"    df: DataFrame = spark.table(target_table)\r\n",
+					"    files_in_path: set = set(get_all_files_recursive(source_path))\r\n",
+					"    files_in_table: set = set(df.select(\"input_file\").rdd.flatMap(lambda x: x).collect())\r\n",
+					"    missing_files = list(files_in_path - files_in_table)\r\n",
+					"        \r\n",
+					"    return missing_files\r\n",
+					"def step_get_missing_files():\r\n",
+					"    return get_missing_files(target_table=target_table,source_path=source_path)\r\n",
+					"missing_files=run_step(\"Get list of missing files(source_table\",step_get_missing_files)"
+				],
+				"execution_count": 38
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"@logging_to_appins\r\n",
+					"def extract_and_filter_paths(files: list, filter_date: str):\r\n",
+					"    \"\"\"\r\n",
+					"    Takes a list of file paths and filters them to return the file paths greater than the filter_date\r\n",
+					"   \r\n",
+					"    Args:\r\n",
+					"        files: a list of file paths\r\n",
+					"        filter_date: a date to filter on\r\n",
+					" \r\n",
+					"    Returns:\r\n",
+					"        filtered_paths: a list of file paths greater than a given date\r\n",
+					"    \"\"\"\r\n",
+					"    filtered_paths: list = []\r\n",
+					"    error_message = None\r\n",
+					"   \r\n",
+					"\r\n",
+					"    logInfo(f\"Filtering {len(files)} files with date greater than {filter_date}\")\r\n",
+					"       \r\n",
+					"    timestamp_pattern: str = re.compile(r\"(\\d{4}-\\d{2}-\\d{2}T\\d{2}[:_]\\d{2}[:_]\\d{2}[.\\d]*[+-]\\d{4})\")\r\n",
+					"    filter_datetime: datetime = datetime.strptime(filter_date, \"%Y-%m-%dT%H:%M:%S.%f%z\")\r\n",
+					" \r\n",
+					"    for file in files:\r\n",
+					"        match = timestamp_pattern.search(file)\r\n",
+					"        if match:\r\n",
+					"            timestamp_str = match.group(1).replace('_', ':')\r\n",
+					"            file_datetime = datetime.strptime(timestamp_str, \"%Y-%m-%dT%H:%M:%S.%f%z\")\r\n",
+					"            if file_datetime > filter_datetime:\r\n",
+					"                filtered_paths.append(file)\r\n",
+					"       \r\n",
+					"    logInfo(f\"Filtered to {len(filtered_paths)} file(s) with date greater than {filter_date}\")\r\n",
+					" \r\n",
+					"    return filtered_paths\r\n",
+					"def step_extract_and_filter_paths():\r\n",
+					"    return extract_and_filter_paths(all_files,max_file_datetime)\r\n",
+					"filter_date_str=max_ingested_datetime.strftime(\"%Y-%m-%dT%H:%M:%S.%f\")+\"+0000\"\r\n",
+					"filtered_paths=run_step(\"Extract + filter file paths by timestamp\",\r\n",
+					"                        lambda:extract_and_filter_paths(all_files,filter_date_str))\r\n",
+					""
+				],
+				"execution_count": 39
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"@logging_to_appins\r\n",
+					"def read_raw_messages(filtered_paths: list[str]) -> DataFrame:\r\n",
+					"    \"\"\"\r\n",
+					"    Ingests data from service bus messages stored as json files in the raw layer.\r\n",
+					"\r\n",
+					"    Args:\r\n",
+					"        filtered_paths: a list of file paths to ingest\r\n",
+					"\r\n",
+					"    Returns:\r\n",
+					"        A DataFrame of service bus messages with additional columns needed for the standardised table\r\n",
+					"    \"\"\"\r\n",
+					"    # Read JSON files from filtered paths\r\n",
+					"    df = (\r\n",
+					"        spark.read\r\n",
+					"        .option(\"multiline\", \"true\")\r\n",
+					"        .json(filtered_paths, schema=spark_schema)\r\n",
+					"    )\r\n",
+					"\r\n",
+					"    logInfo(f\"Found {df.count()} new rows.\")\r\n",
+					"\r\n",
+					"    # Adding the standardised columns\r\n",
+					"    df = df.withColumn(\"expected_from\", current_timestamp())\r\n",
+					"    df = df.withColumn(\"expected_to\", expr(\"current_timestamp() + INTERVAL 1 DAY\"))\r\n",
+					"    df = df.withColumn(\"ingested_datetime\", to_timestamp(df.message_enqueued_time_utc))\r\n",
+					"    df = df.withColumn(\"input_file\", input_file_name())\r\n",
+					"\r\n",
+					"    return df\r\n",
+					"\r\n",
+					"\r\n",
+					"def step_read_raw_messages():\r\n",
+					"    return read_raw_messages(filtered_paths)\r\n",
+					"\r\n",
+					"\r\n",
+					"raw_df = run_step(\r\n",
+					"    \"Read raw service bus messages\",\r\n",
+					"    step_read_raw_messages\r\n",
+					")\r\n",
+					""
+				],
+				"execution_count": 40
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"@logging_to_appins\r\n",
+					"def dedupe_dataframe(df: DataFrame) -> DataFrame:\r\n",
+					"    \"\"\"\r\n",
+					"    Dedupes a DataFrame based on certain columns\r\n",
+					"\r\n",
+					"    Args:\r\n",
+					"        df: a DataFrame of service bus data\r\n",
+					"\r\n",
+					"    Returns:\r\n",
+					"        a deduped DataFrame\r\n",
+					"    \"\"\"\r\n",
+					"    # Handle empty or missing DataFrame\r\n",
+					"    if df is None or df.rdd.isEmpty():\r\n",
+					"        logInfo(\"No rows found. Skipping dedupe step\")\r\n",
+					"        return df\r\n",
+					"    # removing duplicates while ignoring the ingestion dates columns\r\n",
+					"    columns_to_ignore: list = ['expected_to', 'expected_from', 'ingested_datetime']\r\n",
+					"    columns_to_consider: list = [c for c in df.columns if c not in columns_to_ignore]\r\n",
+					"    if not columns_to_consider:\r\n",
+					"        logWarning(\"No columns available for dedupe. Returning DataFrame unchanged\")\r\n",
+					"        return df\r\n",
+					"\r\n",
+					"    return df.dropDuplicates(subset=columns_to_consider)\r\n",
+					"raw_df = run_step(\"Dedupe dataframe\", lambda: dedupe_dataframe(raw_df))   "
+				],
+				"execution_count": 41
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"@logging_to_appins\r\n",
+					"def append_df_to_table(df: DataFrame, target_table: str) -> None:\r\n",
+					"    \"\"\"\r\n",
+					"    Appends the new rows to the target table.\r\n",
+					" \r\n",
+					"    Args:\r\n",
+					"        df: DataFrame of new rows\r\n",
+					"        target_table: name of the target table\r\n",
+					"    \"\"\"\r\n",
+					"    logInfo(f\"Appending data to table {target_table}\")\r\n",
+					" \r\n",
+					"    (\r\n",
+					"        df.write\r\n",
+					"        .mode(\"append\")\r\n",
+					"        .format(\"delta\")\r\n",
+					"        .option(\"mergeSchema\", \"true\")\r\n",
+					"        .saveAsTable(target_table)\r\n",
+					"    )\r\n",
+					" \r\n",
+					"    logInfo(f\"Successfully appended data to table {target_table}\")\r\n",
+					"def _fail_and_log(step_name, error):\r\n",
+					"    logError(f\"Step '{step_name}' failed with error: {str(error)}\")\r\n",
+					"    ##raise error  \r\n",
+					" \r\n",
+					"def run_step(step_name, fn):\r\n",
+					"    try:\r\n",
+					"        return fn()\r\n",
+					"    except Exception as e:\r\n",
+					"        _fail_and_log(step_name, e)"
+				],
+				"execution_count": 42
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"@logging_to_appins\r\n",
+					"def test_rows_appended(new_table_row_count: int, expected_row_count: int) -> bool:\r\n",
+					"    \"\"\"\r\n",
+					"    Test if the new row count matches the expected row count.\r\n",
+					"    If True then rows have been appended successfully.\r\n",
+					"\r\n",
+					"    Args:\r\n",
+					"        new_table_row_count: count of rows after the append operation\r\n",
+					"        expected_row_count: count of rows we expect after the append operation\r\n",
+					"\r\n",
+					"    Returns:\r\n",
+					"        True if the counts match\r\n",
+					"    \"\"\"\r\n",
+					"    logInfo(\r\n",
+					"        f\"Testing row counts - New: {new_table_row_count}, Expected: {expected_row_count}\"\r\n",
+					"    )\r\n",
+					"\r\n",
+					"    result = new_table_row_count == expected_row_count\r\n",
+					"\r\n",
+					"    if result:\r\n",
+					"        logInfo(f\"Row count test passed: {new_table_row_count} == {expected_row_count}\")\r\n",
+					"    else:\r\n",
+					"        logWarning(\r\n",
+					"            f\"Row count test failed: {new_table_row_count} != {expected_row_count}\"\r\n",
+					"        )\r\n",
+					"\r\n",
+					"    return result\r\n",
+					"def step_test_rows_appended():\r\n",
+					"    logInfo(\"Starting row count validation step...\")\r\n",
+					"    result = test_rows_appended(new_table_row_count, expected_row_count)\r\n",
+					"    logInfo(\"Row count validation step finished.\")\r\n",
+					"    return result\r\n",
+					"rows_valid = run_step(\r\n",
+					"    \"Validate appended row count\",\r\n",
+					"    step_test_rows_appended\r\n",
+					")\r\n",
+					""
+				],
+				"execution_count": 43
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Get the filtered list of files we want to ingest.  \r\n",
+					"\r\n",
+					"If `USE_MAX_DATE_FILTER` is set to `True` then we get the maximum date of the ingested files from the target table. We use this date to filter the json files in the raw storage layer to only ingest files greater than this date.  \r\n",
+					"\r\n",
+					"If `USE_MAX_DATE_FILTER` is set to `False` then we compare the files ingested already in the target table with the source files and get the difference, i.e. the missing files."
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"USE_MAX_DATE_FILTER = False\r\n",
+					"\r\n",
+					"\r\n",
+					"def step_get_max_file_date():\r\n",
+					"    logInfo(\"Getting the maximum file date\")\r\n",
+					"    table_df = spark.table(target_table)\r\n",
+					"    return get_max_file_date(df=table_df)\r\n",
+					"\r\n",
+					"\r\n",
+					"def step_get_filtered_paths(max_extracted_date):\r\n",
+					"    logInfo(\"Getting the filtered list of paths\")\r\n",
+					"    all_paths = get_all_files_recursive(source_path=source_path)\r\n",
+					"    return extract_and_filter_paths(all_paths, max_extracted_date)\r\n",
+					"\r\n",
+					"\r\n",
+					"def step_get_missing_files():\r\n",
+					"    logInfo(\"Getting list of missing files\")\r\n",
+					"    return get_missing_files(target_table, source_path)\r\n",
+					"\r\n",
+					"\r\n",
+					"def step_read_raw_messages_from_paths(paths):\r\n",
+					"    return read_raw_messages(filtered_paths=paths)\r\n",
+					"if USE_MAX_DATE_FILTER:\r\n",
+					"\r\n",
+					"    max_extracted_date = run_step(\r\n",
+					"        \"Get maximum file date\",\r\n",
+					"        step_get_max_file_date\r\n",
+					"    )\r\n",
+					"\r\n",
+					"    filtered_paths = run_step(\r\n",
+					"        \"Get filtered list of paths\",\r\n",
+					"        lambda: step_get_filtered_paths(max_extracted_date)\r\n",
+					"    )\r\n",
+					"\r\n",
+					"    df = run_step(\r\n",
+					"        \"Read raw messages from filtered paths\",\r\n",
+					"        lambda: step_read_raw_messages_from_paths(filtered_paths)\r\n",
+					"    )\r\n",
+					"\r\n",
+					"else:\r\n",
+					"\r\n",
+					"    missing_files = run_step(\r\n",
+					"        \"Get missing files\",\r\n",
+					"        step_get_missing_files\r\n",
+					"    )\r\n",
+					"\r\n",
+					"    df = run_step(\r\n",
+					"        \"Read raw messages from missing files\",\r\n",
+					"        lambda: step_read_raw_messages_from_paths(missing_files)\r\n",
+					"    )\r\n",
+					""
+				],
+				"execution_count": 44
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Dedupe the DataFrame and generate counts.\r\n",
+					"\r\n",
+					"1. Get existing row count of target table  \r\n",
+					"2. Dedupe the DataFrame  \r\n",
+					"3. Get count of rows to append  \r\n",
+					"4. Get the expected new row count which is existing count + new rows"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def calculate_expected_new_count(df, target_table):\r\n",
+					"    logInfo(\"Calculating expected new row count\")\r\n",
+					"\r\n",
+					"    table_row_count = spark.table(target_table).count()\r\n",
+					"    logInfo(f\"Row count before append: {table_row_count}\")\r\n",
+					"\r\n",
+					"    df = dedupe_dataframe(df=df)\r\n",
+					"\r\n",
+					"    rows_to_append = df.count()\r\n",
+					"    logInfo(f\"Rows to append: {rows_to_append}\")\r\n",
+					"\r\n",
+					"    expected_new_count = table_row_count + rows_to_append\r\n",
+					"    logInfo(f\"Expected new count: {expected_new_count}\")\r\n",
+					"\r\n",
+					"    return expected_new_count, df\r\n",
+					"def step_calculate_expected_new_count():\r\n",
+					"    return calculate_expected_new_count(df, target_table)\r\n",
+					"expected_new_count, df = run_step(\r\n",
+					"    \"Calculate expected new row count\",\r\n",
+					"    step_calculate_expected_new_count\r\n",
+					")\r\n",
+					""
+				],
+				"execution_count": 45
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Append rows to the target table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def step_append_df_to_table():\r\n",
+					"    \r\n",
+					"    logInfo(f\"Appending new rows to table {target_table}\")\r\n",
+					"    append_df_to_table(df=df, target_table=target_table)\r\n",
+					"    end_exec_time = datetime.now()\r\n",
+					"    logInfo(\"Done appending rows to table\")\r\n",
+					"    return spark.table(target_table).count()\r\n",
+					"new_table_row_count=run_step(f\"|Append rows to table{target_table} and get new count\",step_append_df_to_table)\r\n",
+					""
+				],
+				"execution_count": 46
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Test rows were appended successfully\r\n",
+					"\r\n",
+					"Test that the new row count in the target table matches the expected new row count above"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"\r\n",
+					"def step_validate_rows_appended():\r\n",
+					"    if not test_rows_appended(\r\n",
+					"        new_table_row_count=new_table_row_count,\r\n",
+					"        expected_row_count=expected_new_count\r\n",
+					"    ):\r\n",
+					"        logError(\r\n",
+					"            f\"Error appending rows: {target_table}. \"\r\n",
+					"            f\"Expected={expected_new_count}, Actual={new_table_row_count}\"\r\n",
+					"        )\r\n",
+					"        return False\r\n",
+					"\r\n",
+					"    logInfo(\"Rows appended successfully\")\r\n",
+					"    return True\r\n",
+					"\r\n",
+					"\r\n",
+					"rows_valid = run_step(\"validate rows appended\", step_validate_rows_appended)\r\n",
+					""
+				],
+				"execution_count": 47
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Produce Json format output"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def _log_telemetry(stage: str, error_msg: str = None, step_name: str = None):\r\n",
+					"    end_exec_time = datetime.now()\r\n",
+					"    duration_seconds = (end_exec_time - start_exec_time).total_seconds()\r\n",
+					"    activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\r\n",
+					"\r\n",
+					"    if stage == \"Success\":\r\n",
+					"        status_message = f\"Successfully loaded data into {target_table} table\"\r\n",
+					"        status_code = \"200\"\r\n",
+					"        final_error_msg = None\r\n",
+					"    else:\r\n",
+					"        status_message = f\"Failed to load data into {target_table} table\"\r\n",
+					"        if step_name:\r\n",
+					"            status_message = f\"Failed at step [{step_name}]: {status_message}\"\r\n",
+					"        status_code = \"500\"\r\n",
+					"        final_error_msg = error_msg\r\n",
+					"    try:\r\n",
+					"        log_telemetry_and_exit(\r\n",
+					"            stage,\r\n",
+					"            start_exec_time,\r\n",
+					"            end_exec_time,\r\n",
+					"            final_error_msg,\r\n",
+					"            target_table,\r\n",
+					"            insert_count,\r\n",
+					"            update_count,\r\n",
+					"            delete_count,\r\n",
+					"            PipelineName,\r\n",
+					"            PipelineRunID,\r\n",
+					"            PipelineTriggerID,\r\n",
+					"            PipelineTriggerName,\r\n",
+					"            PipelineTriggerType,\r\n",
+					"            PipelineTriggeredbyPipelineName,\r\n",
+					"            PipelineTriggeredbyPipelineRunID,\r\n",
+					"            activity_type,\r\n",
+					"            duration_seconds,\r\n",
+					"            status_message,\r\n",
+					"            status_code\r\n",
+					"        )\r\n",
+					"    except Exception as te:\r\n",
+					"        print(f\"Telemetry logging failed: {te}\")\r\n",
+					" \r\n",
+					" \r\n",
+					"def _fail_and_log(step_name: str, e: Exception):\r\n",
+					"    global error_message\r\n",
+					"    error_message = f\"[{step_name}]{type(e).__name__}:{str(e)}\"[:800]\r\n",
+					"    logError(error_message)\r\n",
+					"\r\n",
+					"    _log_telemetry(\"Failed\", error_message, step_name)\r\n",
+					"    raise e \r\n",
+					"if not error_message:\r\n",
+					"    _log_telemetry(\"Success\")"
+				],
+				"execution_count": 48
+			}
+		]
+	}
+}
