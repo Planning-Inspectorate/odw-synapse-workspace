@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "e062e13b-71c2-4999-9b34-9ebdafa656fd"
+				"spark.autotune.trackingId": "ad3eddfc-a24b-48fd-a0c0-ed6626c18698"
 			}
 		},
 		"metadata": {
@@ -82,14 +82,14 @@
 					"PipelineTriggeredbyPipelineName = \"pln_all_horizon_data\"\r\n",
 					"PipelineTriggeredbyPipelineRunID = \"3334ecfd-6fba-41ee-971e-5ab3f9eda134\""
 				],
-				"execution_count": 1
+				"execution_count": 49
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 2
+				"execution_count": 50
 			},
 			{
 				"cell_type": "code",
@@ -107,14 +107,14 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 3
+				"execution_count": 51
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run service-bus/py_spark_df_ingestion_functions"
 				],
-				"execution_count": 4
+				"execution_count": 52
 			},
 			{
 				"cell_type": "code",
@@ -136,7 +136,7 @@
 					"entity_name='appeal-has'\r\n",
 					"date_folder=''"
 				],
-				"execution_count": 5
+				"execution_count": 53
 			},
 			{
 				"cell_type": "code",
@@ -152,12 +152,11 @@
 					"from pyspark.sql.functions import *\r\n",
 					"import re"
 				],
-				"execution_count": 6
+				"execution_count": 54
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"start_exec_time = datetime.now()\r\n",
 					"error_message = None\r\n",
 					"def run_step(step_name: str, fn):\r\n",
 					"    try:\r\n",
@@ -165,7 +164,7 @@
 					"    except Exception as e:\r\n",
 					"        _fail_and_log(step_name, e)"
 				],
-				"execution_count": 7
+				"execution_count": 55
 			},
 			{
 				"cell_type": "code",
@@ -175,7 +174,7 @@
 					"delete_count = 0\r\n",
 					"error_message= None"
 				],
-				"execution_count": 8
+				"execution_count": 56
 			},
 			{
 				"cell_type": "code",
@@ -200,7 +199,7 @@
 					"spark_schema = StructType.fromJson(json.loads(schema)) if schema != '' else ''\r\n",
 					"start_exec_time = datetime.now()"
 				],
-				"execution_count": 9
+				"execution_count": 57
 			},
 			{
 				"cell_type": "code",
@@ -243,7 +242,7 @@
 					"    step_get_max_value_from_column\r\n",
 					")"
 				],
-				"execution_count": 10
+				"execution_count": 58
 			},
 			{
 				"cell_type": "code",
@@ -285,7 +284,7 @@
 					"max_file_datetime=run_step(\"Get max file date from input_file paths\",lambda:step_get_max_file_date)\r\n",
 					""
 				],
-				"execution_count": 11
+				"execution_count": 59
 			},
 			{
 				"cell_type": "code",
@@ -344,7 +343,7 @@
 					"all_files = run_step(\"List all files recursively from source path\", step_list_all_files)\r\n",
 					""
 				],
-				"execution_count": 12
+				"execution_count": 60
 			},
 			{
 				"cell_type": "code",
@@ -387,7 +386,7 @@
 					"    return get_missing_files(table_name=table_name,source_path=source_path)\r\n",
 					"missing_files=run_step(\"Get list of missing files(source_table\",step_get_missing_files)"
 				],
-				"execution_count": 13
+				"execution_count": 61
 			},
 			{
 				"cell_type": "code",
@@ -442,7 +441,7 @@
 					"                        lambda:extract_and_filter_paths(all_files,filter_date_str))\r\n",
 					""
 				],
-				"execution_count": 14
+				"execution_count": 62
 			},
 			{
 				"cell_type": "code",
@@ -497,7 +496,7 @@
 					")\r\n",
 					""
 				],
-				"execution_count": 15
+				"execution_count": 63
 			},
 			{
 				"cell_type": "code",
@@ -538,7 +537,7 @@
 					"    return df.dropDuplicates(subset=columns_to_consider)\r\n",
 					"raw_df = run_step(\"Dedupe dataframe\", lambda: dedupe_dataframe(raw_df))   "
 				],
-				"execution_count": 16
+				"execution_count": 64
 			},
 			{
 				"cell_type": "code",
@@ -547,13 +546,13 @@
 					"def append_df_to_table(df: DataFrame, table_name: str) -> None:\r\n",
 					"    \"\"\"\r\n",
 					"    Appends the new rows to the target table.\r\n",
-					"\r\n",
+					" \r\n",
 					"    Args:\r\n",
 					"        df: DataFrame of new rows\r\n",
 					"        table_name: name of the target table\r\n",
 					"    \"\"\"\r\n",
 					"    logInfo(f\"Appending data to table {table_name}\")\r\n",
-					"\r\n",
+					" \r\n",
 					"    (\r\n",
 					"        df.write\r\n",
 					"        .mode(\"append\")\r\n",
@@ -561,61 +560,19 @@
 					"        .option(\"mergeSchema\", \"true\")\r\n",
 					"        .saveAsTable(table_name)\r\n",
 					"    )\r\n",
-					"\r\n",
-					"    logInfo(f\"Successfully appended data to table {table_name}\")\r\n",
-					"def step_append():\r\n",
-					"    logInfo(\"Starting append step...\")\r\n",
-					"    append_df_to_table(df, table_name)\r\n",
-					"    logInfo(\"Append step finished.\")\r\n",
-					"run_step(\r\n",
-					"    f\"Append data to table {table_name}\",\r\n",
-					"    lambda:append_df_to_table(final_df,table_name)\r\n",
-					")\r\n",
-					""
-				],
-				"execution_count": 27
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"editable": false,
-					"run_control": {
-						"frozen": true
-					}
-				},
-				"source": [
-					"@logging_to_appins\r\n",
-					"def append_df_to_table(df: DataFrame, table_name: str) -> None:\r\n",
-					"    \"\"\"\r\n",
-					"    Appends the new rows to the target table\r\n",
 					" \r\n",
-					"    Args:\r\n",
-					"        df: DataFrame of new rows\r\n",
-					"        table_name: name of the target table\r\n",
-					"    \"\"\"\r\n",
-					"    error_message = None\r\n",
-					"        logInfo(f\"Appending data to table {table_name}\")\r\n",
-					"        df \\\r\n",
-					"        .write \\\r\n",
-					"        .mode(\"append\") \\\r\n",
-					"        .format(\"delta\") \\\r\n",
-					"        .option(\"mergeSchema\", \"true\") \\\r\n",
-					"        .saveAsTable(table_name)\r\n",
-					"        logInfo(f\"Successfully appended data to table {table_name}\")\r\n",
+					"    logInfo(f\"Successfully appended data to table {table_name}\")\r\n",
+					"def _fail_and_log(step_name, error):\r\n",
+					"    logError(f\"Step '{step_name}' failed with error: {str(error)}\")\r\n",
+					"    ##raise error  \r\n",
+					" \r\n",
+					"def run_step(step_name, fn):\r\n",
+					"    try:\r\n",
+					"        return fn()\r\n",
 					"    except Exception as e:\r\n",
-					"        error_message = f\"Error in appending data to table {table_name}: {str(e)[:800]}\"\r\n",
-					"        end_exec_time = datetime.now()"
+					"        _fail_and_log(step_name, e)"
 				],
-				"execution_count": null
+				"execution_count": 65
 			},
 			{
 				"cell_type": "code",
@@ -658,59 +615,7 @@
 					")\r\n",
 					""
 				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"editable": false,
-					"run_control": {
-						"frozen": true
-					}
-				},
-				"source": [
-					"@logging_to_appins\r\n",
-					"def test_rows_appended(new_table_row_count: int, expected_row_count: int) -> bool:\r\n",
-					"    \"\"\"\r\n",
-					"    Test if the new row count matches the expected row count.\r\n",
-					"    If True then rows have been appended successfully.\r\n",
-					" \r\n",
-					"    Args:\r\n",
-					"        new_table_row_count: count of rows after the append operation\r\n",
-					"        expected_row_count: count of rows we expect after the append operation\r\n",
-					" \r\n",
-					"    Returns:\r\n",
-					"        True if the counts match\r\n",
-					"    \"\"\"\r\n",
-					"    error_message = None\r\n",
-					"   \r\n",
-					"    try:\r\n",
-					"        logInfo(f\"Testing row counts - New: {new_table_row_count}, Expected: {expected_row_count}\")\r\n",
-					"       \r\n",
-					"        result = new_table_row_count == expected_row_count\r\n",
-					"       \r\n",
-					"        if result:\r\n",
-					"            logInfo(f\"Row count test passed: {new_table_row_count} == {expected_row_count}\")\r\n",
-					"        else:\r\n",
-					"            logWarning(f\"Row count test failed: {new_table_row_count} != {expected_row_count}\")\r\n",
-					"       \r\n",
-					"        return result\r\n",
-					"       \r\n",
-					"    except Exception as e:\r\n",
-					"        error_message = f\"Error in testing row counts: {str(e)[:800]}\"\r\n",
-					"        end_exec_time = datetime.now()\r\n",
-					"        return False"
-				],
-				"execution_count": null
+				"execution_count": 66
 			},
 			{
 				"cell_type": "markdown",
@@ -784,51 +689,7 @@
 					"    )\r\n",
 					""
 				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"editable": false,
-					"run_control": {
-						"frozen": true
-					}
-				},
-				"source": [
-					"USE_MAX_DATE_FILTER = False\r\n",
-					"\r\n",
-					"if USE_MAX_DATE_FILTER:\r\n",
-					"    try:\r\n",
-					"        logInfo(\"Getting the maximum file date\")\r\n",
-					"        table_df = spark.table(table_name)\r\n",
-					"        max_extracted_date = get_max_file_date(df=table_df)\r\n",
-					"        print(f\"max_extracted_date: {max_extracted_date}\")\r\n",
-					"    except Exception as e:\r\n",
-					"        error_message = f\"Error getting the maximum file date:\\n{e}\"\r\n",
-					"        logError(error_message)\r\n",
-					"\r\n",
-					"    if not error_message:\r\n",
-					"        try:\r\n",
-					"            logInfo(\"Getting the filtered list of paths\")\r\n",
-					"            filtered_paths = extract_and_filter_paths(\r\n",
-					"                get_all_files_recursive(source_path=source_path),\r\n",
-					"                max_extracted_date\r\n",
-					"            )\r\n",
-					"            df = read_raw_messages(filtered_paths=filtered_paths)\r\n",
-					"        except Exception as e:\r\n",
-					"            error_message = f\"Error getting the filtered list of paths:\\n{e}\"\r\n",
-					"            logError(error_message)\r\n",
-					"\r\n",
-					"else:\r\n",
-					"    try:\r\n",
-					"        logInfo(\"Getting list of missing files\")\r\n",
-					"        missing_files = get_missing_files(table_name, source_path)\r\n",
-					"        df = read_raw_messages(filtered_paths=missing_files)\r\n",
-					"    except Exception as e:\r\n",
-					"        error_message = f\"Error getting list of missing files:\\n{e}\"\r\n",
-					"        logError(error_message)"
-				],
-				"execution_count": null
+				"execution_count": 67
 			},
 			{
 				"cell_type": "markdown",
@@ -874,41 +735,7 @@
 					")\r\n",
 					""
 				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"editable": false,
-					"run_control": {
-						"frozen": true
-					}
-				},
-				"source": [
-					"expected_new_count = 0\r\n",
-					"\r\n",
-					"try:\r\n",
-					"    table_row_count = spark.table(table_name).count()\r\n",
-					"    logInfo(f\"Row count before append: {table_row_count}\")\r\n",
-					"    df = dedupe_dataframe(df=df)\r\n",
-					"    rows_to_append = df.count()\r\n",
-					"    insert_count = rows_to_append\r\n",
-					"    logInfo(f\"Rows to append: {rows_to_append}\")\r\n",
-					"    expected_new_count = table_row_count + rows_to_append\r\n",
-					"    logInfo(f\"Expected new count: {expected_new_count}\")\r\n",
-					"except Exception as e:\r\n",
-					"    logError(f\"Error deduping and generating counts:\\n{e}\")"
-				],
-				"execution_count": null
+				"execution_count": 68
 			},
 			{
 				"cell_type": "markdown",
@@ -925,34 +752,18 @@
 			},
 			{
 				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"collapsed": false
-				},
 				"source": [
-					"new_table_row_count = 0\r\n",
-					"\r\n",
-					"try:\r\n",
+					"def step_append_df_to_table():\r\n",
+					"    \r\n",
 					"    logInfo(f\"Appending new rows to table {table_name}\")\r\n",
 					"    append_df_to_table(df=df, table_name=table_name)\r\n",
 					"    end_exec_time = datetime.now()\r\n",
 					"    logInfo(\"Done appending rows to table\")\r\n",
-					"    new_table_row_count = spark.table(table_name).count()\r\n",
-					"except Exception as e:\r\n",
-					"    logError(f\"Error appending rows:\\n{e}\")\r\n",
-					"\r\n",
-					"\r\n",
+					"    return spark.table(table_name).count()\r\n",
+					"new_table_row_count=run_step(f\"|Append rows to table{table_name} and get new count\",step_append_df_to_table)\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 69
 			},
 			{
 				"cell_type": "markdown",
@@ -971,27 +782,27 @@
 			},
 			{
 				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
 				"source": [
-					"if not test_rows_appended(new_table_row_count=new_table_row_count, expected_row_count=expected_new_count):\r\n",
-					"    logError(\"Error appending rows. The new row count isn't as expected.\")\r\n",
 					"\r\n",
-					"    error_message = f\"Error appending rows: {table_name} . The new row count isn't as expected.\"\r\n",
+					"def step_validate_rows_appended():\r\n",
+					"    if not test_rows_appended(\r\n",
+					"        new_table_row_count=new_table_row_count,\r\n",
+					"        expected_row_count=expected_new_count\r\n",
+					"    ):\r\n",
+					"        logError(\r\n",
+					"            f\"Error appending rows: {table_name}. \"\r\n",
+					"            f\"Expected={expected_new_count}, Actual={new_table_row_count}\"\r\n",
+					"        )\r\n",
+					"        return False\r\n",
 					"\r\n",
-					"else:\r\n",
-					"    logInfo(\"Rows appended successfully.\")"
+					"    logInfo(\"Rows appended successfully\")\r\n",
+					"    return True\r\n",
+					"\r\n",
+					"\r\n",
+					"rows_valid = run_step(\"validate rows appended\", step_validate_rows_appended)\r\n",
+					""
 				],
-				"execution_count": null
+				"execution_count": 70
 			},
 			{
 				"cell_type": "markdown",
@@ -1060,50 +871,7 @@
 					"if not error_message:\r\n",
 					"    _log_telemetry(\"Success\")"
 				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"editable": false,
-					"run_control": {
-						"frozen": true
-					}
-				},
-				"source": [
-					"duration_seconds = (end_exec_time - start_exec_time).total_seconds()\r\n",
-					"activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\r\n",
-					"stage = \"Success\" if not error_message else \"Failed\"\r\n",
-					"status_message = (\r\n",
-					"    f\"Successfully loaded data into {table_name} table\"\r\n",
-					"    if not error_message\r\n",
-					"    else f\"Failed to load data from {table_name} table\"\r\n",
-					")\r\n",
-					"status_code = \"200\" if stage == \"Success\" else \"500\"\r\n",
-					" \r\n",
-					"log_telemetry_and_exit(\r\n",
-					"    stage,\r\n",
-					"    start_exec_time,\r\n",
-					"    end_exec_time,\r\n",
-					"    error_message,\r\n",
-					"    table_name,\r\n",
-					"    insert_count,\r\n",
-					"    update_count,\r\n",
-					"    delete_count,\r\n",
-					"    PipelineName,\r\n",
-					"    PipelineRunID,\r\n",
-					"    PipelineTriggerID,\r\n",
-					"    PipelineTriggerName,\r\n",
-					"    PipelineTriggerType,\r\n",
-					"    PipelineTriggeredbyPipelineName,\r\n",
-					"    PipelineTriggeredbyPipelineRunID,\r\n",
-					"    activity_type,\r\n",
-					"    duration_seconds,\r\n",
-					"    status_message,\r\n",
-					"    status_code\r\n",
-					")"
-				],
-				"execution_count": null
+				"execution_count": 71
 			}
 		]
 	}
