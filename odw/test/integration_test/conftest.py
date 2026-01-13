@@ -1,5 +1,7 @@
 from pyspark.sql import SparkSession
 from delta import *
+import os
+import json
 
 
 DATABASE_NAMES = [
@@ -7,6 +9,16 @@ DATABASE_NAMES = [
     "odw_harmonised_db",
     "odw_curated_db"
 ]
+
+
+def create_empty_orchestration_file():
+    orchestration_path = os.path.join("spark-warehouse", "odw-config", "orchestration")
+    os.makedirs(orchestration_path, exist_ok=True)
+    with open(os.path.join("spark-warehouse", "odw-config", "orchestration", "orchestration.json"), "w") as f:
+        content = {
+            "definitions": []
+        }
+        json.dump(content, f, indent=4)
 
 
 def pytest_runtest_setup(item):
@@ -18,3 +30,4 @@ def pytest_runtest_setup(item):
     ).getOrCreate()
     for database in DATABASE_NAMES:
         spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {database}")
+    create_empty_orchestration_file()

@@ -21,6 +21,13 @@ class ETLProcess(ABC):
 
         :return str: A unique name for the process
         """
+    
+    @classmethod
+    def load_parameter(cls, param_name: str, kwargs: Dict[str, Any], default: Any = None):
+        param_value = kwargs.get(param_name, default)
+        if param_value is None:
+            raise ValueError(f"{cls.__name__} requires a {param_name} parameter to be provided, but was missing")
+        return param_value
 
     @classmethod
     @LoggingUtil.logging_to_appins
