@@ -8,13 +8,13 @@
 				"type": "Copy",
 				"dependsOn": [
 					{
-						"activity": "Record loading",
+						"activity": "Raw_EntraID Record loading started",
 						"dependencyConditions": [
 							"Succeeded"
 						]
 					},
 					{
-						"activity": "setharmonisedstarttimeA",
+						"activity": "EntraIDLoadStartTime",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -70,7 +70,7 @@
 				]
 			},
 			{
-				"name": "Record loading",
+				"name": "Raw_EntraID Record loading started",
 				"type": "ExecutePipeline",
 				"dependsOn": [],
 				"policy": {
@@ -97,7 +97,7 @@
 							"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
 							"type": "Expression"
 						},
-						"StatusMessage": "EntraID load",
+						"StatusMessage": "EntraID  Record loading Started",
 						"PipelineTriggerID": {
 							"value": "@pipeline().TriggerId",
 							"type": "Expression"
@@ -124,7 +124,7 @@
 				}
 			},
 			{
-				"name": "Record completed",
+				"name": "Raw_EntraID Record Loading succeeded",
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
@@ -155,14 +155,14 @@
 							"type": "Expression"
 						},
 						"StartTime": {
-							"value": "@variables('harmonisedstarttime')",
+							"value": "@variables('entraIDRecordLoadingStartTime')",
 							"type": "Expression"
 						},
 						"EndTime": {
 							"value": "@utcNow()",
 							"type": "Expression"
 						},
-						"StatusMessage": "EntraID load  Completed",
+						"StatusMessage": "EntraID Record Loading Completed",
 						"PipelineTriggerID": {
 							"value": "@pipeline().TriggerId",
 							"type": "Expression"
@@ -185,7 +185,7 @@
 						},
 						"ActivityType": "Pipeline",
 						"DurationSeconds": {
-							"value": "@div(sub(ticks(utcNow()), ticks(variables('harmonisedstarttime'))), 10000000)",
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('entraIDRecordLoadingStartTime'))), 10000000)",
 							"type": "Expression"
 						},
 						"AppInsIKey": "@pipeline().parameters.apps_insights_ikey"
@@ -193,7 +193,7 @@
 				}
 			},
 			{
-				"name": "Record completed Entra ID failed",
+				"name": "Raw_EntraID Record Loading failed",
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
@@ -224,7 +224,7 @@
 							"type": "Expression"
 						},
 						"StartTime": {
-							"value": "@variables('harmonisedstarttime')",
+							"value": "@variables('entraIDRecordLoadingStartTime')",
 							"type": "Expression"
 						},
 						"EndTime": {
@@ -235,7 +235,7 @@
 							"value": "@substring(activity('Copy AAD Users').error.message, 0, 2000)\n ",
 							"type": "Expression"
 						},
-						"StatusMessage": "EntraID Harmonised Layer failed. Please check Apps Insight Logs",
+						"StatusMessage": "Entra ID Record Loading Failed",
 						"PipelineTriggerID": {
 							"value": "@pipeline().TriggerId",
 							"type": "Expression"
@@ -257,14 +257,17 @@
 							"type": "Expression"
 						},
 						"ActivityType": "Pipeline",
-						"DurationSeconds": "@div(sub(ticks(utcNow()), ticks(variables('harmonisedstarttime'))), 10000000)",
+						"DurationSeconds": {
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('entraIDRecordLoadingStartTime'))), 10000000)",
+							"type": "Expression"
+						},
 						"StatusCode": "400",
 						"AppInsIKey": "@pipeline().parameters.apps_insights_ikey"
 					}
 				}
 			},
 			{
-				"name": "setharmonisedstarttimeA",
+				"name": "EntraIDLoadStartTime",
 				"type": "SetVariable",
 				"dependsOn": [],
 				"policy": {
@@ -273,8 +276,11 @@
 				},
 				"userProperties": [],
 				"typeProperties": {
-					"variableName": "harmonisedstarttime",
-					"value": "@utcNow()"
+					"variableName": "entraIDRecordLoadingStartTime",
+					"value": {
+						"value": "@utcNow()",
+						"type": "Expression"
+					}
 				}
 			}
 		],
@@ -323,7 +329,7 @@
 			}
 		},
 		"variables": {
-			"harmonisedstarttime": {
+			"entraIDRecordLoadingStartTime": {
 				"type": "String"
 			},
 			"execution_logs": {
