@@ -6,7 +6,20 @@
 				"name": "Copy AAD Users",
 				"description": "Calls the Entra ID and retrieves a list of the users and their attributes",
 				"type": "Copy",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "Record loading Casework Local Plan Harmonised data",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "setharmonisedstarttime",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"timeout": "0.02:00:00",
 					"retry": 0,
@@ -55,8 +68,240 @@
 						}
 					}
 				]
+			},
+			{
+				"name": "Record loading Casework Local Plan Harmonised data",
+				"type": "ExecutePipeline",
+				"dependsOn": [],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "OnProgress",
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+							"type": "Expression"
+						},
+						"StatusMessage": "EntraID load",
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"ActivityType": "Pipeline",
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "setharmonisedstarttime",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "harmonisedstarttime",
+					"value": {
+						"value": "@utcNow()",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Record completed Casework Local Plan Harmonised Layer",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Copy AAD Users",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Completion",
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@variables('harmonisedstarttime')",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@utcNow()",
+							"type": "Expression"
+						},
+						"StatusMessage": "Casework Local Plan Harrmonised Layer loaded",
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"ActivityType": "Pipeline",
+						"DurationSeconds": {
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('harmonisedstarttime'))), 10000000)",
+							"type": "Expression"
+						},
+						"StatusCode": "200",
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Record completed Casework Local Plan Harmonised failed",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Copy AAD Users",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": {
+							"value": "Fail",
+							"type": "Expression"
+						},
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@variables('harmonisedstarttime')",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@utcNow()",
+							"type": "Expression"
+						},
+						"ErrorMessage": {
+							"value": "@substring(activity('Copy AAD Users').error.message, 0, 2000)\n ",
+							"type": "Expression"
+						},
+						"StatusMessage": "EntraID Harmonised Layer failed. Please check Apps Insight Logs",
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"ActivityType": "Pipeline",
+						"DurationSeconds": {
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('harmonisedstarttime'))), 10000000)",
+							"type": "Expression"
+						},
+						"StatusCode": "400",
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
+					}
+				}
 			}
 		],
+		"variables": {
+			"harmonisedstarttime": {
+				"type": "String"
+			}
+		},
 		"folder": {
 			"name": "EntraID/0-raw"
 		},
