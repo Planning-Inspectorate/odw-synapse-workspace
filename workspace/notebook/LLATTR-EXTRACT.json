@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "85a1d711-30cb-45cd-9e94-d53ba835894c"
+				"spark.autotune.trackingId": "50838dda-ae99-4260-87d7-2b6ecd734ecc"
 			}
 		},
 		"metadata": {
@@ -259,11 +259,36 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"defids = [\n",
+					"    r[\"DefID\"] for r in (\n",
+					"        dfv_nonnull\n",
+					"        .filter(F.col(\"DefID\").isNotNull())\n",
+					"        .select(F.col(\"DefID\").cast(\"int\").alias(\"DefID\"))\n",
+					"        .distinct()\n",
+					"        .collect()\n",
+					"    )\n",
+					"]\n",
+					"\n",
+					"print(\"DefIDs found (non-null):\", len(defids))\n",
+					"print(\"First 20 DefIDs:\", sorted(defids)[:20])\n",
+					""
+				],
+				"execution_count": 1
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"defids = [r[\"DefID\"] for r in dfv_nonnull.select(\"DefID\").distinct().collect()]\n",
 					"print(\"DefIDs found:\", len(defids))\n",
 					"\n",
 					"for d in sorted(defids):\n",
-					"    df_d = dfv_nonnull.filter(F.col(\"DefID\") == d)\n",
+					"    df_d = dfv_nonnull.filter(F.col(\"DefID\") == F.lit(d))\n",
+					"\n",
+					"    # optional: quick debug count per DefID\n",
+					"    cnt = df_d.count()\n",
+					"    print(f\"DefID {d} rows: {cnt}\")\n",
+					"    if cnt == 0:\n",
+					"        continue\n",
 					"\n",
 					"    df_p = (\n",
 					"        df_d.select(\"DefID\",\"KeyID\",\"ParentKeyID\",\"EntryNum\",\"CustomID\",\"AttrID\",\"Value\")\n",
@@ -275,6 +300,7 @@
 					"    out = f\"{output_base}/DefID={d}\"\n",
 					"    (df_p.write.mode(\"overwrite\").option(\"header\", True).csv(out))\n",
 					"    print(\"Wrote:\", out)\n",
+					"\n",
 					""
 				],
 				"execution_count": 12
