@@ -1,6 +1,273 @@
 {
 	"name": "LLATTR-EXTRACT",
 	"properties": {
-		"cells": []
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "hbtPool",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "17586304-2806-41e0-9569-43d9b8119f29"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/hbtPool",
+				"name": "hbtPool",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/hbtPool",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.5",
+				"nodeCount": 10,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"# STORAGE ACCOUNT (from Linked service name)\n",
+					"storage_account = \"pinsstodwdevuks9h80mb\"\n",
+					"\n",
+					"# CONTAINER (top-level folder under the storage account)\n",
+					"container = \"horizon-migration-poc\"\n",
+					"\n",
+					"# FOLDER where LLAttrData.csv lives\n",
+					"folder = \"MPESC-EXTRACT\"\n",
+					"\n",
+					"# INPUT FILE\n",
+					"input_file = \"LLAttrData.csv\"\n",
+					"\n",
+					"# OUTPUT FOLDER (already exists – good)\n",
+					"output_folder = \"LLAttr\"\n",
+					""
+				],
+				"execution_count": 1
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"output_folder   = \"LLAttr\"                 # you want tables to land inside this folder\n",
+					"\n",
+					"input_path  = f\"abfss://{container}@{storage_account}.dfs.core.windows.net/{folder}/{input_file}\"\n",
+					"output_base = f\"abfss://{container}@{storage_account}.dfs.core.windows.net/{folder}/{output_folder}\"\n",
+					"\n",
+					"print(\"INPUT :\", input_path)\n",
+					"print(\"OUTPUT:\", output_base)"
+				],
+				"execution_count": 2
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"df_raw = (\n",
+					"    spark.read\n",
+					"    .option(\"header\", True)\n",
+					"    .option(\"inferSchema\", False)   # keep as strings first (safer for big messy CSVs)\n",
+					"    .option(\"multiLine\", False)\n",
+					"    .option(\"escape\", '\"')\n",
+					"    .option(\"quote\", '\"')\n",
+					"    .csv(input_path)\n",
+					")\n",
+					"\n",
+					"print(\"Rows:\", df_raw.count())\n",
+					"print(\"Cols:\", len(df_raw.columns))\n",
+					"df_raw.printSchema()\n",
+					"df_raw.show(5, truncate=False)"
+				],
+				"execution_count": 3
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"# quick glance at key columns\n",
+					"df_raw.select(\"DefID\",\"AttrID\",\"KeyID\",\"EntryNum\",\"ParentKeyID\").show(10, truncate=False)\n",
+					"\n",
+					"# distinct DefIDs\n",
+					"df_raw.select(\"DefID\").distinct().orderBy(\"DefID\").show(50, truncate=False)\n",
+					""
+				],
+				"execution_count": 4
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"df = df_raw\n",
+					"\n",
+					"int_cols = [\"ID\",\"VerNum\",\"DefID\",\"DefVerN\",\"AttrID\",\"AttrType\",\"CustomID\",\"EntryNum\",\"ParentKeyID\",\"KeyID\",\"ValInt\"]\n",
+					"for c in int_cols:\n",
+					"    if c in df.columns:\n",
+					"        df = df.withColumn(c, F.col(c).cast(\"int\"))\n",
+					"\n",
+					"if \"ValReal\" in df.columns:\n",
+					"    df = df.withColumn(\"ValReal\", F.col(\"ValReal\").cast(\"decimal(28,14)\"))\n",
+					"\n",
+					"if \"ValDate\" in df.columns:\n",
+					"    # if ValDate has different formats we can adjust later\n",
+					"    df = df.withColumn(\"ValDate\", F.to_timestamp(\"ValDate\"))\n",
+					"\n",
+					"df.printSchema()\n",
+					"df.show(5, truncate=False)\n",
+					""
+				],
+				"execution_count": 5
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"dfv = (\n",
+					"    df.withColumn(\n",
+					"        \"Value\",\n",
+					"        F.coalesce(\n",
+					"            F.col(\"ValStr\").cast(\"string\"),\n",
+					"            F.col(\"ValLong\").cast(\"string\"),\n",
+					"            F.col(\"ValDate\").cast(\"string\"),\n",
+					"            F.col(\"ValReal\").cast(\"string\"),\n",
+					"            F.col(\"ValInt\").cast(\"string\"),\n",
+					"        )\n",
+					"    )\n",
+					"    .withColumn(\"Value\", F.when(F.trim(F.col(\"Value\")) == \"\", None).otherwise(F.col(\"Value\")))\n",
+					")\n",
+					"\n",
+					"dfv.select(\"DefID\",\"AttrID\",\"KeyID\",\"EntryNum\",\"ParentKeyID\",\"Value\",\"ValInt\",\"ValReal\",\"ValDate\",\"ValStr\",\"ValLong\").show(20, truncate=False)\n",
+					""
+				],
+				"execution_count": 6
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"dfv_nonnull = (\n",
+					"    df\n",
+					"    .withColumn(\n",
+					"        \"Value\",\n",
+					"        F.coalesce(\n",
+					"            F.col(\"ValStr\").cast(\"string\"),\n",
+					"            F.col(\"ValLong\").cast(\"string\"),\n",
+					"            F.col(\"ValDate\").cast(\"string\"),\n",
+					"            F.col(\"ValReal\").cast(\"string\"),\n",
+					"            F.col(\"ValInt\").cast(\"string\"),\n",
+					"        )\n",
+					"    )\n",
+					"    .withColumn(\"Value\", F.when(F.trim(F.col(\"Value\")) == \"\", None).otherwise(F.col(\"Value\")))\n",
+					"    .filter(F.col(\"Value\").isNotNull())\n",
+					")\n",
+					"\n",
+					"print(\"Rows with Value:\", dfv_nonnull.count())\n",
+					"dfv_nonnull.select(\"DefID\",\"AttrID\",\"KeyID\",\"EntryNum\",\"ParentKeyID\",\"Value\").show(10, truncate=False)\n",
+					""
+				],
+				"execution_count": 8
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"test_defid = 12361638\n",
+					"\n",
+					"df_test = dfv_nonnull.filter(F.col(\"DefID\") == test_defid)\n",
+					"\n",
+					"print(\"Rows for DefID\", test_defid, \":\", df_test.count())\n",
+					"\n",
+					"df_test.select(\n",
+					"    \"DefID\",\"AttrID\",\"KeyID\",\"EntryNum\",\"ParentKeyID\",\"Value\"\n",
+					").show(30, truncate=False)\n",
+					"\n",
+					"# What attributes exist for this table?\n",
+					"df_test.select(\"AttrID\").distinct().orderBy(\"AttrID\").show(200, truncate=False)\n",
+					""
+				],
+				"execution_count": 9
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"pivot_index = [\"DefID\", \"KeyID\", \"ParentKeyID\", \"EntryNum\", \"CustomID\"]\n",
+					"\n",
+					"df_pivot = (\n",
+					"    df_test\n",
+					"    .select(*(pivot_index + [\"AttrID\",\"Value\"]))\n",
+					"    .groupBy(*pivot_index)\n",
+					"    .pivot(\"AttrID\")\n",
+					"    .agg(F.first(\"Value\"))\n",
+					")\n",
+					"\n",
+					"print(\"Pivot rows:\", df_pivot.count())\n",
+					"print(\"Pivot cols:\", len(df_pivot.columns))\n",
+					"df_pivot.show(10, truncate=False)\n",
+					""
+				],
+				"execution_count": 10
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"out_path = f\"{output_base}/DefID={test_defid}\"\n",
+					"\n",
+					"(\n",
+					"    df_pivot\n",
+					"    .repartition(1)   # makes one csv file; remove later for big scale\n",
+					"    .write.mode(\"overwrite\")\n",
+					"    .option(\"header\", True)\n",
+					"    .csv(out_path)\n",
+					")\n",
+					"\n",
+					"print(\"Wrote:\", out_path)\n",
+					""
+				],
+				"execution_count": 11
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"defids = [r[\"DefID\"] for r in dfv_nonnull.select(\"DefID\").distinct().collect()]\n",
+					"print(\"DefIDs found:\", len(defids))\n",
+					"\n",
+					"for d in sorted(defids):\n",
+					"    df_d = dfv_nonnull.filter(F.col(\"DefID\") == d)\n",
+					"\n",
+					"    df_p = (\n",
+					"        df_d.select(\"DefID\",\"KeyID\",\"ParentKeyID\",\"EntryNum\",\"CustomID\",\"AttrID\",\"Value\")\n",
+					"            .groupBy(\"DefID\",\"KeyID\",\"ParentKeyID\",\"EntryNum\",\"CustomID\")\n",
+					"            .pivot(\"AttrID\")\n",
+					"            .agg(F.first(\"Value\"))\n",
+					"    )\n",
+					"\n",
+					"    out = f\"{output_base}/DefID={d}\"\n",
+					"    (df_p.write.mode(\"overwrite\").option(\"header\", True).csv(out))\n",
+					"    print(\"Wrote:\", out)\n",
+					""
+				],
+				"execution_count": 12
+			}
+		]
 	}
 }
