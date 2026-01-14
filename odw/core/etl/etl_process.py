@@ -21,7 +21,7 @@ class ETLProcess(ABC):
 
         :return str: A unique name for the process
         """
-    
+
     @classmethod
     def load_parameter(cls, param_name: str, kwargs: Dict[str, Any], default: Any = None):
         param_value = kwargs.get(param_name, default)
@@ -78,7 +78,7 @@ class ETLProcess(ABC):
     def write_data(self, data_to_write: Dict[str, Any]):
         """
         Write the given dictionary of tables
-        
+
         :param Dict[str, Any] data_to_write: A dictionary of the form <table_name, table_metadata>
                                              which can be fed into a relevant DataIO class
         """
@@ -106,11 +106,11 @@ class ETLProcess(ABC):
 
         :param kwargs: Any arguments as specified in the concrete implementation classes
         :returns: An ETLResult. Exceptions are caught internally and are returned in the `metadata.exception` property of an ETLFailResult
-        
+
         """
         etl_start_time = datetime.now()
 
-        def generate_failure_result(start_time: datetime, exception: str, exception_trace = None, table_name=None):
+        def generate_failure_result(start_time: datetime, exception: str, exception_trace=None, table_name=None):
             end_time = datetime.now()
             return ETLFailResult(
                 metadata=ETLResult.ETLResultMetadata(
@@ -123,7 +123,7 @@ class ETLProcess(ABC):
                     duration_seconds=(end_time - start_time).total_seconds(),
                     insert_count=0,
                     update_count=0,
-                    delete_count=0
+                    delete_count=0,
                 )
             )
 

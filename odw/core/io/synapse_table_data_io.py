@@ -45,8 +45,8 @@ class SynapseTableDataIO(SynapseDataIO):
         :param str table_name: The name of the table to read (from the given database)
         :param str file_format: The underlying file format of the table to read
         :param SparkSession spark: The spark session
-        
-        :return DataFrame: The data 
+
+        :return DataFrame: The data
         """
         spark: SparkSession = kwargs.get("spark", None)
         database_name = kwargs.get("database_name", None)
@@ -66,7 +66,7 @@ class SynapseTableDataIO(SynapseDataIO):
     def write(self, data: DataFrame, **kwargs):
         """
         Write the data to the given storage location
-        
+
         :param DataFrame data: The data to write
         :param str database_name: The name of the database to write the data to
         :param str table_name: The name of the table to write (to the given database)
@@ -108,6 +108,7 @@ class SynapseTableDataIO(SynapseDataIO):
             data_path = self._format_to_adls_path(container_name, blob_path, storage_name=storage_name)
         else:
             data_path = self._format_to_adls_path(container_name, blob_path, storage_endpoint=storage_endpoint)
+        print("data_path: ", data_path)
         write_options = set([("path", data_path)] + write_options)
         writer = data.write.format(file_format).mode(write_mode)
         for option_name, option_value in write_options:

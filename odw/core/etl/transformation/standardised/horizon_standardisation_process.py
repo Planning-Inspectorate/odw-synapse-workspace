@@ -10,6 +10,7 @@ from pyspark.sql.types import StructType
 import pyspark.sql.functions as F
 from pyspark.sql.types import TimestampType
 from pyspark.sql import SparkSession
+from pyspark.errors.exceptions.captured import AnalysisException
 from datetime import datetime, timedelta
 from typing import Dict, List
 import re
@@ -88,7 +89,7 @@ class HorizonStandardisationProcess(StandardisationProcess):
 
         # Load existing data (if any)
         definitions = json.loads(orchestration_data.toJSON().first())["definitions"]
-        print("definitions:" , [d for d in definitions])
+        print("definitions:", [d for d in definitions])
         print(f"file name: '{file}'")
         for file in horizon_files:
             for d in definitions:
@@ -109,13 +110,13 @@ class HorizonStandardisationProcess(StandardisationProcess):
                 if not table_name:
                     raise ValueError(f"Orchestration entry for '{file}' does not have a 'Standardised_Table_Name' property")
                 new_entry_name = f"odw_standardised_db.{table_name}"
-                #data = SynapseTableDataIO().read(
-                #    spark=SparkSession.builder.getOrCreate(),
-                #    database_name="odw_standardised_db",
-                #    table_name=table_name,
-                #    file_format="delta"
-                #)
-                #file_map[new_entry_name] = data
+                try:
+                    data = SynapseTableDataIO().read(
+                        spark=SparkSession.builder.getOrCreate(), database_name="odw_standardised_db", table_name=table_name, file_format="delta"
+                    )
+                    file_map[new_entry_name] = data
+                except AnalysisException as e:
+                    file_map[new_entry_name] = None
                 # Load standardised table schema
                 if "Standardised_Table_Definition" in definition:
                     standardised_table_loc = Util.get_path_to_file(f"odw-config/{definition['Standardised_Table_Definition']}")
@@ -138,11 +139,7 @@ class HorizonStandardisationProcess(StandardisationProcess):
         else:
             date_folder = datetime.strptime(date_folder_input, "%Y-%m-%d")
         # Only process the csv files
-        files_to_process = {
-            k: v
-            for k, v in source_data.items()
-            if k != "orchestration_data" and k.endswith(".csv")
-        }
+        files_to_process = {k: v for k, v in source_data.items() if k != "orchestration_data" and k.endswith(".csv")}
         orchestration_data: DataFrame = self.load_parameter("orchestration_data", source_data)
         definitions = json.loads(orchestration_data.toJSON().first())["definitions"]
 
@@ -181,33 +178,37 @@ class HorizonStandardisationProcess(StandardisationProcess):
                     "modified_datetime": F.current_timestamp(),
                     "modified_by_process_name": F.lit(process_name),
                     "entity_name": F.lit(definition["Source_Filename_Start"]),
-                    "file_ID": F.sha2(F.concat(F.lit(F.input_file_name()), F.current_timestamp().cast("string")), 256)
+                    "file_ID": F.sha2(F.concat(F.lit(F.input_file_name()), F.current_timestamp().cast("string")), 256),
                 }
                 for col_name, col_value in col_value_map.items():
                     data = data.withColumn(col_name, col_value)
                 ### change any array field to string
                 standardised_table_schema = deepcopy(schema)
-                for field in standardised_table_schema['fields']:
+                for field in standardised_table_schema["fields"]:
                     if field["type"] == "array":
                         field["type"] = "string"
                 standardised_table_schema = StructType.fromJson(standardised_table_schema)
 
                 cols_orig = data.schema.names
-                cols=[re.sub('[^0-9a-zA-Z]+', '_', i).lower() for i in cols_orig]
-                cols=[colm.rstrip('_') for colm in cols]
+                cols = [re.sub("[^0-9a-zA-Z]+", "_", i).lower() for i in cols_orig]
+                cols = [colm.rstrip("_") for colm in cols]
                 newlist = []
                 for i, v in enumerate(cols):
                     totalcount = cols.count(v)
                     count = cols[:i].count(v)
                     newlist.append(v + str(count + 1) if totalcount > 1 else v)
                 data = data.toDF(*newlist)
-                
+
                 ### Cast any column in df with type mismatch
                 for field in data.schema:
                     table_field = next((f for f in standardised_table_schema if f.name.lower() == field.name.lower()), None)
                     if table_field is not None and field.dataType != table_field.dataType:
                         data = data.withColumn(field.name, F.col(field.name).cast(table_field.dataType))
-                
+
+                table_exists = source_data.get(f"odw_standardised_db.{table_name}", None) is not None
+                write_mode = "append" if table_exists else "overwrite"
+                write_opts = [("mergeSchema", "true")] if table_exists else []
+
                 new_row_count += data.count()
                 data_to_write[f"odw_standardised_db.{table_name}"] = {
                     "data": data,
@@ -218,8 +219,8 @@ class HorizonStandardisationProcess(StandardisationProcess):
                     "container_name": "odw-standardised",
                     "blob_path": f"Horizon/{table_name}",
                     "file_format": "delta",
-                    "write_mode": "append",
-                    "write_options": [("mergeSchema", "true")],
+                    "write_mode": write_mode,
+                    "write_options": write_opts,
                 }
             else:
                 if specific_file:

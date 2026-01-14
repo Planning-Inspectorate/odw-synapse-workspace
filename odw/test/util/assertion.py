@@ -50,5 +50,5 @@ def assert_etl_result_successful(etl_result: ETLResult):
         assert False, f"ETL result is expected to be an instance of ETLResult but was None"
     if isinstance(etl_result, ETLSuccessResult):
         return
-    exception = etl_result.metadata.exception
-    assert False, f"ETL result was not ETLSuccessResult. The below exception was raised\n{exception}"
+    exception_trace = etl_result.metadata.exception_trace
+    assert False, f"ETL result was not ETLSuccessResult. The below exception was raised\n{exception_trace}"
