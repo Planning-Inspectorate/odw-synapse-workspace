@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "4c81161d-64e4-4b48-8f5e-f3d49cb6a766"
+				"spark.autotune.trackingId": "46ea44a0-789e-4cbf-84c1-85e216468aea"
 			}
 		},
 		"metadata": {
@@ -66,7 +66,7 @@
 					"# OUTPUT FOLDER (already exists – good)\n",
 					"output_folder = \"LLAttr\""
 				],
-				"execution_count": 1
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
@@ -77,7 +77,7 @@
 					"print(\"INPUT :\", input_path)\n",
 					"print(\"OUTPUT:\", output_base)"
 				],
-				"execution_count": 2
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
@@ -97,7 +97,7 @@
 					"df_raw.printSchema()\n",
 					"df_raw.show(5, truncate=False)"
 				],
-				"execution_count": 3
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -111,7 +111,7 @@
 					"df_raw.select(\"DefID\").distinct().orderBy(\"DefID\").show(50, truncate=False)\n",
 					""
 				],
-				"execution_count": 4
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
@@ -134,7 +134,7 @@
 					"df.show(5, truncate=False)\n",
 					""
 				],
-				"execution_count": 5
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
@@ -156,7 +156,7 @@
 					"dfv.select(\"DefID\",\"AttrID\",\"KeyID\",\"EntryNum\",\"ParentKeyID\",\"Value\",\"ValInt\",\"ValReal\",\"ValDate\",\"ValStr\",\"ValLong\").show(20, truncate=False)\n",
 					""
 				],
-				"execution_count": 6
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
@@ -251,7 +251,7 @@
 					"print(\"Null DefID rows:\", dfv_nonnull.filter(F.col(\"DefID\").isNull()).count())\n",
 					""
 				],
-				"execution_count": 13
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
@@ -270,26 +270,45 @@
 					"print(\"First 20 DefIDs:\", sorted(defids)[:20])\n",
 					""
 				],
-				"execution_count": 1
+				"execution_count": 13
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"defids = [r[\"DefID\"] for r in dfv_nonnull.select(\"DefID\").distinct().collect()]\n",
-					"print(\"DefIDs found:\", len(defids))\n",
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"defids = [\n",
+					"    r[\"DefID\"] for r in (\n",
+					"        dfv_nonnull\n",
+					"        .filter(F.col(\"DefID\").isNotNull())\n",
+					"        .select(F.col(\"DefID\").cast(\"int\").alias(\"DefID\"))\n",
+					"        .distinct()\n",
+					"        .collect()\n",
+					"    )\n",
+					"]\n",
+					"\n",
+					"print(\"DefIDs found (non-null):\", len(defids))\n",
+					"print(\"Min/Max DefID:\", min(defids), max(defids))\n",
+					"print(\"First 20:\", sorted(defids)[:20])\n",
+					""
+				],
+				"execution_count": 15
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"pivot_index = [\"DefID\",\"KeyID\",\"ParentKeyID\",\"EntryNum\",\"CustomID\"]\n",
 					"\n",
 					"for d in sorted(defids):\n",
 					"    df_d = dfv_nonnull.filter(F.col(\"DefID\") == F.lit(d))\n",
-					"\n",
-					"    # optional: quick debug count per DefID\n",
-					"    cnt = df_d.count()\n",
-					"    print(f\"DefID {d} rows: {cnt}\")\n",
-					"    if cnt == 0:\n",
+					"    if df_d.rdd.isEmpty():\n",
 					"        continue\n",
 					"\n",
 					"    df_p = (\n",
-					"        df_d.select(\"DefID\",\"KeyID\",\"ParentKeyID\",\"EntryNum\",\"CustomID\",\"AttrID\",\"Value\")\n",
-					"            .groupBy(\"DefID\",\"KeyID\",\"ParentKeyID\",\"EntryNum\",\"CustomID\")\n",
+					"        df_d.select(*(pivot_index + [\"AttrID\",\"Value\"]))\n",
+					"            .groupBy(*pivot_index)\n",
 					"            .pivot(\"AttrID\")\n",
 					"            .agg(F.first(\"Value\"))\n",
 					"    )\n",
@@ -297,10 +316,16 @@
 					"    out = f\"{output_base}/DefID={d}\"\n",
 					"    (df_p.write.mode(\"overwrite\").option(\"header\", True).csv(out))\n",
 					"    print(\"Wrote:\", out)\n",
-					"\n",
 					""
 				],
-				"execution_count": 12
+				"execution_count": 16
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					""
+				],
+				"execution_count": null
 			}
 		]
 	}
