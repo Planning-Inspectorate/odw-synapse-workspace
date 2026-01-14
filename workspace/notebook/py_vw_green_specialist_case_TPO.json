@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "b987767b-76d6-49fd-8666-501086f4b1e0"
+				"spark.autotune.trackingId": "c5fe34fb-c9cd-4806-906e-d230b682031f"
 			}
 		},
 		"metadata": {
@@ -175,7 +175,16 @@
 					"            withdrawnOrTurnedAwayDate,\n",
 					"            comments,\n",
 					"            case when active = 'Y' then 'Open' when active ='N' then 'Closed' end as open_or_closed,\n",
-					"            processingState   as rejected_or_withdrawn,\n",
+					"            CASE \n",
+					"                WHEN processingState = 'Withdrawn' THEN 'Withdrawn'\n",
+					"                WHEN processingState = 'LPA wd notice' THEN 'Withdrawn'\n",
+					"                WHEN processingState IS NULL OR processingState = 'NULL' THEN 'Closed - Opened in Error'\n",
+					"                WHEN processingState = 'Rejected' THEN 'Turned Away'\n",
+					"                WHEN processingState = 'Closed - Opened in error' THEN 'Closed - Opened in Error'\n",
+					"                WHEN processingState = 'Turned Away' THEN 'Turned Away'\n",
+					"                ELSE processingState\n",
+					"                END AS rejected_or_withdrawn,\n",
+					"\n",
 					"            current_date() as pdac_etl_date\n",
 					"        FROM {source_table}  where UPPER(greenCaseType) IN ( 'TPO','TRN')\n",
 					"        \"\"\")\n",
