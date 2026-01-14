@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ef7fa1f5-80e6-48d7-aafe-7026611c7e9a"
+				"spark.autotune.trackingId": "dbef973f-800c-48ef-8090-2c3e2936bb36"
 			}
 		},
 		"metadata": {
@@ -178,7 +178,14 @@
 					"            withdrawnOrTurnedAwayDate,\n",
 					"            comments,\n",
 					"            case when active = 'Y' then 'Open' when active ='N' then 'Closed' end as open_or_closed,\n",
-					"            processingState   as rejected_or_withdrawn,\n",
+					"            CASE \n",
+					"               WHEN processingState IS NULL OR processingState = 'NULL' THEN 'NULL'\n",
+					"               WHEN processingState = 'Rejected' THEN 'Turned Away'\n",
+					"               WHEN processingState = 'see 2156' THEN 'Closed - Opened in Error'\n",
+					"               WHEN processingState = 'withdrawn' THEN 'Withdrawn'\n",
+					"               ELSE processingState\n",
+					"               END AS rejected_or_withdrawn,\n",
+					"\n",
 					"            current_date() as pdac_etl_date\n",
 					"\n",
 					"        FROM {source_table}  where greenCaseType = 'HighHedges'\n",
