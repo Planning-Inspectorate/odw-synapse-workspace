@@ -1,0 +1,224 @@
+{
+	"name": "Notebook 2",
+	"properties": {
+		"folder": {
+			"name": "Horizon-Migration"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "hbtPool",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "ed9ddb73-f81b-45eb-af1c-300adb8adbe1"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/hbtPool",
+				"name": "hbtPool",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/hbtPool",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.5",
+				"nodeCount": 10,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"defid = 95498\n",
+					"\n",
+					"df_95498 = dfv_nonnull.filter(F.col(\"DefID\") == F.lit(defid))\n",
+					"\n",
+					"print(\"Rows total for DefID 95498:\", df_95498.count())\n",
+					"\n",
+					"# How many are null?\n",
+					"print(\"KeyID null:\", df_95498.filter(F.col(\"KeyID\").isNull()).count())\n",
+					"print(\"ParentKeyID null:\", df_95498.filter(F.col(\"ParentKeyID\").isNull()).count())\n",
+					"\n",
+					"# How many distinct ids do we have?\n",
+					"print(\"Distinct KeyID:\", df_95498.select(\"KeyID\").distinct().count())\n",
+					"print(\"Distinct ParentKeyID:\", df_95498.select(\"ParentKeyID\").distinct().count())\n",
+					"\n",
+					"# Show samples (this tells us which column is the real entity id)\n",
+					"df_95498.select(\n",
+					"    \"ID\",\"AttrID\",\"KeyID\",\"ParentKeyID\",\"EntryNum\",\"CustomID\",\"Value\"\n",
+					").orderBy(\"ParentKeyID\",\"KeyID\",\"EntryNum\",\"AttrID\").show(50, truncate=False)\n",
+					""
+				],
+				"execution_count": 17
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"defid = 95498\n",
+					"\n",
+					"case_rows = (\n",
+					"    dfv_nonnull\n",
+					"    .filter(F.col(\"DefID\") == F.lit(defid))\n",
+					"    .select(\"ID\", \"AttrID\", \"Value\")  # keep it minimal\n",
+					")\n",
+					"\n",
+					"print(\"Rows:\", case_rows.count())\n",
+					"print(\"Null ID:\", case_rows.filter(F.col(\"ID\").isNull()).count())\n",
+					"print(\"Distinct case IDs:\", case_rows.select(\"ID\").distinct().count())\n",
+					"\n",
+					"case_rows.show(20, truncate=False)\n",
+					""
+				],
+				"execution_count": 18
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"dupes = (\n",
+					"    case_rows\n",
+					"    .groupBy(\"ID\", \"AttrID\")\n",
+					"    .count()\n",
+					"    .filter(F.col(\"count\") > 1)\n",
+					")\n",
+					"\n",
+					"print(\"Duplicate (ID,AttrID) pairs:\", dupes.count())\n",
+					"dupes.orderBy(F.desc(\"count\")).show(20, truncate=False)\n",
+					""
+				],
+				"execution_count": 19
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"case_pivot = (\n",
+					"    case_rows\n",
+					"    .groupBy(\"ID\")\n",
+					"    .pivot(\"AttrID\")\n",
+					"    .agg(F.first(\"Value\"))   # if duplicates exist, first() picks one\n",
+					")\n",
+					"\n",
+					"print(\"Pivot rows (cases):\", case_pivot.count())\n",
+					"print(\"Pivot cols:\", len(case_pivot.columns))\n",
+					"\n",
+					"case_pivot.show(10, truncate=False)\n",
+					""
+				],
+				"execution_count": 20
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Fill this map using your \"Category: Case DefID 95498\" list\n",
+					"case_attr_map = {\n",
+					"    1:   \"Record_Type\",\n",
+					"    2:   \"Case_Type\",\n",
+					"    3:   \"Procedure_LPA\",\n",
+					"    4:   \"Procedure_Appellant\",\n",
+					"    5:   \"Procedure\",\n",
+					"    7:   \"Processing_State\",\n",
+					"    9:   \"Development_Type\",\n",
+					"    17:  \"Development_Description\",\n",
+					"    40:  \"Bespoke_Indicator\",\n",
+					"    45:  \"Costs_Applied_For_Indicator\",\n",
+					"    46:  \"Decision_Issue\",\n",
+					"    47:  \"Casework_Reason\",\n",
+					"    51:  \"Linked_Status\",\n",
+					"    52:  \"Case_Publish_Flag\",\n",
+					"    53:  \"Appellant_Form_Type_Submitted\",\n",
+					"    54:  \"Level\",\n",
+					"    55:  \"Processing_State_2\",   # replace with correct name from your list if needed\n",
+					"    60:  \"Specialism\",\n",
+					"    68:  \"Redetermined_Indicator\",\n",
+					"    69:  \"Other_Related_Appeals\",\n",
+					"    70:  \"National_Planning_Casework_Reference\",\n",
+					"    71:  \"Source_Indicator\",\n",
+					"    72:  \"Portal_URL\",\n",
+					"    73:  \"England_Wales_Indicator\",\n",
+					"    74:  \"Decision\",\n",
+					"    75:  \"Ground_A_DPA_Lapsed_Indicator\",\n",
+					"    76:  \"LPA_Code\",\n",
+					"    77:  \"LPA_Name\",\n",
+					"    78:  \"Special_Circumstances\",\n",
+					"    79:  \"Decision_Branch\",\n",
+					"    80:  \"Appointed_By\",\n",
+					"    81:  \"Casework_Marker\",\n",
+					"    82:  \"Important_Information\",\n",
+					"    83:  \"File_Location\",\n",
+					"    84:  \"Appellant_Reasons_WR_Not_Sufficient\",\n",
+					"    85:  \"Case_Process\",\n",
+					"    87:  \"Regulation\",\n",
+					"    88:  \"Regulator\",\n",
+					"    89:  \"Act\",\n",
+					"    90:  \"Section\",\n",
+					"    91:  \"Application_Subtype\",\n",
+					"    92:  \"Decision_Clear_For_Despatch\",\n",
+					"    93:  \"OMA_Stance\",\n",
+					"    94:  \"NFA\",\n",
+					"    95:  \"DECC_REF\",\n",
+					"    99:  \"EPR_Type\",\n",
+					"    100: \"Appeal_Against\",\n",
+					"    101: \"Validity\",\n",
+					"    102: \"Standard_Priority\",\n",
+					"    104: \"Band\",\n",
+					"}\n",
+					"\n",
+					"case_renamed = case_pivot\n",
+					"for attrid, colname in case_attr_map.items():\n",
+					"    old = str(attrid)\n",
+					"    if old in case_renamed.columns:\n",
+					"        case_renamed = case_renamed.withColumnRenamed(old, colname)\n",
+					"\n",
+					"case_renamed.printSchema()\n",
+					"case_renamed.show(5, truncate=False)\n",
+					""
+				],
+				"execution_count": 21
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"out = f\"{output_base}/Case_95498_named\"\n",
+					"\n",
+					"(case_renamed\n",
+					"    .write.mode(\"overwrite\")\n",
+					"    .option(\"header\", True)\n",
+					"    .csv(out)\n",
+					")\n",
+					"\n",
+					"print(\"Wrote:\", out)\n",
+					""
+				],
+				"execution_count": 22
+			}
+		]
+	}
+}
