@@ -1,0 +1,210 @@
+{
+	"name": "Notebook 3",
+	"properties": {
+		"folder": {
+			"name": "Horizon-Migration"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "hbtPool",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "b468587b-7941-45d6-bfda-96a587421814"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/hbtPool",
+				"name": "hbtPool",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/hbtPool",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.5",
+				"nodeCount": 10,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"# INPUT: LLAttrData (EAV) CSV\n",
+					"llattrdata_path = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-EXTRACT/LLAttrData.csv\"\n",
+					"\n",
+					"# OUTPUT BASE folder\n",
+					"output_base = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-EXTRACT/LLAttr\"\n",
+					"\n",
+					"print(\"Input :\", llattrdata_path)\n",
+					"print(\"Output:\", output_base)\n",
+					""
+				],
+				"execution_count": 12
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"df = (\n",
+					"    spark.read\n",
+					"         .option(\"header\", True)\n",
+					"         .csv(llattrdata_path)\n",
+					")\n",
+					"\n",
+					"df.printSchema()\n",
+					""
+				],
+				"execution_count": 13
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"dfv = (\n",
+					"    df\n",
+					"    .withColumn(\"DefID\", F.col(\"DefID\").cast(\"int\"))\n",
+					"    .withColumn(\"ID\", F.col(\"ID\").cast(\"long\"))\n",
+					"    .withColumn(\"AttrID\", F.col(\"AttrID\").cast(\"int\"))\n",
+					"    .withColumn(\"VerNum\", F.col(\"VerNum\").cast(\"int\"))\n",
+					"    .withColumn(\n",
+					"        \"Value\",\n",
+					"        F.coalesce(\n",
+					"            F.col(\"ValStr\"),\n",
+					"            F.col(\"ValLong\"),\n",
+					"            F.col(\"ValInt\").cast(\"string\"),\n",
+					"            F.col(\"ValReal\").cast(\"string\"),\n",
+					"            F.date_format(F.col(\"ValDate\"), \"yyyy-MM-dd HH:mm:ss\")\n",
+					"        )\n",
+					"    )\n",
+					"    .select(\"DefID\", \"ID\", \"AttrID\", \"VerNum\", \"Value\")\n",
+					")\n",
+					"\n",
+					"dfv.show(5, truncate=False)\n",
+					""
+				],
+				"execution_count": 14
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"dfv_good = (\n",
+					"    dfv\n",
+					"    .filter(F.col(\"DefID\").isNotNull())\n",
+					"    .filter(F.col(\"ID\").isNotNull())\n",
+					"    .filter(F.col(\"AttrID\").isNotNull())\n",
+					"    .filter(F.col(\"Value\").isNotNull())\n",
+					")\n",
+					"\n",
+					"print(\"Rows kept:\", dfv_good.count())\n",
+					""
+				],
+				"execution_count": 15
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"defids = [\n",
+					"    r[\"DefID\"] for r in (\n",
+					"        dfv_good\n",
+					"        .select(\"DefID\")\n",
+					"        .distinct()\n",
+					"        .collect()\n",
+					"    )\n",
+					"]\n",
+					"\n",
+					"print(\"DefIDs found:\", len(defids))\n",
+					"print(\"First 20:\", sorted(defids)[:20])\n",
+					""
+				],
+				"execution_count": 16
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql.window import Window\n",
+					"\n",
+					"def extract_one_defid(defid: int):\n",
+					"    # Filter to one DefID\n",
+					"    d = dfv_good.filter(F.col(\"DefID\") == F.lit(defid))\n",
+					"\n",
+					"    # Keep latest VerNum per (ID, AttrID)\n",
+					"    w = Window.partitionBy(\"ID\", \"AttrID\").orderBy(F.col(\"VerNum\").desc())\n",
+					"    d_latest = (\n",
+					"        d.withColumn(\"rn\", F.row_number().over(w))\n",
+					"         .filter(F.col(\"rn\") == 1)\n",
+					"         .drop(\"rn\", \"VerNum\", \"DefID\")\n",
+					"    )\n",
+					"\n",
+					"    # Pivot to wide table (1 row per ID)\n",
+					"    wide = (\n",
+					"        d_latest\n",
+					"        .groupBy(\"ID\")\n",
+					"        .pivot(\"AttrID\")\n",
+					"        .agg(F.first(\"Value\"))\n",
+					"    )\n",
+					"\n",
+					"    # Write out\n",
+					"    out = f\"{output_base}/DefID={defid}\"\n",
+					"    wide.write.mode(\"overwrite\").option(\"header\", True).csv(out)\n",
+					"\n",
+					"    print(f\"Wrote DefID {defid} -> {out}\")\n",
+					""
+				],
+				"execution_count": 17
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"extract_one_defid(95498)   # Case\n",
+					""
+				],
+				"execution_count": 18
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"for d in sorted(defids):\n",
+					"    extract_one_defid(d)\n",
+					""
+				],
+				"execution_count": 19
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"test_out = f\"{output_base}/DefID=95498\"\n",
+					"df_check = spark.read.option(\"header\", True).csv(test_out)\n",
+					"print(\"Rows:\", df_check.count())\n",
+					"df_check.show(5, truncate=False)\n",
+					""
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
