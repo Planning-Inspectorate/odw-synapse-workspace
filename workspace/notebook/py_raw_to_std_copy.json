@@ -1,11 +1,15 @@
 {
-	"name": "py_horizon_raw_to_std",
+	"name": "py_raw_to_std_copy",
 	"properties": {
 		"folder": {
 			"name": "1-odw-raw-to-standardised"
 		},
 		"nbformat": 4,
 		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
 		"sessionProperties": {
 			"driverMemory": "28g",
 			"driverCores": 4,
@@ -16,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "55b9f412-6fba-45ea-b6f9-6b9345285ae5"
+				"spark.autotune.trackingId": "ba15fac5-b133-49bd-8c28-99be056d2afa"
 			}
 		},
 		"metadata": {
@@ -24,10 +28,25 @@
 			"enableDebugMode": false,
 			"kernelspec": {
 				"name": "synapse_pyspark",
-				"display_name": "python"
+				"display_name": "Synapse PySpark"
 			},
 			"language_info": {
 				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -45,7 +64,23 @@
 					"## Prerequisites\n",
 					"1. Make sure the new raw file's entry has been added to the Orchestration i.e `/infrastructure/configuration/data-lake/orchestration/orchestration.json`\n",
 					"2. Make sure the standardised table's schema is present on the path specified in the entry added in step 1.\n",
-					"3. Only if the raw file is huge (several GBs), the spark pool might need some upscaling. Hence the following cell"
+					"3. Only if the raw file is huge (several GBs), the spark pool might need some upscaling. Hence the following cell\n",
+					"\n",
+					"**Spark Cluster Configuration** -> Apache Spark Version- 3.4, Python Version \t\t- 3.10, Delta Lake Version \t- 2.4\n",
+					""
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Configure spark session"
 				]
 			},
 			{
@@ -59,6 +94,10 @@
 						"transient": {
 							"deleting": false
 						}
+					},
+					"editable": true,
+					"run_control": {
+						"frozen": false
 					}
 				},
 				"source": [
@@ -74,31 +113,6 @@
 				"execution_count": null
 			},
 			{
-				"cell_type": "code",
-				"source": [
-					"%run /utils/py_mount_storage"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					" %run utils/py_logging_decorator"
-				],
-				"execution_count": null
-			},
-			{
 				"cell_type": "markdown",
 				"metadata": {
 					"nteract": {
@@ -108,47 +122,19 @@
 					}
 				},
 				"source": [
-					"### Initialise Application Insight Logging functions"
+					"##### Import Required libraries"
 				]
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"%run utils/py_applicationinsights"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"### Get the Storage Account"
-				]
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"import asyncio\n",
-					"import nest_asyncio\n",
-					"import tracemalloc\n",
-					"tracemalloc.start()\n",
 					"from pyspark.sql import SparkSession\n",
 					"from notebookutils import mssparkutils\n",
 					"import json\n",
 					"import calendar\n",
 					"from datetime import datetime, timedelta, date\n",
 					"import pandas as pd\n",
-					"import os\n",
-					"import re\n",
-					"from pyspark.sql.functions import col, lit, input_file_name, current_timestamp, sha2, concat,max as spark_max\n",
-					"from pyspark.sql.types import StringType, DateType, TimestampType, IntegerType, FloatType, StructType, StructField\n",
-					"from delta import DeltaTable"
+					"import os"
 				],
 				"execution_count": null
 			},
@@ -183,15 +169,12 @@
 				},
 				"source": [
 					"date_folder=''\n",
-					"source_folder='Horizon' #need change\n",
+					"source_folder='AIEDocumentData'\n",
+					"source_frequency_folder=''\n",
 					"specific_file='' # if not provided, it will ingest all files in the date_folder\n",
+					"isMultiLine = True\n",
 					"delete_existing_table=False\n",
-					"dataAttribute = \"\"\n",
-					"start_exec_time = datetime.now()\n",
-					"insert_count = 0\n",
-					"update_count = 0\n",
-					"delete_count = 0\n",
-					"error_message=''"
+					"dataAttribute = \"\""
 				],
 				"execution_count": null
 			},
@@ -205,56 +188,83 @@
 					}
 				},
 				"source": [
-					"### Initialise Logging and Tracking Metrics"
+					"##### Initialise Logging decorator"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise Application Insight Logging functions"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_applicationinsights"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Get the Storage Account"
 				]
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"spark = SparkSession.builder.getOrCreate()\n",
+					"\n",
 					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
-					"source_path: str = f\"abfss://odw-raw@{storage_account}{source_folder}/\"\n",
-					"standardised_container = f\"abfss://odw-standardised@{storage_account}\"\n",
-					"print(standardised_container)"
+					"raw_container = \"abfss://odw-raw@\" + storage_account\n",
+					"\n",
+					"start_exec_time = datetime.now()\n",
+					"insert_count = 0\n",
+					"update_count = 0\n",
+					"delete_count = 0\n",
+					"error_message =''"
 				],
 				"execution_count": null
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"#### Retrieve and Display Latest Modified Folder in Directory"
-				]
 			},
 			{
 				"cell_type": "code",
-				"source": [
-					"# List all items in the directory\n",
-					"items = mssparkutils.fs.ls(source_path)\n",
-					"# Filter for directories and get their names and modification times\n",
-					"folders = [(item.name, item.modifyTime) for item in items if item.isDir]\n",
-					"# Sort folders by modification time in descending order\n",
-					"sorted_folders = sorted(folders, key=lambda x: x[1], reverse=True)\n",
-					"# Get the name of the latest modified folder\n",
-					"if sorted_folders:\n",
-					"    latest_folder = sorted_folders[0][0]\n",
-					"    source_path=f\"{source_path}{latest_folder}\"\n",
-					"    print(f\"Latest modified folder: {latest_folder}\")\n",
-					"    print(source_path)\n",
-					"else:\n",
-					"    print(\"No folders found in the specified directory.\")"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "markdown",
 				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
 					"nteract": {
 						"transient": {
 							"deleting": false
@@ -262,97 +272,9 @@
 					}
 				},
 				"source": [
-					"#### List and Retrieve File Names from Directory\""
-				]
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"files = mssparkutils.fs.ls(source_path)\n",
-					"horizon_files = [file.name for file in files]\n",
-					"# horizon_files= horizon_files[:1]\n",
-					"horizon_files\n",
-					" # comment this during the full execution"
+					"%run \"1-odw-raw-to-standardised/Fileshare/SAP_HR/py_1_raw_to_standardised_hr_functions\""
 				],
 				"execution_count": null
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"#### Create Delta Table from JSON Schema with Spark"
-				]
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"@logging_to_appins\n",
-					"def create_table_from_schema(jsonschema: str, db_name: str, table_name: str, target_container: str, target_folder: str, change_data_feed=False):\n",
-					"   \n",
-					"    spark = SparkSession.builder.getOrCreate()\n",
-					"    target_loc = f\"{target_container}/{target_folder}\".rstrip(\"/\")\n",
-					"\n",
-					"    # Convert array fields to string in schema definition\n",
-					"    schema_dict = json.loads(jsonschema)\n",
-					"    for field in schema_dict.get(\"fields\", []):\n",
-					"        if field.get(\"type\") == \"array\":\n",
-					"            field[\"type\"] = \"string\"\n",
-					"\n",
-					"    # Create empty DataFrame with adjusted schema\n",
-					"    schema = StructType.fromJson(schema_dict)\n",
-					"    df = spark.createDataFrame([], schema)\n",
-					"\n",
-					"    # Verify database existence\n",
-					"    if db_name not in [db.name for db in spark.catalog.listDatabases()]:\n",
-					"        raise NameError(f\"Database '{db_name}' does not exist!\")\n",
-					"\n",
-					"    # Verify table existence\n",
-					"    if table_name in [table.name for table in spark.catalog.listTables(db_name)]:\n",
-					"        table_details = spark.sql(f\"DESCRIBE DETAIL {db_name}.{table_name}\").toPandas()\n",
-					"        \n",
-					"        if len(table_details) > 1:\n",
-					"            raise logError(\"Multiple parquet files detected. Please investigate!\")\n",
-					"        \n",
-					"        existing_location = table_details['location'][0].rstrip(\"/\")\n",
-					"        if existing_location == target_loc:\n",
-					"            logInfo(f\"Table '{db_name}.{table_name}' already exists at correct location.\")\n",
-					"        else:\n",
-					"            raise logError(f\"Table exists but at a different location: {existing_location}. Expected: {target_loc}\")\n",
-					"        return\n",
-					"\n",
-					"    # Create table if not exists\n",
-					"    if not DeltaTable.isDeltaTable(spark, target_loc):\n",
-					"        df.write.option(\"mergeSchema\", \"false\").format(\"delta\").save(target_loc)\n",
-					"    \n",
-					"    logInfo(f\"Creating table {db_name}.{table_name}\")\n",
-					"    spark.sql(f\"CREATE TABLE {db_name}.{table_name} USING DELTA LOCATION '{target_loc}'\")\n",
-					"    \n",
-					"    if change_data_feed:\n",
-					"        spark.sql(f\"ALTER TABLE {db_name}.{table_name} SET TBLPROPERTIES ('delta.enableChangeDataFeed' = 'true')\")\n",
-					"    \n",
-					"    logInfo(f\"Table '{db_name}.{table_name}' created successfully!\")"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"### Ingest the data from the raw/source into the standardised table. \n",
-					"If the table doesn't already exist, this will create the table first and ingest the data."
-				]
 			},
 			{
 				"cell_type": "code",
@@ -508,133 +430,160 @@
 				"execution_count": null
 			},
 			{
-				"cell_type": "code",
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
 				"source": [
-					"@logging_to_appins\n",
-					"async def ingest_horizon(date_folder: str, file: str):\n",
-					"    standardised_table_name = None\n",
-					"    row_count = 0\n",
-					"    error_message = \"\"\n",
-					"    start_exec_time = datetime.now()\n",
-					"    try:\n",
-					"        spark = SparkSession.builder.getOrCreate()\n",
-					"\n",
-					"        if date_folder == '':\n",
-					"            date_folder = datetime.now().date()\n",
-					"        else:\n",
-					"            date_folder = datetime.strptime(date_folder, \"%Y-%m-%d\")\n",
-					"\n",
-					"        date_folder_str = date_folder.strftime('%Y-%m-%d')\n",
-					"\n",
-					"        # READ ORCHESTRATION DATA\n",
-					"        path_to_orchestration_file = f\"abfss://odw-config@{storage_account}/orchestration/orchestration.json\"\n",
-					"        df = spark.read.option(\"multiline\", \"true\").json(path_to_orchestration_file)\n",
-					"        definitions = json.loads(df.toJSON().first())['definitions']\n",
-					"\n",
-					"        definition = next((d for d in definitions \n",
-					"                          if (specific_file == '' or d['Source_Filename_Start'] == specific_file) \n",
-					"                          and file.startswith(d['Source_Filename_Start']) \n",
-					"                          and d['Load_Enable_status'] == 'True'), None)\n",
-					"\n",
-					"        if definition:\n",
-					"            expected_from = date_folder - timedelta(days=1)\n",
-					"            expected_from = datetime.combine(expected_from, datetime.min.time())\n",
-					"            expected_to = expected_from + timedelta(days=definition['Expected_Within_Weekdays'])\n",
-					"\n",
-					"            if delete_existing_table:\n",
-					"                print(f\"Deleting existing table if exists odw_standardised_db.{definition['Standardised_Table_Name']}\")\n",
-					"                mssparkutils.notebook.run('/utils/py_delete_table', 300, arguments={'db_name': 'odw_standardised_db', 'table_name': definition['Standardised_Table_Name']})\n",
-					"\n",
-					"            ingestion_failure, row_count,standardised_table_name,end_exec_time = ingest_adhoc(storage_account, definition, source_path, file, expected_from, expected_to)\n",
-					"\n",
-					"            if ingestion_failure:\n",
-					"                print(\"Errors reported during Ingestion!!\")\n",
-					"                error_message = \"Errors reported during Ingestion!!\"\n",
-					"            else:\n",
-					"                print(\"No Errors reported during Ingestion\")\n",
-					"        else:\n",
-					"            if specific_file != '':\n",
-					"                raise logError(f\"No definition found for {file}\")\n",
-					"            else:\n",
-					"                print(f\"Condition Not Satisfied for Load {file} File\")\n",
-					"    except Exception as e:\n",
-					"        print(f\"Failed to process {file}: {e}\")\n",
-					"        error_message = f\"Failed to process {file}: {str(e)}\"\n",
-					"\n",
-					"    return row_count, error_message,standardised_table_name,start_exec_time,end_exec_time"
-				],
-				"execution_count": null
+					"##### Ingest the data from the raw/source into the standardised table. \n",
+					"If the table doesn't already exist, this will create the table first and ingest the data."
+				]
 			},
 			{
 				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
 				"source": [
-					"import asyncio\n",
-					"import nest_asyncio\n",
-					"from datetime import datetime\n",
+					"if date_folder == '':\n",
+					"    date_folder = datetime.now().date()\n",
+					"    print(date_folder)\n",
+					"else:\n",
+					"    date_folder = datetime.strptime(date_folder, \"%Y-%m-%d\")\n",
 					"\n",
-					"nest_asyncio.apply()\n",
+					"date_folder_str = date_folder.strftime('%Y-%m-%d')\n",
+					"source_folder_path = source_folder if not source_frequency_folder else f\"{source_folder}/{source_frequency_folder}\"\n",
 					"\n",
-					"async def process_file(file):\n",
-					"    # Ingest file, returning insert count, error message, and table name\n",
-					"    insert_count, error_message, standardised_table_name, start_exec_time, end_exec_time = await ingest_horizon(date_folder=latest_folder, file=file)\n",
+					"# READ ORCHESTRATION DATA\n",
+					"path_to_orchestration_file = \"abfss://odw-config@\"+storage_account+\"orchestration/orchestration.json\"\n",
+					"df = spark.read.option(\"multiline\",\"true\").json(path_to_orchestration_file)\n",
+					"definitions = json.loads(df.toJSON().first())['definitions']\n",
 					"\n",
-					"    # For testing error, uncomment below line or inject error_message dynamically\n",
-					"    # error_message = \"Errors reported during Ingestion!!\"\n",
+					"process_name = \"py_raw_to_std\"\n",
 					"\n",
-					"    DurationSeconds = (end_exec_time - start_exec_time).total_seconds()\n",
-					"    ActivityType = mssparkutils.runtime.context['currentNotebookName'] + \" NoteBook\"\n",
-					"    StatusMessage = (\n",
-					"    f\"Successfully loaded data from {file} into {standardised_table_name} table\"\n",
-					"    if not error_message\n",
-					"    else f\"Failed to load data from {file} into {standardised_table_name} table\"\n",
-					")\n",
-					"    Stage = \"Success\" if not error_message else \"Failed\"\n",
+					"source_path = f\"{raw_container}{source_folder_path}/{date_folder_str}\"\n",
 					"\n",
-					"    params = {\n",
-					"        \"Stage\": Stage,\n",
-					"        \"PipelineName\": PipelineName,\n",
-					"        \"PipelineRunID\": PipelineRunID,\n",
-					"        \"StartTime\": start_exec_time.isoformat(),\n",
-					"        \"EndTime\": end_exec_time.isoformat(),\n",
-					"        \"Inserts\": insert_count,\n",
-					"        \"Updates\": update_count,\n",
-					"        \"Deletes\": delete_count,\n",
-					"        \"ErrorMessage\": error_message,\n",
-					"        \"StatusMessage\": StatusMessage,\n",
-					"        \"PipelineTriggerID\": PipelineTriggerID,\n",
-					"        \"PipelineTriggerName\": PipelineTriggerName,\n",
-					"        \"PipelineTriggerType\": PipelineTriggerType,\n",
-					"        \"PipelineTriggeredbyPipelineName\": PipelineTriggeredbyPipelineName,\n",
-					"        \"PipelineTriggeredbyPipelineRunID\": PipelineTriggeredbyPipelineRunID,\n",
-					"        \"PipelineExecutionTimeInSec\": DurationSeconds,\n",
-					"        \"ActivityType\": ActivityType,\n",
-					"        \"DurationSeconds\": DurationSeconds,\n",
-					"        \"StatusCode\": \"200\" if Stage == \"Success\" else \"500\",\n",
-					"        \"AppInsCustomEventName\": \"ODW_Master_Pipeline_Logs\"\n",
-					"    }\n",
-					"\n",
-					"    # Send telemetry in a separate thread\n",
-					"    await asyncio.to_thread(send_telemetry_to_app_insights, params)\n",
-					"\n",
-					"    # If error found, raise exception to stop overall processing and quit notebook\n",
-					"    if error_message:\n",
-					"        print(f\"Notebook failed for file {file}: {error_message}\")\n",
-					"        raise RuntimeError(f\"Notebook failed due to error in file {file}: {error_message}\")\n",
-					"\n",
-					"async def load_horizon_async():\n",
-					"    # Process files sequentially to stop on first error,\n",
-					"    # or use gather with return_exceptions=False to stop on exceptions\n",
-					"    for file in horizon_files:\n",
-					"        await process_file(file)\n",
-					"\n",
-					"# Run and handle exception to quit notebook cleanly\n",
 					"try:\n",
-					"    loop = asyncio.get_event_loop()\n",
-					"    loop.run_until_complete(load_horizon_async())\n",
-					"except RuntimeError as e:\n",
-					"    print(str(e))\n",
-					"    import sys\n",
-					"    sys.exit(1)  # Quits the notebook with error code 1"
+					"    logInfo(f\"Reading from {source_path}\")\n",
+					"    files = mssparkutils.fs.ls(source_path)\n",
+					"except Exception as e:\n",
+					"    logError(f\"Raw file not found at {source_path}\")\n",
+					"    logException(e)\n",
+					"    mssparkutils.notebook.exit(f\"Raw file not found at {source_path}\")\n",
+					"\n",
+					"\n",
+					"for file in files:\n",
+					"\n",
+					"    # ignore json raw files if source is service bus\n",
+					"    if source_folder == 'ServiceBus' and file.name.endswith('.json'):\n",
+					"        continue\n",
+					"\n",
+					"    # ignore files other than specified file \n",
+					"    if specific_file != '' and not file.name.startswith(specific_file + '.'):\n",
+					"        continue\n",
+					"        \n",
+					"    definition = next((d for d in definitions if (specific_file == '' or d['Source_Filename_Start'] == specific_file) \n",
+					"                        and (not source_frequency_folder or d['Source_Frequency_Folder'] == source_frequency_folder) \n",
+					"                        and file.name.startswith(d['Source_Filename_Start'])), None)\n",
+					"    \n",
+					"    if definition:\n",
+					"        expected_from = date_folder - timedelta(days=1)\n",
+					"        expected_from = datetime.combine(expected_from, datetime.min.time())\n",
+					"        expected_to = expected_from + timedelta(days=definition['Expected_Within_Weekdays']) \n",
+					"\n",
+					"        if delete_existing_table:\n",
+					"            logInfo(f\"Deleting existing table if exists odw_standardised_db.{definition['Standardised_Table_Name']}\")\n",
+					"            mssparkutils.notebook.run('/utils/py_delete_table', 300, arguments={'db_name': 'odw_standardised_db', 'table_name': definition['Standardised_Table_Name']})\n",
+					"\n",
+					"        logInfo(f\"Ingesting {file.name}\")\n",
+					"        (ingestion_failure, row_count) = ingest_adhoc(storage_account, definition, source_path, file.name, expected_from, expected_to, process_name, isMultiLine, dataAttribute)\n",
+					"\n",
+					"        insert_count = row_count\n",
+					"        end_exec_time = datetime.now()\n",
+					"\n",
+					"        duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
+					"        activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
+					"        stage = \"Success\" if not ingestion_failure else \"Failed\"\n",
+					"        status_message = (\n",
+					"            f\"Successfully loaded data into {definition['Standardised_Table_Name']} table\"\n",
+					"            if not ingestion_failure\n",
+					"            else f\"Failed to load data from {definition['Standardised_Table_Name']} table\"\n",
+					"        )\n",
+					"        status_code = \"200\" \n",
+					"        error_message = \"\"\n",
+					"        log_telemetry_and_exit(\n",
+					"            stage,\n",
+					"            start_exec_time,\n",
+					"            end_exec_time,\n",
+					"            error_message,\n",
+					"            f\"odw_standardised_db.{definition['Standardised_Table_Name']}\",\n",
+					"            insert_count,\n",
+					"            update_count,\n",
+					"            delete_count,\n",
+					"            PipelineRunID,\n",
+					"            PipelineTriggerID,\n",
+					"            PipelineName,\n",
+					"            PipelineTriggerName,\n",
+					"            PipelineTriggerType,\n",
+					"            PipelineTriggeredbyPipelineName,\n",
+					"            PipelineTriggeredbyPipelineRunID,\n",
+					"            activity_type,\n",
+					"            duration_seconds,\n",
+					"            status_message,\n",
+					"            status_code\n",
+					"        )        \n",
+					"        \n",
+					"        logInfo(f\"Ingested {row_count} rows\")\n",
+					"\n",
+					"        if ingestion_failure:\n",
+					"            logInfo(f\"Errors reported during Ingestion!!\")            \n",
+					"            error_message = f\"Errors reported during Ingestion!!\"            \n",
+					"            end_exec_time = datetime.now()\n",
+					"            \n",
+					"            duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
+					"            activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
+					"            stage = \"Failed\"\n",
+					"            status_message = (\n",
+					"                f\"Failed to load data from {definition['Standardised_Table_Name']} table\"\n",
+					"                )\n",
+					"            status_code = \"500\"\n",
+					"            \n",
+					"            log_telemetry_and_exit(\n",
+					"                stage,\n",
+					"                start_exec_time,\n",
+					"                end_exec_time,\n",
+					"                error_message,\n",
+					"                f\"odw_standardised_db.{definition['Standardised_Table_Name']}\",\n",
+					"                insert_count,\n",
+					"                update_count,\n",
+					"                delete_count,\n",
+					"                PipelineRunID,\n",
+					"                PipelineName,\n",
+					"                PipelineTriggerID,\n",
+					"                PipelineTriggerName,\n",
+					"                PipelineTriggerType,\n",
+					"                PipelineTriggeredbyPipelineName,\n",
+					"                PipelineTriggeredbyPipelineRunID,\n",
+					"                activity_type,\n",
+					"                duration_seconds,\n",
+					"                status_message,\n",
+					"                status_code\n",
+					"            )\n",
+					"\n",
+					"        "
 				],
 				"execution_count": null
 			}
