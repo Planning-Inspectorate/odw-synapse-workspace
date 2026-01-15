@@ -215,26 +215,127 @@
 					"waitOnCompletion": true,
 					"parameters": {
 						"Stage": "Pipeline load started",
-						"PipelineName": "@pipeline().Pipeline",
-						"PipelineRunID": "@pipeline().RunId",
-						"StartTime": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+							"type": "Expression"
+						},
 						"StatusMessage": "Starting pipeline execution",
-						"PipelineTriggerID": "@pipeline().TriggerId",
-						"PipelineTriggerName": "@pipeline().TriggerName",
-						"PipelineTriggerType": "@pipeline().TriggerType",
-						"PipelineTriggeredbyPipelineName": "@pipeline()?.TriggeredByPipelineName",
-						"PipelineTriggeredbyPipelineRunID": "@pipeline()?.TriggeredByPipelineRunId",
-						"AppInsIKey": "@pipeline().parameters.apps_insights_ikey"
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
 					}
 				}
 			},
 			{
-				"name": "Record AIE Document Data Completed",
+				"name": "Send AIE document data failed",
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
 						"activity": "Std to Hrm",
 						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_utl_Send_Teams_Message",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"dataFactorySubscription": {
+							"value": "@pipeline().parameters.subscription_id",
+							"type": "Expression"
+						},
+						"dataFactoryResourceGroup": {
+							"value": "@pipeline().parameters.resource_group",
+							"type": "Expression"
+						},
+						"pipelineRunId": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"teamsWebhookUrl": {
+							"value": "@pipeline().parameters.webhook_url",
+							"type": "Expression"
+						},
+						"activityName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"activityMessage": {
+							"value": "@if(\n    equals(\n        trim(\n            concat(\n                activity('Record horizon AIE document data')?.Error?.message,\n                activity('Src to Raw')?.Error?.message,\n                activity('Raw to Std')?.Error?.message,\n                activity('Std to Hrm')?.Error?.message\n            )\n        ),\n        ''\n    ),\n    'Failed',\n    'Successfully '\n)",
+							"type": "Expression"
+						},
+						"activityDuration": {
+							"value": "@concat(\n    string(div(div(sub(\n        ticks(formatDateTime(utcNow(), 'yyyy-MM-dd HH:mm:sss')),\n        ticks(formatDateTime(if(equals(pipeline().parameters.start_time, null), utcNow(), pipeline().parameters.start_time), 'yyyy-MM-dd HH:mm:sss'))\n    ), 600000000), 60)), 'H:', \n    string(mod(div(sub(\n        ticks(formatDateTime(utcNow(), 'yyyy-MM-dd HH:mm:sss')),\n        ticks(formatDateTime(if(equals(pipeline().parameters.start_time, null), utcNow(), pipeline().parameters.start_time), 'yyyy-MM-dd HH:mm:sss'))\n    ), 600000000), 60)), 'M:00s'\n)",
+							"type": "Expression"
+						},
+						"activityStatus": {
+							"value": "@if(\n    equals(\n        trim(\n            concat(\n                activity('Record horizon AIE document data')?.Error?.message,\n                activity('Src to Raw')?.Error?.message,\n                activity('Raw to Std')?.Error?.message,\n                activity('Std to Hrm')?.Error?.message\n            )\n        ),\n        ''\n    ),\n   'Failed',\n    'Successfully'\n)",
+							"type": "Expression"
+						},
+						"Colour": {
+							"value": "@pipeline().parameters.failed_colour",
+							"type": "Expression"
+						},
+						"Image": {
+							"value": "@pipeline().parameters.failed_image",
+							"type": "Expression"
+						},
+						"Message_title": {
+							"value": "@if(\n    equals(\n        trim(\n            concat(\n                coalesce(activity('Record horizon AIE document data')?.Error?.message, ''),\n                coalesce(activity('Src to Raw')?.Error?.message, ''),\n                coalesce(activity('Raw to Std')?.Error?.message, ''),\n                coalesce(activity('Std to Hrm')?.Error?.message, '')\n            )\n        ),\n        ''\n    ),\n    'Aie document data Failed',\n    'Aie document data Successfully Completed'\n)\n",
+							"type": "Expression"
+						},
+						"Message_subtitle": {
+							"value": "@if(\n    equals(\n        trim(\n            concat(\n                coalesce(activity('Record horizon AIE document data')?.Error?.message, ''),\n                coalesce(activity('Src to Raw')?.Error?.message, ''),\n                coalesce(activity('Raw to Std')?.Error?.message, ''),\n                coalesce(activity('Std to Hrm')?.Error?.message, '')\n            )\n        ),\n        ''\n    ),\n    'pipeline run Failed',\n    'pipeline run Completed'\n)\n",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Record completed AIE document data",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Std to Hrm",
+						"dependencyConditions": [
+							"Skipped",
 							"Completed"
 						]
 					}
@@ -251,27 +352,112 @@
 					"waitOnCompletion": true,
 					"parameters": {
 						"Stage": {
-							"value": "@if(or(equals(activity('Std to Hrm')?.Error?.Message, ''),equals(activity('Std to Hrm')?.Error?.Message, null)),'Successfully','Failed')",
+							"value": "@if(\n    equals(\n        trim(\n            concat(\n                activity('Record horizon AIE document data')?.Error?.message,\n                activity('Src to Raw')?.Error?.message,\n                activity('Raw to Std')?.Error?.message,\n                activity('Std to Hrm')?.Error?.message\n            )\n        ),\n        ''\n    ),    \n    'Successfully',\n    'Failed'\n\n)",
 							"type": "Expression"
 						},
-						"PipelineName": "@pipeline().Pipeline",
-						"PipelineRunID": "@pipeline().RunId",
-						"EndTime": "@utcNow()",
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@utcnow()",
+							"type": "Expression"
+						},
 						"ErrorMessage": {
-							"value": "@{if(or(equals(activity('Std to Hrm')?.Error?.Message, ''), equals(activity('Std to Hrm')?.Error?.Message, null)), ' ', activity('Std to Hrm')?.Error?.Message)}",
+							"value": "@replace(\n    concat(\n        coalesce(activity('Record horizon AIE document data')?.Error?.message, ''), '|',\n        coalesce(activity('Src to Raw')?.Error?.message, ''), '|',\n        coalesce(activity('Raw to Std')?.Error?.message, ''), '|',\n        coalesce(activity('Std to Hrm')?.Error?.message, ''), '|'\n    ),\n    '|',\n    ''\n)\n",
 							"type": "Expression"
 						},
-						"StatusMessage": "Starting pipeline execution",
-						"PipelineTriggerID": "@pipeline().TriggerId",
-						"PipelineTriggerName": "@pipeline().TriggerName",
-						"PipelineTriggerType": "@pipeline().TriggerType",
-						"PipelineTriggeredbyPipelineName": "@pipeline()?.TriggeredByPipelineName",
-						"PipelineTriggeredbyPipelineRunID": "@pipeline()?.TriggeredByPipelineRunId",
-						"AppInsIKey": "@pipeline().parameters.apps_insights_ikey"
+						"StatusMessage": {
+							"value": "@if(\n    equals(\n        trim(\n            concat(\n                coalesce(activity('Record horizon AIE document data')?.Error?.message, ''),\n                coalesce(activity('Src to Raw')?.Error?.message, ''),\n                coalesce(activity('Raw to Std')?.Error?.message, ''),\n                coalesce(activity('Std to Hrm')?.Error?.message, '')\n            )\n        ),\n        ''\n    ),\n    'horizon AIE document data load Successfully Completed',\n    'horizon AIE document data Failed'\n   \n)",
+							"type": "Expression"
+						},
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"ActivityType": "Pipeline",
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
 					}
+				}
+			},
+			{
+				"name": "If Condition1",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Record completed AIE document data",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@if(\n    equals(\n        trim(\n            concat(\n                activity('Record horizon AIE document data')?.Error?.message,\n                activity('Src to Raw')?.Error?.message,\n                activity('Raw to Std')?.Error?.message,\n                activity('Std to Hrm')?.Error?.message,\n                activity('Record completed AIE document data')?.Error?.message\n            )\n        ),\n        ''\n    ),\n        false,\n        true\n)\n",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "pln_aie_document_data Fail",
+							"type": "Fail",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"message": "failing the pipeline as previous activities are failed.",
+								"errorCode": "400"
+							}
+						}
+					]
 				}
 			}
 		],
+		"parameters": {
+			"apps_insights_ikey": {
+				"type": "string"
+			},
+			"subscription_id": {
+				"type": "string"
+			},
+			"webhook_url": {
+				"type": "string"
+			},
+			"resource_group": {
+				"type": "string"
+			},
+			"failed_colour": {
+				"type": "string"
+			},
+			"failed_image": {
+				"type": "string"
+			},
+			"start_time": {
+				"type": "string"
+			}
+		},
 		"folder": {
 			"name": "aie-extracts"
 		},
