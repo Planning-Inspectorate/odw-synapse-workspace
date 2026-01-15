@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "daf43c4c-5549-4828-b415-ffa8a982fa4f"
+				"spark.autotune.trackingId": "dade4a51-9c40-4ae9-aab9-e1640073af17"
 			}
 		},
 		"metadata": {
@@ -54,6 +54,27 @@
 		"cells": [
 			{
 				"cell_type": "code",
+				"source": [
+					"import asyncio\n",
+					"import nest_asyncio\n",
+					"import tracemalloc\n",
+					"import sys\n",
+					"tracemalloc.start()\n",
+					"from pyspark.sql import SparkSession\n",
+					"from notebookutils import mssparkutils\n",
+					"import json\n",
+					"import calendar\n",
+					"from datetime import datetime, timedelta, date\n",
+					"from pyspark.sql.functions import col, lit, input_file_name, current_timestamp, sha2, concat,max as spark_max\n",
+					"from pyspark.sql.types import StringType, DateType, TimestampType, IntegerType, FloatType, StructType, StructField\n",
+					"from delta import DeltaTable\n",
+					"from datetime import datetime\n",
+					"from notebookutils import mssparkutils"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
 						"source_hidden": false,
@@ -68,7 +89,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": null
+				"execution_count": 2
 			},
 			{
 				"cell_type": "markdown",
@@ -85,21 +106,21 @@
 			},
 			{
 				"cell_type": "code",
-				"metadata": {
-					"editable": false,
-					"run_control": {
-						"frozen": true
-					}
-				},
 				"source": [
-					"%run utils/py_utils_common_logging_output"
+					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"%run utils/py_applicationinsights"
+					"start_exec_time = datetime.now()\n",
+					"error_message = None\n",
+					"def run_step(step_name: str, fn):\n",
+					"    try:\n",
+					"        return fn()\n",
+					"    except Exception as e:\n",
+					"        _fail_and_log(step_name, e)"
 				],
 				"execution_count": null
 			},
@@ -117,25 +138,18 @@
 					}
 				},
 				"source": [
-					"from datetime import datetime\n",
-					"from notebookutils import mssparkutils\n",
-					"import pyspark.sql.functions as F\n",
-					"import pyspark.sql.types as T\n",
-					"import json\n",
-					"\n",
 					"# Define variables\n",
 					"target_table = \"odw_harmonised_db.entraid\"\n",
 					"spark_table_final = \"odw_harmonised_db.entraid\"\n",
 					"primary_key = 'TEMP_PK'\n",
 					"\n",
 					"# Initialize tracking variables\n",
-					"start_exec_time = datetime.now()\n",
 					"insert_count = 0\n",
 					"update_count = 0\n",
 					"delete_count = 0\n",
 					"error_message = \"\""
 				],
-				"execution_count": null
+				"execution_count": 5
 			},
 			{
 				"cell_type": "markdown",
@@ -154,16 +168,19 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"raw_entraid_snapshot = datetime.now().strftime(\"%Y-%m-%d\")\n",
-					"storage_account = spark.sparkContext.environment.get(\"dataLakeAccountName\", \"get\")\n",
-					"base_file_path = f\"abfss://odw-raw@{storage_account}.dfs.core.windows.net\"\n",
-					"folder_names = sorted([folder.name for folder in mssparkutils.fs.ls(f\"{base_file_path}/entraid/\")], reverse=True)\n",
-					"if not folder_names:\n",
+					"def step_load_current_raw_entraid():\n",
+					"    logInfo(\"Starting:Load current raw EntraID file\")\n",
+					"    raw_entraid_snapshot = datetime.now().strftime(\"%Y-%m-%d\")\n",
+					"    storage_account = spark.sparkContext.environment.get(\"dataLakeAccountName\", \"get\")\n",
+					"    base_file_path = f\"abfss://odw-raw@{storage_account}.dfs.core.windows.net\"\n",
+					"    folder_names = sorted([folder.name for folder in mssparkutils.fs.ls(f\"{base_file_path}/entraid/\")], reverse=True)\n",
+					"    if not folder_names:\n",
 					"    raise RuntimeError(f\"No folders could be found under '{base_file_path}'. Expected to see folders with the form YYYY-mm-dd\")\n",
 					"snapshot_folder = folder_names[0]\n",
-					"current_entraid_file = f\"entraid/{snapshot_folder}/entraid.json\""
+					"current_entraid_file = f\"entraid/{snapshot_folder}/entraid.json\"\n",
+					"logInfo"
 				],
-				"execution_count": null
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
@@ -179,7 +196,7 @@
 					"raw_entraids = raw_entraids.select(required_cols)\n",
 					"raw_entraids.createOrReplaceTempView(\"raw_entraids\")"
 				],
-				"execution_count": null
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
@@ -189,7 +206,7 @@
 				"source": [
 					"display(raw_entraids.filter(F.col(\"id\") == \"93b73a3b-fb60-4c05-be23-77ab233841f2\"))"
 				],
-				"execution_count": null
+				"execution_count": 8
 			},
 			{
 				"cell_type": "code",
@@ -203,7 +220,7 @@
 					"%%sql\n",
 					"select * from raw_entraids"
 				],
-				"execution_count": null
+				"execution_count": 9
 			},
 			{
 				"cell_type": "markdown",
@@ -294,7 +311,7 @@
 					"    AND T1.expected_from = (SELECT MAX(expected_from) FROM odw_standardised_db.entraid)\n",
 					";"
 				],
-				"execution_count": null
+				"execution_count": 10
 			},
 			{
 				"cell_type": "code",
@@ -318,7 +335,7 @@
 					"\n",
 					"SELECT * from entraid_new_candidates"
 				],
-				"execution_count": null
+				"execution_count": 11
 			},
 			{
 				"cell_type": "markdown",
@@ -356,7 +373,7 @@
 					"ON candidates.id = raw_entraids.id AND candidates.employeeId = raw_entraids.employeeId AND candidates.givenName = raw_entraids.givenName AND candidates.userPrincipalName = raw_entraids.userPrincipalName\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
@@ -371,7 +388,7 @@
 					"\n",
 					"SELECT * from entraid_new"
 				],
-				"execution_count": null
+				"execution_count": 13
 			},
 			{
 				"cell_type": "markdown",
@@ -453,7 +470,7 @@
 					"FROM odw_harmonised_db.entraid\n",
 					"WHERE id IN (SELECT id FROM entraid_new WHERE id IS NULL) AND IsActive = 'Y'; "
 				],
-				"execution_count": null
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
@@ -508,7 +525,7 @@
 					"FROM entraid_changed_rows T1\n",
 					"FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive"
 				],
-				"execution_count": null
+				"execution_count": 15
 			},
 			{
 				"cell_type": "markdown",
@@ -593,7 +610,7 @@
 					"        Source.IsActive)\n",
 					"     ;   "
 				],
-				"execution_count": null
+				"execution_count": 16
 			},
 			{
 				"cell_type": "markdown",
@@ -650,6 +667,62 @@
 					"    IsActive    \n",
 					"FROM odw_harmonised_db.entraid;"
 				],
+				"execution_count": 17
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def _log_telemetry(stage: str, error_msg: str = None, step_name: str = None):\n",
+					"    end_exec_time = datetime.now()\n",
+					"    duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
+					"    activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
+					"\n",
+					"    if stage == \"Success\":\n",
+					"        status_message = f\"Successfully loaded data into {target_table} table\"\n",
+					"        status_code = \"200\"\n",
+					"        final_error_msg = None\n",
+					"    else:\n",
+					"        status_message = f\"Failed to load data into {target_table} table\"\n",
+					"        if step_name:\n",
+					"            status_message = f\"Failed at step [{step_name}]: {status_message}\"\n",
+					"        status_code = \"500\"\n",
+					"        final_error_msg = error_msg\n",
+					"    try:\n",
+					"        log_telemetry_and_exit(\n",
+					"            stage,\n",
+					"            start_exec_time,\n",
+					"            end_exec_time,\n",
+					"            final_error_msg,\n",
+					"            target_table,\n",
+					"            insert_count,\n",
+					"            update_count,\n",
+					"            delete_count,\n",
+					"            PipelineName,\n",
+					"            PipelineRunID,\n",
+					"            PipelineTriggerID,\n",
+					"            PipelineTriggerName,\n",
+					"            PipelineTriggerType,\n",
+					"            PipelineTriggeredbyPipelineName,\n",
+					"            PipelineTriggeredbyPipelineRunID,\n",
+					"            activity_type,\n",
+					"            duration_seconds,\n",
+					"            status_message,\n",
+					"            status_code\n",
+					"        )\n",
+					"    except Exception as te:\n",
+					"        print(f\"Telemetry logging failed: {te}\")\n",
+					" \n",
+					" \n",
+					"def _fail_and_log(step_name: str, e: Exception):\n",
+					"    global error_message\n",
+					"    error_message = f\"[{step_name}]{type(e).__name__}:{str(e)}\"[:800]\n",
+					"    logError(error_message)\n",
+					"\n",
+					"    _log_telemetry(\"Failed\", error_message, step_name)\n",
+					"    raise e \n",
+					"if not error_message:\n",
+					"    _log_telemetry(\"Success\")"
+				],
 				"execution_count": null
 			},
 			{
@@ -663,6 +736,10 @@
 						"transient": {
 							"deleting": false
 						}
+					},
+					"editable": false,
+					"run_control": {
+						"frozen": true
 					}
 				},
 				"source": [
@@ -744,7 +821,7 @@
 					"    )\n",
 					"    "
 				],
-				"execution_count": null
+				"execution_count": 18
 			}
 		]
 	}
