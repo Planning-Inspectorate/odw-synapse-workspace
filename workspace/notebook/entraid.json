@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "9e93d911-2b7b-472e-be9c-3b96a828211e"
+				"spark.autotune.trackingId": "2e593f8c-3db4-42eb-a1de-cdcb7d0d69b2"
 			}
 		},
 		"metadata": {
@@ -69,9 +69,10 @@
 					"from pyspark.sql.types import StringType, DateType, TimestampType, IntegerType, FloatType, StructType, StructField\n",
 					"from delta import DeltaTable\n",
 					"from datetime import datetime\n",
-					"from notebookutils import mssparkutils"
+					"from notebookutils import mssparkutils\n",
+					"from pyspark.sql import functions as F"
 				],
-				"execution_count": 2
+				"execution_count": 87
 			},
 			{
 				"cell_type": "code",
@@ -89,7 +90,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 3
+				"execution_count": 88
 			},
 			{
 				"cell_type": "markdown",
@@ -109,7 +110,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 4
+				"execution_count": 89
 			},
 			{
 				"cell_type": "code",
@@ -122,7 +123,7 @@
 					"    except Exception as e:\n",
 					"        _fail_and_log(step_name, e)"
 				],
-				"execution_count": 5
+				"execution_count": 90
 			},
 			{
 				"cell_type": "code",
@@ -149,7 +150,7 @@
 					"delete_count = 0\n",
 					"error_message = \"\""
 				],
-				"execution_count": 6
+				"execution_count": 91
 			},
 			{
 				"cell_type": "markdown",
@@ -215,39 +216,7 @@
 					"    step_load_current_raw_entraid\n",
 					")"
 				],
-				"execution_count": 7
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"editable": true,
-					"run_control": {
-						"frozen": false
-					},
-					"collapsed": false
-				},
-				"source": [
-					"display(raw_entraids.filter(F.col(\"id\") == \"93b73a3b-fb60-4c05-be23-77ab233841f2\"))"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"editable": true,
-					"run_control": {
-						"frozen": false
-					},
-					"collapsed": false
-				},
-				"source": [
-					"%%sql\n",
-					"select * from raw_entraids"
-				],
-				"execution_count": null
+				"execution_count": 92
 			},
 			{
 				"cell_type": "markdown",
@@ -330,35 +299,7 @@
 					"    step_build_entraid_new_candidates\n",
 					")"
 				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"editable": true,
-					"run_control": {
-						"frozen": false
-					},
-					"collapsed": false
-				},
-				"source": [
-					"%%sql\n",
-					"\n",
-					"SELECT * from entraid_new_candidates"
-				],
-				"execution_count": null
+				"execution_count": 94
 			},
 			{
 				"cell_type": "markdown",
@@ -406,7 +347,7 @@
 					"    step_build_entraid_new\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 95
 			},
 			{
 				"cell_type": "code",
@@ -504,61 +445,7 @@
 					"    step_build_entraid_changed_rows\n",
 					")"
 				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"\n",
-					"def step_build_entraid_changed_rows_final():\n",
-					"    \"\"\"\n",
-					"    Creates or replaces the temporary views:\n",
-					"    1. Loading_month - calculates ingestion and closing dates.\n",
-					"    2. entraid_changed_rows_final - joins changed rows with loading month info.\n",
-					"    \"\"\"\n",
-					"    logInfo(\"Starting: Build Loading_month and entraid_changed_rows_final views\")\n",
-					"\n",
-					"    query = \"\"\"\n",
-					"    -- Create Loading_month view\n",
-					"    CREATE OR REPLACE TEMPORARY VIEW Loading_month AS\n",
-					"    SELECT DISTINCT\n",
-					"        IngestionDate AS IngestionDate,\n",
-					"        to_timestamp(date_sub(IngestionDate, 1)) AS ClosingDate,\n",
-					"        'Y' AS IsActive\n",
-					"    FROM entraid_new;\n",
-					"\n",
-					"    -- Create entraid_changed_rows_final view\n",
-					"    CREATE OR REPLACE TEMPORARY VIEW entraid_changed_rows_final AS\n",
-					"    SELECT\n",
-					"        EmployeeEntraId,\n",
-					"        id,\n",
-					"        employeeId,\n",
-					"        givenName,\n",
-					"        surname,\n",
-					"        userPrincipalName,\n",
-					"        Migrated,\n",
-					"        ODTSourceSystem,\n",
-					"        T1.SourceSystemID,\n",
-					"        T1.IngestionDate,\n",
-					"        T1.ValidTo,\n",
-					"        T1.RowID,\n",
-					"        T1.IsActive,\n",
-					"        T2.ClosingDate\n",
-					"    FROM entraid_changed_rows T1\n",
-					"    FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive\n",
-					"    \"\"\"\n",
-					"\n",
-					"    spark.sql(query)\n",
-					"    row_count = spark.sql(\"SELECT COUNT(*) AS cnt FROM entraid_changed_rows_final\").collect()[0][\"cnt\"]\n",
-					"    logInfo(f\"entraid_changed_rows_final view created successfully. row_count={row_count}\")\n",
-					"\n",
-					"    return row_count\n",
-					"entraid_changed_rows_final_count = run_step(\n",
-					"    \"Build entraid_changed_rows_final view\",\n",
-					"    step_build_entraid_changed_rows_final\n",
-					")"
-				],
-				"execution_count": null
+				"execution_count": 96
 			},
 			{
 				"cell_type": "markdown",
@@ -579,26 +466,28 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"def step_merge_entraid_changed_rows():\n",
+					"def step_build_entraid_changed_rows_final():\n",
 					"    \"\"\"\n",
-					"    Performs MERGE operation into odw_harmonised_db.entraid:\n",
-					"    - Updates existing rows (sets ValidTo and IsActive = 'N')\n",
-					"    - Inserts new rows from entraid_changed_rows_final\n",
+					"    Creates or replaces the temporary views:\n",
+					"    1) Loading_month - calculates ingestion and closing dates.\n",
+					"    2) entraid_changed_rows_final - joins changed rows with loading month info.\n",
 					"    \"\"\"\n",
-					"    logInfo(\"Starting: MERGE entraid_changed_rows_final into odw_harmonised_db.entraid\")\n",
+					"    logInfo(\"Starting: Build Loading_month and entraid_changed_rows_final views\")\n",
 					"\n",
-					"    query = \"\"\"\n",
-					"    MERGE INTO odw_harmonised_db.entraid AS Target\n",
-					"    USING entraid_changed_rows_final AS Source\n",
-					"    ON Source.id = Target.id AND Target.IsActive = 'Y'\n",
+					"    # 1) Create Loading_month\n",
+					"    spark.sql(\"\"\"\n",
+					"        CREATE OR REPLACE TEMPORARY VIEW Loading_month AS\n",
+					"        SELECT DISTINCT\n",
+					"            IngestionDate AS IngestionDate,\n",
+					"            to_timestamp(date_sub(IngestionDate, 1)) AS ClosingDate,\n",
+					"            'Y' AS IsActive\n",
+					"        FROM entraid_new\n",
+					"    \"\"\")\n",
 					"\n",
-					"    WHEN MATCHED THEN\n",
-					"        UPDATE SET\n",
-					"            Target.ValidTo = to_timestamp(ClosingDate),\n",
-					"            Target.IsActive = 'N'\n",
-					"\n",
-					"    WHEN NOT MATCHED THEN\n",
-					"        INSERT (\n",
+					"    # 2) Create entraid_changed_rows_final\n",
+					"    spark.sql(\"\"\"\n",
+					"        CREATE OR REPLACE TEMPORARY VIEW entraid_changed_rows_final AS\n",
+					"        SELECT\n",
 					"            EmployeeEntraId,\n",
 					"            id,\n",
 					"            employeeId,\n",
@@ -607,40 +496,31 @@
 					"            userPrincipalName,\n",
 					"            Migrated,\n",
 					"            ODTSourceSystem,\n",
-					"            SourceSystemID,\n",
-					"            IngestionDate,\n",
-					"            ValidTo,\n",
-					"            RowID,\n",
-					"            IsActive\n",
-					"        )\n",
-					"        VALUES (\n",
-					"            Source.EmployeeEntraId,\n",
-					"            Source.id,\n",
-					"            Source.employeeId,\n",
-					"            Source.givenName,\n",
-					"            Source.surname,\n",
-					"            Source.userPrincipalName,\n",
-					"            Source.Migrated,\n",
-					"            Source.ODTSourceSystem,\n",
-					"            Source.SourceSystemID,\n",
-					"            Source.IngestionDate,\n",
-					"            Source.ValidTo,\n",
-					"            Source.RowID,\n",
-					"            Source.IsActive\n",
-					"        )\n",
-					"    \"\"\"\n",
+					"            T1.SourceSystemID,\n",
+					"            T1.IngestionDate,\n",
+					"            T1.ValidTo,\n",
+					"            T1.RowID,\n",
+					"            T1.IsActive,\n",
+					"            T2.ClosingDate\n",
+					"        FROM entraid_changed_rows T1\n",
+					"        FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive\n",
+					"    \"\"\")\n",
 					"\n",
-					"    spark.sql(query)\n",
-					"    row_count = spark.sql(\"SELECT COUNT(*) AS cnt FROM entraid_changed_rows_final\").collect()[0][\"cnt\"]\n",
-					"    logInfo(f\"MERGE completed successfully. Source rows processed: {row_count}\")\n",
-					"\n",
+					"    # Validate row count\n",
+					"    row_count = spark.sql(\"SELECT COUNT(*) AS cnt FROM entraid_changed_rows_final\") \\\n",
+					"                     .collect()[0][\"cnt\"]\n",
+					"    logInfo(f\"entraid_changed_rows_final view created successfully. row_count={row_count}\")\n",
 					"    return row_count\n",
-					"merge_result_count = run_step(\n",
-					"    \"MERGE entraid_changed_rows_final into harmonised table\",\n",
-					"    step_merge_entraid_changed_rows\n",
-					")"
+					"\n",
+					"\n",
+					"# Run via your step runner\n",
+					"entraid_changed_rows_final_count = run_step(\n",
+					"    \"Build entraid_changed_rows_final view\",\n",
+					"    step_build_entraid_changed_rows_final\n",
+					")\n",
+					""
 				],
-				"execution_count": null
+				"execution_count": 97
 			},
 			{
 				"cell_type": "markdown",
@@ -697,7 +577,7 @@
 					"    step_insert_overwrite_entraid\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 98
 			},
 			{
 				"cell_type": "code",
@@ -753,7 +633,7 @@
 					"if not error_message:\n",
 					"    _log_telemetry(\"Success\")"
 				],
-				"execution_count": null
+				"execution_count": 99
 			}
 		]
 	}
