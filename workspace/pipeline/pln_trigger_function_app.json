@@ -217,15 +217,9 @@
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
-						"activity": "No New Messages",
-						"dependencyConditions": [
-							"Completed"
-						]
-					},
-					{
 						"activity": "NewMessages",
 						"dependencyConditions": [
-							"Completed"
+							"Succeeded"
 						]
 					}
 				],
@@ -241,7 +235,172 @@
 					"waitOnCompletion": true,
 					"parameters": {
 						"Stage": {
-							"value": "@if(\n    equals(\n        trim(\n            concat(\n                activity('Record Trigger Function to App Insights')?.Error?.message,\n                activity('Get Function Secret')?.Error?.message,\n                activity('Trigger Function')?.Error?.message\n            )\n        ),\n        ''\n    ),    \n    'Successfully',\n    'Failed'\n\n)",
+							"value": "@if(\n    equals(\n        trim(\n            concat(\n                activity('Record Trigger Function to App Insights')?.Error?.message,\n                activity('Get Function Secret')?.Error?.message,\n                activity('Trigger Function')?.Error?.message\n            )\n        ),\n        ''\n    ),    \n    'Trigger Function App Completed Successfully',\n    'Trigger Function App Failed'\n\n)",
+							"type": "Expression"
+						},
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@utcNow()",
+							"type": "Expression"
+						},
+						"ErrorMessage": {
+							"value": "@replace(\n    concat(\n        coalesce(activity('Record Trigger Function to App Insights')?.Error?.message, ''), '|',\n        coalesce(activity('Get Function Secret')?.Error?.message, ''), '|',\n        coalesce(activity('Trigger Function')?.Error?.message, ''), '|'\n    ),\n    '|',\n    ''\n)",
+							"type": "Expression"
+						},
+						"StatusMessage": {
+							"value": "@if(\n    equals(\n        trim(\n            concat(\n                coalesce(activity('Record Trigger Function to App Insights')?.Error?.message, ''),\n                coalesce(activity('Get Function Secret')?.Error?.message, ''),\n                coalesce(activity('Trigger Function')?.Error?.message, '')\n            )\n        ),\n        ''\n    ),\n    'Trigger Function App Successfully Completed',\n    'Trigger Function App Failed'\n   \n)",
+							"type": "Expression"
+						},
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "IfConditionNoNewMessages",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Record function app failed",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@if(\n    equals(\n        trim(\n            concat(\n                activity('Record Trigger Function to App Insights')?.Error?.message,\n                activity('Get Function Secret')?.Error?.message,\n                activity('Trigger Function')?.Error?.message\n            )\n        ),\n        ''\n    ),\n        false,\n        true\n)",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "pln_trigger_function_app Fail",
+							"type": "Fail",
+							"dependsOn": [
+								{
+									"activity": "Trigger Function App Teams Message",
+									"dependencyConditions": [
+										"Completed"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"message": "failing the pipeline as previous activities are failed.",
+								"errorCode": "400"
+							}
+						},
+						{
+							"name": "Trigger Function App Teams Message",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": true
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_utl_Send_Teams_Message",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"dataFactorySubscription": {
+										"value": "@pipeline().parameters.subscription_id",
+										"type": "Expression"
+									},
+									"dataFactoryResourceGroup": {
+										"value": "@pipeline().parameters.resource_group",
+										"type": "Expression"
+									},
+									"pipelineRunId": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"teamsWebhookUrl": {
+										"value": "@pipeline().parameters.webhook_url",
+										"type": "Expression"
+									},
+									"activityName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"activityMessage": "Failed",
+									"activityDuration": {
+										"value": "@concat(\n    string(div(div(sub(\n        ticks(formatDateTime(utcNow(), 'yyyy-MM-dd HH:mm:sss')),\n        ticks(formatDateTime(if(equals(pipeline().parameters.start_time, null), utcNow(), pipeline().parameters.start_time), 'yyyy-MM-dd HH:mm:sss'))\n    ), 600000000), 60)), 'H:', \n    string(mod(div(sub(\n        ticks(formatDateTime(utcNow(), 'yyyy-MM-dd HH:mm:sss')),\n        ticks(formatDateTime(if(equals(pipeline().parameters.start_time, null), utcNow(), pipeline().parameters.start_time), 'yyyy-MM-dd HH:mm:sss'))\n    ), 600000000), 60)), 'M:00s'\n)",
+										"type": "Expression"
+									},
+									"activityStatus": "Failed",
+									"Colour": {
+										"value": "@variables('failed_colour')",
+										"type": "Expression"
+									},
+									"Image": {
+										"value": "@variables('failed_image')",
+										"type": "Expression"
+									},
+									"Message_title": "Trigger Function App Failed",
+									"Message_subtitle": "Function App Failed"
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Record function app failed",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "No New Messages",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": {
+							"value": "@if(\n    equals(\n        trim(\n            concat(\n                activity('Record Trigger Function to App Insights')?.Error?.message,\n                activity('Get Function Secret')?.Error?.message,\n                activity('Trigger Function')?.Error?.message\n            )\n        ),\n        ''\n    ),    \n    'Trigger Function App Completed Successfully',\n    'Trigger Function App Failed'\n\n)",
 							"type": "Expression"
 						},
 						"PipelineName": {
@@ -310,11 +469,11 @@
 					},
 					"ifTrueActivities": [
 						{
-							"name": "pln_trigger_function_app Fail",
+							"name": "pln_trigger_function_app Fail_New_Messages",
 							"type": "Fail",
 							"dependsOn": [
 								{
-									"activity": "Trigger Function App Teams Message",
+									"activity": "Trigger Function App Teams Message_NewMessages",
 									"dependencyConditions": [
 										"Completed"
 									]
@@ -327,7 +486,7 @@
 							}
 						},
 						{
-							"name": "Trigger Function App Teams Message",
+							"name": "Trigger Function App Teams Message_NewMessages",
 							"type": "ExecutePipeline",
 							"dependsOn": [],
 							"policy": {
