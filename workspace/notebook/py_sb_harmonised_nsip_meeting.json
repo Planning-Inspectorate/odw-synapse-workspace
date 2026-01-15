@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "4c86905b-286d-4215-a1a3-415679146358"
+				"spark.autotune.trackingId": "61c82deb-fa73-4de7-a4b6-d6c3484cbda1"
 			}
 		},
 		"metadata": {
@@ -99,24 +99,6 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"params = {\n",
-					"  \"PipelineName\": PipelineName,\n",
-					"  \"PipelineRunID\": PipelineRunID,\n",
-					"  \"PipelineTriggerID\": PipelineTriggerID,\n",
-					"  \"PipelineTriggerName\": PipelineTriggerName,\n",
-					"  \"PipelineTriggerType\": PipelineTriggerType,\n",
-					"  \"PipelineTriggeredbyPipelineName\": PipelineTriggeredbyPipelineName,\n",
-					"  \"PipelineTriggeredbyPipelineRunID\": PipelineTriggeredbyPipelineRunID,\n",
-					"  \"db_name\": \"odw_harmonised_db\", \n",
-					"  \"entity_name\":\"nsip-meeting\"\n",
-					"}\n",
-					""
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
 					"service_bus_table = \"odw_harmonised_db.sb_nsip_project\"\n",
 					"spark_table_final = \"odw_harmonised_db.sb_nsip_meeting\"\n",
 					"\n",
@@ -125,6 +107,23 @@
 					"update_count = 0\n",
 					"delete_count = 0\n",
 					"error_message = ''"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"params = {\n",
+					"  \"PipelineName\"                        : PipelineName,\n",
+					"  \"PipelineRunID\"                       : PipelineRunID,\n",
+					"  \"PipelineTriggerID\"                   : PipelineTriggerID,\n",
+					"  \"PipelineTriggerName\"                 : PipelineTriggerName,\n",
+					"  \"PipelineTriggerType\"                 : PipelineTriggerType,\n",
+					"  \"PipelineTriggeredbyPipelineName\"     : PipelineTriggeredbyPipelineName,\n",
+					"  \"PipelineTriggeredbyPipelineRunID\"    : PipelineTriggeredbyPipelineRunID,\n",
+					"  \"db_name\"                             : \"odw_curated_db\", \n",
+					"  \"entity_name\"                         : \"nsip-meeting\"\n",
+					"}"
 				],
 				"execution_count": null
 			},
@@ -232,7 +231,7 @@
 					"    \"ODTSourceSystem\",\n",
 					"    \"SourceSystemID\",\n",
 					"    \"IngestionDate\"\n",
-					")\n",
+					").where(\"meetingId is not null\")\n",
 					"\n",
 					"service_bus_exploded = align_source_to_target_schema(service_bus_exploded,target_df)\n",
 					"\n",
@@ -354,9 +353,9 @@
 					"    records_to_insert = new_records.unionByName(changed_records_full)\n",
 					"    \n",
 					"    # Generate incremental NSIPMeetingId\n",
-					"    new_count = records_to_insert.count()\n",
+					"    insert_count = records_to_insert.count()\n",
 					"    \n",
-					"    if new_count > 0:\n",
+					"    if insert_count > 0:\n",
 					"        window_spec = Window.orderBy(\"business_key\", \"row_hash\")\n",
 					"        \n",
 					"        new_versions = records_to_insert \\\n",
@@ -368,10 +367,16 @@
 					"            .drop(\"business_key\")\n",
 					"        \n",
 					"        new_versions.write.format(\"delta\").mode(\"append\").saveAsTable(spark_table_final)\n",
-					"        print(f\"SCD Type 2 load completed. Inserted {new_count} new/changed records starting from NSIPMeetingId: {max_id + 1}\")\n",
+					"        print(f\"SCD Type 2 load completed. Inserted {insert_count} new/changed records starting from NSIPMeetingId: {max_id + 1}\")\n",
 					"    else:\n",
 					"        print(\"No new or changed records to process.\")\n",
-					"        \n",
+					"  "
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"end_exec_time = datetime.now()"
 				],
 				"execution_count": null
@@ -396,7 +401,7 @@
 					"    end_exec_time,\n",
 					"    error_message,\n",
 					"    spark_table_final,\n",
-					"    new_count,\n",
+					"    insert_count,\n",
 					"    update_count,\n",
 					"    delete_count,\n",
 					"    PipelineName,\n",
