@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "66fe80c6-3003-4db8-bfa7-926ee59262bf"
+				"spark.autotune.trackingId": "5c98d2ab-2195-408a-ae8a-3677f422a70b"
 			}
 		},
 		"metadata": {
@@ -68,11 +68,11 @@
 					]
 				},
 				"source": [
-					"db_name=''\n",
-					"table_name=''\n",
-					"primary_key=''"
+					"db_name='odw_curated_db'\n",
+					"table_name='pins_inspector'\n",
+					"primary_key='sapId'"
 				],
-				"execution_count": null
+				"execution_count": 59
 			},
 			{
 				"cell_type": "code",
@@ -90,7 +90,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": null
+				"execution_count": 60
 			},
 			{
 				"cell_type": "code",
@@ -109,14 +109,14 @@
 					"from pyspark.sql import SparkSession\n",
 					"from notebookutils import mssparkutils\n",
 					"from delta.tables import DeltaTable\n",
-					"from pyspark.sql.functions import col, lit, when\n",
+					"from pyspark.sql.functions import col, lit, when, md5, concat_ws, struct, to_json\n",
 					"import json\n",
 					"\n",
 					"spark: SparkSession = SparkSession.builder.getOrCreate()\n",
 					"storage_account = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
 					"table_name_full = f\"{db_name}.{table_name}\""
 				],
-				"execution_count": null
+				"execution_count": 61
 			},
 			{
 				"cell_type": "markdown",
@@ -159,7 +159,7 @@
 					"    version = history_df.select(\"version\").orderBy(\"version\", ascending=False).first()[\"version\"]\n",
 					"    return version"
 				],
-				"execution_count": null
+				"execution_count": 62
 			},
 			{
 				"cell_type": "code",
@@ -178,7 +178,7 @@
 					"table_path: str = get_delta_table_path(table_name_full)\n",
 					"latest_version: int = get_delta_table_lastest_version(table_path)"
 				],
-				"execution_count": null
+				"execution_count": 83
 			},
 			{
 				"cell_type": "code",
@@ -187,44 +187,98 @@
 				},
 				"source": [
 					"try:\n",
-					"    previous_version = latest_version-1\n",
+					"    previous_version = latest_version - 1\n",
 					"\n",
-					"    logInfo(f\"Reading changes between version {latest_version} and {previous_version} in delta table: {table_name_full}\")\n",
-					"\n",
-					"    # Load the current and previous versions\n",
-					"    current_version_df = spark.read.format(\"delta\").option(\"versionAsOf\", latest_version).load(table_path)\n",
-					"    previous_version_df = spark.read.format(\"delta\").option(\"versionAsOf\", previous_version).load(table_path)\n",
-					"\n",
-					"    # Find the differences\n",
-					"    create_df = current_version_df.subtract(previous_version_df)\n",
-					"    delete_df = previous_version_df.subtract(current_version_df)\n",
-					"\n",
-					"    # find the updated rows based on the entity_primary_key\n",
-					"    update_df = create_df \\\n",
-					"        .join(delete_df.select(primary_key), on=primary_key, how=\"inner\") \\\n",
-					"        .withColumn(\"EventType\", lit(\"Update\"))\n",
-					"\n",
-					"    # remove updated rows from create and delete df\n",
-					"    create_df = create_df \\\n",
-					"        .join(update_df.select(primary_key), on=primary_key, how=\"left_anti\") \\\n",
-					"        .withColumn(\"EventType\", lit(\"Create\"))\n",
-					"\n",
-					"    delete_df = delete_df \\\n",
-					"        .join(update_df.select(primary_key), on=primary_key, how=\"left_anti\") \\\n",
-					"        .withColumn(\"EventType\", lit(\"Delete\"))\n",
-					"\n",
-					"\n",
-					"    # union create, update and delete df to get all changes in one df\n",
-					"    changes_df = create_df.union(update_df).union(delete_df)\n",
-					"    \n",
-					"    logInfo(f\"Found {changes_df.count()} changes between version {latest_version} and {previous_version} in delta table: {table_name_full}\")\n",
+					"    # Check if this is version 0 (initial table creation)\n",
+					"    if previous_version < 1:\n",
+					"        logInfo(f\"Table is at version 0. Treating all records as Create events for delta table: {table_name_full}\")\n",
+					"        \n",
+					"        # Load version 0 and mark all records as Create\n",
+					"        current_version_df = spark.read.format(\"delta\").option(\"versionAsOf\", latest_version).load(table_path)\n",
+					"        changes_df = current_version_df.withColumn(\"EventType\", lit(\"Create\"))\n",
+					"        \n",
+					"        new_count = changes_df.count()\n",
+					"        logInfo(f\"Found {new_count} new records in version {latest_version} of delta table: {table_name_full}\")\n",
+					"    else:\n",
+					"        logInfo(f\"Checking for CDF (Change Data Feed) capability on delta table: {table_name_full}\")\n",
+					"        \n",
+					"        # Check if Change Data Feed is enabled\n",
+					"        delta_table = DeltaTable.forPath(spark, table_path)\n",
+					"        table_properties = spark.sql(f\"SHOW TBLPROPERTIES {table_name_full}\").collect()\n",
+					"        cdf_enabled = any(prop.key == 'delta.enableChangeDataFeed' and prop.value == 'true' for prop in table_properties)\n",
+					"        \n",
+					"        if cdf_enabled:\n",
+					"            # Use native CDF - most efficient and accurate\n",
+					"            logInfo(f\"Using Change Data Feed to read changes between version {latest_version} and {previous_version}\")\n",
+					"            \n",
+					"            changes_df = spark.read.format(\"delta\") \\\n",
+					"                .option(\"readChangeFeed\", \"true\") \\\n",
+					"                .option(\"startingVersion\", previous_version + 1) \\\n",
+					"                .option(\"endingVersion\", latest_version) \\\n",
+					"                .load(table_path)\n",
+					"            \n",
+					"            # Map CDF operation types to our EventType\n",
+					"            # CDF operations: insert, update_preimage, update_postimage, delete\n",
+					"            changes_df = changes_df.withColumn(\n",
+					"                \"EventType\",\n",
+					"                when(col(\"_change_type\") == \"insert\", lit(\"Create\"))\n",
+					"                .when(col(\"_change_type\") == \"update_postimage\", lit(\"Update\"))\n",
+					"                .when(col(\"_change_type\") == \"delete\", lit(\"Delete\"))\n",
+					"                .otherwise(lit(None))\n",
+					"            ).filter(col(\"EventType\").isNotNull()) \\\n",
+					"             .drop(\"_change_type\", \"_commit_version\", \"_commit_timestamp\")\n",
+					"            \n",
+					"            changes_count = changes_df.count()\n",
+					"            logInfo(f\"Found {changes_count} changes using CDF between version {latest_version} and {previous_version} in delta table: {table_name_full}\")\n",
+					"        else:\n",
+					"            # Fallback: Compare versions using hash-based approach\n",
+					"            logInfo(f\"CDF not enabled. Using hash-based comparison between version {latest_version} and {previous_version}\")\n",
+					"            \n",
+					"            current_version_df = spark.read.format(\"delta\").option(\"versionAsOf\", latest_version).load(table_path)\n",
+					"            previous_version_df = spark.read.format(\"delta\").option(\"versionAsOf\", previous_version).load(table_path)\n",
+					"            \n",
+					"            all_columns = current_version_df.columns\n",
+					"            \n",
+					"            # Create hash of entire row to handle complex types\n",
+					"            current_with_hash = current_version_df.withColumn(\n",
+					"                \"_row_hash\",\n",
+					"                md5(to_json(struct(*all_columns)))\n",
+					"            ).select(col(primary_key).cast(\"string\").alias(\"_pk\"), col(\"_row_hash\"))\n",
+					"            \n",
+					"            previous_with_hash = previous_version_df.withColumn(\n",
+					"                \"_row_hash\",\n",
+					"                md5(to_json(struct(*all_columns)))\n",
+					"            ).select(col(primary_key).cast(\"string\").alias(\"_pk\"), col(\"_row_hash\"))\n",
+					"            \n",
+					"            # Find new records\n",
+					"            create_keys = current_with_hash.select(\"_pk\").subtract(previous_with_hash.select(\"_pk\"))\n",
+					"            create_df = current_version_df.join(create_keys, col(primary_key).cast(\"string\") == col(\"_pk\"), \"inner\").drop(\"_pk\").withColumn(\"EventType\", lit(\"Create\"))\n",
+					"            \n",
+					"            # Find deleted records\n",
+					"            delete_keys = previous_with_hash.select(\"_pk\").subtract(current_with_hash.select(\"_pk\"))\n",
+					"            delete_df = previous_version_df.join(delete_keys, col(primary_key).cast(\"string\") == col(\"_pk\"), \"inner\").drop(\"_pk\").withColumn(\"EventType\", lit(\"Delete\"))\n",
+					"            \n",
+					"            # Find updated records (same key, different hash)\n",
+					"            common_keys = current_with_hash.select(\"_pk\").intersect(previous_with_hash.select(\"_pk\"))\n",
+					"            current_common = current_with_hash.join(common_keys, \"_pk\", \"inner\")\n",
+					"            previous_common = previous_with_hash.join(common_keys, \"_pk\", \"inner\")\n",
+					"            update_keys = current_common.subtract(previous_common).select(\"_pk\")\n",
+					"            update_df = current_version_df.join(update_keys, col(primary_key).cast(\"string\") == col(\"_pk\"), \"inner\").drop(\"_pk\").withColumn(\"EventType\", lit(\"Update\"))\n",
+					"            \n",
+					"            # Union all changes\n",
+					"            changes_df = create_df.union(update_df).union(delete_df)\n",
+					"            \n",
+					"            changes_count = changes_df.count()\n",
+					"            logInfo(f\"Found {changes_count} changes between version {latest_version} and {previous_version} in delta table: {table_name_full}\")\n",
 					"\n",
 					"except Exception as e:\n",
 					"    logError(f\"Failed to read changes in delta table: {table_name_full}. Exception: {e}\")\n",
+					"    import traceback\n",
+					"    logError(traceback.format_exc())\n",
 					"    mssparkutils.notebook.exit('')\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 84
 			},
 			{
 				"cell_type": "code",
@@ -241,9 +295,9 @@
 					"collapsed": false
 				},
 				"source": [
-					"# display(changes_df)"
+					"#display(changes_df)"
 				],
-				"execution_count": null
+				"execution_count": 80
 			},
 			{
 				"cell_type": "code",
@@ -259,6 +313,13 @@
 					}
 				},
 				"source": [
+					"# Check if there are any changes\n",
+					"changes_count = changes_df.count()\n",
+					"\n",
+					"if changes_count == 0:\n",
+					"    logInfo(f\"No changes detected in delta table: {table_name_full}\")\n",
+					"    mssparkutils.notebook.exit('false')\n",
+					"\n",
 					"formatted_data = [\n",
 					"    {\n",
 					"        'Body': str({k: v for k, v in row.asDict().items() if k != 'EventType'}),\n",
@@ -267,7 +328,14 @@
 					"    for row in changes_df.toLocalIterator()\n",
 					"]"
 				],
-				"execution_count": null
+				"execution_count": 85
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"formatted_data"
+				],
+				"execution_count": 86
 			},
 			{
 				"cell_type": "code",
@@ -286,9 +354,12 @@
 					"target_folder = f\"abfss://odw-curated@{storage_account}/{table_name}/curated_to_sb\"\n",
 					"target_file = f\"{target_folder}/sb_message.json\"\n",
 					"mssparkutils.fs.mkdirs(target_folder)\n",
-					"mssparkutils.fs.put(target_file, json.dumps(formatted_data), True)"
+					"mssparkutils.fs.put(target_file, json.dumps(formatted_data), True)\n",
+					"\n",
+					"logInfo(f\"Successfully wrote {changes_count} changes to {target_file}\")\n",
+					"mssparkutils.notebook.exit('true')"
 				],
-				"execution_count": null
+				"execution_count": 82
 			}
 		]
 	}

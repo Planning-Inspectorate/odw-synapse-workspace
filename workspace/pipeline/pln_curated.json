@@ -1935,6 +1935,215 @@
 					},
 					"numExecutors": null
 				}
+			},
+			{
+				"name": "pins-inspector",
+				"type": "SynapseNotebook",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.1:00:00",
+					"retry": 3,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "pins_inspector",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"PipelineName": {
+							"value": {
+								"value": "@pipeline().Pipeline",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineRunID": {
+							"value": {
+								"value": "@pipeline().RunId",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggerID": {
+							"value": {
+								"value": "@pipeline().TriggerId",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggerName": {
+							"value": {
+								"value": "@pipeline().TriggerName",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggerType": {
+							"value": {
+								"value": "@pipeline().TriggerType",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": {
+								"value": "@pipeline()?.TriggeredByPipelineName",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": {
+								"value": "@pipeline()?.TriggeredByPipelineRunId",
+								"type": "Expression"
+							},
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Track Delta Changes Inspector",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "pins-inspector",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_get_delta_table_changes",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"db_name": {
+							"value": "odw_curated_db",
+							"type": "string"
+						},
+						"table_name": {
+							"value": "pins_inspector",
+							"type": "string"
+						},
+						"primary_key": {
+							"value": "sapId",
+							"type": "string"
+						}
+					},
+					"snapshot": true
+				}
+			},
+			{
+				"name": "If Changes found_copy1",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Track Delta Changes Inspector",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(activity('Track Delta Changes Inspector').output.status.Output.result.exitValue, 'true')",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "Read Delta Changes JSON Inspector",
+							"type": "Lookup",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.1:00:00",
+								"retry": 3,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "JsonSource",
+									"storeSettings": {
+										"type": "AzureBlobFSReadSettings",
+										"recursive": true,
+										"enablePartitionDiscovery": false
+									},
+									"formatSettings": {
+										"type": "JsonReadSettings"
+									}
+								},
+								"dataset": {
+									"referenceName": "ds_delta_changes_json",
+									"type": "DatasetReference",
+									"parameters": {
+										"fileSystem": "odw-curated",
+										"folderPath": "pins_inspector/curated_to_sb",
+										"fileName": "sb_message.json"
+									}
+								},
+								"firstRowOnly": false
+							}
+						},
+						{
+							"name": "Publish to ODW Service Bus Inspector",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Read Delta Changes JSON Inspector",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_publish_to_sb",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"service_bus_name": {
+										"value": "@if(equals(pipeline().DataFactory, 'pins-synw-odw-prod-uks'), 'pins-sb-odw-prod-uks-mwzecc', if(equals(pipeline().DataFactory, 'pins-synw-odw-test-uks'), 'pins-sb-odw-test-uks-hk2zun', 'pins-sb-odw-dev-uks-b9rt9m'))",
+										"type": "Expression"
+									},
+									"messages": {
+										"value": "@string(activity('Read Delta Changes JSON Inspector').output.value)",
+										"type": "Expression"
+									},
+									"topic_name": "pins-inspector"
+								}
+							}
+						}
+					]
+				}
 			}
 		],
 		"folder": {

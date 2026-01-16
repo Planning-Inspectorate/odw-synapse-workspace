@@ -70,7 +70,7 @@
 					"curated_db_name: str = 'odw_curated_db'\n",
 					"std_table_name: str = 'pins_inspector'\n",
 					"hrm_table_name: str = 'pins_inspector'\n",
-					"curated_table_name: str = 'pins_inspectors_curated'\n",
+					"curated_table_name: str = 'pins_inspector'\n",
 					"\n",
 					"# if exitCode is not 0 at the end of the notebook then we have had failures\n",
 					"exitCode: int = 0"
@@ -224,6 +224,109 @@
 					"harmonised_final_count, curated_count, counts_match = test_curated_row_count(hrm_table_name, curated_table_name)\n",
 					"print(f\"Harmonised Final Count: {harmonised_final_count: ,}\\nCurated Count: {curated_count: ,}\\nCounts match: {counts_match}\")\n",
 					"exitCode += int(not counts_match)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Validate required fields are non-null\n",
+					"Checking that firstName, lastName are not null in curated table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"curated_df = spark.table(f\"{curated_db_name}.{curated_table_name}\")\n",
+					"\n",
+					"# Check required fields from JSON schema are non-null\n",
+					"required_fields = ['firstName', 'lastName']\n",
+					"\n",
+					"for field in required_fields:\n",
+					"    null_count = curated_df.filter(col(field).isNull()).count()\n",
+					"    if null_count > 0:\n",
+					"        print(f\"FAILED: {null_count} null values found in required field '{field}'\")\n",
+					"        exitCode += 1\n",
+					"    else:\n",
+					"        print(f\"PASSED: No null values in required field '{field}'\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Validate email pattern conformance\n",
+					"Checking that email field conforms to email pattern where not null"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"import re\n",
+					"\n",
+					"# Simple email pattern validation\n",
+					"email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$'\n",
+					"\n",
+					"# Filter for non-null emails\n",
+					"emails_df = curated_df.filter(col('email').isNotNull())\n",
+					"\n",
+					"if emails_df.count() > 0:\n",
+					"    # Check if emails match the pattern\n",
+					"    invalid_emails = emails_df.filter(~col('email').rlike(email_pattern))\n",
+					"    invalid_count = invalid_emails.count()\n",
+					"    \n",
+					"    if invalid_count > 0:\n",
+					"        print(f\"FAILED: {invalid_count} invalid email(s) found\")\n",
+					"        invalid_emails.select('email').show(5, truncate=False)\n",
+					"        exitCode += 1\n",
+					"    else:\n",
+					"        print(f\"PASSED: All {emails_df.count()} emails conform to pattern\")\n",
+					"else:\n",
+					"    print(\"No email values to validate\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Validate uniqueness of natural key\n",
+					"Checking that horizonId (natural key) is unique in curated table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Check for duplicates on the natural key\n",
+					"duplicate_check = curated_df.groupBy('horizonId').count().filter(col('count') > 1)\n",
+					"duplicate_count = duplicate_check.count()\n",
+					"\n",
+					"if duplicate_count > 0:\n",
+					"    print(f\"FAILED: {duplicate_count} duplicate horizonId(s) found\")\n",
+					"    duplicate_check.show(5, truncate=False)\n",
+					"    exitCode += 1\n",
+					"else:\n",
+					"    print(f\"PASSED: horizonId is unique in curated table\")"
 				],
 				"execution_count": null
 			},
