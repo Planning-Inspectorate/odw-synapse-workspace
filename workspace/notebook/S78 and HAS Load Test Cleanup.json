@@ -1,0 +1,301 @@
+{
+	"name": "S78 and HAS Load Test Cleanup",
+	"properties": {
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "02b2e3ea-e3a1-4756-82bd-a8825254112d"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"# S78/HAS Load Test Cleanup \n",
+					"import uuid\n",
+					"from datetime import datetime"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"DRY_RUN = True #  set False to actually apply changes\n",
+					"\n",
+					"STD_DB  = \"odw_standardised_db\"\n",
+					"HARM_DB = \"odw_harmonised_db\"\n",
+					"CUR_DB  = \"odw_curated_db\"\n",
+					"\n",
+					"LPA_CODE = \"LOAD1\"\n",
+					"ENTITIES = [\"s78\", \"has\"]"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"PATTERNS = [\n",
+					"    (STD_DB,  \"sb_appeal_{entity}\"),\n",
+					"    (HARM_DB, \"appeal_{entity}\"),\n",
+					"    (CUR_DB,  \"appeal_{entity}\"),\n",
+					"    (CUR_DB,  \"appeals_{entity}_curated_mipins\"),\n",
+					"]"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"TABLES = [(db, p.format(entity=e)) for e in ENTITIES for db, p in PATTERNS]\n",
+					"\n",
+					"def table_exists(db, table):\n",
+					"    try:\n",
+					"        spark.sql(f\"DESCRIBE TABLE {db}.{table}\")\n",
+					"        return True\n",
+					"    except Exception as e:\n",
+					"        print(f\"[WARN] Missing/inaccessible table: {db}.{table} ({e})\")\n",
+					"        return False"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def list_parquet_files_recursive(path: str):\n",
+					"    files, stack = [], [path.rstrip(\"/\") + \"/\"]\n",
+					"    while stack:\n",
+					"        p = stack.pop()\n",
+					"        try:\n",
+					"            items = mssparkutils.fs.ls(p)\n",
+					"        except Exception:\n",
+					"            continue\n",
+					"        for it in items:\n",
+					"            if it.isDir:\n",
+					"                stack.append(it.path)\n",
+					"            elif it.path.lower().endswith(\".parquet\"):\n",
+					"                files.append(it.path)\n",
+					"    return files"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def clean_std_harm(db, table):\n",
+					"    full = f\"{db}.{table}\"\n",
+					"    count = spark.sql(\n",
+					"        f\"SELECT COUNT(*) AS count FROM {full} WHERE lpaCode = '{LPA_CODE}'\"\n",
+					"    ).collect()[0][\"count\"]\n",
+					"\n",
+					"    if count == 0:\n",
+					"        print(f\"[SKIP] {full} has 0 matching rows\")\n",
+					"        return 0\n",
+					"\n",
+					"    if DRY_RUN:\n",
+					"        print(f\"[DRY-RUN] Would DELETE {count} rows from {full} WHERE lpaCode = '{LPA_CODE}'\")\n",
+					"        return count\n",
+					"\n",
+					"    spark.sql(f\"DELETE FROM {full} WHERE lpaCode = '{LPA_CODE}'\")\n",
+					"    print(f\"[DELETED] {count} rows from {full}\")\n",
+					"    return count"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def clean_curated(db, table):\n",
+					"    full = f\"{db}.{table}\"\n",
+					"    try:\n",
+					"        spark.sql(f\"REFRESH TABLE {full}\")\n",
+					"    except Exception:\n",
+					"        pass\n",
+					"\n",
+					"    details = spark.sql(f\"DESCRIBE DETAIL {full}\").collect()[0].asDict()\n",
+					"    base_path = (details.get(\"location\") or \"\").rstrip(\"/\")\n",
+					"    if not base_path:\n",
+					"        raise Exception(f\"No LOCATION found for {full}\")\n",
+					"\n",
+					"    schema = spark.table(full).schema\n",
+					"\n",
+					"    if len(list_parquet_files_recursive(base_path)) == 0:\n",
+					"        print(f\"[SKIP] {full} has no parquet files under location\")\n",
+					"        return 0\n",
+					"\n",
+					"    df = (spark.read.format(\"parquet\")\n",
+					"          .schema(schema)\n",
+					"          .option(\"recursiveFileLookup\", \"true\")\n",
+					"          .load(base_path))\n",
+					"\n",
+					"    count = df.filter(f\"lpaCode = '{LPA_CODE}'\").count()\n",
+					"    if count == 0:\n",
+					"        print(f\"[SKIP] {full} has 0 matching rows\")\n",
+					"        return 0\n",
+					"\n",
+					"    if DRY_RUN:\n",
+					"        print(f\"[DRY-RUN] Would remove {count} rows from {full} (overwrite-by-location)\")\n",
+					"        return count\n",
+					"\n",
+					"    run_id = datetime.utcnow().strftime(\"%Y%m%d%H%M%S\") + \"_\" + uuid.uuid4().hex[:8]\n",
+					"    tmp_path = f\"{base_path}__tmp_{run_id}\"\n",
+					"\n",
+					"    (df.filter(f\"lpaCode <> '{LPA_CODE}'\")\n",
+					"       .write.format(\"parquet\")\n",
+					"       .mode(\"overwrite\")\n",
+					"       .save(tmp_path))\n",
+					"\n",
+					"    if mssparkutils.fs.exists(base_path):\n",
+					"        mssparkutils.fs.rm(base_path, True)\n",
+					"    mssparkutils.fs.mv(tmp_path, base_path, True)\n",
+					"\n",
+					"    try:\n",
+					"        spark.sql(f\"REFRESH TABLE {full}\")\n",
+					"    except Exception:\n",
+					"        pass\n",
+					"\n",
+					"    print(f\"[OVERWRITTEN] {full} cleaned (removed {count} rows)\")\n",
+					"    return count\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"print(\"S78/HAS Cleanup\")\n",
+					"print(f\"Mode: {'DRY-RUN' if DRY_RUN else 'EXECUTE'}  |  lpaCode = '{LPA_CODE}'\\n\")    \n",
+					"\n",
+					"results = {}\n",
+					"for db, table in TABLES:\n",
+					"    if not table_exists(db, table):\n",
+					"        continue\n",
+					"    removed = clean_curated(db, table) if db == CUR_DB else clean_std_harm(db, table)\n",
+					"    results[f\"{db}.{table}\"] = removed\n",
+					"\n",
+					"print(\"\\nSUMMARY\")\n",
+					"for k, v in results.items():\n",
+					"    print(f\"{k}: {v}\")\n",
+					""
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
