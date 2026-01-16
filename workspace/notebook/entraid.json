@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "c67351bd-4c40-43c7-8920-aa9a4a359a31"
+				"spark.autotune.trackingId": "04d3bad8-0c4f-483e-9cab-54f41c66e80e"
 			}
 		},
 		"metadata": {
@@ -55,6 +55,21 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"# This cell is generated from runtime parameters. Learn more: https://go.microsoft.com/fwlink/?linkid=2161015\n",
+					"PipelineName = \"EntraID\"\n",
+					"PipelineRunID = \"21a99cc9-1949-48b5-ad36-ac883f2af01b\"\n",
+					"PipelineTriggerID = \"23be0f19fff14810aff2ae2d02eaba84\"\n",
+					"PipelineTriggerName = \"Sandbox\"\n",
+					"PipelineTriggerType = \"Manual\"\n",
+					"PipelineTriggeredbyPipelineName = None\n",
+					"PipelineTriggeredbyPipelineRunID = None\n",
+					""
+				],
+				"execution_count": 38
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"import asyncio\n",
 					"import nest_asyncio\n",
 					"import tracemalloc\n",
@@ -72,7 +87,7 @@
 					"from notebookutils import mssparkutils\n",
 					"from pyspark.sql import functions as F"
 				],
-				"execution_count": 87
+				"execution_count": 39
 			},
 			{
 				"cell_type": "code",
@@ -90,7 +105,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 88
+				"execution_count": 40
 			},
 			{
 				"cell_type": "markdown",
@@ -110,7 +125,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 89
+				"execution_count": 41
 			},
 			{
 				"cell_type": "code",
@@ -123,7 +138,7 @@
 					"    except Exception as e:\n",
 					"        _fail_and_log(step_name, e)"
 				],
-				"execution_count": 90
+				"execution_count": 42
 			},
 			{
 				"cell_type": "code",
@@ -150,7 +165,7 @@
 					"delete_count = 0\n",
 					"error_message = \"\""
 				],
-				"execution_count": 91
+				"execution_count": 43
 			},
 			{
 				"cell_type": "markdown",
@@ -181,9 +196,20 @@
 					"    )\n",
 					"\n",
 					"    if not folder_names:\n",
-					"        raise RuntimeError(\n",
-					"            f\"No folders could be found under '{base_file_path}'. Expected to see folders with the form YYYY-mm-dd\"\n",
+					"        msg = (\n",
+					"            f\"No folders could be found under '{base_file_path}'. \"\n",
+					"            \"Expected to see folders with the form YYYY-mm-dd\"\n",
 					"        )\n",
+					"        logError(msg)\n",
+					"\n",
+					"        # Build empty DF with required schema to avoid downstream failures\n",
+					"        required_cols = [\"givenName\", \"surname\", \"userPrincipalName\", \"id\", \"employeeId\"]\n",
+					"        schema = T.StructType([T.StructField(c, T.StringType(), True) for c in required_cols])\n",
+					"        empty_df = spark.createDataFrame([], schema)\n",
+					"        empty_df.createOrReplaceTempView(\"raw_entraids\")\n",
+					"\n",
+					"        logInfo(\"Created empty 'raw_entraids' temp view due to missing snapshot folder. row_count=0\")\n",
+					"        return empty_df\n",
 					"\n",
 					"    snapshot_folder = folder_names[0]\n",
 					"    current_entraid_file = f\"entraid/{snapshot_folder}/entraid.json\"\n",
@@ -196,7 +222,7 @@
 					"        .select(\"value\")\n",
 					"    )\n",
 					"\n",
-					"    required_cols = [\"givenName\", \"surname\", \"userPrincipalName\", \"id\", \"employeeId\"]\n",
+					"    required_cols = [\"givenName\", \"surname\", \"userPrincipalName\", \"id\", \"employeeId\"] \n",
 					"    raw_entraids = raw_entraids.withColumn(\"json\", F.explode(\"value\"))\n",
 					"\n",
 					"    for col in required_cols:\n",
@@ -210,13 +236,13 @@
 					"\n",
 					"    return raw_entraids\n",
 					"\n",
-					"\n",
 					"raw_entraids_df = run_step(\n",
 					"    \"Load current raw file (EntraID) + create raw_entraids view\",\n",
 					"    step_load_current_raw_entraid\n",
-					")"
+					")\n",
+					""
 				],
-				"execution_count": 92
+				"execution_count": 44
 			},
 			{
 				"cell_type": "markdown",
@@ -299,7 +325,7 @@
 					"    step_build_entraid_new_candidates\n",
 					")"
 				],
-				"execution_count": 94
+				"execution_count": 45
 			},
 			{
 				"cell_type": "markdown",
@@ -347,7 +373,7 @@
 					"    step_build_entraid_new\n",
 					")"
 				],
-				"execution_count": 95
+				"execution_count": 46
 			},
 			{
 				"cell_type": "markdown",
@@ -426,7 +452,7 @@
 					"    step_build_entraid_changed_rows\n",
 					")"
 				],
-				"execution_count": 96
+				"execution_count": 47
 			},
 			{
 				"cell_type": "markdown",
@@ -501,7 +527,7 @@
 					")\n",
 					""
 				],
-				"execution_count": 97
+				"execution_count": 48
 			},
 			{
 				"cell_type": "markdown",
@@ -558,7 +584,7 @@
 					"    step_insert_overwrite_entraid\n",
 					")"
 				],
-				"execution_count": 98
+				"execution_count": 49
 			},
 			{
 				"cell_type": "code",
@@ -614,7 +640,7 @@
 					"if not error_message:\n",
 					"    _log_telemetry(\"Success\")"
 				],
-				"execution_count": 99
+				"execution_count": 50
 			}
 		]
 	}
