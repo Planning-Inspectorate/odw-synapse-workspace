@@ -12,12 +12,6 @@
 						"dependencyConditions": [
 							"Succeeded"
 						]
-					},
-					{
-						"activity": "EntraIDLoadStartTime",
-						"dependencyConditions": [
-							"Succeeded"
-						]
 					}
 				],
 				"policy": {
@@ -119,7 +113,10 @@
 							"type": "Expression"
 						},
 						"ActivityType": "Pipeline",
-						"AppInsIKey": "@pipeline().parameters.apps_insights_ikey"
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
 					}
 				}
 			},
@@ -188,7 +185,10 @@
 							"value": "@div(sub(ticks(utcNow()), ticks(variables('entraIDRecordLoadingStartTime'))), 10000000)",
 							"type": "Expression"
 						},
-						"AppInsIKey": "@pipeline().parameters.apps_insights_ikey"
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
 					}
 				}
 			},
@@ -262,24 +262,167 @@
 							"type": "Expression"
 						},
 						"StatusCode": "400",
-						"AppInsIKey": "@pipeline().parameters.apps_insights_ikey"
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
 					}
 				}
 			},
 			{
-				"name": "EntraIDLoadStartTime",
-				"type": "SetVariable",
+				"name": "If Condition1",
+				"type": "IfCondition",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@if(\n    or(\n        not(\n            equals(\n                trim(\n                    concat(\n                        activity('Record horizon to odw data loading')?.Error?.message,\n                        activity('Lookup_orchestration_file')?.Error?.message,\n                        activity('Filter_Horizon_Table')?.Error?.message,\n                        activity('Horizon Raw to Std')?.Error?.message,\n                        activity('Filter_Harmonised_NoteBook')?.Error?.message\n                    )\n                ),\n                ''\n            )\n        ),\n        greater(length(variables('HrmNotebookErrorArray')), 0)\n    ),\n        true,\n        false\n)\n",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "pln_horizon_to_odw Fail",
+							"type": "Fail",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"message": "failing the pipeline as previous activities are failed.",
+								"errorCode": "400"
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Send horizon to odw data load failed",
+				"type": "ExecutePipeline",
 				"dependsOn": [],
 				"policy": {
-					"secureOutput": false,
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_utl_Send_Teams_Message",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"dataFactorySubscription": {
+							"value": "@pipeline().parameters.subscription_id",
+							"type": "Expression"
+						},
+						"dataFactoryResourceGroup": {
+							"value": "@pipeline().parameters.resource_group",
+							"type": "Expression"
+						},
+						"pipelineRunId": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"teamsWebhookUrl": {
+							"value": "@pipeline().parameters.webhook_url",
+							"type": "Expression"
+						},
+						"activityName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"activityMessage": {
+							"value": "@if(\n    and(\n        equals(\n            trim(\n                concat(\n                    activity('Record horizon to odw data loading')?.Error?.message,\n                    activity('Lookup_orchestration_file')?.Error?.message,\n                    activity('Filter_Horizon_Table')?.Error?.message,\n                    activity('Horizon Raw to Std')?.Error?.message,\n                    activity('Filter_Harmonised_NoteBook')?.Error?.message\n                )\n            ),\n            ''\n        ),\n        equals(length(variables('HrmNotebookErrorArray')), 0)\n    ),\n       'Successfully',\n        'Failed'\n    \n)\n",
+							"type": "Expression"
+						},
+						"activityDuration": {
+							"value": "@concat(\n    string(div(div(sub(\n        ticks(formatDateTime(utcNow(), 'yyyy-MM-dd HH:mm:sss')),\n        ticks(formatDateTime(if(equals(pipeline().parameters.start_time, null), utcNow(), pipeline().parameters.start_time), 'yyyy-MM-dd HH:mm:sss'))\n    ), 600000000), 60)), 'H:', \n    string(mod(div(sub(\n        ticks(formatDateTime(utcNow(), 'yyyy-MM-dd HH:mm:sss')),\n        ticks(formatDateTime(if(equals(pipeline().parameters.start_time, null), utcNow(), pipeline().parameters.start_time), 'yyyy-MM-dd HH:mm:sss'))\n    ), 600000000), 60)), 'M:00s'\n)",
+							"type": "Expression"
+						},
+						"activityStatus": {
+							"value": "@if(\n    or(\n        not(\n            equals(\n                trim(\n                    concat(\n                        activity('Record horizon to odw data loading')?.Error?.message,\n                        activity('Lookup_orchestration_file')?.Error?.message,\n                        activity('Filter_Horizon_Table')?.Error?.message,\n                        activity('Horizon Raw to Std')?.Error?.message,\n                        activity('Filter_Harmonised_NoteBook')?.Error?.message\n                    )\n                ),\n                ''\n            )\n        ),\n        greater(length(variables('HrmNotebookErrorArray')), 0)\n    ),\n    'Failed',\n    'Successfully'\n)\n",
+							"type": "Expression"
+						},
+						"Colour": {
+							"value": "@if(\n    and(\n        equals(\n            trim(\n                concat(\n                    coalesce(activity('Record horizon to odw data loading')?.Error?.message, ''),\n                    coalesce(activity('Lookup_orchestration_file')?.Error?.message, ''),\n                    coalesce(activity('Filter_Horizon_Table')?.Error?.message, ''),\n                    coalesce(activity('Horizon Raw to Std')?.Error?.message, ''),\n                    coalesce(activity('Filter_Harmonised_NoteBook')?.Error?.message, '')\n                )\n            ),\n            ''\n        ),\n        equals(length(variables('HrmNotebookErrorArray')), 0)\n    ),\n    pipeline().parameters.completed_colour,\n    pipeline().parameters.failed_colour\n)",
+							"type": "Expression"
+						},
+						"Image": {
+							"value": "@if(\n    and(\n        equals(\n            trim(\n                concat(\n                    coalesce(activity('Record horizon to odw data loading')?.Error?.message, ''),\n                    coalesce(activity('Lookup_orchestration_file')?.Error?.message, ''),\n                    coalesce(activity('Filter_Horizon_Table')?.Error?.message, ''),\n                    coalesce(activity('Horizon Raw to Std')?.Error?.message, ''),\n                    coalesce(activity('Filter_Harmonised_NoteBook')?.Error?.message, '')\n                )\n            ),\n            ''\n        ),\n        equals(length(variables('HrmNotebookErrorArray')), 0)\n    ),\n    pipeline().parameters.completed_image,\n    pipeline().parameters.completed_image\n)",
+							"type": "Expression"
+						},
+						"Message_title": {
+							"value": "@if(\n    and(\n        equals(\n            trim(\n                concat(\n                    coalesce(activity('Record horizon to odw data loading')?.Error?.message, ''),\n                    coalesce(activity('Lookup_orchestration_file')?.Error?.message, ''),\n                    coalesce(activity('Filter_Horizon_Table')?.Error?.message, ''),\n                    coalesce(activity('Horizon Raw to Std')?.Error?.message, ''),\n                    coalesce(activity('Filter_Harmonised_NoteBook')?.Error?.message, '')\n                )\n            ),\n            ''\n        ),\n        equals(length(variables('HrmNotebookErrorArray')), 0)\n    ),\n    'horizon To Odw load Successfully Completed',\n    'horizon To Odw Failed'\n    \n)\n",
+							"type": "Expression"
+						},
+						"Message_subtitle": {
+							"value": "@if(\n    and(\n        equals(\n            trim(\n                concat(\n                    coalesce(activity('Record horizon to odw data loading')?.Error?.message, ''),\n                    coalesce(activity('Lookup_orchestration_file')?.Error?.message, ''),\n                    coalesce(activity('Filter_Horizon_Table')?.Error?.message, ''),\n                    coalesce(activity('Horizon Raw to Std')?.Error?.message, ''),\n                    coalesce(activity('Filter_Harmonised_NoteBook')?.Error?.message, '')\n                )\n            ),\n            ''\n        ),\n        equals(length(variables('HrmNotebookErrorArray')), 0)\n    ),\n     'pipeline run Completed',\n     'pipeline run Failed'\n)\n",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Record completed horizon to odw data lode",
+				"type": "ExecutePipeline",
+				"dependsOn": [],
+				"policy": {
 					"secureInput": false
 				},
 				"userProperties": [],
 				"typeProperties": {
-					"variableName": "entraIDRecordLoadingStartTime",
-					"value": {
-						"value": "@utcNow()",
-						"type": "Expression"
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": {
+							"value": "@if(\n  and(\n    equals(\n      trim(\n        concat(\n          if(equals(activity('Record horizon to odw data loading').Status,'Failed'), activity('Record horizon to odw data loading').Error.message, ''),\n          if(equals(activity('Lookup_orchestration_file').Status,'Failed'),        activity('Lookup_orchestration_file').Error.message,        ''),\n          if(equals(activity('Filter_Horizon_Table').Status,'Failed'),              activity('Filter_Horizon_Table').Error.message,              ''),\n          if(equals(activity('Horizon Raw to Std').Status,'Failed'),                activity('Horizon Raw to Std').Error.message,                ''),\n          if(equals(activity('Filter_Harmonised_NoteBook').Status,'Failed'),        activity('Filter_Harmonised_NoteBook').Error.message,        '')\n        )\n      ),\n      ''\n    ),\n    equals(length(variables('HrmNotebookErrorArray')), 0)\n  ),\n  'Successfully',\n  'Failed'\n)",
+							"type": "Expression"
+						},
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@utcnow()",
+							"type": "Expression"
+						},
+						"ErrorMessage": {
+							"value": "@trim(\n  replace(\n    concat(\n      coalesce(activity('Record horizon to odw data loading')?.Error?.message, ''),\n      ' | ',\n      coalesce(activity('Lookup_orchestration_file')?.Error?.message, ''),\n      ' | ',\n      coalesce(activity('Filter_Horizon_Table')?.Error?.message, ''),\n      ' | ',\n      coalesce(activity('Horizon Raw to Std')?.Error?.message, ''),\n      ' | ',\n      coalesce(activity('Filter_Harmonised_NoteBook')?.Error?.message, ''),\n      if(\n        not(equals(length(variables('HrmNotebookErrorArray')), 0)),\n        ' | horizon Harmonised NoteBook Failed check App Insights for details',\n        ''\n      )\n    ),\n    '|',\n    ''\n  )\n)\n",
+							"type": "Expression"
+						},
+						"StatusMessage": {
+							"value": "@if(\n    and(\n        equals(\n            trim(\n                concat(\n                    coalesce(activity('Record horizon to odw data loading')?.Error?.message, ''),\n                    coalesce(activity('Lookup_orchestration_file')?.Error?.message, ''),\n                    coalesce(activity('Filter_Horizon_Table')?.Error?.message, ''),\n                    coalesce(activity('Horizon Raw to Std')?.Error?.message, ''),\n                    coalesce(activity('Filter_Harmonised_NoteBook')?.Error?.message, '')\n                )\n            ),\n            ''\n        ),\n        equals(length(variables('HrmNotebookErrorArray')), 0)\n    ),\n    'horizon To Odw load Successfully Completed',\n    'horizon To Odw Failed')\n",
+							"type": "Expression"
+						},
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"ActivityType": "Pipeline",
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
 					}
 				}
 			}
