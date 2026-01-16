@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "39354c76-b0cb-4892-aa47-615c588ccac9"
+				"spark.autotune.trackingId": "58cbaaaf-46b8-4460-95e0-b411a4e8c7f2"
 			}
 		},
 		"metadata": {
@@ -286,6 +286,7 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"\n",
 					"if not error_message and (changed_records > 0 or delete_count > 0):\n",
 					"    try:\n",
 					"        update_count = changed_records + delete_count\n",
@@ -306,7 +307,7 @@
 					"                WHERE src.greenCaseId IS NULL\n",
 					"            )\n",
 					"        \"\"\")\n",
-					"        \n",
+					"        print(\"sql1\")\n",
 					"        # Use MERGE to close records (Delta Lake compatible)\n",
 					"        spark.sql(f\"\"\"\n",
 					"            MERGE INTO {spark_table_final} AS target\n",
@@ -315,15 +316,17 @@
 					"               AND target.is_current = 1\n",
 					"            WHEN MATCHED THEN\n",
 					"                UPDATE SET \n",
-					"                    record_end_date = CURRENT_TIMESTAMP(),\n",
+					"                    record_end_date = DATE_TRUNC('day', CURRENT_TIMESTAMP()),                     \n",
 					"                    is_current = 0\n",
 					"        \"\"\")\n",
 					"        \n",
+					"        print(\"sql2\")\n",
 					"        logInfo(f\"Successfully closed {update_count} records\")\n",
 					"        \n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error closing records: {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()"
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},
@@ -425,8 +428,9 @@
 					"                stg.Migrated,\n",
 					"                CURRENT_TIMESTAMP() AS IngestionDate,\n",
 					"                1 AS is_current,\n",
-					"                CURRENT_TIMESTAMP() AS record_start_date,\n",
-					"                CAST('9999-12-31 23:59:59' AS TIMESTAMP) AS record_end_date,\n",
+					"                DATE_TRUNC('day', CURRENT_TIMESTAMP()) AS record_start_date,\n",
+					"                --CAST('9999-12-31 23:59:59' AS TIMESTAMP) AS record_end_date,\n",
+					"                CAST('9999-12-31' AS TIMESTAMP) AS record_end_date,\n",
 					"                stg.data_hash AS RowID,\n",
 					"                stg.active\n",
 					"            FROM stg_casework_specialist stg\n",
