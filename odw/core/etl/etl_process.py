@@ -3,6 +3,8 @@ from odw.core.util.logging_util import LoggingUtil
 from abc import ABC, abstractmethod
 from pyspark.sql import DataFrame, SparkSession
 from odw.core.etl.etl_result import ETLResult, ETLFailResult
+from odw.core.io.synapse_file_data_io import SynapseFileDataIO
+from odw.core.util.util import Util
 from typing import List, Dict, Any, Tuple
 from notebookutils import mssparkutils
 import traceback
@@ -41,6 +43,20 @@ class ETLProcess(ABC):
             else:
                 found_files.add(next_item.path)
         return found_files
+    
+    @classmethod
+    def load_orchestration_data(self):
+        """
+        Load the orchestration file
+        """
+        return SynapseFileDataIO().read(
+            spark=SparkSession.builder.getOrCreate(),
+            storage_name=Util.get_storage_account(),
+            container_name="odw-config",
+            blob_path=f"orchestration/orchestration.json",
+            file_format="json",
+            read_options={"multiline": "true"},
+        )
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
         """
