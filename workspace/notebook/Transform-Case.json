@@ -1,0 +1,111 @@
+{
+	"name": "Transform-Case",
+	"properties": {
+		"folder": {
+			"name": "Horizon-Migration/Horizon-Transform"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "hbtPool",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "fad30f2d-98ca-4639-9da9-e6a6d630cc66"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/hbtPool",
+				"name": "hbtPool",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/hbtPool",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.5",
+				"nodeCount": 10,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"from notebookutils import mssparkutils\n",
+					"\n",
+					"BASE = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net\"\n",
+					"EXTRACT = f\"{BASE}/MPESC-EXTRACT\"\n",
+					"OUT = f\"{BASE}/TRANSFORM-CASE\"\n",
+					"\n",
+					"CASE_REF_FILE = f\"{EXTRACT}/Horizon_CaseReference.csv\"\n",
+					"LLATTR_CASE_GLOB = f\"{EXTRACT}/LLAttr/Case_*/part*.csv\"\n",
+					"\n",
+					"case_ref = spark.read.option(\"header\", True).option(\"inferSchema\", True).csv(CASE_REF_FILE)\n",
+					"\n",
+					"display(case_ref.limit(10))\n",
+					"print(\"case_ref rows:\", case_ref.count())\n",
+					""
+				],
+				"execution_count": 11
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"PREFIXES = [\"COM/\", \"ENV/\", \"MCA/\", \"PUR/\", \"ROW/\"]\n",
+					"\n",
+					"prefix_filter = None\n",
+					"for p in PREFIXES:\n",
+					"    cond = F.col(\"CaseReference\").startswith(p)\n",
+					"    prefix_filter = cond if prefix_filter is None else (prefix_filter | cond)\n",
+					"\n",
+					"filtered_cases = (\n",
+					"    case_ref\n",
+					"    .filter(prefix_filter)\n",
+					"    .select(\n",
+					"        F.col(\"CaseUniqueId\").alias(\"caseReference\"),\n",
+					"        F.col(\"CaseReference\").alias(\"hznReference\"),\n",
+					"        F.col(\"CaseTypeId\").alias(\"caseTypeId\"),\n",
+					"        F.col(\"CaseNodeId\").alias(\"caseNodeId\"),\n",
+					"        F.col(\"CaseCreateDate\").alias(\"caseCreateDate\"),\n",
+					"        F.col(\"CaseCloseDate\").alias(\"caseCloseDate\"),\n",
+					"        F.col(\"CaseCloseStatus\").alias(\"caseCloseStatus\"),\n",
+					"        F.col(\"CaseOwnerId\").alias(\"caseOwnerId\")\n",
+					"    )\n",
+					")\n",
+					"\n",
+					"display(filtered_cases.limit(10))\n",
+					"print(\"filtered cases:\", filtered_cases.count())\n",
+					""
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
