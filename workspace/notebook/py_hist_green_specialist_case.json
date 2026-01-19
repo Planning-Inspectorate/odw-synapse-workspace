@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "b1f684a2-4788-4c4c-8b12-3c8a6f2dc1f8"
+				"spark.autotune.trackingId": "9fbd18b4-4be8-46ff-975b-db747b375dd9"
 			}
 		},
 		"metadata": {
@@ -62,7 +62,7 @@
 					"PipelineTriggeredbyPipelineName = None\n",
 					"PipelineTriggeredbyPipelineRunID = None"
 				],
-				"execution_count": 12
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -289,6 +289,7 @@
 				"cell_type": "code",
 				"source": [
 					"\n",
+					"error_message=''\n",
 					"if not error_message and (changed_records > 0 or delete_count > 0):\n",
 					"    try:\n",
 					"        update_count = changed_records + delete_count\n",
@@ -297,7 +298,7 @@
 					"        # Create temp view with records to close\n",
 					"        spark.sql(\"\"\"\n",
 					"            CREATE OR REPLACE TEMP VIEW records_to_close AS\n",
-					"            SELECT DISTINCT greenCaseId\n",
+					"            SELECT DISTINCT greenCaseId,greenCaseType\n",
 					"            FROM (\n",
 					"                -- Changed records\n",
 					"                SELECT greenCaseId,greenCaseType FROM change_analysis WHERE change_type = 'CHANGED'\n",
@@ -319,7 +320,7 @@
 					"               AND target.is_current = 1\n",
 					"            WHEN MATCHED THEN\n",
 					"                UPDATE SET \n",
-					"                    record_end_date = DATE_TRUNC('day', CURRENT_TIMESTAMP()) - 1,                     \n",
+					"                    record_end_date = DATE_TRUNC('day', CURRENT_TIMESTAMP() - INTERVAL 1 DAY),\n",
 					"                    is_current = 0\n",
 					"        \"\"\")\n",
 					"        \n",
@@ -328,6 +329,7 @@
 					"        \n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error closing records: {str(e)[:800]}\"\n",
+					"        print(error_message)\n",
 					"        end_exec_time = datetime.now()"
 				],
 				"execution_count": null
