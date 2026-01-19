@@ -24,3 +24,10 @@ def format_to_adls_path(inst, container_name: str, blob_path: str, storage_name:
     print("blob_path: ", blob_path)
     # This gets written to the 'spark-warehouse/' folder
     return os.path.join(container_name, blob_path)
+
+
+def format_adls_path_to_local_path(inst, container_name: str, blob_path: str, storage_name: str = None, storage_endpoint: str = None) -> str:
+    """
+    Format adlsg2 parameters to reflect a location in the `spark-warehouse`
+    """
+    return os.path.join("spark-warehouse", container_name, blob_path)
