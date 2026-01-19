@@ -17,7 +17,7 @@ class ODWPackageDeployer():
     """
     TARGET_SPARK_POOLS = [
         "pinssynspodwpr",
-        "pinssynspodw34"
+        "pinssynspodwpr"
     ]
 
     def get_existing_odw_wheels(self, workspace_manager: SynapseWorkspaceManager) -> List[Dict[str, Any]]:

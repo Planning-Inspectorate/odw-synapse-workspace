@@ -93,7 +93,7 @@ def test_upload_new_wheel__with_no_existing_package():
                     ]
                 }
             }
-        if pool_name == "pinssynspodw34":
+        if pool_name == "pinssynspodwpr":
             return {
                 "properties": dict()
             }
@@ -131,7 +131,7 @@ def test_upload_new_wheel__with_no_existing_package():
             }
         ),
         mock.call(
-            "pinssynspodw34",
+            "pinssynspodwpr",
             {
                 "properties": {
                     "customLibraries": [
@@ -195,7 +195,7 @@ def test_upload_new_wheel__with_other_odw_package():
                     ]
                 }
             }
-        if pool_name == "pinssynspodw34":
+        if pool_name == "pinssynspodwpr":
             return {
                 "properties": dict()
             }
@@ -240,7 +240,7 @@ def test_upload_new_wheel__with_other_odw_package():
             }
         ),
         mock.call(
-            "pinssynspodw34",
+            "pinssynspodwpr",
             {
                 "properties": {
                     "customLibraries": [
