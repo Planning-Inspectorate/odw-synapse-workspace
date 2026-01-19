@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "3f52e35f-8de0-4da8-a15e-e1d2d3de6f90"
+				"spark.autotune.trackingId": "d1f19b41-8521-4fb3-b897-a7d123150801"
 			}
 		},
 		"metadata": {
@@ -239,7 +239,7 @@
 					"        # Get current active records from target\n",
 					"        spark.sql(f\"\"\"\n",
 					"            CREATE OR REPLACE TEMP VIEW current_active AS\n",
-					"            SELECT casework_specialist_id, greenCaseId, RowID as data_hash\n",
+					"            SELECT casework_specialist_id, greenCaseId,greenCaseType, RowID as data_hash\n",
 					"            FROM {spark_table_final} \n",
 					"            WHERE is_current = 1\n",
 					"        \"\"\")\n",
@@ -249,6 +249,7 @@
 					"            CREATE OR REPLACE TEMP VIEW change_analysis AS\n",
 					"            SELECT \n",
 					"                src.greenCaseId, \n",
+					"                tgt.greenCaseType,\n",
 					"                tgt.casework_specialist_id,\n",
 					"                CASE \n",
 					"                    WHEN tgt.greenCaseId IS NULL THEN 'NEW'\n",
@@ -298,10 +299,10 @@
 					"            SELECT DISTINCT greenCaseId\n",
 					"            FROM (\n",
 					"                -- Changed records\n",
-					"                SELECT greenCaseId FROM change_analysis WHERE change_type = 'CHANGED'\n",
+					"                SELECT greenCaseId,greenCaseType FROM change_analysis WHERE change_type = 'CHANGED'\n",
 					"                UNION\n",
 					"                -- Deleted records (in target but not in source)\n",
-					"                SELECT tgt.greenCaseId \n",
+					"                SELECT tgt.greenCaseId, tgt.greenCaseType\n",
 					"                FROM current_active tgt\n",
 					"                LEFT JOIN stg_casework_specialist src ON tgt.greenCaseId = src.greenCaseId\n",
 					"                WHERE src.greenCaseId IS NULL\n",
@@ -312,7 +313,8 @@
 					"        spark.sql(f\"\"\"\n",
 					"            MERGE INTO {spark_table_final} AS target\n",
 					"            USING records_to_close AS source\n",
-					"            ON target.greenCaseId = source.greenCaseId \n",
+					"            ON target.greenCaseId = source.greenCaseId\n",
+					"               AND target.greenCaseType = source.greenCaseType\n",
 					"               AND target.is_current = 1\n",
 					"            WHEN MATCHED THEN\n",
 					"                UPDATE SET \n",
