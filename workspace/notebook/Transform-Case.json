@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ed1980cb-288e-44d1-b019-59193e0ae9dc"
+				"spark.autotune.trackingId": "47bda8d2-577c-4016-a01b-f3ed4465c09c"
 			}
 		},
 		"metadata": {
@@ -219,12 +219,65 @@
 				"cell_type": "code",
 				"source": [
 					"# Common system-ish columns we usually don't want in the final wide dataset\n",
-					"drop_cols = [c for c in [\"DefID\", \"AttrID\", \"AttrType\", \"DataType\", \"CreateDate\", \"ModifyDate\", \"RowNum\", \"Partition\", \"FileName\"] if c in attrs_filtered.columns]\n",
+					"drop_cols = [c for c in [\"AttrID\", \"AttrType\", \"DataType\",  \"RowNum\", \"Partition\", \"FileName\"] if c in attrs_filtered.columns]\n",
 					"\n",
 					"attrs_clean = attrs_filtered.drop(*drop_cols)\n",
 					"\n",
 					"print(\"Dropped cols:\", drop_cols)\n",
 					"print(\"Remaining attr cols:\", len(attrs_clean.columns))\n",
+					""
+				],
+				"execution_count": 9
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"# If attrs has multiple rows per ID, collapse to 1 row per ID\n",
+					"# (prevents case duplication)\n",
+					"attrs_one_row = attrs_clean.dropDuplicates([\"ID\"])\n",
+					"\n",
+					"cases_joined = (\n",
+					"    filtered_cases.alias(\"c\")\n",
+					"    .join(\n",
+					"        attrs_one_row.alias(\"a\"),\n",
+					"        F.col(\"c.caseNodeId\").cast(\"string\") == F.col(\"a.ID\").cast(\"string\"),\n",
+					"        \"left\"\n",
+					"    )\n",
+					"    .drop(\"ID\")  # since we already have caseNodeId\n",
+					")\n",
+					"\n",
+					"display(cases_joined.limit(10))\n",
+					"print(\"cases_joined rows:\", cases_joined.count())\n",
+					""
+				],
+				"execution_count": 10
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"TYPE_OF_CASE_FILE = f\"{EXTRACT}/Horizon_TypeOfCase.csv\"\n",
+					"type_of_case = spark.read.option(\"header\", True).option(\"inferSchema\", True).csv(TYPE_OF_CASE_FILE)\n",
+					"\n",
+					"final_df = (\n",
+					"    cases_joined.alias(\"x\")\n",
+					"    .join(type_of_case.alias(\"t\"), F.col(\"x.caseTypeId\") == F.col(\"t.ID\"), \"left\")\n",
+					"    .drop(F.col(\"t.ID\"))\n",
+					")\n",
+					"\n",
+					"display(final_df.limit(10))\n",
+					""
+				],
+				"execution_count": 11
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					""
 				],
 				"execution_count": null
