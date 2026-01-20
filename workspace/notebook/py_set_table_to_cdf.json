@@ -1,0 +1,221 @@
+{
+	"name": "py_set_table_to_cdf",
+	"properties": {
+		"folder": {
+			"name": "utils"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "bfb5e95a-e036-4f70-919b-7aec8bfbe2a1"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Enable Change Data Feed (CDF) on Delta Tables\n",
+					"\n",
+					"This notebook enables CDF on specified delta tables as a post-deployment step.\n",
+					"\n",
+					"CDF provides an efficient way to track changes (inserts, updates, deletes) on delta tables without the need for hash-based comparisons.\n",
+					"\n",
+					"**Note**: CDF only tracks changes from the point of enablement forward - it does not provide historical change data for versions created before CDF was enabled."
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"tags": [
+						"parameters"
+					]
+				},
+				"source": [
+					"db_name=''\n",
+					"table_name=''"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql import SparkSession\n",
+					"from datetime import datetime\n",
+					"\n",
+					"spark: SparkSession = SparkSession.builder.getOrCreate()\n",
+					"table_name_full = f\"{db_name}.{table_name}\"\n",
+					"\n",
+					"# Initialize logging variables\n",
+					"start_time = datetime.now()\n",
+					"status = \"Success\"\n",
+					"message = \"\""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Check if CDF is already enabled"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"try:\n",
+					"    # Check if table exists\n",
+					"    table_exists = spark.catalog.tableExists(table_name_full)\n",
+					"    \n",
+					"    if not table_exists:\n",
+					"        message = f\"Table {table_name_full} does not exist. Skipping CDF enablement.\"\n",
+					"        print(message)\n",
+					"        status = \"Skipped\"\n",
+					"    else:\n",
+					"        # Check current CDF status\n",
+					"        table_properties = spark.sql(f\"SHOW TBLPROPERTIES {table_name_full}\").collect()\n",
+					"        cdf_enabled = any(prop.key == 'delta.enableChangeDataFeed' and prop.value == 'true' for prop in table_properties)\n",
+					"        \n",
+					"        if cdf_enabled:\n",
+					"            message = f\"CDF is already enabled on table {table_name_full}. No action required.\"\n",
+					"            print(message)\n",
+					"            status = \"Already Enabled\"\n",
+					"        else:\n",
+					"            # Enable CDF\n",
+					"            print(f\"Enabling CDF on table {table_name_full}...\")\n",
+					"            spark.sql(f\"ALTER TABLE {table_name_full} SET TBLPROPERTIES (delta.enableChangeDataFeed = true)\")\n",
+					"            \n",
+					"            # Verify it was enabled\n",
+					"            table_properties_after = spark.sql(f\"SHOW TBLPROPERTIES {table_name_full}\").collect()\n",
+					"            cdf_enabled_after = any(prop.key == 'delta.enableChangeDataFeed' and prop.value == 'true' for prop in table_properties_after)\n",
+					"            \n",
+					"            if cdf_enabled_after:\n",
+					"                message = f\"Successfully enabled CDF on table {table_name_full}.\"\n",
+					"                print(message)\n",
+					"                status = \"Enabled\"\n",
+					"            else:\n",
+					"                message = f\"Failed to verify CDF enablement on table {table_name_full}.\"\n",
+					"                print(message)\n",
+					"                status = \"Failed\"\n",
+					"\n",
+					"except Exception as e:\n",
+					"    status = \"Error\"\n",
+					"    message = f\"Error while enabling CDF on table {table_name_full}: {str(e)}\"\n",
+					"    print(message)\n",
+					"    import traceback\n",
+					"    print(traceback.format_exc())\n",
+					"    raise"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"end_time = datetime.now()\n",
+					"duration = (end_time - start_time).total_seconds()\n",
+					"\n",
+					"print(f\"\\n=== Summary ===\")\n",
+					"print(f\"Table: {table_name_full}\")\n",
+					"print(f\"Status: {status}\")\n",
+					"print(f\"Message: {message}\")\n",
+					"print(f\"Duration: {duration:.2f} seconds\")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
