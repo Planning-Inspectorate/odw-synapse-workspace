@@ -95,7 +95,7 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
     def process(self, **kwargs):
         start_exec_time = datetime.now()
         # Load parameters
-        entity_name = self.load_parameter("entity_name", kwargs)
+        entity_name: str = self.load_parameter("entity_name", kwargs)
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
         orchestration_data: DataFrame = self.load_parameter("orchestration_data", source_data)
         new_data: DataFrame = self.load_parameter("new_data", source_data)
@@ -108,27 +108,27 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
         std_table: str = definition["Standardised_Table_Name"]
         hrm_table: str = definition["Harmonised_Table_Name"]
         hrm_incremental_key: str = definition["Harmonised_Incremental_Key"]
-        #entity_primary_key: str = definition["Entity_Primary_Key"]
+        entity_primary_key: str = definition["Entity_Primary_Key"]
         standardised_table_path = f"{self.std_db}.{std_table}"
         harmonised_table_path = f"{self.hrm_db}.{hrm_table}"
 
         new_data = self.harmonise(new_data, source_system_data, hrm_incremental_key)
         # Note this does not work if the harmonised table does not exist at the start - fix after first int test is working
         #new_data = new_data.select(existing_data.columns)
-        new_rows = new_data[new_data["message_type"] == "Create"].drop("message_type")
-        print("new_rows")
-        new_rows.show()
-        updated_rows = new_data[new_data["message_type"].isin(["update", "Update", "Publish", "Unpublish"])].drop("message_type")
-        print("updated_rows")
-        updated_rows.show()
-        deleted_rows = new_data[new_data["message_type"] == "Delete"].drop("message_type")
-        print("deleted_rows")
-        deleted_rows.show()
-        new_data = new_data.drop("message_type")
 
-        table_exists = source_data.get("existing_data", None) is not None
-        write_mode = "append" if table_exists else "overwrite"
-        write_opts = [("mergeSchema", "true")] if table_exists else []
+        new_data = new_data.withColumn(
+            "row_state_metadata",
+            F.when(
+                F.col("message_type") == "Create",
+                F.lit("create")
+            ).when(
+                F.col("message_type").isin(["update", "Update", "Publish", "Unpublish"]),
+                F.lit("update")
+            ).otherwise(
+                F.lit("delete")
+            )
+        ).drop("message_type")
+
         entity_name_snake_case = entity_name.replace("-", "_")
         print("actual data before write")
         new_data.show()
@@ -136,15 +136,14 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
         data_to_write = {
             harmonised_table_path: {
                 "data": new_data,
-                "storage_kind": "ADLSG2-Table",
+                "storage_kind": "ADLSG2-Delta",
                 "database_name": "odw_harmonised_db",
                 "table_name": hrm_table,
                 "storage_endpoint": Util.get_storage_account(),
                 "container_name": "odw-harmonised",
                 "blob_path": f"{entity_name_snake_case}",
-                "file_format": "delta",
-                "write_mode": write_mode,
-                "write_options": write_opts,
+                "primary_keys": [entity_primary_key],
+                "update_key_col": "row_state_metadata"
             }
         }
 

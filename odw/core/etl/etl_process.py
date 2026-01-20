@@ -100,13 +100,10 @@ class ETLProcess(ABC):
         """
         for table_name, table_metadata in data_to_write.items():
             storage_kind = table_metadata.get("storage_kind", None)
-            file_format = table_metadata.get("file_format", None)
             if not storage_kind:
                 raise ValueError(f"ETLProcess expected a storage_kind parameter to be passed, but this was missing")
-            if not file_format:
-                raise ValueError(f"ETLProcess expected a file_format parameter to be passed, but this was missing")
             data_io_inst = DataIOFactory.get(storage_kind)()
-            data_io_inst.write(**table_metadata)
+            data_io_inst.write(**table_metadata, spark=self.spark)
 
     def run(self, **kwargs) -> ETLResult:
         """

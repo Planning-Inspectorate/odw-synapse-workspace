@@ -4,6 +4,7 @@ from odw.core.io.data_io import DataIO
 from odw.core.io.synapse_file_data_io import SynapseFileDataIO
 from odw.core.io.synapse_table_data_io import SynapseTableDataIO
 from odw.core.io.azure_blob_data_io import AzureBlobDataIO
+from odw.core.io.synapse_delta_io import SynapseDeltaIO
 from typing import Set, List, Dict, Type
 import json
 
@@ -12,7 +13,8 @@ class DataIOFactory():
     DATA_IO_CLASSES: Set[Type[DataIO]] = {
         SynapseFileDataIO,
         SynapseTableDataIO,
-        AzureBlobDataIO
+        AzureBlobDataIO,
+        SynapseDeltaIO
     }
 
     @classmethod
