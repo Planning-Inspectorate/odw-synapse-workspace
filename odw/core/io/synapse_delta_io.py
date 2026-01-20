@@ -88,6 +88,8 @@ class SynapseDeltaIO(SynapseDataIO):
         storage_endpoint = kwargs.get("storage_endpoint", None)
         container_name = kwargs.get("container_name", None)
         blob_path = kwargs.get("blob_path", None)
+        database_name = kwargs.get("database_name", None)
+        table_name = kwargs.get("table_name", None)
         primary_keys = kwargs.get("primary_keys", None)
         update_key_col = kwargs.get("update_key_col", None)
         if not spark:
@@ -100,6 +102,8 @@ class SynapseDeltaIO(SynapseDataIO):
             raise ValueError(f"SynapseDeltaIO.write requires a container_name to be provided, but was missing")
         if not blob_path:
             raise ValueError(f"SynapseDeltaIO.write requires a blob_path to be provided, but was missing")
+        if bool(database_name) ^ bool(table_name):
+            raise ValueError(f"SynapseTableDataIO.write requires both database_name and table_name to be provided, or neither")
         if not primary_keys:
             raise ValueError(f"SynapseDeltaIO.write requires a primary_keys to be provided, but was missing")
         if not update_key_col:
@@ -148,3 +152,10 @@ class SynapseDeltaIO(SynapseDataIO):
         ).whenNotMatchedInsertAll(  # Insert new records
             condition=f"s.{update_key_col} IN {create_strings}"
         ).execute()
+        if database_name:
+            # Create a table out of the delta file if table details are specified
+            spark.sql(f"""
+                CREATE TABLE IF NOT EXISTS {database_name}.{table_name}
+                USING DELTA
+                LOCATION '{data_path}'
+            """)
