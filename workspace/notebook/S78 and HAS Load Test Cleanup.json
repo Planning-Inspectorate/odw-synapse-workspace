@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "2ea1ce99-3b86-41cf-9290-8a101c56e866"
+				"spark.autotune.trackingId": "6194e36f-7aa2-44c4-90c0-94eeb75a0244"
 			}
 		},
 		"metadata": {
@@ -55,7 +55,7 @@
 					"import uuid\n",
 					"from datetime import datetime"
 				],
-				"execution_count": 9
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -80,7 +80,7 @@
 					"LPA_CODE = \"LOAD1\"\n",
 					"ENTITIES = [\"s78\", \"has\"]"
 				],
-				"execution_count": 10
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -103,7 +103,7 @@
 					"    (CUR_DB,  \"appeals_{entity}_curated_mipins\"),\n",
 					"]"
 				],
-				"execution_count": 11
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -129,7 +129,7 @@
 					"        print(f\"[WARN] Missing/inaccessible table: {db}.{table} ({e})\")\n",
 					"        return False"
 				],
-				"execution_count": 12
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -160,7 +160,7 @@
 					"                files.append(it.path)\n",
 					"    return files"
 				],
-				"execution_count": 13
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -176,10 +176,11 @@
 					}
 				},
 				"source": [
-					"def clean_std_harm(db, table):\n",
+					"def clean_std_harm(db, table, lpa_code):\n",
 					"    full = f\"{db}.{table}\"\n",
+					"\n",
 					"    count = spark.sql(\n",
-					"        f\"SELECT COUNT(*) AS count FROM {full} WHERE lpaCode = '{LPA_CODE}'\"\n",
+					"        f\"SELECT COUNT(*) AS count FROM {full} WHERE lpaCode = '{lpa_code}'\"\n",
 					"    ).collect()[0][\"count\"]\n",
 					"\n",
 					"    if count == 0:\n",
@@ -187,14 +188,14 @@
 					"        return 0\n",
 					"\n",
 					"    if DRY_RUN:\n",
-					"        print(f\"[DRY-RUN] Would DELETE {count} rows from {full} WHERE lpaCode = '{LPA_CODE}'\")\n",
+					"        print(f\"[DRY-RUN] Would DELETE {count} rows from {full} WHERE lpaCode = '{lpa_code}'\")\n",
 					"        return count\n",
 					"\n",
-					"    spark.sql(f\"DELETE FROM {full} WHERE lpaCode = '{LPA_CODE}'\")\n",
+					"    spark.sql(f\"DELETE FROM {full} WHERE lpaCode = '{lpa_code}'\")\n",
 					"    print(f\"[DELETED] {count} rows from {full}\")\n",
 					"    return count"
 				],
-				"execution_count": 14
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -210,8 +211,9 @@
 					}
 				},
 				"source": [
-					"def clean_curated(db, table):\n",
+					"def clean_curated(db, table, lpa_code):\n",
 					"    full = f\"{db}.{table}\"\n",
+					"\n",
 					"    try:\n",
 					"        spark.sql(f\"REFRESH TABLE {full}\")\n",
 					"    except Exception:\n",
@@ -219,6 +221,7 @@
 					"\n",
 					"    details = spark.sql(f\"DESCRIBE DETAIL {full}\").collect()[0].asDict()\n",
 					"    base_path = (details.get(\"location\") or \"\").rstrip(\"/\")\n",
+					"\n",
 					"    if not base_path:\n",
 					"        raise Exception(f\"No LOCATION found for {full}\")\n",
 					"\n",
@@ -233,7 +236,8 @@
 					"          .option(\"recursiveFileLookup\", \"true\")\n",
 					"          .load(base_path))\n",
 					"\n",
-					"    count = df.filter(f\"lpaCode = '{LPA_CODE}'\").count()\n",
+					"    count = df.filter(f\"lpaCode = '{lpa_code}'\").count()\n",
+					"\n",
 					"    if count == 0:\n",
 					"        print(f\"[SKIP] {full} has 0 matching rows\")\n",
 					"        return 0\n",
@@ -245,7 +249,7 @@
 					"    run_id = datetime.utcnow().strftime(\"%Y%m%d%H%M%S\") + \"_\" + uuid.uuid4().hex[:8]\n",
 					"    tmp_path = f\"{base_path}__tmp_{run_id}\"\n",
 					"\n",
-					"    (df.filter(f\"lpaCode <> '{LPA_CODE}'\")\n",
+					"    (df.filter(f\"lpaCode <> '{lpa_code}'\")\n",
 					"       .write.format(\"parquet\")\n",
 					"       .mode(\"overwrite\")\n",
 					"       .save(tmp_path))\n",
@@ -260,9 +264,10 @@
 					"        pass\n",
 					"\n",
 					"    print(f\"[OVERWRITTEN] {full} cleaned (removed {count} rows)\")\n",
-					"    return count"
+					"    return count\n",
+					""
 				],
-				"execution_count": 15
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -279,20 +284,22 @@
 				},
 				"source": [
 					"print(\"S78/HAS Cleanup\")\n",
-					"print(f\"Mode: {'DRY-RUN' if DRY_RUN else 'EXECUTE'}  |  lpaCode = '{LPA_CODE}'\\n\")    \n",
+					"print(f\"Mode: {'DRY-RUN' if DRY_RUN else 'EXECUTE'}  |  lpaCode = '{LPA_CODE}'\\n\")\n",
 					"\n",
 					"results = {}\n",
+					"\n",
 					"for db, table in TABLES:\n",
 					"    if not table_exists(db, table):\n",
 					"        continue\n",
-					"    removed = clean_curated(db, table) if db == CUR_DB else clean_std_harm(db, table)\n",
+					"\n",
+					"    removed = clean_curated(db, table, LPA_CODE) if db == CUR_DB else clean_std_harm(db, table, LPA_CODE)\n",
 					"    results[f\"{db}.{table}\"] = removed\n",
 					"\n",
 					"print(\"\\nSUMMARY\")\n",
 					"for k, v in results.items():\n",
 					"    print(f\"{k}: {v}\")"
 				],
-				"execution_count": 16
+				"execution_count": null
 			}
 		]
 	}
