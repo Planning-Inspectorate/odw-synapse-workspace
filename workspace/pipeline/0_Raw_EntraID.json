@@ -66,7 +66,14 @@
 			{
 				"name": "Raw_EntraID Record loading started",
 				"type": "ExecutePipeline",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "Record pipeline starting",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"secureInput": false
 				},
@@ -270,33 +277,34 @@
 				}
 			},
 			{
-				"name": "If Condition1",
-				"type": "IfCondition",
-				"dependsOn": [],
-				"userProperties": [],
-				"typeProperties": {
-					"expression": {
-						"value": "@if(\n    or(\n        not(\n            equals(\n                trim(\n                    concat(\n                        activity('Record horizon to odw data loading')?.Error?.message,\n                        activity('Lookup_orchestration_file')?.Error?.message,\n                        activity('Filter_Horizon_Table')?.Error?.message,\n                        activity('Horizon Raw to Std')?.Error?.message,\n                        activity('Filter_Harmonised_NoteBook')?.Error?.message\n                    )\n                ),\n                ''\n            )\n        ),\n        greater(length(variables('HrmNotebookErrorArray')), 0)\n    ),\n        true,\n        false\n)\n",
-						"type": "Expression"
-					},
-					"ifTrueActivities": [
-						{
-							"name": "pln_horizon_to_odw Fail",
-							"type": "Fail",
-							"dependsOn": [],
-							"userProperties": [],
-							"typeProperties": {
-								"message": "failing the pipeline as previous activities are failed.",
-								"errorCode": "400"
-							}
-						}
-					]
-				}
-			},
-			{
-				"name": "Send horizon to odw data load failed",
+				"name": "Send starting teams notification",
 				"type": "ExecutePipeline",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "Set subscription",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Set resource group",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Set webhook",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Set AppIns iKey",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"secureInput": true
 				},
@@ -309,11 +317,11 @@
 					"waitOnCompletion": true,
 					"parameters": {
 						"dataFactorySubscription": {
-							"value": "@pipeline().parameters.subscription_id",
+							"value": "@variables('subscription_id')",
 							"type": "Expression"
 						},
 						"dataFactoryResourceGroup": {
-							"value": "@pipeline().parameters.resource_group",
+							"value": "@variables('resource_group')",
 							"type": "Expression"
 						},
 						"pipelineRunId": {
@@ -321,48 +329,258 @@
 							"type": "Expression"
 						},
 						"teamsWebhookUrl": {
-							"value": "@pipeline().parameters.webhook_url",
+							"value": "@variables('webhook_url')",
 							"type": "Expression"
 						},
 						"activityName": {
 							"value": "@pipeline().Pipeline",
 							"type": "Expression"
 						},
-						"activityMessage": {
-							"value": "@if(\n    and(\n        equals(\n            trim(\n                concat(\n                    activity('Record horizon to odw data loading')?.Error?.message,\n                    activity('Lookup_orchestration_file')?.Error?.message,\n                    activity('Filter_Horizon_Table')?.Error?.message,\n                    activity('Horizon Raw to Std')?.Error?.message,\n                    activity('Filter_Harmonised_NoteBook')?.Error?.message\n                )\n            ),\n            ''\n        ),\n        equals(length(variables('HrmNotebookErrorArray')), 0)\n    ),\n       'Successfully',\n        'Failed'\n    \n)\n",
-							"type": "Expression"
-						},
-						"activityDuration": {
-							"value": "@concat(\n    string(div(div(sub(\n        ticks(formatDateTime(utcNow(), 'yyyy-MM-dd HH:mm:sss')),\n        ticks(formatDateTime(if(equals(pipeline().parameters.start_time, null), utcNow(), pipeline().parameters.start_time), 'yyyy-MM-dd HH:mm:sss'))\n    ), 600000000), 60)), 'H:', \n    string(mod(div(sub(\n        ticks(formatDateTime(utcNow(), 'yyyy-MM-dd HH:mm:sss')),\n        ticks(formatDateTime(if(equals(pipeline().parameters.start_time, null), utcNow(), pipeline().parameters.start_time), 'yyyy-MM-dd HH:mm:sss'))\n    ), 600000000), 60)), 'M:00s'\n)",
-							"type": "Expression"
-						},
-						"activityStatus": {
-							"value": "@if(\n    or(\n        not(\n            equals(\n                trim(\n                    concat(\n                        activity('Record horizon to odw data loading')?.Error?.message,\n                        activity('Lookup_orchestration_file')?.Error?.message,\n                        activity('Filter_Horizon_Table')?.Error?.message,\n                        activity('Horizon Raw to Std')?.Error?.message,\n                        activity('Filter_Harmonised_NoteBook')?.Error?.message\n                    )\n                ),\n                ''\n            )\n        ),\n        greater(length(variables('HrmNotebookErrorArray')), 0)\n    ),\n    'Failed',\n    'Successfully'\n)\n",
-							"type": "Expression"
-						},
+						"activityMessage": "Starting Entra Id master pipeline run",
+						"activityDuration": "0H:00M:00s",
+						"activityStatus": "Starting",
 						"Colour": {
-							"value": "@if(\n    and(\n        equals(\n            trim(\n                concat(\n                    coalesce(activity('Record horizon to odw data loading')?.Error?.message, ''),\n                    coalesce(activity('Lookup_orchestration_file')?.Error?.message, ''),\n                    coalesce(activity('Filter_Horizon_Table')?.Error?.message, ''),\n                    coalesce(activity('Horizon Raw to Std')?.Error?.message, ''),\n                    coalesce(activity('Filter_Harmonised_NoteBook')?.Error?.message, '')\n                )\n            ),\n            ''\n        ),\n        equals(length(variables('HrmNotebookErrorArray')), 0)\n    ),\n    pipeline().parameters.completed_colour,\n    pipeline().parameters.failed_colour\n)",
+							"value": "@variables('starting_colour')",
 							"type": "Expression"
 						},
 						"Image": {
-							"value": "@if(\n    and(\n        equals(\n            trim(\n                concat(\n                    coalesce(activity('Record horizon to odw data loading')?.Error?.message, ''),\n                    coalesce(activity('Lookup_orchestration_file')?.Error?.message, ''),\n                    coalesce(activity('Filter_Horizon_Table')?.Error?.message, ''),\n                    coalesce(activity('Horizon Raw to Std')?.Error?.message, ''),\n                    coalesce(activity('Filter_Harmonised_NoteBook')?.Error?.message, '')\n                )\n            ),\n            ''\n        ),\n        equals(length(variables('HrmNotebookErrorArray')), 0)\n    ),\n    pipeline().parameters.completed_image,\n    pipeline().parameters.completed_image\n)",
+							"value": "@variables('starting_image')",
 							"type": "Expression"
 						},
-						"Message_title": {
-							"value": "@if(\n    and(\n        equals(\n            trim(\n                concat(\n                    coalesce(activity('Record horizon to odw data loading')?.Error?.message, ''),\n                    coalesce(activity('Lookup_orchestration_file')?.Error?.message, ''),\n                    coalesce(activity('Filter_Horizon_Table')?.Error?.message, ''),\n                    coalesce(activity('Horizon Raw to Std')?.Error?.message, ''),\n                    coalesce(activity('Filter_Harmonised_NoteBook')?.Error?.message, '')\n                )\n            ),\n            ''\n        ),\n        equals(length(variables('HrmNotebookErrorArray')), 0)\n    ),\n    'horizon To Odw load Successfully Completed',\n    'horizon To Odw Failed'\n    \n)\n",
-							"type": "Expression"
-						},
-						"Message_subtitle": {
-							"value": "@if(\n    and(\n        equals(\n            trim(\n                concat(\n                    coalesce(activity('Record horizon to odw data loading')?.Error?.message, ''),\n                    coalesce(activity('Lookup_orchestration_file')?.Error?.message, ''),\n                    coalesce(activity('Filter_Horizon_Table')?.Error?.message, ''),\n                    coalesce(activity('Horizon Raw to Std')?.Error?.message, ''),\n                    coalesce(activity('Filter_Harmonised_NoteBook')?.Error?.message, '')\n                )\n            ),\n            ''\n        ),\n        equals(length(variables('HrmNotebookErrorArray')), 0)\n    ),\n     'pipeline run Completed',\n     'pipeline run Failed'\n)\n",
-							"type": "Expression"
-						}
+						"Message_title": "Entra Id master pipeline run",
+						"Message_subtitle": "Entra Id master pipeline run"
 					}
 				}
 			},
 			{
-				"name": "Record completed horizon to odw data lode",
-				"type": "ExecutePipeline",
+				"name": "Set start time",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Set key vault URL",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "start_time",
+					"value": {
+						"value": "@utcnow()",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Set subscription",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Get subscription",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": true,
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "subscription_id",
+					"value": {
+						"value": "@activity('Get subscription').output.value",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Set resource group",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Get resource group",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": true,
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "resource_group",
+					"value": {
+						"value": "@activity('Get resource group').output.value",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Set webhook",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Get Webhook",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": true,
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "webhook_url",
+					"value": {
+						"value": "@activity('Get Webhook').output.value",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Get subscription",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "Set start time",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": true,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "GET",
+					"url": {
+						"value": "@concat(variables('Key_Vault_Url'), 'SubscriptionId',variables('Key_Vault_API'))",
+						"type": "Expression"
+					},
+					"connectVia": {
+						"referenceName": "AutoResolveIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"authentication": {
+						"type": "MSI",
+						"resource": "https://vault.azure.net"
+					}
+				}
+			},
+			{
+				"name": "Get Webhook",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "Set start time",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": true,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "GET",
+					"url": {
+						"value": "@concat(variables('Key_Vault_Url'), 'TeamsWebhook',variables('Key_Vault_API'))",
+						"type": "Expression"
+					},
+					"connectVia": {
+						"referenceName": "AutoResolveIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"authentication": {
+						"type": "MSI",
+						"resource": "https://vault.azure.net"
+					}
+				}
+			},
+			{
+				"name": "Get resource group",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "Set start time",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": true,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "GET",
+					"url": {
+						"value": "@concat(variables('Key_Vault_Url'), 'DBResourceGroup',variables('Key_Vault_API'))",
+						"type": "Expression"
+					},
+					"connectVia": {
+						"referenceName": "AutoResolveIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"authentication": {
+						"type": "MSI",
+						"resource": "https://vault.azure.net"
+					}
+				}
+			},
+			{
+				"name": "Set key vault URL",
+				"type": "SetVariable",
 				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "Key_Vault_Url",
+					"value": {
+						"value": "@if(\n    equals(\n        pipeline().DataFactory,\n        'pins-synw-odw-dev-uks'\n    ),\n    'https://pinskvsynwodwdevuks.vault.azure.net/secrets/',\n    if(\n        equals(\n            pipeline().DataFactory,\n            'pins-synw-odw-test-uks'\n        ),\n        'https://pinskvsynwodwtestuks.vault.azure.net/secrets/',\n        if(\n            equals(\n                pipeline().DataFactory,\n                'pins-synw-odw-build-uks'\n            ),\n            'https://pinskvsynwodwbuilduks.vault.azure.net/secrets/',\n            'https://pinskvsynwodwproduks.vault.azure.net/secrets/'\n        )\n    )\n)",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Record pipeline starting",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Set AppIns iKey",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"secureInput": false
 				},
@@ -374,10 +592,7 @@
 					},
 					"waitOnCompletion": true,
 					"parameters": {
-						"Stage": {
-							"value": "@if(\n  and(\n    equals(\n      trim(\n        concat(\n          if(equals(activity('Record horizon to odw data loading').Status,'Failed'), activity('Record horizon to odw data loading').Error.message, ''),\n          if(equals(activity('Lookup_orchestration_file').Status,'Failed'),        activity('Lookup_orchestration_file').Error.message,        ''),\n          if(equals(activity('Filter_Horizon_Table').Status,'Failed'),              activity('Filter_Horizon_Table').Error.message,              ''),\n          if(equals(activity('Horizon Raw to Std').Status,'Failed'),                activity('Horizon Raw to Std').Error.message,                ''),\n          if(equals(activity('Filter_Harmonised_NoteBook').Status,'Failed'),        activity('Filter_Harmonised_NoteBook').Error.message,        '')\n        )\n      ),\n      ''\n    ),\n    equals(length(variables('HrmNotebookErrorArray')), 0)\n  ),\n  'Successfully',\n  'Failed'\n)",
-							"type": "Expression"
-						},
+						"Stage": "Start",
 						"PipelineName": {
 							"value": "@pipeline().Pipeline",
 							"type": "Expression"
@@ -386,18 +601,11 @@
 							"value": "@pipeline().RunId",
 							"type": "Expression"
 						},
-						"EndTime": {
-							"value": "@utcnow()",
+						"StartTime": {
+							"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
 							"type": "Expression"
 						},
-						"ErrorMessage": {
-							"value": "@trim(\n  replace(\n    concat(\n      coalesce(activity('Record horizon to odw data loading')?.Error?.message, ''),\n      ' | ',\n      coalesce(activity('Lookup_orchestration_file')?.Error?.message, ''),\n      ' | ',\n      coalesce(activity('Filter_Horizon_Table')?.Error?.message, ''),\n      ' | ',\n      coalesce(activity('Horizon Raw to Std')?.Error?.message, ''),\n      ' | ',\n      coalesce(activity('Filter_Harmonised_NoteBook')?.Error?.message, ''),\n      if(\n        not(equals(length(variables('HrmNotebookErrorArray')), 0)),\n        ' | horizon Harmonised NoteBook Failed check App Insights for details',\n        ''\n      )\n    ),\n    '|',\n    ''\n  )\n)\n",
-							"type": "Expression"
-						},
-						"StatusMessage": {
-							"value": "@if(\n    and(\n        equals(\n            trim(\n                concat(\n                    coalesce(activity('Record horizon to odw data loading')?.Error?.message, ''),\n                    coalesce(activity('Lookup_orchestration_file')?.Error?.message, ''),\n                    coalesce(activity('Filter_Horizon_Table')?.Error?.message, ''),\n                    coalesce(activity('Horizon Raw to Std')?.Error?.message, ''),\n                    coalesce(activity('Filter_Harmonised_NoteBook')?.Error?.message, '')\n                )\n            ),\n            ''\n        ),\n        equals(length(variables('HrmNotebookErrorArray')), 0)\n    ),\n    'horizon To Odw load Successfully Completed',\n    'horizon To Odw Failed')\n",
-							"type": "Expression"
-						},
+						"StatusMessage": "Overall Status",
 						"PipelineTriggerID": {
 							"value": "@pipeline().TriggerId",
 							"type": "Expression"
@@ -419,10 +627,71 @@
 							"type": "Expression"
 						},
 						"ActivityType": "Pipeline",
+						"AppInsCustomEventName": "ODW_ENTRA_ID_Pipeline_Logs",
 						"AppInsIKey": {
-							"value": "@pipeline().parameters.apps_insights_ikey",
+							"value": "@variables('apps_insights_ikey')",
 							"type": "Expression"
 						}
+					}
+				}
+			},
+			{
+				"name": "Get AppIns iKey",
+				"description": "Get the application insights ikey for logging",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "Set start time",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": true,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "GET",
+					"url": {
+						"value": "@concat(variables('Key_Vault_Url'), 'application-insights-connection-string',variables('Key_Vault_API'))",
+						"type": "Expression"
+					},
+					"connectVia": {
+						"referenceName": "AutoResolveIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"authentication": {
+						"type": "MSI",
+						"resource": "https://vault.azure.net"
+					}
+				}
+			},
+			{
+				"name": "Set AppIns iKey",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Get AppIns iKey",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": true,
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "apps_insights_ikey",
+					"value": {
+						"value": "@split(split(activity('Get AppIns iKey').output.value, ';')[0], '=')[1]",
+						"type": "Expression"
 					}
 				}
 			}
@@ -516,6 +785,44 @@
 			},
 			"error_message": {
 				"type": "String"
+			},
+			"start_time": {
+				"type": "String"
+			},
+			"subscription_id": {
+				"type": "String"
+			},
+			"webhook_url": {
+				"type": "String"
+			},
+			"resource_group": {
+				"type": "String"
+			},
+			"apps_insights_ikey": {
+				"type": "String"
+			},
+			"Key_Vault_Url": {
+				"type": "String"
+			},
+			"Key_Vault_API": {
+				"type": "String",
+				"defaultValue": "?api-version=7.0"
+			},
+			"starting_image": {
+				"type": "String",
+				"defaultValue": "https://tse1.mm.bing.net/th?q=Go+Green+Light+PNG&w=120&h=120&c=1&rs=1&qlt=90&cb=1&dpr=1.5&pid=InlineBlock&mkt=en-GB&cc=GB&setlang=en&adlt=strict&t=1&mw=247"
+			},
+			"progress_image": {
+				"type": "String",
+				"defaultValue": "https://tse2.mm.bing.net/th/id/OIP.1-FXYnONJTX2Hxzqf3wERAAAAA?w=192&h=190&c=7&r=0&o=5&dpr=1.5&pid=1.7"
+			},
+			"starting_colour": {
+				"type": "String",
+				"defaultValue": "accent"
+			},
+			"warning_image": {
+				"type": "String",
+				"defaultValue": "warning"
 			}
 		},
 		"folder": {
