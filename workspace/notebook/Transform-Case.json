@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "74044c8a-3796-4e53-8a2b-3626d4d8b1ef"
+				"spark.autotune.trackingId": "aea736c9-8a38-4072-95f8-9094bb00e1a9"
 			}
 		},
 		"metadata": {
@@ -384,6 +384,67 @@
 					""
 				],
 				"execution_count": 66
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"df.select(\"caseTypeId\").distinct().show(truncate=False)\n",
+					""
+				],
+				"execution_count": 67
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"case_type_map = {\n",
+					"    \"2\":  \"call-ins\",\n",
+					"    \"17\": \"coastal-access\",\n",
+					"    \"18\": \"common-land\",\n",
+					"    \"19\": \"environment\",\n",
+					"    \"20\": \"high-hedges\",\n",
+					"    \"21\": \"other-sos-casework\",\n",
+					"    \"22\": \"purchase-notices\",\n",
+					"    \"23\": \"rights-of-way\"\n",
+					"}\n",
+					""
+				],
+				"execution_count": 71
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"keys_list = list(case_type_map.keys())\n",
+					"map_expr = F.create_map([F.lit(x) for kv in case_type_map.items() for x in kv])\n",
+					"\n",
+					"df_mapped = df.withColumn(\n",
+					"    \"caseTypeName\",\n",
+					"    F.when(\n",
+					"        F.col(\"caseTypeId\").cast(\"string\").isin(keys_list),\n",
+					"        map_expr.getItem(F.col(\"caseTypeId\").cast(\"string\"))\n",
+					"    ).otherwise(F.lit(None))\n",
+					")\n",
+					""
+				],
+				"execution_count": 72
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"df_mapped.select(\"caseTypeId\", \"caseTypeName\") \\\n",
+					"    .distinct() \\\n",
+					"    .orderBy(F.col(\"caseTypeId\").cast(\"int\")) \\\n",
+					"    .show(truncate=False)"
+				],
+				"execution_count": 73
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					""
+				],
+				"execution_count": null
 			}
 		]
 	}
