@@ -17,10 +17,10 @@ def test__synapse_notebook_util__replace_env_strings():
         "properties": {
             "metadata": {
                 "a365ComputeOptions": {
-                    "id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodwpr",
-                    "name": "pinssynspodwpr",
+                    "id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+                    "name": "pinssynspodw34",
                     "type": "Spark",
-                    "endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodwpr",
+                    "endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
                     "auth": {
                         "type": "AAD",
                         "authResource": "https://dev.azuresynapse.net"
@@ -41,10 +41,10 @@ def test__synapse_notebook_util__replace_env_strings():
         "properties": {
             "metadata": {
                 "a365ComputeOptions": {
-                    "id": f"/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-{target_env}-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-{target_env}-uks/bigDataPools/pinssynspodwpr",
-                    "name": "pinssynspodwpr",
+                    "id": f"/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-{target_env}-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-{target_env}-uks/bigDataPools/pinssynspodw34",
+                    "name": "pinssynspodw34",
                     "type": "Spark",
-                    "endpoint": f"https://pins-synw-odw-{target_env}-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodwpr",
+                    "endpoint": f"https://pins-synw-odw-{target_env}-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
                     "auth": {
                         "type": "AAD",
                         "authResource": "https://dev.azuresynapse.net"
@@ -71,7 +71,7 @@ def test__synapse_notebook_util__compare__match():
             "nbformat": 4,
             "nbformat_minor": 2,
             "bigDataPool": {
-                "referenceName": "pinssynspodwpr",
+                "referenceName": "pinssynspodw34",
                 "type": "BigDataPoolReference"
             },
             "sessionProperties": {
@@ -99,10 +99,10 @@ def test__synapse_notebook_util__compare__match():
                     "name": "python"
                 },
                 "a365ComputeOptions": {
-                    "id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodwpr",
-                    "name": "pinssynspodwpr",
+                    "id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+                    "name": "pinssynspodw34",
                     "type": "Spark",
-                    "endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodwpr",
+                    "endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
                     "auth": {
                         "type": "AAD",
                         "authResource": "https://dev.azuresynapse.net"
@@ -142,7 +142,7 @@ def test__synapse_notebook_util__compare__mismatch():
             "nbformat": 4,
             "nbformat_minor": 2,
             "bigDataPool": {
-                "referenceName": "pinssynspodwpr",
+                "referenceName": "pinssynspodw34",
                 "type": "BigDataPoolReference"
             },
             "sessionProperties": {
@@ -170,10 +170,10 @@ def test__synapse_notebook_util__compare__mismatch():
                     "name": "python"
                 },
                 "a365ComputeOptions": {
-                    "id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodwpr",
-                    "name": "pinssynspodwpr",
+                    "id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+                    "name": "pinssynspodw34",
                     "type": "Spark",
-                    "endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodwpr",
+                    "endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
                     "auth": {
                         "type": "AAD",
                         "authResource": "https://dev.azuresynapse.net"

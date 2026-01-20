@@ -9,7 +9,7 @@ SYNAPSE_ENDPOINT_DEFAULT: str = "https://pins-synw-odw-dev-uks.dev.azuresynapse.
 CREDENTIAL_ENVIRONMENT_NAME: str = "CREDENTIAL_NAME"
 CREDENTIAL_ENVIRONMENT_DEFAULT: str = "https://dev.azuresynapse.net/.default"
 SPARK_POOL_CONFIG: Dict[str, Union[str, Dict[str, str]]] = {
-    "sparkPool": "pinssynspodwpr",
+    "sparkPool": "pinssynspodw34",
     "sessionOptions": {
         "driverMemory": "28g",
         "driverCores": 4,
