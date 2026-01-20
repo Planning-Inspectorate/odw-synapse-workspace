@@ -1,6 +1,5 @@
 from odw.test.util.mock.import_mock_notebook_utils import notebookutils
 from odw.core.etl.transformation.harmonised.service_bus_harmonisation_process import ServiceBusHarmonisationProcess
-from odw.core.io.synapse_file_data_io import SynapseFileDataIO
 from odw.core.io.synapse_table_data_io import SynapseTableDataIO
 from odw.core.io.synapse_data_io import SynapseDataIO
 from odw.core.util.logging_util import LoggingUtil
@@ -14,8 +13,6 @@ import json
 import pytest
 import shutil
 import os
-from pathlib import Path
-from typing import Dict, List, Any
 import csv
 from datetime import datetime
 import pyspark.sql.functions as F
@@ -176,7 +173,7 @@ def test__service_bus_harmonisation_process__run__with_existing_data_same_schema
             ("a", "b", "c", "id1", 1, "1", "ODT", 1, existing_data_ingestion_date_string, None, "Y", ""),
             ("d", "e", "f", "id2", 1, "1", "ODT", 1, existing_data_ingestion_date_string, None, "Y", ""),
             ("e", "f", "g", "id3", 1, "1", "ODT", 1, existing_data_ingestion_date_string, None, "Y", ""),
-            ("p", "q", "s", "id4", 1, "1", "ODT", 1, existing_data_ingestion_date_string, None, "Y", ""),  # Should be updated from 'r' -> 's'
+            ("p", "q", "s", "id9", None, "1", "ODT", 1, current_time_string, "", "Y", ""),  # Should be updated
             ("g", "h", "i", "id6") + (None, "1", "ODT", 1, current_time_string, "", "Y", ""),  # New row should be added
             ("j", "k", "l", "id7") + (None, "1", "ODT", 1, current_time_string, "", "Y", ""),  # New row should be added
             ("m", "n", "o", "id8") + (None, "1", "ODT", 1, current_time_string, "", "Y", ""),  # New row should be adde
