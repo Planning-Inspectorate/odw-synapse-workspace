@@ -16,7 +16,7 @@ class ODWPackageDeployer():
         Class for managing the deployment of the ODW Python Package
     """
     TARGET_SPARK_POOLS = [
-        "pinssynspodw34",
+        "pinssynspodwpr",
         "pinssynspodw34"
     ]
 
