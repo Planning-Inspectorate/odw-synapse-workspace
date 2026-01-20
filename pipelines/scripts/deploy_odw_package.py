@@ -16,8 +16,8 @@ class ODWPackageDeployer():
         Class for managing the deployment of the ODW Python Package
     """
     TARGET_SPARK_POOLS = [
-        "pinssynspodwpr",
-        "pinssynspodw34"
+        "pinssynspodw34",
+        "pinssynspodwpr"
     ]
 
     def get_existing_odw_wheels(self, workspace_manager: SynapseWorkspaceManager) -> List[Dict[str, Any]]:
