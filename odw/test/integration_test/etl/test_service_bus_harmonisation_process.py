@@ -2,6 +2,7 @@ from odw.test.util.mock.import_mock_notebook_utils import notebookutils
 from odw.core.etl.transformation.harmonised.service_bus_harmonisation_process import ServiceBusHarmonisationProcess
 from odw.core.io.synapse_file_data_io import SynapseFileDataIO
 from odw.core.io.synapse_table_data_io import SynapseTableDataIO
+from odw.core.io.synapse_data_io import SynapseDataIO
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
 from odw.test.util.util import generate_local_path
@@ -35,7 +36,7 @@ def add_orchestration_entries():
             "Expected_Within_Weekdays": 1,
             "Harmonised_Table_Name": "test_sb_hrm_pc_exst_data",
             "Harmonised_Incremental_Key": "incremental_key",
-            "Entity_Primary_Key": ""
+            "Entity_Primary_Key": "col_a"
         },
     ]
     with open(orchestration_path, "r") as f:
@@ -185,23 +186,22 @@ def test__service_bus_harmonisation_process__run__with_existing_data_same_schema
     print("expected data")
     expected_harmonised_data_after_writing.show()
     # Run the full etl process
-    with mock.patch.object(SynapseFileDataIO, "_format_to_adls_path", format_adls_path_to_local_path):
-        with mock.patch.object(SynapseTableDataIO, "_format_to_adls_path", format_adls_path_to_local_path):
-            mock_mssparkutils_context = {"pipelinejobid": "some_guid", "isForPipeline": True}
-            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
-                with mock.patch("notebookutils.mssparkutils.runtime.context", mock_mssparkutils_context):
-                    with mock.patch.object(Util, "get_path_to_file", generate_local_path):
-                        with mock.patch.object(F, "input_file_name", return_value=F.lit("some_input_file")):
-                            with mock.patch.object(LoggingUtil, "__new__"):
-                                with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-                                    with mock.patch.object(LoggingUtil, "log_error", return_value=None):
-                                        inst = ServiceBusHarmonisationProcess(spark)
-                                        result = inst.run(entity_name="test_sb_hrm_pc_exst_data")
-                                        assert_etl_result_successful(result)
-                                        actual_table_data = spark.table("odw_harmonised_db.test_sb_hrm_pc_exst_data")
-                                        print("actual data after writing")
-                                        actual_table_data.show()
-                                        compare_harmonised_data(expected_harmonised_data_after_writing, actual_table_data)
+    with mock.patch.object(SynapseDataIO, "_format_to_adls_path", format_adls_path_to_local_path):
+        mock_mssparkutils_context = {"pipelinejobid": "some_guid", "isForPipeline": True}
+        with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+            with mock.patch("notebookutils.mssparkutils.runtime.context", mock_mssparkutils_context):
+                with mock.patch.object(Util, "get_path_to_file", generate_local_path):
+                    with mock.patch.object(F, "input_file_name", return_value=F.lit("some_input_file")):
+                        with mock.patch.object(LoggingUtil, "__new__"):
+                            with mock.patch.object(LoggingUtil, "log_info", return_value=None):
+                                with mock.patch.object(LoggingUtil, "log_error", return_value=None):
+                                    inst = ServiceBusHarmonisationProcess(spark)
+                                    result = inst.run(entity_name="test_sb_hrm_pc_exst_data")
+                                    assert_etl_result_successful(result)
+                                    actual_table_data = spark.table("odw_harmonised_db.test_sb_hrm_pc_exst_data")
+                                    print("actual data after writing")
+                                    actual_table_data.show()
+                                    compare_harmonised_data(expected_harmonised_data_after_writing, actual_table_data)
 
 
 
