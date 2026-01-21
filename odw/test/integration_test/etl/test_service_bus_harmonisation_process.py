@@ -40,7 +40,8 @@ def teardown(request: pytest.FixtureRequest):
 def generate_standardised_table_schema(base_schema: T.StructType):
     # Note: delta tables do not support non-nullable columns
     return T.StructType(
-        base_schema.fields + [
+        base_schema.fields
+        + [
             T.StructField("message_id", T.StringType()),
             T.StructField("ingested_datetime", T.TimestampType()),
             T.StructField("expected_from", T.TimestampType()),
@@ -55,7 +56,8 @@ def generate_standardised_table_schema(base_schema: T.StructType):
 def generate_harmonised_table_schema(base_schema: T.StructType, incremental_key_col: str):
     # Note: delta tables do not support non-nullable columns
     return T.StructType(
-        base_schema.fields + [
+        base_schema.fields
+        + [
             T.StructField("message_id", T.StringType()),
             T.StructField(incremental_key_col, T.LongType()),
             T.StructField("migrated", T.StringType()),
@@ -112,13 +114,13 @@ def test__service_bus_harmonisation_process__run__with_existing_data_same_schema
         {
             "Source_Filename_Start": "test_sb_hrm_pc_exst_data",
             "Load_Enable_status": "True",
-            "Standardised_Table_Definition": f"standardised_table_definitions/test_sb_hrm_pc_exst_data/test_sb_hrm_pc_exst_data.json",
+            "Standardised_Table_Definition": "standardised_table_definitions/test_sb_hrm_pc_exst_data/test_sb_hrm_pc_exst_data.json",
             "Source_Frequency_Folder": "",
             "Standardised_Table_Name": "test_sb_hrm_pc_exst_data",
             "Expected_Within_Weekdays": 1,
             "Harmonised_Table_Name": "test_sb_hrm_pc_exst_data",
             "Harmonised_Incremental_Key": "incremental_key",
-            "Entity_Primary_Key": "col_a"
+            "Entity_Primary_Key": "col_a",
         }
     )
     spark = SparkSession.builder.getOrCreate()
@@ -126,11 +128,7 @@ def test__service_bus_harmonisation_process__run__with_existing_data_same_schema
     datetime_format = "%Y-%m-%dT%H:%M:%S.%f%z"
     incremental_key = "incremental_key"
     base_schema = T.StructType(
-        [
-            T.StructField("col_a", T.StringType()),
-            T.StructField("col_b", T.StringType()),
-            T.StructField("col_c", T.StringType())
-        ]
+        [T.StructField("col_a", T.StringType()), T.StructField("col_b", T.StringType()), T.StructField("col_c", T.StringType())]
     )
     existing_data_ingestion_date_string = "2025-09-12T10:30:59.405000+0000"
     # Create existing harmonised table
@@ -142,14 +140,21 @@ def test__service_bus_harmonisation_process__run__with_existing_data_same_schema
             ("p", "q", "r", "id4", 1, "1", "ODT", 1, existing_data_ingestion_date_string, None, "Y", ""),  # Will be updated
             ("x", "y", "z", "id5", 1, "1", "ODT", 1, existing_data_ingestion_date_string, None, "Y", ""),  # Will be deleted
         ),
-        generate_harmonised_table_schema(base_schema, incremental_key)
+        generate_harmonised_table_schema(base_schema, incremental_key),
     )
     write_existing_table(existing_harmonised_data, table_name, "odw_harmonised_db", "odw-harmonised", table_name)
 
     # Create standardised table
     existing_data_ingestion_date = datetime.strptime(existing_data_ingestion_date_string, datetime_format)
     input_file = "some_file"
-    already_existing_standardised_col_data = (existing_data_ingestion_date, existing_data_ingestion_date, existing_data_ingestion_date, "Create", existing_data_ingestion_date_string, input_file)
+    already_existing_standardised_col_data = (
+        existing_data_ingestion_date,
+        existing_data_ingestion_date,
+        existing_data_ingestion_date,
+        "Create",
+        existing_data_ingestion_date_string,
+        input_file,
+    )
     current_time = datetime.now()
     current_time_string = current_time.strftime(datetime_format)
     created_standardised_col_data = (current_time, current_time, current_time, "Create", current_time_string, input_file)
@@ -168,7 +173,7 @@ def test__service_bus_harmonisation_process__run__with_existing_data_same_schema
             ("p", "q", "s", "id9") + updated_standardised_col_data,  # A column to be updated, "col_c" updated from 'r' -> 's'
             ("x", "y", "z", "id10") + deleted_standardised_col_data,  # A column to be deleted
         ),
-        generate_standardised_table_schema(base_schema)
+        generate_standardised_table_schema(base_schema),
     )
     write_existing_table(standardised_data, table_name, "odw_standardised_db", "odw-standardised", table_name)
 
@@ -182,7 +187,7 @@ def test__service_bus_harmonisation_process__run__with_existing_data_same_schema
             ("j", "k", "l", "id7") + (None, "1", "ODT", 1, current_time_string, "", "Y", ""),  # New row should be added
             ("m", "n", "o", "id8") + (None, "1", "ODT", 1, current_time_string, "", "Y", ""),  # New row should be adde
         ),
-        generate_harmonised_table_schema(base_schema, incremental_key)
+        generate_harmonised_table_schema(base_schema, incremental_key),
     )
     # Run the full etl process
     with mock.patch.object(F, "input_file_name", return_value=F.lit("some_input_file")):
@@ -208,13 +213,13 @@ def test__service_bus_harmonisation_process__run__with_existing_data_different_s
         {
             "Source_Filename_Start": "test_sb_hrm_pc_chg_schema",
             "Load_Enable_status": "True",
-            "Standardised_Table_Definition": f"standardised_table_definitions/test_sb_hrm_pc_chg_schema/test_sb_hrm_pc_chg_schema.json",
+            "Standardised_Table_Definition": "standardised_table_definitions/test_sb_hrm_pc_chg_schema/test_sb_hrm_pc_chg_schema.json",
             "Source_Frequency_Folder": "",
             "Standardised_Table_Name": "test_sb_hrm_pc_chg_schema",
             "Expected_Within_Weekdays": 1,
             "Harmonised_Table_Name": "test_sb_hrm_pc_chg_schema",
             "Harmonised_Incremental_Key": "incremental_key",
-            "Entity_Primary_Key": "col_a"
+            "Entity_Primary_Key": "col_a",
         }
     )
     spark = SparkSession.builder.getOrCreate()
@@ -222,18 +227,14 @@ def test__service_bus_harmonisation_process__run__with_existing_data_different_s
     datetime_format = "%Y-%m-%dT%H:%M:%S.%f%z"
     incremental_key = "incremental_key"
     base_schema = T.StructType(
-        [
-            T.StructField("col_a", T.StringType()),
-            T.StructField("col_b", T.StringType()),
-            T.StructField("col_c", T.StringType())
-        ]
+        [T.StructField("col_a", T.StringType()), T.StructField("col_b", T.StringType()), T.StructField("col_c", T.StringType())]
     )
     altered_schema = T.StructType(
         [
             T.StructField("col_a", T.StringType()),
             T.StructField("col_b", T.StringType()),
             T.StructField("col_c", T.StringType()),
-            T.StructField("col_d", T.StringType())
+            T.StructField("col_d", T.StringType()),
         ]
     )
     existing_data_ingestion_date_string = "2025-09-12T10:30:59.405000+0000"
@@ -245,14 +246,21 @@ def test__service_bus_harmonisation_process__run__with_existing_data_different_s
             ("e", "f", "g", "id3", 1, "1", "ODT", 1, existing_data_ingestion_date_string, None, "Y", ""),
             ("p", "q", "r", "id4", 1, "1", "ODT", 1, existing_data_ingestion_date_string, None, "Y", ""),
         ),
-        generate_harmonised_table_schema(base_schema, incremental_key)
+        generate_harmonised_table_schema(base_schema, incremental_key),
     )
     write_existing_table(existing_harmonised_data, table_name, "odw_harmonised_db", "odw-harmonised", table_name)
 
     # Create standardised table
     existing_data_ingestion_date = datetime.strptime(existing_data_ingestion_date_string, datetime_format)
     input_file = "some_file"
-    already_existing_standardised_col_data = (existing_data_ingestion_date, existing_data_ingestion_date, existing_data_ingestion_date, "Update", existing_data_ingestion_date_string, input_file)
+    already_existing_standardised_col_data = (
+        existing_data_ingestion_date,
+        existing_data_ingestion_date,
+        existing_data_ingestion_date,
+        "Update",
+        existing_data_ingestion_date_string,
+        input_file,
+    )
     standardised_data = spark.createDataFrame(
         (
             ("a", "b", "c", "sisko", "id5") + already_existing_standardised_col_data,  # Already in the harmonised table
@@ -260,7 +268,7 @@ def test__service_bus_harmonisation_process__run__with_existing_data_different_s
             ("e", "f", "g", "kira", "id7") + already_existing_standardised_col_data,  # Already in the harmonised table
             ("p", "q", "r", "odo", "id8") + already_existing_standardised_col_data,  # Already in the harmonised table
         ),
-        generate_standardised_table_schema(altered_schema)
+        generate_standardised_table_schema(altered_schema),
     )
     write_existing_table(standardised_data, table_name, "odw_standardised_db", "odw-standardised", table_name)
 
@@ -271,7 +279,7 @@ def test__service_bus_harmonisation_process__run__with_existing_data_different_s
             ("e", "f", "g", "kira", "id7", None, "1", "ODT", 1, existing_data_ingestion_date_string, "", "Y", ""),
             ("p", "q", "r", "odo", "id8", None, "1", "ODT", 1, existing_data_ingestion_date_string, "", "Y", ""),
         ),
-        generate_harmonised_table_schema(altered_schema, incremental_key)
+        generate_harmonised_table_schema(altered_schema, incremental_key),
     )
     # Run the full etl process
     with mock.patch.object(F, "input_file_name", return_value=F.lit("some_input_file")):
@@ -288,17 +296,22 @@ def test__service_bus_harmonisation_process__run__with_existing_data_different_s
     indirect=["teardown"],
 )
 def test__service_bus_harmonisation_process__run__with_no_existing_data(teardown):
+    """
+    - Given I the harmonnised table does not exist, and I have some new standardised data to add
+    - When I call ServiceBusHarmonisationProcess.run
+    - Then the harmonised data should be created
+    """
     add_orchestration_entries(
         {
             "Source_Filename_Start": "test_sb_hrm_pc_no_data",
             "Load_Enable_status": "True",
-            "Standardised_Table_Definition": f"standardised_table_definitions/test_sb_hrm_pc_no_data/test_sb_hrm_pc_no_data.json",
+            "Standardised_Table_Definition": "standardised_table_definitions/test_sb_hrm_pc_no_data/test_sb_hrm_pc_no_data.json",
             "Source_Frequency_Folder": "",
             "Standardised_Table_Name": "test_sb_hrm_pc_no_data",
             "Expected_Within_Weekdays": 1,
             "Harmonised_Table_Name": "test_sb_hrm_pc_no_data",
             "Harmonised_Incremental_Key": "incremental_key",
-            "Entity_Primary_Key": "col_a"
+            "Entity_Primary_Key": "col_a",
         },
     )
     spark = SparkSession.builder.getOrCreate()
@@ -306,31 +319,31 @@ def test__service_bus_harmonisation_process__run__with_no_existing_data(teardown
     datetime_format = "%Y-%m-%dT%H:%M:%S.%f%z"
     incremental_key = "incremental_key"
     base_schema = T.StructType(
-        [
-            T.StructField("col_a", T.StringType()),
-            T.StructField("col_b", T.StringType()),
-            T.StructField("col_c", T.StringType())
-        ]
+        [T.StructField("col_a", T.StringType()), T.StructField("col_b", T.StringType()), T.StructField("col_c", T.StringType())]
     )
     existing_data_ingestion_date_string = "2025-09-12T10:30:59.405000+0000"
     # Create existing harmonised table
-    existing_harmonised_data = spark.createDataFrame(
-        (),
-        generate_harmonised_table_schema(base_schema, incremental_key)
-    )
+    existing_harmonised_data = spark.createDataFrame((), generate_harmonised_table_schema(base_schema, incremental_key))
     write_existing_table(existing_harmonised_data, table_name, "odw_harmonised_db", "odw-harmonised", table_name)
 
     # Create standardised table
     existing_data_ingestion_date = datetime.strptime(existing_data_ingestion_date_string, datetime_format)
     input_file = "some_file"
-    already_existing_standardised_col_data = (existing_data_ingestion_date, existing_data_ingestion_date, existing_data_ingestion_date, "Create", existing_data_ingestion_date_string, input_file)
+    already_existing_standardised_col_data = (
+        existing_data_ingestion_date,
+        existing_data_ingestion_date,
+        existing_data_ingestion_date,
+        "Create",
+        existing_data_ingestion_date_string,
+        input_file,
+    )
     standardised_data = spark.createDataFrame(
         (
             ("a", "b", "c", "id1") + already_existing_standardised_col_data,
             ("d", "e", "f", "id2") + already_existing_standardised_col_data,
             ("e", "f", "g", "id3") + already_existing_standardised_col_data,
         ),
-        generate_standardised_table_schema(base_schema)
+        generate_standardised_table_schema(base_schema),
     )
     write_existing_table(standardised_data, table_name, "odw_standardised_db", "odw-standardised", table_name)
 
@@ -340,7 +353,7 @@ def test__service_bus_harmonisation_process__run__with_no_existing_data(teardown
             ("d", "e", "f", "id2", None, "1", "ODT", 1, existing_data_ingestion_date_string, "", "Y", ""),
             ("e", "f", "g", "id3", None, "1", "ODT", 1, existing_data_ingestion_date_string, "", "Y", ""),
         ),
-        generate_harmonised_table_schema(base_schema, incremental_key)
+        generate_harmonised_table_schema(base_schema, incremental_key),
     )
     # Run the full etl process
     with mock.patch.object(F, "input_file_name", return_value=F.lit("some_input_file")):
