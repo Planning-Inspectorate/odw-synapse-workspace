@@ -17,7 +17,7 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
         super().__init__(spark)
         self.std_db: str = "odw_standardised_db"
         self.hrm_db: str = "odw_harmonised_db"
-    
+
     @classmethod
     def get_name(cls):
         return "Service Bus Harmonisation"
@@ -36,7 +36,9 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
 
         # Load new records from the standardised layer
         # Note this does not work if the harmonised table does not exist at the start - fix after first int test is working
-        new_records = self.spark.sql(f"SELECT * FROM {standardised_table_path} WHERE message_id not in (SELECT DISTINCT message_id FROM {harmonised_table_path} where message_id IS NOT NULL) ORDER BY message_enqueued_time_utc")
+        new_records = self.spark.sql(
+            f"SELECT * FROM {standardised_table_path} WHERE message_id not in (SELECT DISTINCT message_id FROM {harmonised_table_path} where message_id IS NOT NULL) ORDER BY message_enqueued_time_utc"
+        )
         # Load the harmonised layer
         try:
             existing_harmonised_data = SynapseTableDataIO().read(
@@ -44,17 +46,19 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
             )
         except AnalysisException:
             existing_harmonised_data = None
-        
+
         # Extract source system data
         LoggingUtil().log_info(f"Attempting to load '{self.hrm_db}.main_sourcesystem_fact'")
-        source_system_data: DataFrame = self.spark.sql(f"SELECT * FROM {self.hrm_db}.main_sourcesystem_fact WHERE Description = 'Casework' AND IsActive = 'Y'")
+        source_system_data: DataFrame = self.spark.sql(
+            f"SELECT * FROM {self.hrm_db}.main_sourcesystem_fact WHERE Description = 'Casework' AND IsActive = 'Y'"
+        )
         return {
             "orchestration_data": orchestration_data,
             "new_data": new_records,
             "existing_data": existing_harmonised_data,
-            "source_system_data": source_system_data
+            "source_system_data": source_system_data,
         }
-    
+
     def harmonise(self, data: DataFrame, source_system_data: DataFrame, incremental_key: str):
         """
         Add harmonised columns to the dataframe, and drop unnecessary columns
@@ -69,17 +73,11 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
             "ValidTo": F.lit("").cast("string"),
             "IsActive": F.lit("Y").cast("string"),
             incremental_key: F.lit(None).cast(T.LongType()),
-            "IngestionDate": F.col("message_enqueued_time_utc").cast("string")
+            "IngestionDate": F.col("message_enqueued_time_utc").cast("string"),
         }
         for col_name, col_value in cols_to_add.items():
             data = data.withColumn(col_name, col_value)
-        cols_to_drop = (
-            "ingested_datetime",
-            "message_enqueued_time_utc",
-            "expected_from",
-            "expected_to",
-            "input_file"
-        )
+        cols_to_drop = ("ingested_datetime", "message_enqueued_time_utc", "expected_from", "expected_to", "input_file")
         for col_to_drop in cols_to_drop:
             data = data.drop(col_to_drop)
         data = data.dropDuplicates()
@@ -95,7 +93,6 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
         existing_data: DataFrame = self.load_parameter("existing_data", source_data)
         source_system_data: DataFrame = self.load_parameter("source_system_data", source_data)
 
-
         definitions: list = json.loads(orchestration_data.toJSON().first())["definitions"]
         definition: dict = next((d for d in definitions if entity_name == d["Source_Filename_Start"]), None)
         std_table: str = definition["Standardised_Table_Name"]
@@ -107,19 +104,13 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
 
         new_data = self.harmonise(new_data, source_system_data, hrm_incremental_key)
         # Note this does not work if the harmonised table does not exist at the start - fix after first int test is working
-        #new_data = new_data.select(existing_data.columns)
+        # new_data = new_data.select(existing_data.columns)
 
         new_data = new_data.withColumn(
             "row_state_metadata",
-            F.when(
-                F.col("message_type") == "Create",
-                F.lit("create")
-            ).when(
-                F.col("message_type").isin(["update", "Update", "Publish", "Unpublish"]),
-                F.lit("update")
-            ).otherwise(
-                F.lit("delete")
-            )
+            F.when(F.col("message_type") == "Create", F.lit("create"))
+            .when(F.col("message_type").isin(["update", "Update", "Publish", "Unpublish"]), F.lit("update"))
+            .otherwise(F.lit("delete")),
         ).drop("message_type")
 
         entity_name_snake_case = entity_name.replace("-", "_")
@@ -134,11 +125,11 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
                 "container_name": "odw-harmonised",
                 "blob_path": f"{entity_name_snake_case}",
                 "primary_keys": [entity_primary_key],
-                "update_key_col": "row_state_metadata"
+                "update_key_col": "row_state_metadata",
             }
         }
 
-        #IngestionFunctions(self.spark).compare_and_merge_schema(new_data, harmonised_table_path)
+        # IngestionFunctions(self.spark).compare_and_merge_schema(new_data, harmonised_table_path)
         end_exec_time = datetime.now()
         return data_to_write, ETLSuccessResult(
             metadata=ETLResult.ETLResultMetadata(
