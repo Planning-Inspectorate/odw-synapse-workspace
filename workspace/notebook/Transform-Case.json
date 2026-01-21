@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "b695c4ec-7439-419f-b7f3-e80fb96fa9e6"
+				"spark.autotune.trackingId": "b110da9d-4432-46cf-ad01-fca1f2e27753"
 			}
 		},
 		"metadata": {
@@ -513,13 +513,22 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"df_with_mapped.coalesce(1).write \\\n",
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"row_sample = (\n",
+					"    df_with_mapped\n",
+					"    .filter(F.col(\"hznReference\").startswith(\"ROW/\"))\n",
+					"    .orderBy(\"hznReference\")        # makes it deterministic\n",
+					"    .limit(5)\n",
+					")\n",
+					"\n",
+					"row_sample.write \\\n",
 					"    .mode(\"overwrite\") \\\n",
 					"    .option(\"header\", True) \\\n",
-					"    .csv(\"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-TRANSFORM/case-merged\")\n",
+					"    .csv(\"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-TRANSFORM/case-merged-sample-row\")\n",
 					""
 				],
-				"execution_count": 90
+				"execution_count": 93
 			},
 			{
 				"cell_type": "code",
