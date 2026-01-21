@@ -1423,73 +1423,134 @@
 					},
 					"ifTrueActivities": [
 						{
-							"name": "Read Delta Changes JSON",
-							"type": "Lookup",
+							"name": "Get Batch Files",
+							"description": "Get list of batch files created by the notebook",
+							"type": "GetMetadata",
 							"dependsOn": [],
 							"policy": {
-								"timeout": "0.1:00:00",
-								"retry": 3,
+								"timeout": "0.12:00:00",
+								"retry": 0,
 								"retryIntervalInSeconds": 30,
 								"secureOutput": false,
 								"secureInput": false
 							},
 							"userProperties": [],
 							"typeProperties": {
-								"source": {
-									"type": "JsonSource",
-									"storeSettings": {
-										"type": "AzureBlobFSReadSettings",
-										"recursive": true,
-										"enablePartitionDiscovery": false
-									},
-									"formatSettings": {
-										"type": "JsonReadSettings"
-									}
-								},
 								"dataset": {
-									"referenceName": "ds_delta_changes_json",
+									"referenceName": "ds_delta_changes_folder",
 									"type": "DatasetReference",
 									"parameters": {
 										"fileSystem": "odw-curated",
-										"folderPath": "listed_building/curated_to_sb",
-										"fileName": "sb_message.json"
+										"folderPath": "listed_building/curated_to_sb"
 									}
 								},
-								"firstRowOnly": false
+								"fieldList": [
+									"childItems"
+								],
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"recursive": false,
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "JsonReadSettings"
+								}
 							}
 						},
 						{
-							"name": "Publish to Appeal Service Bus",
-							"type": "ExecutePipeline",
+							"name": "Process Each Batch",
+							"description": "Iterate over each batch file and publish to Service Bus",
+							"type": "ForEach",
 							"dependsOn": [
 								{
-									"activity": "Read Delta Changes JSON",
+									"activity": "Get Batch Files",
 									"dependencyConditions": [
 										"Succeeded"
 									]
 								}
 							],
-							"policy": {
-								"secureInput": false
-							},
 							"userProperties": [],
 							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_publish_to_sb",
-									"type": "PipelineReference"
+								"items": {
+									"value": "@activity('Get Batch Files').output.childItems",
+									"type": "Expression"
 								},
-								"waitOnCompletion": true,
-								"parameters": {
-									"service_bus_name": {
-										"value": "@if(equals(pipeline().DataFactory, 'pins-synw-odw-prod-uks'), 'pins-sb-appeals-bo-prod', if(equals(pipeline().DataFactory, 'pins-synw-odw-test-uks'), 'pins-sb-appeals-bo-test', 'pins-sb-appeals-bo-dev'))",
-										"type": "Expression"
+								"isSequential": false,
+								"activities": [
+									{
+										"name": "Read Batch File",
+										"type": "Lookup",
+										"dependsOn": [],
+										"policy": {
+											"timeout": "0.1:00:00",
+											"retry": 3,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"source": {
+												"type": "JsonSource",
+												"storeSettings": {
+													"type": "AzureBlobFSReadSettings",
+													"recursive": true,
+													"enablePartitionDiscovery": false
+												},
+												"formatSettings": {
+													"type": "JsonReadSettings"
+												}
+											},
+											"dataset": {
+												"referenceName": "ds_delta_changes_json",
+												"type": "DatasetReference",
+												"parameters": {
+													"fileSystem": "odw-curated",
+													"folderPath": "listed_building/curated_to_sb",
+													"fileName": {
+														"value": "@item().name",
+														"type": "Expression"
+													}
+												}
+											},
+											"firstRowOnly": false
+										}
 									},
-									"messages": {
-										"value": "@string(activity('Read Delta Changes JSON').output.value)",
-										"type": "Expression"
-									},
-									"topic_name": "listed-building"
-								}
+									{
+										"name": "Publish Batch to Service Bus",
+										"type": "ExecutePipeline",
+										"dependsOn": [
+											{
+												"activity": "Read Batch File",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"pipeline": {
+												"referenceName": "pln_publish_to_sb",
+												"type": "PipelineReference"
+											},
+											"waitOnCompletion": true,
+											"parameters": {
+												"service_bus_name": {
+													"value": "@if(equals(pipeline().DataFactory, 'pins-synw-odw-prod-uks'), 'pins-sb-appeals-bo-prod', if(equals(pipeline().DataFactory, 'pins-synw-odw-test-uks'), 'pins-sb-appeals-bo-test', 'pins-sb-appeals-bo-dev'))",
+													"type": "Expression"
+												},
+												"messages": {
+													"value": "@string(activity('Read Batch File').output.value)",
+													"type": "Expression"
+												},
+												"topic_name": "listed-building"
+											}
+										}
+									}
+								]
 							}
 						}
 					]
@@ -2171,73 +2232,134 @@
 					},
 					"ifTrueActivities": [
 						{
-							"name": "Read Delta Changes JSON Inspector",
-							"type": "Lookup",
+							"name": "Get Batch Files Inspector",
+							"description": "Get list of batch files created by the notebook",
+							"type": "GetMetadata",
 							"dependsOn": [],
 							"policy": {
-								"timeout": "0.1:00:00",
-								"retry": 3,
+								"timeout": "0.12:00:00",
+								"retry": 0,
 								"retryIntervalInSeconds": 30,
 								"secureOutput": false,
 								"secureInput": false
 							},
 							"userProperties": [],
 							"typeProperties": {
-								"source": {
-									"type": "JsonSource",
-									"storeSettings": {
-										"type": "AzureBlobFSReadSettings",
-										"recursive": true,
-										"enablePartitionDiscovery": false
-									},
-									"formatSettings": {
-										"type": "JsonReadSettings"
-									}
-								},
 								"dataset": {
-									"referenceName": "ds_delta_changes_json",
+									"referenceName": "ds_delta_changes_folder",
 									"type": "DatasetReference",
 									"parameters": {
 										"fileSystem": "odw-curated",
-										"folderPath": "pins_inspector/curated_to_sb",
-										"fileName": "sb_message.json"
+										"folderPath": "pins_inspector/curated_to_sb"
 									}
 								},
-								"firstRowOnly": false
+								"fieldList": [
+									"childItems"
+								],
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"recursive": false,
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "JsonReadSettings"
+								}
 							}
 						},
 						{
-							"name": "Publish to ODW Service Bus Inspector",
-							"type": "ExecutePipeline",
+							"name": "Process Each Batch Inspector",
+							"description": "Iterate over each batch file and publish to Service Bus",
+							"type": "ForEach",
 							"dependsOn": [
 								{
-									"activity": "Read Delta Changes JSON Inspector",
+									"activity": "Get Batch Files Inspector",
 									"dependencyConditions": [
 										"Succeeded"
 									]
 								}
 							],
-							"policy": {
-								"secureInput": false
-							},
 							"userProperties": [],
 							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_publish_to_sb",
-									"type": "PipelineReference"
+								"items": {
+									"value": "@activity('Get Batch Files Inspector').output.childItems",
+									"type": "Expression"
 								},
-								"waitOnCompletion": true,
-								"parameters": {
-									"service_bus_name": {
-										"value": "@if(equals(pipeline().DataFactory, 'pins-synw-odw-prod-uks'), 'pins-sb-odw-prod-uks-mwzecc', if(equals(pipeline().DataFactory, 'pins-synw-odw-test-uks'), 'pins-sb-odw-test-uks-hk2zun', 'pins-sb-odw-dev-uks-b9rt9m'))",
-										"type": "Expression"
+								"isSequential": false,
+								"activities": [
+									{
+										"name": "Read Batch File Inspector",
+										"type": "Lookup",
+										"dependsOn": [],
+										"policy": {
+											"timeout": "0.1:00:00",
+											"retry": 3,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"source": {
+												"type": "JsonSource",
+												"storeSettings": {
+													"type": "AzureBlobFSReadSettings",
+													"recursive": true,
+													"enablePartitionDiscovery": false
+												},
+												"formatSettings": {
+													"type": "JsonReadSettings"
+												}
+											},
+											"dataset": {
+												"referenceName": "ds_delta_changes_json",
+												"type": "DatasetReference",
+												"parameters": {
+													"fileSystem": "odw-curated",
+													"folderPath": "pins_inspector/curated_to_sb",
+													"fileName": {
+														"value": "@item().name",
+														"type": "Expression"
+													}
+												}
+											},
+											"firstRowOnly": false
+										}
 									},
-									"messages": {
-										"value": "@string(activity('Read Delta Changes JSON Inspector').output.value)",
-										"type": "Expression"
-									},
-									"topic_name": "pins-inspector"
-								}
+									{
+										"name": "Publish Batch to ODW Service Bus Inspector",
+										"type": "ExecutePipeline",
+										"dependsOn": [
+											{
+												"activity": "Read Batch File Inspector",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"pipeline": {
+												"referenceName": "pln_publish_to_sb",
+												"type": "PipelineReference"
+											},
+											"waitOnCompletion": true,
+											"parameters": {
+												"service_bus_name": {
+													"value": "@if(equals(pipeline().DataFactory, 'pins-synw-odw-prod-uks'), 'pins-sb-odw-prod-uks-mwzecc', if(equals(pipeline().DataFactory, 'pins-synw-odw-test-uks'), 'pins-sb-odw-test-uks-hk2zun', 'pins-sb-odw-dev-uks-b9rt9m'))",
+													"type": "Expression"
+												},
+												"messages": {
+													"value": "@string(activity('Read Batch File Inspector').output.value)",
+													"type": "Expression"
+												},
+												"topic_name": "pins-inspector"
+											}
+										}
+									}
+								]
 							}
 						}
 					]
