@@ -35,6 +35,17 @@ def add_orchestration_entries():
             "Harmonised_Incremental_Key": "incremental_key",
             "Entity_Primary_Key": "col_a"
         },
+        {
+            "Source_Filename_Start": "test_sb_hrm_pc_chg_schema",
+            "Load_Enable_status": "True",
+            "Standardised_Table_Definition": f"standardised_table_definitions/test_sb_hrm_pc_chg_schema/test_sb_hrm_pc_chg_schema.json",
+            "Source_Frequency_Folder": "",
+            "Standardised_Table_Name": "test_sb_hrm_pc_chg_schema",
+            "Expected_Within_Weekdays": 1,
+            "Harmonised_Table_Name": "test_sb_hrm_pc_chg_schema",
+            "Harmonised_Incremental_Key": "incremental_key",
+            "Entity_Primary_Key": "col_a"
+        },
     ]
     with open(orchestration_path, "r") as f:
         existing_content = json.load(f)
@@ -202,8 +213,88 @@ def test__service_bus_harmonisation_process__run__with_existing_data_same_schema
 
 
 
-def test__service_bus_harmonisation_process__run__with_existing_data_different_schema():
-    pass
+@pytest.mark.parametrize(
+    "teardown",
+    [[os.path.join("odw-standardised", "test_sb_hrm_pc_chg_schema"), os.path.join("odw-harmonised", "test_sb_hrm_pc_chg_schema")]],
+    indirect=["teardown"],
+)
+def test__service_bus_harmonisation_process__run__with_existing_data_different_schema(teardown):
+    add_orchestration_entries()
+    spark = SparkSession.builder.getOrCreate()
+    table_name = "test_sb_hrm_pc_chg_schema"
+    datetime_format = "%Y-%m-%dT%H:%M:%S.%f%z"
+    incremental_key = "incremental_key"
+    base_schema = T.StructType(
+        [
+            T.StructField("col_a", T.StringType()),
+            T.StructField("col_b", T.StringType()),
+            T.StructField("col_c", T.StringType())
+        ]
+    )
+    altered_schema = T.StructType(
+        [
+            T.StructField("col_a", T.StringType()),
+            T.StructField("col_b", T.StringType()),
+            T.StructField("col_c", T.StringType()),
+            T.StructField("col_d", T.StringType())
+        ]
+    )
+    existing_data_ingestion_date_string = "2025-09-12T10:30:59.405000+0000"
+    # Create existing harmonised table
+    existing_harmonised_data = spark.createDataFrame(
+        (
+            ("a", "b", "c", "id1", 1, "1", "ODT", 1, existing_data_ingestion_date_string, None, "Y", ""),
+            ("d", "e", "f", "id2", 1, "1", "ODT", 1, existing_data_ingestion_date_string, None, "Y", ""),
+            ("e", "f", "g", "id3", 1, "1", "ODT", 1, existing_data_ingestion_date_string, None, "Y", ""),
+            ("p", "q", "r", "id4", 1, "1", "ODT", 1, existing_data_ingestion_date_string, None, "Y", ""),
+        ),
+        generate_harmonised_table_schema(base_schema, incremental_key)
+    )
+    write_existing_table(existing_harmonised_data, table_name, "odw_harmonised_db", "odw-harmonised", table_name)
+
+    # Create standardised table
+    existing_data_ingestion_date = datetime.strptime(existing_data_ingestion_date_string, datetime_format)
+    input_file = "some_file"
+    already_existing_standardised_col_data = (existing_data_ingestion_date, existing_data_ingestion_date, existing_data_ingestion_date, "Update", existing_data_ingestion_date_string, input_file)
+    standardised_data = spark.createDataFrame(
+        (
+            ("a", "b", "c", "sisko", "id5") + already_existing_standardised_col_data,  # Already in the harmonised table
+            ("d", "e", "f", "worf", "id6") + already_existing_standardised_col_data,  # Already in the harmonised table
+            ("e", "f", "g", "kira", "id7") + already_existing_standardised_col_data,  # Already in the harmonised table
+            ("p", "q", "r", "odo", "id8") + already_existing_standardised_col_data,  # Already in the harmonised table
+        ),
+        generate_standardised_table_schema(altered_schema)
+    )
+    write_existing_table(standardised_data, table_name, "odw_standardised_db", "odw-standardised", table_name)
+
+    expected_harmonised_data_after_writing = spark.createDataFrame(
+        (
+            ("a", "b", "c", "sisko", "id5", None, "1", "ODT", 1, existing_data_ingestion_date_string, "", "Y", ""),
+            ("d", "e", "f", "worf", "id6", None, "1", "ODT", 1, existing_data_ingestion_date_string, "", "Y", ""),
+            ("e", "f", "g", "kira", "id7", None, "1", "ODT", 1, existing_data_ingestion_date_string, "", "Y", ""),
+            ("p", "q", "r", "odo", "id8", None, "1", "ODT", 1, existing_data_ingestion_date_string, "", "Y", ""),
+        ),
+        generate_harmonised_table_schema(altered_schema, incremental_key)
+    )
+    print("expected data")
+    expected_harmonised_data_after_writing.show()
+    # Run the full etl process
+    with mock.patch.object(SynapseDataIO, "_format_to_adls_path", format_adls_path_to_local_path):
+        mock_mssparkutils_context = {"pipelinejobid": "some_guid", "isForPipeline": True}
+        with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+            with mock.patch("notebookutils.mssparkutils.runtime.context", mock_mssparkutils_context):
+                with mock.patch.object(Util, "get_path_to_file", generate_local_path):
+                    with mock.patch.object(F, "input_file_name", return_value=F.lit("some_input_file")):
+                        with mock.patch.object(LoggingUtil, "__new__"):
+                            with mock.patch.object(LoggingUtil, "log_info", return_value=None):
+                                with mock.patch.object(LoggingUtil, "log_error", return_value=None):
+                                    inst = ServiceBusHarmonisationProcess(spark)
+                                    result = inst.run(entity_name="test_sb_hrm_pc_chg_schema")
+                                    assert_etl_result_successful(result)
+                                    actual_table_data = spark.table("odw_harmonised_db.test_sb_hrm_pc_chg_schema")
+                                    print("actual data after writing")
+                                    actual_table_data.show()
+                                    compare_harmonised_data(expected_harmonised_data_after_writing, actual_table_data)
 
 
 def test__service_bus_harmonisation_process__run__with_no_existing_data():
