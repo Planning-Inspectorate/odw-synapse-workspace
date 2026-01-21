@@ -134,7 +134,7 @@ def test_upload_new_wheel__with_no_existing_package():
     env = "mock_env"
     wheel_name = "odw_test_wheel.whl"
     def get_spark_pool(inst, pool_name: str):
-        if pool_name == "pinssynspodw34":
+        if pool_name == "pinssynspodwpr":
             return {
                 "properties": {
                     "customLibraries": [
@@ -170,7 +170,7 @@ def test_upload_new_wheel__with_no_existing_package():
     mock_odw_wheels = []  # No other odw wheels
     expected_wheel_upload_calls = [
         mock.call(
-            "pinssynspodw34",
+            "pinssynspodwpr",
             {
                 "properties": {
                     "customLibraries": [
@@ -243,7 +243,7 @@ def test_upload_new_wheel__with_other_odw_package():
     env = "mock_env"
     wheel_name = "odw_test_wheel.whl"
     def get_spark_pool(inst, pool_name: str):
-        if pool_name == "pinssynspodw34":
+        if pool_name == "pinssynspodwpr":
             return {
                 "properties": {
                     "customLibraries": [
@@ -286,7 +286,7 @@ def test_upload_new_wheel__with_other_odw_package():
     ]
     expected_wheel_upload_calls = [
         mock.call(
-            "pinssynspodw34",
+            "pinssynspodwpr",
             {
                 "properties": {
                     "customLibraries": [
@@ -391,7 +391,7 @@ def test_upload_new_wheel__with_duplicate_existing_package():
 
 def test_upload_new_wheel__with_package_already_bound_to_spark_pool():
     """
-        Given the new odw package already exists in the workspace, and is bound to the [pinssynspodw34 or pinssynspodw34] spark pools
+        Given the new odw package already exists in the workspace, and is bound to the [pinssynspodwpr or pinssynspodw34] spark pools
         When i try to upload a new package
         The deployment should skip updating the spark pools
     """
@@ -438,14 +438,14 @@ def test_upload_new_wheel__with_package_already_bound_to_spark_pool():
 
 def test_upload_new_wheel__with_existing_odw_package_already_bound_to_external_spark_pool():
     """
-        Given there is already an odw package in the workspace bound to a pool other than [pinssynspodw34 or pinssynspodw34]
+        Given there is already an odw package in the workspace bound to a pool other than [pinssynspodwpr or pinssynspodw34]
         When i try to upload a new odw package
-        Then the [pinssynspodw34 or pinssynspodw34] pools should be updated to use the new package, but the old package must be left as-is
+        Then the [pinssynspodwpr or pinssynspodw34] pools should be updated to use the new package, but the old package must be left as-is
     """
     env = "mock_env"
     wheel_name = "odw_new_wheel.whl"
     def get_spark_pool(inst, pool_name: str):
-        if pool_name == "pinssynspodw34":
+        if pool_name == "pinssynspodwpr":
             return {
                 "properties": {
                     "customLibraries": [
@@ -502,7 +502,7 @@ def test_upload_new_wheel__with_existing_odw_package_already_bound_to_external_s
     ]
     expected_wheel_upload_calls = [
         mock.call(
-            "pinssynspodw34",
+            "pinssynspodwpr",
             {
                 "properties": {
                     "customLibraries": [
