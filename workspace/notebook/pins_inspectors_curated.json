@@ -81,7 +81,6 @@
 					"from pyspark.sql.functions import *\n",
 					"from pyspark.sql.types import *\n",
 					"from pyspark.sql import DataFrame\n",
-					"from delta.tables import DeltaTable\n",
 					"import json"
 				],
 				"execution_count": null
@@ -252,28 +251,7 @@
 				},
 				"source": [
 					"logInfo(f\"Writing to {table_name}\")\n",
-					"\n",
-					"# Check if table exists\n",
-					"table_exists = spark.catalog.tableExists(f\"odw_curated_db.{table_name}\")\n",
-					"\n",
-					"if not table_exists:\n",
-					"    # First time: create table using delta format\n",
-					"    data.write.format(\"delta\").saveAsTable(f\"odw_curated_db.{table_name}\")\n",
-					"    logInfo(f\"Created table odw_curated_db.{table_name}\")\n",
-					"else:\n",
-					"    # Use Delta merge for proper change tracking\n",
-					"    delta_table = DeltaTable.forName(spark, f\"odw_curated_db.{table_name}\")\n",
-					"    \n",
-					"    # Perform merge operation using horizonId as primary key\n",
-					"    delta_table.alias(\"target\").merge(\n",
-					"        data.alias(\"source\"),\n",
-					"        \"target.horizonId = source.horizonId\"\n",
-					"    ).whenMatchedUpdateAll(\n",
-					"    ).whenNotMatchedInsertAll(\n",
-					"    ).execute()\n",
-					"    \n",
-					"    logInfo(f\"Merged data into odw_curated_db.{table_name}\")\n",
-					"\n",
+					"data.write.mode(\"overwrite\").format(\"parquet\").saveAsTable(table_name)\n",
 					"logInfo(f\"Written to {table_name}\")"
 				],
 				"execution_count": null
