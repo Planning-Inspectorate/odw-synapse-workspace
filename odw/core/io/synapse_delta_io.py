@@ -84,6 +84,7 @@ class SynapseDeltaIO(SynapseDataIO):
         :param str update_key_col: The column used to determine if a row is updated, created or deleted
         """
         spark: SparkSession = kwargs.get("spark", None)
+        spark.conf.set("spark.databricks.delta.schema.autoMerge.enabled", "true")
         storage_name = kwargs.get("storage_name", None)
         storage_endpoint = kwargs.get("storage_endpoint", None)
         container_name = kwargs.get("container_name", None)
@@ -149,8 +150,13 @@ class SynapseDeltaIO(SynapseDataIO):
             condition=f"s.{update_key_col} IN {update_strings}"
         ).whenMatchedDelete(  # Delete records
             condition=f"s.{update_key_col} IN {delete_strings}"
-        ).whenNotMatchedInsertAll(  # Insert new records
-            condition=f"s.{update_key_col} IN {create_strings}"
+        ).whenNotMatchedInsert(  # Insert new records
+            condition=f"s.{update_key_col} IN {create_strings}",
+            values={
+                col_name: F.expr(f"s.{col_name}")
+                for col_name in data.schema.names
+                if col_name != update_key_col
+            }
         ).execute()
         if database_name:
             # Create a table out of the delta file if table details are specified

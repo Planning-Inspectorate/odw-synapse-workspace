@@ -25,6 +25,10 @@ def assert_dataframes_equal(expected: DataFrame, actual: DataFrame):
     # The workaround is to cache before running that command
     expected.cache()
     actual.cache()
+    # Update column order, since column order maters when comparing the data
+    # At this stage both data frames are guaranteed to have the same schema
+    expected = expected.select(expected.schema.names)
+    actual = actual.select(expected.schema.names)
     in_expected_but_not_actual = expected.exceptAll(actual)
     in_actual_but_not_expected = actual.exceptAll(expected)
     data_mismatch = not (in_expected_but_not_actual.isEmpty() and in_actual_but_not_expected.isEmpty())
