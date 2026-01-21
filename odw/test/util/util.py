@@ -1,4 +1,7 @@
 import os
+from filelock import FileLock
+import json
+from typing import Dict, Union
 
 
 def generate_local_path(path: str):
@@ -31,3 +34,17 @@ def format_adls_path_to_local_path(inst, container_name: str, blob_path: str, st
     Format adlsg2 parameters to reflect a location in the `spark-warehouse`
     """
     return os.path.join("spark-warehouse", container_name, blob_path)
+
+
+def add_orchestration_entries(entry: Dict[str, Union[str, int]]):
+    orchestration_path = os.path.join("spark-warehouse", "odw-config", "orchestration", "orchestration.json")
+    new_definitions = [
+        entry
+    ]
+    lock = FileLock(f"{orchestration_path}.lock")
+    with lock.acquire():
+        with open(orchestration_path, "r+") as f:
+            existing_content = json.load(f)
+            f.seek(0)
+            updated_content = {"definitions": existing_content["definitions"] + new_definitions}
+            json.dump(updated_content, f, indent=4)

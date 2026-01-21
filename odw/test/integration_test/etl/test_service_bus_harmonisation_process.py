@@ -4,12 +4,10 @@ from odw.core.io.synapse_table_data_io import SynapseTableDataIO
 from odw.core.io.synapse_data_io import SynapseDataIO
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
-from odw.test.util.util import generate_local_path
-from odw.test.util.util import format_adls_path_to_local_path, format_to_adls_path
+from odw.test.util.util import generate_local_path, format_adls_path_to_local_path, format_to_adls_path, add_orchestration_entries
+from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
 from pyspark.sql import SparkSession
 import mock
-from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
-import json
 import pytest
 import shutil
 import os
@@ -20,48 +18,23 @@ import pyspark.sql.types as T
 import logging
 
 
-def add_orchestration_entries():
-    orchestration_path = os.path.join("spark-warehouse", "odw-config", "orchestration", "orchestration.json")
-    new_definitions = [
-        {
-            "Source_Filename_Start": "test_sb_hrm_pc_exst_data",
-            "Load_Enable_status": "True",
-            "Standardised_Table_Definition": f"standardised_table_definitions/test_sb_hrm_pc_exst_data/test_sb_hrm_pc_exst_data.json",
-            "Source_Frequency_Folder": "",
-            "Standardised_Table_Name": "test_sb_hrm_pc_exst_data",
-            "Expected_Within_Weekdays": 1,
-            "Harmonised_Table_Name": "test_sb_hrm_pc_exst_data",
-            "Harmonised_Incremental_Key": "incremental_key",
-            "Entity_Primary_Key": "col_a"
-        },
-        {
-            "Source_Filename_Start": "test_sb_hrm_pc_chg_schema",
-            "Load_Enable_status": "True",
-            "Standardised_Table_Definition": f"standardised_table_definitions/test_sb_hrm_pc_chg_schema/test_sb_hrm_pc_chg_schema.json",
-            "Source_Frequency_Folder": "",
-            "Standardised_Table_Name": "test_sb_hrm_pc_chg_schema",
-            "Expected_Within_Weekdays": 1,
-            "Harmonised_Table_Name": "test_sb_hrm_pc_chg_schema",
-            "Harmonised_Incremental_Key": "incremental_key",
-            "Entity_Primary_Key": "col_a"
-        },
-        {
-            "Source_Filename_Start": "test_sb_hrm_pc_no_data",
-            "Load_Enable_status": "True",
-            "Standardised_Table_Definition": f"standardised_table_definitions/test_sb_hrm_pc_no_data/test_sb_hrm_pc_no_data.json",
-            "Source_Frequency_Folder": "",
-            "Standardised_Table_Name": "test_sb_hrm_pc_no_data",
-            "Expected_Within_Weekdays": 1,
-            "Harmonised_Table_Name": "test_sb_hrm_pc_no_data",
-            "Harmonised_Incremental_Key": "incremental_key",
-            "Entity_Primary_Key": "col_a"
-        },
-    ]
-    with open(orchestration_path, "r") as f:
-        existing_content = json.load(f)
-    with open(orchestration_path, "w") as f:
-        updated_content = {"definitions": existing_content["definitions"] + new_definitions}
-        json.dump(updated_content, f, indent=4)
+@pytest.fixture(scope="module", autouse=True)
+def setup(request):
+    with mock.patch("notebookutils.mssparkutils.runtime.context", {"pipelinejobid": "some_guid", "isForPipeline": True}):
+        with mock.patch.object(SynapseDataIO, "_format_to_adls_path", format_adls_path_to_local_path):
+            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+                with mock.patch.object(Util, "get_path_to_file", generate_local_path):
+                    with mock.patch.object(LoggingUtil, "__new__"):
+                        with mock.patch.object(LoggingUtil, "log_info", return_value=None):
+                            with mock.patch.object(LoggingUtil, "log_error", return_value=None):
+                                yield
+
+
+@pytest.fixture
+def teardown(request: pytest.FixtureRequest):
+    yield
+    for table in request.param:
+        shutil.rmtree(generate_local_path(table), ignore_errors=True)
 
 
 def generate_standardised_table_schema(base_schema: T.StructType):
@@ -124,13 +97,6 @@ def compare_harmonised_data(expected_df: DataFrame, actual_data: DataFrame):
     assert_dataframes_equal(expected_df_cleaned, actual_data_cleaned)
 
 
-@pytest.fixture
-def teardown(request: pytest.FixtureRequest):
-    yield
-    for table in request.param:
-        shutil.rmtree(generate_local_path(table), ignore_errors=True)
-
-
 @pytest.mark.parametrize(
     "teardown",
     [[os.path.join("odw-standardised", "test_sb_hrm_pc_exst_data"), os.path.join("odw-harmonised", "test_sb_hrm_pc_exst_data")]],
@@ -142,7 +108,19 @@ def test__service_bus_harmonisation_process__run__with_existing_data_same_schema
     - When I call ServiceBusHarmonisationProcess.run
     - Then the modified rows should be updated, and removed rows should be deleted from the harmonised table
     """
-    add_orchestration_entries()
+    add_orchestration_entries(
+        {
+            "Source_Filename_Start": "test_sb_hrm_pc_exst_data",
+            "Load_Enable_status": "True",
+            "Standardised_Table_Definition": f"standardised_table_definitions/test_sb_hrm_pc_exst_data/test_sb_hrm_pc_exst_data.json",
+            "Source_Frequency_Folder": "",
+            "Standardised_Table_Name": "test_sb_hrm_pc_exst_data",
+            "Expected_Within_Weekdays": 1,
+            "Harmonised_Table_Name": "test_sb_hrm_pc_exst_data",
+            "Harmonised_Incremental_Key": "incremental_key",
+            "Entity_Primary_Key": "col_a"
+        }
+    )
     spark = SparkSession.builder.getOrCreate()
     table_name = "test_sb_hrm_pc_exst_data"
     datetime_format = "%Y-%m-%dT%H:%M:%S.%f%z"
@@ -206,26 +184,13 @@ def test__service_bus_harmonisation_process__run__with_existing_data_same_schema
         ),
         generate_harmonised_table_schema(base_schema, incremental_key)
     )
-    print("expected data")
-    expected_harmonised_data_after_writing.show()
     # Run the full etl process
-    with mock.patch.object(SynapseDataIO, "_format_to_adls_path", format_adls_path_to_local_path):
-        mock_mssparkutils_context = {"pipelinejobid": "some_guid", "isForPipeline": True}
-        with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
-            with mock.patch("notebookutils.mssparkutils.runtime.context", mock_mssparkutils_context):
-                with mock.patch.object(Util, "get_path_to_file", generate_local_path):
-                    with mock.patch.object(F, "input_file_name", return_value=F.lit("some_input_file")):
-                        with mock.patch.object(LoggingUtil, "__new__"):
-                            with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-                                with mock.patch.object(LoggingUtil, "log_error", return_value=None):
-                                    inst = ServiceBusHarmonisationProcess(spark)
-                                    result = inst.run(entity_name="test_sb_hrm_pc_exst_data")
-                                    assert_etl_result_successful(result)
-                                    actual_table_data = spark.table("odw_harmonised_db.test_sb_hrm_pc_exst_data")
-                                    print("actual data after writing")
-                                    actual_table_data.show()
-                                    compare_harmonised_data(expected_harmonised_data_after_writing, actual_table_data)
-
+    with mock.patch.object(F, "input_file_name", return_value=F.lit("some_input_file")):
+        inst = ServiceBusHarmonisationProcess(spark)
+        result = inst.run(entity_name="test_sb_hrm_pc_exst_data")
+        assert_etl_result_successful(result)
+        actual_table_data = spark.table("odw_harmonised_db.test_sb_hrm_pc_exst_data")
+        compare_harmonised_data(expected_harmonised_data_after_writing, actual_table_data)
 
 
 @pytest.mark.parametrize(
@@ -239,7 +204,19 @@ def test__service_bus_harmonisation_process__run__with_existing_data_different_s
     - When I call ServiceBusHarmonisationProcess.run
     - Then the new columns should be added to the harmonised table
     """
-    add_orchestration_entries()
+    add_orchestration_entries(
+        {
+            "Source_Filename_Start": "test_sb_hrm_pc_chg_schema",
+            "Load_Enable_status": "True",
+            "Standardised_Table_Definition": f"standardised_table_definitions/test_sb_hrm_pc_chg_schema/test_sb_hrm_pc_chg_schema.json",
+            "Source_Frequency_Folder": "",
+            "Standardised_Table_Name": "test_sb_hrm_pc_chg_schema",
+            "Expected_Within_Weekdays": 1,
+            "Harmonised_Table_Name": "test_sb_hrm_pc_chg_schema",
+            "Harmonised_Incremental_Key": "incremental_key",
+            "Entity_Primary_Key": "col_a"
+        }
+    )
     spark = SparkSession.builder.getOrCreate()
     table_name = "test_sb_hrm_pc_chg_schema"
     datetime_format = "%Y-%m-%dT%H:%M:%S.%f%z"
@@ -296,25 +273,13 @@ def test__service_bus_harmonisation_process__run__with_existing_data_different_s
         ),
         generate_harmonised_table_schema(altered_schema, incremental_key)
     )
-    print("expected data")
-    expected_harmonised_data_after_writing.show()
     # Run the full etl process
-    with mock.patch.object(SynapseDataIO, "_format_to_adls_path", format_adls_path_to_local_path):
-        mock_mssparkutils_context = {"pipelinejobid": "some_guid", "isForPipeline": True}
-        with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
-            with mock.patch("notebookutils.mssparkutils.runtime.context", mock_mssparkutils_context):
-                with mock.patch.object(Util, "get_path_to_file", generate_local_path):
-                    with mock.patch.object(F, "input_file_name", return_value=F.lit("some_input_file")):
-                        with mock.patch.object(LoggingUtil, "__new__"):
-                            with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-                                with mock.patch.object(LoggingUtil, "log_error", return_value=None):
-                                    inst = ServiceBusHarmonisationProcess(spark)
-                                    result = inst.run(entity_name="test_sb_hrm_pc_chg_schema")
-                                    assert_etl_result_successful(result)
-                                    actual_table_data = spark.table("odw_harmonised_db.test_sb_hrm_pc_chg_schema")
-                                    print("actual data after writing")
-                                    actual_table_data.show()
-                                    compare_harmonised_data(expected_harmonised_data_after_writing, actual_table_data)
+    with mock.patch.object(F, "input_file_name", return_value=F.lit("some_input_file")):
+        inst = ServiceBusHarmonisationProcess(spark)
+        result = inst.run(entity_name="test_sb_hrm_pc_chg_schema")
+        assert_etl_result_successful(result)
+        actual_table_data = spark.table("odw_harmonised_db.test_sb_hrm_pc_chg_schema")
+        compare_harmonised_data(expected_harmonised_data_after_writing, actual_table_data)
 
 
 @pytest.mark.parametrize(
@@ -323,7 +288,19 @@ def test__service_bus_harmonisation_process__run__with_existing_data_different_s
     indirect=["teardown"],
 )
 def test__service_bus_harmonisation_process__run__with_no_existing_data(teardown):
-    add_orchestration_entries()
+    add_orchestration_entries(
+        {
+            "Source_Filename_Start": "test_sb_hrm_pc_no_data",
+            "Load_Enable_status": "True",
+            "Standardised_Table_Definition": f"standardised_table_definitions/test_sb_hrm_pc_no_data/test_sb_hrm_pc_no_data.json",
+            "Source_Frequency_Folder": "",
+            "Standardised_Table_Name": "test_sb_hrm_pc_no_data",
+            "Expected_Within_Weekdays": 1,
+            "Harmonised_Table_Name": "test_sb_hrm_pc_no_data",
+            "Harmonised_Incremental_Key": "incremental_key",
+            "Entity_Primary_Key": "col_a"
+        },
+    )
     spark = SparkSession.builder.getOrCreate()
     table_name = "test_sb_hrm_pc_no_data"
     datetime_format = "%Y-%m-%dT%H:%M:%S.%f%z"
@@ -365,22 +342,10 @@ def test__service_bus_harmonisation_process__run__with_no_existing_data(teardown
         ),
         generate_harmonised_table_schema(base_schema, incremental_key)
     )
-    print("expected data")
-    expected_harmonised_data_after_writing.show()
     # Run the full etl process
-    with mock.patch.object(SynapseDataIO, "_format_to_adls_path", format_adls_path_to_local_path):
-        mock_mssparkutils_context = {"pipelinejobid": "some_guid", "isForPipeline": True}
-        with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
-            with mock.patch("notebookutils.mssparkutils.runtime.context", mock_mssparkutils_context):
-                with mock.patch.object(Util, "get_path_to_file", generate_local_path):
-                    with mock.patch.object(F, "input_file_name", return_value=F.lit("some_input_file")):
-                        with mock.patch.object(LoggingUtil, "__new__"):
-                            with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-                                with mock.patch.object(LoggingUtil, "log_error", return_value=None):
-                                    inst = ServiceBusHarmonisationProcess(spark)
-                                    result = inst.run(entity_name="test_sb_hrm_pc_no_data")
-                                    assert_etl_result_successful(result)
-                                    actual_table_data = spark.table("odw_harmonised_db.test_sb_hrm_pc_no_data")
-                                    print("actual data after writing")
-                                    actual_table_data.show()
-                                    compare_harmonised_data(expected_harmonised_data_after_writing, actual_table_data)
+    with mock.patch.object(F, "input_file_name", return_value=F.lit("some_input_file")):
+        inst = ServiceBusHarmonisationProcess(spark)
+        result = inst.run(entity_name="test_sb_hrm_pc_no_data")
+        assert_etl_result_successful(result)
+        actual_table_data = spark.table("odw_harmonised_db.test_sb_hrm_pc_no_data")
+        compare_harmonised_data(expected_harmonised_data_after_writing, actual_table_data)

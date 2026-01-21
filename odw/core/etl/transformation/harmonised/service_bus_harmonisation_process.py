@@ -3,17 +3,12 @@ from odw.core.util.util import Util
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from odw.core.io.synapse_table_data_io import SynapseTableDataIO
-#from odw.core.etl.ingestion_functions import IngestionFunctions
 from pyspark.sql import DataFrame
-from pyspark.sql.types import StructType
 import pyspark.sql.functions as F
 import pyspark.sql.types as T
-from pyspark.sql.types import TimestampType
-from pyspark.sql import SparkSession
 from pyspark.errors.exceptions.captured import AnalysisException
 from datetime import datetime
 from typing import Dict
-import re
 import json
 
 
@@ -42,8 +37,6 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
         # Load new records from the standardised layer
         # Note this does not work if the harmonised table does not exist at the start - fix after first int test is working
         new_records = self.spark.sql(f"SELECT * FROM {standardised_table_path} WHERE message_id not in (SELECT DISTINCT message_id FROM {harmonised_table_path} where message_id IS NOT NULL) ORDER BY message_enqueued_time_utc")
-        print("new records")
-        new_records.show()
         # Load the harmonised layer
         try:
             existing_harmonised_data = SynapseTableDataIO().read(
@@ -130,8 +123,6 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
         ).drop("message_type")
 
         entity_name_snake_case = entity_name.replace("-", "_")
-        print("actual data before write")
-        new_data.show()
 
         data_to_write = {
             harmonised_table_path: {
