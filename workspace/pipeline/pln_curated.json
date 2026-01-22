@@ -1511,8 +1511,9 @@
 							}
 						},
 						{
-							"name": "Publish Batch to Service Bus",
-							"type": "ExecutePipeline",
+							"name": "Process Each Row",
+							"description": "Iterate over each row in the batch file",
+							"type": "ForEach",
 							"dependsOn": [
 								{
 									"activity": "Read Batch File",
@@ -1521,27 +1522,42 @@
 									]
 								}
 							],
-							"policy": {
-								"secureInput": false
-							},
 							"userProperties": [],
 							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_publish_to_sb",
-									"type": "PipelineReference"
+								"items": {
+									"value": "@activity('Read Batch File').output.value",
+									"type": "Expression"
 								},
-								"waitOnCompletion": true,
-								"parameters": {
-									"service_bus_name": {
-										"value": "@if(equals(pipeline().DataFactory, 'pins-synw-odw-prod-uks'), 'pins-sb-appeals-bo-prod', if(equals(pipeline().DataFactory, 'pins-synw-odw-test-uks'), 'pins-sb-appeals-bo-test', 'pins-sb-appeals-bo-dev'))",
-										"type": "Expression"
-									},
-									"messages": {
-										"value": "@string(activity('Read Batch File').output.value[0].messages)",
-										"type": "Expression"
-									},
-									"topic_name": "listed-building"
-								}
+								"isSequential": false,
+								"activities": [
+									{
+										"name": "Publish Message to Service Bus",
+										"type": "ExecutePipeline",
+										"dependsOn": [],
+										"policy": {
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"pipeline": {
+												"referenceName": "pln_publish_to_sb",
+												"type": "PipelineReference"
+											},
+											"waitOnCompletion": true,
+											"parameters": {
+												"service_bus_name": {
+													"value": "@if(equals(pipeline().DataFactory, 'pins-synw-odw-prod-uks'), 'pins-sb-appeals-bo-prod', if(equals(pipeline().DataFactory, 'pins-synw-odw-test-uks'), 'pins-sb-appeals-bo-test', 'pins-sb-appeals-bo-dev'))",
+													"type": "Expression"
+												},
+												"messages": {
+													"value": "@string(item().message)",
+													"type": "Expression"
+												},
+												"topic_name": "listed-building"
+											}
+										}
+									}
+								]
 							}
 						}
 					]
@@ -2324,8 +2340,9 @@
 							}
 						},
 						{
-							"name": "Publish Batch to ODW Service Bus Inspector",
-							"type": "ExecutePipeline",
+							"name": "Process Each Row Inspector",
+							"description": "Iterate over each row in the batch file",
+							"type": "ForEach",
 							"dependsOn": [
 								{
 									"activity": "Read Batch File Inspector",
@@ -2334,27 +2351,42 @@
 									]
 								}
 							],
-							"policy": {
-								"secureInput": false
-							},
 							"userProperties": [],
 							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_publish_to_sb",
-									"type": "PipelineReference"
+								"items": {
+									"value": "@activity('Read Batch File Inspector').output.value",
+									"type": "Expression"
 								},
-								"waitOnCompletion": true,
-								"parameters": {
-									"service_bus_name": {
-										"value": "@if(equals(pipeline().DataFactory, 'pins-synw-odw-prod-uks'), 'pins-sb-odw-prod-uks-mwzecc', if(equals(pipeline().DataFactory, 'pins-synw-odw-test-uks'), 'pins-sb-odw-test-uks-hk2zun', 'pins-sb-odw-dev-uks-b9rt9m'))",
-										"type": "Expression"
-									},
-									"messages": {
-										"value": "@string(activity('Read Batch File Inspector').output.value[0].messages)",
-										"type": "Expression"
-									},
-									"topic_name": "pins-inspector"
-								}
+								"isSequential": false,
+								"activities": [
+									{
+										"name": "Publish Message to ODW Service Bus Inspector",
+										"type": "ExecutePipeline",
+										"dependsOn": [],
+										"policy": {
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"pipeline": {
+												"referenceName": "pln_publish_to_sb",
+												"type": "PipelineReference"
+											},
+											"waitOnCompletion": true,
+											"parameters": {
+												"service_bus_name": {
+													"value": "@if(equals(pipeline().DataFactory, 'pins-synw-odw-prod-uks'), 'pins-sb-odw-prod-uks-mwzecc', if(equals(pipeline().DataFactory, 'pins-synw-odw-test-uks'), 'pins-sb-odw-test-uks-hk2zun', 'pins-sb-odw-dev-uks-b9rt9m'))",
+													"type": "Expression"
+												},
+												"messages": {
+													"value": "@string(item().message)",
+													"type": "Expression"
+												},
+												"topic_name": "pins-inspector"
+											}
+										}
+									}
+								]
 							}
 						}
 					]
