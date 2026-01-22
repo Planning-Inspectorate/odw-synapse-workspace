@@ -201,36 +201,229 @@
 				"execution_count": null
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Main Processing Logic\n",
+					"\n",
+					"This section determines how to track changes in the Delta table based on its version and configuration:\n",
+					"\n",
+					"1. **Version 0 (Initial Load)**: All records are marked as Create events\n",
+					"2. **Change Data Feed (CDF) Enabled**: Use native Delta CDF for efficient change tracking\n",
+					"3. **CDF Not Enabled**: Fallback to hash-based comparison between versions"
+				]
+			},
+			{
 				"cell_type": "code",
 				"metadata": {
 					"collapsed": false
 				},
 				"source": [
-					"# Main processing logic\n",
+					"def safe_print(message: str) -> None:\n",
+					"    \"\"\"Safely print log messages without raising exceptions\"\"\"\n",
+					"    try:\n",
+					"        print(message)\n",
+					"    except Exception as e:\n",
+					"        print(f\"Failed to log info: {e}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Handle Version 0 (Initial Table Creation)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"def process_initial_version(table_path: str, latest_version: int, table_name_full: str):\n",
+					"    \"\"\"Process version 0 of the table - all records are Create events\"\"\"\n",
+					"    safe_print(f\"Table is at version 0. Treating all records as Create events for delta table: {table_name_full}\")\n",
+					"    \n",
+					"    current_version_df = spark.read.format(\"delta\").option(\"versionAsOf\", latest_version).load(table_path)\n",
+					"    changes_df = current_version_df.withColumn(\"EventType\", lit(\"Create\"))\n",
+					"    \n",
+					"    new_count = changes_df.count()\n",
+					"    safe_print(f\"Found {new_count} new records in version {latest_version} of delta table: {table_name_full}\")\n",
+					"    \n",
+					"    return changes_df"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Process Changes Using Change Data Feed (CDF)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"def process_with_cdf(table_path: str, previous_version: int, latest_version: int, table_name_full: str):\n",
+					"    \"\"\"Use native Change Data Feed to read changes - most efficient and accurate\"\"\"\n",
+					"    safe_print(f\"Using Change Data Feed to read changes between version {latest_version} and {previous_version}\")\n",
+					"    \n",
+					"    changes_df = spark.read.format(\"delta\") \\\n",
+					"        .option(\"readChangeFeed\", \"true\") \\\n",
+					"        .option(\"startingVersion\", previous_version + 1) \\\n",
+					"        .option(\"endingVersion\", latest_version) \\\n",
+					"        .load(table_path)\n",
+					"    \n",
+					"    # Map CDF operation types to our EventType\n",
+					"    # CDF operations: insert, update_preimage, update_postimage, delete\n",
+					"    changes_df = changes_df.withColumn(\n",
+					"        \"EventType\",\n",
+					"        when(col(\"_change_type\") == \"insert\", lit(\"Create\"))\n",
+					"        .when(col(\"_change_type\") == \"update_postimage\", lit(\"Update\"))\n",
+					"        .when(col(\"_change_type\") == \"delete\", lit(\"Delete\"))\n",
+					"        .otherwise(lit(None))\n",
+					"    ).filter(col(\"EventType\").isNotNull()) \\\n",
+					"     .drop(\"_change_type\", \"_commit_version\", \"_commit_timestamp\")\n",
+					"    \n",
+					"    changes_count = changes_df.count()\n",
+					"    safe_print(f\"Found {changes_count} changes using CDF between version {latest_version} and {previous_version} in delta table: {table_name_full}\")\n",
+					"    \n",
+					"    return changes_df"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Process Changes Using Hash-Based Comparison\n",
+					"\n",
+					"Fallback approach when CDF is not enabled. Compares two table versions by:\n",
+					"1. Creating a hash of each row\n",
+					"2. Identifying new records (Create)\n",
+					"3. Identifying deleted records (Delete)\n",
+					"4. Identifying modified records (Update)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"def create_hash_df(df, primary_key: str):\n",
+					"    \"\"\"Create a dataframe with primary key and row hash\"\"\"\n",
+					"    all_columns = df.columns\n",
+					"    return df.withColumn(\n",
+					"        \"_row_hash\",\n",
+					"        md5(to_json(struct(*all_columns)))\n",
+					"    ).select(col(primary_key).cast(\"string\").alias(\"_pk\"), col(\"_row_hash\"))\n",
+					"\n",
+					"def process_with_hash_comparison(table_path: str, previous_version: int, latest_version: int, \n",
+					"                                  primary_key: str, table_name_full: str):\n",
+					"    \"\"\"Compare versions using hash-based approach when CDF is not available\"\"\"\n",
+					"    safe_print(f\"CDF not enabled. Using hash-based comparison between version {latest_version} and {previous_version}\")\n",
+					"    \n",
+					"    # Load both versions\n",
+					"    current_version_df = spark.read.format(\"delta\").option(\"versionAsOf\", latest_version).load(table_path)\n",
+					"    previous_version_df = spark.read.format(\"delta\").option(\"versionAsOf\", previous_version).load(table_path)\n",
+					"    \n",
+					"    # Create hash representations\n",
+					"    current_with_hash = create_hash_df(current_version_df, primary_key)\n",
+					"    previous_with_hash = create_hash_df(previous_version_df, primary_key)\n",
+					"    \n",
+					"    # Identify new records (Create)\n",
+					"    create_keys = current_with_hash.select(\"_pk\").subtract(previous_with_hash.select(\"_pk\"))\n",
+					"    create_df = current_version_df.join(\n",
+					"        create_keys, \n",
+					"        col(primary_key).cast(\"string\") == col(\"_pk\"), \n",
+					"        \"inner\"\n",
+					"    ).drop(\"_pk\").withColumn(\"EventType\", lit(\"Create\"))\n",
+					"    \n",
+					"    # Identify deleted records (Delete)\n",
+					"    delete_keys = previous_with_hash.select(\"_pk\").subtract(current_with_hash.select(\"_pk\"))\n",
+					"    delete_df = previous_version_df.join(\n",
+					"        delete_keys, \n",
+					"        col(primary_key).cast(\"string\") == col(\"_pk\"), \n",
+					"        \"inner\"\n",
+					"    ).drop(\"_pk\").withColumn(\"EventType\", lit(\"Delete\"))\n",
+					"    \n",
+					"    # Identify modified records (Update)\n",
+					"    common_keys = current_with_hash.select(\"_pk\").intersect(previous_with_hash.select(\"_pk\"))\n",
+					"    current_common = current_with_hash.join(common_keys, \"_pk\", \"inner\")\n",
+					"    previous_common = previous_with_hash.join(common_keys, \"_pk\", \"inner\")\n",
+					"    update_keys = current_common.subtract(previous_common).select(\"_pk\")\n",
+					"    update_df = current_version_df.join(\n",
+					"        update_keys, \n",
+					"        col(primary_key).cast(\"string\") == col(\"_pk\"), \n",
+					"        \"inner\"\n",
+					"    ).drop(\"_pk\").withColumn(\"EventType\", lit(\"Update\"))\n",
+					"    \n",
+					"    # Combine all change types\n",
+					"    changes_df = create_df.union(update_df).union(delete_df)\n",
+					"    \n",
+					"    changes_count = changes_df.count()\n",
+					"    safe_print(f\"Found {changes_count} changes between version {latest_version} and {previous_version} in delta table: {table_name_full}\")\n",
+					"    \n",
+					"    return changes_df"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Main Orchestration Logic"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
 					"try:\n",
 					"    previous_version = latest_version - 1\n",
 					"\n",
-					"    # Check if this is version 0 (initial table creation)\n",
+					"    # Route to appropriate processing method\n",
 					"    if previous_version < 1:\n",
-					"        try:\n",
-					"            print(f\"Table is at version 0. Treating all records as Create events for delta table: {table_name_full}\")\n",
-					"        except Exception as e:\n",
-					"            print(f\"Failed to log info: {e}\")\n",
-					"        \n",
-					"        # Load version 0 and mark all records as Create\n",
-					"        current_version_df = spark.read.format(\"delta\").option(\"versionAsOf\", latest_version).load(table_path)\n",
-					"        changes_df = current_version_df.withColumn(\"EventType\", lit(\"Create\"))\n",
-					"        \n",
-					"        new_count = changes_df.count()\n",
-					"        try:\n",
-					"            print(f\"Found {new_count} new records in version {latest_version} of delta table: {table_name_full}\")\n",
-					"        except Exception as e:\n",
-					"            print(f\"Failed to log info: {e}\")\n",
+					"        changes_df = process_initial_version(table_path, latest_version, table_name_full)\n",
 					"    else:\n",
-					"        try:\n",
-					"            print(f\"Checking for CDF (Change Data Feed) capability on delta table: {table_name_full}\")\n",
-					"        except Exception as e:\n",
-					"            print(f\"Failed to log info: {e}\")\n",
+					"        safe_print(f\"Checking for CDF (Change Data Feed) capability on delta table: {table_name_full}\")\n",
 					"        \n",
 					"        # Check if Change Data Feed is enabled\n",
 					"        delta_table = DeltaTable.forPath(spark, table_path)\n",
@@ -238,84 +431,14 @@
 					"        cdf_enabled = any(prop.key == 'delta.enableChangeDataFeed' and prop.value == 'true' for prop in table_properties)\n",
 					"        \n",
 					"        if cdf_enabled:\n",
-					"            # Use native CDF - most efficient and accurate\n",
-					"            try:\n",
-					"                print(f\"Using Change Data Feed to read changes between version {latest_version} and {previous_version}\")\n",
-					"            except Exception as e:\n",
-					"                print(f\"Failed to log info: {e}\")\n",
-					"            \n",
-					"            changes_df = spark.read.format(\"delta\") \\\n",
-					"                .option(\"readChangeFeed\", \"true\") \\\n",
-					"                .option(\"startingVersion\", previous_version + 1) \\\n",
-					"                .option(\"endingVersion\", latest_version) \\\n",
-					"                .load(table_path)\n",
-					"            \n",
-					"            # Map CDF operation types to our EventType\n",
-					"            # CDF operations: insert, update_preimage, update_postimage, delete\n",
-					"            changes_df = changes_df.withColumn(\n",
-					"                \"EventType\",\n",
-					"                when(col(\"_change_type\") == \"insert\", lit(\"Create\"))\n",
-					"                .when(col(\"_change_type\") == \"update_postimage\", lit(\"Update\"))\n",
-					"                .when(col(\"_change_type\") == \"delete\", lit(\"Delete\"))\n",
-					"                .otherwise(lit(None))\n",
-					"            ).filter(col(\"EventType\").isNotNull()) \\\n",
-					"             .drop(\"_change_type\", \"_commit_version\", \"_commit_timestamp\")\n",
-					"            \n",
-					"            changes_count = changes_df.count()\n",
-					"            try:\n",
-					"                print(f\"Found {changes_count} changes using CDF between version {latest_version} and {previous_version} in delta table: {table_name_full}\")\n",
-					"            except Exception as e:\n",
-					"                print(f\"Failed to log info: {e}\")\n",
+					"            changes_df = process_with_cdf(table_path, previous_version, latest_version, table_name_full)\n",
 					"        else:\n",
-					"            # Fallback: Compare versions using hash-based approach\n",
-					"            try:\n",
-					"                print(f\"CDF not enabled. Using hash-based comparison between version {latest_version} and {previous_version}\")\n",
-					"            except Exception as e:\n",
-					"                print(f\"Failed to log info: {e}\")\n",
-					"            \n",
-					"            current_version_df = spark.read.format(\"delta\").option(\"versionAsOf\", latest_version).load(table_path)\n",
-					"            previous_version_df = spark.read.format(\"delta\").option(\"versionAsOf\", previous_version).load(table_path)\n",
-					"            \n",
-					"            all_columns = current_version_df.columns\n",
-					"            \n",
-					"            # Create hash of entire row to handle complex types\n",
-					"            current_with_hash = current_version_df.withColumn(\n",
-					"                \"_row_hash\",\n",
-					"                md5(to_json(struct(*all_columns)))\n",
-					"            ).select(col(primary_key).cast(\"string\").alias(\"_pk\"), col(\"_row_hash\"))\n",
-					"            \n",
-					"            previous_with_hash = previous_version_df.withColumn(\n",
-					"                \"_row_hash\",\n",
-					"                md5(to_json(struct(*all_columns)))\n",
-					"            ).select(col(primary_key).cast(\"string\").alias(\"_pk\"), col(\"_row_hash\"))\n",
-					"            \n",
-					"            # Find new records\n",
-					"            create_keys = current_with_hash.select(\"_pk\").subtract(previous_with_hash.select(\"_pk\"))\n",
-					"            create_df = current_version_df.join(create_keys, col(primary_key).cast(\"string\") == col(\"_pk\"), \"inner\").drop(\"_pk\").withColumn(\"EventType\", lit(\"Create\"))\n",
-					"            \n",
-					"            # Find deleted records\n",
-					"            delete_keys = previous_with_hash.select(\"_pk\").subtract(current_with_hash.select(\"_pk\"))\n",
-					"            delete_df = previous_version_df.join(delete_keys, col(primary_key).cast(\"string\") == col(\"_pk\"), \"inner\").drop(\"_pk\").withColumn(\"EventType\", lit(\"Delete\"))\n",
-					"            \n",
-					"            # Find updated records (same key, different hash)\n",
-					"            common_keys = current_with_hash.select(\"_pk\").intersect(previous_with_hash.select(\"_pk\"))\n",
-					"            current_common = current_with_hash.join(common_keys, \"_pk\", \"inner\")\n",
-					"            previous_common = previous_with_hash.join(common_keys, \"_pk\", \"inner\")\n",
-					"            update_keys = current_common.subtract(previous_common).select(\"_pk\")\n",
-					"            update_df = current_version_df.join(update_keys, col(primary_key).cast(\"string\") == col(\"_pk\"), \"inner\").drop(\"_pk\").withColumn(\"EventType\", lit(\"Update\"))\n",
-					"            \n",
-					"            # Union all changes\n",
-					"            changes_df = create_df.union(update_df).union(delete_df)\n",
-					"            \n",
-					"            changes_count = changes_df.count()\n",
-					"            try:\n",
-					"                print(f\"Found {changes_count} changes between version {latest_version} and {previous_version} in delta table: {table_name_full}\")\n",
-					"            except Exception as e:\n",
-					"                print(f\"Failed to log info: {e}\")\n",
+					"            changes_df = process_with_hash_comparison(table_path, previous_version, latest_version, primary_key, table_name_full)\n",
 					"\n",
 					"except Exception as e:\n",
 					"    error_message = f\"Failed to read changes in delta table: {table_name_full}. Exception: {str(e)[:800]}\"\n",
-					"    end_exec_time = datetime.now()"
+					"    end_exec_time = datetime.now()\n",
+					"    raise"
 				],
 				"execution_count": null
 			},
