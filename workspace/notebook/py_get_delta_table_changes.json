@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "0aa45826-f0f1-46d8-90f6-d4b2a71cecd3"
+				"spark.autotune.trackingId": "066a380a-ca46-459f-b588-3a0e417a3a2b"
 			}
 		},
 		"metadata": {
@@ -315,125 +315,13 @@
 					"\n",
 					"except Exception as e:\n",
 					"    error_message = f\"Failed to read changes in delta table: {table_name_full}. Exception: {str(e)[:800]}\"\n",
-					"    try:\n",
-					"        print(error_message)\n",
-					"    except Exception as log_e:\n",
-					"        print(f\"Failed to log error: {log_e}\")\n",
-					"    import traceback\n",
-					"    try:\n",
-					"        print(traceback.format_exc())\n",
-					"    except Exception as log_e:\n",
-					"        print(f\"Failed to log traceback: {log_e}\")\n",
-					"    end_exec_time = datetime.now()\n",
-					"\n",
-					"    # Log failure to Application Insights\n",
-					"    duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
-					"    activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
-					"    stage = \"Failed\"\n",
-					"    status_message = f\"Failed to track changes for {table_name_full}\"\n",
-					"    status_code = \"500\"\n",
-					"    \n",
-					"    log_telemetry_and_exit(\n",
-					"        stage,\n",
-					"        start_exec_time,\n",
-					"        end_exec_time,\n",
-					"        error_message,\n",
-					"        table_name_full,\n",
-					"        0,  # insert_count\n",
-					"        0,  # update_count\n",
-					"        0,  # delete_count\n",
-					"        PipelineName,\n",
-					"        PipelineRunID,\n",
-					"        PipelineTriggerID,\n",
-					"        PipelineTriggerName,\n",
-					"        PipelineTriggerType,\n",
-					"        PipelineTriggeredbyPipelineName,\n",
-					"        PipelineTriggeredbyPipelineRunID,\n",
-					"        activity_type,\n",
-					"        duration_seconds,\n",
-					"        status_message,\n",
-					"        status_code\n",
-					"    )"
+					"    end_exec_time = datetime.now()"
 				],
 				"execution_count": null
 			},
 			{
 				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
 				"source": [
-					"# Check if there are any changes\n",
-					"changes_count = changes_df.count()\n",
-					"end_exec_time = datetime.now()\n",
-					"\n",
-					"if changes_count == 0:\n",
-					"    try:\n",
-					"        print(f\"No changes detected in delta table: {table_name_full}\")\n",
-					"    except Exception as e:\n",
-					"        print(f\"Failed to log info: {e}\")\n",
-					"    \n",
-					"    # Log success to Application Insights\n",
-					"    duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
-					"    activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
-					"    stage = \"Success\"\n",
-					"    status_message = f\"No changes detected in {table_name_full}\"\n",
-					"    status_code = \"200\"\n",
-					"    \n",
-					"    log_telemetry_and_exit(\n",
-					"        stage,\n",
-					"        start_exec_time,\n",
-					"        end_exec_time,\n",
-					"        error_message,\n",
-					"        table_name_full,\n",
-					"        0,  # insert_count\n",
-					"        0,  # update_count\n",
-					"        0,  # delete_count\n",
-					"        PipelineName,\n",
-					"        PipelineRunID,\n",
-					"        PipelineTriggerID,\n",
-					"        PipelineTriggerName,\n",
-					"        PipelineTriggerType,\n",
-					"        PipelineTriggeredbyPipelineName,\n",
-					"        PipelineTriggeredbyPipelineRunID,\n",
-					"        activity_type,\n",
-					"        duration_seconds,\n",
-					"        status_message,\n",
-					"        status_code\n",
-					"    )"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"# Process changes in batches to avoid Service Bus and Lookup activity size limits\n",
-					"# Azure Service Bus: 256KB limit (standard tier), 1MB (premium tier)\n",
-					"# ADF Lookup activity: 4MB limit\n",
-					"# Use size-based batching to optimize payload and stay under limits\n",
-					"\n",
-					"import json\n",
-					"from datetime import datetime, date\n",
-					"\n",
 					"# Helper function to convert datetime objects to ISO format strings\n",
 					"def convert_datetime_to_str(obj):\n",
 					"    if isinstance(obj, (datetime, date)):\n",
@@ -442,8 +330,24 @@
 					"        return {k: convert_datetime_to_str(v) for k, v in obj.items()}\n",
 					"    elif isinstance(obj, list):\n",
 					"        return [convert_datetime_to_str(item) for item in obj]\n",
-					"    return obj\n",
-					"\n",
+					"    return obj"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
 					"# Batching configuration\n",
 					"TARGET_BATCH_SIZE_BYTES = 3 * 1024 * 1024  # 3MB target (leaves headroom under 4MB Lookup limit)\n",
 					"MAX_BATCH_SIZE = 1000  # Maximum messages per batch as safety limit\n",
@@ -509,13 +413,19 @@
 					"    mssparkutils.fs.put(file_path, batch_json, True)\n",
 					"\n",
 					"batch_count = len(batches)\n",
-					"\n",
 					"try:\n",
 					"    print(f\"Successfully wrote {changes_count} changes across {batch_count} batch files\")\n",
 					"except Exception as e:\n",
-					"    print(f\"Failed to log info: {e}\")\n",
-					"\n",
+					"    print(f\"Failed to log info: {e}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"# Log success to Application Insights\n",
+					"changes_count = changes_df.count()\n",
+					"end_exec_time = datetime.now()\n",
 					"duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
 					"activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
 					"stage = \"Success\"\n",
