@@ -1,4 +1,5 @@
 from odw.core.etl.transformation.standardised.standardisation_process import StandardisationProcess
+from odw.core.etl.util.schema_util import SchemaUtil
 from odw.core.util.util import Util
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
@@ -135,7 +136,8 @@ class ServiceBusStandardisationProcess(StandardisationProcess):
         filtered_paths = []
         if use_max_date_filter:
             filtered_paths = self.extract_and_filter_paths(self.get_all_files_in_directory(source_path=source_path), max_extracted_date)
-        new_raw_messages = self.read_raw_messages(missing_files + filtered_paths)
+        schema = SchemaUtil(db_name="odw_standardised_db").get_service_bus_schema(entity_name)
+        new_raw_messages = self.read_raw_messages(missing_files + filtered_paths, schema)
         return {
             f"{database_name}.{table_name}": table_df,
             "raw_messages": new_raw_messages
