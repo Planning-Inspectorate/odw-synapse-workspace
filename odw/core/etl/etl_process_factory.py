@@ -2,6 +2,8 @@ from odw.core.etl.etl_process import ETLProcess
 from odw.core.exceptions import DuplicateETLProcessNameException, ETLProcessNameNotFoundException
 from odw.core.etl.transformation.standardised.standardisation_process import StandardisationProcess
 from odw.core.etl.transformation.standardised.service_bus_standardisation_process import ServiceBusStandardisationProcess
+from odw.core.etl.transformation.standardised.horizon_standardisation_process import HorizonStandardisationProcess
+from odw.core.etl.transformation.harmonised.service_bus_harmonisation_process import ServiceBusHarmonisationProcess
 from typing import Dict, List, Set, Type
 import json
 
@@ -9,7 +11,9 @@ import json
 class ETLProcessFactory():
     ETL_PROCESSES: Set[Type[ETLProcess]] = {
         StandardisationProcess,
-        ServiceBusStandardisationProcess
+        ServiceBusStandardisationProcess,
+        HorizonStandardisationProcess,
+        ServiceBusHarmonisationProcess
     }
 
     @classmethod
