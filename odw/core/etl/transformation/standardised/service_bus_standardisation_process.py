@@ -136,8 +136,10 @@ class ServiceBusStandardisationProcess(StandardisationProcess):
         filtered_paths = []
         if use_max_date_filter:
             filtered_paths = self.extract_and_filter_paths(self.get_all_files_in_directory(source_path=source_path), max_extracted_date)
-        schema = SchemaUtil(db_name="odw_standardised_db").get_service_bus_schema(entity_name)
-        new_raw_messages = self.read_raw_messages(missing_files + filtered_paths, schema)
+        new_raw_messages = self.read_raw_messages(
+            missing_files + filtered_paths,
+            SchemaUtil(db_name="odw_standardised_db").get_service_bus_schema(entity_name)
+        )
         return {
             f"{database_name}.{table_name}": table_df,
             "raw_messages": new_raw_messages

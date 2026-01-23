@@ -4,7 +4,7 @@ import requests
 from typing import Dict, Any
 
 
-class SchemaUtil:
+class SchemaUtil():
     """
     Contains functions for schema operations for the ODW data.
     This is a recreation of the `py_get_schema_from_url` notebook
@@ -164,7 +164,7 @@ class SchemaUtil:
         else:
             return schema
 
-    def _add_standardised_columns_to_schema(schema: T.StructType) -> T.StructType:
+    def _add_standardised_columns_to_schema(self, schema: T.StructType) -> T.StructType:
         """
         Add columns for the Standardised layer
         """
@@ -177,8 +177,7 @@ class SchemaUtil:
             T.StructField("message_enqueued_time_utc", T.StringType(), False),
             T.StructField("input_file", T.StringType(), False)
         ])
-        master_fields: T.StructType = standardised_fields
-        all_fields: list = schema.fields + master_fields.fields
+        all_fields: list = schema.fields + standardised_fields.fields
         return T.StructType(all_fields)
 
     def _add_harmonised_columns_to_schema(schema: T.StructType, incremental_key_field: T.StructType) -> T.StructType:
@@ -194,8 +193,7 @@ class SchemaUtil:
             T.StructField("RowID", T.StringType(), True),
             T.StructField("IsActive", T.StringType(), True)
         ])
-        master_fields: T.StructType = harmonised_fields
-        all_fields: list = schema.fields + master_fields.fields
+        all_fields: list = schema.fields + harmonised_fields.fields
         if incremental_key_field:
             all_fields.insert(0, incremental_key_field.fields[0])
 
@@ -268,7 +266,7 @@ class SchemaUtil:
         cleaned_schema = self._resolve_refs(schema, definitions)
         cleaned_schema = self._transform_service_bus_schema(cleaned_schema, definitions)
         if self.db_name == "odw_standardised_db":
-            return self._add_standardised_columns_to_schema(schema)
+            return self._add_standardised_columns_to_schema(cleaned_schema)
         if self.db_name == "odw_harmonised_db":
-            return self._add_harmonised_columns_to_schema(schema, incremental_key_field)
+            return self._add_harmonised_columns_to_schema(cleaned_schema, incremental_key_field)
         return cleaned_schema
