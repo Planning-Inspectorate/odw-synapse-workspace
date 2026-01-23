@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "e82f2865-f21d-4cac-a9aa-4a2f402fa8b9"
+				"spark.autotune.trackingId": "d3a24ebc-8105-4444-b73a-0ff494676da4"
 			}
 		},
 		"metadata": {
@@ -283,9 +283,7 @@
 					"\r\n",
 					"max_file_datetime = run_step(\r\n",
 					"    \"Get max file date from input_file paths\",\r\n",
-					"    step_get_max_file_date)\r\n",
-					"\r\n",
-					""
+					"    step_get_max_file_date)"
 				],
 				"execution_count": null
 			},
@@ -445,54 +443,35 @@
 			},
 			{
 				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
 				"source": [
 					"@logging_to_appins\r\n",
 					"def read_raw_messages(filtered_paths: list[str]) -> DataFrame:\r\n",
 					"    \"\"\"\r\n",
 					"    Ingests data from service bus messages stored as json files in the raw layer.\r\n",
-					"\r\n",
-					"    Args:\r\n",
-					"        filtered_paths: a list of file paths to ingest\r\n",
-					"\r\n",
-					"    Returns:\r\n",
-					"        A DataFrame of service bus messages with additional columns needed for the standardised table\r\n",
 					"    \"\"\"\r\n",
-					"    # Read JSON files from filtered paths\r\n",
-					"    df = (\r\n",
-					"        spark.read\r\n",
-					"        .option(\"multiline\", \"true\")\r\n",
-					"        .json(filtered_paths, schema=spark_schema)\r\n",
-					"    )\r\n",
+					"\r\n",
+					"    # Guard: check for empty/None paths before reading\r\n",
+					"    if not filtered_paths:\r\n",
+					"        logInfo(\"No files to read -> returning empty DataFrame.\")\r\n",
+					"        return spark.createDataFrame([], schema=spark_schema if spark_schema else StructType([]))\r\n",
+					"\r\n",
+					"    # Read JSON files from filtered paths (apply schema if present)\r\n",
+					"    reader = spark.read.option(\"multiline\", \"true\")\r\n",
+					"    if spark_schema:\r\n",
+					"        reader = reader.schema(spark_schema)\r\n",
+					"    df = reader.json(filtered_paths)\r\n",
 					"\r\n",
 					"    logInfo(f\"Found {df.count()} new rows.\")\r\n",
 					"\r\n",
 					"    # Adding the standardised columns\r\n",
-					"    df = df.withColumn(\"expected_from\", current_timestamp())\r\n",
-					"    df = df.withColumn(\"expected_to\", expr(\"current_timestamp() + INTERVAL 1 DAY\"))\r\n",
-					"    df = df.withColumn(\"ingested_datetime\", to_timestamp(df.message_enqueued_time_utc))\r\n",
-					"    df = df.withColumn(\"input_file\", input_file_name())\r\n",
+					"    df = (\r\n",
+					"        df.withColumn(\"expected_from\", current_timestamp())\r\n",
+					"          .withColumn(\"expected_to\", expr(\"current_timestamp() + INTERVAL 1 DAY\"))\r\n",
+					"          .withColumn(\"ingested_datetime\", to_timestamp(\"message_enqueued_time_utc\"))\r\n",
+					"          .withColumn(\"input_file\", input_file_name())\r\n",
+					"    )\r\n",
 					"\r\n",
 					"    return df\r\n",
-					"\r\n",
-					"    if not filtered_paths:\r\n",
-					"        loginfo(\"No files\")\r\n",
-					"    if spark_schema and spark_schema != '':\r\n",
-					"        return spark.createDataFrame([],schema=spark_schema)\r\n",
-					"    else:\r\n",
-					"        return spark.createDataFrame([],schema= StructType([]))\r\n",
-					"\r\n",
-					"\r\n",
 					"\r\n",
 					"def step_read_raw_messages():\r\n",
 					"    return read_raw_messages(filtered_paths)\r\n",
@@ -768,8 +747,7 @@
 					"    end_exec_time = datetime.now()\r\n",
 					"    logInfo(\"Done appending rows to table\")\r\n",
 					"    return spark.table(target_table).count()\r\n",
-					"new_table_row_count=run_step(f\"|Append rows to table{target_table} and get new count\",step_append_df_to_table)\r\n",
-					""
+					"new_table_row_count=run_step(f\"|Append rows to table{target_table} and get new count\",step_append_df_to_table)"
 				],
 				"execution_count": null
 			},
