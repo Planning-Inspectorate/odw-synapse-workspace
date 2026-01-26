@@ -13,7 +13,7 @@ from pyspark.sql.types import TimestampType
 from pyspark.sql import SparkSession
 from pyspark.errors.exceptions.captured import AnalysisException
 from datetime import datetime, timedelta
-from typing import Dict, List
+from typing import Dict, List, Any
 import re
 import json
 from copy import deepcopy
@@ -59,7 +59,7 @@ class HorizonStandardisationProcess(StandardisationProcess):
         for file in horizon_files:
             data = SynapseFileDataIO().read(
                 spark=SparkSession.builder.getOrCreate(),
-                storage_name=Util.get_storage_account(),
+                storage_endpoint=Util.get_storage_account(),
                 container_name="odw-raw",
                 blob_path=f"{source_folder}/{last_modified_folder}/{file}",
                 file_format="csv",
@@ -80,7 +80,7 @@ class HorizonStandardisationProcess(StandardisationProcess):
         # Load orchestration file
         orchestration_data = SynapseFileDataIO().read(
             spark=SparkSession.builder.getOrCreate(),
-            storage_name=Util.get_storage_account(),
+            storage_endpoint=Util.get_storage_account(),
             container_name="odw-config",
             blob_path=f"orchestration/orchestration.json",
             file_format="json",
@@ -89,20 +89,15 @@ class HorizonStandardisationProcess(StandardisationProcess):
         file_map["orchestration_data"] = orchestration_data
 
         # Load existing data (if any)
-        definitions = json.loads(orchestration_data.toJSON().first())["definitions"]
-        print("definitions:", [d for d in definitions])
-        print(f"file name: '{file}'")
+        definitions: List[Dict[str, Any]] = json.loads(orchestration_data.toJSON().first())["definitions"]
         for file in horizon_files:
-            for d in definitions:
-                print(f"Source_Filename_Start: '{d['Source_Filename_Start']}'")
-                print(f"Load_Enable_status: '{d['Load_Enable_status']}'")
             definition = next(
                 (
                     d
                     for d in definitions
-                    if (specific_file == "" or d["Source_Filename_Start"] == specific_file)
-                    and file.startswith(d["Source_Filename_Start"])
-                    and d["Load_Enable_status"] == "True"
+                    if (specific_file == "" or d.get("Source_Filename_Start", None) == specific_file)
+                    and file.startswith(d.get("Source_Filename_Start", None))
+                    and d.get("Load_Enable_status", False) == "True"
                 ),
                 None,
             )
@@ -121,7 +116,6 @@ class HorizonStandardisationProcess(StandardisationProcess):
                 # Load standardised table schema
                 if "Standardised_Table_Definition" in definition:
                     standardised_table_loc = Util.get_path_to_file(f"odw-config/{definition['Standardised_Table_Definition']}")
-                    print("standardised_table_loc: ", standardised_table_loc)
                     standardised_table_schema = json.loads(self.spark.read.text(standardised_table_loc, wholetext=True).first().value)
                 else:
                     standardised_table_schema = SchemaUtil(db_name="odw_standardised_db").get_schema_for_entity(definition["Source_Frequency_Folder"])
@@ -142,7 +136,7 @@ class HorizonStandardisationProcess(StandardisationProcess):
         # Only process the csv files
         files_to_process = {k: v for k, v in source_data.items() if k != "orchestration_data" and k.endswith(".csv")}
         orchestration_data: DataFrame = self.load_parameter("orchestration_data", source_data)
-        definitions = json.loads(orchestration_data.toJSON().first())["definitions"]
+        definitions: List[Dict[str, Any]] = json.loads(orchestration_data.toJSON().first())["definitions"]
 
         processed_tables = []
         new_row_count = 0
@@ -153,9 +147,9 @@ class HorizonStandardisationProcess(StandardisationProcess):
                 (
                     d
                     for d in definitions
-                    if (specific_file == "" or d["Source_Filename_Start"] == specific_file)
-                    and file.startswith(d["Source_Filename_Start"])
-                    and d["Load_Enable_status"] == "True"
+                    if (specific_file == "" or d.get("Source_Filename_Start", None) == specific_file)
+                    and file.startswith(d.get("Source_Filename_Start", None))
+                    and d.get("Load_Enable_status", False) == "True"
                 ),
                 None,
             )
