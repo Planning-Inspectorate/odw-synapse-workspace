@@ -37,11 +37,20 @@
 										"value": "@pipeline().RunId",
 										"type": "Expression"
 									},
-									"StartTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
-									"EndTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+									"StartTime": {
+										"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
+									},
+									"EndTime": {
+										"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
+									},
 									"ErrorMessage": "No entities to transform",
 									"StatusMessage": "NoWork",
-									"AppInsIKey": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n"
+									"AppInsIKey": {
+										"value": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n",
+										"type": "Expression"
+									}
 								}
 							}
 						},
@@ -62,9 +71,9 @@
 							},
 							"userProperties": [],
 							"typeProperties": {
-								"variableName": "transformStatus",
+								"variableName": "transformStatusJson",
 								"value": {
-									"value": "@json('[]')\n",
+									"value": "@concat('{\"hasFailure\":false,\"results\":[]}')\n",
 									"type": "Expression"
 								}
 							}
@@ -134,14 +143,20 @@
 										"value": "@pipeline().RunId",
 										"type": "Expression"
 									},
-									"StartTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
-									"EndTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+									"StartTime": {
+										"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
+									},
+									"EndTime": {
+										"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
+									},
 									"StatusMessage": {
 										"value": "@concat(item(), ' TRANSFORM SB starting')\n",
 										"type": "Expression"
 									},
 									"AppInsIKey": {
-										"value": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n",
+										"value": "@string(\n  coalesce(\n    json(string(pipeline().parameters.runContextJson))?['appInsightsKey'],\n    json(string(pipeline().parameters.runContextJson))?['apps_insights_ikey'],\n    ''\n  )\n)\n",
 										"type": "Expression"
 									}
 								}
@@ -165,7 +180,10 @@
 							"userProperties": [],
 							"typeProperties": {
 								"variableName": "loopStartTicks",
-								"value": "@string(ticks(utcNow()))\n"
+								"value": {
+									"value": "@string(ticks(utcNow()))\n",
+									"type": "Expression"
+								}
 							}
 						},
 						{
@@ -233,7 +251,10 @@
 													"type": "string"
 												},
 												"entity_name": {
-													"value": "@item()\n",
+													"value": {
+														"value": "@item()\n",
+														"type": "Expression"
+													},
 													"type": "string"
 												}
 											},
@@ -243,7 +264,13 @@
 												"type": "BigDataPoolReference"
 											},
 											"executorSize": "Small",
+											"conf": {
+												"spark.dynamicAllocation.enabled": null,
+												"spark.dynamicAllocation.minExecutors": null,
+												"spark.dynamicAllocation.maxExecutors": null
+											},
 											"driverSize": "Small",
+											"numExecutors": null,
 											"authentication": {
 												"type": "MSI"
 											}
@@ -267,7 +294,10 @@
 										"userProperties": [],
 										"typeProperties": {
 											"variableName": "lastErrorMessage",
-											"value": "@string(activity('SB_ETL_Standardise').Error.Message)\n"
+											"value": {
+												"value": "@string(activity('SB_ETL_Standardise').Error.Message)\n",
+												"type": "Expression"
+											}
 										}
 									},
 									{
@@ -301,13 +331,22 @@
 													"value": "@pipeline().RunId",
 													"type": "Expression"
 												},
-												"StartTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
-												"EndTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+												"StartTime": {
+													"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+													"type": "Expression"
+												},
+												"EndTime": {
+													"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+													"type": "Expression"
+												},
 												"ErrorMessage": {
 													"value": "@replace(\n  replace(\n    replace(variables('lastErrorMessage'),'\"',''''),\n    '\\r',' '\n  ),\n  '\\n',' '\n)\n",
 													"type": "Expression"
 												},
-												"StatusMessage": "@concat(item(), ' SB standardised failed')\n",
+												"StatusMessage": {
+													"value": "@concat(item(), ' SB standardised failed')\n",
+													"type": "Expression"
+												},
 												"AppInsIKey": {
 													"value": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n",
 													"type": "Expression"
@@ -392,7 +431,10 @@
 										"userProperties": [],
 										"typeProperties": {
 											"variableName": "sbStatus",
-											"value": "@json(concat(\n  '{',\n    '\"entity\":\"', string(item()), '\",',\n    '\"status\":\"Succeeded\",',\n    '\"stage\":\"standardised\",',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('loopStartTicks'))), 10000000)), ',',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n"
+											"value": {
+												"value": "@json(concat(\n  '{',\n    '\"entity\":\"', string(item()), '\",',\n    '\"status\":\"Succeeded\",',\n    '\"stage\":\"standardised\",',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('loopStartTicks'))), 10000000)), ',',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n",
+												"type": "Expression"
+											}
 										}
 									}
 								]
@@ -476,7 +518,13 @@
 												"type": "BigDataPoolReference"
 											},
 											"executorSize": "Small",
+											"conf": {
+												"spark.dynamicAllocation.enabled": null,
+												"spark.dynamicAllocation.minExecutors": null,
+												"spark.dynamicAllocation.maxExecutors": null
+											},
 											"driverSize": "Small",
+											"numExecutors": null,
 											"authentication": {
 												"type": "MSI"
 											}
@@ -537,13 +585,22 @@
 													"value": "@pipeline().RunId",
 													"type": "Expression"
 												},
-												"StartTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')\n",
-												"EndTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')\n",
+												"StartTime": {
+													"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')\n",
+													"type": "Expression"
+												},
+												"EndTime": {
+													"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')\n",
+													"type": "Expression"
+												},
 												"ErrorMessage": {
 													"value": "@replace(\n  replace(\n    replace(variables('lastErrorMessage'), '\"', ''''),\n    '\\r', ' '\n  ),\n  '\\n', ' '\n)\n",
 													"type": "Expression"
 												},
-												"StatusMessage": "@concat(item(), ' SB harmonised failed')\n",
+												"StatusMessage": {
+													"value": "@concat(item(), ' SB harmonised failed')\n",
+													"type": "Expression"
+												},
 												"AppInsIKey": {
 													"value": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n",
 													"type": "Expression"
@@ -566,7 +623,10 @@
 										"userProperties": [],
 										"typeProperties": {
 											"variableName": "sbStatus",
-											"value": "@json(concat(\n  '{',\n    '\"entity\":\"', string(item()), '\",',\n    '\"status\":\"Failed\",',\n    '\"stage\":\"harmonised\",',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('loopStartTicks'))), 10000000)), ',',\n    '\"error\":\"', replace(variables('lastErrorMessage'), '\"', ''''), '\",',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n"
+											"value": {
+												"value": "@json(concat(\n  '{',\n    '\"entity\":\"', string(item()), '\",',\n    '\"status\":\"Failed\",',\n    '\"stage\":\"harmonised\",',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('loopStartTicks'))), 10000000)), ',',\n    '\"error\":\"', replace(variables('lastErrorMessage'), '\"', ''''), '\",',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n",
+												"type": "Expression"
+											}
 										}
 									},
 									{
@@ -625,7 +685,10 @@
 										"userProperties": [],
 										"typeProperties": {
 											"variableName": "sbStatus",
-											"value": "@json(concat(\n  '{',\n    '\"entity\":\"', string(item()), '\",',\n    '\"status\":\"Succeeded\",',\n    '\"stage\":\"harmonised\",',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('loopStartTicks'))), 10000000)), ',',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n"
+											"value": {
+												"value": "@json(concat(\n  '{',\n    '\"entity\":\"', string(item()), '\",',\n    '\"status\":\"Succeeded\",',\n    '\"stage\":\"harmonised\",',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('loopStartTicks'))), 10000000)), ',',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n",
+												"type": "Expression"
+											}
 										}
 									}
 								]
@@ -696,10 +759,22 @@
 										"value": "@pipeline().RunId",
 										"type": "Expression"
 									},
-									"StartTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')\n",
-									"EndTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')\n",
-									"StatusMessage": "@concat(item(), ' TRANSFORM HZ starting')\n",
-									"AppInsIKey": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n"
+									"StartTime": {
+										"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')\n",
+										"type": "Expression"
+									},
+									"EndTime": {
+										"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')\n",
+										"type": "Expression"
+									},
+									"StatusMessage": {
+										"value": "@concat(item(), ' TRANSFORM HZ starting')\n",
+										"type": "Expression"
+									},
+									"AppInsIKey": {
+										"value": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n",
+										"type": "Expression"
+									}
 								}
 							}
 						},
@@ -721,7 +796,10 @@
 							"userProperties": [],
 							"typeProperties": {
 								"variableName": "loopStartTicks",
-								"value": "@string(ticks(utcNow()))\n"
+								"value": {
+									"value": "@string(ticks(utcNow()))\n",
+									"type": "Expression"
+								}
 							}
 						},
 						{
@@ -802,7 +880,13 @@
 												"type": "BigDataPoolReference"
 											},
 											"executorSize": "Small",
+											"conf": {
+												"spark.dynamicAllocation.enabled": null,
+												"spark.dynamicAllocation.minExecutors": null,
+												"spark.dynamicAllocation.maxExecutors": null
+											},
 											"driverSize": "Small",
+											"numExecutors": null,
 											"authentication": {
 												"type": "MSI"
 											}
@@ -826,7 +910,10 @@
 										"userProperties": [],
 										"typeProperties": {
 											"variableName": "lastErrorMessage",
-											"value": "@string(activity('HZ_ETL_Standardise').Error.Message)\n"
+											"value": {
+												"value": "@string(activity('HZ_ETL_Standardise').Error.Message)\n",
+												"type": "Expression"
+											}
 										}
 									},
 									{
@@ -860,8 +947,14 @@
 													"value": "@pipeline().RunId",
 													"type": "Expression"
 												},
-												"StartTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
-												"EndTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+												"StartTime": {
+													"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+													"type": "Expression"
+												},
+												"EndTime": {
+													"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+													"type": "Expression"
+												},
 												"ErrorMessage": {
 													"value": "@replace(\n  replace(\n    replace(variables('lastErrorMessage'),'\"',''''),\n    '\\r',' '\n  ),\n  '\\n',' '\n)\n",
 													"type": "Expression"
@@ -892,7 +985,10 @@
 										"userProperties": [],
 										"typeProperties": {
 											"variableName": "hzStatus",
-											"value": "@json(concat(\n  '{',\n    '\"entity\":\"', string(item()), '\",',\n    '\"status\":\"Failed\",',\n    '\"stage\":\"standardised\",',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('loopStartTicks'))), 10000000)), ',',\n    '\"error\":\"', replace(variables('lastErrorMessage'), '\"', ''''), '\",',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n"
+											"value": {
+												"value": "@json(concat(\n  '{',\n    '\"entity\":\"', string(item()), '\",',\n    '\"status\":\"Failed\",',\n    '\"stage\":\"standardised\",',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('loopStartTicks'))), 10000000)), ',',\n    '\"error\":\"', replace(variables('lastErrorMessage'), '\"', ''''), '\",',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n",
+												"type": "Expression"
+											}
 										}
 									},
 									{
@@ -930,7 +1026,10 @@
 										"userProperties": [],
 										"typeProperties": {
 											"variableName": "hzStatus",
-											"value": "@json(concat(\n  '{',\n    '\"entity\":\"', string(item()), '\",',\n    '\"status\":\"Succeeded\",',\n    '\"stage\":\"standardised\",',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('loopStartTicks'))), 10000000)), ',',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n"
+											"value": {
+												"value": "@json(concat(\n  '{',\n    '\"entity\":\"', string(item()), '\",',\n    '\"status\":\"Succeeded\",',\n    '\"stage\":\"standardised\",',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('loopStartTicks'))), 10000000)), ',',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n",
+												"type": "Expression"
+											}
 										}
 									}
 								]
@@ -963,7 +1062,10 @@
 				"userProperties": [],
 				"typeProperties": {
 					"variableName": "transformStatusJson",
-					"value": "@concat(\n  '{',\n    '\"hasFailure\":', toLower(string(variables('hasFailure'))), ',',\n    '\"results\":', string(union(variables('sbStatus'), variables('hzStatus'))),\n  '}'\n)\n"
+					"value": {
+						"value": "@concat(\n  '{',\n    '\"hasFailure\":', toLower(string(variables('hasFailure'))), ',',\n    '\"results\":', string(union(variables('sbStatus'), variables('hzStatus'))),\n  '}'\n)\n",
+						"type": "Expression"
+					}
 				}
 			},
 			{
