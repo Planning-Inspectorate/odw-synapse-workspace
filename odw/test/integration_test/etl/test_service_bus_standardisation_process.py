@@ -1,11 +1,13 @@
 from odw.test.util.mock.import_mock_notebook_utils import notebookutils
 from odw.core.etl.transformation.standardised.service_bus_standardisation_process import ServiceBusStandardisationProcess
+from odw.core.etl.util.schema_util import SchemaUtil
 from odw.core.io.synapse_table_data_io import SynapseTableDataIO
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
 from odw.test.util.util import generate_local_path
 from odw.test.util.util import get_all_files_in_directory, format_to_adls_path
 from pyspark.sql import SparkSession
+import pyspark.sql.types as T
 import mock
 from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
 import json
@@ -79,6 +81,14 @@ def test__service_bus_standardisation_process__run__with_existing_data(teardown)
         ["col_a", "col_b", "input_file", "message_enqueued_time_utc"],
     )
     extra_cols_added_during_processing = ["expected_from", "expected_to", "ingested_datetime", "input_file"]
+    mock_standardised_schema = T.StructType(
+        [
+            T.StructField("col_a", T.LongType()),
+            T.StructField("col_b", T.StringType()),
+            T.StructField("input_file", T.StringType()),
+            T.StructField("message_enqueued_time_utc", T.StringType())
+        ]
+    )
 
     with mock.patch.object(SynapseTableDataIO, "_format_to_adls_path", format_to_adls_path):
         SynapseTableDataIO().write(
@@ -102,8 +112,9 @@ def test__service_bus_standardisation_process__run__with_existing_data(teardown)
                         with mock.patch.object(LoggingUtil, "__new__"):
                             with mock.patch.object(LoggingUtil, "log_info", return_value=None):
                                 with mock.patch.object(LoggingUtil, "log_error", return_value=None):
-                                    result = ServiceBusStandardisationProcess(spark).run(entity_name="test__service_bus_standardisation_process__run")
-                                    assert_etl_result_successful(result)
+                                    with mock.patch.object(SchemaUtil, "get_service_bus_schema", return_value=mock_standardised_schema):
+                                        result = ServiceBusStandardisationProcess(spark).run(entity_name="test__service_bus_standardisation_process__run")
+                                        assert_etl_result_successful(result)
     data_after = spark.table("odw_standardised_db.sb_test__service_bus_standardisation_process__run")
     # Drop columns that cannot easily be compared - todo actually compare these cols
     for col in extra_cols_added_during_processing:

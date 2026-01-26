@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "91ca7b92-0294-4551-9921-c299b93ddbc0"
+				"spark.autotune.trackingId": "9e19e60d-a8ab-4931-99dc-d5f26927a861"
 			}
 		},
 		"metadata": {
@@ -55,9 +55,17 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"#%run refactor/combined_odw"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"from odw.core.etl.etl_process_factory import ETLProcessFactory\n",
 					"from odw.core.io.data_io_factory import DataIOFactory\n",
 					"from odw.core.io.parser.data_file_parser_factory import DataFileParserFactory\n",
+					"from odw.core.etl.etl_result import ETLFailResult\n",
 					"from pyspark.sql import SparkSession\n",
 					"from typing import Dict, Any, Union\n",
 					"import json"
@@ -86,16 +94,8 @@
 				},
 				"source": [
 					"input_arguments: Union[Dict[str, Any], str] = {\n",
-					"    \"entity_stage_name\": \"Standardisation\",\n",
-					"    \"source_data\": {\n",
-					"        \"someblob\": {\n",
-					"            \"storage_kind\": \"ADLSG2-File\",\n",
-					"            \"storage_name\": \"pinsstodwdevuks9h80mb\",\n",
-					"            \"container_name\": \"odw-config\",\n",
-					"            \"blob_path\": \"orchestration/orchestration.json\",\n",
-					"            \"file_format\": \"json\"\n",
-					"        }\n",
-					"    }\n",
+					"    \"entity_stage_name\": \"Service Bus Standardisation\",\n",
+					"    \"entity_name\": \"appeal-has\"\n",
 					"}"
 				],
 				"execution_count": null
@@ -124,57 +124,16 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"if \"source_data\" not in input_arguments:\n",
-					"    raise ValueError(\"py_etl_ochestrator expects a 'source_data' property to be supplied, but this was missing\")\n",
 					"if \"entity_stage_name\" not in input_arguments:\n",
 					"    raise ValueError(\"py_etl_ochestrator expects a 'entity_stage_name' property to be supplied, but this was missing\")"
 				],
 				"execution_count": null
 			},
 			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"# Load data"
-				]
-			},
-			{
 				"cell_type": "code",
 				"source": [
-					"source_metadata = input_arguments.pop(\"source_data\")\n",
-					"source_data_map = dict()\n",
-					"data_read_error_map = dict()\n",
-					"for data_name, metadata in source_metadata.items():\n",
-					"    try:\n",
-					"        storage_kind = metadata.get(\"storage_kind\", None)\n",
-					"        file_format = metadata.get(\"file_format\", None)\n",
-					"        if not storage_kind:\n",
-					"            raise ValueError(f\"Expected a storage_kind parameter to be passed, but this was missing\")\n",
-					"        if not file_format:\n",
-					"            raise ValueError(f\"Expected a file_format parameter to be passed, but this was missing\")\n",
-					"        data_io_inst = DataIOFactory.get(storage_kind)()\n",
-					"        data = data_io_inst.read(spark=spark, **metadata)\n",
-					"        # parser_inst = DataFileParserFactory.get(file_format)(spark)\n",
-					"        # data = parser_inst.from_bytes(data_bytes)\n",
-					"        source_data_map[data_name] = data\n",
-					"    except Exception as e:\n",
-					"        data_read_error_map[data_name] = e"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"if data_read_error_map:\n",
-					"    raise RuntimeError(\n",
-					"        f\"Failed to read the following source data: {json.dumps(data_read_error_map, indent=4, default=str)}\"\n",
-					"    )"
+					"# Initialise spark session\n",
+					"spark = SparkSession.builder.getOrCreate()"
 				],
 				"execution_count": null
 			},
@@ -194,7 +153,6 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"spark = SparkSession.builder.getOrCreate()\n",
 					"entity_stage_name = input_arguments.get(\"entity_stage_name\")\n",
 					"etl_process_class = ETLProcessFactory.get(entity_stage_name)\n",
 					"etl_process_instance = etl_process_class(spark)"
@@ -217,8 +175,7 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"etl_results = etl_process_instance.process(\n",
-					"    source_data=source_data_map,\n",
+					"etl_results = etl_process_instance.run(\n",
 					"    **input_arguments,\n",
 					"    spark=spark\n",
 					")"
@@ -226,45 +183,10 @@
 				"execution_count": null
 			},
 			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"# Write output data"
-				]
-			},
-			{
 				"cell_type": "code",
 				"source": [
-					"data_write_errors = dict()\n",
-					"for result_name, result_metadata in etl_results.items():\n",
-					"    try:\n",
-					"        result_data = result_metadata.get(\"data\")\n",
-					"        destination_kind = metadata.get(\"storage_kind\", None)\n",
-					"        destination_data_format = metadata.get(\"data_format\", None)\n",
-					"        if not storage_kind:\n",
-					"            raise ValueError(f\"Expected a storage_kind parameter to be returned by {etl_process_class}.process, but this was missing\")\n",
-					"        if not data_format:\n",
-					"            raise ValueError(f\"Expected a data_format parameter to be returned by {etl_process_class}.process, but this was missing\")\n",
-					"        data_io_inst = DataIOFactory.get(storage_kind)()\n",
-					"        data_io_inst.write(data=result_data, **metadata)\n",
-					"    except Exception as e:\n",
-					"        data_write_errors[result_name] = e"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"if data_write_errors:\n",
-					"    raise RuntimeError(\n",
-					"        f\"Failed to write the following result data: {json.dumps(data_write_errors, indent=4)}\"\n",
-					"    )"
+					"print(\"ETL Results\")\n",
+					"print(etl_results)"
 				],
 				"execution_count": null
 			},
@@ -280,6 +202,22 @@
 				"source": [
 					"# Write logging data"
 				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Todo - need to refactor the logging method"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Ensure the notebook fails if there is an ETL exception\n",
+					"if isinstance(etl_results, ETLFailResult):\n",
+					"    raise RuntimeError(etl_results.metadata.exception_trace)"
+				],
+				"execution_count": null
 			}
 		]
 	}

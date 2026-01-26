@@ -5,6 +5,7 @@ from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from odw.core.io.synapse_table_data_io import SynapseTableDataIO
 from odw.core.io.synapse_file_data_io import SynapseFileDataIO
 from odw.core.etl.util.schema_util import SchemaUtil
+from notebookutils import mssparkutils
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType
 import pyspark.sql.functions as F
