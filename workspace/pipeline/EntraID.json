@@ -5,7 +5,14 @@
 			{
 				"name": "Src to Raw",
 				"type": "ExecutePipeline",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "Record horizon EntraID data",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
 				"policy": {
 					"secureInput": false
 				},
@@ -206,8 +213,193 @@
 					},
 					"numExecutors": null
 				}
+			},
+			{
+				"name": "Record horizon EntraID data",
+				"type": "ExecutePipeline",
+				"dependsOn": [],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Pipeline load started",
+						"PipelineName": "@pipeline().Pipeline",
+						"PipelineRunID": "@pipeline().RunId",
+						"StartTime": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+						"StatusMessage": "Starting pipeline execution",
+						"PipelineTriggerID": "@pipeline().TriggerId",
+						"PipelineTriggerName": "@pipeline().TriggerName",
+						"PipelineTriggerType": "@pipeline().TriggerType",
+						"PipelineTriggeredbyPipelineName": "@pipeline()?.TriggeredByPipelineName",
+						"PipelineTriggeredbyPipelineRunID": "@pipeline()?.TriggeredByPipelineRunId",
+						"AppInsIKey": "@pipeline().parameters.apps_insights_ikey"
+					}
+				}
+			},
+			{
+				"name": "Send EntraID data failed",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Std to Hrm",
+						"dependencyConditions": [
+							"Skipped",
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_utl_Send_Teams_Message",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"dataFactorySubscription": "@pipeline().parameters.subscription_id",
+						"dataFactoryResourceGroup": "@pipeline().parameters.resource_group",
+						"pipelineRunId": "@pipeline().RunId",
+						"teamsWebhookUrl": "@pipeline().parameters.webhook_url",
+						"activityName": "@pipeline().Pipeline",
+						"activityMessage": {
+							"value": "\n@if(\n    equals(\n        trim(\n            concat(\n                activity('Record horizon EntraID data')?.Error?.message,\n                activity('Src to Raw')?.Error?.message,\n                activity('Raw to Std')?.Error?.message,\n                activity('Std to Hrm')?.Error?.message\n            )\n        ),\n        ''\n    ),\n    'Successfully',\n    'Failed'\n)\n",
+							"type": "Expression"
+						},
+						"activityDuration": {
+							"value": "@concat(\n    string(div(div(sub(\n        ticks(formatDateTime(utcNow(), 'yyyy-MM-dd HH:mm:sss')),\n        ticks(formatDateTime(if(equals(pipeline().parameters.start_time, null), utcNow(), pipeline().parameters.start_time), 'yyyy-MM-dd HH:mm:sss'))\n    ), 600000000), 60)), 'H:', \n    string(mod(div(sub(\n        ticks(formatDateTime(utcNow(), 'yyyy-MM-dd HH:mm:sss')),\n        ticks(formatDateTime(if(equals(pipeline().parameters.start_time, null), utcNow(), pipeline().parameters.start_time), 'yyyy-MM-dd HH:mm:sss'))\n    ), 600000000), 60)), 'M:00s'\n)",
+							"type": "Expression"
+						},
+						"activityStatus": {
+							"value": "\n@if(\n    equals(\n        trim(\n            concat(\n                activity('Record horizon EntraID data')?.Error?.message,\n                activity('Src to Raw')?.Error?.message,\n                activity('Raw to Std')?.Error?.message,\n                activity('Std to Hrm')?.Error?.message\n            )\n        ),\n        ''\n    ),\n    'Successfully',\n    'Failed'\n)\n",
+							"type": "Expression"
+						},
+						"Colour": "@pipeline().parameters.failed_colour",
+						"Image": "@pipeline().parameters.failed_image",
+						"Message_title": {
+							"value": "\n@if(\n    equals(\n        trim(\n            concat(\n                coalesce(activity('Record horizon EntraID data')?.Error?.message, ''),\n                coalesce(activity('Src to Raw')?.Error?.message, ''),\n                coalesce(activity('Raw to Std')?.Error?.message, ''),\n                coalesce(activity('Std to Hrm')?.Error?.message, '')\n            )\n        ),\n        ''\n    ),\n    'EntraID data Successfully Completed',\n    'EntraID data Failed'\n)\n",
+							"type": "Expression"
+						},
+						"Message_subtitle": {
+							"value": "\n@if(\n    equals(\n        trim(\n            concat(\n                coalesce(activity('Record horizon EntraID data')?.Error?.message, ''),\n                coalesce(activity('Src to Raw')?.Error?.message, ''),\n                coalesce(activity('Raw to Std')?.Error?.message, ''),\n                coalesce(activity('Std to Hrm')?.Error?.message, '')\n            )\n        ),\n        ''\n    ),\n    'pipeline run Completed',\n    'pipeline run Failed'\n)\n",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Record completed EntraID data",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Std to Hrm",
+						"dependencyConditions": [
+							"Skipped",
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": {
+							"value": "\n@if(\n    equals(\n        trim(\n            concat(\n                activity('Record horizon EntraID data')?.Error?.message,\n                activity('Src to Raw')?.Error?.message,\n                activity('Raw to Std')?.Error?.message,\n                activity('Std to Hrm')?.Error?.message\n            )\n        ),\n        ''\n    ),    \n    'Successfully',\n    'Failed'\n)\n",
+							"type": "Expression"
+						},
+						"PipelineName": "@pipeline().Pipeline",
+						"PipelineRunID": "@pipeline().RunId",
+						"EndTime": "@utcnow()",
+						"ErrorMessage": {
+							"value": "\n@replace(replace(replace(replace(replace(concat(\ncoalesce(activity('Record horizon EntraID data')?.Error?.message, ''),\ncoalesce(activity('Src to Raw')?.Error?.message, ''),\ncoalesce(activity('Raw to Std')?.Error?.message, ''),\ncoalesce(activity('Std to Hrm')?.Error?.message, '')\n), '\\r\\n', '\\n'), '\\r', ''), '\\n', '\\\\n'), '\\t', '\\\\t'), '\"', '\\\\\"')\n",
+							"type": "Expression"
+						},
+						"StatusMessage": {
+							"value": "\n@if(\n    equals(\n        trim(\n            concat(\n                coalesce(activity('Record horizon EntraID data')?.Error?.message, ''),\n                coalesce(activity('Src to Raw')?.Error?.message, ''),\n                coalesce(activity('Raw to Std')?.Error?.message, ''),\n                coalesce(activity('Std to Hrm')?.Error?.message, '')\n            )\n        ),\n        ''\n    ),\n    'horizon EntraID data load Successfully Completed',\n    'horizon EntraID data Failed'\n)\n",
+							"type": "Expression"
+						},
+						"PipelineTriggerID": "@pipeline().TriggerId",
+						"PipelineTriggerName": "@pipeline().TriggerName",
+						"PipelineTriggerType": "@pipeline().TriggerType",
+						"PipelineTriggeredbyPipelineName": "@pipeline()?.TriggeredByPipelineName",
+						"PipelineTriggeredbyPipelineRunID": "@pipeline()?.TriggeredByPipelineRunId",
+						"ActivityType": "Pipeline",
+						"AppInsIKey": "@pipeline().parameters.apps_insights_ikey"
+					}
+				}
+			},
+			{
+				"name": "IfConditionFailedActivities",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Record completed EntraID data",
+						"dependencyConditions": [
+							"Skipped",
+							"Completed"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "\n@equals(\n  trim(\n    concat(\n      coalesce(activity('Record horizon EntraID data')?.Error?.message, ''),\n      coalesce(activity('Src to Raw')?.Error?.message, ''),\n      coalesce(activity('Raw to Std')?.Error?.message, ''),\n      coalesce(activity('Std to Hrm')?.Error?.message, ''),\n      coalesce(activity('Record completed EntraID data')?.Error?.message, '')\n    )\n  ),\n  ''\n)\n",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "pln_listed_buildings_main Fail",
+							"type": "Fail",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"message": "failing the pipeline as previous activities are failed.",
+								"errorCode": "400"
+							}
+						}
+					]
+				}
 			}
 		],
+		"parameters": {
+			"apps_insights_ikey": {
+				"type": "string"
+			},
+			"subscription_id": {
+				"type": "string"
+			},
+			"webhook_url": {
+				"type": "string"
+			},
+			"resource_group": {
+				"type": "string"
+			},
+			"failed_colour": {
+				"type": "string"
+			},
+			"failed_image": {
+				"type": "string"
+			},
+			"start_time": {
+				"type": "string"
+			}
+		},
 		"folder": {
 			"name": "EntraID"
 		},
