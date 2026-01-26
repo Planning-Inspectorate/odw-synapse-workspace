@@ -22,6 +22,17 @@ from copy import deepcopy
 class HorizonStandardisationProcess(StandardisationProcess):
     """
     ETL process for standardising the raw data from the Horizon
+
+    # Example usage
+
+    ```
+    params = {
+        "entity_stage_name": "Horizon Standardisation",
+        "source_folder": "Horizon",  # Default is Horizon, but this could be any folder in the `odw-raw` container
+        "specific_file": "",  # Default is "". Aligns with the `Source_Filename_Start` property in the orchestration file
+    }
+    HorizonStandardisationProcess(spark).run(**params)
+    ```
     """
 
     @classmethod
