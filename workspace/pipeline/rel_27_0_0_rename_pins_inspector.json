@@ -1,13 +1,10 @@
 {
-	"name": "rel_8_0_5_pins_inspector",
+	"name": "rel_27_0_0_rename_pins_inspector",
 	"properties": {
 		"activities": [
 			{
-				"name": "Create PINS Inspector Hrm",
-				"description": "Create PINS Inspector Hrm",
+				"name": "Rename pins_inspector to horizon_pins_inspector",
 				"type": "SynapseNotebook",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [],
 				"policy": {
 					"timeout": "0.12:00:00",
@@ -19,22 +16,8 @@
 				"userProperties": [],
 				"typeProperties": {
 					"notebook": {
-						"referenceName": "create_table_from_schema",
+						"referenceName": "rename-pins-inspector",
 						"type": "NotebookReference"
-					},
-					"parameters": {
-						"db_name": {
-							"value": "odw_harmonised_db",
-							"type": "string"
-						},
-						"entity_name": {
-							"value": "pins-inspector",
-							"type": "string"
-						},
-						"is_servicebus_schema": {
-							"value": "False",
-							"type": "bool"
-						}
 					},
 					"snapshot": true,
 					"conf": {
@@ -46,19 +29,11 @@
 				}
 			},
 			{
-				"name": "Ingest PINS Inspector harmonised",
+				"name": "Alter Inspector table to CDF",
 				"type": "SynapseNotebook",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
-						"activity": "Create PINS Inspector Hrm",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					},
-					{
-						"activity": "Create PINS Inspector Std",
+						"activity": "Create pins-inspector curated",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -73,41 +48,17 @@
 				},
 				"userProperties": [],
 				"typeProperties": {
-					"snapshot": true,
-					"conf": {
-						"spark.dynamicAllocation.enabled": null,
-						"spark.dynamicAllocation.minExecutors": null,
-						"spark.dynamicAllocation.maxExecutors": null
-					},
-					"numExecutors": null
-				}
-			},
-			{
-				"name": "py_delete_table",
-				"type": "SynapseNotebook",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
-				"dependsOn": [],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
 					"notebook": {
-						"referenceName": "py_delete_table",
+						"referenceName": "py_set_table_to_cdf",
 						"type": "NotebookReference"
 					},
 					"parameters": {
 						"db_name": {
-							"value": "odw_harmonised_db",
+							"value": "odw_curated_db",
 							"type": "string"
 						},
 						"table_name": {
-							"value": "pins_inspectors",
+							"value": "pins_inspector",
 							"type": "string"
 						}
 					},
@@ -121,11 +72,8 @@
 				}
 			},
 			{
-				"name": "Create PINS Inspector Std",
-				"description": "Create PINS Inspector Std",
+				"name": "Create pins-inspector curated",
 				"type": "SynapseNotebook",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [],
 				"policy": {
 					"timeout": "0.12:00:00",
@@ -137,21 +85,58 @@
 				"userProperties": [],
 				"typeProperties": {
 					"notebook": {
-						"referenceName": "create_table_from_schema",
+						"referenceName": "pins_inspector",
 						"type": "NotebookReference"
 					},
 					"parameters": {
-						"db_name": {
-							"value": "odw_standardised_db",
+						"PipelineName": {
+							"value": {
+								"value": "@pipeline().Pipeline",
+								"type": "Expression"
+							},
 							"type": "string"
 						},
-						"entity_name": {
-							"value": "pins-inspector",
+						"PipelineRunID": {
+							"value": {
+								"value": "@pipeline().RunId",
+								"type": "Expression"
+							},
 							"type": "string"
 						},
-						"is_servicebus_schema": {
-							"value": "False",
-							"type": "bool"
+						"PipelineTriggerID": {
+							"value": {
+								"value": "@pipeline().TriggerId",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggerName": {
+							"value": {
+								"value": "@pipeline().TriggerName",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggerType": {
+							"value": {
+								"value": "@pipeline().TriggerType",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": {
+								"value": "@pipeline()?.TriggeredByPipelineName",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": {
+								"value": "@pipeline()?.TriggeredByPipelineRunId",
+								"type": "Expression"
+							},
+							"type": "string"
 						}
 					},
 					"snapshot": true,
@@ -164,9 +149,16 @@
 				}
 			},
 			{
-				"name": "py_delete_table_copy1",
+				"name": "Alter Listed Building table to CDF",
 				"type": "SynapseNotebook",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "Create pins-inspector curated",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"timeout": "0.12:00:00",
 					"retry": 0,
@@ -177,16 +169,16 @@
 				"userProperties": [],
 				"typeProperties": {
 					"notebook": {
-						"referenceName": "py_delete_table",
+						"referenceName": "py_set_table_to_cdf",
 						"type": "NotebookReference"
 					},
 					"parameters": {
 						"db_name": {
-							"value": "odw_standardised_db",
+							"value": "odw_curated_db",
 							"type": "string"
 						},
 						"table_name": {
-							"value": "pins_inspectors",
+							"value": "listed_building",
 							"type": "string"
 						}
 					},
@@ -201,7 +193,7 @@
 			}
 		],
 		"folder": {
-			"name": "Releases/8.0.5"
+			"name": "Releases/27.0.0"
 		},
 		"annotations": []
 	}
