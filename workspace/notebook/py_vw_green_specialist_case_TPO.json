@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "b987767b-76d6-49fd-8666-501086f4b1e0"
+				"spark.autotune.trackingId": "9a357816-3bd7-4142-a146-690b8487b435"
 			}
 		},
 		"metadata": {
@@ -142,7 +142,14 @@
 					"            'Specialist'   as Category,\n",
 					"            greenCaseType,\n",
 					"            greenCaseId,\n",
-					"            concat(greenCaseType, '-', greenCaseId) as caseReference,\n",
+					"            caseReference,\n",
+					"            concat( CASE\n",
+					"                    WHEN greenCaseType = 'TPO' THEN 'TPO' \n",
+					"                    WHEN greenCaseType = 'TRN' THEN 'TRN' \n",
+					"                    ELSE 'UNKNOWN'  -- Handle unexpected values\n",
+					"                    END, '-',\n",
+					"                         COALESCE(REGEXP_REPLACE(greenCaseId,'-',''), 'NONE')\n",
+					"                    ) AS caseReferenceMipins,\n",
 					"            horizonId,\n",
 					"            linkedGreenCaseId,\n",
 					"            caseOfficerName,\n",
@@ -175,7 +182,11 @@
 					"            withdrawnOrTurnedAwayDate,\n",
 					"            comments,\n",
 					"            case when active = 'Y' then 'Open' when active ='N' then 'Closed' end as open_or_closed,\n",
-					"            processingState   as rejected_or_withdrawn,\n",
+					"            CASE               \n",
+					"            WHEN UPPER(processingState) = 'TURNED AWAY' THEN 'Turned Away'\n",
+					"            WHEN UPPER(processingState) = 'WITHDRAWN' THEN 'Withdrawn'\n",
+					"            ELSE NULL\n",
+					"            END AS rejected_or_withdrawn,\n",
 					"            current_date() as pdac_etl_date\n",
 					"        FROM {source_table}  where UPPER(greenCaseType) IN ( 'TPO','TRN')\n",
 					"        \"\"\")\n",
