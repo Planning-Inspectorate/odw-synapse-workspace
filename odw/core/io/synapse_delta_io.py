@@ -65,7 +65,7 @@ class SynapseDeltaIO(SynapseDataIO):
         if storage_name:
             data_path = self._format_to_adls_path(container_name, blob_path, storage_name=storage_name)
         else:
-            data_path = self._format_to_adls_path(storage_name, container_name, blob_path, storage_endpoint=storage_endpoint)
+            data_path = self._format_to_adls_path(container_name, blob_path, storage_endpoint=storage_endpoint)
         return DeltaTable.forPath(spark, data_path).toDF()
 
     def write(self, data: DataFrame, **kwargs):
