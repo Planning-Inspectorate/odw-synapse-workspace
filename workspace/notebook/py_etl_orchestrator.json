@@ -1,0 +1,224 @@
+{
+	"name": "py_etl_orchestrator",
+	"properties": {
+		"description": "Notebook that orchestrates ETL Processes defined in the ODW package",
+		"folder": {
+			"name": "refactor"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "hbtPool",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "9e19e60d-a8ab-4931-99dc-d5f26927a861"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": true,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/hbtPool",
+				"name": "hbtPool",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/hbtPool",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.5",
+				"nodeCount": 10,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"#%run refactor/combined_odw"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from odw.core.etl.etl_process_factory import ETLProcessFactory\n",
+					"from odw.core.io.data_io_factory import DataIOFactory\n",
+					"from odw.core.io.parser.data_file_parser_factory import DataFileParserFactory\n",
+					"from odw.core.etl.etl_result import ETLFailResult\n",
+					"from pyspark.sql import SparkSession\n",
+					"from typing import Dict, Any, Union\n",
+					"import json"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Notebook parameters"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"tags": [
+						"parameters"
+					]
+				},
+				"source": [
+					"input_arguments: Union[Dict[str, Any], str] = {\n",
+					"    \"entity_stage_name\": \"Service Bus Standardisation\",\n",
+					"    \"entity_name\": \"appeal-has\"\n",
+					"}"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if isinstance(input_arguments, str):\n",
+					"    input_arguments = json.loads(input_arguments)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Validate notebook parameters"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if \"entity_stage_name\" not in input_arguments:\n",
+					"    raise ValueError(\"py_etl_ochestrator expects a 'entity_stage_name' property to be supplied, but this was missing\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Initialise spark session\n",
+					"spark = SparkSession.builder.getOrCreate()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Load the relevant ETL Processor"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"entity_stage_name = input_arguments.get(\"entity_stage_name\")\n",
+					"etl_process_class = ETLProcessFactory.get(entity_stage_name)\n",
+					"etl_process_instance = etl_process_class(spark)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Perform ETL"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"etl_results = etl_process_instance.run(\n",
+					"    **input_arguments,\n",
+					"    spark=spark\n",
+					")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"print(\"ETL Results\")\n",
+					"print(etl_results)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Write logging data"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Todo - need to refactor the logging method"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Ensure the notebook fails if there is an ETL exception\n",
+					"if isinstance(etl_results, ETLFailResult):\n",
+					"    raise RuntimeError(etl_results.metadata.exception_trace)"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
