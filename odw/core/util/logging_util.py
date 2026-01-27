@@ -9,6 +9,9 @@ from azure.monitor.opentelemetry.exporter import AzureMonitorLogExporter
 from tenacity import retry, wait_exponential, stop_after_delay
 from tenacity.before_sleep import before_sleep_nothing
 import threading
+import requests
+from datetime import datetime, timezone
+from typing import Dict, Any
 
 
 class LoggingUtil:
@@ -71,6 +74,30 @@ class LoggingUtil:
         Log an exception
         """
         self.logger.exception(f"{self.pipelinejobid} : {ex}")
+    
+    def save_pipeline_logs(self, payload: Dict[str, Any], event_name: str):
+        """
+        Submit telemetry data from a pipeline.
+        This is a copy/paste from the `py_applicationinsights` notebook - further refactoring would be beneficial
+        """
+        endpoint = "https://uksouth-1.in.applicationinsights.azure.com/v2/track"
+        payload = {
+            "name": "Microsoft.ApplicationInsights.Event",
+            "time": datetime.now(timezone.utc).isoformat() + "Z",
+            "iKey": self.instrumentation_key,
+            "data": {
+                "baseType": "EventData",
+                "baseData": {
+                    "name": event_name,
+                    "properties": payload
+                }
+            }
+        }
+        try:
+            response = requests.post(endpoint, json=payload)
+            print("Telemetry sent:", response.status_code)
+        except Exception as e:
+            print("Failed to send telemetry:", e)
 
     @retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_delay(20), reraise=True, before_sleep=before_sleep_nothing)
     def setup_logging(self, force=False):
@@ -84,6 +111,7 @@ class LoggingUtil:
         if not key:
             raise RuntimeError("The credential returned by mssparkutils.credentials.getSecretWithLS was blank or None")
         conn_string = key.split(";")[0]
+        self.instrumentation_key = key.split("InstrumentationKey=")[-1].split(";")[0]
 
         set_logger_provider(self.LOGGER_PROVIDER)
         exporter = AzureMonitorLogExporter.from_connection_string(conn_string)
