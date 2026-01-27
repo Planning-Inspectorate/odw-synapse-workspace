@@ -1,5 +1,5 @@
 {
-	"name": "rename-pins-inspector",
+	"name": "drop-pins-inspector",
 	"properties": {
 		"description": "Post-deployment script to rename pins_inspector table to horizon_pins_inspector before creating the new harmonised casework_inspector table",
 		"folder": {
@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "00000000-0000-0000-0000-000000000000"
+				"spark.autotune.trackingId": "4d9b63cd-c262-4d77-a9e2-363c2b143db1"
 			}
 		},
 		"metadata": {
@@ -46,8 +46,8 @@
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -88,7 +88,8 @@
 				},
 				"source": [
 					"from pyspark.sql import DataFrame\n",
-					"from notebookutils import mssparkutils"
+					"from notebookutils import mssparkutils\n",
+					"table_flag = \"\""
 				],
 				"execution_count": null
 			},
@@ -131,46 +132,31 @@
 				"source": [
 					"# Configuration\n",
 					"db_name = \"odw_harmonised_db\"\n",
-					"old_table_name = \"pins_inspector\"\n",
-					"new_table_name = \"horizon_pins_inspector\"\n",
+					"table_name = \"pins_inspector\" #change to horizon_pins_inspector if running this in test\n",
 					"\n",
-					"print(f\"Checking if table {db_name}.{old_table_name} exists...\")"
+					"print(f\"Checking if table {db_name}.{table_name} exists...\")\n",
+					"table_flag = test_table_exists(db_name, table_name)"
 				],
 				"execution_count": null
 			},
 			{
 				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
 				"source": [
-					"# Check if the old table exists\n",
-					"if test_table_exists(db_name, old_table_name):\n",
-					"    print(f\"Table {db_name}.{old_table_name} exists.\")\n",
-					"    \n",
-					"    # Check if the new table already exists\n",
-					"    if test_table_exists(db_name, new_table_name):\n",
-					"        print(f\"Table {db_name}.{new_table_name} already exists. Skipping rename operation.\")\n",
-					"    else:\n",
-					"        print(f\"Renaming {db_name}.{old_table_name} to {db_name}.{new_table_name}...\")\n",
-					"        spark.sql(f\"ALTER TABLE {db_name}.{old_table_name} RENAME TO {db_name}.{new_table_name}\")\n",
-					"        print(f\"Successfully renamed table to {db_name}.{new_table_name}\")\n",
-					"        \n",
-					"        # Verify the rename was successful\n",
-					"        if test_table_exists(db_name, new_table_name):\n",
-					"            print(f\"Verification: {db_name}.{new_table_name} exists.\")\n",
-					"        else:\n",
-					"            print(f\"ERROR: Failed to verify existence of {db_name}.{new_table_name}\")\n",
-					"else:\n",
-					"    print(f\"Table {db_name}.{old_table_name} does not exist. No action needed.\")"
+					"if table_flag:\n",
+					"    try:\n",
+					"        print(f\"Table {db_name}.{table_name} exists. Dropping table...\")\n",
+					"        # First, get the actual table location\n",
+					"        table_location = spark.sql(f\"DESCRIBE DETAIL {db_name}.{table_name}\").select(\"location\").collect()[0][0]\n",
+					"        print(f\"Table location: {table_location}\")\n",
+					"\n",
+					"        # Drop the table\n",
+					"        spark.sql(f\"DROP TABLE IF EXISTS {db_name}.{table_name}\")\n",
+					"\n",
+					"        # Delete the underlying files\n",
+					"        mssparkutils.fs.rm(table_location, recurse=True)\n",
+					"        print(f\"Table {db_name}.{table_name} has been dropped.\")\n",
+					"    except:\n",
+					"        print(f\"Error dropping table {db_name}.{table_name}\")"
 				],
 				"execution_count": null
 			}
