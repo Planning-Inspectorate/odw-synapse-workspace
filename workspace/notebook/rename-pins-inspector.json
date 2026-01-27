@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "00000000-0000-0000-0000-000000000000"
+				"spark.autotune.trackingId": "f37b8605-058d-426e-b75f-3ec2cb013d31"
 			}
 		},
 		"metadata": {
@@ -46,8 +46,8 @@
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -90,7 +90,7 @@
 					"from pyspark.sql import DataFrame\n",
 					"from notebookutils import mssparkutils"
 				],
-				"execution_count": null
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
@@ -113,7 +113,7 @@
 					"    table_names: list = [row['tableName'] for row in tables_df.collect()]\n",
 					"    return table_name in table_names"
 				],
-				"execution_count": null
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
@@ -131,48 +131,22 @@
 				"source": [
 					"# Configuration\n",
 					"db_name = \"odw_harmonised_db\"\n",
-					"old_table_name = \"pins_inspector\"\n",
-					"new_table_name = \"horizon_pins_inspector\"\n",
+					"old_table_name = \"horizon_pins_inspector\"\n",
 					"\n",
 					"print(f\"Checking if table {db_name}.{old_table_name} exists...\")"
 				],
-				"execution_count": null
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
 				"source": [
-					"# Check if the old table exists\n",
-					"if test_table_exists(db_name, old_table_name):\n",
-					"    print(f\"Table {db_name}.{old_table_name} exists.\")\n",
-					"    \n",
-					"    # Check if the new table already exists\n",
-					"    if test_table_exists(db_name, new_table_name):\n",
-					"        print(f\"Table {db_name}.{new_table_name} already exists. Skipping rename operation.\")\n",
-					"    else:\n",
-					"        print(f\"Renaming {db_name}.{old_table_name} to {db_name}.{new_table_name}...\")\n",
-					"        spark.sql(f\"ALTER TABLE {db_name}.{old_table_name} RENAME TO {db_name}.{new_table_name}\")\n",
-					"        print(f\"Successfully renamed table to {db_name}.{new_table_name}\")\n",
-					"        \n",
-					"        # Verify the rename was successful\n",
-					"        if test_table_exists(db_name, new_table_name):\n",
-					"            print(f\"Verification: {db_name}.{new_table_name} exists.\")\n",
-					"        else:\n",
-					"            print(f\"ERROR: Failed to verify existence of {db_name}.{new_table_name}\")\n",
-					"else:\n",
-					"    print(f\"Table {db_name}.{old_table_name} does not exist. No action needed.\")"
+					"# Drop the table from the metastore\n",
+					"spark.sql(\"DROP TABLE IF EXISTS database_name.table_name\")\n",
+					"\n",
+					"# Delete the underlying files\n",
+					"mssparkutils.fs.rm(\"abfss://path/to/table/location\", recurse=True)"
 				],
-				"execution_count": null
+				"execution_count": 6
 			}
 		]
 	}
