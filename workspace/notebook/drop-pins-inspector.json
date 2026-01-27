@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "c618a882-5113-4f24-9866-37c66aafadd6"
+				"spark.autotune.trackingId": "2108b923-989b-45cd-8735-5590c6a68934"
 			}
 		},
 		"metadata": {
@@ -88,9 +88,10 @@
 				},
 				"source": [
 					"from pyspark.sql import DataFrame\n",
-					"from notebookutils import mssparkutils"
+					"from notebookutils import mssparkutils\n",
+					"table_flag = \"\""
 				],
-				"execution_count": 2
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -113,7 +114,7 @@
 					"    table_names: list = [row['tableName'] for row in tables_df.collect()]\n",
 					"    return table_name in table_names"
 				],
-				"execution_count": 3
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -131,22 +132,34 @@
 				"source": [
 					"# Configuration\n",
 					"db_name = \"odw_harmonised_db\"\n",
-					"old_table_name = \"horizon_pins_inspector\"\n",
+					"table_name = \"pins_inspector\" #change to horizon_pins_inspector if running this in test\n",
 					"\n",
-					"print(f\"Checking if table {db_name}.{old_table_name} exists...\")"
+					"print(f\"Checking if table {db_name}.{table_name} exists...\")\n",
+					"table_flag = test_table_exists(db_name, table_name)\n",
+					""
 				],
-				"execution_count": 4
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"# Drop the table from the metastore\n",
-					"spark.sql(\"DROP TABLE IF EXISTS database_name.table_name\")\n",
+					"if table_flag:\n",
+					"    try:\n",
+					"        print(f\"Table {db_name}.{table_name} exists. Dropping table...\")\n",
+					"        # First, get the actual table location\n",
+					"        table_location = spark.sql(f\"DESCRIBE DETAIL {db_name}.{table_name}\").select(\"location\").collect()[0][0]\n",
+					"        print(f\"Table location: {table_location}\")\n",
 					"\n",
-					"# Delete the underlying files\n",
-					"mssparkutils.fs.rm(\"abfss://path/to/table/location\", recurse=True)"
+					"        # Drop the table\n",
+					"        spark.sql(f\"DROP TABLE IF EXISTS {db_name}.{table_name}\")\n",
+					"\n",
+					"        # Delete the underlying files\n",
+					"        mssparkutils.fs.rm(table_location, recurse=True)\n",
+					"        print(f\"Table {db_name}.{table_name} has been dropped.\")\n",
+					"    except:\n",
+					"        print(f\"Error dropping table {db_name}.{table_name}\")"
 				],
-				"execution_count": 6
+				"execution_count": null
 			}
 		]
 	}
