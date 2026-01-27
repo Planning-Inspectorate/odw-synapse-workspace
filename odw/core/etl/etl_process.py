@@ -53,7 +53,7 @@ class ETLProcess(ABC):
         """
         return SynapseFileDataIO().read(
             spark=SparkSession.builder.getOrCreate(),
-            storage_name=Util.get_storage_account(),
+            storage_endpoint=Util.get_storage_account(),
             container_name="odw-config",
             blob_path=f"orchestration/orchestration.json",
             file_format="json",
@@ -122,7 +122,12 @@ class ETLProcess(ABC):
             LoggingUtil().log_info(f"Metadata for the write entry '{table_name}': {json.dumps(table_metadata_cleaned, indent=4, default=str)}")
             data = table_metadata.get("data", None)
             if data:
-                Util.display_dataframe(data)
+                if isinstance(data, DataFrame):
+                    Util.display_dataframe(data)
+                if isinstance(data, dict):
+                    print(json.dumps(data, indent=4, default=str))
+                else:
+                    LoggingUtil().log_info(f"Could not display the data. It is of unexpected type '{type(data)}'")
             else:
                 LoggingUtil().log_info(f"There is no data to write")
 
