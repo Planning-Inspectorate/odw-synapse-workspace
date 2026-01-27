@@ -40,7 +40,7 @@ Zendesk linked service json example
             }
         },
         "connectVia": {
-            "referenceName": "PinsIntegrationRuntimeRuntime",
+            "referenceName": "AutoResolveIntegrationRuntime",
             "type": "IntegrationRuntimeReference"
         }
     }
