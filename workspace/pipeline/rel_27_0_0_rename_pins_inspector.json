@@ -3,7 +3,7 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "Rename pins_inspector to horizon_pins_inspector",
+				"name": "Drop legacy pins_inspector",
 				"type": "SynapseNotebook",
 				"dependsOn": [],
 				"policy": {
@@ -16,7 +16,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"notebook": {
-						"referenceName": "rename-pins-inspector",
+						"referenceName": "drop-pins-inspector",
 						"type": "NotebookReference"
 					},
 					"snapshot": true,
@@ -74,7 +74,20 @@
 			{
 				"name": "Create pins-inspector curated",
 				"type": "SynapseNotebook",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "Create Horizon pins inspector table",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Create SAP HR harmonised PINS inspector table",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"timeout": "0.12:00:00",
 					"retry": 0,
@@ -189,6 +202,93 @@
 						"spark.dynamicAllocation.maxExecutors": null
 					},
 					"numExecutors": null
+				}
+			},
+			{
+				"name": "Create Horizon pins inspector table",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Drop legacy pins_inspector",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_horizon_harmonised_pins_inspector",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"PipelineName": {
+							"value": {
+								"value": "@pipeline().Pipeline",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineRunID": {
+							"value": "",
+							"type": "string"
+						},
+						"PipelineTriggerID": {
+							"value": "",
+							"type": "string"
+						},
+						" PipelineTriggerName": {
+							"value": "",
+							"type": "string"
+						},
+						"PipelineTriggerType": {
+							"value": "",
+							"type": "string"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "",
+							"type": "string"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "",
+							"type": "string"
+						}
+					},
+					"snapshot": true
+				}
+			},
+			{
+				"name": "Create SAP HR harmonised PINS inspector table",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Drop legacy pins_inspector",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_harmonised_pins_inspector",
+						"type": "NotebookReference"
+					},
+					"snapshot": true
 				}
 			}
 		],
