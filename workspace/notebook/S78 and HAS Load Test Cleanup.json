@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "f7b4ef0f-ca9f-4c21-9dea-da4d0c6e2eaf"
+				"spark.autotune.trackingId": "23b28b36-c3ed-450b-8ea3-2deb61e30c3e"
 			}
 		},
 		"metadata": {
@@ -71,7 +71,7 @@
 					}
 				},
 				"source": [
-					"DRY_RUN = True #  set False to actually apply changes\n",
+					"DRY_RUN = False #  set False to actually apply changes\n",
 					"\n",
 					"STD_DB  = \"odw_standardised_db\"\n",
 					"HARM_DB = \"odw_harmonised_db\"\n",
@@ -128,6 +128,84 @@
 					"    except Exception as e:\n",
 					"        print(f\"[WARN] Missing/inaccessible table: {db}.{table} ({e})\")\n",
 					"        return False"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def get_load1_input_files(std_db, table, lpa_code, limit=50):\n",
+					"    full = f\"{std_db}.{table}\"\n",
+					"    query = f\"\"\"\n",
+					"    SELECT input_file, COUNT(*) AS count\n",
+					"    FROM {full}\n",
+					"    WHERE lpaCode = '{lpa_code}'\n",
+					"    GROUP BY input_file\n",
+					"    ORDER BY count DESC\n",
+					"    LIMIT {limit}\n",
+					"    \"\"\"\n",
+					"    return spark.sql(query)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def delete_abfss_file(path: str, dry_run: bool = True) -> bool:\n",
+					"    dir_path = path.rsplit(\"/\", 1)[0] + \"/\"\n",
+					"    filename = path.rsplit(\"/\", 1)[1]\n",
+					"\n",
+					"    try:\n",
+					"        items = mssparkutils.fs.ls(dir_path)\n",
+					"        matches = [i.path for i in items if (not i.isDir) and i.path.endswith(\"/\" + filename)]\n",
+					"\n",
+					"        if not matches:\n",
+					"            print(f\"[SKIP] Not found in directory listing: {path}\")\n",
+					"            return False\n",
+					"\n",
+					"        actual_path = matches[0]\n",
+					"\n",
+					"        if dry_run:\n",
+					"            print(f\"[DRY-RUN] Would delete: {actual_path}\")\n",
+					"            return True\n",
+					"\n",
+					"        mssparkutils.fs.rm(actual_path, True)\n",
+					"        print(f\"[DELETED] {actual_path}\")\n",
+					"        return True\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        print(f\"[WARN] Could not access/delete: {path} | Error: {e}\")\n",
+					"        return False\n",
+					"\n",
+					"        return False"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def cleanup_raw_files_from_input_file(std_db, table, lpa_code, dry_run=True, limit=50):\n",
+					"    print(f\"RAW file check: {std_db}.{table}\")\n",
+					"    print(f\"Predicate: lpaCode = '{lpa_code}'\")\n",
+					"\n",
+					"    df = get_load1_input_files(std_db, table, lpa_code, limit=limit)\n",
+					"    rows = df.collect()\n",
+					"\n",
+					"    if len(rows) == 0:\n",
+					"        print(\"[OK] No matching rows found, so no raw files to delete.\")\n",
+					"        return []\n",
+					"\n",
+					"    print(f\"[INFO] Found {len(rows)} raw files referenced (top {limit})\")\n",
+					"    df.show(limit, truncate=False)\n",
+					"\n",
+					"    deleted_files = []\n",
+					"    for r in rows:\n",
+					"        file_path = r[\"input_file\"]\n",
+					"        if delete_abfss_file(file_path, dry_run=dry_run):\n",
+					"            deleted_files.append(file_path)\n",
+					"\n",
+					"    return deleted_files\n",
+					""
 				],
 				"execution_count": null
 			},
@@ -285,6 +363,20 @@
 					"print(\"S78/HAS Cleanup\")\n",
 					"print(f\"Mode: {'DRY-RUN' if DRY_RUN else 'EXECUTE'}  |  lpaCode = '{LPA_CODE}'\\n\")\n",
 					"\n",
+					"\n",
+					"# Delete RAW files that are feeding LOAD1 into Standardised (so it doesn't come back next run)\n",
+					"deleted_raw = {}\n",
+					"\n",
+					"for std_table in [\"sb_appeal_s78\", \"sb_appeal_has\"]:\n",
+					"    if table_exists(STD_DB, std_table):\n",
+					"        deleted_raw[std_table] = cleanup_raw_files_from_input_file(\n",
+					"            STD_DB, std_table, LPA_CODE, dry_run=DRY_RUN, limit=50\n",
+					"        )\n",
+					"\n",
+					"print(\"RAW FILE DELETE SUMMARY\")\n",
+					"for t, files in deleted_raw.items():\n",
+					"    print(f\"{STD_DB}.{t}: {len(files)} file(s) deleted (or would delete)\")\n",
+					"\n",
 					"results = {}\n",
 					"\n",
 					"for db, table in TABLES:\n",
@@ -294,7 +386,7 @@
 					"    removed = clean_curated(db, table, LPA_CODE) if db == CUR_DB else clean_std_harm(db, table, LPA_CODE)\n",
 					"    results[f\"{db}.{table}\"] = removed\n",
 					"\n",
-					"print(\"\\nSUMMARY\")\n",
+					"print(\"SUMMARY\")\n",
 					"for k, v in results.items():\n",
 					"    print(f\"{k}: {v}\")"
 				],
