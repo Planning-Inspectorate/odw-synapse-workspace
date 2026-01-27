@@ -13,6 +13,17 @@ import json
 
 
 class ServiceBusHarmonisationProcess(HarmonisationProcess):
+    """
+    # Example usage
+
+    ```
+    params = {
+    "entity_stage_name": "Service Bus Harmonisation",
+    "entity_name": "appeal-has"
+}
+    HorizonStandardisationProcess(spark).run(**params)
+    ```
+    """
     def __init__(self, spark):
         super().__init__(spark)
         self.std_db: str = "odw_standardised_db"
