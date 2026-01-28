@@ -1,0 +1,408 @@
+{
+	"name": "py_load_listed_buildings_to_harmonised",
+	"properties": {
+		"folder": {
+			"name": "odw-harmonised"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "fe8eb448-7c6b-48e1-b1f9-bbf11dcb21d0"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": true,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Listed Buildings ETL - Harmonised Layer\n",
+					"\n",
+					"## Overview\n",
+					"This notebook processes listed building data from the standardised layer to the harmonised layer, implementing proper change data capture (CDC) and versioning using Delta Lake MERGE operations."
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"PipelineName = \"pln_listed_buildings_main\"\n",
+					"PipelineRunID = \"40f5afa8-f437-4bf1-8699-944cd9c672de\"\n",
+					"PipelineTriggerID = \"cae36392afea4ce1b7e9a1e1f5b4c3b0\"\n",
+					"PipelineTriggerName = \"Sandbox\"\n",
+					"PipelineTriggerType = \"Manual\"\n",
+					"PipelineTriggeredbyPipelineName = None\n",
+					"PipelineTriggeredbyPipelineRunID = None"
+				],
+				"execution_count": 1
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql.types import IntegerType, ArrayType, StructType, StructField\n",
+					"from pyspark.sql import Row\n",
+					"from pyspark.sql import functions as F\n",
+					"import json\n",
+					"from datetime import datetime\n",
+					"from notebookutils import mssparkutils\n",
+					"from pyspark.sql.functions import md5, concat, coalesce, lit, col\n",
+					"from delta.tables import DeltaTable\n",
+					""
+				],
+				"execution_count": 2
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialize Application Insight Logging functions"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_applicationinsights"
+				],
+				"execution_count": 3
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					" %run utils/py_utils_common_logging_output"
+				],
+				"execution_count": 4
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"start_exec_time = datetime.now()\n",
+					"error_message = None\n",
+					"def run_step(step_name: str, fn):\n",
+					"    try:\n",
+					"        return fn()\n",
+					"    except Exception as e:\n",
+					"        _fail_and_log(step_name, e)"
+				],
+				"execution_count": 5
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Define variables\n",
+					"source_table = \"odw_standardised_db.listed_building\"\n",
+					"target_table = \"odw_harmonised_db.listed_building\"\n",
+					"spark_table_final = target_table\n",
+					"# Initialize tracking variables\n",
+					"insert_count = 0\n",
+					"update_count = 0\n",
+					"delete_count = 0\n",
+					"error_message = \"\""
+				],
+				"execution_count": 6
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"import logging\n",
+					"from datetime import datetime\n",
+					"\n",
+					"# Configure logging\n",
+					"logging.basicConfig(\n",
+					"    level=logging.INFO,\n",
+					"    format=\"%(asctime)s [%(levelname)s] %(message)s\",\n",
+					"    datefmt=\"%Y-%m-%d %H:%M:%S\"\n",
+					")\n",
+					"\n",
+					"# Define logging functions\n",
+					"def logInfo(message):\n",
+					"    logging.info(message)\n",
+					"\n",
+					"def logWarning(message):\n",
+					"    logging.warning(message)\n",
+					"\n",
+					"def logError(message):\n",
+					"    logging.error(message)"
+				],
+				"execution_count": 7
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def step_check_target_exists():\n",
+					"    logInfo(f\"Reading data from {source_table}\")\n",
+					"    exists = spark._jsparkSession.catalog().tableExists(\n",
+					"        'odw_harmonised_db', \n",
+					"        'listed_building'\n",
+					"    )\n",
+					"    logInfo(f\"Target table exists? {exists}\")\n",
+					"    return exists\n",
+					"target_exists = run_step(\"Check target exists\", step_check_target_exists)\n",
+					"def step_read_source():\n",
+					"    df = spark.sql(f\"\"\"\n",
+					"        SELECT \n",
+					"            dataset,\n",
+					"            `end-date` AS endDate,\n",
+					"            entity,\n",
+					"            `entry-date` AS entryDate,\n",
+					"            geometry,\n",
+					"            `listed-building-grade` AS listedBuildingGrade,\n",
+					"            name,\n",
+					"            `organisation-entity` AS organisationEntity,\n",
+					"            point,\n",
+					"            prefix,\n",
+					"            reference,\n",
+					"            `start-date` AS startDate,\n",
+					"            typology,\n",
+					"            `documentation-url` AS documentationUrl\n",
+					"        FROM {source_table}\n",
+					"    \"\"\").withColumn(\"dateReceived\", F.current_date())\n",
+					"\n",
+					"    logInfo(f\"Source rows retrieved: {df.count()}\")\n",
+					"    return df\n",
+					"source_df = run_step(\"Read source\", step_read_source)\n",
+					"def step_transform_source():\n",
+					"    return (\n",
+					"        source_df\n",
+					"        .withColumn(\n",
+					"            \"rowID\",\n",
+					"            md5(concat(\n",
+					"                coalesce(col(\"entity\"), lit('.')),\n",
+					"                coalesce(col(\"dataset\"), lit('.')),\n",
+					"                coalesce(col(\"endDate\"), lit('.')),\n",
+					"                coalesce(col(\"entryDate\"), lit('.')),\n",
+					"                coalesce(col(\"geometry\"), lit('.')),\n",
+					"                coalesce(col(\"listedBuildingGrade\"), lit('.')),\n",
+					"                coalesce(col(\"name\"), lit('.')),\n",
+					"                coalesce(col(\"organisationEntity\"), lit('.')),\n",
+					"                coalesce(col(\"point\"), lit('.')),\n",
+					"                coalesce(col(\"prefix\"), lit('.')),\n",
+					"                coalesce(col(\"reference\"), lit('.')),\n",
+					"                coalesce(col(\"startDate\"), lit('.')),\n",
+					"                coalesce(col(\"typology\"), lit('.')),\n",
+					"                coalesce(col(\"documentationUrl\"), lit('.'))\n",
+					"            ))\n",
+					"        )\n",
+					"        .withColumn(\"validTo\", lit(None).cast(\"timestamp\"))\n",
+					"        .withColumn(\"isActive\", lit(\"Y\"))\n",
+					"    )\n",
+					"final_df = run_step(\"Transform source\", step_transform_source)\n",
+					"def step_merge_deactivate():\n",
+					"    (\n",
+					"        deltaTable.alias(\"t\")\n",
+					"        .merge(\n",
+					"            final_df.alias(\"s\"),\n",
+					"            \"t.entity = s.entity AND t.isActive = 'Y'\"\n",
+					"        )\n",
+					"        .whenMatchedUpdate(\n",
+					"            condition=\"t.rowID <> s.rowID\",\n",
+					"            set={\"validTo\": \"current_date()\", \"isActive\": \"'N'\"}\n",
+					"        )\n",
+					"        .execute()\n",
+					"    )\n",
+					"\n",
+					"def step_merge_insert():\n",
+					"    (\n",
+					"        deltaTable.alias(\"t\")\n",
+					"        .merge(\n",
+					"            final_df.alias(\"s\"),\n",
+					"            \"t.entity = s.entity AND t.rowID = s.rowID AND t.isActive = 'Y'\"\n",
+					"        )\n",
+					"        .whenNotMatchedInsert(values={\n",
+					"            \"dataset\": \"s.dataset\",\n",
+					"            \"endDate\": \"s.endDate\",\n",
+					"            \"entity\": \"s.entity\",\n",
+					"            \"entryDate\": \"s.entryDate\",\n",
+					"            \"geometry\": \"s.geometry\",\n",
+					"            \"listedBuildingGrade\": \"s.listedBuildingGrade\",\n",
+					"            \"name\": \"s.name\",\n",
+					"            \"organisationEntity\": \"s.organisationEntity\",\n",
+					"            \"point\": \"s.point\",\n",
+					"            \"prefix\": \"s.prefix\",\n",
+					"            \"reference\": \"s.reference\",\n",
+					"            \"startDate\": \"s.startDate\",\n",
+					"            \"typology\": \"s.typology\",\n",
+					"            \"documentationUrl\": \"s.documentationUrl\",\n",
+					"            \"dateReceived\": \"s.dateReceived\",\n",
+					"            \"rowID\": \"s.rowID\",\n",
+					"            \"validTo\": \"s.validTo\",\n",
+					"            \"isActive\": \"s.isActive\"\n",
+					"        })\n",
+					"        .execute()\n",
+					"    )\n",
+					"\n",
+					"def step_initial_load():\n",
+					"    logInfo(f\"Initial load row count: {final_df.count()}\")\n",
+					"    final_df.write.format(\"delta\").mode(\"overwrite\").saveAsTable(target_table)\n",
+					"if target_exists:\n",
+					"    deltaTable = DeltaTable.forName(spark, target_table)\n",
+					"\n",
+					"    run_step(\"Merge Step 1 - deactivate old rows\", step_merge_deactivate)\n",
+					"    run_step(\"Merge Step 2 - insert new and updated rows\", step_merge_insert)\n",
+					"\n",
+					"else:\n",
+					"    run_step(\"Initial load (target does not exist)\", step_initial_load)\n",
+					"\n",
+					"def step_calculate_counts():\n",
+					"    if target_exists:\n",
+					"        latest_df = deltaTable.toDF().filter(\"isActive = 'Y'\")\n",
+					"        new_rows = final_df.join(latest_df, \"reference\", \"left_anti\")\n",
+					"        changed_rows = final_df.join(latest_df, \"reference\", \"inner\") \\\n",
+					"                               .filter(final_df.rowID != latest_df.rowID)\n",
+					"\n",
+					"        insert_count = new_rows.count()\n",
+					"        update_count = changed_rows.count()\n",
+					"\n",
+					"    else:\n",
+					"        insert_count = final_df.count()\n",
+					"        update_count = 0\n",
+					"\n",
+					"    logInfo(f\"Record count summary - inserts: {insert_count}, updates: {update_count}\")\n",
+					"    return insert_count, update_count\n",
+					"insert_count, update_count = run_step(\"Calculate counts\", step_calculate_counts)\n",
+					"\n",
+					"logInfo(f\"Successfully processed {target_table} - {insert_count} inserts, {update_count} updates\")"
+				],
+				"execution_count": 8
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def _log_telemetry(stage: str, error_msg: str = None, step_name: str = None):\n",
+					"    end_exec_time = datetime.now()\n",
+					"    duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
+					"    activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
+					"\n",
+					"    if stage == \"Success\":\n",
+					"        status_message = f\"Successfully loaded data into {target_table} table\"\n",
+					"        status_code = \"200\"\n",
+					"        final_error_msg = None\n",
+					"    else:\n",
+					"        status_message = f\"Failed to load data into {target_table} table\"\n",
+					"        if step_name:\n",
+					"            status_message = f\"Failed at step [{step_name}]: {status_message}\"\n",
+					"        status_code = \"500\"\n",
+					"        final_error_msg = error_msg\n",
+					"    try:\n",
+					"        log_telemetry_and_exit(\n",
+					"            stage,\n",
+					"            start_exec_time,\n",
+					"            end_exec_time,\n",
+					"            final_error_msg,\n",
+					"            target_table,\n",
+					"            insert_count,\n",
+					"            update_count,\n",
+					"            delete_count,\n",
+					"            PipelineName,\n",
+					"            PipelineRunID,\n",
+					"            PipelineTriggerID,\n",
+					"            PipelineTriggerName,\n",
+					"            PipelineTriggerType,\n",
+					"            PipelineTriggeredbyPipelineName,\n",
+					"            PipelineTriggeredbyPipelineRunID,\n",
+					"            activity_type,\n",
+					"            duration_seconds,\n",
+					"            status_message,\n",
+					"            status_code\n",
+					"        )\n",
+					"    except Exception as te:\n",
+					"        print(f\"Telemetry logging failed: {te}\")\n",
+					" \n",
+					" \n",
+					"def _fail_and_log(step_name: str, e: Exception):\n",
+					"    global error_message\n",
+					"    error_message = f\"[{step_name}]{type(e).__name__}:{str(e)}\"[:800]\n",
+					"    logError(error_message)\n",
+					"\n",
+					"    _log_telemetry(\"Failed\", error_message, step_name)\n",
+					"    raise e \n",
+					"if not error_message:\n",
+					"    _log_telemetry(\"Success\")"
+				],
+				"execution_count": 9
+			}
+		]
+	}
+}
