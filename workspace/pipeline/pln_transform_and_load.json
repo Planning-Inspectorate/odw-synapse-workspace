@@ -1031,13 +1031,7 @@
 				"type": "SetVariable",
 				"dependsOn": [
 					{
-						"activity": "ForEach_SB_Entities",
-						"dependencyConditions": [
-							"Completed"
-						]
-					},
-					{
-						"activity": "ForEach_HZ_Entities",
+						"activity": "ForEach_AllEntities_EntitySpecific",
 						"dependencyConditions": [
 							"Completed"
 						]
@@ -1051,7 +1045,7 @@
 				"typeProperties": {
 					"variableName": "transformStatusJson",
 					"value": {
-						"value": "@concat(\n  '{',\n    '\"hasFailure\":', toLower(string(variables('hasFailure'))), ',',\n    '\"results\":', string(union(variables('sbStatus'), variables('hzStatus'))),\n  '}'\n)\n",
+						"value": "@concat(\n  '{',\n    '\"hasFailure\":', toLower(string(variables('hasFailure'))), ',',\n    '\"results\":', string(union(variables('sbStatus'), variables('hzStatus'), variables('entitySpecificStatus'))),\n  '}'\n)\n",
 						"type": "Expression"
 					}
 				}
@@ -1084,6 +1078,296 @@
 						}
 					],
 					"setSystemVariable": true
+				}
+			},
+			{
+				"name": "ForEach_AllEntities_EntitySpecific",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "ForEach_HZ_Entities",
+						"dependencyConditions": [
+							"Completed"
+						]
+					},
+					{
+						"activity": "ForEach_SB_Entities",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@union(pipeline().parameters.sbEntities, pipeline().parameters.hzEntities)\n",
+						"type": "Expression"
+					},
+					"isSequential": true,
+					"activities": [
+						{
+							"name": "ES_Run_SubPipeline",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "ES_Reset_LastError",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_entity_specific_transform",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"runContextJson": {
+										"value": "@pipeline().parameters.runContextJson",
+										"type": "Expression"
+									},
+									"entityName": {
+										"value": "@string(item())",
+										"type": "Expression"
+									},
+									"stages": {
+										"value": "@pipeline().parameters.stages",
+										"type": "Expression"
+									},
+									"retryCount": {
+										"value": "@pipeline().parameters.retryCount",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "ES_Set_LoopStartTicks",
+							"type": "SetVariable",
+							"dependsOn": [],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "entitySpecificLoopStartTicks",
+								"value": "@string(ticks(utcNow()))\n"
+							}
+						},
+						{
+							"name": "ES_Reset_LastError",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "ES_Set_LoopStartTicks",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "entitySpecificLastError",
+								"value": {
+									"value": "@string('')",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "ES_If_EntitySpecific_Failed",
+							"type": "IfCondition",
+							"dependsOn": [
+								{
+									"activity": "ES_Run_SubPipeline",
+									"dependencyConditions": [
+										"Completed"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"expression": {
+									"value": "@equals(activity('ES_Run_SubPipeline').Status, 'Failed')\n",
+									"type": "Expression"
+								},
+								"ifTrueActivities": [
+									{
+										"name": "ES_Set_Error_From_SubPipeline",
+										"type": "SetVariable",
+										"dependsOn": [],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "entitySpecificLastError",
+											"value": "@string(activity('ES_Run_SubPipeline').Error.Message)\n"
+										}
+									},
+									{
+										"name": "ES_Log_Failure_EntitySpecific",
+										"type": "ExecutePipeline",
+										"dependsOn": [
+											{
+												"activity": "ES_Set_Error_From_SubPipeline",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"pipeline": {
+												"referenceName": "pln_log_to_appins",
+												"type": "PipelineReference"
+											},
+											"waitOnCompletion": true,
+											"parameters": {
+												"Stage": "Failure",
+												"PipelineName": {
+													"value": "@pipeline().Pipeline",
+													"type": "Expression"
+												},
+												"PipelineRunID": {
+													"value": "@pipeline().RunId",
+													"type": "Expression"
+												},
+												"StartTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+												"EndTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+												"ErrorMessage": "@replace(\n  replace(\n    replace(variables('entitySpecificLastError'),'\\\"',''''),\n    '\\r',' '\n  ),\n  '\\n',' '\n)\n",
+												"StatusMessage": "@concat(string(item()), ' entity-specific subpipeline failed to run')\n",
+												"AppInsIKey": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n"
+											}
+										}
+									},
+									{
+										"name": "ES_Append_Failed_EntitySpecificStatus",
+										"type": "AppendVariable",
+										"dependsOn": [
+											{
+												"activity": "ES_Log_Failure_EntitySpecific",
+												"dependencyConditions": [
+													"Succeeded",
+													"Failed"
+												]
+											}
+										],
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "entitySpecificStatus",
+											"value": "@json(concat(\n  '{',\n    '\"entity\":\"', string(item()), '\",',\n    '\"status\":\"Failed\",',\n    '\"stage\":\"entity_specific\",',\n    '\"durationSeconds\":', string(0), ',',\n    '\"error\":\"', replace(variables('entitySpecificLastError'),'\\\"',''''), '\",',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n"
+										}
+									},
+									{
+										"name": "ES_MarkFailure",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "ES_Append_Failed_EntitySpecificStatus",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "hasFailure",
+											"value": true
+										}
+									}
+								]
+							}
+						},
+						{
+							"name": "ES_IfSubPipeline_ReturnedFailure",
+							"type": "IfCondition",
+							"dependsOn": [
+								{
+									"activity": "ES_Run_SubPipeline",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								},
+								{
+									"activity": "ES_If_EntitySpecific_Failed",
+									"dependencyConditions": [
+										"Completed"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"expression": {
+									"value": "@equals(\n  json(activity('ES_Run_SubPipeline').output.pipelineReturnValue.result).hasFailure,\n  true\n)\n",
+									"type": "Expression"
+								},
+								"ifFalseActivities": [
+									{
+										"name": "ES_Append_Success_EntitySpecificStatus",
+										"type": "AppendVariable",
+										"dependsOn": [],
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "entitySpecificStatus",
+											"value": "@json(concat(\n  '{',\n    '\"entity\":\"', string(item()), '\",',\n    '\"status\":\"Succeeded\",',\n    '\"stage\":\"entity_specific\",',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('entitySpecificLoopStartTicks'))), 10000000)), ',',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n"
+										}
+									}
+								],
+								"ifTrueActivities": [
+									{
+										"name": "ES_Append_Failed_ReturnedStatus",
+										"type": "AppendVariable",
+										"dependsOn": [],
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "entitySpecificStatus",
+											"value": "@json(concat(\n  '{',\n    '\"entity\":\"', string(item()), '\",',\n    '\"status\":\"Failed\",',\n    '\"stage\":\"entity_specific\",',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('entitySpecificLoopStartTicks'))), 10000000)), ',',\n    '\"error\":\"Entity-specific pipeline returned hasFailure=true\",',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n"
+										}
+									},
+									{
+										"name": "ES_MarkFailure_Returned",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "ES_Append_Failed_ReturnedStatus",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "hasFailure",
+											"value": true
+										}
+									}
+								]
+							}
+						}
+					]
 				}
 			}
 		],
@@ -1144,6 +1428,22 @@
 			"hzStatus": {
 				"type": "Array",
 				"defaultValue": []
+			},
+			"entitySpecificStatus": {
+				"type": "Array",
+				"defaultValue": []
+			},
+			"entitySpecificLastError": {
+				"type": "String",
+				"defaultValue": "''"
+			},
+			"entitySpecificLoopStartTicks": {
+				"type": "String",
+				"defaultValue": "''"
+			},
+			"entitySpecificEntityFailed": {
+				"type": "Boolean",
+				"defaultValue": false
 			}
 		},
 		"folder": {
