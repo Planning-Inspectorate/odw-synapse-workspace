@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "0d1997c3-fbea-4825-a26d-d226b4b215c0"
+				"spark.autotune.trackingId": "faa7c215-2104-4a30-871c-e2ce2c84c472"
 			}
 		},
 		"metadata": {
@@ -109,6 +109,19 @@
 					"        \"spark.rpc.message.maxSize\": \"1280\"\n",
 					"    }\n",
 					"}"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"PipelineName = \"pln_horizon_load\"\n",
+					"PipelineRunID = \"414a1a3b-42d1-4e69-862a-87535073d06b\"\n",
+					"PipelineTriggerID = \"49a6dd43-be5c-401f-90d5-cb3cef9560cb\"\n",
+					"PipelineTriggerName = \"49a6dd43-be5c-401f-90d5-cb3cef9560cb\"\n",
+					"PipelineTriggerType = \"PipelineActivity\"\n",
+					"PipelineTriggeredbyPipelineName = \"pln_master\"\n",
+					"PipelineTriggeredbyPipelineRunID = \"5928f10e-095d-4392-b6d4-c0577da640eb\""
 				],
 				"execution_count": null
 			},
@@ -328,7 +341,7 @@
 					"\n",
 					"    \n",
 					"    logInfo(f\"Reading from {source_path}\")\n",
-					"    files = mssparkutils.fs.ls(source_path1)\n",
+					"    files = mssparkutils.fs.ls(source_path)\n",
 					"    \n",
 					"except Exception as e:\n",
 					"        error_message = f\"Raw file not found at {source_path}\"\n",
@@ -336,13 +349,6 @@
 					"        logException(e)\n",
 					"\n",
 					""
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"error_message"
 				],
 				"execution_count": null
 			},
@@ -376,20 +382,13 @@
 					"                if delete_existing_table:\n",
 					"                    logInfo(f\"Deleting existing table if exists odw_standardised_db.{definition['Standardised_Table_Name']}\")\n",
 					"                    mssparkutils.notebook.run('/utils/py_delete_table', 300, arguments={'db_name': 'odw_standardised_db', 'table_name': definition['Standardised_Table_Name']})\n",
-					"\n",
+					"                \n",
 					"                logInfo(f\"Ingesting {file.name}\")\n",
-					"                (ingestion_failure, row_count) = ingest_adhoc(storage_account, definition, source_path, file.name, expected_from, expected_to, process_name, isMultiLine, dataAttribute)\n",
+					"                (error_message,ingestion_failure, row_count) = ingest_adhoc(storage_account, definition, source_path, file.name, expected_from, expected_to, process_name, isMultiLine, dataAttribute)\n",
 					"                insert_count = row_count\n",
 					"    except Exception as e:\n",
 					"        error_message = e\n",
 					"        logException(e)         "
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"error_message"
 				],
 				"execution_count": null
 			},
@@ -429,83 +428,6 @@
 					"    status_message,\n",
 					"    status_code\n",
 					")"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"# insert_count = row_count\n",
-					"# end_exec_time = datetime.now()\n",
-					"\n",
-					"# duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
-					"# activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
-					"# stage = \"Success\" if not ingestion_failure else \"Failed\"\n",
-					"# status_message = (\n",
-					"# f\"Successfully loaded data into {definition['Standardised_Table_Name']} table\"\n",
-					"# if not ingestion_failure\n",
-					"# else f\"Failed to load data from {definition['Standardised_Table_Name']} table\"\n",
-					"# )\n",
-					"# status_code = \"200\" \n",
-					"# error_message = \"\"\n",
-					"# log_telemetry_and_exit(\n",
-					"# stage,\n",
-					"# start_exec_time,\n",
-					"# end_exec_time,\n",
-					"# error_message,\n",
-					"# f\"odw_standardised_db.{definition['Standardised_Table_Name']}\",\n",
-					"# insert_count,\n",
-					"# update_count,\n",
-					"# delete_count,\n",
-					"# PipelineRunID,\n",
-					"# PipelineTriggerID,\n",
-					"# PipelineName,\n",
-					"# PipelineTriggerName,\n",
-					"# PipelineTriggerType,\n",
-					"# PipelineTriggeredbyPipelineName,\n",
-					"# PipelineTriggeredbyPipelineRunID,\n",
-					"# activity_type,\n",
-					"# duration_seconds,\n",
-					"# status_message,\n",
-					"# status_code\n",
-					"# )        \n",
-					"\n",
-					"# logInfo(f\"Ingested {row_count} rows\")\n",
-					"\n",
-					"# if ingestion_failure:\n",
-					"# logInfo(f\"Errors reported during Ingestion!!\")            \n",
-					"# error_message = f\"Errors reported during Ingestion!!\"            \n",
-					"# end_exec_time = datetime.now()\n",
-					"\n",
-					"# duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
-					"# activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
-					"# stage = \"Failed\"\n",
-					"# status_message = (\n",
-					"#     f\"Failed to load data from {definition['Standardised_Table_Name']} table\"\n",
-					"#     )\n",
-					"# status_code = \"500\"\n",
-					"\n",
-					"# log_telemetry_and_exit(\n",
-					"#     stage,\n",
-					"#     start_exec_time,\n",
-					"#     end_exec_time,\n",
-					"#     error_message,\n",
-					"#     f\"odw_standardised_db.{definition['Standardised_Table_Name']}\",\n",
-					"#     insert_count,\n",
-					"#     update_count,\n",
-					"#     delete_count,\n",
-					"#     PipelineRunID,\n",
-					"#     PipelineName,\n",
-					"#     PipelineTriggerID,\n",
-					"#     PipelineTriggerName,\n",
-					"#     PipelineTriggerType,\n",
-					"#     PipelineTriggeredbyPipelineName,\n",
-					"#     PipelineTriggeredbyPipelineRunID,\n",
-					"#     activity_type,\n",
-					"#     duration_seconds,\n",
-					"#     status_message,\n",
-					"#     status_code\n",
-					"# )"
 				],
 				"execution_count": null
 			}
