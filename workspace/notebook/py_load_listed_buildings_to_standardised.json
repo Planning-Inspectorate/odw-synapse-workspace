@@ -1,0 +1,474 @@
+{
+	"name": "py_load_listed_buildings_to_standardised",
+	"properties": {
+		"folder": {
+			"name": "0-odw-source-to-raw/ListedBuildings"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "2f73f7d0-86dd-440c-b4f7-e8f9366dbd34"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": true,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### The purpose of this pyspark notebook is to ingest data from Json formatted files listed_building.json, listed_building_outline.json into the delta tables, odw_standardised_db.listed_building and odw_standardised_db.listed_building_outline respectively.\r\n",
+					"\r\n",
+					"**Description**  \r\n",
+					"The functionality of this notebook is to ingest data from Json formatted files listed_building.json, listed_building_outline.json into the delta tables, odw_standardised_db.listed_building and odw_standardised_db.listed_building_outline respectively.The addtitional functionality has been added to log the audit information to Application Insight by creating a Json dump at notebook exit.\r\n",
+					"\r\n",
+					"**Spark Cluster Configuration** -> Apache Spark Version- 3.4, Python Version \t\t- 3.10, Delta Lake Version \t- 2.4"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"PipelineName = \"pln_listed_buildings_main\"\r\n",
+					"PipelineRunID = \"40f5afa8-f437-4bf1-8699-944cd9c672de\"\r\n",
+					"PipelineTriggerID = \"cae36392afea4ce1b7e9a1e1f5b4c3b0\"\r\n",
+					"PipelineTriggerName = \"Sandbox\"\r\n",
+					"PipelineTriggerType = \"Manual\"\r\n",
+					"PipelineTriggeredbyPipelineName = None\r\n",
+					"PipelineTriggeredbyPipelineRunID = None"
+				],
+				"execution_count": 1
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"tags": [
+						"parameters"
+					]
+				},
+				"source": [
+					"date_folder='2024-11-23'\r\n",
+					""
+				],
+				"execution_count": 2
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql.types import StructType, StructField, StringType, IntegerType, TimestampType\r\n",
+					"from pyspark.sql.functions import explode, col\r\n",
+					"from odw.core.util.util import Util"
+				],
+				"execution_count": 3
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise Logging decorator"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": 4
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise Application Insight Logging functions"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_applicationinsights"
+				],
+				"execution_count": 5
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"start_exec_time = datetime.now()\r\n",
+					"error_message = None\r\n",
+					"def run_step(step_name: str, fn):\r\n",
+					"    try:\r\n",
+					"        return fn()\r\n",
+					"    except Exception as e:\r\n",
+					"        _fail_and_log(step_name, e)"
+				],
+				"execution_count": 6
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise variables"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"table_name_lbdng = \"odw_standardised_db.listed_building\"\r\n",
+					"table_name_lbo = \"odw_standardised_db.listed_building_outline\"\r\n",
+					"insert_count = 0\r\n",
+					"update_count = 0\r\n",
+					"delete_count = 0\r\n",
+					"storage_acc_name = Util.get_storage_account()"
+				],
+				"execution_count": 7
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Load Listed buildings"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"def step_load_listed_buildings():\r\n",
+					"    logInfo(\"Starting: Load Listed Buildings JSON\")\r\n",
+					"\r\n",
+					"    target_data_path = f\"abfss://odw-raw@{storage_acc_name}/ListedBuildings/{date_folder}/listed_building.json\"\r\n",
+					"    logInfo(f\"Reading file: {target_data_path}\")\r\n",
+					"\r\n",
+					"    # Define schema\r\n",
+					"    json_schema = StructType([\r\n",
+					"        StructField(\"dataset\", StringType(), True),\r\n",
+					"        StructField(\"end-date\", StringType(), True),\r\n",
+					"        StructField(\"entity\", StringType(), True),\r\n",
+					"        StructField(\"entry-date\", StringType(), True),\r\n",
+					"        StructField(\"geometry\", StringType(), True),\r\n",
+					"        StructField(\"name\", StringType(), True),\r\n",
+					"        StructField(\"organisation-entity\", StringType(), True),\r\n",
+					"        StructField(\"point\", StringType(), True),\r\n",
+					"        StructField(\"prefix\", StringType(), True),\r\n",
+					"        StructField(\"reference\", StringType(), True),\r\n",
+					"        StructField(\"start-date\", StringType(), True),\r\n",
+					"        StructField(\"typology\", StringType(), True),\r\n",
+					"        StructField(\"documentation-url\", StringType(), True),\r\n",
+					"        StructField(\"listed-building-grade\", StringType(), True)\r\n",
+					"    ])\r\n",
+					"\r\n",
+					"    # Load JSON file\r\n",
+					"    df = spark.read.option(\"multiline\", \"true\").json(target_data_path)\r\n",
+					"\r\n",
+					"    # Extract list of entities\r\n",
+					"    entities_df = df.selectExpr(\"explode(entities) as entity\")\r\n",
+					"\r\n",
+					"    # Convert each Row to a dict\r\n",
+					"    entities = [row.entity.asDict() for row in entities_df.collect()]\r\n",
+					"\r\n",
+					"    # Create final normalized dataframe\r\n",
+					"    final_df = spark.createDataFrame(data=entities, schema=json_schema)\r\n",
+					"\r\n",
+					"    logInfo(\"Listed Buildings dataframe created successfully\")\r\n",
+					"\r\n",
+					"    return final_df\r\n",
+					"\r\n",
+					"listed_buildings_df = run_step(\r\n",
+					"    \"Load Listed Buildings JSON\",\r\n",
+					"    step_load_listed_buildings\r\n",
+					")"
+				],
+				"execution_count": 8
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def step_write_listed_buildings(df):\r\n",
+					"    logInfo(f\"Writing to {table_name_lbdng}\")\r\n",
+					"\r\n",
+					"    # Count before write\r\n",
+					"    insert_count = df.count()\r\n",
+					"\r\n",
+					"    # Write to the standardised table\r\n",
+					"    df.write.mode(\"overwrite\").saveAsTable(table_name_lbdng)\r\n",
+					"\r\n",
+					"    logInfo(f\"Written to {table_name_lbdng} successfully\")\r\n",
+					"\r\n",
+					"    return insert_count\r\n",
+					"\r\n",
+					"write_count = run_step(\r\n",
+					"    f\"Write ListedBuildings to {table_name_lbdng}\",\r\n",
+					"    lambda: step_write_listed_buildings(listed_buildings_df)\r\n",
+					")"
+				],
+				"execution_count": 9
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Load listed building outline"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def step_load_listed_building_outline():\r\n",
+					"    logInfo(\"Starting: Load Listed Building Outline JSON\")\r\n",
+					"\r\n",
+					"    target_data_path = f\"abfss://odw-raw@{storage_acc_name}/ListedBuildings/{date_folder}/listed_building_outline.json\"\r\n",
+					"    logInfo(f\"Reading file: {target_data_path}\")\r\n",
+					"\r\n",
+					"    # Schema definition\r\n",
+					"    json_schema = StructType([\r\n",
+					"        StructField(\"address\", StringType(), True),\r\n",
+					"        StructField(\"address-text\", StringType(), True),\r\n",
+					"        StructField(\"dataset\", StringType(), True),\r\n",
+					"        StructField(\"document-url\", StringType(), True),\r\n",
+					"        StructField(\"documentation-url\", StringType(), True),\r\n",
+					"        StructField(\"end-date\", StringType(), True),\r\n",
+					"        StructField(\"entity\", StringType(), True),\r\n",
+					"        StructField(\"entry-date\", StringType(), True),\r\n",
+					"        StructField(\"geometry\", StringType(), True),\r\n",
+					"        StructField(\"listed-building\", StringType(), True),\r\n",
+					"        StructField(\"name\", StringType(), True),\r\n",
+					"        StructField(\"notes\", StringType(), True),\r\n",
+					"        StructField(\"organisation-entity\", StringType(), True),\r\n",
+					"        StructField(\"point\", StringType(), True),\r\n",
+					"        StructField(\"prefix\", StringType(), True),\r\n",
+					"        StructField(\"reference\", StringType(), True),\r\n",
+					"        StructField(\"start-date\", StringType(), True),\r\n",
+					"        StructField(\"typology\", StringType(), True)\r\n",
+					"    ])\r\n",
+					"\r\n",
+					"    # Load JSON\r\n",
+					"    df = spark.read.option(\"multiline\", \"true\").json(target_data_path)\r\n",
+					"\r\n",
+					"    # Explode entities\r\n",
+					"    entities_df = df.selectExpr(\"explode(entities) as entity\")\r\n",
+					"\r\n",
+					"    # Convert to list of dict\r\n",
+					"    entities = [row.entity.asDict() for row in entities_df.collect()]\r\n",
+					"\r\n",
+					"    # Create normalized dataframe\r\n",
+					"    final_df = spark.createDataFrame(data=entities, schema=json_schema)\r\n",
+					"\r\n",
+					"    logInfo(\"Listed Building Outline DataFrame created successfully\")\r\n",
+					"\r\n",
+					"    return final_df\r\n",
+					"\r\n",
+					"outlined_building_df = run_step(\r\n",
+					"    \"Load Listed Building Outline JSON\",\r\n",
+					"    step_load_listed_building_outline\r\n",
+					")\r\n",
+					""
+				],
+				"execution_count": 10
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def step_write_listed_building_outline(df):\r\n",
+					"    logInfo(f\"Writing to {table_name_lbo}\")\r\n",
+					"\r\n",
+					"    insert_count = df.count()\r\n",
+					"    df.write.mode(\"overwrite\").saveAsTable(\"odw_standardised_db.listed_building_outline\")\r\n",
+					"\r\n",
+					"    logInfo(f\"Written to {table_name_lbo} successfully\")\r\n",
+					"    return insert_count\r\n",
+					"\r\n",
+					"\r\n",
+					"write_lbo_count = run_step(\r\n",
+					"    f\"Write Listed Building Outline to {table_name_lbo}\",\r\n",
+					"    lambda: step_write_listed_building_outline(outlined_building_df) \r\n",
+					")\r\n",
+					""
+				],
+				"execution_count": 11
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def _log_telemetry(stage: str, error_msg: str = None, step_name: str = None):\r\n",
+					"    end_exec_time = datetime.now()\r\n",
+					"    duration_seconds = (end_exec_time - start_exec_time).total_seconds()\r\n",
+					"    activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\r\n",
+					"\r\n",
+					"    if stage == \"Success\":\r\n",
+					"        status_message = f\"Successfully loaded data into {table_name_lbdng} table\"\r\n",
+					"        status_code = \"200\"\r\n",
+					"        final_error_msg = None\r\n",
+					"    else:\r\n",
+					"        status_message = f\"Failed to load data into {table_name_lbdng} table\"\r\n",
+					"        if step_name:\r\n",
+					"            status_message = f\"Failed at step [{step_name}]: {status_message}\"\r\n",
+					"        status_code = \"500\"\r\n",
+					"        final_error_msg = error_msg\r\n",
+					"    try:\r\n",
+					"        log_telemetry_and_exit(\r\n",
+					"            stage,\r\n",
+					"            start_exec_time,\r\n",
+					"            end_exec_time,\r\n",
+					"            final_error_msg,\r\n",
+					"            table_name_lbdng,\r\n",
+					"            insert_count,\r\n",
+					"            update_count,\r\n",
+					"            delete_count,\r\n",
+					"            PipelineName,\r\n",
+					"            PipelineRunID,\r\n",
+					"            PipelineTriggerID,\r\n",
+					"            PipelineTriggerName,\r\n",
+					"            PipelineTriggerType,\r\n",
+					"            PipelineTriggeredbyPipelineName,\r\n",
+					"            PipelineTriggeredbyPipelineRunID,\r\n",
+					"            activity_type,\r\n",
+					"            duration_seconds,\r\n",
+					"            status_message,\r\n",
+					"            status_code\r\n",
+					"        )\r\n",
+					"    except Exception as te:\r\n",
+					"        print(f\"Telemetry logging failed: {te}\")\r\n",
+					" \r\n",
+					" \r\n",
+					"def _fail_and_log(step_name: str, e: Exception):\r\n",
+					"    global error_message\r\n",
+					"    error_message = f\"[{step_name}]{type(e).__name__}:{str(e)}\"[:800]\r\n",
+					"    logError(error_message)\r\n",
+					"\r\n",
+					"    _log_telemetry(\"Failed\", error_message, step_name)\r\n",
+					"    raise e \r\n",
+					"if not error_message:\r\n",
+					"    _log_telemetry(\"Success\")"
+				],
+				"execution_count": 12
+			}
+		]
+	}
+}
