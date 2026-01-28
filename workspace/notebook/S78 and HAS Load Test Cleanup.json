@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "01783885-5d71-46ff-a11d-21cab0ab2bf4"
+				"spark.autotune.trackingId": "4b9d02a5-43f5-4ea1-811d-12f271d25ac9"
 			}
 		},
 		"metadata": {
@@ -71,7 +71,7 @@
 					}
 				},
 				"source": [
-					"DRY_RUN = True  #set False to actually apply changes\n",
+					"DRY_RUN = False  #set False to actually apply changes\n",
 					"\n",
 					"STD_DB  = \"odw_standardised_db\"\n",
 					"HARM_DB = \"odw_harmonised_db\"\n",
@@ -98,6 +98,7 @@
 				"source": [
 					"PATTERNS = [\n",
 					"    (STD_DB,  \"sb_appeal_{entity}\"),\n",
+					"    (HARM_DB, \"sb_appeal_{entity}\"),\n",
 					"    (HARM_DB, \"appeal_{entity}\"),\n",
 					"    (CUR_DB,  \"appeal_{entity}\"),\n",
 					"    (CUR_DB,  \"appeals_{entity}_curated_mipins\"),\n",
@@ -120,6 +121,7 @@
 				},
 				"source": [
 					"TABLES = [(db, p.format(entity=e)) for e in ENTITIES for db, p in PATTERNS]\n",
+					"TABLES.append((CUR_DB, \"dart_api\"))\n",
 					"\n",
 					"def table_exists(db, table):\n",
 					"    try:\n",
@@ -361,8 +363,6 @@
 					"print(\"S78/HAS Cleanup\")\n",
 					"print(f\"Mode: {'DRY-RUN' if DRY_RUN else 'EXECUTE'}  |  lpaCode = '{LPA_CODE}'\\n\")\n",
 					"\n",
-					"\n",
-					"# Delete RAW files that are feeding LOAD1 into Standardised (so it doesn't come back next run)\n",
 					"deleted_raw = {}\n",
 					"\n",
 					"for std_table in [\"sb_appeal_s78\", \"sb_appeal_has\"]:\n",
@@ -375,14 +375,22 @@
 					"for t, files in deleted_raw.items():\n",
 					"    print(f\"{STD_DB}.{t}: {len(files)} file(s) deleted (or would delete)\")\n",
 					"\n",
+					"\n",
 					"results = {}\n",
 					"\n",
 					"for db, table in TABLES:\n",
+					"    full = f\"{db}.{table}\"\n",
+					"\n",
 					"    if not table_exists(db, table):\n",
 					"        continue\n",
+					"    if db == CUR_DB and table == \"dart_api\":\n",
+					"        removed = clean_std_harm(db, table, LPA_CODE)\n",
+					"    elif db == CUR_DB:\n",
+					"        removed = clean_curated(db, table, LPA_CODE)\n",
+					"    else:\n",
+					"        removed = clean_std_harm(db, table, LPA_CODE)\n",
 					"\n",
-					"    removed = clean_curated(db, table, LPA_CODE) if db == CUR_DB else clean_std_harm(db, table, LPA_CODE)\n",
-					"    results[f\"{db}.{table}\"] = removed\n",
+					"    results[full] = removed\n",
 					"\n",
 					"print(\"SUMMARY\")\n",
 					"for k, v in results.items():\n",
