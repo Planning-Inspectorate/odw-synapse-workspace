@@ -1,0 +1,374 @@
+{
+	"name": "pln_entity_appeal_event_estimate",
+	"properties": {
+		"activities": [
+			{
+				"name": "AEE_Log_Start",
+				"type": "ExecutePipeline",
+				"dependsOn": [],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Start",
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+						"EndTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+						"StatusMessage": "@concat(pipeline().parameters.entityName, ' ENTITY-SPECIFIC starting')\n",
+						"AppInsIKey": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n"
+					}
+				}
+			},
+			{
+				"name": "AEE_Set_LoopStartTicks",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "AEE_Log_Start",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "loopStartTicks",
+					"value": {
+						"value": "@string(ticks(utcNow()))",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "AEE_Reset_LastErrorMessage",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "AEE_Set_LoopStartTicks",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "lastErrorMessage",
+					"value": {
+						"value": "@string('')",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "If_Run_AEE_Curated",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "AEE_Reset_LastErrorMessage",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@contains(pipeline().parameters.stages,'curated')\n",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "AEE_ETL_Curated",
+							"type": "SynapseNotebook",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 2,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "appeal_event_estimate",
+									"type": "NotebookReference"
+								},
+								"snapshot": true,
+								"sparkPool": {
+									"referenceName": "pinssynspodw34",
+									"type": "BigDataPoolReference"
+								},
+								"executorSize": "Small",
+								"driverSize": "Small",
+								"authentication": {
+									"type": "MSI"
+								}
+							}
+						},
+						{
+							"name": "AEE_SetLastError_Curated",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "AEE_ETL_Curated",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "lastErrorMessage",
+								"value": "@string(activity('AEE_ETL_Curated').Error.Message)\n"
+							}
+						},
+						{
+							"name": "AEE_Log_Failure_Curated",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "AEE_SetLastError_Curated",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "Failure",
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StartTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+									"EndTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+									"ErrorMessage": "@replace(\n  replace(\n    replace(variables('lastErrorMessage'), '\\\\\"', ''''),\n    '\\r',' '\n  ),\n  '\\n',' '\n)\n",
+									"StatusMessage": "@concat(pipeline().parameters.entityName, ' ENTITY-SPECIFIC curated failed')\n",
+									"AppInsIKey": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n"
+								}
+							}
+						},
+						{
+							"name": "AEE_AppendFailed_Curated",
+							"type": "AppendVariable",
+							"dependsOn": [
+								{
+									"activity": "AEE_Log_Failure_Curated",
+									"dependencyConditions": [
+										"Succeeded",
+										"Failed"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "statusList",
+								"value": "@json(concat(\n  '{',\n    '\"entity\":\"', pipeline().parameters.entityName, '\",',\n    '\"status\":\"Failed\",',\n    '\"stage\":\"entity_specific_curated\",',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('loopStartTicks'))), 10000000)), ',',\n    '\"error\":\"', replace(variables('lastErrorMessage'), '\\\\\"', ''''), '\",',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n"
+							}
+						},
+						{
+							"name": "AEE_MarkFailure_Curated",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "AEE_AppendFailed_Curated",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "hasFailure",
+								"value": true
+							}
+						},
+						{
+							"name": "AEE_MarkEntityFailed_Curated",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "AEE_MarkFailure_Curated",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "entityFailed",
+								"value": true
+							}
+						},
+						{
+							"name": "AEE_AppendSuccess_Curated",
+							"type": "AppendVariable",
+							"dependsOn": [
+								{
+									"activity": "AEE_ETL_Curated",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "statusList",
+								"value": "@json(concat(\n  '{',\n    '\"entity\":\"', pipeline().parameters.entityName, '\",',\n    '\"status\":\"Succeeded\",',\n    '\"stage\":\"entity_specific_curated\",',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('loopStartTicks'))), 10000000)), ',',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n"
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "AEE_Build_ResultJson",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "If_Run_AEE_Curated",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "resultJson",
+					"value": "@concat(\n  '{',\n    '\"hasFailure\":', toLower(string(variables('hasFailure'))), ',',\n    '\"results\":', string(variables('statusList')),\n  '}'\n)\n"
+				}
+			},
+			{
+				"name": "AEE_Return_Result",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "AEE_Build_ResultJson",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "pipelineReturnValue",
+					"value": [
+						{
+							"key": "result",
+							"value": {
+								"type": "Expression",
+								"content": "@variables('resultJson')\n"
+							}
+						}
+					],
+					"setSystemVariable": true
+				}
+			}
+		],
+		"parameters": {
+			"runContextJson": {
+				"type": "string"
+			},
+			"entityName": {
+				"type": "string"
+			},
+			"stages": {
+				"type": "array",
+				"defaultValue": [
+					"standardised",
+					"harmonised",
+					"curated"
+				]
+			},
+			"retryCount": {
+				"type": "int",
+				"defaultValue": 2
+			}
+		},
+		"variables": {
+			"hasFailure": {
+				"type": "Boolean",
+				"defaultValue": false
+			},
+			"entityFailed": {
+				"type": "Boolean",
+				"defaultValue": false
+			},
+			"loopStartTicks": {
+				"type": "String",
+				"defaultValue": "''"
+			},
+			"lastErrorMessage": {
+				"type": "String",
+				"defaultValue": "''"
+			},
+			"statusList": {
+				"type": "Array",
+				"defaultValue": []
+			},
+			"resultJson": {
+				"type": "String",
+				"defaultValue": "'{}'"
+			}
+		},
+		"folder": {
+			"name": "utils/Transform/EntitySpecifics/Entities"
+		},
+		"annotations": []
+	}
+}
