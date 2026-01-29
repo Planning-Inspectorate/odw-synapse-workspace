@@ -397,7 +397,7 @@
 				"typeProperties": {
 					"variableName": "runSummaryJson",
 					"value": {
-						"value": "@concat(\n  '{',\n    '\\\"orchestrator\\\":\\\"pln_orchestrator\\\",',\n    '\\\"runId\\\":\\\"', pipeline().RunId, '\\\",',\n    '\\\"runContextJson\\\":', variables('runContextJson'), ',',\n    '\\\"sbEntities\\\":', string(variables('sbEntities')), ',',\n    '\\\"hzEntities\\\":', string(variables('hzEntities')), ',',\n    '\\\"mipinsEntities\\\":', string(pipeline().parameters.mipinsEntitiesFilter), ',',\n    '\\\"sbResult\\\":', variables('sbResultJson'), ',',\n    '\\\"hzResult\\\":', variables('hzResultJson'), ',',\n    '\\\"mipinsResult\\\":', variables('mipinsResultJson'),\n  '}'\n)\n",
+						"value": "@concat(\n  '{',\n    '\\\"orchestrator\\\":\\\"pln_orchestrator\\\",',\n    '\\\"runId\\\":\\\"', pipeline().RunId, '\\\",',\n    '\\\"runContextJson\\\":', variables('runContextJson'), ',',\n    '\\\"sbEntities\\\":', string(variables('sbEntities')), ',',\n    '\\\"hzEntities\\\":', string(variables('hzEntities')), ',',\n    '\\\"mipinsEntities\\\":', string(pipeline().parameters.mipinsEntitiesFilter), ',',\n    '\\\"sbResult\\\":', variables('sbResultJson'), ',',\n    '\\\"hzResult\\\":', variables('hzResultJson'), ',',\n    '\\\"transformResult\\\":', variables('transformResultJson'), ',',\n    '\\\"mipinsResult\\\":', variables('mipinsResultJson'),\n  '}'\n)\n",
 						"type": "Expression"
 					}
 				}
@@ -553,12 +553,18 @@
 						"dependencyConditions": [
 							"Succeeded"
 						]
+					},
+					{
+						"activity": "ForEach_Transform_Results",
+						"dependencyConditions": [
+							"Succeeded"
+						]
 					}
 				],
 				"userProperties": [],
 				"typeProperties": {
 					"expression": {
-						"value": "@or(\n  or(\n    greater(length(variables('sbFailedEntities')), 0),\n    greater(length(variables('hzFailedEntities')), 0)\n  ),\n  greater(length(variables('mipinsFailedEntities')), 0)\n)\n",
+						"value": "@or(\n  or(\n    greater(length(variables('sbFailedEntities')), 0),\n    greater(length(variables('hzFailedEntities')), 0)\n  ),\n  or(\n    greater(length(variables('transformFailedEntities')), 0),\n    greater(length(variables('mipinsFailedEntities')), 0)\n  )\n)\n",
 						"type": "Expression"
 					},
 					"ifTrueActivities": [
@@ -594,7 +600,7 @@
 							"typeProperties": {
 								"variableName": "failureMessage",
 								"value": {
-									"value": "@concat(\n  'One or more stages failed. ',\n  if(\n    greater(length(variables('sbFailedEntities')), 0),\n    concat(\n      'SB failed entities: ', join(variables('sbFailedEntities'), ', '),\n      '. Errors: ', join(variables('sbFailedErrors'), ' | '),\n      '. '\n    ),\n    ''\n  ),\n  if(\n    greater(length(variables('hzFailedEntities')), 0),\n    concat(\n      'HZ failed entities: ', join(variables('hzFailedEntities'), ', '),\n      '. Errors: ', join(variables('hzFailedErrors'), ' | '),\n      '. '\n    ),\n    ''\n  ),\n  if(\n    greater(length(variables('mipinsFailedEntities')), 0),\n    concat(\n      'MiPINS failed entities: ', join(variables('mipinsFailedEntities'), ', '),\n      '. Errors: ', join(variables('mipinsFailedErrors'), ' | '),\n      '. '\n    ),\n    ''\n  ),\n  'Check orchestrator + entity manifests for details.'\n)\n",
+									"value": "@concat(\n  'One or more stages failed. ',\n  if(\n    greater(length(variables('sbFailedEntities')), 0),\n    concat(\n      'SB failed entities: ', join(variables('sbFailedEntities'), ', '),\n      '. Errors: ', join(variables('sbFailedErrors'), ' | '),\n      '. '\n    ),\n    ''\n  ),\n  if(\n    greater(length(variables('hzFailedEntities')), 0),\n    concat(\n      'HZ failed entities: ', join(variables('hzFailedEntities'), ', '),\n      '. Errors: ', join(variables('hzFailedErrors'), ' | '),\n      '. '\n    ),\n    ''\n  ),\n  if(\n    greater(length(variables('transformFailedEntities')), 0),\n    concat(\n      'Transform failed entities: ', join(variables('transformFailedEntities'), ', '),\n      '. Errors: ', join(variables('transformFailedErrors'), ' | '),\n      '. '\n    ),\n    ''\n  ),\n  if(\n    greater(length(variables('mipinsFailedEntities')), 0),\n    concat(\n      'MiPINS failed entities: ', join(variables('mipinsFailedEntities'), ', '),\n      '. Errors: ', join(variables('mipinsFailedErrors'), ' | '),\n      '. '\n    ),\n    ''\n  ),\n  'Check orchestrator + entity manifests for details.'\n)\n",
 									"type": "Expression"
 								}
 							}
@@ -607,13 +613,7 @@
 				"type": "IfCondition",
 				"dependsOn": [
 					{
-						"activity": "If_RunSB_Ingest",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					},
-					{
-						"activity": "If_RunHZ_Ingest",
+						"activity": "If_RunTransform_And_Load",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -926,7 +926,10 @@
 										"userProperties": [],
 										"typeProperties": {
 											"variableName": "mipinsFailedEntities",
-											"value": "@item().entity_code\n"
+											"value": {
+												"value": "@item().entity_code\n",
+												"type": "Expression"
+											}
 										}
 									},
 									{
@@ -945,6 +948,218 @@
 											"variableName": "mipinsFailedErrors",
 											"value": {
 												"value": "@concat(item().entity_code, ': ', coalesce(item().error, ''))\n",
+												"type": "Expression"
+											}
+										}
+									}
+								]
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "If_RunTransform_And_Load",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "If_RunSB_Ingest",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "If_RunHZ_Ingest",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@pipeline().parameters.runTransformAndLoad",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "A_Transform_And_Load",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_transform_and_load",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"runContextJson": {
+										"value": "@variables('runContextJson')",
+										"type": "Expression"
+									},
+									"sbEntities": {
+										"value": "@variables('sbEntities')",
+										"type": "Expression"
+									},
+									"hzEntities": {
+										"value": "@variables('hzEntities')",
+										"type": "Expression"
+									},
+									"stages": {
+										"value": "@pipeline().parameters.transformStages",
+										"type": "Expression"
+									},
+									"retryCount": {
+										"value": "@pipeline().parameters.transformRetryCount",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Set_transformResult_From_Transform",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "A_Transform_And_Load",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "transformResultJson",
+								"value": {
+									"value": "@activity('A_Transform_And_Load').output.pipelineReturnValue.result",
+									"type": "Expression"
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Init_Transform_FailedEntities",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Return_RunSummary",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "transformFailedEntities",
+					"value": {
+						"value": "@json('[]')",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Init_Transform_FailedErrors",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Return_RunSummary",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "transformFailedErrors",
+					"value": {
+						"value": "@json('[]')",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "ForEach_Transform_Results",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Init_Transform_FailedEntities",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Init_Transform_FailedErrors",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@if(\n  equals(variables('transformResultJson'), 'null'),\n  json('[]'),\n  json(variables('transformResultJson')).results\n)\n",
+						"type": "Expression"
+					},
+					"batchCount": 4,
+					"activities": [
+						{
+							"name": "If_Transform_Item_Failed",
+							"type": "IfCondition",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"expression": {
+									"value": "@equals(item().status,'Failed')\n",
+									"type": "Expression"
+								},
+								"ifTrueActivities": [
+									{
+										"name": "Append_FailedEntity",
+										"type": "AppendVariable",
+										"dependsOn": [],
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "transformFailedEntities",
+											"value": {
+												"value": "@item().entity\n",
+												"type": "Expression"
+											}
+										}
+									},
+									{
+										"name": "Append_FailedErrors",
+										"type": "AppendVariable",
+										"dependsOn": [
+											{
+												"activity": "Append_FailedEntity",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "transformFailedErrors",
+											"value": {
+												"value": "@concat(item().entity, ': ', coalesce(item().error, 'Unknown error'))\n",
 												"type": "Expression"
 											}
 										}
@@ -988,6 +1203,22 @@
 			"mipinsEntitiesFilter": {
 				"type": "array",
 				"defaultValue": []
+			},
+			"runTransformAndLoad": {
+				"type": "bool",
+				"defaultValue": true
+			},
+			"transformStages": {
+				"type": "array",
+				"defaultValue": [
+					"standardised",
+					"harmonised",
+					"curated"
+				]
+			},
+			"transformRetryCount": {
+				"type": "int",
+				"defaultValue": 2
 			}
 		},
 		"variables": {
@@ -1042,6 +1273,18 @@
 				"defaultValue": []
 			},
 			"mipinsFailedErrors": {
+				"type": "Array",
+				"defaultValue": []
+			},
+			"transformResultJson": {
+				"type": "String",
+				"defaultValue": "null"
+			},
+			"transformFailedEntities": {
+				"type": "Array",
+				"defaultValue": []
+			},
+			"transformFailedErrors": {
 				"type": "Array",
 				"defaultValue": []
 			}
