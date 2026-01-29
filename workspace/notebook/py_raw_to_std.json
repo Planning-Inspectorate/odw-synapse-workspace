@@ -1,0 +1,594 @@
+{
+	"name": "py_raw_to_std",
+	"properties": {
+		"folder": {
+			"name": "1-odw-raw-to-standardised"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "1a3c59a2-3e5d-4a64-bf3d-2bdbfa5927a4"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": true,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"%%configure -f\n",
+					"{\n",
+					"    \"conf\": {\n",
+					"        \"spark.kryoserializer.buffer.max\": \"2047m\",\n",
+					"        \"spark.driver.maxResultSize\": \"10g\",\n",
+					"        \"spark.rpc.message.maxSize\": \"1280\"\n",
+					"    }\n",
+					"}"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Prerequisites\n",
+					"1. Make sure the new raw file's entry has been added to the Orchestration i.e `/infrastructure/configuration/data-lake/orchestration/orchestration.json`\n",
+					"2. Make sure the standardised table's schema is present on the path specified in the entry added in step 1.\n",
+					"3. Only if the raw file is huge (several GBs), the spark pool might need some upscaling. Hence the following cell\n",
+					"\n",
+					"**Spark Cluster Configuration** -> Apache Spark Version- 3.4, Python Version \t\t- 3.10, Delta Lake Version \t- 2.4\n",
+					""
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Import Required libraries"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"import asyncio\n",
+					"import nest_asyncio\n",
+					"import tracemalloc\n",
+					"import sys\n",
+					"tracemalloc.start()\n",
+					"from pyspark.sql import SparkSession\n",
+					"from notebookutils import mssparkutils\n",
+					"import json\n",
+					"import calendar\n",
+					"from datetime import datetime, timedelta, date\n",
+					"from pyspark.sql.functions import col, lit, input_file_name, current_timestamp, sha2, concat,max as spark_max\n",
+					"from pyspark.sql.types import StringType, DateType, TimestampType, IntegerType, FloatType, StructType, StructField\n",
+					"from delta import DeltaTable\n",
+					"from datetime import datetime\n",
+					"from notebookutils import mssparkutils\n",
+					"from pyspark.sql import functions as F"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Initialise the parameters"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"tags": [
+						"parameters"
+					]
+				},
+				"source": [
+					"date_folder=''\n",
+					"source_folder='AIEDocumentData'\n",
+					"source_frequency_folder=''\n",
+					"specific_file='' # if not provided, it will ingest all files in the date_folder\n",
+					"isMultiLine = True\n",
+					"delete_existing_table=False\n",
+					"dataAttribute = \"\""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise Logging decorator"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise Application Insight Logging functions"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_applicationinsights"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Get the Storage Account"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def _fail_and_log(step_name: str, e: Exception):\n",
+					"    global error_message\n",
+					"    error_message = f\"[{step_name}]{type(e).__name__}:{str(e)}\"[:800]\n",
+					"    logError(error_message)\n",
+					"\n",
+					"    _log_telemetry(\"Failed\", error_message, step_name)\n",
+					"    raise e "
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"start_exec_time = datetime.now()\n",
+					"error_message = None\n",
+					"def run_step(step_name: str, fn):\n",
+					"    try:\n",
+					"        return fn()\n",
+					"    except Exception as e:\n",
+					"        _fail_and_log(step_name, e)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"spark = SparkSession.builder.getOrCreate()\n",
+					"\n",
+					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"raw_container = \"abfss://odw-raw@\" + storage_account\n",
+					"insert_count = 0\n",
+					"update_count = 0\n",
+					"delete_count = 0\n",
+					"error_message =''"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"%run \"1-odw-raw-to-standardised/Fileshare/SAP_HR/py_1_raw_to_standardised_hr_functions\""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Ingest the data from the raw/source into the standardised table. \n",
+					"If the table doesn't already exist, this will create the table first and ingest the data."
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def step_prepare_context():\n",
+					"    \"\"\"\n",
+					"    Prepares and returns a context dict with:\n",
+					"      - date_folder_dt, date_folder_str\n",
+					"      - source_folder_path, source_path\n",
+					"      - storage_account, raw_container\n",
+					"      - definitions (from orchestration)\n",
+					"      - flags: is_servicebus, spec_file, del_existing, is_multi_line, data_attribute, fail_fast\n",
+					"    Returns None on failure (no raises).\n",
+					"    \"\"\"\n",
+					"    try:\n",
+					"        df_input = globals().get(\"date_folder\", \"\")\n",
+					"        if df_input == '':\n",
+					"            df_dt = datetime.combine(datetime.now().date(), datetime.min.time())\n",
+					"            logInfo(f\"date_folder not provided; defaulting to today's date: {df_dt.date()}\")\n",
+					"        else:\n",
+					"            if isinstance(df_input, str):\n",
+					"                df_dt = datetime.strptime(df_input, \"%Y-%m-%d\")\n",
+					"            elif isinstance(df_input, datetime):\n",
+					"                df_dt = df_input\n",
+					"            else:\n",
+					"                df_dt = datetime.combine(df_input, datetime.min.time())\n",
+					"        date_folder_str = df_dt.strftime('%Y-%m-%d')\n",
+					"    except Exception as e:\n",
+					"        logError(\"Failed to resolve date_folder\")\n",
+					"        logException(e)\n",
+					"        return None\n",
+					"\n",
+					"    try:\n",
+					"        s_folder = globals().get(\"source_folder\", \"\")\n",
+					"        s_freq_folder = globals().get(\"source_frequency_folder\", None)\n",
+					"        source_folder_path = s_folder if not s_freq_folder else f\"{s_folder}/{s_freq_folder}\"\n",
+					"\n",
+					"        raw_base = globals().get(\"raw_container\", None)\n",
+					"        if not raw_base:\n",
+					"            logError(\"raw_container must be defined\")\n",
+					"            return None\n",
+					"\n",
+					"        source_path = f\"{raw_base}{source_folder_path}/{date_folder_str}\"\n",
+					"    except Exception as e:\n",
+					"        logError(\"Failed to build source paths\")\n",
+					"        logException(e)\n",
+					"        return None\n",
+					"\n",
+					"    try:\n",
+					"        sa = globals().get(\"storage_account\", None)\n",
+					"        if not sa:\n",
+					"            logError(\"storage_account must be defined\")\n",
+					"            return None\n",
+					"        path_to_orchestration_file = f\"abfss://odw-config@{sa}/orchestration/orchestration.json\"\n",
+					"        logInfo(f\"Reading orchestration from: {path_to_orchestration_file}\")\n",
+					"\n",
+					"        df = spark.read.option(\"multiline\", \"true\").json(path_to_orchestration_file)\n",
+					"        definitions = json.loads(df.toJSON().first())['definitions']\n",
+					"    except Exception as e:\n",
+					"        logError(\"Failed to read orchestration definitions\")\n",
+					"        logException(e)\n",
+					"        return None\n",
+					"    try:\n",
+					"        is_servicebus = (s_folder == 'ServiceBus')\n",
+					"        spec_file = globals().get(\"specific_file\", \"\")\n",
+					"        del_existing = globals().get(\"delete_existing_table\", False)\n",
+					"        is_multi_line = globals().get(\"isMultiLine\", False)\n",
+					"        data_attribute = globals().get(\"dataAttribute\", None)\n",
+					"        fail_fast = globals().get(\"fail_fast\", True)\n",
+					"    except Exception as e:\n",
+					"        logError(\"Failed to resolve control flags\")\n",
+					"        logException(e)\n",
+					"        return None\n",
+					"\n",
+					"    ctx = {\n",
+					"        \"date_folder_dt\": df_dt,\n",
+					"        \"date_folder_str\": date_folder_str,\n",
+					"        \"source_folder\": s_folder,\n",
+					"        \"source_frequency_folder\": s_freq_folder,\n",
+					"        \"source_folder_path\": source_folder_path,\n",
+					"        \"source_path\": source_path,\n",
+					"        \"raw_container\": raw_base,\n",
+					"        \"storage_account\": sa,\n",
+					"        \"definitions\": definitions,\n",
+					"        \"process_name\": \"py_raw_to_std\",\n",
+					"        \"is_servicebus\": is_servicebus,\n",
+					"        \"spec_file\": spec_file,\n",
+					"        \"del_existing\": del_existing,\n",
+					"        \"is_multi_line\": is_multi_line,\n",
+					"        \"data_attribute\": data_attribute,\n",
+					"        \"fail_fast\": fail_fast,\n",
+					"    }\n",
+					"\n",
+					"    logInfo(\n",
+					"        f\"Context prepared: date={date_folder_str}, source_path={source_path}, \"\n",
+					"        f\"definitions={len(definitions)}, spec_file='{spec_file}', servicebus={is_servicebus}\"\n",
+					"    )\n",
+					"    return ctx\n",
+					"ctx = run_step(\"Prepare context for raw → std ingestion\", step_prepare_context) "
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def step_ingest_files(ctx=None):\n",
+					"    if not ctx:\n",
+					"        logError(\"Context is missing or invalid. Skipping ingestion.\")\n",
+					"        return 0\n",
+					"\n",
+					"    try:\n",
+					"        date_folder_dt = ctx.get(\"date_folder_dt\")\n",
+					"        date_folder_str = ctx.get(\"date_folder_str\")\n",
+					"        source_path = ctx.get(\"source_path\")\n",
+					"        s_freq_folder = ctx.get(\"source_frequency_folder\")\n",
+					"        definitions = ctx.get(\"definitions\", [])\n",
+					"        is_servicebus = ctx.get(\"is_servicebus\", False)\n",
+					"        spec_file = ctx.get(\"spec_file\", \"\")\n",
+					"        del_existing = ctx.get(\"del_existing\", False)\n",
+					"        is_multi_line = ctx.get(\"is_multi_line\", False)\n",
+					"        data_attribute = ctx.get(\"data_attribute\", None)\n",
+					"        process_name = ctx.get(\"process_name\")\n",
+					"        sa = ctx.get(\"storage_account\")\n",
+					"        fail_fast = ctx.get(\"fail_fast\", True)\n",
+					"    except Exception as e:\n",
+					"        logError(\"Context is missing required keys. Skipping ingestion.\")\n",
+					"        logException(e)\n",
+					"        return 0\n",
+					"    if not all([date_folder_dt, date_folder_str, source_path, sa, process_name]):\n",
+					"        logError(\"Missing one or more required context values (date/source_path/storage_account/process_name).\")\n",
+					"        return 0\n",
+					"    try:\n",
+					"        logInfo(f\"Reading from {source_path}\")\n",
+					"        files = mssparkutils.fs.ls(source_path)\n",
+					"        files = sorted(files, key=lambda f: f.name)\n",
+					"        if not files:\n",
+					"            logInfo(f\"No files found at {source_path}. Nothing to ingest.\")\n",
+					"            return 0\n",
+					"        logInfo(f\"Found {len(files)} file(s) at {source_path}\")\n",
+					"    except Exception as e:\n",
+					"        logError(f\"Failed to list files at {source_path}\")\n",
+					"        logException(e)\n",
+					"        return 0\n",
+					"\n",
+					"    total_rows = 0\n",
+					"    for file in files:\n",
+					"        fname = file.name\n",
+					"        if is_servicebus and fname.endswith('.json'):\n",
+					"            logInfo(f\"Skipping ServiceBus JSON: {fname}\")\n",
+					"            continue\n",
+					"        if spec_file != '' and not fname.startswith(spec_file + '.'):\n",
+					"            logInfo(f\"Skipping non-matching file for specific_file='{spec_file}': {fname}\")\n",
+					"            continue\n",
+					"        try:\n",
+					"            definition = next(\n",
+					"                (\n",
+					"                    d for d in definitions\n",
+					"                    if (spec_file == '' or d['Source_Filename_Start'] == spec_file)\n",
+					"                    and (not s_freq_folder or d['Source_Frequency_Folder'] == s_freq_folder)\n",
+					"                    and fname.startswith(d['Source_Filename_Start'])\n",
+					"                ),\n",
+					"                None\n",
+					"            )\n",
+					"        except Exception as e:\n",
+					"            logError(f\"Error while matching definition for {fname}\")\n",
+					"            logException(e)\n",
+					"            if fail_fast:\n",
+					"                return total_rows\n",
+					"            else:\n",
+					"                continue\n",
+					"\n",
+					"        if not definition:\n",
+					"            logInfo(f\"No matching orchestration definition for file: {fname}. Skipping.\")\n",
+					"            continue\n",
+					"        try:\n",
+					"            expected_from = datetime.combine((date_folder_dt - timedelta(days=1)).date(), datetime.min.time())\n",
+					"            expected_to = expected_from + timedelta(days=definition['Expected_Within_Weekdays'])\n",
+					"        except Exception as e:\n",
+					"            logError(f\"Failed to compute expected window for {fname}\")\n",
+					"            logException(e)\n",
+					"            if fail_fast:\n",
+					"                return total_rows\n",
+					"            else:\n",
+					"                continue\n",
+					"\n",
+					"        if del_existing:\n",
+					"            tbl = definition.get('Standardised_Table_Name')\n",
+					"            if tbl:\n",
+					"                logInfo(f\"Deleting existing table if exists odw_standardised_db.{tbl}\")\n",
+					"                try:\n",
+					"                    mssparkutils.notebook.run(\n",
+					"                        '/utils/py_delete_table',\n",
+					"                        300,\n",
+					"                        arguments={'db_name': 'odw_standardised_db', 'table_name': tbl}\n",
+					"                    )\n",
+					"                except Exception as e:\n",
+					"                    logError(f\"Failed to delete existing table for {tbl}\")\n",
+					"                    logException(e)\n",
+					"                    if fail_fast:\n",
+					"                        return total_rows\n",
+					"                    else:\n",
+					"                        continue\n",
+					"\n",
+					"        logInfo(f\"Ingesting {fname}\")\n",
+					"        try:\n",
+					"            ingestion_failure, row_count = ingest_adhoc(\n",
+					"                sa,\n",
+					"                definition,\n",
+					"                source_path,\n",
+					"                fname,\n",
+					"                expected_from,\n",
+					"                expected_to,\n",
+					"                process_name,\n",
+					"                is_multi_line,\n",
+					"                data_attribute\n",
+					"            )\n",
+					"        except Exception as e:\n",
+					"            logError(f\"Exception during ingestion for file: {fname}\")\n",
+					"            logException(e)\n",
+					"            if fail_fast:\n",
+					"                return total_rows\n",
+					"            else:\n",
+					"                continue\n",
+					"\n",
+					"        logInfo(f\"Ingested {row_count} rows from {fname}\")\n",
+					"\n",
+					"        if ingestion_failure:\n",
+					"            logError(f\"Ingestion reported failure for file: {fname}\")\n",
+					"            if fail_fast:\n",
+					"                return total_rows\n",
+					"            else:\n",
+					"                pass\n",
+					"\n",
+					"        total_rows += (row_count or 0)\n",
+					"\n",
+					"    logInfo(f\"All files processed for {date_folder_str} at {source_path}. Total rows ingested: {total_rows}\")\n",
+					"    return total_rows\n",
+					"ingested_total_rows = run_step(\n",
+					"    \"Ingest raw → std files\",\n",
+					"    lambda: step_ingest_files(ctx)\n",
+					")\n",
+					"\n",
+					"logInfo(f\"Pipeline finished. Total rows ingested: {ingested_total_rows}\")\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def _log_telemetry(stage: str, error_msg: str = None, step_name: str = None):\n",
+					"    end_exec_time = datetime.now()\n",
+					"    duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
+					"    activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
+					"    #{definition['Standardised_Table_Name']}\n",
+					"\n",
+					"    if stage == \"Success\":\n",
+					"        status_message = f\"Successfully loaded data into {['Standardised_Table_Name']} table\"\n",
+					"        status_code = \"200\"\n",
+					"        final_error_msg = None\n",
+					"    else:\n",
+					"        status_message = f\"Failed to load data into {['Standardised_Table_Name']} table\"\n",
+					"        if step_name:\n",
+					"            status_message = f\"Failed at step [{step_name}]: {status_message}\"\n",
+					"        status_code = \"500\"\n",
+					"        final_error_msg = error_msg\n",
+					"    try:\n",
+					"        log_telemetry_and_exit(\n",
+					"            stage,\n",
+					"            start_exec_time,\n",
+					"            end_exec_time,\n",
+					"            final_error_msg,\n",
+					"            f\"odw_standardised_db.{['Standardised_Table_Name']}\",\n",
+					"            insert_count,\n",
+					"            update_count,\n",
+					"            delete_count,\n",
+					"            PipelineName,\n",
+					"            PipelineRunID,\n",
+					"            PipelineTriggerID,\n",
+					"            PipelineTriggerName,\n",
+					"            PipelineTriggerType,\n",
+					"            PipelineTriggeredbyPipelineName,\n",
+					"            PipelineTriggeredbyPipelineRunID,\n",
+					"            activity_type,\n",
+					"            duration_seconds,\n",
+					"            status_message,\n",
+					"            status_code\n",
+					"        )\n",
+					"    except Exception as te:\n",
+					"        print(f\"Telemetry logging failed: {te}\")\n",
+					"if not error_message:\n",
+					"    _log_telemetry(\"Success\")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
