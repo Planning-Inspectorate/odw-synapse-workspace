@@ -1157,7 +1157,10 @@
 							"userProperties": [],
 							"typeProperties": {
 								"variableName": "entitySpecificLoopStartTicks",
-								"value": "@string(ticks(utcNow()))\n"
+								"value": {
+									"value": "@string(ticks(utcNow()))\n",
+									"type": "Expression"
+								}
 							}
 						},
 						{
@@ -1213,7 +1216,10 @@
 										"userProperties": [],
 										"typeProperties": {
 											"variableName": "entitySpecificLastError",
-											"value": "@string(activity('ES_Run_SubPipeline').Error.Message)\n"
+											"value": {
+												"value": "@string(activity('ES_Run_SubPipeline').Error.Message)\n",
+												"type": "Expression"
+											}
 										}
 									},
 									{
@@ -1247,11 +1253,26 @@
 													"value": "@pipeline().RunId",
 													"type": "Expression"
 												},
-												"StartTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
-												"EndTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
-												"ErrorMessage": "@replace(\n  replace(\n    replace(variables('entitySpecificLastError'),'\\\"',''''),\n    '\\r',' '\n  ),\n  '\\n',' '\n)\n",
-												"StatusMessage": "@concat(string(item()), ' entity-specific subpipeline failed to run')\n",
-												"AppInsIKey": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n"
+												"StartTime": {
+													"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+													"type": "Expression"
+												},
+												"EndTime": {
+													"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+													"type": "Expression"
+												},
+												"ErrorMessage": {
+													"value": "@replace(\n  replace(\n    replace(variables('entitySpecificLastError'),'\\\"',''''),\n    '\\r',' '\n  ),\n  '\\n',' '\n)\n",
+													"type": "Expression"
+												},
+												"StatusMessage": {
+													"value": "@concat(string(item()), ' entity-specific subpipeline failed to run')\n",
+													"type": "Expression"
+												},
+												"AppInsIKey": {
+													"value": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n",
+													"type": "Expression"
+												}
 											}
 										}
 									},
@@ -1270,7 +1291,10 @@
 										"userProperties": [],
 										"typeProperties": {
 											"variableName": "entitySpecificStatus",
-											"value": "@json(concat(\n  '{',\n    '\"entity\":\"', string(item()), '\",',\n    '\"status\":\"Failed\",',\n    '\"stage\":\"entity_specific\",',\n    '\"durationSeconds\":', string(0), ',',\n    '\"error\":\"', replace(variables('entitySpecificLastError'),'\\\"',''''), '\",',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n"
+											"value": {
+												"value": "@json(concat(\n  '{',\n    '\"entity\":\"', string(item()), '\",',\n    '\"status\":\"Failed\",',\n    '\"stage\":\"entity_specific\",',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('entitySpecificLoopStartTicks'))), 10000000)), ',',\n    '\"error\":\"', replace(variables('entitySpecificLastError'),'\\\"',''''), '\",',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n",
+												"type": "Expression"
+											}
 										}
 									},
 									{
@@ -1317,7 +1341,7 @@
 							"userProperties": [],
 							"typeProperties": {
 								"expression": {
-									"value": "@equals(\n  json(activity('ES_Run_SubPipeline').output.pipelineReturnValue.result).hasFailure,\n  true\n)\n",
+									"value": "@equals(\n  coalesce(\n    json(activity('ES_Run_SubPipeline').output.pipelineReturnValue.result).hasFailure,\n    false\n  ),\n  true\n)\n",
 									"type": "Expression"
 								},
 								"ifFalseActivities": [
@@ -1328,7 +1352,10 @@
 										"userProperties": [],
 										"typeProperties": {
 											"variableName": "entitySpecificStatus",
-											"value": "@json(concat(\n  '{',\n    '\"entity\":\"', string(item()), '\",',\n    '\"status\":\"Succeeded\",',\n    '\"stage\":\"entity_specific\",',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('entitySpecificLoopStartTicks'))), 10000000)), ',',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n"
+											"value": {
+												"value": "@json(concat(\n  '{',\n    '\"entity\":\"', string(item()), '\",',\n    '\"status\":\"Succeeded\",',\n    '\"stage\":\"entity_specific\",',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('entitySpecificLoopStartTicks'))), 10000000)), ',',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n",
+												"type": "Expression"
+											}
 										}
 									}
 								],
@@ -1340,7 +1367,10 @@
 										"userProperties": [],
 										"typeProperties": {
 											"variableName": "entitySpecificStatus",
-											"value": "@json(concat(\n  '{',\n    '\"entity\":\"', string(item()), '\",',\n    '\"status\":\"Failed\",',\n    '\"stage\":\"entity_specific\",',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('entitySpecificLoopStartTicks'))), 10000000)), ',',\n    '\"error\":\"Entity-specific pipeline returned hasFailure=true\",',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n"
+											"value": {
+												"value": "@json(concat(\n  '{',\n    '\"entity\":\"', string(item()), '\",',\n    '\"status\":\"Failed\",',\n    '\"stage\":\"entity_specific\",',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('entitySpecificLoopStartTicks'))), 10000000)), ',',\n    '\"error\":\"Entity-specific pipeline returned hasFailure=true\",',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n",
+												"type": "Expression"
+											}
 										}
 									},
 									{
