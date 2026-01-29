@@ -141,7 +141,7 @@
 						"type": "Expression"
 					},
 					"condition": {
-						"value": "@and(\n  contains(item(), 'Horizon_Table_Name'),\n  and(\n    not(empty(item().Horizon_Table_Name)),\n    and(\n      equals(item().Source_Folder, 'Horizon'),\n      and(\n        or(\n          not(contains(item(), 'Load_Enable_status')),\n          equals(item().Load_Enable_status, 'True')\n        ),\n        or(\n          equals(length(pipeline().parameters.hzEntities), 0),\n          contains(pipeline().parameters.hzEntities, item().Horizon_Table_Name)\n        )\n      )\n    )\n  )\n)\n",
+						"value": "@and(\n  and(\n    and(\n      and(\n        and(\n          contains(item(), 'Source_Filename_Start'),\n          not(empty(item().Source_Filename_Start))\n        ),\n        and(\n          contains(item(), 'Horizon_Table_Name'),\n          not(empty(item().Horizon_Table_Name))\n        )\n      ),\n      equals(item().Source_Folder, 'Horizon')\n    ),\n    or(\n      not(contains(item(), 'Load_Enable_status')),\n      equals(item().Load_Enable_status, 'True')\n    )\n  ),\n  or(\n    equals(length(pipeline().parameters.hzEntities), 0),\n    contains(pipeline().parameters.hzEntities, item().Source_Filename_Start)\n  )\n)\n",
 						"type": "Expression"
 					}
 				}
@@ -1162,7 +1162,7 @@
 										"value": "@concat(\n  'Invalid or mis-spelled Horizon entity/ies passed to pln_horizon_ingest. Invalid: ',\n  join(activity('Filter_invalid_hzEntities').output.value, ', ')\n)\n",
 										"type": "Expression"
 									},
-									"StatusMessage": "Invalid Horizon entity name(s) passed to pln_horizon_ingest",
+									"StatusMessage": "Invalid Source_Filename_Start value(s) passed to pln_horizon_ingest",
 									"AppInsIKey": {
 										"value": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n",
 										"type": "Expression"
@@ -1232,7 +1232,7 @@
 						"type": "Expression"
 					},
 					"condition": {
-						"value": "@not(\n  contains(\n    string(activity('Filter_Horizon_Table').output.value),\n    item()\n  )\n)\n",
+						"value": "@not(\n  or(\n    contains(\n      string(activity('Filter_Horizon_Table').output.value),\n      concat('\"Source_Filename_Start\":\"', item(), '\"')\n    ),\n    contains(\n      string(activity('Filter_Horizon_Table').output.value),\n      concat('\"Source_Filename_Start\": \"', item(), '\"')\n    )\n  )\n)\n",
 						"type": "Expression"
 					}
 				}
