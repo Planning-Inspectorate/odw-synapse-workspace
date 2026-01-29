@@ -6,7 +6,14 @@
 				"name": "Copy AAD Users",
 				"description": "Calls the Entra ID and retrieves a list of the users and their attributes",
 				"type": "Copy",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "Set Environment",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"timeout": "0.02:00:00",
 					"retry": 0,
@@ -55,8 +62,96 @@
 						}
 					}
 				]
+			},
+			{
+				"name": "Set Environment",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "env",
+					"value": {
+						"value": "@if(\n    equals(\n        pipeline().DataFactory,\n        'pins-synw-odw-prod-uks'\n    ),\n    'PROD',\n    if(\n        equals(\n            pipeline().DataFactory,\n            'pins-synw-odw-test-uks'\n        ),\n        'TEST',\n        if(\n            equals(\n                pipeline().DataFactory,\n                'pins-synw-odw-build-uks'\n            ),\n            'BUILD',\n            'DEV'\n        )\n    )\n)",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Log 0_Raw_EntraID Failure",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Copy AAD Users",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Fail",
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@activity('Copy AAD Users').ExecutionEndTime",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@utcNow()",
+							"type": "Expression"
+						},
+						"ErrorMessage": "Failed to copy 0_Raw_EntraID. See logs for individual files to see error details.",
+						"StatusMessage": "Failed",
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"ActivityType": "Pipeline",
+						"AppInsCustomEventName": "ODW_Master_Pipeline_Logs"
+					}
+				}
 			}
 		],
+		"variables": {
+			"env": {
+				"type": "String"
+			}
+		},
 		"folder": {
 			"name": "EntraID/0-raw"
 		},
