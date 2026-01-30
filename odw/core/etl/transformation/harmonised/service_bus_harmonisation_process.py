@@ -41,6 +41,11 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
 
         definitions: list = json.loads(orchestration_data.toJSON().first())["definitions"]
         definition: dict = next((d for d in definitions if entity_name == d["Source_Filename_Start"]), None)
+        if not definition:
+            raise RuntimeError(
+                f"No definition could be found for 'Source_Filename_Start' == '{entity_name}' in the followin definitions: "
+                f"{json.dumps(definitions, indent=4)}"
+            )
         std_table: str = definition["Standardised_Table_Name"]
         hrm_table: str = definition["Harmonised_Table_Name"]
         standardised_table_path = f"{self.std_db}.{std_table}"
@@ -112,6 +117,11 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
 
         definitions: list = json.loads(orchestration_data.toJSON().first())["definitions"]
         definition: dict = next((d for d in definitions if entity_name == d["Source_Filename_Start"]), None)
+        if not definition:
+            raise RuntimeError(
+                f"No definition could be found for 'Source_Filename_Start' == '{entity_name}' in the followin definitions: "
+                f"{json.dumps(definitions, indent=4)}"
+            )
         std_table: str = definition["Standardised_Table_Name"]
         hrm_table: str = definition["Harmonised_Table_Name"]
         hrm_incremental_key: str = definition["Harmonised_Incremental_Key"]
@@ -130,10 +140,6 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
             .otherwise(F.lit("delete")),
         )
         new_data = new_data.drop("message_type")
-        print("new data")
-        new_data.show()
-        print("existing data")
-        existing_data.show()
         # The legacy process keeps a history of rows - insert the old rows with IsActive=False to work with the new delta write
         joined_updated_rows = existing_data.join(new_data, new_data[entity_primary_key] == existing_data[entity_primary_key], "left").filter(
             (new_data["row_state_metadata"] == "update") | (new_data["row_state_metadata"] == "delete")
@@ -141,31 +147,20 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
         update_rows = joined_updated_rows
         # Update to match new schema
         for col in new_data.columns:
-            print(f"checking col '{col}'")
             if col in existing_data.columns:
-                print(f"adding col '{col}__cleaned'")
                 update_rows = update_rows.withColumn(f"{col}__cleaned", existing_data[col])
             elif col != "row_state_metadata":
                 update_rows = update_rows.withColumn(f"{col}__cleaned", F.lit(None).cast(update_rows.schema[col].dataType))
         update_rows = update_rows.withColumn("ValidTo__cleaned", new_data["IngestionDate"]).withColumn("IsActive__cleaned", F.lit("N"))
-        print("updd")
-        update_rows.show()
-        print("all cols:" , update_rows.columns)
         cols_to_keep = [col for col in update_rows.columns if col.endswith("__cleaned")]
-        print("cols_to_keep:" , cols_to_keep)
         update_rows = update_rows.select(cols_to_keep)
         for col in cols_to_keep:
             col_cleaned = col[:-9]
             update_rows = update_rows.withColumnRenamed(col, col_cleaned)
-        print("update rows")
-        update_rows.show()
         new_data =new_data.filter(F.col("row_state_metadata") != "delete").drop("row_state_metadata")
-        new_data.show()
         new_data = new_data.union(update_rows).dropDuplicates()
-        print("new_data to write")
-        new_data.show()
 
-        entity_name_snake_case = entity_name.replace("-", "_")
+        hrm_table_snake_case = hrm_table.replace("-", "_")
 
         data_to_write = {
             harmonised_table_path: {
@@ -175,7 +170,7 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
                 "table_name": hrm_table,
                 "storage_endpoint": Util.get_storage_account(),
                 "container_name": "odw-harmonised",
-                "blob_path": f"{entity_name_snake_case}",
+                "blob_path": f"{hrm_table_snake_case}",
                 "merge_keys": [entity_primary_key, hrm_incremental_key],
                 "update_key_col": "row_state_metadata",
             }
