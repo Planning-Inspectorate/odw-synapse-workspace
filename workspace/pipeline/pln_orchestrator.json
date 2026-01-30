@@ -37,11 +37,11 @@
 										"type": "Expression"
 									},
 									"includeServiceBus": {
-										"value": "@pipeline().parameters.runIngestSB",
+										"value": "@or(pipeline().parameters.runIngestSB, pipeline().parameters.runTransformAndLoad)",
 										"type": "Expression"
 									},
 									"includeHorizon": {
-										"value": "@pipeline().parameters.runIngestHZ",
+										"value": "@or(pipeline().parameters.runIngestHZ, pipeline().parameters.runTransformAndLoad)",
 										"type": "Expression"
 									}
 								}
@@ -299,7 +299,7 @@
 							"typeProperties": {
 								"variableName": "sbResultJson",
 								"value": {
-									"value": "@activity('A_SB_Ingest').output.pipelineReturnValue.result\n",
+									"value": "@replace(\n  replace(\n    string(activity('A_SB_Ingest').output.pipelineReturnValue.result),\n    '\\r',' '\n  ),\n  '\\n',' '\n)\n",
 									"type": "Expression"
 								}
 							}
@@ -370,7 +370,7 @@
 							"typeProperties": {
 								"variableName": "hzResultJson",
 								"value": {
-									"value": "@activity('A_HZ_Ingest').output.pipelineReturnValue.result\n",
+									"value": "@replace(\n  replace(\n    string(activity('A_HZ_Ingest').output.pipelineReturnValue.result),\n    '\\r',' '\n  ),\n  '\\n',' '\n)\n",
 									"type": "Expression"
 								}
 							}
@@ -397,7 +397,7 @@
 				"typeProperties": {
 					"variableName": "runSummaryJson",
 					"value": {
-						"value": "@concat(\n  '{',\n    '\\\"orchestrator\\\":\\\"pln_orchestrator\\\",',\n    '\\\"runId\\\":\\\"', pipeline().RunId, '\\\",',\n    '\\\"runContextJson\\\":', variables('runContextJson'), ',',\n    '\\\"sbEntities\\\":', string(variables('sbEntities')), ',',\n    '\\\"hzEntities\\\":', string(variables('hzEntities')), ',',\n    '\\\"mipinsEntities\\\":', string(pipeline().parameters.mipinsEntitiesFilter), ',',\n    '\\\"sbResult\\\":', variables('sbResultJson'), ',',\n    '\\\"hzResult\\\":', variables('hzResultJson'), ',',\n    '\\\"transformResult\\\":', variables('transformResultJson'), ',',\n    '\\\"mipinsResult\\\":', variables('mipinsResultJson'),\n  '}'\n)\n",
+						"value": "@concat(\n  '{',\n    '\"orchestrator\":\"pln_orchestrator\",',\n    '\"runId\":\"', pipeline().RunId, '\",',\n    '\"runContextJson\":', variables('runContextJson'), ',',\n    '\"sbEntities\":', string(variables('sbEntities')), ',',\n    '\"hzEntities\":', string(variables('hzEntities')), ',',\n    '\"mipinsEntities\":', string(pipeline().parameters.mipinsEntitiesFilter), ',',\n\n    '\"sbResult\":', if(equals(variables('sbResultJson'),'null'), 'null', variables('sbResultJson')), ',',\n    '\"hzResult\":', if(equals(variables('hzResultJson'),'null'), 'null', variables('hzResultJson')), ',',\n    '\"transformResult\":', if(equals(variables('transformResultJson'),'null'), 'null', variables('transformResultJson')), ',',\n    '\"mipinsResult\":', if(equals(variables('mipinsResultJson'),'null'), 'null', variables('mipinsResultJson')),\n\n  '}'\n)\n",
 						"type": "Expression"
 					}
 				}
@@ -585,7 +585,7 @@
 									"value": "@variables('failureMessage')",
 									"type": "Expression"
 								},
-								"errorCode": "ORCH_INGEST_FAILURE"
+								"errorCode": "ORCH_FAILURE"
 							}
 						},
 						{
@@ -671,7 +671,7 @@
 							"typeProperties": {
 								"variableName": "mipinsResultJson",
 								"value": {
-									"value": "@activity('A_MiPINS_Copy').output.pipelineReturnValue.result\n",
+									"value": "@replace(\n  replace(\n    string(activity('A_MiPINS_Copy').output.pipelineReturnValue.result),\n    '\\r',' '\n  ),\n  '\\n',' '\n)\n",
 									"type": "Expression"
 								}
 							}
@@ -1039,7 +1039,7 @@
 							"typeProperties": {
 								"variableName": "transformResultJson",
 								"value": {
-									"value": "@activity('A_Transform_And_Load').output.pipelineReturnValue.result",
+									"value": "@replace(\n  replace(\n    string(activity('A_Transform_And_Load').output.pipelineReturnValue.result),\n    '\\r',' '\n  ),\n  '\\n',' '\n)\n",
 									"type": "Expression"
 								}
 							}
