@@ -26,10 +26,22 @@
 							"value": "@pipeline().RunId",
 							"type": "Expression"
 						},
-						"StartTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
-						"EndTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
-						"StatusMessage": "@concat(pipeline().parameters.entityName, ' ENTITY-SPECIFIC starting')\n",
-						"AppInsIKey": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n"
+						"StartTime": {
+							"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+							"type": "Expression"
+						},
+						"StatusMessage": {
+							"value": "@concat(pipeline().parameters.entityName, ' ENTITY-SPECIFIC starting')\n",
+							"type": "Expression"
+						},
+						"AppInsIKey": {
+							"value": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n",
+							"type": "Expression"
+						}
 					}
 				}
 			},
@@ -106,7 +118,10 @@
 							"userProperties": [],
 							"typeProperties": {
 								"variableName": "statusList",
-								"value": "@json(concat(\n  '{',\n    '\"entity\":\"', pipeline().parameters.entityName, '\",',\n    '\"status\":\"Succeeded\",',\n    '\"stage\":\"entity_specific_curated\",',\n    '\"durationSeconds\":0,',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n"
+								"value": {
+									"value": "@json(concat(\n  '{',\n    '\"entity\":\"', pipeline().parameters.entityName, '\",',\n    '\"status\":\"Succeeded\",',\n    '\"stage\":\"entity_specific_curated\",',\n    '\"durationSeconds\":0,',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n",
+									"type": "Expression"
+								}
 							}
 						}
 					],
@@ -117,7 +132,7 @@
 							"dependsOn": [],
 							"policy": {
 								"timeout": "0.12:00:00",
-								"retry": 2,
+								"retry": 0,
 								"retryIntervalInSeconds": 30,
 								"secureOutput": false,
 								"secureInput": false
@@ -134,7 +149,13 @@
 									"type": "BigDataPoolReference"
 								},
 								"executorSize": "Small",
+								"conf": {
+									"spark.dynamicAllocation.enabled": null,
+									"spark.dynamicAllocation.minExecutors": null,
+									"spark.dynamicAllocation.maxExecutors": null
+								},
 								"driverSize": "Small",
+								"numExecutors": null,
 								"authentication": {
 									"type": "MSI"
 								}
@@ -158,7 +179,10 @@
 							"userProperties": [],
 							"typeProperties": {
 								"variableName": "lastErrorMessage",
-								"value": "@string(activity('AEE_ETL_Curated').Error.Message)\n"
+								"value": {
+									"value": "@string(activity('AEE_ETL_Curated').Error.Message)\n",
+									"type": "Expression"
+								}
 							}
 						},
 						{
@@ -192,11 +216,26 @@
 										"value": "@pipeline().RunId",
 										"type": "Expression"
 									},
-									"StartTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
-									"EndTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
-									"ErrorMessage": "@replace(\n  replace(\n    replace(variables('lastErrorMessage'), '\\\\\"', ''''),\n    '\\r',' '\n  ),\n  '\\n',' '\n)\n",
-									"StatusMessage": "@concat(pipeline().parameters.entityName, ' ENTITY-SPECIFIC curated failed')\n",
-									"AppInsIKey": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n"
+									"StartTime": {
+										"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
+									},
+									"EndTime": {
+										"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
+									},
+									"ErrorMessage": {
+										"value": "@replace(\n  replace(\n    replace(variables('lastErrorMessage'), '\\\\\"', ''''),\n    '\\r',' '\n  ),\n  '\\n',' '\n)\n",
+										"type": "Expression"
+									},
+									"StatusMessage": {
+										"value": "@concat(pipeline().parameters.entityName, ' ENTITY-SPECIFIC curated failed')\n",
+										"type": "Expression"
+									},
+									"AppInsIKey": {
+										"value": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n",
+										"type": "Expression"
+									}
 								}
 							}
 						},
@@ -215,7 +254,10 @@
 							"userProperties": [],
 							"typeProperties": {
 								"variableName": "statusList",
-								"value": "@json(concat(\n  '{',\n    '\"entity\":\"', pipeline().parameters.entityName, '\",',\n    '\"status\":\"Failed\",',\n    '\"stage\":\"entity_specific_curated\",',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('loopStartTicks'))), 10000000)), ',',\n    '\"error\":\"', replace(variables('lastErrorMessage'), '\\\\\"', ''''), '\",',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n"
+								"value": {
+									"value": "@json(concat(\n  '{',\n    '\"entity\":\"', pipeline().parameters.entityName, '\",',\n    '\"status\":\"Failed\",',\n    '\"stage\":\"entity_specific_curated\",',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('loopStartTicks'))), 10000000)), ',',\n    '\"error\":\"', replace(variables('lastErrorMessage'), '\\\\\"', ''''), '\",',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n",
+									"type": "Expression"
+								}
 							}
 						},
 						{
@@ -274,7 +316,10 @@
 							"userProperties": [],
 							"typeProperties": {
 								"variableName": "statusList",
-								"value": "@json(concat(\n  '{',\n    '\"entity\":\"', pipeline().parameters.entityName, '\",',\n    '\"status\":\"Succeeded\",',\n    '\"stage\":\"entity_specific_curated\",',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('loopStartTicks'))), 10000000)), ',',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n"
+								"value": {
+									"value": "@json(concat(\n  '{',\n    '\"entity\":\"', pipeline().parameters.entityName, '\",',\n    '\"status\":\"Succeeded\",',\n    '\"stage\":\"entity_specific_curated\",',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('loopStartTicks'))), 10000000)), ',',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n",
+									"type": "Expression"
+								}
 							}
 						}
 					]
@@ -298,7 +343,10 @@
 				"userProperties": [],
 				"typeProperties": {
 					"variableName": "resultJson",
-					"value": "@concat(\n  '{',\n    '\"hasFailure\":', toLower(string(variables('hasFailure'))), ',',\n    '\"results\":', string(variables('statusList')),\n  '}'\n)\n"
+					"value": {
+						"value": "@concat(\n  '{',\n    '\"hasFailure\":', toLower(string(variables('hasFailure'))), ',',\n    '\"results\":', string(variables('statusList')),\n  '}'\n)\n",
+						"type": "Expression"
+					}
 				}
 			},
 			{
