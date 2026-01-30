@@ -90,7 +90,7 @@ def write_existing_table(data: DataFrame, table_name: str, database_name: str, c
 
 
 def compare_harmonised_data(expected_df: DataFrame, actual_data: DataFrame):
-    cols_to_ignore = ()
+    cols_to_ignore = ("incremental_key",)
     expected_df_cleaned = expected_df
     actual_data_cleaned = actual_data
     for col in cols_to_ignore:
@@ -135,10 +135,10 @@ def test__service_bus_harmonisation_process__run__with_existing_data_same_schema
     existing_harmonised_data = spark.createDataFrame(
         (
             ("a", "b", "c", "id1", 1, "1", "ODT", 1, existing_data_ingestion_date_string, None, "Y", ""),
-            ("d", "e", "f", "id2", 1, "1", "ODT", 1, existing_data_ingestion_date_string, None, "Y", ""),
-            ("e", "f", "g", "id3", 1, "1", "ODT", 1, existing_data_ingestion_date_string, None, "Y", ""),
-            ("p", "q", "r", "id4", 1, "1", "ODT", 1, existing_data_ingestion_date_string, None, "Y", ""),  # Will be updated
-            ("x", "y", "z", "id5", 1, "1", "ODT", 1, existing_data_ingestion_date_string, None, "Y", ""),  # Will be deleted
+            ("d", "e", "f", "id2", 2, "1", "ODT", 1, existing_data_ingestion_date_string, None, "Y", ""),
+            ("e", "f", "g", "id3", 3, "1", "ODT", 1, existing_data_ingestion_date_string, None, "Y", ""),
+            ("p", "q", "r", "id4", 4, "1", "ODT", 1, existing_data_ingestion_date_string, None, "Y", ""),  # Will be updated
+            ("x", "y", "z", "id5", 5, "1", "ODT", 1, existing_data_ingestion_date_string, None, "Y", ""),  # Will be deleted
         ),
         generate_harmonised_table_schema(base_schema, incremental_key),
     )
@@ -180,22 +180,25 @@ def test__service_bus_harmonisation_process__run__with_existing_data_same_schema
     expected_harmonised_data_after_writing = spark.createDataFrame(
         (
             ("a", "b", "c", "id1", 1, "1", "ODT", 1, existing_data_ingestion_date_string, None, "Y", ""),
-            ("d", "e", "f", "id2", 1, "1", "ODT", 1, existing_data_ingestion_date_string, None, "Y", ""),
-            ("e", "f", "g", "id3", 1, "1", "ODT", 1, existing_data_ingestion_date_string, None, "Y", ""),
-            ("p", "q", "s", "id9", None, "1", "ODT", 1, current_time_string, "", "Y", ""),  # Should be updated
-            ("g", "h", "i", "id6") + (None, "1", "ODT", 1, current_time_string, "", "Y", ""),  # New row should be added
-            ("j", "k", "l", "id7") + (None, "1", "ODT", 1, current_time_string, "", "Y", ""),  # New row should be added
-            ("m", "n", "o", "id8") + (None, "1", "ODT", 1, current_time_string, "", "Y", ""),  # New row should be adde
+            ("d", "e", "f", "id2", 2, "1", "ODT", 1, existing_data_ingestion_date_string, None, "Y", ""),
+            ("e", "f", "g", "id3", 3, "1", "ODT", 1, existing_data_ingestion_date_string, None, "Y", ""),
+            ("p", "q", "r", "id4", 4, "1", "ODT", 1, existing_data_ingestion_date_string, current_time_string, "N", ""),  # Will be updated
+            ("x", "y", "z", "id5", 5, "1", "ODT", 1, existing_data_ingestion_date_string, current_time_string, "N", ""),  # Deleted (but left in history)
+            ("p", "q", "s", "id9", 5, "1", "ODT", 1, current_time_string, "", "Y", ""),  # Should be updated
+            ("g", "h", "i", "id6") + (6, "1", "ODT", 1, current_time_string, "", "Y", ""),  # New row should be added
+            ("j", "k", "l", "id7") + (7, "1", "ODT", 1, current_time_string, "", "Y", ""),  # New row should be added
+            ("m", "n", "o", "id8") + (8, "1", "ODT", 1, current_time_string, "", "Y", ""),  # New row should be added
         ),
         generate_harmonised_table_schema(base_schema, incremental_key),
     )
     # Run the full etl process
     with mock.patch.object(F, "input_file_name", return_value=F.lit("some_input_file")):
-        inst = ServiceBusHarmonisationProcess(spark)
-        result = inst.run(entity_name="test_sb_hrm_pc_exst_data")
-        assert_etl_result_successful(result)
-        actual_table_data = spark.table("odw_harmonised_db.test_sb_hrm_pc_exst_data")
-        compare_harmonised_data(expected_harmonised_data_after_writing, actual_table_data)
+        with mock.patch.object(Util, "display_dataframe"):
+            inst = ServiceBusHarmonisationProcess(spark)
+            result = inst.run(entity_name="test_sb_hrm_pc_exst_data")
+            assert_etl_result_successful(result)
+            actual_table_data = spark.table("odw_harmonised_db.test_sb_hrm_pc_exst_data")
+            compare_harmonised_data(expected_harmonised_data_after_writing, actual_table_data)
 
 
 @pytest.mark.parametrize(
@@ -242,9 +245,9 @@ def test__service_bus_harmonisation_process__run__with_existing_data_different_s
     existing_harmonised_data = spark.createDataFrame(
         (
             ("a", "b", "c", "id1", 1, "1", "ODT", 1, existing_data_ingestion_date_string, None, "Y", ""),
-            ("d", "e", "f", "id2", 1, "1", "ODT", 1, existing_data_ingestion_date_string, None, "Y", ""),
-            ("e", "f", "g", "id3", 1, "1", "ODT", 1, existing_data_ingestion_date_string, None, "Y", ""),
-            ("p", "q", "r", "id4", 1, "1", "ODT", 1, existing_data_ingestion_date_string, None, "Y", ""),
+            ("d", "e", "f", "id2", 2, "1", "ODT", 1, existing_data_ingestion_date_string, None, "Y", ""),
+            ("e", "f", "g", "id3", 3, "1", "ODT", 1, existing_data_ingestion_date_string, None, "Y", ""),
+            ("p", "q", "r", "id4", 4, "1", "ODT", 1, existing_data_ingestion_date_string, None, "Y", ""),
         ),
         generate_harmonised_table_schema(base_schema, incremental_key),
     )
@@ -253,12 +256,14 @@ def test__service_bus_harmonisation_process__run__with_existing_data_different_s
     # Create standardised table
     existing_data_ingestion_date = datetime.strptime(existing_data_ingestion_date_string, datetime_format)
     input_file = "some_file"
+    current_time = datetime.now()
+    current_time_string = current_time.strftime(datetime_format)
     already_existing_standardised_col_data = (
-        existing_data_ingestion_date,
-        existing_data_ingestion_date,
-        existing_data_ingestion_date,
+        current_time,
+        current_time,
+        current_time,
         "Update",
-        existing_data_ingestion_date_string,
+        current_time_string,
         input_file,
     )
     standardised_data = spark.createDataFrame(
@@ -274,20 +279,25 @@ def test__service_bus_harmonisation_process__run__with_existing_data_different_s
 
     expected_harmonised_data_after_writing = spark.createDataFrame(
         (
-            ("a", "b", "c", "sisko", "id5", None, "1", "ODT", 1, existing_data_ingestion_date_string, "", "Y", ""),
-            ("d", "e", "f", "worf", "id6", None, "1", "ODT", 1, existing_data_ingestion_date_string, "", "Y", ""),
-            ("e", "f", "g", "kira", "id7", None, "1", "ODT", 1, existing_data_ingestion_date_string, "", "Y", ""),
-            ("p", "q", "r", "odo", "id8", None, "1", "ODT", 1, existing_data_ingestion_date_string, "", "Y", ""),
+            ("a", "b", "c", None, "id1", 1, "1", "ODT", 1, existing_data_ingestion_date_string, current_time_string, "N", ""),
+            ("d", "e", "f", None, "id2", 2, "1", "ODT", 1, existing_data_ingestion_date_string, current_time_string, "N", ""),
+            ("e", "f", "g", None, "id3", 3, "1", "ODT", 1, existing_data_ingestion_date_string, current_time_string, "N", ""),
+            ("p", "q", "r", None, "id4", 4, "1", "ODT", 1, existing_data_ingestion_date_string, current_time_string, "N", ""),
+            ("a", "b", "c", "sisko", "id5", 1, "1", "ODT", 1, current_time_string, "", "Y", ""),
+            ("d", "e", "f", "worf", "id6", 2, "1", "ODT", 1, current_time_string, "", "Y", ""),
+            ("e", "f", "g", "kira", "id7", 3, "1", "ODT", 1, current_time_string, "", "Y", ""),
+            ("p", "q", "r", "odo", "id8", 4, "1", "ODT", 1, current_time_string, "", "Y", ""),
         ),
         generate_harmonised_table_schema(altered_schema, incremental_key),
     )
     # Run the full etl process
     with mock.patch.object(F, "input_file_name", return_value=F.lit("some_input_file")):
-        inst = ServiceBusHarmonisationProcess(spark)
-        result = inst.run(entity_name="test_sb_hrm_pc_chg_schema")
-        assert_etl_result_successful(result)
-        actual_table_data = spark.table("odw_harmonised_db.test_sb_hrm_pc_chg_schema")
-        compare_harmonised_data(expected_harmonised_data_after_writing, actual_table_data)
+        with mock.patch.object(Util, "display_dataframe"):
+            inst = ServiceBusHarmonisationProcess(spark)
+            result = inst.run(entity_name="test_sb_hrm_pc_chg_schema")
+            assert_etl_result_successful(result)
+            actual_table_data = spark.table("odw_harmonised_db.test_sb_hrm_pc_chg_schema")
+            compare_harmonised_data(expected_harmonised_data_after_writing, actual_table_data)
 
 
 @pytest.mark.parametrize(
@@ -349,16 +359,17 @@ def test__service_bus_harmonisation_process__run__with_no_existing_data(teardown
 
     expected_harmonised_data_after_writing = spark.createDataFrame(
         (
-            ("a", "b", "c", "id1", None, "1", "ODT", 1, existing_data_ingestion_date_string, "", "Y", ""),
-            ("d", "e", "f", "id2", None, "1", "ODT", 1, existing_data_ingestion_date_string, "", "Y", ""),
-            ("e", "f", "g", "id3", None, "1", "ODT", 1, existing_data_ingestion_date_string, "", "Y", ""),
+            ("a", "b", "c", "id1", 1, "1", "ODT", 1, existing_data_ingestion_date_string, "", "Y", ""),
+            ("d", "e", "f", "id2", 2, "1", "ODT", 1, existing_data_ingestion_date_string, "", "Y", ""),
+            ("e", "f", "g", "id3", 3, "1", "ODT", 1, existing_data_ingestion_date_string, "", "Y", ""),
         ),
         generate_harmonised_table_schema(base_schema, incremental_key),
     )
     # Run the full etl process
     with mock.patch.object(F, "input_file_name", return_value=F.lit("some_input_file")):
-        inst = ServiceBusHarmonisationProcess(spark)
-        result = inst.run(entity_name="test_sb_hrm_pc_no_data")
-        assert_etl_result_successful(result)
-        actual_table_data = spark.table("odw_harmonised_db.test_sb_hrm_pc_no_data")
-        compare_harmonised_data(expected_harmonised_data_after_writing, actual_table_data)
+        with mock.patch.object(Util, "display_dataframe"):
+            inst = ServiceBusHarmonisationProcess(spark)
+            result = inst.run(entity_name="test_sb_hrm_pc_no_data")
+            assert_etl_result_successful(result)
+            actual_table_data = spark.table("odw_harmonised_db.test_sb_hrm_pc_no_data")
+            compare_harmonised_data(expected_harmonised_data_after_writing, actual_table_data)

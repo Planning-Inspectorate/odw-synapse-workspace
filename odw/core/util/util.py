@@ -1,5 +1,5 @@
 from notebookutils import mssparkutils
-from notebookutils.visualization import display
+from notebookutils import visualization
 from pyspark.sql import DataFrame
 import re
 import os
@@ -33,4 +33,4 @@ class Util:
         """
         Show the contents of the given dataframe.
         """
-        display(dataframe)
+        visualization.display(dataframe)

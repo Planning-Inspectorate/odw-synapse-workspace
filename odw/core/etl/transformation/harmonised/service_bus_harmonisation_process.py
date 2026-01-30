@@ -3,6 +3,7 @@ from odw.core.util.util import Util
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from odw.core.io.synapse_table_data_io import SynapseTableDataIO
+from odw.core.util.udf import absolute
 from pyspark.sql import DataFrame
 import pyspark.sql.functions as F
 import pyspark.sql.types as T
@@ -70,7 +71,7 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
             "source_system_data": source_system_data,
         }
 
-    def harmonise(self, data: DataFrame, source_system_data: DataFrame, incremental_key: str):
+    def harmonise(self, data: DataFrame, source_system_data: DataFrame, incremental_key: str, primary_key: str):
         """
         Add harmonised columns to the dataframe, and drop unnecessary columns
         """
@@ -83,7 +84,12 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
             "ODTSourceSystem": F.lit("ODT").cast("string"),
             "ValidTo": F.lit("").cast("string"),
             "IsActive": F.lit("Y").cast("string"),
-            incremental_key: F.lit(None).cast(T.LongType()),
+            incremental_key: absolute(
+                F.hash(
+                    F.col(primary_key).cast(T.StringType()),
+                    F.col("message_enqueued_time_utc").cast(T.StringType())
+                )
+            ).cast(T.LongType()),
             "IngestionDate": F.col("message_enqueued_time_utc").cast("string"),
         }
         for col_name, col_value in cols_to_add.items():
@@ -113,7 +119,7 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
         standardised_table_path = f"{self.std_db}.{std_table}"
         harmonised_table_path = f"{self.hrm_db}.{hrm_table}"
 
-        new_data = self.harmonise(new_data, source_system_data, hrm_incremental_key)
+        new_data = self.harmonise(new_data, source_system_data, hrm_incremental_key, entity_primary_key)
         # Note this does not work if the harmonised table does not exist at the start - fix after first int test is working
         # new_data = new_data.select(existing_data.columns)
 
@@ -122,20 +128,55 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
             F.when(F.col("message_type") == "Create", F.lit("create"))
             .when(F.col("message_type").isin(["update", "Update", "Publish", "Unpublish"]), F.lit("update"))
             .otherwise(F.lit("delete")),
-        ).drop("message_type")
+        )
+        new_data = new_data.drop("message_type")
+        print("new data")
+        new_data.show()
+        print("existing data")
+        existing_data.show()
+        # The legacy process keeps a history of rows - insert the old rows with IsActive=False to work with the new delta write
+        joined_updated_rows = existing_data.join(new_data, new_data[entity_primary_key] == existing_data[entity_primary_key], "left").filter(
+            (new_data["row_state_metadata"] == "update") | (new_data["row_state_metadata"] == "delete")
+        ).drop("row_state_metadata")
+        update_rows = joined_updated_rows
+        # Update to match new schema
+        for col in new_data.columns:
+            print(f"checking col '{col}'")
+            if col in existing_data.columns:
+                print(f"adding col '{col}__cleaned'")
+                update_rows = update_rows.withColumn(f"{col}__cleaned", existing_data[col])
+            elif col != "row_state_metadata":
+                update_rows = update_rows.withColumn(f"{col}__cleaned", F.lit(None).cast(update_rows.schema[col].dataType))
+        update_rows = update_rows.withColumn("ValidTo__cleaned", new_data["IngestionDate"]).withColumn("IsActive__cleaned", F.lit("N"))
+        print("updd")
+        update_rows.show()
+        print("all cols:" , update_rows.columns)
+        cols_to_keep = [col for col in update_rows.columns if col.endswith("__cleaned")]
+        print("cols_to_keep:" , cols_to_keep)
+        update_rows = update_rows.select(cols_to_keep)
+        for col in cols_to_keep:
+            col_cleaned = col[:-9]
+            update_rows = update_rows.withColumnRenamed(col, col_cleaned)
+        print("update rows")
+        update_rows.show()
+        new_data =new_data.filter(F.col("row_state_metadata") != "delete").drop("row_state_metadata")
+        new_data.show()
+        new_data = new_data.union(update_rows).dropDuplicates()
+        print("new_data to write")
+        new_data.show()
 
         entity_name_snake_case = entity_name.replace("-", "_")
 
         data_to_write = {
             harmonised_table_path: {
                 "data": new_data,
-                "storage_kind": "ADLSG2-Delta",
+                "storage_kind": "ADLSG2-LegacyDelta",
                 "database_name": "odw_harmonised_db",
                 "table_name": hrm_table,
                 "storage_endpoint": Util.get_storage_account(),
                 "container_name": "odw-harmonised",
                 "blob_path": f"{entity_name_snake_case}",
-                "primary_keys": [entity_primary_key],
+                "merge_keys": [entity_primary_key, hrm_incremental_key],
                 "update_key_col": "row_state_metadata",
             }
         }
