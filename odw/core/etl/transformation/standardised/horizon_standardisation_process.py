@@ -29,7 +29,7 @@ class HorizonStandardisationProcess(StandardisationProcess):
     params = {
         "entity_stage_name": "Horizon Standardisation",
         "source_folder": "Horizon",  # Default is Horizon, but this could be any folder in the `odw-raw` container
-        "specific_file": "",  # Default is "". Aligns with the `Source_Filename_Start` property in the orchestration file
+        "entity_name": "",  # Default is "". Aligns with the `Source_Filename_Start` property in the orchestration file
     }
     HorizonStandardisationProcess(spark).run(**params)
     ```
@@ -57,7 +57,7 @@ class HorizonStandardisationProcess(StandardisationProcess):
 
     def load_data(self, **kwargs):
         source_folder = self.load_parameter("source_folder", kwargs, "Horizon")
-        specific_file = self.load_parameter("specific_file", kwargs, "")
+        entity_name = self.load_parameter("entity_name", kwargs, "")
         source_path = Util.get_path_to_file(f"odw-raw/{source_folder}")
         last_modified_folder = self.get_last_modified_folder(source_path)
         if last_modified_folder:
@@ -106,7 +106,7 @@ class HorizonStandardisationProcess(StandardisationProcess):
                 (
                     d
                     for d in definitions
-                    if (specific_file == "" or d.get("Source_Filename_Start", None) == specific_file)
+                    if (entity_name == "" or d.get("Source_Filename_Start", None) == entity_name)
                     and file.startswith(d.get("Source_Filename_Start", None))
                     and d.get("Load_Enable_status", False) == "True"
                 ),
@@ -138,7 +138,7 @@ class HorizonStandardisationProcess(StandardisationProcess):
     def process(self, **kwargs) -> ETLResult:
         start_exec_time = datetime.now()
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
-        specific_file = self.load_parameter("specific_file", kwargs, "")
+        entity_name = self.load_parameter("entity_name", kwargs, "")
         date_folder_input = self.load_parameter("date_folder", kwargs, "")
         if date_folder_input == "":
             date_folder = datetime.now().date()
@@ -158,7 +158,7 @@ class HorizonStandardisationProcess(StandardisationProcess):
                 (
                     d
                     for d in definitions
-                    if (specific_file == "" or d.get("Source_Filename_Start", None) == specific_file)
+                    if (entity_name == "" or d.get("Source_Filename_Start", None) == entity_name)
                     and file.startswith(d.get("Source_Filename_Start", None))
                     and d.get("Load_Enable_status", False) == "True"
                 ),
@@ -229,7 +229,7 @@ class HorizonStandardisationProcess(StandardisationProcess):
                     "write_options": write_opts,
                 }
             else:
-                if specific_file:
+                if entity_name:
                     raise RuntimeError(f"No definition found for {file}")
                 # Do we want to just crash instead? Not sure why the NB does this
                 LoggingUtil().log_info(f"Condition Not Satisfied for Load {file} File")
