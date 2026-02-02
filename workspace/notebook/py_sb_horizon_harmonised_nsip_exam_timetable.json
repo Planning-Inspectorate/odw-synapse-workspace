@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "275c8f1d-ae55-462c-bb38-35927dbff897"
+				"spark.autotune.trackingId": "0d8d5984-4304-4376-b6f4-b262876ca66d"
 			}
 		},
 		"metadata": {
@@ -51,6 +51,19 @@
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"PipelineName = \"Test_sb\"\n",
+					"PipelineRunID = \"00000000-0000-0000-0000-00000000TEST\"\n",
+					"PipelineTriggerID = \"00000000-0000-0000-0000-00000000TEST\"\n",
+					"PipelineTriggerName = \"TEST_TriggerName\"\n",
+					"PipelineTriggerType = \"TEST_TriggerType\"\n",
+					"PipelineTriggeredbyPipelineName = \"TEST_ParentPipeline\"\n",
+					"PipelineTriggeredbyPipelineRunID = \"00000000-0000-0000-0000-00000000TEST\""
+				],
+				"execution_count": 45
+			},
 			{
 				"cell_type": "markdown",
 				"metadata": {
@@ -85,11 +98,13 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"from pyspark.sql import SparkSession, Row\n",
 					"from pyspark.sql.types import IntegerType, ArrayType, StructType, StructField\n",
-					"from pyspark.sql import Row\n",
-					"from pyspark.sql.functions import *"
+					"from pyspark.sql.window import Window\n",
+					"import pyspark.sql.functions as F\n",
+					"from datetime import datetime"
 				],
-				"execution_count": null
+				"execution_count": 46
 			},
 			{
 				"cell_type": "markdown",
@@ -109,7 +124,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": null
+				"execution_count": 47
 			},
 			{
 				"cell_type": "markdown",
@@ -129,7 +144,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 48
 			},
 			{
 				"cell_type": "code",
@@ -156,7 +171,7 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": null
+				"execution_count": 49
 			},
 			{
 				"cell_type": "code",
@@ -194,9 +209,10 @@
 					"\n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error in source Service Bus SQL query {service_bus_table}: {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()"
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 50
 			},
 			{
 				"cell_type": "code",
@@ -252,9 +268,10 @@
 					"\n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error in source Horizon SQL query {horizon_table}: {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()"
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 51
 			},
 			{
 				"cell_type": "code",
@@ -270,24 +287,31 @@
 					}
 				},
 				"source": [
-					"#Establish aggregated view of events\n",
-					"event_columns = [\"eventId\", \"type\", \"eventTitle\", \"eventTitleWelsh\", \"description\", \"descriptionWelsh\", \"eventDeadlineStartDate\", \"date\"]\n",
+					"if not error_message:\n",
+					"    try:\n",
+					"        # Establish aggregated view of events\n",
+					"        event_columns = [\"eventId\", \"type\", \"eventTitle\", \"eventTitleWelsh\", \"description\", \"descriptionWelsh\", \"eventDeadlineStartDate\", \"date\"]\n",
 					"\n",
-					"horizon_events = horizon_data.groupBy(\"caseReference\").agg(collect_list(struct(event_columns)).alias(\"events\"))\n",
-					"horizon_data = horizon_data.drop(*event_columns)\n",
-					"horizon_data = horizon_data.join(horizon_events, on=\"caseReference\", how=\"inner\")\n",
+					"        horizon_events = horizon_data.groupBy(\"caseReference\").agg(F.collect_list(F.struct(event_columns)).alias(\"events\"))\n",
+					"        horizon_data = horizon_data.drop(*event_columns)\n",
+					"        horizon_data = horizon_data.join(horizon_events, on=\"caseReference\", how=\"inner\")\n",
 					"\n",
-					"# adding eventLineItems column for each event\n",
-					"horizon_data = horizon_data.withColumn(\"events\",\n",
-					"    transform(col(\"events\"),\n",
-					"        lambda event: event.withField(\"eventLineItems\", expr(\"array()\"))\n",
-					"    )\n",
-					")\n",
+					"        # adding eventLineItems column for each event\n",
+					"        horizon_data = horizon_data.withColumn(\"events\",\n",
+					"            F.transform(F.col(\"events\"),\n",
+					"                lambda event: event.withField(\"eventLineItems\", F.expr(\"array()\"))\n",
+					"            )\n",
+					"        )\n",
 					"\n",
-					"#sort columns into same order as service bus\n",
-					"horizon_data = horizon_data.select(service_bus_data.columns).drop_duplicates()"
+					"        # sort columns into same order as service bus\n",
+					"        horizon_data = horizon_data.select(service_bus_data.columns).drop_duplicates()\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error while aggregating Horizon events and aligning schema to Service Bus: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 52
 			},
 			{
 				"cell_type": "markdown",
@@ -324,9 +348,10 @@
 					"\n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error in ingesting delta table {spark_table_final}: {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()"
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 53
 			},
 			{
 				"cell_type": "code",
@@ -340,32 +365,38 @@
 							"deleting": false
 						}
 					},
-					"microsoft": {
-						"language": "sparksql"
-					},
 					"collapsed": false
 				},
 				"source": [
-					"%%sql\n",
-					"CREATE OR REPLACE TEMPORARY VIEW vw_nsip_exam_timetable_calculations_base\n",
-					"AS\n",
-					"SELECT  \n",
-					"    row_number() OVER(PARTITION BY caseReference ORDER BY IngestionDate DESC) AS ReverseOrderProcessed\n",
-					"    ,row_number() OVER(ORDER BY IngestionDate asc, caseReference asc) AS NSIPExaminationTimetableID\n",
-					"    ,caseReference\n",
-					"    ,IngestionDate\n",
-					"    ,ValidTo\n",
-					"    ,'0' AS Migrated\n",
-					"    ,CASE row_number() OVER(PARTITION BY caseReference ORDER BY IngestionDate DESC)\n",
-					"        WHEN 1 THEN\n",
-					"            'Y'\n",
-					"        ELSE\n",
-					"            'N'\n",
-					"    END AS IsActive                \n",
-					"FROM\n",
-					"    odw_harmonised_db.nsip_exam_timetable"
+					"if not error_message:\n",
+					"    try:\n",
+					"        df = spark.table(\"odw_harmonised_db.nsip_exam_timetable\")\n",
+					"\n",
+					"        w_reverse_per_case = Window.partitionBy(\"caseReference\").orderBy(F.col(\"IngestionDate\").desc())\n",
+					"        w_internal_id = Window.orderBy(F.col(\"IngestionDate\").asc(), F.col(\"caseReference\").asc())\n",
+					"\n",
+					"        out_df = (\n",
+					"            df.select(\n",
+					"                F.row_number().over(w_reverse_per_case).alias(\"ReverseOrderProcessed\"),\n",
+					"                F.row_number().over(w_internal_id).alias(\"NSIPExaminationTimetableID\"),\n",
+					"                F.col(\"caseReference\"),\n",
+					"                F.col(\"IngestionDate\"),\n",
+					"                F.col(\"ValidTo\"),\n",
+					"                F.lit(\"0\").alias(\"Migrated\"),\n",
+					"                F.when(F.row_number().over(w_reverse_per_case) == 1, F.lit(\"Y\"))\n",
+					"                .otherwise(F.lit(\"N\"))\n",
+					"                .alias(\"IsActive\"),\n",
+					"            )\n",
+					"        )\n",
+					"\n",
+					"        out_df.createOrReplaceTempView(\"vw_nsip_exam_timetable_calculations_base\")\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error while creating view vw_nsip_exam_timetable_calculations_base from odw_harmonised_db.nsip_exam_timetable: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 54
 			},
 			{
 				"cell_type": "code",
@@ -381,32 +412,39 @@
 					}
 				},
 				"source": [
-					"df_calcs = spark.sql(\"\"\"\n",
-					"                        SELECT\n",
-					"                            CurrentRow.NSIPExaminationTimetableID\n",
-					"                            ,CurrentRow.caseReference \n",
-					"                            ,CurrentRow.IngestionDate\n",
-					"                            ,COALESCE(NULLIF(CurrentRow.ValidTo,''), NextRow.IngestionDate) AS ValidTo\n",
-					"                            ,CASE\n",
-					"                                WHEN raw.caseReference IS NOT NULL THEN \n",
-					"                                    \"1\"\n",
-					"                                ELSE \n",
-					"                                    \"0\"\n",
-					"                            END AS Migrated\n",
-					"                            ,CurrentRow.IsActive\n",
-					"                        FROM\n",
-					"                            vw_nsip_exam_timetable_calculations_base AS CurrentRow\n",
-					"                            LEFT OUTER JOIN vw_nsip_exam_timetable_calculations_base AS NextRow\n",
-					"                                ON CurrentRow.caseReference = NextRow.caseReference\n",
-					"                                AND CurrentRow.ReverseOrderProcessed - 1 = NextRow.ReverseOrderProcessed\n",
-					"                            LEFT OUTER JOIN (SELECT DISTINCT caseReference FROM  odw_harmonised_db.sb_nsip_exam_timetable) AS Raw\n",
-					"                                ON CurrentRow.caseReference = Raw.caseReference \n",
-					"                            ORDER BY currentRow.ReverseOrderProcessed\n",
-					"                    \"\"\")\n",
+					"if not error_message:\n",
+					"    try:\n",
+					"        df_calcs = spark.sql(\"\"\"\n",
+					"                                SELECT\n",
+					"                                    CurrentRow.NSIPExaminationTimetableID\n",
+					"                                    ,CurrentRow.caseReference \n",
+					"                                    ,CurrentRow.IngestionDate\n",
+					"                                    ,COALESCE(NULLIF(CurrentRow.ValidTo,''), NextRow.IngestionDate) AS ValidTo\n",
+					"                                    ,CASE\n",
+					"                                        WHEN Raw.caseReference IS NOT NULL THEN \n",
+					"                                            \"1\"\n",
+					"                                        ELSE \n",
+					"                                            \"0\"\n",
+					"                                    END AS Migrated\n",
+					"                                    ,CurrentRow.IsActive\n",
+					"                                FROM\n",
+					"                                    vw_nsip_exam_timetable_calculations_base AS CurrentRow\n",
+					"                                    LEFT OUTER JOIN vw_nsip_exam_timetable_calculations_base AS NextRow\n",
+					"                                        ON CurrentRow.caseReference = NextRow.caseReference\n",
+					"                                        AND CurrentRow.ReverseOrderProcessed - 1 = NextRow.ReverseOrderProcessed\n",
+					"                                    LEFT OUTER JOIN (SELECT DISTINCT caseReference FROM  odw_harmonised_db.sb_nsip_exam_timetable) AS Raw\n",
+					"                                        ON CurrentRow.caseReference = Raw.caseReference \n",
+					"                                    ORDER BY CurrentRow.ReverseOrderProcessed\n",
+					"                            \"\"\")\n",
 					"\n",
-					"df_calcs = df_calcs.withColumnRenamed(\"caseReference\", \"temp_caseReference\").withColumnRenamed(\"IngestionDate\", \"temp_IngestionDate\")"
+					"        df_calcs = df_calcs.withColumnRenamed(\"caseReference\", \"temp_caseReference\").withColumnRenamed(\"IngestionDate\", \"temp_IngestionDate\")\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error while calculating NSIP exam timetable ValidTo and Migrated flags: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 55
 			},
 			{
 				"cell_type": "code",
@@ -451,9 +489,10 @@
 					"                \n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error in preparing results dataframe for {spark_table_final}: {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()"
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 56
 			},
 			{
 				"cell_type": "code",
@@ -469,12 +508,19 @@
 					}
 				},
 				"source": [
-					"columns = results.columns\n",
-					"results = results.drop(\"NSIPExaminationTimetableID\", \"ValidTo\", \"Migrated\", \"IsActive\")\n",
-					"final_df = results.join(df_calcs, (df_calcs[\"temp_caseReference\"] == results[\"caseReference\"]) & (df_calcs[\"temp_IngestionDate\"] == results[\"IngestionDate\"])).select(columns)\n",
-					"final_df = final_df.drop_duplicates()"
+					"if not error_message:\n",
+					"    try:\n",
+					"        columns = results.columns\n",
+					"        results = results.drop(\"NSIPExaminationTimetableID\", \"ValidTo\", \"Migrated\", \"IsActive\")\n",
+					"        final_df = results.join(df_calcs, (df_calcs[\"temp_caseReference\"] == results[\"caseReference\"]) & (df_calcs[\"temp_IngestionDate\"] == results[\"IngestionDate\"])).select(columns)\n",
+					"        final_df = final_df.drop_duplicates()\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error while merging exam timetable calculations into final dataset and dropping duplicates: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 57
 			},
 			{
 				"cell_type": "markdown",
@@ -511,9 +557,10 @@
 					"\n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error in ingesting delta table in the final step {spark_table_final}: {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()"
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 58
 			},
 			{
 				"cell_type": "code",
@@ -550,7 +597,7 @@
 					"    status_code\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 59
 			}
 		]
 	}
