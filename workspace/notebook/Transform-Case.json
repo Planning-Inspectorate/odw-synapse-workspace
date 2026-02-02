@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "af309239-3c03-4a73-ae4a-21df49dabb56"
+				"spark.autotune.trackingId": "73a63d7b-0e6b-4804-a3fd-5f9639417418"
 			}
 		},
 		"metadata": {
@@ -519,24 +519,94 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"# Get SQL password securely from Key Vault\n",
+					"akv_name = \"pinskvsynwodwdevuks\"      # your Key Vault name\n",
+					"secret_name = \"mpesc-sql-password\"   # the secret storing the SQL password\n",
 					"\n",
+					"sql_password = mssparkutils.credentials.getSecret(akv_name, secret_name)\n",
+					"\n",
+					"server = \"pins-sql-peas-primary-dev.database.windows.net\"\n",
+					"database = \"pins-sqldb-peas-dev\"\n",
+					"\n",
+					"url = f\"jdbc:sqlserver://{server}:1433;database={database};encrypt=true;trustServerCertificate=false;hostNameInCertificate=*.database.windows.net;loginTimeout=30;\"\n",
+					""
+				],
+				"execution_count": 24
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"# Pull Address GUIDs using legacyCaseId\n",
+					"address_lookup = (\n",
+					"    spark.read.format(\"jdbc\")\n",
+					"    .option(\"url\", url)\n",
+					"    .option(\"query\", \"\"\"\n",
+					"        SELECT\n",
+					"            CAST(legacyCaseId AS varchar(50)) AS legacyCaseId,\n",
+					"            CAST(id AS varchar(36)) AS addressGuid\n",
+					"        FROM dbo.Address\n",
+					"        WHERE legacyCaseId IS NOT NULL\n",
+					"    \"\"\")\n",
+					"    .option(\"user\", \"peas_app_ZXzkE0vP\")\n",
+					"    .option(\"password\", sql_password)\n",
+					"    .load()\n",
+					"    .dropDuplicates([\"legacyCaseId\"])\n",
+					")"
+				],
+				"execution_count": 25
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"df_mapped = (\n",
+					"    df_mapped\n",
+					"    .withColumn(\"caseNodeId_str\", F.col(\"caseNodeId\").cast(\"string\"))\n",
+					"    .join(\n",
+					"        F.broadcast(address_lookup)\n",
+					"            .withColumnRenamed(\"legacyCaseId\", \"caseNodeId_str\"),\n",
+					"        on=\"caseNodeId_str\",\n",
+					"        how=\"left\"\n",
+					"    )\n",
+					"    .drop(\"caseNodeId_str\")\n",
+					")\n",
+					"\n",
+					"# 3) Quick check\n",
+					"df_mapped.select(\"caseNodeId\", \"addressGuid\").show(20, truncate=False)"
+				],
+				"execution_count": 27
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"case_ids = [\n",
+					"    \"15889032\",\n",
+					"    \"16681521\",\n",
+					"    \"17301742\",\n",
+					"    \"17333294\",\n",
+					"    \"17504850\"\n",
+					"]\n",
 					"\n",
 					"row_sample = (\n",
 					"    df_mapped\n",
-					"    .filter(F.col(\"hznReference\").startswith(\"ROW/\"))\n",
-					"    .orderBy(\"hznReference\")        # makes it deterministic\n",
-					"    .limit(5)\n",
+					"    .withColumn(\"caseNodeId_str\", F.col(\"caseNodeId\").cast(\"string\"))\n",
+					"    .filter(F.col(\"caseNodeId_str\").isin(case_ids))\n",
+					"    .orderBy(\"caseNodeId_str\")\n",
+					"    .drop(\"caseNodeId_str\")\n",
 					")\n",
+					"\n",
+					"display(row_sample)  # nice table view in notebook\n",
 					"\n",
 					"row_sample.write \\\n",
 					"    .mode(\"overwrite\") \\\n",
 					"    .option(\"header\", True) \\\n",
-					"    .csv(\"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-TRANSFORM/case-merged-sample-row\")\n",
-					"\n",
-					"\n",
-					""
+					"    .csv(\"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-TRANSFORM/case-merged-sample-row\")"
 				],
-				"execution_count": 22
+				"execution_count": 33
 			},
 			{
 				"cell_type": "code",
@@ -544,7 +614,7 @@
 					"row_sample.printSchema()\n",
 					""
 				],
-				"execution_count": 23
+				"execution_count": 29
 			},
 			{
 				"cell_type": "code",
@@ -555,7 +625,7 @@
 					"print(schema_json)\n",
 					""
 				],
-				"execution_count": 24
+				"execution_count": 30
 			},
 			{
 				"cell_type": "code",
@@ -571,7 +641,7 @@
 					"print(\"Wrote schema to:\", schema_path)\n",
 					""
 				],
-				"execution_count": 25
+				"execution_count": null
 			}
 		]
 	}
