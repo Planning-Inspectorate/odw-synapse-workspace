@@ -9,11 +9,13 @@ from typing import List, Dict, Any, Tuple
 from notebookutils import mssparkutils
 import traceback
 from datetime import datetime
+import json
 
 
 class ETLProcess(ABC):
-    def __init__(self, spark: SparkSession):
+    def __init__(self, spark: SparkSession, debug: bool = False):
         self.spark = spark
+        self.debug = debug
 
     @classmethod
     @abstractmethod
@@ -51,7 +53,7 @@ class ETLProcess(ABC):
         """
         return SynapseFileDataIO().read(
             spark=SparkSession.builder.getOrCreate(),
-            storage_name=Util.get_storage_account(),
+            storage_endpoint=Util.get_storage_account(),
             container_name="odw-config",
             blob_path=f"orchestration/orchestration.json",
             file_format="json",
@@ -105,6 +107,30 @@ class ETLProcess(ABC):
             data_io_inst = DataIOFactory.get(storage_kind)()
             data_io_inst.write(**table_metadata, spark=self.spark)
 
+    def _log_data_to_write(self, data_to_write: Dict[str, Any]):
+        if not self.debug:
+            data_to_write_cleaned = {
+                k: {
+                    subk: subv for subk, subv in v.items() if not isinstance(v, DataFrame)
+                }
+                for k, v in data_to_write.items()
+            }
+            LoggingUtil().log_info(f"The following data will be written: {json.dumps(data_to_write_cleaned, indent=4, default=str)}")
+            return
+        for table_name, table_metadata in data_to_write.items():
+            table_metadata_cleaned = {k: v for k, v in table_metadata.items() if not isinstance(v, DataFrame)}
+            LoggingUtil().log_info(f"Metadata for the write entry '{table_name}': {json.dumps(table_metadata_cleaned, indent=4, default=str)}")
+            data = table_metadata.get("data", None)
+            if data:
+                if isinstance(data, DataFrame):
+                    Util.display_dataframe(data)
+                if isinstance(data, dict):
+                    print(json.dumps(data, indent=4, default=str))
+                else:
+                    LoggingUtil().log_info(f"Could not display the data. It is of unexpected type '{type(data)}'")
+            else:
+                LoggingUtil().log_info(f"There is no data to write")
+
     def run(self, **kwargs) -> ETLResult:
         """
         Run the full ETL process with the given arguments
@@ -142,13 +168,21 @@ class ETLProcess(ABC):
 
         try:
             source_data_map = self.load_data(**kwargs)
+            LoggingUtil().log_info(f"The following tables were loaded: {json.dumps(list(source_data_map), indent=4)}")
             data_to_write, etl_result = self.process(source_data=source_data_map, **kwargs)
         except Exception as e:
-            return generate_failure_result(etl_start_time, str(e), traceback.format_exc())
+            failure_result = generate_failure_result(etl_start_time, str(e), traceback.format_exc())
+            LoggingUtil().log_error(failure_result)
+            return failure_result
         if isinstance(etl_result, ETLFailResult):
+            LoggingUtil().log_error(etl_result)
             return etl_result
+        self._log_data_to_write(data_to_write)
         try:
             self.write_data(data_to_write)
+            LoggingUtil().log_info(etl_result)
             return etl_result
         except Exception as e:
-            return generate_failure_result(etl_start_time, str(e), traceback.format_exc(), table_name=", ".join(data_to_write.keys()))
+            failure_result = generate_failure_result(etl_start_time, str(e), traceback.format_exc(), table_name=", ".join(data_to_write.keys()))
+            LoggingUtil().log_error(failure_result)
+            return failure_result

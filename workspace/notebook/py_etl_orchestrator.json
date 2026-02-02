@@ -8,7 +8,7 @@
 		"nbformat": 4,
 		"nbformat_minor": 2,
 		"bigDataPool": {
-			"referenceName": "fredPool",
+			"referenceName": "hbtPool",
 			"type": "BigDataPoolReference"
 		},
 		"sessionProperties": {
@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "2fcc796d-9d0c-42db-b620-c430a283308c"
+				"spark.autotune.trackingId": "3840c0df-97bf-4511-8e33-864b45d9c573"
 			}
 		},
 		"metadata": {
@@ -35,15 +35,15 @@
 				"name": "python"
 			},
 			"a365ComputeOptions": {
-				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/fredPool",
-				"name": "fredPool",
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/hbtPool",
+				"name": "hbtPool",
 				"type": "Spark",
-				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/fredPool",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/hbtPool",
 				"auth": {
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.4",
+				"sparkVersion": "3.5",
 				"nodeCount": 10,
 				"cores": 4,
 				"memory": 28,
@@ -66,6 +66,7 @@
 					"from odw.core.io.data_io_factory import DataIOFactory\n",
 					"from odw.core.io.parser.data_file_parser_factory import DataFileParserFactory\n",
 					"from odw.core.etl.etl_result import ETLFailResult\n",
+					"from odw.core.util.logging_util import LoggingUtil\n",
 					"from pyspark.sql import SparkSession\n",
 					"from typing import Dict, Any, Union\n",
 					"import json"
@@ -94,8 +95,9 @@
 				},
 				"source": [
 					"input_arguments: Union[Dict[str, Any], str] = {\n",
-					"    \"entity_stage_name\": \"Service Bus Standardisation\",\n",
-					"    \"entity_name\": \"appeal-has\"\n",
+					"    \"entity_stage_name\": \"Service Bus Harmonisation\",\n",
+					"    \"entity_name\": \"appeal-has\",\n",
+					"    \"debug\": True\n",
 					"}"
 				],
 				"execution_count": null
@@ -105,6 +107,13 @@
 				"source": [
 					"if isinstance(input_arguments, str):\n",
 					"    input_arguments = json.loads(input_arguments)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"debug = input_arguments.get(\"debug\", False)"
 				],
 				"execution_count": null
 			},
@@ -155,7 +164,7 @@
 				"source": [
 					"entity_stage_name = input_arguments.get(\"entity_stage_name\")\n",
 					"etl_process_class = ETLProcessFactory.get(entity_stage_name)\n",
-					"etl_process_instance = etl_process_class(spark)"
+					"etl_process_instance = etl_process_class(spark, debug)"
 				],
 				"execution_count": null
 			},
@@ -174,6 +183,17 @@
 			},
 			{
 				"cell_type": "code",
+				"source": [
+					"# Flush any pending logs, so that new logs are captured\n",
+					"LoggingUtil().flush_logging()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
 				"source": [
 					"etl_results = etl_process_instance.run(\n",
 					"    **input_arguments,\n",
@@ -206,7 +226,7 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"# Todo - need to refactor the logging method"
+					"LoggingUtil().save_pipeline_logs(etl_results.metadata.model_dump(mode=\"json\"), event_name=\"Master_Pipeline_Logs_v2\")"
 				],
 				"execution_count": null
 			},
@@ -216,6 +236,13 @@
 					"# Ensure the notebook fails if there is an ETL exception\n",
 					"if isinstance(etl_results, ETLFailResult):\n",
 					"    raise RuntimeError(etl_results.metadata.exception_trace)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"mssparkutils.notebook.exit(json.dumps(etl_results.model_dump(mode=\"json\"), indent=4, default=str))"
 				],
 				"execution_count": null
 			}

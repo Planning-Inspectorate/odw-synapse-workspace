@@ -1,5 +1,8 @@
 from notebookutils import mssparkutils
+from notebookutils import visualization
+from pyspark.sql import DataFrame
 import re
+import os
 
 
 class Util:
@@ -24,3 +27,10 @@ class Util:
         blob_path = path_split[1]
         storage_account = cls.get_storage_account()
         return f"abfss://{container_name}@{storage_account}{blob_path}"
+    
+    @classmethod
+    def display_dataframe(cls, dataframe: DataFrame):
+        """
+        Show the contents of the given dataframe.
+        """
+        visualization.display(dataframe)
