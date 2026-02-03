@@ -101,7 +101,7 @@ def compare_harmonised_data(expected_df: DataFrame, actual_data: DataFrame):
 
 @pytest.mark.parametrize(
     "teardown",
-    [[os.path.join("odw-standardised", "test_sb_hrm_pc_exst_data"), os.path.join("odw-harmonised", "test_sb_hrm_pc_exst_data")]],
+    [[os.path.join("odw-standardised", "test_sb_hrm_pc_exst_data"), os.path.join("odw_harmonised_db.db", "test_sb_hrm_pc_exst_data")]],
     indirect=["teardown"],
 )
 def test__service_bus_harmonisation_process__run__with_existing_data_same_schema(teardown):
@@ -203,7 +203,7 @@ def test__service_bus_harmonisation_process__run__with_existing_data_same_schema
 
 @pytest.mark.parametrize(
     "teardown",
-    [[os.path.join("odw-standardised", "test_sb_hrm_pc_chg_schema"), os.path.join("odw-harmonised", "test_sb_hrm_pc_chg_schema")]],
+    [[os.path.join("odw-standardised", "test_sb_hrm_pc_chg_schema"), os.path.join("odw_harmonised_db.db", "test_sb_hrm_pc_chg_schema")]],
     indirect=["teardown"],
 )
 def test__service_bus_harmonisation_process__run__with_existing_data_different_schema(teardown):
@@ -302,7 +302,7 @@ def test__service_bus_harmonisation_process__run__with_existing_data_different_s
 
 @pytest.mark.parametrize(
     "teardown",
-    [[os.path.join("odw-standardised", "test_sb_hrm_pc_no_data"), os.path.join("odw-harmonised", "test_sb_hrm_pc_no_data")]],
+    [[os.path.join("odw-standardised", "test_sb_hrm_pc_no_data"), os.path.join("odw_harmonised_db.db", "test_sb_hrm_pc_no_data")]],
     indirect=["teardown"],
 )
 def test__service_bus_harmonisation_process__run__with_no_existing_data(teardown):

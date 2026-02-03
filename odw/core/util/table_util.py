@@ -60,6 +60,7 @@ class TableUtil:
                 raise RuntimeError("too many locations associated with the table!")
             else:
                 spark.sql(f"DELETE FROM {db_name}.{table_name}")
+                spark.sql(f"DROP TABLE IF EXISTS {db_name}.{table_name}")
                 LoggingUtil().log_info(f"Deleted the content from table {db_name}.{table_name}")
         else:
             LoggingUtil().log_info("Table does not exist")
