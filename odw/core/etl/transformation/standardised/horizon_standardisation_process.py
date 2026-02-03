@@ -131,8 +131,6 @@ class HorizonStandardisationProcess(StandardisationProcess):
                 else:
                     standardised_table_schema = SchemaUtil(db_name="odw_standardised_db").get_schema_for_entity(definition["Source_Frequency_Folder"])
                 file_map[f"{table_name}_standardised_table_schema"] = standardised_table_schema
-            else:
-                file_map[new_entry_name] = None
         return file_map
 
     def process(self, **kwargs) -> ETLResult:

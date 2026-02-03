@@ -25,8 +25,8 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
     HorizonStandardisationProcess(spark).run(**params)
     ```
     """
-    def __init__(self, spark):
-        super().__init__(spark)
+    def __init__(self, spark, debug: bool = False):
+        super().__init__(spark, debug)
         self.std_db: str = "odw_standardised_db"
         self.hrm_db: str = "odw_harmonised_db"
 
@@ -104,6 +104,24 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
             data = data.drop(col_to_drop)
         data = data.dropDuplicates()
         return data
+    
+    def _align_old_data_to_new_data(self, old_data: DataFrame, new_data: DataFrame, joined_data: DataFrame, is_updated: bool):
+        update_rows = joined_data
+        # Update to match new schema
+        for col in new_data.columns:
+            if col in old_data.columns:
+                update_rows = update_rows.withColumn(f"{col}__cleaned", old_data[col])
+            elif col != "row_state_metadata":
+                update_rows = update_rows.withColumn(f"{col}__cleaned", F.lit(None).cast(update_rows.schema[col].dataType))
+        if is_updated:
+            update_rows = update_rows.withColumn("ValidTo__cleaned", new_data["IngestionDate"]).withColumn("IsActive__cleaned", F.lit("N"))
+        cols_to_keep = [col for col in update_rows.columns if col.endswith("__cleaned")]
+        update_rows = update_rows.select(cols_to_keep)
+        for col in cols_to_keep:
+            col_cleaned = col[:-9]
+            update_rows = update_rows.withColumnRenamed(col, col_cleaned)
+        return update_rows
+
 
     def process(self, **kwargs):
         start_exec_time = datetime.now()
@@ -140,25 +158,19 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
             .otherwise(F.lit("delete")),
         )
         new_data = new_data.drop("message_type")
+        existing_join_new = existing_data.join(new_data, new_data[entity_primary_key] == existing_data[entity_primary_key], "left")
+        unupdated_rows = existing_join_new.filter(
+            (new_data["row_state_metadata"].isNull())
+        ).drop("row_state_metadata")
+        unupdated_rows = self._align_old_data_to_new_data(existing_data, new_data, unupdated_rows, False)
         # The legacy process keeps a history of rows - insert the old rows with IsActive=False to work with the new delta write
-        joined_updated_rows = existing_data.join(new_data, new_data[entity_primary_key] == existing_data[entity_primary_key], "left").filter(
+        joined_updated_rows = existing_join_new.filter(
             (new_data["row_state_metadata"] == "update") | (new_data["row_state_metadata"] == "delete")
         ).drop("row_state_metadata")
-        update_rows = joined_updated_rows
         # Update to match new schema
-        for col in new_data.columns:
-            if col in existing_data.columns:
-                update_rows = update_rows.withColumn(f"{col}__cleaned", existing_data[col])
-            elif col != "row_state_metadata":
-                update_rows = update_rows.withColumn(f"{col}__cleaned", F.lit(None).cast(update_rows.schema[col].dataType))
-        update_rows = update_rows.withColumn("ValidTo__cleaned", new_data["IngestionDate"]).withColumn("IsActive__cleaned", F.lit("N"))
-        cols_to_keep = [col for col in update_rows.columns if col.endswith("__cleaned")]
-        update_rows = update_rows.select(cols_to_keep)
-        for col in cols_to_keep:
-            col_cleaned = col[:-9]
-            update_rows = update_rows.withColumnRenamed(col, col_cleaned)
+        update_rows = self._align_old_data_to_new_data(existing_data, new_data, joined_updated_rows, True)
         new_data =new_data.filter(F.col("row_state_metadata") != "delete").drop("row_state_metadata")
-        new_data = new_data.union(update_rows).dropDuplicates()
+        new_data = new_data.union(update_rows).union(unupdated_rows).dropDuplicates()
 
         hrm_table_snake_case = hrm_table.replace("-", "_")
 
