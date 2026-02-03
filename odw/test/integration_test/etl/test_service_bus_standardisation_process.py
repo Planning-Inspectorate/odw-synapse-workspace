@@ -80,6 +80,8 @@ def test__service_bus_standardisation_process__run__with_existing_data(teardown)
         ],
         ["col_a", "col_b", "input_file", "message_enqueued_time_utc"],
     )
+    # Duplicate data is expected (although this probably shouldn't be the case)
+    expected_data_after = expected_data_after.union(test_data)
     extra_cols_added_during_processing = ["expected_from", "expected_to", "ingested_datetime", "input_file"]
     mock_standardised_schema = T.StructType(
         [

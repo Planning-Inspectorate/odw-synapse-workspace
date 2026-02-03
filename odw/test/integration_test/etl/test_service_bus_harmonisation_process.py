@@ -1,6 +1,5 @@
 from odw.test.util.mock.import_mock_notebook_utils import notebookutils
 from odw.core.etl.transformation.harmonised.service_bus_harmonisation_process import ServiceBusHarmonisationProcess
-from odw.core.io.synapse_table_data_io import SynapseTableDataIO
 from odw.core.io.synapse_data_io import SynapseDataIO
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
@@ -72,21 +71,13 @@ def generate_harmonised_table_schema(base_schema: T.StructType, incremental_key_
 
 
 def write_existing_table(data: DataFrame, table_name: str, database_name: str, container: str, blob_path: str):
-    with mock.patch.object(SynapseTableDataIO, "_format_to_adls_path", format_to_adls_path):
-        logging.info(f"Createing table '{database_name}.{table_name}'")
-        spark = SparkSession.builder.getOrCreate()
-        spark.sql(f"DROP TABLE IF EXISTS {database_name}.{table_name}")
-        SynapseTableDataIO().write(
-            data=data,
-            spark=spark,
-            database_name=database_name,
-            table_name=table_name,
-            storage_name="blank",
-            container_name=container,
-            blob_path=blob_path,
-            file_format="delta",
-            write_mode="overwrite",
-        )
+    logging.info(f"Createing table '{database_name}.{table_name}'")
+    spark = SparkSession.builder.getOrCreate()
+    spark.sql(f"DROP TABLE IF EXISTS {database_name}.{table_name}")
+    table_path = f"{database_name}.{table_name}"
+    data_path = format_to_adls_path(None, container, blob_path)
+    writer = data.write.format("delta").mode("overwrite").option("path", data_path)
+    writer.saveAsTable(table_path)
 
 
 def compare_harmonised_data(expected_df: DataFrame, actual_data: DataFrame):
@@ -101,7 +92,7 @@ def compare_harmonised_data(expected_df: DataFrame, actual_data: DataFrame):
 
 @pytest.mark.parametrize(
     "teardown",
-    [[os.path.join("odw-standardised", "test_sb_hrm_pc_exst_data"), os.path.join("odw_harmonised_db.db", "test_sb_hrm_pc_exst_data")]],
+    [[os.path.join("odw-standardised", "test_sb_hrm_pc_exst_data"), os.path.join("odw_harmonised_db.db", "test_sb_hrm_pc_exst_data"), os.path.join("odw-harmonised", "test_sb_hrm_pc_exst_data")]],
     indirect=["teardown"],
 )
 def test__service_bus_harmonisation_process__run__with_existing_data_same_schema(teardown):
@@ -203,7 +194,7 @@ def test__service_bus_harmonisation_process__run__with_existing_data_same_schema
 
 @pytest.mark.parametrize(
     "teardown",
-    [[os.path.join("odw-standardised", "test_sb_hrm_pc_chg_schema"), os.path.join("odw_harmonised_db.db", "test_sb_hrm_pc_chg_schema")]],
+    [[os.path.join("odw-standardised", "test_sb_hrm_pc_chg_schema"), os.path.join("odw_harmonised_db.db", "test_sb_hrm_pc_chg_schema"), os.path.join("odw-harmonised", "test_sb_hrm_pc_chg_schema")]],
     indirect=["teardown"],
 )
 def test__service_bus_harmonisation_process__run__with_existing_data_different_schema(teardown):
@@ -302,7 +293,7 @@ def test__service_bus_harmonisation_process__run__with_existing_data_different_s
 
 @pytest.mark.parametrize(
     "teardown",
-    [[os.path.join("odw-standardised", "test_sb_hrm_pc_no_data"), os.path.join("odw_harmonised_db.db", "test_sb_hrm_pc_no_data")]],
+    [[os.path.join("odw-standardised", "test_sb_hrm_pc_no_data"), os.path.join("odw_harmonised_db.db", "test_sb_hrm_pc_no_data"), os.path.join("odw-harmonised", "test_sb_hrm_pc_no_data")]],
     indirect=["teardown"],
 )
 def test__service_bus_harmonisation_process__run__with_no_existing_data(teardown):

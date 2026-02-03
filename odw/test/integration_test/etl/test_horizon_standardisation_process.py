@@ -20,6 +20,7 @@ from datetime import datetime
 import pyspark.sql.functions as F
 from pyspark.sql import DataFrame
 import pyspark.sql.types as T
+import logging
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -107,6 +108,16 @@ def generate_output_table_schema():
     )
 
 
+def write_existing_table(data: DataFrame, table_name: str, database_name: str, container: str, blob_path: str):
+    logging.info(f"Createing table '{database_name}.{table_name}'")
+    spark = SparkSession.builder.getOrCreate()
+    spark.sql(f"DROP TABLE IF EXISTS {database_name}.{table_name}")
+    table_path = f"{database_name}.{table_name}"
+    data_path = format_to_adls_path(None, container, blob_path)
+    writer = data.write.format("delta").mode("overwrite").option("path", data_path)
+    writer.saveAsTable(table_path)
+
+
 @pytest.fixture
 def teardown(request: pytest.FixtureRequest):
     yield
@@ -175,19 +186,13 @@ def test__horizon_standardisation_process__run__with_existing_data(teardown):
         ),
         generate_output_table_schema(),
     )
-    with mock.patch.object(SynapseTableDataIO, "_format_to_adls_path", format_to_adls_path):
-        spark.sql("DROP TABLE IF EXISTS odw_standardised_db.test_hzn_std_pc_exst_data")
-        SynapseTableDataIO().write(
-            data=existing_data,
-            spark=spark,
-            database_name="odw_standardised_db",
-            table_name="test_hzn_std_pc_exst_data",
-            storage_name="blank",
-            container_name="odw-standardised",
-            blob_path="Horizon/test_hzn_std_pc_exst_data",
-            file_format="delta",
-            write_mode="overwrite",
-        )
+    write_existing_table(
+        existing_data,
+        "test_hzn_std_pc_exst_data",
+        "odw_standardised_db",
+        "odw-standardised",
+        "Horizon/test_hzn_std_pc_exst_data"
+    )
     # Create the standardised table definitions, which outlines column casting during processing
     standardised_table_definition = generate_standardised_table_definitions()
     write_json(standardised_table_definition, ["odw-config", "standardised_table_definitions", data_folder, "test_hzn_std_pc_exst_data.json"])
