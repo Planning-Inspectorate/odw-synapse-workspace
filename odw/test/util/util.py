@@ -36,7 +36,7 @@ def format_adls_path_to_local_path(inst, container_name: str, blob_path: str, st
     return os.path.join("spark-warehouse", container_name, blob_path)
 
 
-def add_orchestration_entries(entry: Dict[str, Union[str, int]]):
+def add_orchestration_entry(entry: Dict[str, Union[str, int]]):
     orchestration_path = os.path.join("spark-warehouse", "odw-config", "orchestration", "orchestration.json")
     new_definitions = [
         entry

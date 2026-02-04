@@ -151,6 +151,9 @@ class HorizonStandardisationProcess(StandardisationProcess):
 
         data_to_write = dict()
         for file in files_to_process.keys():
+            print(f"definitions:: {definitions}")
+            for d in definitions:
+                print(f"deff: {d}")
             definition = next(
                 (
                     d
@@ -161,12 +164,12 @@ class HorizonStandardisationProcess(StandardisationProcess):
                 ),
                 None,
             )
-            table_name = definition.get("Standardised_Table_Name", None)
-            processed_tables.append(table_name)
-            schema = source_data.get(f"{table_name}_standardised_table_schema")
 
             if definition:
                 # Recreation of ingest adhoc
+                table_name = definition.get("Standardised_Table_Name", None)
+                processed_tables.append(table_name)
+                schema = source_data.get(f"{table_name}_standardised_table_schema")
                 expected_from = date_folder - timedelta(days=1)
                 expected_from = datetime.combine(expected_from, datetime.min.time())
                 expected_to = expected_from + timedelta(days=definition["Expected_Within_Weekdays"])
