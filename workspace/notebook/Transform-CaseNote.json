@@ -1,0 +1,121 @@
+{
+	"name": "Transform-CaseNote",
+	"properties": {
+		"folder": {
+			"name": "Horizon-Migration/Horizon-Transform"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "hbtPool",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "aac6d32d-b7e8-48dd-bf82-15f5103ca70f"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/hbtPool",
+				"name": "hbtPool",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/hbtPool",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.5",
+				"nodeCount": 10,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"from pyspark.sql import types as T"
+				],
+				"execution_count": 3
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"\n",
+					"BASE = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net\"\n",
+					"EXTRACT = f\"{BASE}/MPESC-EXTRACT\""
+				],
+				"execution_count": 4
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"CASE_NOTES_FILE = f\"{EXTRACT}/Horizon_CaseNotes.csv\""
+				],
+				"execution_count": 5
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"case_notes = (\n",
+					"    spark.read\n",
+					"    .option(\"header\", True)\n",
+					"    .option(\"inferSchema\", True)\n",
+					"    .csv(CASE_NOTES_FILE)\n",
+					")"
+				],
+				"execution_count": 6
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# quick sanity checks\n",
+					"print(\"case_notes rows:\", case_notes.count())\n",
+					"print(\"case_notes cols:\", len(case_notes.columns))\n",
+					"print(\"columns:\", case_notes.columns)\n",
+					""
+				],
+				"execution_count": 7
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"case_notes = case_notes.withColumn(\"CaseId\", F.trim(F.col(\"CaseId\")))\n",
+					"display(case_notes.limit(15))"
+				],
+				"execution_count": 11
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					""
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
