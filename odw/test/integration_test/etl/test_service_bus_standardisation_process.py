@@ -6,7 +6,7 @@ from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
 from odw.test.util.util import generate_local_path
 from odw.test.util.util import get_all_files_in_directory, format_to_adls_path
-from pyspark.sql import SparkSession
+from pyspark.sql import SparkSession, DataFrame
 import pyspark.sql.types as T
 import mock
 from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
@@ -15,6 +15,20 @@ import pytest
 import shutil
 import os
 from pathlib import Path
+import logging
+
+
+@pytest.fixture(scope="module", autouse=True)
+def setup(request):
+    with mock.patch("notebookutils.mssparkutils.runtime.context", {"pipelinejobid": "some_guid", "isForPipeline": True}):
+        with mock.patch.object(SynapseTableDataIO, "_format_to_adls_path", format_to_adls_path):
+            with mock.patch.object(ServiceBusStandardisationProcess, "get_all_files_in_directory", get_all_files_in_directory):
+                with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+                    with mock.patch.object(Util, "get_path_to_file", generate_local_path):
+                        with mock.patch.object(LoggingUtil, "__new__"):
+                            with mock.patch.object(LoggingUtil, "log_info", return_value=None):
+                                with mock.patch.object(LoggingUtil, "log_error", return_value=None):
+                                    yield
 
 
 @pytest.fixture
@@ -24,6 +38,16 @@ def teardown(request: pytest.FixtureRequest):
         generate_local_path(request.param),
         ignore_errors=True
     )
+
+
+def write_existing_table(data: DataFrame, table_name: str, database_name: str, container: str, blob_path: str):
+    logging.info(f"Createing table '{database_name}.{table_name}'")
+    spark = SparkSession.builder.getOrCreate()
+    spark.sql(f"DROP TABLE IF EXISTS {database_name}.{table_name}")
+    table_path = f"{database_name}.{table_name}"
+    data_path = format_to_adls_path(None, container, blob_path)
+    writer = data.write.format("delta").mode("append").option("path", data_path).option("mergeSchema", "true")
+    writer.saveAsTable(table_path)
 
 
 @pytest.mark.parametrize(
@@ -91,32 +115,16 @@ def test__service_bus_standardisation_process__run__with_existing_data(teardown)
             T.StructField("message_enqueued_time_utc", T.StringType())
         ]
     )
-
-    with mock.patch.object(SynapseTableDataIO, "_format_to_adls_path", format_to_adls_path):
-        SynapseTableDataIO().write(
-            data=test_data,
-            spark=spark,
-            database_name="odw_standardised_db",
-            table_name="sb_test__service_bus_standardisation_process__run",
-            storage_name="blank",
-            container_name="odw-standardised",
-            blob_path="test__service_bus_standardisation_process__run",
-            file_format="delta",
-            write_mode="append",
-            write_options=[("mergeSchema", "true")]
-        )
-        data_before = spark.table("odw_standardised_db.sb_test__service_bus_standardisation_process__run")
-        mock_mssparkutils_context = {"pipelinejobid": "some_guid", "isForPipeline": True}
-        with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
-            with mock.patch("notebookutils.mssparkutils.runtime.context", mock_mssparkutils_context):
-                with mock.patch.object(ServiceBusStandardisationProcess, "get_all_files_in_directory", get_all_files_in_directory):
-                    with mock.patch.object(Util, "get_path_to_file", generate_local_path):
-                        with mock.patch.object(LoggingUtil, "__new__"):
-                            with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-                                with mock.patch.object(LoggingUtil, "log_error", return_value=None):
-                                    with mock.patch.object(SchemaUtil, "get_service_bus_schema", return_value=mock_standardised_schema):
-                                        result = ServiceBusStandardisationProcess(spark).run(entity_name="test__service_bus_standardisation_process__run")
-                                        assert_etl_result_successful(result)
+    write_existing_table(
+        test_data,
+        "sb_test__service_bus_standardisation_process__run",
+        "odw_standardised_db",
+        "odw-standardised",
+        "test__service_bus_standardisation_process__run"
+    )
+    with mock.patch.object(SchemaUtil, "get_service_bus_schema", return_value=mock_standardised_schema):
+        result = ServiceBusStandardisationProcess(spark).run(entity_name="test__service_bus_standardisation_process__run")
+        assert_etl_result_successful(result)
     data_after = spark.table("odw_standardised_db.sb_test__service_bus_standardisation_process__run")
     # Drop columns that cannot easily be compared - todo actually compare these cols
     for col in extra_cols_added_during_processing:
