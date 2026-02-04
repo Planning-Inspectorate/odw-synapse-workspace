@@ -1,4 +1,3 @@
-from odw.test.util.mock.import_mock_notebook_utils import notebookutils
 from odw.core.etl.transformation.standardised.service_bus_standardisation_process import ServiceBusStandardisationProcess
 from odw.core.etl.util.schema_util import SchemaUtil
 from odw.core.io.synapse_table_data_io import SynapseTableDataIO
@@ -34,10 +33,7 @@ def setup(request):
 @pytest.fixture
 def teardown(request: pytest.FixtureRequest):
     yield
-    shutil.rmtree(
-        generate_local_path(request.param),
-        ignore_errors=True
-    )
+    shutil.rmtree(generate_local_path(request.param), ignore_errors=True)
 
 
 def write_existing_table(data: DataFrame, table_name: str, database_name: str, container: str, blob_path: str):
@@ -50,13 +46,7 @@ def write_existing_table(data: DataFrame, table_name: str, database_name: str, c
     writer.saveAsTable(table_path)
 
 
-@pytest.mark.parametrize(
-    "teardown",
-    [
-        os.path.join("odw-standardised", "test__service_bus_standardisation_process__run")
-    ],
-    indirect=["teardown"]
-)
+@pytest.mark.parametrize("teardown", [os.path.join("odw-standardised", "test__service_bus_standardisation_process__run")], indirect=["teardown"])
 def test__service_bus_standardisation_process__run__with_existing_data(teardown):
     """
     - Given I have data stored in the sb_test__service_bus_standardisation_process__run table (in delta format)
@@ -85,7 +75,7 @@ def test__service_bus_standardisation_process__run__with_existing_data(teardown)
             {"col_a": 3, "col_b": "c", "message_enqueued_time_utc": message_enqueued_time_utc},
             {"col_a": 4, "col_b": "d", "message_enqueued_time_utc": message_enqueued_time_utc},  # A new row
             {"col_a": 5, "col_b": "e", "message_enqueued_time_utc": message_enqueued_time_utc},  # A new row
-        ]
+        ],
     }
     for input_file, content in input_files.items():
         file_to_create = f"spark-warehouse/{input_file}"
@@ -112,7 +102,7 @@ def test__service_bus_standardisation_process__run__with_existing_data(teardown)
             T.StructField("col_a", T.LongType()),
             T.StructField("col_b", T.StringType()),
             T.StructField("input_file", T.StringType()),
-            T.StructField("message_enqueued_time_utc", T.StringType())
+            T.StructField("message_enqueued_time_utc", T.StringType()),
         ]
     )
     write_existing_table(
@@ -120,7 +110,7 @@ def test__service_bus_standardisation_process__run__with_existing_data(teardown)
         "sb_test__service_bus_standardisation_process__run",
         "odw_standardised_db",
         "odw-standardised",
-        "test__service_bus_standardisation_process__run"
+        "test__service_bus_standardisation_process__run",
     )
     with mock.patch.object(SchemaUtil, "get_service_bus_schema", return_value=mock_standardised_schema):
         result = ServiceBusStandardisationProcess(spark).run(entity_name="test__service_bus_standardisation_process__run")

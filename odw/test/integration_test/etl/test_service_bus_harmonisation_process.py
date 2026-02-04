@@ -1,4 +1,3 @@
-from odw.test.util.mock.import_mock_notebook_utils import notebookutils
 from odw.core.etl.transformation.harmonised.service_bus_harmonisation_process import ServiceBusHarmonisationProcess
 from odw.core.io.synapse_data_io import SynapseDataIO
 from odw.core.util.logging_util import LoggingUtil
@@ -92,7 +91,13 @@ def compare_harmonised_data(expected_df: DataFrame, actual_data: DataFrame):
 
 @pytest.mark.parametrize(
     "teardown",
-    [[os.path.join("odw-standardised", "test_sb_hrm_pc_exst_data"), os.path.join("odw_harmonised_db.db", "test_sb_hrm_pc_exst_data"), os.path.join("odw-harmonised", "test_sb_hrm_pc_exst_data")]],
+    [
+        [
+            os.path.join("odw-standardised", "test_sb_hrm_pc_exst_data"),
+            os.path.join("odw_harmonised_db.db", "test_sb_hrm_pc_exst_data"),
+            os.path.join("odw-harmonised", "test_sb_hrm_pc_exst_data"),
+        ]
+    ],
     indirect=["teardown"],
 )
 def test__service_bus_harmonisation_process__run__with_existing_data_same_schema(teardown):
@@ -174,7 +179,20 @@ def test__service_bus_harmonisation_process__run__with_existing_data_same_schema
             ("d", "e", "f", "id2", 2, "1", "ODT", 1, existing_data_ingestion_date_string, None, "Y", ""),
             ("e", "f", "g", "id3", 3, "1", "ODT", 1, existing_data_ingestion_date_string, None, "Y", ""),
             ("p", "q", "r", "id4", 4, "1", "ODT", 1, existing_data_ingestion_date_string, current_time_string, "N", ""),  # Will be updated
-            ("x", "y", "z", "id5", 5, "1", "ODT", 1, existing_data_ingestion_date_string, current_time_string, "N", ""),  # Deleted (but left in history)
+            (
+                "x",
+                "y",
+                "z",
+                "id5",
+                5,
+                "1",
+                "ODT",
+                1,
+                existing_data_ingestion_date_string,
+                current_time_string,
+                "N",
+                "",
+            ),  # Deleted (but left in history)
             ("p", "q", "s", "id9", 5, "1", "ODT", 1, current_time_string, "", "Y", ""),  # Should be updated
             ("g", "h", "i", "id6") + (6, "1", "ODT", 1, current_time_string, "", "Y", ""),  # New row should be added
             ("j", "k", "l", "id7") + (7, "1", "ODT", 1, current_time_string, "", "Y", ""),  # New row should be added
@@ -194,7 +212,13 @@ def test__service_bus_harmonisation_process__run__with_existing_data_same_schema
 
 @pytest.mark.parametrize(
     "teardown",
-    [[os.path.join("odw-standardised", "test_sb_hrm_pc_chg_schema"), os.path.join("odw_harmonised_db.db", "test_sb_hrm_pc_chg_schema"), os.path.join("odw-harmonised", "test_sb_hrm_pc_chg_schema")]],
+    [
+        [
+            os.path.join("odw-standardised", "test_sb_hrm_pc_chg_schema"),
+            os.path.join("odw_harmonised_db.db", "test_sb_hrm_pc_chg_schema"),
+            os.path.join("odw-harmonised", "test_sb_hrm_pc_chg_schema"),
+        ]
+    ],
     indirect=["teardown"],
 )
 def test__service_bus_harmonisation_process__run__with_existing_data_different_schema(teardown):
@@ -245,7 +269,6 @@ def test__service_bus_harmonisation_process__run__with_existing_data_different_s
     write_existing_table(existing_harmonised_data, table_name, "odw_harmonised_db", "odw-harmonised", table_name)
 
     # Create standardised table
-    existing_data_ingestion_date = datetime.strptime(existing_data_ingestion_date_string, datetime_format)
     input_file = "some_file"
     current_time = datetime.now()
     current_time_string = current_time.strftime(datetime_format)
@@ -293,7 +316,13 @@ def test__service_bus_harmonisation_process__run__with_existing_data_different_s
 
 @pytest.mark.parametrize(
     "teardown",
-    [[os.path.join("odw-standardised", "test_sb_hrm_pc_no_data"), os.path.join("odw_harmonised_db.db", "test_sb_hrm_pc_no_data"), os.path.join("odw-harmonised", "test_sb_hrm_pc_no_data")]],
+    [
+        [
+            os.path.join("odw-standardised", "test_sb_hrm_pc_no_data"),
+            os.path.join("odw_harmonised_db.db", "test_sb_hrm_pc_no_data"),
+            os.path.join("odw-harmonised", "test_sb_hrm_pc_no_data"),
+        ]
+    ],
     indirect=["teardown"],
 )
 def test__service_bus_harmonisation_process__run__with_no_existing_data(teardown):

@@ -1,6 +1,4 @@
-from odw.test.util.mock.import_mock_notebook_utils import notebookutils
 from odw.core.etl.transformation.standardised.horizon_standardisation_process import HorizonStandardisationProcess
-from odw.core.io.synapse_table_data_io import SynapseTableDataIO
 from odw.core.io.synapse_data_io import SynapseDataIO
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
@@ -13,7 +11,6 @@ import json
 import pytest
 import shutil
 import os
-from pathlib import Path
 from typing import Dict, List, Any
 import csv
 from datetime import datetime
@@ -41,7 +38,7 @@ def add_orchestration_entries():
         {
             "Source_Filename_Start": "test_hzn_std_pc_exst_data",
             "Load_Enable_status": "True",
-            "Standardised_Table_Definition": f"standardised_table_definitions/test_hzn_std_pc_exst_data/test_hzn_std_pc_exst_data.json",
+            "Standardised_Table_Definition": "standardised_table_definitions/test_hzn_std_pc_exst_data/test_hzn_std_pc_exst_data.json",
             "Source_Frequency_Folder": "",
             "Standardised_Table_Name": "test_hzn_std_pc_exst_data",
             "Expected_Within_Weekdays": 1,
@@ -49,7 +46,7 @@ def add_orchestration_entries():
         {
             "Source_Filename_Start": "test_hzn_std_pc_no_exst_data",
             "Load_Enable_status": "True",
-            "Standardised_Table_Definition": f"standardised_table_definitions/test_hzn_std_pc_no_exst_data/test_hzn_std_pc_no_exst_data.json",
+            "Standardised_Table_Definition": "standardised_table_definitions/test_hzn_std_pc_no_exst_data/test_hzn_std_pc_no_exst_data.json",
             "Source_Frequency_Folder": "",
             "Standardised_Table_Name": "test_hzn_std_pc_no_exst_data",
             "Expected_Within_Weekdays": 1,
@@ -186,13 +183,7 @@ def test__horizon_standardisation_process__run__with_existing_data(teardown):
         ),
         generate_output_table_schema(),
     )
-    write_existing_table(
-        existing_data,
-        "test_hzn_std_pc_exst_data",
-        "odw_standardised_db",
-        "odw-standardised",
-        "Horizon/test_hzn_std_pc_exst_data"
-    )
+    write_existing_table(existing_data, "test_hzn_std_pc_exst_data", "odw_standardised_db", "odw-standardised", "Horizon/test_hzn_std_pc_exst_data")
     # Create the standardised table definitions, which outlines column casting during processing
     standardised_table_definition = generate_standardised_table_definitions()
     write_json(standardised_table_definition, ["odw-config", "standardised_table_definitions", data_folder, "test_hzn_std_pc_exst_data.json"])
@@ -322,16 +313,14 @@ def test__horizon_standardisation_process__run__with_no_existing_data(teardown):
     expected_table_data = spark.createDataFrame(
         (
             ("a", "b", "c") + common_elements + ("some_guid_c",),
-            ("d", "e","f") + common_elements + ("some_guid_d",),
-            ("g", "h", "i") + common_elements + ("some_guid_e",)
+            ("d", "e", "f") + common_elements + ("some_guid_d",),
+            ("g", "h", "i") + common_elements + ("some_guid_e",),
         ),
         generate_output_table_schema(),
     )
     # Run the full etl process
     with mock.patch.object(HorizonStandardisationProcess, "get_last_modified_folder", return_value=date_folder):
-        with mock.patch.object(
-            HorizonStandardisationProcess, "get_file_names_in_directory", return_value=["test_hzn_std_pc_no_exst_data.csv"]
-        ):
+        with mock.patch.object(HorizonStandardisationProcess, "get_file_names_in_directory", return_value=["test_hzn_std_pc_no_exst_data.csv"]):
             with mock.patch.object(F, "input_file_name", return_value=F.lit("some_input_file")):
                 inst = HorizonStandardisationProcess(spark)
                 result = inst.run(source_folder=data_folder)
