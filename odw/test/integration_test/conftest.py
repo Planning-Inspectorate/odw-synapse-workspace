@@ -1,6 +1,7 @@
+from odw.test.util.conftest_util import configure_session, session_setup, session_teardown  # noqa: F401
 from pyspark.sql import SparkSession
 import pyspark.sql.types as T
-from delta import *
+from delta import configure_spark_with_delta_pip
 import os
 import json
 import shutil
@@ -43,7 +44,7 @@ def create_main_source_system_fact_table(spark: SparkSession):
     writer.saveAsTable(table_path)
 
 
-def pytest_runtest_setup(item):
+def pytest_sessionstart(session):
     # Initialise the first spark session with the below settings
     spark_session = configure_spark_with_delta_pip(
         SparkSession.builder.config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
@@ -54,3 +55,4 @@ def pytest_runtest_setup(item):
         spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {database}")
     create_empty_orchestration_file()
     create_main_source_system_fact_table(spark_session)
+    configure_session()
