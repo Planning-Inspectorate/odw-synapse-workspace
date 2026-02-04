@@ -1,3 +1,4 @@
+from odw.test.util.mock.import_mock_notebook_utils import notebookutils  # noqa: F401
 from odw.core.etl.transformation.standardised.horizon_standardisation_process import HorizonStandardisationProcess
 from odw.core.io.synapse_data_io import SynapseDataIO
 from odw.core.util.logging_util import LoggingUtil
