@@ -15,16 +15,17 @@ import json
 
 class ServiceBusHarmonisationProcess(HarmonisationProcess):
     """
-    # Example usage
+        # Example usage
 
-    ```
-    params = {
-    "entity_stage_name": "Service Bus Harmonisation",
-    "entity_name": "appeal-has"
-}
-    HorizonStandardisationProcess(spark).run(**params)
-    ```
+        ```
+        params = {
+        "entity_stage_name": "Service Bus Harmonisation",
+        "entity_name": "appeal-has"
+    }
+        HorizonStandardisationProcess(spark).run(**params)
+        ```
     """
+
     def __init__(self, spark, debug: bool = False):
         super().__init__(spark, debug)
         self.std_db: str = "odw_standardised_db"
@@ -89,12 +90,9 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
             "ODTSourceSystem": F.lit("ODT").cast("string"),
             "ValidTo": F.lit("").cast("string"),
             "IsActive": F.lit("Y").cast("string"),
-            incremental_key: absolute(
-                F.hash(
-                    F.col(primary_key).cast(T.StringType()),
-                    F.col("message_enqueued_time_utc").cast(T.StringType())
-                )
-            ).cast(T.LongType()),
+            incremental_key: absolute(F.hash(F.col(primary_key).cast(T.StringType()), F.col("message_enqueued_time_utc").cast(T.StringType()))).cast(
+                T.LongType()
+            ),
             "IngestionDate": F.col("message_enqueued_time_utc").cast("string"),
         }
         for col_name, col_value in cols_to_add.items():
@@ -104,7 +102,7 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
             data = data.drop(col_to_drop)
         data = data.dropDuplicates()
         return data
-    
+
     def _align_old_data_to_new_data(self, old_data: DataFrame, new_data: DataFrame, joined_data: DataFrame, is_updated: bool):
         update_rows = joined_data
         # Update to match new schema
@@ -121,7 +119,6 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
             col_cleaned = col[:-9]
             update_rows = update_rows.withColumnRenamed(col, col_cleaned)
         return update_rows
-
 
     def process(self, **kwargs):
         start_exec_time = datetime.now()
@@ -140,11 +137,9 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
                 f"No definition could be found for 'Source_Filename_Start' == '{entity_name}' in the followin definitions: "
                 f"{json.dumps(definitions, indent=4)}"
             )
-        std_table: str = definition["Standardised_Table_Name"]
         hrm_table: str = definition["Harmonised_Table_Name"]
         hrm_incremental_key: str = definition["Harmonised_Incremental_Key"]
         entity_primary_key: str = definition["Entity_Primary_Key"]
-        standardised_table_path = f"{self.std_db}.{std_table}"
         harmonised_table_path = f"{self.hrm_db}.{hrm_table}"
 
         new_data = self.harmonise(new_data, source_system_data, hrm_incremental_key, entity_primary_key)
@@ -159,9 +154,7 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
         )
         new_data = new_data.drop("message_type")
         existing_join_new = existing_data.join(new_data, new_data[entity_primary_key] == existing_data[entity_primary_key], "left")
-        unupdated_rows = existing_join_new.filter(
-            (new_data["row_state_metadata"].isNull())
-        ).drop("row_state_metadata")
+        unupdated_rows = existing_join_new.filter((new_data["row_state_metadata"].isNull())).drop("row_state_metadata")
         unupdated_rows = self._align_old_data_to_new_data(existing_data, new_data, unupdated_rows, False)
         # The legacy process keeps a history of rows - insert the old rows with IsActive=False to work with the new delta write
         joined_updated_rows = existing_join_new.filter(
@@ -169,7 +162,7 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
         ).drop("row_state_metadata")
         # Update to match new schema
         update_rows = self._align_old_data_to_new_data(existing_data, new_data, joined_updated_rows, True)
-        new_data =new_data.filter(F.col("row_state_metadata") != "delete").drop("row_state_metadata")
+        new_data = new_data.filter(F.col("row_state_metadata") != "delete").drop("row_state_metadata")
         new_data = new_data.union(update_rows).union(unupdated_rows).dropDuplicates()
 
         hrm_table_snake_case = hrm_table.replace("-", "_")
