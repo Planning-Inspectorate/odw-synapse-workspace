@@ -1,3 +1,4 @@
+from odw.test.util.mock.import_mock_notebook_utils import notebookutils  # noqa: F401
 from odw.core.etl.transformation.standardised.service_bus_standardisation_process import ServiceBusStandardisationProcess
 from odw.core.etl.util.schema_util import SchemaUtil
 from odw.core.io.synapse_table_data_io import SynapseTableDataIO
