@@ -31,7 +31,8 @@ This document outlines the centralized access management approach for ODW reposi
 - @stef-solirius
 - @raamvar
 
-**Entra ID Group**: `ODW-GitHub-Admins` (to be created/identified)
+**Entra ID Group**: `ODW-GitHub-Admins` (to be created)
+**Proposed Members from Entra ID**: Users from `pins-odw-prod-administrators` or manually selected
 
 ### ODW-Workflow-Approvers
 **Purpose**: Senior engineers who can approve changes to GitHub Actions workflows
@@ -55,7 +56,8 @@ This document outlines the centralized access management approach for ODW reposi
 - @stef-solirius
 - @raamvar
 
-**Entra ID Group**: `ODW-GitHub-Workflow-Approvers` (to be created/identified)
+**Entra ID Group**: `ODW-GitHub-Workflow-Approvers` (to be created)
+**Proposed Members**: All users currently listed in CODEOWNERS
 
 ### ODW-Data-Engineers
 **Purpose**: Rest of engineering team with write access
@@ -67,7 +69,10 @@ This document outlines the centralized access management approach for ODW reposi
 
 **Proposed Members**: Rest of ODW engineering team (not listed in CODEOWNERS currently)
 
-**Entra ID Group**: `ODW-GitHub-Contributors` (to be created/identified)
+**Entra ID Group**: `pins-odw-engineers` (existing group - reused)
+**Group ID**: 13900d77-c9e6-40e1-9d6e-740cd6c2218c
+**Description**: "ODW (Operational Data Warehouse) Engineers"
+**Current Members**: ~12-15 engineers (most of the team is already in this group)
 
 ## Implementation Prerequisites
 
@@ -96,11 +101,13 @@ This document outlines the centralized access management approach for ODW reposi
 
 ### Step 2: Create/Identify Entra ID Security Groups
 1. Navigate to Azure Portal > Azure Active Directory > Groups
-2. Create security groups (if they don't exist):
+2. **Reuse existing group**:
+   - `pins-odw-engineers` (ID: 13900d77-c9e6-40e1-9d6e-740cd6c2218c) for ODW-Data-Engineers team
+   - This group already exists with ~12-15 members
+3. **Create 2 new small security groups**:
    - `ODW-GitHub-Admins` (4 members: beejjacobs, m-juckes-pins, stef-solirius, raamvar)
    - `ODW-GitHub-Workflow-Approvers` (12 members: all current CODEOWNERS members)
-   - `ODW-GitHub-Contributors` (rest of ODW engineering team)
-3. Add appropriate members to each group
+4. Add appropriate members to the new groups
 
 ### Step 3: Link GitHub Teams to Entra ID Groups
 1. Navigate to GitHub Organization Settings > Teams

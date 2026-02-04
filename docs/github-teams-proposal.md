@@ -7,13 +7,27 @@ We propose moving from individual user-based access control to team-based access
 - Leverage existing PINS identity management via Entra ID
 - Provide automatic provisioning/deprovisioning
 
+## Why Reuse Existing Groups?
+
+After analyzing existing Entra ID groups, we found that most of the ODW team is already in the `pins-odw-engineers` group (ID: 13900d77-c9e6-40e1-9d6e-740cd6c2218c). 
+
+**Our Strategy:**
+- ✅ **Reuse** `pins-odw-engineers` for the main GitHub team (ODW-Data-Engineers)
+- ✅ **Create** only 2 new small groups: ODW-GitHub-Admins and ODW-GitHub-Workflow-Approvers
+
+**Benefits:**
+- Minimizes group proliferation in Entra ID
+- Leverages existing access management
+- Reduces admin overhead (most users already have correct group membership)
+- Only need to manage 2 small specialized groups going forward
+
 ## Proposed Team Structure
 
 | Team Name | Entra ID Group | Purpose | Permissions | Member Count |
 |-----------|----------------|---------|-------------|--------------|
-| **ODW-Admins** | `ODW-GitHub-Admins` | Repository administrators | Admin role on all ODW repos | 4 |
-| **ODW-Workflow-Approvers** | `ODW-GitHub-Workflow-Approvers` | Senior engineers & code reviewers | Write role + CODEOWNERS approval required | 12 |
-| **ODW-Data-Engineers** | `ODW-GitHub-Contributors` | Rest of engineering team | Write role on all ODW repos | TBD |
+| **ODW-Admins** | `ODW-GitHub-Admins` **(new)** | Repository administrators | Admin role on all ODW repos | 4 |
+| **ODW-Workflow-Approvers** | `ODW-GitHub-Workflow-Approvers` **(new)** | Senior engineers & code reviewers | Write role + CODEOWNERS approval required | 12 |
+| **ODW-Data-Engineers** | `pins-odw-engineers` **(existing)** | All engineering team | Write role on all ODW repos | ~12-15 |
 
 ## Team Membership
 
@@ -74,7 +88,10 @@ Rest of engineering team with write access.
 - Write Synapse notebooks and scripts
 - Submit PRs (require approval from ODW-Workflow-Approvers)
 
-**Note:** This team is for future scalability as the team grows.
+**Entra ID Group**: `pins-odw-engineers` (existing group - ID: 13900d77-c9e6-40e1-9d6e-740cd6c2218c)
+**Description**: "ODW (Operational Data Warehouse) Engineers"
+
+**Note:** This team reuses the existing `pins-odw-engineers` group that most of the team is already in. No new group needed!
 
 ---
 
@@ -132,8 +149,10 @@ Rest of engineering team with write access.
 - [ ] Submit support ticket to PINS IT
 
 ### Phase 2: Entra ID Setup (Week 2)
-- [ ] Create Entra ID security groups
-- [ ] Add members to groups
+- [ ] Create 2 new Entra ID security groups:
+  - `ODW-GitHub-Admins` (4 members: beejjacobs, m-juckes-pins, stef-solirius, raamvar)
+  - `ODW-GitHub-Workflow-Approvers` (12 members: current CODEOWNERS list)
+- [ ] Reuse existing group: `pins-odw-engineers` for ODW-Data-Engineers
 - [ ] Configure GitHub SSO (if not already done)
 - [ ] Enable team synchronization
 
@@ -158,9 +177,10 @@ Rest of engineering team with write access.
 - GitHub organization admin access needed
 
 ### Azure Entra ID Requirements
-- Create/identify 3 security groups
+- Create 2 new small security groups (ODW-GitHub-Admins, ODW-GitHub-Workflow-Approvers)
+- Reuse existing group: `pins-odw-engineers` (already has all team members)
 - Entra ID admin access (Global Admin or Application Administrator role)
-- All team members must have Entra ID accounts
+- All team members already have Entra ID accounts
 
 ### Approvals Required
 - **Rams** - Team structure and membership
@@ -186,7 +206,10 @@ Rest of engineering team with write access.
    
 2. **ODW-Data-Engineers Team**: Do we have additional engineers who need repository access but aren't currently in CODEOWNERS?
 
-3. **Entra ID Groups**: Do any of these security groups already exist in Entra ID that we can leverage?
+3. **Entra ID Groups**: ✅ **Resolved** - We will:
+   - **Reuse** existing `pins-odw-engineers` group (most of team already in it)
+   - **Create** only 2 new small groups: ODW-GitHub-Admins and ODW-GitHub-Workflow-Approvers
+   - This minimizes group proliferation and leverages existing access management
 
 4. **Timeline**: Is the 4-week timeline acceptable, or do you need it faster/slower?
 
