@@ -9,7 +9,6 @@ from notebookutils import mssparkutils
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType
 import pyspark.sql.functions as F
-from pyspark.sql.types import TimestampType
 from pyspark.sql import SparkSession
 from pyspark.errors.exceptions.captured import AnalysisException
 from datetime import datetime, timedelta
@@ -93,7 +92,7 @@ class HorizonStandardisationProcess(StandardisationProcess):
             spark=SparkSession.builder.getOrCreate(),
             storage_endpoint=Util.get_storage_account(),
             container_name="odw-config",
-            blob_path=f"orchestration/orchestration.json",
+            blob_path="orchestration/orchestration.json",
             file_format="json",
             read_options={"multiline": "true"},
         )
@@ -122,7 +121,7 @@ class HorizonStandardisationProcess(StandardisationProcess):
                         spark=SparkSession.builder.getOrCreate(), database_name="odw_standardised_db", table_name=table_name, file_format="delta"
                     )
                     file_map[new_entry_name] = data
-                except AnalysisException as e:
+                except AnalysisException:
                     file_map[new_entry_name] = None
                 # Load standardised table schema
                 if "Standardised_Table_Definition" in definition:
@@ -236,7 +235,7 @@ class HorizonStandardisationProcess(StandardisationProcess):
             metadata=ETLResult.ETLResultMetadata(
                 start_execution_time=start_exec_time,
                 end_execution_time=end_exec_time,
-                table_name=f", ".join(processed_tables),
+                table_name=", ".join(processed_tables),
                 insert_count=new_row_count,
                 update_count=0,
                 delete_count=0,

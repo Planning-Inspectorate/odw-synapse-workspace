@@ -4,7 +4,7 @@ import requests
 from typing import Dict, Any
 
 
-class SchemaUtil():
+class SchemaUtil:
     """
     Contains functions for schema operations for the ODW data.
     This is a recreation of the `py_get_schema_from_url` notebook
@@ -88,7 +88,7 @@ class SchemaUtil():
                 ]
             )
         return data_model
-    
+
     def _get_spark_type(self, field_schema: dict, definitions: dict) -> T.DataType:
         """
         Copied as-is from py_create_spark_schema
@@ -100,17 +100,17 @@ class SchemaUtil():
             "boolean": T.BooleanType(),
             "null": T.NullType(),
             "date-time": T.TimestampType(),
-            "timestamp": T.TimestampType() 
+            "timestamp": T.TimestampType(),
         }
         try:
-            json_type = field_schema.get('type')
+            json_type = field_schema.get("type")
             print(f"Processing type: {json_type} | schema: {field_schema}")
 
             # Try resolving $ref if type is missing
-            if json_type is None and '$ref' in field_schema:
-                ref = field_schema['$ref']
-                ref_path = ref.split('/')
-                if ref_path[0] == '#' and ref_path[1] == '$defs':
+            if json_type is None and "$ref" in field_schema:
+                ref = field_schema["$ref"]
+                ref_path = ref.split("/")
+                if ref_path[0] == "#" and ref_path[1] == "$defs":
                     resolved = definitions[ref_path[2]]
                     return self._get_spark_type(resolved, definitions)
 
@@ -120,10 +120,10 @@ class SchemaUtil():
             if isinstance(json_type, list):
                 json_type = json_type[0]
 
-            if json_type == 'array':
-                element_schema = field_schema['items']
+            if json_type == "array":
+                element_schema = field_schema["items"]
                 return T.ArrayType(self._get_spark_type(element_schema, definitions))
-            elif json_type == 'object':
+            elif json_type == "object":
                 return self._transform_service_bus_schema(field_schema, definitions)
             elif json_type in type_mapping:
                 return type_mapping[json_type]
@@ -132,7 +132,7 @@ class SchemaUtil():
         except Exception as e:
             LoggingUtil().log_exception(e)
             raise
-    
+
     def _transform_service_bus_schema(self, schema: dict, definitions: dict) -> T.StructType:
         """
         Copied as-is from py_create_spark_schema
@@ -141,7 +141,7 @@ class SchemaUtil():
             T.StructField(
                 field_name,
                 self._get_spark_type(field_schema, definitions),
-                "null" in field_schema.get("type", []) if isinstance(field_schema.get("type"), list) else False
+                "null" in field_schema.get("type", []) if isinstance(field_schema.get("type"), list) else False,
             )
             for field_name, field_schema in schema["properties"].items()
             if field_schema != {}
@@ -168,15 +168,17 @@ class SchemaUtil():
         """
         Add columns for the Standardised layer
         """
-        standardised_fields = T.StructType([
-            T.StructField("ingested_datetime", T.TimestampType(), False),
-            T.StructField("expected_from", T.TimestampType(), False),
-            T.StructField("expected_to", T.TimestampType(), False),
-            T.StructField("message_id", T.StringType(), False),
-            T.StructField("message_type", T.StringType(), False),
-            T.StructField("message_enqueued_time_utc", T.StringType(), False),
-            T.StructField("input_file", T.StringType(), False)
-        ])
+        standardised_fields = T.StructType(
+            [
+                T.StructField("ingested_datetime", T.TimestampType(), False),
+                T.StructField("expected_from", T.TimestampType(), False),
+                T.StructField("expected_to", T.TimestampType(), False),
+                T.StructField("message_id", T.StringType(), False),
+                T.StructField("message_type", T.StringType(), False),
+                T.StructField("message_enqueued_time_utc", T.StringType(), False),
+                T.StructField("input_file", T.StringType(), False),
+            ]
+        )
         all_fields: list = schema.fields + standardised_fields.fields
         return T.StructType(all_fields)
 
@@ -184,15 +186,17 @@ class SchemaUtil():
         """
         Add columns for the Harmonised layer
         """
-        harmonised_fields = T.StructType([
-            T.StructField("migrated", T.StringType(), False),
-            T.StructField("ODTSourceSystem", T.StringType(), True),
-            T.StructField("SourceSystemID", T.StringType(), True),
-            T.StructField("IngestionDate", T.StringType(), True),
-            T.StructField("ValidTo", T.StringType(), True),
-            T.StructField("RowID", T.StringType(), True),
-            T.StructField("IsActive", T.StringType(), True)
-        ])
+        harmonised_fields = T.StructType(
+            [
+                T.StructField("migrated", T.StringType(), False),
+                T.StructField("ODTSourceSystem", T.StringType(), True),
+                T.StructField("SourceSystemID", T.StringType(), True),
+                T.StructField("IngestionDate", T.StringType(), True),
+                T.StructField("ValidTo", T.StringType(), True),
+                T.StructField("RowID", T.StringType(), True),
+                T.StructField("IsActive", T.StringType(), True),
+            ]
+        )
         all_fields: list = schema.fields + harmonised_fields.fields
         if incremental_key_field:
             all_fields.insert(0, incremental_key_field.fields[0])
@@ -258,9 +262,7 @@ class SchemaUtil():
         definitions = schema.get("$defs", {})
         if self.incremental_key:
             LoggingUtil().log_info("Adding incremental key")
-            incremental_key_field = T.StructType([
-                T.StructField(self.incremental_key, T.LongType(), False)
-            ])
+            incremental_key_field = T.StructType([T.StructField(self.incremental_key, T.LongType(), False)])
         else:
             incremental_key_field = None
         cleaned_schema = self._resolve_refs(schema, definitions)

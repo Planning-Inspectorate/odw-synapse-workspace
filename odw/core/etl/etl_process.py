@@ -45,7 +45,7 @@ class ETLProcess(ABC):
             else:
                 found_files.add(next_item.path)
         return found_files
-    
+
     @classmethod
     def load_orchestration_data(self):
         """
@@ -55,7 +55,7 @@ class ETLProcess(ABC):
             spark=SparkSession.builder.getOrCreate(),
             storage_endpoint=Util.get_storage_account(),
             container_name="odw-config",
-            blob_path=f"orchestration/orchestration.json",
+            blob_path="orchestration/orchestration.json",
             file_format="json",
             read_options={"multiline": "true"},
         )
@@ -69,18 +69,18 @@ class ETLProcess(ABC):
         """
         data_to_read: List[Dict[str, Any]] = kwargs.get("data_to_read", None)
         if not data_to_read:
-            raise ValueError(f"ETLProcess expected a data_to_read parameter to be passed, but this was missing")
+            raise ValueError("ETLProcess expected a data_to_read parameter to be passed, but this was missing")
         data_map = dict()
         for metadata in data_to_read:
             data_name = metadata.get("data_name", None)
             storage_kind = metadata.get("storage_kind", None)
             data_format = metadata.get("data_format", None)
             if not data_name:
-                raise ValueError(f"ETLProcess data_to_read expected a data_name parameter to be passed, but this was missing")
+                raise ValueError("ETLProcess data_to_read expected a data_name parameter to be passed, but this was missing")
             if not storage_kind:
-                raise ValueError(f"ETLProcess data_to_read expected a storage_kind parameter to be passed, but this was missing")
+                raise ValueError("ETLProcess data_to_read expected a storage_kind parameter to be passed, but this was missing")
             if not data_format:
-                raise ValueError(f"ETLProcess data_to_read expected a data_format parameter to be passed, but this was missing")
+                raise ValueError("ETLProcess data_to_read expected a data_format parameter to be passed, but this was missing")
             data_io_inst = DataIOFactory.get(storage_kind)()
             data = data_io_inst.read(**metadata)
             data_map[data_name] = data
@@ -103,18 +103,13 @@ class ETLProcess(ABC):
         for table_name, table_metadata in data_to_write.items():
             storage_kind = table_metadata.get("storage_kind", None)
             if not storage_kind:
-                raise ValueError(f"ETLProcess expected a storage_kind parameter to be passed, but this was missing")
+                raise ValueError("ETLProcess expected a storage_kind parameter to be passed, but this was missing")
             data_io_inst = DataIOFactory.get(storage_kind)()
             data_io_inst.write(**table_metadata, spark=self.spark)
 
     def _log_data_to_write(self, data_to_write: Dict[str, Any]):
         if not self.debug:
-            data_to_write_cleaned = {
-                k: {
-                    subk: subv for subk, subv in v.items() if not isinstance(v, DataFrame)
-                }
-                for k, v in data_to_write.items()
-            }
+            data_to_write_cleaned = {k: {subk: subv for subk, subv in v.items() if not isinstance(v, DataFrame)} for k, v in data_to_write.items()}
             LoggingUtil().log_info(f"The following data will be written: {json.dumps(data_to_write_cleaned, indent=4, default=str)}")
             return
         for table_name, table_metadata in data_to_write.items():
@@ -129,7 +124,7 @@ class ETLProcess(ABC):
                 else:
                     LoggingUtil().log_info(f"Could not display the data. It is of unexpected type '{type(data)}'")
             else:
-                LoggingUtil().log_info(f"There is no data to write")
+                LoggingUtil().log_info("There is no data to write")
 
     def run(self, **kwargs) -> ETLResult:
         """

@@ -8,12 +8,12 @@ from typing import Dict, List, Set, Type
 import json
 
 
-class ETLProcessFactory():
+class ETLProcessFactory:
     ETL_PROCESSES: Set[Type[ETLProcess]] = {
         StandardisationProcess,
         ServiceBusStandardisationProcess,
         HorizonStandardisationProcess,
-        ServiceBusHarmonisationProcess
+        ServiceBusHarmonisationProcess,
     }
 
     @classmethod
@@ -25,25 +25,16 @@ class ETLProcessFactory():
                 name_map[type_name].append(etl_process_class)
             else:
                 name_map[type_name] = [etl_process_class]
-        invalid_types = {
-            k: v
-            for k, v in name_map.items()
-            if len(v) > 1
-        }
+        invalid_types = {k: v for k, v in name_map.items() if len(v) > 1}
         if invalid_types:
             raise DuplicateETLProcessNameException(
                 f"The following ETLProcess implementation classes had duplicate names: {json.dumps(invalid_types, indent=4)}"
             )
-        return {
-            k: v[0]
-            for k, v in name_map.items()
-        }
+        return {k: v[0] for k, v in name_map.items()}
 
     @classmethod
     def get(cls, etl_process_name: str) -> Type[ETLProcess]:
         etl_process_map = cls._validate_etl_process_classes()
         if etl_process_name not in etl_process_map:
-            raise ETLProcessNameNotFoundException(
-                f"No ETLProcess class could be found for ETLProcess name '{etl_process_name}'"
-            )
+            raise ETLProcessNameNotFoundException(f"No ETLProcess class could be found for ETLProcess name '{etl_process_name}'")
         return etl_process_map[etl_process_name]
