@@ -126,7 +126,7 @@ class ServiceBusStandardisationProcess(StandardisationProcess):
         source_path = Util.get_path_to_file(f"odw-raw/ServiceBus/{entity_name}")
 
         table_df = SynapseTableDataIO().read(
-            spark=SparkSession.builder.getOrCreate(), database_name=database_name, table_name=table_name, file_format="delta"
+            spark=self.spark, database_name=database_name, table_name=table_name, file_format="delta"
         )
 
         max_extracted_date = self.get_max_file_date(table_df)

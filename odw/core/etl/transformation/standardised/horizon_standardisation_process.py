@@ -68,7 +68,7 @@ class HorizonStandardisationProcess(StandardisationProcess):
         horizon_files = self.get_file_names_in_directory(source_path)
         for file in horizon_files:
             data = SynapseFileDataIO().read(
-                spark=SparkSession.builder.getOrCreate(),
+                spark=self.spark,
                 storage_endpoint=Util.get_storage_account(),
                 container_name="odw-raw",
                 blob_path=f"{source_folder}/{last_modified_folder}/{file}",
@@ -89,7 +89,7 @@ class HorizonStandardisationProcess(StandardisationProcess):
 
         # Load orchestration file
         orchestration_data = SynapseFileDataIO().read(
-            spark=SparkSession.builder.getOrCreate(),
+            spark=self.spark,
             storage_endpoint=Util.get_storage_account(),
             container_name="odw-config",
             blob_path="orchestration/orchestration.json",
@@ -118,7 +118,7 @@ class HorizonStandardisationProcess(StandardisationProcess):
                 new_entry_name = f"odw_standardised_db.{table_name}"
                 try:
                     data = SynapseTableDataIO().read(
-                        spark=SparkSession.builder.getOrCreate(), database_name="odw_standardised_db", table_name=table_name, file_format="delta"
+                        spark=self.spark, database_name="odw_standardised_db", table_name=table_name, file_format="delta"
                     )
                     file_map[new_entry_name] = data
                 except AnalysisException:

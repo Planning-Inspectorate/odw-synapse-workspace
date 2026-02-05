@@ -13,7 +13,6 @@ import importlib
 
 _CONFIGURED = False
 
-
 def configure_session():
     global _CONFIGURED
     if _CONFIGURED:

@@ -2,7 +2,7 @@ from odw.test.util.mock.import_mock_notebook_utils import notebookutils  # noqa:
 from odw.core.etl.transformation.standardised.horizon_standardisation_process import HorizonStandardisationProcess
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.util import generate_local_path, add_orchestration_entry
-from pyspark.sql import SparkSession
+from odw.test.util.session_util import PytestSparkSessionUtil
 import mock
 from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
 import shutil
@@ -87,7 +87,7 @@ class TestHorizonStandardisationProcess(ETLTestCase):
 
     def test__horizon_standardisation_process__run__with_existing_data(self):
         data_folder = "test_hzn_std_pc_exst_data"
-        spark = SparkSession.builder.getOrCreate()
+        spark = PytestSparkSessionUtil().get_spark_session()
         # Global mock variables
         mock_current_datetime = datetime(2027, 1, 1)
         date_folder = "2027-02-01"
@@ -232,7 +232,7 @@ class TestHorizonStandardisationProcess(ETLTestCase):
 
     def test__horizon_standardisation_process__run__with_no_existing_data(self):
         data_folder = "test_hzn_std_pc_no_exst_data"
-        spark = SparkSession.builder.getOrCreate()
+        spark = PytestSparkSessionUtil().get_spark_session()
         # Global mock variables
         mock_current_datetime = datetime(2027, 1, 1)
         date_folder = "2027-02-01"

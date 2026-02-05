@@ -3,7 +3,7 @@ from odw.core.util.util import Util
 from odw.core.util.azure_blob_util import AzureBlobUtil
 from odw.core.etl.etl_result import ETLResult
 from odw.core.etl.util.schema_util import SchemaUtil
-from pyspark.sql import SparkSession, DataFrame
+from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType
 import pyspark.sql.functions as F
 from datetime import datetime, timedelta
@@ -81,7 +81,6 @@ class StandardisationProcess(TransformationProcess):
             date_folder = datetime.now().date()
         else:
             date_folder = datetime.strptime(date_folder_input, "%Y-%m-%d")
-        spark = SparkSession.builder.getOrCreate()
         process_name = "py_raw_to_std"
         # Initialise source data
 
@@ -106,7 +105,7 @@ class StandardisationProcess(TransformationProcess):
             expected_to = expected_from + timedelta(days=definition["Expected_Within_Weekdays"])
             if "Standardised_Table_Definition" in definition:
                 standardised_table_loc = Util.get_path_to_file(f"odw-config/{definition['Standardised_Table_Definition']}")
-                standardised_table_schema = json.loads(spark.read.text(standardised_table_loc, wholetext=True).first().value)
+                standardised_table_schema = json.loads(self.spark.read.text(standardised_table_loc, wholetext=True).first().value)
             else:
                 standardised_table_schema = SchemaUtil(db_name="odw_standardised_db").get_schema_for_entity(definition["Source_Frequency_Folder"])
             df = self.standardise(data, standardised_table_schema, expected_from, expected_to, process_name, definition)

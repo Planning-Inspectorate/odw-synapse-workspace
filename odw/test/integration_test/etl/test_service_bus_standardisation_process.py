@@ -7,7 +7,7 @@ from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
 from odw.test.util.util import generate_local_path
 from odw.test.util.util import get_all_files_in_directory, format_to_adls_path
-from pyspark.sql import SparkSession
+from odw.test.util.session_util import PytestSparkSessionUtil
 import pyspark.sql.types as T
 import mock
 from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
@@ -45,7 +45,7 @@ class TestServiceBusStandardisationProcess(ETLTestCase):
         - When I run ServiceBusStandardisationProcess
         - Then the sb_test__service_bus_standardisation_process__run table should be updated with new content
         """
-        spark = SparkSession.builder.getOrCreate()
+        spark = PytestSparkSessionUtil().get_spark_session()
         entity_name = "test__service_bus_standardisation_process__run"
         message_enqueued_time_utc = "2024-05-22T14:24:14.261000+0000"
         test_data = spark.createDataFrame(
@@ -68,7 +68,7 @@ class TestServiceBusStandardisationProcess(ETLTestCase):
             ],
         }
         for input_file, content in input_files.items():
-            file_to_create = f"spark-warehouse/{input_file}"
+            file_to_create = f"{PytestSparkSessionUtil().get_spark_warehouse_name()}/{input_file}"
             file_path = file_to_create.rsplit("/", 1)[0]
             Path(file_path).mkdir(parents=True, exist_ok=True)
             with open(file_to_create, "w") as f:

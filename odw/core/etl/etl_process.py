@@ -14,7 +14,7 @@ import json
 
 class ETLProcess(ABC):
     def __init__(self, spark: SparkSession, debug: bool = False):
-        self.spark = spark
+        self.spark: SparkSession = spark
         self.debug = debug
 
     @classmethod
@@ -46,13 +46,12 @@ class ETLProcess(ABC):
                 found_files.add(next_item.path)
         return found_files
 
-    @classmethod
     def load_orchestration_data(self):
         """
         Load the orchestration file
         """
         return SynapseFileDataIO().read(
-            spark=SparkSession.builder.getOrCreate(),
+            spark=self.spark,
             storage_endpoint=Util.get_storage_account(),
             container_name="odw-config",
             blob_path="orchestration/orchestration.json",
