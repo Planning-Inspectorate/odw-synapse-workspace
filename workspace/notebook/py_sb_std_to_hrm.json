@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "962d4a6f-91e7-45e9-9ded-46ba07c4fa21"
+				"spark.autotune.trackingId": "01ccaf4d-68dd-4c37-8a4f-45c1cc3f2171"
 			}
 		},
 		"metadata": {
@@ -599,11 +599,17 @@
 				},
 				"source": [
 					"#Get the data we need again incase the schema has changed due to a merge\r\n",
-					"latest_ingestion, create_df, update_df, delete_df, target_df = get_latest_ingested_data()\r\n",
-					"latest_ingestion: DataFrame = latest_ingestion.drop(\"message_type\")\r\n",
-					"create_df: DataFrame = create_df.drop(\"message_type\").select(target_df.columns)\r\n",
-					"update_df: DataFrame = update_df.drop(\"message_type\").select(target_df.columns)\r\n",
-					"delete_df: DataFrame = delete_df.drop(\"message_type\").select(target_df.columns)"
+					"if not error_message:\r\n",
+					"    try:\r\n",
+					"        # Get the data we need again incase the schema has changed due to a merge\r\n",
+					"        latest_ingestion, create_df, update_df, delete_df, target_df = get_latest_ingested_data()\r\n",
+					"        latest_ingestion: DataFrame = latest_ingestion.drop(\"message_type\")\r\n",
+					"        create_df: DataFrame = create_df.drop(\"message_type\").select(target_df.columns)\r\n",
+					"        update_df: DataFrame = update_df.drop(\"message_type\").select(target_df.columns)\r\n",
+					"        delete_df: DataFrame = delete_df.drop(\"message_type\").select(target_df.columns)\r\n",
+					"    except Exception as e:\r\n",
+					"        error_message = f\"Error while re-fetching data and re-aligning schema: {str(e)[:800]}\"\r\n",
+					"        end_exec_time = datetime.now()"
 				],
 				"execution_count": null
 			},
@@ -656,20 +662,24 @@
 					}
 				},
 				"source": [
-					"logInfo(\"Dropping dupes\")\r\n",
-					"if create_df.count() > 0:\r\n",
-					"    create_df = create_df.dropDuplicates().orderBy(\"IngestionDate\")\r\n",
+					"if not error_message:\r\n",
+					"    try:\r\n",
+					"        logInfo(\"Dropping dupes\")\r\n",
+					"        if create_df.count() > 0:\r\n",
+					"            create_df = create_df.dropDuplicates().orderBy(\"IngestionDate\")\r\n",
 					"\r\n",
-					"if update_df.count() > 0:\r\n",
-					"    update_df = update_df.dropDuplicates().orderBy(\"IngestionDate\")\r\n",
+					"        if update_df.count() > 0:\r\n",
+					"            update_df = update_df.dropDuplicates().orderBy(\"IngestionDate\")\r\n",
 					"\r\n",
-					"if delete_df.count() > 0:\r\n",
-					"    delete_df = delete_df.dropDuplicates().orderBy(\"IngestionDate\")\r\n",
+					"        if delete_df.count() > 0:\r\n",
+					"            delete_df = delete_df.dropDuplicates().orderBy(\"IngestionDate\")\r\n",
 					"\r\n",
-					"if target_df.count() > 0:\r\n",
-					"    target_df = target_df.dropDuplicates().orderBy(\"IngestionDate\")\r\n",
-					"    \r\n",
-					"logInfo(\"Finished dropping dupes\")"
+					"        if target_df.count() > 0:\r\n",
+					"            target_df = target_df.dropDuplicates().orderBy(\"IngestionDate\")\r\n",
+					"        logInfo(\"Finished dropping dupes\")\r\n",
+					"    except Exception as e:\r\n",
+					"        error_message = f\"Error during duplicate removal: {str(e)[:800]}\"\r\n",
+					"        end_exec_time = datetime.now()"
 				],
 				"execution_count": null
 			},
@@ -742,10 +752,15 @@
 					}
 				},
 				"source": [
-					"if create_df.count() > 0:\r\n",
-					"    target_df = insert_rows_in_df(create_df, target_df, hrm_incremental_key)\r\n",
+					"if not error_message:\r\n",
+					"    try:\r\n",
+					"        if create_df.count() > 0:\r\n",
+					"            target_df = insert_rows_in_df(create_df, target_df, hrm_incremental_key)\r\n",
 					"\r\n",
-					"logInfo(f\"New rows: {create_df.count()}\\nTarget dataframe: {target_df.count()}\")"
+					"        logInfo(f\"New rows: {create_df.count()}\\nTarget dataframe: {target_df.count()}\")\r\n",
+					"    except Exception as e:\r\n",
+					"        error_message = f\"Error while handling new rows (create): {str(e)[:800]}\"\r\n",
+					"        end_exec_time = datetime.now()"
 				],
 				"execution_count": null
 			},
