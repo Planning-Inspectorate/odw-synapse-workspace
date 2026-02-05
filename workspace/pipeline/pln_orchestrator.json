@@ -241,7 +241,7 @@
 				"type": "IfCondition",
 				"dependsOn": [
 					{
-						"activity": "If_UsePreviousSummary",
+						"activity": "A_Teams_Orchestrator_Started",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -312,7 +312,7 @@
 				"type": "IfCondition",
 				"dependsOn": [
 					{
-						"activity": "If_UsePreviousSummary",
+						"activity": "A_Teams_Orchestrator_Started",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -574,13 +574,95 @@
 						"value": "@or(\n  or(\n    greater(length(variables('sbFailedEntities')), 0),\n    greater(length(variables('hzFailedEntities')), 0)\n  ),\n  or(\n    greater(length(variables('transformFailedEntities')), 0),\n    greater(length(variables('mipinsFailedEntities')), 0)\n  )\n)\n",
 						"type": "Expression"
 					},
+					"ifFalseActivities": [
+						{
+							"name": "A_Teams_Orchestrator_Succeeded",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_utl_Send_Teams_Message",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"dataFactorySubscription": {
+										"value": "@json(variables('runContextJson')).subscriptionId\n",
+										"type": "Expression"
+									},
+									"dataFactoryResourceGroup": {
+										"value": "@json(variables('runContextJson')).resourceGroup\n",
+										"type": "Expression"
+									},
+									"pipelineRunId": {
+										"value": "@pipeline().RunId\n",
+										"type": "Expression"
+									},
+									"teamsWebhookUrl": {
+										"value": "@json(variables('runContextJson')).teamsWebhook\n",
+										"type": "Expression"
+									},
+									"activityName": {
+										"value": "@pipeline().Pipeline\n",
+										"type": "Expression"
+									},
+									"activityMessage": {
+										"value": "@concat(\n  'Orchestrator completed successfully.',\n  '\\n',\n  'Executed: ',\n  if(pipeline().parameters.runIngestSB, 'SB ingest', ''),\n  if(and(pipeline().parameters.runIngestSB, pipeline().parameters.runIngestHZ), ' + ', ''),\n  if(pipeline().parameters.runIngestHZ, 'HZ ingest', ''),\n  if(and(or(pipeline().parameters.runIngestSB, pipeline().parameters.runIngestHZ), pipeline().parameters.runTransformAndLoad), ' + ', ''),\n  if(pipeline().parameters.runTransformAndLoad, 'Transform&Load', ''),\n  if(and(or(or(pipeline().parameters.runIngestSB, pipeline().parameters.runIngestHZ), pipeline().parameters.runTransformAndLoad), pipeline().parameters.runCuratedToMiPINS), ' + ', ''),\n  if(pipeline().parameters.runCuratedToMiPINS, 'MiPINS copy', ''),\n  '\\n',\n  'Filters: SB=',\n  if(greater(length(variables('sbEntities')),0), join(variables('sbEntities'), ', '), '(none)'),\n  ' | HZ=',\n  if(greater(length(variables('hzEntities')),0), join(variables('hzEntities'), ', '), '(none)'),\n  ' | MiPINS=',\n  if(greater(length(pipeline().parameters.mipinsEntitiesFilter),0), join(pipeline().parameters.mipinsEntitiesFilter, ', '), '(none)'),\n  if(\n    pipeline().parameters.runTransformAndLoad,\n    concat(\n      '\\n',\n      'ETL stages: ',\n      if(greater(length(pipeline().parameters.transformStages),0), join(pipeline().parameters.transformStages, ', '), '(none)'),\n      ' (retries=', string(pipeline().parameters.transformRetryCount), ')'\n    ),\n    ''\n  ),\n  '\\n',\n  'Manifest: ',\n  variables('manifestPath')\n)\n",
+										"type": "Expression"
+									},
+									"activityDuration": "0H:00M:00s",
+									"activityStatus": "Completed",
+									"Colour": {
+										"value": "@variables('completed_colour')",
+										"type": "Expression"
+									},
+									"Image": {
+										"value": "@variables('completed_image')",
+										"type": "Expression"
+									},
+									"Message_title": "ODW - Orchestrator completed",
+									"Message_subtitle": "Run finished. Summary below reflects what was enabled for this run."
+								}
+							}
+						},
+						{
+							"name": "A_Email_Orchestrator_Succeeded",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "A_Teams_Orchestrator_Succeeded",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_pipeline_result_email_notifcation",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"pipelineSucceeded": true
+								}
+							}
+						}
+					],
 					"ifTrueActivities": [
 						{
 							"name": "Fail_If_HasFailures",
 							"type": "Fail",
 							"dependsOn": [
 								{
-									"activity": "Build_Failure_Message",
+									"activity": "A_Email_Orchestrator_Failed",
 									"dependencyConditions": [
 										"Succeeded"
 									]
@@ -609,6 +691,93 @@
 								"value": {
 									"value": "@concat(\n  'One or more stages failed. ',\n  if(\n    greater(length(variables('sbFailedEntities')), 0),\n    concat(\n      'SB failed entities: ', join(variables('sbFailedEntities'), ', '),\n      '. Errors: ', join(variables('sbFailedErrors'), ' | '),\n      '. '\n    ),\n    ''\n  ),\n  if(\n    greater(length(variables('hzFailedEntities')), 0),\n    concat(\n      'HZ failed entities: ', join(variables('hzFailedEntities'), ', '),\n      '. Errors: ', join(variables('hzFailedErrors'), ' | '),\n      '. '\n    ),\n    ''\n  ),\n  if(\n    greater(length(variables('transformFailedEntities')), 0),\n    concat(\n      'Transform failed entities: ', join(variables('transformFailedEntities'), ', '),\n      '. Errors: ', join(variables('transformFailedErrors'), ' | '),\n      '. '\n    ),\n    ''\n  ),\n  if(\n    greater(length(variables('mipinsFailedEntities')), 0),\n    concat(\n      'MiPINS failed entities: ', join(variables('mipinsFailedEntities'), ', '),\n      '. Errors: ', join(variables('mipinsFailedErrors'), ' | '),\n      '. '\n    ),\n    ''\n  ),\n  'Check orchestrator + entity manifests for details.'\n)\n",
 									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "A_Teams_Orchestrator_Failed",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Build_Failure_Message",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_utl_Send_Teams_Message",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"dataFactorySubscription": {
+										"value": "@json(variables('runContextJson')).subscriptionId\n",
+										"type": "Expression"
+									},
+									"dataFactoryResourceGroup": {
+										"value": "@json(variables('runContextJson')).resourceGroup\n",
+										"type": "Expression"
+									},
+									"pipelineRunId": {
+										"value": "@pipeline().RunId\n",
+										"type": "Expression"
+									},
+									"teamsWebhookUrl": {
+										"value": "@json(variables('runContextJson')).teamsWebhook\n",
+										"type": "Expression"
+									},
+									"activityName": {
+										"value": "@pipeline().Pipeline\n",
+										"type": "Expression"
+									},
+									"activityMessage": {
+										"value": "@concat(\n  'Orchestrator failed. Summary:',\n  if(greater(length(variables('sbFailedEntities')), 0),\n    concat('\\n- SB failures: ', join(variables('sbFailedEntities'), ', ')),\n    ''\n  ),\n  if(greater(length(variables('hzFailedEntities')), 0),\n    concat('\\n- HZ failures: ', join(variables('hzFailedEntities'), ', ')),\n    ''\n  ),\n  if(greater(length(variables('transformFailedEntities')), 0),\n    concat('\\n- ETL failures: ', join(variables('transformFailedEntities'), ', ')),\n    ''\n  ),\n  if(greater(length(variables('mipinsFailedEntities')), 0),\n    concat('\\n- MiPINS failures: ', join(variables('mipinsFailedEntities'), ', ')),\n    ''\n  ),\n  '\\n',\n  'Manifest: ', variables('manifestPath'),\n  '\\n',\n  'See entity manifests / App Insights logs for full error details.'\n)\n",
+										"type": "Expression"
+									},
+									"activityDuration": "0H:00M:00s",
+									"activityStatus": "Failed",
+									"Colour": {
+										"value": "@variables('failed_colour')",
+										"type": "Expression"
+									},
+									"Image": {
+										"value": "@variables('failed_image')",
+										"type": "Expression"
+									},
+									"Message_title": "ODW - Orchestrator failed",
+									"Message_subtitle": "One or more stages failed. See failure message + manifest for full details."
+								}
+							}
+						},
+						{
+							"name": "A_Email_Orchestrator_Failed",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "A_Teams_Orchestrator_Failed",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_pipeline_result_email_notifcation",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"pipelineSucceeded": false
 								}
 							}
 						}
@@ -992,7 +1161,14 @@
 						{
 							"name": "A_Transform_And_Load",
 							"type": "ExecutePipeline",
-							"dependsOn": [],
+							"dependsOn": [
+								{
+									"activity": "A_Teams_Starting_Transform_And_Load",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
 							"policy": {
 								"secureInput": false
 							},
@@ -1048,6 +1224,60 @@
 								"value": {
 									"value": "@replace(\n  replace(\n    string(activity('A_Transform_And_Load').output.pipelineReturnValue.result),\n    '\\r',' '\n  ),\n  '\\n',' '\n)\n",
 									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "A_Teams_Starting_Transform_And_Load",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_utl_Send_Teams_Message",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"dataFactorySubscription": {
+										"value": "@json(variables('runContextJson')).subscriptionId\n",
+										"type": "Expression"
+									},
+									"dataFactoryResourceGroup": {
+										"value": "@json(variables('runContextJson')).resourceGroup\n",
+										"type": "Expression"
+									},
+									"pipelineRunId": {
+										"value": "@pipeline().RunId\n",
+										"type": "Expression"
+									},
+									"teamsWebhookUrl": {
+										"value": "@json(variables('runContextJson')).teamsWebhook\n",
+										"type": "Expression"
+									},
+									"activityName": {
+										"value": "@pipeline().Pipeline\n",
+										"type": "Expression"
+									},
+									"activityMessage": {
+										"value": "@concat(\n  'Transform & Load started. ',\n  'Stages=',\n  if(greater(length(pipeline().parameters.transformStages),0), join(pipeline().parameters.transformStages, ', '), '(none)'),\n  ' | Retries=',\n  string(pipeline().parameters.transformRetryCount)\n)\n",
+										"type": "Expression"
+									},
+									"activityDuration": "0H:00M:00s",
+									"activityStatus": "On Progress",
+									"Colour": {
+										"value": "@variables('on_progress_colour')",
+										"type": "Expression"
+									},
+									"Image": {
+										"value": "@variables('progress_image')",
+										"type": "Expression"
+									},
+									"Message_title": "ODW - Transform & Load starting",
+									"Message_subtitle": "Moving from ingestion into ETL (standardised → harmonised → curated + entity-specific)."
 								}
 							}
 						}
@@ -1176,6 +1406,67 @@
 						}
 					]
 				}
+			},
+			{
+				"name": "A_Teams_Orchestrator_Started",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "If_UsePreviousSummary",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_utl_Send_Teams_Message",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"dataFactorySubscription": {
+							"value": "@json(variables('runContextJson')).subscriptionId\n",
+							"type": "Expression"
+						},
+						"dataFactoryResourceGroup": {
+							"value": "@json(variables('runContextJson')).resourceGroup\n",
+							"type": "Expression"
+						},
+						"pipelineRunId": {
+							"value": "@pipeline().RunId\n",
+							"type": "Expression"
+						},
+						"teamsWebhookUrl": {
+							"value": "@json(variables('runContextJson')).teamsWebhook\n",
+							"type": "Expression"
+						},
+						"activityName": {
+							"value": "@pipeline().Pipeline\n",
+							"type": "Expression"
+						},
+						"activityMessage": {
+							"value": "@concat(\n  'Orchestrator started. ',\n  'Run options: ',\n  if(pipeline().parameters.runIngestSB, 'SB ingest=ON', 'SB ingest=OFF'),\n  ' | ',\n  if(pipeline().parameters.runIngestHZ, 'HZ ingest=ON', 'HZ ingest=OFF'),\n  ' | ',\n  if(pipeline().parameters.runTransformAndLoad, 'Transform&Load=ON', 'Transform&Load=OFF'),\n  ' | ',\n  if(pipeline().parameters.runCuratedToMiPINS, 'MiPINS copy=ON', 'MiPINS copy=OFF'),\n  '\\n',\n  'Filters: ',\n  'SB=',\n  if(greater(length(variables('sbEntities')),0), join(variables('sbEntities'), ', '), '(none)'),\n  ' | HZ=',\n  if(greater(length(variables('hzEntities')),0), join(variables('hzEntities'), ', '), '(none)'),\n  ' | MiPINS=',\n  if(greater(length(pipeline().parameters.mipinsEntitiesFilter),0), join(pipeline().parameters.mipinsEntitiesFilter, ', '), '(none)'),\n  if(\n    pipeline().parameters.runTransformAndLoad,\n    concat(\n      '\\n',\n      'ETL stages: ',\n      if(greater(length(pipeline().parameters.transformStages),0), join(pipeline().parameters.transformStages, ', '), '(none)'),\n      ' (retries=', string(pipeline().parameters.transformRetryCount), ')'\n    ),\n    ''\n  )\n)\n",
+							"type": "Expression"
+						},
+						"activityDuration": "0H:00M:00s",
+						"activityStatus": "Starting",
+						"Colour": {
+							"value": "@variables('starting_colour')",
+							"type": "Expression"
+						},
+						"Image": {
+							"value": "@variables('starting_image')",
+							"type": "Expression"
+						},
+						"Message_title": "ODW - Orchestrator starting",
+						"Message_subtitle": "Starting end to end modular run (Init → Ingest → Transform → MiPINS) with the selected filters."
+					}
+				}
 			}
 		],
 		"parameters": {
@@ -1294,6 +1585,38 @@
 			"transformFailedErrors": {
 				"type": "Array",
 				"defaultValue": []
+			},
+			"starting_image": {
+				"type": "String",
+				"defaultValue": "https://tse1.mm.bing.net/th?q=Go+Green+Light+PNG&w=120&h=120&c=1&rs=1&qlt=90&cb=1&dpr=1.5&pid=InlineBlock&mkt=en-GB&cc=GB&setlang=en&adlt=strict&t=1&mw=247"
+			},
+			"starting_colour": {
+				"type": "String",
+				"defaultValue": "accent"
+			},
+			"on_progress_colour": {
+				"type": "String",
+				"defaultValue": "light"
+			},
+			"progress_image": {
+				"type": "String",
+				"defaultValue": "https://tse2.mm.bing.net/th/id/OIP.1-FXYnONJTX2Hxzqf3wERAAAAA?w=192&h=190&c=7&r=0&o=5&dpr=1.5&pid=1.7"
+			},
+			"completed_colour": {
+				"type": "String",
+				"defaultValue": "good"
+			},
+			"completed_image": {
+				"type": "String",
+				"defaultValue": "https://tse3.mm.bing.net/th/id/OIP.YbfIXY-IWYnBkzHvhrXiXAHaHa?w=177&h=180&c=7&r=0&o=5&dpr=1.5&pid=1.7"
+			},
+			"failed_colour": {
+				"type": "String",
+				"defaultValue": "attention"
+			},
+			"failed_image": {
+				"type": "String",
+				"defaultValue": "https://tse4.mm.bing.net/th/id/OIP.QvdayQCDbhZL5DsXkaBObwAAAA?w=160&h=180&c=7&r=0&o=5&dpr=1.5&pid=1.7"
 			}
 		},
 		"folder": {
