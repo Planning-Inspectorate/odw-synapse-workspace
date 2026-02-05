@@ -1,5 +1,6 @@
 from odw.test.util.mock.import_mock_notebook_utils import notebookutils  # noqa: F401
 from odw.core.io.synapse_data_io import SynapseDataIO
+from odw.core.io.synapse_table_data_io import SynapseTableDataIO
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
 from odw.test.util.util import generate_local_path
@@ -24,12 +25,14 @@ class ETLTestCase(TestCase):
     def setup(self, request):
         with mock.patch("notebookutils.mssparkutils.runtime.context", {"pipelinejobid": "some_guid", "isForPipeline": True}):
             with mock.patch.object(SynapseDataIO, "_format_to_adls_path", format_adls_path_to_local_path):
-                with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
-                    with mock.patch.object(Util, "get_path_to_file", generate_local_path):
-                        with mock.patch.object(LoggingUtil, "__new__"):
-                            with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-                                with mock.patch.object(LoggingUtil, "log_error", return_value=None):
-                                    yield
+                # Table io automatically writes to the spark warehouse, so drop the spark warehouse from its write path
+                with mock.patch.object(SynapseTableDataIO, "_format_to_adls_path", format_to_adls_path):
+                    with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+                        with mock.patch.object(Util, "get_path_to_file", generate_local_path):
+                            with mock.patch.object(LoggingUtil, "__new__"):
+                                with mock.patch.object(LoggingUtil, "log_info", return_value=None):
+                                    with mock.patch.object(LoggingUtil, "log_error", return_value=None):
+                                        yield
 
     def write_csv(self, csv_data: List[List[Any]], path: List[str]):
         directories = path[:-1]

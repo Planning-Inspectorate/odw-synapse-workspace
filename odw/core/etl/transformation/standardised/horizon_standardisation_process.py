@@ -151,9 +151,6 @@ class HorizonStandardisationProcess(StandardisationProcess):
 
         data_to_write = dict()
         for file in files_to_process.keys():
-            print(f"definitions:: {definitions}")
-            for d in definitions:
-                print(f"deff: {d}")
             definition = next(
                 (
                     d
