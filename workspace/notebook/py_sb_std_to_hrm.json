@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "8b6e7c45-08f4-4416-bdcc-169445e52658"
+				"spark.autotune.trackingId": "962d4a6f-91e7-45e9-9ded-46ba07c4fa21"
 			}
 		},
 		"metadata": {
@@ -534,10 +534,15 @@
 					}
 				},
 				"source": [
-					"latest_ingestion: DataFrame = latest_ingestion.drop(\"message_type\")\r\n",
-					"create_df: DataFrame = create_df.drop(\"message_type\").select(target_df.columns)\r\n",
-					"update_df: DataFrame = update_df.drop(\"message_type\").select(target_df.columns)\r\n",
-					"delete_df: DataFrame = delete_df.drop(\"message_type\").select(target_df.columns)"
+					"if not error_message:\r\n",
+					"    try:\r\n",
+					"        latest_ingestion: DataFrame = latest_ingestion.drop(\"message_type\")\r\n",
+					"        create_df: DataFrame = create_df.drop(\"message_type\").select(target_df.columns)\r\n",
+					"        update_df: DataFrame = update_df.drop(\"message_type\").select(target_df.columns)\r\n",
+					"        delete_df: DataFrame = delete_df.drop(\"message_type\").select(target_df.columns)\r\n",
+					"    except Exception as e:\r\n",
+					"        error_message = f\"Error while aligning schemas and dropping message_type: {str(e)[:800]}\"\r\n",
+					"        end_exec_time = datetime.now()"
 				],
 				"execution_count": null
 			},
@@ -555,9 +560,14 @@
 					}
 				},
 				"source": [
-					"logInfo(\"Comparing and merging schemas\")\r\n",
-					"compare_and_merge_schema(latest_ingestion, f\"{hrm_db}.{hrm_table}\")\r\n",
-					"logInfo(\"Compared and merged schemas\")"
+					"if not error_message:\r\n",
+					"    try:\r\n",
+					"        logInfo(\"Comparing and merging schemas\")\r\n",
+					"        compare_and_merge_schema(latest_ingestion, f\"{hrm_db}.{hrm_table}\")\r\n",
+					"        logInfo(\"Compared and merged schemas\")\r\n",
+					"    except Exception as e:\r\n",
+					"        error_message = f\"Error during compare_and_merge_schema: {str(e)[:800]}\"\r\n",
+					"        end_exec_time = datetime.now()"
 				],
 				"execution_count": null
 			},
