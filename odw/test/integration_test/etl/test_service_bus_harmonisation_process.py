@@ -4,7 +4,7 @@ from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.core.util.util import Util
 from odw.test.util.util import generate_local_path, add_orchestration_entry
 from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
-from pyspark.sql import SparkSession
+from odw.test.util.session_util import PytestSparkSessionUtil
 import mock
 import shutil
 import os
@@ -91,7 +91,7 @@ class TestServiceBusHarmonisationProcess(ETLTestCase):
                 "Entity_Primary_Key": "col_a",
             }
         )
-        spark = SparkSession.builder.getOrCreate()
+        spark = PytestSparkSessionUtil().get_spark_session()
         table_name = "test_sb_hrm_pc_exst_data"
         datetime_format = "%Y-%m-%dT%H:%M:%S.%f%z"
         incremental_key = "incremental_key"
@@ -200,7 +200,7 @@ class TestServiceBusHarmonisationProcess(ETLTestCase):
                 "Entity_Primary_Key": "col_a",
             }
         )
-        spark = SparkSession.builder.getOrCreate()
+        spark = PytestSparkSessionUtil().get_spark_session()
         table_name = "test_sb_hrm_pc_chg_schema"
         datetime_format = "%Y-%m-%dT%H:%M:%S.%f%z"
         incremental_key = "incremental_key"
@@ -292,7 +292,7 @@ class TestServiceBusHarmonisationProcess(ETLTestCase):
                 "Entity_Primary_Key": "col_a",
             },
         )
-        spark = SparkSession.builder.getOrCreate()
+        spark = PytestSparkSessionUtil().get_spark_session()
         table_name = "test_sb_hrm_pc_no_data"
         datetime_format = "%Y-%m-%dT%H:%M:%S.%f%z"
         incremental_key = "incremental_key"

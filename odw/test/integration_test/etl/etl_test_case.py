@@ -5,6 +5,7 @@ from odw.core.util.util import Util
 from odw.test.util.util import generate_local_path
 from odw.test.util.util import format_adls_path_to_local_path, format_to_adls_path
 from odw.test.util.test_case import TestCase
+from odw.test.util.session_util import PytestSparkSessionUtil
 from pyspark.sql import SparkSession, DataFrame
 import json
 import csv
@@ -32,16 +33,18 @@ class ETLTestCase(TestCase):
 
     def write_csv(self, csv_data: List[List[Any]], path: List[str]):
         directories = path[:-1]
-        os.makedirs(os.path.join("spark-warehouse", *directories), exist_ok=True)
-        with open(os.path.join("spark-warehouse", *path), "w", newline="") as file:
+        warehouse_name = PytestSparkSessionUtil().get_spark_warehouse_name()
+        os.makedirs(os.path.join(warehouse_name, *directories), exist_ok=True)
+        with open(os.path.join(warehouse_name, *path), "w", newline="") as file:
             writer = csv.writer(file)
             # Write data to the CSV file
             writer.writerows(csv_data)
 
     def write_json(self, json_data: Dict[str, Any], path: List[str]):
         directories = path[:-1]
-        os.makedirs(os.path.join("spark-warehouse", *directories), exist_ok=True)
-        with open(os.path.join("spark-warehouse", *path), "w", newline="") as file:
+        warehouse_name = PytestSparkSessionUtil().get_spark_warehouse_name()
+        os.makedirs(os.path.join(warehouse_name, *directories), exist_ok=True)
+        with open(os.path.join(warehouse_name, *path), "w", newline="") as file:
             json.dump(json_data, file, indent=4)
 
     def write_existing_table(

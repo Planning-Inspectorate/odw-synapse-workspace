@@ -77,8 +77,8 @@ class SynapseLegacyDeltaIO(SynapseDeltaIO):
         else:
             data_path = self._format_to_adls_path(container_name, blob_path, storage_endpoint=storage_endpoint)
         temp_table_name = f"{table_name}_tmp"
-        TableUtil().delete_table_contents(database_name, temp_table_name)
+        TableUtil().delete_table_contents(spark, database_name, temp_table_name)
         writer = data.write.format("delta").mode("overwrite")
         writer.saveAsTable(f"{database_name}.{temp_table_name}")
-        TableUtil().delete_table_contents(database_name, table_name)
+        TableUtil().delete_table_contents(spark, database_name, table_name)
         spark.sql(f"ALTER TABLE {database_name}.{temp_table_name} RENAME TO {database_name}.{table_name}")
