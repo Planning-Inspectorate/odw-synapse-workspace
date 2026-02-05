@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "7ffc4ffe-c742-46d7-b301-becdb2f70b3d"
+				"spark.autotune.trackingId": "52d59ece-568d-4527-9be1-ebc25fd8acde"
 			}
 		},
 		"metadata": {
@@ -77,37 +77,27 @@
 			},
 			{
 				"cell_type": "code",
-				"source": [
-					"case_notes = (\n",
-					"    spark.read\n",
-					"    .option(\"header\", True)\n",
-					"    .option(\"inferSchema\", True)\n",
-					"    .csv(CASE_NOTES_FILE)\n",
-					")"
-				],
-				"execution_count": 4
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"# quick sanity checks\n",
-					"print(\"case_notes rows:\", case_notes.count())\n",
-					"print(\"case_notes cols:\", len(case_notes.columns))\n",
-					"print(\"columns:\", case_notes.columns)\n",
-					""
-				],
-				"execution_count": 5
-			},
-			{
-				"cell_type": "code",
 				"metadata": {
 					"collapsed": false
 				},
 				"source": [
-					"case_notes = case_notes.withColumn(\"CaseId\", F.trim(F.col(\"CaseId\")))\n",
-					"display(case_notes.limit(15))"
+					"path = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-EXTRACT/Horizon_CaseNotes.csv\"\n",
+					"\n",
+					"case_notes = (\n",
+					"    spark.read.format(\"csv\")\n",
+					"    .option(\"header\", \"true\")\n",
+					"    .option(\"multiLine\", \"true\")\n",
+					"    .option(\"quote\", \"\\\"\")\n",
+					"    .option(\"escape\", \"\\\"\")  # handles doubled quotes \"\"\n",
+					"    .option(\"mode\", \"PERMISSIVE\")\n",
+					"    .option(\"columnNameOfCorruptRecord\", \"_corrupt_record\")\n",
+					"    .option(\"unescapedQuoteHandling\", \"BACK_TO_DELIMITER\")\n",
+					"    .load(path)\n",
+					")\n",
+					"\n",
+					"display(case_notes)"
 				],
-				"execution_count": 6
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
