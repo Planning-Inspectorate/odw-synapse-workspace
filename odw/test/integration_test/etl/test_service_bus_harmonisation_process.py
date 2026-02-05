@@ -12,9 +12,51 @@ from datetime import datetime
 import pyspark.sql.functions as F
 from pyspark.sql import DataFrame
 import pyspark.sql.types as T
+import pytest
 
 
 class TestServiceBusHarmonisationProcess(ETLTestCase):
+    @pytest.fixture(scope="session", autouse=True)
+    def initialise_orchestration_file(self):
+        new_definitions = [
+            {
+                "Source_Filename_Start": "test_sb_hrm_pc_exst_data",
+                "Load_Enable_status": "True",
+                "Standardised_Table_Definition": "standardised_table_definitions/test_sb_hrm_pc_exst_data/test_sb_hrm_pc_exst_data.json",
+                "Source_Frequency_Folder": "",
+                "Standardised_Table_Name": "test_sb_hrm_pc_exst_data",
+                "Expected_Within_Weekdays": 1,
+                "Harmonised_Table_Name": "test_sb_hrm_pc_exst_data",
+                "Harmonised_Incremental_Key": "incremental_key",
+                "Entity_Primary_Key": "col_a",
+            },
+            {
+                "Source_Filename_Start": "test_sb_hrm_pc_chg_schema",
+                "Load_Enable_status": "True",
+                "Standardised_Table_Definition": "standardised_table_definitions/test_sb_hrm_pc_chg_schema/test_sb_hrm_pc_chg_schema.json",
+                "Source_Frequency_Folder": "",
+                "Standardised_Table_Name": "test_sb_hrm_pc_chg_schema",
+                "Expected_Within_Weekdays": 1,
+                "Harmonised_Table_Name": "test_sb_hrm_pc_chg_schema",
+                "Harmonised_Incremental_Key": "incremental_key",
+                "Entity_Primary_Key": "col_a",
+            },
+            {
+                "Source_Filename_Start": "test_sb_hrm_pc_no_data",
+                "Load_Enable_status": "True",
+                "Standardised_Table_Definition": "standardised_table_definitions/test_sb_hrm_pc_no_data/test_sb_hrm_pc_no_data.json",
+                "Source_Frequency_Folder": "",
+                "Standardised_Table_Name": "test_sb_hrm_pc_no_data",
+                "Expected_Within_Weekdays": 1,
+                "Harmonised_Table_Name": "test_sb_hrm_pc_no_data",
+                "Harmonised_Incremental_Key": "incremental_key",
+                "Entity_Primary_Key": "col_a",
+            }
+        ]
+        for definition in new_definitions:
+            add_orchestration_entry(definition)
+
+
     def session_teardown(self):
         super().session_teardown()
         tables_to_delete = [
@@ -78,19 +120,6 @@ class TestServiceBusHarmonisationProcess(ETLTestCase):
         - When I call ServiceBusHarmonisationProcess.run
         - Then the modified rows should be updated, and removed rows should be deleted from the harmonised table
         """
-        add_orchestration_entry(
-            {
-                "Source_Filename_Start": "test_sb_hrm_pc_exst_data",
-                "Load_Enable_status": "True",
-                "Standardised_Table_Definition": "standardised_table_definitions/test_sb_hrm_pc_exst_data/test_sb_hrm_pc_exst_data.json",
-                "Source_Frequency_Folder": "",
-                "Standardised_Table_Name": "test_sb_hrm_pc_exst_data",
-                "Expected_Within_Weekdays": 1,
-                "Harmonised_Table_Name": "test_sb_hrm_pc_exst_data",
-                "Harmonised_Incremental_Key": "incremental_key",
-                "Entity_Primary_Key": "col_a",
-            }
-        )
         spark = PytestSparkSessionUtil().get_spark_session()
         table_name = "test_sb_hrm_pc_exst_data"
         datetime_format = "%Y-%m-%dT%H:%M:%S.%f%z"
@@ -187,19 +216,6 @@ class TestServiceBusHarmonisationProcess(ETLTestCase):
         - When I call ServiceBusHarmonisationProcess.run
         - Then the new columns should be added to the harmonised table
         """
-        add_orchestration_entry(
-            {
-                "Source_Filename_Start": "test_sb_hrm_pc_chg_schema",
-                "Load_Enable_status": "True",
-                "Standardised_Table_Definition": "standardised_table_definitions/test_sb_hrm_pc_chg_schema/test_sb_hrm_pc_chg_schema.json",
-                "Source_Frequency_Folder": "",
-                "Standardised_Table_Name": "test_sb_hrm_pc_chg_schema",
-                "Expected_Within_Weekdays": 1,
-                "Harmonised_Table_Name": "test_sb_hrm_pc_chg_schema",
-                "Harmonised_Incremental_Key": "incremental_key",
-                "Entity_Primary_Key": "col_a",
-            }
-        )
         spark = PytestSparkSessionUtil().get_spark_session()
         table_name = "test_sb_hrm_pc_chg_schema"
         datetime_format = "%Y-%m-%dT%H:%M:%S.%f%z"
@@ -279,19 +295,6 @@ class TestServiceBusHarmonisationProcess(ETLTestCase):
         - When I call ServiceBusHarmonisationProcess.run
         - Then the harmonised data should be created
         """
-        add_orchestration_entry(
-            {
-                "Source_Filename_Start": "test_sb_hrm_pc_no_data",
-                "Load_Enable_status": "True",
-                "Standardised_Table_Definition": "standardised_table_definitions/test_sb_hrm_pc_no_data/test_sb_hrm_pc_no_data.json",
-                "Source_Frequency_Folder": "",
-                "Standardised_Table_Name": "test_sb_hrm_pc_no_data",
-                "Expected_Within_Weekdays": 1,
-                "Harmonised_Table_Name": "test_sb_hrm_pc_no_data",
-                "Harmonised_Incremental_Key": "incremental_key",
-                "Entity_Primary_Key": "col_a",
-            },
-        )
         spark = PytestSparkSessionUtil().get_spark_session()
         table_name = "test_sb_hrm_pc_no_data"
         datetime_format = "%Y-%m-%dT%H:%M:%S.%f%z"

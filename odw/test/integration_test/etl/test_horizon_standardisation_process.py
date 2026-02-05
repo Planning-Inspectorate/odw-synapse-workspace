@@ -11,11 +11,12 @@ from datetime import datetime
 import pyspark.sql.functions as F
 from pyspark.sql import DataFrame
 import pyspark.sql.types as T
+import pytest
 
 
 class TestHorizonStandardisationProcess(ETLTestCase):
-    def session_setup(self):
-        super().session_setup()
+    @pytest.fixture(scope="session", autouse=True)
+    def initialise_orchestration_file(self):
         new_definitions = [
             {
                 "Source_Filename_Start": "test_hzn_std_pc_exst_data",

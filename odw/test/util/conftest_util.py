@@ -1,4 +1,5 @@
 from odw.test.util.test_case import TestCase
+from odw.test.util.session_util import PytestSparkSessionUtil
 from filelock import FileLock
 from uuid import uuid4
 from typing import List, Type
@@ -14,14 +15,7 @@ import importlib
 _CONFIGURED = False
 
 def configure_session():
-    global _CONFIGURED
-    if _CONFIGURED:
-        return
-    _CONFIGURED = True
-    if "RUN_ID" not in os.environ:
-        run_id = str(uuid4())[:8]
-        os.environ["RUN_ID"] = str(run_id)
-    logging.info(f"Running with run_id='{os.environ['RUN_ID']}'")
+    PytestSparkSessionUtil()
     import_all_testing_modules()
 
 
@@ -133,6 +127,7 @@ def _session_teardown_task(session):
             test_case.__module__,
             time.perf_counter() - t0,
         )
+    PytestSparkSessionUtil().teardown_all_file_systems()
 
     # Best-effort: stop OTel providers if they exist
     try:
