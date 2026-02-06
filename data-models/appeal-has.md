@@ -128,7 +128,7 @@ classDiagram
 
     }
 
-`ServiceBus_pins-sb-appeals-bo-dev-appeal-has` --> `sb_appeal_has`
+`ServiceBus_pins-sb-appeals-bo-dev-appeal-has` --> `sb_appeal_has_std`
 `Horizon_ODW_vw_CaseSpecialisms` --> `horizon_appeal_has`
 `Horizon_ODW_vw_CaseDates` --> `horizon_appeal_has`
 `Horizon_ODW_vw_CaseDocumentDatesDates` --> `horizon_appeal_has`
@@ -148,8 +148,9 @@ classDiagram
 `Horizon_vw_BIS_AppealsAdditonalData` --> `horizon_appeal_has`
 `Horizon_vw_BIS_CaseSiteCategoryAdditionalStr` --> `horizon_appeal_has`
 `VW_BIS_Inspector_Cases` --> `horizon_appeal_has`
-`sb_appeal_has` --> `appeal_has_stg`
+`sb_appeal_has_std` --> `sb_appeal_has_hrm`
 `horizon_appeal_has` --> `appeal_has_stg`
+`sb_appeal_has_hrm` --> `appeal_has_stg`
 `appeal_has_stg` --> `appeal_has_hrm`
 `appeal_has_hrm` --> `appeals_has_final`
 
