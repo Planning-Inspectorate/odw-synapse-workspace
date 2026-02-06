@@ -2,7 +2,7 @@ from odw.test.util.mock.import_mock_notebook_utils import notebookutils  # noqa:
 from odw.core.etl.transformation.harmonised.service_bus_harmonisation_process import ServiceBusHarmonisationProcess
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.core.util.util import Util
-from odw.test.util.util import generate_local_path, add_orchestration_entry
+from odw.test.util.util import add_orchestration_entry
 from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
 from odw.test.util.session_util import PytestSparkSessionUtil
 import mock
@@ -55,23 +55,6 @@ class TestServiceBusHarmonisationProcess(ETLTestCase):
         ]
         for definition in new_definitions:
             add_orchestration_entry(definition)
-
-
-    def session_teardown(self):
-        super().session_teardown()
-        tables_to_delete = [
-            os.path.join("odw-standardised", "test_sb_hrm_pc_exst_data"),
-            os.path.join("odw_harmonised_db.db", "test_sb_hrm_pc_exst_data"),
-            os.path.join("odw-harmonised", "test_sb_hrm_pc_exst_data"),
-            os.path.join("odw-standardised", "test_sb_hrm_pc_chg_schema"),
-            os.path.join("odw_harmonised_db.db", "test_sb_hrm_pc_chg_schema"),
-            os.path.join("odw-harmonised", "test_sb_hrm_pc_chg_schema"),
-            os.path.join("odw-standardised", "test_sb_hrm_pc_no_data"),
-            os.path.join("odw_harmonised_db.db", "test_sb_hrm_pc_no_data"),
-            os.path.join("odw-harmonised", "test_sb_hrm_pc_no_data"),
-        ]
-        for table in tables_to_delete:
-            shutil.rmtree(generate_local_path(table), ignore_errors=True)
 
     def generate_standardised_table_schema(self, base_schema: T.StructType):
         # Note: delta tables do not support non-nullable columns

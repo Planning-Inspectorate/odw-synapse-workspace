@@ -1,7 +1,7 @@
 from odw.test.util.mock.import_mock_notebook_utils import notebookutils  # noqa: F401
 from odw.core.etl.transformation.standardised.horizon_standardisation_process import HorizonStandardisationProcess
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
-from odw.test.util.util import generate_local_path, add_orchestration_entry
+from odw.test.util.util import add_orchestration_entry
 from odw.test.util.session_util import PytestSparkSessionUtil
 import mock
 from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
@@ -65,17 +65,6 @@ class TestHorizonStandardisationProcess(ETLTestCase):
                 T.StructField("file_id", T.StringType(), True),
             ]
         )
-
-    def session_teardown(self):
-        super().session_teardown()
-        tables_to_delete = [
-            os.path.join("odw-raw", "test_hzn_std_pc_exst_data"),
-            os.path.join("odw-standardised", "Horizon", "test_hzn_std_pc_exst_data"),
-            os.path.join("odw-raw", "test_hzn_std_pc_no_exst_data"),
-            os.path.join("odw-standardised", "Horizon", "test_hzn_std_pc_no_exst_data"),
-        ]
-        for table in tables_to_delete:
-            shutil.rmtree(generate_local_path(table), ignore_errors=True)
 
     def compare_standardised_data(self, expected_df: DataFrame, actual_data: DataFrame):
         cols_to_ignore = ("ingested_datetime", "expected_from", "expected_to", "modified_datetime", "file_id")
