@@ -611,7 +611,7 @@
 										"type": "Expression"
 									},
 									"activityMessage": {
-										"value": "@concat(\n  'Orchestrator completed successfully.',\n  '\\n',\n  'Executed: ',\n  if(pipeline().parameters.runIngestSB, 'SB ingest', ''),\n  if(and(pipeline().parameters.runIngestSB, pipeline().parameters.runIngestHZ), ' + ', ''),\n  if(pipeline().parameters.runIngestHZ, 'HZ ingest', ''),\n  if(and(or(pipeline().parameters.runIngestSB, pipeline().parameters.runIngestHZ), pipeline().parameters.runTransformAndLoad), ' + ', ''),\n  if(pipeline().parameters.runTransformAndLoad, 'Transform&Load', ''),\n  if(and(or(or(pipeline().parameters.runIngestSB, pipeline().parameters.runIngestHZ), pipeline().parameters.runTransformAndLoad), pipeline().parameters.runCuratedToMiPINS), ' + ', ''),\n  if(pipeline().parameters.runCuratedToMiPINS, 'MiPINS copy', ''),\n  '\\n',\n  'Filters: SB=',\n  if(greater(length(variables('sbEntities')),0), join(variables('sbEntities'), ', '), '(none)'),\n  ' | HZ=',\n  if(greater(length(variables('hzEntities')),0), join(variables('hzEntities'), ', '), '(none)'),\n  ' | MiPINS=',\n  if(greater(length(pipeline().parameters.mipinsEntitiesFilter),0), join(pipeline().parameters.mipinsEntitiesFilter, ', '), '(none)'),\n  if(\n    pipeline().parameters.runTransformAndLoad,\n    concat(\n      '\\n',\n      'ETL stages: ',\n      if(greater(length(pipeline().parameters.transformStages),0), join(pipeline().parameters.transformStages, ', '), '(none)'),\n      ' (retries=', string(pipeline().parameters.transformRetryCount), ')'\n    ),\n    ''\n  ),\n  '\\n',\n  'Manifest: ',\n  variables('manifestPath')\n)\n",
+										"value": "@concat(\n  'Orchestrator completed successfully', '\\n\\n',\n\n  'Executed:', '\\n',\n  '- Service Bus ingest: ', if(pipeline().parameters.runIngestSB,'YES','NO'), '\\n',\n  '- Horizon ingest: ', if(pipeline().parameters.runIngestHZ,'YES','NO'), '\\n',\n  '- Transform & Load: ', if(pipeline().parameters.runTransformAndLoad,'YES','NO'), '\\n',\n  '- MiPINS copy: ', if(pipeline().parameters.runCuratedToMiPINS,'YES','NO'), '\\n\\n',\n\n  'Manifest:', '\\n',\n  variables('manifestPath')\n)\n",
 										"type": "Expression"
 									},
 									"activityDuration": "0H:00M:00s",
@@ -737,7 +737,7 @@
 										"type": "Expression"
 									},
 									"activityMessage": {
-										"value": "@concat(\n  'Orchestrator failed. Summary:',\n  if(greater(length(variables('sbFailedEntities')), 0),\n    concat('\\n- SB failures: ', join(variables('sbFailedEntities'), ', ')),\n    ''\n  ),\n  if(greater(length(variables('hzFailedEntities')), 0),\n    concat('\\n- HZ failures: ', join(variables('hzFailedEntities'), ', ')),\n    ''\n  ),\n  if(greater(length(variables('transformFailedEntities')), 0),\n    concat('\\n- ETL failures: ', join(variables('transformFailedEntities'), ', ')),\n    ''\n  ),\n  if(greater(length(variables('mipinsFailedEntities')), 0),\n    concat('\\n- MiPINS failures: ', join(variables('mipinsFailedEntities'), ', ')),\n    ''\n  ),\n  '\\n',\n  'Manifest: ', variables('manifestPath'),\n  '\\n',\n  'See entity manifests / App Insights logs for full error details.'\n)\n",
+										"value": "@concat(\n  'Orchestrator failed', '\\n',\n  '\\n',\n  'Failures detected', '\\n',\n  if(greater(length(variables('sbFailedEntities')), 0),\n    concat('• Service Bus failed: ', join(variables('sbFailedEntities'), ', '), '\\n'),\n    ''\n  ),\n  if(greater(length(variables('hzFailedEntities')), 0),\n    concat('• Horizon failed: ', join(variables('hzFailedEntities'), ', '), '\\n'),\n    ''\n  ),\n  if(greater(length(variables('transformFailedEntities')), 0),\n    concat('• Transform failed: ', join(variables('transformFailedEntities'), ', '), '\\n'),\n    ''\n  ),\n  if(greater(length(variables('mipinsFailedEntities')), 0),\n    concat('• MiPINS failed: ', join(variables('mipinsFailedEntities'), ', '), '\\n'),\n    ''\n  ),\n  '\\n',\n  'Manifest', '\\n',\n  '• ', variables('manifestPath')\n)\n",
 										"type": "Expression"
 									},
 									"activityDuration": "0H:00M:00s",
@@ -1263,7 +1263,7 @@
 										"type": "Expression"
 									},
 									"activityMessage": {
-										"value": "@concat(\n  'Transform & Load started. ',\n  'Stages=',\n  if(greater(length(pipeline().parameters.transformStages),0), join(pipeline().parameters.transformStages, ', '), '(none)'),\n  ' | Retries=',\n  string(pipeline().parameters.transformRetryCount)\n)\n",
+										"value": "@concat(\n  'Processing update', '\\n\\n',\n  'Stage: Transform & Load', '\\n',\n  'ETL stages: ',\n    if(\n      pipeline().parameters.runTransformAndLoad,\n      join(pipeline().parameters.transformStages, ' → '),\n      '(skipped)'\n    )\n)\n",
 										"type": "Expression"
 									},
 									"activityDuration": "0H:00M:00s",
@@ -1450,7 +1450,7 @@
 							"type": "Expression"
 						},
 						"activityMessage": {
-							"value": "@concat(\n  'Orchestrator started. ',\n  'Run options: ',\n  if(pipeline().parameters.runIngestSB, 'SB ingest=ON', 'SB ingest=OFF'),\n  ' | ',\n  if(pipeline().parameters.runIngestHZ, 'HZ ingest=ON', 'HZ ingest=OFF'),\n  ' | ',\n  if(pipeline().parameters.runTransformAndLoad, 'Transform&Load=ON', 'Transform&Load=OFF'),\n  ' | ',\n  if(pipeline().parameters.runCuratedToMiPINS, 'MiPINS copy=ON', 'MiPINS copy=OFF'),\n  '\\n',\n  'Filters: ',\n  'SB=',\n  if(greater(length(variables('sbEntities')),0), join(variables('sbEntities'), ', '), '(none)'),\n  ' | HZ=',\n  if(greater(length(variables('hzEntities')),0), join(variables('hzEntities'), ', '), '(none)'),\n  ' | MiPINS=',\n  if(greater(length(pipeline().parameters.mipinsEntitiesFilter),0), join(pipeline().parameters.mipinsEntitiesFilter, ', '), '(none)'),\n  if(\n    pipeline().parameters.runTransformAndLoad,\n    concat(\n      '\\n',\n      'ETL stages: ',\n      if(greater(length(pipeline().parameters.transformStages),0), join(pipeline().parameters.transformStages, ', '), '(none)'),\n      ' (retries=', string(pipeline().parameters.transformRetryCount), ')'\n    ),\n    ''\n  )\n)\n",
+							"value": "@concat(\n  'Orchestrator started', '\\n\\n',\n\n  'Run options:', '\\n',\n  '- Service Bus ingest: ', if(pipeline().parameters.runIngestSB,'ON','OFF'), '\\n',\n  '- Horizon ingest: ', if(pipeline().parameters.runIngestHZ,'ON','OFF'), '\\n',\n  '- Transform & Load: ', if(pipeline().parameters.runTransformAndLoad,'ON','OFF'), '\\n',\n  '- MiPINS copy: ', if(pipeline().parameters.runCuratedToMiPINS,'ON','OFF'), '\\n\\n',\n\n  'Filters:', '\\n',\n  '- Service Bus: ',\n    if(equals(length(variables('sbEntities')),0),'(none)', join(variables('sbEntities'), ', ')), '\\n',\n  '- Horizon: ',\n    if(equals(length(variables('hzEntities')),0),'(none)', join(variables('hzEntities'), ', ')), '\\n',\n  '- MiPINS: ',\n    if(equals(length(pipeline().parameters.mipinsEntitiesFilter),0),'(none)', join(pipeline().parameters.mipinsEntitiesFilter, ', '))\n)\n",
 							"type": "Expression"
 						},
 						"activityDuration": "0H:00M:00s",
