@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "52d59ece-568d-4527-9be1-ebc25fd8acde"
+				"spark.autotune.trackingId": "d5deccc6-0032-451d-aa44-92c8dba47a3e"
 			}
 		},
 		"metadata": {
@@ -97,14 +97,128 @@
 					"\n",
 					"display(case_notes)"
 				],
-				"execution_count": 7
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
 				"source": [
+					"akv_name = \"pinskvsynwodwdevuks\"\n",
+					"secret_name = \"mpesc-sql-password\"\n",
+					"sql_password = mssparkutils.credentials.getSecret(akv_name, secret_name)\n",
+					"\n",
+					"server = \"pins-sql-peas-primary-dev.database.windows.net\"\n",
+					"database = \"pins-sqldb-peas-dev\"\n",
+					"url = f\"jdbc:sqlserver://{server}:1433;database={database};encrypt=true;trustServerCertificate=false;hostNameInCertificate=*.database.windows.net;loginTimeout=30;\"\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 5
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"case_lookup = (\n",
+					"    spark.read.format(\"jdbc\")\n",
+					"    .option(\"url\", url)\n",
+					"    .option(\"query\", \"\"\"\n",
+					"        SELECT\n",
+					"            CAST(legacyCaseId AS varchar(50)) AS legacyCaseId,\n",
+					"            CAST(id AS varchar(36)) AS caseGuid\n",
+					"        FROM dbo.[Case]\n",
+					"        WHERE legacyCaseId IS NOT NULL\n",
+					"    \"\"\")\n",
+					"    .option(\"user\", \"peas_app_ZXzkE0vP\")\n",
+					"    .option(\"password\", sql_password)\n",
+					"    .load()\n",
+					"    .dropDuplicates([\"legacyCaseId\"])\n",
+					")\n",
+					""
+				],
+				"execution_count": 6
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"case_notes_mapped = (\n",
+					"    case_notes\n",
+					"    .withColumn(\"CaseId_str\", F.col(\"CaseId\").cast(\"string\"))\n",
+					"    .join(\n",
+					"        F.broadcast(case_lookup).withColumnRenamed(\"legacyCaseId\", \"CaseId_str\"),\n",
+					"        on=\"CaseId_str\",\n",
+					"        how=\"left\"\n",
+					"    )\n",
+					"    .drop(\"CaseId_str\")\n",
+					")\n",
+					""
+				],
+				"execution_count": 7
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"case_notes_mapped.select(\"Id\", \"CaseId\", \"caseGuid\").show(20, truncate=False)\n",
+					"display(case_notes_mapped)"
+				],
+				"execution_count": 8
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"case_notes_mapped = case_notes_mapped.withColumn(\"noteSource\", F.lit(\"legacyNote\"))"
+				],
+				"execution_count": 10
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"\n",
+					"case_ids = [\n",
+					"    \"15889032\",\n",
+					"    \"16681521\",\n",
+					"    \"17301742\",\n",
+					"    \"17333294\",\n",
+					"    \"17504850\"\n",
+					"]\n",
+					"\n",
+					"case_notes_filtered = case_notes_mapped.filter(F.col(\"CaseId\").isin(case_ids))\n",
+					"\n",
+					"display(case_notes_filtered)\n",
+					"print(\"rows after filter:\", case_notes_filtered.count())"
+				],
+				"execution_count": 11
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"OUTPUT_PATH = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/TRANSFORMED/Horizon_CaseNotes\"\n",
+					"(\n",
+					"    case_notes_mapped\n",
+					"    .coalesce(1)  # optional: 1 file instead of many\n",
+					"    .write\n",
+					"    .mode(\"overwrite\")\n",
+					"    .option(\"header\", \"true\")\n",
+					"    .csv(OUTPUT_PATH)\n",
+					")"
+				],
+				"execution_count": 12
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"display(\n",
+					"    spark.read.option(\"header\", \"true\").csv(OUTPUT_PATH)\n",
+					")\n",
+					""
+				],
+				"execution_count": 13
 			}
 		]
 	}
