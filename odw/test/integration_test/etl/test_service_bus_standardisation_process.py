@@ -13,8 +13,6 @@ import mock
 from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
 import json
 import pytest
-import shutil
-import os
 from pathlib import Path
 
 
@@ -30,12 +28,6 @@ class TestServiceBusStandardisationProcess(ETLTestCase):
                                 with mock.patch.object(LoggingUtil, "log_info", return_value=None):
                                     with mock.patch.object(LoggingUtil, "log_error", return_value=None):
                                         yield
-
-    def session_teardown(self):
-        super().session_teardown()
-        tables_to_delete = [os.path.join("odw-standardised", "test__service_bus_standardisation_process__run")]
-        for table in tables_to_delete:
-            shutil.rmtree(generate_local_path(table), ignore_errors=True)
 
     def test__service_bus_standardisation_process__run__with_existing_data(self):
         """
