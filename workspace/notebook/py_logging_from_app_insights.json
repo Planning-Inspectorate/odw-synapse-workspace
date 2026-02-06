@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "85ced6fa-6bdd-4bc4-85e5-a6141ee12d1e"
+				"spark.autotune.trackingId": "77427223-7c16-40ac-be51-0cc46bb1e5fa"
 			}
 		},
 		"metadata": {
@@ -73,6 +73,7 @@
 					"import json\n",
 					"import re\n",
 					"from datetime import datetime\n",
+					"from pyspark.sql.functions import col, substring\n",
 					"from pyspark.sql.types import StructType, StructField, StringType, TimestampType, IntegerType"
 				],
 				"execution_count": null
@@ -91,21 +92,37 @@
 				]
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Extract Appinsights logs into a dataframe incrementally\n",
+					"###### Keyvault lookup for app_id, client_id - no expiry set - if for any reason client_id changes, it needs to be update in the keyvault \n",
+					"###### Access token generated for API call to AppInsights"
+				]
+			},
+			{
 				"cell_type": "code",
 				"source": [
 					"\n",
 					"# credentials\n",
 					"tenant_id = \"5878df98-6f88-48ab-9322-998ce557088d\"         \n",
-					"client_id = \"2a302373-df67-4c1e-91a1-f6301b87f42b\"         \n",
-					"app_id = \"2e64e70e-4202-411d-9db9-0d4fa7af8278\"    \n",
-					"client_secret= mssparkutils.credentials.getSecretWithLS(\"ls_kv\", \"application-insights-dev-reader\")\n",
+					"client_id = mssparkutils.credentials.getSecretWithLS(\"ls_kv\", \"application-insights-clientid\")        \n",
+					"app_id = mssparkutils.credentials.getSecretWithLS(\"ls_kv\", \"application-insights-appid\")   \n",
+					"client_secret= mssparkutils.credentials.getSecretWithLS(\"ls_kv\", \"application-insights-reader\")\n",
 					"\n",
 					"\n",
 					"# Get the last Max data from the table and log incremental based on this watermark\n",
 					"\n",
 					"try:\n",
 					"    last_checkpoint =  spark.sql('select MAX(timestamp) from logging.pipeline_logs_odw').collect()[0][0]\n",
-					"\n",
+					"    if last_checkpoint is None:\n",
+					"        last_checkpoint = \"1900-01-01T13:42:28.121734Z\"\n",
 					"except:\n",
 					"    # For a full load\n",
 					"    last_checkpoint = \"1900-01-01T13:42:28.121734Z\"\n",
@@ -178,6 +195,19 @@
 				"execution_count": null
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Storage account full path"
+				]
+			},
+			{
 				"cell_type": "code",
 				"source": [
 					"source_storage_account_path = re.search('url=https://(.+?);', mssparkutils.credentials.getFullConnectionString('ls_backup_source')).group(1)\n",
@@ -185,6 +215,39 @@
 					"full_storage_path    = f'abfss://logging@{source_storage_account_path}logging/pipeline_logs_odw'"
 				],
 				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Minimise the ErrorMessage to 5000 characters"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"df = df.withColumn(\"ErrorMessage\", substring(col(\"ErrorMessage\"),1, 5000))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Write the dataframe to pipeline_logs_odw"
+				]
 			},
 			{
 				"cell_type": "code",
