@@ -1,12 +1,14 @@
 from odw.core.io.synapse_file_data_io import SynapseFileDataIO
 from odw.test.util.assertion import assert_dataframes_equal
-from pyspark.sql import DataFrame, SparkSession
+from odw.test.util.session_util import PytestSparkSessionUtil
+from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType, StructField, IntegerType, StringType
 import pytest
 import mock
 
 
-def test__synapse_file_data_io__read__successful(spark_sesson: SparkSession, tmpdir):
+def test__synapse_file_data_io__read__successful(tmpdir):
+    spark_sesson = PytestSparkSessionUtil().get_spark_session()
     mock_dataframe: DataFrame = spark_sesson.createDataFrame(
         [
             (1, "a"),
@@ -62,7 +64,8 @@ def test__synapse_file_data_io__read__with_missing_arguments(argument_to_drop: s
             data_io_inst.read(**all_arguments_cleaned)
 
 
-def test__synapse_file_data_io__write__successful(spark_sesson, tmpdir):
+def test__synapse_file_data_io__write__successful(tmpdir):
+    spark_sesson = PytestSparkSessionUtil().get_spark_session()
     mock_dataframe: DataFrame = spark_sesson.createDataFrame(
         [
             (1, "a"),
@@ -105,7 +108,8 @@ def test__synapse_file_data_io__write__successful(spark_sesson, tmpdir):
         "write_mode"
     ]
 )
-def test__synapse_file_data_io__write__with_missing_arguments(spark_sesson: SparkSession, argument_to_drop: str):
+def test__synapse_file_data_io__write__with_missing_arguments(argument_to_drop: str):
+    spark_sesson = PytestSparkSessionUtil().get_spark_session()
     mock_dataframe: DataFrame = spark_sesson.createDataFrame(
         [],
         StructType([StructField("id", IntegerType(), True),])
