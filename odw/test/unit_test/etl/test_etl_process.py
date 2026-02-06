@@ -1,11 +1,22 @@
 from odw.test.util.mock.import_mock_notebook_utils import notebookutils
 from odw.core.etl.etl_process import ETLProcess
 from odw.core.etl.etl_result import ETLSuccessResult, ETLFailResult, ETLResult
+from odw.core.util.logging_util import LoggingUtil
 from datetime import datetime
 from pyspark.sql import DataFrame
 from typing import Dict, Tuple
+import pytest
 import mock
 import json
+
+
+@pytest.fixture(scope="function", autouse=True)
+def mock_logging_util():
+    with mock.patch.object(LoggingUtil, "__new__"):
+        with mock.patch.object(LoggingUtil, "log_info", return_value=None):
+            with mock.patch.object(LoggingUtil, "log_exception", return_value=None):
+                with mock.patch.object(LoggingUtil, "log_error", return_value=None):
+                    yield
 
 
 class ETLProcessImpl(ETLProcess):
@@ -82,8 +93,9 @@ def test__etl_process__run__successful():
         with mock.patch.object(ETLProcessImpl, "load_data", return_value=dict()):
             with mock.patch.object(ETLProcessImpl, "process", return_value=(dict(), mock_result)):
                 with mock.patch.object(ETLProcessImpl, "write_data"):
-                    actual_result = ETLProcessImpl().run(a=None)
-                    assert mock_result == actual_result
+                    with mock.patch.object(ETLProcessImpl, "_log_data_to_write"):
+                        actual_result = ETLProcessImpl().run(a=None)
+                        assert mock_result == actual_result
 
 
 def test__etl_process__run__read_exception():
@@ -98,8 +110,9 @@ def test__etl_process__run__read_exception():
         with mock.patch.object(ETLProcessImpl, "load_data", side_effect=Exception("Some read exception")):
             with mock.patch.object(ETLProcessImpl, "process", return_value=(dict(), mock_result)):
                 with mock.patch.object(ETLProcessImpl, "write_data"):
-                    actual_result = ETLProcessImpl().run(a=None)
-                    compare_etl_results(expected_result, actual_result)
+                    with mock.patch.object(ETLProcessImpl, "_log_data_to_write", return_value=None):
+                        actual_result = ETLProcessImpl().run(a=None)
+                        compare_etl_results(expected_result, actual_result)
 
 
 def test__etl_process__run__transformation_exception():
@@ -144,5 +157,6 @@ def test__etl_process__run__write_exception():
         with mock.patch.object(ETLProcessImpl, "load_data", return_value=dict()):
             with mock.patch.object(ETLProcessImpl, "process", return_value=({"table_a": None, "table_b": None}, mock_result)):
                 with mock.patch.object(ETLProcessImpl, "write_data", side_effect=Exception("Some write exception")):
-                    actual_result = ETLProcessImpl().run(a=None)
-                    compare_etl_results(expected_result, actual_result)
+                    with mock.patch.object(ETLProcessImpl, "_log_data_to_write", return_value=None):
+                        actual_result = ETLProcessImpl().run(a=None)
+                        compare_etl_results(expected_result, actual_result)

@@ -2,6 +2,7 @@ from odw.test.util.mock.import_mock_notebook_utils import notebookutils
 from odw.core.etl.transformation.standardised.standardisation_process import StandardisationProcess
 from odw.core.util.util import Util
 from odw.test.util.util import generate_local_path
+from odw.test.util.session_util import PytestSparkSessionUtil
 from pyspark.sql import SparkSession
 from datetime import datetime, timedelta
 import pyspark.sql.functions as F
@@ -10,6 +11,7 @@ import mock
 from odw.test.util.assertion import assert_dataframes_equal
 import json
 from copy import deepcopy
+import os
 
 
 def test_standardise():
@@ -196,11 +198,13 @@ def test_process__with():
         return_value =  standardise_side_effects[side_effect_index]
         side_effect_index += 1
         return return_value
-    
+    table_definitions_content = json.load(
+        open(generate_local_path(os.path.join("odw-config", "standardised_table_definitions", "test_standardisation_process.json")))
+    )
     expected_calls = [
         (
             standardise_side_effects[0],
-            json.load(open(generate_local_path(f"odw-config/standardised_table_definitions/test_standardisation_process.json"))),
+            table_definitions_content,
             datetime.strptime("2025-01-01", "%Y-%m-%d") - timedelta(days=1),
             datetime.strptime("2025-01-01", "%Y-%m-%d"),
             "py_raw_to_std",
@@ -208,7 +212,7 @@ def test_process__with():
         ),
         (
             standardise_side_effects[1],
-            json.load(open(generate_local_path(f"odw-config/standardised_table_definitions/test_standardisation_process.json"))),
+            table_definitions_content,
             datetime.strptime("2025-01-01", "%Y-%m-%d") - timedelta(days=1),
             datetime.strptime("2025-01-01", "%Y-%m-%d"),
             "py_raw_to_std",

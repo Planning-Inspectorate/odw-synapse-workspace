@@ -1,12 +1,14 @@
 from odw.core.io.synapse_table_data_io import SynapseTableDataIO
 from odw.test.util.assertion import assert_dataframes_equal
+from odw.test.util.session_util import PytestSparkSessionUtil
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.types import StructType, StructField, IntegerType, StringType
 import pytest
 import mock
 
 
-def test__synapse_table_data_io__read__successful(spark_sesson: SparkSession, tmpdir):
+def test__synapse_table_data_io__read__successful(tmpdir):
+    spark_sesson = PytestSparkSessionUtil().get_spark_session()
     test_name = test__synapse_table_data_io__read__successful.__name__
     mock_dataframe: DataFrame = spark_sesson.createDataFrame(
         [
@@ -64,7 +66,8 @@ def test__synapse_table_data_io__read__with_missing_arguments(argument_to_drop: 
             data_io_inst.read(**all_arguments_cleaned)
 
 
-def test__synapse_table_data_io__write__successful(spark_sesson, tmpdir):
+def test__synapse_table_data_io__write__successful(tmpdir):
+    spark_sesson = PytestSparkSessionUtil().get_spark_session()
     test_name = test__synapse_table_data_io__write__successful.__name__
     mock_dataframe: DataFrame = spark_sesson.createDataFrame(
         [
@@ -116,7 +119,8 @@ def test__synapse_table_data_io__write__successful(spark_sesson, tmpdir):
         "write_mode"
     ]
 )
-def test__synapse_table_data_io__write__with_missing_arguments(spark_sesson: SparkSession, argument_to_drop: str):
+def test__synapse_table_data_io__write__with_missing_arguments(argument_to_drop: str):
+    spark_sesson = PytestSparkSessionUtil().get_spark_session()
     test_name = test__synapse_table_data_io__write__successful.__name__
     mock_dataframe: DataFrame = spark_sesson.createDataFrame(
         [],
@@ -129,7 +133,8 @@ def test__synapse_table_data_io__write__with_missing_arguments(spark_sesson: Spa
         "container_name": "somecontainer",
         "blob_path": "some/path",
         "file_format": "someformat",
-        "write_mode": "somewritemode"
+        "write_mode": "somewritemode",
+        "spark": spark_sesson
     }
     all_arguments_cleaned = {k: v for k, v in all_arguments.items() if k != argument_to_drop}
     with mock.patch.object(SynapseTableDataIO, "__init__", return_value=None):

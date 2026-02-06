@@ -40,10 +40,21 @@ class PytestSparkSessionUtil(metaclass=Singleton):
         return self._SPARK_SESSION
     
     def _initialise_file_system(self, spark_session: SparkSession):
+        self._copy_test_resources_to_warehouse()
         for database in self.DATABASE_NAMES:
             spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {database}")
         self._create_empty_orchestration_file()
         self._create_main_source_system_fact_table(spark_session)
+    
+    def _copy_test_resources_to_warehouse(self):
+        items_to_copy = [entry for entry in os.listdir(os.path.join("odw", "test", "resources", "datalake"))]
+        for item in items_to_copy:
+            existing_path = os.path.join("odw", "test", "resources", "datalake", item)
+            target_path = os.path.join(self.get_spark_warehouse_name(), item)
+            if os.path.isdir(existing_path):
+                shutil.copytree(existing_path, target_path)
+            else:
+                shutil.copyfile(existing_path, target_path)
 
     def teardown_all_file_systems(self):
         file_systems = [entry for entry in os.listdir(".") if entry.startswith("spark-warehouse") and os.path.isdir(entry)]
