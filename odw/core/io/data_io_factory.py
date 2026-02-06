@@ -3,7 +3,6 @@ from odw.core.exceptions import DuplicateDataIONameException, DataIONameNotFound
 from odw.core.io.data_io import DataIO
 from odw.core.io.synapse_file_data_io import SynapseFileDataIO
 from odw.core.io.synapse_table_data_io import SynapseTableDataIO
-#from odw.core.io.azure_blob_data_io import AzureBlobDataIO
 from odw.core.io.synapse_delta_io import SynapseDeltaIO
 from odw.core.io.synapse_legacy_delta_io import SynapseLegacyDeltaIO
 from typing import Set, List, Dict, Type
@@ -14,7 +13,6 @@ class DataIOFactory():
     DATA_IO_CLASSES: Set[Type[DataIO]] = {
         SynapseFileDataIO,
         SynapseTableDataIO,
-        #AzureBlobDataIO,
         SynapseDeltaIO,
         SynapseLegacyDeltaIO
     }
