@@ -95,7 +95,7 @@ classDiagram
     
     namespace Standardised {
 
-        class sb_appeal_has {
+        class sb_appeal_has_std {
             caseId: bigint
         }
 
@@ -106,7 +106,7 @@ classDiagram
 
     namespace Harmonised {
 
-        class sb_appeal_has {
+        class sb_appeal_has_hrm {
             caseId: bigint
         }
 
@@ -114,7 +114,7 @@ classDiagram
             AppealsHasID: bigint
         }
 
-        class appeal_has {
+        class appeal_has_hrm {
             caseRef: varchar
         }
 
@@ -122,7 +122,7 @@ classDiagram
 
     namespace Curated {
 
-        class appeals_has {
+        class appeals_has_final {
             caseId: long
         }
 
@@ -150,8 +150,8 @@ classDiagram
 `VW_BIS_Inspector_Cases` --> `horizon_appeal_has`
 `sb_appeal_has` --> `appeal_has_stg`
 `horizon_appeal_has` --> `appeal_has_stg`
-`appeal_has_stg` --> `appeal_has`
-`appeal_has` --> `appeals_has`
+`appeal_has_stg` --> `appeal_has_hrm`
+`appeal_has_hrm` --> `appeals_has_final`
 
 
 ```
