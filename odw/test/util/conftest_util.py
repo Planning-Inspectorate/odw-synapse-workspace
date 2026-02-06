@@ -1,7 +1,6 @@
 from odw.test.util.test_case import TestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 from filelock import FileLock
-from uuid import uuid4
 from typing import List, Type
 import time
 import os
@@ -12,9 +11,15 @@ import inspect
 import importlib
 
 
-_CONFIGURED = False
+"""
+This module defines functions that should be used by `conftest.py` files
+"""
+
 
 def configure_session():
+    """
+    This is run at the start of every pytest session. It will be called by each worker thread
+    """
     PytestSparkSessionUtil()
     import_all_testing_modules()
 
@@ -84,8 +89,10 @@ def process_arguments(session) -> List[Type[TestCase]]:
 
 
 def _session_setup_task(session):
+    """
+    Initialise the main thread. This sets up reusable items that must be used across all workers
+    """
     logging.info("Setting up pytest session for tests")
-    # Test-specific resources
     for test_case in process_arguments(session):
         logging.info("    Running setup for " + test_case.__module__)
         test_case().session_setup()
@@ -93,6 +100,9 @@ def _session_setup_task(session):
 
 @pytest.fixture(scope="session", autouse=True)
 def session_setup(tmp_path_factory, worker_id, request):
+    """
+    Initialise the main and worker threads. This ensures `_session_setup_task` is called only by the main thread
+    """
     # Code based on example from docs at
     # https://pytest-xdist.readthedocs.io/en/latest/how-to.html#making-session-scoped-fixtures-execute-only-once
     if worker_id == "master":
@@ -117,6 +127,9 @@ def session_setup(tmp_path_factory, worker_id, request):
 
 
 def _session_teardown_task(session):
+    """
+    Teardown the main thread. This will be called as the last thing that happens in the test
+    """
     logging.info("Tearing down pytest session for tests")
     for test_case in process_arguments(session):
         logging.info("    Running teardown for " + test_case.__module__)
@@ -149,6 +162,9 @@ def _session_teardown_task(session):
 
 @pytest.fixture(scope="session", autouse=True)
 def session_teardown(tmp_path_factory, worker_id, request):
+    """
+    Teardown the main and worker threads. This ensures `_session_teardown_task` is called only by the main thread
+    """
     # Code based on example from docs at
     # https://pytest-xdist.readthedocs.io/en/latest/how-to.html#making-session-scoped-fixtures-execute-only-once
     yield

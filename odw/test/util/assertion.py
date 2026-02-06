@@ -3,6 +3,10 @@ from pyspark.sql import DataFrame
 import json
 
 
+"""
+This module contains various assertions that are useful for testing
+"""
+
 def assert_dataframes_equal(expected: DataFrame, actual: DataFrame):
     """
     Check that the two dataframes match. Raises an assertion error if there is a mismatch
