@@ -32,7 +32,7 @@ DESCRIPTION_SCHEMA = StructType(
 
 
 def get_sample_table_dataframe(table_details: List[Dict[str, str]], table_kind: str):
-    spark = SparkSession.builder.getOrCreate()
+    spark = PytestSparkSessionUtil().get_spark_session()
     datetime_format = "%Y-%m-%d %H:%M:%S.%f"
     return spark.createDataFrame(
         [
