@@ -1,20 +1,14 @@
 from odw.test.util.mock.import_mock_notebook_utils import notebookutils
 from odw.core.etl.transformation.standardised.service_bus_standardisation_process import ServiceBusStandardisationProcess
 from odw.core.util.logging_util import LoggingUtil
-from odw.core.util.util import Util
-from odw.test.util.util import generate_local_path
-from pyspark.sql import SparkSession
-from datetime import datetime, timedelta
-import pyspark.sql.functions as F
-import pyspark.sql.types as T
+from odw.test.util.session_util import PytestSparkSessionUtil
+from datetime import datetime
 import mock
 from odw.test.util.assertion import assert_dataframes_equal
-import json
-from copy import deepcopy
 
 
 def test__service_bus_standardisation_process__get_max_file_date():
-    spark = SparkSession.builder.getOrCreate()
+    spark = PytestSparkSessionUtil().get_spark_session()
     df = spark.createDataFrame(
         [
             (1, "2025-01-01T00:00:00.000000+0000"),
@@ -32,7 +26,7 @@ def test__service_bus_standardisation_process__get_max_file_date():
 
 
 def test__service_bus_standardisation_process__get_missing_files():
-    spark = SparkSession.builder.getOrCreate()
+    spark = PytestSparkSessionUtil().get_spark_session()
     df = spark.createDataFrame(
         [
             (1, "abfss://odw-raw@mystorageaccount.dfs.core.windows.net/ServiceBus/appeal-has/myfile1.parquet"),
@@ -63,7 +57,7 @@ def test__service_bus_standardisation_process__get_missing_files():
 
 
 def test__service_bus_standardisation_process__extract_and_filter_paths():
-    spark = SparkSession.builder.getOrCreate()
+    spark = PytestSparkSessionUtil().get_spark_session()
     files = [
         "abfss://odw-raw@mystorageaccount.dfs.core.windows.net/ServiceBus/appeal-has/myfile2025-01-01T00:00:00.000000+0000.parquet",
         "abfss://odw-raw@mystorageaccount.dfs.core.windows.net/ServiceBus/appeal-has/myfile1999-01-02T12:00:00.000000+0000.parquet",
@@ -87,7 +81,7 @@ def test__service_bus_standardisation_process__read_raw_messages():
 
 
 def test__service_bus_standardisation_process__remove_data_duplicates():
-    spark = SparkSession.builder.getOrCreate()
+    spark = PytestSparkSessionUtil().get_spark_session()
     df = spark.createDataFrame(
         [
             (1, "2025-01-01T00:00:00.000000+0000", 1, 2, 3),
@@ -118,7 +112,7 @@ def test__service_bus_standardisation_process__remove_data_duplicates():
 
 
 def test__service_bus_standardisation_process__process():
-    spark = SparkSession.builder.getOrCreate()
+    spark = PytestSparkSessionUtil().get_spark_session()
 
     df = spark.createDataFrame(
         [(1, "a", 11, 11, [1, 2]), (2, "b", 22, 22, [3, 4]), (3, "c", 33, 33, [5, 6]), (4, "d", 44, 44, [7, 8]), (5, "e", 55, 55, [9])],

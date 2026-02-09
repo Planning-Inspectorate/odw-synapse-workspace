@@ -1,14 +1,9 @@
-import pytest
 from odw.core.anonymisation import AnonymisationEngine, default_strategies
-
-try:
-    from pyspark.sql import SparkSession
-except ModuleNotFoundError:
-    pytest.skip("PySpark not installed; skipping anonymisation engine tests", allow_module_level=True)
+from odw.test.util.session_util import PytestSparkSessionUtil
 
 
 def test_engine_applies_email_and_name_masking():
-    spark = SparkSession.builder.master("local[1]").appName("anon-test").getOrCreate()
+    spark = PytestSparkSessionUtil().get_spark_session()
     try:
         data = [
             {"EmployeeID": "12345", "full_name": "John Doe", "email": "john.doe@example.com"},
@@ -38,7 +33,7 @@ def test_engine_logs_apply_summary_caplog(caplog):
     # Capture fallback logging from the anonymisation engine (LoggingUtil may be unavailable locally)
     caplog.set_level("INFO", logger="odw.core.anonymisation.engine")
 
-    spark = SparkSession.builder.master("local[1]").appName("anon-test-logs").getOrCreate()
+    spark = PytestSparkSessionUtil().get_spark_session()
     try:
         data = [
             {"EmployeeID": "12345", "full_name": "John Doe", "email": "john.doe@example.com"},

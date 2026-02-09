@@ -1,17 +1,12 @@
-import pytest
 import mock
 import re
 from datetime import date
 from odw.core.anonymisation import AnonymisationEngine
-
-try:
-    from pyspark.sql import SparkSession
-except ModuleNotFoundError:
-    pytest.skip("PySpark not installed; skipping anonymisation Purview tests", allow_module_level=True)
+from odw.test.util.session_util import PytestSparkSessionUtil
 
 
 def test_engine_apply_from_purview_with_mocked_fetch():
-    spark = SparkSession.builder.master("local[1]").appName("anon-purview-test").getOrCreate()
+    spark = PytestSparkSessionUtil().get_spark_session()
     try:
         # Test data
         data = [

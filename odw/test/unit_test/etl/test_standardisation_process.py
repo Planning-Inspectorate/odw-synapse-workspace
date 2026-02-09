@@ -3,7 +3,6 @@ from odw.core.etl.transformation.standardised.standardisation_process import Sta
 from odw.core.util.util import Util
 from odw.test.util.util import generate_local_path
 from odw.test.util.session_util import PytestSparkSessionUtil
-from pyspark.sql import SparkSession
 from datetime import datetime, timedelta
 import pyspark.sql.functions as F
 import pyspark.sql.types as T
@@ -25,7 +24,7 @@ def test_standardise():
         - Have array columns converted to strings
         - Have ODW auditing columns added
     """
-    spark = SparkSession.builder.getOrCreate()
+    spark = PytestSparkSessionUtil().get_spark_session()
 
     df = spark.createDataFrame(
         [
@@ -110,7 +109,7 @@ def test_standardise():
 
 
 def test_process__with():
-    spark = SparkSession.builder.getOrCreate()
+    spark = PytestSparkSessionUtil().get_spark_session()
 
     orchestration_file = {
         "definitions": [
