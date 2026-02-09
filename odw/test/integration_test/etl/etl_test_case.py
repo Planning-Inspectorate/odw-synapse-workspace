@@ -34,6 +34,13 @@ class ETLTestCase(TestCase):
                                     with mock.patch.object(LoggingUtil, "log_error", return_value=None):
                                         yield
 
+    @pytest.fixture(scope="function", autouse=True)
+    def teardown(self, request):
+        yield
+        # Clear the spark cache to free up some memory
+        spark = PytestSparkSessionUtil().get_spark_session()
+        spark.catalog.clearCache()
+
     def write_csv(self, csv_data: List[List[Any]], path: List[str]):
         directories = path[:-1]
         warehouse_name = PytestSparkSessionUtil().get_spark_warehouse_name()
