@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "a22f88fe-f7a8-4a75-af28-70c993bd6008"
+				"spark.autotune.trackingId": "6a9ee9c4-bc6d-44aa-b2bd-f3ef758a1397"
 			}
 		},
 		"metadata": {
@@ -181,25 +181,8 @@
 					"                        \"\"\")\n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error in source Service Bus SQL query {service_bus_table}: {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"service_bus_data.printSchema()"
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},
@@ -207,9 +190,9 @@
 				"cell_type": "code",
 				"source": [
 					"if not error_message:\n",
-					"        try:\n",
+					"    try:\n",
 					"        # Get data out of Horizon and matching the SB schema (with additional fields and ensure data types match)\n",
-					"                horizon_data = spark.sql(f\"\"\"\n",
+					"        horizon_data = spark.sql(f\"\"\"\n",
 					"                                SELECT DISTINCT \n",
 					"                                        CAST(NULL AS LONG) as AppealsEventId\n",
 					"                                        ,CONCAT(casenumber, '-',eventId) AS eventId\n",
@@ -236,27 +219,11 @@
 					"                                        ,'Y' as IsActive\n",
 					"                                FROM {horizon_table} AS Horizon\n",
 					"                                WHERE ingested_datetime = (SELECT MAX(ingested_datetime) FROM {horizon_table}) \"\"\")\n",
-					"        except Exception as e:\n",
-					"                error_message = f\"Error in source Horizon SQL query {horizon_table}: {str(e)[:800]}\"\n",
-					"                end_exec_time = datetime.now()"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"horizon_data.printSchema()"
+					"    except Exception as e:\n",
+					"        error_message = f\"Error in source Horizon SQL query {horizon_table}: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)\n",
+					""
 				],
 				"execution_count": null
 			},
@@ -275,7 +242,15 @@
 				},
 				"source": [
 					"#sort columns into same order as service bus\n",
-					"horizon_data = horizon_data.select(service_bus_data.columns)"
+					"if not error_message:\n",
+					"    try:\n",
+					"        horizon_data = horizon_data.select(service_bus_data.columns)\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error while aligning Horizon schema to Service Bus columns: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)\n",
+					""
 				],
 				"execution_count": null
 			},
@@ -293,7 +268,14 @@
 					}
 				},
 				"source": [
-					"results = service_bus_data.union(horizon_data)"
+					"if not error_message:\n",
+					"    try:\n",
+					"        results = service_bus_data.union(horizon_data)\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error while merging Service Bus and Horizon datasets using union: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},
@@ -329,7 +311,8 @@
 					"        results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error in ingesting delta table {spark_table_final}: {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()"
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},
@@ -362,24 +345,31 @@
 					"collapsed": false
 				},
 				"source": [
-					"spark.sql(f\"\"\"\n",
-					"    CREATE OR REPLACE TEMPORARY VIEW vw_appeal_event_calculations_base AS\n",
-					"    SELECT  \n",
-					"        row_number() OVER(PARTITION BY {primary_key} ORDER BY IngestionDate DESC) AS ReverseOrderProcessed\n",
-					"        ,row_number() OVER(ORDER BY IngestionDate asc, {primary_key} asc) AS AppealsEventId\n",
-					"        ,{primary_key}\n",
-					"        ,IngestionDate\n",
-					"        ,ValidTo\n",
-					"        ,'0' AS Migrated\n",
-					"        ,CASE row_number() OVER(PARTITION BY {primary_key} ORDER BY IngestionDate DESC)\n",
-					"            WHEN 1 THEN\n",
-					"                'Y'\n",
-					"            ELSE\n",
-					"                'N'\n",
-					"            END AS IsActive                \n",
-					"    FROM\n",
-					"    {spark_table_final}\n",
-					"        \"\"\")"
+					"if not error_message:\n",
+					"    try:\n",
+					"        spark.sql(f\"\"\"\n",
+					"            CREATE OR REPLACE TEMPORARY VIEW vw_appeal_event_calculations_base AS\n",
+					"            SELECT  \n",
+					"                row_number() OVER(PARTITION BY {primary_key} ORDER BY IngestionDate DESC) AS ReverseOrderProcessed\n",
+					"                ,row_number() OVER(ORDER BY IngestionDate asc, {primary_key} asc) AS AppealsEventId\n",
+					"                ,{primary_key}\n",
+					"                ,IngestionDate\n",
+					"                ,ValidTo\n",
+					"                ,'0' AS Migrated\n",
+					"                ,CASE row_number() OVER(PARTITION BY {primary_key} ORDER BY IngestionDate DESC)\n",
+					"                    WHEN 1 THEN\n",
+					"                        'Y'\n",
+					"                    ELSE\n",
+					"                        'N'\n",
+					"                END AS IsActive                \n",
+					"            FROM\n",
+					"            {spark_table_final}\n",
+					"        \"\"\")\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error while creating view vw_appeal_event_calculations_base from {spark_table_final}: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},
@@ -397,28 +387,35 @@
 					}
 				},
 				"source": [
-					"df_calcs = spark.sql(f\"\"\"\n",
-					"                        SELECT\n",
-					"                            CurrentRow.AppealsEventId \n",
-					"                            ,CurrentRow.{primary_key}  \n",
-					"                            ,CurrentRow.IngestionDate\n",
-					"                            ,NextRow.IngestionDate AS ValidTo \n",
-					"                            ,CASE\n",
-					"                                WHEN raw.{primary_key}  IS NOT NULL THEN \n",
-					"                                    \"1\"\n",
-					"                                ELSE \n",
-					"                                    \"0\"\n",
-					"                            END AS Migrated\n",
-					"                            ,CurrentRow.IsActive\n",
-					"                        FROM\n",
-					"                            vw_appeal_event_calculations_base AS CurrentRow\n",
-					"                            LEFT OUTER JOIN vw_appeal_event_calculations_base AS NextRow\n",
-					"                                ON CurrentRow.{primary_key}  = NextRow.{primary_key} \n",
-					"                                AND CurrentRow.ReverseOrderProcessed - 1 = NextRow.ReverseOrderProcessed\n",
-					"                            LEFT OUTER JOIN (SELECT DISTINCT eventId FROM  odw_harmonised_db.sb_appeal_event) AS Raw\n",
-					"                                ON CurrentRow.{primary_key}  = Raw.{primary_key}  \n",
-					"                            ORDER BY currentRow.ReverseOrderProcessed\n",
-					"                    \"\"\")"
+					"if not error_message:\n",
+					"    try:\n",
+					"        df_calcs = spark.sql(f\"\"\"\n",
+					"                                SELECT\n",
+					"                                    CurrentRow.AppealsEventId \n",
+					"                                    ,CurrentRow.{primary_key}  \n",
+					"                                    ,CurrentRow.IngestionDate\n",
+					"                                    ,NextRow.IngestionDate AS ValidTo \n",
+					"                                    ,CASE\n",
+					"                                        WHEN Raw.{primary_key}  IS NOT NULL THEN \n",
+					"                                            \"1\"\n",
+					"                                        ELSE \n",
+					"                                            \"0\"\n",
+					"                                    END AS Migrated\n",
+					"                                    ,CurrentRow.IsActive\n",
+					"                                FROM\n",
+					"                                    vw_appeal_event_calculations_base AS CurrentRow\n",
+					"                                    LEFT OUTER JOIN vw_appeal_event_calculations_base AS NextRow\n",
+					"                                        ON CurrentRow.{primary_key}  = NextRow.{primary_key} \n",
+					"                                        AND CurrentRow.ReverseOrderProcessed - 1 = NextRow.ReverseOrderProcessed\n",
+					"                                    LEFT OUTER JOIN (SELECT DISTINCT eventId FROM  odw_harmonised_db.sb_appeal_event) AS Raw\n",
+					"                                        ON CurrentRow.{primary_key}  = Raw.{primary_key}  \n",
+					"                                    ORDER BY CurrentRow.ReverseOrderProcessed\n",
+					"                            \"\"\")\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error while calculating appeal event ValidTo and Migrated flags from vw_appeal_event_calculations_base: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},
@@ -436,7 +433,14 @@
 					}
 				},
 				"source": [
-					"df_calcs = df_calcs.withColumnRenamed(primary_key, f\"temp_{primary_key}\").withColumnRenamed(\"IngestionDate\", \"temp_IngestionDate\")"
+					"if not error_message:\n",
+					"    try:\n",
+					"        df_calcs = df_calcs.withColumnRenamed(primary_key, f\"temp_{primary_key}\").withColumnRenamed(\"IngestionDate\", \"temp_IngestionDate\")\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error while renaming columns in df_calcs for appeal event processing: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},
@@ -510,7 +514,8 @@
 					"\n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error in preparing results dataframe for {spark_table_final}: {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()"
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},
@@ -528,9 +533,16 @@
 					}
 				},
 				"source": [
-					"columns = results.columns\n",
+					"if not error_message:\n",
+					"    try:\n",
+					"        columns = results.columns\n",
 					"\n",
-					"results = results.drop(\"AppealsEventId\", \"ValidTo\",\"Migrated\", \"IsActive\")"
+					"        results = results.drop(\"AppealsEventId\", \"ValidTo\",\"Migrated\", \"IsActive\")\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error while dropping calculation columns from results dataset for appeal events: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},
@@ -548,8 +560,15 @@
 					}
 				},
 				"source": [
-					"final_df = results.join(df_calcs, (df_calcs[f\"temp_{primary_key}\"] == results[primary_key]) & (df_calcs[\"temp_IngestionDate\"] == results[\"IngestionDate\"])).select(columns).distinct()\n",
-					"final_df = final_df.drop_duplicates()"
+					"if not error_message:\n",
+					"    try:\n",
+					"        final_df = results.join(df_calcs, (df_calcs[f\"temp_{primary_key}\"] == results[primary_key]) & (df_calcs[\"temp_IngestionDate\"] == results[\"IngestionDate\"])).select(columns).distinct()\n",
+					"        final_df = final_df.drop_duplicates()\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error while joining calculation results and removing duplicates for appeal events: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},
@@ -588,7 +607,8 @@
 					"        end_exec_time = datetime.now()\n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error in ingesting delta table in the final step {spark_table_final}: {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()"
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},

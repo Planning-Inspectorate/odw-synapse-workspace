@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "109f54b0-5ef4-4dbb-b263-bfbddaec4161"
+				"spark.autotune.trackingId": "24dd907c-1406-4f91-95b0-94ea7f4ffbb0"
 			}
 		},
 		"metadata": {
@@ -101,11 +101,15 @@
 				"cell_type": "code",
 				"source": [
 					"from pyspark.sql.types import IntegerType, ArrayType, StructType, StructField\n",
+					"import pyspark.sql.functions as F\n",
 					"from pyspark.sql import Row\n",
-					"from pyspark.sql.functions import *\n",
 					"from datetime import datetime, date\n",
 					"from pyspark.sql import SparkSession\n",
-					"from pyspark.sql.functions import struct, collect_list"
+					"from pyspark.sql.functions import struct, collect_list\n",
+					"from pyspark.sql.window import Window\n",
+					"from pyspark.sql import SparkSession\n",
+					"from pyspark.sql.functions import col, from_json, regexp_replace, explode\n",
+					"from pyspark.sql.types import ArrayType, StructType, StructField, StringType, DoubleType"
 				],
 				"execution_count": null
 			},
@@ -197,7 +201,6 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"\n",
 					"try:\n",
 					"    # Get data out of the service bus with additional fields needed for Horizon data\n",
 					"    service_bus_data = spark.sql(f\"\"\"\n",
@@ -698,51 +701,53 @@
 					"    except Exception as e:\n",
 					"        error_message = f\"Error in processing Horizon data set: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()\n",
-					"        print()"
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"from pyspark.sql import SparkSession\n",
-					"from pyspark.sql.functions import col, from_json, regexp_replace, explode\n",
-					"from pyspark.sql.types import ArrayType, StructType, StructField, StringType, DoubleType\n",
+					"if not error_message:\n",
+					"    try:\n",
+					"        # Initialize Spark session\n",
+					"        spark = SparkSession.builder.appName(\"Parse JSON Columns\").getOrCreate()\n",
 					"\n",
-					"# Initialize Spark session\n",
-					"spark = SparkSession.builder.appName(\"Parse JSON Columns\").getOrCreate()\n",
+					"        # Sample DataFrame (replace with your actual source)\n",
+					"        # horizon_data = spark.read.json(\"your_input_path_or_source\")\n",
 					"\n",
-					"# Sample DataFrame (replace with your actual source)\n",
-					"# horizon_data = spark.read.json(\"your_input_path_or_source\")\n",
+					"        # Define schemas\n",
+					"        invoices_schema = ArrayType(StructType([\n",
+					"            StructField(\"invoiceStage\", StringType(), True),\n",
+					"            StructField(\"invoiceNumber\", StringType(), True),\n",
+					"            StructField(\"amountDue\", DoubleType(), True),\n",
+					"            StructField(\"paymentDueDate\", StringType(), True),\n",
+					"            StructField(\"invoicedDate\", StringType(), True),\n",
+					"            StructField(\"paymentDate\", StringType(), True),\n",
+					"            StructField(\"refundCreditNoteNumber\", StringType(), True),\n",
+					"            StructField(\"refundAmount\", DoubleType(), True),\n",
+					"            StructField(\"refundIssueDate\", StringType(), True)\n",
+					"        ]))\n",
 					"\n",
-					"# Define schemas\n",
-					"invoices_schema = ArrayType(StructType([\n",
-					"    StructField(\"invoiceStage\", StringType(), True),\n",
-					"    StructField(\"invoiceNumber\", StringType(), True),\n",
-					"    StructField(\"amountDue\", DoubleType(), True),\n",
-					"    StructField(\"paymentDueDate\", StringType(), True),\n",
-					"    StructField(\"invoicedDate\", StringType(), True),\n",
-					"    StructField(\"paymentDate\", StringType(), True),\n",
-					"    StructField(\"refundCreditNoteNumber\", StringType(), True),\n",
-					"    StructField(\"refundAmount\", DoubleType(), True),\n",
-					"    StructField(\"refundIssueDate\", StringType(), True)\n",
-					"]))\n",
+					"        meetings_schema = ArrayType(StructType([\n",
+					"            StructField(\"meetingId\", StringType(), True),\n",
+					"            StructField(\"meetingAgenda\", StringType(), True),\n",
+					"            StructField(\"planningInspectorateRole\", StringType(), True),\n",
+					"            StructField(\"meetingDate\", StringType(), True),\n",
+					"            StructField(\"meetingType\", StringType(), True)\n",
+					"        ]))\n",
 					"\n",
-					"meetings_schema = ArrayType(StructType([\n",
-					"    StructField(\"meetingId\", StringType(), True),\n",
-					"    StructField(\"meetingAgenda\", StringType(), True),\n",
-					"    StructField(\"planningInspectorateRole\", StringType(), True),\n",
-					"    StructField(\"meetingDate\", StringType(), True),\n",
-					"    StructField(\"meetingType\", StringType(), True)\n",
-					"]))\n",
+					"        # Overwrite columns in horizon_data with parsed versions\n",
+					"        horizon_data = horizon_data \\\n",
+					"            .withColumn(\"invoices\", from_json(regexp_replace(col(\"invoices\").cast(\"string\"), \"'\", '\"'), invoices_schema)) \\\n",
+					"            .withColumn(\"meetings\", from_json(regexp_replace(col(\"meetings\").cast(\"string\"), \"'\", '\"'), meetings_schema))\n",
 					"\n",
-					"# Overwrite columns in horizon_data with parsed versions\n",
-					"horizon_data = horizon_data \\\n",
-					"    .withColumn(\"invoices\", from_json(regexp_replace(col(\"invoices\").cast(\"string\"), \"'\", '\"'), invoices_schema)) \\\n",
-					"    .withColumn(\"meetings\", from_json(regexp_replace(col(\"meetings\").cast(\"string\"), \"'\", '\"'), meetings_schema))\n",
-					"\n",
-					"# Print schema to verify\n",
-					"# horizon_data.printSchema()\n",
+					"        # Print schema to verify\n",
+					"        # horizon_data.printSchema()\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error while parsing JSON columns 'invoices' and/or 'meetings' in Horizon dataset: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)        \n",
 					""
 				],
 				"execution_count": null
@@ -750,7 +755,14 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"results = service_bus_data.unionByName(horizon_data)"
+					"if not error_message:\n",
+					"    try:\n",
+					"        results = service_bus_data.unionByName(horizon_data)\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error while merging Service Bus and Horizon datasets using unionByName: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},
@@ -787,7 +799,8 @@
 					"        results.write.format(\"delta\").mode(\"overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error in ingesting delta table {spark_table_final}: {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()"
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},
@@ -806,40 +819,34 @@
 			},
 			{
 				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"microsoft": {
-						"language": "sparksql"
-					},
-					"collapsed": false
-				},
 				"source": [
-					"%%sql\n",
-					"CREATE OR REPLACE TEMPORARY VIEW vw_nsip_project_calculations_base\n",
-					"AS\n",
-					"SELECT  \n",
-					"    row_number() OVER(PARTITION BY caseid ORDER BY IngestionDate DESC) AS ReverseOrderProcessed\n",
-					"    ,row_number() OVER(ORDER BY IngestionDate ASC, caseid ASC) AS NSIPProjectInfoInternalID\n",
-					"    ,caseid\n",
-					"    ,IngestionDate\n",
-					"    ,ValidTo\n",
-					"    ,'0' AS migrated\n",
-					"    ,CASE row_number() OVER(PARTITION BY caseid ORDER BY IngestionDate DESC)\n",
-					"        WHEN 1 THEN\n",
-					"            'Y'\n",
-					"        ELSE\n",
-					"            'N'\n",
-					"    END AS IsActive                \n",
-					"FROM\n",
-					"    odw_harmonised_db.nsip_project"
+					"if not error_message:\n",
+					"    try:\n",
+					"        df = spark.table(\"odw_harmonised_db.nsip_project\")\n",
+					"\n",
+					"        w_reverse_per_case = Window.partitionBy(\"caseid\").orderBy(F.col(\"IngestionDate\").desc())\n",
+					"        w_internal_id = Window.orderBy(F.col(\"IngestionDate\").asc(), F.col(\"caseid\").asc())\n",
+					"\n",
+					"        out_df = (\n",
+					"            df.select(\n",
+					"                F.row_number().over(w_reverse_per_case).alias(\"ReverseOrderProcessed\"),\n",
+					"                F.row_number().over(w_internal_id).alias(\"NSIPProjectInfoInternalID\"),\n",
+					"                F.col(\"caseid\"),\n",
+					"                F.col(\"IngestionDate\"),\n",
+					"                F.col(\"ValidTo\"),\n",
+					"                F.lit(\"0\").alias(\"migrated\"),\n",
+					"                F.when(F.row_number().over(w_reverse_per_case) == 1, F.lit(\"Y\"))\n",
+					"                .otherwise(F.lit(\"N\"))\n",
+					"                .alias(\"IsActive\"),\n",
+					"            )\n",
+					"        )\n",
+					"\n",
+					"        out_df.createOrReplaceTempView(\"vw_nsip_project_calculations_base\")\n",
+					"    \n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error while creating view vw_nsip_project_calculations_base from odw_harmonised_db.nsip_project: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},

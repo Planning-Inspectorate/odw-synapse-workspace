@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "905f9b9b-802c-42e8-99cb-b6f88b6bee17"
+				"spark.autotune.trackingId": "90667b45-236f-49e8-b9a1-122cf458aa1a"
 			}
 		},
 		"metadata": {
@@ -186,7 +186,14 @@
 					}
 				},
 				"source": [
-					"spark.catalog.refreshTable(horizon_table)"
+					"if not error_message:\n",
+					"    try:\n",
+					"        spark.catalog.refreshTable(horizon_table)\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error while refreshing Spark catalog table for Horizon source {horizon_table}: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},
@@ -263,7 +270,8 @@
 					"\n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error in source Service Bus SQL query {service_bus_table}: {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()"
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},
@@ -351,7 +359,8 @@
 					"\n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error in source Horizon SQL query {horizon_table}: {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()"
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},
@@ -369,10 +378,17 @@
 					}
 				},
 				"source": [
-					"logInfo(f\"Combining data for {spark_table_final}\")\n",
-					"horizon_data = horizon_data.select(service_bus_data.columns)\n",
-					"results = service_bus_data.union(horizon_data)\n",
-					"logInfo(f\"Combined data for {spark_table_final}\")"
+					"if not error_message:\n",
+					"    try:\n",
+					"        logInfo(f\"Combining data for {spark_table_final}\")\n",
+					"        horizon_data = horizon_data.select(service_bus_data.columns)\n",
+					"        results = service_bus_data.union(horizon_data)\n",
+					"        logInfo(f\"Combined data for {spark_table_final}\")\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error while aligning Horizon schema and merging with Service Bus dataset for {spark_table_final}: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},
@@ -411,7 +427,8 @@
 					"\n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error in ingesting delta table {spark_table_final}: {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()"
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},
@@ -444,25 +461,32 @@
 					"collapsed": false
 				},
 				"source": [
-					"spark.sql(f\"\"\"\n",
-					"    CREATE OR REPLACE TEMPORARY VIEW vw_nsip_document_calculations_base\n",
-					"        AS\n",
-					"        SELECT  \n",
-					"            row_number() OVER(PARTITION BY {primary_key} ORDER BY IngestionDate DESC) AS ReverseOrderProcessed\n",
-					"            ,row_number() OVER(ORDER BY IngestionDate asc, {primary_key} asc) AS NSIPDocumentID\n",
-					"            ,{primary_key}\n",
-					"            ,IngestionDate\n",
-					"            ,ValidTo\n",
-					"            ,'0' AS Migrated\n",
-					"            ,CASE row_number() OVER(PARTITION BY {primary_key} ORDER BY IngestionDate DESC)\n",
-					"                WHEN 1 THEN\n",
-					"                    'Y'\n",
-					"                ELSE\n",
-					"                    'N'\n",
-					"            END AS IsActive                \n",
-					"        FROM\n",
-					"            {spark_table_final}\n",
-					"    \"\"\")"
+					"if not error_message:\n",
+					"    try:\n",
+					"        spark.sql(f\"\"\"\n",
+					"            CREATE OR REPLACE TEMPORARY VIEW vw_nsip_document_calculations_base\n",
+					"                AS\n",
+					"                SELECT  \n",
+					"                    row_number() OVER(PARTITION BY {primary_key} ORDER BY IngestionDate DESC) AS ReverseOrderProcessed\n",
+					"                    ,row_number() OVER(ORDER BY IngestionDate asc, {primary_key} asc) AS NSIPDocumentID\n",
+					"                    ,{primary_key}\n",
+					"                    ,IngestionDate\n",
+					"                    ,ValidTo\n",
+					"                    ,'0' AS Migrated\n",
+					"                    ,CASE row_number() OVER(PARTITION BY {primary_key} ORDER BY IngestionDate DESC)\n",
+					"                        WHEN 1 THEN\n",
+					"                            'Y'\n",
+					"                        ELSE\n",
+					"                            'N'\n",
+					"                    END AS IsActive                \n",
+					"                FROM\n",
+					"                    {spark_table_final}\n",
+					"        \"\"\")\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error while creating view vw_nsip_document_calculations_base from {spark_table_final}: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},
@@ -480,29 +504,35 @@
 					}
 				},
 				"source": [
-					"df_calcs = spark.sql(f\"\"\"\n",
-					"                        SELECT\n",
-					"                            CurrentRow.NSIPDocumentID\n",
-					"                            ,CurrentRow.{primary_key} \n",
-					"                            ,CurrentRow.IngestionDate\n",
-					"                            ,COALESCE(NULLIF(CurrentRow.ValidTo,''), NextRow.IngestionDate) AS ValidTo\n",
-					"                            ,CASE\n",
-					"                                WHEN raw.{primary_key} IS NOT NULL THEN \n",
-					"                                    \"1\"\n",
-					"                                ELSE \n",
-					"                                    \"0\"\n",
-					"                            END AS Migrated\n",
-					"                            ,CurrentRow.IsActive\n",
-					"                        FROM\n",
-					"                            vw_nsip_document_calculations_base AS CurrentRow\n",
-					"                            LEFT OUTER JOIN vw_nsip_document_calculations_base AS NextRow\n",
-					"                                ON CurrentRow.{primary_key} = NextRow.{primary_key}\n",
-					"                                AND CurrentRow.ReverseOrderProcessed - 1 = NextRow.ReverseOrderProcessed\n",
-					"                            LEFT OUTER JOIN (SELECT DISTINCT MD5(CONCAT(documentId, filename, version)) AS {primary_key} FROM {service_bus_table}) AS Raw\n",
-					"                                ON CurrentRow.{primary_key} = Raw.{primary_key} \n",
-					"                            ORDER BY currentRow.ReverseOrderProcessed\n",
-					"                    \"\"\")\n",
-					"                    "
+					"if not error_message:\n",
+					"    try:\n",
+					"        df_calcs = spark.sql(f\"\"\"\n",
+					"                                SELECT\n",
+					"                                    CurrentRow.NSIPDocumentID\n",
+					"                                    ,CurrentRow.{primary_key} \n",
+					"                                    ,CurrentRow.IngestionDate\n",
+					"                                    ,COALESCE(NULLIF(CurrentRow.ValidTo,''), NextRow.IngestionDate) AS ValidTo\n",
+					"                                    ,CASE\n",
+					"                                        WHEN Raw.{primary_key} IS NOT NULL THEN \n",
+					"                                            \"1\"\n",
+					"                                        ELSE \n",
+					"                                            \"0\"\n",
+					"                                    END AS Migrated\n",
+					"                                    ,CurrentRow.IsActive\n",
+					"                                FROM\n",
+					"                                    vw_nsip_document_calculations_base AS CurrentRow\n",
+					"                                    LEFT OUTER JOIN vw_nsip_document_calculations_base AS NextRow\n",
+					"                                        ON CurrentRow.{primary_key} = NextRow.{primary_key}\n",
+					"                                        AND CurrentRow.ReverseOrderProcessed - 1 = NextRow.ReverseOrderProcessed\n",
+					"                                    LEFT OUTER JOIN (SELECT DISTINCT MD5(CONCAT(documentId, filename, version)) AS {primary_key} FROM {service_bus_table}) AS Raw\n",
+					"                                        ON CurrentRow.{primary_key} = Raw.{primary_key} \n",
+					"                                    ORDER BY CurrentRow.ReverseOrderProcessed\n",
+					"                            \"\"\")\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error while calculating NSIP document ValidTo and Migrated flags from vw_nsip_document_calculations_base: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},
@@ -520,7 +550,14 @@
 					}
 				},
 				"source": [
-					"df_calcs =df_calcs.withColumnRenamed(primary_key, f\"temp_{primary_key}\").withColumnRenamed(\"IngestionDate\", \"temp_IngestionDate\")"
+					"if not error_message:\n",
+					"    try:\n",
+					"        df_calcs =df_calcs.withColumnRenamed(primary_key, f\"temp_{primary_key}\").withColumnRenamed(\"IngestionDate\", \"temp_IngestionDate\")\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error while renaming columns in df_calcs for NSIP document processing: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},
@@ -650,7 +687,8 @@
 					"\n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error in preparing final results dataframe for {spark_table_final}: {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()"
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},
@@ -668,9 +706,16 @@
 					}
 				},
 				"source": [
-					"columns = results.columns\n",
+					"if not error_message:\n",
+					"    try:\n",
+					"        columns = results.columns\n",
 					"\n",
-					"results = results.drop(\"NSIPDocumentID\", \"ValidTo\", \"Migrated\", \"IsActive\")"
+					"        results = results.drop(\"NSIPDocumentID\", \"ValidTo\", \"Migrated\", \"IsActive\")\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error while dropping calculation columns from results dataset for NSIP documents: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},
@@ -688,8 +733,15 @@
 					}
 				},
 				"source": [
-					"final_df = results.join(df_calcs, (df_calcs[f\"temp_{primary_key}\"] == results[primary_key]) & (df_calcs[\"temp_IngestionDate\"] == results[\"IngestionDate\"])).select(columns)\n",
-					"final_df = final_df.drop(primary_key).drop_duplicates()"
+					"if not error_message:\n",
+					"    try:\n",
+					"        final_df = results.join(df_calcs, (df_calcs[f\"temp_{primary_key}\"] == results[primary_key]) & (df_calcs[\"temp_IngestionDate\"] == results[\"IngestionDate\"])).select(columns)\n",
+					"        final_df = final_df.drop(primary_key).drop_duplicates()\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error while joining calculation results and finalising NSIP document dataset: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},
@@ -708,8 +760,15 @@
 					"collapsed": false
 				},
 				"source": [
-					"columns_to_consider = ['documentId', 'filename', 'version', 'Migrated', 'originalFilename', 'ODTSourceSystem', 'IngestionDate', 'ValidTo', 'IsActive']\n",
-					"final_df = final_df.drop_duplicates(subset=columns_to_consider)"
+					"if not error_message:\n",
+					"    try:\n",
+					"        columns_to_consider = ['documentId', 'filename', 'version', 'Migrated', 'originalFilename', 'ODTSourceSystem', 'IngestionDate', 'ValidTo', 'IsActive']\n",
+					"        final_df = final_df.drop_duplicates(subset=columns_to_consider)\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error while removing duplicate NSIP document records based on key columns: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},
@@ -751,7 +810,8 @@
 					"\n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error in ingesting delta table in the final step {spark_table_final}: {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()"
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},
