@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "e9a0cd97-bb6f-483e-9ed4-a4a40a3f30f8"
+				"spark.autotune.trackingId": "14fb41f6-8045-4a31-80e0-1e87b0e422f7"
 			}
 		},
 		"metadata": {
@@ -94,7 +94,7 @@
 					"import pandas as pd\n",
 					"import numpy as np"
 				],
-				"execution_count": 1
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -102,7 +102,7 @@
 					"\n",
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 2
+				"execution_count": 5
 			},
 			{
 				"cell_type": "markdown",
@@ -215,18 +215,21 @@
 					"\n",
 					"\n",
 					" LEFT JOIN (\n",
-					"    SELECT DISTINCT\n",
+					"    SELECT \n",
 					"        PersNo,\n",
-					"        OrgStartDate,\n",
-					"        Leaving,\n",
-					"        ReasonforAction,\n",
-					"        ROW_NUMBER() OVER (PARTITION BY PersNo ORDER BY OrgStartDate DESC) as rn\n",
+					"        MAX(Leaving) as Leaving,\n",
+					"        MAX(ReasonforAction) as ReasonforAction,\n",
+					"        MAX(OrgStartDate) as OrgStartDate\n",
 					"    FROM odw_harmonised_db.load_SAP_HR_Leavers\n",
+					"    GROUP BY PersNo\n",
 					") AS Leavers \n",
 					"    ON hist_sap.PersNo = Leavers.PersNo\n",
-					"    AND Leavers.rn = 1\n",
-					"    AND (COALESCE(hist_sap.OrgStartDate, '1900-01-01') = COALESCE(Leavers.OrgStartDate, '1900-01-01')\n",
-					"         OR hist_sap.OrgStartDate IS NULL)\n",
+					"    AND hist_sap.Report_MonthEnd_Date = CASE \n",
+					"        WHEN DATE_FORMAT(Leavers.OrgStartDate, 'yyyyMM') = DATE_FORMAT(Leavers.Leaving, 'yyyyMM') \n",
+					"        THEN LAST_DAY(Leavers.Leaving)\n",
+					"        ELSE LAST_DAY(ADD_MONTHS(Leavers.Leaving, -1))\n",
+					"    END\n",
+					"\n",
 					"\n",
 					"\n",
 					"        LEFT JOIN odw_harmonised_db.live_dim_date AS leavingdt ON Leavers.Leaving = leavingdt.date\n",
@@ -600,7 +603,7 @@
 					"    # Output the result as JSON for ADF to capture\n",
 					"    mssparkutils.notebook.exit(json.dumps(result))"
 				],
-				"execution_count": 3
+				"execution_count": 6
 			}
 		]
 	}
