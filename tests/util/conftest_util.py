@@ -3,6 +3,9 @@ from azure.identity import DefaultAzureCredential
 import tests.util.constants as constants
 from tests.util.config import TEST_CONFIG
 import os
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
 
 
 class ConftestUtil():
@@ -23,7 +26,7 @@ class ConftestUtil():
     def get_azure_credential(cls, client_id: str = None, client_secret: str = None, tenant_id: str = None):
         if client_id is None or client_secret is None or tenant_id is None:
             print(f"Credentials created from default")
-            credentials = DefaultAzureCredential()
+            credentials = DefaultAzureCredential(logging_enable=True)
             return credentials
         print(f"Credentials created from parameters ")
         credentials = ClientSecretCredential(
