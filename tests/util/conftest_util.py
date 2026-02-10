@@ -1,4 +1,4 @@
-from azure.identity import ClientSecretCredential
+from azure.identity import ChainedTokenCredential, ManagedIdentityCredential, AzureCliCredential
 from azure.identity import DefaultAzureCredential
 import tests.util.constants as constants
 from tests.util.config import TEST_CONFIG
@@ -24,14 +24,7 @@ class ConftestUtil():
 
     @classmethod
     def get_azure_credential(cls, client_id: str = None, client_secret: str = None, tenant_id: str = None):
-        if client_id is None or client_secret is None or tenant_id is None:
-            print(f"Credentials created from default")
-            credentials = DefaultAzureCredential(logging_enable=True)
-            return credentials
-        print(f"Credentials created from parameters ")
-        credentials = ClientSecretCredential(
-            client_id=client_id,
-            client_secret=client_secret,
-            tenant_id=tenant_id
+        return ChainedTokenCredential(
+            ManagedIdentityCredential(),
+            AzureCliCredential()
         )
-        return credentials
