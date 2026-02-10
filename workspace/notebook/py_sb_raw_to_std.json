@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "e752de61-18ac-4de8-8620-2aecaa17112e"
+				"spark.autotune.trackingId": "964550cd-7462-4648-a010-1e26e827c953"
 			}
 		},
 		"metadata": {
@@ -250,44 +250,42 @@
 			},
 			{
 				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"collapsed": false
-				},
 				"source": [
 					"@logging_to_appins\r\n",
-					"def get_max_file_date(df: DataFrame) -> datetime:\r\n",
+					"def get_max_file_date(df: DataFrame) -> str | None:\r\n",
 					"    \"\"\"\r\n",
 					"    Gets the maximum date from a file path field in a DataFrame.\r\n",
-					"    E.g. if the input_file field contained paths such as this:\r\n",
-					"    abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/ServiceBus/appeal-has/2024-12-02/appeal-has_2024-12-02T16:54:35.214679+0000.json\r\n",
-					"    It extracts the date from the string for each row and gets the maximum date.\r\n",
-					"\r\n",
-					"    Args:\r\n",
-					"        df: a spark DataFrame\r\n",
 					"\r\n",
 					"    Returns:\r\n",
-					"        formatted_timestamp: a string of the maximum file date\r\n",
+					"        str | None: A formatted timestamp string (\"YYYY-MM-DDTHH:MM:SS.ffffff+0000\")\r\n",
+					"        when a valid timestamp is found in the input_file column, otherwise None.\r\n",
 					"    \"\"\"\r\n",
+					"\r\n",
 					"    date_pattern: str = r'(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}\\+\\d{4})'\r\n",
-					"    df: DataFrame = df.withColumn(\"file_date\", regexp_extract(df[\"input_file\"], date_pattern, 1))\r\n",
-					"    df: DataFrame = df.withColumn(\"file_date\", df[\"file_date\"].cast(TimestampType()))\r\n",
-					"    max_timestamp: list = df.agg(max(\"file_date\")).collect()[0][0]\r\n",
-					"    formatted_timestamp: str = max_timestamp.strftime(\"%Y-%m-%dT%H:%M:%S.%f\")+\"+0000\"\r\n",
+					"\r\n",
+					"    df_with_date = df.withColumn(\r\n",
+					"        \"file_date\",\r\n",
+					"        regexp_extract(df[\"input_file\"], date_pattern, 1)\r\n",
+					"    )\r\n",
+					"    df_with_date = df_with_date.withColumn(\r\n",
+					"        \"file_date\",\r\n",
+					"        df_with_date[\"file_date\"].cast(TimestampType())\r\n",
+					"    )\r\n",
+					"\r\n",
+					"    result = df_with_date.agg(max(\"file_date\")).collect()\r\n",
+					"\r\n",
+					"    if not result or result[0][0] is None:\r\n",
+					"        print(\"Warning: No valid dates found in input_file column.\")\r\n",
+					"        return None\r\n",
+					"\r\n",
+					"    max_timestamp = result[0][0]\r\n",
+					"\r\n",
+					"    formatted_timestamp: str = (\r\n",
+					"        max_timestamp.strftime(\"%Y-%m-%dT%H:%M:%S.%f\") + \"+0000\"\r\n",
+					"    )\r\n",
+					"\r\n",
 					"    return formatted_timestamp\r\n",
 					"\r\n",
-					"    if max_timestamp is None:\r\n",
-					"        return None\r\n",
-					"    formatted_timestamp: str = max_timestamp.strftime(\"%Y-%m-%dT%H:%M:%S.%f\") + \"+0000\"\r\n",
-					"    return formatted_timestamp\r\n",
 					"\r\n",
 					"def step_get_max_file_date():\r\n",
 					"    table_df = spark.table(target_table)\r\n",
@@ -296,7 +294,8 @@
 					"\r\n",
 					"max_file_datetime = run_step(\r\n",
 					"    \"Get max file date from input_file paths\",\r\n",
-					"    step_get_max_file_date)"
+					"    step_get_max_file_date\r\n",
+					")"
 				],
 				"execution_count": null
 			},
@@ -402,17 +401,6 @@
 			},
 			{
 				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
 				"source": [
 					"@logging_to_appins\r\n",
 					"def extract_and_filter_paths(files: list, filter_date: str):\r\n",
@@ -426,10 +414,12 @@
 					"    Returns:\r\n",
 					"        filtered_paths: a list of file paths greater than a given date\r\n",
 					"    \"\"\"\r\n",
+					" \r\n",
+					" \r\n",
 					"    filtered_paths: list = []\r\n",
 					"    error_message = None\r\n",
 					"   \r\n",
-					"\r\n",
+					" \r\n",
 					"    logInfo(f\"Filtering {len(files)} files with date greater than {filter_date}\")\r\n",
 					"       \r\n",
 					"    timestamp_pattern: str = re.compile(r\"(\\d{4}-\\d{2}-\\d{2}T\\d{2}[:_]\\d{2}[:_]\\d{2}[.\\d]*[+-]\\d{4})\")\r\n",
@@ -446,9 +436,18 @@
 					"    logInfo(f\"Filtered to {len(filtered_paths)} file(s) with date greater than {filter_date}\")\r\n",
 					" \r\n",
 					"    return filtered_paths\r\n",
-					"def step_extract_and_filter_paths():\r\n",
-					"    return extract_and_filter_paths(all_files,max_file_datetime)\r\n",
-					"filter_date_str=max_ingested_datetime.strftime(\"%Y-%m-%dT%H:%M:%S.%f\")+\"+0000\"\r\n",
+					"\r\n",
+					" \r\n",
+					"if max_file_datetime is not None:\r\n",
+					"        if isinstance(max_file_datetime,str):\r\n",
+					"            filter_date_str = max_file_datetime\r\n",
+					"        else:\r\n",
+					"            filter_date_str = max_file_datetime.strftime(\"%Y-%m-%dT%H:%M:%S.%f\")+\"+0000\"\r\n",
+					" \r\n",
+					"else:\r\n",
+					"        filter_date_str = \"1900-01-01T00:00:00.000000+0000\"\r\n",
+					"        logInfo(\"no max date found\")\r\n",
+					" \r\n",
 					"filtered_paths=run_step(\"Extract + filter file paths by timestamp\",\r\n",
 					"                        lambda:extract_and_filter_paths(all_files,filter_date_str))"
 				],
@@ -572,7 +571,7 @@
 					"\r\n",
 					"run_step(\r\n",
 					"    \"Append DataFrame to target table\",\r\n",
-					"    lambda: step_append_df_to_table(df, target_table)\r\n",
+					"    lambda: step_append_df_to_table(raw_df, target_table)\r\n",
 					")\r\n",
 					""
 				],
