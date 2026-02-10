@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "581f5806-3c1c-4894-a580-d458a4251af5"
+				"spark.autotune.trackingId": "93c02988-eea9-4fe8-a528-00c28b33a364"
 			}
 		},
 		"metadata": {
@@ -46,8 +46,8 @@
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -393,7 +393,7 @@
 					"                    process_name, \n",
 					"                    isMultilineJSON=False, \n",
 					"                    dataAttribute=None):\n",
-					"\n",
+					"    \n",
 					"    from pyspark.sql import SparkSession\n",
 					"    from notebookutils import mssparkutils\n",
 					"    import json\n",
@@ -405,6 +405,7 @@
 					"    import pyspark.sql.types as types\n",
 					"\n",
 					"    ingestion_failure: bool = False\n",
+					"    error_message = ''\n",
 					"\n",
 					"    spark = SparkSession.builder.getOrCreate()\n",
 					"    spark.conf.set(\"spark.databricks.delta.schema.autoMerge.enabled\", \"true\")\n",
@@ -469,7 +470,7 @@
 					"        if \"corrupted_records\" in df.columns:\n",
 					"            print(f\"Corrupted Records detected from CSV ingestion in {filename}\")\n",
 					"            ingestion_failure = True\n",
-					"            \n",
+					"            error_message = f\"Corrupted Records detected from CSV ingestion in {filename}\"\n",
 					"\n",
 					"    elif '.json' in filename.lower():\n",
 					"        if isMultilineJSON == False:\n",
@@ -583,14 +584,17 @@
 					"    except Exception as e:\n",
 					"        logInfo('Logging to tables_logs failed')\n",
 					"\n",
+					"    \n",
 					"    ### Test correct number of rows have written\n",
+					"   \n",
 					"    if rows_raw <= rows_new:\n",
 					"        #count up the rows which match the dates, we should at LEAST have those, multiple runs on the same day will lead to the counts not matching however\n",
 					"        logInfo('All rows have successfully been written')\n",
 					"    else:\n",
 					"        logError(f\"All rows have NOT been successfully written. Expected {rows_raw} but {rows_new} written\")\n",
 					"        ingestion_failure = True\n",
-					"    return (ingestion_failure, rows_raw)\n",
+					"        error_message = f\"All rows have NOT been successfully written. Expected {rows_raw} but {rows_new} written\"\n",
+					"    return (error_message, ingestion_failure, rows_raw)\n",
 					""
 				],
 				"execution_count": null

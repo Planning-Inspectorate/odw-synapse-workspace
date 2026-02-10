@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "6cedc9d0-b214-43a4-b4d5-36dfe0d4b1b9"
+				"spark.autotune.trackingId": "49f570dc-e9f5-46c7-978b-33418a6cb846"
 			}
 		},
 		"metadata": {
@@ -110,6 +110,27 @@
 					"\n",
 					"    from notebookutils import mssparkutils\n",
 					"\n",
+					"    # Align df to existing table schema (prevents schema shrink if this batch is missing optional columns)\n",
+					"    full_table_name: str = f\"{db_name}.{table_name}\"\n",
+					"    try:\n",
+					"        target_df: DataFrame = spark.table(full_table_name)\n",
+					"        target_schema = target_df.schema\n",
+					"\n",
+					"        target_cols = [f.name for f in target_schema.fields]\n",
+					"        df_cols = set(df.columns)\n",
+					"\n",
+					"        missing_cols = [f for f in target_schema.fields if f.name not in df_cols]\n",
+					"        for f in missing_cols:\n",
+					"            logInfo(f\"Adding missing existing column '{f.name}' to df for {full_table_name} as NULL cast({f.dataType})\")\n",
+					"            df = df.withColumn(f.name, lit(None).cast(f.dataType))\n",
+					"\n",
+					"        # Keep stable ordering: existing columns first, then any new columns at the end\n",
+					"        new_cols = [c for c in df.columns if c not in target_cols]\n",
+					"        df = df.select(*target_cols, *new_cols)\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        logInfo(f\"Could not read existing table '{full_table_name}' (may not exist yet). Proceeding without alignment. Details: {e}\")\n",
+					"\n",
 					"    # Write the DataFrame with the new column to a new temporary table\n",
 					"    temp_table_name: str = f\"{table_name}_tmp\"\n",
 					"    df.write.mode(\"overwrite\").format(\"delta\").saveAsTable(f\"{db_name}.{temp_table_name}\")\n",
@@ -164,8 +185,7 @@
 					"    in_schema1_not_in_schema2_sorted = sorted(in_schema1_not_in_schema2, key=lambda x: x[0])\n",
 					"    in_schema2_not_in_schema1_sorted = sorted(in_schema2_not_in_schema1, key=lambda x: x[0])\n",
 					"    \n",
-					"    return in_schema1_not_in_schema2_sorted, in_schema2_not_in_schema1_sorted\n",
-					""
+					"    return in_schema1_not_in_schema2_sorted, in_schema2_not_in_schema1_sorted"
 				],
 				"execution_count": null
 			},
@@ -186,10 +206,9 @@
 					"@logging_to_appins\n",
 					"def merge_schema(table_name: str, table_df: DataFrame, in_current_not_in_existing: tuple, in_existing_not_in_current: tuple, reference_df: DataFrame) -> None:\n",
 					"\n",
-					"    # removing columns from the existing table that are not in the new df\n",
+					"    # IMPORTANT: never drop columns automatically (missing-in-batch is expected for optional fields)\n",
 					"    for item in in_existing_not_in_current:\n",
-					"        logInfo(f\"Removing column '{item[0]}' from {table_name} since it's not in the new data's schema\")\n",
-					"        table_df = table_df.drop(item[0])\n",
+					"        logInfo(f\"Keeping existing column '{item[0]}' in {table_name} (missing from this batch)\")\n",
 					"\n",
 					"    # map of reference df field -> DataType for correct casting (supports arrays/structs)\n",
 					"    ref_types = {f.name: f.dataType for f in reference_df.schema.fields}\n",
@@ -204,8 +223,7 @@
 					"        logInfo(f\"Adding new column '{col_name}' of type '{dtype}' in {table_name} since it's not in the table's schema\")\n",
 					"        table_df = table_df.withColumn(col_name, lit(None).cast(dtype))\n",
 					"    \n",
-					"    apply_df_to_table(table_df, table_name.split('.')[0], table_name.split('.')[1])\n",
-					""
+					"    apply_df_to_table(table_df, table_name.split('.')[0], table_name.split('.')[1])"
 				],
 				"execution_count": null
 			},
@@ -417,8 +435,7 @@
 					"            else:\n",
 					"                print(f\"Failed to cast Column '{col}' from {df_schema[col]} to {schema_dict[col]}.\")\n",
 					"\n",
-					"    return df\n",
-					"    "
+					"    return df"
 				],
 				"execution_count": null
 			},

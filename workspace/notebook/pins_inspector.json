@@ -1,5 +1,5 @@
 {
-	"name": "listed_building",
+	"name": "pins_inspector",
 	"properties": {
 		"folder": {
 			"name": "odw-curated"
@@ -7,7 +7,7 @@
 		"nbformat": 4,
 		"nbformat_minor": 2,
 		"bigDataPool": {
-			"referenceName": "pinssynspodwpr",
+			"referenceName": "pinssynspodw34",
 			"type": "BigDataPoolReference"
 		},
 		"sessionProperties": {
@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "1198a3b0-675a-4e28-864b-d560859af2c9"
+				"spark.autotune.trackingId": "792b0a6f-5f22-483a-a2e6-769b1b199596"
 			}
 		},
 		"metadata": {
@@ -34,10 +34,10 @@
 				"name": "python"
 			},
 			"a365ComputeOptions": {
-				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodwpr",
-				"name": "pinssynspodwpr",
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
 				"type": "Spark",
-				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodwpr",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
 				"auth": {
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
@@ -61,12 +61,12 @@
 					}
 				},
 				"source": [
-					"#### The purpose of this pyspark notebook is to ingest from odw_harmonised_db.listed_building  into a single delta table, odw_curated_db.listed_building.\n",
+					"#### The purpose of this pyspark notebook is to ingest from odw_harmonised_db.pins_inspector into a single delta table, odw_curated_db.pins_inspector.\n",
 					"\n",
 					"**Description**  \n",
-					"The functionality of this notebook is to ingest data from odw_harmonised_db.listed_building table into a single odw_curated_db.listed_building table.The addtitional functionality has been added to log the audit information to Application Insight by creating a Json dump at notebook exit.\n",
+					"The functionality of this notebook is to ingest data from odw_harmonised_db.pins_inspector table into a single odw_curated_db.pins_inspector table. The table structure is defined by the pins-inspector.schema.json from the data-model repository. The additional functionality has been added to log the audit information to Application Insight by creating a Json dump at notebook exit.\n",
 					"\n",
-					"**Spark Cluster Configuration** -> Apache Spark Version- 3.4, Python Version \t\t- 3.10, Delta Lake Version \t- 2.4"
+					"**Spark Cluster Configuration** -> Apache Spark Version- 3.4, Python Version - 3.10, Delta Lake Version - 2.4"
 				]
 			},
 			{
@@ -140,8 +140,8 @@
 				},
 				"source": [
 					"db_name: str = \"odw_curated_db\"\n",
-					"entity_name: str = \"listed-building\"\n",
-					"table_name: str = \"odw_curated_db.listed_building\"\n",
+					"entity_name: str = \"pins-inspector\"\n",
+					"table_name: str = \"odw_curated_db.pins_inspector\"\n",
 					"\n",
 					"start_exec_time = datetime.now()\n",
 					"insert_count = 0\n",
@@ -181,16 +181,24 @@
 					"try:\n",
 					"    df = spark.sql(f\"\"\"\n",
 					"        SELECT DISTINCT    \n",
-					"            CAST(entity AS LONG) AS entity,\n",
-					"            reference,\n",
-					"            name,\n",
-					"            listedBuildingGrade    \n",
-					"        FROM odw_harmonised_db.listed_building    \n",
-					"        WHERE isActive = 'Y'\n",
+					"            entraId,\n",
+					"            sapId,\n",
+					"            firstName,\n",
+					"            lastName,\n",
+					"            emailAddress,\n",
+					"            grade,\n",
+					"            fte,\n",
+					"            unit,\n",
+					"            service,\n",
+					"            group,\n",
+					"            inspectorManager,\n",
+					"            title,\n",
+					"            address,\n",
+					"            specialism,\n",
+					"            validFrom\n",
+					"        FROM odw_harmonised_db.pins_inspector   \n",
+					"        WHERE IsActive = 'Y'\n",
 					"        \"\"\")\n",
-					"\n",
-					"    # Drop the column isActive if it exists\n",
-					"    df = df.drop(\"isActive\")\n",
 					"\n",
 					"\n",
 					"except Exception as e:\n",
@@ -214,43 +222,52 @@
 			},
 			{
 				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
 				"source": [
 					"if not error_message:\n",
 					"    try:\n",
 					"        # Cache and count once to avoid multiple Spark jobs\n",
 					"        df.cache()\n",
 					"        insert_count = df.count()\n",
-					"        \n",
+					"        print(insert_count)\n",
+					"\n",
 					"        # Check if table exists using database and table name separately\n",
 					"        table_exists = spark.catalog.tableExists(db_name, table_name.split('.')[-1])\n",
-					"        \n",
+					"\n",
 					"        if not table_exists:\n",
 					"            # First time: create table (overwrite if it exists to handle edge cases)\n",
 					"            df.write.format(\"delta\").mode(\"overwrite\").saveAsTable(table_name)\n",
-					"            print(f\"Created table {table_name} with {insert_count} records\")\n",
+					"            print(f\"Created {table_name}\")\n",
 					"        else:\n",
 					"            # Use Delta merge for proper change tracking\n",
 					"            delta_table = DeltaTable.forName(spark, table_name)\n",
 					"            \n",
-					"            # Perform merge operation\n",
+					"            # Perform merge operation using sapId as primary key\n",
 					"            delta_table.alias(\"target\").merge(\n",
 					"                df.alias(\"source\"),\n",
-					"                \"target.entity = source.entity\"\n",
+					"                \"target.sapId = source.sapId\"\n",
 					"            ).whenMatchedUpdateAll(\n",
 					"            ).whenNotMatchedInsertAll(\n",
 					"            ).execute()\n",
-					"            \n",
-					"            print(f\"Merged data into {table_name}\")\n",
+					"            print(f\"Written to {table_name}\")\n",
 					"\n",
 					"        # Unpersist cached dataframe\n",
 					"        df.unpersist()\n",
 					"        end_exec_time = datetime.now()\n",
 					"\n",
 					"    except Exception as e:\n",
-					"        error_message = f\"Error appending data to the curated layer {table_name} table : {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()\n",
-					"    \n",
-					"    start_exec_time = datetime.now()"
+					"        error_message = f\"Error writing to the curated layer table : {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()"
 				],
 				"execution_count": null
 			},
@@ -264,7 +281,7 @@
 					}
 				},
 				"source": [
-					"#####  Logging Execution Metadata to Azure Application Insights"
+					"##### Log telemetry and exit"
 				]
 			},
 			{
@@ -274,9 +291,9 @@
 					"activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
 					"stage = \"Success\" if not error_message else \"Failed\"\n",
 					"status_message = (\n",
-					"    f\"Successfully loaded data into {table_name} table\"\n",
+					"    f\"Successfully created table {table_name}\"\n",
 					"    if not error_message\n",
-					"    else f\"Failed to load data from {table_name} table\"\n",
+					"    else f\"Failed to create table {table_name}\"\n",
 					")\n",
 					"status_code = \"200\" if stage == \"Success\" else \"500\"\n",
 					"\n",
