@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "8ee89b9c-d551-470a-83bd-f25a435719f3"
+				"spark.autotune.trackingId": "e9a0cd97-bb6f-483e-9ed4-a4a40a3f30f8"
 			}
 		},
 		"metadata": {
@@ -94,7 +94,7 @@
 					"import pandas as pd\n",
 					"import numpy as np"
 				],
-				"execution_count": null
+				"execution_count": 1
 			},
 			{
 				"cell_type": "code",
@@ -102,7 +102,7 @@
 					"\n",
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": null
+				"execution_count": 2
 			},
 			{
 				"cell_type": "markdown",
@@ -212,12 +212,23 @@
 					"        LEFT JOIN odw_curated_db.vw_dim_HR_gender AS gender ON CASE WHEN hist_sap.GenderKey = '' THEN 'Unknown' ELSE hist_sap.GenderKey END = gender.gender\n",
 					"        LEFT JOIN odw_harmonised_db.live_dim_date AS dt ON hist_sap.Report_MonthEnd_Date = dt.date\n",
 					"        LEFT JOIN odw_harmonised_db.live_dim_date AS start_dt ON hist_sap.OrgStartDate = start_dt.date\n",
-					"        LEFT JOIN odw_harmonised_db.load_SAP_HR_Leavers AS Leavers ON hist_sap.PersNo = Leavers.PersNo\n",
-					"            AND hist_sap.OrgStartDate = Leavers.OrgStartDate\n",
-					"            AND hist_sap.Report_MonthEnd_Date = CASE \n",
-					"                WHEN DATE_FORMAT(Leavers.OrgStartDate, 'yyyyMM') = DATE_FORMAT(Leavers.Leaving, 'yyyyMM') THEN LAST_DAY(Leavers.Leaving)\n",
-					"                ELSE LAST_DAY(ADD_MONTHS(Leavers.Leaving, -1))\n",
-					"            END\n",
+					"\n",
+					"\n",
+					" LEFT JOIN (\n",
+					"    SELECT DISTINCT\n",
+					"        PersNo,\n",
+					"        OrgStartDate,\n",
+					"        Leaving,\n",
+					"        ReasonforAction,\n",
+					"        ROW_NUMBER() OVER (PARTITION BY PersNo ORDER BY OrgStartDate DESC) as rn\n",
+					"    FROM odw_harmonised_db.load_SAP_HR_Leavers\n",
+					") AS Leavers \n",
+					"    ON hist_sap.PersNo = Leavers.PersNo\n",
+					"    AND Leavers.rn = 1\n",
+					"    AND (COALESCE(hist_sap.OrgStartDate, '1900-01-01') = COALESCE(Leavers.OrgStartDate, '1900-01-01')\n",
+					"         OR hist_sap.OrgStartDate IS NULL)\n",
+					"\n",
+					"\n",
 					"        LEFT JOIN odw_harmonised_db.live_dim_date AS leavingdt ON Leavers.Leaving = leavingdt.date\n",
 					"    ),\n",
 					"\n",
@@ -589,7 +600,7 @@
 					"    # Output the result as JSON for ADF to capture\n",
 					"    mssparkutils.notebook.exit(json.dumps(result))"
 				],
-				"execution_count": null
+				"execution_count": 3
 			}
 		]
 	}
