@@ -22,7 +22,29 @@
 						"referenceName": "pln_aie_document_data",
 						"type": "PipelineReference"
 					},
-					"waitOnCompletion": true
+					"waitOnCompletion": true,
+					"parameters": {
+						"apps_insights_ikey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						},
+						"subscription_id": {
+							"value": "@pipeline().parameters.subscription_id",
+							"type": "Expression"
+						},
+						"webhook_url": {
+							"value": "@pipeline().parameters.webhook_url",
+							"type": "Expression"
+						},
+						"resource_group": {
+							"value": "@pipeline().parameters.resource_group",
+							"type": "Expression"
+						},
+						"start_time": {
+							"value": "@pipeline().parameters.start_time",
+							"type": "Expression"
+						}
+					}
 				}
 			},
 			{
@@ -176,7 +198,29 @@
 						"referenceName": "EntraID",
 						"type": "PipelineReference"
 					},
-					"waitOnCompletion": true
+					"waitOnCompletion": true,
+					"parameters": {
+						"apps_insights_ikey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						},
+						"subscription_id": {
+							"value": "@pipeline().parameters.subscription_id",
+							"type": "Expression"
+						},
+						"webhook_url": {
+							"value": "@pipeline().parameters.webhook_url",
+							"type": "Expression"
+						},
+						"resource_group": {
+							"value": "@pipeline().parameters.resource_group",
+							"type": "Expression"
+						},
+						"start_time": {
+							"value": "@pipeline().parameters.start_time",
+							"type": "Expression"
+						}
+					}
 				}
 			},
 			{
@@ -199,7 +243,29 @@
 						"referenceName": "pln_listed_buildings_main",
 						"type": "PipelineReference"
 					},
-					"waitOnCompletion": true
+					"waitOnCompletion": true,
+					"parameters": {
+						"apps_insights_ikey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						},
+						"subscription_id": {
+							"value": "@pipeline().parameters.subscription_id",
+							"type": "Expression"
+						},
+						"webhook_url": {
+							"value": "@pipeline().parameters.webhook_url",
+							"type": "Expression"
+						},
+						"resource_group": {
+							"value": "@pipeline().parameters.resource_group",
+							"type": "Expression"
+						},
+						"start_time": {
+							"value": "@pipeline().parameters.start_time",
+							"type": "Expression"
+						}
+					}
 				}
 			},
 			{
@@ -540,6 +606,167 @@
 							"type": "Expression"
 						}
 					}
+				}
+			},
+			{
+				"name": "Send PINS Inspector Main faile",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "PINS Inspector Main",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_utl_Send_Teams_Message",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"dataFactorySubscription": {
+							"value": "@pipeline().parameters.subscription_id",
+							"type": "Expression"
+						},
+						"dataFactoryResourceGroup": {
+							"value": "@pipeline().parameters.resource_group",
+							"type": "Expression"
+						},
+						"pipelineRunId": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"teamsWebhookUrl": {
+							"value": "@pipeline().parameters.webhook_url",
+							"type": "Expression"
+						},
+						"activityName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"activityMessage": "PINS Inspector Main data failed",
+						"activityDuration": {
+							"value": "@concat(\n    string(div(div(sub(\n        ticks(formatDateTime(utcNow(), 'yyyy-MM-dd HH:mm:sss')),\n        ticks(formatDateTime(if(equals(pipeline().parameters.start_time, null), utcNow(), pipeline().parameters.start_time), 'yyyy-MM-dd HH:mm:sss'))\n    ), 600000000), 60)), 'H:', \n    string(mod(div(sub(\n        ticks(formatDateTime(utcNow(), 'yyyy-MM-dd HH:mm:sss')),\n        ticks(formatDateTime(if(equals(pipeline().parameters.start_time, null), utcNow(), pipeline().parameters.start_time), 'yyyy-MM-dd HH:mm:sss'))\n    ), 600000000), 60)), 'M:00s'\n)",
+							"type": "Expression"
+						},
+						"activityStatus": "Failed",
+						"Colour": {
+							"value": "@pipeline().parameters.failed_colour",
+							"type": "Expression"
+						},
+						"Image": {
+							"value": "@pipeline().parameters.failed_image",
+							"type": "Expression"
+						},
+						"Message_title": "ODW - PINS Inspector Main data failed",
+						"Message_subtitle": {
+							"value": "@split(activity('PINS Inspector Main')?.Error?.Message, ',')[2]",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "PINS Inspector Main completed",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "PINS Inspector Main",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": {
+							"value": "@if(or(equals(activity('PINS Inspector Main')?.Error?.Message, ''),equals(activity('PINS Inspector Main')?.Error?.Message, null)),'Successfully','Failed')",
+							"type": "Expression"
+						},
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@utcNow()",
+							"type": "Expression"
+						},
+						"ErrorMessage": {
+							"value": "@{if(or(equals(activity('PINS Inspector Main')?.Error?.Message, ''), equals(activity('PINS Inspector Main')?.Error?.Message, null)), ' ', activity('PINS Inspector Main')?.Error?.Message)}\n",
+							"type": "Expression"
+						},
+						"StatusMessage": {
+							"value": "@if(or(equals(activity('PINS Inspector Main')?.Error?.Message, ''),\nequals(activity('PINS Inspector Main')?.Error?.Message, null)),'PINS Inspector Main Successfully Completed','PINS Inspector Main Failed')",
+							"type": "Expression"
+						},
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"ActivityType": "Pipeline",
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "PINS Inspector Main",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Horizon EntraID",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_pins_inspector_main",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
 				}
 			}
 		],
