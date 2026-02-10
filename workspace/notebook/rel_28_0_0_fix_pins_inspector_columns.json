@@ -1,0 +1,211 @@
+{
+	"name": "rel_28_0_0_fix_pins_inspector_columns",
+	"properties": {
+		"folder": {
+			"name": "odw-curated"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {},
+				"source": [
+					"## Release 28.0.0 - Fix pins_inspector Column Names\n",
+					"\n",
+					"### Purpose\n",
+					"Fix incorrect column names in pins_inspector harmonised and curated tables:\n",
+					"- Rename `emailAddress` to `email`\n",
+					"- Rename `specialism` to `specialisms`\n",
+					"\n",
+					"### Scope\n",
+					"- `odw_harmonised_db.pins_inspector`\n",
+					"- `odw_curated_db.pins_inspector`\n",
+					"\n",
+					"### Approach\n",
+					"Use ALTER TABLE RENAME COLUMN commands to rename columns in place."
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {},
+				"source": [
+					"from pyspark.sql.functions import *\n",
+					"from datetime import datetime\n",
+					"\n",
+					"start_time = datetime.now()\n",
+					"print(f\"Starting column rename at {start_time}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {},
+				"source": [
+					"### Step 1: Rename columns in harmonised table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {},
+				"source": [
+					"try:\n",
+					"    print(\"Renaming columns in odw_harmonised_db.pins_inspector...\")\n",
+					"    \n",
+					"    # Check if columns exist before renaming\n",
+					"    harmonised_table = spark.table(\"odw_harmonised_db.pins_inspector\")\n",
+					"    columns = harmonised_table.columns\n",
+					"    print(f\"Current columns: {columns}\")\n",
+					"    \n",
+					"    # Rename emailAddress to email if it exists\n",
+					"    if \"emailAddress\" in columns:\n",
+					"        spark.sql(\"\"\"\n",
+					"            ALTER TABLE odw_harmonised_db.pins_inspector \n",
+					"            RENAME COLUMN emailAddress TO email\n",
+					"        \"\"\")\n",
+					"        print(\"✓ Renamed emailAddress to email in harmonised table\")\n",
+					"    else:\n",
+					"        print(\"  Column 'emailAddress' not found - may already be renamed\")\n",
+					"    \n",
+					"    # Rename specialism to specialisms if it exists\n",
+					"    if \"specialism\" in columns:\n",
+					"        spark.sql(\"\"\"\n",
+					"            ALTER TABLE odw_harmonised_db.pins_inspector \n",
+					"            RENAME COLUMN specialism TO specialisms\n",
+					"        \"\"\")\n",
+					"        print(\"✓ Renamed specialism to specialisms in harmonised table\")\n",
+					"    else:\n",
+					"        print(\"  Column 'specialism' not found - may already be renamed\")\n",
+					"    \n",
+					"    print(\"\\nHarmonised table columns renamed successfully!\")\n",
+					"    \n",
+					"except Exception as e:\n",
+					"    print(f\"Error renaming harmonised table columns: {str(e)}\")\n",
+					"    raise"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {},
+				"source": [
+					"### Step 2: Rename columns in curated table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {},
+				"source": [
+					"try:\n",
+					"    print(\"Renaming columns in odw_curated_db.pins_inspector...\")\n",
+					"    \n",
+					"    # Check if columns exist before renaming\n",
+					"    curated_table = spark.table(\"odw_curated_db.pins_inspector\")\n",
+					"    columns = curated_table.columns\n",
+					"    print(f\"Current columns: {columns}\")\n",
+					"    \n",
+					"    # Rename emailAddress to email if it exists\n",
+					"    if \"emailAddress\" in columns:\n",
+					"        spark.sql(\"\"\"\n",
+					"            ALTER TABLE odw_curated_db.pins_inspector \n",
+					"            RENAME COLUMN emailAddress TO email\n",
+					"        \"\"\")\n",
+					"        print(\"✓ Renamed emailAddress to email in curated table\")\n",
+					"    else:\n",
+					"        print(\"  Column 'emailAddress' not found - may already be renamed\")\n",
+					"    \n",
+					"    # Rename specialism to specialisms if it exists\n",
+					"    if \"specialism\" in columns:\n",
+					"        spark.sql(\"\"\"\n",
+					"            ALTER TABLE odw_curated_db.pins_inspector \n",
+					"            RENAME COLUMN specialism TO specialisms\n",
+					"        \"\"\")\n",
+					"        print(\"✓ Renamed specialism to specialisms in curated table\")\n",
+					"    else:\n",
+					"        print(\"  Column 'specialism' not found - may already be renamed\")\n",
+					"    \n",
+					"    print(\"\\nCurated table columns renamed successfully!\")\n",
+					"    \n",
+					"except Exception as e:\n",
+					"    print(f\"Error renaming curated table columns: {str(e)}\")\n",
+					"    raise"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {},
+				"source": [
+					"### Step 3: Verify changes"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {},
+				"source": [
+					"try:\n",
+					"    print(\"\\n=== Verification ===\")\n",
+					"    print(\"\\nHarmonised table columns:\")\n",
+					"    harmonised_df = spark.table(\"odw_harmonised_db.pins_inspector\")\n",
+					"    print(harmonised_df.columns)\n",
+					"    \n",
+					"    print(\"\\nCurated table columns:\")\n",
+					"    curated_df = spark.table(\"odw_curated_db.pins_inspector\")\n",
+					"    print(curated_df.columns)\n",
+					"    \n",
+					"    # Verify expected columns exist\n",
+					"    required_columns = ['email', 'specialisms']\n",
+					"    \n",
+					"    harmonised_has_all = all(col in harmonised_df.columns for col in required_columns)\n",
+					"    curated_has_all = all(col in curated_df.columns for col in required_columns)\n",
+					"    \n",
+					"    if harmonised_has_all and curated_has_all:\n",
+					"        print(\"\\n✓ All required columns present in both tables\")\n",
+					"    else:\n",
+					"        print(\"\\n✗ Missing required columns:\")\n",
+					"        if not harmonised_has_all:\n",
+					"            print(f\"  Harmonised table missing: {[c for c in required_columns if c not in harmonised_df.columns]}\")\n",
+					"        if not curated_has_all:\n",
+					"            print(f\"  Curated table missing: {[c for c in required_columns if c not in curated_df.columns]}\")\n",
+					"    \n",
+					"    end_time = datetime.now()\n",
+					"    duration = (end_time - start_time).total_seconds()\n",
+					"    print(f\"\\nCompleted in {duration:.2f} seconds\")\n",
+					"    \n",
+					"except Exception as e:\n",
+					"    print(f\"Error during verification: {str(e)}\")\n",
+					"    raise"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
