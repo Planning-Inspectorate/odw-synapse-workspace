@@ -24,9 +24,9 @@ provider "github" {
   # Token should be provided via GITHUB_TOKEN environment variable
 }
 
-# Data source to get the existing Azure AD user (stef-solirius)
+# Data source to get the existing Azure AD user (raamvar)
 data "azuread_user" "test_user" {
-  user_principal_name = "stefania.deligia@planninginspectorate.gov.uk"
+  user_principal_name = "ramana.varagani@planninginspectorate.gov.uk"
 }
 
 # Create an Entra ID Security Group for ODW-Admins (spike test)
@@ -58,7 +58,7 @@ resource "github_team" "odw_admins_spike" {
 # For the spike, we'll manually add the user to demonstrate the concept
 resource "github_team_membership" "spike_test_member" {
   team_id  = github_team.odw_admins_spike.id
-  username = "stef-solirius"
+  username = "raamvar"
   role     = "member"
 }
 

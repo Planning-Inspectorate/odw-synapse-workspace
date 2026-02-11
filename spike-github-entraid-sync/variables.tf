@@ -1,13 +1,13 @@
 variable "test_user_email" {
   description = "Email address of the test user in Entra ID"
   type        = string
-  default     = "stefania.deligia@planninginspectorate.gov.uk"
+  default     = "ramana.varagani@planninginspectorate.gov.uk"
 }
 
 variable "test_user_github" {
   description = "GitHub username of the test user"
   type        = string
-  default     = "stef-solirius"
+  default     = "raamvar"
 }
 
 variable "github_org" {
