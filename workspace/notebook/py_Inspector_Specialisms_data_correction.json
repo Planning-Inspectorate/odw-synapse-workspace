@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ecd16e54-f87e-4e0e-8f90-3612be0ebaca"
+				"spark.autotune.trackingId": "f38fe0ca-3910-4f4d-8863-94ac50a11bd2"
 			}
 		},
 		"metadata": {
@@ -281,7 +281,7 @@
 					}
 				},
 				"source": [
-					"## Entity Name : inspector_Specialisms"
+					"##### Follow the data correction steps for saphr_inspector_Specialisms"
 				]
 			},
 			{
@@ -289,7 +289,7 @@
 				"source": [
 					"\n",
 					"\n",
-					"if not error_message AND record_count > 0:\n",
+					"if not error_message AND transformed_record_count > 0:\n",
 					"    try:\n",
 					"\n",
 					"        logInfo(\"Starting inspector specialisms data processing\")\n",
@@ -361,20 +361,22 @@
 					"\n",
 					"            \"\"\")\n",
 					"            \n",
-					"            logInfo(\"INSERT operation completed successfully\")\n",
-					"            \n",
+					"        logInfo(\"INSERT operation completed successfully\")\n",
+					"        # Get count of inserted records\n",
+					"        record_count = spark.sql(\"SELECT COUNT(*) as record_count FROM odw_harmonised_db.sap_hr_inspector_Specialisms\").collect()[0]['record_count']\n",
+					"        logInfo(f\"Inserted {record_count} records into sap_hr_inspector_Specialisms\")\n",
+					"\n",
+					"        logInfo(\"Inspector specialisms data processing completed successfully\")\n",
+					"\n",
+					"        # Ensure logs are flushed\n",
+					"        flushLogging()\n",
+					"    \n",
 					"    except Exception as e:\n",
-					"        logError(f\"INSERT operation failed: {str(e)}\")\n",
-					"        raise Exception(f\"Failed to insert records into sap_hr_inspector_Specialisms: {str(e)}\")\n",
-					"\n",
-					"    # Get count of inserted records\n",
-					"    record_count = spark.sql(\"SELECT COUNT(*) as record_count FROM odw_harmonised_db.sap_hr_inspector_Specialisms\").collect()[0]['record_count']\n",
-					"    logInfo(f\"Inserted {record_count} records into sap_hr_inspector_Specialisms\")\n",
-					"\n",
-					"    logInfo(\"Inspector specialisms data processing completed successfully\")\n",
-					"\n",
+					"    error_message = f\"Error in ingesting data from odw_harmonised_db.saphr_inspector_Specialisms: {str(e)[:800]}\"\n",
+					"    end_exec_time = datetime.now()\n",
 					"    # Ensure logs are flushed\n",
-					"    flushLogging()"
+					"    flushLogging()\n",
+					"    "
 				],
 				"execution_count": null
 			}
