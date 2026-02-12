@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "2ee0e4f8-2567-4d56-8cf1-dcaa59212928"
+				"spark.autotune.trackingId": "83c4b6b5-5bf7-4e2a-bc2b-8414b8cb5c32"
 			}
 		},
 		"metadata": {
@@ -61,10 +61,10 @@
 					}
 				},
 				"source": [
-					"#### The purpose of this notebook is to read data from Standardised layer and build a table for Harmonised Layer.\n",
+					"#### The purpose of this notebook is to correct data by using delta table from the Standardised layer and populate the Harmonised Layer delta table.\n",
 					"\n",
 					"**Author** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   **Created Date** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Description**  \n",
-					"Rohit Shukla &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;12-Feb-2026 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;This template is designed to facilitate the monthly processing and harmonization of Inspector Specialism. It includes steps for initializing the environment, creating and managing Delta tables, and inserting data into harmonized tables. The template ensures that Inspector Specialism data is accurately transformed, stored, and made available for reporting and analysis."
+					"Rohit Shukla &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;12-Feb-2026 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;This template is designed to reset the data processing for Inspector Specialism. It will correct the data by using delta table from the Standardised layer and populate the Harmonised Layer delta table."
 				]
 			},
 			{
@@ -84,7 +84,7 @@
 					"import warnings\n",
 					"warnings.filterwarnings(\"ignore\", message=\"iteritems is deprecated\")"
 				],
-				"execution_count": null
+				"execution_count": 1
 			},
 			{
 				"cell_type": "markdown",
@@ -173,13 +173,112 @@
 					}
 				},
 				"source": [
+					"##### Prepare Transform Table for the Harmonised layer Ingestion"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"logInfo(\"Starting inspector specialisms data processing\")\n",
+					"\n",
+					"# Step 1: Delete all records from the transform table\n",
+					"logInfo(\"Step 1: Deleting records from transform_inspector_Specialisms\")\n",
+					"spark.sql(\"\"\"\n",
+					"DELETE FROM odw_harmonised_db.transform_inspector_Specialisms\n",
+					"\"\"\")\n",
+					"logInfo(\"Records deleted from transform table\")\n",
+					"\n",
+					"# Step 2: Insert new records into the transform table\n",
+					"logInfo(\"Step 2: Inserting records into transform_inspector_Specialisms\")\n",
+					"spark.sql(\"\"\"\n",
+					"INSERT INTO odw_harmonised_db.transform_inspector_Specialisms (\n",
+					"    StaffNumber,\n",
+					"    Firstname,\n",
+					"    Lastname,\n",
+					"    QualificationName,\n",
+					"    Proficien,\n",
+					"    SourceSystemID,\n",
+					"    IngestionDate,\n",
+					"    ValidFrom,\n",
+					"    ValidTo,\n",
+					"    RowID,\n",
+					"    IsActive\n",
+					")\n",
+					"SELECT \n",
+					"    -- Format StaffNumber based on length and prefix\n",
+					"    CASE \n",
+					"        WHEN LENGTH(StaffNumber) = 6 THEN\n",
+					"            CASE \n",
+					"                WHEN StaffNumber LIKE '50%' THEN CONCAT('00', StaffNumber)\n",
+					"                WHEN StaffNumber LIKE '42%' THEN CONCAT('50', StaffNumber)\n",
+					"                ELSE StaffNumber\n",
+					"            END\n",
+					"        WHEN LENGTH(StaffNumber) = 8 THEN StaffNumber\n",
+					"        ELSE StaffNumber\n",
+					"    END AS StaffNumber,\n",
+					"    Firstname,\n",
+					"    Lastname,\n",
+					"    QualificationName,\n",
+					"    Proficien,\n",
+					"    'saphr' AS SourceSystemID,\n",
+					"    CURRENT_TIMESTAMP() AS IngestionDate,\n",
+					"    cast(to_date(ValidFrom, \"d/M/yyyy\") as timestamp) AS ValidFrom,\n",
+					"    cast(to_date(ValidTo, \"d/M/yyyy\") as timestamp) AS ValidTo,\n",
+					"    -- Generate RowID during insert instead of separate update\n",
+					"    md5(concat_ws('|', \n",
+					"        coalesce(cast(\n",
+					"            CASE \n",
+					"                WHEN LENGTH(StaffNumber) = 6 THEN\n",
+					"                    CASE \n",
+					"                        WHEN StaffNumber LIKE '50%' THEN CONCAT('00', StaffNumber)\n",
+					"                        WHEN StaffNumber LIKE '42%' THEN CONCAT('50', StaffNumber)\n",
+					"                        ELSE StaffNumber\n",
+					"                    END\n",
+					"                WHEN LENGTH(StaffNumber) = 8 THEN StaffNumber\n",
+					"                ELSE StaffNumber\n",
+					"            END as string), ''), \n",
+					"        coalesce(cast(Firstname as string), ''), \n",
+					"        coalesce(cast(Lastname as string), ''), \n",
+					"        coalesce(cast(QualificationName as string), ''), \n",
+					"        coalesce(cast(Proficien as string), '')\n",
+					"    )) AS RowID,\n",
+					"    'Y' AS IsActive\n",
+					"FROM \n",
+					"    odw_standardised_db.inspector_specialisms_monthly t1\n",
+					"WHERE \n",
+					"    StaffNumber IS NOT NULL\n",
+					"\"\"\")\n",
+					"\n",
+					"# Get count of inserted records\n",
+					"transformed_record_count = spark.sql(\"SELECT COUNT(*) as record_count FROM odw_harmonised_db.transform_inspector_Specialisms\").collect()[0]['transformed_record_count']\n",
+					"logInfo(f\"Inserted {transformed_record_count} records into transform_inspector_Specialisms\")\n",
+					"\n",
+					"logInfo(\"Inspector specialisms data processing completed successfully\")\n",
+					"\n",
+					"# Ensure logs are flushed\n",
+					"flushLogging()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
 					"## Entity Name : inspector_Specialisms"
 				]
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"if not error_message:\n",
+					"\n",
+					"\n",
+					"if not error_message AND record_count > 0:\n",
 					"    try:\n",
 					"\n",
 					"        logInfo(\"Starting inspector specialisms data processing\")\n",
