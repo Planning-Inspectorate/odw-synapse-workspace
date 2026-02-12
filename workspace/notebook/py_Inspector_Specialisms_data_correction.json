@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "4527ef3c-2640-4354-a9ec-c23f71971e12"
+				"spark.autotune.trackingId": "2ee0e4f8-2567-4d56-8cf1-dcaa59212928"
 			}
 		},
 		"metadata": {
@@ -68,30 +68,21 @@
 				]
 			},
 			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"## Intialisations"
-				]
-			},
-			{
 				"cell_type": "code",
 				"source": [
-					"from pyspark.sql.functions import udf, col, lit, when, coalesce, concat, sum, avg, max, min, count, countDistinct, date_format, to_date, datediff, months_between, year, month,  hour, minute, second, expr, asc, desc\n",
-					"from pyspark.sql.types import DateType, TimestampType, StringType, IntegerType, FloatType, DoubleType, BooleanType, StructType, StructField, ArrayType, MapType\n",
-					"from pyspark.sql.window import Window\n",
-					"from pyspark.sql.functions import row_number, rank, dense_rank, lag, lead, ntile\n",
-					"from pyspark.sql import functions as F\n",
-					"from pyspark.sql.utils import AnalysisException\n",
-					"from pyspark.sql.catalog import Catalog\n",
-					"from pyspark.sql.column import Column\n",
-					"from datetime import datetime, timedelta"
+					"# Import libraries \n",
+					"import json\n",
+					"import sys\n",
+					"import re\n",
+					"from datetime import datetime, date\n",
+					"from pyspark.sql.functions import regexp_replace,lit, current_timestamp, trim,col,coalesce, to_date, when\n",
+					"\n",
+					"from notebookutils import mssparkutils\n",
+					"from pyspark.sql.types import *\n",
+					"\n",
+					"# Ignore FutureWarning messages \n",
+					"import warnings\n",
+					"warnings.filterwarnings(\"ignore\", message=\"iteritems is deprecated\")"
 				],
 				"execution_count": null
 			},
@@ -126,95 +117,154 @@
 					}
 				},
 				"source": [
+					"##### Enable Apps Insight Logging"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_applicationinsights"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Define all storage paths and file locations"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"#Initialise all Apps Insight variables\n",
+					"start_exec_time = datetime.now()\n",
+					"end_exec_time = datetime.now()\n",
+					"insert_count = 0\n",
+					"update_count = 0\n",
+					"delete_count = 0\n",
+					"error_message = ''\n",
+					"\n",
+					"# Define database names, table names, and file paths\n",
+					"standardised_database = \"odw_standardised_db\"\n",
+					"harmonised_database = \"odw_harmonised_db\"\n",
+					"\n",
+					"# Target table names\n",
+					"standardised_table = f\"{standardised_database}.inspector_specialisms_monthly\"\n",
+					"harmonised_table = f\"{harmonised_database}.sap_hr_inspector_Specialisms\"\n",
+					"\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
 					"## Entity Name : inspector_Specialisms"
 				]
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"logInfo(\"Starting inspector specialisms data processing\")\n",
+					"if not error_message:\n",
+					"    try:\n",
 					"\n",
-					"# Step 1: Delete all records from the transform table\n",
-					"logInfo(\"Step 1: Deleting records from sap_hr_inspector_Specialisms\")\n",
-					"spark.sql(\"\"\"\n",
-					"DELETE FROM odw_harmonised_db.sap_hr_inspector_Specialisms\n",
-					"\"\"\")\n",
-					"logInfo(\"Records deleted from target table\")\n",
+					"        logInfo(\"Starting inspector specialisms data processing\")\n",
 					"\n",
-					"# Step 5: Inserting records into sap_hr_inspector_Specialisms\n",
-					"logInfo(\"Step 5: Inserting records into sap_hr_inspector_Specialisms\")\n",
-					"try:\n",
-					"    spark.sql(\"\"\"\n",
-					"  INSERT INTO odw_harmonised_db.sap_hr_inspector_Specialisms (\n",
-					"    StaffNumber, \n",
-					"    Firstname, \n",
-					"    Lastname, \n",
-					"    QualificationName, \n",
-					"    Proficien, \n",
-					"    Current, \n",
-					"    ValidFrom, \n",
-					"    ValidTo, \n",
-					"    SourceSystemID, \n",
-					"    IngestionDate, \n",
-					"    RowID, \n",
-					"    IsActive, \n",
-					"    LastUpdated\n",
-					")\n",
-					"SELECT \n",
-					"    -- Staff Number with leading zero padding logic\n",
-					"    CASE \n",
-					"        WHEN LENGTH(TRIM(souSpe.StaffNumber)) < 8 THEN \n",
-					"            LPAD(TRIM(souSpe.StaffNumber), 8, '0')\n",
-					"        ELSE \n",
-					"            TRIM(souSpe.StaffNumber)\n",
-					"    END AS StaffNumber,\n",
-					"    souSpe.Firstname, \n",
-					"    souSpe.Lastname, \n",
-					"    souSpe.QualificationName, \n",
-					"    souSpe.Proficien, \n",
-					"    Current,\n",
-					"    to_date(ValidFrom, 'dd/MM/yyyy') as ValidFrom,\n",
-					"    to_date(ValidTo, 'dd/MM/yyyy') as ValidTo,\n",
-					"    'Saphr' as SourceSystemID,\n",
-					"    COALESCE(\n",
-					"        try_to_timestamp(Ingested_Datetime, 'dd/MM/yyyy HH:mm:ss'),\n",
-					"        try_to_timestamp(Ingested_Datetime, 'dd/MM/yyyy'),\n",
-					"        current_timestamp()\n",
-					"    ) as IngestionDate,\n",
-					"    md5(concat_ws('|', \n",
-					"        coalesce(cast(\n",
-					"            -- Updated RowID calculation to use the same staff number logic\n",
+					"        # Step 1: Delete all records from the transform table\n",
+					"        logInfo(\"Step 1: Deleting records from sap_hr_inspector_Specialisms\")\n",
+					"        spark.sql(\"\"\"\n",
+					"        DELETE FROM odw_harmonised_db.sap_hr_inspector_Specialisms\n",
+					"        \"\"\")\n",
+					"        logInfo(\"Records deleted from target table\")\n",
+					"\n",
+					"        # Step 5: Inserting records into sap_hr_inspector_Specialisms\n",
+					"        logInfo(\"Step 5: Inserting records into sap_hr_inspector_Specialisms\")\n",
+					"        try:\n",
+					"            spark.sql(\"\"\"\n",
+					"        INSERT INTO odw_harmonised_db.sap_hr_inspector_Specialisms (\n",
+					"            StaffNumber, \n",
+					"            Firstname, \n",
+					"            Lastname, \n",
+					"            QualificationName, \n",
+					"            Proficien, \n",
+					"            Current, \n",
+					"            ValidFrom, \n",
+					"            ValidTo, \n",
+					"            SourceSystemID, \n",
+					"            IngestionDate, \n",
+					"            RowID, \n",
+					"            IsActive, \n",
+					"            LastUpdated\n",
+					"        )\n",
+					"        SELECT \n",
+					"            -- Staff Number with leading zero padding logic\n",
 					"            CASE \n",
-					"                WHEN LENGTH(TRIM(StaffNumber)) < 8 THEN \n",
-					"                    LPAD(TRIM(StaffNumber), 8, '0')\n",
+					"                WHEN LENGTH(TRIM(souSpe.StaffNumber)) < 8 THEN \n",
+					"                    LPAD(TRIM(souSpe.StaffNumber), 8, '0')\n",
 					"                ELSE \n",
-					"                    TRIM(StaffNumber)\n",
-					"            END as string), ''), \n",
-					"        coalesce(cast(Firstname as string), ''), \n",
-					"        coalesce(cast(Lastname as string), ''), \n",
-					"        coalesce(cast(QualificationName as string), ''), \n",
-					"        coalesce(cast(Proficien as string), '')\n",
-					"    )) AS RowID,\n",
-					"    'Y' as IsActive, \n",
-					"    current_date() as LastUpdated\n",
-					"FROM odw_standardised_db.inspector_specialism_mig souSpe\n",
+					"                    TRIM(souSpe.StaffNumber)\n",
+					"            END AS StaffNumber,\n",
+					"            souSpe.Firstname, \n",
+					"            souSpe.Lastname, \n",
+					"            souSpe.QualificationName, \n",
+					"            souSpe.Proficien, \n",
+					"            Current,\n",
+					"            to_date(ValidFrom, 'dd/MM/yyyy') as ValidFrom,\n",
+					"            to_date(ValidTo, 'dd/MM/yyyy') as ValidTo,\n",
+					"            'Saphr' as SourceSystemID,\n",
+					"            COALESCE(\n",
+					"                try_to_timestamp(Ingested_Datetime, 'dd/MM/yyyy HH:mm:ss'),\n",
+					"                try_to_timestamp(Ingested_Datetime, 'dd/MM/yyyy'),\n",
+					"                current_timestamp()\n",
+					"            ) as IngestionDate,\n",
+					"            md5(concat_ws('|', \n",
+					"                coalesce(cast(\n",
+					"                    -- Updated RowID calculation to use the same staff number logic\n",
+					"                    CASE \n",
+					"                        WHEN LENGTH(TRIM(StaffNumber)) < 8 THEN \n",
+					"                            LPAD(TRIM(StaffNumber), 8, '0')\n",
+					"                        ELSE \n",
+					"                            TRIM(StaffNumber)\n",
+					"                    END as string), ''), \n",
+					"                coalesce(cast(Firstname as string), ''), \n",
+					"                coalesce(cast(Lastname as string), ''), \n",
+					"                coalesce(cast(QualificationName as string), ''), \n",
+					"                coalesce(cast(Proficien as string), '')\n",
+					"            )) AS RowID,\n",
+					"            'Y' as IsActive, \n",
+					"            current_date() as LastUpdated\n",
+					"        FROM odw_standardised_db.inspector_specialism_mig souSpe\n",
 					"\n",
-					"    \"\"\")\n",
-					"    \n",
-					"    logInfo(\"INSERT operation completed successfully\")\n",
-					"    \n",
-					"except Exception as e:\n",
-					"    logError(f\"INSERT operation failed: {str(e)}\")\n",
-					"    raise Exception(f\"Failed to insert records into sap_hr_inspector_Specialisms: {str(e)}\")\n",
+					"            \"\"\")\n",
+					"            \n",
+					"            logInfo(\"INSERT operation completed successfully\")\n",
+					"            \n",
+					"    except Exception as e:\n",
+					"        logError(f\"INSERT operation failed: {str(e)}\")\n",
+					"        raise Exception(f\"Failed to insert records into sap_hr_inspector_Specialisms: {str(e)}\")\n",
 					"\n",
-					"# Get count of inserted records\n",
-					"record_count = spark.sql(\"SELECT COUNT(*) as record_count FROM odw_harmonised_db.sap_hr_inspector_Specialisms\").collect()[0]['record_count']\n",
-					"logInfo(f\"Inserted {record_count} records into sap_hr_inspector_Specialisms\")\n",
+					"    # Get count of inserted records\n",
+					"    record_count = spark.sql(\"SELECT COUNT(*) as record_count FROM odw_harmonised_db.sap_hr_inspector_Specialisms\").collect()[0]['record_count']\n",
+					"    logInfo(f\"Inserted {record_count} records into sap_hr_inspector_Specialisms\")\n",
 					"\n",
-					"logInfo(\"Inspector specialisms data processing completed successfully\")\n",
+					"    logInfo(\"Inspector specialisms data processing completed successfully\")\n",
 					"\n",
-					"# Ensure logs are flushed\n",
-					"flushLogging()"
+					"    # Ensure logs are flushed\n",
+					"    flushLogging()"
 				],
 				"execution_count": null
 			}
