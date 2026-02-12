@@ -1,0 +1,232 @@
+{
+	"name": "py_Inspector_Specialisms_data_correction",
+	"properties": {
+		"folder": {
+			"name": "Releases/28.0.0"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "c70bf07f-3f33-4046-bc88-b5ae85114c74"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### The purpose of this notebook is to read data from Standardised layer and build a table for Curated Layer.\n",
+					"\n",
+					"**Author** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   **Created Date** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Description**  \n",
+					"Prathap Adicherla &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10-June-2025 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;This template is designed to facilitate the monthly processing and harmonization of Inspector Specialism. It includes steps for initializing the environment, creating and managing Delta tables, and inserting data into harmonized tables. The template ensures that Inspector Specialism data is accurately transformed, stored, and made available for reporting and analysis."
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Intialisations"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql.functions import udf, col, lit, when, coalesce, concat, sum, avg, max, min, count, countDistinct, date_format, to_date, datediff, months_between, year, month,  hour, minute, second, expr, asc, desc\n",
+					"from pyspark.sql.types import DateType, TimestampType, StringType, IntegerType, FloatType, DoubleType, BooleanType, StructType, StructField, ArrayType, MapType\n",
+					"from pyspark.sql.window import Window\n",
+					"from pyspark.sql.functions import row_number, rank, dense_rank, lag, lead, ntile\n",
+					"from pyspark.sql import SQLContext\n",
+					"from pyspark.sql import DataFrame\n",
+					"from pyspark.sql import functions as F\n",
+					"from pyspark.sql.avro.functions import from_avro, to_avro\n",
+					"from pyspark.sql.streaming import DataStreamReader, DataStreamWriter\n",
+					"from pyspark.sql.utils import AnalysisException\n",
+					"from pyspark.sql.catalog import Catalog\n",
+					"from pyspark.sql.column import Column\n",
+					"from pyspark.sql.group import GroupedData\n",
+					"from pyspark.sql.pandas.functions import pandas_udf\n",
+					"\n",
+					"from datetime import datetime, timedelta\n",
+					"import pandas as pd\n",
+					"import numpy as np"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# "
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_logging_decorator\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Entity Name : inspector_Specialisms"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"logInfo(\"Starting inspector specialisms data processing\")\n",
+					"\n",
+					"# Step 1: Delete all records from the transform table\n",
+					"logInfo(\"Step 1: Deleting records from sap_hr_inspector_Specialisms\")\n",
+					"spark.sql(\"\"\"\n",
+					"DELETE FROM odw_harmonised_db.sap_hr_inspector_Specialisms\n",
+					"\"\"\")\n",
+					"logInfo(\"Records deleted from target table\")\n",
+					"\n",
+					"# Step 5: Inserting records into sap_hr_inspector_Specialisms\n",
+					"logInfo(\"Step 5: Inserting records into sap_hr_inspector_Specialisms\")\n",
+					"try:\n",
+					"    spark.sql(\"\"\"\n",
+					"  INSERT INTO odw_harmonised_db.sap_hr_inspector_Specialisms (\n",
+					"    StaffNumber, \n",
+					"    Firstname, \n",
+					"    Lastname, \n",
+					"    QualificationName, \n",
+					"    Proficien, \n",
+					"    Current, \n",
+					"    ValidFrom, \n",
+					"    ValidTo, \n",
+					"    SourceSystemID, \n",
+					"    IngestionDate, \n",
+					"    RowID, \n",
+					"    IsActive, \n",
+					"    LastUpdated\n",
+					")\n",
+					"SELECT \n",
+					"    -- Staff Number with leading zero padding logic\n",
+					"    CASE \n",
+					"        WHEN LENGTH(TRIM(souSpe.StaffNumber)) < 8 THEN \n",
+					"            LPAD(TRIM(souSpe.StaffNumber), 8, '0')\n",
+					"        ELSE \n",
+					"            TRIM(souSpe.StaffNumber)\n",
+					"    END AS StaffNumber,\n",
+					"    souSpe.Firstname, \n",
+					"    souSpe.Lastname, \n",
+					"    souSpe.QualificationName, \n",
+					"    souSpe.Proficien, \n",
+					"    Current,\n",
+					"    to_date(ValidFrom, 'dd/MM/yyyy') as ValidFrom,\n",
+					"    to_date(ValidTo, 'dd/MM/yyyy') as ValidTo,\n",
+					"    'Saphr' as SourceSystemID,\n",
+					"    COALESCE(\n",
+					"        try_to_timestamp(Ingested_Datetime, 'dd/MM/yyyy HH:mm:ss'),\n",
+					"        try_to_timestamp(Ingested_Datetime, 'dd/MM/yyyy'),\n",
+					"        current_timestamp()\n",
+					"    ) as IngestionDate,\n",
+					"    md5(concat_ws('|', \n",
+					"        coalesce(cast(\n",
+					"            -- Updated RowID calculation to use the same staff number logic\n",
+					"            CASE \n",
+					"                WHEN LENGTH(TRIM(StaffNumber)) < 8 THEN \n",
+					"                    LPAD(TRIM(StaffNumber), 8, '0')\n",
+					"                ELSE \n",
+					"                    TRIM(StaffNumber)\n",
+					"            END as string), ''), \n",
+					"        coalesce(cast(Firstname as string), ''), \n",
+					"        coalesce(cast(Lastname as string), ''), \n",
+					"        coalesce(cast(QualificationName as string), ''), \n",
+					"        coalesce(cast(Proficien as string), '')\n",
+					"    )) AS RowID,\n",
+					"    'Y' as IsActive, \n",
+					"    current_date() as LastUpdated\n",
+					"FROM odw_standardised_db.inspector_specialism_mig souSpe\n",
+					"\n",
+					"    \"\"\")\n",
+					"    \n",
+					"    logInfo(\"INSERT operation completed successfully\")\n",
+					"    \n",
+					"except Exception as e:\n",
+					"    logError(f\"INSERT operation failed: {str(e)}\")\n",
+					"    raise Exception(f\"Failed to insert records into sap_hr_inspector_Specialisms: {str(e)}\")\n",
+					"\n",
+					"# Get count of inserted records\n",
+					"record_count = spark.sql(\"SELECT COUNT(*) as record_count FROM odw_harmonised_db.sap_hr_inspector_Specialisms\").collect()[0]['record_count']\n",
+					"logInfo(f\"Inserted {record_count} records into sap_hr_inspector_Specialisms\")\n",
+					"\n",
+					"logInfo(\"Inspector specialisms data processing completed successfully\")\n",
+					"\n",
+					"# Ensure logs are flushed\n",
+					"flushLogging()"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
