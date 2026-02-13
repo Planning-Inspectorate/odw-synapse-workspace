@@ -1,6 +1,7 @@
 from odw.test.util.mock.import_mock_notebook_utils import notebookutils
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.table_util import TableUtil
+from odw.test.util.session_util import PytestSparkSessionUtil
 from pyspark.sql import SparkSession
 from pyspark.sql import Catalog
 import pytest
@@ -31,7 +32,7 @@ DESCRIPTION_SCHEMA = StructType(
 
 
 def get_sample_table_dataframe(table_details: List[Dict[str, str]], table_kind: str):
-    spark = SparkSession.builder.getOrCreate()
+    spark = PytestSparkSessionUtil().get_spark_session()
     datetime_format = "%Y-%m-%d %H:%M:%S.%f"
     return spark.createDataFrame(
         [
@@ -69,7 +70,8 @@ def test_delete_table__successful():
                 with mock.patch.object(LoggingUtil, "log_info", return_value=None):
                     with mock.patch.object(LoggingUtil, "log_exception", return_value=None):
                         with mock.patch.object(notebookutils.mssparkutils.fs, "rm", return_value=None):
-                            TableUtil.delete_table(db_name, table_name)
+                            spark = PytestSparkSessionUtil().get_spark_session()
+                            TableUtil.delete_table(spark, db_name, table_name)
                             SparkSession.sql.assert_has_calls(
                                 [mock.call(f"DESCRIBE DETAIL {db_name}.{table_name}"), mock.call(f"DROP TABLE IF EXISTS {db_name}.{table_name}")]
                             )
@@ -84,7 +86,8 @@ def test_delete_table__table_does_not_exist():
             with mock.patch.object(LoggingUtil, "_initialise", return_value=None):
                 with mock.patch.object(LoggingUtil, "log_info", return_value=None):
                     with mock.patch.object(notebookutils.mssparkutils.fs, "rm", return_value=None):
-                        TableUtil.delete_table(db_name, table_name)
+                        spark = PytestSparkSessionUtil().get_spark_session()
+                        TableUtil.delete_table(spark, db_name, table_name)
                         assert not SparkSession.sql.called
                         LoggingUtil.log_info.assert_has_calls([mock.call("Table does not exist")], any_order=True)
                         assert not notebookutils.mssparkutils.fs.rm.called
@@ -109,7 +112,8 @@ def test_delete_table__multiple_occurrences():
                     with mock.patch.object(LoggingUtil, "log_exception", return_value=None):
                         with mock.patch.object(notebookutils.mssparkutils.fs, "rm", return_value=None):
                             with pytest.raises(RuntimeError):
-                                TableUtil.delete_table(db_name, table_name)
+                                spark = PytestSparkSessionUtil().get_spark_session()
+                                TableUtil.delete_table(spark, db_name, table_name)
                                 SparkSession.sql.assert_called_once_with(f"DESCRIBE DETAIL {db_name}.{table_name}")
                                 assert not notebookutils.mssparkutils.fs.rm.called
 
@@ -126,7 +130,8 @@ def test_delete_table_contents__successful():
                 with mock.patch.object(LoggingUtil, "log_info", return_value=None):
                     with mock.patch.object(LoggingUtil, "log_exception", return_value=None):
                         with mock.patch.object(notebookutils.mssparkutils.fs, "rm", return_value=None):
-                            TableUtil.delete_table_contents(db_name, table_name)
+                            spark = PytestSparkSessionUtil().get_spark_session()
+                            TableUtil.delete_table_contents(spark, db_name, table_name)
                             SparkSession.sql.assert_has_calls(
                                 [mock.call(f"DESCRIBE DETAIL {db_name}.{table_name}"), mock.call(f"DELETE FROM {db_name}.{table_name}")]
                             )
@@ -141,7 +146,8 @@ def test_delete_table_contents__table_does_not_exist():
         with mock.patch.object(SparkSession, "sql", return_value=None):
             with mock.patch.object(LoggingUtil, "_initialise", return_value=None):
                 with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-                    TableUtil.delete_table_contents(db_name, table_name)
+                    spark = PytestSparkSessionUtil().get_spark_session()
+                    TableUtil.delete_table_contents(spark, db_name, table_name)
                     assert not SparkSession.sql.called
                     LoggingUtil.log_info.assert_has_calls([mock.call("Table does not exist")], any_order=True)
 
@@ -165,6 +171,7 @@ def test_delete_table_contents__multiple_occurrences():
                     with mock.patch.object(LoggingUtil, "log_exception", return_value=None):
                         with mock.patch.object(notebookutils.mssparkutils.fs, "rm", return_value=None):
                             with pytest.raises(RuntimeError):
-                                TableUtil.delete_table_contents(db_name, table_name)
+                                spark = PytestSparkSessionUtil().get_spark_session()
+                                TableUtil.delete_table_contents(spark, db_name, table_name)
                             SparkSession.sql.assert_called_once_with(f"DESCRIBE DETAIL {db_name}.{table_name}")
                             assert not notebookutils.mssparkutils.fs.rm.called

@@ -29,7 +29,5 @@ def synapse_endpoint() -> str:
 @pytest.fixture()
 def azure_credential(pytestconfig: pytest.Config):
     return ConftestUtil.get_azure_credential(
-        pytestconfig.getoption("client_id"),
-        pytestconfig.getoption("client_secret"),
-        pytestconfig.getoption("tenant")
+        pytestconfig.getoption("client_id"), pytestconfig.getoption("client_secret"), pytestconfig.getoption("tenant")
     )
