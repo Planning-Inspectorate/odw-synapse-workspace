@@ -64,6 +64,62 @@ def test_logging_util__log_exception():
         logging.Logger.exception.assert_called_once_with(f"{pipeline_guid} : {exception_message}")
 
 
+@pytest.mark.parametrize(
+    "test_case",
+    [
+        (False, False),  # Without force initialisation. i.e. If not initialised, then initialise
+        (True, True),  # With forced initialisation. i.e. If already initialised and running with force, then initialise
+    ],
+)
+def test_logging_util__setup_logging(test_case):
+    logging_initialised = test_case[0]
+    force_initialise = test_case[1]
+    logging_util_inst = get_new_logging_instance()
+    logging_util_inst.LOGGER_PROVIDER = LoggerProvider()
+    logging_util_inst._LOGGING_INITIALISED = logging_initialised
+    logging_util_inst.logger = logging.getLogger()
+    logging_util_inst.pipelinejobid = "some_pipeline_guid"
+    with mock.patch.object(notebookutils.mssparkutils.credentials, "getSecretWithLS", return_value="some_connection_string;blah;blah"):
+        mock_exporter = mock.MagicMock()
+        mock_batch_log_record_processor = mock.MagicMock()
+        with mock.patch.object(AzureMonitorLogExporter, "from_connection_string", return_value=mock_exporter):
+            with mock.patch.object(LoggerProvider, "add_log_record_processor"):
+                with mock.patch.object(BatchLogRecordProcessor, "__new__", return_value=mock_batch_log_record_processor):
+                    logging_util_inst.setup_logging(force_initialise)
+                    BatchLogRecordProcessor.__new__.assert_called_once_with(BatchLogRecordProcessor, mock_exporter, schedule_delay_millis=5000)
+                    LoggerProvider.add_log_record_processor.assert_called_once_with(mock_batch_log_record_processor)
+                    assert logging_util_inst.logger.level == logging.INFO
+                    assert logging_util_inst._LOGGING_INITIALISED
+
+
+def test_logging_util__setup_logging__already_initialised():
+    # I.e if initialised and not running with force, then skip initialisation
+    logging_util_inst = get_new_logging_instance()
+    logging_util_inst.LOGGER_PROVIDER = LoggerProvider()
+    logging_util_inst._LOGGING_INITIALISED = True
+    logging_util_inst.logger = logging.getLogger()
+    logging_util_inst.pipelinejobid = "some_pipeline_guid"
+    with mock.patch.object(notebookutils.mssparkutils.credentials, "getSecretWithLS", return_value="some_connection_string;blah;blah"):
+        mock_exporter = mock.MagicMock()
+        mock_batch_log_record_processor = mock.MagicMock()
+        with mock.patch.object(AzureMonitorLogExporter, "from_connection_string", return_value=mock_exporter):
+            with mock.patch.object(LoggerProvider, "add_log_record_processor"):
+                with mock.patch.object(BatchLogRecordProcessor, "__new__", return_value=mock_batch_log_record_processor):
+                    logging_util_inst.setup_logging()
+                    assert not AzureMonitorLogExporter.from_connection_string.called
+                    assert not LoggerProvider.add_log_record_processor.called
+                    assert not BatchLogRecordProcessor.__new__.called
+
+
+def test_logging_util__flush_logging():
+    logging_util_inst = get_new_logging_instance()
+    logging_util_inst.LOGGER_PROVIDER = LoggerProvider()
+    with mock.patch.object(LoggerProvider, "force_flush", return_value=None):
+        with mock.patch.object(LoggingUtil, "_initialise", return_value=None):
+            logging_util_inst.flush_logging()
+            LoggerProvider.force_flush.assert_called_once()
+
+
 def test_logging_util__logging_to_appins():
     @LoggingUtil.logging_to_appins
     def my_function():

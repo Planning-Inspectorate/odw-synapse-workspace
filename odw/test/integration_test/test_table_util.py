@@ -1,7 +1,8 @@
 from odw.test.util.mock.import_mock_notebook_utils import notebookutils
+from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.table_util import TableUtil
 from odw.test.util.config import TEST_CONFIG
-from pyspark.sql import SparkSession
+from odw.test.util.session_util import PytestSparkSessionUtil
 import pytest
 import mock
 from datetime import datetime
@@ -12,7 +13,6 @@ from typing import Callable
 
 SQL_COPT_SS_ACCESS_TOKEN = 1256
 SQL_SERVER_VERSION = 18
-spark = SparkSession.builder.getOrCreate()
 
 
 DESCRIPTION_SCHEMA = StructType(
@@ -82,6 +82,7 @@ def validate_table_deleted(database_name: str, table_name: str, raw_data_path: s
 
 def create_table(data_format: str, file_path: str, database_name: str, table_name: str):
     # Create the database table
+    spark = PytestSparkSessionUtil().get_spark_session()
     data = spark.createDataFrame(
         [
             ("Jean-Luc Picard", "Captain"),
