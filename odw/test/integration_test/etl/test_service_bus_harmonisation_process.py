@@ -6,8 +6,6 @@ from odw.test.util.util import add_orchestration_entry
 from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
 from odw.test.util.session_util import PytestSparkSessionUtil
 import mock
-import shutil
-import os
 from datetime import datetime
 import pyspark.sql.functions as F
 from pyspark.sql import DataFrame
@@ -51,7 +49,7 @@ class TestServiceBusHarmonisationProcess(ETLTestCase):
                 "Harmonised_Table_Name": "test_sb_hrm_pc_no_data",
                 "Harmonised_Incremental_Key": "incremental_key",
                 "Entity_Primary_Key": "col_a",
-            }
+            },
         ]
         for definition in new_definitions:
             add_orchestration_entry(definition)

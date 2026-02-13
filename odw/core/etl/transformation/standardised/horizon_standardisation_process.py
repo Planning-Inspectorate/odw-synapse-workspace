@@ -9,7 +9,6 @@ from notebookutils import mssparkutils
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType
 import pyspark.sql.functions as F
-from pyspark.sql import SparkSession
 from pyspark.errors.exceptions.captured import AnalysisException
 from datetime import datetime, timedelta
 from typing import Dict, List, Any

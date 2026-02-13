@@ -1,4 +1,3 @@
-from odw.test.util.mock.import_mock_notebook_utils import notebookutils
 from odw.core.etl.etl_process import ETLProcess
 from odw.core.etl.etl_result import ETLSuccessResult, ETLFailResult, ETLResult
 from odw.core.util.logging_util import LoggingUtil
@@ -47,12 +46,7 @@ def generate_etl_success_result(start_time: datetime = datetime.now(), end_time:
     )
 
 
-def generate_etl_fail_result(
-    exception: str,
-    start_time: datetime = datetime.now(),
-    end_time: datetime = datetime.now(),
-    table_name: str = None
-):
+def generate_etl_fail_result(exception: str, start_time: datetime = datetime.now(), end_time: datetime = datetime.now(), table_name: str = None):
     return ETLFailResult(
         metadata=ETLResult.ETLResultMetadata(
             start_execution_time=start_time,

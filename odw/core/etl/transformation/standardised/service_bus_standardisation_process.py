@@ -8,7 +8,6 @@ from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType
 import pyspark.sql.functions as F
 from pyspark.sql.types import TimestampType
-from pyspark.sql import SparkSession
 from datetime import datetime
 from typing import Dict
 import re
@@ -125,9 +124,7 @@ class ServiceBusStandardisationProcess(StandardisationProcess):
         table_name = f"sb_{entity_name.replace('-', '_')}"
         source_path = Util.get_path_to_file(f"odw-raw/ServiceBus/{entity_name}")
 
-        table_df = SynapseTableDataIO().read(
-            spark=self.spark, database_name=database_name, table_name=table_name, file_format="delta"
-        )
+        table_df = SynapseTableDataIO().read(spark=self.spark, database_name=database_name, table_name=table_name, file_format="delta")
 
         max_extracted_date = self.get_max_file_date(table_df)
         missing_files = self.get_missing_files(table_df, source_path)

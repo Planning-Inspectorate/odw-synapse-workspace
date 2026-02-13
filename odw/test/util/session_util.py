@@ -14,12 +14,14 @@ class PytestSparkSessionUtil(metaclass=Singleton):
     alongside a separate DB/filesystem per thread. This class is a singleton, so only one instance can ever
     be created
 
-    # Usage 
+    # Usage
     - `PytestSessionUtil().get_spark_session()`
     - `PytestSessionUtil().get_thread_id()`
     - `PytestSessionUtil().get_spark_warehouse_name()`
     """
+
     DATABASE_NAMES = ["odw_standardised_db", "odw_harmonised_db", "odw_curated_db"]
+
     def __init__(self, *args, **kwargs):
         self._THREAD_ID = str(uuid4())[:8]
         self._SPARK_SESSION = configure_spark_with_delta_pip(
@@ -38,7 +40,7 @@ class PytestSparkSessionUtil(metaclass=Singleton):
 
     def get_spark_session(self):
         return self._SPARK_SESSION
-    
+
     def _initialise_file_system(self, spark_session: SparkSession):
         for database in self.DATABASE_NAMES:
             spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {database}")
@@ -60,9 +62,7 @@ class PytestSparkSessionUtil(metaclass=Singleton):
     def _create_main_source_system_fact_table(self, spark: SparkSession):
         shutil.rmtree(os.path.join(self.get_spark_warehouse_name(), "odw_harmonised_db.db", "main_sourcesystem_fact"), ignore_errors=True)
         data = spark.createDataFrame(
-            (
-                ("1", "Casework", "", None, "", "Y"),
-            ),
+            (("1", "Casework", "", None, "", "Y"),),
             T.StructType(
                 [
                     T.StructField("SourceSystemId", T.StringType()),
@@ -70,9 +70,9 @@ class PytestSparkSessionUtil(metaclass=Singleton):
                     T.StructField("IngestionDate", T.StringType()),
                     T.StructField("ValidTo", T.StringType()),
                     T.StructField("RowID", T.StringType()),
-                    T.StructField("IsActive", T.StringType())
+                    T.StructField("IsActive", T.StringType()),
                 ]
-            )
+            ),
         )
         database_name = "odw_harmonised_db"
         table_name = "main_sourcesystem_fact"

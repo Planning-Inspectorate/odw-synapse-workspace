@@ -1,4 +1,3 @@
-from odw.test.util.mock.import_mock_notebook_utils import notebookutils
 from odw.core.etl.transformation.harmonised.service_bus_harmonisation_process import ServiceBusHarmonisationProcess
 from odw.test.util.session_util import PytestSparkSessionUtil
 import pyspark.sql.types as T
