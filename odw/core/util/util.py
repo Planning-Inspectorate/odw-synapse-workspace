@@ -31,6 +31,6 @@ class Util:
     @classmethod
     def display_dataframe(cls, dataframe: DataFrame):
         """
-        Show the contents of the given dataframe.
+        Show the contents of the given dataframe. This is a wrapper of the display() function in Synapse
         """
         visualization.display(dataframe)
