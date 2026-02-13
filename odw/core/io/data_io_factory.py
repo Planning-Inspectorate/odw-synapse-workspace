@@ -20,6 +20,9 @@ class DataIOFactory:
 
     @classmethod
     def _validate_data_io_classes(cls):
+        """
+        Check that all the `get_name` method of each DataIO class is unique
+        """
         name_map: Dict[str, List[Type[DataIO]]] = dict()
         for data_io_class in cls.DATA_IO_CLASSES:
             type_name = data_io_class.get_name()
@@ -30,7 +33,7 @@ class DataIOFactory:
         invalid_types = {k: v for k, v in name_map.items() if len(v) > 1}
         if invalid_types:
             raise DuplicateDataIONameException(
-                f"The following DataIO implementation classes had duplicate names: {json.dumps(invalid_types, indent=4)}"
+                f"The following DataIO implementation classes had duplicate names: {json.dumps(list(invalid_types), indent=4)}"
             )
         return {k: v[0] for k, v in name_map.items()}
 
