@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "fae90e10-5b50-4de6-8538-c5b952254d8f"
+				"spark.autotune.trackingId": "28f12aa3-ae5f-4086-9399-99a7e00d308e"
 			}
 		},
 		"metadata": {
@@ -361,6 +361,58 @@
 					"else:\n",
 					"    logInfo(\"Couldn't load odw_harmonised_db.sap_hr_inspector_Specialisms. Either error occurred or odw_standarised_db.inspector_Specialisms_monthly has got zero records\")\n",
 					"    "
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Record into Apps Insight for logging and tracking"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# STEP 6: Final Statistics and Telemetry\n",
+					"\n",
+					"duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
+					"activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
+					"stage = \"Success\" if not error_message else \"Failed\"\n",
+					"status_message = (\n",
+					"    f\"Ingested {record_count} corrected records into {harmonised_table}.\"\n",
+					"    if not error_message \n",
+					"    else f\"Data correction failed failed for {harmonised_table}\"\n",
+					")\n",
+					"status_code = \"200\" if stage == \"Success\" else \"400\"\n",
+					"\n",
+					"log_telemetry_and_exit(\n",
+					"    stage,\n",
+					"    start_exec_time,\n",
+					"    end_exec_time,\n",
+					"    error_message,\n",
+					"    harmonised_table,\n",
+					"    curated_count,\n",
+					"    update_count,\n",
+					"    delete_count,\n",
+					"    PipelineName,\n",
+					"    PipelineRunID,\n",
+					"    PipelineTriggerID,\n",
+					"    PipelineTriggerName,\n",
+					"    PipelineTriggerType,\n",
+					"    PipelineTriggeredbyPipelineName,\n",
+					"    PipelineTriggeredbyPipelineRunID,\n",
+					"    activity_type,\n",
+					"    duration_seconds,\n",
+					"    status_message,\n",
+					"    status_code\n",
+					")"
 				],
 				"execution_count": null
 			}
