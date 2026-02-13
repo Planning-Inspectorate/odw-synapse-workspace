@@ -10,6 +10,12 @@ import json
 
 
 class DataIOFactory():
+    """
+    Class for dynamically fetching DataIO classes by name
+
+    # Example usage
+    data_io_class = DataIOFactory().get("my_io_name")
+    """
     DATA_IO_CLASSES: Set[Type[DataIO]] = {
         SynapseFileDataIO,
         SynapseTableDataIO,
