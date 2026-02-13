@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "49f570dc-e9f5-46c7-978b-33418a6cb846"
+				"spark.autotune.trackingId": "adc3751e-ae6f-4aa6-bed2-4fbe70989e77"
 			}
 		},
 		"metadata": {
@@ -130,16 +130,25 @@
 					"\n",
 					"    except Exception as e:\n",
 					"        logInfo(f\"Could not read existing table '{full_table_name}' (may not exist yet). Proceeding without alignment. Details: {e}\")\n",
+					"    \n",
+					"    # Get exisiting path\n",
+					"    df_table_path = spark.sql(f\"DESCRIBE EXTENDED {db_name}.{table_name}\")\n",
+					"    table_path = df_table_path.where(\"col_name == 'Location'\").select(\"data_type\").collect()[0][0]\n",
 					"\n",
-					"    # Write the DataFrame with the new column to a new temporary table\n",
-					"    temp_table_name: str = f\"{table_name}_tmp\"\n",
-					"    df.write.mode(\"overwrite\").format(\"delta\").saveAsTable(f\"{db_name}.{temp_table_name}\")\n",
+					"    #  Overwrite schema \n",
+					"    df.write.mode(\"overwrite\").option(\"overwriteSchema\", \"true\").option(\"path\", table_path).format(\"delta\").saveAsTable(f\"{db_name}.{table_name}\")\n",
 					"\n",
-					"    # Drop the original table and empty the location\n",
-					"    mssparkutils.notebook.run('/utils/py_delete_table', 600, arguments={ 'db_name': db_name, 'table_name': table_name })\n",
+					"    # obsolete code below\n",
 					"\n",
-					"    # Rename the temporary table to replace the original table\n",
-					"    spark.sql(f\"ALTER TABLE {db_name}.{temp_table_name} RENAME TO {db_name}.{table_name}\")"
+					"    # # Write the DataFrame with the new column to a new temporary table\n",
+					"    # temp_table_name: str = f\"{table_name}_tmp\"\n",
+					"    # df.write.mode(\"overwrite\").format(\"delta\").saveAsTable(f\"{db_name}.{temp_table_name}\")\n",
+					"\n",
+					"    # # Drop the original table and empty the location\n",
+					"    # mssparkutils.notebook.run('/utils/py_delete_table', 600, arguments={ 'db_name': db_name, 'table_name': table_name })\n",
+					"\n",
+					"    # # Rename the temporary table to replace the original table\n",
+					"    # spark.sql(f\"ALTER TABLE {db_name}.{temp_table_name} RENAME TO {db_name}.{table_name}\")"
 				],
 				"execution_count": null
 			},
