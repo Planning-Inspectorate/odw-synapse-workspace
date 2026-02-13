@@ -9,7 +9,5 @@ class Singleton(type):
         if cls not in cls._INSTANCES:
             if cls not in cls._INSTANCES:
                 # Create and initialise the singleton instance
-                cls._INSTANCES[cls] = super(Singleton, cls).__call__(
-                    cls, *args, **kwargs
-                )
+                cls._INSTANCES[cls] = super(Singleton, cls).__call__(cls, *args, **kwargs)
         return cls._INSTANCES[cls]

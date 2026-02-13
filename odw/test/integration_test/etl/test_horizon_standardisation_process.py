@@ -5,8 +5,6 @@ from odw.test.util.util import add_orchestration_entry
 from odw.test.util.session_util import PytestSparkSessionUtil
 import mock
 from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
-import shutil
-import os
 from datetime import datetime
 import pyspark.sql.functions as F
 from pyspark.sql import DataFrame

@@ -53,13 +53,13 @@ class SynapseTableDataIO(SynapseDataIO):
         table_name = kwargs.get("table_name", None)
         file_format = kwargs.get("file_format", None)
         if not spark:
-            raise ValueError(f"SynapseTableDataIO.read requires a spark to be provided, but was missing")
+            raise ValueError("SynapseTableDataIO.read requires a spark to be provided, but was missing")
         if not database_name:
-            raise ValueError(f"SynapseTableDataIO.read requires a database_name to be provided, but was missing")
+            raise ValueError("SynapseTableDataIO.read requires a database_name to be provided, but was missing")
         if not table_name:
-            raise ValueError(f"SynapseTableDataIO.read requires a table_name to be provided, but was missing")
+            raise ValueError("SynapseTableDataIO.read requires a table_name to be provided, but was missing")
         if not file_format:
-            raise ValueError(f"SynapseTableDataIO.read requires a file_format to be provided, but was missing")
+            raise ValueError("SynapseTableDataIO.read requires a file_format to be provided, but was missing")
         table_path = f"{database_name}.{table_name}"
         return spark.read.format(file_format).table(table_path)
 
@@ -88,21 +88,21 @@ class SynapseTableDataIO(SynapseDataIO):
         write_mode = kwargs.get("write_mode", None)
         write_options = kwargs.get("write_options", [])
         if not database_name:
-            raise ValueError(f"SynapseTableDataIO.write requires a database_name to be provided, but was missing")
+            raise ValueError("SynapseTableDataIO.write requires a database_name to be provided, but was missing")
         if not table_name:
-            raise ValueError(f"SynapseTableDataIO.write requires a table_name to be provided, but was missing")
+            raise ValueError("SynapseTableDataIO.write requires a table_name to be provided, but was missing")
         if not (storage_name or storage_endpoint):
-            raise ValueError(f"SynapseTableDataIO.write expected one of 'storage_name' or 'storage_endpoint' to be provided")
+            raise ValueError("SynapseTableDataIO.write expected one of 'storage_name' or 'storage_endpoint' to be provided")
         if storage_name and storage_endpoint:
-            raise ValueError(f"SynapseTableDataIO.write expected only one of 'storage_name' or 'storage_endpoint' to be provided, not both")
+            raise ValueError("SynapseTableDataIO.write expected only one of 'storage_name' or 'storage_endpoint' to be provided, not both")
         if not container_name:
-            raise ValueError(f"SynapseTableDataIO.write requires a container_name to be provided, but was missing")
+            raise ValueError("SynapseTableDataIO.write requires a container_name to be provided, but was missing")
         if not blob_path:
-            raise ValueError(f"SynapseTableDataIO.write requires a blob_path to be provided, but was missing")
+            raise ValueError("SynapseTableDataIO.write requires a blob_path to be provided, but was missing")
         if not file_format:
-            raise ValueError(f"SynapseTableDataIO.write requires a file_format to be provided, but was missing")
+            raise ValueError("SynapseTableDataIO.write requires a file_format to be provided, but was missing")
         if not write_mode:
-            raise ValueError(f"SynapseDeltaDataIO.write requires a write_mode to be provided, but was missing")
+            raise ValueError("SynapseDeltaDataIO.write requires a write_mode to be provided, but was missing")
         table_path = f"{database_name}.{table_name}"
         if storage_name:
             data_path = self._format_to_adls_path(container_name, blob_path, storage_name=storage_name)

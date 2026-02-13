@@ -7,6 +7,7 @@ import json
 This module contains various assertions that are useful for testing
 """
 
+
 def assert_dataframes_equal(expected: DataFrame, actual: DataFrame):
     """
     Check that the two dataframes match. Raises an assertion error if there is a mismatch
@@ -55,7 +56,7 @@ def assert_dataframes_equal(expected: DataFrame, actual: DataFrame):
 
 def assert_etl_result_successful(etl_result: ETLResult):
     if etl_result is None:
-        assert False, f"ETL result is expected to be an instance of ETLResult but was None"
+        assert False, "ETL result is expected to be an instance of ETLResult but was None"
     if isinstance(etl_result, ETLSuccessResult):
         return
     exception_trace = etl_result.metadata.exception_trace

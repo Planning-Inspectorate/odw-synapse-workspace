@@ -1,4 +1,3 @@
-from odw.test.util.mock.import_mock_notebook_utils import notebookutils
 from odw.core.etl.transformation.standardised.service_bus_standardisation_process import ServiceBusStandardisationProcess
 from odw.core.util.logging_util import LoggingUtil
 from odw.test.util.session_util import PytestSparkSessionUtil
@@ -109,12 +108,3 @@ def test__service_bus_standardisation_process__remove_data_duplicates():
                 expected_output.show()
                 actual_output.show()
                 assert_dataframes_equal(expected_output, actual_output)
-
-
-def test__service_bus_standardisation_process__process():
-    spark = PytestSparkSessionUtil().get_spark_session()
-
-    df = spark.createDataFrame(
-        [(1, "a", 11, 11, [1, 2]), (2, "b", 22, 22, [3, 4]), (3, "c", 33, 33, [5, 6]), (4, "d", 44, 44, [7, 8]), (5, "e", 55, 55, [9])],
-        ["col A", "col B", "col C", "col_c", "col D"],
-    )

@@ -74,7 +74,7 @@ class LoggingUtil:
         Log an exception
         """
         self.logger.exception(f"{self.pipelinejobid} : {ex}")
-    
+
     def save_pipeline_logs(self, payload: Dict[str, Any], event_name: str):
         """
         Submit telemetry data from a pipeline.
@@ -85,13 +85,7 @@ class LoggingUtil:
             "name": "Microsoft.ApplicationInsights.Event",
             "time": datetime.now(timezone.utc).isoformat() + "Z",
             "iKey": self.instrumentation_key,
-            "data": {
-                "baseType": "EventData",
-                "baseData": {
-                    "name": event_name,
-                    "properties": payload
-                }
-            }
+            "data": {"baseType": "EventData", "baseData": {"name": event_name, "properties": payload}},
         }
         try:
             response = requests.post(endpoint, json=payload)

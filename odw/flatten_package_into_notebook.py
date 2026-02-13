@@ -22,6 +22,8 @@ python3 odw/flatten_package_into_notebook.py -r "odw/core/etl/etl_process_factor
 
 This will produce a file called odw/flatten_package_into_notebook__output.py , which you can copy into Synapse
 """
+
+
 class AttributeNotFoundException(Exception):
     pass
 
@@ -44,7 +46,7 @@ class JsonPropertyIterator:
         self.attribute_collection: Union[Dict[str, Any], List[Any]] = dictionary
         self.attribute_split = [x for x in attribute.split(".") if x]
         if not self.attribute_split:
-            raise ValueError(f"There is no attribute to evaluate")
+            raise ValueError("There is no attribute to evaluate")
         self.last_evaluated_attribute = None
 
     def __iter__(self):
