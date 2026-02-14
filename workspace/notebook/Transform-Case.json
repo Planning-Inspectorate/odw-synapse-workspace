@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "b6688c0e-d1ea-4a47-bed1-f8499b55b671"
+				"spark.autotune.trackingId": "a4527270-862b-402b-90e8-6b19df6f4c8f"
 			}
 		},
 		"metadata": {
@@ -705,6 +705,38 @@
 					""
 				],
 				"execution_count": 33
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"# Build a small mapping DF: Case ID -> GUID\n",
+					"case_guid_map = (\n",
+					"    cases_df2\n",
+					"    .select(\n",
+					"        F.col(\"Case ID\").alias(\"caseNodeId_str\"),\n",
+					"        F.col(\"GUID\").alias(\"caseGuid\")\n",
+					"    )\n",
+					"    .dropDuplicates([\"caseNodeId_str\"])\n",
+					")\n",
+					"\n",
+					"# Join onto df_mapped\n",
+					"df_mapped = (\n",
+					"    df_mapped\n",
+					"    .withColumn(\"caseNodeId_str\", F.col(\"caseNodeId\").cast(\"string\"))\n",
+					"    .join(case_guid_map, on=\"caseNodeId_str\", how=\"left\")\n",
+					"    .drop(\"caseNodeId_str\")\n",
+					")\n",
+					"\n",
+					"# Optional: sanity check rows missing a GUID (should be 0 for filtered set)\n",
+					"display(df_mapped.filter(F.col(\"caseGuid\").isNull()).select(\"caseNodeId\").distinct())\n",
+					""
+				],
+				"execution_count": 34
 			},
 			{
 				"cell_type": "code",
