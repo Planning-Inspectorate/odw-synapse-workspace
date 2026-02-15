@@ -1,0 +1,64 @@
+{
+	"name": "Transform-User",
+	"properties": {
+		"folder": {
+			"name": "Horizon-Migration/Horizon-Transform"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "5ee72f44-d4d5-4cc6-bfa1-a7214dbcbfa4"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "python"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"horizon_case_officer_sql = \"\"\"\n",
+					"SELECT DISTINCT\n",
+					"    k.ID AS caseOfficerId,\n",
+					"    k.Name AS caseOfficerLogin,\n",
+					"    CASE\n",
+					"        WHEN k.Type = 0 THEN k.FirstName + ' ' + k.LastName\n",
+					"        ELSE k.Name + ' (Group)'\n",
+					"    END AS caseOfficerName,\n",
+					"    k.MailAddress AS coEmailAddress\n",
+					"FROM Horizon_CaseReference cases\n",
+					"INNER JOIN DTree dtree ON cases.CaseNodeId = dtree.DataID\n",
+					"INNER JOIN Horizon_TypeOfCase t ON cases.CaseTypeId = t.ID\n",
+					"LEFT JOIN Horizon_vw_BIS_FirstCaseOfficer co ON cases.CaseNodeId = co.CaseId\n",
+					"LEFT JOIN KUAF k ON co.CaseOfficerId = k.ID\n",
+					"WHERE\n",
+					"    dtree.OwnerID != -235834\n",
+					"    AND t.CaseworkType IN ('Appeal', 'CommonLand', 'Costs', 'Environment', 'RightsOfWay')\n",
+					"    AND cases.CaseUniqueId > 2999999\n",
+					"    AND k.ID IS NOT NULL\n",
+					"\"\"\"\n",
+					""
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
