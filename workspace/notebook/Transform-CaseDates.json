@@ -6,6 +6,10 @@
 		},
 		"nbformat": 4,
 		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
 		"sessionProperties": {
 			"driverMemory": "28g",
 			"driverCores": 4,
@@ -16,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "339ec276-8479-43f2-85b6-bfc72c3c10ed"
+				"spark.autotune.trackingId": "9ad80e23-a649-4123-ba6d-b2ba1d7b89ad"
 			}
 		},
 		"metadata": {
@@ -24,20 +28,270 @@
 			"enableDebugMode": false,
 			"kernelspec": {
 				"name": "synapse_pyspark",
-				"display_name": "python"
+				"display_name": "Synapse PySpark"
 			},
 			"language_info": {
 				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
 			{
 				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
 				"source": [
+					"# Step 1: Read the already-pivoted extract and inspect it\n",
+					"\n",
+					"SRC_PATH = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-EXTRACT/LLAttr/Case_Dates_95499/\"\n",
+					"\n",
+					"case_dates_raw = (\n",
+					"    spark.read.format(\"csv\")\n",
+					"    .option(\"header\", \"true\")\n",
+					"    .option(\"multiLine\", \"true\")\n",
+					"    .option(\"quote\", \"\\\"\")\n",
+					"    .option(\"escape\", \"\\\"\")\n",
+					"    .option(\"mode\", \"PERMISSIVE\")\n",
+					"    .load(SRC_PATH)\n",
+					")\n",
+					"\n",
+					"\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 2
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"# --- rename map (no attr_ prefix) ---\n",
+					"rename_map = {\n",
+					"  \"ID\": \"legacyCaseId\",\n",
+					"  \"1\":  \"legacyIdField\",\n",
+					"  \"2\":  \"receiptDate\",\n",
+					"  \"3\":  \"startDate\",\n",
+					"  \"4\":  \"appealValidDate\",\n",
+					"  \"5\":  \"callInDate\",\n",
+					"  \"6\":  \"receivedFromCallInAuthorityDate\",\n",
+					"  \"7\":  \"targetDate\",\n",
+					"  \"8\":  \"bespokeTargetDate\",\n",
+					"  \"9\":  \"dateRecovered\",\n",
+					"  \"10\": \"notRecoveredOrDerecoveredDate\",\n",
+					"  \"11\": \"sentToDecisionBranchDate\",\n",
+					"  \"12\": \"noticeWithdrawnDate\",\n",
+					"  \"13\": \"appealWithdrawnDate\",\n",
+					"  \"14\": \"caseDecisionDate\",\n",
+					"  \"16\": \"appealTurnedAwayDate\",\n",
+					"  \"17\": \"appealLapsedDate\",\n",
+					"  \"18\": \"caseClosedDate\",\n",
+					"  \"19\": \"procedureDeterminedDate\",\n",
+					"  \"20\": \"originalCaseDecisionDate\",\n",
+					"  \"21\": \"planningGuaranteeDate\",\n",
+					"  \"23\": \"decisionOrReportReceivedInPinsDate\",\n",
+					"  \"24\": \"sentToReaderDate\",\n",
+					"  \"25\": \"returnedFromReaderDate\",\n",
+					"  \"26\": \"publicationProcedureCompletedDate\",\n",
+					"  \"27\": \"costsReportDespatchedDate\",\n",
+					"  \"28\": \"orderRejectedOrReturnedDate\",\n",
+					"  \"29\": \"validityStatusDate\",\n",
+					"}\n",
+					"\n",
+					"df2 = case_dates_raw.select([F.col(c).alias(rename_map.get(c, c)) for c in case_dates_raw.columns])\n",
+					"\n",
+					"clean_exprs = [F.col(\"legacyCaseId\")]\n",
+					"for c in [c for c in df2.columns if c != \"legacyCaseId\"]:\n",
+					"    clean_exprs.append(\n",
+					"        F.when(\n",
+					"            F.col(c).isNull() |\n",
+					"            (F.trim(F.col(c)) == \"\") |\n",
+					"            (F.lower(F.trim(F.col(c))) == \"undefined\"),\n",
+					"            F.lit(None)\n",
+					"        ).otherwise(F.col(c)).alias(c)\n",
+					"    )\n",
+					"\n",
+					"df2 = df2.select(*clean_exprs)\n",
+					"\n",
+					"undefined_counts = {\n",
+					"    c: df2.filter(F.lower(F.trim(F.col(c))) == \"undefined\").count()\n",
+					"    for c in df2.columns if c != \"legacyCaseId\"\n",
+					"}\n",
+					""
+				],
+				"execution_count": 5
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"date_cols = [c for c in df2.columns if c not in [\"legacyCaseId\", \"legacyIdField\"]]\n",
+					"\n",
+					"def to_ts(c):\n",
+					"    # Most of your values look like: 2014-01-21 00:00:00\n",
+					"    # Use explicit format first (fast + reliable), then fallback.\n",
+					"    return F.coalesce(\n",
+					"        F.to_timestamp(F.col(c), \"yyyy-MM-dd HH:mm:ss\"),\n",
+					"        F.to_timestamp(F.col(c), \"yyyy-MM-dd\"),\n",
+					"        F.to_timestamp(F.col(c))  # last resort\n",
+					"    )\n",
+					"\n",
+					"df3 = df2\n",
+					"for c in date_cols:\n",
+					"    df3 = df3.withColumn(c, to_ts(c))\n",
+					"\n",
+					""
+				],
+				"execution_count": 7
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"case_dates_target = (\n",
+					"    df3.select(\n",
+					"        F.col(\"legacyCaseId\"),\n",
+					"        # Target model fields we can map now:\n",
+					"        F.col(\"startDate\").alias(\"startDate\"),\n",
+					"        F.coalesce(F.col(\"bespokeTargetDate\"), F.col(\"targetDate\")).alias(\"targetDecisionDate\"),\n",
+					"        \n",
+					"        # Fields not mapped yet (leave null for now)\n",
+					"        F.lit(None).cast(\"timestamp\").alias(\"expectedSubmissionDate\"),\n",
+					"        F.lit(None).cast(\"timestamp\").alias(\"consentDeadlineDate\"),\n",
+					"        F.lit(None).cast(\"timestamp\").alias(\"ogdDueDate\"),\n",
+					"        F.lit(None).cast(\"timestamp\").alias(\"proposalLetterDate\"),\n",
+					"        F.lit(None).cast(\"timestamp\").alias(\"expiryDate\"),\n",
+					"        F.lit(None).cast(\"timestamp\").alias(\"partiesDecisionNotificationDeadlineDate\"),\n",
+					"        F.lit(None).cast(\"timestamp\").alias(\"caseOfficerVerificationDate\"),\n",
+					"        F.lit(None).cast(\"timestamp\").alias(\"proposedModificationsDate\"),\n",
+					"        F.lit(None).cast(\"timestamp\").alias(\"objectionPeriodEndsDate\"),\n",
+					"    )\n",
+					")\n",
+					"\n",
+					"case_dates_target.printSchema()\n",
+					"display(case_dates_target.limit(50))\n",
+					""
+				],
+				"execution_count": 8
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"CASES_MAP_PATH = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/config/Cases/Cases.csv\"\n",
+					"\n",
+					"cases_map = (\n",
+					"    spark.read.format(\"csv\")\n",
+					"    .option(\"header\", \"true\")\n",
+					"    .load(CASES_MAP_PATH)\n",
+					"    .select(\n",
+					"        F.col(\"Case ID\").cast(\"string\").alias(\"legacyCaseId\"),\n",
+					"        F.col(\"GUID\").alias(\"caseId\")\n",
+					"    )\n",
+					"    .dropna(subset=[\"legacyCaseId\", \"caseId\"])\n",
+					"    .dropDuplicates([\"legacyCaseId\"])\n",
+					")\n",
+					"\n",
+					"joined = case_dates_target.join(cases_map, on=\"legacyCaseId\", how=\"left\")\n",
+					"\n",
+					"# deterministic \"guid-like\" id derived from caseId (stable on reruns)\n",
+					"# md5 -> 32 hex chars, format as 8-4-4-4-12\n",
+					"joined = joined.withColumn(\"id_hex\", F.md5(F.lower(F.col(\"caseId\"))))\n",
+					"joined = joined.withColumn(\n",
+					"    \"id\",\n",
+					"    F.concat_ws(\n",
+					"        \"-\",\n",
+					"        F.substring(\"id_hex\", 1, 8),\n",
+					"        F.substring(\"id_hex\", 9, 4),\n",
+					"        F.substring(\"id_hex\", 13, 4),\n",
+					"        F.substring(\"id_hex\", 17, 4),\n",
+					"        F.substring(\"id_hex\", 21, 12),\n",
+					"    )\n",
+					").drop(\"id_hex\")\n",
+					"\n",
+					"case_dates_ready = joined.filter(F.col(\"caseId\").isNotNull())\n",
+					"\n",
+					"print(\"rows total:\", joined.count())\n",
+					"print(\"rows with caseId:\", case_dates_ready.count())\n",
+					"\n",
+					"display(case_dates_ready.select(\"id\",\"caseId\",\"legacyCaseId\",\"startDate\",\"targetDecisionDate\").limit(50))\n",
+					""
+				],
+				"execution_count": 11
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"final_df = case_dates_ready.select(\n",
+					"    \"id\",\n",
+					"    \"startDate\",\n",
+					"    \"expectedSubmissionDate\",\n",
+					"    \"consentDeadlineDate\",\n",
+					"    \"ogdDueDate\",\n",
+					"    \"proposalLetterDate\",\n",
+					"    \"expiryDate\",\n",
+					"    \"partiesDecisionNotificationDeadlineDate\",\n",
+					"    \"targetDecisionDate\",\n",
+					"    \"caseOfficerVerificationDate\",\n",
+					"    \"proposedModificationsDate\",\n",
+					"    \"objectionPeriodEndsDate\",\n",
+					"    \"caseId\"\n",
+					")\n",
+					"\n",
+					"print(\"Final row count:\", final_df.count())\n",
+					"display(final_df)\n",
+					""
+				],
+				"execution_count": 12
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"OUT_DIR = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-TRANSFORM/CaseDates/\"\n",
+					"\n",
+					"(final_df\n",
+					" .coalesce(1)\n",
+					" .write\n",
+					" .mode(\"overwrite\")\n",
+					" .option(\"header\", \"true\")\n",
+					" .csv(OUT_DIR)\n",
+					")\n",
+					"\n",
+					"print(\"CaseDates written to:\", OUT_DIR)\n",
+					""
+				],
+				"execution_count": 13
 			}
 		]
 	}
