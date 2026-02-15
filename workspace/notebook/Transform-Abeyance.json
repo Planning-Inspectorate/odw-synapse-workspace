@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "30825b65-06a8-4f60-a33f-7514b74697c3"
+				"spark.autotune.trackingId": "c8035128-fe42-430a-8e32-7078647e1da4"
 			}
 		},
 		"metadata": {
@@ -122,14 +122,18 @@
 			},
 			{
 				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
 				"source": [
+					"\n",
 					"cases_map = (\n",
 					"    spark.read.format(\"csv\")\n",
 					"    .option(\"header\", \"true\")\n",
 					"    .load(cases_path)\n",
 					"    .select(\n",
-					"        F.col(\"legacyCaseId\").cast(\"string\").alias(\"legacyCaseId\"),\n",
-					"        F.col(\"caseId\").cast(\"string\").alias(\"caseId\")\n",
+					"        F.col(\"Case ID\").cast(\"string\").alias(\"legacyCaseId\"),\n",
+					"        F.col(\"GUID\").cast(\"string\").alias(\"caseId\")\n",
 					"    )\n",
 					"    .dropna(subset=[\"legacyCaseId\", \"caseId\"])\n",
 					"    .dropDuplicates([\"legacyCaseId\"])\n",
@@ -140,44 +144,52 @@
 					"print(\"rows total:\", joined.count())\n",
 					"print(\"rows with caseId:\", joined.filter(F.col(\"caseId\").isNotNull()).count())\n",
 					"\n",
-					"# show unmapped legacy ids (if any)\n",
 					"display(joined.filter(F.col(\"caseId\").isNull()).select(\"legacyCaseId\").limit(50))\n",
 					"\n",
 					""
 				],
-				"execution_count": 5
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
 				"source": [
-					"cases_map = (\n",
-					"    spark.read.format(\"csv\")\n",
-					"    .option(\"header\", \"true\")\n",
-					"    .load(cases_path)\n",
+					"case_abeyance_ready = (\n",
+					"    joined\n",
+					"    .filter(F.col(\"caseId\").isNotNull())     # only load mapped cases\n",
 					"    .select(\n",
-					"        F.col(\"legacyCaseId\").cast(\"string\").alias(\"legacyCaseId\"),\n",
-					"        F.col(\"caseId\").alias(\"caseId\")  # expected to be GUID text\n",
+					"        \"abeyanceStartDate\",\n",
+					"        \"abeyanceEndDate\",\n",
+					"        \"withdrawalDate\",\n",
+					"        \"caseId\"\n",
 					"    )\n",
-					"    .dropna(subset=[\"legacyCaseId\", \"caseId\"])\n",
-					"    .dropDuplicates([\"legacyCaseId\"])\n",
+					"    .dropDuplicates([\"caseId\"])              # because caseId is @unique\n",
 					")\n",
 					"\n",
-					"joined = abey_typed.join(cases_map, on=\"legacyCaseId\", how=\"left\")\n",
+					"print(\"final rows:\", case_abeyance_ready.count())\n",
+					"display(case_abeyance_ready.limit(100))\n",
 					"\n",
-					"print(\"rows total:\", joined.count())\n",
-					"print(\"rows with caseId:\", joined.filter(F.col(\"caseId\").isNotNull()).count())\n",
-					"\n",
-					"display(joined.filter(F.col(\"caseId\").isNull()).limit(20))  # helpful to see what didn't map\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 8
 			},
 			{
 				"cell_type": "code",
 				"source": [
+					"(\n",
+					"    case_abeyance_ready\n",
+					"    .coalesce(1)\n",
+					"    .write.mode(\"overwrite\")\n",
+					"    .option(\"header\", \"true\")\n",
+					"    .csv(out_path)\n",
+					")\n",
+					"\n",
+					"print(\"Wrote:\", out_path)\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 9
 			}
 		]
 	}
