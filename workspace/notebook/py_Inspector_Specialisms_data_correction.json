@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "4b2ad319-e438-43e6-96c9-5918811a87c1"
+				"spark.autotune.trackingId": "ced81d6e-d3a3-4f86-9263-2f912fa81abb"
 			}
 		},
 		"metadata": {
@@ -84,7 +84,7 @@
 					"import warnings\n",
 					"warnings.filterwarnings(\"ignore\", message=\"iteritems is deprecated\")"
 				],
-				"execution_count": 1
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -105,7 +105,7 @@
 					"%run utils/py_logging_decorator\n",
 					""
 				],
-				"execution_count": 2
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -161,7 +161,7 @@
 					"\n",
 					""
 				],
-				"execution_count": 3
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -266,7 +266,7 @@
 					"        \n",
 					""
 				],
-				"execution_count": 5
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -285,11 +285,11 @@
 				"cell_type": "code",
 				"source": [
 					"\n",
-					"if not error_message AND transformed_record_count > 0:\n",
+					"if not error_message and transformed_record_count > 0:\n",
 					"    try:\n",
 					"\n",
 					"        logInfo(\"Starting inspector specialisms data correction\")\n",
-					"        upd_record_count = spark.sql(\"SELECT COUNT(*) as record_count FROM odw_harmonised_db.sap_hr_inspector_Specialisms WHERE Current = 0 AND ValidTo = CURRENT_DATE()\").collect()[0]['record_count']\n",
+					"        upd_record_count = spark.sql(\"SELECT COUNT(*) as record_count FROM odw_harmonised_db.sap_hr_inspector_Specialisms WHERE Current = 0\").collect()[0]['record_count']\n",
 					"        logInfo(f\"{upd_record_count} records before updating sap_hr_inspector_Specialisms\")\n",
 					"\n",
 					"        # Step 1: Update all records from the sap_hr_inspector_Specialisms table\n",
@@ -297,14 +297,14 @@
 					"\n",
 					"        spark.sql(\"\"\" UPDATE odw_harmonised_db.sap_hr_inspector_Specialisms\n",
 					"                        SET Current = 0,\n",
-					"                            ValidTo = CURRENT_DATE(),\n",
+					"                            ValidTo = DATE_TRUNC('day', CURRENT_DATE() - INTERVAL 1 DAY),\n",
 					"                            IsActive = 'N',\n",
 					"                            IngestionDate = CURRENT_TIMESTAMP()\n",
 					"                    \"\"\")\n",
 					"        \n",
 					"        logInfo(\"UPDATE operation completed successfully\")\n",
 					"        # Get count of inserted records\n",
-					"        upd_record_count = spark.sql(\"SELECT COUNT(*) as record_count FROM odw_harmonised_db.sap_hr_inspector_Specialisms WHERE Current = 0 AND ValidTo = CURRENT_DATE()\").collect()[0]['record_count']\n",
+					"        upd_record_count = spark.sql(\"SELECT COUNT(*) as record_count FROM odw_harmonised_db.sap_hr_inspector_Specialisms WHERE Current = 0 AND ValidTo = DATE_TRUNC('day', CURRENT_DATE() - INTERVAL 1 DAY)\").collect()[0]['record_count']\n",
 					"        logInfo(f\"Updated {upd_record_count} records into sap_hr_inspector_Specialisms\")\n",
 					"\n",
 					"        logInfo(\"Inserting New inspector specialisms for data correction\")\n",
@@ -349,6 +349,8 @@
 					"\n",
 					"        logInfo(\"Inspector specialisms data processing completed successfully\")\n",
 					"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        \n",
 					"        # Ensure logs are flushed\n",
 					"        flushLogging()\n",
 					"    \n",
