@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "2400b30d-d2b3-42be-b157-78ba53bfef1d"
+				"spark.autotune.trackingId": "5f51f639-e0dd-4a34-8047-63a9975559cd"
 			}
 		},
 		"metadata": {
@@ -51,7 +51,7 @@
 			{
 				"cell_type": "markdown",
 				"source": [
-					"# 🔄 Convert Managed Table → External Table\n",
+					"#  Convert Managed Table → External Table\n",
 					"---\n",
 					"**Just pass table names. Path & format are auto-detected from the managed table.**\n",
 					"\n",
@@ -70,7 +70,7 @@
 			{
 				"cell_type": "markdown",
 				"source": [
-					"## 📌 Cell 1: Configuration\n",
+					"##  Cell 1: Configuration\n",
 					"**Only update the table names and backup base path.**"
 				]
 			},
@@ -81,7 +81,7 @@
 					"harmonised_container = f\"abfss://odw-harmonised@{storage_account}\"\n",
 					"print(harmonised_container)"
 				],
-				"execution_count": 20
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -114,7 +114,7 @@
 					"for t in tables_to_migrate:\n",
 					"    print(f\"  - {t}\")"
 				],
-				"execution_count": 21
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -127,12 +127,12 @@
 					"print(table_path)\n",
 					"print(table_type)"
 				],
-				"execution_count": 22
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
 				"source": [
-					"## 📌 Cell 2: Auto-detect Path & Format Utilities"
+					"##  Cell 2: Auto-detect Path & Format Utilities"
 				]
 			},
 			{
@@ -224,12 +224,12 @@
 					"    except Exception as e:\n",
 					"        print(f\"  {t:<28} ERROR: {str(e)[:60]}\")"
 				],
-				"execution_count": 4
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
 				"source": [
-					"## 📌 Cell 3: Migration Function"
+					"##  Cell 3: Migration Function"
 				]
 			},
 			{
@@ -258,7 +258,7 @@
 					"    print(f\"  Type     : {tbl_type}\")\n",
 					"\n",
 					"    if tbl_type == \"EXTERNAL\":\n",
-					"        print(f\"  ⚠️ Table is already EXTERNAL. Skipping.\")\n",
+					"        print(f\"   Table is already EXTERNAL. Skipping.\")\n",
 					"        return \"SKIPPED_EXTERNAL\", \"N/A\", data_path\n",
 					"\n",
 					"    # ---- Step 2: Detect format ----\n",
@@ -276,7 +276,7 @@
 					"    print(f\"  Columns   : {len(original_columns)} -> {original_columns}\")\n",
 					"\n",
 					"    if original_count == 0:\n",
-					"        print(f\"  ⚠️ Table is empty. Skipping.\")\n",
+					"        print(f\"  Table is empty. Skipping.\")\n",
 					"        return \"SKIPPED_EMPTY\", table_format, data_path\n",
 					"\n",
 					"    # ---- Step 4: Backup ----\n",
@@ -345,17 +345,17 @@
 					"    print(f\"  Location     : {data_path}\")\n",
 					"    print(f\"  Final rows   : {final_count} ✓ | Schema match ✓\")\n",
 					"\n",
-					"    print(f\"\\n✅ Done: {source_table} [{table_format}]\\n\")\n",
+					"    print(f\"\\n Done: {source_table} [{table_format}]\\n\")\n",
 					"    return \"SUCCESS\", table_format, data_path\n",
 					"\n",
 					"print(\"Migration function loaded.\")"
 				],
-				"execution_count": 5
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
 				"source": [
-					"## 📌 Cell 4: Rollback Function"
+					"##  Cell 4: Rollback Function"
 				]
 			},
 			{
@@ -372,7 +372,7 @@
 					"    Restores a managed table from backup in the correct format.\n",
 					"    \"\"\"\n",
 					"    fmt = table_format.lower()\n",
-					"    print(f\"🔁 Rolling back: {table_name} [{table_format}]\")\n",
+					"    print(f\" Rolling back: {table_name} [{table_format}]\")\n",
 					"\n",
 					"    df_backup = spark.read.format(fmt).load(backup_path)\n",
 					"    backup_count = df_backup.count()\n",
@@ -396,16 +396,16 @@
 					"    restored_count = spark.table(table_name).count()\n",
 					"    assert restored_count == backup_count, \\\n",
 					"        f\"ROLLBACK FAILED: Backup={backup_count}, Restored={restored_count}\"\n",
-					"    print(f\"  ✅ Rollback complete. Rows: {restored_count} ✓\\n\")\n",
+					"    print(f\"   Rollback complete. Rows: {restored_count} ✓\\n\")\n",
 					"\n",
 					"print(\"Rollback function loaded.\")"
 				],
-				"execution_count": 6
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
 				"source": [
-					"## 📌 Cell 5: Execute Migration"
+					"##  Cell 5: Execute Migration"
 				]
 			},
 			{
@@ -436,17 +436,17 @@
 					"            fmt = detect_table_format(table_name, dpath)\n",
 					"        except Exception:\n",
 					"            pass\n",
-					"        print(f\"\\n❌ ERROR: {table_name}: {str(e)}\")\n",
+					"        print(f\"\\n ERROR: {table_name}: {str(e)}\")\n",
 					"        print(f\"   Backup : {bkp_path}\")\n",
 					"        print(f\"   Rollback: rollback_from_backup('{table_name}', '{dpath}', '{bkp_path}', '{fmt}')\\n\")\n",
 					"        migration_log.append((table_name, \"FAILED\", fmt, dpath, bkp_path, str(e)))"
 				],
-				"execution_count": 7
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
 				"source": [
-					"## 📌 Cell 6: Migration Summary"
+					"##  Cell 6: Migration Summary"
 				]
 			},
 			{
@@ -469,10 +469,10 @@
 					"print(f\"{'-'*90}\")\n",
 					"\n",
 					"for table, status, fmt, dpath, bpath, error in migration_log:\n",
-					"    if status == \"SUCCESS\":       icon = \"✅\"\n",
-					"    elif \"SKIPPED\" in status:      icon = \"⚠️\"\n",
-					"    else:                          icon = \"❌\"\n",
-					"    print(f\"  {icon} {table:<28} {fmt:<10} {status:<18} {dpath}\")\n",
+					"    if status == \"SUCCESS\":       \n",
+					"    elif \"SKIPPED\" in status:      \n",
+					"    else:                          \n",
+					"    print(f\"  {table:<28} {fmt:<10} {status:<18} {dpath}\")\n",
 					"    if error:\n",
 					"        print(f\"     Error  : {error[:100]}\")\n",
 					"        print(f\"     Backup : {bpath}\")\n",
@@ -485,16 +485,16 @@
 					"delta_c = sum(1 for _,s,f,_,_,_ in migration_log if f == 'DELTA' and s == 'SUCCESS')\n",
 					"parq_c  = sum(1 for _,s,f,_,_,_ in migration_log if f == 'PARQUET' and s == 'SUCCESS')\n",
 					"\n",
-					"print(f\"Total: {total} | ✅ Success: {success} (Delta: {delta_c}, Parquet: {parq_c}) | ⚠️ Skipped: {skipped} | ❌ Failed: {failed}\")\n",
+					"print(f\"Total: {total} | Success: {success} (Delta: {delta_c}, Parquet: {parq_c}) |  Skipped: {skipped} | Failed: {failed}\")\n",
 					"print(f\"Backup location: {backup_base}\")\n",
 					"print(f\"{'='*90}\")"
 				],
-				"execution_count": 8
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
 				"source": [
-					"## 📌 Cell 7: Rollback (Run only if needed)"
+					"##  Cell 7: Rollback (Run only if needed)"
 				]
 			},
 			{
@@ -515,12 +515,12 @@
 					"#     if status == \"FAILED\":\n",
 					"#         rollback_from_backup(table, dpath, bpath, fmt)"
 				],
-				"execution_count": 9
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
 				"source": [
-					"## 📌 Cell 8: Cleanup Backups (ONLY after full verification)"
+					"##  Cell 8: Cleanup Backups (ONLY after full verification)"
 				]
 			},
 			{
@@ -533,13 +533,13 @@
 				},
 				"source": [
 					"# =====================================================\n",
-					"# ⚠️ CAUTION: Permanently deletes all backups!\n",
+					"#  CAUTION: Permanently deletes all backups!\n",
 					"# =====================================================\n",
 					"\n",
 					"# mssparkutils.fs.rm(backup_base, recurse=True)\n",
-					"# print(f\"🗑️ Backups cleaned up: {backup_base}\")"
+					"# print(f\" Backups cleaned up: {backup_base}\")"
 				],
-				"execution_count": 10
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -553,7 +553,7 @@
 					"print(table_type)\n",
 					""
 				],
-				"execution_count": 19
+				"execution_count": null
 			}
 		]
 	}
