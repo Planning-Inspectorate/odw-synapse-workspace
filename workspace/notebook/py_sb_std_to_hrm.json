@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "8b6e7c45-08f4-4416-bdcc-169445e52658"
+				"spark.autotune.trackingId": "27b4d837-e9e8-47ae-8328-c1da94a90e8e"
 			}
 		},
 		"metadata": {
@@ -534,10 +534,15 @@
 					}
 				},
 				"source": [
-					"latest_ingestion: DataFrame = latest_ingestion.drop(\"message_type\")\r\n",
-					"create_df: DataFrame = create_df.drop(\"message_type\").select(target_df.columns)\r\n",
-					"update_df: DataFrame = update_df.drop(\"message_type\").select(target_df.columns)\r\n",
-					"delete_df: DataFrame = delete_df.drop(\"message_type\").select(target_df.columns)"
+					"if not error_message:\r\n",
+					"    try:\r\n",
+					"        latest_ingestion: DataFrame = latest_ingestion.drop(\"message_type\")\r\n",
+					"        create_df: DataFrame = create_df.drop(\"message_type\").select(target_df.columns)\r\n",
+					"        update_df: DataFrame = update_df.drop(\"message_type\").select(target_df.columns)\r\n",
+					"        delete_df: DataFrame = delete_df.drop(\"message_type\").select(target_df.columns)\r\n",
+					"    except Exception as e:\r\n",
+					"        error_message = f\"Error while aligning schemas and dropping message_type: {str(e)[:800]}\"\r\n",
+					"        end_exec_time = datetime.now()"
 				],
 				"execution_count": null
 			},
@@ -555,9 +560,14 @@
 					}
 				},
 				"source": [
-					"logInfo(\"Comparing and merging schemas\")\r\n",
-					"compare_and_merge_schema(latest_ingestion, f\"{hrm_db}.{hrm_table}\")\r\n",
-					"logInfo(\"Compared and merged schemas\")"
+					"if not error_message:\r\n",
+					"    try:\r\n",
+					"        logInfo(\"Comparing and merging schemas\")\r\n",
+					"        compare_and_merge_schema(latest_ingestion, f\"{hrm_db}.{hrm_table}\")\r\n",
+					"        logInfo(\"Compared and merged schemas\")\r\n",
+					"    except Exception as e:\r\n",
+					"        error_message = f\"Error during compare_and_merge_schema: {str(e)[:800]}\"\r\n",
+					"        end_exec_time = datetime.now()"
 				],
 				"execution_count": null
 			},
@@ -589,11 +599,17 @@
 				},
 				"source": [
 					"#Get the data we need again incase the schema has changed due to a merge\r\n",
-					"latest_ingestion, create_df, update_df, delete_df, target_df = get_latest_ingested_data()\r\n",
-					"latest_ingestion: DataFrame = latest_ingestion.drop(\"message_type\")\r\n",
-					"create_df: DataFrame = create_df.drop(\"message_type\").select(target_df.columns)\r\n",
-					"update_df: DataFrame = update_df.drop(\"message_type\").select(target_df.columns)\r\n",
-					"delete_df: DataFrame = delete_df.drop(\"message_type\").select(target_df.columns)"
+					"if not error_message:\r\n",
+					"    try:\r\n",
+					"        # Get the data we need again incase the schema has changed due to a merge\r\n",
+					"        latest_ingestion, create_df, update_df, delete_df, target_df = get_latest_ingested_data()\r\n",
+					"        latest_ingestion: DataFrame = latest_ingestion.drop(\"message_type\")\r\n",
+					"        create_df: DataFrame = create_df.drop(\"message_type\").select(target_df.columns)\r\n",
+					"        update_df: DataFrame = update_df.drop(\"message_type\").select(target_df.columns)\r\n",
+					"        delete_df: DataFrame = delete_df.drop(\"message_type\").select(target_df.columns)\r\n",
+					"    except Exception as e:\r\n",
+					"        error_message = f\"Error while re-fetching data and re-aligning schema: {str(e)[:800]}\"\r\n",
+					"        end_exec_time = datetime.now()"
 				],
 				"execution_count": null
 			},
@@ -646,20 +662,24 @@
 					}
 				},
 				"source": [
-					"logInfo(\"Dropping dupes\")\r\n",
-					"if create_df.count() > 0:\r\n",
-					"    create_df = create_df.dropDuplicates().orderBy(\"IngestionDate\")\r\n",
+					"if not error_message:\r\n",
+					"    try:\r\n",
+					"        logInfo(\"Dropping dupes\")\r\n",
+					"        if create_df.count() > 0:\r\n",
+					"            create_df = create_df.dropDuplicates().orderBy(\"IngestionDate\")\r\n",
 					"\r\n",
-					"if update_df.count() > 0:\r\n",
-					"    update_df = update_df.dropDuplicates().orderBy(\"IngestionDate\")\r\n",
+					"        if update_df.count() > 0:\r\n",
+					"            update_df = update_df.dropDuplicates().orderBy(\"IngestionDate\")\r\n",
 					"\r\n",
-					"if delete_df.count() > 0:\r\n",
-					"    delete_df = delete_df.dropDuplicates().orderBy(\"IngestionDate\")\r\n",
+					"        if delete_df.count() > 0:\r\n",
+					"            delete_df = delete_df.dropDuplicates().orderBy(\"IngestionDate\")\r\n",
 					"\r\n",
-					"if target_df.count() > 0:\r\n",
-					"    target_df = target_df.dropDuplicates().orderBy(\"IngestionDate\")\r\n",
-					"    \r\n",
-					"logInfo(\"Finished dropping dupes\")"
+					"        if target_df.count() > 0:\r\n",
+					"            target_df = target_df.dropDuplicates().orderBy(\"IngestionDate\")\r\n",
+					"        logInfo(\"Finished dropping dupes\")\r\n",
+					"    except Exception as e:\r\n",
+					"        error_message = f\"Error during duplicate removal: {str(e)[:800]}\"\r\n",
+					"        end_exec_time = datetime.now()"
 				],
 				"execution_count": null
 			},
@@ -732,10 +752,15 @@
 					}
 				},
 				"source": [
-					"if create_df.count() > 0:\r\n",
-					"    target_df = insert_rows_in_df(create_df, target_df, hrm_incremental_key)\r\n",
+					"if not error_message:\r\n",
+					"    try:\r\n",
+					"        if create_df.count() > 0:\r\n",
+					"            target_df = insert_rows_in_df(create_df, target_df, hrm_incremental_key)\r\n",
 					"\r\n",
-					"logInfo(f\"New rows: {create_df.count()}\\nTarget dataframe: {target_df.count()}\")"
+					"        logInfo(f\"New rows: {create_df.count()}\\nTarget dataframe: {target_df.count()}\")\r\n",
+					"    except Exception as e:\r\n",
+					"        error_message = f\"Error while handling new rows (create): {str(e)[:800]}\"\r\n",
+					"        end_exec_time = datetime.now()"
 				],
 				"execution_count": null
 			},
@@ -878,11 +903,17 @@
 					"collapsed": false
 				},
 				"source": [
-					"if delete_df.count() > 0:\r\n",
-					"    delete_df = delete_df \\\r\n",
-					"    .withColumn(\"ValidTo\", col(\"IngestionDate\")) \\\r\n",
-					"    .withColumn(\"IsActive\", lit(\"N\"))\r\n",
-					"    display(delete_df)"
+					"if not error_message:\r\n",
+					"    try:\r\n",
+					"        if delete_df.count() > 0:\r\n",
+					"            delete_df = (\r\n",
+					"                delete_df\r\n",
+					"                .withColumn(\"ValidTo\", col(\"IngestionDate\"))\r\n",
+					"                .withColumn(\"IsActive\", lit(\"N\"))\r\n",
+					"            )\r\n",
+					"    except Exception as e:\r\n",
+					"        error_message = f\"Error preparing deleted rows ValidTo/IsActive: {str(e)[:800]}\"\r\n",
+					"        end_exec_time = datetime.now()"
 				],
 				"execution_count": null
 			},
@@ -915,23 +946,28 @@
 					}
 				},
 				"source": [
-					"if delete_df.count() > 0:\r\n",
-					"    target_df = (\r\n",
-					"        target_df.join(\r\n",
-					"            delete_df.select(\r\n",
-					"                entity_primary_key, \r\n",
-					"                col(\"IngestionDate\").alias(\"delete_IngestionDate\")\r\n",
-					"            ),\r\n",
-					"            on=entity_primary_key,\r\n",
-					"            how=\"left\"\r\n",
-					"        )\r\n",
-					"        .withColumn(\r\n",
-					"            \"ValidTo\",\r\n",
-					"            when(col(\"IsActive\") == \"Y\", col(\"delete_IngestionDate\"))\r\n",
-					"            .otherwise(col(\"ValidTo\"))\r\n",
-					"        )\r\n",
-					"        .drop(\"delete_IngestionDate\")\r\n",
-					"    )"
+					"if not error_message:\r\n",
+					"    try:\r\n",
+					"        if delete_df.count() > 0:\r\n",
+					"            target_df = (\r\n",
+					"                target_df.join(\r\n",
+					"                    delete_df.select(\r\n",
+					"                        entity_primary_key, \r\n",
+					"                        col(\"IngestionDate\").alias(\"delete_IngestionDate\")\r\n",
+					"                    ),\r\n",
+					"                    on=entity_primary_key,\r\n",
+					"                    how=\"left\"\r\n",
+					"                )\r\n",
+					"                .withColumn(\r\n",
+					"                    \"ValidTo\",\r\n",
+					"                    when(col(\"IsActive\") == \"Y\", col(\"delete_IngestionDate\"))\r\n",
+					"                    .otherwise(col(\"ValidTo\"))\r\n",
+					"                )\r\n",
+					"                .drop(\"delete_IngestionDate\")\r\n",
+					"            )\r\n",
+					"    except Exception as e:\r\n",
+					"        error_message = f\"Error updating ValidTo in target_df for deleted rows: {str(e)[:800]}\"\r\n",
+					"        end_exec_time = datetime.now()"
 				],
 				"execution_count": null
 			},
@@ -964,13 +1000,20 @@
 					}
 				},
 				"source": [
-					"if delete_df.count() > 0:\r\n",
-					"    deleted_primary_keys = delete_df.select(entity_primary_key).distinct()\r\n",
-					"    target_df = target_df.withColumn(\r\n",
-					"        \"IsActive\", \r\n",
-					"        when(col(entity_primary_key).isin([getattr(row, entity_primary_key) for row in deleted_primary_keys.collect()]), lit(\"N\"))\r\n",
-					"        .otherwise(col(\"IsActive\"))\r\n",
-					"    )"
+					"if not error_message:\r\n",
+					"    try:\r\n",
+					"        if delete_df.count() > 0:\r\n",
+					"            deleted_primary_keys = delete_df.select(entity_primary_key).distinct()\r\n",
+					"            target_df = target_df.withColumn(\r\n",
+					"                \"IsActive\", \r\n",
+					"                when(\r\n",
+					"                    col(entity_primary_key).isin([getattr(row, entity_primary_key) for row in deleted_primary_keys.collect()]),\r\n",
+					"                    lit(\"N\")\r\n",
+					"                ).otherwise(col(\"IsActive\"))\r\n",
+					"            )\r\n",
+					"    except Exception as e:\r\n",
+					"        error_message = f\"Error updating IsActive flags for deleted primary keys: {str(e)[:800]}\"\r\n",
+					"        end_exec_time = datetime.now()"
 				],
 				"execution_count": null
 			},
@@ -1001,10 +1044,15 @@
 					}
 				},
 				"source": [
-					"if delete_df.count() > 0:\r\n",
-					"    target_df = insert_rows_in_df(delete_df, target_df, hrm_incremental_key)\r\n",
-					"    logInfo(f\"Deleted rows: {delete_df.count()}\\nTarget dataframe: {target_df.count()}\")\r\n",
-					"    logInfo(\"Done handling deleted rows\")"
+					"if not error_message:\r\n",
+					"    try:\r\n",
+					"        if delete_df.count() > 0:\r\n",
+					"            target_df = insert_rows_in_df(delete_df, target_df, hrm_incremental_key)\r\n",
+					"            logInfo(f\"Deleted rows: {delete_df.count()}\\nTarget dataframe: {target_df.count()}\")\r\n",
+					"            logInfo(\"Done handling deleted rows\")\r\n",
+					"    except Exception as e:\r\n",
+					"        error_message = f\"Error inserting deleted rows into target_df: {str(e)[:800]}\"\r\n",
+					"        end_exec_time = datetime.now()"
 				],
 				"execution_count": null
 			},
@@ -1036,8 +1084,13 @@
 					"collapsed": false
 				},
 				"source": [
-					"columns_to_consider = [c for c in target_df.columns if c not in [hrm_incremental_key, \"ValidTo\"]]\r\n",
-					"target_df = target_df.orderBy(hrm_incremental_key).dropDuplicates(subset=columns_to_consider).orderBy(\"IngestionDate\")"
+					"if not error_message:\r\n",
+					"    try:\r\n",
+					"        columns_to_consider = [c for c in target_df.columns if c not in [hrm_incremental_key, \"ValidTo\"]]\r\n",
+					"        target_df = target_df.orderBy(hrm_incremental_key).dropDuplicates(subset=columns_to_consider).orderBy(\"IngestionDate\")\r\n",
+					"    except Exception as e:\r\n",
+					"        error_message = f\"Error deduping target_df: {str(e)[:800]}\"\r\n",
+					"        end_exec_time = datetime.now()"
 				],
 				"execution_count": null
 			},
@@ -1091,37 +1144,41 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"duration_seconds = (end_exec_time - start_exec_time).total_seconds()\r\n",
-					"activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\r\n",
-					"stage = \"Success\" if not error_message else \"Failed\"\r\n",
-					"status_message = (\r\n",
-					"    f\"Successfully loaded data into {hrm_table} table\"\r\n",
-					"    if not error_message\r\n",
-					"    else f\"Failed to load data from {hrm_table} table\"\r\n",
-					")\r\n",
-					"status_code = \"200\" if stage == \"Success\" else \"500\"\r\n",
-					" \r\n",
-					"log_telemetry_and_exit(\r\n",
-					"    stage,\r\n",
-					"    start_exec_time,\r\n",
-					"    end_exec_time,\r\n",
-					"    error_message,\r\n",
-					"    hrm_table,\r\n",
-					"    insert_count,\r\n",
-					"    update_count,\r\n",
-					"    delete_count,\r\n",
-					"    PipelineName,\r\n",
-					"    PipelineRunID,\r\n",
-					"    PipelineTriggerID,\r\n",
-					"    PipelineTriggerName,\r\n",
-					"    PipelineTriggerType,\r\n",
-					"    PipelineTriggeredbyPipelineName,\r\n",
-					"    PipelineTriggeredbyPipelineRunID,\r\n",
-					"    activity_type,\r\n",
-					"    duration_seconds,\r\n",
-					"    status_message,\r\n",
-					"    status_code\r\n",
-					")"
+					"try:\r\n",
+					"    duration_seconds = (end_exec_time - start_exec_time).total_seconds()\r\n",
+					"    activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\r\n",
+					"    stage = \"Success\" if not error_message else \"Failed\"\r\n",
+					"    status_message = (\r\n",
+					"        f\"Successfully loaded data into {hrm_table} table\"\r\n",
+					"        if not error_message\r\n",
+					"        else f\"Failed to load data from {hrm_table} table\"\r\n",
+					"    )\r\n",
+					"    status_code = \"200\" if stage == \"Success\" else \"500\"\r\n",
+					"    \r\n",
+					"    log_telemetry_and_exit(\r\n",
+					"        stage,\r\n",
+					"        start_exec_time,\r\n",
+					"        end_exec_time,\r\n",
+					"        error_message,\r\n",
+					"        hrm_table,\r\n",
+					"        insert_count,\r\n",
+					"        update_count,\r\n",
+					"        delete_count,\r\n",
+					"        PipelineName,\r\n",
+					"        PipelineRunID,\r\n",
+					"        PipelineTriggerID,\r\n",
+					"        PipelineTriggerName,\r\n",
+					"        PipelineTriggerType,\r\n",
+					"        PipelineTriggeredbyPipelineName,\r\n",
+					"        PipelineTriggeredbyPipelineRunID,\r\n",
+					"        activity_type,\r\n",
+					"        duration_seconds,\r\n",
+					"        status_message,\r\n",
+					"        status_code\r\n",
+					"    )\r\n",
+					"except Exception as e:\r\n",
+					"    # If telemetry fails, at least print the error; typically we still exit the notebook.\r\n",
+					"    print(f\"Error in telemetry/log_telemetry_and_exit: {str(e)[:800]}\")"
 				],
 				"execution_count": null
 			}
