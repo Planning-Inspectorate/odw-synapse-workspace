@@ -11,14 +11,14 @@ class ETLResult(BaseModel, ABC):
         exception: Optional[str] = None
         exception_trace: Optional[str] = None
         table_name: Optional[str] = None
-        insert_count: int = Field(default_factory=0)
-        update_count: int = Field(default_factory=0)
-        delete_count: int = Field(default_factory=0)
+        insert_count: int = Field(default=0)
+        update_count: int = Field(default=0)
+        delete_count: int = Field(default=0)
         activity_type: str
         duration_seconds: float
 
     """
-    Holds the details of the executionn of an ETLProcess, for use in logging
+    Holds the details of the execution of an ETLProcess, for use in logging
     """
 
     @property
@@ -56,8 +56,6 @@ class ETLResultFactory:
     """
     Automatically generate an ETLResult class from an outcome string
     """
-
-    ETLFailResult.outcome
 
     @classmethod
     def get(cls, result_outcome: str) -> Type[ETLResult]:

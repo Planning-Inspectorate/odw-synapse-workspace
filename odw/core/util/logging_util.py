@@ -89,9 +89,9 @@ class LoggingUtil:
         }
         try:
             response = requests.post(endpoint, json=payload)
-            print("Telemetry sent:", response.status_code)
+            self.log_info("Telemetry sent:", response.status_code)
         except Exception as e:
-            print("Failed to send telemetry:", e)
+            self.log_info("Failed to send telemetry:", e)
 
     @retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_delay(20), reraise=True, before_sleep=before_sleep_nothing)
     def setup_logging(self, force=False):
@@ -101,9 +101,19 @@ class LoggingUtil:
         if self._LOGGING_INITIALISED and not force:
             self.log_info("Logging already initialised.")
             return
-        key = mssparkutils.credentials.getSecretWithLS("ls_kv", "application-insights-connection-string")
+        key = None
+        load_credential_exception = None
+        try:
+            key = mssparkutils.credentials.getSecretWithLS("ls_kv", "application-insights-connection-string")
+        except Exception as e:
+            load_credential_exception = e
         if not key:
-            raise RuntimeError("The credential returned by mssparkutils.credentials.getSecretWithLS was blank or None")
+            raise RuntimeError(
+                (
+                    "The credential returned by mssparkutils.credentials.getSecretWithLS was blank or None. The following "
+                    f"error was raised {load_credential_exception}"
+                )
+            )
         conn_string = key.split(";")[0]
         self.instrumentation_key = key.split("InstrumentationKey=")[-1].split(";")[0]
 
@@ -125,26 +135,18 @@ class LoggingUtil:
         """
         Attempt to flush logs to Azure App Insights
         """
-        print("Calling flush")
         event = threading.Event()
 
         def flush_logging_inner():
-            print("Flushing logs")
             try:
                 self.LOGGER_PROVIDER.force_flush()
-            except Exception as e:
-                print(f"Flush failed: {e}")
+            except Exception:
+                pass
             event.set()
 
         t = threading.Thread(target=flush_logging_inner)
         t.daemon = True
         t.start()
-
-        finished = event.wait(timeout=timeout_seconds)
-        if not finished:
-            print(f"force_flush() hung for >{timeout_seconds}s - continuing anyway")
-        else:
-            print("force_flush() completed")
 
     @classmethod
     def logging_to_appins(cls, func):
