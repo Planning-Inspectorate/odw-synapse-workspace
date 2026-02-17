@@ -1,0 +1,560 @@
+{
+	"name": "py_cur_convert_managed_to_external",
+	"properties": {
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "2616a6a4-c2a6-494d-a2d8-68fc05dc6bac"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"source": [
+					"#  Convert Managed Table → External Table\n",
+					"---\n",
+					"**Just pass table names. Path & format are auto-detected from the managed table.**\n",
+					"\n",
+					"**Flow per table:**\n",
+					"1. Auto-detect data path from managed table metadata\n",
+					"2. Auto-detect format (Delta / Parquet)\n",
+					"3. Read & capture row count + schema\n",
+					"4. Backup to temp location\n",
+					"5. Validate backup\n",
+					"6. Drop managed table (files get deleted)\n",
+					"7. Restore data to same path in same format\n",
+					"8. Register external table at same path\n",
+					"9. Final validation"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"##  Cell 1: Configuration\n",
+					"**Only update the table names and backup base path.**"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"harmonised_container = f\"abfss://odw-harmonised@{storage_account}\"\n",
+					"print(harmonised_container)"
+				],
+				"execution_count": 1
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"outputs_hidden": false
+					},
+					"collapsed": false
+				},
+				"source": [
+					"from datetime import datetime\n",
+					"\n",
+					"# =====================================================\n",
+					"# CONFIGURATION\n",
+					"# =====================================================\n",
+					"\n",
+					"# Temp backup base path (timestamped)\n",
+					"backup_base = harmonised_container+\"tmp_backup/migration_\" + datetime.now().strftime('%Y%m%d_%H%M%S')\n",
+					"\n",
+					"# Just pass the fully qualified table names - path & format auto-detected\n",
+					"tables_to_migrate = [\n",
+					"    \"odw_harmonised_db.sb_appeal_s78\",\n",
+					"    # \"my_db.orders\",\n",
+					"    # \"my_db.products\",\n",
+					"    # Add more tables...\n",
+					"]\n",
+					"\n",
+					"print(f\"Backup base : {backup_base}\")\n",
+					"print(f\"Tables      : {len(tables_to_migrate)}\")\n",
+					"for t in tables_to_migrate:\n",
+					"    print(f\"  - {t}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"df_table_path = spark.sql(f\"DESCRIBE EXTENDED {tables_to_migrate[0]}\")\n",
+					"\n",
+					"table_path = df_table_path.where(\"col_name == 'Location'\").select(\"data_type\").collect()[0][0]\n",
+					"table_type = df_table_path.where(\"col_name == 'Type'\").select(\"data_type\").collect()[0][0]\n",
+					"\n",
+					"print(table_path)\n",
+					"print(table_type)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"##  Cell 2: Auto-detect Path & Format Utilities"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"outputs_hidden": false
+					},
+					"collapsed": false
+				},
+				"source": [
+					"from notebookutils import mssparkutils\n",
+					"\n",
+					"def get_table_location(source_table):\n",
+					"    \"\"\"\n",
+					"    Extracts the data path (Location) from a managed table's metadata.\n",
+					"    Uses DESCRIBE EXTENDED to read the 'Location' property.\n",
+					"    \"\"\"\n",
+					"    desc_df = spark.sql(f\"DESCRIBE EXTENDED {source_table}\")\n",
+					"    location_row = desc_df.filter(\"col_name = 'Location'\").collect()\n",
+					"\n",
+					"    if not location_row:\n",
+					"        raise ValueError(f\"Could not find Location for table: {source_table}\")\n",
+					"\n",
+					"    location = location_row[0][\"data_type\"].strip()\n",
+					"    return location\n",
+					"\n",
+					"\n",
+					"def get_table_type(source_table):\n",
+					"    \"\"\"\n",
+					"    Returns the table type: MANAGED or EXTERNAL.\n",
+					"    \"\"\"\n",
+					"    desc_df = spark.sql(f\"DESCRIBE EXTENDED {source_table}\")\n",
+					"    type_row = desc_df.filter(\"col_name = 'Type'\").collect()\n",
+					"    if type_row:\n",
+					"        return type_row[0][\"data_type\"].strip().upper()\n",
+					"    return \"UNKNOWN\"\n",
+					"\n",
+					"\n",
+					"def detect_table_format(source_table, data_path):\n",
+					"    \"\"\"\n",
+					"    Detects if a table is Delta or Parquet.\n",
+					"    Uses multiple detection methods for reliability.\n",
+					"    Returns: 'DELTA' or 'PARQUET'\n",
+					"    \"\"\"\n",
+					"    # Method 1: Check DESCRIBE EXTENDED for provider\n",
+					"    try:\n",
+					"        desc_df = spark.sql(f\"DESCRIBE EXTENDED {source_table}\")\n",
+					"        provider_row = desc_df.filter(\n",
+					"            \"col_name = 'Provider' OR col_name = 'Serde Library' OR col_name = 'InputFormat'\"\n",
+					"        ).collect()\n",
+					"        for row in provider_row:\n",
+					"            val = str(row[\"data_type\"]).lower()\n",
+					"            if \"delta\" in val:\n",
+					"                return \"DELTA\"\n",
+					"    except Exception:\n",
+					"        pass\n",
+					"\n",
+					"    # Method 2: Check for _delta_log folder\n",
+					"    try:\n",
+					"        files = mssparkutils.fs.ls(data_path)\n",
+					"        for f in files:\n",
+					"            if f.name == \"_delta_log\" or f.name == \"_delta_log/\":\n",
+					"                return \"DELTA\"\n",
+					"    except Exception:\n",
+					"        pass\n",
+					"\n",
+					"    # Method 3: Try reading as delta\n",
+					"    try:\n",
+					"        spark.read.format(\"delta\").load(data_path).limit(1).collect()\n",
+					"        return \"DELTA\"\n",
+					"    except Exception:\n",
+					"        pass\n",
+					"\n",
+					"    return \"PARQUET\"\n",
+					"\n",
+					"\n",
+					"# =====================================================\n",
+					"# Preview: Show detected path, format, type for each table\n",
+					"# =====================================================\n",
+					"print(f\"\\n{'Table':<30} {'Type':<12} {'Format':<10} {'Location'}\")\n",
+					"print(f\"{'-'*100}\")\n",
+					"for t in tables_to_migrate:\n",
+					"    try:\n",
+					"        loc = get_table_location(t)\n",
+					"        ttype = get_table_type(t)\n",
+					"        fmt = detect_table_format(t, loc)\n",
+					"        print(f\"  {t:<28} {ttype:<12} {fmt:<10} {loc}\")\n",
+					"    except Exception as e:\n",
+					"        print(f\"  {t:<28} ERROR: {str(e)[:60]}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"##  Cell 3: Migration Function"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"outputs_hidden": false
+					},
+					"collapsed": false
+				},
+				"source": [
+					"def convert_managed_to_external(source_table, backup_path):\n",
+					"    \"\"\"\n",
+					"    Converts a managed table to external table at the SAME location.\n",
+					"    Path & format are auto-detected. Only table name needed.\n",
+					"    \"\"\"\n",
+					"    print(f\"{'='*60}\")\n",
+					"    print(f\"Converting: {source_table}\")\n",
+					"    print(f\"{'='*60}\")\n",
+					"\n",
+					"    # ---- Step 1: Get location from managed table ----\n",
+					"    print(f\"\\n[Step 1/9] Reading table metadata...\")\n",
+					"    data_path = get_table_location(source_table)\n",
+					"    tbl_type = get_table_type(source_table)\n",
+					"    print(f\"  Location : {data_path}\")\n",
+					"    print(f\"  Type     : {tbl_type}\")\n",
+					"\n",
+					"    if tbl_type == \"EXTERNAL\":\n",
+					"        print(f\"   Table is already EXTERNAL. Skipping.\")\n",
+					"        return \"SKIPPED_EXTERNAL\", \"N/A\", data_path\n",
+					"\n",
+					"    # ---- Step 2: Detect format ----\n",
+					"    print(f\"\\n[Step 2/9] Detecting format...\")\n",
+					"    table_format = detect_table_format(source_table, data_path)\n",
+					"    fmt = table_format.lower()\n",
+					"    print(f\"  Format   : {table_format}\")\n",
+					"\n",
+					"    # ---- Step 3: Read & capture metadata ----\n",
+					"    print(f\"\\n[Step 3/9] Reading data...\")\n",
+					"    df = spark.table(source_table)\n",
+					"    original_count = df.count()\n",
+					"    original_columns = sorted(df.columns)\n",
+					"    print(f\"  Row count : {original_count}\")\n",
+					"    print(f\"  Columns   : {len(original_columns)} -> {original_columns}\")\n",
+					"\n",
+					"    if original_count == 0:\n",
+					"        print(f\"  Table is empty. Skipping.\")\n",
+					"        return \"SKIPPED_EMPTY\", table_format, data_path\n",
+					"\n",
+					"    # ---- Step 4: Backup ----\n",
+					"    print(f\"\\n[Step 4/9] Backing up as {table_format}...\")\n",
+					"    df.write \\\n",
+					"      .mode(\"overwrite\") \\\n",
+					"      .format(fmt) \\\n",
+					"      .option(\"overwriteSchema\", \"true\") \\\n",
+					"      .save(backup_path)\n",
+					"    print(f\"  Backup at: {backup_path}\")\n",
+					"\n",
+					"    # ---- Step 5: Validate backup ----\n",
+					"    print(f\"\\n[Step 5/9] Validating backup...\")\n",
+					"    df_backup = spark.read.format(fmt).load(backup_path)\n",
+					"    backup_count = df_backup.count()\n",
+					"    backup_columns = sorted(df_backup.columns)\n",
+					"\n",
+					"    assert backup_count == original_count, \\\n",
+					"        f\"BACKUP FAILED: Row mismatch! Original={original_count}, Backup={backup_count}\"\n",
+					"    assert backup_columns == original_columns, \\\n",
+					"        f\"BACKUP FAILED: Schema mismatch!\"\n",
+					"    print(f\"  Rows: {backup_count} ✓ | Schema match ✓\")\n",
+					"\n",
+					"    # ---- Step 6: Drop managed table ----\n",
+					"    print(f\"\\n[Step 6/9] Dropping managed table...\")\n",
+					"    spark.sql(f\"DROP TABLE IF EXISTS {source_table}\")\n",
+					"    print(f\"  Managed table dropped.\")\n",
+					"\n",
+					"    # ---- Step 7: Restore data to original path ----\n",
+					"    print(f\"\\n[Step 7/9] Restoring data to original path as {table_format}...\")\n",
+					"    df_restore = spark.read.format(fmt).load(backup_path)\n",
+					"    df_restore.write \\\n",
+					"      .mode(\"overwrite\") \\\n",
+					"      .format(fmt) \\\n",
+					"      .option(\"overwriteSchema\", \"true\") \\\n",
+					"      .save(data_path)\n",
+					"\n",
+					"    restored_count = spark.read.format(fmt).load(data_path).count()\n",
+					"    assert restored_count == original_count, \\\n",
+					"        f\"RESTORE FAILED: Row mismatch! Original={original_count}, Restored={restored_count}\"\n",
+					"    print(f\"  Restored. Rows: {restored_count} ✓\")\n",
+					"\n",
+					"    # ---- Step 8: Register as external table ----\n",
+					"    print(f\"\\n[Step 8/9] Registering external {table_format} table...\")\n",
+					"    spark.sql(f\"\"\"\n",
+					"        CREATE TABLE {source_table}\n",
+					"        USING {table_format}\n",
+					"        LOCATION '{data_path}'\n",
+					"    \"\"\")\n",
+					"    print(f\"  Registered: {source_table} -> {data_path}\")\n",
+					"\n",
+					"    # ---- Step 9: Final validation ----\n",
+					"    print(f\"\\n[Step 9/9] Final validation...\")\n",
+					"    df_final = spark.table(source_table)\n",
+					"    final_count = df_final.count()\n",
+					"    final_columns = sorted(df_final.columns)\n",
+					"\n",
+					"    assert final_count == original_count, \\\n",
+					"        f\"FINAL FAILED: Row mismatch! Original={original_count}, Final={final_count}\"\n",
+					"    assert final_columns == original_columns, \\\n",
+					"        f\"FINAL FAILED: Schema mismatch!\"\n",
+					"\n",
+					"    new_type = get_table_type(source_table)\n",
+					"    print(f\"  Table type   : {new_type}\")\n",
+					"    print(f\"  Table format : {table_format}\")\n",
+					"    print(f\"  Location     : {data_path}\")\n",
+					"    print(f\"  Final rows   : {final_count} ✓ | Schema match ✓\")\n",
+					"\n",
+					"    print(f\"\\n Done: {source_table} [{table_format}]\\n\")\n",
+					"    return \"SUCCESS\", table_format, data_path\n",
+					"\n",
+					"print(\"Migration function loaded.\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"##  Cell 4: Rollback Function"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"outputs_hidden": false
+					},
+					"collapsed": false
+				},
+				"source": [
+					"def rollback_from_backup(table_name, data_path, backup_path, table_format):\n",
+					"    \"\"\"\n",
+					"    Restores a managed table from backup in the correct format.\n",
+					"    \"\"\"\n",
+					"    fmt = table_format.lower()\n",
+					"    print(f\" Rolling back: {table_name} [{table_format}]\")\n",
+					"\n",
+					"    df_backup = spark.read.format(fmt).load(backup_path)\n",
+					"    backup_count = df_backup.count()\n",
+					"    print(f\"  Backup rows: {backup_count}\")\n",
+					"\n",
+					"    spark.sql(f\"DROP TABLE IF EXISTS {table_name}\")\n",
+					"\n",
+					"    # Restore data to original path\n",
+					"    df_backup.write \\\n",
+					"      .mode(\"overwrite\") \\\n",
+					"      .format(fmt) \\\n",
+					"      .option(\"overwriteSchema\", \"true\") \\\n",
+					"      .save(data_path)\n",
+					"\n",
+					"    # Re-create as managed table\n",
+					"    df_backup.write \\\n",
+					"      .mode(\"overwrite\") \\\n",
+					"      .format(fmt) \\\n",
+					"      .saveAsTable(table_name)\n",
+					"\n",
+					"    restored_count = spark.table(table_name).count()\n",
+					"    assert restored_count == backup_count, \\\n",
+					"        f\"ROLLBACK FAILED: Backup={backup_count}, Restored={restored_count}\"\n",
+					"    print(f\"   Rollback complete. Rows: {restored_count} ✓\\n\")\n",
+					"\n",
+					"print(\"Rollback function loaded.\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"##  Cell 5: Execute Migration"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"outputs_hidden": false
+					},
+					"collapsed": false
+				},
+				"source": [
+					"# =====================================================\n",
+					"# Execute Migration\n",
+					"# =====================================================\n",
+					"\n",
+					"migration_log = []\n",
+					"\n",
+					"for table_name in tables_to_migrate:\n",
+					"    bkp_path = f\"{backup_base}/{table_name.replace('.', '_')}\"\n",
+					"    try:\n",
+					"        status, fmt, dpath = convert_managed_to_external(table_name, bkp_path)\n",
+					"        migration_log.append((table_name, status, fmt, dpath, bkp_path, \"\"))\n",
+					"    except Exception as e:\n",
+					"        fmt = \"UNKNOWN\"\n",
+					"        dpath = \"UNKNOWN\"\n",
+					"        try:\n",
+					"            dpath = get_table_location(table_name)\n",
+					"            fmt = detect_table_format(table_name, dpath)\n",
+					"        except Exception:\n",
+					"            pass\n",
+					"        print(f\"\\n ERROR: {table_name}: {str(e)}\")\n",
+					"        print(f\"   Backup : {bkp_path}\")\n",
+					"        print(f\"   Rollback: rollback_from_backup('{table_name}', '{dpath}', '{bkp_path}', '{fmt}')\\n\")\n",
+					"        migration_log.append((table_name, \"FAILED\", fmt, dpath, bkp_path, str(e)))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"##  Cell 6: Migration Summary"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"outputs_hidden": false
+					},
+					"collapsed": false
+				},
+				"source": [
+					"# =====================================================\n",
+					"# Migration Summary Report\n",
+					"# =====================================================\n",
+					"\n",
+					"print(f\"\\n{'='*90}\")\n",
+					"print(f\"{'MIGRATION SUMMARY':^90}\")\n",
+					"print(f\"{'='*90}\")\n",
+					"print(f\"{'Table':<30} {'Format':<10} {'Status':<18} {'Location'}\")\n",
+					"print(f\"{'-'*90}\")\n",
+					"\n",
+					"for table, status, fmt, dpath, bpath, error in migration_log:\n",
+					"    if status == \"SUCCESS\":       \n",
+					"    elif \"SKIPPED\" in status:      \n",
+					"    else:                          \n",
+					"    print(f\"  {table:<28} {fmt:<10} {status:<18} {dpath}\")\n",
+					"    if error:\n",
+					"        print(f\"     Error  : {error[:100]}\")\n",
+					"        print(f\"     Backup : {bpath}\")\n",
+					"\n",
+					"print(f\"{'-'*90}\")\n",
+					"total   = len(migration_log)\n",
+					"success = sum(1 for _,s,_,_,_,_ in migration_log if s == 'SUCCESS')\n",
+					"skipped = sum(1 for _,s,_,_,_,_ in migration_log if 'SKIPPED' in s)\n",
+					"failed  = sum(1 for _,s,_,_,_,_ in migration_log if s == 'FAILED')\n",
+					"delta_c = sum(1 for _,s,f,_,_,_ in migration_log if f == 'DELTA' and s == 'SUCCESS')\n",
+					"parq_c  = sum(1 for _,s,f,_,_,_ in migration_log if f == 'PARQUET' and s == 'SUCCESS')\n",
+					"\n",
+					"print(f\"Total: {total} | Success: {success} (Delta: {delta_c}, Parquet: {parq_c}) |  Skipped: {skipped} | Failed: {failed}\")\n",
+					"print(f\"Backup location: {backup_base}\")\n",
+					"print(f\"{'='*90}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"##  Cell 7: Rollback (Run only if needed)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"outputs_hidden": false
+					},
+					"collapsed": false
+				},
+				"source": [
+					"# =====================================================\n",
+					"# ROLLBACK - Uncomment to rollback\n",
+					"# =====================================================\n",
+					"\n",
+					"# Rollback ALL failed tables:\n",
+					"# for table, status, fmt, dpath, bpath, error in migration_log:\n",
+					"#     if status == \"FAILED\":\n",
+					"#         rollback_from_backup(table, dpath, bpath, fmt)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"##  Cell 8: Cleanup Backups (ONLY after full verification)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"outputs_hidden": false
+					},
+					"collapsed": false
+				},
+				"source": [
+					"# =====================================================\n",
+					"#  CAUTION: Permanently deletes all backups!\n",
+					"# =====================================================\n",
+					"\n",
+					"# mssparkutils.fs.rm(backup_base, recurse=True)\n",
+					"# print(f\" Backups cleaned up: {backup_base}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"df_table_path = spark.sql(f\"DESCRIBE EXTENDED {tables_to_migrate[0]}\")\n",
+					"\n",
+					"table_path = df_table_path.where(\"col_name == 'Location'\").select(\"data_type\").collect()[0][0]\n",
+					"table_type = df_table_path.where(\"col_name == 'Type'\").select(\"data_type\").collect()[0][0]\n",
+					"\n",
+					"print(table_path)\n",
+					"print(table_type)\n",
+					""
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
