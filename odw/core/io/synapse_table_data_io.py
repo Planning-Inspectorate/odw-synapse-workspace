@@ -86,7 +86,7 @@ class SynapseTableDataIO(SynapseDataIO):
         blob_path = kwargs.get("blob_path", None)
         file_format = kwargs.get("file_format", None)
         write_mode = kwargs.get("write_mode", None)
-        write_options = kwargs.get("write_options", [])
+        write_options = kwargs.get("write_options", dict())
         if not database_name:
             raise ValueError("SynapseTableDataIO.write requires a database_name to be provided, but was missing")
         if not table_name:
@@ -102,14 +102,18 @@ class SynapseTableDataIO(SynapseDataIO):
         if not file_format:
             raise ValueError("SynapseTableDataIO.write requires a file_format to be provided, but was missing")
         if not write_mode:
-            raise ValueError("SynapseDeltaDataIO.write requires a write_mode to be provided, but was missing")
+            raise ValueError("SynapseTableDataIO.write requires a write_mode to be provided, but was missing")
+        if not isinstance(write_options, dict):
+            raise ValueError(f"SynapseTableDataIO.write requires the write_options to be a dictionary of strings, but was a {type(write_options)}")
         table_path = f"{database_name}.{table_name}"
         if storage_name:
             data_path = self._format_to_adls_path(container_name, blob_path, storage_name=storage_name)
         else:
             data_path = self._format_to_adls_path(container_name, blob_path, storage_endpoint=storage_endpoint)
-        write_options = set([("path", data_path)] + write_options)
+        write_options = write_options | {
+            "path": data_path
+        }
         writer = data.write.format(file_format).mode(write_mode)
-        for option_name, option_value in write_options:
+        for option_name, option_value in write_options.items():
             writer.option(option_name, option_value)
         writer.saveAsTable(table_path)

@@ -68,7 +68,7 @@ class SynapseFileDataIO(SynapseDataIO):
         if not file_format:
             raise ValueError("SynapseFileDataIO.read requires a file_format to be provided, but was missing")
         if not isinstance(read_options, dict):
-            raise ValueError(f"SynapseFileDataIO.read requires the read_options to be a list of strings, but was a {type(read_options)}")
+            raise ValueError(f"SynapseFileDataIO.read requires the read_options to be a dictionary of strings, but was a {type(read_options)}")
         if storage_name:
             data_path = self._format_to_adls_path(container_name, blob_path, storage_name=storage_name)
         else:
@@ -106,11 +106,11 @@ class SynapseFileDataIO(SynapseDataIO):
         if not blob_path:
             raise ValueError("SynapseFileDataIO.write requires a blob_path to be provided, but was missing")
         if not file_format:
-            raise ValueError("SynapseDeltaDataIO.write requires a file_format to be provided, but was missing")
+            raise ValueError("SynapseFileDataIO.write requires a file_format to be provided, but was missing")
         if not write_mode:
-            raise ValueError("SynapseDeltaDataIO.write requires a write_mode to be provided, but was missing")
+            raise ValueError("SynapseFileDataIO.write requires a write_mode to be provided, but was missing")
         if not isinstance(write_options, dict):
-            raise ValueError(f"SynapseFileDataIO.write requires the write_options to be a list of strings, but was a {type(write_options)}")
+            raise ValueError(f"SynapseFileDataIO.write requires the write_options to be a dictionary of strings, but was a {type(write_options)}")
         if storage_name:
             data_path = self._format_to_adls_path(container_name, blob_path, storage_name=storage_name)
         else:

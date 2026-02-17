@@ -57,7 +57,7 @@ class SynapseLegacyDeltaIO(SynapseDeltaIO):
         table_name = kwargs.get("table_name", None)
         merge_keys = kwargs.get("merge_keys", None)
         if not spark:
-            raise ValueError("SynapseLegacyDeltaIO.read requires spark to be provided, but was missing")
+            raise ValueError("SynapseLegacyDeltaIO.write requires spark to be provided, but was missing")
         if not (storage_name or storage_endpoint):
             raise ValueError("SynapseLegacyDeltaIO.write expected one of 'storage_name' or 'storage_endpoint' to be provided")
         if storage_name and storage_endpoint:
