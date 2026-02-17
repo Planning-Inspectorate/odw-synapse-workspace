@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "486340ea-5a90-4116-b9d8-610901707675"
+				"spark.autotune.trackingId": "84b73ed0-a11d-4848-afdc-d11cbe2fd684"
 			}
 		},
 		"metadata": {
@@ -67,7 +67,7 @@
 					"            .load(path))\n",
 					""
 				],
-				"execution_count": 11
+				"execution_count": 1
 			},
 			{
 				"cell_type": "code",
@@ -87,7 +87,7 @@
 					"out_addresses       = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-TRANSFORM/Address/ContactAddress.csv\"\n",
 					""
 				],
-				"execution_count": 12
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
@@ -107,7 +107,7 @@
 					"display(cases_map.limit(10))\n",
 					""
 				],
-				"execution_count": 13
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
@@ -122,7 +122,7 @@
 					"display(involv_raw.limit(10))\n",
 					""
 				],
-				"execution_count": 14
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -166,7 +166,7 @@
 					"display(involv_filtered.limit(20))\n",
 					""
 				],
-				"execution_count": 15
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
@@ -223,7 +223,7 @@
 					"display(contacts_dim.limit(20))\n",
 					""
 				],
-				"execution_count": 16
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
@@ -252,7 +252,7 @@
 					"display(contacts_dim.select(\"legacyContactId\",\"addressKey\",\"postcode\").limit(20))\n",
 					""
 				],
-				"execution_count": 17
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
@@ -342,7 +342,7 @@
 					"\n",
 					""
 				],
-				"execution_count": 18
+				"execution_count": 8
 			},
 			{
 				"cell_type": "code",
@@ -365,7 +365,55 @@
 					"\n",
 					""
 				],
-				"execution_count": 19
+				"execution_count": 9
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"# keep original \"typeOfInvolvement\" and add a mapped \"contactTypeId\"\n",
+					"involv_final = involv_final.withColumn(\"toi_norm\", F.lower(F.trim(F.col(\"typeOfInvolvement\"))))\n",
+					"\n",
+					"involv_final = involv_final.withColumn(\n",
+					"    \"contactTypeId\",\n",
+					"    F.when(F.col(\"toi_norm\") == \"lpa\", \"local-planning-authority\")\n",
+					"     .when(F.col(\"toi_norm\") == \"lpa agent\", \"lpa-agent\")\n",
+					"     .when(F.col(\"toi_norm\") == \"lpa contact\", \"lpa-contact\")\n",
+					"     .when(F.col(\"toi_norm\") == \"member of parliament\", \"member-of-parliament\")\n",
+					"     .when(F.col(\"toi_norm\") == \"objector\", \"objector\")\n",
+					"     .when(F.col(\"toi_norm\") == \"order making authority\", \"order-making-authority\")\n",
+					"     .when(F.col(\"toi_norm\") == \"programme officer\", \"programme-officer\")\n",
+					"     .when(F.col(\"toi_norm\") == \"sponsor\", \"sponsor\")\n",
+					"     .when(F.col(\"toi_norm\") == \"tenant\", \"tenant\")\n",
+					"     .when(F.col(\"toi_norm\") == \"third party\", \"third-party\")\n",
+					"     .when(F.col(\"toi_norm\") == \"other party\", \"other-party\")\n",
+					"     .when(F.col(\"toi_norm\") == \"representer\", \"representer\")\n",
+					"     .when(F.col(\"toi_norm\") == \"agent\", \"representative\")\n",
+					"     .when(F.col(\"toi_norm\") == \"applicant\", \"notified-party\")\n",
+					"     .when(F.col(\"toi_norm\") == \"appellant\", \"notified-party\")\n",
+					"\n",
+					"     # suggested-but-not-direct (still applied as you said you're happy with suggested mapping)\n",
+					"     .when(F.col(\"toi_norm\") == \"owner\", \"notified-party\")\n",
+					"     .when(F.col(\"toi_norm\") == \"interested owner\", \"notified-party\")\n",
+					"     .when(F.col(\"toi_norm\") == \"interested person\", \"potential-claimant\")\n",
+					"     .when(F.col(\"toi_norm\") == \"government agency\", \"other-party\")\n",
+					"     .when(F.col(\"toi_norm\") == \"statutory consultee\", \"other-party\")\n",
+					"     .when(F.col(\"toi_norm\") == \"relevant authority\", \"other-party\")\n",
+					"     .when(F.col(\"toi_norm\") == \"relevant authority contact\", \"other-party\")\n",
+					"     .when(F.col(\"toi_norm\") == \"sos - key contact\", \"secretary-of-state\")\n",
+					"\n",
+					"     .otherwise(F.lit(None))\n",
+					")\n",
+					"\n",
+					"# optional: drop helper normalised column before writing\n",
+					"involv_final = involv_final.drop(\"toi_norm\")\n",
+					"\n",
+					"display(involv_final.select(\"typeOfInvolvement\", \"contactTypeId\").dropDuplicates().orderBy(\"typeOfInvolvement\"))\n",
+					""
+				],
+				"execution_count": 10
 			},
 			{
 				"cell_type": "code",
@@ -404,7 +452,7 @@
 					"print(\"Wrote CaseInvolvement_Contacts.csv:\", out_involv_contacts)\n",
 					""
 				],
-				"execution_count": 20
+				"execution_count": 11
 			},
 			{
 				"cell_type": "code",
@@ -421,7 +469,7 @@
 					"        .limit(50))\n",
 					""
 				],
-				"execution_count": 21
+				"execution_count": 12
 			}
 		]
 	}
