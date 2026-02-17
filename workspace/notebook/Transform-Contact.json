@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "0607af25-1fbc-4654-8629-55cdece8419d"
+				"spark.autotune.trackingId": "e55d2148-0ce1-40d8-a1cf-485a00dc2cbd"
 			}
 		},
 		"metadata": {
@@ -67,7 +67,7 @@
 					"out_path = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-TRANSFORM/CaseInvolvement/CaseInvolvement_Contacts.csv\"\n",
 					""
 				],
-				"execution_count": 1
+				"execution_count": 13
 			},
 			{
 				"cell_type": "code",
@@ -82,7 +82,7 @@
 					"            .load(path))\n",
 					""
 				],
-				"execution_count": 2
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -97,7 +97,7 @@
 					"\n",
 					""
 				],
-				"execution_count": 4
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -110,7 +110,7 @@
 					"print(involv_raw.columns)\n",
 					""
 				],
-				"execution_count": 5
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -151,7 +151,7 @@
 					"display(involv_filtered.limit(20))\n",
 					""
 				],
-				"execution_count": 8
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -200,7 +200,70 @@
 					"display(involv_with_contacts.limit(50))\n",
 					""
 				],
-				"execution_count": 9
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def norm_col(c):\n",
+					"    return F.lower(F.trim(F.coalesce(F.col(c), F.lit(\"\"))))\n",
+					"\n",
+					"def make_address_key(po, a1, a2, city, county, pc, country):\n",
+					"    return F.concat_ws(\"|\",\n",
+					"        norm_col(po),\n",
+					"        norm_col(a1),\n",
+					"        norm_col(a2),\n",
+					"        norm_col(city),\n",
+					"        norm_col(county),\n",
+					"        norm_col(pc),\n",
+					"        norm_col(country),\n",
+					"    )\n",
+					"\n",
+					"contacts_dim = (contacts_dim\n",
+					"    .withColumn(\"addressKey\", make_address_key(\n",
+					"        \"poBox\",\"addressLine1\",\"addressLine2\",\n",
+					"        \"townCity\",\"county\",\"postcode\",\"country\"\n",
+					"    ))\n",
+					")\n",
+					"\n",
+					"# remove blank addresses\n",
+					"contacts_dim = contacts_dim.withColumn(\n",
+					"    \"addressKey\",\n",
+					"    F.when(F.col(\"addressKey\") == F.lit(\"||||||\"), F.lit(None))\n",
+					"     .otherwise(F.col(\"addressKey\"))\n",
+					")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"addresses = (contacts_dim\n",
+					"    .filter(F.col(\"addressKey\").isNotNull())\n",
+					"    .select(\n",
+					"        \"addressKey\",\n",
+					"        \"poBox\",\n",
+					"        \"addressLine1\",\n",
+					"        \"addressLine2\",\n",
+					"        \"townCity\",\n",
+					"        \"county\",\n",
+					"        \"postcode\",\n",
+					"        \"country\"\n",
+					"    )\n",
+					"    .dropDuplicates([\"addressKey\"])\n",
+					")\n",
+					"\n",
+					"addresses_out = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-TRANSFORM/Address/Address.csv\"\n",
+					"\n",
+					"(addresses.coalesce(1)\n",
+					" .write.mode(\"overwrite\")\n",
+					" .option(\"header\",\"true\")\n",
+					" .csv(addresses_out))\n",
+					"\n",
+					"print(\"Wrote Address.csv\")\n",
+					""
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -239,7 +302,7 @@
 					"print(\"Wrote:\", out_path)\n",
 					""
 				],
-				"execution_count": 11
+				"execution_count": null
 			}
 		]
 	}
