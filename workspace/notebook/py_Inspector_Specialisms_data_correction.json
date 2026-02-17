@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "c7c0a75f-26a5-475d-b3a3-c5e195a5e789"
+				"spark.autotune.trackingId": "198448fb-2347-4d92-97ab-5c0cbdc355a9"
 			}
 		},
 		"metadata": {
@@ -470,6 +470,39 @@
 					")"
 				],
 				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"\n",
+					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"\n",
+					"delta_table_path = f\"abfss://odw-harmonised@{storage_account}saphr/sap_hr_inspector_specialisms\"\n",
+					"\n",
+					"print(delta_table_path)\n",
+					"\n",
+					"target_sap_hr_specialism_df = spark.read.option(\"header\",\"true\").option(\"inferSchema\", \"true\").csv(\"abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/StaticTables/2026-02-17/Inspector_specialism_load_oneoff.csv\")\n",
+					"\n",
+					"target_sap_hr_specialism_df = target_sap_hr_specialism_df.select(\n",
+					"    *[col(c) for c in target_sap_hr_specialism_df.columns if c not in [\"Current\"]], # Convert other columns to STRING\n",
+					"    col(\"Current\").cast(\"string\").alias(\"Current\")\n",
+					")\n",
+					"\n",
+					"display(target_sap_hr_specialism_df.count())\n",
+					"\n",
+					"target_sap_hr_specialism_df.write.format(\"delta\").mode(\"overwrite\").save(delta_table_path)\n",
+					"\n",
+					"\n",
+					"\n",
+					"\n",
+					"\n",
+					"\n",
+					"#df_cleaned.write.format(\"delta\").mode(\"overwrite\").save(\"abfss://your-container@your-storage.dfs.core.windows.net/delta/my_table\")"
+				],
+				"execution_count": 67
 			}
 		]
 	}
