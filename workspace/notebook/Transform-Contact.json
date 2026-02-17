@@ -1,0 +1,246 @@
+{
+	"name": "Transform-Contact",
+	"properties": {
+		"folder": {
+			"name": "Horizon-Migration/Horizon-Transform"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "hbtPool",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "0607af25-1fbc-4654-8629-55cdece8419d"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/hbtPool",
+				"name": "hbtPool",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/hbtPool",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.5",
+				"nodeCount": 10,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"cases_map_path = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/config/Cases/Cases.csv\"\n",
+					"\n",
+					"# folder that contains pivoted CSV(s)\n",
+					"involv_folder = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-EXTRACT/LLAttr/Case_Involvement_95501/\"\n",
+					"\n",
+					"person_path = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-EXTRACT/Contacts_Person.csv\"\n",
+					"org_path    = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-EXTRACT/Contacts_Organisation.csv\"\n",
+					"\n",
+					"out_path = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-TRANSFORM/CaseInvolvement/CaseInvolvement_Contacts.csv\"\n",
+					""
+				],
+				"execution_count": 1
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def read_csv(path: str):\n",
+					"    return (spark.read.format(\"csv\")\n",
+					"            .option(\"header\", \"true\")\n",
+					"            .option(\"multiLine\", \"true\")\n",
+					"            .option(\"quote\", \"\\\"\")\n",
+					"            .option(\"escape\", \"\\\"\")\n",
+					"            .option(\"mode\", \"PERMISSIVE\")\n",
+					"            .load(path))\n",
+					""
+				],
+				"execution_count": 2
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"cases_map = (read_csv(cases_map_path)\n",
+					"    .select(\n",
+					"        F.col(\"Case ID\").cast(\"string\").alias(\"legacyCaseId\"),\n",
+					"        F.col(\"GUID\").cast(\"string\").alias(\"caseId\")\n",
+					"    )\n",
+					"    .dropDuplicates([\"legacyCaseId\"])\n",
+					")\n",
+					"\n",
+					""
+				],
+				"execution_count": 4
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"involv_raw = read_csv(involv_folder)\n",
+					"display(involv_raw.limit(5))\n",
+					"print(involv_raw.columns)\n",
+					""
+				],
+				"execution_count": 5
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"# ID = CaseNodeId (legacy case id)\n",
+					"case_col    = \"ID\"\n",
+					"contact_col = \"20\"   # ContactID\n",
+					"type_col    = \"3\"    # Type Of Involvement\n",
+					"start_col   = \"4\"    # Involvement Start Date\n",
+					"end_col     = \"16\"   # Involvement End Date\n",
+					"comm_col    = \"17\"   # Communication Preference\n",
+					"extref_col  = \"18\"   # External Reference Number\n",
+					"details_col = \"19\"   # Contact Details\n",
+					"\n",
+					"involv = (involv_raw\n",
+					"    .withColumn(\"legacyCaseId\", F.col(case_col).cast(\"string\"))\n",
+					"    .withColumn(\"legacyContactId\", F.trim(F.col(contact_col).cast(\"string\")))\n",
+					"    .withColumn(\"typeOfInvolvement\", F.trim(F.col(type_col).cast(\"string\")))\n",
+					"    .withColumn(\"involvementStartDate\", F.col(start_col).cast(\"string\"))\n",
+					"    .withColumn(\"involvementEndDate\", F.col(end_col).cast(\"string\"))\n",
+					"    .withColumn(\"communicationPreference\", F.col(comm_col).cast(\"string\"))\n",
+					"    .withColumn(\"externalReferenceNumber\", F.col(extref_col).cast(\"string\"))\n",
+					"    .withColumn(\"contactDetails\", F.col(details_col).cast(\"string\"))\n",
+					")\n",
+					"\n",
+					"# Filter to only mapped cases (inner join)\n",
+					"involv_filtered = (involv\n",
+					"    .join(cases_map, on=\"legacyCaseId\", how=\"inner\")\n",
+					"    .filter(F.col(\"legacyContactId\").isNotNull())\n",
+					")\n",
+					"\n",
+					"print(\"involv_filtered rows:\", involv_filtered.count())\n",
+					"display(involv_filtered.limit(20))\n",
+					""
+				],
+				"execution_count": 8
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"def read_csv(path: str):\n",
+					"    return (spark.read.format(\"csv\")\n",
+					"            .option(\"header\", \"true\")\n",
+					"            .option(\"multiLine\", \"true\")\n",
+					"            .option(\"quote\", \"\\\"\")\n",
+					"            .option(\"escape\", \"\\\"\")\n",
+					"            .option(\"mode\", \"PERMISSIVE\")\n",
+					"            .load(path))\n",
+					"\n",
+					"people = (read_csv(person_path)\n",
+					"    .withColumn(\"legacyContactId\", F.col(\"P_ID\").cast(\"string\"))\n",
+					"    .withColumn(\"contactSource\", F.lit(\"person\"))\n",
+					"    .withColumn(\"orgName\", F.lit(None).cast(\"string\"))\n",
+					"    .withColumn(\"firstName\", F.trim(F.col(\"FirstName\")))\n",
+					"    .withColumn(\"lastName\",  F.trim(F.col(\"LastName\")))\n",
+					"    .withColumn(\"email\",     F.trim(F.col(\"Email\")))\n",
+					"    .withColumn(\"telephoneNumber\", F.coalesce(F.trim(F.col(\"TelephoneMobile\")), F.trim(F.col(\"TelephoneOffice\"))))\n",
+					"    .select(\"legacyContactId\",\"contactSource\",\"orgName\",\"firstName\",\"lastName\",\"email\",\"telephoneNumber\")\n",
+					")\n",
+					"\n",
+					"orgs = (read_csv(org_path)\n",
+					"    .withColumn(\"legacyContactId\", F.col(\"ID\").cast(\"string\"))\n",
+					"    .withColumn(\"contactSource\", F.lit(\"org\"))\n",
+					"    .withColumn(\"orgName\", F.trim(F.col(\"Name\")))\n",
+					"    .withColumn(\"firstName\", F.lit(None).cast(\"string\"))\n",
+					"    .withColumn(\"lastName\",  F.lit(None).cast(\"string\"))\n",
+					"    .withColumn(\"email\",     F.trim(F.col(\"Email\")))\n",
+					"    .withColumn(\"telephoneNumber\", F.trim(F.col(\"TelephoneOffice\")))\n",
+					"    .select(\"legacyContactId\",\"contactSource\",\"orgName\",\"firstName\",\"lastName\",\"email\",\"telephoneNumber\")\n",
+					")\n",
+					"\n",
+					"contacts_dim = people.unionByName(orgs).dropDuplicates([\"legacyContactId\",\"contactSource\"])\n",
+					"\n",
+					"involv_with_contacts = (involv_filtered\n",
+					"    .join(contacts_dim, on=\"legacyContactId\", how=\"left\")\n",
+					")\n",
+					"\n",
+					"print(\"involv_with_contacts rows:\", involv_with_contacts.count())\n",
+					"display(involv_with_contacts.limit(50))\n",
+					""
+				],
+				"execution_count": 9
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"out = (involv_with_contacts\n",
+					"    .select(\n",
+					"        \"caseId\",\n",
+					"        \"legacyCaseId\",\n",
+					"        \"legacyContactId\",\n",
+					"        \"typeOfInvolvement\",\n",
+					"        \"involvementStartDate\",\n",
+					"        \"involvementEndDate\",\n",
+					"        \"communicationPreference\",\n",
+					"        \"externalReferenceNumber\",\n",
+					"        \"contactDetails\",\n",
+					"        \"contactSource\",\n",
+					"        \"orgName\",\n",
+					"        \"firstName\",\n",
+					"        \"lastName\",\n",
+					"        \"email\",\n",
+					"        \"telephoneNumber\"\n",
+					"    )\n",
+					")\n",
+					"\n",
+					"print(\"out rows:\", out.count())\n",
+					"display(out.limit(50))\n",
+					"\n",
+					"(out.coalesce(1)\n",
+					"   .write.mode(\"overwrite\")\n",
+					"   .option(\"header\", \"true\")\n",
+					"   .csv(out_path)\n",
+					")\n",
+					"print(\"Wrote:\", out_path)\n",
+					""
+				],
+				"execution_count": 11
+			}
+		]
+	}
+}
