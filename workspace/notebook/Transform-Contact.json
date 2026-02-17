@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "3d0bc0fe-4071-4e44-93eb-cee9b27b4442"
+				"spark.autotune.trackingId": "a90060e2-2ecc-4790-adac-992876afa24a"
 			}
 		},
 		"metadata": {
@@ -67,7 +67,308 @@
 					"out_path = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-TRANSFORM/CaseInvolvement/CaseInvolvement_Contacts.csv\"\n",
 					""
 				],
-				"execution_count": 13
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import functions as F, types as T\n",
+					"import uuid\n",
+					"\n",
+					"def read_csv(path: str):\n",
+					"    return (spark.read.format(\"csv\")\n",
+					"            .option(\"header\", \"true\")\n",
+					"            .option(\"multiLine\", \"true\")\n",
+					"            .option(\"quote\", \"\\\"\")\n",
+					"            .option(\"escape\", \"\\\"\")\n",
+					"            .option(\"mode\", \"PERMISSIVE\")\n",
+					"            .load(path))\n",
+					""
+				],
+				"execution_count": 30
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Cases mapping file (your existing)\n",
+					"cases_map_path = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/config/Cases/Cases.csv\"\n",
+					"\n",
+					"# Pivoted involvement folder\n",
+					"involv_folder = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-EXTRACT/LLAttr/Case_Involvement_95501/\"\n",
+					"\n",
+					"# Contacts extracts\n",
+					"person_path = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-EXTRACT/Contacts_Person.csv\"\n",
+					"org_path    = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-EXTRACT/Contacts_Organisation.csv\"\n",
+					"\n",
+					"# Outputs\n",
+					"out_involv_contacts = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-TRANSFORM/CaseInvolvement/CaseInvolvement_Contacts.csv\"\n",
+					"out_addresses       = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-TRANSFORM/Address/ContactAddress.csv\"\n",
+					""
+				],
+				"execution_count": 32
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"cases_map = (read_csv(cases_map_path)\n",
+					"    .select(\n",
+					"        F.col(\"Case ID\").cast(\"string\").alias(\"legacyCaseId\"),\n",
+					"        F.col(\"GUID\").cast(\"string\").alias(\"caseId\")\n",
+					"    )\n",
+					"    .dropDuplicates([\"legacyCaseId\"])\n",
+					")\n",
+					"\n",
+					"print(\"cases_map:\", cases_map.count())\n",
+					"display(cases_map.limit(10))\n",
+					""
+				],
+				"execution_count": 33
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"involv_raw = read_csv(involv_folder)\n",
+					"\n",
+					"print(\"involv_raw rows:\", involv_raw.count())\n",
+					"print(\"involv_raw cols:\", involv_raw.columns)\n",
+					"display(involv_raw.limit(10))\n",
+					""
+				],
+				"execution_count": 34
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"def nullify_undefined(expr):\n",
+					"    return F.when(F.trim(expr) == F.lit(\"undefined\"), F.lit(None)).otherwise(expr)\n",
+					"\n",
+					"involv = (involv_raw\n",
+					"    .withColumn(\"legacyCaseId\", F.col(\"ID\").cast(\"string\"))\n",
+					"    .withColumn(\"legacyContactId\", F.trim(F.col(\"20\").cast(\"string\")))   # KEEP as-is (incl P_0)\n",
+					"    .withColumn(\"typeOfInvolvement\", F.trim(F.col(\"3\").cast(\"string\")))\n",
+					"    .withColumn(\"involvementStartDate\", F.col(\"4\").cast(\"string\"))\n",
+					"    .withColumn(\"involvementEndDate\", F.col(\"16\").cast(\"string\"))\n",
+					"    .withColumn(\"communicationPreference\", F.col(\"17\").cast(\"string\"))\n",
+					"    .withColumn(\"externalReferenceNumber\", F.col(\"18\").cast(\"string\"))\n",
+					"    .withColumn(\"contactDetails\", F.col(\"19\").cast(\"string\"))\n",
+					")\n",
+					"\n",
+					"# Clean \"undefined\" strings -> null (but do not remove legacyContactId values like P_0 here)\n",
+					"involv = (involv\n",
+					"    .withColumn(\"legacyContactId\", nullify_undefined(F.col(\"legacyContactId\")))\n",
+					"    .withColumn(\"typeOfInvolvement\", nullify_undefined(F.col(\"typeOfInvolvement\")))\n",
+					"    .withColumn(\"involvementStartDate\", nullify_undefined(F.col(\"involvementStartDate\")))\n",
+					"    .withColumn(\"involvementEndDate\", nullify_undefined(F.col(\"involvementEndDate\")))\n",
+					"    .withColumn(\"communicationPreference\", nullify_undefined(F.col(\"communicationPreference\")))\n",
+					"    .withColumn(\"externalReferenceNumber\", nullify_undefined(F.col(\"externalReferenceNumber\")))\n",
+					"    .withColumn(\"contactDetails\", nullify_undefined(F.col(\"contactDetails\")))\n",
+					"    .withColumn(\"contactDetails\",\n",
+					"        F.when(F.trim(F.col(\"contactDetails\")) == F.lit(\"No Contact\"), F.lit(None))\n",
+					"         .otherwise(F.col(\"contactDetails\"))\n",
+					"    )\n",
+					")\n",
+					"\n",
+					"# Filter to only mapped cases (do NOT filter legacyContactId here)\n",
+					"involv_filtered = involv.join(cases_map, on=\"legacyCaseId\", how=\"inner\")\n",
+					"\n",
+					"print(\"involv_filtered:\", involv_filtered.count())\n",
+					"display(involv_filtered.limit(20))\n",
+					""
+				],
+				"execution_count": 35
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"people = (read_csv(person_path)\n",
+					"    .withColumn(\"legacyContactId\", F.concat(F.lit(\"P_\"), F.col(\"P_ID\").cast(\"string\")))\n",
+					"    .withColumn(\"contactSource\", F.lit(\"person\"))\n",
+					"    .withColumn(\"orgName\", F.lit(None).cast(\"string\"))\n",
+					"    .withColumn(\"firstName\", F.trim(F.col(\"FirstName\")))\n",
+					"    .withColumn(\"lastName\",  F.trim(F.col(\"LastName\")))\n",
+					"    .withColumn(\"email\",     F.trim(F.col(\"Email\")))\n",
+					"    .withColumn(\"telephoneNumber\", F.coalesce(F.trim(F.col(\"TelephoneMobile\")), F.trim(F.col(\"TelephoneOffice\"))))\n",
+					"    .withColumn(\"poBox\",        F.trim(F.col(\"POBox\")))\n",
+					"    .withColumn(\"addressLine1\", F.trim(F.col(\"Address1\")))\n",
+					"    .withColumn(\"addressLine2\", F.trim(F.col(\"Address2\")))\n",
+					"    .withColumn(\"townCity\",     F.trim(F.col(\"City\")))\n",
+					"    .withColumn(\"county\",       F.trim(F.col(\"County\")))\n",
+					"    .withColumn(\"postcode\",     F.trim(F.col(\"PostCode\")))\n",
+					"    .withColumn(\"country\",      F.trim(F.col(\"Country\")))\n",
+					"    .select(\n",
+					"        \"legacyContactId\",\"contactSource\",\"orgName\",\"firstName\",\"lastName\",\n",
+					"        \"telephoneNumber\",\"email\",\n",
+					"        \"poBox\",\"addressLine1\",\"addressLine2\",\"townCity\",\"county\",\"postcode\",\"country\"\n",
+					"    )\n",
+					")\n",
+					"\n",
+					"orgs = (read_csv(org_path)\n",
+					"    .withColumn(\"legacyContactId\", F.concat(F.lit(\"O_\"), F.col(\"ID\").cast(\"string\")))\n",
+					"    .withColumn(\"contactSource\", F.lit(\"org\"))\n",
+					"    .withColumn(\"orgName\", F.trim(F.col(\"Name\")))\n",
+					"    .withColumn(\"firstName\", F.lit(None).cast(\"string\"))\n",
+					"    .withColumn(\"lastName\",  F.lit(None).cast(\"string\"))\n",
+					"    .withColumn(\"email\",     F.trim(F.col(\"Email\")))\n",
+					"    .withColumn(\"telephoneNumber\", F.trim(F.col(\"TelephoneOffice\")))\n",
+					"    .withColumn(\"poBox\",        F.trim(F.col(\"POBox\")))\n",
+					"    .withColumn(\"addressLine1\", F.trim(F.col(\"Address1\")))\n",
+					"    .withColumn(\"addressLine2\", F.trim(F.col(\"Address2\")))\n",
+					"    .withColumn(\"townCity\",     F.trim(F.col(\"City\")))\n",
+					"    .withColumn(\"county\",       F.trim(F.col(\"County\")))\n",
+					"    .withColumn(\"postcode\",     F.trim(F.col(\"PostCode\")))\n",
+					"    .withColumn(\"country\",      F.trim(F.col(\"Country\")))\n",
+					"    .select(\n",
+					"        \"legacyContactId\",\"contactSource\",\"orgName\",\"firstName\",\"lastName\",\n",
+					"        \"telephoneNumber\",\"email\",\n",
+					"        \"poBox\",\"addressLine1\",\"addressLine2\",\"townCity\",\"county\",\"postcode\",\"country\"\n",
+					"    )\n",
+					")\n",
+					"\n",
+					"contacts_dim = people.unionByName(orgs).dropDuplicates([\"legacyContactId\"])\n",
+					"print(\"contacts_dim:\", contacts_dim.count())\n",
+					"display(contacts_dim.limit(20))\n",
+					""
+				],
+				"execution_count": 36
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"def norm_expr(e):\n",
+					"    return F.lower(F.trim(F.coalesce(e, F.lit(\"\"))))\n",
+					"\n",
+					"contacts_dim = (contacts_dim\n",
+					"    .withColumn(\"addressKey\", F.concat_ws(\"|\",\n",
+					"        norm_expr(F.col(\"poBox\")),\n",
+					"        norm_expr(F.col(\"addressLine1\")),\n",
+					"        norm_expr(F.col(\"addressLine2\")),\n",
+					"        norm_expr(F.col(\"townCity\")),\n",
+					"        norm_expr(F.col(\"county\")),\n",
+					"        norm_expr(F.col(\"postcode\")),\n",
+					"        norm_expr(F.col(\"country\"))\n",
+					"    ))\n",
+					"    .withColumn(\"addressKey\",\n",
+					"        F.when(F.col(\"addressKey\") == F.lit(\"||||||\"), F.lit(None)).otherwise(F.col(\"addressKey\"))\n",
+					"    )\n",
+					")\n",
+					"\n",
+					"display(contacts_dim.select(\"legacyContactId\",\"addressKey\",\"postcode\").limit(20))\n",
+					""
+				],
+				"execution_count": 37
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"NAMESPACE_UUID = uuid.UUID(\"6ba7b810-9dad-11d1-80b4-00c04fd430c8\")\n",
+					"\n",
+					"@F.udf(returnType=T.StringType())\n",
+					"def uuid5_from_text(x: str):\n",
+					"    if x is None:\n",
+					"        return None\n",
+					"    return str(uuid.uuid5(NAMESPACE_UUID, x.strip().lower()))\n",
+					"\n",
+					"contacts_in_scope = involv_with_contacts.select(\"legacyContactId\").dropDuplicates()\n",
+					"contacts_dim_scope = contacts_in_scope.join(contacts_dim, on=\"legacyContactId\", how=\"inner\")\n",
+					"\n",
+					"addresses = (contacts_dim_scope\n",
+					"    .filter(F.col(\"addressKey\").isNotNull())\n",
+					"    .select(\n",
+					"        \"addressKey\",\n",
+					"        \"poBox\",\"addressLine1\",\"addressLine2\",\"townCity\",\"county\",\"postcode\",\"country\"\n",
+					"    )\n",
+					"    .dropDuplicates([\"addressKey\"])\n",
+					"    .withColumn(\"addressId\", uuid5_from_text(F.concat(F.lit(\"address|\"), F.col(\"addressKey\"))))\n",
+					")\n",
+					"\n",
+					"print(\"addresses:\", addresses.count())\n",
+					"display(addresses.limit(50))\n",
+					""
+				],
+				"execution_count": 38
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"# Build a contact -> addressId lookup (uses contacts_dim which DOES have addressKey)\n",
+					"contact_addr_lkp = (\n",
+					"    contacts_dim\n",
+					"      .select(\"legacyContactId\", \"addressKey\")\n",
+					"      .join(addresses.select(\"addressKey\", \"addressId\"), on=\"addressKey\", how=\"left\")\n",
+					"      .select(\"legacyContactId\", \"addressId\")\n",
+					")\n",
+					"\n",
+					"# Attach addressId back to involvements using legacyContactId (present on left)\n",
+					"involv_final = involv_with_contacts.join(contact_addr_lkp, on=\"legacyContactId\", how=\"left\")\n",
+					"\n",
+					"display(involv_final.limit(50))\n",
+					"\n",
+					""
+				],
+				"execution_count": 40
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					""
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -82,7 +383,7 @@
 					"            .load(path))\n",
 					""
 				],
-				"execution_count": 14
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -97,7 +398,7 @@
 					"\n",
 					""
 				],
-				"execution_count": 15
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -110,7 +411,7 @@
 					"print(involv_raw.columns)\n",
 					""
 				],
-				"execution_count": 16
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -151,7 +452,7 @@
 					"display(involv_filtered.limit(20))\n",
 					""
 				],
-				"execution_count": 17
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -200,7 +501,86 @@
 					"display(involv_with_contacts.limit(50))\n",
 					""
 				],
-				"execution_count": 18
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"contacts_in_scope = involv_with_contacts.select(\"legacyContactId\").dropDuplicates()\n",
+					"print(\"contacts_in_scope:\", contacts_in_scope.count())\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"contacts_dim_scope = contacts_in_scope.join(contacts_dim, on=\"legacyContactId\", how=\"inner\")\n",
+					"print(\"contacts_dim_scope:\", contacts_dim_scope.count())\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"import uuid\n",
+					"from pyspark.sql import types as T, functions as F\n",
+					"\n",
+					"NAMESPACE_UUID = uuid.UUID(\"6ba7b810-9dad-11d1-80b4-00c04fd430c8\")\n",
+					"\n",
+					"@F.udf(returnType=T.StringType())\n",
+					"def uuid5_from_text(x: str):\n",
+					"    if x is None:\n",
+					"        return None\n",
+					"    return str(uuid.uuid5(NAMESPACE_UUID, x.strip().lower()))\n",
+					"\n",
+					"addresses = (contacts_dim_scope\n",
+					"    .filter(F.col(\"addressKey\").isNotNull())\n",
+					"    .select(\n",
+					"        \"addressKey\",\n",
+					"        \"poBox\",\n",
+					"        \"addressLine1\",\n",
+					"        \"addressLine2\",\n",
+					"        \"townCity\",\n",
+					"        \"county\",\n",
+					"        \"postcode\",\n",
+					"        \"country\"\n",
+					"    )\n",
+					"    .dropDuplicates([\"addressKey\"])\n",
+					"    .withColumn(\"addressId\", uuid5_from_text(F.concat(F.lit(\"address|\"), F.col(\"addressKey\"))))\n",
+					")\n",
+					"\n",
+					"print(\"addresses:\", addresses.count())\n",
+					"display(addresses.limit(50))\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"addresses_out = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-TRANSFORM/Address/Address.csv\"\n",
+					"\n",
+					"(addresses.coalesce(1)\n",
+					" .write.mode(\"overwrite\")\n",
+					" .option(\"header\",\"true\")\n",
+					" .csv(addresses_out))\n",
+					"\n",
+					"print(\"Wrote Address.csv:\", addresses_out)\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					""
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -262,7 +642,7 @@
 					"contacts_dim = people.unionByName(orgs).dropDuplicates([\"legacyContactId\"])\n",
 					""
 				],
-				"execution_count": 20
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -294,7 +674,7 @@
 					")\n",
 					""
 				],
-				"execution_count": 22
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -324,7 +704,7 @@
 					"print(\"Wrote Address.csv\")\n",
 					""
 				],
-				"execution_count": 25
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -363,7 +743,7 @@
 					"print(\"Wrote:\", out_path)\n",
 					""
 				],
-				"execution_count": 24
+				"execution_count": null
 			}
 		]
 	}
