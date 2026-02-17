@@ -10,6 +10,9 @@ class SchemaUtil:
     This is a recreation of the `py_get_schema_from_url` notebook
     """
 
+    DB_NAME_STANDARDISED = "odw_standardised_db"
+    DB_NAME_HARMONISED = "odw_harmonised_db"
+
     def __init__(self, db_name: str, incremental_key: str = None):
         self.db_name = db_name
         self.incremental_key = incremental_key
@@ -17,6 +20,9 @@ class SchemaUtil:
 
     @LoggingUtil.logging_to_appins
     def _get_schema_from_url(self, url: str) -> Dict[str, Any]:
+        """
+        Load the schema defined at the given url
+        """
         try:
             response: requests.Response = requests.get(url)
             if response.status_code == 200:
@@ -29,6 +35,9 @@ class SchemaUtil:
 
     @LoggingUtil.logging_to_appins
     def _get_type(self, column: dict) -> str:
+        """
+        Convert PINS data model data types into pyspark data types
+        """
         if "type" not in column:
             return "string"
         elif isinstance(column["type"], list):
@@ -41,6 +50,9 @@ class SchemaUtil:
 
     @LoggingUtil.logging_to_appins
     def _convert_to_datalake_schema(self, schema: dict) -> dict:
+        """
+        Convert a schema from the PINS data-model into a pyspark schema
+        """
         data_model: dict = {"fields": []}
 
         for key in schema["properties"].keys():
@@ -55,7 +67,7 @@ class SchemaUtil:
                 }
             )
 
-        if self.db_name == "odw_standardised_db":
+        if self.db_name == self.DB_NAME_STANDARDISED:
             data_model["fields"].extend(
                 [
                     {"metadata": {}, "name": col_name, "type": col_type, "nullable": nullable}
@@ -70,7 +82,7 @@ class SchemaUtil:
                 ]
             )
 
-        elif self.db_name == "odw_harmonised_db":
+        elif self.db_name == self.DB_NAME_HARMONISED:
             if self.incremental_key:
                 data_model["fields"].insert(0, {"metadata": {}, "name": self.incremental_key, "type": "string", "nullable": False})
             data_model["fields"].extend(
@@ -104,7 +116,7 @@ class SchemaUtil:
         }
         try:
             json_type = field_schema.get("type")
-            print(f"Processing type: {json_type} | schema: {field_schema}")
+            LoggingUtil().log_info(f"Processing type: {json_type} | schema: {field_schema}")
 
             # Try resolving $ref if type is missing
             if json_type is None and "$ref" in field_schema:
@@ -182,7 +194,7 @@ class SchemaUtil:
         all_fields: list = schema.fields + standardised_fields.fields
         return T.StructType(all_fields)
 
-    def _add_harmonised_columns_to_schema(schema: T.StructType, incremental_key_field: T.StructType) -> T.StructType:
+    def _add_harmonised_columns_to_schema(self, schema: T.StructType, incremental_key_field: T.StructType) -> T.StructType:
         """
         Add columns for the Harmonised layer
         """
@@ -267,8 +279,8 @@ class SchemaUtil:
             incremental_key_field = None
         cleaned_schema = self._resolve_refs(schema, definitions)
         cleaned_schema = self._transform_service_bus_schema(cleaned_schema, definitions)
-        if self.db_name == "odw_standardised_db":
+        if self.db_name == self.DB_NAME_STANDARDISED:
             return self._add_standardised_columns_to_schema(cleaned_schema)
-        if self.db_name == "odw_harmonised_db":
+        if self.db_name == self.DB_NAME_HARMONISED:
             return self._add_harmonised_columns_to_schema(cleaned_schema, incremental_key_field)
         return cleaned_schema
