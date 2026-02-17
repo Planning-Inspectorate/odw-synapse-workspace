@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "793734a4-8430-42ac-8946-0f790faaba6e"
+				"spark.autotune.trackingId": "486340ea-5a90-4116-b9d8-610901707675"
 			}
 		},
 		"metadata": {
@@ -67,7 +67,7 @@
 					"            .load(path))\n",
 					""
 				],
-				"execution_count": 43
+				"execution_count": 11
 			},
 			{
 				"cell_type": "code",
@@ -87,7 +87,7 @@
 					"out_addresses       = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-TRANSFORM/Address/ContactAddress.csv\"\n",
 					""
 				],
-				"execution_count": 44
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
@@ -107,7 +107,7 @@
 					"display(cases_map.limit(10))\n",
 					""
 				],
-				"execution_count": 45
+				"execution_count": 13
 			},
 			{
 				"cell_type": "code",
@@ -122,7 +122,7 @@
 					"display(involv_raw.limit(10))\n",
 					""
 				],
-				"execution_count": 46
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
@@ -166,7 +166,7 @@
 					"display(involv_filtered.limit(20))\n",
 					""
 				],
-				"execution_count": 47
+				"execution_count": 15
 			},
 			{
 				"cell_type": "code",
@@ -223,7 +223,7 @@
 					"display(contacts_dim.limit(20))\n",
 					""
 				],
-				"execution_count": 48
+				"execution_count": 16
 			},
 			{
 				"cell_type": "code",
@@ -252,7 +252,7 @@
 					"display(contacts_dim.select(\"legacyContactId\",\"addressKey\",\"postcode\").limit(20))\n",
 					""
 				],
-				"execution_count": 49
+				"execution_count": 17
 			},
 			{
 				"cell_type": "code",
@@ -260,6 +260,37 @@
 					"collapsed": false
 				},
 				"source": [
+					"# Recreate involv_with_contacts (left join keeps all filtered involvement rows)\n",
+					"\n",
+					"involv_with_contacts = (\n",
+					"    involv_filtered\n",
+					"        .join(\n",
+					"            contacts_dim.select(\n",
+					"                \"legacyContactId\",\n",
+					"                \"contactSource\",\n",
+					"                \"orgName\",\n",
+					"                \"firstName\",\n",
+					"                \"lastName\",\n",
+					"                \"email\",\n",
+					"                \"telephoneNumber\",\n",
+					"                \"addressKey\",\n",
+					"                \"poBox\",\n",
+					"                \"addressLine1\",\n",
+					"                \"addressLine2\",\n",
+					"                \"townCity\",\n",
+					"                \"county\",\n",
+					"                \"postcode\",\n",
+					"                \"country\"\n",
+					"            ),\n",
+					"            on=\"legacyContactId\",\n",
+					"            how=\"left\"\n",
+					"        )\n",
+					")\n",
+					"\n",
+					"print(\"involv_with_contacts:\", involv_with_contacts.count())\n",
+					"display(involv_with_contacts.limit(20))\n",
+					"\n",
+					"\n",
 					"NAMESPACE_UUID = uuid.UUID(\"6ba7b810-9dad-11d1-80b4-00c04fd430c8\")\n",
 					"\n",
 					"@F.udf(returnType=T.StringType())\n",
@@ -271,21 +302,47 @@
 					"contacts_in_scope = involv_with_contacts.select(\"legacyContactId\").dropDuplicates()\n",
 					"contacts_dim_scope = contacts_in_scope.join(contacts_dim, on=\"legacyContactId\", how=\"inner\")\n",
 					"\n",
+					"# pick a representative case per contact (a contact can appear on multiple cases)\n",
+					"contact_case = (involv_with_contacts\n",
+					"    .select(\"legacyContactId\", \"legacyCaseId\", \"caseId\")\n",
+					"    .dropDuplicates()\n",
+					"    .groupBy(\"legacyContactId\")\n",
+					"    .agg(\n",
+					"        F.first(\"legacyCaseId\").alias(\"legacyCaseId\"),\n",
+					"        F.first(\"caseId\").alias(\"caseId\")\n",
+					"    )\n",
+					")\n",
+					"\n",
 					"addresses = (contacts_dim_scope\n",
 					"    .filter(F.col(\"addressKey\").isNotNull())\n",
 					"    .select(\n",
+					"        \"legacyContactId\",\n",
 					"        \"addressKey\",\n",
 					"        \"poBox\",\"addressLine1\",\"addressLine2\",\"townCity\",\"county\",\"postcode\",\"country\"\n",
 					"    )\n",
-					"    .dropDuplicates([\"addressKey\"])\n",
+					"    .join(contact_case, on=\"legacyContactId\", how=\"left\")\n",
+					"    # dedupe by addressKey but keep a representative legacyCaseId/caseId for traceability\n",
+					"    .groupBy(\"addressKey\")\n",
+					"    .agg(\n",
+					"        F.first(\"poBox\").alias(\"poBox\"),\n",
+					"        F.first(\"addressLine1\").alias(\"addressLine1\"),\n",
+					"        F.first(\"addressLine2\").alias(\"addressLine2\"),\n",
+					"        F.first(\"townCity\").alias(\"townCity\"),\n",
+					"        F.first(\"county\").alias(\"county\"),\n",
+					"        F.first(\"postcode\").alias(\"postcode\"),\n",
+					"        F.first(\"country\").alias(\"country\"),\n",
+					"        F.first(\"legacyCaseId\").alias(\"legacyCaseId\"),\n",
+					"        F.first(\"caseId\").alias(\"caseId\"),\n",
+					"    )\n",
 					"    .withColumn(\"addressId\", uuid5_from_text(F.concat(F.lit(\"address|\"), F.col(\"addressKey\"))))\n",
 					")\n",
 					"\n",
 					"print(\"addresses:\", addresses.count())\n",
 					"display(addresses.limit(50))\n",
+					"\n",
 					""
 				],
-				"execution_count": 50
+				"execution_count": 18
 			},
 			{
 				"cell_type": "code",
@@ -308,7 +365,7 @@
 					"\n",
 					""
 				],
-				"execution_count": 51
+				"execution_count": 19
 			},
 			{
 				"cell_type": "code",
@@ -347,7 +404,7 @@
 					"print(\"Wrote CaseInvolvement_Contacts.csv:\", out_involv_contacts)\n",
 					""
 				],
-				"execution_count": 52
+				"execution_count": 20
 			},
 			{
 				"cell_type": "code",
@@ -364,7 +421,7 @@
 					"        .limit(50))\n",
 					""
 				],
-				"execution_count": 53
+				"execution_count": 21
 			}
 		]
 	}
