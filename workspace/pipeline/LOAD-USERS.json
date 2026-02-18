@@ -1,0 +1,64 @@
+{
+	"name": "LOAD-USERS",
+	"properties": {
+		"activities": [
+			{
+				"name": "Users",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SqlServerSource",
+						"sqlReaderQuery": "SELECT DISTINCT\n    k.ID AS caseOfficerId,\n    k.Name AS caseOfficerLogin,\n    CASE\n        WHEN k.Type = 0 \n            THEN ISNULL(k.FirstName, '') + \n                 CASE WHEN k.FirstName IS NOT NULL AND k.LastName IS NOT NULL THEN ' ' ELSE '' END +\n                 ISNULL(k.LastName, '')\n        ELSE ISNULL(k.Name, '') + ' (Group)'\n    END AS caseOfficerName,\n    k.MailAddress AS coEmailAddress\nFROM dbo.Horizon_CaseReference AS cases\nINNER JOIN dbo.DTree AS dtree \n    ON cases.CaseNodeId = dtree.DataID\nINNER JOIN dbo.Horizon_TypeOfCase AS t \n    ON cases.CaseTypeId = t.ID\nLEFT JOIN dbo.Horizon_vw_BIS_FirstCaseOfficer AS co \n    ON cases.CaseNodeId = co.CaseId\nLEFT JOIN dbo.KUAF AS k \n    ON co.CaseOfficerId = k.ID\nWHERE dtree.OwnerID <> -235834\n  AND t.CaseworkType IN ('Appeal', 'CommonLand', 'Costs', 'Environment', 'RightsOfWay')\n  AND cases.CaseUniqueId > 2999999\n  AND k.ID IS NOT NULL\nORDER BY caseOfficerName ASC;\n",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"sink": {
+						"type": "DelimitedTextSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "DelimitedTextWriteSettings",
+							"quoteAllText": true,
+							"fileExtension": ".txt"
+						}
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "users",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "USERScsv",
+						"type": "DatasetReference"
+					}
+				]
+			}
+		],
+		"folder": {
+			"name": "Horizon Migration/MPESC-EXTRACT"
+		},
+		"annotations": []
+	}
+}
