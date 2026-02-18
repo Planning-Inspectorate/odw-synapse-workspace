@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "389dbc9e-4044-4c96-b140-c94d9d68d5de"
+				"spark.autotune.trackingId": "a4a28a06-a81f-4227-af65-03bf2249ba5e"
 			}
 		},
 		"metadata": {
@@ -126,7 +126,33 @@
 					}
 				},
 				"source": [
-					"## Entity Name : inspector_Specialisms"
+					"##### Prepare a data frame to drop exact duplicates from the standardised layer"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Create a unique records data frame and a temporary view\n",
+					"df_src_std_specialism = spark.sql(f\"SELECT * FROM {standardised_table}\")\n",
+					"\n",
+					"df_src_std_specialism = df_src_std_specialism.dropDuplicates()\n",
+					"\n",
+					"df_src_std_specialism.createOrReplaceTempView(\"vw_inspector_specialisms_monthly\")\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Prepare Transform Table for the Harmonised layer Ingestion"
 				]
 			},
 			{
@@ -137,6 +163,20 @@
 				"source": [
 					"\n",
 					"logInfo(\"Starting inspector specialisms data processing\")\n",
+					"\n",
+					"create_view_latest_specialisms_sql = \"\"\"\n",
+					"    CREATE OR REPLACE TEMP VIEW vw_latest_inspector_specialisms AS\n",
+					"    SELECT ROW_NUMBER() OVER (PARTITION BY a.staffnumber,a.QualificationName ORDER BY a.validFrom Desc) Rnk,  \n",
+					"        a.StaffNumber,\n",
+					"        a.Firstname,\n",
+					"        a.Lastname,\n",
+					"        a.QualificationName,\n",
+					"        a.Proficien,\n",
+					"        a.ValidFrom,\n",
+					"        a.ValidTo\n",
+					"    FROM vw_inspector_specialisms_monthly a\n",
+					"    \"\"\"\n",
+					"spark.sql(create_view_latest_specialisms_sql)\n",
 					"\n",
 					"# Step 1: Delete all records from the transform table\n",
 					"logInfo(\"Step 1: Deleting records from transform_inspector_Specialisms\")\n",
@@ -180,7 +220,13 @@
 					"    'saphr' AS SourceSystemID,\n",
 					"    CURRENT_TIMESTAMP() AS IngestionDate,\n",
 					"    cast(to_date(ValidFrom, \"d/M/yyyy\") as timestamp) AS ValidFrom,\n",
-					"    cast(to_date(ValidTo, \"d/M/yyyy\") as timestamp) AS ValidTo,\n",
+					"    CASE \n",
+					"    WHEN Rnk = 1 \n",
+					"    THEN           \n",
+					"        cast(to_date(ValidTo, \"d/M/yyyy\") as timestamp) \n",
+					"    ELSE\n",
+					"        cast(DATE_TRUNC('day', CURRENT_DATE() - INTERVAL 1 DAY) as timestamp)\n",
+					"    END AS ValidTo,\n",
 					"    -- Generate RowID during insert instead of separate update\n",
 					"    md5(concat_ws('|', \n",
 					"        coalesce(cast(\n",
@@ -199,18 +245,24 @@
 					"        coalesce(cast(QualificationName as string), ''), \n",
 					"        coalesce(cast(Proficien as string), '')\n",
 					"    )) AS RowID,\n",
-					"    'Y' AS IsActive\n",
-					"FROM \n",
-					"    odw_standardised_db.inspector_specialisms_monthly t1\n",
-					"WHERE \n",
-					"    StaffNumber IS NOT NULL\n",
+					"    CASE\n",
+					"    WHEN Rnk = 1 \n",
+					"    THEN           \n",
+					"        'Y'\n",
+					"    ELSE\n",
+					"        'N'\n",
+					"    END AS IsActive \n",
+					"FROM vw_latest_inspector_specialisms t1\n",
+					"WHERE StaffNumber IS NOT NULL\n",
 					"\"\"\")\n",
 					"\n",
 					"# Get count of inserted records\n",
-					"record_count = spark.sql(\"SELECT COUNT(*) as record_count FROM odw_harmonised_db.transform_inspector_Specialisms\").collect()[0]['record_count']\n",
-					"logInfo(f\"Inserted {record_count} records into transform_inspector_Specialisms\")\n",
+					"transformed_record_count = spark.sql(\"SELECT COUNT(*) as record_count FROM odw_harmonised_db.transform_inspector_Specialisms\").collect()[0]['record_count']\n",
+					"logInfo(f\"Inserted {transformed_record_count} records into transform_inspector_Specialisms\")\n",
 					"\n",
 					"logInfo(\"Inspector specialisms data processing completed successfully\")\n",
+					"\n",
+					"end_exec_time = datetime.now()\n",
 					"\n",
 					"# Ensure logs are flushed\n",
 					"flushLogging()"
