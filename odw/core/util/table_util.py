@@ -14,7 +14,7 @@ class TableUtil:
 
     @classmethod
     @LoggingUtil.logging_to_appins
-    def delete_table(cls, db_name: str, table_name: str):
+    def delete_table(cls, spark: SparkSession, db_name: str, table_name: str):
         """
         Delete the given table in the given database. This should be used for tables that do not use
         delta as the underlying storag mechanism
@@ -28,7 +28,6 @@ class TableUtil:
         :param db_name: Name of the database the table belongs to
         :param table_name: The name of the table to delete
         """
-        spark = SparkSession.builder.getOrCreate()
         if spark.catalog.tableExists(f"{db_name}.{table_name}"):
             table_details_query = spark.sql(f"DESCRIBE DETAIL {db_name}.{table_name}")
             num_tables = table_details_query.count()
@@ -44,7 +43,7 @@ class TableUtil:
 
     @classmethod
     @LoggingUtil.logging_to_appins
-    def delete_table_contents(cls, db_name: str, table_name: str):
+    def delete_table_contents(cls, spark: SparkSession, db_name: str, table_name: str):
         """
         Delete the content from the given table in the given database. This should be used for
         tables that use delta format as the underlying storage mechanism
@@ -52,7 +51,6 @@ class TableUtil:
         :param db_name: Name of the database the table belongs to
         :param table_name: The name of the table to delete
         """
-        spark = SparkSession.builder.getOrCreate()
         if spark.catalog.tableExists(f"{db_name}.{table_name}"):
             table_details_query = spark.sql(f"DESCRIBE DETAIL {db_name}.{table_name}")
             num_tables = table_details_query.count()
@@ -60,6 +58,7 @@ class TableUtil:
                 raise RuntimeError("too many locations associated with the table!")
             else:
                 spark.sql(f"DELETE FROM {db_name}.{table_name}")
+                spark.sql(f"DROP TABLE IF EXISTS {db_name}.{table_name}")
                 LoggingUtil().log_info(f"Deleted the content from table {db_name}.{table_name}")
         else:
             LoggingUtil().log_info("Table does not exist")
