@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "198448fb-2347-4d92-97ab-5c0cbdc355a9"
+				"spark.autotune.trackingId": "93978a69-b3d1-4aa3-a2d0-3609473de55e"
 			}
 		},
 		"metadata": {
@@ -381,12 +381,24 @@
 					"                current_timestamp(), \n",
 					"                souSpe.ValidFrom, \n",
 					"                souSpe.ValidTo, \n",
-					"                1, \n",
+					"                CASE \n",
+					"                WHEN Rnk = 1 \n",
+					"                THEN           \n",
+					"                    1\n",
+					"                ELSE\n",
+					"                    0\n",
+					"                END AS Current, \n",
 					"                souSpe.RowID, \n",
-					"                'Y', \n",
+					"                CASE \n",
+					"                WHEN Rnk = 1 \n",
+					"                THEN           \n",
+					"                    'Y'\n",
+					"                ELSE\n",
+					"                    'N'\n",
+					"                END AS IsActive, \n",
 					"                current_timestamp()\n",
 					"            FROM odw_harmonised_db.transform_inspector_Specialisms souSpe\n",
-					"            JOIN odw_standardised_db.inspector_Specialisms_monthly a on a.StaffNumber = souSpe.StaffNumber \n",
+					"            JOIN vw_latest_inspector_specialisms a on a.StaffNumber = souSpe.StaffNumber \n",
 					"            ANd souSpe.ValidFrom = cast(to_date(a.ValidFrom, \"d/M/yyyy\") as string)\n",
 					"            AND souSpe.QualificationName = a.QualificationName\n",
 					"            \"\"\")\n",
@@ -394,7 +406,7 @@
 					"        logInfo(\"INSERT operation completed successfully\")\n",
 					"        # Get count of inserted records\n",
 					"        insert_count = spark.sql(\"\"\"SELECT COUNT(*) as record_count FROM odw_harmonised_db.transform_inspector_Specialisms souSpe\n",
-					"            JOIN odw_standardised_db.inspector_Specialisms_monthly a on a.StaffNumber = souSpe.StaffNumber \n",
+					"            JOIN vw_latest_inspector_specialisms a on a.StaffNumber = souSpe.StaffNumber \n",
 					"            ANd souSpe.ValidFrom = cast(to_date(a.ValidFrom, \"d/M/yyyy\") as string)\n",
 					"            AND souSpe.QualificationName = a.QualificationName\"\"\").collect()[0]['record_count']\n",
 					"        logInfo(f\"Inserted {insert_count} records into sap_hr_inspector_Specialisms\")\n",
@@ -416,6 +428,28 @@
 					"else:\n",
 					"    logInfo(\"Couldn't load odw_harmonised_db.sap_hr_inspector_Specialisms. Either error occurred or odw_standarised_db.inspector_Specialisms_monthly has got zero records\")\n",
 					"    "
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Drop Temporary views"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Clean up temporary views\n",
+					"spark.sql(\"DROP VIEW IF EXISTS vw_latest_inspector_specialisms\")\n",
+					"spark.sql(\"DROP VIEW IF EXISTS vw_inspector_specialisms_monthly\")"
 				],
 				"execution_count": null
 			},
@@ -502,7 +536,7 @@
 					"\n",
 					"#df_cleaned.write.format(\"delta\").mode(\"overwrite\").save(\"abfss://your-container@your-storage.dfs.core.windows.net/delta/my_table\")"
 				],
-				"execution_count": 67
+				"execution_count": null
 			}
 		]
 	}
