@@ -1,0 +1,226 @@
+{
+	"name": "Transform-Costs",
+	"properties": {
+		"folder": {
+			"name": "Horizon-Migration/Horizon-Transform"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "hbtPool",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "5c236621-21c6-446a-8d39-45d11b570daf"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/hbtPool",
+				"name": "hbtPool",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/hbtPool",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.5",
+				"nodeCount": 10,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import functions as F, types as T\n",
+					"import uuid\n",
+					""
+				],
+				"execution_count": 13
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"recharge_path = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-EXTRACT/LLAttr/DefID=15809441/\"\n",
+					"cases_map_path = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/config/Cases/Cases.csv\""
+				],
+				"execution_count": 14
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"out_path = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/transform/CaseCosts/recharge/\""
+				],
+				"execution_count": 15
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"existing_casecosts_path = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/transform/CaseCosts/CaseCosts.csv\"\n",
+					"merged_out_path = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/transform/CaseCosts/CaseCosts_merged/\""
+				],
+				"execution_count": 16
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"NAMESPACE_UUID = uuid.UUID(\"6ba7b810-9dad-11d1-80b4-00c04fd430c8\")\n",
+					"\n",
+					"@F.udf(returnType=T.StringType())\n",
+					"def uuid5_from_caseid(case_id: str):\n",
+					"    if case_id is None:\n",
+					"        return None\n",
+					"    return str(uuid.uuid5(NAMESPACE_UUID, case_id.lower()))\n",
+					"\n",
+					"def money_to_decimal(col):\n",
+					"    # handles: 3284.24, £3,284.24, \" 3284.24 \"\n",
+					"    cleaned = F.regexp_replace(F.trim(col.cast(\"string\")), r\"[£,\\s]\", \"\")\n",
+					"    cleaned = F.regexp_replace(cleaned, r\"[^0-9\\.\\-]\", \"\")\n",
+					"    return cleaned.cast(T.DecimalType(18, 2))\n",
+					"\n",
+					""
+				],
+				"execution_count": 17
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"cases_map_raw = (\n",
+					"    spark.read.format(\"csv\")\n",
+					"    .option(\"header\", \"true\")\n",
+					"    .load(cases_map_path)\n",
+					")\n",
+					"\n",
+					"cases_map = (\n",
+					"    cases_map_raw\n",
+					"    .select(\n",
+					"        F.trim(F.col(\"Case ID\").cast(\"string\")).alias(\"legacyCaseId\"),\n",
+					"        F.trim(F.col(\"GUID\").cast(\"string\")).alias(\"caseId\")\n",
+					"    )\n",
+					"    .dropna(subset=[\"legacyCaseId\", \"caseId\"])\n",
+					"    .dropDuplicates([\"legacyCaseId\"])\n",
+					")\n",
+					"\n",
+					"print(\"Cases map rows:\", cases_map.count())\n",
+					"display(cases_map.limit(5))\n",
+					""
+				],
+				"execution_count": 18
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"recharge_raw = (\n",
+					"    spark.read.format(\"csv\")\n",
+					"    .option(\"header\", \"true\")\n",
+					"    .option(\"multiLine\", \"true\")\n",
+					"    .option(\"escape\", \"\\\"\")\n",
+					"    .load(recharge_path)\n",
+					")\n",
+					"\n",
+					"print(\"Recharge columns:\", recharge_raw.columns)\n",
+					"display(recharge_raw.limit(10))\n",
+					"\n",
+					"recharge_rows = (\n",
+					"    recharge_raw\n",
+					"    .filter(F.col(\"ParentKeyID\").isNotNull())\n",
+					"    .withColumn(\"ParentKeyID_str\", F.trim(F.col(\"ParentKeyID\").cast(\"string\")))\n",
+					"    .filter(F.col(\"ParentKeyID_str\") != \"-1\")\n",
+					"    .withColumn(\"legacyCaseId\", F.col(\"ParentKeyID_str\"))\n",
+					")\n",
+					""
+				],
+				"execution_count": 20
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"mapped = (\n",
+					"    recharge_rows\n",
+					"    .withColumn(\"rechargedTo\", F.col(\"3\").cast(\"string\"))\n",
+					"    .withColumn(\n",
+					"        \"rechargeable\",\n",
+					"        F.when(F.length(F.trim(F.col(\"rechargedTo\"))) > 0, F.lit(True)).otherwise(F.lit(None).cast(\"boolean\"))\n",
+					"    )\n",
+					"    .withColumn(\"finalCost\", money_to_decimal(F.col(\"6\")))\n",
+					"    .select(\"legacyCaseId\", \"rechargeable\", \"finalCost\")\n",
+					")\n",
+					"\n",
+					"print(\"Recharge mapped rows:\", mapped.count())\n",
+					"display(mapped.limit(20))\n",
+					""
+				],
+				"execution_count": 21
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"case_costs_from_recharge = (\n",
+					"    mapped\n",
+					"    .join(cases_map, on=\"legacyCaseId\", how=\"left\")\n",
+					"    .filter(F.col(\"caseId\").isNotNull())\n",
+					"    .withColumn(\"id\", uuid5_from_caseid(F.col(\"caseId\")))\n",
+					"    .select(\"id\", \"rechargeable\", \"finalCost\", \"caseId\")\n",
+					"    .dropDuplicates([\"caseId\"])\n",
+					")\n",
+					"\n",
+					"print(\"Recharge->CaseCosts rows with caseId:\", case_costs_from_recharge.count())\n",
+					"display(case_costs_from_recharge.limit(50))\n",
+					"\n",
+					""
+				],
+				"execution_count": 22
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"(\n",
+					"    case_costs_from_recharge\n",
+					"    .coalesce(1)\n",
+					"    .write.mode(\"overwrite\")\n",
+					"    .option(\"header\", \"true\")\n",
+					"    .csv(out_path)\n",
+					")\n",
+					"\n",
+					"print(\"Wrote recharge CaseCosts to:\", out_path)\n",
+					""
+				],
+				"execution_count": 23
+			}
+		]
+	}
+}
