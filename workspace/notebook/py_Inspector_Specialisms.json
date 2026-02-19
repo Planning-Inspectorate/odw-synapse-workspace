@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "a4a28a06-a81f-4227-af65-03bf2249ba5e"
+				"spark.autotune.trackingId": "a555bbaa-a04a-42c8-87c1-97f870134616"
 			}
 		},
 		"metadata": {
@@ -94,7 +94,7 @@
 					"from pyspark.sql.column import Column\n",
 					"from datetime import datetime, timedelta"
 				],
-				"execution_count": 1
+				"execution_count": 2
 			},
 			{
 				"cell_type": "markdown",
@@ -114,7 +114,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 2
+				"execution_count": 3
 			},
 			{
 				"cell_type": "markdown",
@@ -133,14 +133,14 @@
 				"cell_type": "code",
 				"source": [
 					"# Create a unique records data frame and a temporary view\n",
-					"df_src_std_specialism = spark.sql(f\"SELECT * FROM {standardised_table}\")\n",
+					"df_src_std_specialism = spark.sql(f\"SELECT * FROM odw_standardised_db.inspector_specialisms_monthly\")\n",
 					"\n",
 					"df_src_std_specialism = df_src_std_specialism.dropDuplicates()\n",
 					"\n",
 					"df_src_std_specialism.createOrReplaceTempView(\"vw_inspector_specialisms_monthly\")\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 5
 			},
 			{
 				"cell_type": "markdown",
@@ -253,7 +253,9 @@
 					"        'N'\n",
 					"    END AS IsActive \n",
 					"FROM vw_latest_inspector_specialisms t1\n",
-					"WHERE StaffNumber IS NOT NULL\n",
+					"-- Following filter conditions added based on the source data quality issues\n",
+					"WHERE StaffNumber IS NOT NULL \n",
+					"AND QualificationName IS NOT NULL\n",
 					"\"\"\")\n",
 					"\n",
 					"# Get count of inserted records\n",
@@ -267,7 +269,7 @@
 					"# Ensure logs are flushed\n",
 					"flushLogging()"
 				],
-				"execution_count": 3
+				"execution_count": 14
 			},
 			{
 				"cell_type": "markdown",
@@ -427,14 +429,15 @@
 					"            WHEN tarSpe.ValidFrom != souSpe.ValidFrom THEN 'New_Version'\n",
 					"            WHEN tarSpe.Firstname != souSpe.Firstname \n",
 					"                OR tarSpe.Lastname != souSpe.Lastname \n",
-					"                OR tarSpe.Proficien != souSpe.Proficien THEN 'Data_Changed'\n",
+					"                OR tarSpe.Proficien != souSpe.Proficien THEN 'Record_Changed'\n",
 					"            ELSE 'No_Change'\n",
 					"        END AS ChangeType\n",
 					"    FROM odw_harmonised_db.transform_inspector_Specialisms AS souSpe\n",
 					"    LEFT OUTER JOIN odw_harmonised_db.sap_hr_inspector_Specialisms AS tarSpe\n",
 					"        ON souSpe.StaffNumber = tarSpe.StaffNumber\n",
 					"        AND souSpe.QualificationName = tarSpe.QualificationName\n",
-					"        AND tarSpe.IsActive = 'Y'\n",
+					"        AND tarSpe.IsActive = 'Y' \n",
+					"    WHERE souSpe.IsActive = 'Y'\n",
 					"    \"\"\"\n",
 					"\n",
 					"spark.sql(create_view_specialisms_sql)\n",
@@ -445,24 +448,30 @@
 					"    SELECT \n",
 					"        SUM(CASE WHEN ChangeType = 'New_Record' THEN 1 ELSE 0 END) as New_Records,\n",
 					"        SUM(CASE WHEN ChangeType = 'New_Version' THEN 1 ELSE 0 END) as New_Versions,\n",
-					"        SUM(CASE WHEN ChangeType = 'Data_Changed' THEN 1 ELSE 0 END) as Data_Changed\n",
+					"        SUM(CASE WHEN ChangeType = 'Record_Changed' THEN 1 ELSE 0 END) as Record_Changed\n",
 					"    FROM vw_merged_inspector_specialisms\n",
 					"\"\"\").collect()[0]\n",
 					"\n",
-					"expected_updates = counts['New_Versions'] + counts['Data_Changed']\n",
-					"expected_inserts = counts['New_Records'] + counts['New_Versions'] + counts['Data_Changed']\n",
+					"expected_updates = counts['New_Versions'] + counts['Record_Changed']\n",
+					"expected_inserts = counts['New_Records'] + counts['New_Versions'] + counts['Record_Changed']\n",
 					"\n",
 					"print(f\"expected_updates : {expected_updates}\")\n",
 					"print(f\"expected_inserts : {expected_inserts}\")\n",
 					"\n",
-					"test_df = spark.sql(\"\"\" SELECT \n",
-					"        *\n",
+					"#test_df = spark.sql(\"\"\" SELECT \n",
+					"#        ChangeType, count(1) as Cnt\n",
+					"#    FROM vw_merged_inspector_specialisms\n",
+					"#    WHERE ChangeType IN ('New_Record','New_Version', 'Record_Changed','No_Change')\n",
+					"#    group by ChangeType\n",
+					"#    \"\"\")\n",
+					"\n",
+					"test_df = spark.sql(\"\"\" SELECT *        \n",
 					"    FROM vw_merged_inspector_specialisms\n",
-					"    WHERE ChangeType IN ('New_Version', 'Data_Changed')\n",
-					"      AND Target_StaffNumber IS NOT NULL\"\"\")\n",
+					"    WHERE ChangeType IN ('New_Record','New_Version', 'Record_Changed')\n",
+					"    \"\"\")\n",
 					"display(test_df)"
 				],
-				"execution_count": 9
+				"execution_count": 22
 			},
 			{
 				"cell_type": "markdown",
@@ -493,27 +502,27 @@
 					"print(f\"Expected to close: {expected_updates}\")\n",
 					"\n",
 					"merge_update_sql = \"\"\"\n",
-					"MERGE INTO odw_harmonised_db.sap_hr_inspector_Specialisms AS tgt\n",
-					"USING (\n",
-					"    SELECT \n",
-					"        Target_StaffNumber,\n",
-					"        QualificationName,\n",
-					"        ChangeType\n",
-					"    FROM vw_merged_inspector_specialisms\n",
-					"    WHERE ChangeType IN ('New_Version', 'Data_Changed')\n",
-					"      AND Target_StaffNumber IS NOT NULL\n",
-					") AS src\n",
-					"ON tgt.StaffNumber = src.Target_StaffNumber\n",
-					"   AND tgt.QualificationName = src.QualificationName\n",
-					"   AND tgt.IsActive = 'Y'\n",
-					"WHEN MATCHED THEN\n",
-					"    UPDATE SET\n",
-					"        tgt.ValidTo = current_date(),\n",
-					"        tgt.Current = 0,\n",
-					"        tgt.IngestionDate = current_timestamp(),\n",
-					"        tgt.LastUpdated = current_timestamp(),\n",
-					"        tgt.IsActive = 'N'\n",
-					"\"\"\"\n",
+					"    MERGE INTO odw_harmonised_db.sap_hr_inspector_Specialisms AS tgt\n",
+					"    USING (\n",
+					"        SELECT \n",
+					"            Target_StaffNumber,\n",
+					"            QualificationName,\n",
+					"            ChangeType\n",
+					"        FROM vw_merged_inspector_specialisms\n",
+					"        WHERE ChangeType IN ('New_Version', 'Record_Changed')\n",
+					"        AND Target_StaffNumber IS NOT NULL\n",
+					"    ) AS src\n",
+					"    ON tgt.StaffNumber = src.Target_StaffNumber\n",
+					"    AND tgt.QualificationName = src.QualificationName\n",
+					"    AND tgt.IsActive = 'Y'\n",
+					"    WHEN MATCHED THEN\n",
+					"        UPDATE SET\n",
+					"            tgt.ValidTo = current_date(),\n",
+					"            tgt.Current = 0,\n",
+					"            tgt.IngestionDate = current_timestamp(),\n",
+					"            tgt.LastUpdated = current_timestamp(),\n",
+					"            tgt.IsActive = 'N'\n",
+					"    \"\"\"\n",
 					"\n",
 					"spark.sql(merge_update_sql)\n",
 					"\n",
