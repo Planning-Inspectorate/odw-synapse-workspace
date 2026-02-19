@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "3bb939d7-11db-425a-aea0-bf41e72a3df1"
+				"spark.autotune.trackingId": "028c201b-e056-4de2-b735-fca57f83e60f"
 			}
 		},
 		"metadata": {
@@ -138,8 +138,12 @@
 					"result = {\n",
 					"    \"status\": \"success\",\n",
 					"    \"record_count\": 0,\n",
-					"    \"error_message\": None\n",
-					"}"
+					"    \"error_message\": \"\"\n",
+					"}\n",
+					"\n",
+					"actual_inserts = 0\n",
+					"actual_updates = 0\n",
+					"error_message = \"\""
 				],
 				"execution_count": null
 			},
@@ -201,7 +205,7 @@
 					"\n",
 					"try:\n",
 					"\n",
-					"logInfo(\"Starting inspector specialisms data processing\")\n",
+					"    logInfo(\"Starting inspector specialisms data processing\")\n",
 					"\n",
 					"    create_view_latest_specialisms_sql = \"\"\"\n",
 					"        CREATE OR REPLACE TEMP VIEW vw_latest_inspector_specialisms AS\n",
@@ -306,7 +310,7 @@
 					"    end_exec_time = datetime.now()\n",
 					"\n",
 					"    # Ensure logs are flushed\n",
-					"    flushLogging()\n",
+					"    #flushLogging()\n",
 					"\n",
 					"except Exception as e:\n",
 					"    # Log the exception in detail\n",
@@ -1011,31 +1015,37 @@
 					}
 				},
 				"source": [
-					"\n",
 					"try:\n",
 					"\n",
 					"    total_record_count = actual_inserts + actual_updates    \n",
 					"\n",
 					"    # Update status\n",
 					"    if not error_message:        \n",
-					"        status = \"failed\"    \n",
-					"    else:        \n",
 					"        status = \"success\"    \n",
+					"    else:        \n",
+					"        status = \"failed\"    \n",
 					"\n",
 					"    # Update result\n",
 					"    result[\"status\"] = status\n",
 					"    result[\"error_message\"] = error_message\n",
 					"    result[\"record_count\"] = total_record_count\n",
-					"    \n",
-					"    # Output the result as JSON for ADF to capture\n",
-					"    mssparkutils.notebook.exit(json.dumps(result))\n",
+					"\n",
 					"    \n",
 					"except Exception as e:\n",
 					"    # Log the exception in detail\n",
 					"    logError(f\"Error inserting into odw_harmonised_db.sap_hr_inspector_Specialisms: {str(e)}\")\n",
 					"    error_message = f\"Error inserting into odw_harmonised_db.sap_hr_inspector_Specialisms: {str(e)[:800]}\"\n",
+					"    print(error_message)\n",
 					"    logException(e)\n",
-					"    flushLogging()    "
+					"    flushLogging()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Output the result as JSON for ADF to capture\n",
+					"mssparkutils.notebook.exit(json.dumps(result))"
 				],
 				"execution_count": null
 			}
