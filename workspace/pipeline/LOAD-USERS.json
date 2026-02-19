@@ -54,6 +54,57 @@
 						"type": "DatasetReference"
 					}
 				]
+			},
+			{
+				"name": "LOAD IN ENTRA ID",
+				"description": "Calls the Entra ID and retrieves a list of the users and their attributes",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.02:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "RestSource",
+						"httpRequestTimeout": "00:01:40",
+						"requestInterval": "00.00:00:00.010",
+						"requestMethod": "GET",
+						"paginationRules": {
+							"AbsoluteUrl": "$['@odata.nextLink']"
+						}
+					},
+					"sink": {
+						"type": "JsonSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "JsonWriteSettings",
+							"filePattern": "arrayOfObjects"
+						}
+					},
+					"enableStaging": false
+				},
+				"inputs": [
+					{
+						"referenceName": "ds_entra_id",
+						"type": "DatasetReference",
+						"parameters": {
+							"query": "users?$select=id,mail,userPrincipalName,displayName,surname,givenName,employeeId&$top=999"
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "Mpesc_users",
+						"type": "DatasetReference"
+					}
+				]
 			}
 		],
 		"folder": {
