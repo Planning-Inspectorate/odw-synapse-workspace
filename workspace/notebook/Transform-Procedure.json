@@ -1,0 +1,107 @@
+{
+	"name": "Transform-Procedure",
+	"properties": {
+		"folder": {
+			"name": "Horizon-Migration/Horizon-Transform"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "hbtPool",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "2c28984c-2354-4544-a027-5d1aecb24c5e"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/hbtPool",
+				"name": "hbtPool",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/hbtPool",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.5",
+				"nodeCount": 10,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import functions as F, types as T\n",
+					"import uuid\n",
+					"import re\n",
+					"\n",
+					"events_path = \"abfss://<container>@<storage>.dfs.core.windows.net/<path>/Horizon_Events.csv\"\n",
+					"cases_map_path = \"abfss://<container>@<storage>.dfs.core.windows.net/config/Cases/Cases.csv\"\n",
+					"\n",
+					"out_base = \"abfss://<container>@<storage>.dfs.core.windows.net/transform/Procedure\"\n",
+					"out_procedure_path = f\"{out_base}/Procedure.csv\"\n",
+					"out_address_path   = f\"{out_base}/ProcedureVenues_Address.csv\"\n",
+					"out_rejects_path   = f\"{out_base}/Rejects.csv\"\n",
+					"\n",
+					"# IMPORTANT: set this to the column in your Events extract that identifies the case\n",
+					"# (e.g. ParentKeyID, CaseNodeId, etc.)\n",
+					"LEGACY_CASE_COL = \"ParentKeyID\"   # <-- change this\n",
+					""
+				],
+				"execution_count": 26
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"events_raw = (\n",
+					"    spark.read.format(\"csv\")\n",
+					"    .option(\"header\", \"true\")\n",
+					"    .option(\"multiLine\", \"true\")\n",
+					"    .option(\"escape\", \"\\\"\")\n",
+					"    .load(events_path)\n",
+					")\n",
+					"\n",
+					"cases_map = (\n",
+					"    spark.read.format(\"csv\")\n",
+					"    .option(\"header\", \"true\")\n",
+					"    .load(cases_map_path)\n",
+					"    .select(\n",
+					"        F.col(\"legacyCaseId\").cast(\"string\").alias(\"legacyCaseId\"),\n",
+					"        F.col(\"caseId\").cast(\"string\").alias(\"caseId\")\n",
+					"    )\n",
+					")\n",
+					"\n",
+					"print(\"events_raw columns:\", events_raw.columns)\n",
+					"print(\"cases_map columns:\", cases_map.columns)\n",
+					"display(events_raw.limit(10))\n",
+					"display(cases_map.limit(10))\n",
+					""
+				],
+				"execution_count": 27
+			}
+		]
+	}
+}
