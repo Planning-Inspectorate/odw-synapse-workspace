@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "b948b283-2f3f-4304-988b-20824450ce36"
+				"spark.autotune.trackingId": "0187c5cc-7486-422b-90b2-3f68c88c5ec9"
 			}
 		},
 		"metadata": {
@@ -157,7 +157,7 @@
 					"\n",
 					"CASE_REF_FILE = f\"{EXTRACT}/Horizon_CaseReference.csv\"\n",
 					"\n",
-					"# your prefixes\n",
+					"# prefixes\n",
 					"PREFIXES = [\"COM/\", \"ENV/\", \"MCA/\", \"PUR/\", \"ROW/\"]\n",
 					"\n",
 					"case_ref = spark.read.option(\"header\", True).option(\"inferSchema\", True).csv(CASE_REF_FILE)\n",
@@ -199,7 +199,6 @@
 					"\n",
 					"ll_case = spark.read.option(\"header\", True).option(\"inferSchema\", True).csv(LLATTR_CASE_GLOB)\n",
 					"\n",
-					"# Ensure join keys are same type\n",
 					"cases_keys = filtered_cases.select(F.col(\"caseNodeId\").cast(\"string\").alias(\"caseNodeIdKey\")).dropDuplicates()\n",
 					"\n",
 					"attrs_filtered = (\n",
@@ -218,7 +217,6 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"# Common system-ish columns we usually don't want in the final wide dataset\n",
 					"drop_cols = [c for c in [\"AttrID\", \"AttrType\", \"DataType\",  \"RowNum\", \"Partition\", \"FileName\"] if c in attrs_filtered.columns]\n",
 					"\n",
 					"attrs_clean = attrs_filtered.drop(*drop_cols)\n",
@@ -235,8 +233,7 @@
 					"collapsed": false
 				},
 				"source": [
-					"# If attrs has multiple rows per ID, collapse to 1 row per ID\n",
-					"# (prevents case duplication)\n",
+					"\n",
 					"attrs_one_row = attrs_clean.dropDuplicates([\"ID\"])\n",
 					"\n",
 					"cases_joined = (\n",
@@ -246,7 +243,7 @@
 					"        F.col(\"c.caseNodeId\").cast(\"string\") == F.col(\"a.ID\").cast(\"string\"),\n",
 					"        \"left\"\n",
 					"    )\n",
-					"    .drop(\"ID\")  # since we already have caseNodeId\n",
+					"    .drop(\"ID\")  \n",
 					")\n",
 					"\n",
 					"display(cases_joined.limit(10))\n",
@@ -520,7 +517,7 @@
 				"cell_type": "code",
 				"source": [
 					"# Get SQL password securely from Key Vault\n",
-					"akv_name = \"pinskvsynwodwdevuks\"      # your Key Vault name\n",
+					"akv_name = \"pinskvsynwodwdevuks\"      #  Key Vault name\n",
 					"secret_name = \"mpesc-sql-password\"   # the secret storing the SQL password\n",
 					"\n",
 					"sql_password = mssparkutils.credentials.getSecret(akv_name, secret_name)\n",
