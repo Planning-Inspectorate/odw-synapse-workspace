@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "17212ae2-ef21-41c1-8a20-8486aa318b5f"
+				"spark.autotune.trackingId": "797c8a77-4dfe-41d3-b05a-f26f03e24b76"
 			}
 		},
 		"metadata": {
@@ -96,7 +96,7 @@
 					"from datetime import date,datetime\r\n",
 					"import builtins"
 				],
-				"execution_count": 1
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -116,7 +116,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 2
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -167,7 +167,7 @@
 					"resolver_table = \"odw_harmonised_db.GroupResolver\"\r\n",
 					"other_hrm_table = \"odw_harmonised_db.appeal_has\" "
 				],
-				"execution_count": 3
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -397,7 +397,7 @@
 					"        end_exec_time = datetime.now()\r\n",
 					"        print(error_message)"
 				],
-				"execution_count": 4
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -438,7 +438,7 @@
 					"        end_exec_time = datetime.now()\r\n",
 					"        print(error_message)"
 				],
-				"execution_count": 5
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -518,7 +518,7 @@
 					"        print(error_message)\r\n",
 					""
 				],
-				"execution_count": 6
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -567,7 +567,7 @@
 					"        print(error_message)\r\n",
 					""
 				],
-				"execution_count": 7
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -608,7 +608,7 @@
 					"        print(error_message)\r\n",
 					""
 				],
-				"execution_count": 8
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -646,7 +646,7 @@
 					"        print(error_message)\r\n",
 					""
 				],
-				"execution_count": 9
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -750,7 +750,7 @@
 					"        print(error_message)\r\n",
 					""
 				],
-				"execution_count": 10
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -824,56 +824,53 @@
 					"        print(error_message)\r\n",
 					""
 				],
-				"execution_count": 11
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"if not error_message:\r\n",
 					"    try:\r\n",
-					"        # Collect all S78 timestamps per caseReference from harmonised table\r\n",
-					"        s78_ts = (\r\n",
-					"            spark.table(\"odw_harmonised_db.appeal_s78\")\r\n",
+					"        # Collect all HAS timestamps per caseReference from harmonised table\r\n",
+					"        has_ts = (\r\n",
+					"            spark.table(\"odw_harmonised_db.appeal_has\")\r\n",
 					"                .select(\r\n",
 					"                    F.col(\"caseReference\").alias(\"caseReference\"),\r\n",
-					"                    F.col(\"IngestionDate\").cast(\"timestamp\").alias(\"s78Ts\")\r\n",
+					"                    F.col(\"IngestionDate\").cast(\"timestamp\").alias(\"hasTs\")\r\n",
 					"                )\r\n",
-					"                .where(F.col(\"caseReference\").isNotNull() & F.col(\"s78Ts\").isNotNull())\r\n",
+					"                .where(F.col(\"caseReference\").isNotNull() & F.col(\"hasTs\").isNotNull())\r\n",
 					"                .distinct()\r\n",
 					"                .groupBy(\"caseReference\")\r\n",
-					"                .agg(F.sort_array(F.collect_set(\"s78Ts\")).alias(\"s78TsArr\"))\r\n",
+					"                .agg(F.sort_array(F.collect_set(\"hasTs\")).alias(\"hasTsArr\"))\r\n",
 					"        )\r\n",
 					"\r\n",
-					"        # For each HAS row, find the NEXT S78 timestamp strictly after this HAS IngestionDate\r\n",
+					"        # For each S78 row, find the NEXT HAS timestamp strictly after this S78 IngestionDate\r\n",
 					"        scd2_final = (\r\n",
 					"            scd2_final\r\n",
 					"                .withColumn(\"IngestionDate\", F.col(\"IngestionDate\").cast(\"timestamp\"))\r\n",
-					"                .join(s78_ts, [\"caseReference\"], \"left\")\r\n",
+					"                .join(has_ts, [\"caseReference\"], \"left\")\r\n",
 					"                .withColumn(\r\n",
-					"                    \"nextS78Ts\",\r\n",
-					"                    F.expr(\"element_at(filter(s78TsArr, x -> x > IngestionDate), 1)\")\r\n",
+					"                    \"nextHasTs\",\r\n",
+					"                    F.expr(\"element_at(filter(hasTsArr, x -> x > IngestionDate), 1)\")\r\n",
 					"                )\r\n",
-					"                # Close HAS at nextS78Ts if it exists and is earlier than current ValidTo (or ValidTo is null)\r\n",
+					"                # Close S78 at nextHasTs if it exists and is earlier than current ValidTo (or ValidTo is null)\r\n",
 					"                .withColumn(\r\n",
 					"                    \"ValidTo\",\r\n",
 					"                    F.when(\r\n",
-					"                        F.col(\"nextS78Ts\").isNotNull()\r\n",
+					"                        F.col(\"nextHasTs\").isNotNull()\r\n",
 					"                        & (\r\n",
 					"                            F.col(\"ValidTo\").isNull()\r\n",
-					"                            | (F.col(\"nextS78Ts\") < F.col(\"ValidTo\").cast(\"timestamp\"))\r\n",
+					"                            | (F.col(\"nextHasTs\") < F.col(\"ValidTo\").cast(\"timestamp\"))\r\n",
 					"                        ),\r\n",
-					"                        F.col(\"nextS78Ts\")\r\n",
+					"                        F.col(\"nextHasTs\")\r\n",
 					"                    ).otherwise(F.col(\"ValidTo\"))\r\n",
 					"                )\r\n",
-					"                # Only deactivate rows that are currently marked active and have a next S78\r\n",
+					"                # If we have a next HAS, then this S78 row is no longer active\r\n",
 					"                .withColumn(\r\n",
 					"                    \"IsActive\",\r\n",
-					"                    F.when(\r\n",
-					"                        (F.col(\"IsActive\") == F.lit(\"Y\")) & F.col(\"nextS78Ts\").isNotNull(),\r\n",
-					"                        F.lit(\"N\")\r\n",
-					"                    ).otherwise(F.col(\"IsActive\"))\r\n",
+					"                    F.when(F.col(\"nextHasTs\").isNotNull(), F.lit(\"N\")).otherwise(F.col(\"IsActive\"))\r\n",
 					"                )\r\n",
-					"                .drop(\"s78TsArr\", \"nextS78Ts\")\r\n",
+					"                .drop(\"hasTsArr\", \"nextHasTs\")\r\n",
 					"        )\r\n",
 					"        # ACTIVE rows only, use IngestionDate\r\n",
 					"        active_df = (\r\n",
@@ -947,7 +944,7 @@
 					"        print(error_message)\r\n",
 					""
 				],
-				"execution_count": 12
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -972,7 +969,7 @@
 					"        print(error_message)\r\n",
 					""
 				],
-				"execution_count": 13
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -1058,7 +1055,7 @@
 					"# )\r\n",
 					"# SELECT COUNT(*) AS collisions FROM z;"
 				],
-				"execution_count": 14
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -1120,7 +1117,7 @@
 					"# ORDER BY f.caseReference, f.IngestionDate;\r\n",
 					""
 				],
-				"execution_count": 15
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -1164,7 +1161,7 @@
 					"    status_code\r\n",
 					")"
 				],
-				"execution_count": 16
+				"execution_count": null
 			}
 		]
 	}
