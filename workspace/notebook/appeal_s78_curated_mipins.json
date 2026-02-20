@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d46743ac-06c0-4304-a160-4c6ad2e53913"
+				"spark.autotune.trackingId": "48868dcd-0fc1-4860-bd4a-13b69fc6630a"
 			}
 		},
 		"metadata": {
@@ -273,6 +273,32 @@
 			},
 			{
 				"cell_type": "code",
+				"source": [
+					"from pyspark.sql.types import DateType, TimestampType\n",
+					"\n",
+					"def apply_ancient_datetime_filter(df, cutoff=\"1900-01-01\"):\n",
+					"    datetime_cols = [\n",
+					"        f.name for f in df.schema.fields\n",
+					"        if isinstance(f.dataType, (TimestampType, DateType))\n",
+					"    ]\n",
+					"\n",
+					"    if not datetime_cols:\n",
+					"        return df\n",
+					"\n",
+					"    filter_expr = \" AND \".join([\n",
+					"        f\"({c} IS NULL OR {c} >= '{cutoff}')\"\n",
+					"        for c in datetime_cols\n",
+					"    ])\n",
+					"\n",
+					"    return df.filter(filter_expr)\n",
+					"\n",
+					"# Apply before timezone conversion\n",
+					"filtered_df = apply_ancient_datetime_filter(view_df)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
 				"metadata": {
 					"collapsed": false
 				},
@@ -313,7 +339,7 @@
 					"]\n",
 					"\n",
 					"# Apply the conversion in a loop\n",
-					"final_view_df = view_df\n",
+					"final_view_df = filtered_df\n",
 					"for column_name in timestamp_columns:\n",
 					"    final_view_df = final_view_df.withColumn(column_name, F.to_timestamp(F.from_utc_timestamp(F.col(column_name), 'Europe/London'), \"yyyy-MM-dd'T'HH:mm:ss.SSS\"))\n",
 					""
