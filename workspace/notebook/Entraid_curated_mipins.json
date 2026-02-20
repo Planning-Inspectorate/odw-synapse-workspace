@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "cda1b2b7-2363-4686-aca7-be215d5788bf"
+				"spark.autotune.trackingId": "2feea64a-8627-4008-85a9-0b1e30c9b968"
 			}
 		},
 		"metadata": {
@@ -45,12 +45,20 @@
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import SparkSession\r\n",
+					"spark = SparkSession.builder.getOrCreate()"
+				],
+				"execution_count": null
+			},
 			{
 				"cell_type": "code",
 				"metadata": {
@@ -86,6 +94,39 @@
 			},
 			{
 				"cell_type": "code",
+				"source": [
+					"view_df = spark.sql(\"SELECT * FROM odw_curated_db.vw_Entraid_curated_mipins\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql.types import DateType, TimestampType\r\n",
+					"\r\n",
+					"def apply_ancient_datetime_filter(df, cutoff=\"1900-01-01\"):\r\n",
+					"    datetime_cols = [\r\n",
+					"        f.name for f in df.schema.fields\r\n",
+					"        if isinstance(f.dataType, (TimestampType, DateType))\r\n",
+					"    ]\r\n",
+					"\r\n",
+					"    if not datetime_cols:\r\n",
+					"        return df\r\n",
+					"\r\n",
+					"    filter_expr = \" AND \".join([\r\n",
+					"        f\"({c} IS NULL OR {c} >= '{cutoff}')\"\r\n",
+					"        for c in datetime_cols\r\n",
+					"    ])\r\n",
+					"\r\n",
+					"    return df.filter(filter_expr)\r\n",
+					"\r\n",
+					"# Apply before timezone conversion\r\n",
+					"filtered_df = apply_ancient_datetime_filter(view_df)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
 						"source_hidden": false,
@@ -116,10 +157,7 @@
 					}
 				},
 				"source": [
-					"from pyspark.sql import SparkSession\r\n",
-					"spark = SparkSession.builder.getOrCreate()\r\n",
-					"view_df = spark.sql(\"SELECT * FROM odw_curated_db.vw_Entraid_curated_mipins\")\r\n",
-					"view_df.write.mode(\"overwrite\").saveAsTable(\"odw_curated_db.Entraid_curated_mipins\")"
+					"filtered_df.write.mode(\"overwrite\").saveAsTable(\"odw_curated_db.Entraid_curated_mipins\")"
 				],
 				"execution_count": null
 			},
