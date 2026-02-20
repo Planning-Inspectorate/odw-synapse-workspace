@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "9294834d-531d-414f-b327-e3eed1c39078"
+				"spark.autotune.trackingId": "78066ee1-70f6-4fdc-a130-8fb5562d76ac"
 			}
 		},
 		"metadata": {
@@ -298,6 +298,31 @@
 				"execution_count": null
 			},
 			{
+				"cell_type": "code",
+				"source": [
+					"def ensure_column(db: str, table: str, column: str, dtype: str) -> None:\n",
+					"    full_table = f\"{db}.{table}\"\n",
+					"    if not spark.catalog.tableExists(full_table):\n",
+					"        print(f\"Table {full_table} does not exist yet; skipping ALTER ADD COLUMNS.\")\n",
+					"        return\n",
+					"    current_cols = [f.name.lower() for f in spark.table(full_table).schema.fields]\n",
+					"    if column.lower() in current_cols:\n",
+					"        print(f\"Column '{column}' already exists in {full_table}; skipping ALTER.\")\n",
+					"        return\n",
+					"    try:\n",
+					"        spark.sql(f\"ALTER TABLE {full_table} ADD COLUMNS ({column} {dtype})\")\n",
+					"        print(f\"Added column '{column} {dtype}' to {full_table}.\")\n",
+					"    except AnalysisException as e:\n",
+					"        print(f\"ALTER TABLE failed for {full_table}: {e}\")\n",
+					"    except Exception as e:\n",
+					"        print(f\"Unexpected error during ALTER TABLE {full_table}: {e}\")\n",
+					"\n",
+					"# Ensure estimatedPrelimMeetingDate is availiable in nsip_meeting, As of now kept as string to match other similar fileds like meetingDate Ideally should be timestamp\n",
+					"ensure_column(\"odw_curated_db\", \"nsip_meeting\", \"estimatedPrelimMeetingDate\", \"string\")"
+				],
+				"execution_count": null
+			},
+			{
 				"cell_type": "markdown",
 				"metadata": {
 					"nteract": {
@@ -330,6 +355,7 @@
 					"                meetingId,\n",
 					"                meetingDate,\n",
 					"                meetingType,\n",
+					"                estimatedPrelimMeetingDate,\n",
 					"                IsActive,\n",
 					"                ROW_NUMBER() OVER (\n",
 					"                    PARTITION BY meetingId\n",
@@ -347,6 +373,7 @@
 					"            meetingId,\n",
 					"            meetingDate,\n",
 					"            meetingType,\n",
+					"            estimatedPrelimMeetingDate,\n",
 					"            IsActive\n",
 					"        FROM deduped\n",
 					"        WHERE rn = 1\n",
