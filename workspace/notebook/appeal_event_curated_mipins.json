@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "c5e54b65-4c55-4d5a-b33c-9c579679861c"
+				"spark.autotune.trackingId": "8f69a9cc-b5cd-4b28-9d2a-bee4dd1b2cec"
 			}
 		},
 		"metadata": {
@@ -102,6 +102,39 @@
 			},
 			{
 				"cell_type": "code",
+				"source": [
+					"view_df = spark.sql(\"SELECT * FROM odw_curated_db.vw_Appeal_event_curated_mipins\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql.types import DateType, TimestampType\n",
+					"\n",
+					"def apply_ancient_datetime_filter(df, cutoff=\"1900-01-01\"):\n",
+					"    datetime_cols = [\n",
+					"        f.name for f in df.schema.fields\n",
+					"        if isinstance(f.dataType, (TimestampType, DateType))\n",
+					"    ]\n",
+					"\n",
+					"    if not datetime_cols:\n",
+					"        return df\n",
+					"\n",
+					"    filter_expr = \" AND \".join([\n",
+					"        f\"({c} IS NULL OR {c} >= '{cutoff}')\"\n",
+					"        for c in datetime_cols\n",
+					"    ])\n",
+					"\n",
+					"    return df.filter(filter_expr)\n",
+					"\n",
+					"# Apply before timezone conversion\n",
+					"filtered_df = apply_ancient_datetime_filter(view_df)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
 						"source_hidden": false,
@@ -120,48 +153,8 @@
 			},
 			{
 				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"collapsed": false
-				},
 				"source": [
-					"df = spark.sql(\"\"\"\n",
-					"                SELECT\n",
-					"                    eventId\n",
-					"                    ,caseReference\n",
-					"                    ,eventType\n",
-					"                    ,eventName\n",
-					"                    ,eventStatus\n",
-					"                    ,isUrgent\n",
-					"                    ,eventPublished\n",
-					"                    ,eventStartDateTime\n",
-					"                    ,eventEndDateTime\n",
-					"                    ,NotificationOfSiteVisit\n",
-					"                    ,addressLine1\n",
-					"                    ,addressLine2\n",
-					"                    ,addressTown\n",
-					"                    ,addressCounty\n",
-					"                    ,addressPostcode\n",
-					"                    ,Migrated\n",
-					"                    ,ODTSourceSystem\n",
-					"                    ,SourceSystemID\n",
-					"                    ,IngestionDate\n",
-					"                    ,ValidTo\n",
-					"                    ,RowID\n",
-					"                    ,IsActive\n",
-					"                FROM\n",
-					"                    vw_Appeal_event_curated_mipins\n",
-					"            \"\"\")\n",
-					"\n",
-					"df.write.format(\"delta\").mode(\"Overwrite\").saveAsTable(\"odw_curated_db.appeal_event_curated_mipins\")"
+					"filtered_df.write.mode(\"overwrite\").saveAsTable(\"odw_curated_db.appeals_has_curated_mipins\")"
 				],
 				"execution_count": null
 			},
