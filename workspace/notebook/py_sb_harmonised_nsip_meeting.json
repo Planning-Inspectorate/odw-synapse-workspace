@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "61c82deb-fa73-4de7-a4b6-d6c3484cbda1"
+				"spark.autotune.trackingId": "db312239-39c0-4553-bcc7-3a9fcf5a47f0"
 			}
 		},
 		"metadata": {
@@ -146,6 +146,39 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"def ensure_column(db: str, table: str, column: str, dtype: str) -> None:\n",
+					"    full_table = f\"{db}.{table}\"\n",
+					"    if not spark.catalog.tableExists(full_table):\n",
+					"        print(f\"Table {full_table} does not exist yet; skipping ALTER ADD COLUMNS.\")\n",
+					"        return\n",
+					"    current_cols = [f.name.lower() for f in spark.table(full_table).schema.fields]\n",
+					"    if column.lower() in current_cols:\n",
+					"        print(f\"Column '{column}' already exists in {full_table}; skipping ALTER.\")\n",
+					"        return\n",
+					"    try:\n",
+					"        spark.sql(f\"ALTER TABLE {full_table} ADD COLUMNS ({column} {dtype})\")\n",
+					"        print(f\"Added column '{column} {dtype}' to {full_table}.\")\n",
+					"    except AnalysisException as e:\n",
+					"        print(f\"ALTER TABLE failed for {full_table}: {e}\")\n",
+					"    except Exception as e:\n",
+					"        print(f\"Unexpected error during ALTER TABLE {full_table}: {e}\")\n",
+					"\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    # Ensure estimatedPrelimMeetingDate is availiable in sb_nsip_meeting, As of now kept as string to match other similar fileds like meetingDate Ideally should be timestamp\n",
+					"    ensure_column(\"odw_harmonised_db\", \"sb_nsip_meeting\", \"estimatedPrelimMeetingDate\", \"string\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"if not error_message:\n",
 					"\n",
 					"    # Full load from source\n",
@@ -227,6 +260,7 @@
 					"    col(\"meeting.planningInspectorateRole\").alias(\"planningInspectorateRole\"),\n",
 					"    col(\"meeting.meetingDate\").alias(\"meetingDate\"),\n",
 					"    col(\"meeting.meetingType\").alias(\"meetingType\"),\n",
+					"    col(\"meeting.estimatedPrelimMeetingDate\").alias(\"estimatedPrelimMeetingDate\"),\n",
 					"    \"Migrated\",\n",
 					"    \"ODTSourceSystem\",\n",
 					"    \"SourceSystemID\",\n",
@@ -240,7 +274,7 @@
 					"# Use ALL columns that uniquely identify a record\n",
 					"business_key_cols = [\"NSIPProjectInfoInternalID\", \"caseId\", \"meetingId\"]\n",
 					"change_tracking_cols = [ \"meetingAgenda\",\n",
-					"    \"planningInspectorateRole\", \"meetingType\", \"meetingDate\"]\n",
+					"    \"planningInspectorateRole\", \"meetingType\", \"meetingDate\",\"estimatedPrelimMeetingDate\"]\n",
 					"\n",
 					"source_df = service_bus_exploded \\\n",
 					"    .withColumn(\"business_key\", sha2(concat_ws(\"~\", *business_key_cols), 256)) \\\n",
